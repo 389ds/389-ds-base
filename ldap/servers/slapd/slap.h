@@ -2399,6 +2399,42 @@ typedef struct _slapdFrontendConfig {
 #define CONFIG_SCHEMAREPLACE_STR_ON					"on"
 #define CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY	"replication-only"
 
+/* Those define are used when applying the policies for the replication of the schema */
+/* Used to determine if we are looking at the policies from the supplier (push) or consumer (receive) side */
+#define REPL_SCHEMA_AS_CONSUMER 0
+#define REPL_SCHEMA_AS_SUPPLIER 1
+/* Used to determine if we are looking at objectclass/attribute policies */
+#define REPL_SCHEMA_OBJECTCLASS 0
+#define REPL_SCHEMA_ATTRIBUTE   1
+/* Used to determine the schema replication: never or based on values */
+#define REPL_SCHEMA_UPDATE_NEVER         1
+#define REPL_SCHEMA_UPDATE_ON_VALUE      2
+/* Used to determine the action when schema replition is based on values */
+#define REPL_SCHEMA_UPDATE_ACCEPT_VALUE  3
+#define REPL_SCHEMA_UPDATE_REJECT_VALUE  4
+#define REPL_SCHEMA_UPDATE_UNKNOWN_VALUE 5
+
+/* entries containing the policies */
+#define ENTRY_REPL_SCHEMA_TOP "cn=replSchema, cn=config"
+#define ENTRY_REPL_SCHEMA_SUPPLIER "cn=supplierUpdatePolicy," ENTRY_REPL_SCHEMA_TOP
+#define ENTRY_REPL_SCHEMA_CONSUMER "cn=consumerUpdatePolicy," ENTRY_REPL_SCHEMA_TOP
+/* 
+ * attribute name containing the policy action for
+ * a given objectclass/attribute
+ */
+#define ATTR_SCHEMA_UPDATE_OBJECTCLASS_ACCEPT "schemaUpdateObjectclassAccept"
+#define ATTR_SCHEMA_UPDATE_OBJECTCLASS_REJECT "schemaUpdateObjectclassReject"
+#define ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT   "schemaUpdateAttributeAccept"
+#define ATTR_SCHEMA_UPDATE_ATTRIBUTE_REJECT   "schemaUpdateAttributeReject"
+#define SUPPLIER_POLICY_1 ATTR_SCHEMA_UPDATE_OBJECTCLASS_ACCEPT ": printer-uri-oid\n"
+#if defined(USE_OLD_UNHASHED)
+#define SUPPLIER_POLICY_2 ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT ": PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID\n"
+#else 
+#define SUPPLIER_POLICY_2 ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT ": 2.16.840.1.113730.3.1.2110\n" 
+#endif 
+#define DEFAULT_SUPPLIER_POLICY SUPPLIER_POLICY_1 SUPPLIER_POLICY_2
+#define DEFAULT_CONSUMER_POLICY DEFAULT_SUPPLIER_POLICY
+
 #define CONNECTION_BUFFER_OFF 0
 #define CONNECTION_BUFFER_ON 1
 #define CONNECTION_BUFFER_ADAPT 2

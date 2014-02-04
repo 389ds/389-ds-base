@@ -755,6 +755,9 @@ struct slapi_componentid * plugin_get_default_component_id();
 #define SLAPI_COMPONENT_NAME_NSPR	"Netscape Portable Runtime"
 #define SLAPI_COMPONENT_NAME_LDAPSDK	"LDAP sdk"
 
+/* loads the policies related to the replication of the schema */
+int slapi_schema_load_repl_policies();
+void slapi_schema_get_repl_entries(char **repl_schema_top, char ** repl_schema_supplier, char **repl_schema_consumer, char **default_supplier_policy, char **default_consumer_policy);
 /* return the list of attr defined in the schema matching the attr flags */
 char ** slapi_schema_list_attribute_names(unsigned long flag);
 /* return the list of attributes belonging to the objectclass */

@@ -86,6 +86,55 @@ static char *schema_user_defined_origin[] = {
 	NULL
 };
 
+/* The policies for the replication of the schema are 
+ *  - base policy
+ *  - extended policies
+ * Those policies are enforced when the server is acting as a supplier and
+ * when it is acting as a consumer
+ * 
+ * Base policy:
+ *      Supplier: before pushing the schema, the supplier checks that each objectclass/attribute of
+ *              the consumer schema is a subset of the objectclass/attribute of the supplier schema
+ *      Consumer: before accepting a schema (from replication), the consumer checks that 
+ *              each objectclass/attribute of the consumer schema is a subset of the objectclass/attribute 
+ *              of the supplier schema
+ * Extended policies:
+ *      They are stored in repl_schema_policy_t and specifies an "action" to be taken
+ *      for specific objectclass/attribute.
+ *      Supplier: extended policies are stored in entry "cn=supplierUpdatePolicy,cn=replSchema,cn=config"
+ *              and uploaded in static variable: supplier_policy
+ *              Before pushing the schema, for each objectclass/attribute defined in supplier_policy:
+ *                      if its "action" is REPL_SCHEMA_UPDATE_ACCEPT_VALUE, it is not checked that the 
+ *                      attribute/objectclass of the consumer is a subset of the attribute/objectclass 
+ *                      of the supplier schema.
+ * 
+ *                      if its "action" is REPL_SCHEMA_UPDATE_REJECT_VALUE and the consumer schema contains
+ *                      attribute/objectclass, then schema is not pushed
+ * 
+ *      Consumer: extended policies are stored in entry "cn=consumerUpdatePolicy,cn=replSchema,cn=config"
+ *              and uploaded in static variable: consumer_policy
+ *              before accepting a schema (from replication), for each objectclass/attribute defined in
+ *              consumer_policy:
+ *                      if its "action" is REPL_SCHEMA_UPDATE_ACCEPT_VALUE, it is not checked that the 
+ *                      attribute/objectclass of the consumer is a subset of the attribute/objectclass 
+ *                      of the supplier schema.
+ * 
+ *                      if its "action" is REPL_SCHEMA_UPDATE_REJECT_VALUE and the consumer schema contains
+ *                      attribute/objectclass, then schema is not accepted
+ * 
+ */
+
+typedef struct schema_item {
+        int action; /* REPL_SCHEMA_UPDATE_ACCEPT_VALUE or REPL_SCHEMA_UPDATE_REJECT_VALUE */
+        char *name_or_oid;
+        struct schema_item *next;
+} schema_item_t;
+
+typedef struct repl_schema_policy {
+        schema_item_t *objectclasses;
+        schema_item_t *attributes;
+} repl_schema_policy_t;
+
 /*
  * pschemadse is based on the general implementation in dse
  */
@@ -145,7 +194,7 @@ static void schema_create_errormsg( char *errorbuf, size_t errorbufsize,
 #else
         ;
 #endif
-static int schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message);
+static int schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message, int replica_role);
 static int schema_at_superset_check_syntax_oids(char *oid1, char *oid2);
 static int schema_at_superset_check_mr(struct asyntaxinfo *a1, struct asyntaxinfo *a2, char *info);
 static int parse_at_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
@@ -199,6 +248,13 @@ static void sizedbuffer_allocate(struct sizedbuffer *p, size_t sizeneeded);
 static const char *schema_errprefix_oc = "object class %s: ";
 static const char *schema_errprefix_at = "attribute type %s: ";
 static const char *schema_errprefix_generic = "%s: ";
+
+/* Defined the policies for the replication of the schema */
+static repl_schema_policy_t supplier_policy = {0};
+static repl_schema_policy_t consumer_policy = {0};
+static Slapi_RWLock *schema_policy_lock = NULL;
+static int  schema_check_policy(int replica_role, int schema_item, char *name, char *oid);
+static void schema_load_repl_policy(const char *dn, repl_schema_policy_t *replica);
 
 
 /*
@@ -263,6 +319,191 @@ schema_destroy_dse_lock()
 	    schema_dse_lock = NULL;
 	}
 }
+
+void
+slapi_schema_get_repl_entries(char **repl_schema_top, char ** repl_schema_supplier, char **repl_schema_consumer, char **default_supplier_policy, char **default_consumer_policy)
+{
+        *repl_schema_top      = ENTRY_REPL_SCHEMA_TOP;
+        *repl_schema_supplier = ENTRY_REPL_SCHEMA_SUPPLIER;
+        *repl_schema_consumer = ENTRY_REPL_SCHEMA_CONSUMER;
+        *default_supplier_policy = DEFAULT_SUPPLIER_POLICY;
+        *default_consumer_policy = DEFAULT_CONSUMER_POLICY;
+}
+
+/* It gets the attributes (see attrName)values in the entry, and add
+ * the policies in the provided list
+ * 
+ * Entry: Slapi_entry with DN being ENTRY_REPL_SCHEMA_SUPPLIER or ENTRY_REPL_SCHEMA_CONSUMER
+ * attrName: name defining the policy object (objectclass/attribute) and the action
+ *         ATTR_SCHEMA_UPDATE_OBJECTCLASS_ACCEPT
+ *         ATTR_SCHEMA_UPDATE_OBJECTCLASS_REJECT
+ *         ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT
+ *         ATTR_SCHEMA_UPDATE_ATTRIBUTE_REJECT
+ * *list: is the list of schema_item_t containing the policies (it can be list of objectclasses or attributes)
+ * 
+ */
+static
+void schema_policy_add_action(Slapi_Entry *entry, char *attrName, schema_item_t **list) 
+{
+        Slapi_Attr  *attr  = NULL;
+        schema_item_t *schema_item;
+        char *value;
+        int action;
+        
+        /* Retrieve the expected action from the attribute name */
+        if ((strcasecmp(attrName, ATTR_SCHEMA_UPDATE_OBJECTCLASS_ACCEPT) == 0) ||
+                (strcasecmp(attrName, ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT) == 0)) {
+                action = REPL_SCHEMA_UPDATE_ACCEPT_VALUE;
+        } else {
+                action = REPL_SCHEMA_UPDATE_REJECT_VALUE;
+        }
+        
+        /* Retrieve the given attribute from the entry */
+        slapi_entry_attr_find(entry, attrName, &attr);
+        if (attr != NULL) {
+                Slapi_Value *sval = NULL;
+                const struct berval *attrVal = NULL;
+                int k = slapi_attr_first_value(attr, &sval);
+                
+                /* For each value adds the policy in the list */
+                while (k != -1) {
+                        attrVal = slapi_value_get_berval(sval);
+                        
+                        schema_item = (schema_item_t *) slapi_ch_calloc(1, sizeof(schema_item_t));
+
+                        /* Get the schema name_or_oid */
+                        value = (char *) slapi_ch_malloc(attrVal->bv_len + 1);
+                        memcpy(value, attrVal->bv_val, attrVal->bv_len);
+                        value[attrVal->bv_len] = '\0';
+                        schema_item->name_or_oid = value;
+
+                        /* Set the action on that item */
+                        schema_item->action = action;
+
+                        /* Add it on the head of the list */
+                        schema_item->next = *list;
+                        *list = schema_item;
+                        
+                        /* Get the next name_or_oid */
+                        k = slapi_attr_next_value(attr, k, &sval);
+                }
+        }
+}
+
+/* Caller must hold schema_policy_lock in write */
+static void
+schema_load_repl_policy(const char *dn, repl_schema_policy_t *replica)
+{
+        Slapi_DN sdn;
+        Slapi_Entry *entry = NULL;
+        schema_item_t *schema_item, *next;
+        
+        if (replica == NULL) {
+                return;
+        }
+        
+        /* Start to free the previous policy */
+        /* first the objectclasses policies */
+        for (schema_item = replica->objectclasses; schema_item; ) {
+                slapi_ch_free((void **) &schema_item->name_or_oid);
+                next = schema_item->next;
+                slapi_ch_free((void **) &schema_item);
+                schema_item = next;
+        }
+        replica->objectclasses = NULL;
+        /* second the attributes policies */
+        for (schema_item = replica->attributes; schema_item; ) {
+                slapi_ch_free((void **) &schema_item->name_or_oid);
+                next = schema_item->next;
+                slapi_ch_free((void **) &schema_item);
+                schema_item = next;
+        }
+        replica->attributes = NULL;
+
+        /* Load the replication policy of the schema  */
+	slapi_sdn_init_dn_byref( &sdn, dn );
+        if (slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id()) == LDAP_SUCCESS) {
+                
+                /* fill the policies (accept/reject) regarding objectclass */
+                schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_OBJECTCLASS_ACCEPT, &replica->objectclasses);
+                schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_OBJECTCLASS_REJECT, &replica->objectclasses);
+                
+                /* fill the policies (accept/reject) regarding attribute */
+                schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT, &replica->attributes);
+                schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_ATTRIBUTE_REJECT, &replica->attributes);
+               
+                slapi_entry_free( entry );
+        }
+        slapi_sdn_done(&sdn);
+}
+
+/* It load the policies (if they are defined) regarding the replication of the schema
+ * depending if the instance behaves as a consumer or a supplier
+ * It returns 0 if success
+ */
+int
+slapi_schema_load_repl_policies() 
+{
+        if (schema_policy_lock == NULL) {
+                if (NULL == (schema_policy_lock = slapi_new_rwlock())) {
+                        slapi_log_error(SLAPI_LOG_FATAL, "slapi_schema_load_repl_policies",
+                                "slapi_new_rwlock() for schema replication policy lock failed\n");
+                        return -1;
+                }
+        }
+        slapi_rwlock_wrlock( schema_policy_lock );
+        
+        schema_load_repl_policy((const char *) ENTRY_REPL_SCHEMA_SUPPLIER, &supplier_policy);
+        schema_load_repl_policy((const char *) ENTRY_REPL_SCHEMA_CONSUMER, &consumer_policy);
+        
+        slapi_rwlock_unlock( schema_policy_lock );
+        
+        return 0;
+}
+
+/*  
+ * It checks if the name/oid of the provided schema item (objectclass/attribute)  
+ * is defined in the schema replication policy.
+ * If the replica role is a supplier, it takes the policy from supplier_policy else
+ * it takes it from the consumer_policy.
+ * Then depending on the schema_item, it takes the objectclasses or attributes policies
+ *   
+ * If it find the name/oid in the policies, it returns
+ *      REPL_SCHEMA_UPDATE_ACCEPT_VALUE: This schema item is accepted and can not prevent schema update
+ *      REPL_SCHEMA_UPDATE_REJECT_VALUE: This schema item is rejected and prevents the schema update
+ *      REPL_SCHEMA_UPDATE_UNKNOWN_VALUE: This schema item as no defined policy
+ * 
+ * Caller must hold schema_policy_lock in read
+ */  
+static int  
+schema_check_policy(int replica_role, int schema_item, char *name, char *oid)  
+{   
+        repl_schema_policy_t *repl_policy;
+        schema_item_t *policy;
+        
+        /* depending on the role, we take the supplier or the consumer policy */
+        if (replica_role == REPL_SCHEMA_AS_SUPPLIER) {
+                repl_policy = &supplier_policy;
+        } else {
+                repl_policy = &consumer_policy;
+        }
+        
+        /* Now take the correct schema item policy */
+        if (schema_item == REPL_SCHEMA_OBJECTCLASS) {
+                policy = repl_policy->objectclasses;
+        } else {
+                policy = repl_policy->attributes;
+        }
+        
+        /* Try to find the name/oid in the defined policies */
+        while (policy) {
+                if ((strcasecmp( name, policy->name_or_oid) == 0) || (strcasecmp( oid, policy->name_or_oid) == 0)) {
+                        return policy->action;                       
+                }
+                policy = policy->next;
+        }
+        return REPL_SCHEMA_UPDATE_UNKNOWN_VALUE;
+}  
 
 
 static void
@@ -5920,11 +6161,12 @@ slapi_schema_get_superior_name(const char *ocname_or_oid)
  * If oc_list1 or oc_list2 is global_oc, the caller must hold the oc_lock 
  */
 static int
-schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, char *message) {
+schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, char *message, int replica_role) {
         struct objclass *oc_1, *oc_2;
         char *description;
         int debug_logging = 0;
         int rc, i, j;
+        int repl_schema_policy;
         int found;
 
         if (message == NULL) {
@@ -5946,8 +6188,30 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
          *   - required attributes are also required in oc_2
          *   - allowed attributes are also allowed in oc_2
          */
+        slapi_rwlock_rdlock( schema_policy_lock );
         for (oc_1 = oc_list1; oc_1 != NULL; oc_1 = oc_1->oc_next) {
+                
 
+                /* Check if there is a specific policy for that objectclass */
+                repl_schema_policy = schema_check_policy(replica_role, REPL_SCHEMA_OBJECTCLASS, oc_1->oc_name, oc_1->oc_oid);
+                if (repl_schema_policy == REPL_SCHEMA_UPDATE_ACCEPT_VALUE) {
+                        /* We are skipping the superset checking for that objectclass */
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Do not check if this OBJECTCLASS is missing on local/remote schema [%s or %s]\n", oc_1->oc_name, oc_1->oc_oid);
+                        continue;
+                } else if (repl_schema_policy == REPL_SCHEMA_UPDATE_REJECT_VALUE) {
+                        /* This objectclass being present, we need to fail as if it was a superset 
+                         * keep evaluating to have all the objectclass checking
+                         */
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s objectclass prevents replication of the schema\n", oc_1->oc_name);
+                        rc = 1;
+                        if(debug_logging){
+                            /* we continue to check all the objectclasses so we log what is wrong */
+                            continue;
+                        } else {
+                            break;
+                        }
+                }
+                
                 /* Retrieve the remote objectclass in our local schema */
                 oc_2 = oc_find_nolock(oc_1->oc_oid, oc_list2, PR_TRUE);
                 if (oc_2 == NULL) {
@@ -6042,16 +6306,18 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                         }
                 }
         }
+        slapi_rwlock_unlock( schema_policy_lock );
         
         return rc;
 }
 
 static int
-schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message)
+schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message, int replica_role)
 {
     struct asyntaxinfo *at_1, *at_2;
     char *info = NULL;
     int debug_logging = 0;
+    int repl_schema_policy;
     int rc = 0;
 
     if(at_list1 == NULL || at_list2 == NULL){
@@ -6063,8 +6329,29 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
        	debug_logging = 1;
     }
 
-    for (at_1 = at_list1; at_1 != NULL; at_1 = at_1->asi_next){
+    slapi_rwlock_rdlock( schema_policy_lock );
+    for (at_1 = at_list1; at_1 != NULL; at_1 = at_1->asi_next) {
 
+        /* Check if there is a specific policy for that objectclass */
+        repl_schema_policy = schema_check_policy(replica_role, REPL_SCHEMA_ATTRIBUTE, at_1->asi_name, at_1->asi_oid);
+        if (repl_schema_policy == REPL_SCHEMA_UPDATE_ACCEPT_VALUE) {
+                /* We are skipping the superset checking for that attribute */
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "Do not check if this ATTRIBUTE is missing on local/remote schema [%s or %s]\n", at_1->asi_name, at_1->asi_oid);
+                continue;
+        } else if (repl_schema_policy == REPL_SCHEMA_UPDATE_REJECT_VALUE) {
+                /* This attribute being present, we need to fail as if it was a superset 
+                 * but keep evaluating to have all the attribute checking
+                 */
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "%s attribute prevents replication of the schema\n", at_1->asi_name);
+                rc = 1;
+                if (debug_logging) {
+                        /* we continue to check all the objectclasses so we log what is wrong */
+                        continue;
+                } else {
+                        break;
+                }
+        }
+        
         /* check if at_1 exists in at_list2 */
         if((at_2 = attr_syntax_find(at_1, at_list2))){
             /*
@@ -6123,6 +6410,7 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
             }
         }
     }
+    slapi_rwlock_unlock( schema_policy_lock );
 
 
     return rc;
@@ -6553,12 +6841,12 @@ schema_objectclasses_superset_check(struct berval **remote_schema, char *type)
                                 /* Check if the remote_oc_list from a consumer are or not 
                                  * a superset of the objectclasses of the local supplier schema
                                  */
-                                rc = schema_oc_superset_check(remote_oc_list, g_get_global_oc_nolock(), "local supplier" );
+                                rc = schema_oc_superset_check(remote_oc_list, g_get_global_oc_nolock(), "local supplier", REPL_SCHEMA_AS_SUPPLIER);
                         } else {
                                 /* Check if the objectclasses of the local consumer schema are or not
                                  * a superset of the remote_oc_list from a supplier
                                  */
-                                rc = schema_oc_superset_check(g_get_global_oc_nolock(), remote_oc_list, "remote supplier");
+                                rc = schema_oc_superset_check(g_get_global_oc_nolock(), remote_oc_list, "remote supplier", REPL_SCHEMA_AS_CONSUMER);
                         }
                         
                         oc_unlock();
@@ -6595,13 +6883,13 @@ schema_attributetypes_superset_check(struct berval **remote_schema, char *type)
                  * Check if the remote_at_list from a consumer are or not
                  * a superset of the attributetypes of the local supplier schema
                  */
-                rc = schema_at_superset_check(remote_at_list, attr_syntax_get_global_at(), "local supplier" );
+                rc = schema_at_superset_check(remote_at_list, attr_syntax_get_global_at(), "local supplier", REPL_SCHEMA_AS_SUPPLIER);
             } else {
                 /*
                  * Check if the attributeypes of the local consumer schema are or not
                  * a superset of the remote_at_list from a supplier
                  */
-                rc = schema_at_superset_check(attr_syntax_get_global_at(), remote_at_list, "remote supplier");
+                rc = schema_at_superset_check(attr_syntax_get_global_at(), remote_at_list, "remote supplier", REPL_SCHEMA_AS_CONSUMER);
             }
             attr_syntax_unlock_read();
         }

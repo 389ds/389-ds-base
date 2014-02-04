@@ -644,7 +644,100 @@ check_for_ldif_dump(Slapi_PBlock *pb)
 	}
 	return return_value;
 }
+/*
+ * If the entries do not exist, it create the entries of the schema replication policies
+ * returns 0 if success
+ */
+static int
+create_repl_schema_policy()
+{
+	/* DN part of this entry_string: no need to be optimized. */
+        char entry_string[1024];
+	Slapi_PBlock *pb;
+	Slapi_Entry *e ;
+	int return_value;
+        char *repl_schema_top, *repl_schema_supplier, *repl_schema_consumer;
+        char *default_supplier_policy = NULL;
+        char *default_consumer_policy = NULL;
+        int rc = 0;
 
+        slapi_schema_get_repl_entries(&repl_schema_top, &repl_schema_supplier, &repl_schema_consumer, &default_supplier_policy, &default_consumer_policy);
+        
+        /* Create cn=replSchema,cn=config */
+        PR_snprintf(entry_string, sizeof(entry_string), "dn: %s\nobjectclass: top\nobjectclass: nsSchemaPolicy\ncn: replSchema\n", repl_schema_top);
+        e = slapi_str2entry(entry_string, 0);
+        pb = slapi_pblock_new();
+        slapi_add_entry_internal_set_pb(pb, e, NULL, /* controls */
+                repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+        slapi_add_internal_pb(pb);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
+        if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+                        "create configuration entry %s: %s\n", repl_schema_top,
+                        ldap_err2string(return_value));
+                rc = -1;
+                slapi_entry_free (e); /* The entry was not consumed */
+                goto done;
+        }
+        slapi_pblock_destroy(pb);
+        
+        /* Create cn=supplierUpdatePolicy,cn=replSchema,cn=config */
+        PR_snprintf(entry_string, sizeof(entry_string), "dn: %s\nobjectclass: top\nobjectclass: nsSchemaPolicy\ncn: supplierUpdatePolicy\n%s", 
+                repl_schema_supplier, 
+                default_supplier_policy ? default_supplier_policy : "");
+        e = slapi_str2entry(entry_string, 0);
+        pb = slapi_pblock_new();
+	slapi_add_entry_internal_set_pb(pb, e, NULL, /* controls */
+		repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+	slapi_add_internal_pb(pb);
+	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
+        if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+                        "create configuration entry %s: %s\n", repl_schema_supplier,
+                        ldap_err2string(return_value));
+                rc = -1;
+                slapi_entry_free(e); /* The entry was not consumed */
+                goto done;
+        }
+        slapi_pblock_destroy(pb);
+        
+        /* Create cn=consumerUpdatePolicy,cn=replSchema,cn=config */
+        PR_snprintf(entry_string, sizeof(entry_string), "dn: %s\nobjectclass: top\nobjectclass: nsSchemaPolicy\ncn: consumerUpdatePolicy\n%s", 
+                repl_schema_consumer, 
+                default_consumer_policy ? default_consumer_policy : "");
+        e = slapi_str2entry(entry_string, 0);
+        pb = slapi_pblock_new();
+	slapi_add_entry_internal_set_pb(pb, e, NULL, /* controls */
+		repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+	slapi_add_internal_pb(pb);
+	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
+        if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+                        "create configuration entry %s: %s\n", repl_schema_consumer,
+                        ldap_err2string(return_value));
+                rc = -1;
+                slapi_entry_free(e); /* The entry was not consumed */
+                goto done;
+        }
+        slapi_pblock_destroy(pb);
+        pb = NULL;
+        
+	
+        
+        /* Load the policies of the schema replication */
+        if (slapi_schema_load_repl_policies()) {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+                        "load the schema replication policies\n");
+                rc = -1;
+                goto done;
+        }
+done:
+        if (pb) {
+                slapi_pblock_destroy(pb);
+                pb = NULL;
+        }
+	return rc;
+}
 
 static PRBool is_ldif_dump = PR_FALSE;
 
@@ -715,6 +808,9 @@ multimaster_start( Slapi_PBlock *pb )
 			if (rc != 0)
 				goto out;
 		}
+                rc = create_repl_schema_policy();
+                if (rc != 0)
+                        goto out;
 
         /* check if the replica's data was reloaded offline and we need
            to reinitialize replica's changelog. This should be done
