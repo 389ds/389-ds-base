@@ -323,6 +323,15 @@ class Backend(object):
             return ent.getValues(attr_suffix)
         else:
             raise InvalidArgumentError("entry or name are mandatory")
-
+        
+    def requireIndex(self, suffix):
+        '''
+        Should be moved in setProperties
+        '''
+        entries_backend = self.backend.list(suffix=suffix)
+        # assume 1 local backend
+        dn = entries_backend[0].dn
+        replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
+        self.modify_s(dn, replace)
 
 

@@ -93,8 +93,26 @@ DN_CHANGELOG    = "cn=changelog5,%s"    % DN_CONFIG
 DN_LDBM         = "cn=ldbm database,%s" % DN_PLUGIN
 DN_CHAIN        = "cn=chaining database,%s" % DN_PLUGIN
 
+DN_TASKS        = "cn=tasks,%s"         % DN_CONFIG
+DN_INDEX_TASK   = "cn=index,%s"         % DN_TASKS
+DN_MBO_TASK     = "cn=memberOf task,%s" % DN_TASKS
+DN_EXPORT_TASK  = "cn=export,%s"        % DN_TASKS
+DN_IMPORT_TASK  = "cn=import,%s"        % DN_TASKS
+
 RDN_REPLICA     = "cn=replica"
 
+RETROCL_SUFFIX = "cn=changelog"
+
+
+##################################
+###
+### Plugins
+###
+##################################
+
+PLUGIN_RETRO_CHANGELOG = 'Retro Changelog Plugin'
+PLUGIN_MEMBER_OF       = 'MemberOf Plugin'
+PLUGIN_REFER_INTEGRITY = 'referential integrity postoperation'
 
 
 #

@@ -126,22 +126,3 @@ class Config(object):
         return self.conn.getEntry(DN_CONFIG, attrlist=fields)
 
 
-class Index(object):
-    
-    def __init__(self, conn):
-        """@param conn - a DirSrv instance"""
-        self.conn = conn
-        self.log = conn.log
-    
-    def delete_all(self, benamebase):
-        dn = "cn=index, cn=" + benamebase + "," + DN_LDBM
-        
-        # delete each defined index
-        ents = self.conn.search_s(dn, ldap.SCOPE_ONELEVEL)
-        for ent in ents:
-            self.log.debug("Delete index entry %s" % (ent.dn))
-            self.conn.delete_s(ent.dn)
-            
-        # Then delete the top index entry
-        self.log.debug("Delete head index entry %s" % (dn))
-        self.conn.delete_s(dn)

@@ -310,8 +310,7 @@ class DirSrv(SimpleLDAPObject):
 
     def __add_brookers__(self):
         from lib389.brooker import (
-            Config,
-            Index)
+            Config)
         from lib389.mappingTree import MappingTree
         from lib389.backend     import Backend
         from lib389.suffix      import Suffix
@@ -319,6 +318,9 @@ class DirSrv(SimpleLDAPObject):
         from lib389.changelog   import Changelog
         from lib389.agreement   import Agreement
         from lib389.schema      import Schema
+        from lib389.plugins     import Plugins
+        from lib389.tasks       import Tasks
+        from lib389.index       import Index
         
         self.agreement   = Agreement(self)
         self.replica     = Replica(self)
@@ -329,6 +331,8 @@ class DirSrv(SimpleLDAPObject):
         self.mappingtree = MappingTree(self)
         self.suffix      = Suffix(self)
         self.schema      = Schema(self)
+        self.plugins     = Plugins(self)
+        self.tasks       = Tasks(self)
     
     def __init__(self, verbose=False, timeout=10):  
         """
@@ -1158,137 +1162,6 @@ class DirSrv(SimpleLDAPObject):
             if callable(attr):
                 setattr(self, name, wrapper(attr, name))
 
-    def startTask(self, entry, verbose=False):
-        # start the task
-        dn = entry.dn
-        self.add_s(entry)
-
-        if verbose:
-            self._test_entry(dn, ldap.SCOPE_BASE)
-
-        return True
-
-    def checkTask(self, entry, dowait=False, verbose=False):
-        '''check task status - task is complete when the nsTaskExitCode attr is set
-        return a 2 tuple (true/false,code) first is false if task is running, true if
-        done - if true, second is the exit code - if dowait is True, this function
-        will block until the task is complete'''
-        attrlist = ['nsTaskLog', 'nsTaskStatus', 'nsTaskExitCode',
-                    'nsTaskCurrentItem', 'nsTaskTotalItems']
-        done = False
-        exitCode = 0
-        dn = entry.dn
-        while not done:
-            entry = self.getEntry(dn, attrlist=attrlist)
-            log.debug("task entry %r" % entry)
-
-            if entry.nsTaskExitCode:
-                exitCode = int(entry.nsTaskExitCode)
-                done = True
-            if dowait:
-                time.sleep(1)
-            else:
-                break
-        return (done, exitCode)
-
-    def startTaskAndWait(self, entry, verbose=False):
-        self.startTask(entry, verbose)
-        (done, exitCode) = self.checkTask(entry, True, verbose)
-        return exitCode
-
-    def importLDIF(self, ldiffile, suffix, be=None, verbose=False):
-        cn = "import" + str(int(time.time()))
-        dn = "cn=%s,cn=import,cn=tasks,cn=config" % cn
-        entry = Entry(dn)
-        entry.setValues('objectclass', 'top', 'extensibleObject')
-        entry.setValues('cn', cn)
-        entry.setValues('nsFilename', ldiffile)
-        if be:
-            entry.setValues('nsInstance', be)
-        else:
-            entry.setValues('nsIncludeSuffix', suffix)
-
-        rc = self.startTaskAndWait(entry, verbose)
-
-        if rc:
-            if verbose:
-                log.error("Error: import task %s for file %s exited with %d" % (
-                    cn, ldiffile, rc))
-        else:
-            if verbose:
-                log.info("Import task %s for file %s completed successfully" % (
-                    cn, ldiffile))
-        return rc
-
-    def exportLDIF(self, ldiffile, suffix, be=None, forrepl=False, verbose=False):
-        cn = "export%d" % time.time()
-        dn = "cn=%s,cn=export,cn=tasks,cn=config" % cn
-        entry = Entry(dn)
-        entry.update({
-            'objectclass': ['top', 'extensibleObject'],
-            'cn': cn,
-            'nsFilename': ldiffile
-        })
-        if be:
-            entry.setValues('nsInstance', be)
-        else:
-            entry.setValues('nsIncludeSuffix', suffix)
-        if forrepl:
-            entry.setValues('nsExportReplica', 'true')
-
-        rc = self.startTaskAndWait(entry, verbose)
-
-        if rc:
-            if verbose:
-                log.error("Error: export task %s for file %s exited with %d" % (
-                    cn, ldiffile, rc))
-        else:
-            if verbose:
-                log.info("Export task %s for file %s completed successfully" % (
-                    cn, ldiffile))
-        return rc
-
-    def createIndex(self, suffix, attr, verbose=False):
-        entries_backend = self.backend.list(suffix=suffix)
-        cn = "index%d" % time.time()
-        dn = "cn=%s,cn=index,cn=tasks,cn=config" % cn
-        entry = Entry(dn)
-        entry.update({
-            'objectclass': ['top', 'extensibleObject'],
-            'cn': cn,
-            'nsIndexAttribute': attr,
-            'nsInstance': entries_backend[0].cn
-        })
-        # assume 1 local backend
-        rc = self.startTaskAndWait(entry, verbose)
-
-        if rc:
-            log.error("Error: index task %s exited with %d" % (
-                    cn, rc))
-        else:
-            log.info("Index task %s completed successfully" % (
-                    cn))
-        return rc
-
-    def fixupMemberOf(self, suffix, filt=None, verbose=False):
-        cn = "fixupmemberof%d" % time.time()
-        dn = "cn=%s,cn=memberOf task,cn=tasks,cn=config" % cn
-        entry = Entry(dn)
-        entry.setValues('objectclass', 'top', 'extensibleObject')
-        entry.setValues('cn', cn)
-        entry.setValues('basedn', suffix)
-        if filt:
-            entry.setValues('filter', filt)
-        rc = self.startTaskAndWait(entry, verbose)
-
-        if rc:
-            if verbose:
-                log.error("Error: fixupMemberOf task %s for basedn %s exited with %d" % (cn, suffix, rc))
-        else:
-            if verbose:
-                log.info("fixupMemberOf task %s for basedn %s completed successfully" % (cn, suffix))
-        return rc
-
     def addLDIF(self, input_file, cont=False):
         class LDIFAdder(ldif.LDIFParser):
             def __init__(self, input_file, conn, cont=False,
@@ -1503,41 +1376,7 @@ class DirSrv(SimpleLDAPObject):
 
         return entry
 
-    def addIndex(self, suffix, attr, indexTypes, *matchingRules):
-        """Specify the suffix (should contain 1 local database backend),
-            the name of the attribute to index, and the types of indexes
-            to create e.g. "pres", "eq", "sub"
-        """
-        entries_backend = self.backend.list(suffix=suffix)
-        # assume 1 local backend
-        dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
-        entry = Entry(dn)
-        entry.setValues('objectclass', 'top', 'nsIndex')
-        entry.setValues('cn', attr)
-        entry.setValues('nsSystemIndex', "false")
-        entry.setValues('nsIndexType', indexTypes)
-        if matchingRules:
-            entry.setValues('nsMatchingRule', matchingRules)
-        try:
-            self.add_s(entry)
-        except ldap.ALREADY_EXISTS:
-            print "Index for attr %s for backend %s already exists" % (
-                attr, dn)
 
-    def modIndex(self, suffix, attr, mod):
-        """just a wrapper around a plain old ldap modify, but will
-        find the correct index entry based on the suffix and attribute"""
-        entries_backend = self.backend.list(suffix=suffix)
-        # assume 1 local backend
-        dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
-        self.modify_s(dn, mod)
-
-    def requireIndex(self, suffix):
-        entries_backend = self.backend.list(suffix=suffix)
-        # assume 1 local backend
-        dn = entries_backend[0].dn
-        replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
-        self.modify_s(dn, replace)
 
     def setupChainingIntermediate(self):
         confdn = ','.join(("cn=config", DN_CHAIN))

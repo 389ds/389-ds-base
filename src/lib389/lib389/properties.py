@@ -4,7 +4,6 @@ Created on Dec 5, 2013
 @author: tbordaz
 '''
 
-
 ####################################
 # 
 # Properties supported by the server
@@ -217,6 +216,47 @@ RA_PROPNAME_TO_ATTRNAME = {RA_NAME:                 'cn',
                            RA_CONSUMER_TOTAL_INIT:  'nsds5BeginReplicaRefresh',
                            RA_TIMEOUT:              'nsds5replicatimeout',
                            RA_CHANGES:              'nsds5replicaChangesSentSinceStartup'}
+
+####################################
+# 
+# Properties supported by the plugins
+#
+####################################
+
+PLUGIN_NAME     = "name"
+PLUGIN_PATH     = "path"
+PLUGIN_ENABLE   = 'enable'
+
+PLUGINS_OBJECTCLASS_VALUE = "nsSlapdPlugin"
+PLUGINS_ENABLE_ON_VALUE   = "on"
+PLUGINS_ENABLE_OFF_VALUE  = "off"
+    
+PLUGIN_PROPNAME_TO_ATTRNAME = {PLUGIN_NAME:     'cn',
+                               PLUGIN_PATH:     'nsslapd-pluginPath',
+                               PLUGIN_ENABLE:   'nsslapd-pluginEnabled'}
+
+####################################
+# 
+# Properties supported by the index
+#
+####################################
+INDEX_TYPE     = "type"
+INDEX_SYSTEM   = "system"
+INDEX_MATCHING_RULE = "matching-rule"
+
+INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
+                              INDEX_SYSTEM: 'nsSystemIndex',
+                              INDEX_MATCHING_RULE: 'nsMatchingRule'}
+
+####################################
+# 
+# Properties supported by the tasks
+#
+####################################
+
+TASK_WAIT     = "wait"
+EXPORT_REPL_INFO = "repl-info"
+
 
 
 def rawProperty(prop):
