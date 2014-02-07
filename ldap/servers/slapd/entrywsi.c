@@ -1148,6 +1148,34 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 		entry_deleted_value_to_zapped_value(a,pending_value);
 		pending_value = NULL;
 	}
+	else if (current_value && pending_value && !new_value && adcsn &&
+			 (attribute_state == ATTRIBUTE_DELETED) &&
+			 current_value_vucsn && !pending_value_vucsn && pending_value_vdcsn &&
+			 (csn_compare(current_value_vucsn, pending_value_vdcsn) > 0) &&
+			 (csn_compare(adcsn, pending_value_vdcsn) == 0))
+	{
+		/* in the case of the following:
+		 * beginning attr state is a deleted value
+		 * incoming operation is
+		 * add: newvalue
+		 * attribute_state is ATTRIBUTE_DELETED
+		 * so we have both a current_value and a pending_value
+		 * new_value is NULL
+		 * current_value_vucsn is CSN1
+		 * pending_value_vucsn is NULL
+		 * pending_value_vdcsn is CSN2
+		 * adcsn is CSN2 == pending_value_vdcsn
+		 * CSN1 > CSN2
+		 * since the pending_value is deleted, and the current_value has
+		 * a greater CSN, we should keep the current_value and zap
+		 * the pending_value
+		 */
+		/* just remove the deleted value */
+		entry_deleted_value_to_zapped_value(a,pending_value);
+		pending_value = NULL;
+		attr_set_deletion_csn(a,NULL);
+		return; /* we are done - we are keeping the present value */
+	}
 	else if(new_value==NULL)
 	{
 		/* check if the pending value should become the current value */
