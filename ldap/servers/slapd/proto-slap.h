@@ -395,6 +395,11 @@ int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *err
 int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_listen_backlog_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ignore_time_skew(const char *attrname, char *value, char *errorbuf, int apply);
+#if defined(LINUX)
+int config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply);
+#endif
 
 #if !defined(_WIN32) && !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
@@ -552,6 +557,12 @@ int config_get_disk_logging_critical();
 int config_get_sasl_maxbufsize();
 int config_get_listen_backlog_size(void);
 int config_get_ignore_time_skew();
+
+#if defined(LINUX)
+int config_get_malloc_mxfast();
+int config_get_malloc_trim_threshold();
+int config_get_malloc_mmap_threshold();
+#endif
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
