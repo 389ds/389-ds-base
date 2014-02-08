@@ -2008,6 +2008,13 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
 #define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
+/* getenv alternative */
+#define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
+#define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
+#define CONFIG_MALLOC_MMAP_THRESHOLD "nsslapd-malloc-mmap-threshold"
+
+#define DEFAULT_MALLOC_UNSET (-10)
+
 /*
  * Define the backlog number for use in listen() call.
  * We use the same definition as in ldapserver/include/base/systems.h
@@ -2252,6 +2259,11 @@ typedef struct _slapdFrontendConfig {
   int disk_grace_period;
   int disk_logging_critical;
   int ignore_time_skew;
+#if defined(LINUX)
+  int malloc_mxfast;            /* mallopt M_MXFAST */
+  int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */
+  int malloc_mmap_threshold;    /* mallopt M_MMAP_THRESHOLD */
+#endif
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
