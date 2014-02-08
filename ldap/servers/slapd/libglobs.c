@@ -81,6 +81,9 @@
 #endif /* USE_SYSCONF */
 #include "slap.h"
 #include "plhash.h"
+#if defined(LINUX)
+#include <malloc.h>
+#endif
 
 #define REMOVE_CHANGELOG_CMD "remove"
 
@@ -265,6 +268,11 @@ slapi_onoff_t init_plugin_logging;
 slapi_int_t init_connection_buffer;
 slapi_int_t init_listen_backlog_size;
 slapi_onoff_t init_ignore_time_skew;
+#if defined (LINUX)
+slapi_int_t init_malloc_mxfast;
+slapi_int_t init_malloc_trim_threshold;
+slapi_int_t init_malloc_mmap_threshold;
+#endif
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
 #endif
@@ -1072,6 +1080,23 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
 		(ConfigGetFunc)config_get_listen_backlog_size, &init_listen_backlog_size},
+#if defined(LINUX)
+	{CONFIG_MALLOC_MXFAST, config_set_malloc_mxfast,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.malloc_mxfast,
+		CONFIG_INT, (ConfigGetFunc)config_get_malloc_mxfast,
+		&init_malloc_mxfast},
+	{CONFIG_MALLOC_TRIM_THRESHOLD, config_set_malloc_trim_threshold,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.malloc_trim_threshold,
+		CONFIG_INT, (ConfigGetFunc)config_get_malloc_trim_threshold,
+		&init_malloc_trim_threshold},
+	{CONFIG_MALLOC_MMAP_THRESHOLD, config_set_malloc_mmap_threshold,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.malloc_mmap_threshold,
+		CONFIG_INT, (ConfigGetFunc)config_get_malloc_mmap_threshold,
+		&init_malloc_mmap_threshold},
+#endif
 	{CONFIG_IGNORE_TIME_SKEW, config_set_ignore_time_skew,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ignore_time_skew,
@@ -1519,6 +1544,12 @@ FrontendConfig_init () {
   init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
   init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
   init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
+#if defined(LINUX)
+  init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
+  init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
+  init_malloc_mmap_threshold = cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
+#endif
+
 #ifdef MEMPOOL_EXPERIMENTAL
   init_mempool_switch = cfg->mempool_switch = LDAP_ON;
   cfg->mempool_maxfreelist = 1024;
@@ -7553,6 +7584,144 @@ config_set_auditlog_enabled(int value){
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 }
+
+#if defined(LINUX)
+int
+config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int max = 80 * (sizeof(size_t) / 4);
+    int mxfast;
+    char *endp = NULL;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+    errno = 0;
+    mxfast = strtol(value, &endp, 10);
+    if ((*endp != '\0') || (errno == ERANGE)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "limit \"%s\" is invalid, %s must range from 0 to %d",
+                    value, CONFIG_MALLOC_MXFAST, max);
+        return LDAP_OPERATIONS_ERROR;
+    }
+    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->malloc_mxfast = mxfast;
+    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+
+    if ((mxfast >= 0) && (mxfast <= max)) {
+        mallopt(M_MXFAST, mxfast);
+    } else if (DEFAULT_MALLOC_UNSET != mxfast) {
+        slapi_log_error(SLAPI_LOG_FATAL, "config",
+                        "%s: Invalid value %d will be ignored\n",
+                        CONFIG_MALLOC_MXFAST, mxfast);
+    }
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_malloc_mxfast()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->malloc_mxfast;
+  return retVal; 
+}
+
+int
+config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int trim_threshold;
+    char *endp = NULL;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+    errno = 0;
+    trim_threshold = strtol(value, &endp, 10);
+    if ((*endp != '\0') || (errno == ERANGE)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "limit \"%s\" is invalid, %s must range from 0 to %lld",
+                    value, CONFIG_MALLOC_TRIM_THRESHOLD, (long long int)LONG_MAX);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->malloc_trim_threshold = trim_threshold;
+    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+
+    if (trim_threshold >= -1) {
+        mallopt(M_TRIM_THRESHOLD, trim_threshold);
+    } else if (DEFAULT_MALLOC_UNSET != trim_threshold) {
+        slapi_log_error(SLAPI_LOG_FATAL, "config",
+                        "%s: Invalid value %d will be ignored\n",
+                        CONFIG_MALLOC_TRIM_THRESHOLD, trim_threshold);
+    }
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_malloc_trim_threshold()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->malloc_trim_threshold;
+  return retVal; 
+}
+
+int
+config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int max;
+    int mmap_threshold;
+    char *endp = NULL;
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+    if (sizeof(char *) == 8) {
+        max = 33554432; /* 4*1024*1024*sizeof(long) on 64-bit systems */
+    } else {
+        max = 524288; /* 512*1024 on 32-bit systems */
+    }
+
+    errno = 0;
+    mmap_threshold = strtol(value, &endp, 10);
+    if ((*endp != '\0') || (errno == ERANGE)) {
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "limit \"%s\" is invalid, %s must range from 0 to %d",
+                    value, CONFIG_MALLOC_MMAP_THRESHOLD, max);
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->malloc_mmap_threshold = mmap_threshold;
+    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+
+    if ((mmap_threshold >= 0) && (mmap_threshold <= max)) {
+        mallopt(M_MMAP_THRESHOLD, mmap_threshold);
+    } else if (DEFAULT_MALLOC_UNSET != mmap_threshold) {
+        slapi_log_error(SLAPI_LOG_FATAL, "config",
+                        "%s: Invalid value %d will be ignored\n",
+                        CONFIG_MALLOC_MMAP_THRESHOLD, mmap_threshold);
+    }
+    return LDAP_SUCCESS;
+}
+
+int
+config_get_malloc_mmap_threshold()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->malloc_mmap_threshold;
+  return retVal; 
+}
+#endif
 
 char *
 slapi_err2string(int result)
