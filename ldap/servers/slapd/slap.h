@@ -2087,6 +2087,13 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ENABLE_TURBO_MODE "nsslapd-enable-turbo-mode"
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
 
+/* getenv alternative */
+#define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
+#define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
+#define CONFIG_MALLOC_MMAP_THRESHOLD "nsslapd-malloc-mmap-threshold"
+
+#define DEFAULT_MALLOC_UNSET (-10)
+
 /*
  * Define the backlog number for use in listen() call.
  * We use the same definition as in ldapserver/include/base/systems.h
@@ -2337,6 +2344,11 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
   slapi_onoff_t enable_turbo_mode;
   slapi_onoff_t ignore_time_skew;
+#if defined(LINUX)
+  int malloc_mxfast;            /* mallopt M_MXFAST */
+  int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */
+  int malloc_mmap_threshold;    /* mallopt M_MMAP_THRESHOLD */
+#endif
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
