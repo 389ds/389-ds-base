@@ -3517,6 +3517,7 @@ static void _cl5DoTrimming (ReplicaId rid)
 static void
 _cl5CompactDBs()
 {
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
 	int rc;
 	Object *fileObj = NULL;
 	CL5DBFile *dbFile = NULL;
@@ -3573,6 +3574,7 @@ bail:
 	}
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
 
+#endif
 	return;
 }
 

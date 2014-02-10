@@ -4672,7 +4672,9 @@ static int checkpoint_threadmain(void *param)
     char **list = NULL;
     char **listp = NULL;
     struct dblayer_private_env *penv = NULL;
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
     time_t time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
+#endif
     int compactdb_interval = 0;
     back_txn txn;
 
@@ -4783,6 +4785,8 @@ static int checkpoint_threadmain(void *param)
         }
         /* find out which log files don't contain active txns */
         DB_CHECKPOINT_LOCK(PR_TRUE, penv->dblayer_env_lock);
+
+#if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
         /* Compacting DB borrowing the timing of the log flush */
         if ((compactdb_interval > 0) &&
             (current_time() - time_of_last_comapctdb_completion > compactdb_interval)) {
@@ -4826,6 +4830,8 @@ static int checkpoint_threadmain(void *param)
             time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
             compactdb_interval = priv->dblayer_compactdb_interval;
         }
+#endif
+
         rval = LOG_ARCHIVE(penv->dblayer_DB_ENV, &list,
                            DB_ARCH_ABS, (void *)slapi_ch_malloc);
         DB_CHECKPOINT_UNLOCK(PR_TRUE, penv->dblayer_env_lock);
