@@ -6676,9 +6676,9 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
                     value, CONFIG_MALLOC_MXFAST, max);
         return LDAP_OPERATIONS_ERROR;
     }
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->malloc_mxfast = mxfast;
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
 
     if ((mxfast >= 0) && (mxfast <= max)) {
         mallopt(M_MXFAST, mxfast);
@@ -6719,9 +6719,9 @@ config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorb
         return LDAP_OPERATIONS_ERROR;
     }
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->malloc_trim_threshold = trim_threshold;
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
 
     if (trim_threshold >= -1) {
         mallopt(M_TRIM_THRESHOLD, trim_threshold);
@@ -6769,9 +6769,9 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
         return LDAP_OPERATIONS_ERROR;
     }
 
-    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    CFG_LOCK_WRITE(slapdFrontendConfig);
     slapdFrontendConfig->malloc_mmap_threshold = mmap_threshold;
-    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
 
     if ((mmap_threshold >= 0) && (mmap_threshold <= max)) {
         mallopt(M_MMAP_THRESHOLD, mmap_threshold);
