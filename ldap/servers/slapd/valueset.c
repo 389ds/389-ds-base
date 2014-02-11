@@ -479,11 +479,11 @@ valuearray_size(Slapi_Value **va)
 	if(va!=NULL && va[0]!=NULL)
 	{
 		int i;
-	    for (i = 0; va[i]; i++)
+		for (i = 0; va[i]; i++)
 		{
 			s += value_size(va[i]);
 		}
-            s += (i + 1) * sizeof(Slapi_Value*);
+		s += (i + 1) * sizeof(Slapi_Value*);
 	}
 	return s;
 }
@@ -973,10 +973,9 @@ valueset_get_valuearray(const Slapi_ValueSet *vs)
 size_t
 valueset_size(const Slapi_ValueSet *vs)
 {
-	size_t s= 0;
-	if(!valuearray_isempty(vs->va))
-	{
-		s= valuearray_size(vs->va);
+	size_t s = 0;
+	if (vs && !valuearray_isempty(vs->va)) {
+		s = valuearray_size(vs->va);
 	}
 	return s;
 }
