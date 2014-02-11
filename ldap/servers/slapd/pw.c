@@ -2682,3 +2682,28 @@ slapi_get_first_clear_text_pw(Slapi_Entry *entry)
 	slapi_rwlock_unlock(extp->pw_entry_lock);
 	return slapi_ch_strdup(password_str); /* slapi_ch_strdup(NULL) is okay */
 }
+
+int
+pw_get_ext_size(Slapi_Entry *entry, size_t *size)
+{
+    Slapi_Value **pw_entry_values;
+
+    if (NULL == size) {
+        return LDAP_PARAM_ERROR;
+    }
+    *size = 0;
+    if (NULL == entry->e_extension) {
+        return LDAP_SUCCESS;
+    }
+    *size += sizeof(struct slapi_pw_entry_ext);
+    *size += sizeof(Slapi_RWLock);
+    if (LDAP_SUCCESS == slapi_pw_get_entry_ext(entry, &pw_entry_values)) {
+        Slapi_Value *cvalue;
+        int idx = valuearray_first_value(pw_entry_values, &cvalue);
+        while (idx >= 0) {
+            *size += value_size(cvalue);
+            idx = valuearray_next_value(pw_entry_values, idx, &cvalue);
+        }
+    }
+    return LDAP_SUCCESS;
+}
