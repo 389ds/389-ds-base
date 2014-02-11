@@ -679,6 +679,7 @@ struct attrs_in_extension {
     IFP ext_get;
     IFP ext_set;
     IFP ext_copy;
+    IFP ext_get_size;
 };
 
 extern struct attrs_in_extension attrs_in_extension[];

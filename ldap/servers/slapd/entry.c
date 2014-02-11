@@ -89,8 +89,9 @@ struct attrs_in_extension attrs_in_extension[] =
     {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
      slapi_pw_get_entry_ext,
      slapi_pw_set_entry_ext,
-     pw_copy_entry_ext},
-    {NULL, NULL, NULL}
+     pw_copy_entry_ext,
+     pw_get_ext_size},
+    {NULL, NULL, NULL, NULL, NULL}
 };
 
 /* Structure used to store the virtual attribute cache in each entry 
@@ -2040,40 +2041,38 @@ static size_t slapi_attrlist_size(Slapi_Attr *attrs)
     return size;
 }
 
-static size_t slapi_dn_size(Slapi_DN *sdn)
-{
-    size_t size = 0;
-
-    if (sdn == NULL) return 0;
-
-    if (slapi_sdn_get_dn(sdn)) {
-        size += slapi_sdn_get_ndn_len(sdn) + 1;
-    }
-    if (slapi_sdn_get_ndn(sdn)) {
-        size += slapi_sdn_get_ndn_len(sdn) + 1;
-    }
-
-    return size;
-}
-
 /* return the approximate size of an entry --
  * useful for checking cache sizes, etc
  */
 size_t 
 slapi_entry_size(Slapi_Entry *e)
 {
-    u_long size = 0;
-
-    /* doesn't include memory used by e_extension */
+    size_t size = 0;
 
     if (e->e_uniqueid) size += strlen(e->e_uniqueid) + 1;
     if (e->e_dncsnset) size += csnset_size(e->e_dncsnset);
     if (e->e_maxcsn) size += sizeof( CSN );
-    size += slapi_dn_size(&e->e_sdn);
-    size += slapi_rdn_get_size(&e->e_srdn);
+    if (e->e_virtual_lock) size += sizeof(Slapi_RWLock);
+    /* Slapi_DN and RDN are included in Slapi_Entry */
+    size += (slapi_sdn_get_size(&e->e_sdn) - sizeof(Slapi_DN));
+    size += (slapi_rdn_get_size(&e->e_srdn) - sizeof(Slapi_RDN));
     size += slapi_attrlist_size(e->e_attrs);
-    if (e->e_deleted_attrs) size += slapi_attrlist_size(e->e_deleted_attrs);
+    size += slapi_attrlist_size(e->e_deleted_attrs);
+    size += slapi_attrlist_size(e->e_aux_attrs);
     size += entry_vattr_size(e);
+    if (e->e_extension) {
+        struct attrs_in_extension *aiep;
+        int cnt;
+        size_t extsiz = 0;
+        for (aiep = attrs_in_extension, cnt = 0; 
+             aiep && aiep->ext_type; aiep++, cnt++) {
+        
+            if (LDAP_SUCCESS == aiep->ext_get_size(e, &extsiz)) {
+                size += extsiz;
+            }
+        }
+        size += cnt * sizeof(void *);
+    }
     size += sizeof(Slapi_Entry);
 
     return size;
