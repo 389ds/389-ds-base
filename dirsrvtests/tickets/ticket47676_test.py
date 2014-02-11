@@ -270,7 +270,7 @@ def test_ticket47676_init(topology):
     
     topology.master1.log.info("Add %s that allows 'member' attribute" % OC_NAME)
     new_oc = _oc_definition(OC_OID_EXT, OC_NAME, must = MUST, may  = MAY) 
-    topology.master1.addSchema('objectClasses', new_oc)
+    topology.master1.schema.add_schema('objectClasses', new_oc)
     
     
     # entry used to bind with
@@ -372,7 +372,7 @@ def test_ticket47676_reject_action(topology):
     # Add a new OC on M1 so that schema CSN will change and M1 will try to push the schema
     topology.master1.log.info("Add %s on M1" % OC2_NAME)
     new_oc = _oc_definition(OC2_OID_EXT, OC2_NAME, must = MUST, may  = MAY) 
-    topology.master1.addSchema('objectClasses', new_oc)
+    topology.master1.schema.add_schema('objectClasses', new_oc)
     
     # Safety checking that the schema has been updated on M1
     topology.master1.log.info("Check %s is in M1" % OC2_NAME)

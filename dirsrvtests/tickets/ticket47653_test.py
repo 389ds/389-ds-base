@@ -155,7 +155,7 @@ def test_ticket47653_init(topology):
     
     topology.standalone.log.info("Add %s that allows 'member' attribute" % OC_NAME)
     new_oc = _oc_definition(2, OC_NAME, must = MUST, may  = MAY) 
-    topology.standalone.addSchema('objectClasses', new_oc)
+    topology.standalone.schema.add_schema('objectClasses', new_oc)
     
     
     # entry used to bind with

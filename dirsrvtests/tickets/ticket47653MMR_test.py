@@ -258,7 +258,7 @@ def test_ticket47653_init(topology):
     
     topology.master1.log.info("Add %s that allows 'member' attribute" % OC_NAME)
     new_oc = _oc_definition(2, OC_NAME, must = MUST, may  = MAY) 
-    topology.master1.addSchema('objectClasses', new_oc)
+    topology.master1.schema.add_schema('objectClasses', new_oc)
     
     
     # entry used to bind with

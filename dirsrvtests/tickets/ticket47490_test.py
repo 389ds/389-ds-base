@@ -77,13 +77,13 @@ def _oc_definition(oid_ext, name, must=None, may=None):
 
 def add_OC(instance, oid_ext, name):
     new_oc = _oc_definition(oid_ext, name)
-    instance.addSchema('objectClasses', new_oc)
+    instance.schema.add_schema('objectClasses', new_oc)
 
 def mod_OC(instance, oid_ext, name, old_must=None, old_may=None, new_must=None, new_may=None):
     old_oc = _oc_definition(oid_ext, name, old_must, old_may)
     new_oc = _oc_definition(oid_ext, name, new_must, new_may)
-    instance.delSchema('objectClasses', old_oc)
-    instance.addSchema('objectClasses', new_oc)
+    instance.schema.del_schema('objectClasses', old_oc)
+    instance.schema.add_schema('objectClasses', new_oc)
     
 def trigger_schema_push(topology):
     """
@@ -316,8 +316,8 @@ def test_ticket47490_one(topology):
     add_OC(topology.master, 2, 'masterNewOCA')
     
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was updated on the consumer
     log.debug("test_ticket47490_one master_schema_csn=%s", master_schema_csn)
@@ -353,8 +353,8 @@ def test_ticket47490_two(topology):
     
     # now push the scheam
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was NOT updated on the consumer
     log.debug("test_ticket47490_two master_schema_csn=%s", master_schema_csn)
@@ -387,8 +387,8 @@ def test_ticket47490_three(topology):
     
     # now push the scheam
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was NOT updated on the consumer
     log.debug("test_ticket47490_three master_schema_csn=%s", master_schema_csn)
@@ -420,8 +420,8 @@ def test_ticket47490_four(topology):
     
         
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was updated on the consumer
     log.debug("test_ticket47490_four master_schema_csn=%s", master_schema_csn)
@@ -462,8 +462,8 @@ def test_ticket47490_five(topology):
     add_OC(topology.master, 4, 'masterNewOCC')
         
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was NOT updated on the consumer
     log.debug("test_ticket47490_five master_schema_csn=%s", master_schema_csn)
@@ -508,8 +508,8 @@ def test_ticket47490_six(topology):
     mod_OC(topology.master, 1, 'consumerNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD, new_may=MAY_OLD)
         
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was NOT updated on the consumer
     log.debug("test_ticket47490_six master_schema_csn=%s", master_schema_csn)
@@ -547,8 +547,8 @@ def test_ticket47490_seven(topology):
     
         
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was updated on the consumer
     log.debug("test_ticket47490_seven master_schema_csn=%s", master_schema_csn)
@@ -589,8 +589,8 @@ def test_ticket47490_eight(topology):
     mod_OC(topology.master, 4, 'masterNewOCC', old_must=MUST_OLD, new_must=MUST_OLD, old_may=MAY_OLD, new_may=MAY_NEW)
         
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was not updated on the consumer
     log.debug("test_ticket47490_eight master_schema_csn=%s", master_schema_csn)
@@ -635,8 +635,8 @@ def test_ticket47490_nine(topology):
     mod_OC(topology.master, 1, 'consumerNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD, new_may=MAY_NEW)
         
     trigger_schema_push(topology)
-    master_schema_csn = topology.master.getSchemaCSN()
-    consumer_schema_csn = topology.consumer.getSchemaCSN()
+    master_schema_csn = topology.master.schema.get_schema_csn()
+    consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was updated on the consumer
     log.debug("test_ticket47490_nine master_schema_csn=%s", master_schema_csn)

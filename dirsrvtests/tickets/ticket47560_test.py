@@ -144,11 +144,12 @@ def test_ticket47560(topology):
         """
         # enable/disable the mbo plugin
         if value != 'on':
-           value = 'off'
+            topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+        else:
+            topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+
         log.debug("-------------> _enable_disable_mbo(%s)" % value)
-        MEMBEROF_PLUGIN_DN = 'cn=MemberOf Plugin,cn=plugins,cn=config'
-        replace = [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', value)]
-        topology.standalone.modify_s(MEMBEROF_PLUGIN_DN, replace)
+        
         topology.standalone.stop(timeout=120)
         time.sleep(1)
         topology.standalone.start(timeout=120)
@@ -258,7 +259,7 @@ def test_ticket47560(topology):
     log.debug( "Unfixed entry %r\n" % ent)
         
     # run the fixup task
-    topology.standalone.fixupMemberOf(SUFFIX, verbose=False)
+    topology.standalone.tasks.fixupMemberOf(suffix=SUFFIX, args={TASK_WAIT: True})
         
     ents = topology.standalone.search_s(member_DN, ldap.SCOPE_BASE, filt)
     assert len(ents) == 1
@@ -297,7 +298,6 @@ def run_isolated():
     topo = topology(True)
     test_ticket47560(topo)
     test_ticket47560_final(topo)
-
 
 if __name__ == '__main__':
     run_isolated()
