@@ -2973,9 +2973,9 @@ slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type)
 
 /* returned value: attribute value as a boolean type */
 PRBool
-slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type)
+slapi_entry_attr_get_bool_ext(const Slapi_Entry* e, const char *type, PRBool default_value)
 {
-    PRBool r = PR_FALSE; /* default if no attr */
+    PRBool r = default_value; /* default if no attr */
     Slapi_Attr* attr = NULL;
     if ((0 == slapi_entry_attr_find(e, type, &attr)) && attr) {
         Slapi_Value *v;
@@ -2997,11 +2997,21 @@ slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type)
             r = PR_TRUE;
         } else if (!PL_strncasecmp(bvp->bv_val, "no", bvp->bv_len)) {
             r = PR_FALSE;
+        } else if (!PL_strncmp(bvp->bv_val, "1", bvp->bv_len)) {
+            r = PR_TRUE;
+        } else if (!PL_strncmp(bvp->bv_val, "0", bvp->bv_len)) {
+            r = PR_FALSE;
         } else { /* assume numeric: 0 - false: non-zero - true */
             r = (PRBool)slapi_value_get_ulong(v);
         }
     }
     return r;
+}
+
+PRBool
+slapi_entry_attr_get_bool(const Slapi_Entry* e, const char *type)
+{
+    return slapi_entry_attr_get_bool_ext(e, type, PR_FALSE);
 }
 
 void

@@ -1872,14 +1872,31 @@ unsigned long long slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const c
  *
  * Comparisons are case-insensitive (\c TRUE, \c trUe, and \c true are all the
  * same), and unique substrings can be matched (\c t and \c tr will be interpreted
- * as \c true). If the attribute value is a number, then non-zero numbers are
+ * as \c true).  In addition, \c on, \c off, \c yes, \c no are supported.
+ * If the attribute value is a number, then non-zero numbers are
  * interpreted as \c true, and \c 0 is interpreted as \c false.
  *
  * \param e Entry from which you want to get the boolean value.
  * \param type Attribute type from which you want to get the value.
  * \return \c PR_TRUE | \c PR_FALSE
  */
-PRBool slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type);
+PRBool slapi_entry_attr_get_bool(const Slapi_Entry* e, const char *type);
+
+/**
+ * Gets the value of a given attribute of a given entry as a boolean value.
+ *
+ * Comparisons are case-insensitive (\c TRUE, \c trUe, and \c true are all the
+ * same), and unique substrings can be matched (\c t and \c tr will be interpreted
+ * as \c true).  In addition, \c on, \c off, \c yes, \c no are supported.
+ * If the attribute value is a number, then non-zero numbers are
+ * interpreted as \c true, and \c 0 is interpreted as \c false.
+ * If the attribute type is not found in the entry, the given default value is returned.
+ *
+ * \param e Entry from which you want to get the boolean value.
+ * \param type Attribute type from which you want to get the value.
+ * \return \c PR_TRUE | \c PR_FALSE
+ */
+PRBool slapi_entry_attr_get_bool_ext(const Slapi_Entry* e, const char *type, PRBool default_value);
 
 /**
  * Replaces the value or values of an attribute in an entry with a specified string
