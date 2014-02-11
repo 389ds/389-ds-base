@@ -2603,18 +2603,22 @@ sdn_dump( const Slapi_DN *sdn, const char *text)
 size_t
 slapi_sdn_get_size(const Slapi_DN *sdn)
 {
-    size_t sz = sizeof(Slapi_DN);
+    size_t sz = 0;
     /* slapi_sdn_get_ndn_len returns the normalized dn length
      * if dn or ndn exists.  If both does not exist, it
      * normalizes udn and set it to dn and returns the length.
      */
-    sz += slapi_sdn_get_ndn_len(sdn);
+    if (NULL == sdn) {
+        return sz;
+    }
+    sz += slapi_sdn_get_ndn_len(sdn) + 1 /* '\0' */;
     if (sdn->dn && sdn->ndn) {
-        sz += slapi_sdn_get_ndn_len(sdn);
+        sz *= 2;
     }
     if (sdn->udn) {
         sz += strlen(sdn->udn) + 1;
     }
+    sz += sizeof(Slapi_DN);
     return sz;
 }
 
