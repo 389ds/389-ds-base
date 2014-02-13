@@ -602,10 +602,10 @@ void replica_update_state (time_t when, void *arg);
 void replica_reset_csn_pl(Replica *r);
 PRUint64 replica_get_protocol_timeout(Replica *r);
 void replica_set_protocol_timeout(Replica *r, PRUint64 timeout);
-int replica_get_backoff_min(Replica *r);
-int replica_get_backoff_max(Replica *r);
-void replica_set_backoff_min(Replica *r, int min);
-void replica_set_backoff_max(Replica *r, int max);
+PRUint64 replica_get_backoff_min(Replica *r);
+PRUint64 replica_get_backoff_max(Replica *r);
+void replica_set_backoff_min(Replica *r, PRUint64 min);
+void replica_set_backoff_max(Replica *r, PRUint64 max);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

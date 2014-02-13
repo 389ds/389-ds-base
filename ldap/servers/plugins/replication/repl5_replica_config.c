@@ -374,8 +374,10 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
             else if ((mods[i]->mod_op & LDAP_MOD_DELETE) || mods[i]->mod_bvalues == NULL
                      || mods[i]->mod_bvalues[0]->bv_val == NULL)
             {
-                /* currently, you can only remove referral,
-				   legacy consumer or bind dn attribute */
+                /*
+                 *  Where possible/allowed return replica config settings to their
+                 *  default values.
+                 */
                 if (strcasecmp (config_attr, attr_replicaBindDn) == 0)
                 {
 				    *returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
@@ -398,14 +400,24 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                          strcasecmp (config_attr, type_replicaAbortCleanRUV) == 0)
                 {
                     /*
-                     * Only allow the deletion of the cleanAllRUV config attributes, and the
-                     * protocol timeout.
+                     * Nothing to do in this case, allow it, and continue.
                      */
                     continue;
                 }
                 else if (strcasecmp (config_attr, type_replicaProtocolTimeout) == 0 )
                 {
-                	replica_set_protocol_timeout(r, DEFAULT_PROTOCOL_TIMEOUT);
+                    if (apply_mods)
+                        replica_set_protocol_timeout(r, DEFAULT_PROTOCOL_TIMEOUT);
+                }
+                else if(strcasecmp (config_attr, type_replicaBackoffMin) == 0 )
+                {
+                    if (apply_mods)
+                        replica_set_backoff_min(r, PROTOCOL_BACKOFF_MINIMUM);
+                }
+                else if (strcasecmp (config_attr, type_replicaBackoffMax) == 0 )
+                {
+                    if (apply_mods)
+                        replica_set_backoff_max(r, PROTOCOL_BACKOFF_MAXIMUM);
                 }
                 else
                 {
@@ -498,10 +510,10 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 else if (strcasecmp (config_attr, type_replicaProtocolTimeout) == 0 ){
                     if (apply_mods)
                     {
-                        long ptimeout = 0;
+                        PRUint64 ptimeout = 0;
 
                         if(config_attr_value){
-                            ptimeout = atol(config_attr_value);
+                            ptimeout = atoll(config_attr_value);
                         }
 
                         if(ptimeout <= 0){
@@ -513,6 +525,40 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                             break;
                         }
                         replica_set_protocol_timeout(r, ptimeout);
+                    }
+                }
+                else if(strcasecmp (config_attr, type_replicaBackoffMin) == 0 )
+                {
+                    if (apply_mods)
+                    {
+                        PRUint64 val = atoll(config_attr_value);
+
+                        if(val <= 0){
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                            PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                    "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
+                                    config_attr, config_attr_value ? config_attr_value : "");
+                            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
+                            break;
+                        }
+                        replica_set_backoff_min(r, val);
+                    }
+                }
+                else if (strcasecmp (config_attr, type_replicaBackoffMax) == 0 )
+                {
+                    if (apply_mods)
+                    {
+                        PRUint64 val = atoll(config_attr_value);
+
+                        if(val <= 0){
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                            PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                    "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
+                                    config_attr, config_attr_value ? config_attr_value : "");
+                            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
+                            break;
+                        }
+                        replica_set_backoff_max(r, val);
                     }
                 }
                 else
