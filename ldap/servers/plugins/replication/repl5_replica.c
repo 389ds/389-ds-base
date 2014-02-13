@@ -87,9 +87,9 @@ struct replica {
 	PRBool state_update_inprogress; /* replica state is being updated */
 	PRLock *agmt_lock;          	/* protects agreement creation, start and stop */
 	char *locking_purl;				/* supplier who has exclusive access */
-	Slapi_Counter *protocol_timeout;	/* protocol shutdown timeout */
-	PRUint64 backoff_min;			/* backoff retry minimum */
-	PRUint64 backoff_max;			/* backoff retry maximum */
+	Slapi_Counter *protocol_timeout;/* protocol shutdown timeout */
+	Slapi_Counter *backoff_min;		/* backoff retry minimum */
+	Slapi_Counter *backoff_max;		/* backoff retry maximum */
 	PRUint64 agmt_count;			/* Number of agmts */
 };
 
@@ -209,7 +209,11 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 		rc = -1;
 		goto done;
 	}
+
+	/* init the slapi_counter/atomic settings */
 	r->protocol_timeout = slapi_counter_new();
+	r->backoff_min = slapi_counter_new();
+	r->backoff_max = slapi_counter_new();
 
     /* read parameters from the replica config entry */
     rc = _replica_init_from_config (r, e, errortext);
@@ -406,6 +410,8 @@ replica_destroy(void **arg)
 	}
 
 	slapi_counter_destroy(&r->protocol_timeout);
+	slapi_counter_destroy(&r->backoff_min);
+	slapi_counter_destroy(&r->backoff_max);
 
 	slapi_ch_free((void **)arg);
 }
@@ -1771,11 +1777,11 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Backoff minimum (%d) can not be greater than "
             "the backoff maximum (%d).  Using default values: min (%d) max (%d)\n", backoff_min, backoff_max,
             PROTOCOL_BACKOFF_MINIMUM, PROTOCOL_BACKOFF_MAXIMUM);
-        r->backoff_min = PROTOCOL_BACKOFF_MINIMUM;
-        r->backoff_max = PROTOCOL_BACKOFF_MAXIMUM;
+        slapi_counter_set_value(r->backoff_min, PROTOCOL_BACKOFF_MINIMUM);
+        slapi_counter_set_value(r->backoff_max, PROTOCOL_BACKOFF_MAXIMUM);
     } else {
-        r->backoff_min = backoff_min;
-        r->backoff_max = backoff_max;
+        slapi_counter_set_value(r->backoff_min, backoff_min);
+        slapi_counter_set_value(r->backoff_max, backoff_max);
     }
 
     /* get the protocol timeout */
@@ -3930,28 +3936,40 @@ replica_get_attr ( Slapi_PBlock *pb, const char* type, void *value )
 	return rc;
 }
 
-int
+PRUint64
 replica_get_backoff_min(Replica *r)
 {
-	return (int)r->backoff_min;
+	if(r){
+		return slapi_counter_get_value(r->backoff_min);
+	} else {
+		return PROTOCOL_BACKOFF_MINIMUM;
+	}
 }
 
-int
+PRUint64
 replica_get_backoff_max(Replica *r)
 {
-	return (int)r->backoff_max;
+	if(r){
+		return slapi_counter_get_value(r->backoff_max);
+	} else {
+		return PROTOCOL_BACKOFF_MAXIMUM;
+	}
 }
 
 void
-replica_set_backoff_min(Replica *r, int min)
+replica_set_backoff_min(Replica *r, PRUint64 min)
 {
-	r->backoff_min = min;
+	if(r){
+		slapi_counter_set_value(r->backoff_min, min);
+	}
 }
 
 void
-replica_set_backoff_max(Replica *r, int max)
+replica_set_backoff_max(Replica *r, PRUint64 max)
 {
-	r->backoff_max = max;
+	if(r){
+		slapi_counter_set_value(r->backoff_max, max);
+	}
 }
 
 int
