@@ -432,11 +432,11 @@ for (my $count=0; $count < $file_count; $count++){
 		next;
 	}
 	$linesProcessed = 0; $lineBlockCount = 0;
-	$logCount--;
 	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$atime,$mtime,$ctime,$blksize,$blocks);
 	($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$cursize,
 	 $atime,$mtime,$ctime,$blksize,$blocks) = stat($logname);
 	print sprintf "[%03d] %-30s\tsize (bytes): %12s\n",$logCount, $logname, $cursize;
+	$logCount--;
 
 	my $tar = 0;
 	my $tariter = 0;
@@ -735,13 +735,19 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 		my $base_conn_op = $hashes->{base_conn_op};
 		my $scope_conn_op = $hashes->{scope_conn_op};
 		my $filter_conn_op = $hashes->{filter_conn_op};
+		my $bind_conn_op = $hashes->{bind_conn_op};
 
 		my $notesCount = 1;
 		my $unindexedIp;
+		my $binddn_key;
 		my %uniqFilt = (); # hash of unique filters
+		my %uniqFilter = (); # hash of unique filters bind dn
+		my %uniqBindDNs = (); # hash of unique bind dn's
+		my %uniqBindFilters = (); # hash of filters for a bind DN
+
 		while (my ($srcnt_conn_op, $count) = each %{$notesa_conn_op}) {
+			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 			if ($verb eq "yes" || $usage =~ /u/) {
-				my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 				my $unindexedIp = getIPfromConn($conn, $srvRstCnt);
 				print "\n  Unindexed Search #".$notesCount." (notes=A)\n";
 				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
@@ -763,13 +769,43 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 				}
 				$uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
 			}
+			while($op > 0){
+				# The bind op is not the same as the search op that triggered the notes=A.
+				# We have adjust the key by decrementing the op count until we find the last bind op.
+				$op--;
+				$binddn_key = "$srvRstCnt,$conn,$op";
+				if (exists($bind_conn_op->{$binddn_key}) && defined($bind_conn_op->{$binddn_key})) {
+					if ($verb eq "yes" || $usage =~ /u/) {
+						print "  -  Bind DN:               $bind_conn_op->{$binddn_key}\n";
+					}
+					$uniqBindDNs{$bind_conn_op->{$binddn_key}}++;
+					if( $uniqFilt{$filter_conn_op->{$srcnt_conn_op}} && defined($filter_conn_op->{$srcnt_conn_op})) {
+						$uniqBindFilters{$bind_conn_op->{$binddn_key}}{$filter_conn_op->{$srcnt_conn_op}}++;
+						$uniqFilter{$filter_conn_op->{$srcnt_conn_op}}{$bind_conn_op->{$binddn_key}}++;
+					}
+					last;
+				}
+			}
 			$notesCount++;
 		}
 		if ($usage =~ /U/) {
-			print "\n  Unindexed Search Summary - $notesCount total unindexed searches\n";
+			$notesCount--;
+			print "\n  Unindexed Search Summary - $notesCount total unindexed searches";
 			foreach my $key (sort { $uniqFilt{$b} <=> $uniqFilt{$a} } keys %uniqFilt) {
 				if ($uniqFilt{$key} > 0) {
-					printf "  -  Number of times used unindexed: %10d Filter: $key\n", $uniqFilt{$key};
+					printf "\n  -  Unindexed Filters:   Filter:   $key (occurrences $uniqFilt{$key})\n";
+					foreach my $bindkey (sort { $uniqFilter{$key}{$a} <=> $uniqFilter{$key}{$b} } keys %{$uniqFilter{$key}} ) {
+						printf   "                          - Bind DN:  $bindkey (binds  $uniqFilter{$key}{$bindkey})\n";
+					}
+				}
+			}
+			# now list the binds, and their filters
+			foreach my $key (sort { $uniqBindDNs{$b} <=> $uniqBindDNs{$a} } keys %uniqBindDNs) {
+				if ($uniqBindDNs{$key} > 0) {
+					printf "\n  -  Unindexed Bind DNs:  Bind DN:  $key (binds $uniqBindDNs{$key})\n";
+					foreach my $bindkey (sort { $uniqBindFilters{$key}{$a} <=> $uniqBindFilters{$key}{$b} } keys %{$uniqBindFilters{$key}} ) {
+						printf   "                          - Unindexed Filter: $bindkey (occurrances $uniqBindFilters{$key}{$bindkey})\n";
+					}
 				}
 			}
 		}
@@ -783,13 +819,19 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 		my $base_conn_op = $hashes->{base_conn_op};
 		my $scope_conn_op = $hashes->{scope_conn_op};
 		my $filter_conn_op = $hashes->{filter_conn_op};
+		my $bind_conn_op = $hashes->{bind_conn_op};
 
 		my $notesCount = 1;
 		my $unindexedIp;
+		my $binddn_key;
 		my %uniqFilt = (); # hash of unique filters
+		my %uniqFilter = (); # hash of unique filters bind dn
+		my %uniqBindDNs = (); # hash of unique bind dn's
+		my %uniqBindFilters = (); # hash of filters for a bind DN
+
 		while (my ($srcnt_conn_op, $count) = each %{$notesu_conn_op}) {
+			my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 			if ($verb eq "yes" || $usage =~ /u/) {
-				my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
 				$unindexedIp = getIPfromConn($conn, $srvRstCnt);
 				print "\n  Unindexed Component #".$notesCount." (notes=U)\n";
 				print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
@@ -811,13 +853,43 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 				}
 				$uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
 			}
+			while($op > 0){
+				# The bind op is not the same as the search op that triggered the notes=U.
+				# We have adjust the key by decrementing the op count until we find the last bind op.
+				$op--;
+				$binddn_key = "$srvRstCnt,$conn,$op";
+				if (exists($bind_conn_op->{$binddn_key}) && defined($bind_conn_op->{$binddn_key})) {
+					if ($verb eq "yes" || $usage =~ /u/) {
+						print "  -  Bind DN:               $bind_conn_op->{$binddn_key}\n";
+					}
+					$uniqBindDNs{$bind_conn_op->{$binddn_key}}++;
+					if( $uniqFilt{$filter_conn_op->{$srcnt_conn_op}} && defined($filter_conn_op->{$srcnt_conn_op})) {
+						$uniqBindFilters{$bind_conn_op->{$binddn_key}}{$filter_conn_op->{$srcnt_conn_op}}++;
+						$uniqFilter{$filter_conn_op->{$srcnt_conn_op}}{$bind_conn_op->{$binddn_key}}++;
+					}
+					last;
+				}
+			}
 			$notesCount++;
 		}
 		if ($usage =~ /U/) {
-			print "\n  Unindexed Component Summary - $notesCount total unindexed components\n";
+			$notesCount--;
+			print "\n  Unindexed Component Summary - $notesCount total unindexed components";
 			foreach my $key (sort { $uniqFilt{$b} <=> $uniqFilt{$a} } keys %uniqFilt) {
 				if ($uniqFilt{$key} > 0) {
-					printf "  -  Number of times used unindexed: %10d Filter: $key\n", $uniqFilt{$key};
+					printf "\n  -  Unindexed Filters:   Filter:   $key (occurrences $uniqFilt{$key})\n";
+					foreach my $bindkey (sort { $uniqFilter{$key}{$a} <=> $uniqFilter{$key}{$b} } keys %{$uniqFilter{$key}} ) {
+						printf   "                          - Bind DN:  $bindkey (binds  $uniqFilter{$key}{$bindkey})\n";
+					}
+				}
+			}
+			# now list the binds, and their filters
+			foreach my $key (sort { $uniqBindDNs{$b} <=> $uniqBindDNs{$a} } keys %uniqBindDNs) {
+				if ($uniqBindDNs{$key} > 0) {
+					printf "\n  -  Unindexed Bind DNs:  Bind DN:  $key (binds $uniqBindDNs{$key})\n";
+					foreach my $bindkey (sort { $uniqBindFilters{$key}{$a} <=> $uniqBindFilters{$key}{$b} } keys %{$uniqBindFilters{$key}} ) {
+						printf   "                          - Unindexed Filter: $bindkey (occurrances $uniqBindFilters{$key}{$bindkey})\n";
+					}
 				}
 			}
 		}
@@ -1867,13 +1939,13 @@ sub parseLineNormal
 			$tmpp = $binddn;
 			$tmpp =~ tr/A-Z/a-z/;
 			$hashes->{bindlist}->{$tmpp}++;
-			if($usage =~ /f/ || $verb eq "yes"){
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
 				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = $tmpp;
 			}
 		} else {
 			$anonymousBindCount++;
 			$hashes->{bindlist}->{"Anonymous Binds"}++;
-			if($usage =~ /f/ || $verb eq "yes"){
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
 				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = "";
 			}
 			inc_stats('anonbind',$s_stats,$m_stats);
@@ -1987,7 +2059,7 @@ sub parseLineNormal
 		elsif (m/- U1/){ $hashes->{rsrc}->{"U1"}++; }
 		else { $hashes->{rsrc}->{"other"}++; }
 	}
-	if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $usage =~ /f/ || $verb eq "yes"){
+	if ($usage =~ /g/ || $usage =~ /c/ || $usage =~ /i/ || $usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
 		$exc = "no";
 		if ($_ =~ /connection from *([0-9A-fa-f\.\:]+)/i ) {
 			for (my $xxx = 0; $xxx < $#excludeIP; $xxx++){
