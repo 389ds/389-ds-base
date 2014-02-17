@@ -52,6 +52,7 @@ typedef struct _trim_status {
     PRLock		*ts_s_trim_mutex;	/* protects ts_s_trimming */
 } trim_status;
 static trim_status ts = {0L, 0L, 0, 0, NULL};
+static int trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL; /* in second */
 
 /*
  * All standard changeLogEntry attributes (initialized in get_cleattrs)
@@ -80,12 +81,12 @@ static const char **get_cleattrs(void)
         cleattrs[ 1 ] = attr_changenumber;
         cleattrs[ 2 ] = attr_targetdn;
         cleattrs[ 3 ] = attr_changetype;
-	cleattrs[ 4 ] = attr_newrdn;
-	cleattrs[ 5 ] = attr_deleteoldrdn;
-	cleattrs[ 6 ] = attr_changes;
-	cleattrs[ 7 ] = attr_newsuperior;
-	cleattrs[ 8 ] = attr_changetime;
-	cleattrs[ 9 ] = NULL;
+        cleattrs[ 4 ] = attr_newrdn;
+        cleattrs[ 5 ] = attr_deleteoldrdn;
+        cleattrs[ 6 ] = attr_changes;
+        cleattrs[ 7 ] = attr_newsuperior;
+        cleattrs[ 8 ] = attr_changetime;
+        cleattrs[ 9 ] = NULL;
     }
     return cleattrs;
 }
@@ -109,20 +110,21 @@ delete_changerecord( changeNumber cnum )
     int		delrc;
 
     dnbuf = slapi_ch_smprintf("%s=%ld, %s", attr_changenumber, cnum, 
-	     RETROCL_CHANGELOG_DN);
+                              RETROCL_CHANGELOG_DN);
     pb = slapi_pblock_new ();
     slapi_delete_internal_set_pb ( pb, dnbuf, NULL /*controls*/, NULL /* uniqueid */,
-								   g_plg_identity[PLUGIN_RETROCL], 0 /* actions */ );
+                                   g_plg_identity[PLUGIN_RETROCL], 0 /* actions */ );
     slapi_delete_internal_pb (pb);
     slapi_pblock_get( pb, SLAPI_PLUGIN_INTOP_RESULT, &delrc );
     slapi_pblock_destroy( pb );
     
     if ( delrc != LDAP_SUCCESS ) {
-	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "delete_changerecord: could not delete "
-		"change record %lu\n", cnum );
+        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, 
+                         "delete_changerecord: could not delete change record %lu (rc: %d)\n",
+                         cnum, delrc );
     } else {
-	slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
-		"delete_changerecord: deleted changelog entry \"%s\"\n", dnbuf);
+        slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+                         "delete_changerecord: deleted changelog entry \"%s\"\n", dnbuf);
     }
     slapi_ch_free((void **) &dnbuf );
     return delrc;
@@ -251,7 +253,7 @@ static int trim_changelog(void)
     lt = ts.ts_s_last_trim;
     PR_Unlock( ts.ts_s_trim_mutex );
 
-    if ( now - lt >= (CHANGELOGDB_TRIM_INTERVAL / 1000) ) {
+    if ( now - lt >= trim_interval ) {
 
 	/*
 	 * Trim the changelog.  Read sequentially through all the
@@ -313,7 +315,7 @@ static int trim_changelog(void)
 	}
     } else {
        LDAPDebug(LDAP_DEBUG_PLUGIN, "not yet time to trim: %ld < (%d+%d)\n",
-		 now,lt,(CHANGELOGDB_TRIM_INTERVAL/1000));
+                 now, lt, trim_interval);
     }
     PR_Lock( ts.ts_s_trim_mutex );
     ts.ts_s_trimming = 0;
@@ -494,23 +496,38 @@ void retrocl_init_trimming (void)
 {
     const char *cl_maxage;
     time_t ageval;
+    const char *cl_trim_interval;
     
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
+    cl_trim_interval = retrocl_get_config_str(CONFIG_CHANGELOG_TRIM_INTERVAL);
     
     if (cl_maxage == NULL) {
       LDAPDebug0Args(LDAP_DEBUG_TRACE,"No maxage, not trimming retro changelog.\n");
       return;
     }
     ageval = age_str2time (cl_maxage);
-    slapi_ch_free ((void **)&cl_maxage);
+    slapi_ch_free_string(&cl_maxage);
+
+    if (cl_trim_interval) {
+      trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);
+      if (0 == trim_interval) {
+        slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, 
+                        "retrocl_init_trimming: ignoring invalid %s value %s; "
+                        "resetting the default %s\n",
+                        CONFIG_CHANGELOG_TRIM_INTERVAL, cl_trim_interval,
+                        DEFAULT_CHANGELOGDB_TRIM_INTERVAL);
+        trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL;
+      }
+      slapi_ch_free_string(&cl_trim_interval);
+    }
     
     ts.ts_c_max_age = ageval;
     ts.ts_s_last_trim = (time_t) 0L;
     ts.ts_s_trimming = 0;
     if (( ts.ts_s_trim_mutex = PR_NewLock()) == NULL ) {
-	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "set_changelog_trim_constraints: "
-		"cannot create new lock.\n" );
-	exit( 1 );
+      slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "set_changelog_trim_constraints: "
+                       "cannot create new lock.\n" );
+      exit( 1 );
     }
     ts.ts_s_initialized = 1;
     retrocl_trimming = 1;
@@ -518,8 +535,7 @@ void retrocl_init_trimming (void)
     retrocl_trim_ctx = slapi_eq_repeat(retrocl_housekeeping,
                                        NULL, (time_t)0,
                                        /* in milliseconds */
-                                       CHANGELOGDB_TRIM_INTERVAL);
-
+                                       trim_interval * 1000);
 }
 
 /*
