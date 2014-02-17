@@ -73,6 +73,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 	struct ldbminfo *li;
 	IDList          *idl = NULL;
 	back_txn        txn = {NULL};
+	back_txnid parent_txn;
 	struct attrinfo	*ai = NULL;
 	DB              *db;
 	DBC             *dbc = NULL;
@@ -91,13 +92,14 @@ ldbm_back_seq( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_SEQ_ATTRNAME, &attrname );
 	slapi_pblock_get( pb, SLAPI_SEQ_VAL, &val );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
-	slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
+	slapi_pblock_get( pb, SLAPI_TXN, (void **)&parent_txn );
 
 	inst = (ldbm_instance *) be->be_instance_info;
 
-	if ( !txn.back_txn_txn ) {
-		dblayer_txn_init( li, &txn );
-		slapi_pblock_set( pb, SLAPI_TXN, txn.back_txn_txn );
+	dblayer_txn_init( li, &txn );
+	if (!parent_txn) {
+		parent_txn = txn.back_txn_txn;
+		slapi_pblock_set( pb, SLAPI_TXN, parent_txn );
 	}
 
 	/* Validate arguments */
@@ -133,9 +135,11 @@ ldbm_back_seq( Slapi_PBlock *pb )
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
 		return -1;
 	}
-
+retry:
+	if (txn.back_txn_txn) {
+		dblayer_read_txn_begin(be, parent_txn, &txn);
+	}
 	/* First, get a database cursor */
-
 	return_value = db->cursor(db, txn.back_txn_txn, &dbc, 0);
 
 	if (0 == return_value)
@@ -221,8 +225,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 				key.data = &keystring;
 				key.size = 1;
 				return_value = dbc->c_get(dbc,&key,&data,DB_SET_RANGE);
-				if (0 == return_value || DB_NOTFOUND == return_value)
-				{
+				if ((0 == return_value) || (DB_NOTFOUND == return_value)) {
 					slapi_ch_free(&(data.data));
 					return_value = dbc->c_get(dbc,&key,&data,DB_PREV); 
 				}
@@ -232,28 +235,47 @@ ldbm_back_seq( Slapi_PBlock *pb )
 
 		dbc->c_close(dbc);
 
-		if (0 == return_value && key.data!=NULL)
-		{
-
+		if ((0 == return_value) || (DB_NOTFOUND == return_value)) {
+			if (txn.back_txn_txn) {
+				dblayer_read_txn_commit(be, &txn);
+			}
 			/* Now check that the key we eventually settled on was an equality key ! */
-			if (*((char*)key.data) == EQ_PREFIX)
-			{
+			if (key.data && *((char*)key.data) == EQ_PREFIX) {
 				/* Retrieve the idlist for this key */
 				key.flags = 0;
 				for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
 					err = NEW_IDL_DEFAULT;
 					idl_free(idl);
-					idl = idl_fetch( be, db, &key, txn.back_txn_txn, ai, &err );
+					idl = idl_fetch( be, db, &key, parent_txn, ai, &err );
 					if(err == DB_LOCK_DEADLOCK) {
 						ldbm_nasty("ldbm_back_seq deadlock retry", 1600, err);
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-						continue;
+						if (txn.back_txn_txn) {
+							/* just in case */
+							slapi_ch_free(&(data.data));
+							if ((key.data != little_buffer) && (key.data != &keystring)) {
+								slapi_ch_free(&(key.data));
+							}
+							goto retry;
+						} else {
+							continue;
+						}
 					} else {
 						break;
 					}
 				}
+			}
+		} else {
+			if (txn.back_txn_txn) {
+				dblayer_read_txn_abort(be, &txn);
+			}
+			if (DB_LOCK_DEADLOCK == return_value) {
+				ldbm_nasty("ldbm_back_seq deadlock retry", 1601, err);
+				/* just in case */
+				slapi_ch_free(&(data.data));
+				if ((key.data != little_buffer) && (key.data != &keystring)) {
+					slapi_ch_free(&(key.data));
+				}
+				goto retry;
 			}
 		}
 		if(retry_count == IDL_FETCH_RETRY_COUNT) {
