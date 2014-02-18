@@ -75,6 +75,8 @@ static int shutting_down = 0;
 #define TASK_WORK_NAME          "nsTaskTotalItems"
 
 #define DEFAULT_TTL     "120"   /* seconds */
+#define TASK_SYSCONFIG_FILE_ATTR "sysconfigfile" /* sysconfig reload task file attr */
+#define TASK_SYSCONFIG_LOGCHANGES_ATTR "logchanges"
 
 #define LOG_BUFFER              256
 /* if the cumul. log gets larger than this, it's truncated: */
@@ -1883,6 +1885,195 @@ out:
     return SLAPI_DSE_CALLBACK_OK;
 }
 
+/*
+ * sysconfig reload task
+ *
+ *   dn: cn=keytab_update,cn=sysconfig reload,cn=tasks,cn=config
+ *   objectclass: top
+ *   objectclass: extensibleObject
+ *   cn: keytab_update
+ *   sysconfigfile: /etc/sysconfig/dirsrv-localhost
+ *   logchanges: <boolean>
+ *
+ * Reload environment variables from the instance sysconfig file, or
+ * any file using the following formats:
+ *
+ *    VARIABLE=value
+ *    export VARIABLE=value
+ *    set VARIABLE value
+ *    unset VARIABLE
+ *    setenv VARIABLE value
+ *    unsetenv VARIABLE
+ */
+static int
+task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode,
+                   char *returntext, void *arg)
+{
+    FILE *file = NULL;
+    char *filename = NULL;
+    PRBool logchanges = 0;
+    int rc = SLAPI_DSE_CALLBACK_OK;
+
+    *returncode = LDAP_SUCCESS;
+
+    if(( filename = slapi_entry_attr_get_charptr(e, TASK_SYSCONFIG_FILE_ATTR))){
+        file = fopen ( filename, "r" );
+    } else {
+        *returncode = LDAP_OPERATIONS_ERROR;
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "missing required attribute \"%s\".",
+                     TASK_SYSCONFIG_FILE_ATTR);
+        LDAPDebug(LDAP_DEBUG_ANY, "sysconfig reload task: %s\n", returntext, 0, 0);
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto done;
+    }
+
+    /* see if we should log the changes made */
+    logchanges = slapi_entry_attr_get_bool(e, TASK_SYSCONFIG_LOGCHANGES_ATTR);
+
+    if ( file != NULL ){
+        char line[4096];
+        char *s = NULL;
+
+        if(logchanges){
+            LDAPDebug(LDAP_DEBUG_ANY, "sysconfig reload task: processing file (%s)\n",
+                      filename, 0 , 0);
+        }
+
+        while ( fgets ( line, sizeof line, file ) != NULL ){
+            if(line[0] == '#'){
+                /* skip comments */
+                continue;
+            } else {
+                char env_value[4096];
+                char env_var[4096];
+                int using_setenv = 0;
+                int value_index = 0;
+                int start_value = 0;
+                int var_index = 0;
+                int inquotes = 0;
+
+                memset(env_var, 0, sizeof(env_var));
+                memset(env_value, 0, sizeof(env_value));
+
+                /*
+                 * Remove leading spaces and tabs
+                 */
+                for (s = line; s && *s; s++){
+                    if(*s != ' ' && *s != '\t'){
+                        break;
+                    }
+                }
+
+                /*
+                 * Check for "export", "setenv", and "unsetenv" assignments
+                 */
+                if(strncmp(s, "export ", 7) == 0 ||
+                   strncmp(s, "set ", 4) == 0 ||
+                   strncmp(s, "unset ", 6) == 0 ||
+                   strncmp(s, "setenv ", 7) == 0 ||
+                   strncmp(s, "unsetenv ", 9) == 0 )
+                {
+                    if(*s == 's' || *s == 'u'){ /*  */
+                        /*
+                         * Using setenv/unsetenv/set/unset, so we need to handle spaces
+                         * differently for these assignments.
+                         */
+                        using_setenv = 1;
+                    }
+                    if(strncmp(s, "export ", 7) == 0){
+                    	/* strip off "export " */
+                        s = s + 7;
+                    } else if(strncmp(s, "set ", 4) == 0){
+                        /* strip off "set " */
+                        s = s + 4;
+                    } else if(strncmp(s, "unset ", 6) == 0){
+                        /* strip off "unset " */
+                        s = s + 6;
+                    } else if(strncmp(s, "setenv ", 7) == 0){
+                        /* strip off "setenv " */
+                        s = s + 7;
+                    } else if(strncmp(s, "unsetenv ", 9) == 0){
+                        /* strip off "unsetenv " */
+                        s = s + 9;
+                    }
+                    while(*s == ' ' || *s == '\t'){
+                        /* remove any extra spaces/tabs between the assignment cmd and the name */
+                        s++;
+                    }
+                }
+
+                /*
+                 * Start parsing the names and values
+                 */
+                for (; s && *s; s++){
+                    /*
+                     * If using "setenv", allow the first space/tab only, and start on the env value
+                     */
+                    if(using_setenv && (*s == ' ' || *s == '\t')){
+                        using_setenv = 0; /* finished doing special space parsing for setenv */
+                        start_value = 1; /* start working on the value */
+                        while(*s == ' ' || *s == '\t'){
+                            /* remove any extra spaces/tabs between variable name and value */
+                            s++;
+                        }
+                    } else if( ((*s == ';' || *s == ' ') && !inquotes) || *s == '\0' || *s == '\n' || *s == '\r'){
+                        /* we're done processing the value */
+                        break;
+                    }
+
+                    /* need to handle quoted values */
+                    if(*s == '"'){
+                        if(inquotes){
+                            inquotes = 0;
+                        } else {
+                            inquotes = 1;
+                        }
+                    }
+
+                    if(start_value){
+                        /* Build the environment variable value */
+                        env_value[value_index] = *s;
+                        value_index++;
+                    } else if(*s == '='){
+                        /* Start on the environment variable value next */
+                        start_value = 1;
+                    } else {
+                        /* Build the environment variable name. skip "export" */
+                        env_var[var_index] = *s;
+                        var_index++;
+                    }
+                }
+                if(var_index > 0){
+                    /* Update the environment variable */
+                    if(setenv(env_var, env_value, 1) != 0){
+                        *returncode = LDAP_OPERATIONS_ERROR;
+                        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"failed to set (%s)", env_var);
+                        LDAPDebug(LDAP_DEBUG_ANY, "sysconfig reload task: %s\n",returntext,0,0);
+                        rc = SLAPI_DSE_CALLBACK_ERROR;
+                        break;
+                    }
+                    if(logchanges){
+                        LDAPDebug(LDAP_DEBUG_ANY, "sysconfig reload task: set (%s) to (%s)\n",
+                                  env_var, env_value , 0);
+                    }
+                }
+            }
+        }
+        fclose ( file );
+    } else {
+        *returncode = LDAP_OPERATIONS_ERROR;
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"failed to open file \"%s\" (%s)",
+                filename, strerror(errno));
+        LDAPDebug(LDAP_DEBUG_ANY, "sysconfig reload task: %s\n", returntext, 0, 0);
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+    }
+
+done:
+    slapi_ch_free_string(&filename);
+
+    return rc;
+}
+
 /* cleanup old tasks that may still be in the DSE from a previous session
  * (this can happen if the server crashes [no matter how unlikely we like
  * to think that is].)
@@ -1962,6 +2153,7 @@ void task_init(void)
     slapi_task_register_handler("restore", task_restore_add);
     slapi_task_register_handler("index", task_index_add);
     slapi_task_register_handler("upgradedb", task_upgradedb_add);
+    slapi_task_register_handler("sysconfig reload", task_sysconfig_reload_add);
 }
 
 /* called when the server is shutting down -- abort all existing tasks */
