@@ -506,19 +506,19 @@ void retrocl_init_trimming (void)
       return;
     }
     ageval = age_str2time (cl_maxage);
-    slapi_ch_free_string(&cl_maxage);
+    slapi_ch_free_string((char **)&cl_maxage);
 
     if (cl_trim_interval) {
       trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);
       if (0 == trim_interval) {
         slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, 
                         "retrocl_init_trimming: ignoring invalid %s value %s; "
-                        "resetting the default %s\n",
+                        "resetting the default %d\n",
                         CONFIG_CHANGELOG_TRIM_INTERVAL, cl_trim_interval,
                         DEFAULT_CHANGELOGDB_TRIM_INTERVAL);
         trim_interval = DEFAULT_CHANGELOGDB_TRIM_INTERVAL;
       }
-      slapi_ch_free_string(&cl_trim_interval);
+      slapi_ch_free_string((char **)&cl_trim_interval);
     }
     
     ts.ts_c_max_age = ageval;
