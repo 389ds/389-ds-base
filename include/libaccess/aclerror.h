@@ -219,16 +219,6 @@ NSPR_END_EXTERN_C
 /* ACL_DatabaseRegister */
 #define ACLERR4500	4500		/* database name is missing */
 
-/* ACL_ReadDbMapFile */
-#define	ACLERR4600	4600		/* Error reading the Map file */
-#define	ACLERR4610	4610		/* Couldn't determine dbtype */
-#define	ACLERR4620	4620		/* Missing URL for database */
-#define	ACLERR4630	4630		/* Invalid proprty pair */
-#define	ACLERR4640	4640		/* Register database failed */
-#define	ACLERR4650	4650		/* Default database not LDAP */
-#define	ACLERR4660	4660		/* Multiple default databases */
-#define	ACLERR4670	4670		/* No default database */
-
 /* LASDnsBuild */
 #define	ACLERR4700	4700		/* Cannot allocatae hash */
 #define	ACLERR4710	4710		/* Cannot add token to hash */
