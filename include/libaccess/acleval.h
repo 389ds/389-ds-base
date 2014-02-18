@@ -63,8 +63,7 @@
 NSPR_BEGIN_EXTERN_C
 
 /* Functions in acleval.c */
-extern int aclDNSLookup(DNSFilter_t * dnf,
-			char * dnsspec, int fqdn, char **match);
+extern int aclDNSLookup(DNSFilter_t * dnf, const char * dnsspec, int fqdn, const char **match);
 extern int aclIPLookup(IPFilter_t * ipf, IPAddr_t ipaddr, void **match);
 extern int aclUserLookup(UidUser_t * uup, UserObj_t * uoptr);
 extern int aclEvaluate(ACL_t * acl, USI_t arid, ClAuth_t * clauth, int * padn);
