@@ -836,6 +836,12 @@ acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, const char *ndn, int copy
 	slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &aclpb->aclpb_max_member_sizelimit );
 	if ( aclpb->aclpb_max_member_sizelimit == 0 ) {
 		aclpb->aclpb_max_member_sizelimit = SLAPD_DEFAULT_LOOKTHROUGHLIMIT;
+	} else if ( aclpb->aclpb_max_member_sizelimit < -1 ) {
+		/* handle the case of a negtive size limit either set or due
+		 * to bug bz1065971. The member size limit should be dropped,
+		 * but for backward compatibility to the best we can
+		 */
+		aclpb->aclpb_max_member_sizelimit = -1;
 	}
 	slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &aclpb->aclpb_optype );
 
