@@ -4264,6 +4264,7 @@ map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int
 		} else 
 		{
 			/* Error, no username */
+			retval = ENTRY_NOTFOUND;
 		}
 	}
 	if (new_dn) 
@@ -5214,7 +5215,7 @@ windows_update_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry
 static int
 windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry)
 {
-	Slapi_Mods smods = {0};
+	Slapi_Mods smods;
 	int retval = 0;
 	Slapi_PBlock *pb = NULL;
 	int do_modify = 0;
@@ -5226,14 +5227,24 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	Slapi_DN *mapped_sdn = NULL;
 	Slapi_RDN rdn = {0};
 	Slapi_Entry *orig_local_entry = NULL;
+	const Slapi_DN *orig_local_sdn = NULL;
 
+	/* Variables for updating local groups */
+	Slapi_Entry **entries = NULL;
+	char *filter_string = NULL;
+	const Slapi_DN *local_subtree = NULL;
+	const Slapi_DN *local_subtree_sdn = NULL;
+	char *attrs[3];
+	/* Variables for updating local groups */
+
+	slapi_mods_init(&smods, 0);
 	windows_is_local_entry_user_or_group(local_entry, &is_user, &is_group);
 
 	/* Get the mapped DN.  We don't want to locate the existing entry by
 	 * guid or username.  We want to get the mapped DN just as we would 
 	 * if we were creating a new entry. */
 	retval = map_entry_dn_inbound_ext(remote_entry, &mapped_sdn, prp->agmt, 0 /* use_guid */, 0 /* use_username */);
-	if (retval != 0) {
+	if (retval || (NULL == mapped_sdn)) {
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 				"unable to map remote entry to local DN\n");
 		return retval;
@@ -5255,8 +5266,10 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 	                                     &newsuperior, 0 /* to_windows */);
 
 	if (newsuperior || newrdn) {
+		char *escaped_filter_val;
+		int free_it = 0;
 		/* remote parent is different from the local parent */
-		Slapi_PBlock *pb = slapi_pblock_new ();
+		pb = slapi_pblock_new ();
 
 		if (NULL == newrdn) {
 			newdn = slapi_entry_get_dn_const(local_entry);
@@ -5303,9 +5316,108 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 			orig_local_entry = NULL;
 			goto bail;
 		}
-	}
 
-	slapi_mods_init (&smods, 0);
+		/* WinSync control req does not return the member updates 
+		 * in the groups caused by moving member entries.
+		 * We need to update the local groups manually... */
+		local_subtree = agmt_get_replarea(prp->agmt); 
+		local_subtree_sdn = local_subtree;
+		orig_local_sdn = slapi_entry_get_sdn_const(orig_local_entry);
+		escaped_filter_val = slapi_escape_filter_value((char *)slapi_sdn_get_ndn(orig_local_sdn),
+		                                               slapi_sdn_get_ndn_len(orig_local_sdn));
+		if(escaped_filter_val) {
+			free_it = 1;
+		} else {
+			escaped_filter_val = (char *)slapi_sdn_get_ndn(orig_local_sdn);
+		}
+		/* Search entries which have pre-renamed members */
+		filter_string = PR_smprintf("(&(objectclass=ntGroup)(|(member=%s)(uniquemember=%s)))", 
+		                            escaped_filter_val, escaped_filter_val);
+		attrs[0] = "member";
+		attrs[1] = "uniquemember";
+		attrs[2] = NULL;
+		pb = slapi_pblock_new ();
+		slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(local_subtree_sdn), 
+		                             LDAP_SCOPE_SUBTREE, filter_string, attrs, 0, NULL, NULL,
+		                             repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+		slapi_search_internal_pb(pb);
+		if (free_it) {
+			slapi_ch_free_string(&escaped_filter_val);
+		}
+		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &retval);
+		if (LDAP_SUCCESS == retval) {
+			Slapi_Entry **ep;
+			const char *prev_member = slapi_sdn_get_ndn(orig_local_sdn);
+			const char *new_member = slapi_sdn_get_ndn(mapped_sdn);
+			size_t prev_member_len = slapi_sdn_get_ndn_len(orig_local_sdn);
+			size_t new_member_len = strlen(new_member);
+			slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+			for (ep = entries; ep && *ep; ep++) {
+				/* there are group entries whose member matches the renamed entry. */
+				Slapi_PBlock *mod_pb = NULL;
+				Slapi_Attr *mattr = NULL;
+				Slapi_Attr *umattr = NULL;
+				char *type = NULL;
+				slapi_entry_attr_find(*ep, "member", &mattr);
+				slapi_entry_attr_find(*ep, "uniquemember", &umattr);
+				if (mattr) {
+					if (umattr) {
+						/* This entry has both member and uniquemember ... */
+						Slapi_Value *v = NULL;
+						int i = 0;
+						for (i = slapi_attr_first_value(mattr, &v);
+					 		 v && (i != -1);
+					 		i = slapi_attr_next_value(mattr, i, &v)) {
+							const char *s = slapi_value_get_string(v);
+							if (NULL == s) {
+								continue;
+							}
+							if (0 == strcasecmp(s, prev_member)) {
+								type = "member";
+								break;
+							}
+						}
+						if (!type) {
+							type = "uniquemember";
+						}
+					} else {
+						type = "member";
+					}
+				} else {
+					if (umattr) {
+						type = "uniquemember";
+					}
+				}
+				if (type) {
+					mod_pb = slapi_pblock_new();
+					slapi_mods_add(&smods, LDAP_MOD_DELETE, type, prev_member_len, prev_member);
+					slapi_mods_add(&smods, LDAP_MOD_ADD, type, new_member_len, new_member);
+					slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(*ep),
+					                                 slapi_mods_get_ldapmods_byref(&smods), NULL, NULL,
+					                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+					                                 0);
+					slapi_modify_internal_pb(mod_pb);
+					slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &retval);
+					if (retval) {
+						slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+						                "windows_update_local_entry: "
+						                "failed to modify entry %s replacing %s with %s "
+						                "- error %d:%s\n",
+						                slapi_entry_get_dn(*ep), prev_member, new_member,
+						                retval, ldap_err2string(retval));
+					}
+					slapi_pblock_destroy(mod_pb);
+					slapi_mods_done(&smods);
+				} /* if (type) */
+			} /* for (ep = entries; ep && *ep; ep++) */
+		} /* if (LDAP_SUCCESS == retval) - searching with "(|(member=..)(uniquemember=..)) */
+		slapi_free_search_results_internal(pb);
+		slapi_pblock_destroy(pb);
+		if (filter_string) {
+			PR_smprintf_free(filter_string);
+		}
+		slapi_sdn_free((Slapi_DN **)&local_subtree);
+	} /* if (newsuperior || newrdn) */
 
 	retval = windows_generate_update_mods(prp,remote_entry,local_entry,0,&smods,&do_modify);
 	/* Now perform the modify if we need to */
