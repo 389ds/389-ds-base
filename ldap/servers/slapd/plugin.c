@@ -268,6 +268,7 @@ slapi_register_plugin_ext(
 )
 {
 	int ii = 0;
+        int found_precedence;
     int rc = 0;
 	Slapi_Entry *e = NULL;
 	char *dn = slapi_ch_smprintf("cn=%s,%s", name, PLUGIN_BASE_DN);
@@ -284,7 +285,21 @@ slapi_register_plugin_ext(
 		slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_ENABLED, "off");
 
 	slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_INITFN, initsymbol);
-	slapi_entry_attr_set_int(e, ATTR_PLUGIN_PRECEDENCE, precedence);
+        /* If the plugin belong to a group, get the precedence from the group */
+        found_precedence = precedence;
+        if ((found_precedence == PLUGIN_DEFAULT_PRECEDENCE) && group_identity) {
+                struct slapi_componentid * cid = (struct slapi_componentid *) group_identity;
+                if (cid->sci_plugin && 
+                        (cid->sci_plugin->plg_precedence != PLUGIN_DEFAULT_PRECEDENCE)) {
+                        slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
+                                "Plugin precedence (%s) reset to group precedence (%s): %d \n", 
+                                name ? name : "",
+                                cid->sci_plugin->plg_name ? cid->sci_plugin->plg_name : "",
+                                cid->sci_plugin->plg_precedence);
+                        found_precedence = cid->sci_plugin->plg_precedence;
+                }
+        }
+	slapi_entry_attr_set_int(e, ATTR_PLUGIN_PRECEDENCE, found_precedence);
 
 	for (ii = 0; argv && argv[ii]; ++ii) {
 		char argname[64];
