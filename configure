@@ -720,6 +720,7 @@ defaultuser
 updatedir
 mibdir
 infdir
+pythondir
 perldir
 scripttemplatedir
 serverplugindir
@@ -17934,6 +17935,8 @@ if test "$with_fhs_opt" = "yes"; then
   propertydir=/properties
   # relative to libdir
   perldir=/perl
+  # relative to libdir
+  pythondir=/python
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -17963,6 +17966,8 @@ else
   propertydir=/$PACKAGE_NAME/properties
   # relative to libdir
   perldir=/$PACKAGE_NAME/perl
+  # relative to libdir
+  pythondir=/$PACKAGE_NAME/python
 fi
 
 # if mandir is the default value, override it
@@ -18198,6 +18203,7 @@ $as_echo "$with_systemdgroupname" >&6; }
    fi
 
 fi
+
 
 
 
