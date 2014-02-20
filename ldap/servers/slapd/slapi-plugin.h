@@ -7005,6 +7005,16 @@ int slapi_set_plugin_default_config(const char *type, Slapi_Value *value);
  */
 int slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset);
 
+/**
+ * Checks if  a \c Slapi_ValueSet structure has values
+ *
+ * \param vs Pointer to the \c Slapi_ValueSet structure of which
+ * you wish to get the count.
+ * \return 1 if there are no values contained in the \c Slapi_ValueSet structure.
+ * \return 0 if there are values contained in the \c Slapi_ValueSet structure.
+ */
+int slapi_valueset_isempty(const Slapi_ValueSet *vs);
+
 int slapi_check_account_lock( Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int pwresponse_req, int check_password_policy, int send_result);
 
 /* backend get/set info */

@@ -100,7 +100,7 @@ getEntry(const char *udn, char **attrs)
     }
     else {
         slapi_log_error(SLAPI_LOG_FATAL, POSIX_WINSYNC_PLUGIN_NAME,
-                        "getEntry: error searching for uid: %d", rc);
+                        "getEntry: error searching for uid: %d\n", rc);
     }
 
     return NULL;
