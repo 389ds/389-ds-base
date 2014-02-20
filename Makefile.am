@@ -167,6 +167,7 @@ initdir = @initdir@
 initconfigdir = $(sysconfdir)@initconfigdir@
 instconfigdir = @instconfigdir@
 perldir = $(libdir)@perldir@
+pythondir = $(libdir)@pythondir@
 infdir = $(datadir)@infdir@
 mibdir = $(datadir)@mibdir@
 updatedir = $(datadir)@updatedir@
@@ -251,9 +252,7 @@ config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 # with the default schema e.g. there is
 # considerable overlap of 60changelog.ldif and 01common.ldif
 # and 60inetmail.ldif and 50ns-mail.ldif among others
-sampledata_DATA = ldap/admin/src/scripts/failedbinds.py \
-	ldap/admin/src/scripts/DSSharedLib \
-	ldap/admin/src/scripts/logregex.py \
+sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
@@ -404,6 +403,9 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DSCreate.pm \
 	ldap/admin/src/scripts/DSUpdate.pm \
 	ldap/admin/src/scripts/DSUpdateDialogs.pm
+
+python_DATA = ldap/admin/src/scripts/failedbinds.py \
+	ldap/admin/src/scripts/logregex.py
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
