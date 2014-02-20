@@ -176,9 +176,9 @@ am__installdirs = "$(DESTDIR)$(serverdir)" \
 	"$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" \
 	"$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" \
 	"$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" \
-	"$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" \
-	"$(DESTDIR)$(systemdsystemunitdir)" "$(DESTDIR)$(updatedir)" \
-	"$(DESTDIR)$(serverincdir)"
+	"$(DESTDIR)$(pythondir)" "$(DESTDIR)$(sampledatadir)" \
+	"$(DESTDIR)$(schemadir)" "$(DESTDIR)$(systemdsystemunitdir)" \
+	"$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"
 LTLIBRARIES = $(server_LTLIBRARIES) $(serverplugin_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 libacctpolicy_plugin_la_DEPENDENCIES = libslapd.la \
@@ -1227,8 +1227,8 @@ NROFF = nroff
 MANS = $(dist_man_MANS)
 DATA = $(config_DATA) $(inf_DATA) $(initconfig_DATA) $(mib_DATA) \
 	$(nodist_property_DATA) $(perl_DATA) $(pkgconfig_DATA) \
-	$(property_DATA) $(sampledata_DATA) $(schema_DATA) \
-	$(systemdsystemunit_DATA) $(update_DATA)
+	$(property_DATA) $(python_DATA) $(sampledata_DATA) \
+	$(schema_DATA) $(systemdsystemunit_DATA) $(update_DATA)
 HEADERS = $(serverinc_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) \
 	$(LISP)config.h.in
@@ -1456,6 +1456,7 @@ prefix = @prefix@
 program_transform_name = @program_transform_name@
 propertydir = $(datadir)@propertydir@
 psdir = @psdir@
+pythondir = $(libdir)@pythondir@
 sampledatadir = $(datadir)@sampledatadir@
 sasl_inc = @sasl_inc@
 sasl_lib = @sasl_lib@
@@ -1664,9 +1665,7 @@ config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 # with the default schema e.g. there is
 # considerable overlap of 60changelog.ldif and 01common.ldif
 # and 60inetmail.ldif and 50ns-mail.ldif among others
-sampledata_DATA = ldap/admin/src/scripts/failedbinds.py \
-	ldap/admin/src/scripts/DSSharedLib \
-	ldap/admin/src/scripts/logregex.py \
+sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
@@ -1818,6 +1817,9 @@ perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
 	ldap/admin/src/scripts/DSCreate.pm \
 	ldap/admin/src/scripts/DSUpdate.pm \
 	ldap/admin/src/scripts/DSUpdateDialogs.pm
+
+python_DATA = ldap/admin/src/scripts/failedbinds.py \
+	ldap/admin/src/scripts/logregex.py
 
 property_DATA = ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/migrate-ds.res
@@ -9851,6 +9853,27 @@ uninstall-propertyDATA:
 	@list='$(property_DATA)'; test -n "$(propertydir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(propertydir)'; $(am__uninstall_files_from_dir)
+install-pythonDATA: $(python_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(python_DATA)'; test -n "$(pythondir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(pythondir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(pythondir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(pythondir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(pythondir)" || exit $$?; \
+	done
+
+uninstall-pythonDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(python_DATA)'; test -n "$(pythondir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(pythondir)'; $(am__uninstall_files_from_dir)
 install-sampledataDATA: $(sampledata_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(sampledata_DATA)'; test -n "$(sampledatadir)" || list=; \
@@ -10177,7 +10200,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) \
 		$(MANS) $(DATA) $(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(systemdsystemunitdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"; do \
+	for dir in "$(DESTDIR)$(serverdir)" "$(DESTDIR)$(serverplugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(taskdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(infdir)" "$(DESTDIR)$(initconfigdir)" "$(DESTDIR)$(mibdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(perldir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(propertydir)" "$(DESTDIR)$(pythondir)" "$(DESTDIR)$(sampledatadir)" "$(DESTDIR)$(schemadir)" "$(DESTDIR)$(systemdsystemunitdir)" "$(DESTDIR)$(updatedir)" "$(DESTDIR)$(serverincdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -10336,7 +10359,7 @@ info-am:
 install-data-am: install-configDATA install-infDATA \
 	install-initSCRIPTS install-initconfigDATA install-man \
 	install-mibDATA install-nodist_propertyDATA install-perlDATA \
-	install-pkgconfigDATA install-propertyDATA \
+	install-pkgconfigDATA install-propertyDATA install-pythonDATA \
 	install-sampledataDATA install-schemaDATA \
 	install-serverLTLIBRARIES install-serverincHEADERS \
 	install-serverpluginLTLIBRARIES install-systemdsystemunitDATA \
@@ -10394,10 +10417,10 @@ uninstall-am: uninstall-binPROGRAMS uninstall-binSCRIPTS \
 	uninstall-initconfigDATA uninstall-man uninstall-mibDATA \
 	uninstall-nodist_propertyDATA uninstall-perlDATA \
 	uninstall-pkgconfigDATA uninstall-propertyDATA \
-	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
-	uninstall-sbinSCRIPTS uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverincHEADERS \
-	uninstall-serverpluginLTLIBRARIES \
+	uninstall-pythonDATA uninstall-sampledataDATA \
+	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
+	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-serverincHEADERS uninstall-serverpluginLTLIBRARIES \
 	uninstall-systemdsystemunitDATA uninstall-taskSCRIPTS \
 	uninstall-updateDATA uninstall-updateSCRIPTS
 
@@ -10423,8 +10446,9 @@ uninstall-man: uninstall-man1 uninstall-man8
 	install-man1 install-man8 install-mibDATA \
 	install-nodist_propertyDATA install-pdf install-pdf-am \
 	install-perlDATA install-pkgconfigDATA install-propertyDATA \
-	install-ps install-ps-am install-sampledataDATA \
-	install-sbinPROGRAMS install-sbinSCRIPTS install-schemaDATA \
+	install-ps install-ps-am install-pythonDATA \
+	install-sampledataDATA install-sbinPROGRAMS \
+	install-sbinSCRIPTS install-schemaDATA \
 	install-serverLTLIBRARIES install-serverincHEADERS \
 	install-serverpluginLTLIBRARIES install-strip \
 	install-systemdsystemunitDATA install-taskSCRIPTS \
@@ -10438,10 +10462,10 @@ uninstall-man: uninstall-man1 uninstall-man8
 	uninstall-man1 uninstall-man8 uninstall-mibDATA \
 	uninstall-nodist_propertyDATA uninstall-perlDATA \
 	uninstall-pkgconfigDATA uninstall-propertyDATA \
-	uninstall-sampledataDATA uninstall-sbinPROGRAMS \
-	uninstall-sbinSCRIPTS uninstall-schemaDATA \
-	uninstall-serverLTLIBRARIES uninstall-serverincHEADERS \
-	uninstall-serverpluginLTLIBRARIES \
+	uninstall-pythonDATA uninstall-sampledataDATA \
+	uninstall-sbinPROGRAMS uninstall-sbinSCRIPTS \
+	uninstall-schemaDATA uninstall-serverLTLIBRARIES \
+	uninstall-serverincHEADERS uninstall-serverpluginLTLIBRARIES \
 	uninstall-systemdsystemunitDATA uninstall-taskSCRIPTS \
 	uninstall-updateDATA uninstall-updateSCRIPTS
 

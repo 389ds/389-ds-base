@@ -720,6 +720,7 @@ defaultuser
 updatedir
 mibdir
 infdir
+pythondir
 perldir
 scripttemplatedir
 serverplugindir
@@ -914,6 +915,7 @@ with_fhs
 with_fhs_opt
 with_tmpfiles_d
 with_perldir
+with_pythondir
 with_systemdsystemunitdir
 with_systemdsystemconfdir
 with_systemdgroupname
@@ -1638,6 +1640,8 @@ Optional Packages:
                           (default: $with_tmpfiles_d)
 
   --with-perldir=PATH     Directory for perl)
+
+  --with-pythondir=PATH   Directory for python)
 
   --with-systemdsystemunitdir=PATH
                           Directory for systemd service files (default:
@@ -7430,7 +7434,7 @@ ia64-*-hpux*)
   rm -rf conftest*
   ;;
 
-x86_64-*kfreebsd*-gnu|x86_64-*linux*|ppc*-*linux*|powerpc*-*linux*| \
+x86_64-*kfreebsd*-gnu|x86_64-*linux*|powerpc*-*linux*| \
 s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
   # Find out which ABI we are using.
   echo 'int i;' > conftest.$ac_ext
@@ -7448,7 +7452,10 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	  x86_64-*linux*)
 	    LD="${LD-ld} -m elf_i386"
 	    ;;
-	  ppc64-*linux*|powerpc64-*linux*)
+	  powerpc64le-*linux*)
+	    LD="${LD-ld} -m elf32lppclinux"
+	    ;;
+	  powerpc64-*linux*)
 	    LD="${LD-ld} -m elf32ppclinux"
 	    ;;
 	  s390x-*linux*)
@@ -7467,7 +7474,10 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	  x86_64-*linux*)
 	    LD="${LD-ld} -m elf_x86_64"
 	    ;;
-	  ppc*-*linux*|powerpc*-*linux*)
+	  powerpcle-*linux*)
+	    LD="${LD-ld} -m elf64lppc"
+	    ;;
+	  powerpc-*linux*)
 	    LD="${LD-ld} -m elf64ppc"
 	    ;;
 	  s390*-*linux*|s390*-*tpf*)
@@ -17988,6 +17998,8 @@ if test "$with_fhs_opt" = "yes"; then
   propertydir=/properties
   # relative to libdir
   perldir=/perl
+  # relative to libdir
+  pythondir=/python
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -18017,6 +18029,8 @@ else
   propertydir=/$PACKAGE_NAME/properties
   # relative to libdir
   perldir=/$PACKAGE_NAME/perl
+  # relative to libdir
+  pythondir=/$PACKAGE_NAME/python
 fi
 
 # if mandir is the default value, override it
@@ -18204,6 +18218,27 @@ else
   with_perldir=
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-pythondir" >&5
+$as_echo_n "checking for --with-pythondir... " >&6; }
+
+# Check whether --with-pythondir was given.
+if test "${with_pythondir+set}" = set; then :
+  withval=$with_pythondir;
+fi
+
+if test -n "$with_pythondir"; then
+  if test  "$with_pythondir" = yes ; then
+    as_fn_error $? "You must specify --with-pythondir=/full/path/to/python" "$LINENO" 5
+  elif test  "$with_pythondir" = no ; then
+    with_pythondir=
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_pythondir" >&5
+$as_echo "$with_pythondir" >&6; }
+  fi
+else
+  with_pythondir=
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-systemdsystemunitdir" >&5
 $as_echo_n "checking for --with-systemdsystemunitdir... " >&6; }
 
@@ -18274,6 +18309,7 @@ $as_echo "$with_systemdgroupname" >&6; }
    fi
 
 fi
+
 
 
 
