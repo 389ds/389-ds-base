@@ -264,6 +264,8 @@ if test "$with_fhs_opt" = "yes"; then
   propertydir=/properties
   # relative to libdir
   perldir=/perl
+  # relative to libdir
+  pythondir=/python
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -295,6 +297,8 @@ else
   propertydir=/$PACKAGE_NAME/properties
   # relative to libdir
   perldir=/$PACKAGE_NAME/perl
+  # relative to libdir
+  pythondir=/$PACKAGE_NAME/python
 fi
 
 # if mandir is the default value, override it
@@ -403,6 +407,7 @@ AC_SUBST(serverincdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
+AC_SUBST(pythondir)
 AC_SUBST(infdir)
 AC_SUBST(mibdir)
 AC_SUBST(mandir)
