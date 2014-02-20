@@ -264,6 +264,8 @@ if test "$with_fhs_opt" = "yes"; then
   propertydir=/properties
   # relative to libdir
   perldir=/perl
+  # relative to libdir
+  pythondir=/python
 else
   if test "$with_fhs" = "yes"; then
     ac_default_prefix=/usr
@@ -295,6 +297,8 @@ else
   propertydir=/$PACKAGE_NAME/properties
   # relative to libdir
   perldir=/$PACKAGE_NAME/perl
+  # relative to libdir
+  pythondir=/$PACKAGE_NAME/python
 fi
 
 # if mandir is the default value, override it
@@ -353,6 +357,23 @@ if test -n "$with_perldir"; then
   fi
 else
   with_perldir=
+fi
+
+AC_MSG_CHECKING(for --with-pythondir)
+AC_ARG_WITH([pythondir],
+   AS_HELP_STRING([--with-pythondir=PATH],
+                  [Directory for python)])
+)
+if test -n "$with_pythondir"; then
+  if test  "$with_pythondir" = yes ; then
+    AC_MSG_ERROR([You must specify --with-pythondir=/full/path/to/python])
+  elif test  "$with_pythondir" = no ; then
+    with_pythondir=
+  else
+    AC_MSG_RESULT([$with_pythondir])
+  fi
+else
+  with_pythondir=
 fi
 
 AC_MSG_CHECKING(for --with-systemdsystemunitdir)
@@ -421,6 +442,7 @@ AC_SUBST(serverincdir)
 AC_SUBST(serverplugindir)
 AC_SUBST(scripttemplatedir)
 AC_SUBST(perldir)
+AC_SUBST(pythondir)
 AC_SUBST(infdir)
 AC_SUBST(mibdir)
 AC_SUBST(mandir)
