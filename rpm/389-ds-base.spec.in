@@ -291,8 +291,8 @@ fi
 %{_unitdir}
 %{_bindir}/*
 %{_sbindir}/*
-%{_libdir}/%{pkgname}/libns-dshttpd.so*
 %{_libdir}/%{pkgname}/perl
+%{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
 %dir %{_localstatedir}/lib/%{pkgname}
@@ -313,6 +313,7 @@ fi
 %doc LICENSE EXCEPTION LICENSE.GPLv2 README.devel
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
+%{_libdir}/%{pkgname}/libns-dshttpd.so*
 
 %changelog
 * Sat Jun 15 2013 Noriko Hosoi <nhosoi@redhat.com> - 1.3.1.2-1
