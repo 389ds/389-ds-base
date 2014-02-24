@@ -428,6 +428,14 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
             else    /* modify an attribute */
             {
                 config_attr_value = (char *) mods[i]->mod_bvalues[0]->bv_val;
+                if (NULL == config_attr_value) {
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attribute %s value is NULL.\n",
+                                 config_attr);
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n",
+                                    errortext);
+                    break;
+                }
 
                 if (strcasecmp (config_attr, attr_replicaBindDn) == 0)
 			    {
@@ -467,7 +475,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 }
 				else if (strcasecmp (config_attr, type_replicaPurgeDelay) == 0)
 				{
-					if (apply_mods && config_attr_value && config_attr_value[0])
+					if (apply_mods && config_attr_value[0])
 					{
 						PRUint32 delay;
 						if (isdigit (config_attr_value[0]))
@@ -481,7 +489,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 				}
 				else if (strcasecmp (config_attr, type_replicaTombstonePurgeInterval) == 0)
 				{
-					if (apply_mods && config_attr_value && config_attr_value[0])
+					if (apply_mods && config_attr_value[0])
 					{
 						long interval;
 						interval = atol (config_attr_value);
@@ -490,7 +498,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 				}
                 else if (strcasecmp (config_attr, type_replicaLegacyConsumer) == 0)
                 {
-                    if (apply_mods)
+                    if (apply_mods && config_attr_value[0])
                     {
                         PRBool legacy = (strcasecmp (config_attr_value, "on") == 0) ||
                                         (strcasecmp (config_attr_value, "true") == 0) ||
@@ -511,15 +519,13 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                     {
                         PRUint64 ptimeout = 0;
 
-                        if(config_attr_value){
-                            ptimeout = atoll(config_attr_value);
-                        }
+                        ptimeout = atoll(config_attr_value);
 
                         if(ptimeout <= 0){
                             *returncode = LDAP_UNWILLING_TO_PERFORM;
                             PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
                                          "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
-                                         config_attr, config_attr_value ? config_attr_value : "");
+                                         config_attr, config_attr_value);
                             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
                             break;
                         }
@@ -536,7 +542,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                             *returncode = LDAP_UNWILLING_TO_PERFORM;
                             PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
                                     "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
-                                    config_attr, config_attr_value ? config_attr_value : "");
+                                    config_attr, config_attr_value);
                             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
                             break;
                         }
@@ -553,7 +559,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                             *returncode = LDAP_UNWILLING_TO_PERFORM;
                             PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
                                     "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
-                                    config_attr, config_attr_value ? config_attr_value : "");
+                                    config_attr, config_attr_value);
                             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
                             break;
                         }
