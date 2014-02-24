@@ -499,7 +499,6 @@ void retrocl_init_trimming (void)
     const char *cl_trim_interval;
     
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
-    cl_trim_interval = retrocl_get_config_str(CONFIG_CHANGELOG_TRIM_INTERVAL);
     
     if (cl_maxage == NULL) {
       LDAPDebug0Args(LDAP_DEBUG_TRACE,"No maxage, not trimming retro changelog.\n");
@@ -508,6 +507,7 @@ void retrocl_init_trimming (void)
     ageval = age_str2time (cl_maxage);
     slapi_ch_free_string((char **)&cl_maxage);
 
+    cl_trim_interval = retrocl_get_config_str(CONFIG_CHANGELOG_TRIM_INTERVAL);
     if (cl_trim_interval) {
       trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);
       if (0 == trim_interval) {
