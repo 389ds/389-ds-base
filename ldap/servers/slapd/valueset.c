@@ -1014,6 +1014,15 @@ valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_V
 		
 }
 
+/*
+ * If this function returns an error, it is safe to do both
+ * slapi_valueset_done(vs);
+ * and
+ * valuearray_free(&addvals);
+ * if there is an error and the PASSIN flag is used, the addvals array will own all of the values
+ * vs will own none of the values - so you should do both slapi_valueset_done(vs) and valuearray_free(&add
+ * to clean up
+ */
 int
 slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs, 
 					Slapi_Value **addvals, int naddvals, unsigned long flags, int *dup_index)
@@ -1086,8 +1095,13 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 				if (dup < 0 ) {
 					rc = LDAP_TYPE_OR_VALUE_EXISTS;
 					if (dup_index) *dup_index = i;
-					if ( !passin) 
+					if (passin) {
+						PR_ASSERT((i == 0) || dup_index);
+						/* caller must provide dup_index to know how far we got in addvals */
+						(vs->va)[vs->num] = NULL;
+					} else {
 						slapi_value_free(&(vs->va)[vs->num]);
+					}
 					break;
 				}
 			} else {
@@ -1310,31 +1324,42 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
 	vs->max = vals_count + 1;
     } else {
 	/* verify the given values are not duplicated.  */
+	unsigned long flags = SLAPI_VALUE_FLAG_PASSIN|SLAPI_VALUE_FLAG_DUPCHECK;
+	int dupindex = 0;
 	Slapi_ValueSet *vs_new = slapi_valueset_new();
-	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, 0, NULL);
+	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, flags, &dupindex);
 
 	if ( rc == LDAP_SUCCESS )
 	{
+		/* used passin, so vs_new owns all of the Slapi_Value* in valstoreplace
+		 * so tell valuearray_free_ext to start at index vals_count, which is
+		 * NULL, then just free valstoreplace
+		 */
+		valuearray_free_ext(&valstoreplace, vals_count);
 		/* values look good - replace the values in the attribute */
-        	if(!valuearray_isempty(vs->va))
-        	{
-            		/* remove old values */
-            		slapi_valueset_done(vs);
-        	}
-        	vs->va = vs_new->va;
+		if(!valuearray_isempty(vs->va))
+		{
+			/* remove old values */
+			slapi_valueset_done(vs);
+		}
+		vs->va = vs_new->va;
 		vs_new->va = NULL;
-        	vs->sorted = vs_new->sorted;
+		vs->sorted = vs_new->sorted;
 		vs_new->sorted = NULL;
-        	vs->num = vs_new->num;
-        	vs->max = vs_new->max;
+		vs->num = vs_new->num;
+		vs->max = vs_new->max;
 		slapi_valueset_free (vs_new);
 	}
 	else
 	{
-	        /* caller expects us to own valstoreplace - since we cannot
-	           use them, just delete them */
-        	slapi_valueset_free(vs_new);
-        	valuearray_free(&valstoreplace);
+		/* caller expects us to own valstoreplace - since we cannot
+		 use them, just delete them */
+		/* using PASSIN, some of the Slapi_Value* are in vs_new, and the rest
+		 * after dupindex are in valstoreplace
+		 */
+		slapi_valueset_free(vs_new);
+		valuearray_free_ext(&valstoreplace, dupindex);
+		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
 	}
     }
     return rc;
