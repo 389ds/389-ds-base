@@ -3032,7 +3032,7 @@ ndn_cache_flush()
     int i;
 
     node = ndn_cache->tail;
-    for(i = 0; i < NDN_FLUSH_COUNT && ndn_cache->cache_count > NDN_MIN_COUNT; i++){
+    for(i = 0; node && i < NDN_FLUSH_COUNT && ndn_cache->cache_count > NDN_MIN_COUNT; i++){
         flush_node = node;
         /* update the lru */
         next = node->prev;
