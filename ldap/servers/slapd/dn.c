@@ -3034,7 +3034,7 @@ ndn_cache_free()
     }
 
     node = ndn_cache->tail;
-    while(ndn_cache->cache_count){
+    while(node && ndn_cache->cache_count){
         flush_node = node;
         /* update the lru */
         next = node->prev;
