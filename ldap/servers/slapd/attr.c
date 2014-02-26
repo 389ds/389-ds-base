@@ -229,6 +229,34 @@ slapi_attr_init(Slapi_Attr *a, const char *type)
 	return slapi_attr_init_locking_optional(a, type, PR_TRUE);
 }
 
+int
+slapi_attr_init_syntax(Slapi_Attr *a)
+{
+	int rc = 1;
+	struct asyntaxinfo *asi = NULL;
+	char *tmp = 0;
+	const char *basetype= NULL;
+	char buf[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
+
+	basetype = buf;
+	tmp = slapi_attr_basetype(a->a_type, buf, sizeof(buf));
+	if (tmp) {
+		basetype = buf;
+	}
+	asi = attr_syntax_get_by_name_with_default (basetype);
+	if (asi) {
+		rc = 0;
+		a->a_plugin = asi->asi_plugin;
+		a->a_flags = asi->asi_flags;
+		a->a_mr_eq_plugin = asi->asi_mr_eq_plugin;
+		a->a_mr_ord_plugin = asi->asi_mr_ord_plugin;
+		a->a_mr_sub_plugin = asi->asi_mr_sub_plugin;
+	}
+	if (tmp)
+		slapi_ch_free_string(&tmp);
+	return rc;
+}
+
 Slapi_Attr *
 slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock)
 {
@@ -408,6 +436,10 @@ slapi_attr_value_find( const Slapi_Attr *a, const struct berval *v )
 		return( -1 );
 	}
 
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+		slapi_attr_init_syntax ((Slapi_Attr *)a);
+	}
+
 	ava.ava_type = a->a_type;
 	ava.ava_value = *v;
 	if (a->a_flags & SLAPI_ATTR_FLAG_NORMALIZED) {
@@ -519,6 +551,9 @@ attr_get_present_values(const Slapi_Attr *a)
 int
 slapi_attr_get_flags( const Slapi_Attr *a, unsigned long *flags )
 {
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+		slapi_attr_init_syntax ((Slapi_Attr *)a);
+	}
 	*flags = a->a_flags;
 	return( 0 );
 }
@@ -526,6 +561,9 @@ slapi_attr_get_flags( const Slapi_Attr *a, unsigned long *flags )
 int
 slapi_attr_flag_is_set( const Slapi_Attr *a, unsigned long flag )
 {
+	if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+		slapi_attr_init_syntax ((Slapi_Attr *)a);
+	}
 	return( a->a_flags & flag );
 }
 
@@ -536,6 +574,10 @@ slapi_attr_value_cmp( const Slapi_Attr *a, const struct berval *v1, const struct
     struct ava ava;
     Slapi_Value *cvals[2];
     Slapi_Value tmpcval;
+
+    if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+        slapi_attr_init_syntax ((Slapi_Attr *)a);
+    }
 
     cvals[0] = &tmpcval;
     cvals[0]->v_csnset = NULL;
@@ -558,6 +600,10 @@ slapi_attr_value_cmp_ext(const Slapi_Attr *a, Slapi_Value *v1, Slapi_Value *v2)
     Slapi_Value *cvals[2];
     unsigned long v2_flags = v2->v_flags;
     const struct berval *bv2 = slapi_value_get_berval(v2);
+
+   if ( a->a_flags == 0 && a->a_plugin == NULL ) {
+      slapi_attr_init_syntax ((Slapi_Attr *)a);
+   }
 
     cvals[0] = v1;
     cvals[1] = NULL;
