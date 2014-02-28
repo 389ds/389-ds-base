@@ -243,6 +243,7 @@ slapi_onoff_t init_attrname_exceptions;
 slapi_onoff_t init_return_exact_case;
 slapi_onoff_t init_result_tweak;
 slapi_onoff_t init_plugin_track;
+slapi_onoff_t init_moddn_aci;
 slapi_onoff_t init_lastmod;
 slapi_onoff_t init_readonly;
 slapi_onoff_t init_accesscontrol;
@@ -841,6 +842,11 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.plugin_track,
 		CONFIG_ON_OFF, NULL, &init_plugin_track},
+        {CONFIG_MODDN_ACI_ATTRIBUTE, config_set_moddn_aci,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.moddn_aci,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_moddn_aci,
+                &init_moddn_aci},                
 	{CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE, config_set_attrname_exceptions,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.attrname_exceptions,
@@ -1424,6 +1430,7 @@ FrontendConfig_init () {
   init_schemamod = cfg->schemamod = LDAP_ON;
   init_syntaxcheck = cfg->syntaxcheck = LDAP_OFF;
   init_plugin_track = cfg->plugin_track = LDAP_OFF;
+  init_moddn_aci = cfg->moddn_aci = LDAP_ON;
   init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
   init_dn_validate_strict = cfg->dn_validate_strict = LDAP_OFF;
   init_ds4_compatible_schema = cfg->ds4_compatible_schema = LDAP_OFF;
@@ -3250,6 +3257,20 @@ config_set_plugin_tracking( const char *attrname, char *value, char *errorbuf, i
 }
 
 int
+config_set_moddn_aci( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+							  value,
+							  &(slapdFrontendConfig->moddn_aci),
+							  errorbuf,
+							  apply);
+
+  return retVal;
+}
+
+int
 config_set_security( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -5059,6 +5080,18 @@ config_get_result_tweak() {
   CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal; 
+}
+
+int
+config_get_moddn_aci() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+  
+  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+  retVal = (int)slapdFrontendConfig->moddn_aci;
+  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
 }
 
 int

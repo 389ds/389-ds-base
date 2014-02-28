@@ -481,6 +481,13 @@ _ger_get_entry_rights (
 	}
 	slapi_rdn_free ( &rdn );
 
+         if (acl_access_allowed(gerpb, e, NULL, NULL, SLAPI_ACL_MODDN) == LDAP_SUCCESS) {
+                slapi_log_error (SLAPI_LOG_ACL, plugin_name,
+			"_ger_get_entry_rights: SLAPI_ACL_MODDN %s\n", slapi_entry_get_ndn (e) );
+                /* n - rename e */
+		entryrights |= SLAPI_ACL_MODDN;
+		_append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
+        }
 	if ( entryrights == 0 )
 	{
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);

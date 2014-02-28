@@ -121,6 +121,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     int opreturn = 0;
     int free_modrdn_existing_entry = 0;
     int not_an_error = 0;
+    int support_moddn_aci;
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
@@ -143,6 +144,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         return( -1 );
     } 
 
+    /* In case of support of 'moddn' permission in aci, this permission will
+     * be tested rather than the SLAPI_ACL_ADD
+     */
+    support_moddn_aci = config_get_moddn_aci();
+    
     /* dblayer_txn_init needs to be called before "goto error_return" */
     dblayer_txn_init(li,&txn);
     /* the calls to perform searches require the parent txn if any
@@ -594,12 +600,22 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
             else
             {
-                ldap_result_code= plugin_call_acl_plugin (pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
-                if ( ldap_result_code != LDAP_SUCCESS )
-                {
-                    ldap_result_message= errbuf;
-                    LDAPDebug( LDAP_DEBUG_TRACE, "No access to new superior.\n", 0, 0, 0 );
-                    goto error_return;
+                if (support_moddn_aci) {
+                    /* aci permission requires 'moddn' right to allow a MODDN */
+                    ldap_result_code = plugin_call_acl_plugin(pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_MODDN, ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
+                    if (ldap_result_code != LDAP_SUCCESS) {
+                            ldap_result_message = errbuf;
+                            LDAPDebug(LDAP_DEBUG_TRACE, "No 'moddn' access to new superior.\n", 0, 0, 0);
+                            goto error_return;
+                    }
+                } else {
+                    /* aci permission requires 'add' right to allow a MODDN (old style) */
+                    ldap_result_code = plugin_call_acl_plugin (pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
+                    if (ldap_result_code != LDAP_SUCCESS) {
+                                ldap_result_message = errbuf;
+                                LDAPDebug(LDAP_DEBUG_TRACE, "No 'add' access to new superior.\n", 0, 0, 0);
+                                goto error_return;
+                        }
                 }
             }
         
@@ -641,16 +657,33 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 ldap_result_code= LDAP_OPERATIONS_ERROR;
                 goto error_return;
             }
-        
+            
             /* JCMACL - Should be performed before the child check. */
             /* JCMACL - Why is the check performed against the copy, rather than the existing entry? */
-            ldap_result_code = plugin_call_acl_plugin (pb, ec->ep_entry,
-                                    NULL /*attr*/, NULL /*value*/, SLAPI_ACL_WRITE,
-                                    ACLPLUGIN_ACCESS_MODRDN,  &errbuf );
-            if ( ldap_result_code != LDAP_SUCCESS )
             {
-                goto error_return;
-            }
+                Slapi_RDN *new_rdn;
+                Slapi_RDN *old_rdn;
+
+                /* Taken from the entry */
+                old_rdn = slapi_entry_get_srdn(ec->ep_entry);
+
+                /* Taken from the request */
+                new_rdn = slapi_rdn_new();
+                slapi_sdn_get_rdn(&dn_newrdn, new_rdn);
+
+                /* Only if we change the RDN value, we need the write access to the entry */
+                if (slapi_rdn_compare(old_rdn, new_rdn)) {
+                        ldap_result_code = plugin_call_acl_plugin(pb, ec->ep_entry,
+                                NULL /*attr*/, NULL /*value*/, SLAPI_ACL_WRITE,
+                                ACLPLUGIN_ACCESS_MODRDN, &errbuf);
+                }
+
+                slapi_rdn_free(&new_rdn);
+
+                if (ldap_result_code != LDAP_SUCCESS) {
+                        goto error_return;
+                }
+            } 
         
             /* Set the new dn to the copy of the entry */
             slapi_entry_set_sdn( ec->ep_entry, &dn_newdn );

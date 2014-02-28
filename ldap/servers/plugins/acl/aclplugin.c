@@ -393,7 +393,7 @@ acl_access_allowed_main ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs,
 	/* generate the appropriate error message */
 	if ( ( rc != LDAP_SUCCESS ) && errbuf && 
 		 ( ACLPLUGIN_ACCESS_GET_EFFECTIVE_RIGHTS != flags ) &&
-		 ( access & ( SLAPI_ACL_WRITE | SLAPI_ACL_ADD | SLAPI_ACL_DELETE ))) {
+		 ( access & ( SLAPI_ACL_WRITE | SLAPI_ACL_ADD | SLAPI_ACL_DELETE | SLAPI_ACL_MODDN ))) {
 
 		char	*edn  = slapi_entry_get_dn ( e );
 

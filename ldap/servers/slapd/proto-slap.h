@@ -289,6 +289,7 @@ int config_set_pagedsizelimit( const char *attrname, char *value, char *errorbuf
 int config_set_lastmod( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_nagle( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_accesscontrol( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_moddn_aci( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_security( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_readonly( const char *attrname, char *value, 	char *errorbuf, int apply );
 int config_set_schemacheck( const char *attrname, char *value, char *errorbuf, int apply );
@@ -470,6 +471,7 @@ int config_get_nagle();
 int config_get_accesscontrol();
 int config_get_return_exact_case();
 int config_get_result_tweak();
+int config_get_moddn_aci();
 int config_get_security();
 int config_get_schemacheck();
 int config_get_syntaxcheck();

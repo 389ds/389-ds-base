@@ -475,7 +475,10 @@ acl_gen_err_msg(int access, char *edn, char *attr, char **errbuf)
 	} else if ( access & SLAPI_ACL_DELETE ) {
 		line = PR_smprintf(
 			"Insufficient 'delete' privilege to delete the entry '%s'.\n",edn);
-	}
+	} else if ( access & SLAPI_ACL_MODDN ) {
+                line = PR_smprintf(
+			"Insufficient 'moddn' privilege to move an entry to '%s'.\n",edn);
+        }
 	aclutil_str_append(errbuf, line );
 
 	if (line) {

@@ -2102,6 +2102,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_AUDITLOG_LIST_ATTRIBUTE "nsslapd-auditlog-list"
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
+#define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
 
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
@@ -2257,6 +2258,7 @@ typedef struct _slapdFrontendConfig {
   char **include;
   char **plugin;
   slapi_onoff_t plugin_track;
+  slapi_onoff_t moddn_aci;
   struct pw_scheme *pw_storagescheme;
 
   slapi_onoff_t pwpolicy_local;

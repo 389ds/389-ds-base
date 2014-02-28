@@ -282,7 +282,7 @@ acl_access_allowed(
 	if ( access & (ACLPB_SLAPI_ACL_WRITE_ADD | ACLPB_SLAPI_ACL_WRITE_DEL) )	{
 		access |= SLAPI_ACL_WRITE;
 	}
-
+        
 	n_edn =	slapi_entry_get_ndn ( e	);
 	e_sdn =	slapi_entry_get_sdn ( e	);
 
@@ -290,7 +290,7 @@ acl_access_allowed(
 	/* No one, even	the rootdn should be allowed to	write to the database */
 	/* jcm:	ReadOnly only applies to the public backends, the private ones */
 	/* (the	DSEs) should still be writable for configuration. */
-	if ( access & (	SLAPI_ACL_WRITE	| SLAPI_ACL_ADD	 | SLAPI_ACL_DELETE )) {
+	if ( access & (	SLAPI_ACL_WRITE	| SLAPI_ACL_ADD	 | SLAPI_ACL_DELETE | SLAPI_ACL_MODDN)) {
 		int			be_readonly, privateBackend;
 		Slapi_Backend		*be;
 
@@ -351,6 +351,20 @@ acl_access_allowed(
 	TNF_PROBE_0_DEBUG(acl_aclpbinit_start,"ACL","");
 	acl_init_aclpb ( pb, aclpb, clientDn, 0	);
 	TNF_PROBE_0_DEBUG(acl_aclpbinit_end,"ACL","");
+        
+        if ( access & SLAPI_ACL_MODDN) {
+                /* with MODDN, the entry 'e' is the destination entry.
+                 * This destination entry will be checked against a possible 'target_to'
+                 * The source entry  will be checked against a possible 'target_from'.
+                 * 'e' will be given down to acl_resource_match_aci, so no pb on this side.
+                 * For the source entry we need to keep its dn into the aclpb.
+                 */
+                entry_address *old_addr;
+                slapi_pblock_get(pb, SLAPI_TARGET_ADDRESS, &old_addr);
+                aclpb->aclpb_moddn_source_sdn = old_addr->sdn;
+
+        }
+
 
 	/* Here	we mean	if "I am trying	to add/delete "myself" to a group, etc." We
 	 * basically just want to see if the value matches the DN of the user that
@@ -767,48 +781,95 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 
 		if ( aclpb->aclpb_authorization_sdn != NULL ) {
 
-				proxy_user = 
-					(char *)(slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn)?
-					slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn):
-					null_user);
+                        proxy_user = 
+                                (char *)(slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn)?
+                                slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn):
+                                null_user);
+                        if (strcasecmp(right, access_str_moddn) == 0) {
+                                 slapi_log_error(loglevel, plugin_name,                                                
+                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
+                                         ": %s\n",
+                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        source,
+                                        access_status,
+                                        right, 
+                                        edn,
+                                        attr ? attr: "NULL",
+                                        aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL", /* from entry - stored in  pblock */
+                                        proxy_user,
+                                        acl_info[0] ? acl_info : access_reason);
 
-				slapi_log_error(loglevel, plugin_name, 
-		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
-		": %s\n",
-				(long long unsigned int)op->o_connid, op->o_opid,
-				source,
-				access_status,
-				right, 
-				edn,
-				attr ? attr: "NULL",
-				proxy_user,
-				acl_info[0] ? acl_info : access_reason);									
+                        } else {
+                                slapi_log_error(loglevel, plugin_name, 
+                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+                                         ": %s\n",
+                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        source,
+                                        access_status,
+                                        right, 
+                                        edn,
+                                        attr ? attr: "NULL",
+                                        proxy_user,
+                                        acl_info[0] ? acl_info : access_reason);
+                        }
 		} else {
-					proxy_user = null_user;
-					slapi_log_error(loglevel, plugin_name, 
-		"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
-		": %s\n",
-				(long long unsigned int)op->o_connid, op->o_opid,
-				source,
-				access_status,
-				right, 
-				edn,
-				attr ? attr: "NULL",
-				proxy_user,
-				acl_info[0] ? acl_info : access_reason);								
+                        proxy_user = null_user;
+                        if (strcasecmp(right, access_str_moddn) == 0) {
+                                slapi_log_error(loglevel, plugin_name, 
+                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
+                                        ": %s\n",
+                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        source,
+                                        access_status,
+                                        right, 
+                                        edn,
+                                        attr ? attr: "NULL",
+                                        aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL", /* from entry - stored in  pblock */
+                                        proxy_user,
+                                        acl_info[0] ? acl_info : access_reason);
+                                
+                        } else {
+                                slapi_log_error(loglevel, plugin_name, 
+                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+                                        ": %s\n",
+                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        source,
+                                        access_status,
+                                        right, 
+                                        edn,
+                                        attr ? attr: "NULL",
+                                        proxy_user,
+                                        acl_info[0] ? acl_info : access_reason);
+                        }
 		}
-	} else{
-		slapi_log_error(loglevel, plugin_name, 
-			"conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
-			": %s\n",
-				(long long unsigned int)op->o_connid, op->o_opid,
-				source,
-				access_status,
-				right, 
-				edn,
-				attr ? attr: "NULL",
-				real_user,
-				acl_info[0] ? acl_info : access_reason);									
+	} else {
+                if (strcasecmp(right, access_str_moddn) == 0) {
+                        slapi_log_error(loglevel, plugin_name, 
+                                "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to %s"
+                                ": %s\n",
+                                (long long unsigned int)op->o_connid, op->o_opid,
+                                source,
+                                access_status,
+                                right, 
+                                edn,
+                                attr ? attr: "NULL",
+                                aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL", /* from entry - stored in  pblock */
+                                real_user,
+                                acl_info[0] ? acl_info : access_reason);
+                        
+                } else {
+                        slapi_log_error(loglevel, plugin_name, 
+                                "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
+                                ": %s\n",
+                                (long long unsigned int)op->o_connid, op->o_opid,
+                                source,
+                                access_status,
+                                right, 
+                                edn,
+                                attr ? attr: "NULL",
+                                real_user,
+                                acl_info[0] ? acl_info : access_reason);
+                }
 	}
 	
 
@@ -2006,7 +2067,7 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 *	None.
 *
 **************************************************************************/
-#define ACL_RIGHTS_TARGETATTR_NOT_NEEDED  ( SLAPI_ACL_ADD | SLAPI_ACL_DELETE | SLAPI_ACL_PROXY)
+#define ACL_RIGHTS_TARGETATTR_NOT_NEEDED  ( SLAPI_ACL_ADD | SLAPI_ACL_DELETE | SLAPI_ACL_PROXY | SLAPI_ACL_MODDN)
 static int
 acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a_matched)
 {
@@ -2093,7 +2154,108 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			matches = (dn_matched ? ACL_TRUE: ACL_FALSE);
 		}
 	}
-	
+        
+        /* No need to look further */
+	if (matches == ACL_FALSE) {
+		goto acl__resource_match_aci_EXIT;	
+	}
+        
+	if ((aci->aci_type & ACI_TARGET_MODDN) && (res_right & SLAPI_ACL_MODDN) && (aclpb->aclpb_curr_entry_sdn)) {
+		char		*avaType;
+		struct berval	*avaValue;
+                char		 logbuf[1024];		
+
+                /* We are evaluating the moddn permission. 
+                 * The aci contains target_to and target_from 
+                 * 
+                 * target_to filter must be checked against the resource ndn that was stored in
+                 * aclpb->aclpb_curr_entry_sdn
+                 * 
+                 * target_from filter must be check against the entry ndn that is in aclpb->aclpb_moddn_source_sdn
+                 * (sdn was stored in the pblock)
+                 */
+		if (aci->target_to) { 
+                        f = aci->target_to;
+                        dn_matched = ACL_TRUE;
+                        
+                        /* Now check if the filter is a simple or substring filter */
+                        if (aci->aci_type & ACI_TARGET_MODDN_TO_PATTERN) {
+                                /* This is a filter with substring
+                                 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
+                                 */
+                                slapi_log_error( SLAPI_LOG_ACL, plugin_name, "moddn target_to substring: %s\n",
+                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+                                if ((rv = acl_match_substring(f, (char *) res_ndn, 0 /* match suffix */)) != ACL_TRUE) {
+                                        dn_matched = ACL_FALSE;
+                                        if (rv == ACL_ERR) {
+                                                slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                        "acl__resource_match_aci:pattern err\n");
+                                                matches = ACL_FALSE;
+                                                goto acl__resource_match_aci_EXIT;
+                                        }
+                                }
+                        } else {
+                                /* This is a filter without substring
+                                 * e.g. ldap:///cn=accounts,dc=example,dc=com
+                                 */
+                                slapi_log_error( SLAPI_LOG_ACL, plugin_name, "moddn target_to: %s\n",
+                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+                                slapi_filter_get_ava(f, &avaType, &avaValue);
+
+                                if (!slapi_dn_issuffix(res_ndn, avaValue->bv_val)) {
+                                        dn_matched = ACL_FALSE;
+                                }
+
+                        }
+                        if (aci->aci_type & ACI_TARGET_NOT) {
+                                matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
+                        } else {
+                                matches = (dn_matched ? ACL_TRUE : ACL_FALSE);
+                        }
+                } /* target_to */
+                
+                if ((matches == ACL_TRUE) && (aci->target_from) && aclpb->aclpb_moddn_source_sdn) {
+                        f = aci->target_from;
+                        dn_matched = ACL_TRUE;
+                        slapi_filter_get_ava ( f, &avaType, &avaValue );
+                        
+                        /* Now check if the filter is a simple or substring filter */
+                        if (aci->aci_type & ACI_TARGET_MODDN_FROM_PATTERN) {
+                                /* This is a filter with substring
+                                 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
+                                 */
+                                slapi_log_error( SLAPI_LOG_ACL, plugin_name, "moddn target_from substring: %s\n",
+                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+                                if ((rv = acl_match_substring(f, (char *) slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), 0 /* match suffix */)) != ACL_TRUE) {
+                                        dn_matched = ACL_FALSE;
+                                        if (rv == ACL_ERR) {
+                                                slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                        "acl__resource_match_aci:pattern err\n");
+                                                matches = ACL_FALSE;
+                                                goto acl__resource_match_aci_EXIT;
+                                        }
+                                }
+                                
+                        } else {
+                                /* This is a filter without substring
+                                 * e.g. ldap:///cn=accounts,dc=example,dc=com
+                                 */
+                                slapi_log_error( SLAPI_LOG_ACL, plugin_name, "moddn target_from: %s\n",
+                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+                                if (!slapi_dn_issuffix(slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), avaValue->bv_val)) {
+                                        dn_matched = ACL_FALSE;
+                                }
+                                
+                        }
+
+                        if (aci->aci_type & ACI_TARGET_NOT) {
+                                matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
+                        } else {
+                                matches = (dn_matched ? ACL_TRUE: ACL_FALSE);
+                        }
+                }
+	}
+        
 	/* No need to look further */
 	if (matches == ACL_FALSE) {
 		goto acl__resource_match_aci_EXIT;	

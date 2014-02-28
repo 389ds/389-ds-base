@@ -117,6 +117,8 @@ static char* const aci_targetdn 			= "target";
 static char* const aci_targetattr 			= "targetattr";
 static char* const aci_targetattrfilters 	= "targattrfilters";
 static char* const aci_targetfilter 		= "targetfilter";
+static char* const aci_target_to                = "target_to";
+static char* const aci_target_from              = "target_from";
 
 static char* const LDAP_URL_prefix_core 	= "ldap://";
 static char* const LDAPS_URL_prefix_core 	= "ldaps://";
@@ -132,6 +134,7 @@ static char* const access_str_delete	= "delete";
 static char* const access_str_add		= "add";
 static char* const access_str_selfwrite = "selfwrite";
 static char* const access_str_proxy 	= "proxy";
+static char* const access_str_moddn 	= "moddn";
 
 #define ACL_INIT_ATTR_ARRAY 5 
 
@@ -256,24 +259,27 @@ typedef struct aci {
 ** 
 */
 
-#define ACI_TARGET_MACRO_DN			(int)0x000001
-#define ACI_TARGET_FILTER_MACRO_DN	(int)0x000002
-#define ACI_TARGET_DN				(int)0x000100	/* target has DN */
-#define ACI_TARGET_ATTR				(int)0x000200	/* target is an attr */
-#define ACI_TARGET_PATTERN			(int)0x000400	/* target has some patt */
-#define ACI_TARGET_FILTER			(int)0x000800	/* target has a filter */
-#define	ACI_ACLTXT					(int)0x001000	/* ACI has text only */
-#define	ACI_TARGET_NOT				(int)0x002000	/* it's a !=  */
-#define	ACI_TARGET_ATTR_NOT			(int)0x004000	/* It's a != manager */
-#define ACI_TARGET_FILTER_NOT		(int)0x008000	/* It's a != filter */
-#define ACI_UNUSED2					(int)0x010000    /* Unused */
-#define ACI_HAS_ALLOW_RULE			(int)0x020000	/* allow (...) */
-#define ACI_HAS_DENY_RULE			(int)0x040000	/* deny (...) */
-#define ACI_CONTAIN_NOT_USERDN		(int)0x080000	/* userdn != blah */
-#define ACI_TARGET_ATTR_ADD_FILTERS	(int)0x100000
-#define ACI_TARGET_ATTR_DEL_FILTERS	(int)0x200000
-#define ACI_CONTAIN_NOT_GROUPDN		(int)0x400000	/* groupdn != blah */
-#define ACI_CONTAIN_NOT_ROLEDN		(int)0x800000
+#define ACI_TARGET_MACRO_DN		(int)0x0000001
+#define ACI_TARGET_FILTER_MACRO_DN	(int)0x0000002
+#define ACI_TARGET_DN			(int)0x0000100	/* target has DN */
+#define ACI_TARGET_ATTR			(int)0x0000200	/* target is an attr */
+#define ACI_TARGET_PATTERN		(int)0x0000400	/* target has some patt */
+#define ACI_TARGET_FILTER		(int)0x0000800	/* target has a filter */
+#define	ACI_ACLTXT			(int)0x0001000	/* ACI has text only */
+#define	ACI_TARGET_NOT			(int)0x0002000	/* it's a !=  */
+#define	ACI_TARGET_ATTR_NOT		(int)0x0004000	/* It's a != manager */
+#define ACI_TARGET_FILTER_NOT		(int)0x0008000	/* It's a != filter */
+#define ACI_UNUSED2			(int)0x0010000    /* Unused */
+#define ACI_HAS_ALLOW_RULE		(int)0x0020000	/* allow (...) */
+#define ACI_HAS_DENY_RULE		(int)0x0040000	/* deny (...) */
+#define ACI_CONTAIN_NOT_USERDN		(int)0x0080000	/* userdn != blah */
+#define ACI_TARGET_ATTR_ADD_FILTERS	(int)0x0100000
+#define ACI_TARGET_ATTR_DEL_FILTERS	(int)0x0200000
+#define ACI_CONTAIN_NOT_GROUPDN		(int)0x0400000	/* groupdn != blah */
+#define ACI_CONTAIN_NOT_ROLEDN		(int)0x0800000
+#define ACI_TARGET_MODDN                (int)0x1000000
+#define ACI_TARGET_MODDN_FROM_PATTERN   (int)0x2000000
+#define ACI_TARGET_MODDN_TO_PATTERN     (int)0x4000000
 
 	int				aci_access;
 
@@ -320,6 +326,8 @@ typedef struct aci {
 	struct slapi_filter		*targetFilter;  /* Target has a filter */
 	Targetattrfilter		**targetAttrAddFilters;
 	Targetattrfilter		**targetAttrDelFilters;
+        Slapi_Filter                    *target_to;             /* Target is the destination DN of moddn */
+        Slapi_Filter                    *target_from;           /* Target is the source DN of moddn */
 	char					*aclName;		/* ACL name */
 	struct ACLListHandle	*aci_handle;	/*handle of the ACL */
 	aciMacro				*aci_macro;
@@ -520,6 +528,9 @@ struct acl_pblock {
 	Slapi_Entry				*aclpb_filter_test_entry;	/* Scratch entry */
 	aci_t					*aclpb_curr_aci;
 	char					*aclpb_Evalattr;	/* The last attr evaluated  */
+        
+        /* Source entry (MODDN) */
+        Slapi_DN                                *aclpb_moddn_source_sdn; /* This is a pointer into the pb, do not free it */
 
 	/* Plist and eval info */
 	ACLEvalHandle_t			*aclpb_acleval;		/* acleval handle for evaluation */

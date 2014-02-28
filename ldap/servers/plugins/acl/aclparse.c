@@ -254,6 +254,9 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 	int		targetdnlen = strlen (aci_targetdn);
 	int		tfilterlen = strlen(aci_targetfilter);
    	int 	targetattrfilterslen = strlen(aci_targetattrfilters);
+        int     target_to_len        = strlen(aci_target_to);
+        int     target_from_len      = strlen(aci_target_from);
+        PRBool  is_target_to;
 
 	__acl_strip_leading_space( &str );
 
@@ -348,7 +351,72 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			/* save the filter string */
             aci_item->targetFilterStr = tmpstr;
 
-		} else if (strncmp(str, aci_targetdn, targetdnlen) == 0) {
+		} else if ((strncmp(str, aci_target_to, target_to_len) == 0) || (strncmp(str, aci_target_from, target_from_len) == 0)) {
+                        /* This is important to make this test before aci_targetdn
+                         * because aci_targetdn also match aci_target_to/aci_target_from
+                         *  */
+                        char		*tstr = NULL;
+			size_t    LDAP_URL_prefix_len = 0;
+			size_t	tmplen = 0;
+
+                        /* Keep a copy of the target attr */
+                        type = ACI_TARGET_MODDN;
+			if (strncmp(str, aci_target_to, target_to_len) == 0) {
+                                if (aci_item->target_to) {
+                                        return (ACL_SYNTAX_ERR);
+                                }
+                                is_target_to = PR_TRUE;
+                        } else {
+                                if (aci_item->target_from) {
+                                        return (ACL_SYNTAX_ERR);
+                                }
+                                is_target_to = PR_FALSE;
+			}
+			if ( (s = strstr( str, "!=" )) != NULL ) {
+				type |= ACI_TARGET_NOT;
+				strncpy(s, " ", 1);
+			}			
+			if ( (s = strchr( str, '=' )) != NULL ) {
+				value = s + 1;
+				__acl_strip_leading_space(&value);
+				__acl_strip_trailing_space(value);
+				len =  strlen ( value );
+				/* strip double quotes */
+				if (*value == '"' &&  value[len-1] == '"') {
+					value[len-1] = '\0';
+					value++;
+				}	
+				__acl_strip_leading_space(&value);
+			} else {
+				return ( ACL_SYNTAX_ERR );
+			}
+			if (0 ==
+				strncasecmp(value, LDAP_URL_prefix, strlen(LDAP_URL_prefix))) {
+				LDAP_URL_prefix_len = strlen(LDAP_URL_prefix);
+			} else if (0 == strncasecmp(value, LDAPS_URL_prefix,
+										strlen(LDAPS_URL_prefix))) {
+				LDAP_URL_prefix_len = strlen(LDAPS_URL_prefix);
+			} else {
+				return ( ACL_SYNTAX_ERR );
+			}
+
+			value += LDAP_URL_prefix_len;
+			rv = slapi_dn_normalize_case_ext(value, 0, &tmpstr, &tmplen);
+			if (rv < 0) {
+				return ACL_SYNTAX_ERR;
+			} else if (rv == 0) { /* value passed in; not null terminated */
+				*(tmpstr + tmplen) = '\0';
+			}
+                        
+                        /* Now prepare the filter */
+                        if (strncmp(str, aci_target_to, target_to_len) == 0) {
+                                tstr = slapi_ch_smprintf("(%s=%s)", aci_target_to, tmpstr);
+                        } else {
+                                tstr = slapi_ch_smprintf("(%s=%s)", aci_target_from, tmpstr);
+                        }
+                        f = slapi_str2filter ( tstr );
+			slapi_ch_free_string ( &tstr );
+                } else if (strncmp(str, aci_targetdn, targetdnlen) == 0) {
 			char		*tstr = NULL;
 			size_t    LDAP_URL_prefix_len = 0;
 			size_t	tmplen = 0;
@@ -407,7 +475,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 				f = slapi_str2filter ( tstr );				
 			}
 			slapi_ch_free_string ( &tstr );
-		} else {
+                } else {
 			/* did start with a 't' but was not a recognsied keyword */
 			return(ACL_SYNTAX_ERR);
 		}
@@ -419,7 +487,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 		*/
 		if (f == NULL) {
 			/* The following types require a filter to have been created */
-			if (type & ACI_TARGET_DN)
+			if (type & (ACI_TARGET_DN | ACI_TARGET_MODDN))
 				return ACL_TARGET_FILTER_ERR;
 			else if (type & ACI_TARGET_FILTER) 
 				return ACL_TARGETFILTER_ERR;
@@ -427,16 +495,23 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			int	filterChoice;
 
 			filterChoice = slapi_filter_get_choice ( f );
-			if ( (type & ACI_TARGET_DN) &&
+			if ( (type & (ACI_TARGET_DN | ACI_TARGET_MODDN)) &&
 				( filterChoice == LDAP_FILTER_PRESENT)) {
 					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 					"acl__parse_aci: Unsupported filter type:%d\n", filterChoice);
 				return(ACL_SYNTAX_ERR);
 			} else if (( filterChoice == LDAP_FILTER_SUBSTRINGS) &&
 					(type & ACI_TARGET_DN)) {
-				type &= ~ACI_TARGET_DN;
+                                type &= ~ACI_TARGET_DN;
 				type |= ACI_TARGET_PATTERN;
-			}
+			} else if (( filterChoice == LDAP_FILTER_SUBSTRINGS) &&
+                                        (type & ACI_TARGET_MODDN)) {
+                                if (is_target_to) {
+                                        type |= ACI_TARGET_MODDN_TO_PATTERN;
+                                } else {
+                                        type |= ACI_TARGET_MODDN_FROM_PATTERN;
+                                }
+                        }  
 		}
 
 		if ((type & ACI_TARGET_DN) ||
@@ -459,7 +534,29 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			} else {
 				aci_item->targetFilter = f;
 			}
-		}
+		} else if (type & ACI_TARGET_MODDN) {
+                        if (is_target_to) {
+                                if (aci_item->target_to) {
+                                        /* There is something already. ERROR */
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "Multiple targets (target_to) in the ACL syntax\n");
+                                        slapi_filter_free(f, 1);
+                                        return(ACL_SYNTAX_ERR);
+                                } else {
+                                        aci_item->target_to = f;
+                                }                               
+                        } else {
+                                if (aci_item->target_from) {
+                                        /* There is something already. ERROR */
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+					 "Multiple targets (target_from) in the ACL syntax\n");
+                                        slapi_filter_free(f, 1);
+                                        return(ACL_SYNTAX_ERR);
+                                } else {
+                                        aci_item->target_from = f;
+                                }                               
+                        }     
+                } 
 		break; /* 't' */
 		default:
 			/* Here the keyword did not start with 'v' ot 't' so error */
@@ -1346,6 +1443,8 @@ static int get_acl_rights_as_int( char * strValue)
 		return (SLAPI_ACL_SELF | SLAPI_ACL_WRITE);
 	else if (strcasecmp (strValue, "all") == 0 )
 		return SLAPI_ACL_ALL;
+        else if (strcasecmp (strValue, "moddn") == 0)
+                return SLAPI_ACL_MODDN;
 	else
 		return -1; /* error */
 }
@@ -1389,7 +1488,9 @@ acl_access2str(int access)
 		return access_str_write;
 	} else if (access & SLAPI_ACL_PROXY ) {
 		return access_str_proxy;
-	}
+	} else if (access & SLAPI_ACL_MODDN) {
+                return access_str_moddn;
+        }
 
 	return NULL;
 }
