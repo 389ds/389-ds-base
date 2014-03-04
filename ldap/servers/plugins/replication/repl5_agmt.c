@@ -1198,6 +1198,36 @@ agmt_set_port_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 	return return_value;
 }
 
+/*
+ * Reset the hostname of the remote replica.
+ *
+ * Returns 0 if hostname is set, or -1 if an error occurred.
+ */
+int
+agmt_set_host_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = -1;
+
+	PR_ASSERT(NULL != ra);
+	slapi_entry_attr_find(e, type_nsds5ReplicaHost, &sattr);
+	PR_Lock(ra->lock);
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			ra->hostname = (char *)slapi_value_get_string(sval);
+			return_value = 0;
+		}
+	}
+	PR_Unlock(ra->lock);
+	prot_notify_agmt_changed(ra->protocol, ra->long_name);
+
+	return return_value;
+}
+
 static int
 agmt_parse_excluded_attrs_filter(const char *attr_string, size_t *offset)
 {
