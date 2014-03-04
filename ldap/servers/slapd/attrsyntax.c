@@ -861,11 +861,20 @@ slapi_attr_is_dn_syntax_attr(Slapi_Attr *attr)
 	const char *syntaxoid = NULL;
 	int dn_syntax = 0; /* not DN, by default */
 
+	if (attr && attr->a_flags & SLAPI_ATTR_FLAG_SYNTAX_IS_DN)
+		/* it was checked before */
+		return(1);
+
+	if (attr && attr->a_plugin == NULL) {
+ 	    slapi_attr_init_syntax (attr);
+ 	}
 	if (attr && attr->a_plugin) { /* If not set, there is no way to get the info */
 		if ((syntaxoid = attr_get_syntax_oid(attr))) {
 			dn_syntax = ((0 == strcmp(syntaxoid, NAMEANDOPTIONALUID_SYNTAX_OID))
 						 || (0 == strcmp(syntaxoid, DN_SYNTAX_OID)));
 		}
+		if (dn_syntax)
+			attr->a_flags |= SLAPI_ATTR_FLAG_SYNTAX_IS_DN;
 	}
 	return dn_syntax;
 }
