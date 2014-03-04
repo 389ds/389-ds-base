@@ -498,7 +498,7 @@ disk_mon_get_mount_point(char *dir)
 
     dev_id = s.st_dev;
 
-    while((0 = getmntent(fp, &mnt))){
+    while((0 == getmntent(fp, &mnt))){
         if (stat(mnt.mnt_mountp, &s) != 0) {
             continue;
         }
