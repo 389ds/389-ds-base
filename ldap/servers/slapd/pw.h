@@ -86,6 +86,7 @@ int pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals
 int checkPrefix(char *cipher, char *schemaName, char **encrypt);
 struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, const char *dn );
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);
+int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp);
 
 /* function for checking the values of fine grained password policy attributes */
 int check_pw_duration_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );

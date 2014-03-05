@@ -1803,6 +1803,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 
+	case SLAPI_REQUESTOR_SDN:
+		if(pblock->pb_op != NULL){
+			(*(Slapi_DN **)value) = &pblock->pb_op->o_sdn;
+		}
+		break;
+
 	case SLAPI_OPERATION_AUTHTYPE:
 		if (pblock->pb_op != NULL)
 		{
