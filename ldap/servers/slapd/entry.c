@@ -2607,45 +2607,69 @@ slapi_entry_delete_string(Slapi_Entry *e, const char *type, const char *value)
 char **
 slapi_entry_attr_get_charray( const Slapi_Entry* e, const char *type)
 {
-    char **parray = NULL;
-    Slapi_Attr* attr = NULL;
+	int ignore;
+	return slapi_entry_attr_get_charray_ext(e, type, &ignore);
+}
+
+/*
+ * The extension also gathers the number of values.
+ * The caller must free with slapi_ch_array_free
+ */
+char **
+slapi_entry_attr_get_charray_ext( const Slapi_Entry* e, const char *type, int *numVals)
+{
+	char **parray = NULL;
+	Slapi_Attr* attr = NULL;
+	int count = 0;
+
+	if(numVals == NULL){
+		return NULL;
+	}
+
 	slapi_entry_attr_find(e, type, &attr);
-	if(attr!=NULL)
-	{
+	if(attr!=NULL){
 		int hint;
 		Slapi_Value *v = NULL;
+
 		for (hint = slapi_attr_first_value(attr, &v);
 			 hint != -1;
 			 hint = slapi_attr_next_value(attr, hint, &v))
 		{
 			const struct berval *bvp = slapi_value_get_berval(v);
 			char *p = slapi_ch_malloc(bvp->bv_len + 1);
+
 			memcpy(p, bvp->bv_val, bvp->bv_len);
 			p[bvp->bv_len]= '\0';
 			charray_add(&parray, p);
+			count++;
 		}
 	}
-    return parray;
+	*numVals = count;
+
+	return parray;
 }
 
 char *
 slapi_entry_attr_get_charptr( const Slapi_Entry* e, const char *type)
 {
-    char *p= NULL;
-    Slapi_Attr* attr;
+	char *p= NULL;
+	Slapi_Attr* attr;
+
 	slapi_entry_attr_find(e, type, &attr);
 	if(attr!=NULL)
 	{
 		Slapi_Value *v;
-                const struct berval *bvp;
+		const struct berval *bvp;
+
 		slapi_valueset_first_value( &attr->a_present_values, &v);
-                bvp = slapi_value_get_berval(v);
-        p= slapi_ch_malloc(bvp->bv_len + 1);
-        memcpy(p, bvp->bv_val, bvp->bv_len);
-        p[bvp->bv_len]= '\0';
+		bvp = slapi_value_get_berval(v);
+		p= slapi_ch_malloc(bvp->bv_len + 1);
+		memcpy(p, bvp->bv_val, bvp->bv_len);
+		p[bvp->bv_len]= '\0';
 	}
-    return p;
+	return p;
 }
+
 
 int
 slapi_entry_attr_get_int( const Slapi_Entry* e, const char *type)

@@ -2015,6 +2015,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SASL_MAXBUFSIZE "nsslapd-sasl-max-buffer-size"
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
 #define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
+#define CONFIG_PW_ADMIN_DN_ATTRIBUTE "passwordAdminDN"
 
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
@@ -2078,6 +2079,8 @@ typedef struct passwordpolicyarray {
   int pw_is_legacy;
   int pw_track_update_time;
   struct pw_scheme *pw_storagescheme;
+  Slapi_DN *pw_admin;
+  Slapi_DN **pw_admin_user;
 } passwdPolicy;
 
 typedef struct _slapdFrontendConfig {

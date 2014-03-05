@@ -248,6 +248,9 @@ static struct config_get_and_set {
 	{CONFIG_PWPOLICY_LOCAL_ATTRIBUTE, config_set_pwpolicy_local,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pwpolicy_local, CONFIG_ON_OFF, NULL},
+	{CONFIG_PW_ADMIN_DN_ATTRIBUTE, config_set_pw_admin_dn,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_admin, CONFIG_STRING, NULL},
 	{CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_maxdiskspace, CONFIG_INT, NULL},
@@ -685,8 +688,7 @@ static struct config_get_and_set {
 	{CONFIG_DISK_THRESHOLD, config_set_disk_threshold,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_threshold,
-		CONFIG_LONG_LONG, (ConfigGetFunc)config_get_disk_threshold,
-		DEFAULT_DISK_THRESHOLD},
+		CONFIG_LONG_LONG, (ConfigGetFunc)config_get_disk_threshold},
 	{CONFIG_DISK_GRACE_PERIOD, config_set_disk_grace_period,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_grace_period,
@@ -1122,9 +1124,11 @@ FrontendConfig_init () {
   cfg->disk_grace_period = 60; /* 1 hour */
   cfg->disk_logging_critical = LDAP_OFF;
   cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
-
+  cfg->pw_policy.pw_admin = NULL;
+  cfg->pw_policy.pw_admin_user = NULL;
   cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
   cfg->ignore_time_skew = LDAP_OFF;
+
 #if defined(LINUX)
   cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
   cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
@@ -2833,6 +2837,20 @@ config_set_dn_validate_strict( const char *attrname, char *value, char *errorbuf
                               errorbuf,
                               apply);
 
+  return retVal;
+}
+
+int
+config_set_pw_admin_dn( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal =  LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_sdn_free(&slapdFrontendConfig->pw_policy.pw_admin);
+        slapdFrontendConfig->pw_policy.pw_admin = slapi_sdn_new_dn_byval(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  }
   return retVal;
 }
 
