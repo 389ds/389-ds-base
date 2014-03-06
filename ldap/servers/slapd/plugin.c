@@ -1454,8 +1454,7 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 			{
 				if (SLAPI_PLUGIN_PREOPERATION == list->plg_type ||
 					SLAPI_PLUGIN_INTERNAL_PREOPERATION == list->plg_type ||
-					SLAPI_PLUGIN_BETXNPREOPERATION == list->plg_type ||
-                    SLAPI_PLUGIN_START_FN == operation )
+					SLAPI_PLUGIN_START_FN == operation )
 				{
 					/*
 					 * We bail out of plugin processing for preop plugins
@@ -1466,7 +1465,9 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 					return_value = rc;
 					break;
 				} else if (SLAPI_PLUGIN_BEPREOPERATION == list->plg_type ||
-					SLAPI_PLUGIN_BEPOSTOPERATION == list->plg_type)
+					SLAPI_PLUGIN_BEPOSTOPERATION == list->plg_type ||
+					SLAPI_PLUGIN_BETXNPREOPERATION == list->plg_type ||
+					SLAPI_PLUGIN_BETXNPOSTOPERATION == list->plg_type)
 				{
 					/* respect fatal error (-1); should not OR it */
 					if (-1 == rc) {
