@@ -135,8 +135,8 @@ static cipherstruct _conf_ciphers[] = {
     {"SSL3","fips_des_sha", SSL_RSA_FIPS_WITH_DES_CBC_SHA}, /* ditto */
     {"SSL3","rsa_rc4_40_md5", SSL_RSA_EXPORT_WITH_RC4_40_MD5},
     {"SSL3","rsa_rc2_40_md5", SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5},
-    {"SSL3","rsa_null_md5", SSL_RSA_WITH_NULL_MD5},
-    {"SSL3","rsa_null_sha", SSL_RSA_WITH_NULL_SHA},
+    {"SSL3","rsa_null_md5", SSL_RSA_WITH_NULL_MD5}, /* disabled by default */
+    {"SSL3","rsa_null_sha", SSL_RSA_WITH_NULL_SHA}, /* disabled by default */
     {"TLS","tls_rsa_export1024_with_rc4_56_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA},
     {"TLS","rsa_rc4_56_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA}, /* ditto */
     {"TLS","tls_rsa_export1024_with_des_cbc_sha", TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA},
@@ -265,7 +265,9 @@ _conf_setallciphers(int active, char ***suplist, char ***unsuplist)
      *       them to activate it by name. */
     for(x = 0; _conf_ciphers[x].name; x++)  {
         PRBool enabled = active ? PR_TRUE : PR_FALSE;
-        if(active && !strcmp(_conf_ciphers[x].name, "rsa_null_md5"))  {
+        if(active && (!strcmp(_conf_ciphers[x].name, "rsa_null_md5") ||
+                      !strcmp(_conf_ciphers[x].name, "rsa_null_sha")))
+        {
             continue;
         }
         if (enabled) {
@@ -317,7 +319,12 @@ _conf_setciphers(char *ciphers)
         slapi_ch_free((void **)&suplist); /* strings inside are static */
         return NULL;
     }
-/* Enable all the ciphers by default and the following while loop would disable the user disabled ones This is needed becuase we added a new set of ciphers in the table . Right now there is no support for this from the console */	
+    /*
+     * Enable all the ciphers by default and the following while loop would
+     * disable the user disabled ones.  This is needed because we added a new
+     * set of ciphers in the table. Right now there is no support for this
+     * from the console
+     */
     _conf_setallciphers(1, &suplist, NULL);
 
     t = ciphers;
