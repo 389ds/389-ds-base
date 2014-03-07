@@ -340,7 +340,6 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	prp->stopped = 0;
 	if (prp->terminate)
 	{
-        prp->stopped = 1;
 		goto done;
 	}
 
@@ -362,8 +361,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     }
 	else if (prp->terminate)
     {
-        conn_disconnect(prp->conn);
-        prp->stopped = 1;
+		conn_disconnect(prp->conn);
 		goto done;    
     }
 	
@@ -646,7 +644,6 @@ int send_entry (Slapi_Entry *e, void *cb_data)
     if (prp->terminate)
     {
         conn_disconnect(prp->conn);
-        prp->stopped = 1;
 		((callback_data*)cb_data)->rc = -1;
 		return -1;    
     }
@@ -659,7 +656,6 @@ int send_entry (Slapi_Entry *e, void *cb_data)
     if (rc)
     {
         conn_disconnect(prp->conn);
-        prp->stopped = 1;
         ((callback_data*)cb_data)->rc = -1;
         return -1;
     }
