@@ -85,10 +85,22 @@ static char *forbidden_attrs [] = {PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
 /*
  * WARNING: s gets butchered... the base type remains.
  */
-void
-str2entry_state_information_from_type(char *s,CSNSet **csnset,CSN **attributedeletioncsn,CSN **maxcsn,int *value_state,int *attr_state)
+static void
+str2entry_state_information_from_type(struct berval *atype,
+                                      CSNSet **csnset,
+                                      CSN **attributedeletioncsn,
+                                      CSN **maxcsn,
+                                      int *value_state,
+                                      int *attr_state)
 {
-	char *p= strchr(s, ';');
+	char *p = NULL;
+	if ((NULL == atype) || (NULL == atype->bv_val)) {
+		return;
+	}
+	p = PL_strchr(atype->bv_val, ';');
+	if (p) {
+		atype->bv_len = p - atype->bv_val;
+	}
 	*value_state= VALUE_PRESENT;
 	*attr_state= ATTRIBUTE_PRESENT;
 	while(p!=NULL)
@@ -229,19 +241,20 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 		}
 
 		if ( slapi_ldif_parse_line( s, &type, &value, &freeval ) < 0 ) {
-			LDAPDebug( LDAP_DEBUG_TRACE,
-			    "<= str2entry_fast NULL (parse_line)\n", 0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= str2entry_fast NULL (parse_line)\n");
 			continue;
 		}
 
 		/*
 		 * Extract the attribute and value CSNs from the attribute type.
-		 */		
+		 */
 		csn_free(&attributedeletioncsn); /* JCM - Do this more efficiently */
 		csnset_free(&valuecsnset);
 		value_state= VALUE_NOTFOUND;
 		attr_state= ATTRIBUTE_NOTFOUND;
-		str2entry_state_information_from_type(type.bv_val,&valuecsnset,&attributedeletioncsn,&maxcsn,&value_state,&attr_state);
+		str2entry_state_information_from_type(&type,
+		                                      &valuecsnset, &attributedeletioncsn,
+		                                      &maxcsn, &value_state, &attr_state);
 		if(!read_stateinfo)
 		{
 			/* We are not maintaining state information */
@@ -376,8 +389,7 @@ str2entry_fast( const char *rawdn, char *s, int flags, int read_stateinfo )
 		}
 
 		/* retrieve uniqueid */
-		if ( type.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH && PL_strncasecmp (type.bv_val, SLAPI_ATTR_UNIQUEID, type.bv_len) == 0 ){
-
+		if ((type.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH) && (PL_strcasecmp (type.bv_val, SLAPI_ATTR_UNIQUEID) == 0)) {
 			if (e->e_uniqueid != NULL){
 				LDAPDebug (LDAP_DEBUG_TRACE, 
 						   "str2entry_fast: entry has multiple uniqueids %s "
@@ -733,7 +745,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     entry_attrs *ea = NULL;
     int tree_attr_checking = 0;
     int big_entry_attr_presence_check = 0;
-    int check_for_duplicate_values = (0 != (flags & SLAPI_STR2ENTRY_REMOVEDUPVALS));
+    int check_for_duplicate_values = ( 0 != ( flags & SLAPI_STR2ENTRY_REMOVEDUPVALS ));
     Slapi_Value *value = 0;
     CSN *attributedeletioncsn= NULL;
     CSNSet *valuecsnset= NULL;
@@ -744,7 +756,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     /* Check if we should be performing strict validation. */
     strict = config_get_dn_validate_strict();
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "=> str2entry_dupcheck\n", 0, 0, 0 );
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> str2entry_dupcheck\n");
 
     e = slapi_entry_alloc();
     slapi_entry_init(e,NULL,NULL);
@@ -784,7 +796,9 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		csnset_free(&valuecsnset);
 		value_state= VALUE_NOTFOUND;
 		attr_state= VALUE_NOTFOUND;
-		str2entry_state_information_from_type(type,&valuecsnset,&attributedeletioncsn,&maxcsn,&value_state,&attr_state);
+		str2entry_state_information_from_type(&bvtype,
+		                                      &valuecsnset, &attributedeletioncsn,
+		                                      &maxcsn, &value_state, &attr_state);
 		if(!read_stateinfo)
 		{
 			/* We are not maintaining state information */
@@ -892,8 +906,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		}
 
 		/* retrieve uniqueid */
-		if ( strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0 ){
-
+		if ((bvtype.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH) && (PL_strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0)) {
 			if (e->e_uniqueid != NULL){
 				LDAPDebug (LDAP_DEBUG_TRACE, 
 						   "str2entry_dupcheck: entry has multiple uniqueids %s "
