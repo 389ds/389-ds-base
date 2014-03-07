@@ -201,7 +201,7 @@ NSAPI_PUBLIC void *system_realloc_perm(void *ptr, int size)
             return ptr;
         }
     } else {
-        ereport(LOG_WARN, "realloc: attempt to realloc to smaller size");
+        ereport(LOG_WARN, (char*)"realloc: attempt to realloc to smaller size");
         return realloc(ptr, size);
     }
 
@@ -228,20 +228,20 @@ NSAPI_PUBLIC void system_free_perm(void *ptr)
         cptr += sizeof(int); 
         for (index=0; index<DEBUG_MARGIN; index++)
             if (cptr[index] != DEBUG_MARGIN_CHAR) {
-                ereport(LOG_CATASTROPHE, "free: corrupt memory (prebounds overwrite)");
+                ereport(LOG_CATASTROPHE, (char *)"free: corrupt memory (prebounds overwrite)");
                 break;
             }
 
         cptr += DEBUG_MARGIN + *length;
         for (index=0; index<DEBUG_MARGIN; index++)
             if (cptr[index] != DEBUG_MARGIN_CHAR) {
-                ereport(LOG_CATASTROPHE, "free: corrupt memory (prebounds overwrite)");
+                ereport(LOG_CATASTROPHE, (char *)"free: corrupt memory (prebounds overwrite)");
                 break;
             }
 
         memset(baseptr, DEBUG_FREE_CHAR, *length + 2*DEBUG_MARGIN+sizeof(int));
     } else {
-        ereport(LOG_CATASTROPHE, "free: freeing unallocated memory");
+        ereport(LOG_CATASTROPHE, (char *)"free: freeing unallocated memory");
     }
     free(baseptr);
 #else
