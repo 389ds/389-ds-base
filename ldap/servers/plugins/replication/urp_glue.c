@@ -169,7 +169,6 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 	sdn = slapi_sdn_new_dn_byval(slapi_sdn_get_ndn(superiordn));
 	slapi_sdn_add_rdn(sdn,rdn);
 
-
 	/* must take care of multi-valued rdn: split rdn into different lines introducing
 	 * '\n' between each type/value pair. 
 	 */	
@@ -187,8 +186,7 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 		       rdnstr = slapi_ch_realloc(rdnstr, alloc_len);
 		       rdnpair = &rdnstr[rdnstr_len];
 		}
-	        slapi_ldif_put_type_and_value_with_options(&rdnpair, rdntype,
-				rdnval, rdnval_len, LDIF_OPT_NOWRAP);
+		slapi_ldif_put_type_and_value_with_options(&rdnpair, rdntype, rdnval, rdnval_len, LDIF_OPT_NOWRAP);
 		*rdnpair = '\0';
 	}	  
 	estr= slapi_ch_smprintf(glue_entry, slapi_sdn_get_ndn(sdn), rdnstr, uniqueid, 
@@ -244,6 +242,12 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 				case LDAP_SUCCESS:
 					slapi_log_error ( SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Created glue entry %s uniqueid=%s reason missingEntry\n",
+						sessionid, dnstr, uniqueid);
+					done= 1;
+					break;
+				case LDAP_ALREADY_EXISTS:
+					slapi_log_error ( SLAPI_LOG_FATAL, repl_plugin_name,
+						"%s: Skipped creating glue entry %s uniqueid=%s reason Entry Already Exists\n",
 						sessionid, dnstr, uniqueid);
 					done= 1;
 					break;
