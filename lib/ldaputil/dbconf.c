@@ -264,19 +264,19 @@ static int dbconf_parse_propval (char *buf, char *ptr,
     propval = (DBPropVal_t *)malloc(sizeof(DBPropVal_t));
 
     if (!propval){
-    	if (encval) free(val);
+        if (encval && val) free(val);
         return LDAPU_ERR_OUT_OF_MEMORY;
     }
     memset((void *)propval, 0, sizeof(DBPropVal_t));
     propval->prop = strdup(prop);
     propval->val = val ? strdup(val) : 0;
 
-    if (!propval->prop || (val && !propval->val)) {
-	dbconf_free_propval(propval);
-	return LDAPU_ERR_OUT_OF_MEMORY;
-    }
+    if (encval && val) free(val); /* val was allocated by dbconf_decodeval */
 
-    if(encval) free(val);	/* val was allocated by dbconf_decodeval */
+    if (!propval->prop || (val && !propval->val)) {
+        dbconf_free_propval(propval);
+        return LDAPU_ERR_OUT_OF_MEMORY;
+    }
 
     insert_dbinfo_propval(db_info, propval);
     return LDAPU_SUCCESS;
