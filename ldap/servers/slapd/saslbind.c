@@ -229,34 +229,6 @@ static int ids_sasl_log(
     return SASL_OK;
 }
 
-static int ids_sasl_proxy_policy(
-    sasl_conn_t *conn,
-    void *context,
-    const char *requested_user, int rlen,
-    const char *auth_identity, int alen,
-    const char *def_realm, int urlen,
-    struct propctx *propctx
-)
-{
-    int retVal = SASL_OK;
-    /* do not permit sasl proxy authorization */
-    /* if the auth_identity is null or empty string, allow the sasl request to go thru */    
-    if ( (auth_identity != NULL ) && ( strlen(auth_identity) > 0 ) ) {
-        Slapi_DN authId , reqUser;
-        slapi_sdn_init_dn_byref(&authId,auth_identity);
-        slapi_sdn_init_dn_byref(&reqUser,requested_user);
-        if (slapi_sdn_compare((const Slapi_DN *)&reqUser,(const Slapi_DN *) &authId) != 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE, 
-                  "sasl proxy auth not permitted authid=%s user=%s\n",
-                  auth_identity, requested_user, 0);
-            retVal =  SASL_NOAUTHZ;
-        }
-        slapi_sdn_done(&authId);
-        slapi_sdn_done(&reqUser); 
-    }
-    return retVal;
-}
-
 static void ids_sasl_user_search(
     char *basedn,
     int scope,
@@ -572,11 +544,6 @@ static sasl_callback_t ids_sasl_callbacks[] =
     {
       SASL_CB_LOG,
       (IFP) ids_sasl_log,
-      NULL
-    },
-    {
-      SASL_CB_PROXY_POLICY,
-      (IFP) ids_sasl_proxy_policy,
       NULL
     },
     {
