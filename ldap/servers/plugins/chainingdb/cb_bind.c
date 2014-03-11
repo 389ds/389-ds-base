@@ -307,6 +307,7 @@ chainingdb_bind( Slapi_PBlock *pb )
 		rc = status;
 		allocated_errmsg = 1;
 	} else if ( LDAP_USER_CANCELLED != rc ) {
+		slapi_ch_free_string(&errmsg);
 		errmsg = ldap_err2string( rc );
 		if (rc == LDAP_TIMEOUT) {
 			cb_ping_farm(cb,NULL,0);
@@ -332,8 +333,8 @@ chainingdb_bind( Slapi_PBlock *pb )
 		ldap_controls_free( resctrls );
 	}
 	slapi_ch_free((void **)& matcheddn );
-	if ( allocated_errmsg && errmsg != NULL ) {
-		slapi_ch_free((void **)& errmsg );
+	if ( allocated_errmsg ) {
+		slapi_ch_free_string(&errmsg);
 	}
 
 	slapi_sdn_free(&mysdn);

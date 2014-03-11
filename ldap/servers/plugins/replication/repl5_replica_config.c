@@ -416,10 +416,12 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 }
                 else if (strcasecmp (config_attr, attr_replicaType) == 0)
 			    {
+                	slapi_ch_free_string(&new_repl_type);
 					new_repl_type = slapi_ch_strdup(config_attr_value);
                 }
                 else if (strcasecmp (config_attr, attr_replicaId) == 0)
 			    {
+                	slapi_ch_free_string(&new_repl_id);
 					new_repl_id = slapi_ch_strdup(config_attr_value);
                 }
                 else if (strcasecmp (config_attr, attr_flags) == 0)
