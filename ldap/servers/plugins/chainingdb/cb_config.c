@@ -487,45 +487,39 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
                         slapi_rwlock_unlock(cb->config.rwl_config_lock);
 		} else
-		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINABLE_COMPONENTS )) {
-                        char * config_attr_value;
-                        int done=0;
+			if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINABLE_COMPONENTS )) {
+				char *config_attr_value;
+				char *attr_val;
+				int done=0;
 
-                        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
+				slapi_rwlock_wrlock(cb->config.rwl_config_lock);
 
-                        for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-                                config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
-                                        if (!done) {
-                                                charray_free(cb->config.chainable_components);
-                                                cb->config.chainable_components=NULL;
-                                                done=1;
-                                        }
-                                        charray_add(&cb->config.chainable_components,
-                                                slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
-));
-                                } else
-                                if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-                                        charray_add(&cb->config.chainable_components,
-                                                slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
-));
-                                } else
-                                if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-                                        charray_remove(cb->config.chainable_components,
-                                                slapi_dn_normalize(slapi_ch_strdup(config_attr_value)
-),
-												0 /* freeit */);
-                                }
-                        }
-                        if (NULL == mods[i]->mod_bvalues) {
-                                charray_free(cb->config.chainable_components);
-                                cb->config.chainable_components=NULL;
-                        }
+				for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+					config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
+					if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+						if (!done) {
+							charray_free(cb->config.chainable_components);
+							cb->config.chainable_components=NULL;
+							done=1;
+						}
+						charray_add(&cb->config.chainable_components,
+						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+					} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+						charray_add(&cb->config.chainable_components,
+						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+					} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+						attr_val = slapi_dn_normalize(slapi_ch_strdup(config_attr_value));
+						charray_remove(cb->config.chainable_components, attr_val, 0 /* freeit */);
+						slapi_ch_free_string(&attr_val);
+					}
+				}
+				if (NULL == mods[i]->mod_bvalues) {
+					charray_free(cb->config.chainable_components);
+					cb->config.chainable_components=NULL;
+				}
 
-                        slapi_rwlock_unlock(cb->config.rwl_config_lock);
-                }
-
-
+				slapi_rwlock_unlock(cb->config.rwl_config_lock);
+		}
 	}
 	*returncode=LDAP_SUCCESS;
 	return SLAPI_DSE_CALLBACK_OK;
