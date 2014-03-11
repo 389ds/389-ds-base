@@ -406,12 +406,13 @@ int main(int argc, char** argv)
 
     PR_Init(PR_SYSTEM_THREAD, PR_PRIORITY_NORMAL, 0);
 
-    ntable = nt_new(0);
+
     if (nameFile) {
-	if (!nt_load(ntable, nameFile)) {
-	    printf("Failed to read name table\n");
-	    exit(1);
-	}
+        ntable = nt_new(0);
+        if (!nt_load(ntable, nameFile)) {
+            printf("Failed to read name table\n");
+            exit(1);
+        }
     }
 
 	attrTable = nt_new(0);
