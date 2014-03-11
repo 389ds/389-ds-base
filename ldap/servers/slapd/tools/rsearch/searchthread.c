@@ -285,20 +285,18 @@ static int st_bind(SearchThread *st)
                     return 0;
                 }
             } else if (uid) {
-                char filterBuffer[100];
-                char *pFilter;
-				char *filterTemplate = (uidFilter) ? uidFilter : "(uid=%s)";
+                char *filterBuffer = NULL;
+                char *filterTemplate = (uidFilter) ? uidFilter : "(uid=%s)";
                 struct timeval timeout;
                 int scope = LDAP_SCOPE_SUBTREE, attrsOnly = 0;
                 LDAPMessage *result;
                 int retry = 0;
     
-                pFilter = filterBuffer;
-				sprintf(filterBuffer, filterTemplate, uid);
+                filterBuffer = PR_smprintf(filterTemplate, uid);
                 timeout.tv_sec = 3600;
                 timeout.tv_usec = 0;
                 while (1) {
-                    int ret = ldap_search_ext_s(st->ld2, suffix, scope, pFilter,
+                    int ret = ldap_search_ext_s(st->ld2, suffix, scope, filterBuffer,
                                                 NULL, attrsOnly, NULL, NULL,
                                                 &timeout, -1, &result);
                     if (LDAP_SUCCESS == ret) {
@@ -309,9 +307,11 @@ static int st_bind(SearchThread *st)
                     } else {
                         fprintf(stderr, "T%d: failed to search 1, error=0x%x\n",
                                 st->id, ret);
+                        PR_smprintf_free(filterBuffer);
                         return 0;
                     }
                 }
+                PR_smprintf_free(filterBuffer);
                 dn = ldap_get_dn(st->ld2, result);
     
                 if (0 == st_bind_core(st, &(st->ld), dn, upw)) {
@@ -366,7 +366,7 @@ static void st_unbind(SearchThread *st)
 
 static int st_search(SearchThread *st)
 {
-    char filterBuffer[100];
+    char *filterBuffer = NULL;
     char *pFilter;
     struct timeval timeout;
     struct timeval *timeoutp;
@@ -377,7 +377,7 @@ static int st_search(SearchThread *st)
     scope = myScope;
     if (ntable || numeric) {
         char *s = NULL;
-        char num[8];
+        char num[22]; /* string length of unsigned 64 bit integer + 1 */
 
         if (! numeric) {
             do {
@@ -387,7 +387,7 @@ static int st_search(SearchThread *st)
             sprintf(num, "%d", get_large_random_number() % numeric);
             s = num;
         }
-        sprintf(filterBuffer, "%s%s", filter, s ? s : "");
+        filterBuffer = PR_smprintf("%s%s",filter, s ? s : "");
         pFilter = filterBuffer;
     } else {
         pFilter = filter;
@@ -411,6 +411,10 @@ static int st_search(SearchThread *st)
                 st->id, ret);
     }
     ldap_msgfree(result);
+    if(filterBuffer){
+        PR_smprintf_free(filterBuffer);
+    }
+
     return ret;
 }
 
@@ -431,7 +435,7 @@ static int st_modify_nonidx(SearchThread *st)
     int e;
     int rval;
     char *dn = NULL;
-    char description[256];
+    char *description = NULL;
     char *description_values[2];
 
     /* Decide what entry to modify, for this we need a table */
@@ -446,7 +450,7 @@ static int st_modify_nonidx(SearchThread *st)
     } while (e < 0);
     dn = sdt_dn_get(sdattable, e);
 
-    sprintf(description, "%s modified at %lu", dn, time(NULL));
+    description = PR_smprintf("%s modified at %lu", dn, time(NULL));
     description_values[0] = description;
     description_values[1] = NULL;
 
@@ -462,6 +466,8 @@ static int st_modify_nonidx(SearchThread *st)
         fprintf(stderr, "T%d: Failed to modify error=0x%x\n", st->id, rval);
         fprintf(stderr, "dn: %s\n", dn);
     }
+    PR_smprintf_free(description);
+
     return rval;
 }
 
@@ -516,7 +522,7 @@ static int st_compare(SearchThread *st)
     int e;
     char *dn = NULL;
     char *uid = NULL;
-    char uid0[100];
+    char *uidFalse = NULL;
     struct berval bvvalue = {0, NULL};
 
     /* Decide what entry to modify, for this we need a table */
@@ -535,9 +541,9 @@ static int st_compare(SearchThread *st)
     compare_true = ( (rand() % 5) < 2 );
 
     if (!compare_true) {
-        strcpy(uid0, uid);
-        uid0[0] = '@';        /* make it not matched */
-        uid = uid0;
+        /* modify the uid to make it fail the comparison */
+        uidFalse = PR_smprintf("@%s",uid);
+        uid = uidFalse;
     }
     bvvalue.bv_val = uid;
     bvvalue.bv_len = uid ? strlen(uid) : 0;
@@ -550,6 +556,10 @@ static int st_compare(SearchThread *st)
                         st->id, rval, correct_answer);
         fprintf(stderr, "dn: %s, uid: %s\n", dn, uid);
     }
+    if(uidFalse){
+        PR_smprintf_free(uidFalse);
+    }
+
     return rval;
 }
 
