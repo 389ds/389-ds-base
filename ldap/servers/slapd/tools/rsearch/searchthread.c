@@ -387,7 +387,7 @@ static int st_search(SearchThread *st)
             sprintf(num, "%d", get_large_random_number() % numeric);
             s = num;
         }
-        sprintf(filterBuffer, "%s%s", filter, s);
+        sprintf(filterBuffer, "%s%s", filter, s ? s : "");
         pFilter = filterBuffer;
     } else {
         pFilter = filter;
