@@ -417,42 +417,39 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                         continue;
 		} 
 		if ( !strcasecmp ( attr_name, CB_CONFIG_CHAINING_COMPONENTS )) {
-               		char * config_attr_value;
-                       	int done=0;
+			char *config_attr_value;
+			char *attr_val;
+			int done=0;
 			int j;
 
-        		slapi_rwlock_wrlock(inst->rwl_config_lock);
-                       	for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-                               	config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                               	if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
-                                       	if (!done) {
-                                               	charray_free(inst->chaining_components);
-                                               	inst->chaining_components=NULL;
-                                               	done=1;
-                                       	}
+			slapi_rwlock_wrlock(inst->rwl_config_lock);
+			for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+				config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
+				if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+					if (!done) {
+						charray_free(inst->chaining_components);
+						inst->chaining_components=NULL;
+						done=1;
+					}
 					/* XXXSD assume dns */
-                                       	charray_add(&inst->chaining_components,
-                                               	slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-                               	} else
-                               	if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-                                       	charray_add(&inst->chaining_components,
-                                               	slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-                               	} else
-                               	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-                                       	charray_remove(inst->chaining_components,
-                                               	slapi_dn_normalize(slapi_ch_strdup(config_attr_value)),
-												0 /* freeit */);
-                               	}
-                       	}
-                       	if (NULL == mods[i]->mod_bvalues) {
-                               	charray_free(inst->chaining_components);
-                               	inst->chaining_components=NULL;
-                       	}
-        		slapi_rwlock_unlock(inst->rwl_config_lock);
-                        continue;
+					charray_add(&inst->chaining_components,
+									slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+				} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+					charray_add(&inst->chaining_components,
+								slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+				} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+					attr_val = slapi_dn_normalize(slapi_ch_strdup(config_attr_value));
+					charray_remove(inst->chaining_components,attr_val, 0 /* freeit */);
+					slapi_ch_free_string(&attr_val);
+				}
+			}
+			if (NULL == mods[i]->mod_bvalues) {
+				charray_free(inst->chaining_components);
+				inst->chaining_components=NULL;
+			}
+			slapi_rwlock_unlock(inst->rwl_config_lock);
+			continue;
 		} 
-
-
 
 		if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op) || 
                         SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {

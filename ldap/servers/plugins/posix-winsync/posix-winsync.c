@@ -1373,21 +1373,22 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
         int rc = 0;
         char *dn = slapi_create_dn_string("cn=%s,cn=%s,cn=tasks,cn=config",
                                           posix_winsync_plugin_name, MEMBEROFTASK);
-        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "--> posix_winsync_end_update_cb, create task %s\n", dn);
+
         if (NULL == dn) {
             slapi_pblock_destroy(pb);
+            slapi_entry_free(e_task);
             slapi_log_error(SLAPI_LOG_FATAL, posix_winsync_plugin_name,
                             "posix_winsync_end_update_cb: "
                                 "failed to create task dn: cn=%s,%s,cn=tasks,cn=config\n",
                             posix_winsync_plugin_name, MEMBEROFTASK);
             return;
         }
-
+        slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
+                        "--> posix_winsync_end_update_cb, create task %s\n", dn);
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "--> posix_winsync_end_update_cb, init'ing task\n");
 
-        slapi_entry_init(e_task, slapi_ch_strdup(dn), NULL);
+        slapi_entry_init(e_task, dn, NULL);
         slapi_entry_add_string(e_task, "cn", slapi_ch_strdup(posix_winsync_plugin_name));
         slapi_entry_add_string(e_task, "objectClass", "extensibleObject");
         slapi_entry_add_string(e_task, "basedn", slapi_sdn_get_dn(ds_subtree));
