@@ -745,7 +745,10 @@ static int ldapu_cert_searchfn_default (void *cert, LDAP *ld,
 	len = strlen(certmap_info->searchAttr) + strlen(subjectDN) +
 	    strlen("=") + 1;
 	certFilter = (char *)ldapu_malloc(len * sizeof(char));
-	if (!certFilter) return LDAPU_ERR_OUT_OF_MEMORY;
+	if (!certFilter){
+		free(subjectDN);
+		return LDAPU_ERR_OUT_OF_MEMORY;
+	}
 	sprintf(certFilter, "%s=%s", certmap_info->searchAttr, subjectDN);
 	free(subjectDN);
 	if ( ldapu_strcasecmp(basedn, "") ) {
