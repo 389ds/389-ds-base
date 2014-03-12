@@ -2319,6 +2319,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 								"failed to recreate replica ruv tombstone entry"
 								" (%s); LDAP error - %d\n",
 								slapi_sdn_get_dn(r->repl_root), rc);
+							slapi_ch_free_string(&generation);
 							goto done;
 						}
 					}
@@ -2326,7 +2327,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 #undef RUV_UPDATE_FULL
 				}
 
-			    slapi_ch_free((void **)&generation);
+			    slapi_ch_free_string(&generation);
 			    return_value = 0;
 		    }
             else

@@ -1201,8 +1201,6 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
     }
 
     PR_snprintf (fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name (replica));
-    slapi_ch_free_string (&clDir);
-
     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
                     "Beginning changelog export of replica \"%s\"\n",
                     replica_get_name(replica));
@@ -1221,6 +1219,8 @@ static int replica_execute_cl2ldif_task (Object *r, char *returntext)
         rc = LDAP_OPERATIONS_ERROR;
     }
 bail:
+    slapi_ch_free_string (&clDir);
+
     return rc;
 }
 
@@ -1276,7 +1276,6 @@ static int replica_execute_ldif2cl_task (Object *r, char *returntext)
                     "Beginning changelog import of replica \"%s\"\n",
                     replica_get_name(replica));
     imprc = cl5ImportLDIF (clDir, fName, rlist);
-    slapi_ch_free_string (&clDir);
     if (CL5_SUCCESS == imprc)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
@@ -1306,8 +1305,11 @@ static int replica_execute_ldif2cl_task (Object *r, char *returntext)
             config.dir?config.dir:"null config dir");
         rc = LDAP_OPERATIONS_ERROR;
     }
+
 bail:
+    slapi_ch_free_string(&clDir);
     changelog5_config_done(&config);
+
     /* if cl5ImportLDIF returned an error, report it first. */
     return imprc?imprc:rc;
 }
@@ -2274,9 +2276,12 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, cleanruv_data *clean_data)
     rc = ldap_modify_ext_s( ld, repl_dn, mods, NULL, NULL);
 
     if(rc != LDAP_SUCCESS){
+        char *hostname = agmt_get_hostname(agmt);
+
         cleanruv_log(clean_data->task, CLEANALLRUV_ID, "Failed to add CLEANRUV task (%s) to replica "
             "(%s).  You will need to manually run the CLEANRUV task on this replica (%s) error (%d)",
-            repl_dn, agmt_get_long_name(agmt), agmt_get_hostname(agmt), rc);
+            repl_dn, agmt_get_long_name(agmt), hostname, rc);
+        slapi_ch_free_string(&hostname);
     }
     slapi_ch_free_string(&repl_dn);
     slapi_sdn_free(&sdn);
