@@ -168,6 +168,7 @@ check_db_version( struct ldbminfo *li, int *action )
     *action = 0;
     dbversion_read(li, li->li_directory, &ldbmversion, &dataversion);
     if (NULL == ldbmversion || '\0' == *ldbmversion) {
+        slapi_ch_free_string(&ldbmversion);
         slapi_ch_free_string(&dataversion);
         return 0;
     }
@@ -251,6 +252,8 @@ check_db_inst_version( ldbm_instance *inst )
 
     dbversion_read(inst->inst_li, inst_dirp, &ldbmversion, &dataversion);
     if (NULL == ldbmversion || '\0' == *ldbmversion) {
+        slapi_ch_free_string(&ldbmversion);
+        slapi_ch_free_string(&dataversion);
         return rval;
     }
     

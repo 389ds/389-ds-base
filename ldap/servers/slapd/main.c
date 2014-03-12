@@ -2959,7 +2959,7 @@ slapd_debug_level_string2level( const char *s )
         char    *cur, *next, *scopy;
 
         level = 0;
-        cur = scopy = slapi_ch_strdup( s );     
+        scopy = slapi_ch_strdup( s );
 
         for ( cur = scopy; cur != NULL; cur = next ) {
                 if (( next = strchr( cur, '+' )) != NULL ) {
@@ -2979,12 +2979,13 @@ slapd_debug_level_string2level( const char *s )
 
                         if ( NULL == slapd_debug_level_map[i].dle_string ) {
                                 fprintf( stderr, "Unrecognized debug level \"%s\"\n", cur );
+                                slapi_ch_free_string(&scopy);
                                 return -1;
                         }
                 }
         }
 
-        slapi_ch_free( (void **)&scopy );
+        slapi_ch_free_string(&scopy);
 
         return level;
 }

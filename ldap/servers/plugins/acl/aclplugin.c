@@ -197,7 +197,7 @@ aclplugin_preop_modify ( Slapi_PBlock *pb )
 int
 aclplugin_preop_common( Slapi_PBlock *pb )
 {
-	char		*proxy_dn;	/* id being assumed */
+	char		*proxy_dn = NULL;	/* id being assumed */
 	char		*dn;		/* proxy master */
 	char		*errtext = NULL;
 	int			lderr;
@@ -221,9 +221,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 	 * The proxy_dn is the id being assumed, while dn
 	 * is the "proxy master".
 	*/
-	proxy_dn = NULL;
-	if ( LDAP_SUCCESS != ( lderr = proxyauth_get_dn( pb, &proxy_dn,
-			&errtext ))) {
+	if ( LDAP_SUCCESS != ( lderr = proxyauth_get_dn( pb, &proxy_dn, &errtext ))) {
 		/*
 		 * Fatal error -- send a result to the client and arrange to skip
 		 * any further processing.
@@ -231,7 +229,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 		slapi_send_ldap_result( pb, lderr, NULL, errtext, 0, NULL );
 		TNF_PROBE_1_DEBUG(aclplugin_preop_common_end ,"ACL","",
 						tnf_string,proxid_error,"");
-
+		slapi_ch_free_string(&proxy_dn);
 		return 1;	/* skip any further processing */
 	}
 	slapi_pblock_get ( pb, SLAPI_REQUESTOR_DN, &dn );
