@@ -181,11 +181,11 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
 int
 proxyauth_get_dn( Slapi_PBlock *pb, char **proxydnp, char **errtextp )
 {
-  char *dn = 0;
-  LDAPProxyAuth *spec = 0;
-  int rv, lderr = LDAP_SUCCESS;	/* optimistic */
+	char *dn = 0;
+	LDAPProxyAuth *spec = 0;
+	int rv, lderr = LDAP_SUCCESS;	/* optimistic */
 
-  	BEGIN
+	BEGIN
 		struct berval *spec_ber;
 		LDAPControl **controls;
 		int present;
@@ -233,12 +233,12 @@ proxyauth_get_dn( Slapi_PBlock *pb, char **proxydnp, char **errtextp )
 		}
 	END
 
-    if (spec) delete_LDAPProxyAuth(spec);
+	if (spec) delete_LDAPProxyAuth(spec);
 
 	if ( NULL != proxydnp ) {
 		*proxydnp = dn;
 	} else {
-		slapi_ch_free( (void **)&dn );
+		slapi_ch_free_string(&dn);
 	}
 
 	return lderr;

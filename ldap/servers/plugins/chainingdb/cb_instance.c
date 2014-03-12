@@ -738,11 +738,11 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 
 	if ((LDAP_SUCCESS == rc) && apply) {
 
-               	slapi_rwlock_wrlock(inst->rwl_config_lock);
+		slapi_rwlock_wrlock(inst->rwl_config_lock);
 
-	        if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
-       			( phase != CB_CONFIG_PHASE_STARTUP )) {
-
+		if (( phase != CB_CONFIG_PHASE_INITIALIZATION ) &&
+			( phase != CB_CONFIG_PHASE_STARTUP ))
+		{
 			/* Dynamic modification				*/
 			/* Don't free char * pointer now		*/
 			/* STore them in a waste basket 		*/
@@ -766,17 +766,17 @@ static int cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int p
 		/* the url and update the configuration  */
 
 		if ((ludp->lud_host==NULL) || (strlen(ludp->lud_host)==0)) {
-                        inst->pool->hostname=(char *)slapi_ch_strdup((char *)get_localhost_DNS());
+			inst->pool->hostname = get_localhost_DNS();
 		} else {
-               		inst->pool->hostname = slapi_ch_strdup( ludp->lud_host );
+			inst->pool->hostname = slapi_ch_strdup( ludp->lud_host );
 		}
-               	inst->pool->url = slapi_ch_strdup( url);
-               	inst->pool->secure = secure;
+		inst->pool->url = slapi_ch_strdup( url);
+		inst->pool->secure = secure;
 
 		if ((ludp->lud_port==0) && inst->pool->secure)
 			inst->pool->port=CB_LDAP_SECURE_PORT;
 		else
-               		inst->pool->port = ludp->lud_port;
+			inst->pool->port = ludp->lud_port;
 
 		/* Build a charray of <host>:<port> */
 		/* hostname is of the form <host>[:port] <host>[:port] */
