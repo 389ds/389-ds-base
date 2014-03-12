@@ -1110,6 +1110,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                           "Error: could not find parent for %s\n",
                           slapi_entry_get_dn(entryAfter), 0, 0);
                     slapi_sdn_free(&subtree);
+                    slapi_ch_free_string(&plugin_fct);
+                    slapi_ch_free_string(&plugin_lib);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     return SLAPI_DSE_CALLBACK_ERROR;
                 }
@@ -1148,6 +1150,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
             {
                 free_mapping_tree_node_arrays(&backends, &be_names, &be_states, &be_list_count);
                 slapi_sdn_free(&subtree);
+                slapi_ch_free_string(&plugin_fct);
+                slapi_ch_free_string(&plugin_lib);
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
@@ -1161,6 +1165,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 mtn_unlock();
                 free_mapping_tree_node_arrays(&backends, &be_names, &be_states, &be_list_count);
                 slapi_sdn_free(&subtree);
+                slapi_ch_free_string(&plugin_fct);
+                slapi_ch_free_string(&plugin_lib);
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
 
@@ -1189,12 +1195,16 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "must use replace operation to change state\n");
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 slapi_sdn_free(&subtree);
+                slapi_ch_free_string(&plugin_fct);
+                slapi_ch_free_string(&plugin_lib);
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
             if ((mods[i]->mod_bvalues == NULL) || (mods[i]->mod_bvalues[0] == NULL))
             {
                 slapi_sdn_free(&subtree);
                 *returncode = LDAP_OPERATIONS_ERROR;
+                slapi_ch_free_string(&plugin_fct);
+                slapi_ch_free_string(&plugin_lib);
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
 
@@ -1208,6 +1218,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 {
                     PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "need to set nsslapd-backend before moving to backend state\n");
                     slapi_sdn_free(&subtree);
+                    slapi_ch_free_string(&plugin_fct);
+                    slapi_ch_free_string(&plugin_lib);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     return SLAPI_DSE_CALLBACK_ERROR;
                 }
@@ -1220,6 +1232,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 {
                     PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "need to set nsslapd-referral before moving to referral state\n");
                     slapi_sdn_free(&subtree);
+                    slapi_ch_free_string(&plugin_fct);
+                    slapi_ch_free_string(&plugin_lib);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     return SLAPI_DSE_CALLBACK_ERROR;
                 }
@@ -1258,6 +1272,8 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     mtn_unlock();
                     slapi_sdn_free(&subtree);
+                    slapi_ch_free_string(&plugin_fct);
+                    slapi_ch_free_string(&plugin_lib);
                     return SLAPI_DSE_CALLBACK_ERROR;
                 }
 
