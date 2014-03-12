@@ -467,16 +467,14 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 	}
 
 	uniqueid = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_UNIQUEID);
-	chgtype = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHGTYPE);
-	chgnr = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHANGENUMBER);
-
 	if (uniqueid == NULL) {
 		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
 			"Retro Changelog does not provied nsuniquedid."
 			"Check RCL plugin configuration." );
 		return(1);
 	}
-		
+	chgtype = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHGTYPE);
+	chgnr = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHANGENUMBER);
 
 	index = sync_number2int(chgnr) - cb->change_start;
 	chg_req = sync_str2chgreq(chgtype);
@@ -496,7 +494,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 				/* was add or mod, keep it */
 				cb->cb_updates[index].upd_uuid = 0;
 				cb->cb_updates[index].upd_chgtype = 0;
-				slapi_ch_free((void **)&uniqueid);
+				slapi_ch_free_string(&uniqueid);
 			}
 			break;
 		case LDAP_REQ_MODRDN:
@@ -516,12 +514,12 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 			original_dn = slapi_sdn_new_dn_byref(entrydn);
 			old_scope = sync_is_active_scope(original_dn,cb->orig_pb);
 			slapi_sdn_free(&original_dn);
-			slapi_ch_free((void **)&entrydn);
+			slapi_ch_free_string(&entrydn);
 			if (newsuperior) {
 				Slapi_DN *newbase;
 				newbase = slapi_sdn_new_dn_byref(newsuperior);
 				new_scope = sync_is_active_scope(newbase, cb->orig_pb);
-				slapi_ch_free((void **)&newsuperior);
+				slapi_ch_free_string(&newsuperior);
 				slapi_sdn_free(&newbase);
 			} else {
 				/* scope didn't change */
@@ -536,7 +534,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 				} else {
 					cb->cb_updates[index].upd_uuid = 0;
 					cb->cb_updates[index].upd_chgtype = 0;
-					slapi_ch_free((void **)&uniqueid);
+					slapi_ch_free_string(&uniqueid);
 				}
 			} else if ( old_scope ) {
 				/* it was moved out of scope, handle as DEL */
@@ -547,7 +545,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 				} else {
 					cb->cb_updates[prev].upd_chgtype = LDAP_REQ_DELETE;
 					cb->cb_updates[prev].upd_e = sync_deleted_entry_from_changelog(cl_entry);
-					slapi_ch_free((void **)&uniqueid);
+					slapi_ch_free_string(&uniqueid);
 				}
 			} else if ( new_scope ) {
 				/* moved into scope, handle as ADD */
@@ -555,6 +553,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 					cb->cb_updates[index].upd_uuid = uniqueid;
 			} else {
 				/* nothing to do */
+				slapi_ch_free_string(&uniqueid);
  			}
 			slapi_sdn_free(&original_dn);
 			break;
@@ -570,8 +569,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 				/* if it was added since last cookie state, we
 				 * can ignoere it */				
 				if (cb->cb_updates[prev].upd_chgtype == LDAP_REQ_ADD) {
-					slapi_ch_free((void **)&(cb->cb_updates[prev].upd_uuid));
-					slapi_ch_free((void **)&uniqueid);
+					slapi_ch_free_string(&(cb->cb_updates[prev].upd_uuid));
 					cb->cb_updates[prev].upd_uuid = NULL;
 					cb->cb_updates[index].upd_uuid = NULL;
 				} else {
@@ -580,11 +578,12 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 					cb->cb_updates[prev].upd_chgtype = LDAP_REQ_DELETE;
 					cb->cb_updates[prev].upd_e = sync_deleted_entry_from_changelog(cl_entry);
 				}
+				slapi_ch_free_string(&uniqueid);
 			}
 			break;
 	}
-	slapi_ch_free((void **)&chgtype);
-	slapi_ch_free((void **)&chgnr);
+	slapi_ch_free_string(&chgtype);
+	slapi_ch_free_string(&chgnr);
 
 	return (0);
 }
