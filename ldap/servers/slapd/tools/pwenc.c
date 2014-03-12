@@ -140,8 +140,10 @@ init_config(char *configdir)
 
     abs_configdir = rel2abspath( configdir );
     if ( config_set_configdir( "configdir (-D)", abs_configdir,
-                               errorbuf, 1) != LDAP_SUCCESS ) {
+                               errorbuf, 1) != LDAP_SUCCESS )
+    {
         fprintf( stderr, "%s\n", errorbuf );
+        slapi_ch_free_string(&abs_configdir);
         return( NULL );
     }
     slapi_ch_free_string(&abs_configdir);

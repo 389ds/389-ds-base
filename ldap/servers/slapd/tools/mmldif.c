@@ -659,6 +659,7 @@ int mm_init(int argc, char * argv[])
             slapd_ldap_debug = 65535;
             break;
         case 'o':
+            if(ofn) free (ofn);
             ofn = strdup(optarg);
             break;
         case 'h':
@@ -677,6 +678,7 @@ int mm_init(int argc, char * argv[])
         ofp = fopen(ofn, "w");
         if (ofp == NULL) {
             perror(ofn);
+            free(ofn);
             return -1;
         }
         free(ofn);
