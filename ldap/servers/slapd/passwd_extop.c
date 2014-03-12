@@ -904,7 +904,6 @@ static char *passwd_name_list[] = {
 int passwd_modify_init( Slapi_PBlock *pb )
 {
 	char	**argv;
-	char	*oid;
 
 	/* Get the arguments appended to the plugin extendedop directive. The first argument 
 	 * (after the standard arguments for the directive) should contain the OID of the
@@ -923,9 +922,8 @@ int passwd_modify_init( Slapi_PBlock *pb )
 				 "OID is missing or is not %s\n", EXTOP_PASSWD_OID );
 		return( -1 );
 	} else {
-		oid = slapi_ch_strdup( argv[0] );
 		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_init", 
-				 "Registering plug-in for Password Modify extended op %s.\n", oid );
+				 "Registering plug-in for Password Modify extended op %s.\n", argv[0] /* oid */);
 	}
 
 	/* Register the plug-in function as an extended operation

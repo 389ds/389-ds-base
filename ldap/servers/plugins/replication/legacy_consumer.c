@@ -371,11 +371,12 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
                 {
                     if (mod_type == LDAP_MOD_REPLACE)
                     {
+                        slapi_ch_free_string(&legacy_consumer_replicationpw);
                         legacy_consumer_replicationpw = config_copy_strval(config_attr_value);
                     }
                     else if (mod_type == LDAP_MOD_DELETE)
                     {
-                        legacy_consumer_replicationpw = NULL;
+                        slapi_ch_free_string(&legacy_consumer_replicationpw);
                     }
                     else if (mod_type == LDAP_MOD_ADD)
                     {
@@ -387,6 +388,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
                         }
                         else
                         {
+                            slapi_ch_free_string(&legacy_consumer_replicationpw);
                             legacy_consumer_replicationpw = config_copy_strval(config_attr_value);
                         }
                     }
@@ -419,11 +421,8 @@ legacy_consumer_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* en
 	slapi_rwlock_wrlock (legacy_consumer_config_lock);
     if (legacy_consumer_replicationdn)
         slapi_sdn_free (&legacy_consumer_replicationdn);
-    if (legacy_consumer_replicationpw)
-        slapi_ch_free ((void**)&legacy_consumer_replicationpw);
-
+    slapi_ch_free_string(&legacy_consumer_replicationpw);
 	legacy_consumer_replicationdn = NULL;
-    legacy_consumer_replicationpw = NULL;
 	slapi_rwlock_unlock (legacy_consumer_config_lock);
 
 	*returncode = LDAP_SUCCESS;
@@ -446,6 +445,7 @@ legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext)
 	    legacy_consumer_replicationdn = slapi_sdn_new_dn_passin (arg);
 
     arg= slapi_entry_attr_get_charptr(entry,CONFIG_LEGACY_REPLICATIONPW_ATTRIBUTE);
+    slapi_ch_free_string(&legacy_consumer_replicationpw);
     legacy_consumer_replicationpw = arg;
 
 	slapi_rwlock_unlock (legacy_consumer_config_lock);

@@ -141,27 +141,43 @@ int sdt_load(SDatTable *sdt, const char *filename)
     if (!fd) return 0;
 
     while (PR_Available(fd) > 0) {
-	int rval;
-	char temp[256];
-	char *dn = NULL;
-	char *uid = NULL;
-	while (!(rval = PR_GetLine(fd, temp, 256))) {
-	    char *p;
-	    if (!strncasecmp(temp, "dn:", 3)) {
-		for (p = temp + 4; *p == ' ' || *p == '\t'; p++) ;
-	        dn = strdup(p);
-	        if (!dn) break;
-	    } else if (!strncasecmp(temp, "uid:", 4)) {
-		for (p = temp + 5; *p == ' ' || *p == '\t'; p++) ;
-	        uid = strdup(p);
-	        if (!uid) break;
-	    }
-	    if (uid) {	/* dn should come earlier than uid */
-	        if (!sdt_push(sdt, dn, uid)) goto out;
-		break;
-	    }
-	}
-	if (rval) break;	/* PR_GetLine failed */
+		int rval;
+		int pushed = 0;
+		char temp[256];
+		char *dn = NULL;
+		char *uid = NULL;
+		while (!(rval = PR_GetLine(fd, temp, 256))) {
+			char *p;
+			if (!strncasecmp(temp, "dn:", 3)) {
+				for (p = temp + 4; *p == ' ' || *p == '\t'; p++) ;
+				dn = strdup(p);
+				if (!dn) break;
+			} else if (!strncasecmp(temp, "uid:", 4)) {
+				for (p = temp + 5; *p == ' ' || *p == '\t'; p++) ;
+				uid = strdup(p);
+				if (!uid) break;
+			}
+			if (uid) {
+				/* dn should come earlier than uid - so both dn and uid must be set. */
+				if (!sdt_push(sdt, dn, uid)){
+					/* failure, free the dn and uid */
+					free(dn);
+					free(uid);
+					goto out;
+				}
+				pushed = 1;
+				break;
+			}
+		}
+		if(!pushed){
+			/*
+			 * Entry might not have been a user entry with a uid,
+			 * so free the dn just in case.
+			 */
+			if(dn)
+				free(dn);
+		}
+		if (rval) break;	/* PR_GetLine failed */
     }
 out:
     PR_Close(fd);
