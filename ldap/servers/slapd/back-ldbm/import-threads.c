@@ -2256,6 +2256,7 @@ import_foreman(void *param)
                                             "of the duplicated entry %s; "
                                             "Entry ID: %d", 
                                             orig_dn, fi->entry->ep_id);
+                    slapi_ch_free_string(&orig_dn);
                     goto cont;
                 }
                 new_entrydn = slapi_attr_new();
