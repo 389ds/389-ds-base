@@ -137,7 +137,7 @@ main( int argc, char **argv)
 					/* cred has the prefix, remove it before decoding */
 					prefixCred = strdup(optarg);
 					
-					if ((*prefixCred == PWD_HASH_PREFIX_START) &&
+					if (prefixCred && (*prefixCred == PWD_HASH_PREFIX_START) &&
 						((end = strchr(prefixCred, PWD_HASH_PREFIX_END)) != NULL) &&
 						((namelen = end - prefixCred - 1 ) <= (3*PWD_MAX_NAME_LEN)) )
 					{
