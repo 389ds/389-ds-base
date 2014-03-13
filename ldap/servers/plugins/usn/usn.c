@@ -520,8 +520,8 @@ usn_bepostop (Slapi_PBlock *pb)
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
-        rc = SLAPI_PLUGIN_FAILURE;
+	/* no plugin failure */
+        rc = SLAPI_PLUGIN_SUCCESS;
         goto bail;
     }
 
@@ -557,7 +557,8 @@ usn_bepostop_modify (Slapi_PBlock *pb)
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        rc = SLAPI_PLUGIN_FAILURE;
+	/* no plugin failure */
+        rc = SLAPI_PLUGIN_SUCCESS;
         goto bail;
     }
 
@@ -606,7 +607,8 @@ usn_bepostop_delete (Slapi_PBlock *pb)
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        rc = SLAPI_PLUGIN_FAILURE;
+	/* no plugin failure */
+        rc = SLAPI_PLUGIN_SUCCESS;
         goto bail;
     }
 

@@ -1089,7 +1089,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	/* call the transaction post delete plugins just before the commit */
 	if (plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
-		LDAPDebug0Args( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
 						"returned error code\n" );
 		if (!ldap_result_code) {
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -1198,7 +1198,7 @@ error_return:
 
 		/* call the transaction post delete plugins just before the abort */
 		if (plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
-			LDAPDebug1Arg( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
 						   "returned error code %d\n", retval );
 			if (!ldap_result_code) {
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
