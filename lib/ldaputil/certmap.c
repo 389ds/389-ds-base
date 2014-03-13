@@ -500,13 +500,13 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     char *searchAttr = 0;
 
     if (!ldapu_strcasecmp(certinfo->issuerName, "default")) {
-	default_certmap_info = certinfo;
+        default_certmap_info = certinfo;
     }
     else if (!certinfo->issuerDN) {
-	return LDAPU_ERR_NO_ISSUERDN_IN_CONFIG_FILE;
+        return LDAPU_ERR_NO_ISSUERDN_IN_CONFIG_FILE;
     }
     else {
-	rv = ldapu_list_add_info(certmap_listinfo, certinfo);
+        rv = ldapu_list_add_info(certmap_listinfo, certinfo);
     }
 
     if (rv != LDAPU_SUCCESS) return rv;
@@ -515,21 +515,21 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     rv = ldapu_certmap_info_attrval (certinfo, LDAPU_ATTR_DNCOMPS, &dncomps);
 
     if (rv == LDAPU_SUCCESS && dncomps) {
-	certinfo->dncompsState = COMPS_HAS_ATTRS;
-	tolower_string(dncomps);
+        certinfo->dncompsState = COMPS_HAS_ATTRS;
+        tolower_string(dncomps);
     }
     else if (rv == LDAPU_FAILED) {
-	certinfo->dncompsState = COMPS_COMMENTED_OUT;
-	rv = LDAPU_SUCCESS;
+        certinfo->dncompsState = COMPS_COMMENTED_OUT;
+        rv = LDAPU_SUCCESS;
     }
     else if (rv == LDAPU_SUCCESS && !dncomps) {
-	certinfo->dncompsState = COMPS_EMPTY;
-	dncomps = "";		/* present but empty */
+        certinfo->dncompsState = COMPS_EMPTY;
+        dncomps = "";		/* present but empty */
     }
 
     rv = parse_into_bitmask (dncomps, &certinfo->dncomps, -1);
 
-    if (dncomps && *dncomps) free(dncomps);
+    free(dncomps); dncomps = NULL;
 
     if (rv != LDAPU_SUCCESS) return rv;
 
@@ -538,21 +538,21 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
 				    &filtercomps);
 
     if (rv == LDAPU_SUCCESS && filtercomps) {
-	certinfo->filtercompsState = COMPS_HAS_ATTRS;
-	tolower_string(filtercomps);
+        certinfo->filtercompsState = COMPS_HAS_ATTRS;
+        tolower_string(filtercomps);
     }
     else if (rv == LDAPU_FAILED) {
-	certinfo->filtercompsState = COMPS_COMMENTED_OUT;
-	rv = LDAPU_SUCCESS;
+        certinfo->filtercompsState = COMPS_COMMENTED_OUT;
+        rv = LDAPU_SUCCESS;
     }
     else if (rv == LDAPU_SUCCESS && !filtercomps) {
-	certinfo->filtercompsState = COMPS_EMPTY;
-	filtercomps = "";	/* present but empty */
+        certinfo->filtercompsState = COMPS_EMPTY;
+        filtercomps = "";	/* present but empty */
     }
 
     rv = parse_into_bitmask (filtercomps, &certinfo->filtercomps, 0);
 
-    if (filtercomps && *filtercomps) free(filtercomps);
+    if (filtercomps) free(filtercomps);
     
     if (rv != LDAPU_SUCCESS) return rv;
 
@@ -560,15 +560,15 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     rv = ldapu_certmap_info_attrval(certinfo, LDAPU_ATTR_CERTMAP_LDAP_ATTR,
 				    &searchAttr);
 
-    if (rv == LDAPU_FAILED || !searchAttr || !*searchAttr)
-	rv = LDAPU_SUCCESS;
-    else {
-	certinfo->searchAttr = searchAttr ? strdup(searchAttr) : 0;
+    if (rv == LDAPU_FAILED || !searchAttr){
+        rv = LDAPU_SUCCESS;
+    } else {
+        certinfo->searchAttr = searchAttr;
 
-	if (searchAttr && !certinfo->searchAttr)
-	    rv = LDAPU_ERR_OUT_OF_MEMORY;
-	else
-	    rv = LDAPU_SUCCESS;
+        if (searchAttr && !certinfo->searchAttr)
+            rv = LDAPU_ERR_OUT_OF_MEMORY;
+        else
+            rv = LDAPU_SUCCESS;
     }
     
     if (rv != LDAPU_SUCCESS) return rv;
@@ -578,73 +578,69 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     rv = ldapu_certmap_info_attrval(certinfo, LDAPU_ATTR_VERIFYCERT, &verify);
 
     if (rv == LDAPU_SUCCESS) {
-	if (!ldapu_strcasecmp(verify, "on"))
-	    certinfo->verifyCert = 1;
-	else if (!ldapu_strcasecmp(verify, "off"))
-	    certinfo->verifyCert = 0;
-	else if (!verify || !*verify) /* for mail/news backward compatibilty */
-	    certinfo->verifyCert = 1; /* otherwise, this should be an error */
-	else
-	    rv = LDAPU_ERR_MISSING_VERIFYCERT_VAL;
+        if (!ldapu_strcasecmp(verify, "on"))
+            certinfo->verifyCert = 1;
+        else if (!ldapu_strcasecmp(verify, "off"))
+            certinfo->verifyCert = 0;
+        else if (!verify || !*verify) /* for mail/news backward compatibilty */
+            certinfo->verifyCert = 1; /* otherwise, this should be an error */
+        else
+            rv = LDAPU_ERR_MISSING_VERIFYCERT_VAL;
     }
     else if (rv == LDAPU_FAILED)  rv = LDAPU_SUCCESS;
 
-    if (verify && *verify) free(verify);
+    if (verify) free(verify);
     
     if (rv != LDAPU_SUCCESS) return rv;
 
     {
-	PRLibrary *lib = 0;
+        PRLibrary *lib = 0;
 
-	/* look for the library property and load it */
-	rv = ldapu_certmap_info_attrval(certinfo, LDAPU_ATTR_LIBRARY, &libname);
+        /* look for the library property and load it */
+        rv = ldapu_certmap_info_attrval(certinfo, LDAPU_ATTR_LIBRARY, &libname);
 
-	if (rv == LDAPU_SUCCESS) {
-	    if (libname && *libname) {
-		lib = PR_LoadLibrary(libname);
-		if (!lib) rv = LDAPU_ERR_UNABLE_TO_LOAD_PLUGIN;
-	    }
-	    else {
-		rv = LDAPU_ERR_MISSING_LIBNAME;
-	    }
-	}
-	else if (rv == LDAPU_FAILED) rv = LDAPU_SUCCESS;
+        if (rv == LDAPU_SUCCESS) {
+            if (libname && *libname) {
+                lib = PR_LoadLibrary(libname);
+                if (!lib) rv = LDAPU_ERR_UNABLE_TO_LOAD_PLUGIN;
+            } else {
+                rv = LDAPU_ERR_MISSING_LIBNAME;
+            }
+        } else if (rv == LDAPU_FAILED) rv = LDAPU_SUCCESS;
 
-	if (libname) free(libname);
-	if (rv != LDAPU_SUCCESS) return rv;
+        if (libname) free(libname);
+        if (rv != LDAPU_SUCCESS) return rv;
 
-	/* look for the InitFn property, find it in the libray and call it */
-	rv = ldapu_certmap_info_attrval(certinfo, LDAPU_ATTR_INITFN, &fname);
+        /* look for the InitFn property, find it in the libray and call it */
+        rv = ldapu_certmap_info_attrval(certinfo, LDAPU_ATTR_INITFN, &fname);
 
-	if (rv == LDAPU_SUCCESS) {
-	    if (fname && *fname) {
-		/* If lib is NULL, PR_FindSymbol will search all libs loaded
-		 * through PR_LoadLibrary.
-		 */
-		CertMapInitFn_t fn = (CertMapInitFn_t)PR_FindSymbol(lib, fname);
+        if (rv == LDAPU_SUCCESS) {
+            if (fname && *fname) {
+                /* If lib is NULL, PR_FindSymbol will search all libs loaded
+                 * through PR_LoadLibrary.
+                 */
+                CertMapInitFn_t fn = (CertMapInitFn_t)PR_FindSymbol(lib, fname);
 	
-		if (!fn) {
-		    rv = LDAPU_ERR_MISSING_INIT_FN_IN_LIB;
-		}
-		else {
-		    rv = (*fn)(certinfo, certinfo->issuerName,
-			       certinfo->issuerDN, this_dllname);
-		}
-	    }
-	    else {
-		rv = LDAPU_ERR_MISSING_INIT_FN_NAME;
-	    }
-	}
-	else if (lib) {
-	    /* If library is specified, init function must be specified */
-	    /* If init fn is specified, library may not be specified */
-	    rv = LDAPU_ERR_MISSING_INIT_FN_IN_CONFIG;
-	}
-	else if (rv == LDAPU_FAILED) rv = LDAPU_SUCCESS;
+                if (!fn) {
+                    rv = LDAPU_ERR_MISSING_INIT_FN_IN_LIB;
+                } else {
+                    rv = (*fn)(certinfo, certinfo->issuerName,
+                               certinfo->issuerDN, this_dllname);
+                }
+            } else {
+                rv = LDAPU_ERR_MISSING_INIT_FN_NAME;
+            }
+        } else if (lib) {
+            /* If library is specified, init function must be specified */
+            /* If init fn is specified, library may not be specified */
+            rv = LDAPU_ERR_MISSING_INIT_FN_IN_CONFIG;
+        } else if (rv == LDAPU_FAILED){
+            rv = LDAPU_SUCCESS;
+        }
 
-	if (fname) free(fname);
+        if (fname) free(fname);
     
-	if (rv != LDAPU_SUCCESS) return rv;
+        if (rv != LDAPU_SUCCESS) return rv;
     }
 
     return rv;

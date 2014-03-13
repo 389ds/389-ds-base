@@ -522,6 +522,7 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
      */
     char *pluginpath = config_get_saslpath();
     if ((!pluginpath) || (*pluginpath == '\0')) {
+        slapi_ch_free_string(&pluginpath);
         pluginpath = ldaputil_get_saslpath();
     }
     *path = pluginpath;
