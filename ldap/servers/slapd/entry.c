@@ -105,13 +105,11 @@ str2entry_state_information_from_type(struct berval *atype,
                                       int *attr_state)
 {
 	char *p = NULL;
+	char *semicolonp = NULL;
 	if ((NULL == atype) || (NULL == atype->bv_val)) {
 		return;
 	}
 	p = PL_strchr(atype->bv_val, ';');
-	if (p) {
-		atype->bv_len = p - atype->bv_val;
-	}
 	*value_state= VALUE_PRESENT;
 	*attr_state= ATTRIBUTE_PRESENT;
 	while(p!=NULL)
@@ -170,18 +168,30 @@ str2entry_state_information_from_type(struct berval *atype,
 					csn_init_by_csn ( *maxcsn, *attributedeletioncsn );
 				}
 			}
+			if (NULL == semicolonp) {
+				semicolonp = p; /* the first semicolon */
+			}
 		}
 		else if(strncmp(p+1,"deletedattribute", 16)==0)
 		{
 			p[0]='\0';
 			*attr_state= ATTRIBUTE_DELETED;
+			if (NULL == semicolonp) {
+				semicolonp = p; /* the first semicolon */
+			}
 		}
 		else if(strncmp(p+1,"deleted", 7)==0)
 		{
 			p[0]='\0';
 			*value_state= VALUE_DELETED;
+			if (NULL == semicolonp) {
+				semicolonp = p; /* the first semicolon */
+			}
 		}
 		p= strchr(p+1, ';');
+	}
+	if (semicolonp) {
+		atype->bv_len = semicolonp - atype->bv_val;
 	}
 }
 
