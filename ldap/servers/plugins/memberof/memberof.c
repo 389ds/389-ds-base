@@ -1016,7 +1016,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 
 			memberof_lock();
 
-			for (i = 0; configCopy.groupattrs[i]; i++)
+			for (i = 0; configCopy.groupattrs && configCopy.groupattrs[i]; i++)
 			{
 				if(0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
