@@ -1280,6 +1280,7 @@ get_dn_plus_uniqueid(char *sessionid, const Slapi_DN *oldsdn, const char *unique
 		 * parentdn is normalized by slapi_sdn_get_dn.
 		 */
 		newdn = slapi_ch_smprintf("%s,%s", slapi_rdn_get_rdn(rdn), parentdn);
+		slapi_ch_free_string(&parentdn);
 	}
 	slapi_rdn_free(&rdn);
 	return newdn;
