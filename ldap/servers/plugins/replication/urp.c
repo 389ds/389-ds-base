@@ -1248,6 +1248,7 @@ get_dn_plus_uniqueid(char *sessionid, const Slapi_DN *oldsdn, const char *unique
 		char *parentdn = slapi_dn_parent(slapi_sdn_get_dn(oldsdn));
 		slapi_rdn_add(rdn, SLAPI_ATTR_UNIQUEID, uniqueid);
 		newdn = slapi_ch_smprintf("%s,%s", slapi_rdn_get_rdn(rdn), parentdn);
+		slapi_ch_free_string(&parentdn);
 	}
 	slapi_rdn_free(&rdn);
 	return newdn;
