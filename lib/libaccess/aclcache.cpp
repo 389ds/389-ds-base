@@ -133,8 +133,8 @@ ACL_ListHashInit()
 				  &ACLPermAllocOps, 
 				  NULL);
     if (ACLListHash == NULL) {
-        ereport(LOG_SECURITY, (char *)"Unable to allocate ACL List Hash");
-        return;
+	ereport(LOG_SECURITY, "Unable to allocate ACL List Hash\n");
+	return;
     }
 
     return;
