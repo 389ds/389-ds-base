@@ -524,7 +524,7 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     }
     else if (rv == LDAPU_SUCCESS && !dncomps) {
         certinfo->dncompsState = COMPS_EMPTY;
-        dncomps = "";		/* present but empty */
+        dncomps = strdup("");		/* present but empty */
     }
 
     rv = parse_into_bitmask (dncomps, &certinfo->dncomps, -1);
@@ -547,12 +547,12 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     }
     else if (rv == LDAPU_SUCCESS && !filtercomps) {
         certinfo->filtercompsState = COMPS_EMPTY;
-        filtercomps = "";	/* present but empty */
+        filtercomps = strdup("");	/* present but empty */
     }
 
     rv = parse_into_bitmask (filtercomps, &certinfo->filtercomps, 0);
 
-    if (filtercomps) free(filtercomps);
+    free(filtercomps); filtercomps = NULL;
     
     if (rv != LDAPU_SUCCESS) return rv;
 
@@ -590,7 +590,7 @@ static int process_certinfo (LDAPUCertMapInfo_t *certinfo)
     else if (rv == LDAPU_FAILED)  rv = LDAPU_SUCCESS;
 
     if (verify) free(verify);
-    
+
     if (rv != LDAPU_SUCCESS) return rv;
 
     {
