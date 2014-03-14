@@ -1051,12 +1051,15 @@ index_read_ext_allids(
 	}
 	for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
 	  *err = NEW_IDL_DEFAULT;
+	   PRIntervalTime interval;
 	  idl = idl_fetch_ext( be, db, &key, db_txn, ai, err, allidslimit );
 	  if(*err == DB_LOCK_DEADLOCK) {
 	    ldbm_nasty("index read retrying transaction", 1045, *err);
 #ifdef FIX_TXN_DEADLOCKS
 #error can only retry here if txn == NULL - otherwise, have to abort and retry txn
 #endif
+		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
+		DS_Sleep(interval);
 	    continue;
 	  } else {
 	    break;
