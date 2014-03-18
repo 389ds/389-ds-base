@@ -156,7 +156,7 @@ parse_LDAPProxyAuth(struct berval *spec_ber, int version, char **errtextp,
   END
 
   /* Cleanup */
-  if (ber) ber_free(ber, 0);
+  if (ber) ber_free(ber, 1);
 
   if ( LDAP_SUCCESS != lderr)
   {
