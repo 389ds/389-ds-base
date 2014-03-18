@@ -58,6 +58,7 @@ nsslapd-maxdescriptors: 1024
 nsslapd-max-filter-nest-level: 40
 nsslapd-ndn-cache-enabled: off
 nsslapd-sasl-mapping-fallback: off
+nsslapd-allow-hashed-passwords: off
 
 dn: cn=features,cn=config
 objectclass: top

@@ -2056,6 +2056,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_GROUPEVALNESTLEVEL_ATTRIBUTE "nsslapd-groupevalnestlevel"
 #define CONFIG_NAGLE_ATTRIBUTE "nsslapd-nagle"
 #define CONFIG_PWPOLICY_LOCAL_ATTRIBUTE "nsslapd-pwpolicy-local"
+#define CONFIG_ALLOW_HASHED_PW_ATTRIBUTE "nsslapd-allow-hashed-passwords"
 #define CONFIG_PW_CHANGE_ATTRIBUTE "passwordChange"
 #define CONFIG_PW_MUSTCHANGE_ATTRIBUTE "passwordMustChange"
 #define CONFIG_PW_SYNTAX_ATTRIBUTE "passwordCheckSyntax"
@@ -2264,6 +2265,7 @@ typedef struct _slapdFrontendConfig {
 
   slapi_onoff_t pwpolicy_local;
   slapi_onoff_t pw_is_global_policy;
+  slapi_onoff_t allow_hashed_pw;
   passwdPolicy pw_policy;
 
   /* ACCESS LOG */

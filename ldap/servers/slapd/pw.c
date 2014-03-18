@@ -820,8 +820,9 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	 */
 	for ( i = 0; vals[ i ] != NULL; ++i ){
 		if (slapi_is_encoded((char *)slapi_value_get_string(vals[i]))) {
-			if ((!is_replication && ((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) ||
-				(!internal_op && !pw_is_pwp_admin(pb, pwpolicy))))) {
+			if (!is_replication && !config_get_allow_hashed_pw() && 
+				((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) || 
+				(!internal_op && !pw_is_pwp_admin(pb, pwpolicy)))) {
 				PR_snprintf( errormsg, BUFSIZ,
 					"invalid password syntax - passwords with storage scheme are not allowed");
 				if ( pwresponse_req == 1 ) {
