@@ -228,6 +228,7 @@ slapi_onoff_t init_pw_is_legacy;
 slapi_onoff_t init_pw_track_update_time;
 slapi_onoff_t init_pw_change;
 slapi_onoff_t init_pw_exp;
+slapi_onoff_t init_allow_hashed_pw;
 slapi_onoff_t init_pw_syntax;
 slapi_onoff_t init_schemacheck;
 slapi_onoff_t init_schemamod;
@@ -744,6 +745,10 @@ static struct config_get_and_set {
 		log_set_expirationtimeunit, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_exptimeunit,
 		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITLOG_EXPTIMEUNIT},
+	{CONFIG_ALLOW_HASHED_PW_ATTRIBUTE, config_set_allow_hashed_pw, 
+		NULL, 0, 
+		(void**)&global_slapdFrontendConfig.allow_hashed_pw, 
+		CONFIG_ON_OFF, NULL, &init_allow_hashed_pw},
 	{CONFIG_PW_SYNTAX_ATTRIBUTE, config_set_pw_syntax,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_syntax,
@@ -1458,6 +1463,7 @@ FrontendConfig_init () {
   init_pwpolicy_local = cfg->pwpolicy_local = LDAP_OFF;
   init_pw_change = cfg->pw_policy.pw_change = LDAP_ON;
   init_pw_must_change = cfg->pw_policy.pw_must_change = LDAP_OFF;
+  init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
   init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
   init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
   cfg->pw_policy.pw_minlength = 8;
@@ -2523,6 +2529,20 @@ config_set_pwpolicy_local( const char *attrname, char *value, char *errorbuf, in
 							  errorbuf,
 							  apply);
   
+  return retVal;
+}
+
+int
+config_set_allow_hashed_pw( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+							  value,
+							  &(slapdFrontendConfig->allow_hashed_pw),
+							  errorbuf,
+							  apply);
+
   return retVal;
 }
 
@@ -4820,6 +4840,18 @@ config_get_pw_must_change() {
   return retVal; 
 }
 
+int
+config_get_allow_hashed_pw()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+  retVal = (int)slapdFrontendConfig->allow_hashed_pw;
+  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
+
+  return retVal;
+}
 
 int
 config_get_pw_syntax() {

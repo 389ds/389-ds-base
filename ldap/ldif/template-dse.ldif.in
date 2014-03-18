@@ -59,6 +59,7 @@ nsslapd-max-filter-nest-level: 40
 nsslapd-ndn-cache-enabled: on
 nsslapd-sasl-mapping-fallback: off
 nsslapd-dynamic-plugins: off
+nsslapd-allow-hashed-passwords: off
 
 dn: cn=features,cn=config
 objectclass: top

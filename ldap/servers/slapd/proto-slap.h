@@ -323,6 +323,7 @@ int config_set_errorlog(const char *attrname, char *value, char *errorbuf, int a
 int config_set_pw_change(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_must_change(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pwpolicy_local(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_allow_hashed_pw( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_pw_syntax(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_minlength(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_mindigits(const char *attrname,  char *value, char *errorbuf, int apply );
@@ -447,6 +448,7 @@ char *config_get_pw_storagescheme();
 int config_get_pw_change();
 int config_get_pw_history();
 int config_get_pw_must_change();
+int config_get_allow_hashed_pw();
 int config_get_pw_syntax();
 int config_get_pw_minlength();
 int config_get_pw_mindigits();
