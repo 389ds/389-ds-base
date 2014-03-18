@@ -961,10 +961,10 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 			} else {
 				/* add pseudo password attribute - only if it's value is clear text */
 				valuearray_init_bervalarray_unhashed_only(pw_mod->mod_bvalues, &va);
-				if(va){
+				if(va && va[0]){
 					slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
-					valuearray_free(&va);
 				}
+                                valuearray_free(&va);
 			}
 
 			/* Init new value array for hashed value */
