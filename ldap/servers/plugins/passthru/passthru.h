@@ -162,4 +162,9 @@ struct berval **passthru_strs2bervals( char **ss );
 char ** passthru_bervals2strs( struct berval **bvs );
 void passthru_free_bervals( struct berval **bvs );
 
+/*
+ * ptpreop.c
+ */
+void passthru_free_config();
+
 #endif	/* _PASSTHRU_H_ */

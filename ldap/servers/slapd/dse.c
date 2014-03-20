@@ -111,6 +111,7 @@ struct dse_callback
     Slapi_Filter *slapifilter;	/* NULL means match all entries */
     int (*fn)(Slapi_PBlock *,Slapi_Entry *,Slapi_Entry *,int*,char*,void *);
     void *fn_arg;
+    struct slapdplugin *plugin;
     struct dse_callback *next;
 };
 
@@ -153,6 +154,10 @@ static void dse_search_set_add_entry (dse_search_set *ss, Slapi_Entry *e);
 static Slapi_Entry* dse_search_set_get_next_entry (dse_search_set *ss);
 static int dse_add_entry_pb(struct dse* pdse, Slapi_Entry *e, Slapi_PBlock *pb);
 static struct dse_node *dse_find_node( struct dse* pdse, const Slapi_DN *dn );	
+static int dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returntext);
+static int dse_add_plugin(Slapi_Entry *entry, char *returntext);
+static int dse_delete_plugin(Slapi_Entry *entry, char *returntext);
+static void dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods);
 
 /*
   richm: In almost all modes e.g. db2ldif, ldif2db, etc. we do not need/want
@@ -227,10 +232,17 @@ dse_get_entry_copy( struct dse* pdse, const Slapi_DN *dn, int use_lock )
 }
 
 static struct dse_callback *
-dse_callback_new(int operation, int flags, const Slapi_DN *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg)
+dse_callback_new(int operation,
+                 int flags,
+                 const Slapi_DN *base,
+                 int scope,
+                 const char *filter,
+                 dseCallbackFn fn,
+                 void *fn_arg,
+                 struct slapdplugin *plugin)
 {
     struct dse_callback *p= NULL;
-    p = (struct dse_callback *)slapi_ch_malloc(sizeof(struct dse_callback));
+    p = (struct dse_callback *)slapi_ch_calloc(1, sizeof(struct dse_callback));
     if (p!=NULL) {
         p->operation= operation;
         p->flags = flags;
@@ -246,6 +258,7 @@ dse_callback_new(int operation, int flags, const Slapi_DN *base, int scope, cons
 		}
         p->fn= fn;
         p->fn_arg= fn_arg;
+        p->plugin = plugin;
         p->next= NULL;
     }
     return p;
@@ -332,7 +345,7 @@ dse_callback_removefromlist(struct dse_callback **pplist, int operation, int fla
         struct dse_callback *t= *pplist;
         struct dse_callback *prev= NULL;
         for(; t!=NULL; ) {
-            if ((t->operation == operation) && (t->flags == flags) && 
+            if ((t->operation & operation) && (t->flags & flags) &&
                 (t->fn == fn) && (scope == t->scope) && 
                 (slapi_sdn_compare(base,t->base) == 0) &&
                 ((NULL == filter && NULL == t->filter) || /* both are NULL OR */
@@ -1804,15 +1817,16 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     LDAPMod **mods; /*Used to apply the modifications*/
     char *errbuf = NULL; /* To get error back */
     struct dse* pdse;
-    Slapi_Entry *ec= NULL;
-    Slapi_Entry *ecc= NULL;
-    int returncode= LDAP_SUCCESS;
-    char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
+    Slapi_Entry *ec = NULL;
+    Slapi_Entry *ecc = NULL;
+    int returncode = LDAP_SUCCESS;
+    char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
     Slapi_DN *sdn = NULL;
     int dont_write_file = 0; /* default */
     int rc = SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
     int retval = -1;
     int need_be_postop = 0;
+    int plugin_started = 0;
 
     PR_ASSERT(pb);
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
@@ -1898,7 +1912,15 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
                 }
             }
         } else {
-            rc = SLAPI_DSE_CALLBACK_OK;
+            /*
+             * Check if we are enabling/disabling a plugin
+             */
+            if((plugin_started = dse_modify_plugin(ec, ecc, returntext)) == -1){
+                returncode = LDAP_UNWILLING_TO_PERFORM;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            } else {
+                rc = SLAPI_DSE_CALLBACK_OK;
+            }
         }
     }
 
@@ -2016,9 +2038,172 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
             }
         }
     }
+    /*
+     * Perform postop plugin configuration changes
+     */
+    if(returncode == LDAP_SUCCESS){
+        dse_post_modify_plugin(ec, ecc, mods);
+    } else if(plugin_started){
+        if(plugin_started == 1){
+        	/* the op failed, turn the plugin off */
+            plugin_delete(ecc, returntext, 0 /* not locked */);
+        } else if (plugin_started == 2){
+            /*
+             * This probably can't happen, but...
+             * the op failed, turn the plugin back on.
+             */
+            plugin_add(ecc, returntext, 0 /* not locked */);
+        }
+    }
+
     slapi_send_ldap_result( pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
 
     return dse_modify_return(retval, ec, ecc);
+}
+
+static void
+dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods)
+{
+    char *enabled = NULL;
+    int i;
+
+    if (!slapi_entry_attr_hasvalue(entryBefore, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
+            !config_get_dynamic_plugins() ){
+        /* not a plugin, or we aren't applying updates dynamically - just move on */
+        return;
+    }
+
+    /*
+     * Only check the mods if the plugin is enabled - no need to restart a plugin if it's not running.
+     */
+    if ( (enabled = slapi_entry_attr_get_charptr(entryBefore, ATTR_PLUGIN_ENABLED)) &&
+         !strcasecmp(enabled, "on"))
+    {
+        for(i = 0; mods && mods[i]; i++){
+            /* Check if we are modifying a plugin's config, if so restart the plugin */
+            if (strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_PATH) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_INITFN) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_TYPE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_DEPENDS_ON_TYPE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_DEPENDS_ON_NAMED) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_SCHEMA_CHECK) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_BE_TXN) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_TARGET_SUBTREE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_EXCLUDE_TARGET_SUBTREE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_BIND_SUBTREE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_EXCLUDE_BIND_SUBTREE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOAD_NOW) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOAD_GLOBAL) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_PRECEDENCE) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOG_ACCESS) == 0 ||
+                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOG_AUDIT) == 0 )
+            {
+                /* for all other plugin config changes, restart the plugin */
+                if(plugin_restart(entryBefore, entryAfter) != LDAP_SUCCESS){
+                    slapi_log_error(SLAPI_LOG_FATAL,"dse_post_modify_plugin", "The configuration change "
+                            "for plugin (%s) could not be applied dynamically, and will be ignored until "
+                            "the server is restarted.\n",
+                            slapi_entry_get_dn(entryBefore));
+                }
+            }
+        }
+    }
+    slapi_ch_free_string(&enabled);
+}
+
+/*
+ * If this is modifying a plugin, check if we are disabling/enabling it - update the
+ * global plugins as needed.
+ *
+ * Return 1 if the plugin was successfully started
+ * Return 2 if the plugin was successfully stopped
+ * Return -1 on error
+ * Return 0 if nothing was done
+ */
+static int
+dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returntext)
+{
+    int rc = LDAP_SUCCESS;
+
+    if (!slapi_entry_attr_hasvalue(post_entry, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
+        !config_get_dynamic_plugins() )
+    {
+        return rc;
+    }
+
+    if( slapi_entry_attr_hasvalue(pre_entry, "nsslapd-pluginEnabled", "on") &&
+        slapi_entry_attr_hasvalue(post_entry, "nsslapd-pluginEnabled", "off") )
+    {
+        /*
+         * Plugin has been disabled
+         */
+        if(plugin_delete(post_entry, returntext, 0 /* not locked */)){
+            rc = -1;
+        } else {
+            rc = 2; /* plugin disabled */
+            slapi_log_error(SLAPI_LOG_PLUGIN,"dse_modify_plugin", "Disabled plugin (%s)\n",
+                            slapi_entry_get_dn(post_entry));
+        }
+    } else if ( slapi_entry_attr_hasvalue(pre_entry, "nsslapd-pluginEnabled", "off") &&
+                slapi_entry_attr_hasvalue(post_entry, "nsslapd-pluginEnabled", "on") )
+    {
+        /*
+         * Plugin has been enabled
+         */
+        if(plugin_add(post_entry, returntext, 0 /* not locked */)){
+            rc = -1;
+        } else {
+            rc = 1; /* plugin started */
+            slapi_log_error(SLAPI_LOG_PLUGIN,"dse_modify_plugin", "Enabled plugin (%s)\n",
+                            slapi_entry_get_dn(post_entry));
+        }
+    }
+
+    return rc;
+}
+
+/*
+ * Add the plugin to the global plugin list
+ */
+static int
+dse_add_plugin(Slapi_Entry *entry, char *returntext)
+{
+    int rc = LDAP_SUCCESS;
+
+    if (!slapi_entry_attr_hasvalue(entry, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
+        !config_get_dynamic_plugins() )
+    {
+        /*
+         * This is not a plugin, or we are not allowing dynamic updates.
+         */
+        return rc;
+    }
+    rc = plugin_add(entry, returntext, 0 /* not locked */);
+
+    return rc;
+}
+
+/*
+ * Delete the plugin from the global plugin list
+ */
+static int
+dse_delete_plugin(Slapi_Entry *entry, char *returntext)
+{
+    int rc = LDAP_SUCCESS;
+
+    if (!slapi_entry_attr_hasvalue(entry, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
+        slapi_entry_attr_hasvalue(entry, "nsslapd-PluginEnabled", "off") ||
+        !config_get_dynamic_plugins() )
+    {
+        /*
+         * This is not a plugin, this plugin was not enabled to begin with, or we
+         * are not allowing dynamic updates .
+         */
+        return rc;
+    }
+    rc = plugin_delete(entry, returntext, 0 /* not locked */);
+
+    return rc;
 }
 
 static int 
@@ -2042,8 +2227,8 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     int error = -1;
     int dont_write_file = 0;	/* default */
     struct dse* pdse;
-    int returncode= LDAP_SUCCESS;
-    char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
+    int returncode = LDAP_SUCCESS;
+    char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
     Slapi_DN *sdn = NULL;
     Slapi_DN parent;
     int need_be_postop = 0;
@@ -2204,6 +2389,13 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         e = NULL; /* caller will free upon error */
         goto done;
     }
+    /*
+     * Check if we are adding a plugin
+     */
+    if(dse_add_plugin(e, returntext)){
+        returncode = LDAP_UNWILLING_TO_PERFORM;
+        goto done;
+    }
 
     /* make copy for postop fns because add_entry_pb consumes the given entry */
     e_copy = slapi_entry_dup(e);
@@ -2265,8 +2457,8 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int rc= -1;
     int dont_write_file = 0;	/* default */
     struct dse* pdse = NULL;
-    int returncode= LDAP_SUCCESS;
-    char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= "";
+    int returncode = LDAP_SUCCESS;
+    char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
     char *entry_str = "entry";
     char *errbuf = NULL;
     char *attrs[2] =  { NULL, NULL };
@@ -2377,15 +2569,32 @@ done:
             PL_strncpyz(returntext, ldap_result_message, sizeof(returntext));
         }
     }
+    /*
+     * Check if we are deleting a plugin
+     */
+    if(returncode == LDAP_SUCCESS){
+        if(dse_delete_plugin(ec, returntext)){
+            rc = LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
     slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry);
     slapi_send_ldap_result( pb, returncode, NULL, returntext, 0, NULL );
     return dse_delete_return(returncode, ec);
 }
 
 struct dse_callback *
-dse_register_callback(struct dse* pdse, int operation, int flags, const Slapi_DN *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg)
+dse_register_callback(struct dse* pdse,
+                      int operation,
+                      int flags,
+                      const Slapi_DN *base,
+                      int scope,
+                      const char *filter,
+                      dseCallbackFn fn,
+                      void *fn_arg,
+                      struct slapdplugin *plugin)
 {
-    struct dse_callback *callback = dse_callback_new(operation, flags, base, scope, filter, fn, fn_arg);
+    struct dse_callback *callback = dse_callback_new(operation, flags, base, scope, filter, fn, fn_arg, plugin);
     dse_callback_addtolist(&pdse->dse_callback, callback);
     return callback;
 }
@@ -2412,16 +2621,33 @@ dse_call_callback(struct dse* pdse, Slapi_PBlock *pb, int operation, int flags, 
 
     if (pdse->dse_callback != NULL) {
         struct dse_callback *p = pdse->dse_callback;
-        int result;
+        int result = SLAPI_DSE_CALLBACK_OK;
 
         while (p != NULL) {
             if ((p->operation & operation) && (p->flags & flags)) {
                 if(slapi_sdn_scope_test(slapi_entry_get_sdn_const(entryBefore), p->base, p->scope)){
                     if(NULL == p->slapifilter || slapi_vattr_filter_test(pb, entryBefore, p->slapifilter, 0) == 0){
-                        result = (*p->fn)(pb, entryBefore,entryAfter,returncode,returntext,p->fn_arg);
+                        int plugin_started = 1;
+
+                        if(p->plugin){
+                            /* this is a plugin callback, update the operation counter */
+                            slapi_plugin_op_started(p->plugin);
+                            if(!p->plugin->plg_started){
+                                /* must be a task function being called */
+                                result = SLAPI_DSE_CALLBACK_ERROR;
+                                PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                             "Task entry (%s) could not added because the (%s) plugin is disabled.",
+                                             slapi_entry_get_dn(entryBefore), p->plugin->plg_dn);
+                                plugin_started = 0;
+                            }
+                        }
+                        if(plugin_started){
+                            result = (*p->fn)(pb, entryBefore,entryAfter,returncode,returntext,p->fn_arg);
+                        }
                         if(result < rc){
                             rc = result;
                         }
+                        slapi_plugin_op_finished(p->plugin);
                     }
                 }
             }
@@ -2432,7 +2658,29 @@ dse_call_callback(struct dse* pdse, Slapi_PBlock *pb, int operation, int flags, 
 }
 
 int
-slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg)
+slapi_config_register_callback(int operation,
+                                      int flags,
+                                      const char *base,
+                                      int scope,
+                                      const char *filter,
+                                      dseCallbackFn fn,
+                                      void *fn_arg)
+{
+    return slapi_config_register_callback_plugin(operation, flags, base, scope, filter, fn, fn_arg, NULL);
+}
+
+/*
+ *  We pass in the pblock so we can update the operation counter for "dynamic plugins".
+ */
+int
+slapi_config_register_callback_plugin(int operation,
+                               int flags,
+                               const char *base,
+                               int scope,
+                               const char *filter,
+                               dseCallbackFn fn,
+                               void *fn_arg,
+                               Slapi_PBlock *pb)
 {
     int rc= 0;
     Slapi_Backend *be= slapi_be_select_by_instance_name(DSE_BACKEND);
@@ -2440,13 +2688,16 @@ slapi_config_register_callback(int operation, int flags, const char *base, int s
         struct dse* pdse= (struct dse*)be->be_database->plg_private;
         if (pdse!=NULL) {
             Slapi_DN dn;
+
             slapi_sdn_init_dn_byref(&dn,base);
-            rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn, fn_arg));
+            rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn, fn_arg, pb ? pb->pb_plugin: NULL));
             slapi_sdn_done(&dn);
         }
     }
     return rc;
 }
+
+
 
 int
 slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn)

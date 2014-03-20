@@ -693,6 +693,8 @@ void roles_cache_stop()
 		current_role = next_role;
 	}
 	slapi_rwlock_unlock(global_lock);
+	slapi_ch_free((void **)&vattr_handle);
+	roles_list = NULL;
 
     slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_stop\n");
 }
@@ -796,6 +798,11 @@ void roles_cache_change_notify(Slapi_PBlock *pb)
 	int operation;
 	int do_update = 0;
 	int rc = -1;
+
+	if (!slapi_plugin_running(pb)) {
+		/* not initialized yet */
+		return ;
+	}
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, 
@@ -943,7 +950,6 @@ if ( e != NULL )
 		}
 
     }
- 
     slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_change_notify\n");
 
 }
@@ -1579,7 +1585,7 @@ int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_v
 			}
 			/* Free the list (we already did that) */
 		}
-	  else
+		else
 		{
 			if ( return_values )
 			{
@@ -2116,9 +2122,11 @@ static void roles_cache_role_def_free(roles_cache_def *role_def)
 	slapi_destroy_mutex(role_def->change_lock);
 	role_def->change_lock = NULL;
 	slapi_destroy_condvar(role_def->something_changed);
+	role_def->something_changed = NULL;
 	slapi_destroy_mutex(role_def->create_lock);
 	role_def->create_lock = NULL;
 	slapi_destroy_condvar(role_def->suffix_created);
+	role_def->suffix_created = NULL;
 
     slapi_ch_free((void**)&role_def->notified_dn);
 	if ( role_def->notified_entry != NULL )

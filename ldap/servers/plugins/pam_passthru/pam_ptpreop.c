@@ -56,7 +56,6 @@ static Slapi_RWLock *g_pam_config_lock = NULL;
 /*
  * Plug-in globals
  */
-int g_pam_plugin_started = 0;
 PRCList *pam_passthru_global_config = NULL;
 
 /*
@@ -333,11 +332,6 @@ pam_passthru_bindpreop_start( Slapi_PBlock *pb )
     slapi_log_error( SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthru_bindpreop_start\n" );
 
-    /* Check if we're already started */
-    if (g_pam_plugin_started) {
-        goto done;
-    }
-
     /* Get the plug-in configuration DN and store it for later use. */
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &pluginsdn);
     if (NULL == pluginsdn || 0 == slapi_sdn_get_ndn_len(pluginsdn)) {
@@ -394,7 +388,6 @@ done:
         g_pam_config_lock = NULL;
         slapi_ch_free((void **)&pam_passthru_global_config);
     } else {
-        g_pam_plugin_started = 1;
         slapi_log_error( SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru: ready for service\n" );
     }
@@ -417,26 +410,16 @@ pam_passthru_bindpreop_close( Slapi_PBlock *pb )
     slapi_log_error( SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthru_bindpreop_close\n" );
 
-    if (!g_pam_plugin_started) {
-        goto done;
-    }
-
-    pam_passthru_write_lock();
-    g_pam_plugin_started = 0;
     pam_passthru_delete_config();
     pam_passthru_unlock();
 
+    slapi_sdn_free((Slapi_DN **)&pam_passthruauth_plugin_sdn);
+    pam_passthru_free_config_area();
     slapi_ch_free((void **)&pam_passthru_global_config);
+    pam_passthru_pam_free();
+    slapi_destroy_rwlock(g_pam_config_lock);
+    g_pam_config_lock = NULL;
 
-    /* We explicitly don't destroy the config lock here.  If we did,
-     * there is the slight possibility that another thread that just
-     * passed the g_pam_plugin_started check is about to try to obtain
-     * a reader lock.  We leave the lock around so these threads
-     * don't crash the process.  If we always check the started
-     * flag again after obtaining a reader lock, no free'd resources
-     * will be used. */
-
-done:
     slapi_log_error( SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "<= pam_passthru_bindpreop_close\n" );
 
@@ -489,7 +472,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
     pam_passthru_read_lock();
 
     /* Bail out if the plug-in close function was just called. */
-    if (!g_pam_plugin_started) {
+    if (!slapi_plugin_running(pb)) {
         goto done;
     }
 
@@ -579,11 +562,6 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
     slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "=> pam_passthru_preop\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_pam_plugin_started) {
-        goto bail;
-    }
-
     /* Get the target SDN. */
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     if (!sdn) {
@@ -646,7 +624,6 @@ bail:
         slapi_send_ldap_result(pb, ret, NULL, returntext, 0, NULL);
         ret = SLAPI_PLUGIN_FAILURE;
     }
-
     slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "<= pam_passthru_preop\n");
 
@@ -693,11 +670,6 @@ pam_passthru_postop(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "=> pam_passthru_postop\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_pam_plugin_started) {
-        goto bail;
-    }
-
     /* Make sure the operation succeeded and bail if it didn't. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc);
     if (oprc != 0) {
@@ -738,6 +710,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
                     "<= pam_passthru_postop\n");
 
 bail:
+
     return ret;
 }
 

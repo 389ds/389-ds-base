@@ -47,33 +47,51 @@
 ** Should be followed by a cleanup
 */
 
+
+static void
+free_cb_backend(cb_backend *cb)
+{
+    if(cb){
+        slapi_destroy_rwlock(cb->config.rwl_config_lock);
+        slapi_ch_free_string(&cb->pluginDN);
+        slapi_ch_free_string(&cb->configDN);
+        slapi_ch_array_free(cb->config.chainable_components);
+        slapi_ch_array_free(cb->config.forward_ctrls);
+        slapi_ch_free((void **)&cb);
+    }
+}
+
 int cb_back_close( Slapi_PBlock *pb )
 {
-	Slapi_Backend 		* be;
-	cb_backend_instance 	* inst;
-	int 			rc;
-	
-        slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+	Slapi_Backend *be;
+	cb_backend_instance *inst;
+	cb_backend *cb = cb_get_backend_type();
+	int rc;
+
+
+
+	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	if (be == NULL) {
 
-		cb_backend * cb = cb_get_backend_type();
 		CB_ASSERT(cb!=NULL);
 
-        	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, cb->configDN, LDAP_SCOPE_BASE,
-                	"(objectclass=*)",cb_config_modify_callback);
-        	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, cb->configDN, LDAP_SCOPE_BASE,
-                	"(objectclass=*)",cb_config_modify_check_callback);
-
-        	slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, cb->configDN, LDAP_SCOPE_BASE,
-	                "(objectclass=*)",cb_config_add_callback);
-        	slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, cb->configDN, LDAP_SCOPE_BASE,
-	                "(objectclass=*)",cb_config_add_check_callback);
-
-        	slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, cb->configDN, LDAP_SCOPE_BASE,
-	                "(objectclass=*)",cb_config_search_callback);
-
-        	slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, cb->pluginDN, 
-			LDAP_SCOPE_SUBTREE, CB_CONFIG_INSTANCE_FILTER, cb_config_add_instance_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, cb->configDN, LDAP_SCOPE_BASE,
+		                             "(objectclass=*)",cb_config_modify_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, cb->configDN, LDAP_SCOPE_BASE,
+		                             "(objectclass=*)",cb_config_modify_check_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, cb->configDN, LDAP_SCOPE_BASE,
+		                             "(objectclass=*)",cb_config_add_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, cb->configDN, LDAP_SCOPE_BASE,
+		                             "(objectclass=*)",cb_config_add_check_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, cb->configDN, LDAP_SCOPE_BASE,
+		                             "(objectclass=*)",cb_config_search_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_POSTOP, cb->pluginDN,
+		                             LDAP_SCOPE_SUBTREE, CB_CONFIG_INSTANCE_FILTER,
+		                             cb_config_add_instance_callback);
+		slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, cb->pluginDN,
+		                             LDAP_SCOPE_SUBTREE, CB_CONFIG_INSTANCE_FILTER,
+		                             cb_config_add_instance_check_callback);
+		free_cb_backend(cb);
 
 		return 0;
 	}
@@ -82,23 +100,23 @@ int cb_back_close( Slapi_PBlock *pb )
 	/* gets called with a ldbm backend instance... */
 
 	{
-		const char * betype = slapi_be_gettype(be);
+		const char *betype = slapi_be_gettype(be);
 		if (!betype || strcasecmp(betype,CB_CHAINING_BACKEND_TYPE)) {
-
-        		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-				"Wrong database type.\n");
+			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, "Wrong database type.\n");
 			return 0;
 		}
 	}
 
 	inst = cb_get_instance(be);
-	CB_ASSERT( inst!=NULL );
+	CB_ASSERT( inst != NULL );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"Stopping chaining database instance %s\n",
-		inst->configDn);
-	/* emulate a backend instance deletion */
-	/* to clean up everything              */
+			inst->configDn);
+	/*
+	 * emulate a backend instance deletion to clean up everything
+	 */
 	cb_instance_delete_config_callback(NULL, NULL,NULL, &rc, NULL, inst);
+	free_cb_backend(cb);
 
-        return 0;
+	return 0;
 }

@@ -55,7 +55,6 @@ static Slapi_RWLock *g_mep_config_lock;
 static void *_PluginID = NULL;
 static Slapi_DN *_PluginDN = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
-static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { MEP_FEATURE_DESC,
                                   VENDOR,
@@ -336,11 +335,6 @@ mep_start(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_start\n");
 
-    /* Check if we're already started */
-    if (g_plugin_started) {
-        goto done;
-    }
-
     g_mep_config_lock = slapi_new_rwlock();
 
     if (!g_mep_config_lock) {
@@ -380,13 +374,11 @@ mep_start(Slapi_PBlock * pb)
         return -1;
     }
 
-    g_plugin_started = 1;
     slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                     "managed entries plug-in: ready for service\n");
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_start\n");
 
-done:
     return 0;
 }
 
@@ -401,28 +393,13 @@ mep_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_close\n");
 
-    if (!g_plugin_started) {
-        goto done;
-    }
-
-    mep_config_write_lock();
-    g_plugin_started = 0;
     mep_delete_config();
-    mep_config_unlock();
-
+    slapi_destroy_rwlock(g_mep_config_lock);
+    g_mep_config_lock = NULL;
     slapi_ch_free((void **)&g_mep_config);
     slapi_sdn_free(&_PluginDN);
     slapi_sdn_free(&_ConfigAreaDN);
 
-    /* We explicitly don't destroy the config lock here.  If we did,
-     * there is the slight possibility that another thread that just
-     * passed the g_plugin_started check is about to try to obtain
-     * a reader lock.  We leave the lock around so these threads
-     * don't crash the process.  If we always check the started
-     * flag again after obtaining a reader lock, no free'd resources
-     * will be used. */
-
-done:
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_close\n");
 
@@ -1989,10 +1966,6 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_pre_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started)
-        goto bail;
-
     /* See if we're calling ourselves. */
     slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &caller_id);
 
@@ -2058,7 +2031,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
         mep_config_read_lock();
 
         /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
+        if (!slapi_plugin_running(pb)) {
             mep_config_unlock();
             goto bail;
         }
@@ -2183,7 +2156,7 @@ mep_pre_op(Slapi_PBlock * pb, int modop)
                         mep_config_read_lock();
 
                         /* Bail out if the plug-in close function was just called. */
-                        if (!g_plugin_started) {
+                        if (!slapi_plugin_running(pb)) {
                             mep_config_unlock();
                             goto bail;
                         }
@@ -2321,10 +2294,6 @@ mep_mod_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_mod_post_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started)
-        return SLAPI_PLUGIN_SUCCESS;
-
     if (mep_oktodo(pb) && (sdn = mep_get_sdn(pb))) {
         /* First check if the config or a template is being modified. */
         if (mep_dn_is_config(sdn) || mep_dn_is_template(sdn)) {
@@ -2357,7 +2326,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
             mep_config_read_lock();
 
             /* Bail out if the plug-in close function was just called. */
-            if (!g_plugin_started) {
+            if (!slapi_plugin_running(pb)) {
                 mep_config_unlock();
                 goto bail;
             }
@@ -2453,10 +2422,6 @@ mep_add_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_add_post_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !mep_oktodo(pb))
-        return SLAPI_PLUGIN_SUCCESS;
-
     /* Reload config if a config entry was added. */
     if ((sdn = mep_get_sdn(pb))) {
         if (mep_dn_is_config(sdn)) {
@@ -2487,7 +2452,7 @@ mep_add_post_op(Slapi_PBlock *pb)
         mep_config_read_lock();
 
         /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
+        if (!slapi_plugin_running(pb)) {
             mep_config_unlock();
             return SLAPI_PLUGIN_SUCCESS;
         }
@@ -2518,11 +2483,6 @@ mep_del_post_op(Slapi_PBlock *pb)
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_del_post_op\n");
-
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !mep_oktodo(pb)) {
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     /* Reload config if a config entry was deleted. */
     if ((sdn = mep_get_sdn(pb))) {
@@ -2593,9 +2553,9 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                     "--> mep_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !mep_oktodo(pb))
-        return SLAPI_PLUGIN_SUCCESS;;
-
+    if (!mep_oktodo(pb)){
+        return SLAPI_PLUGIN_SUCCESS;
+    }
     /* Reload config if an existing config entry was renamed,
      * or if the new dn brings an entry into the scope of the
      * config entries. */
@@ -2645,7 +2605,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         mep_config_read_lock();
 
         /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
+        if (!slapi_plugin_running(pb)) {
             mep_config_unlock();
             slapi_pblock_destroy(mep_pb);
             return SLAPI_PLUGIN_SUCCESS;
@@ -2817,7 +2777,7 @@ bailmod:
         mep_config_read_lock();
 
         /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
+        if (!slapi_plugin_running(pb)) {
             mep_config_unlock();
             return SLAPI_PLUGIN_SUCCESS;
         }
@@ -2829,7 +2789,6 @@ bailmod:
 
         mep_config_unlock();
     }
-
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_modrdn_post_op\n");
 

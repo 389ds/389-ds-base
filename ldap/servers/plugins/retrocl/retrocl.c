@@ -74,7 +74,6 @@ void plugin_init_debug_level(int *level_ptr)
 #endif
 
 void* g_plg_identity [PLUGIN_MAX];
-
 Slapi_Backend *retrocl_be_changelog = NULL;
 PRLock *retrocl_internal_lock = NULL;
 Slapi_RWLock *retrocl_cn_lock;
@@ -88,7 +87,7 @@ int retrocl_log_deleted = 0;
 static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, DS_PACKAGE_VERSION, "Retrocl Plugin"};
 static Slapi_PluginDesc retroclpostopdesc = {"retrocl-postop", VENDOR, DS_PACKAGE_VERSION, "retrocl post-operation plugin"};
 static Slapi_PluginDesc retroclinternalpostopdesc = {"retrocl-internalpostop", VENDOR, DS_PACKAGE_VERSION, "retrocl internal post-operation plugin"};
-
+static int legacy_initialised= 0;
 
 /*
  * Function: retrocl_*
@@ -188,19 +187,19 @@ retrocl_internalpostop_init( Slapi_PBlock *pb )
  *
  * Returns: LDAP_SUCCESS
  * 
- * Arguments: none
+ * Arguments: Slapi_PBlock
  *
  * Description:   The FE DSE *must* be initialised before we get here.
  *
  */
-static int retrocl_rootdse_init(void)
+static int retrocl_rootdse_init(Slapi_PBlock *pb)
 {
 
     int return_value= LDAP_SUCCESS;
 
-    slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,"",
+    slapi_config_register_callback_plugin(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP | DSE_FLAG_PLUGIN, "",
 				   LDAP_SCOPE_BASE,"(objectclass=*)",
-				   retrocl_rootdse_search,NULL); 
+				   retrocl_rootdse_search, NULL, pb);
     return return_value;
 }
 
@@ -322,16 +321,11 @@ char *retrocl_get_config_str(const char *attrt)
 
 static int retrocl_start (Slapi_PBlock *pb)
 {
-    static int retrocl_started = 0;
     int rc = 0;
     Slapi_Entry *e = NULL;
     char **values = NULL;
 
-    if (retrocl_started) {
-      return rc;
-    }
-
-    retrocl_rootdse_init();
+    retrocl_rootdse_init(pb);
 
     rc = retrocl_select_backend();      
 
@@ -408,8 +402,6 @@ static int retrocl_start (Slapi_PBlock *pb)
         slapi_ch_array_free(values);
     }
 
-    retrocl_started = 1;
-
     return 0;
 }
 
@@ -436,6 +428,14 @@ static int retrocl_stop (Slapi_PBlock *pb)
   retrocl_stop_trimming();  
   retrocl_be_changelog = NULL;
   retrocl_forget_changenumbers();
+  PR_DestroyLock(retrocl_internal_lock);
+  retrocl_internal_lock = NULL;
+  slapi_destroy_rwlock(retrocl_cn_lock);
+  retrocl_cn_lock = NULL;
+  legacy_initialised = 0;
+
+  slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, "",
+          LDAP_SCOPE_BASE,"(objectclass=*)", retrocl_rootdse_search);
 
   return rc;
 }
@@ -454,7 +454,6 @@ static int retrocl_stop (Slapi_PBlock *pb)
 int
 retrocl_plugin_init(Slapi_PBlock *pb)
 {
-  	static int legacy_initialised= 0;
 	int rc = 0;
 	int precedence = 0;
 	void *identity = NULL;
@@ -495,6 +494,3 @@ retrocl_plugin_init(Slapi_PBlock *pb)
     legacy_initialised = 1;
     return rc;
 }
-
-
-

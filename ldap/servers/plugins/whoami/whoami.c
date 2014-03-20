@@ -134,7 +134,10 @@ int whoami_init( Slapi_PBlock *pb )
 
 	/* Register the plugin function as an extended operation plugin function */
 
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_03 ) != 0 || slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, ( void * )&expdesc ) != 0 || slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, ( void * )whoami_exop ) != 0 || slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, ( void * )whoami_exop_oid_list ) !=0 )
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_03 ) != 0 ||
+			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, ( void * )&expdesc ) != 0 ||
+			slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, ( void * )whoami_exop ) != 0 ||
+			slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, ( void * )whoami_exop_oid_list ) !=0 )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME, "whoami_init: Failed to register plug-in.\n" );
 		return( -1 );

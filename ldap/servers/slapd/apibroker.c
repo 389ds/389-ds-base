@@ -146,6 +146,8 @@ int slapi_apib_unregister(char *guid)
 		if(*api == head) /* must be the last item, turn off the lights */
 			head = 0;
 
+		(*api)->guid = NULL;
+		(*api)->api = NULL;
 		slapi_ch_free((void**)api);
 		*api = 0;
 		ret = 0;

@@ -54,7 +54,6 @@ static Slapi_RWLock *g_config_lock;
 
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
-static int g_plugin_started = 0;
 int plugin_is_betxn = 0;
 
 static Slapi_PluginDesc pdesc = { LINK_FEATURE_DESC,
@@ -323,11 +322,6 @@ linked_attrs_start(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_start\n");
 
-    /* Check if we're already started */
-    if (g_plugin_started) {
-        goto done;
-    }
-
     g_config_lock = slapi_new_rwlock();
 
     if (!g_config_lock) {
@@ -366,15 +360,13 @@ linked_attrs_start(Slapi_PBlock * pb)
     /*
      * Register our task callback
      */
-    slapi_task_register_handler("fixup linked attributes", linked_attrs_fixup_task_add);
+    slapi_plugin_task_register_handler("fixup linked attributes", linked_attrs_fixup_task_add, pb);
 
-    g_plugin_started = 1;
     slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                     "linked attributes plug-in: ready for service\n");
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_start\n");
 
-done:
     return 0;
 }
 
@@ -389,27 +381,12 @@ linked_attrs_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_close\n");
 
-    if (!g_plugin_started) {
-        goto done;
-    }
-
-    linked_attrs_write_lock();
-    g_plugin_started = 0;
     linked_attrs_delete_config();
-    linked_attrs_unlock();
-
+    slapi_destroy_rwlock(g_config_lock);
+    g_config_lock = NULL;
     slapi_ch_free((void **)&g_link_config);
     slapi_ch_free((void **)&g_managed_config_index);
 
-    /* We explicitly don't destroy the config lock here.  If we did,
-     * there is the slight possibility that another thread that just
-     * passed the g_plugin_started check is about to try to obtain
-     * a reader lock.  We leave the lock around so these threads
-     * don't crash the process.  If we always check the started
-     * flag again after obtaining a reader lock, no free'd resources
-     * will be used. */
-
-done:
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "<-- linked_attrs_close\n");
 
@@ -1540,10 +1517,6 @@ linked_attrs_pre_op(Slapi_PBlock * pb, int modop)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_pre_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started)
-        goto bail;
-
     if (0 == (dn = linked_attrs_get_dn(pb)))
         goto bail;
 
@@ -1638,10 +1611,6 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_mod_post_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started)
-        return SLAPI_PLUGIN_SUCCESS;
-
     /* We don't want to process internal modify
      * operations that originate from this plugin.
      * Doing so could cause a deadlock. */
@@ -1673,7 +1642,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
             linked_attrs_read_lock();
 
             /* Bail out if the plug-in close function was just called. */
-            if (!g_plugin_started) {
+            if (!slapi_plugin_running(pb)) {
                 linked_attrs_unlock();
                 return SLAPI_PLUGIN_SUCCESS;
             }
@@ -1741,10 +1710,6 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_add_post_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !linked_attrs_oktodo(pb))
-        return SLAPI_PLUGIN_SUCCESS;
-
     /* Reload config if a config entry was added. */
     if ((dn = linked_attrs_get_dn(pb))) {
         if (linked_attrs_dn_is_config(dn))
@@ -1771,7 +1736,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
             linked_attrs_read_lock();
 
             /* Bail out if the plug-in close function was just called. */
-            if (!g_plugin_started) {
+            if (!slapi_plugin_running(pb)) {
                 linked_attrs_unlock();
                 return SLAPI_PLUGIN_SUCCESS;
             }
@@ -1821,8 +1786,9 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
                     "--> linked_attrs_del_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !linked_attrs_oktodo(pb))
+    if (!linked_attrs_oktodo(pb)){
         return SLAPI_PLUGIN_SUCCESS;
+    }
 
     /* Reload config if a config entry was deleted. */
     if ((dn = linked_attrs_get_dn(pb))) {
@@ -1850,7 +1816,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
             linked_attrs_read_lock();
 
             /* Bail out if the plug-in close function was just called. */
-            if (!g_plugin_started) {
+            if (!slapi_plugin_running(pb)) {
                 linked_attrs_unlock();
                 return SLAPI_PLUGIN_SUCCESS;
             }
@@ -1938,7 +1904,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
                     "--> linked_attrs_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !linked_attrs_oktodo(pb)) {
+    if (!linked_attrs_oktodo(pb)) {
         goto done;
     }
 
@@ -1976,7 +1942,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
         linked_attrs_read_lock();
 
         /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
+        if (!slapi_plugin_running(pb)) {
             linked_attrs_unlock();
             return SLAPI_PLUGIN_SUCCESS;
         }
@@ -2073,6 +2039,7 @@ done:
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
         rc = SLAPI_PLUGIN_FAILURE;
     }
+
     return rc;
 }
 
@@ -2087,10 +2054,6 @@ linked_attrs_dump_config()
 
     linked_attrs_read_lock();
 
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started)
-        goto bail;
-
     if (!PR_CLIST_IS_EMPTY(g_link_config)) {
         list = PR_LIST_HEAD(g_link_config);
         while (list != g_link_config) {
@@ -2099,7 +2062,6 @@ linked_attrs_dump_config()
         }
     }
 
-bail:
     linked_attrs_unlock();
 }
 
@@ -2110,10 +2072,6 @@ linked_attrs_dump_config_index()
 
     linked_attrs_read_lock();
 
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started)
-        goto bail;
-
     if (!PR_CLIST_IS_EMPTY(g_managed_config_index)) {
         list = PR_LIST_HEAD(g_managed_config_index);
         while (list != g_managed_config_index) {
@@ -2122,7 +2080,6 @@ linked_attrs_dump_config_index()
         }
     }
 
-bail:
     linked_attrs_unlock();
 }
 
@@ -2140,9 +2097,4 @@ linked_attrs_dump_config_entry(struct configEntry * entry)
                     "<---- managed type --------> %s\n", entry->managedtype);
     slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
                     "<---- scope ---------------> %s\n", entry->scope);
-}
-
-int
-linked_attrs_is_started(){
-	return g_plugin_started;
 }

@@ -185,8 +185,9 @@ static void cb_instance_config_set_default(cb_backend_instance *inst)
 ** Allocate a new chaining backend instance. Internal structure
 */
 
-static cb_backend_instance * cb_instance_alloc(cb_backend * cb, char * name, char * basedn) {
-
+static cb_backend_instance *
+cb_instance_alloc(cb_backend *cb, char *name, char *basedn)
+{
 	int i;
 
 	cb_backend_instance * inst =
@@ -252,7 +253,7 @@ void cb_instance_free(cb_backend_instance * inst) {
 
 		if (inst->bind_pool)
 		{
-        		cb_close_conn_pool(inst->bind_pool);
+			cb_close_conn_pool(inst->bind_pool);
 			slapi_destroy_condvar(inst->bind_pool->conn.conn_list_cv);
 			slapi_destroy_mutex(inst->bind_pool->conn.conn_list_mutex);
 			slapi_ch_free((void **) &inst->bind_pool);
@@ -260,7 +261,7 @@ void cb_instance_free(cb_backend_instance * inst) {
 
 		if (inst->pool)
 		{
-        		cb_close_conn_pool(inst->pool);
+			cb_close_conn_pool(inst->pool);
 			slapi_destroy_condvar(inst->pool->conn.conn_list_cv);
 			slapi_ch_free_string(&inst->pool->password);
 			slapi_ch_free_string(&inst->pool->binddn);
@@ -280,7 +281,7 @@ void cb_instance_free(cb_backend_instance * inst) {
 
 		slapi_rwlock_unlock(inst->rwl_config_lock);
 		slapi_destroy_rwlock(inst->rwl_config_lock);
-
+		charray_free(inst->url_array);
 		slapi_ch_free((void **) &inst);
 	}
 /* XXXSD */
@@ -852,6 +853,7 @@ static int cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int 
 		}
 
 		/* normalize and ignore the case */
+		slapi_ch_free_string(&inst->pool->binddn);
 		inst->pool->binddn = slapi_create_dn_string_case("%s", (char *)value);
 		/* not normalized */
 		inst->pool->binddn2=slapi_ch_strdup((char *) value);
@@ -1684,13 +1686,13 @@ int cb_instance_search_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 }
 
 /*
-** Ooops!!! The backend instance is beeing deleted
+** Ooops!!! The backend instance is being deleted
 */
 
 int cb_instance_delete_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2,
-       int *returncode, char *returntext, void *arg) {
+    int *returncode, char *returntext, void *arg) {
 
-        cb_backend_instance * inst = (cb_backend_instance *) arg;
+	cb_backend_instance * inst = (cb_backend_instance *) arg;
 	int rc;
 	Slapi_Entry * anEntry=NULL;
 	Slapi_DN * aDn;
@@ -1703,36 +1705,33 @@ int cb_instance_delete_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_E
 	/* Now it is safe to stop */
 	/* No pending op          */
 
-
 	/* unregister callbacks */
-        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn, 
+	slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn,
 		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_search_config_callback);
-
-        slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
-		 LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_delete_config_callback);
-
-        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn, 
+	slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
+		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_delete_config_callback);
+	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn,
 		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_check_callback);
-        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn, 
+	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn,
 		LDAP_SCOPE_BASE, "(objectclass=*)", cb_instance_modify_config_callback);
 
 	/* At this point, the monitor entry should have been removed */
 	/* If not, manually call delete callback 		     */
 
-        aDn = slapi_sdn_new_dn_byref(inst->monitorDn);
-       	if ( LDAP_SUCCESS==(slapi_search_internal_get_entry(aDn,NULL, &anEntry,inst->backend_type->identity))) {
+	aDn = slapi_sdn_new_dn_byref(inst->monitorDn);
+	if ( LDAP_SUCCESS==(slapi_search_internal_get_entry(aDn,NULL, &anEntry,inst->backend_type->identity))) {
 		cb_delete_monitor_callback( NULL, anEntry, NULL, &rc , NULL, inst );
 		if (anEntry) 
-	                slapi_entry_free(anEntry);
+			slapi_entry_free(anEntry);
 	}
-        slapi_sdn_done(aDn);
-        slapi_sdn_free(&aDn);
+	slapi_sdn_done(aDn);
+	slapi_sdn_free(&aDn);
 
 	/* free resources */
-        cb_close_conn_pool(inst->bind_pool);
-        cb_close_conn_pool(inst->pool);
+	cb_close_conn_pool(inst->bind_pool);
+	cb_close_conn_pool(inst->pool);
 	slapi_be_free(&(inst->inst_be));
-        cb_instance_free(inst);
+	cb_instance_free(inst);
 
 	return SLAPI_DSE_CALLBACK_OK;
 }
@@ -1749,7 +1748,6 @@ static void cb_instance_add_monitor_later(time_t when, void *arg) {
 		if (LDAP_SUCCESS == cb_config_add_dse_entries(inst->backend_type, cb_skeleton_entries,
 			inst->inst_name,CB_PLUGIN_NAME, NULL)) 
 		{
-
 			/* add monitor callbacks */
 			slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->monitorDn, LDAP_SCOPE_BASE,
 					"(objectclass=*)", cb_search_monitor_callback, (void *) inst);
@@ -1902,17 +1900,17 @@ int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entr
 	if (!inst->isconfigured) 
 	{ 
 		slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, inst->configDn,
-		 LDAP_SCOPE_BASE,"(objectclass=*)",cb_instance_modify_config_check_callback, (void *) inst);
+		        LDAP_SCOPE_BASE,"(objectclass=*)",cb_instance_modify_config_check_callback, (void *) inst);
 		slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP, inst->configDn,
-		 LDAP_SCOPE_BASE,"(objectclass=*)",cb_instance_modify_config_callback, (void *) inst);
-
+		        LDAP_SCOPE_BASE,"(objectclass=*)",cb_instance_modify_config_callback, (void *) inst);
 		slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, inst->configDn, 
-		LDAP_SCOPE_BASE,"(objectclass=*)", cb_instance_search_config_callback, (void *) inst);
+		        LDAP_SCOPE_BASE,"(objectclass=*)", cb_instance_search_config_callback, (void *) inst);
 
 		/* allow deletion otherwise impossible to remote a backend instance */
 		/* dynamically...							  */
-		slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn, 
-		LDAP_SCOPE_BASE,"(objectclass=*)", cb_instance_delete_config_callback, (void *) inst);
+
+		slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, inst->configDn,
+		        LDAP_SCOPE_BASE,"(objectclass=*)", cb_instance_delete_config_callback, (void *) inst);
 	}
 
 	/* Notify the front-end */

@@ -584,6 +584,8 @@ int config_get_plugin_logging();
 int config_set_connection_nocanon(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_plugin_logging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_listen_backlog_size(void);
+int config_set_dynamic_plugins(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_dynamic_plugins();
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
@@ -712,7 +714,7 @@ int dse_search(Slapi_PBlock *pb);
 int dse_modify(Slapi_PBlock *pb);
 int dse_add(Slapi_PBlock *pb);
 int dse_delete(Slapi_PBlock *pb);
-struct dse_callback *dse_register_callback(struct dse* pdse, int operation, int flags, const Slapi_DN *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
+struct dse_callback *dse_register_callback(struct dse* pdse, int operation, int flags, const Slapi_DN *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg, struct slapdplugin *plugin);
 void dse_remove_callback(struct dse* pdse, int operation, int flags, const Slapi_DN *base, int scope, const char *filter, dseCallbackFn fn);
 void dse_set_dont_ever_write_dse_files(void);
 void dse_unset_dont_ever_write_dse_files(void);
@@ -866,9 +868,10 @@ void operation_set_type(Slapi_Operation *op, unsigned long type);
 /*
  * plugin.c
  */
+void global_plugin_init();
 int plugin_call_plugins( Slapi_PBlock *, int );
 int plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
-	slapi_plugin_init_fnptr initfunc, int add_to_dit);
+	slapi_plugin_init_fnptr initfunc, int add_to_dit, char *returntext);
 int plugin_call_exop_plugins( Slapi_PBlock *pb, char *oid );
 const char *plugin_extended_op_oid2string( const char *oid );
 void plugin_closeall(int close_backends, int close_globals);
@@ -884,6 +887,13 @@ void plugin_call_entryfetch_plugins(char **entrystr, uint *size);
 void plugin_call_entrystore_plugins(char **entrystr, uint *size);
 void plugin_print_versions(void);
 void plugin_print_lists(void);
+int plugin_add(Slapi_Entry *entry, char *returntext, int locked);
+int plugin_delete(Slapi_Entry *entry, char *returntext, int locked);
+void plugin_update_dep_entries(Slapi_Entry *plugin_entry);
+int plugin_restart(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter);
+void plugin_op_all_finished(struct slapdplugin *p);
+void plugin_set_stopped(struct slapdplugin *p);
+void plugin_set_started(struct slapdplugin *p);
 
 /*
  * plugin_mr.c

@@ -54,6 +54,17 @@
 #define ROOT_BIND			"directory manager"
 #define ANONYMOUS_BIND		"anonymous"
 
+/* dependency checking flags */
+#define CHECK_ALL 0
+#define CHECK_TYPE 1
+
+static char *critical_plugins[] = { "cn=ldbm database,cn=plugins,cn=config",
+                                    "cn=ACL Plugin,cn=plugins,cn=config",
+                                    "cn=ACL preoperation,cn=plugins,cn=config",
+                                    "cn=chaining database,cn=plugins,cn=config",
+                                    "cn=Multimaster Replication Plugin,cn=plugins,cn=config",
+                                    NULL };
+
 /* Forward Declarations */
 static int plugin_call_list (struct slapdplugin *list, int operation, Slapi_PBlock *pb);
 static int plugin_call_one (struct slapdplugin *list, int operation, Slapi_PBlock *pb);
@@ -79,6 +90,10 @@ int ptd_get_subtree_count (const PluginTargetData *ptd);
 static void plugin_set_global (PluginTargetData *ptd);
 static PRBool plugin_is_global (const PluginTargetData *ptd);
 static void plugin_set_default_access (struct pluginconfig *config);
+static int plugin_delete_check_dependency(struct slapdplugin *plugin_entry, int flag, char *returntext);
+static char *plugin_get_type_str( int type );
+static void plugin_cleanup_list();
+static int plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type);
 
 static PLHashTable *global_plugin_dns = NULL;
 
@@ -86,11 +101,11 @@ static PLHashTable *global_plugin_dns = NULL;
 static struct slapdplugin *global_plugin_list[PLUGIN_LIST_GLOBAL_MAX];
 
 /* plugin structure used to configure internal operation issued by the core server */
-static int global_server_plg_initialised= 0;
+static int global_server_plg_initialised = 0;
 struct slapdplugin global_server_plg;
 
 /* plugin structure used to configure internal operation issued by the core server */
-static int global_server_plg_id_initialised= 0;
+static int global_server_plg_id_initialised = 0;
 struct slapi_componentid global_server_id_plg;
 
 /* plugin structure used to configure operations issued by the old plugins that
@@ -100,6 +115,16 @@ static struct slapdplugin global_default_plg;
 /* Enable/disable plugin callbacks for clean startup */
 static int global_plugin_callbacks_enabled = 0;
 
+static Slapi_RWLock *global_rwlock = NULL;
+
+void
+global_plugin_init()
+{
+    if((global_rwlock = slapi_new_rwlock()) == NULL){
+        slapi_log_error( SLAPI_LOG_FATAL, "startup", "Failed to create global plugin rwlock.\n" );
+        exit (1);
+    }
+}
 
 static void
 add_plugin_to_list(struct slapdplugin **list, struct slapdplugin *plugin)
@@ -192,6 +217,23 @@ add_plugin_entries()
 }
 #endif
 
+static int
+plugin_is_critical(Slapi_Entry *plugin_entry)
+{
+    char *plugin_dn = NULL;
+    int i;
+
+    plugin_dn = slapi_entry_get_ndn(plugin_entry);
+
+    for( i = 0; critical_plugins[i]; i++){
+        if(strcasecmp(plugin_dn, critical_plugins[i]) == 0){
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static void
 new_plugin_entry(entry_and_plugin_t **ep, Slapi_Entry *e, struct slapdplugin *plugin)
 {
@@ -216,7 +258,6 @@ new_plugin_entry(entry_and_plugin_t **ep, Slapi_Entry *e, struct slapdplugin *pl
 	else
 		*ep = newep;
 }
-	
 
 static void
 add_plugin_entry_dn(const Slapi_DN *plugin_dn)
@@ -227,7 +268,6 @@ add_plugin_entry_dn(const Slapi_DN *plugin_dn)
 											PL_CompareStrings,
 											PL_CompareValues, 0, 0);
 	}
-
 	PL_HashTableAdd(global_plugin_dns,
 					slapi_sdn_get_ndn(plugin_dn),
 					(void*)plugin_dn);
@@ -267,12 +307,13 @@ slapi_register_plugin_ext(
 	int precedence
 )
 {
-	int ii = 0;
-        int found_precedence;
-    int rc = 0;
 	Slapi_Entry *e = NULL;
+	char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
 	char *dn = slapi_ch_smprintf("cn=%s,%s", name, PLUGIN_BASE_DN);
 	Slapi_DN *sdn = slapi_sdn_new_normdn_passin(dn);
+	int found_precedence;
+	int ii = 0;
+	int rc = 0;
 
 	e = slapi_entry_alloc();
 	/* this function consumes dn */
@@ -285,20 +326,20 @@ slapi_register_plugin_ext(
 		slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_ENABLED, "off");
 
 	slapi_entry_attr_set_charptr(e, ATTR_PLUGIN_INITFN, initsymbol);
-        /* If the plugin belong to a group, get the precedence from the group */
-        found_precedence = precedence;
-        if ((found_precedence == PLUGIN_DEFAULT_PRECEDENCE) && group_identity) {
-                struct slapi_componentid * cid = (struct slapi_componentid *) group_identity;
-                if (cid->sci_plugin && 
-                        (cid->sci_plugin->plg_precedence != PLUGIN_DEFAULT_PRECEDENCE)) {
-                        slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
-                                "Plugin precedence (%s) reset to group precedence (%s): %d \n", 
-                                name ? name : "",
-                                cid->sci_plugin->plg_name ? cid->sci_plugin->plg_name : "",
-                                cid->sci_plugin->plg_precedence);
-                        found_precedence = cid->sci_plugin->plg_precedence;
-                }
-        }
+
+	/* If the plugin belong to a group, get the precedence from the group */
+	found_precedence = precedence;
+	if ((found_precedence == PLUGIN_DEFAULT_PRECEDENCE) && group_identity) {
+		struct slapi_componentid * cid = (struct slapi_componentid *) group_identity;
+		if (cid->sci_plugin && (cid->sci_plugin->plg_precedence != PLUGIN_DEFAULT_PRECEDENCE)) {
+			slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
+			        "Plugin precedence (%s) reset to group precedence (%s): %d \n",
+			        name ? name : "",
+			        cid->sci_plugin->plg_name ? cid->sci_plugin->plg_name : "",
+			        cid->sci_plugin->plg_precedence);
+			found_precedence = cid->sci_plugin->plg_precedence;
+		}
+	}
 	slapi_entry_attr_set_int(e, ATTR_PLUGIN_PRECEDENCE, found_precedence);
 
 	for (ii = 0; argv && argv[ii]; ++ii) {
@@ -308,7 +349,7 @@ slapi_register_plugin_ext(
 	}
 
 	/* plugin_setup copies the given entry */
-	plugin_setup(e, group_identity, initfunc, 0);
+	rc = plugin_setup(e, group_identity, initfunc, 0, returntext);
 	slapi_entry_free(e);
 
 	return rc;
@@ -406,17 +447,16 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 
 	if(plugin_list_number!=-1 && do_op)
 	{
-	    /* We stash the pblock plugin pointer to preserve the callers context */
-        struct slapdplugin *p;
-    	slapi_pblock_get(pb, SLAPI_PLUGIN, &p);
+		/* We stash the pblock plugin pointer to preserve the callers context */
+		struct slapdplugin *p;
+		slapi_pblock_get(pb, SLAPI_PLUGIN, &p);
 		/* Call the operation on the Global Plugins */
-        rc= plugin_call_list(global_plugin_list[plugin_list_number], whichfunction, pb);
-    	
-    	slapi_pblock_set(pb, SLAPI_PLUGIN, p);
+		rc = plugin_call_list(global_plugin_list[plugin_list_number], whichfunction, pb);
+		slapi_pblock_set(pb, SLAPI_PLUGIN, p);
 	}
 	else
 	{
-	    /* Programmer error! or the callback is denied during startup */
+		/* Programmer error! or the callback is denied during startup */
 	}
 	return rc;
 }
@@ -543,6 +583,27 @@ plugin_extended_op_oid2string( const char *oid )
 	return( rval );
 }
 
+static int
+plugin_cmp_plugins(struct slapdplugin *p1, struct slapdplugin *p2)
+{
+    int rc = 0;
+
+    if( p1->plg_dn ){
+        if(p2->plg_dn && strcasecmp(p1->plg_dn, p2->plg_dn) == 0){
+            rc = 1;
+        } else if(p2->plg_id && strcasecmp(p1->plg_dn, p2->plg_id) == 0){
+            rc = 1;
+        }
+    } else if(p1->plg_id){
+        if(p2->plg_id && strcasecmp(p1->plg_id, p2->plg_id) == 0){
+            rc = 1;
+        } else if(p2->plg_dn && strcasecmp(p2->plg_dn, p1->plg_id) == 0){
+            rc = 1;
+        }
+    }
+
+    return rc;
+}
 
 /*
  * kexcoff: return the slapdplugin structure
@@ -761,7 +822,10 @@ typedef struct _plugin_dep_config {
 	char **depends_named_list;
 	int total_named;
 	char *config_area;
+	int removed;
 } plugin_dep_config;
+
+static void plugin_free_plugin_dep_config(plugin_dep_config **config);
 
 /* list of plugins which should be shutdown in reverse order */
 static plugin_dep_config *global_plugin_shutdown_order = 0;
@@ -882,26 +946,25 @@ add_plugin_type(plugin_dep_type *head, char *type)
  * attribute passed in as args - used to track dependencies
  *
  */
-
 int 
 plugin_create_stringlist( Slapi_Entry *plugin_entry, char *attr_name, 
 			int *total_strings, char ***list)
 {
 	Slapi_Attr *attr = 0;
-	int hint =0;
+	int hint = 0;
 	int num_vals = 0;
 	int val_index = 0;
-	Slapi_Value *val;
+	Slapi_Value *val = NULL;
 
 	if(0 == slapi_entry_attr_find( plugin_entry, attr_name, &attr ))
 	{
+
 		/* allocate memory for the string array */
 		slapi_attr_get_numvalues( attr, &num_vals);
-
 		if(num_vals)
 		{
 			*total_strings = num_vals;
-			*list = (char **)slapi_ch_malloc(sizeof(char*) * num_vals);
+			*list = (char **)slapi_ch_calloc(num_vals + 1, sizeof(char*));
 		}
 		else
 			goto bail;  /* if this ever happens, then they are running on a TSR-80 */
@@ -922,9 +985,427 @@ plugin_create_stringlist( Slapi_Entry *plugin_entry, char *attr_name,
 		*total_strings = num_vals;
 
 bail:
+
 	return num_vals;
 }
 
+/*
+ * Remove the plugin from the DN hashtable
+ */
+static void
+plugin_remove_from_list(char *plugin_dn)
+{
+	Slapi_DN *hash_sdn;
+
+	hash_sdn = (Slapi_DN *)PL_HashTableLookup(global_plugin_dns, plugin_dn);
+	if(hash_sdn){
+		PL_HashTableRemove(global_plugin_dns, plugin_dn);
+		slapi_sdn_free(&hash_sdn);
+	}
+}
+
+/*
+ * The main plugin was successfully started, set it and its
+ * registered plugin functions as started.
+ */
+static void
+plugin_set_plugins_started(struct slapdplugin *plugin_entry)
+{
+	struct slapdplugin *plugin = NULL;
+	int type = 0;
+
+	/* look everywhere for other plugin functions with the plugin id */
+	for(type = 0; type < PLUGIN_LIST_GLOBAL_MAX; type++){
+		plugin = global_plugin_list[type];
+		while(plugin){
+			if(plugin_cmp_plugins(plugin_entry, plugin)){
+				plugin->plg_started = 1;
+			}
+			plugin = plugin->plg_next;
+		}
+	}
+}
+/*
+ * A plugin dependency changed, update the dependency list
+ */
+void
+plugin_update_dep_entries(Slapi_Entry *plugin_entry)
+{
+	entry_and_plugin_t *ep;
+
+	slapi_rwlock_wrlock(global_rwlock);
+
+	ep = dep_plugin_entries;
+	while(ep){
+		if(ep->plugin && ep->e){
+			if(slapi_sdn_compare(slapi_entry_get_sdn(ep->e), slapi_entry_get_sdn(plugin_entry)) == 0){
+				slapi_entry_free(ep->e);
+				ep->e = slapi_entry_dup(plugin_entry);
+				break;
+			}
+		}
+		ep = ep->next;
+	}
+
+	slapi_rwlock_unlock(global_rwlock);
+}
+
+/*
+ * Attempt to start a plugin that was either just added or just enabled.
+ */
+int
+plugin_start(Slapi_Entry *entry, char *returntext)
+{
+	entry_and_plugin_t *ep = dep_plugin_entries;
+	plugin_dep_config *global_tmp_list = NULL;
+	plugin_dep_config *config = NULL;
+	plugin_dep_type the_plugin_type;
+	plugin_dep_type plugin_head = 0;
+	Slapi_PBlock pb;
+	Slapi_Entry *plugin_entry;
+	struct slapdplugin *plugin;
+	char *value;
+	int plugins_started = 1;
+	int num_plg_started = 0;
+	int shutdown_index = 0;
+	int total_plugins = 0;
+	int plugin_index = 0;
+	int plugin_idx = -1;
+	int index = 0;
+	int ret = 0;
+	int i = 0;
+
+	/*
+	 * Disable registered plugin functions so preops/postops/etc
+	 * dont get called prior to the plugin being started (due to
+	 * plugins performing ops on the DIT)
+	 */
+	global_plugin_callbacks_enabled = 0;
+	global_plugins_started = 0;
+
+	/* Count the plugins so we can allocate memory for the config array */
+	while(ep){
+		if(slapi_sdn_compare(slapi_entry_get_sdn(ep->e), slapi_entry_get_sdn(entry)) == 0){
+			plugin_idx = total_plugins;
+		}
+		total_plugins++;
+		ep = ep->next;
+	}
+
+	/* allocate the config array */
+	config = (plugin_dep_config*)slapi_ch_calloc(total_plugins + 1, sizeof(plugin_dep_config));
+
+	ep = dep_plugin_entries;
+
+	/* Collect relevant config */
+	while(ep){
+		plugin = ep->plugin;
+
+		if(plugin == 0){
+			continue;
+		}
+
+		pblock_init(&pb);
+		slapi_pblock_set( &pb, SLAPI_ARGC, &plugin->plg_argc);
+		slapi_pblock_set( &pb, SLAPI_ARGV, &plugin->plg_argv);
+
+		config[plugin_index].pb = pb;
+		config[plugin_index].e = ep->e;
+
+		/* add type */
+		plugin_entry = ep->e;
+
+		if(plugin_entry){
+			/*
+			 * Pass the plugin DN in SLAPI_TARGET_SDN and the plugin entry
+			 * in SLAPI_ADD_ENTRY.  For this to actually work, we need to
+			 * create an operation and include that in the pblock as well,
+			 * because these two items are stored in the operation parameters.
+			 */
+			Operation *op = internal_operation_new(SLAPI_OPERATION_ADD, 0);
+			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_OPERATION, op);
+			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_TARGET_SDN,
+				(void*)(slapi_entry_get_sdn_const(plugin_entry)));
+			slapi_pblock_set(&(config[plugin_index].pb), SLAPI_ADD_ENTRY,
+				plugin_entry );
+
+			/* Pass the plugin alternate config area DN in SLAPI_PLUGIN_CONFIG_AREA. */
+			value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_CONFIG_AREA);
+			if(value){
+				config[plugin_index].config_area = value;
+				value = NULL;
+				slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN_CONFIG_AREA,
+							config[plugin_index].config_area);
+			}
+
+			value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype");
+			if(value){
+				add_plugin_type( &plugin_head, value);
+				config[plugin_index].type = value;
+				value = NULL;
+			}
+
+			/* now the name */
+			value = slapi_entry_attr_get_charptr(plugin_entry, "cn");
+			if(value){
+				config[plugin_index].name = value;
+				value = NULL;
+			}
+
+			config[plugin_index].plugin = plugin;
+
+			/* now add dependencies */
+			plugin_create_stringlist( plugin_entry, ATTR_PLUGIN_DEPENDS_ON_NAMED,
+				&(config[plugin_index].total_named), &(config[plugin_index].depends_named_list));
+
+			plugin_create_stringlist( plugin_entry, ATTR_PLUGIN_DEPENDS_ON_TYPE,
+				&(config[plugin_index].total_type), &(config[plugin_index].depends_type_list));
+		}
+		plugin_index++;
+		ep = ep->next;
+	}
+
+	/*
+	 * Prepare list of shutdown order (we need nothing fancier right now
+	 * than the reverse startup order)  The list may include NULL entries,
+	 * these will be plugins which were never started
+	 */
+	shutdown_index = total_plugins - 1;
+
+	global_tmp_list = (plugin_dep_config*)slapi_ch_calloc(total_plugins, sizeof(plugin_dep_config));
+
+	/* now resolve dependencies
+	 * cycle through list, if a plugin has no dependencies then start it
+	 * then remove it from the dependency lists of all other plugins
+	 * and decrement the corresponding element of the plugin types array
+	 * for depends_type we will need to check the array of plugin types
+	 * to see if all type dependencies are at zero prior to start
+	 * if one cycle fails to load any plugins we have failed, however
+	 * we shall continue loading plugins in case a configuration error
+	 * can correct itself
+	 */
+	while(plugins_started && num_plg_started < total_plugins){
+		for(plugin_index = 0, plugins_started = 0; plugin_index < total_plugins; plugin_index++){
+			/* perform op on plugins only once */
+			if(config[plugin_index].op_done == 0){
+				int enabled = 0;
+				int satisfied = 0;
+				int break_out = 0;
+
+				/*
+				 * determine if plugin is enabled
+				 * some processing is necessary even
+				 * if it is not
+				 */
+				if ( NULL != config[plugin_index].e && (value = slapi_entry_attr_get_charptr(config[plugin_index].e,
+						ATTR_PLUGIN_ENABLED)) &&
+						!strcasecmp(value, "on"))
+				{
+					enabled = 1;
+				} else {
+					enabled = 0;
+				}
+				slapi_ch_free_string(&value);
+
+				/*
+				 * make sure named dependencies have been satisfied
+				 * that means that the list of names should contain all
+				 * null entries
+				 */
+				if(enabled && config[plugin_index].total_named){
+					i = 0;
+					while(break_out == 0 && i < config[plugin_index].total_named){
+						satisfied = 1;
+
+						if((config[plugin_index].depends_named_list)[i] != 0){
+							satisfied = 0;
+							break_out = 1;
+						}
+						i++;
+					}
+
+					if(!satisfied)
+						continue;
+				}
+
+				/*
+				 * make sure the type dependencies have been satisfied
+				 * that means for each type in the list, it's number of
+				 * plugins left not started is zero
+				 */
+				satisfied = 0;
+				break_out = 0;
+
+				if(enabled && config[plugin_index].total_type){
+					i = 0;
+					while(break_out == 0 && i < config[plugin_index].total_type){
+						satisfied = 1;
+						the_plugin_type = find_plugin_type(plugin_head, (config[plugin_index].depends_type_list)[i]);
+
+						if(the_plugin_type && the_plugin_type->num_not_started != 0){
+							satisfied = 0;
+							break_out = 1;
+						}
+						i++;
+					}
+
+					if(!satisfied)
+						continue;
+				}
+
+				/**** This plugins dependencies have now been satisfied ****/
+
+				satisfied = 1; /* symbolic only */
+				config[plugin_index].entry_created = 1;
+
+				if (enabled){
+				    if(plugin_index == plugin_idx){
+						/* finally, perform the op on the plugin */
+						LDAPDebug( LDAP_DEBUG_PLUGIN, "Starting %s plugin %s\n" ,
+								   config[plugin_index].type, config[plugin_index].name, 0 );
+						/*
+						 * Put the plugin into the temporary pblock so the startup functions have
+						 * access to the real plugin for registering callbacks, task, etc.
+						 */
+						slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN, config[plugin_index].plugin);
+						ret = plugin_call_one( config[plugin_index].plugin, SLAPI_PLUGIN_START_FN,
+						                       &(config[plugin_index].pb));
+						pblock_done(&(config[plugin_index].pb));
+
+						if(ret){
+							/*
+							 * Delete the plugin(undo everything), as we don't know how far the start
+							 * function got.
+							 */
+							LDAPDebug( LDAP_DEBUG_ANY, "Failed to start %s plugin %s\n" ,
+							           config[plugin_index].type, config[plugin_index].name, 0 );
+							PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Failed to start plugin \"%s\".  See errors log.",
+							             config[plugin_index].name);
+							plugin_delete(entry, returntext, 1);
+							goto done;
+						} else {
+							/*
+							 * Set the plugin and its registered functions as started.
+							 */
+							plugin_set_plugins_started(config[plugin_index].plugin);
+						}
+					}
+
+					/* Add this plugin to the shutdown list */
+					global_tmp_list[shutdown_index] = config[plugin_index];
+					shutdown_index--;
+					global_plugins_started++;
+
+					/* remove this named plugin from other plugins lists */
+					for(i = 0; i < total_plugins; i++){
+						index = 0;
+						while(index < config[i].total_named){
+							if((config[i].depends_named_list)[index] != 0 &&
+							   !slapi_UTF8CASECMP((config[i].depends_named_list)[index], config[plugin_index].name))
+							{
+								slapi_ch_free((void**)&((config[i].depends_named_list)[index]));
+							}
+							index++;
+						}
+					}
+				} else {
+					pblock_done(&(config[plugin_index].pb));
+				}
+
+				/* decrement the type counter for this plugin type */
+				decrement_plugin_type(plugin_head, config[plugin_index].type);
+				config[plugin_index].op_done = 1;
+				num_plg_started++;
+				plugins_started = 1;
+			} /* !op_done */
+		} /* plugin loop */
+	} /* while plugins not started */
+
+	if(plugins_started == 0){
+		/* a dependency was not resolved - error */
+		LDAPDebug( LDAP_DEBUG_ANY, "Error: Failed to resolve plugin dependencies\n" , 0, 0, 0 );
+		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Failed to resolve plugin dependencies.");
+
+		/* list the plugins yet to perform op */
+		i = 0;
+		while(i < total_plugins){
+			if(config[i].op_done == 0){
+				LDAPDebug( LDAP_DEBUG_ANY, "Error: %s plugin %s is not started\n" , config[i].type, config[i].name, 0 );
+				plugin_remove_plugins(config[i].plugin, config[i].type);
+			}
+			i++;
+		}
+		ret = -1;
+	}
+
+done:
+	/*
+	 * Free the plugin list, then rebuild it
+	 */
+	if(ret == LDAP_SUCCESS){
+		/* Ok, everything went well, use the new global_shutdown list */
+		plugin_free_plugin_dep_config(&global_plugin_shutdown_order);
+		global_plugin_shutdown_order = global_tmp_list;
+	} else {
+		/*
+		 * problem, undo what we've done in plugin_setup.
+		 */
+		plugin_free_plugin_dep_config(&global_tmp_list);
+	}
+
+	/*
+	 * need the details in config to hang around for shutdown
+	 * config itself may be deleted since its contents have been
+	 * copied by value to the shutdown list
+	 */
+	plugin_free_plugin_dep_config(&config);
+
+	if(plugin_head){
+		plugin_dep_type next;
+		while(plugin_head){
+			next = plugin_head->next;
+			slapi_ch_free_string(&plugin_head->type);
+			slapi_ch_free((void *)&plugin_head);
+			plugin_head = next;
+		}
+	}
+
+	/* Finally enable registered plugin functions */
+	global_plugin_callbacks_enabled = 1;
+
+	return ret;
+}
+
+static void
+plugin_free_plugin_dep_config(plugin_dep_config **cfg)
+{
+	plugin_dep_config *config = *cfg;
+	int index = 0;
+	int i = 0;
+
+	if(config){
+		while( config[index].plugin ){
+			if(config[index].depends_named_list){
+				for(i = 0; i < config[index].total_named; i++){
+					slapi_ch_free((void**)&(config[index].depends_named_list)[i]);
+				}
+				slapi_ch_free((void**)&(config[index].depends_named_list));
+			}
+			if(config[index].depends_type_list){
+				for(i = 0; i < config[index].total_type; i++){
+					slapi_ch_free((void**)&(config[index].depends_type_list)[i]);
+				}
+				slapi_ch_free((void**)&(config[index].depends_type_list));
+			}
+			slapi_ch_free_string(&config[index].type);
+			slapi_ch_free_string(&config[index].name);
+			pblock_done(&config[index].pb);
+			index++;
+		}
+		slapi_ch_free((void**)&config);
+		*cfg = NULL;
+	}
+}
 
 
 /*
@@ -979,15 +1460,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 	}
 
 	/* allocate the config array */
-	config = (plugin_dep_config*)slapi_ch_malloc(sizeof(plugin_dep_config) * total_plugins);
-
-	if(config)
-		memset(config, 0, sizeof(plugin_dep_config) * total_plugins);
-	else
-	{
-		ret = -1;
-		goto bail;
-	}
+	config = (plugin_dep_config*)slapi_ch_calloc(total_plugins + 1, sizeof(plugin_dep_config));
 
 	ep = dep_plugin_entries;
 
@@ -1008,8 +1481,6 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 
 		/* add type */
 		plugin_entry = ep->e;
-		ep->e = NULL; /* consumed by the operation above, and eventually by the
-						 slapi_internal_add operation below */
 
 		if(plugin_entry)
 		{
@@ -1067,7 +1538,6 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 			plugin_create_stringlist( plugin_entry, "nsslapd-plugin-depends-on-type", 
 				&(config[plugin_index].total_type), &(config[plugin_index].depends_type_list));
 		}
-
 		plugin_index++;
 		ep = ep->next;
 	}
@@ -1078,14 +1548,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 	 */
 	shutdown_index = total_plugins - 1;
 
-	global_plugin_shutdown_order = (plugin_dep_config*)slapi_ch_malloc(sizeof(plugin_dep_config) * total_plugins);
-	if(global_plugin_shutdown_order)
-		memset(global_plugin_shutdown_order, 0, sizeof(plugin_dep_config) * total_plugins);
-	else
-	{
-		ret = -1;
-		goto bail;
-	}
+	global_plugin_shutdown_order = (plugin_dep_config*)slapi_ch_calloc(total_plugins + 1, sizeof(plugin_dep_config));
 
 	/* now resolve dependencies 
 	 * cycle through list, if a plugin has no dependencies then start it
@@ -1225,7 +1688,11 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 					/* finally, perform the op on the plugin */
 			
 					LDAPDebug( LDAP_DEBUG_PLUGIN, "Starting %s plugin %s\n" , config[plugin_index].type, config[plugin_index].name, 0 );
-
+					/*
+					 * Put the plugin into the temporary pblock so the startup functions have
+					 * access to the real plugin for registering callbacks, tasks, etc.
+					 */
+					slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN, config[plugin_index].plugin);
 					ret = plugin_call_one( config[plugin_index].plugin, operation, &(config[plugin_index].pb));
 
 					pblock_done(&(config[plugin_index].pb));
@@ -1234,13 +1701,16 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 					{
 						/*
 						 * We will not exit here.  If we allow plugins to load normally it is
-						 * possible that a configuration error (dependedncies which were not
+						 * possible that a configuration error (dependencies which were not
 						 * configured properly) can be recovered from.  If there really is a
 						 * problem then the plugin will never start and eventually it will
 						 * trigger an exit anyway.
 						 */
 						LDAPDebug( LDAP_DEBUG_ANY, "Failed to start %s plugin %s\n" , config[plugin_index].type, config[plugin_index].name, 0 );
 						continue;
+					} else {
+						/* now set the plugin and all its registered plugin functions as started */
+						plugin_set_plugins_started(config[plugin_index].plugin);
 					}
 
 					/* Add this plugin to the shutdown list */
@@ -1268,8 +1738,6 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 					}
 				} else {
 					pblock_done(&(config[plugin_index].pb));
-					slapi_entry_free(config[plugin_index].e);
-					config[plugin_index].e = NULL;
 				}
 
 				/* decrement the type counter for this plugin type */
@@ -1289,66 +1757,26 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 		LDAPDebug( LDAP_DEBUG_ANY, "Error: Failed to resolve plugin dependencies\n" , 0, 0, 0 );
 
 		/* list the plugins yet to perform op */
-		index = 0;
-
+		i = 0;
 		while(i < total_plugins)
 		{
 			if(config[i].op_done == 0)
 			{
 				LDAPDebug( LDAP_DEBUG_ANY, "Error: %s plugin %s is not started\n" , config[i].type, config[i].name, 0 );
 			}
-
 			i++;
 		}
-				
 		exit(1);
 	}
-
-bail:
 	
 	/*
 	 * need the details in config to hang around for shutdown
 	 * config itself may be deleted since its contents have been
 	 * copied by value to the shutdown list
 	 */	
-	
-	if(config)
-	{
-		index = 0;
-			
-		while(index < total_plugins)
-		{
-/*
-			if(config[index].depends_named_list)
-			{
-				slapi_ch_free((void**)&(config[index].depends_named_list));
-			}
-*/
-			if(config[index].depends_type_list)
-			{
-				i = 0;
-
-				while(i < config[index].total_type)
-				{
-					slapi_ch_free((void**)&(config[index].depends_type_list)[i]);
-
-					i++;
-				}
-
-				slapi_ch_free((void**)&(config[index].depends_type_list));
-			}
-/*
-			slapi_ch_free((void**)&(config[index].name));
-			slapi_ch_free((void**)&(config[index].type));
-*/
-			index++;
-		}
-		
-		slapi_ch_free((void**)&config);
-	}
+	plugin_free_plugin_dep_config(&config);
 
 	/* Finally enable registered plugin functions */
-
 	global_plugin_callbacks_enabled = 1;
 
 	return ret;
@@ -1367,7 +1795,7 @@ bail:
 void
 plugin_dependency_closeall()
 {
-   	Slapi_PBlock pb;
+	Slapi_PBlock pb;
 	int plugins_closed = 0;
 	int index = 0;
 
@@ -1384,15 +1812,17 @@ plugin_dependency_closeall()
 		 */
 		if(global_plugin_shutdown_order[index].name)
 		{
-	   		pblock_init(&pb);
-		    plugin_call_one( global_plugin_shutdown_order[index].plugin, SLAPI_PLUGIN_CLOSE_FN, &pb );
-		    /* set plg_closed to 1 to prevent any further plugin pre/post op function calls */
-		    global_plugin_shutdown_order[index].plugin->plg_closed = 1;
+			if(!global_plugin_shutdown_order[index].removed){
+				pblock_init(&pb);
+				plugin_set_stopped(global_plugin_shutdown_order[index].plugin);
+				plugin_op_all_finished(global_plugin_shutdown_order[index].plugin);
+				plugin_call_one( global_plugin_shutdown_order[index].plugin, SLAPI_PLUGIN_CLOSE_FN, &pb);
+				/* set plg_closed to 1 to prevent any further plugin pre/post op function calls */
+				global_plugin_shutdown_order[index].plugin->plg_closed = 1;
+			}
 			plugins_closed++;
-			slapi_entry_free(global_plugin_shutdown_order[index].e);
-			global_plugin_shutdown_order[index].e = NULL;
-		}
 
+		}
 		index++;
 	}
 }
@@ -1413,7 +1843,7 @@ plugin_dependency_closeall()
 void
 plugin_startall(int argc, char** argv, int start_backends, int start_global)
 {
- 	/* initialize special plugin structures */
+	/* initialize special plugin structures */
 	default_plugin_init ();
 
 	plugin_dependency_startall(argc, argv, "plugin startup failed\n", SLAPI_PLUGIN_START_FN);
@@ -1470,24 +1900,54 @@ plugin_call_one (struct slapdplugin *list, int operation, Slapi_PBlock *pb)
 static int
 plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int call_one)
 {
-    /* Invoke the operation on the plugins that are registered for the subtree effected by the operation. */
-    int	rc;
+	/* Invoke the operation on the plugins that are registered for the subtree effected by the operation. */
+	int	rc;
 	int return_value = 0;
-	int count= 0;
-    for (; list != NULL; list = list->plg_next)
+	int count = 0;
+	int *locked = 0;
+
+	/*
+	 *  Take the read lock
+	 */
+	slapi_td_get_plugin_locked(&locked);
+	if(locked == 0){
+		slapi_rwlock_rdlock(global_rwlock);
+	}
+
+
+	for (; list != NULL; list = list->plg_next)
 	{
 		IFP func = NULL;
 	
-	slapi_pblock_set (pb, SLAPI_PLUGIN, list);
-	set_db_default_result_handlers (pb); /* JCM: What's this do? Is it needed here? */
-	if (slapi_pblock_get (pb, operation, &func) == 0 && func != NULL &&
-			plugin_invoke_plugin_pb (list, operation, pb) && list->plg_closed == 0)
+		slapi_pblock_set (pb, SLAPI_PLUGIN, list);
+		set_db_default_result_handlers (pb); /* JCM: What's this do? Is it needed here? */
+		if (slapi_pblock_get (pb, operation, &func) == 0 &&
+		    func != NULL &&
+			plugin_invoke_plugin_pb (list, operation, pb) &&
+			list->plg_closed == 0)
 		{
-			char *n= list->plg_name;
-			LDAPDebug( LDAP_DEBUG_TRACE, "Calling plugin '%s' #%d type %d\n", (n==NULL?"noname":n), count, operation );
+			char *n = list->plg_name;
+
+			LDAPDebug( LDAP_DEBUG_TRACE , "Calling plugin '%s' #%d type %d\n", (n==NULL?"noname":n), count, operation );
 			/* counters_to_errors_log("before plugin call"); */
-			if (( rc = func (pb)) != 0 )
+
+			/*
+			 * Only call the plugin function if:
+			 *
+			 *  [1]  The plugin is started, and we are NOT trying to restart it.
+			 *  [2]  The plugin is started, and we are stopping it.
+			 *  [3]  The plugin is stopped, and we are trying to start it.
+			 *
+			 *  This frees up the plugins from having to check if the plugin is already started when
+			 *  calling the START and CLOSE functions - prevents double starts and stops.
+			 */
+			slapi_plugin_op_started(list);
+			if (((SLAPI_PLUGIN_START_FN == operation && !list->plg_started) || /* Starting it up for the first time */
+			     (SLAPI_PLUGIN_CLOSE_FN == operation && !list->plg_stopped) || /* Shutting down, plugin has been stopped */
+			     (SLAPI_PLUGIN_START_FN != operation && list->plg_started)) && /* Started, and not trying to start again */
+			    ( rc = func (pb)) != 0 )
 			{
+				slapi_plugin_op_finished(list);
 				if (SLAPI_PLUGIN_PREOPERATION == list->plg_type ||
 				    SLAPI_PLUGIN_INTERNAL_PREOPERATION == list->plg_type ||
 				    SLAPI_PLUGIN_START_FN == operation )
@@ -1518,6 +1978,12 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 						return_value |= rc;
 					}
 				}
+			} else {
+				if(SLAPI_PLUGIN_CLOSE_FN == operation){
+					/* successfully stopped the plugin */
+					list->plg_stopped = 1;
+				}
+				slapi_plugin_op_finished(list);
 			}
 			/* counters_to_errors_log("after plugin call"); */
 		}
@@ -1527,6 +1993,10 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 		if(call_one)
 			break;
 	}
+	if(locked == 0){
+		slapi_rwlock_unlock(global_rwlock);
+	}
+
 	return( return_value );
 }
 
@@ -1758,13 +2228,61 @@ plugin_get_type_and_list(
         *type = SLAPI_PLUGIN_INDEX;
         plugin_list_index= PLUGIN_LIST_INDEX;
 	} else {
-		return( 1 );	/* unknown plugin type - pass to backend */
+        return( 1 ); /* unknown plugin type - pass to backend */
 	}
 
 	if (plugin_list_index >= 0)
 		*plugin_list = &global_plugin_list[plugin_list_index];
 
 	return 0;
+}
+
+static char *
+plugin_get_type_str( int type )
+{
+	if ( type == SLAPI_PLUGIN_DATABASE){
+		return "database";
+	} else if ( type == SLAPI_PLUGIN_EXTENDEDOP){
+		return "extendedop";
+	} else if ( type == SLAPI_PLUGIN_PREOPERATION){
+		return "preoperation";
+	} else if ( type == SLAPI_PLUGIN_POSTOPERATION){
+		return "postoperation";
+	} else if ( type == SLAPI_PLUGIN_MATCHINGRULE){
+		return "matchingrule";
+	} else if ( type == SLAPI_PLUGIN_SYNTAX){
+		return "syntax";
+	} else if ( type == SLAPI_PLUGIN_ACL){
+		return "accesscontrol";
+	} else if ( type == SLAPI_PLUGIN_BEPREOPERATION){
+		return "bepreoperation";
+	} else if ( type == SLAPI_PLUGIN_BEPOSTOPERATION){
+		return "bepostoperation";
+	} else if ( type == SLAPI_PLUGIN_BETXNPREOPERATION){
+		return "betxnpreoperation";
+	} else if ( type == SLAPI_PLUGIN_BETXNPOSTOPERATION){
+		return "betxnpostoperation";
+	} else if ( type == SLAPI_PLUGIN_INTERNAL_PREOPERATION){
+		return "internalpreoperation";
+	} else if ( type == SLAPI_PLUGIN_INTERNAL_POSTOPERATION){
+		return "internalpostoperation";
+	} else if ( type == SLAPI_PLUGIN_ENTRY){
+		return "entry";
+	} else if ( type == SLAPI_PLUGIN_TYPE_OBJECT){
+		return "object";
+	} else if ( type == SLAPI_PLUGIN_PWD_STORAGE_SCHEME){
+		return "pwdstoragescheme";
+	} else if ( type == SLAPI_PLUGIN_REVER_PWD_STORAGE_SCHEME){
+		return "reverpwdstoragescheme";
+	} else if ( type == SLAPI_PLUGIN_VATTR_SP){
+		return "vattrsp";
+	} else if ( type == SLAPI_PLUGIN_LDBM_ENTRY_FETCH_STORE){
+		return "ldbmentryfetchstore";
+	} else if ( type == SLAPI_PLUGIN_INDEX){
+		return "index";
+	} else {
+		return NULL;	/* unknown plugin type - pass to backend */
+	}
 }
 
 static const char *
@@ -1779,6 +2297,52 @@ plugin_exists(const Slapi_DN *plugin_dn)
 	}
 
 	return retval;
+}
+
+/*
+ * A plugin config change has occurred, restart the plugin (delete/add).
+ * If something goes wrong, revert to the original plugin entry.
+ */
+int
+plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
+{
+	char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
+	int rc = LDAP_SUCCESS;
+
+	/* We can not restart the critical plugins */
+	if(plugin_is_critical(pentryBefore)){
+		LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) is critical to server operation.  "
+		        "Any changes will not take effect until the server is restarted.\n",
+		        slapi_entry_get_dn(pentryBefore),0,0);
+		return 1; /* failure - dse code will log a fatal message */
+	}
+
+	slapi_rwlock_wrlock(global_rwlock);
+
+    if(plugin_delete(pentryBefore, returntext, 1) == LDAP_SUCCESS){
+    	if(plugin_add(pentryAfter, returntext, 1) == LDAP_SUCCESS){
+    		LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) has been successfully "
+    		          "restarted after configuration change.\n",
+    		          slapi_entry_get_dn(pentryAfter),0,0);
+    	} else {
+    		LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to restart after "
+    		          "configuration change (%s).  Reverting to original plugin entry.\n",
+    		          slapi_entry_get_dn(pentryAfter), returntext, 0);
+    		if(plugin_add(pentryBefore, returntext, 1) == LDAP_SUCCESS){
+    			LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to reload "
+    			          "original plugin (%s)\n",slapi_entry_get_dn(pentryBefore), returntext, 0);
+    		}
+    		rc = 1;
+    	}
+    } else {
+    	LDAPDebug(LDAP_DEBUG_ANY,"plugin_restart: failed to disable/stop the plugin (%s): %s\n",
+    	          slapi_entry_get_dn(pentryBefore), returntext, 0);
+    	rc = 1;
+    }
+
+    slapi_rwlock_unlock(global_rwlock);
+
+    return rc;
 }
 
 static int
@@ -2063,10 +2627,11 @@ static void
 plugin_free(struct slapdplugin *plugin)
 {
 	charray_free(plugin->plg_argv);
-	slapi_ch_free((void**)&plugin->plg_libpath);
-    slapi_ch_free((void**)&plugin->plg_initfunc);
-	slapi_ch_free((void**)&plugin->plg_name);
-	slapi_ch_free((void**)&plugin->plg_dn);
+	slapi_ch_free_string(&plugin->plg_libpath);
+	slapi_ch_free_string(&plugin->plg_initfunc);
+	slapi_ch_free_string(&plugin->plg_name);
+	slapi_ch_free_string(&plugin->plg_dn);
+	slapi_counter_destroy(&plugin->plg_op_counter);
 	if (!plugin->plg_group)
 		plugin_config_cleanup(&plugin->plg_conf);
 	slapi_ch_free((void**)&plugin);
@@ -2124,7 +2689,7 @@ add_entry - if true, the entry will be added to the DIT using the given
 ************************************/
 int
 plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
-		slapi_plugin_init_fnptr p_initfunc, int add_entry)
+		slapi_plugin_init_fnptr p_initfunc, int add_entry, char *returntext)
 {
 	int ii = 0;
 	char attrname[BUFSIZ];
@@ -2143,15 +2708,18 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 	if (!slapi_entry_get_sdn_const(plugin_entry))
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: DN is missing from the plugin.\n",
+		LDAPDebug(LDAP_DEBUG_ANY, "plugin_setup: DN is missing from the plugin.\n",
 				0, 0, 0);
+		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Plugin is missing dn.");
 		return -1;
 	}
 
 	if ((existname = plugin_exists(slapi_entry_get_sdn_const(plugin_entry))) != NULL)
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: the plugin named %s "
-				  "already exists.\n", existname, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, "plugin_setup: the plugin named %s already exists, "
+		        "or is already setup.\n", existname, 0, 0);
+		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+		        "the plugin named %s already exists, or is already setup.", existname);
 		return -1;
 	}
 
@@ -2162,16 +2730,17 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	 */
 	plugin = (struct slapdplugin *)slapi_ch_calloc(1, sizeof(struct slapdplugin));
 
-	plugin->plg_dn = slapi_ch_strdup(slapi_entry_get_dn_const(plugin_entry));
+	plugin->plg_dn = slapi_ch_strdup(slapi_entry_get_ndn(plugin_entry));
 	plugin->plg_closed = 0;
 
 	if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
 											   ATTR_PLUGIN_TYPE)))
 	{
 		/* error: required attribute %s missing */
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing "
-				  "from entry \"%s\"\n", ATTR_PLUGIN_TYPE,
-				  slapi_entry_get_dn_const(plugin_entry), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+		          ATTR_PLUGIN_TYPE, slapi_entry_get_dn_const(plugin_entry), 0);
+		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"required attribute %s is missing from entry",
+		             ATTR_PLUGIN_TYPE);
 		status = -1;
 		goto PLUGIN_CLEANUP;
 	}
@@ -2182,23 +2751,23 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 		if ( status != 0 ) {
 			/* error: unknown plugin type */
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: unknown plugin type \"%s\" "
-					"in entry \"%s\"\n",
+			LDAPDebug(LDAP_DEBUG_ANY, "Error: unknown plugin type \"%s\" in entry \"%s\"\n",
 					value, slapi_entry_get_dn_const(plugin_entry), 0);
-			slapi_ch_free((void**)&value);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "unknown plugin type \"%s\" in entry", value);
+			slapi_ch_free_string(&value);
 			status = -1;
 			goto PLUGIN_CLEANUP;
 		}
-		slapi_ch_free((void**)&value);
+		slapi_ch_free_string(&value);
 	}
 
 	if (!status &&
 		!(value = slapi_entry_attr_get_charptr(plugin_entry, "cn")))
 	{
 		/* error: required attribute %s missing */
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing "
-				  "from entry \"%s\"\n", "cn",
-				  slapi_entry_get_dn_const(plugin_entry), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+		          "cn", slapi_entry_get_dn_const(plugin_entry), 0);
+		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "required attribute \"cn\" is missing from entry");
 		status = -1;
 		goto PLUGIN_CLEANUP;
 	}
@@ -2231,6 +2800,9 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 			LDAPDebug(LDAP_DEBUG_ANY, "Error: value for attribute %s must be "
 				"an integer between %d and %d\n", ATTR_PLUGIN_PRECEDENCE,
 				PLUGIN_MIN_PRECEDENCE, PLUGIN_MAX_PRECEDENCE);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "value for attribute %s must be "
+				"an integer between %d and %d.", ATTR_PLUGIN_PRECEDENCE,
+				PLUGIN_MIN_PRECEDENCE, PLUGIN_MAX_PRECEDENCE);
 			status = -1;
 			slapi_ch_free((void**)&value);
 			goto PLUGIN_CLEANUP;
@@ -2248,9 +2820,10 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		if (!initfunc)
 		{
 			/* error: required attribute %s missing */
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing "
-					  "from entry \"%s\"\n", ATTR_PLUGIN_INITFN,
-					  slapi_entry_get_dn_const(plugin_entry), 0);
+			LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+			          ATTR_PLUGIN_INITFN, slapi_entry_get_dn_const(plugin_entry), 0);
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"required attribute %s is missing from entry.",
+			          ATTR_PLUGIN_INITFN);
 			status = -1;
 			goto PLUGIN_CLEANUP;
 		}
@@ -2269,9 +2842,10 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 												   ATTR_PLUGIN_PATH)))
 		{
 			/* error: required attribute %s missing */
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing "
-					  "from entry \"%s\"\n", ATTR_PLUGIN_PATH,
-					  slapi_entry_get_dn_const(plugin_entry), 0);
+			LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+			          ATTR_PLUGIN_PATH, slapi_entry_get_dn_const(plugin_entry), 0);
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "required attribute %s is missing from entry.",
+			            ATTR_PLUGIN_PATH);
 			status = -1;
 			goto PLUGIN_CLEANUP;
 		}
@@ -2290,6 +2864,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 				plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
 				loadNow, loadGlobal)) == NULL)
 		{
+			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Failed to load plugin's init function.");
 			status = -1;
 			goto PLUGIN_CLEANUP;
 		}
@@ -2316,6 +2891,14 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	{
 		plugin_config_init(&(plugin->plg_conf));
 		set_plugin_config_from_entry(plugin_entry, plugin);
+	}
+
+	/*
+	 * If this is a registered plugin function, then set the plugin id so we can remove
+	 * this plugin later if needed.
+	 */
+	if(group){
+		plugin->plg_id = group->sci_component_name;
 	}
 
 	/* add the plugin arguments */
@@ -2354,13 +2937,14 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 	slapi_pblock_set(&pb, SLAPI_PLUGIN_ENABLED, &enabled);
 	slapi_pblock_set(&pb, SLAPI_PLUGIN_CONFIG_ENTRY, plugin_entry);
+	plugin->plg_op_counter = slapi_counter_new();
 
 	if (enabled && (*initfunc)(&pb) != 0)
 	{
-        LDAPDebug(LDAP_DEBUG_ANY, "Init function \"%s\" for \"%s\" plugin"
-				 " in library \"%s\" failed\n",
-				  plugin->plg_initfunc, plugin->plg_name,
-				  plugin->plg_libpath);
+        LDAPDebug(LDAP_DEBUG_ANY, "Init function \"%s\" for \"%s\" plugin in library \"%s\" failed\n",
+				  plugin->plg_initfunc, plugin->plg_name, plugin->plg_libpath);
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Init function \"%s\" for \"%s\" plugin in "
+                     "library \"%s\" failed.",plugin->plg_initfunc, plugin->plg_name, plugin->plg_libpath);
         status = -1;
 		slapi_ch_free((void**)&value);
 		goto PLUGIN_CLEANUP;
@@ -2390,7 +2974,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		new_plugin_entry(&dep_plugin_entries, e_copy, plugin);
 	}
 
-
 PLUGIN_CLEANUP:
 	if (status)
 		plugin_free(plugin);
@@ -2398,6 +2981,476 @@ PLUGIN_CLEANUP:
 
 	return status;
 }
+
+/*
+ * We added a plugin, do our setup and then start the plugin.  This is the same as adding a plugin
+ * or enabling a disabled plugin.
+ */
+int
+plugin_add(Slapi_Entry *entry, char *returntext, int locked)
+{
+    int rc = LDAP_SUCCESS;
+    int td_locked = 1;
+
+    if(!locked){
+        slapi_rwlock_wrlock(global_rwlock);
+    }
+    slapi_td_set_plugin_locked(&td_locked);
+
+    if((rc = plugin_setup(entry, 0, 0, 1, returntext)) != LDAP_SUCCESS){
+        LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_add: plugin_setup failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
+        goto done;
+    }
+
+    if((rc = plugin_start(entry, returntext)) != LDAP_SUCCESS){
+       LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_add: plugin_start failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
+       goto done;
+    }
+
+done:
+    if(!locked){
+        slapi_rwlock_unlock(global_rwlock);
+    }
+    td_locked = 0;
+    slapi_td_set_plugin_locked(&td_locked);
+
+    return rc;
+}
+
+static char *
+get_dep_plugin_list(char **plugins)
+{
+    char output[1024];
+    int first_plugin = 1;
+    int len = 0;
+    int i ;
+
+    for(i = 0; plugins && plugins[i]; i++){
+        if(first_plugin){
+            PL_strncpyz(output,plugins[i], sizeof(output) - 3);
+            len += strlen(plugins[i]);
+            first_plugin = 0;
+        } else {
+            PL_strcatn(output ,sizeof(output) -3,  ", ");
+            PL_strcatn(output, sizeof(output) -3, plugins[i]);
+            len += strlen(plugins[i]);
+        }
+        if(len > (sizeof(output) - 3)){
+            /*
+             * We could not print all the plugins, show that we truncated
+             * the list by adding "..."
+             */
+            PL_strcatn(output ,sizeof(output) , "...");
+        }
+    }
+
+    return slapi_ch_strdup(output);
+}
+
+/*
+ * Make sure the removal of this plugin does not breaking any existing dependencies
+ */
+static int
+plugin_delete_check_dependency(struct slapdplugin *plugin_entry, int flag, char *returntext)
+{
+    entry_and_plugin_t *ep = dep_plugin_entries;
+    plugin_dep_config *config = NULL;
+    struct slapdplugin *plugin = NULL;
+    Slapi_Entry *pentry = NULL;
+    char *plugin_name = plugin_entry->plg_name;
+    char *plugin_type = plugin_get_type_str(plugin_entry->plg_type);
+    char **dep_plugins = NULL;
+    char *value = NULL;
+    char **list = NULL;
+    int dep_type_count = 0;
+    int type_count = 0;
+    int total_plugins = 0;
+    int plugin_index = 0;
+    int index = 0;
+    int rc = LDAP_SUCCESS;
+    int i;
+
+    while(ep){
+        total_plugins++;
+        ep = ep->next;
+    }
+
+    /* allocate the config array */
+    config = (plugin_dep_config*)slapi_ch_calloc(total_plugins + 1, sizeof(plugin_dep_config));
+
+    ep = dep_plugin_entries;
+
+    /*
+     * Collect relevant config
+     */
+    while(ep){
+        plugin = ep->plugin;
+
+        if(plugin == 0){
+            goto next;
+        }
+
+        /*
+         * We are not concerned with disabled plugins
+         */
+        value = slapi_entry_attr_get_charptr(ep->e, ATTR_PLUGIN_ENABLED);
+        if(value){
+            if(strcasecmp(value, "off") == 0){
+                slapi_ch_free_string(&value);
+                goto next;
+            }
+            slapi_ch_free_string(&value);
+        } else {
+            goto next;
+        }
+        if(!ep->plugin){
+            goto next;
+        }
+
+        config[plugin_index].e = ep->e;
+        pentry = ep->e;
+        if(pentry){
+            config[plugin_index].plugin = plugin;
+            plugin_create_stringlist( pentry, "nsslapd-plugin-depends-on-named",
+                &(config[plugin_index].total_named), &(config[plugin_index].depends_named_list));
+            plugin_create_stringlist( pentry, "nsslapd-plugin-depends-on-type",
+                &(config[plugin_index].total_type), &(config[plugin_index].depends_type_list));
+        }
+        plugin_index++;
+next:
+        ep = ep->next;
+    }
+
+    /*
+     * Start checking every plugin for dependency issues
+     */
+    for(index = 0; index < plugin_index; index++){
+        if((plugin = config[index].plugin)){
+            /*
+             * We can skip ourselves, and our registered plugins.
+             */
+            if( plugin_cmp_plugins(plugin, plugin_entry))
+            {
+                continue;
+            }
+
+            /*
+             * Check all the plugins to see if one is depending on this plugin(name)
+             */
+            if(flag == CHECK_ALL && config[index].depends_named_list){
+                list = config[index].depends_named_list;
+                for(i = 0; list && list[i]; i++){
+                    if(strcasecmp(list[i], plugin_name) == 0){
+                        /* We have a dependency, we can not disable this pluign */
+                        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete_check_dependency: can not disable plugin(%s) due "
+                                  "to dependency name issues with plugin (%s)\n",
+                                  plugin_name, config[index].plugin->plg_name, 0);
+                        rc = -1;
+                        goto free_and_return;
+                    }
+                }
+            }
+            /*
+             * Check all the plugins to see if one is depending on this plugin(type).
+             */
+            if(config[index].depends_type_list){
+                list = config[index].depends_type_list;
+                for(i = 0; list && list[i]; i++){
+                    if(strcasecmp(list[i], plugin_type) == 0){
+                        charray_add(&dep_plugins, slapi_ch_strdup(plugin->plg_name));
+                        dep_type_count++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    /*
+     * Now check the dependency type count.
+     */
+    if(dep_type_count > 0){
+        /*
+         * There are plugins that depend on this plugin type. Now, get a plugin count of this
+         * type of plugin.  If we are the only plugin of this type, we can not disable it.
+         */
+        for(index = 0; index < plugin_index; index++){
+            if((plugin = config[index].plugin)){
+                /* Skip ourselves, and our registered plugins. */
+                if( plugin_cmp_plugins(plugin, plugin_entry))
+                {
+                    continue;
+                }
+                if(plugin->plg_type == plugin_entry->plg_type){
+                    /* there is at least one other plugin of this type, its ok to disable */
+                    type_count = 1;
+                    break;
+                }
+            }
+        }
+        if(type_count == 0){ /* this is the only plugin of this type - return an error */
+            char *plugins = get_dep_plugin_list(dep_plugins);
+
+            /*
+             * The plugin type was changed, but since other plugins currently have dependencies,
+             * we can not dynamically apply the change.  This is will most likely cause issues
+             * at the next server startup.
+             */
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin (%s) type (%s) is needed "
+                    "by other plugins(%s), it can not be dynamically disabled/removed at this time.",
+                    plugin_name, plugin_type, plugins);
+            LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete_check_dependency: %s\n",
+                    returntext, 0, 0);
+
+            slapi_ch_free_string(&plugins);
+            rc = -1;
+        }
+    }
+
+free_and_return:
+    /*
+     * Free the config list
+     */
+    charray_free(dep_plugins);
+    if(config){
+        index = 0;
+        while( config[index].plugin){
+            charray_free(config[index].depends_type_list);
+            charray_free(config[index].depends_named_list);
+            index++;
+        }
+        slapi_ch_free((void**)&config);
+    }
+
+    return rc;
+}
+
+/*
+ * Mark the plugin in the shutdown list a removed
+ */
+static void
+plugin_remove_from_shutdown(struct slapdplugin *plugin_entry)
+{
+    struct slapdplugin *plugin = NULL;
+    int index = 0;
+
+    for(;index < global_plugins_started; index++){
+        if((plugin = global_plugin_shutdown_order[index].plugin)){
+            if(global_plugin_shutdown_order[index].removed){
+                continue;
+            }
+            /* "plugin_entry" can be the main plugin for registered function */
+            if(plugin_cmp_plugins(plugin, plugin_entry))
+            {
+                /*
+                 * We have our index, just mark it as removed.  The global list gets rewritten
+                 * the next time we add or enable a plugin.
+                 */
+                global_plugin_shutdown_order[index].removed = 1;
+                return;
+            }
+        }
+    }
+}
+
+/*
+ * Free the plugins that have been set to be removed.
+ */
+static void
+plugin_cleanup_list()
+{
+    struct slapdplugin *plugin = NULL;
+    entry_and_plugin_t *ep = dep_plugin_entries;
+    entry_and_plugin_t *ep_prev = NULL, *ep_next = NULL;
+
+    while(ep){
+        plugin = ep->plugin;
+        ep_next = ep->next;
+        if(plugin && plugin->plg_removed){
+            if(ep_prev){
+                ep_prev->next = ep->next;
+            } else {
+                dep_plugin_entries = ep->next;
+            }
+            slapi_entry_free(ep->e);
+            if(ep->plugin){
+                plugin_free(ep->plugin);
+            }
+            slapi_ch_free((void **)&ep);
+        } else {
+            ep_prev = ep;
+        }
+        ep = ep_next;
+    }
+}
+
+/*
+ * Look at all the plugins for any matches.  Then mark the ones we need
+ * to delete.  After checking all the plugins, then we free the ones that
+ * were marked to be removed.
+ */
+static int
+plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type)
+{
+    struct slapdplugin *plugin = NULL;
+    struct slapdplugin *plugin_next = NULL;
+    struct slapdplugin *plugin_prev = NULL;
+    int removed = 0;
+    int type;
+
+    /* look everywhere for other plugin functions with the plugin id */
+    for(type = 0; type < PLUGIN_LIST_GLOBAL_MAX; type++){
+        plugin = global_plugin_list[type];
+        plugin_prev = NULL;
+        while(plugin){
+            plugin_next = plugin->plg_next;
+            /*
+             * Check for the two types of plugins:
+             * the main plugin, and its registered plugin functions.
+             */
+            if(plugin_cmp_plugins(plugin_entry, plugin)){
+                /*
+                 * Call the close function, cleanup the hashtable & the global shutdown list
+                 */
+                Slapi_PBlock pb;
+
+                pblock_init(&pb);
+                plugin_set_stopped(plugin);
+                plugin_op_all_finished(plugin);
+                plugin_call_one( plugin, SLAPI_PLUGIN_CLOSE_FN, &pb);
+
+                if(plugin_prev){
+                    plugin_prev->plg_next = plugin_next;
+                } else {
+                    global_plugin_list[type] = plugin_next;
+                }
+
+                /*
+                 * Remove plugin the DN hashtable, update the shutdown list,
+                 * and mark the plugin for deletion
+                 */
+                plugin_remove_from_list(plugin->plg_dn);
+                plugin_remove_from_shutdown(plugin);
+                plugin->plg_removed = 1;
+                plugin->plg_started = 0;
+                removed = 1;
+            } else {
+                plugin_prev = plugin;
+            }
+            plugin = plugin_next;
+        }
+    }
+    if(removed){
+        /*
+         * Now free the marked plugins, we could not do this earlier because
+         * we also needed to check for plugins registered functions.  As both
+         * plugin types share the same slapi_plugin entry.
+         */
+        plugin_cleanup_list();
+    }
+
+    return removed;
+}
+
+/*
+ * We are removing a plugin from the global list.  This happens when we delete a plugin, or disable it.
+ */
+int
+plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
+{
+    struct slapdplugin **plugin_list = NULL;
+    struct slapdplugin *plugin = NULL;
+    const char *plugin_dn = slapi_entry_get_dn_const(plugin_entry);
+    char *value = NULL;
+    int td_locked = 1;
+    int removed = 0;
+    int type = 0;
+    int rc = LDAP_SUCCESS;
+
+    if(!locked){
+        slapi_rwlock_wrlock(global_rwlock);
+    }
+    slapi_td_set_plugin_locked(&td_locked);
+
+    /* Critical server plugins can not be disabled */
+    if(plugin_is_critical(plugin_entry)){
+        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: plugin \"%s\" is critical to server operations, and can not be disabled\n",
+                  slapi_entry_get_dn_const(plugin_entry), 0, 0);
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin \"%s\" is critical to server operations, and can not "
+                   "be disabled.\n",slapi_entry_get_dn_const(plugin_entry));
+        rc = -1;
+        goto done;
+    }
+
+    if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_TYPE))){
+        /* error: required attribute %s missing */
+        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: required attribute %s is missing from entry \"%s\"\n",
+                  ATTR_PLUGIN_TYPE, slapi_entry_get_dn_const(plugin_entry), 0);
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: required attribute %s "
+                     "is missing from entry.",ATTR_PLUGIN_TYPE);
+        rc = -1;
+        goto done;
+    } else {
+        rc = plugin_get_type_and_list(value, &type, &plugin_list);
+        if ( rc != 0 ) {
+            /* error: unknown plugin type */
+            LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: unknown plugin type \"%s\" in entry \"%s\"\n",
+                      value, slapi_entry_get_dn_const(plugin_entry), 0);
+            PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: unknown plugin type "
+                         "\"%s\" in entry.",value);
+            rc = -1;
+            goto done;
+        }
+
+        /*
+         * Skip syntax/matching rule/database plugins - these can not be disabled as it
+         * could break existing schema.  We allow the update to occur, but it will
+         * not take effect until the next server restart.
+         */
+        if(type == SLAPI_PLUGIN_SYNTAX || type == SLAPI_PLUGIN_MATCHINGRULE || type == SLAPI_PLUGIN_DATABASE){
+            removed = 1;  /* avoids error check below */
+            goto done;
+        }
+
+        /*
+         * Now remove the plugin from the list and the hashtable
+         */
+        for(plugin = *plugin_list; plugin ; plugin = plugin->plg_next){
+            if(strcasecmp(plugin->plg_dn, plugin_dn) == 0){
+                /*
+                 * Make sure there are no other plugins that depend on this one before removing it
+                 */
+                if(plugin_delete_check_dependency(plugin, CHECK_ALL, returntext) != LDAP_SUCCESS){
+                    LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: failed to disable/delete plugin (%s)\n",
+                              plugin->plg_dn,0,0);
+                    rc = -1;
+                    goto done;
+                }
+                removed = plugin_remove_plugins(plugin, value);
+                break;
+            }
+        }
+    }
+
+done:
+    if(!locked){
+        slapi_rwlock_unlock(global_rwlock);
+    }
+    td_locked = 0;
+    slapi_td_set_plugin_locked(&td_locked);
+
+    slapi_ch_free_string(&value);
+
+    if(!removed && rc == 0){
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Plugin delete failed: could not find plugin "
+                    "in the global list.");
+        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: did not find plugin(%s) in the global list.\n",
+                  slapi_entry_get_dn_const(plugin_entry),0,0);
+        rc = -1;
+    }
+
+    return rc;
+}
+
 
 /* set default configuration parameters */
 static void 
@@ -3274,4 +4327,75 @@ slapi_disordely_shutdown(PRBool set)
         is_disordely_shutdown = PR_TRUE;
     }
     return (is_disordely_shutdown);
+}
+
+/*
+ *  Plugin operation counters
+ *
+ *  Since most plugins can now be stopped and started dynamically we need
+ *  to take special care when calling a close function.  Since many plugins
+ *  use global locks and data structures, these can not be freed/destroyed
+ *  while there are active operations using them.
+ */
+
+void
+slapi_plugin_op_started(void *p)
+{
+    struct slapdplugin *plugin = (struct slapdplugin *)p;
+
+    if(plugin){
+        slapi_counter_increment(plugin->plg_op_counter);
+    }
+}
+
+void
+slapi_plugin_op_finished(void *p)
+{
+    struct slapdplugin *plugin = (struct slapdplugin *)p;
+
+    if(plugin){
+        slapi_counter_decrement(plugin->plg_op_counter);
+    }
+}
+
+/*
+ * Waits for the operation counter to hit zero
+ */
+void
+plugin_op_all_finished(struct slapdplugin *p)
+{
+    while(p && slapi_counter_get_value(p->plg_op_counter) > 0){
+        DS_Sleep(PR_MillisecondsToInterval(100));
+    }
+}
+
+void
+plugin_set_started(struct slapdplugin *p)
+{
+	p->plg_started = 1;
+	p->plg_stopped = 0;
+}
+
+void
+plugin_set_stopped(struct slapdplugin *p)
+{
+    /*
+     * We do not set "plg_stopped" here, because that is only used
+     * once the plugin has called its CLOSE function.  Setting
+     * "plg_started" to 0 will prevent new operations from calling
+     * the plugin.
+     */
+    p->plg_started = 0;
+}
+
+int
+slapi_plugin_running(Slapi_PBlock *pb)
+{
+    int rc = 0;
+
+    if(pb->pb_plugin){
+        rc = pb->pb_plugin->plg_started;
+    }
+
+    return rc;
 }

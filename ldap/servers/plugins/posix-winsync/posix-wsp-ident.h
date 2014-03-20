@@ -34,6 +34,7 @@ typedef struct posix_winsync_config_struct {
 } POSIX_WinSync_Config;
 
 int posix_winsync_config(Slapi_Entry *config_e);
+void posix_winsync_config_free();
 POSIX_WinSync_Config *posix_winsync_get_config();
 PRBool posix_winsync_config_get_mapMemberUid();
 PRBool posix_winsync_config_get_msSFUSchema();
@@ -49,5 +50,9 @@ int posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_Entry *eAfter, int *returncode, char *returntext,
     void *arg);
 
+PRUint64 get_plugin_started();
+void plugin_op_started();
+void plugin_op_finished();
+void plugin_op_all_finished();
 
 #endif

@@ -72,6 +72,13 @@ static SCNotify *head; /* a place to start in the list */
 
 static void *api[5];
 static Slapi_Mutex *buffer_lock = 0;
+static PRUint64 g_plugin_started = 0;
+
+/*
+ * We can not fully use the built in plugin counter in the statechange plugin,
+ * so we have to use our own.
+ */
+static Slapi_Counter *op_counter = NULL;
 
 /* other function prototypes */
 int statechange_init( Slapi_PBlock *pb ); 
@@ -189,6 +196,10 @@ static int statechange_start( Slapi_PBlock *pb )
 	}
 
 	head = 0;
+	if(ret == SLAPI_PLUGIN_SUCCESS){
+	    op_counter = slapi_counter_new();
+	    g_plugin_started = 1;
+	}
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_start\n");
 	return ret;
@@ -203,7 +214,16 @@ static int statechange_close( Slapi_PBlock *pb )
 {
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_close\n");
 
+	g_plugin_started = 0;
+
+	while(slapi_counter_get_value(op_counter) > 0){
+		PR_Sleep(PR_MillisecondsToInterval(100));
+	}
+    slapi_counter_destroy(&op_counter);
+
 	slapi_apib_unregister(StateChange_v1_0_GUID);
+	slapi_destroy_mutex(buffer_lock);
+	buffer_lock = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_close\n");
 
@@ -250,13 +270,13 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 	struct slapi_entry *e_before = NULL;
 	struct slapi_entry *e_after = NULL;
 
-	if(head == 0)
+	if(head == 0){
 		return SLAPI_PLUGIN_SUCCESS;
+	}
 
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_post_op\n");
 
 	/* evaluate this operation against the notification entries */
-	
 	slapi_lock_mutex(buffer_lock);
 	if(head)
 	{
@@ -315,8 +335,8 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 	}
 bail:
 	slapi_unlock_mutex(buffer_lock);
-
 	slapi_log_error( SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_post_op\n");
+
 	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
 
@@ -326,8 +346,13 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 	int ret = SLAPI_PLUGIN_FAILURE;
 	SCNotify *item;
 
+	slapi_counter_increment(op_counter);
+	if (!g_plugin_started) {
+		slapi_counter_decrement(op_counter);
+		return ret;
+	}
+
 	/* simple - we don't check for duplicates */
-	
 	item = (SCNotify*)slapi_ch_malloc(sizeof(SCNotify));
 	if(item)
 	{
@@ -352,6 +377,7 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 			slapi_ch_free_string(&item->filter);
 			slapi_ch_free_string(&writable_filter);
 			slapi_ch_free((void **)&item);
+			slapi_counter_decrement(op_counter);
 			return ret;
 		} else if (!writable_filter) {
 			item->realfilter = NULL;
@@ -377,6 +403,7 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 
 		ret = SLAPI_PLUGIN_SUCCESS;
 	}
+	slapi_counter_decrement(op_counter);
 
 	return ret;
 }
@@ -386,8 +413,11 @@ static void *_statechange_unregister(char *dn, char *filter, notify_callback the
 	void *ret = NULL;
 	SCNotify *func = NULL;
 
-	if(buffer_lock == 0)
+	slapi_counter_increment(op_counter);
+	if (!g_plugin_started || !buffer_lock) {
+		slapi_counter_decrement(op_counter);
 		return ret;
+	}
 
 	slapi_lock_mutex(buffer_lock);
 
@@ -413,6 +443,7 @@ static void *_statechange_unregister(char *dn, char *filter, notify_callback the
 	}
 
 	slapi_unlock_mutex(buffer_lock);
+	slapi_counter_decrement(op_counter);
 
 	return ret;
 }
@@ -422,11 +453,13 @@ static void _statechange_unregister_all(char *caller_id, caller_data_free_callba
 	SCNotify *notify = head;
 	SCNotify *start_notify = head;
 
-	if(buffer_lock == 0)
+	slapi_counter_increment(op_counter);
+	if (!g_plugin_started || !buffer_lock) {
+		slapi_counter_decrement(op_counter);
 		return;
+	}
 
 	slapi_lock_mutex(buffer_lock);
-
 
 	if(notify)
 	{
@@ -463,6 +496,7 @@ static void _statechange_unregister_all(char *caller_id, caller_data_free_callba
 	}
 
 	slapi_unlock_mutex(buffer_lock);
+	slapi_counter_decrement(op_counter);
 }
 
 /* this func needs looking at to make work */

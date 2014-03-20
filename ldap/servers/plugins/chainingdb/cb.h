@@ -461,9 +461,10 @@ void cb_close_conn_pool(cb_conn_pool * pool);
 void cb_update_monitor_info(Slapi_PBlock * pb, cb_backend_instance * inst,int op);
 void cb_send_ldap_result(Slapi_PBlock *pb, int err, char *m,char *t, int ne, struct berval **urls );
 void cb_stale_all_connections( cb_backend_instance * be);
-int
-cb_config_add_instance_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
- int *returncode, char *returntext, void *arg);
+int cb_config_add_instance_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
+        int *returncode, char *returntext, void *arg);
+int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
+        int *returncode, char *returntext, void *arg);
 
 
 int chaining_back_add 	( Slapi_PBlock *pb );

@@ -81,6 +81,7 @@ typedef struct referint_config {
     int logchanges;
     char **attrs;
 } referint_config;
+
 Slapi_RWLock *config_rwlock = NULL;
 
 /* function prototypes */
@@ -115,7 +116,6 @@ static PRThread		*referint_tid = NULL;
 static PRLock 		*keeprunning_mutex = NULL;
 static PRCondVar    *keeprunning_cv = NULL;
 static int keeprunning = 0;
-static int refint_started = 0;
 static referint_config *config = NULL;
 static Slapi_DN* _ConfigAreaDN = NULL;
 static Slapi_DN* _pluginDN = NULL;
@@ -204,7 +204,7 @@ referint_postop_init( Slapi_PBlock *pb )
     int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
     int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
     int modfn = SLAPI_PLUGIN_POST_MODIFY_FN; /* for config changes */
-    char *preop_plugin_type = NULL;
+    char *preop_plugin_type = "preoperation";
 
     /*
      *  Get plugin identity and stored it for later use.
@@ -340,6 +340,10 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
     int new_config_present = 0;
     int argc = 0;
     int rc = SLAPI_PLUGIN_SUCCESS;
+
+    if(config_entry == NULL){
+        return rc;
+    }
 
     slapi_rwlock_wrlock(config_rwlock);
 
@@ -656,11 +660,6 @@ referint_postop_del( Slapi_PBlock *pb )
     int isrepop = 0;
     int oprc;
     int rc = SLAPI_PLUGIN_SUCCESS;
-
-    if (0 == refint_started) {
-        /* not initialized yet */
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     if ( slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isrepop ) != 0  ||
          slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) != 0  ||
@@ -1383,8 +1382,6 @@ int referint_postop_start( Slapi_PBlock *pb)
         }
     }
 
-    refint_started = 1;
-
 bail:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
@@ -1407,8 +1404,13 @@ int referint_postop_close( Slapi_PBlock *pb)
     }
 
     slapi_destroy_rwlock(config_rwlock);
+    config_rwlock = NULL;
 
-    refint_started = 0;
+    slapi_ch_free_string(&config->logfile);
+    slapi_ch_array_free(config->attrs);
+    slapi_ch_free((void **)&config);
+
+
     return(0);
 }
 
@@ -1758,6 +1760,7 @@ referint_validate_config(Slapi_PBlock *pb)
             slapi_log_error( SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config: "
                     "configuration validation failed.\n");
             rc = LDAP_UNWILLING_TO_PERFORM;
+            goto bail;
         }
     } else if (slapi_sdn_compare(sdn, referint_get_plugin_area()) == 0){
          /*

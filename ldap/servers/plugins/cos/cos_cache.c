@@ -3414,15 +3414,15 @@ void cos_cache_stop()
 
 	/* release the caches reference to the cache */
 	cos_cache_release(pCache);
-
-	slapi_destroy_mutex(cache_lock);
-	slapi_destroy_mutex(change_lock);
-	slapi_destroy_condvar(something_changed);
+	slapi_destroy_mutex(cache_lock); cache_lock = NULL;
+	slapi_destroy_mutex(change_lock); change_lock = NULL;
+	slapi_destroy_condvar(something_changed); something_changed = NULL;
 
 	slapi_unlock_mutex(stop_lock);
-	slapi_destroy_mutex(stop_lock);
-	slapi_destroy_condvar(start_cond);
-	slapi_destroy_mutex(start_lock);
+
+	slapi_destroy_mutex(stop_lock); stop_lock = NULL;
+	slapi_destroy_condvar(start_cond); start_cond = NULL;
+	slapi_destroy_mutex(start_lock); start_lock = NULL;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_cache_stop\n",0,0,0);
 }

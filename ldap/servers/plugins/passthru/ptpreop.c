@@ -140,6 +140,7 @@ passthru_bindpreop_close( Slapi_PBlock *pb )
      * XXXmcs: free any memory, mutexes, etc.
      */
     passthru_close_all_connections( passthru_get_config() );
+    passthru_free_config();
 
     return( 0 );
 }
@@ -184,9 +185,9 @@ passthru_bindpreop( Slapi_PBlock *pb )
      */
     if ( method != LDAP_AUTH_SIMPLE || *normbinddn == '\0'
 	    || creds->bv_len == 0 ) {
-	slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"<= not handled (not simple bind or NULL dn/credentials)\n" );
-	return( PASSTHRU_OP_NOT_HANDLED );
+        slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+                "<= not handled (not simple bind or NULL dn/credentials)\n" );
+        return( PASSTHRU_OP_NOT_HANDLED );
     }
 
     /*
@@ -199,9 +200,9 @@ passthru_bindpreop( Slapi_PBlock *pb )
      * another server.
      */
     if ( passthru_dn2server( cfg, normbinddn, &srvr ) != LDAP_SUCCESS ) {
-	slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"<= not handled (not one of our suffixes)\n" );
-	return( PASSTHRU_OP_NOT_HANDLED );
+        slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+                "<= not handled (not one of our suffixes)\n" );
+        return( PASSTHRU_OP_NOT_HANDLED );
     }
 
     /*
@@ -285,7 +286,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
     if ( matcheddn != NULL ) {
 	ldap_memfree( matcheddn );
     }
- 
+
     slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "<= handled (error %d - %s)\n", rc, ldap_err2string( rc ));
 

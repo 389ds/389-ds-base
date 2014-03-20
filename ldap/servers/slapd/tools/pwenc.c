@@ -311,6 +311,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 	int done = 0;
 	PRInt32 nr = 0;
 	PRFileDesc *prfd = 0;
+	char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
 	char *buf = 0;
 	char *lastp = 0;
 	char *entrystr = 0;
@@ -381,11 +382,11 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 					if ( entry_has_attr_and_value(e, ATTR_PLUGIN_TYPE, "pwdstoragescheme"))
 					{
 						/* add the syntax/matching/pwd storage scheme rule plugin */
-						if (plugin_setup(e, 0, 0, 1))
+						if (plugin_setup(e, 0, 0, 1, returntext))
 						{
 							fprintf(stderr,
-									"The plugin entry [%s] in the configfile %s was invalid\n",
-									slapi_entry_get_dn(e), configfile);
+									"The plugin entry [%s] in the configfile %s was invalid.  %s\n",
+									slapi_entry_get_dn(e), configfile, returntext);
 							exit(1); /* yes this sucks, but who knows what else would go on if I did the right thing */
 						}
 						else

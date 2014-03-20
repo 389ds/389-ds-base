@@ -71,18 +71,6 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
 	*returncode = LDAP_SUCCESS;
 
-	/* make sure the plugin is not closed */
-	if(!linked_attrs_is_started()){
-		*returncode = LDAP_OPERATIONS_ERROR;
-		rv = SLAPI_DSE_CALLBACK_ERROR;
-		goto out;
-	}
-
-	/* get arg(s) */
-	linkdn = fetch_attr(e, "linkdn", 0);
-
-	/* setup our task data */
-	slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 	mytaskdata = (task_data*)slapi_ch_calloc(1, sizeof(task_data));
 	if (mytaskdata == NULL) {
 		*returncode = LDAP_OPERATIONS_ERROR;
@@ -90,13 +78,16 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		goto out;
 	}
 
+	/* get arg(s) and setup our task data */
+	linkdn = fetch_attr(e, "linkdn", 0);
 	if (linkdn) {
 	    mytaskdata->linkdn = slapi_dn_normalize(slapi_ch_strdup(linkdn));
 	}
+	slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 	mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
 
 	/* allocate new task now */
-	task = slapi_new_task(slapi_entry_get_ndn(e));
+	task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
 
 	/* register our destructor for cleaning up our private data */
 	slapi_task_set_destructor_fn(task, linked_attrs_fixup_task_destructor);
@@ -112,13 +103,17 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		slapi_log_error( SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
 			"unable to create task thread!\n");
 		*returncode = LDAP_OPERATIONS_ERROR;
-		rv = SLAPI_DSE_CALLBACK_ERROR;
 		slapi_task_finish(task, *returncode);
+		rv = SLAPI_DSE_CALLBACK_ERROR;
 	} else {
 		rv = SLAPI_DSE_CALLBACK_OK;
 	}
 
 out:
+	if(rv != SLAPI_DSE_CALLBACK_OK){
+		linked_attrs_op_finished();
+	}
+
 	return rv;
 }
 
@@ -209,6 +204,8 @@ linked_attrs_fixup_task_thread(void *arg)
 	slapi_task_log_status(task, "Linked attributes fixup task complete.\n");
 	slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM, "Linked attributes fixup task complete.\n");
 	slapi_task_inc_progress(task);
+
+	linked_attrs_op_finished();
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);

@@ -109,10 +109,10 @@ passthru_config( int argc, char **argv )
     int			ret = LDAP_SUCCESS;
 
     if ( inited ) {
-	slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"only one pass through plugin instance can be used\n" );
-	ret = LDAP_PARAM_ERROR;
-	goto error;
+        slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                "only one pass through plugin instance can be used\n" );
+        ret = LDAP_PARAM_ERROR;
+        goto error;
     }
 
     inited = 1;
@@ -122,11 +122,11 @@ passthru_config( int argc, char **argv )
      * providing at least one remote server.  Return an error if attempted.
      */
     if ( argc < 1 ) {
-	slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"no pass through servers found in configuration"
-		" (at least one must be listed)\n" );
-	ret = LDAP_PARAM_ERROR;
-	goto error;
+        slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                "no pass through servers found in configuration "
+                "(at least one must be listed)\n" );
+        ret = LDAP_PARAM_ERROR;
+        goto error;
     }
 
     /*
@@ -134,232 +134,224 @@ passthru_config( int argc, char **argv )
      */
     prevsrvr = NULL;
     for ( i = 0; i < argc; ++i ) {
-	int secure = 0;
-	char *p = NULL;
-	srvr = (PassThruServer *)slapi_ch_calloc( 1, sizeof( PassThruServer ));
-	srvr->ptsrvr_url = slapi_ch_strdup( argv[i] );
+        int secure = 0;
+        char *p = NULL;
 
-	/* since the ldap url may contain both spaces (to delimit multiple hosts)
-	   and commas (in suffixes), we have to search for the first space
-	   after the last /, then look for any commas after that
-	   This assumes the ldap url looks like this:
-	   ldap(s)://host:port host:port .... host:port/suffixes
-	   That is, it assumes there is always a trailing slash on the ldapurl
-	   and that the url does not look like this: ldap://host
-	   also assumes suffixes do not have any / in them
-	*/
-	if ((p = strrchr(srvr->ptsrvr_url, '/'))) { /* look for last / */
-	    p = strchr(p, ' '); /* look for first space after last / */
-	    if (p) {
-		if (!strchr(p, ',')) { /* no comma */
-		    p = NULL; /* just use defaults */
-		}
-	    }
-	}
+        srvr = (PassThruServer *)slapi_ch_calloc( 1, sizeof( PassThruServer ));
+        srvr->ptsrvr_url = slapi_ch_strdup( argv[i] );
 
-	if (!p) {
-	    /*
-	     * use defaults for maxconnections, maxconcurrency, timeout,
-	     * LDAP version, and connlifetime.
-	     */
-	    srvr->ptsrvr_maxconnections = PASSTHRU_DEF_SRVR_MAXCONNECTIONS;
-	    srvr->ptsrvr_maxconcurrency = PASSTHRU_DEF_SRVR_MAXCONCURRENCY;
-	    srvr->ptsrvr_timeout = (struct timeval *)slapi_ch_calloc( 1,
-		    sizeof( struct timeval ));
-	    srvr->ptsrvr_timeout->tv_sec = PASSTHRU_DEF_SRVR_TIMEOUT;
-	    srvr->ptsrvr_ldapversion = PASSTHRU_DEF_SRVR_PROTOCOL_VERSION;
-	    using_def_connlifetime = 1;
-	} else {
-	    /*
-	     * parse parameters.  format is:
-	     *     maxconnections,maxconcurrency,timeout,ldapversion
-	     * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime
-	     * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime,starttls
-	     */
-	    *p++ = '\0'; /* p points at space preceding optional arguments */
-	    rc = sscanf( p, "%d,%d,%d,%d,%d,%d", &srvr->ptsrvr_maxconnections,
-		    &srvr->ptsrvr_maxconcurrency, &tosecs,
-		    &srvr->ptsrvr_ldapversion, &srvr->ptsrvr_connlifetime,
-		    &starttls);
-	    if ( rc < 4 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-			"server parameters should be in the form "
-			"\"maxconnections,maxconcurrency,timeout,ldapversion,"
-			"connlifetime\" (got \"%s\")\n", p );
-		ret = LDAP_PARAM_ERROR;
-		goto error;
-	    } else if ( rc < 5 ) {
-		using_def_connlifetime = 1;
-		srvr->ptsrvr_connlifetime = PASSTHRU_DEF_SRVR_CONNLIFETIME;
-		starttls = 0;
-	    } else if ( rc < 6 ) {
-		using_def_connlifetime = 0; /* lifetime specified */
-		starttls = 0; /* but not starttls */
-	    } else { /* all 6 args supplied */
-		using_def_connlifetime = 0; /* lifetime specified */
-		/* and starttls */
-	    }
+        /*
+         * since the ldap url may contain both spaces (to delimit multiple hosts)
+         * and commas (in suffixes), we have to search for the first space
+         * after the last /, then look for any commas after that
+         * This assumes the ldap url looks like this:
+         * ldap(s)://host:port host:port .... host:port/suffixes
+         * That is, it assumes there is always a trailing slash on the ldapurl
+         * and that the url does not look like this: ldap://host
+         * also assumes suffixes do not have any / in them
+         */
+        if ((p = strrchr(srvr->ptsrvr_url, '/'))) { /* look for last / */
+            p = strchr(p, ' '); /* look for first space after last / */
+            if (p) {
+                if (!strchr(p, ',')) { /* no comma */
+                    p = NULL; /* just use defaults */
+                }
+            }
+        }
 
-	    if ( srvr->ptsrvr_ldapversion != LDAP_VERSION2
-		    && srvr->ptsrvr_ldapversion != LDAP_VERSION3 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-			"LDAP protocol version should be %d or %d (got %d)\n",
-			LDAP_VERSION2, LDAP_VERSION3,
-			srvr->ptsrvr_ldapversion );
-		ret = LDAP_PARAM_ERROR;
-		goto error;
-	    }
+        if (!p) {
+            /*
+             * use defaults for maxconnections, maxconcurrency, timeout,
+             * LDAP version, and connlifetime.
+             */
+            srvr->ptsrvr_maxconnections = PASSTHRU_DEF_SRVR_MAXCONNECTIONS;
+            srvr->ptsrvr_maxconcurrency = PASSTHRU_DEF_SRVR_MAXCONCURRENCY;
+            srvr->ptsrvr_timeout = (struct timeval *)slapi_ch_calloc( 1,sizeof( struct timeval ));
+            srvr->ptsrvr_timeout->tv_sec = PASSTHRU_DEF_SRVR_TIMEOUT;
+            srvr->ptsrvr_ldapversion = PASSTHRU_DEF_SRVR_PROTOCOL_VERSION;
+            using_def_connlifetime = 1;
+        } else {
+            /*
+             * parse parameters.  format is:
+             *     maxconnections,maxconcurrency,timeout,ldapversion
+             * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime
+             * OR  maxconnections,maxconcurrency,timeout,ldapversion,lifetime,starttls
+             */
+            *p++ = '\0'; /* p points at space preceding optional arguments */
+            rc = sscanf( p, "%d,%d,%d,%d,%d,%d", &srvr->ptsrvr_maxconnections,
+                         &srvr->ptsrvr_maxconcurrency, &tosecs, &srvr->ptsrvr_ldapversion,
+                         &srvr->ptsrvr_connlifetime, &starttls);
+            if ( rc < 4 ) {
+                slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                        "server parameters should be in the form "
+                        "\"maxconnections,maxconcurrency,timeout,ldapversion,"
+                        "connlifetime\" (got \"%s\")\n", p );
+                ret = LDAP_PARAM_ERROR;
+                goto error;
+            } else if ( rc < 5 ) {
+                using_def_connlifetime = 1;
+                srvr->ptsrvr_connlifetime = PASSTHRU_DEF_SRVR_CONNLIFETIME;
+                starttls = 0;
+            } else if ( rc < 6 ) {
+                using_def_connlifetime = 0; /* lifetime specified */
+                starttls = 0; /* but not starttls */
+            } else { /* all 6 args supplied */
+                using_def_connlifetime = 0; /* lifetime specified */
+                /* and starttls */
+            }
 
-	    if ( srvr->ptsrvr_maxconnections <= 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-			"maximum connections must be greater than "
-			"zero (got %d)\n", srvr->ptsrvr_maxconnections );
-		ret = LDAP_PARAM_ERROR;
-		goto error;
-	    }
+            if ( srvr->ptsrvr_ldapversion != LDAP_VERSION2 && srvr->ptsrvr_ldapversion != LDAP_VERSION3 ) {
+                slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                        "LDAP protocol version should be %d or %d (got %d)\n",
+                        LDAP_VERSION2, LDAP_VERSION3, srvr->ptsrvr_ldapversion );
+                ret = LDAP_PARAM_ERROR;
+                goto error;
+            }
 
-	    if ( srvr->ptsrvr_maxconcurrency <= 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-			"maximum concurrency must be greater than "
-			"zero (got %d)\n", srvr->ptsrvr_maxconcurrency );
-		ret = LDAP_PARAM_ERROR;
-		goto error;
-	    }
+            if ( srvr->ptsrvr_maxconnections <= 0 ) {
+                slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                        "maximum connections must be greater than "
+                        "zero (got %d)\n", srvr->ptsrvr_maxconnections );
+                ret = LDAP_PARAM_ERROR;
+                goto error;
+            }
 
-	    if ( tosecs <= 0 ) {
-		srvr->ptsrvr_timeout = NULL;
-	    } else {
-		srvr->ptsrvr_timeout = (struct timeval *)slapi_ch_calloc( 1,
-			sizeof( struct timeval ));
-		srvr->ptsrvr_timeout->tv_sec = tosecs;
-	    }
-	}
+            if ( srvr->ptsrvr_maxconcurrency <= 0 ) {
+                slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                        "maximum concurrency must be greater than "
+                        "zero (got %d)\n", srvr->ptsrvr_maxconcurrency );
+                ret = LDAP_PARAM_ERROR;
+                goto error;
+            }
 
-	/*
-	 * parse the LDAP URL
-	 */
-	if (( rc = slapi_ldap_url_parse( srvr->ptsrvr_url, &ludp, 1, &secure )) != 0 ) {
-	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		    "unable to parse LDAP URL \"%s\" (%s)\n",
-		    srvr->ptsrvr_url, slapi_urlparse_err2string( rc ));
-	    ret = LDAP_PARAM_ERROR;
-	    goto error;
-	}
+            if ( tosecs <= 0 ) {
+                srvr->ptsrvr_timeout = NULL;
+            } else {
+                srvr->ptsrvr_timeout = (struct timeval *)slapi_ch_calloc( 1, sizeof( struct timeval ));
+                srvr->ptsrvr_timeout->tv_sec = tosecs;
+            }
+        }
 
-	if ( ludp->lud_dn == NULL || *ludp->lud_dn == '\0' ) {
-	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		    "missing suffix in LDAP URL \"%s\"\n",
-		    srvr->ptsrvr_url );
-	    ret = LDAP_PARAM_ERROR;
-	    goto error;
-	}
+        /*
+         * parse the LDAP URL
+         */
+        if (( rc = slapi_ldap_url_parse( srvr->ptsrvr_url, &ludp, 1, &secure )) != 0 ) {
+            slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                    "unable to parse LDAP URL \"%s\" (%s)\n",
+                    srvr->ptsrvr_url, slapi_urlparse_err2string( rc ));
+            ret = LDAP_PARAM_ERROR;
+            goto error;
+        }
+
+        if ( ludp->lud_dn == NULL || *ludp->lud_dn == '\0' ) {
+            slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                    "missing suffix in LDAP URL \"%s\"\n", srvr->ptsrvr_url );
+            ret = LDAP_PARAM_ERROR;
+            goto error;
+        }
 	
-	srvr->ptsrvr_hostname = slapi_ch_strdup( ludp->lud_host );
-	srvr->ptsrvr_port = ludp->lud_port;
-	srvr->ptsrvr_secure = secure;
-	if (starttls) {
-	    srvr->ptsrvr_secure = 2;
-	}
+        srvr->ptsrvr_hostname = slapi_ch_strdup( ludp->lud_host );
+        srvr->ptsrvr_port = ludp->lud_port;
+        srvr->ptsrvr_secure = secure;
+        if (starttls) {
+            srvr->ptsrvr_secure = 2;
+        }
 
-	/*
-	 * If a space-separated list of hosts is configured for failover,
-	 * use a different (non infinite) default for connection lifetime.
-	 */
-	if ( using_def_connlifetime &&
-	    strchr( srvr->ptsrvr_hostname, ' ' ) != NULL ) {
-		srvr->ptsrvr_connlifetime =
-			PASSTHRU_DEF_SRVR_FAILOVERCONNLIFETIME;
-	}
+        /*
+         * If a space-separated list of hosts is configured for failover,
+         * use a different (non infinite) default for connection lifetime.
+         */
+        if ( using_def_connlifetime &&
+            strchr( srvr->ptsrvr_hostname, ' ' ) != NULL ) {
+            srvr->ptsrvr_connlifetime = PASSTHRU_DEF_SRVR_FAILOVERCONNLIFETIME;
+        }
 
-	/*
-	 * split the DN into multiple suffixes (separated by ';')
-	 */
-	if (( suffixarray = slapi_str2charray( ludp->lud_dn, ";" )) == NULL ) {
-	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"unable to parse suffix string \"%s\" within \"%s\"\n",
-		ludp->lud_dn, srvr->ptsrvr_url );
-	    ret = LDAP_PARAM_ERROR;
-	    goto error;
-	}
+        /*
+         * split the DN into multiple suffixes (separated by ';')
+         */
+        if (( suffixarray = slapi_str2charray( ludp->lud_dn, ";" )) == NULL ) {
+            slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                    "unable to parse suffix string \"%s\" within \"%s\"\n",
+                    ludp->lud_dn, srvr->ptsrvr_url );
+            ret = LDAP_PARAM_ERROR;
+            goto error;
+        }
 
-	/*
-	 * free our LDAP URL descriptor
-	 */
-	ldap_free_urldesc( ludp );
-	ludp = NULL;
+        /*
+         * free our LDAP URL descriptor
+         */
+        ldap_free_urldesc( ludp );
+        ludp = NULL;
 
-	/*
-	 * reorganize the suffixes into a linked list and normalize them
-	 */
-	prevsuffix = NULL;
-	for ( j = 0; suffixarray[ j ] != NULL; ++j ) {
+        /*
+         * reorganize the suffixes into a linked list and normalize them
+         */
+        prevsuffix = NULL;
+        for ( j = 0; suffixarray[ j ] != NULL; ++j ) {
+            /*
+             * allocate a new PassThruSuffix structure and fill it in.
+             */
+            suffix = (PassThruSuffix *)slapi_ch_calloc(1, sizeof( PassThruSuffix ));
+            suffix->ptsuffix_normsuffix = slapi_dn_normalize( suffixarray[ j ] );
+            suffixarray[ j ] = NULL;
+            suffix->ptsuffix_len = strlen( suffix->ptsuffix_normsuffix );
+            suffix->ptsuffix_next = NULL;
 
-	    /*
-	     * allocate a new PassThruSuffix structure and fill it in.
-	     */
-	    suffix = (PassThruSuffix *)slapi_ch_malloc(
-		    sizeof( PassThruSuffix ));
-	    suffix->ptsuffix_normsuffix =
-		    slapi_dn_normalize( suffixarray[ j ] );
-	    suffixarray[ j ] = NULL;
-	    suffix->ptsuffix_len = strlen( suffix->ptsuffix_normsuffix );
-	    suffix->ptsuffix_next = NULL;
+            /*
+             * add to end of list
+             */
+            if ( prevsuffix == NULL ) {
+                srvr->ptsrvr_suffixes = suffix;
+            } else {
+                prevsuffix->ptsuffix_next = suffix;
+            }
+            prevsuffix = suffix;
+        }
+        ldap_memfree( suffixarray );
 
-	    /*
-	     * add to end of list
-	     */
-	    if ( prevsuffix == NULL ) {
-		srvr->ptsrvr_suffixes = suffix;
-	    } else {
-		prevsuffix->ptsuffix_next = suffix;
-	    }
-	    prevsuffix = suffix;
-	}
-	ldap_memfree( suffixarray );
+        /*
+         * create mutexes and condition variables for this server
+         */
+        if (( srvr->ptsrvr_connlist_mutex = slapi_new_mutex()) == NULL ||
+            ( srvr->ptsrvr_connlist_cv = slapi_new_condvar(srvr->ptsrvr_connlist_mutex )) == NULL )
+        {
+            ret = LDAP_LOCAL_ERROR;
+            goto error;
+        }
 
-	/*
-	 * create mutexes and condition variables for this server
-	 */
-	if (( srvr->ptsrvr_connlist_mutex = slapi_new_mutex()) == NULL ||
-		( srvr->ptsrvr_connlist_cv = slapi_new_condvar(
-		srvr->ptsrvr_connlist_mutex )) == NULL ) {
-	    ret = LDAP_LOCAL_ERROR;
-	    goto error;
-	}
-
-	/*
-	 * add this server to the end of our list
-	 */
-	if ( prevsrvr == NULL ) {
-	    theConfig.ptconfig_serverlist = srvr;
-	} else {
-	    prevsrvr->ptsrvr_next = srvr;
-	}
-	prevsrvr = srvr;
+        /*
+         * add this server to the end of our list
+         */
+        if ( prevsrvr == NULL ) {
+            theConfig.ptconfig_serverlist = srvr;
+        } else {
+            prevsrvr->ptsrvr_next = srvr;
+        }
+        prevsrvr = srvr;
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
-	/*
-	 * log configuration for debugging purposes
-	 */
-	slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
-		"PTA server host: \"%s\", port: %d, secure: %d,"
-		" maxconnections: %d, maxconcurrency: %d, timeout: %d,"
-		" ldversion: %d, connlifetime: %d\n",
-		srvr->ptsrvr_hostname, srvr->ptsrvr_port,
-		srvr->ptsrvr_secure, srvr->ptsrvr_maxconnections,
-		srvr->ptsrvr_maxconcurrency,
-		srvr->ptsrvr_timeout == NULL ? -1
-		: srvr->ptsrvr_timeout->tv_sec, srvr->ptsrvr_ldapversion,
-		srvr->ptsrvr_connlifetime );
-	for ( prevsuffix = srvr->ptsrvr_suffixes; prevsuffix != NULL;
-		prevsuffix = prevsuffix->ptsuffix_next ) {
-	    slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
-		    "   normalized suffix: \"%s\"\n",
-		    prevsuffix->ptsuffix_normsuffix );
-	}
+        /*
+         * log configuration for debugging purposes
+         */
+        slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+                "PTA server host: \"%s\", port: %d, secure: %d, "
+                "maxconnections: %d, maxconcurrency: %d, timeout: %d, "
+                "ldversion: %d, connlifetime: %d\n",
+                srvr->ptsrvr_hostname, srvr->ptsrvr_port,
+                srvr->ptsrvr_secure, srvr->ptsrvr_maxconnections,
+                srvr->ptsrvr_maxconcurrency,
+                srvr->ptsrvr_timeout == NULL ? -1 : srvr->ptsrvr_timeout->tv_sec,
+                srvr->ptsrvr_ldapversion,
+                srvr->ptsrvr_connlifetime );
+        for ( prevsuffix = srvr->ptsrvr_suffixes; prevsuffix != NULL;
+              prevsuffix = prevsuffix->ptsuffix_next )
+        {
+            slapi_log_error( SLAPI_LOG_FATAL, PASSTHRU_PLUGIN_SUBSYSTEM,
+                    "   normalized suffix: \"%s\"\n", prevsuffix->ptsuffix_normsuffix );
+        }
 #endif
 
-    }
+    } /* End of argv for loop */
 
     goto done;
 
@@ -379,4 +371,35 @@ PassThruConfig *
 passthru_get_config( void )
 {
     return( &theConfig );
+}
+
+void
+passthru_free_config()
+{
+    PassThruServer	*server, *next_server;
+    PassThruSuffix	*suffix, *next_suffix;
+
+    inited = 0;
+    server = theConfig.ptconfig_serverlist;
+    while(server){
+        next_server = server->ptsrvr_next;
+        suffix = server->ptsrvr_suffixes;
+
+        /* free the server's suffix list */
+        while(suffix){
+            next_suffix = suffix->ptsuffix_next;
+            slapi_ch_free_string(&suffix->ptsuffix_normsuffix);
+            slapi_ch_free((void **)&suffix);
+            suffix = next_suffix;
+        }
+        /* free the server */
+        slapi_ch_free_string(&server->ptsrvr_url);
+        slapi_ch_free_string(&server->ptsrvr_hostname);
+        slapi_ch_free((void **)&server->ptsrvr_timeout);
+        slapi_destroy_mutex(server->ptsrvr_connlist_mutex);
+        slapi_destroy_condvar(server->ptsrvr_connlist_cv);
+        slapi_ch_free((void **)&server);
+
+        server = next_server;
+    }
 }

@@ -833,6 +833,7 @@ int		acllist_insert_aci_needsLock_ext( Slapi_PBlock *pb, const Slapi_DN *e_sdn,
 			const struct berval* aci_attr);
 char *		acl_access2str ( int access );
 int 		acl_init_ext ();
+void		acl_remove_ext ();
 void * 		acl_get_ext (ext_type type, void *object);
 void  		acl_set_ext (ext_type type, void *object, void *data);
 void		acl_reset_ext_status (ext_type type, void *object);

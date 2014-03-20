@@ -117,6 +117,13 @@ static windows_attribute_map group_mssfu_attribute_map[] = { { "msSFU30memberUid
                                                              { NULL, NULL } };
 
 static char *posix_winsync_plugin_name = POSIX_WINSYNC_PLUGIN_NAME;
+static PRUint64 g_plugin_started = 0;
+
+/*
+ * We can not fully use the built in plugin counter in the posix-winsync plugin,
+ * so we have to use our own.
+ */
+static Slapi_Counter *op_counter = NULL;
 
 enum
 {
@@ -568,6 +575,12 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     Slapi_Attr *attr = NULL;
     windows_attribute_map *attr_map = user_attribute_map;
 
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
+
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> posix_winsync_pre_ad_mod_user_cb -- begin DS account [%s]\n",
                     slapi_entry_get_dn_const(ds_entry));
@@ -642,6 +655,7 @@ posix_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
             slapi_mod_dump(mod, 0);
         }
     }
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_pre_ad_mod_user_cb -- end\n");
 
@@ -656,6 +670,12 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
     int rc = 0;
     Slapi_Attr *attr = NULL;
     windows_attribute_map *attr_map = group_attribute_map;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = group_mssfu_attribute_map;
@@ -755,6 +775,7 @@ posix_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
             slapi_mod_dump(mod, 0);
         }
     }
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- _pre_ad_mod_group_cb -- end\n");
 
@@ -774,6 +795,12 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     windows_attribute_map *attr_map = user_attribute_map;
     PRBool posixval = PR_TRUE;
 
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
+
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> _pre_ds_mod_user_cb -- begin\n");
 
@@ -781,6 +808,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "<-- _pre_ds_mod_user_cb -- Empty %s entry.\n",
                         (NULL==rawentry)?"rawentry":(NULL==ad_entry)?"ad entry":"ds entry");
+        plugin_op_finished();
         return;
     }
 
@@ -908,7 +936,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
             slapi_mod_dump(mod, 0);
         }
     }
-
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_mod_user_cb -- end\n");
 
     return;
@@ -924,6 +952,12 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
     int do_modify_local = 0;
     int rc;
     windows_attribute_map *attr_map = group_attribute_map;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = group_mssfu_attribute_map;
@@ -1020,6 +1054,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
             slapi_mod_dump(mod, 0);
         }
     }
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- _pre_ds_mod_group_cb -- end\n");
 
@@ -1035,6 +1070,12 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     PRBool posixval = PR_TRUE;
     windows_attribute_map *attr_map = user_attribute_map;
     int i = 0;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = user_mssfu_attribute_map;
@@ -1110,6 +1151,7 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
         }
     }
     sync_acct_disable(cbdata, rawentry, ds_entry, ACCT_DISABLE_TO_DS, ds_entry, NULL, NULL);
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_add_user_cb -- end\n");
 
     return;
@@ -1123,6 +1165,12 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
     char *type = NULL;
     PRBool posixval = PR_FALSE;
     windows_attribute_map *attr_map = group_attribute_map;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = group_mssfu_attribute_map;
@@ -1170,7 +1218,7 @@ posix_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
         addGroupMembership(ds_entry, ad_entry);
         memberUidUnlock();
     }
-
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_pre_ds_add_group_cb -- end\n");
 
@@ -1216,6 +1264,12 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
     Slapi_Mods *new_smods = slapi_mods_new();
     LDAPMod *mod = NULL;
     windows_attribute_map *attr_map = user_attribute_map;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = user_mssfu_attribute_map;
@@ -1271,6 +1325,7 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
 
     slapi_mods_free(&smods);
     slapi_mods_free(&new_smods);
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- _pre_ad_mod_user_mods_cb -- end\n");
 
@@ -1286,6 +1341,12 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry
     Slapi_Mods *new_smods = slapi_mods_new();
     LDAPMod *mod = NULL;
     windows_attribute_map *attr_map = group_attribute_map;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = group_mssfu_attribute_map;
@@ -1338,6 +1399,7 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry
     }
     slapi_mods_free(&smods);
     slapi_mods_free(&new_smods);
+    plugin_op_finished();
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- _pre_ad_mod_group_mods_cb -- end\n");
@@ -1362,10 +1424,16 @@ static void
 posix_winsync_begin_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree,
     int is_total)
 {
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
+
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> posix_winsync_begin_update_cb -- begin\n");
-
     posix_winsync_config_reset_MOFTaskCreated();
+    plugin_op_finished();
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_begin_update_cb -- end\n");
@@ -1377,6 +1445,12 @@ static void
 posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree,
     int is_total)
 {
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> posix_winsync_end_update_cb -- begin %d %d\n",
@@ -1397,6 +1471,7 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
                             "posix_winsync_end_update_cb: "
                                 "failed to create task dn: cn=%s,%s,cn=tasks,cn=config\n",
                             posix_winsync_plugin_name, MEMBEROFTASK);
+            plugin_op_finished();
             return;
         }
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
@@ -1438,7 +1513,7 @@ posix_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree, const Slap
         pb = NULL;
         posix_winsync_config_reset_MOFTaskCreated();
     }
-
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_end_update_cb -- end\n");
 
@@ -1573,6 +1648,12 @@ posix_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ad_entry, Slapi_Entr
     windows_attribute_map *attr_map=user_attribute_map;
     int rc = 0;
 
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
+
     if(posix_winsync_config_get_msSFUSchema())
         attr_map=user_mssfu_attribute_map;
     
@@ -1636,6 +1717,7 @@ posix_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ad_entry, Slapi_Entr
             }
         }
     }
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- _pre_ad_add_user_cb -- end\n");
 
@@ -1648,6 +1730,12 @@ posix_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ad_entry, Slapi_Ent
     Slapi_Attr * obj_attr = NULL; /* Entry attributes */
     windows_attribute_map *attr_map = group_attribute_map;
     int rc = 0;
+
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return;
+    }
 
     if (posix_winsync_config_get_msSFUSchema()) {
         attr_map=group_mssfu_attribute_map;
@@ -1708,6 +1796,7 @@ posix_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ad_entry, Slapi_Ent
             }
         }
     }
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- _pre_ad_add_group_cb -- end\n");
 
@@ -1871,6 +1960,8 @@ posix_winsync_plugin_start(Slapi_PBlock *pb)
                         ldap_err2string(rc));
         return (-1);
     }
+    g_plugin_started = 1;
+    op_counter = slapi_counter_new();
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_plugin_start -- registered; end\n");
@@ -1883,7 +1974,10 @@ posix_winsync_plugin_close(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> posix_winsync_plugin_close -- begin\n");
 
+    g_plugin_started = 0;
+    plugin_op_all_finished();
     slapi_apib_unregister(WINSYNC_v1_0_GUID);
+    posix_winsync_config_free();
 
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "<-- posix_winsync_plugin_close -- end\n");
@@ -1933,3 +2027,29 @@ posix_winsync_plugin_init(Slapi_PBlock *pb)
     return 0;
 }
 
+PRUint64
+get_plugin_started()
+{
+    return g_plugin_started;
+}
+
+void
+plugin_op_started()
+{
+    slapi_counter_increment(op_counter);
+}
+
+void
+plugin_op_finished()
+{
+    slapi_counter_decrement(op_counter);
+}
+
+void
+plugin_op_all_finished()
+{
+    while(slapi_counter_get_value(op_counter) > 0){
+        PR_Sleep(PR_MillisecondsToInterval(100));
+    }
+    slapi_counter_destroy(&op_counter);
+}

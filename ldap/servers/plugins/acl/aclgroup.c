@@ -299,7 +299,7 @@ aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn)
 
 	/*
 	 * It is possible at this point that we already have a group cache for the user
-	 * but is is invalid. We can't use it anayway. So, we march along and allocate a new one.
+	 * but is is invalid. We can't use it anyway. So, we march along and allocate a new one.
 	 * That's fine as the invalid one will be deallocated when done.
 	 */
 
@@ -329,7 +329,7 @@ aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn)
 	
 	u_group->aclug_signature = aclUserGroups->aclg_signature;
 
-	/* Do we have alreday the max number. If we have then delete the last one */
+	/* Do we have already the max number. If we have then delete the last one */
 	if ( aclUserGroups->aclg_num_userGroups >= ACL_MAXCACHE_USERGROUPS - 5 ) {
 		aclUserGroup		*d_group;
 		

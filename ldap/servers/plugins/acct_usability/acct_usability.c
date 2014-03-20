@@ -53,7 +53,6 @@
  */
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
-static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { AUC_FEATURE_DESC,
                                   VENDOR,
@@ -156,18 +155,12 @@ auc_start(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_start\n");
 
-    /* Check if we're already started */
-    if (g_plugin_started) {
-        goto done;
-    }
-
-    g_plugin_started = 1;
     slapi_log_error(SLAPI_LOG_PLUGIN, AUC_PLUGIN_SUBSYSTEM,
                     "account usability control plug-in: ready for service\n");
+
     slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "<-- auc_start\n");
 
-done:
     return 0;
 }
 

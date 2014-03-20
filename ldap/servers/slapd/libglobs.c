@@ -270,6 +270,7 @@ slapi_onoff_t init_plugin_logging;
 slapi_int_t init_connection_buffer;
 slapi_int_t init_listen_backlog_size;
 slapi_onoff_t init_ignore_time_skew;
+slapi_onoff_t init_dynamic_plugins;
 #if defined (LINUX)
 slapi_int_t init_malloc_mxfast;
 slapi_int_t init_malloc_trim_threshold;
@@ -1087,6 +1088,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
 		(ConfigGetFunc)config_get_listen_backlog_size, &init_listen_backlog_size},
+	{CONFIG_DYNAMIC_PLUGINS, config_set_dynamic_plugins,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.dynamic_plugins, CONFIG_ON_OFF,
+		(ConfigGetFunc)config_get_dynamic_plugins, &init_dynamic_plugins},
 #if defined(LINUX)
 	{CONFIG_MALLOC_MXFAST, config_set_malloc_mxfast,
 		NULL, 0,
@@ -1552,6 +1557,7 @@ FrontendConfig_init () {
   init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
   init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
   init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
+  init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
 #if defined(LINUX)
   init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
   init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
@@ -3266,6 +3272,31 @@ config_set_moddn_aci( const char *attrname, char *value, char *errorbuf, int app
 							  &(slapdFrontendConfig->moddn_aci),
 							  errorbuf,
 							  apply);
+
+  return retVal;
+}
+
+int
+config_set_dynamic_plugins( const char *attrname, char *value, char *errorbuf, int apply ) {
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff ( attrname,
+							  value,
+							  &(slapdFrontendConfig->dynamic_plugins),
+							  errorbuf,
+							  apply);
+
+  return retVal;
+}
+int
+config_get_dynamic_plugins() {
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
+  retVal = (int)slapdFrontendConfig->dynamic_plugins;
+  CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal;
 }

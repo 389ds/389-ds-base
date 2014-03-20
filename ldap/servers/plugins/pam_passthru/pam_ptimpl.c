@@ -427,6 +427,15 @@ pam_passthru_pam_init( void )
 	return 0;
 }
 
+int
+pam_passthru_pam_free( void )
+{
+	slapi_destroy_mutex(PAMLock);
+	PAMLock = NULL;
+
+	return 0;
+}
+
 /*
  * Entry point into the PAM auth code.  Shields the rest of the app
  * from PAM API code.  Get our config params, then call the actual

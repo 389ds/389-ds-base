@@ -116,6 +116,12 @@ struct _globalViewCache
 typedef struct _globalViewCache golbalViewCache;
 
 static golbalViewCache theCache;
+static PRUint64 g_plugin_started = 0;
+/*
+ * We can not fully use the built in plugin counter in the views plugin,
+ * so we have to use our own.
+ */
+static Slapi_Counter *op_counter = NULL;
 
 /* other function prototypes */
 int views_init( Slapi_PBlock *pb ); 
@@ -140,6 +146,7 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb);
 static void views_cache_backend_state_change(void *handle, char *be_name, int old_be_state, int new_be_state); 
 static void views_cache_act_on_change_thread(void *arg);
 static viewEntry *views_cache_find_view(char *view);
+static void views_cache_free();
 
 /* our api broker published api */
 static void *api[3];
@@ -245,12 +252,12 @@ static int views_start( Slapi_PBlock *pb )
 
 	theCache.cache_built = 0;
 	g_views_cache_lock = slapi_new_rwlock();
+	g_plugin_started = 1;
 
 	/* first register our backend state change func (we'll use func pointer as handle) */
 	slapi_register_backend_state_change((void *)views_cache_backend_state_change, views_cache_backend_state_change); 
 
 	/* create the view cache */
-
 	views_cache_create();
 
 	/* register callbacks for filter and search rewriting */
@@ -259,7 +266,12 @@ static int views_start( Slapi_PBlock *pb )
 	/* register for state changes to view configuration */
     if(!slapi_apib_get_interface(StateChange_v1_0_GUID, &statechange_api))
     {
-        statechange_register(statechange_api, STATECHANGE_VIEWS_ID, NULL, STATECHANGE_VIEWS_CONFG_FILTER, NULL, views_update_views_cache);
+        statechange_register(statechange_api,
+                             STATECHANGE_VIEWS_ID,
+                             NULL,
+                             STATECHANGE_VIEWS_CONFG_FILTER,
+                             NULL,
+                             views_update_views_cache);
     }
 
 	/* register our api so that other subsystems can be views aware */
@@ -270,7 +282,19 @@ static int views_start( Slapi_PBlock *pb )
 	if( slapi_apib_register(Views_v1_0_GUID, api) )
 	{
 		slapi_log_error( SLAPI_LOG_FATAL, VIEWS_PLUGIN_SUBSYSTEM, "views: failed to publish views interface\n");
+		if(statechange_api){
+			statechange_unregister(statechange_api,
+			                       NULL,
+			                       STATECHANGE_VIEWS_CONFG_FILTER,
+			                       views_update_views_cache);
+		}
+		views_cache_free();
+		slapi_destroy_rwlock(g_views_cache_lock);
+		g_views_cache_lock = NULL;
+		g_plugin_started = 0;
 		ret = SLAPI_PLUGIN_FAILURE;
+	} else {
+		op_counter = slapi_counter_new();
 	}
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_start\n");
@@ -299,6 +323,12 @@ static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	viewEntry *view;
 	char *dn;
+
+	slapi_counter_increment(op_counter);
+	if(g_plugin_started == 0){
+		slapi_counter_decrement(op_counter);
+		return ret;
+	}
 
 	/* there are two levels of scope for a view,
 	 * from the parent of the view without a view filter
@@ -352,10 +382,48 @@ static int _internal_api_views_entry_exists_general(char *view_dn, Slapi_Entry *
 
 bail:
 	views_unlock();
+	slapi_counter_decrement(op_counter);
+
 	return ret;
 }
 
-void views_cache_free()
+/*
+	views_close
+	---------
+	unregisters the interface for this plugin
+*/
+static int views_close( Slapi_PBlock *pb )
+{
+    void **statechange_api;
+	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_close\n");
+
+	g_plugin_started = 0;
+
+	while(slapi_counter_get_value(op_counter) > 0){
+		PR_Sleep(PR_MillisecondsToInterval(100));
+	}
+	slapi_counter_destroy(&op_counter);
+
+	/* unregister backend state change notification */
+	slapi_unregister_backend_state_change((void *)views_cache_backend_state_change);
+	/* unregister the api-broker callback */
+	if(!slapi_apib_get_interface(StateChange_v1_0_GUID, &statechange_api))
+	{
+		statechange_unregister(statechange_api,
+		                       NULL,
+		                       STATECHANGE_VIEWS_CONFG_FILTER,
+		                       views_update_views_cache);
+	}
+	views_cache_free();
+	slapi_destroy_rwlock(g_views_cache_lock);
+	g_views_cache_lock = NULL;
+
+	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_close\n");
+
+	return SLAPI_PLUGIN_SUCCESS;
+}
+
+static void views_cache_free()
 {
 	viewEntry *head = theCache.pCacheViews;
 	viewEntry *current;
@@ -393,26 +461,6 @@ void views_cache_free()
 }
 
 /*
-	views_close
-	---------
-	unregisters the interface for this plugin
-*/
-static int views_close( Slapi_PBlock *pb )
-{
-	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_close\n");
-	
-	/* unregister backend state change notification */
-	slapi_unregister_backend_state_change((void *)views_cache_backend_state_change);
-
-	views_cache_free();
-
-	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_close\n");
-
-	return SLAPI_PLUGIN_SUCCESS;
-}
-
-
-/*
 	views_cache_create
 	---------------------
 	Walks the views in the DIT and populates the cache.
@@ -421,8 +469,13 @@ static int views_cache_create()
 {
 	int ret = SLAPI_PLUGIN_FAILURE;
 
-	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_create\n");
+	slapi_counter_increment(op_counter);
+	if (0 == g_plugin_started) {
+		slapi_counter_decrement(op_counter);
+		return SLAPI_PLUGIN_SUCCESS;
+	}
 
+	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_create\n");
 
 	/* lock cache */
 	views_write_lock();
@@ -481,8 +534,9 @@ static int views_cache_create()
 
 	/* unlock cache */
 	views_unlock();
-
+	slapi_counter_decrement(op_counter);
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_create\n");
+
 	return ret;
 }
 
@@ -1361,6 +1415,12 @@ static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Sla
 	struct berval val;
 	int build_cache = 0;
 
+	slapi_counter_increment(op_counter);
+	if (0 == g_plugin_started) {
+		slapi_counter_decrement(op_counter);
+		return;
+	}
+
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_update_views_cache\n");
 
 	views_write_lock();
@@ -1649,6 +1709,7 @@ unlock_cache:
 	{
 		views_cache_create();
 	}
+	slapi_counter_decrement(op_counter);
 
 	slapi_log_error( SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_update_views_cache\n");
 }

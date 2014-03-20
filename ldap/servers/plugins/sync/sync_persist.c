@@ -54,7 +54,8 @@ static SyncRequestList	*sync_request_list = NULL;
  */
 #define SYNC_IS_INITIALIZED()	(sync_request_list != NULL)
 
-
+static int plugin_closing = 0;
+static PRUint64 thread_count = 0;
 static int sync_add_request( SyncRequest *req );
 static void sync_remove_request( SyncRequest *req );
 static SyncRequest *sync_request_alloc();
@@ -73,8 +74,10 @@ int sync_add_persist_post_op(Slapi_PBlock *pb)
 	if ( !SYNC_IS_INITIALIZED()) {
 		return(0);
 	}
+
 	slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
 	sync_queue_change(e, NULL, LDAP_REQ_ADD);
+
 	return( 0 );
 }
 
@@ -85,8 +88,10 @@ int sync_del_persist_post_op(Slapi_PBlock *pb)
 	if ( !SYNC_IS_INITIALIZED()) {
 		return(0);
 	}
+
 	slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
 	sync_queue_change(e, NULL, LDAP_REQ_DELETE);
+
 	return( 0 );
 }
 
@@ -97,8 +102,10 @@ int sync_mod_persist_post_op(Slapi_PBlock *pb)
 	if ( !SYNC_IS_INITIALIZED()) {
 		return(0);
 	}
+
 	slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
 	sync_queue_change(e, NULL, LDAP_REQ_MODIFY);
+
 	return( 0 );
 }
 
@@ -109,9 +116,11 @@ int sync_modrdn_persist_post_op(Slapi_PBlock *pb)
 	if ( !SYNC_IS_INITIALIZED()) {
 		return(0);
 	}
+
 	slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
 	slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e_prev);
 	sync_queue_change(e, e_prev, LDAP_REQ_MODRDN);
+
 	return( 0 );
 }
 
@@ -258,6 +267,7 @@ sync_persist_initialize (int argc, char **argv)
 				sync_request_list->sync_req_max_persist = SYNC_MAX_CONCURRENT;
 			}  
 		}
+		plugin_closing = 0;
 	}
 	return (0);
 }
@@ -307,6 +317,7 @@ sync_persist_add (Slapi_PBlock *pb)
 				slapi_ch_free((void **) &req->req_pblock );
 				slapi_ch_free((void **) &req );
 			} else {
+				thread_count++;
 				return( req->req_tid);
 			}
 		}
@@ -365,19 +376,27 @@ sync_persist_terminate (PRThread *tid)
 	}
 	return(rc);
 }
+
+/*
+ * Called when stopping/disabling the plugin
+ */
 int
 sync_persist_terminate_all ()
 {
-	SyncRequest *cur;
-
 	if ( SYNC_IS_INITIALIZED() ) {
-		SYNC_LOCK_READ();
-	  	cur = sync_request_list->sync_req_head;
-	  	while ( NULL != cur ) {
-			cur->req_complete = PR_TRUE;
-			cur = cur->req_next;
+		/* signal the threads to stop */
+		plugin_closing = 1;
+		sync_request_wakeup_all();
+
+		/* wait for all the threads to finish */
+		while(thread_count > 0){
+			PR_Sleep(PR_SecondsToInterval(1));
 		}
-		SYNC_UNLOCK_READ();
+
+		slapi_destroy_rwlock(sync_request_list->sync_req_rwlock);
+		PR_DestroyLock( sync_request_list->sync_req_cvarlock);
+		PR_DestroyCondVar(sync_request_list->sync_req_cvar);
+		slapi_ch_free((void **)&sync_request_list);
 	}
 
 	return (0);
@@ -478,6 +497,7 @@ sync_request_wakeup_all()
 		PR_Unlock( sync_request_list->sync_req_cvarlock );
 	}
 }
+
 static int
 sync_acquire_connection (Slapi_Connection *conn)
 {
@@ -559,7 +579,7 @@ sync_send_results( void *arg )
 
 	PR_Lock( sync_request_list->sync_req_cvarlock );
 
-	while ( (conn_acq_flag == 0) && !req->req_complete ) {
+	while ( (conn_acq_flag == 0) && !req->req_complete && !plugin_closing) {
 		/* Check for an abandoned operation */
 		Slapi_Operation *op;
 		slapi_pblock_get(req->req_pblock, SLAPI_OPERATION, &op);
@@ -637,7 +657,7 @@ sync_send_results( void *arg )
 				ectrls = (LDAPControl **)slapi_ch_calloc(2, sizeof (LDAPControl *));
 				if (req->req_cookie)
 					sync_cookie_update(req->req_cookie, ec);
-				sync_create_state_control(ec, &ectrls[0], chg_type, req->req_cookie);
+					sync_create_state_control(ec, &ectrls[0], chg_type, req->req_cookie);
 	    			rc = slapi_send_ldap_search_entry( req->req_pblock,
 								ec, ectrls,
 								noattrs?noattrs:attrs, attrsonly );
@@ -675,6 +695,7 @@ sync_send_results( void *arg )
 		sync_node_free( &qnode );
 	}
 	slapi_ch_free((void **) &req );
+	thread_count--;
 }
 
 

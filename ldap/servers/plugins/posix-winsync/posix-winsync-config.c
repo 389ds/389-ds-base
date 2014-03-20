@@ -66,6 +66,12 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
     void *node = NULL;
     Slapi_DN *sdn = NULL;
 
+    plugin_op_started();
+    if(!get_plugin_started()){
+        plugin_op_finished();
+        return NULL;
+    }
+
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "--> posix_winsync_agmt_init [%s] [%s] -- begin\n",
                     slapi_sdn_get_dn(ds_subtree), slapi_sdn_get_dn(ad_subtree));
@@ -87,6 +93,7 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
         slapi_ch_free_string(&pardn);
     }
 
+    plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "<-- posix_winsync_agmt_init -- end\n");
 
@@ -165,6 +172,10 @@ posix_winsync_config(Slapi_Entry *config_e)
     int returncode = LDAP_SUCCESS;
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
 
+    /* basic init */
+    theConfig.config_e = NULL;
+    theConfig.lock = NULL;
+
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "--> _config %s -- begin\n",
                     slapi_entry_get_dn_const(config_e));
     if (inited) {
@@ -221,6 +232,18 @@ posix_winsync_config(Slapi_Entry *config_e)
 
     return returncode;
 }
+
+void
+posix_winsync_config_free()
+{
+    slapi_entry_free(theConfig.config_e);
+    theConfig.config_e = NULL;
+    slapi_destroy_mutex(theConfig.lock);
+    theConfig.lock = NULL;
+    memberUidLockDestroy();
+    inited = 0;
+}
+
 
 static int
 posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,

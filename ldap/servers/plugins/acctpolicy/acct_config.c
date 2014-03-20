@@ -152,3 +152,12 @@ get_config() {
 	return( &globalcfg );
 }
 
+void
+free_config()
+{
+	slapi_ch_free_string(&globalcfg.state_attr_name);
+	slapi_ch_free_string(&globalcfg.alt_state_attr_name);
+	slapi_ch_free_string(&globalcfg.spec_attr_name);
+	slapi_ch_free_string(&globalcfg.limit_attr_name);
+}
+

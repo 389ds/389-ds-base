@@ -47,6 +47,7 @@ void td_dn_destructor(void *priv);
  * Thread Local Storage Indexes
  */
 static PRUintn td_requestor_dn;  /* TD_REQUESTOR_DN */
+static PRUintn td_plugin_list; /* SLAPI_TD_PLUGIN_LIST_LOCK - integer set to 1 or zero */
 
 /*
  *   Index types defined in slapi-plugin.h
@@ -78,7 +79,12 @@ slapi_td_init(int indexType)
             if(PR_NewThreadPrivateIndex(&td_requestor_dn, td_dn_destructor) == PR_FAILURE){
                 return PR_FAILURE;
             }
-        break;
+            break;
+        case SLAPI_TD_PLUGIN_LIST_LOCK:
+        	if(PR_NewThreadPrivateIndex(&td_plugin_list, NULL) == PR_FAILURE){
+                return PR_FAILURE;
+            }
+            break;
 
         default:
             return PR_FAILURE;
@@ -103,7 +109,15 @@ slapi_td_set_val(int indexType, void *value)
                 return PR_FAILURE;
             }
             break;
-
+        case SLAPI_TD_PLUGIN_LIST_LOCK:
+            if(td_plugin_list){
+                if(PR_SetThreadPrivate(td_plugin_list, value) == PR_FAILURE){
+                    return PR_FAILURE;
+                }
+            } else {
+                return PR_FAILURE;
+            }
+            break;
         default:
             return PR_FAILURE;
     }
@@ -125,6 +139,13 @@ slapi_td_get_val(int indexType, void **value)
                 *value = NULL;
             }
             break;
+        case SLAPI_TD_PLUGIN_LIST_LOCK:
+            if(td_plugin_list){
+                *value = PR_GetThreadPrivate(td_plugin_list);
+            } else {
+                *value = 0;
+            }
+            break;
         default:
             *value = NULL;
             return;
@@ -135,6 +156,34 @@ slapi_td_get_val(int indexType, void **value)
  *  Wrapper Functions
  */
 
+/* plugin list locking */
+int
+slapi_td_plugin_lock_init()
+{
+    if(slapi_td_init(SLAPI_TD_PLUGIN_LIST_LOCK) == PR_FAILURE){
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+
+int
+slapi_td_set_plugin_locked(int *value)
+{
+    if(slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void *)value) == PR_FAILURE){
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+
+void
+slapi_td_get_plugin_locked(int **value)
+{
+    slapi_td_get_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void **)value);
+}
+
+/* requestor dn */
 int
 slapi_td_dn_init()
 {
@@ -156,7 +205,8 @@ slapi_td_set_dn(char *value)
 }
 
 void
-slapi_td_get_dn(char **value){
+slapi_td_get_dn(char **value)
+{
     slapi_td_get_val(SLAPI_TD_REQUESTOR_DN, (void **)value);
 }
 

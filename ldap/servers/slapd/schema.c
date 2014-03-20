@@ -5213,7 +5213,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		dse_register_callback(*local_pschemadse,
 								  DSE_OPERATION_READ, DSE_FLAG_PREOP, &schema,
 								  LDAP_SCOPE_BASE, NULL,
-								  load_schema_dse, (void *)&schema_flags);
+								  load_schema_dse, (void *)&schema_flags, NULL);
 	}
 	slapi_ch_free_string(&userschematmpfile);
 	if (NULL == schemadir)
@@ -5283,16 +5283,16 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		/* register callbacks */
 		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_SEARCH,
 							  DSE_FLAG_PREOP,&schema, LDAP_SCOPE_BASE,
-							  NULL, read_schema_dse, NULL);
+							  NULL, read_schema_dse, NULL, NULL);
 		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_MODIFY,
 							  DSE_FLAG_PREOP,&schema, LDAP_SCOPE_BASE,
-							  NULL, modify_schema_dse, NULL);
+							  NULL, modify_schema_dse, NULL, NULL);
 		dse_register_callback(*local_pschemadse, SLAPI_OPERATION_DELETE,
 							  DSE_FLAG_PREOP, &schema, LDAP_SCOPE_BASE,
-							  NULL,dont_allow_that,NULL);
+							  NULL,dont_allow_that,NULL, NULL);
 		dse_register_callback(*local_pschemadse, DSE_OPERATION_WRITE,
 							  DSE_FLAG_PREOP, &schema, LDAP_SCOPE_BASE,
-							  NULL, refresh_user_defined_schema, NULL);
+							  NULL, refresh_user_defined_schema, NULL, NULL);
 
 		if (rc) {
 			if (NULL == be) {	/* be is not given. select it */

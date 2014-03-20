@@ -53,8 +53,8 @@ static int usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e,
 int
 usn_cleanup_start(Slapi_PBlock *pb)
 {
-    int rc = slapi_task_register_handler("USN tombstone cleanup task",
-                                         usn_cleanup_add);
+    int rc = slapi_plugin_task_register_handler("USN tombstone cleanup task",
+                                         usn_cleanup_add, pb);
     return rc;
 }
 
@@ -263,13 +263,6 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     /* get the requestor dn */
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
-    /* make sure plugin is not closed*/
-    if(!usn_is_started()){
-        *returncode = LDAP_OPERATIONS_ERROR;
-        rv = SLAPI_DSE_CALLBACK_ERROR;
-        goto bail;
-    }
-
     cn = slapi_entry_attr_get_charptr(e, "cn");
     if (NULL == cn) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -323,7 +316,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     cleanup_data->bind_dn = slapi_ch_strdup(bind_dn);
 
     /* allocate new task now */
-    task = slapi_new_task(slapi_entry_get_ndn(e));
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     if (task == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
             "USN tombstone cleanup: unable to allocate new task.\n");

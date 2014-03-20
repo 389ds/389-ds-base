@@ -96,7 +96,7 @@ static int shutting_down = 0;
 /***********************************
  * Static Function Prototypes
  ***********************************/
-static Slapi_Task *new_task(const char *dn);
+static Slapi_Task *new_task(const char *dn, void *plugin);
 static void destroy_task(time_t when, void *arg);
 static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
                        Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
@@ -122,7 +122,13 @@ static void modify_internal_entry(char *dn, LDAPMod **mods);
 Slapi_Task *
 slapi_new_task(const char *dn)
 {
-    return new_task(dn);
+    return new_task(dn, NULL);
+}
+
+Slapi_Task *
+slapi_plugin_new_task(const char *dn, void *plugin)
+{
+    return new_task(dn, plugin);
 }
 
 /* slapi_destroy_task: destroy a task
@@ -171,6 +177,7 @@ void slapi_task_finish(Slapi_Task *task, int rc)
     if (task) {
         task->task_exitcode = rc;
         task->task_state = SLAPI_TASK_FINISHED;
+        slapi_plugin_op_finished(task->origin_plugin);
         slapi_task_status_changed(task);
     }
 }
@@ -448,16 +455,16 @@ int slapi_task_get_refcount(Slapi_Task *task)
     return 0; /* return value not currently used */
 }
 
-/* name is, for example, "import" */
-int slapi_task_register_handler(const char *name, dseCallbackFn func)
+int
+slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb)
 {
-    char *dn = NULL;
-    Slapi_PBlock *pb = NULL;
+    Slapi_PBlock *add_pb = NULL;
     Slapi_Operation *op;
     LDAPMod *mods[3];
     LDAPMod mod[3];
     const char *objectclass[3];
     const char *cnvals[2];
+    char *dn = NULL;
     int ret = -1;
     int x;
 
@@ -469,8 +476,8 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
         return ret;
     }
 
-    pb = slapi_pblock_new();
-    if (pb == NULL) {
+    add_pb = slapi_pblock_new();
+    if (add_pb == NULL) {
         goto out;
     }
 
@@ -489,16 +496,16 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
     cnvals[0] = name;
     cnvals[1] = NULL;
     mods[2] = NULL;
-    slapi_add_internal_set_pb(pb, dn, mods, NULL,
+    slapi_add_internal_set_pb(add_pb, dn, mods, NULL,
                               plugin_get_default_component_id(), 0);
     x = 1;
-    slapi_pblock_set(pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
+    slapi_pblock_set(add_pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, &x);
     /* Make sure these adds don't appear in the audit and change logs */
-    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(add_pb, SLAPI_OPERATION, &op);
     operation_set_flag(op, OP_FLAG_ACTION_NOLOG);
 
-    slapi_add_internal_pb(pb);
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &x);
+    slapi_add_internal_pb(add_pb);
+    slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &x);
     if ((x != LDAP_SUCCESS) && (x != LDAP_ALREADY_EXISTS)) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "Can't create task node '%s' (error %d)\n",
@@ -508,8 +515,8 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
     }
 
     /* register add callback */
-    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP,
-                                   dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", func, NULL);
+    slapi_config_register_callback_plugin(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP,
+                                   dn, LDAP_SCOPE_SUBTREE, "(objectclass=*)", func, NULL, plugin_pb);
     /* deny modify/delete of the root task entry */
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
                                    dn, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
@@ -520,10 +527,16 @@ int slapi_task_register_handler(const char *name, dseCallbackFn func)
 
 out:
     slapi_ch_free_string(&dn);
-    if (pb) {
-        slapi_pblock_destroy(pb);
+    if (add_pb) {
+        slapi_pblock_destroy(add_pb);
     }
     return ret;
+}
+
+/* name is, for example, "import" */
+int slapi_task_register_handler(const char *name, dseCallbackFn func)
+{
+    return slapi_plugin_task_register_handler(name, func, NULL);
 }
 
 void slapi_task_set_destructor_fn(Slapi_Task *task, TaskCallbackFn func)
@@ -546,7 +559,7 @@ void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func)
  ***********************************/
 /* create a new task, fill in DN, and setup modify callback */
 static Slapi_Task *
-new_task(const char *rawdn)
+new_task(const char *rawdn, void *plugin)
 {
     Slapi_Task *task = NULL;
     char *dn = NULL;
@@ -572,6 +585,9 @@ new_task(const char *rawdn)
     task->destructor = NULL;
     task->cancel = NULL;
     task->task_private = NULL;
+    task->origin_plugin = plugin;
+    slapi_plugin_op_started(task->origin_plugin);
+
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", task_modify, (void *)task);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn,

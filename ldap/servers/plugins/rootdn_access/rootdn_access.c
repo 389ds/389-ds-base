@@ -79,6 +79,7 @@
  */
 int rootdn_init(Slapi_PBlock *pb);
 static int rootdn_start(Slapi_PBlock *pb);
+static int rootdn_close(Slapi_PBlock *pb);
 static int rootdn_load_config(Slapi_PBlock *pb);
 static int rootdn_check_access(Slapi_PBlock *pb);
 static int rootdn_check_host_wildcard(char *host, char *client_host);
@@ -91,7 +92,6 @@ char * strToLower(char *str);
  */
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
-static int g_plugin_started = 0;
 static int open_time = 0;
 static int close_time = 0;
 static char *daysAllowed = NULL;
@@ -149,6 +149,7 @@ rootdn_init(Slapi_PBlock *pb){
     /* Register callbacks */
     if(slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
        slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *) rootdn_start) != 0 ||
+       slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) rootdn_close) != 0 ||
        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *) &pdesc) != 0 )
     {
         slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_init: failed to register plugin\n");
@@ -200,21 +201,27 @@ rootdn_preop_bind_init(Slapi_PBlock *pb)
 static int
 rootdn_start(Slapi_PBlock *pb)
 {
-    /* Check if we're already started */
-    if (g_plugin_started) {
-        goto done;
-    }
-
     slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_start\n");
 
-    g_plugin_started = 1;
     rootdn_set_plugin_dn(ROOTDN_PLUGIN_DN);
 
     slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_start\n");
 
-done:
     return 0;
 }
+
+static int
+rootdn_close(Slapi_PBlock *pb)
+{
+    slapi_ch_free_string(&daysAllowed);
+    slapi_ch_array_free(hosts);
+    slapi_ch_array_free(hosts_to_deny);
+    slapi_ch_array_free(ips);
+    slapi_ch_array_free(ips);
+
+    return 0;
+}
+
 
 static int
 rootdn_load_config(Slapi_PBlock *pb)
@@ -430,7 +437,7 @@ rootdn_check_access(Slapi_PBlock *pb){
     struct tm *timeinfo;
     char *dnsName = NULL;
     int isRoot = 0;
-    int rc = 0;
+    int rc = SLAPI_PLUGIN_SUCCESS;
     int i;
 
     /*
@@ -438,7 +445,7 @@ rootdn_check_access(Slapi_PBlock *pb){
      */
     slapi_pblock_get ( pb, SLAPI_REQUESTOR_ISROOT, &isRoot );
     if(!isRoot){
-    	return 0;
+        return SLAPI_PLUGIN_SUCCESS;
     }
     /*
      *  grab the current time/info if we need it

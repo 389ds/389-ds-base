@@ -774,6 +774,9 @@ struct matchingRuleList {
 #define ATTR_PLUGIN_LOAD_NOW            "nsslapd-pluginLoadNow"
 #define ATTR_PLUGIN_LOAD_GLOBAL         "nsslapd-pluginLoadGlobal"
 #define ATTR_PLUGIN_PRECEDENCE			"nsslapd-pluginPrecedence"
+#define ATTR_PLUGIN_DEPENDS_ON_TYPE		"nsslapd-plugin-depends-on-type"
+#define ATTR_PLUGIN_DEPENDS_ON_NAMED	"nsslapd-plugin-depends-on-named"
+#define ATTR_PLUGIN_BE_TXN				"nsslapd-pluginbetxn"
 
 /* plugin precedence defines */
 #define PLUGIN_DEFAULT_PRECEDENCE 50
@@ -838,6 +841,7 @@ struct slapdplugin {
 	struct slapdplugin	*plg_next;		/* for plugin lists */
 	int					plg_type;		/* discriminates union */
 	char				*plg_dn;		/* config dn for this plugin */
+	char				*plg_id;		/* plugin id, used when adding/removing plugins */
 	int					plg_precedence;	/* for plugin execution ordering */
 	struct slapdplugin  *plg_group;		/* pointer to the group to which this plugin belongs */
 	struct pluginconfig plg_conf;		/* plugin configuration parameters */
@@ -845,6 +849,10 @@ struct slapdplugin {
 	IFP					plg_start;		/* start function */
 	IFP					plg_poststart;	/* poststart function */
 	int					plg_closed;		/* mark plugin as closed */
+	int					plg_removed;	/* mark plugin as removed/deleted */
+	PRUint64			plg_started;	/* plugin is started/running */
+	PRUint64			plg_stopped;	/* plugin has been fully shutdown */
+	Slapi_Counter		*plg_op_counter;	/* operation counter, used for shutdown */
 
 /* NOTE: These LDIF2DB and DB2LDIF fn pointers are internal only for now.
    I don't believe you can get these functions from a plug-in and
@@ -1558,6 +1566,7 @@ struct slapi_task {
     TaskCallbackFn cancel;      /* task has been cancelled by user */
     TaskCallbackFn destructor;  /* task entry is being destroyed */
     int task_refcount;
+    void *origin_plugin;        /* If this is a plugin create task, store the plugin object */
     PRLock *task_log_lock;      /* To protect task_log to be realloced if 
                                    it's in use */
 } slapi_task;
@@ -2139,6 +2148,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_CONNECTION_NOCANON "nsslapd-connection-nocanon"
 #define CONFIG_PLUGIN_LOGGING "nsslapd-plugin-logging"
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
+#define CONFIG_DYNAMIC_PLUGINS "nsslapd-dynamic-plugins"
 
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
@@ -2402,6 +2412,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t connection_nocanon; /* if "on" sets LDAP_OPT_X_SASL_NOCANON */
   slapi_onoff_t plugin_logging; /* log all internal plugin operations */
   slapi_onoff_t ignore_time_skew;
+  slapi_onoff_t dynamic_plugins; /* allow plugins to be dynamically enabled/disabled */
 #if defined(LINUX)
   int malloc_mxfast;            /* mallopt M_MXFAST */
   int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */

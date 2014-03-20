@@ -85,6 +85,7 @@ static int schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
                     Slapi_Entry *eAfter, int *returncode, char *returntext,
                     void *arg);
 static int schemareload_start(Slapi_PBlock *pb);
+static int schemareload_close(Slapi_PBlock *pb);
 
 /* 
  * Init function
@@ -94,18 +95,14 @@ int
 schemareload_init( Slapi_PBlock *pb )
 {
     int rc = 0;
-    schemareload_lock = PR_NewLock();
-    if (NULL == schemareload_lock) {
-        slapi_log_error(SLAPI_LOG_FATAL, "schemareload", 
-                        "Failed to create global schema reload lock.");
-        return rc;
-    }
+
     rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
                                     (void *) SLAPI_PLUGIN_VERSION_03 );
     rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
         (void *)&pdesc );
     rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
                                     (void *) schemareload_start );
+    rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) schemareload_close );
 
     return rc;
 }
@@ -117,8 +114,26 @@ schemareload_init( Slapi_PBlock *pb )
 static int
 schemareload_start(Slapi_PBlock *pb)
 {
-    int rc = slapi_task_register_handler("schema reload task", schemareload_add);
+    int rc = 0;
+
+    if ((schemareload_lock = PR_NewLock()) == NULL) {
+        slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Failed to create global schema reload lock.");
+        return -1;
+    }
+    rc = slapi_plugin_task_register_handler("schema reload task", schemareload_add, pb);
+    if(rc != LDAP_SUCCESS){
+        PR_DestroyLock(schemareload_lock);
+    }
+
     return rc;
+}
+
+static int
+schemareload_close(Slapi_PBlock *pb)
+{
+    PR_DestroyLock(schemareload_lock);
+
+    return 0;
 }
 
 typedef struct _task_data
@@ -207,6 +222,7 @@ static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
     if (slapi_entry_attr_find(e, attrname, &attr) != 0)
         return default_val;
     slapi_attr_first_value(attr, &val);
+
     return slapi_value_get_string(val);
 }
 
@@ -239,7 +255,6 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Task *task = NULL;
     task_data *mytaskdata = NULL;
-
     char *bind_dn;
 
     *returncode = LDAP_SUCCESS;
@@ -256,7 +271,7 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
     schemadir = fetch_attr(e, "schemadir", NULL);
 
     /* allocate new task now */
-    task = slapi_new_task(slapi_entry_get_ndn(e));
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), pb);
     if (task == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "unable to allocate new task!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
@@ -290,12 +305,12 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
                   "unable to create schema reload task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
-        slapi_task_finish(task, *returncode);
     } else {
         /* thread successful */
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
 out:
+
     return rv;
 }

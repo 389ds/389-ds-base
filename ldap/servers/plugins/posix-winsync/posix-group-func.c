@@ -49,6 +49,13 @@ memberUidLockInit()
 }
 
 void
+memberUidLockDestroy()
+{
+	PR_DestroyMonitor(memberuid_operation_lock);
+	memberuid_operation_lock = NULL;
+}
+
+void
 addDynamicGroupIfNecessary(Slapi_Entry *entry, Slapi_Mods *smods) {
     Slapi_Attr *oc_attr = NULL;
     Slapi_Value *voc = slapi_value_new();

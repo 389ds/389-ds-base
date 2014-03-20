@@ -300,6 +300,7 @@ aclplugin_stop ( Slapi_PBlock *pb )
 
 	ACL_Destroy();
 	acl_destroy_aclpb_pool();
+	acl_remove_ext();
 	ACL_AttrGetterHashDestroy();
 	ACL_MethodHashDestroy();
 	ACL_DestroyPools();

@@ -209,7 +209,7 @@ static int roles_start( Slapi_PBlock *pb )
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 			"=> roles_start\n" );
-	
+
 	roles_cache_init();
 
     /* from Pete Rowley for vcache
@@ -222,7 +222,12 @@ static int roles_start( Slapi_PBlock *pb )
  
     if(!slapi_apib_get_interface(StateChange_v1_0_GUID, &statechange_api))
     {
-        statechange_register(statechange_api, STATECHANGE_ROLES_ID, NULL, STATECHANGE_ROLES_CONFG_FILTER, &vattr_global_invalidate, (notify_callback) statechange_vattr_cache_invalidator_callback(statechange_api));
+        statechange_register(statechange_api,
+                             STATECHANGE_ROLES_ID,
+                             NULL,
+                             STATECHANGE_ROLES_CONFG_FILTER,
+                             &vattr_global_invalidate,
+                             (notify_callback) statechange_vattr_cache_invalidator_callback(statechange_api));
     }
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
@@ -236,12 +241,21 @@ static int roles_start( Slapi_PBlock *pb )
  */
 static int roles_close( Slapi_PBlock *pb )
 {
+	void **statechange_api;
 	int rc = 0;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 			"=> roles_close\n" );
-	
+
 	roles_cache_stop();
+
+	if(!slapi_apib_get_interface(StateChange_v1_0_GUID, &statechange_api))
+	{
+		statechange_unregister(statechange_api,
+		                       NULL,
+		                       STATECHANGE_ROLES_CONFG_FILTER,
+		                       (notify_callback) statechange_vattr_cache_invalidator_callback(statechange_api));
+	}
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 			"<= roles_close %d\n", rc );

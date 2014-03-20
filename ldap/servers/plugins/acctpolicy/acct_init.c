@@ -56,6 +56,7 @@ static Slapi_PluginDesc post_plugin_desc = { PRE_PLUGIN_NAME, PLUGIN_VENDOR,
 
 /* Local function prototypes */
 int acct_policy_start( Slapi_PBlock *pb );
+int acct_policy_close( Slapi_PBlock *pb );
 int acct_policy_init( Slapi_PBlock *pb );
 int acct_preop_init( Slapi_PBlock *pb );
 int acct_postop_init( Slapi_PBlock *pb );
@@ -78,10 +79,13 @@ acct_policy_init( Slapi_PBlock *pb )
 		return( CALLBACK_OK );
 	}
 
+
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 				SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
 				(void *)&plugin_desc ) != 0 || 
+		slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN,
+				(void *)&acct_policy_close ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
 				(void *)acct_policy_start ) != 0 ) {
 			slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
@@ -120,6 +124,10 @@ acct_policy_start( Slapi_PBlock *pb ) {
 	acctPluginCfg *cfg;
 	void *plugin_id = get_identity();
 
+	if(slapi_plugin_running(pb)){
+		return 0;
+	}
+
 	/* Load plugin configuration */
 	if( acct_policy_load_config_startup( pb, plugin_id ) ) {
 		slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
@@ -134,7 +142,18 @@ acct_policy_start( Slapi_PBlock *pb ) {
 		"alwaysRecordLogin=%d\n",
 		cfg->state_attr_name, cfg->alt_state_attr_name?cfg->alt_state_attr_name:"not configured", cfg->spec_attr_name,
 		cfg->limit_attr_name, cfg->always_record_login);
+
 	return( CALLBACK_OK );
+}
+
+int
+acct_policy_close( Slapi_PBlock *pb )
+{
+	int rc = 0;
+
+	free_config();
+
+	return rc;
 }
 
 int

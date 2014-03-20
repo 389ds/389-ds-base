@@ -5530,9 +5530,13 @@ void slapi_td_get_val(int indexType, void **value);
 int slapi_td_dn_init(void);
 int slapi_td_set_dn(char *dn);
 void slapi_td_get_dn(char **dn);
+int slapi_td_plugin_lock_init();
+int slapi_td_set_plugin_locked(int *value);
+void slapi_td_get_plugin_locked(int **value);
 
 /*  Thread Local Storage Index Types  */
 #define SLAPI_TD_REQUESTOR_DN		1
+#define SLAPI_TD_PLUGIN_LIST_LOCK		2
 
 /*
  * routines for dealing with controls
@@ -5960,6 +5964,13 @@ int slapi_register_object_extension( const char *pluginname,
 	const char *objectname, slapi_extension_constructor_fnptr constructor, 
 	slapi_extension_destructor_fnptr destructor, int *objecttype,
 	int *extensionhandle);
+
+int
+slapi_unregister_object_extension(
+    const char* pluginname,
+    const char* objectname,
+    int *objecttype,
+    int *ext_index);
 
 /* objects that can be extended (possible values for the objectname param.) */
 #define SLAPI_EXT_CONNECTION	"Connection"
@@ -6507,12 +6518,14 @@ typedef int (*dseCallbackFn)(Slapi_PBlock *, Slapi_Entry *, Slapi_Entry *,
  */
 #define DSE_FLAG_PREOP          0x0001
 #define DSE_FLAG_POSTOP         0x0002
+#define DSE_FLAG_PLUGIN         0x0004
 
 /* This is the size of the returntext parameter passed to the config callback function,
    which is the "char *" argument to dseCallbackFn above */
 #define SLAPI_DSE_RETURNTEXT_SIZE 512	/* for use by callback functions */
 
 int slapi_config_register_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg);
+int slapi_config_register_callback_plugin(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn, void *fn_arg, Slapi_PBlock *pb);
 int slapi_config_remove_callback(int operation, int flags, const char *base, int scope, const char *filter, dseCallbackFn fn);
 
 /******************************************************************************
@@ -6534,6 +6547,7 @@ int slapi_config_remove_callback(int operation, int flags, const char *base, int
 #define SLAPI_TASK_DESTROYING   0x01    /* queued event for destruction */
 
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
+int slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb);
 void slapi_task_begin(Slapi_Task *task, int total_work);
 void slapi_task_inc_progress(Slapi_Task *task);
 void slapi_task_finish(Slapi_Task *task, int rc);
@@ -6572,6 +6586,17 @@ void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list varg);
  *     Failure: NULL
  */
 Slapi_Task *slapi_new_task(const char *dn);
+
+/**
+ * slapi_plugin_new_task: create a new task from within a plugin, where
+ *                        the task runs inside a thread.  This
+ *
+ * \param dn Task DN.
+ * \param arg The function argument passed to the registered task function.
+ *
+ * \return Slapi_Task object;
+ */
+Slapi_Task *slapi_plugin_new_task(const char *dn, void *arg);
 
 /* slapi_destroy_task: destroy a task
  * argument:
@@ -7824,6 +7849,36 @@ char *slapi_pw_get_scheme_name(PWScheme *pass_scheme);
  * \return Nothing.
  */
 void slapi_free_pw_scheme(PWScheme *pass_scheme);
+
+/**
+ * Check if the plugin is still running/started.
+ *
+ * \param Slapi_PBlock object.
+ *
+ * \return 0 If plugin is not running.
+ * \return 1 If plugin is running.
+ */
+int slapi_plugin_running(Slapi_PBlock *pb);
+
+/**
+ * For slapi registered tasks that create their own threads.  Mark that the task
+ * thread has started.  This arg must be passed to the thread function.
+ *
+ * \param void *arg This is the function argument passed to the task function.
+ *
+ * \return Nothing
+ */
+void slapi_plugin_op_started(void *arg);
+
+/**
+ * For slapi registered tasks that create their own threads.  Mark that the task
+ * thread has finished.  This arg must be passed to the thread function.
+ *
+ * \param void *arg This is the function argument passed to the task function.
+ *
+ * \return Nothing
+ */
+void slapi_plugin_op_finished(void *arg);
 
 #ifdef __cplusplus
 }

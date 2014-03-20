@@ -1441,7 +1441,6 @@ send_specific_attrs(Slapi_Entry *e, char **attrs, Slapi_Operation *op,
 				/* need to pass actual_type_name (e.g., sn;en to evaluate the ACL */
 				rc = encode_attr_2(pb, ber, e, values[iter], attrsonly, 
 				                   actual_type_name[iter], name_to_return);
-				
 				slapi_vattr_values_free(&(values[iter]), &(actual_type_name[iter]), attr_free_flags);
 			}
 

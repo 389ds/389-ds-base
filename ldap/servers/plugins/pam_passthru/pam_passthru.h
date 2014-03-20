@@ -78,7 +78,6 @@
 /*
  * Plug-in globals
  */
-extern int g_plugin_started;
 extern PRCList *pam_passthru_global_config;
 
 /*
@@ -155,11 +154,13 @@ int pam_passthru_validate_config (Slapi_Entry* e, char *returntext);
 int pam_passthru_dn_is_config(Slapi_DN *sdn);
 void pam_passthru_set_config_area(Slapi_DN *sdn);
 Slapi_DN* pam_passthru_get_config_area();
+void pam_passthru_free_config_area();
 
 /*
  * pam_ptimpl.c
  */
 int pam_passthru_pam_init( void );
+int pam_passthru_pam_free( void );
 int pam_passthru_do_pam_auth(Slapi_PBlock *pb, Pam_PassthruConfig *cfg);
 
 #endif	/* _PAM_PASSTHRU_H_ */

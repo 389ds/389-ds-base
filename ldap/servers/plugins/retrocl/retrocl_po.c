@@ -572,7 +572,7 @@ modrdn2reple(
  *
  */
 
-int retrocl_postob (Slapi_PBlock *pb,int optype)
+int retrocl_postob (Slapi_PBlock *pb, int optype)
 {
     char		*dn;
     LDAPMod		**log_m = NULL;
@@ -630,10 +630,10 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
         return SLAPI_PLUGIN_SUCCESS;
     }
 
-	if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)){
+    if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)){
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change for nsTombstone entries\n");
         return SLAPI_PLUGIN_SUCCESS;
-	}
+    }
 	
     switch ( optype ) {
     case OP_MODIFY:
@@ -650,9 +650,9 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     	}
     	break;
     case OP_DELETE:
-	if (retrocl_log_deleted)
-		(void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &te);
-    	break;
+    if (retrocl_log_deleted)
+        (void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &te);
+        break;
     case OP_MODRDN:
     	/* newrdn is used just for logging; no need to be normalized */
     	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
@@ -661,7 +661,6 @@ int retrocl_postob (Slapi_PBlock *pb,int optype)
     	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior ); 
     	break;
     }
-
 
     /* check if we should log change to retro changelog, and
      * if so, do it here */

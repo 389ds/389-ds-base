@@ -71,7 +71,7 @@
  *
  * When an extensible object is destroyed the extension block must also
  * be destroyed. The factory_destroy_extension call is provided to
- * tidy up and free any extenions created for this object.
+ * tidy up and free any extensions created for this object.
  *
  * --- An interface is made available to the plugins.
  *
@@ -117,6 +117,7 @@ struct factory_extension
     const char *pluginname;
 	slapi_extension_constructor_fnptr constructor;
 	slapi_extension_destructor_fnptr destructor;
+	int removed;
 };
 
 static struct factory_extension*
@@ -125,13 +126,12 @@ new_factory_extension(
     slapi_extension_constructor_fnptr constructor, 
     slapi_extension_destructor_fnptr destructor)
 {
-    struct factory_extension* fe= (struct factory_extension*)slapi_ch_malloc(sizeof(struct factory_extension));
-	if(pluginname!=NULL)
-	{
-    	fe->pluginname= slapi_ch_strdup(pluginname);
-	}
+	struct factory_extension* fe = (struct factory_extension*)slapi_ch_calloc(1, sizeof(struct factory_extension));
+
+	fe->pluginname= slapi_ch_strdup(pluginname);
 	fe->constructor= constructor;
 	fe->destructor= destructor;
+
 	return fe;
 }
 
@@ -159,7 +159,7 @@ struct factory_type
 static struct factory_type*
 new_factory_type(const char *name, size_t offset)
 {
-    struct factory_type* ft= (struct factory_type*)slapi_ch_malloc(sizeof(struct factory_type));
+    struct factory_type* ft= (struct factory_type*)slapi_ch_calloc(1, sizeof(struct factory_type));
 	ft->name= slapi_ch_strdup(name);
     ft->extension_lock = PR_NewLock();
 	ft->extension_count= 0;
@@ -168,41 +168,45 @@ new_factory_type(const char *name, size_t offset)
 	return ft;
 }
 
-static void
-delete_factory_type(struct factory_type **ft)
-{
-    slapi_ch_free( (void **) &((*ft)->name));
-	PR_DestroyLock((*ft)->extension_lock);
-	slapi_ch_free( (void **) ft);
-}
-
 static int
-factory_type_add_extension(struct factory_type *ft,struct factory_extension *fe)
+factory_type_add_extension(struct factory_type *ft, struct factory_extension *fe)
 {
-    int extensionhandle= -1;
-	PR_Lock(ft->extension_lock);
-    if(ft->existence_count>0)
-	{
-	    /* Can't register an extension if there are objects already with extension blocks */
-		LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: Registration of %s extension by %s failed.\n", ft->name, fe->pluginname, 0);
-		LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: %lu %s objects already in existence.\n", ft->existence_count, ft->name, 0);
-	}
-	else
-	{
-        if(ft->extension_count<MAX_EXTENSIONS)
-    	{
-    	    extensionhandle= ft->extension_count;
-    		ft->extensions[ft->extension_count]= fe;
-			ft->extension_count++;
-    	}
-    	else
-    	{
-    		LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: Registration of %s extension by %s failed.\n", ft->name, fe->pluginname, 0);
-    		LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: %d extensions already registered. Max is %d\n", ft->extension_count, MAX_EXTENSIONS, 0);
-    	}
-	}
-	PR_Unlock(ft->extension_lock);
-	return extensionhandle;
+    int extensionhandle = -1;
+    int added = 0;
+    int i;
+
+    PR_Lock(ft->extension_lock);
+
+    if(ft->extension_count<MAX_EXTENSIONS)
+    {
+        for(i = 0; i < ft->extension_count; i++){
+            if(strcasecmp(ft->extensions[i]->pluginname,fe->pluginname) == 0){
+                if(ft->extensions[i]->removed){
+                    /* this extension was previously added, and then removed.  Reuse the slot */
+                    delete_factory_extension(&ft->extensions[i]);
+                    extensionhandle = i;
+                    ft->extensions[i] = fe;
+                    added = 1;
+                    break;
+                }
+            }
+        }
+        if(!added){
+            extensionhandle= ft->extension_count;
+            ft->extensions[ft->extension_count]= fe;
+            ft->extension_count++;
+        }
+    }
+    else
+    {
+        LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: Registration of %s extension by %s failed.\n",
+                   ft->name, fe->pluginname, 0);
+        LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: %d extensions already registered. Max is %d\n",
+                   ft->extension_count, MAX_EXTENSIONS, 0);
+    }
+
+    PR_Unlock(ft->extension_lock);
+    return extensionhandle;
 }
 
 static void
@@ -248,34 +252,6 @@ factory_type_store_add(struct factory_type* ft)
     factory_type_store[type]= ft;
 	number_of_types++;
 	return type;
-}
-
-static void
-factory_type_store_remove(struct factory_type *ft)
-{
-	int i;
-	int found_it = 0;
-
-	for (i = 0; i < number_of_types; i++)
-	{
-		if (!found_it)
-		{
-			if (factory_type_store[i] == ft)
-			{
-				found_it = 1;
-			}
-		}
-		else
-		{
-			factory_type_store[i-1] = factory_type_store[i];
-		}
-	}
-
-	if (found_it)
-	{
-		factory_type_store[i-1] = NULL;
-		number_of_types--;
-	}
 }
 
 static struct factory_type*
@@ -354,9 +330,12 @@ factory_create_extension(int type,void *object,void *parent)
     	    int i;
             factory_type_increment_existence(ft);
             PR_Unlock(ft->extension_lock);
-    	    extension= (void**)slapi_ch_malloc(n*sizeof(void*));
+            extension= (void**)slapi_ch_calloc(n + 1,sizeof(void*));
     		for(i=0;i<n;i++)
     		{
+    		    if(ft->extensions[i] == NULL || ft->extensions[i]->removed){
+    		        continue;
+    		    }
                 slapi_extension_constructor_fnptr constructor= ft->extensions[i]->constructor;
     			if(constructor!=NULL)
     			{
@@ -385,37 +364,69 @@ factory_create_extension(int type,void *object,void *parent)
 void
 factory_destroy_extension(int type,void *object,void *parent,void **extension)
 {
-    if(extension!=NULL && *extension!=NULL)
+	if(extension!=NULL && *extension!=NULL)
 	{
-        struct factory_type* ft= factory_type_store_get_factory_type(type);
-    	if(ft!=NULL)
-    	{
-    	    int i,n;
+		struct factory_type* ft= factory_type_store_get_factory_type(type);
+		if(ft!=NULL)
+		{
+			int i,n;
 
-    	    PR_Lock(ft->extension_lock);
-    	    n=ft->extension_count;
-            factory_type_decrement_existence(ft);
-    	    PR_Unlock(ft->extension_lock);
-    		for(i=0;i<n;i++)
-    		{
-                slapi_extension_destructor_fnptr destructor= ft->extensions[i]->destructor;
-    			if(destructor!=NULL)
-    			{
-				    void **extention_array= (void**)(*extension);
-    			    (*destructor)(extention_array[i],object,parent);
-    			}
-    		}
-    	}
-    	else
-    	{
-    	    /* The type wasn't registered. Programming error? */
-       		LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: Object type handle %d not valid. Object not registered?\n", type, 0, 0);
-    	}
-        slapi_ch_free(extension);
+			PR_Lock(ft->extension_lock);
+			n=ft->extension_count;
+			factory_type_decrement_existence(ft);
+			for(i=0;i<n;i++)
+			{
+				slapi_extension_destructor_fnptr destructor;
+
+				if(ft->extensions[i] == NULL){
+					continue;
+				}
+				destructor = ft->extensions[i]->destructor;
+				if(destructor!=NULL)
+				{
+					void **extention_array= (void**)(*extension);
+					(*destructor)(extention_array[i],object,parent);
+				}
+			}
+			PR_Unlock(ft->extension_lock);
+		}
+		else
+		{
+			/* The type wasn't registered. Programming error? */
+			LDAPDebug( LDAP_DEBUG_ANY, "ERROR: factory.c: Object type handle %d not valid. Object not registered?\n", type, 0, 0);
+		}
+		slapi_ch_free(extension);
 	}
 }
 
 /* ---------------------- Slapi Functions ---------------------- */
+
+/*
+ * The caller should reset
+ */
+int
+slapi_unregister_object_extension(
+    const char* pluginname,
+    const char* objectname,
+    int *objecttype,
+    int *extensionhandle)
+{
+    struct factory_type* ft;
+    int rc = 0;
+
+    *objecttype = factory_type_store_name_to_type(objectname);
+    ft = factory_type_store_get_factory_type(*objecttype);
+    if(ft){
+        PR_Lock(ft->extension_lock);
+        ft->extensions[*extensionhandle]->removed = 1;
+        PR_Unlock(ft->extension_lock);
+    } else {
+        /* extension not found */
+        rc = -1;
+    }
+
+    return rc;
+}
 
 /*
  * Function for plugin usage.
@@ -436,15 +447,14 @@ slapi_register_object_extension(
     fe= new_factory_extension(pluginname,constructor, destructor);
     *objecttype= factory_type_store_name_to_type(objectname);
     ft= factory_type_store_get_factory_type(*objecttype);
+
 	if(ft!=NULL)
 	{
         *extensionhandle= factory_type_add_extension(ft,fe);
-		if(*extensionhandle==-1)
-		{
-            delete_factory_extension(&fe);
-			factory_type_store_remove(ft);
-            delete_factory_type(&ft);
-		}
+        if(*extensionhandle==-1)
+        {
+           delete_factory_extension(&fe);
+        }
 	}
 	else
 	{

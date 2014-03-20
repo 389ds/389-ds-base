@@ -117,6 +117,7 @@ sync_preop_init( Slapi_PBlock *pb )
         rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ENTRY_FN, (void *) sync_srch_refresh_pre_entry);
         rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_RESULT_FN, (void *) sync_srch_refresh_pre_result);
         rc |= sync_register_operation_extension();
+
 	return(rc);
 	
 }
@@ -169,6 +170,8 @@ sync_start(Slapi_PBlock * pb)
 static int
 sync_close(Slapi_PBlock * pb)
 {
-	sync_persist_terminate_all();
+    sync_persist_terminate_all();
+    sync_unregister_operation_entension();
+
     return (0);
 }

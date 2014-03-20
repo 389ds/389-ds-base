@@ -162,6 +162,7 @@ slapd_bootstrap_config(const char *configdir)
 	int done = 0;
 	PRInt32 nr = 0;
 	PRFileDesc *prfd = 0;
+	char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
 	char *buf = 0;
 	char *lastp = 0;
 	char *entrystr = 0;
@@ -402,9 +403,10 @@ slapd_bootstrap_config(const char *configdir)
 												  "matchingrule", 0)))
 					{
 						/* add the syntax/matching scheme rule plugin */
-						if (plugin_setup(e, 0, 0, 1))
+						if (plugin_setup(e, 0, 0, 1, returntext))
 						{
-							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid\n", slapi_entry_get_dn(e), configfile, 0);
+							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid. %s\n",
+							          slapi_entry_get_dn(e), configfile, returntext);
 							rc = 0;
 							slapi_sdn_done(&plug_dn);
 							goto bail;
@@ -424,9 +426,10 @@ slapd_bootstrap_config(const char *configdir)
 												"reverpwdstoragescheme", 0)	) )
 					{
 						/* add the pwd storage scheme rule plugin */
-						if (plugin_setup(e, 0, 0, 1))
+						if (plugin_setup(e, 0, 0, 1, returntext))
 						{
-							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid\n", slapi_entry_get_dn(e), configfile, 0);
+							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid. %s\n",
+							          slapi_entry_get_dn(e), configfile, returntext);
 							rc = 0;
 							slapi_sdn_done(&plug_dn);
 							goto bail;

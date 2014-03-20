@@ -814,6 +814,11 @@ main( int argc, char **argv)
 		init_controls();
 
 		/*
+		 * Initialize the global plugin list lock
+		 */
+		global_plugin_init();
+
+		/*
 		 * Process the config files.
 		 */
 		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
@@ -1173,8 +1178,9 @@ main( int argc, char **argv)
 		 */
 		task_cleanup();
 
-		/* init the thread data index for bind dn's */
+		/* init the thread data indexes */
 		slapi_td_dn_init();
+		slapi_td_plugin_lock_init();
 
 		/* 
 		 * Initialize password storage in entry extension.

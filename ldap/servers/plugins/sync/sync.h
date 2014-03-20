@@ -85,6 +85,7 @@ typedef struct sync_callback {
 } Sync_CallBackData;
 
 int sync_register_operation_extension(void);
+int sync_unregister_operation_entension(void);
 
 int sync_srch_refresh_pre_search(Slapi_PBlock *pb);
 int sync_srch_refresh_post_search(Slapi_PBlock *pb);

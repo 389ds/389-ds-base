@@ -194,8 +194,6 @@ static Slapi_RWLock *g_dna_cache_lock;
 static void *_PluginID = NULL;
 static const char *_PluginDN = NULL;
 
-static int g_plugin_started = 0;
-
 static char *hostname = NULL;
 static char *portnum = NULL;
 static char *secureportnum = NULL;
@@ -547,11 +545,6 @@ dna_start(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_start\n");
 
-    /* Check if we're already started */
-    if (g_plugin_started) {
-        goto done;
-    }
-
     g_dna_cache_lock = slapi_new_rwlock();
 
     if (!g_dna_cache_lock) {
@@ -601,13 +594,11 @@ dna_start(Slapi_PBlock * pb)
         return DNA_FAILURE;
     }
 
-    g_plugin_started = 1;
     slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                     "dna: ready for service\n");
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_start\n");
 
-done:
     return DNA_SUCCESS;
 }
 
@@ -622,30 +613,15 @@ dna_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_close\n");
 
-    if (!g_plugin_started) {
-        goto done;
-    }
-
-    dna_write_lock();
-    g_plugin_started = 0;
     dna_delete_config();
-    dna_unlock();
-
     slapi_ch_free((void **)&dna_global_config);
+    slapi_destroy_rwlock(g_dna_cache_lock);
+    g_dna_cache_lock = NULL;
 
     slapi_ch_free_string(&hostname);
     slapi_ch_free_string(&portnum);
     slapi_ch_free_string(&secureportnum);
 
-    /* We explicitly don't destroy the config lock here.  If we did,
-     * there is the slight possibility that another thread that just
-     * passed the g_plugin_started check is about to try to obtain
-     * a reader lock.  We leave the lock around so these threads
-     * don't crash the process.  If we always check the started
-     * flag again after obtaining a reader lock, no free'd resources
-     * will be used. */
-
-done:
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_close\n");
 
@@ -1334,11 +1310,6 @@ dna_update_config_event(time_t event_time, void *arg)
 
     /* Get read lock to prevent config changes */
     dna_read_lock();
-
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started) {
-        goto bail;
-    }
 
     /* Loop through all config entries and update the shared
      * config entries. */
@@ -3030,11 +3001,6 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
     PRUint64 setval = 0;
     int i;
 
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started) {
-        goto bail;
-    }
-
     if (0 == (dn = dna_get_dn(pb))) {
         goto bail;
     }
@@ -3233,11 +3199,6 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
     PRUint64 setval = 0;
     int len = 0;
     int i;
-
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started) {
-        goto bail;
-    }
 
     if (0 == (dn = dna_get_dn(pb))) {
         goto bail;
@@ -3501,11 +3462,6 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_pre_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started) {
-        goto bail;
-    }
-
     if (0 == (dn = dna_get_dn(pb))) {
         goto bail;
     }
@@ -3669,7 +3625,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_be_txn_pre_op\n");
 
-    if (!g_plugin_started) {
+    if (!slapi_plugin_running(pb)) {
         goto bail;
     }
 
@@ -3924,8 +3880,13 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
 {
     char *dn;
 
+    if(!slapi_plugin_running(pb)){
+        return DNA_SUCCESS;
+    }
+
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_config_check_post_op\n");
+
 
     if (!slapi_op_internal(pb)) { /* If internal, no need to check. */
         if ((dn = dna_get_dn(pb))) {
@@ -3955,6 +3916,10 @@ static int dna_extend_exop(Slapi_PBlock *pb)
     char *oid = NULL;
     PRUint64 lower = 0;
     PRUint64 upper = 0;
+
+    if(!slapi_plugin_running(pb)){
+        return ret;
+    }
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_extend_exop\n");
@@ -4095,11 +4060,6 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
         range_sdn = slapi_sdn_new_dn_byref(range_dn);
 
         dna_read_lock();
-
-        /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
-            goto bail;
-        }
 
         /* Go through the config entries to see if we
          * have a shared range configured that matches
@@ -4281,11 +4241,6 @@ void dna_dump_config()
 
     dna_read_lock();
 
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started) {
-        goto bail;
-    }
-
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
         while (list != dna_global_config) {
@@ -4294,7 +4249,6 @@ void dna_dump_config()
         }
     }
 
-bail:
     dna_unlock();
 }
 

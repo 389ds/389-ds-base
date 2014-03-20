@@ -740,3 +740,14 @@ sync_register_operation_extension(void)
                                            &sync_extension_type,
                                            &sync_extension_handle);
 }
+
+int
+sync_unregister_operation_entension(void)
+{
+    int rc = slapi_unregister_object_extension(SYNC_PLUGIN_SUBSYSTEM,
+                                               SLAPI_EXT_OPERATION,
+                                               &sync_extension_type,
+                                               &sync_extension_handle);
+
+    return rc;
+}

@@ -49,12 +49,11 @@
  * Plug-in globals
  */
 static PRCList *g_automember_config = NULL;
-static Slapi_RWLock *g_automember_config_lock;
+static Slapi_RWLock *g_automember_config_lock = NULL;
 
 static void *_PluginID = NULL;
 static Slapi_DN *_PluginDN = NULL;
 static Slapi_DN *_ConfigAreaDN = NULL;
-static int g_plugin_started = 0;
 
 static Slapi_PluginDesc pdesc = { AUTOMEMBER_FEATURE_DESC,
                                   VENDOR,
@@ -339,21 +338,13 @@ automember_start(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_start\n");
 
-    /* Check if we're already started */
-    if (g_plugin_started) {
-        goto done;
-    }
+    slapi_plugin_task_register_handler("automember rebuild membership", automember_task_add, pb);
+    slapi_plugin_task_register_handler("automember export updates", automember_task_add_export_updates, pb);
+    slapi_plugin_task_register_handler("automember map updates", automember_task_add_map_entries, pb);
 
-    slapi_task_register_handler("automember rebuild membership", automember_task_add);
-    slapi_task_register_handler("automember export updates", automember_task_add_export_updates);
-    slapi_task_register_handler("automember map updates", automember_task_add_map_entries);
-
-    g_automember_config_lock = slapi_new_rwlock();
-
-    if (!g_automember_config_lock) {
+    if ((g_automember_config_lock = slapi_new_rwlock()) == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "automember_start: lock creation failed\n");
-
         return -1;
     }
 
@@ -387,13 +378,11 @@ automember_start(Slapi_PBlock * pb)
         return -1;
     }
 
-    g_plugin_started = 1;
     slapi_log_error(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "auto membership plug-in: ready for service\n");
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_start\n");
 
-done:
     return 0;
 }
 
@@ -408,28 +397,13 @@ automember_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_close\n");
 
-    if (!g_plugin_started) {
-        goto done;
-    }
-
-    automember_config_write_lock();
-    g_plugin_started = 0;
     automember_delete_config();
-    automember_config_unlock();
-
     slapi_ch_free((void **)&g_automember_config);
     slapi_sdn_free(&_PluginDN);
     slapi_sdn_free(&_ConfigAreaDN);
+    slapi_destroy_rwlock(g_automember_config_lock);
+    g_automember_config_lock = NULL;
 
-    /* We explicitly don't destroy the config lock here.  If we did,
-     * there is the slight possibility that another thread that just
-     * passed the g_plugin_started check is about to try to obtain
-     * a reader lock.  We leave the lock around so these threads
-     * don't crash the process.  If we always check the started
-     * flag again after obtaining a reader lock, no free'd resources
-     * will be used. */
-
-done:
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_close\n");
 
@@ -1706,10 +1680,6 @@ automember_pre_op(Slapi_PBlock * pb, int modop)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_pre_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started)
-        goto bail;
-
     if (0 == (sdn = automember_get_sdn(pb)))
         goto bail;
 
@@ -1822,11 +1792,6 @@ automember_mod_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_mod_post_op\n");
 
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started) {
-        goto bail;
-    }
-
     if (automember_oktodo(pb) && (sdn = automember_get_sdn(pb))) {
         /* Check if the config is being modified and reload if so. */
         if (automember_dn_is_config(sdn)) {
@@ -1834,7 +1799,6 @@ automember_mod_post_op(Slapi_PBlock *pb)
         }
     }
 
-  bail:
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "<-- automember_mod_post_op\n");
 
@@ -1852,10 +1816,6 @@ automember_add_post_op(Slapi_PBlock *pb)
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_add_post_op\n");
-
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !automember_oktodo(pb))
-        return SLAPI_PLUGIN_SUCCESS;
 
     /* Reload config if a config entry was added. */
     if ((sdn = automember_get_sdn(pb))) {
@@ -1891,12 +1851,6 @@ automember_add_post_op(Slapi_PBlock *pb)
         /* Check if a config entry applies
          * to the entry being added. */
         automember_config_read_lock();
-
-        /* Bail out if the plug-in close function was just called. */
-        if (!g_plugin_started) {
-            automember_config_unlock();
-            return SLAPI_PLUGIN_SUCCESS;
-        }
 
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
             list = PR_LIST_HEAD(g_automember_config);
@@ -1952,11 +1906,6 @@ automember_del_post_op(Slapi_PBlock *pb)
 
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_del_post_op\n");
-
-    /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !automember_oktodo(pb)) {
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     /* Reload config if a config entry was deleted. */
     if ((sdn = automember_get_sdn(pb))) {
@@ -2082,14 +2031,6 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     *returncode = LDAP_SUCCESS;
 
     /*
-     *  Make sure the plugin is started
-     */
-    if(!g_plugin_started){
-        *returncode = LDAP_OPERATIONS_ERROR;
-        rv = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
-    /*
      *  Grab the task params
      */
     if((base_dn = fetch_attr(e, "basedn", 0)) == NULL){
@@ -2106,7 +2047,7 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     /*
      *  setup our task data
      */
-    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    mytaskdata = (task_data*)slapi_ch_calloc(1, sizeof(task_data));
     if (mytaskdata == NULL){
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
@@ -2117,6 +2058,7 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
     mytaskdata->base_dn = slapi_sdn_new_dn_byval(base_dn);
     mytaskdata->filter_str = slapi_ch_strdup(filter);
+
     if(scope){
         if(strcasecmp(scope,"sub")== 0){
             mytaskdata->scope = 2;
@@ -2132,7 +2074,7 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         /* subtree by default */
         mytaskdata->scope = 2;
     }
-    task = slapi_new_task(slapi_entry_get_ndn(e));
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     slapi_task_set_destructor_fn(task, automember_task_destructor);
     slapi_task_set_data(task, mytaskdata);
     /*
@@ -2145,13 +2087,14 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         slapi_log_error( SLAPI_LOG_FATAL, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                         "unable to create task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
-        rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);
+        rv = SLAPI_DSE_CALLBACK_ERROR;
     } else {
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 
 out:
+
     return rv;
 }
 
@@ -2231,12 +2174,6 @@ void automember_rebuild_task_thread(void *arg){
      */
     automember_config_read_lock();
     for (i = 0; entries && (entries[i] != NULL); i++){
-        /* make sure the plugin is still up, as this loop could run for awhile */
-        if (!g_plugin_started) {
-            automember_config_unlock();
-            result = -1;
-            goto out;
-        }
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
             list = PR_LIST_HEAD(g_automember_config);
             while (list != g_automember_config) {
@@ -2311,15 +2248,6 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
 
     *returncode = LDAP_SUCCESS;
 
-    /*
-     *  Make sure the plugin is started
-     */
-    if(!g_plugin_started){
-        *returncode = LDAP_OPERATIONS_ERROR;
-        rv = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
-
     if((ldif = fetch_attr(e, "ldif", 0)) == NULL){
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
@@ -2339,7 +2267,7 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
 
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
-    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    mytaskdata = (task_data*)slapi_ch_calloc(1, sizeof(task_data));
     if (mytaskdata == NULL){
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
@@ -2349,6 +2277,7 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
     mytaskdata->ldif_out = slapi_ch_strdup(ldif);
     mytaskdata->base_dn = slapi_sdn_new_dn_byval(base_dn);
     mytaskdata->filter_str = slapi_ch_strdup(filter);
+
     if(scope){
         if(strcasecmp(scope,"sub")== 0){
             mytaskdata->scope = 2;
@@ -2365,7 +2294,7 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
         mytaskdata->scope = 2;
     }
 
-    task = slapi_new_task(slapi_entry_get_ndn(e));
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     slapi_task_set_destructor_fn(task, automember_task_export_destructor);
     slapi_task_set_data(task, mytaskdata);
     /*
@@ -2385,6 +2314,7 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
     }
 
 out:
+
     return rv;
 }
 
@@ -2447,12 +2377,6 @@ void automember_export_task_thread(void *arg){
      */
     automember_config_read_lock();
     for (i = 0; entries && (entries[i] != NULL); i++){
-        /* make sure the plugin is still up, as this loop could run for awhile */
-        if (!g_plugin_started) {
-            automember_config_unlock();
-            result = SLAPI_DSE_CALLBACK_ERROR;
-            goto out;
-        }
         if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
             list = PR_LIST_HEAD(g_automember_config);
             while (list != g_automember_config) {
@@ -2517,14 +2441,7 @@ automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e
     const char *ldif_in;
 
     *returncode = LDAP_SUCCESS;
-    /*
-     *  Make sure the plugin is started
-     */
-    if(!g_plugin_started){
-        *returncode = LDAP_OPERATIONS_ERROR;
-        rv = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
+
     /*
      *  Get the params
      */
@@ -2541,7 +2458,7 @@ automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e
     /*
      *  Setup the task data
      */
-    mytaskdata = (task_data*)slapi_ch_malloc(sizeof(task_data));
+    mytaskdata = (task_data*)slapi_ch_calloc(1, sizeof(task_data));
     if (mytaskdata == NULL){
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
@@ -2552,7 +2469,7 @@ automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e
     mytaskdata->ldif_out = slapi_ch_strdup(ldif_out);
     mytaskdata->ldif_in = slapi_ch_strdup(ldif_in);
 
-    task = slapi_new_task(slapi_entry_get_ndn(e));
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     slapi_task_set_destructor_fn(task, automember_task_map_destructor);
     slapi_task_set_data(task, mytaskdata);
     /*
@@ -2652,11 +2569,6 @@ void automember_map_task_thread(void *arg){
 #endif
         e = slapi_str2entry( entrystr, 0 );
         if ( e != NULL ){
-            if (!g_plugin_started) {
-        	    automember_config_unlock();
-        	    result = -1;
-        	    goto out;
-            }
             if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
                 list = PR_LIST_HEAD(g_automember_config);
                 while (list != g_automember_config) {
@@ -2720,8 +2632,9 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
                     "--> automember_modrdn_post_op\n");
 
     /* Just bail if we aren't ready to service requests yet. */
-    if (!g_plugin_started || !automember_oktodo(pb))
+    if (!automember_oktodo(pb)){
         return SLAPI_PLUGIN_SUCCESS;
+    }
 
     /*
      * Reload config if an existing config entry was renamed,
@@ -2758,12 +2671,6 @@ automember_modrdn_post_op(Slapi_PBlock *pb)
      * Check if a config entry applies to the entry(post modrdn)
      */
     automember_config_read_lock();
-
-    /* Bail out if the plug-in close function was just called. */
-    if (!g_plugin_started) {
-        automember_config_unlock();
-        return SLAPI_PLUGIN_SUCCESS;
-    }
 
     if (!PR_CLIST_IS_EMPTY(g_automember_config)) {
         list = PR_LIST_HEAD(g_automember_config);

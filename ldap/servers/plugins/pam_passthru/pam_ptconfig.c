@@ -859,3 +859,12 @@ pam_passthru_get_config_area()
     return _ConfigArea;
 }
 
+/*
+ * Free the active config area.
+ */
+void
+pam_passthru_free_config_area()
+{
+    slapi_sdn_free(&_ConfigArea);
+}
+

@@ -353,7 +353,7 @@ load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *r
 		/*
 		 * Process plugins that were not loaded during bootstrap.
 		 */
-		retval = plugin_setup(e, 0, 0, 1);
+		retval = plugin_setup(e, 0, 0, 1, returntext);
 		
 		/* 
 		 * well this damn well sucks, but this function is used as a callback

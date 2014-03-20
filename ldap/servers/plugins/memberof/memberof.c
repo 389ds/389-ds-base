@@ -80,7 +80,6 @@ static Slapi_RWLock *config_rwlock = NULL;
 static Slapi_DN* _pluginDN = NULL;
 static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
-static int g_plugin_started = 0;
 static int usetxn = 0;
 static int premodfn = 0;
 
@@ -356,11 +355,6 @@ int memberof_postop_start(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"--> memberof_postop_start\n" );
 
-	/* Check if we're already started */
-	if (g_plugin_started) {
-		goto bail;
-	}
-
 	memberof_operation_lock = PR_NewMonitor();
 	if(0 == memberof_operation_lock)
 	{
@@ -416,20 +410,18 @@ int memberof_postop_start(Slapi_PBlock *pb)
 
 	memberof_set_plugin_area(slapi_entry_get_sdn(config_e));
 	memberof_set_config_area(slapi_entry_get_sdn(config_e));
-	if (( rc = memberof_config( config_e )) != LDAP_SUCCESS ) {
+	if (( rc = memberof_config( config_e, pb )) != LDAP_SUCCESS ) {
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 				"configuration failed (%s)\n", ldap_err2string( rc ));
 		rc = -1;
 		goto bail;
 	}
 
-	rc = slapi_task_register_handler("memberof task", memberof_task_add);
+	rc = slapi_plugin_task_register_handler("memberof task", memberof_task_add, pb);
 	if(rc)
 	{
 		goto bail;
 	}
-
-	g_plugin_started = 1;
 
 	/*
 	 * TODO: start up operation actor thread
@@ -462,7 +454,13 @@ int memberof_postop_close(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_close\n" );
 
-	g_plugin_started = 0;
+	memberof_release_config();
+	slapi_sdn_free(&_ConfigAreaDN);
+	slapi_sdn_free(&_pluginDN);
+	slapi_destroy_rwlock(config_rwlock);
+	config_rwlock = NULL;
+	PR_DestroyMonitor(memberof_operation_lock);
+	memberof_operation_lock = NULL;
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_close\n" );
@@ -790,8 +788,9 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void *caller_id = NULL;
-	Slapi_DN *entry_scope = memberof_config_get_entry_scope();
+	Slapi_DN *entry_scope = NULL;
 
+	entry_scope = memberof_config_get_entry_scope();
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_modrdn\n" );
 
@@ -866,7 +865,6 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		memberof_unlock();
 		memberof_free_config(&configCopy);
 	}
-
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_modrdn\n" );
@@ -1200,6 +1198,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_add\n" );
+
 	return ret;
 }
 
@@ -1223,7 +1222,7 @@ int memberof_oktodo(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_oktodo\n" );
 
-	if (!g_plugin_started) {
+	if (!slapi_plugin_running(pb)) {
 		ret = 0;
 		goto bail;
 	}
@@ -2589,14 +2588,6 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
 	*returncode = LDAP_SUCCESS;
 
-	/* make sure the plugin was not stopped from a shutdown */
-	if (!g_plugin_started)
-	{
-		*returncode = LDAP_OPERATIONS_ERROR;
-		rv = SLAPI_DSE_CALLBACK_ERROR;
-		goto out;
-	}
-
 	/* get arg(s) */
 	if ((dn = fetch_attr(e, "basedn", 0)) == NULL)
 	{
@@ -2626,7 +2617,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
 
 	/* allocate new task now */
-	task = slapi_new_task(slapi_entry_get_ndn(e));
+	task = slapi_plugin_new_task(slapi_entry_get_ndn(e), pb);
 
 	/* register our destructor for cleaning up our private data */
 	slapi_task_set_destructor_fn(task, memberof_task_destructor);
@@ -2643,8 +2634,8 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"unable to create task thread!\n");
 		*returncode = LDAP_OPERATIONS_ERROR;
-		rv = SLAPI_DSE_CALLBACK_ERROR;
 		slapi_task_finish(task, *returncode);
+		rv = SLAPI_DSE_CALLBACK_ERROR;
 	} else {
 		rv = SLAPI_DSE_CALLBACK_OK;
 	}
@@ -2755,4 +2746,3 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	
 	return rc;
 }
-

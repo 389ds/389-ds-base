@@ -79,4 +79,5 @@ int update_is_allowed_attr (const char *attr);
 /* acct_config.c */
 int acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id );
 acctPluginCfg* get_config();
+void free_config();
 

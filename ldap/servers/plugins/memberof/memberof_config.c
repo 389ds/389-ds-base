@@ -99,7 +99,7 @@ static int dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
  * Returns an LDAP error code (LDAP_SUCCESS if all goes well).
  */
 int
-memberof_config(Slapi_Entry *config_e)
+memberof_config(Slapi_Entry *config_e, Slapi_PBlock *pb)
 {
 	int returncode = LDAP_SUCCESS;
 	char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
@@ -126,21 +126,21 @@ memberof_config(Slapi_Entry *config_e)
 	 */
 	if (returncode == LDAP_SUCCESS) {
 		const char *config_dn = slapi_sdn_get_dn(memberof_get_plugin_area());
-		slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
+		slapi_config_register_callback_plugin(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN,
 			config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
-			memberof_validate_config,NULL);
-		slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP,
+			memberof_validate_config, NULL,pb);
+		slapi_config_register_callback_plugin(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP | DSE_FLAG_PLUGIN,
 			config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
-			memberof_apply_config,NULL);
-		slapi_config_register_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP,
+			memberof_apply_config, NULL, pb);
+		slapi_config_register_callback_plugin(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN,
 			config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
-			dont_allow_that, NULL);
-		slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
+			dont_allow_that, NULL, pb);
+		slapi_config_register_callback_plugin(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN,
 			config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
-			dont_allow_that, NULL);
-		slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP,
+			dont_allow_that, NULL, pb);
+		slapi_config_register_callback_plugin(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP | DSE_FLAG_PLUGIN,
 			config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
-			memberof_search,NULL);
+			memberof_search, NULL, pb);
 	}
 
 	inited = 1;
@@ -153,6 +153,31 @@ memberof_config(Slapi_Entry *config_e)
 	return returncode;
 }
 
+void
+memberof_release_config()
+{
+	const char *config_dn = slapi_sdn_get_dn(memberof_get_plugin_area());
+
+	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
+		config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
+		memberof_validate_config);
+	slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_POSTOP,
+		config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
+		memberof_apply_config);
+	slapi_config_remove_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP,
+		config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
+		dont_allow_that);
+	slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
+		config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
+		dont_allow_that);
+	slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP,
+		config_dn, LDAP_SCOPE_BASE, MEMBEROF_CONFIG_FILTER,
+		memberof_search);
+
+	slapi_destroy_rwlock(memberof_config_lock);
+	memberof_config_lock = NULL;
+	inited = 0;
+}
 
 /*
  * memberof_validate_config()

@@ -63,7 +63,7 @@ struct acl_pbqueue {
 };
 typedef struct acl_pbqueue Acl_PBqueue;
 
-static Acl_PBqueue	*aclQueue;
+static Acl_PBqueue	*aclQueue = NULL;
 
 /* structure with information for each extension */
 typedef struct acl_ext
@@ -103,6 +103,20 @@ acl_init_ext ()
 
 	return rc;
 
+}
+
+void
+acl_remove_ext ()
+{
+	slapi_unregister_object_extension(plugin_name,
+	                                  SLAPI_EXT_OPERATION,
+	                                  &acl_ext_list[ACL_EXT_OPERATION].object_type,
+	                                  &acl_ext_list[ACL_EXT_OPERATION].handle);
+
+	slapi_unregister_object_extension(plugin_name,
+	                                  SLAPI_EXT_CONNECTION,
+	                                  &acl_ext_list[ACL_EXT_CONNECTION].object_type,
+	                                  &acl_ext_list[ACL_EXT_CONNECTION].handle);
 }
 
 /* Interface to get the extensions */

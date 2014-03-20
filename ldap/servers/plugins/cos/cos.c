@@ -92,7 +92,6 @@ int cos_start( Slapi_PBlock *pb );
 int cos_close( Slapi_PBlock *pb );
 int cos_post_op( Slapi_PBlock *pb );
 
-
 static Slapi_PluginDesc pdesc = { "cos", VENDOR, DS_PACKAGE_VERSION,
 	"class of service plugin" };
 
@@ -243,6 +242,7 @@ int cos_start( Slapi_PBlock *pb )
 	}
 	else
 	{
+
 		/* problems we are hosed */
 		cos_cache_stop();
 		LDAPDebug( LDAP_DEBUG_ANY, "cos_start: failed to initialise\n",0,0,0);
@@ -306,6 +306,7 @@ int cos_post_op( Slapi_PBlock *pb )
 	cos_cache_change_notify(pb);
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_post_op\n",0,0,0);
+
 	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
 

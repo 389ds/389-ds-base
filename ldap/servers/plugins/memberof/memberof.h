@@ -88,7 +88,7 @@ typedef struct memberofconfig {
 /*
  * functions
  */
-int memberof_config(Slapi_Entry *config_e);
+int memberof_config(Slapi_Entry *config_e, Slapi_PBlock *pb);
 void memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src);
 void memberof_free_config(MemberOfConfig *config);
 MemberOfConfig *memberof_get_config();
@@ -107,5 +107,7 @@ int memberof_shared_config_validate(Slapi_PBlock *pb);
 int memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
 	int *returncode, char *returntext, void *arg);
 void *memberof_get_plugin_id();
+void memberof_release_config();
+PRUint64 get_plugin_started();
 
 #endif	/* _MEMBEROF_H_ */
