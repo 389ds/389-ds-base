@@ -68,6 +68,9 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 	int	pwdGraceUserTime = 0;
 	char graceUserTime[8];
 
+	if (NULL == e) {
+		return (-1);
+	}
 	slapi_mods_init (&smods, 0);
 	sdn = slapi_entry_get_sdn_const( e );
 	dn = slapi_entry_get_ndn( e );
