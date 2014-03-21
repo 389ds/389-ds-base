@@ -2676,8 +2676,7 @@ char *
 slapi_entry_attr_get_charptr( const Slapi_Entry* e, const char *type)
 {
 	char *p= NULL;
-	Slapi_Attr* attr;
-
+	Slapi_Attr* attr = NULL;
 	slapi_entry_attr_find(e, type, &attr);
 	if(attr!=NULL)
 	{
@@ -2698,7 +2697,7 @@ int
 slapi_entry_attr_get_int( const Slapi_Entry* e, const char *type)
 {
     int r= 0;
-    Slapi_Attr* attr;
+    Slapi_Attr* attr = NULL;
 	slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
@@ -2713,7 +2712,7 @@ unsigned int
 slapi_entry_attr_get_uint( const Slapi_Entry* e, const char *type)
 {
     unsigned int r= 0;
-    Slapi_Attr* attr;
+    Slapi_Attr* attr = NULL;
 	slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
@@ -2728,7 +2727,7 @@ long
 slapi_entry_attr_get_long( const Slapi_Entry* e, const char *type)
 {
     long r = 0;
-    Slapi_Attr* attr;
+    Slapi_Attr* attr = NULL;
 	slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
@@ -2743,7 +2742,7 @@ unsigned long
 slapi_entry_attr_get_ulong( const Slapi_Entry* e, const char *type)
 {
     unsigned long r = 0;
-    Slapi_Attr* attr;
+    Slapi_Attr* attr = NULL;
 	slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
@@ -2758,7 +2757,7 @@ long long
 slapi_entry_attr_get_longlong( const Slapi_Entry* e, const char *type)
 {
     long long r = 0;
-    Slapi_Attr* attr;
+    Slapi_Attr* attr = NULL;
     slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
@@ -2773,7 +2772,7 @@ unsigned long long
 slapi_entry_attr_get_ulonglong( const Slapi_Entry* e, const char *type)
 {
     unsigned long long r = 0;
-    Slapi_Attr* attr;
+    Slapi_Attr* attr = NULL;
     slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
@@ -2788,7 +2787,7 @@ PRBool
 slapi_entry_attr_get_bool( const Slapi_Entry* e, const char *type)
 {
     PRBool r = PR_FALSE; /* default if no attr */
-    Slapi_Attr* attr;
+	Slapi_Attr* attr = NULL;
 	slapi_entry_attr_find(e, type, &attr);
     if (attr!=NULL)
     {
