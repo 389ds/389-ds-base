@@ -404,23 +404,23 @@ int
 cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, 
 	char *returntext, void *arg) 
 {
-        LDAPMod 	**mods;
+	LDAPMod 	**mods;
 	char 		*attr_name;
 	int 		i,j;
-        cb_backend 	*cb = (cb_backend *) arg;
+	cb_backend 	*cb = (cb_backend *) arg;
 
 	CB_ASSERT (cb!=NULL);
 
-        slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 
-        for (i = 0; mods[i] ; i++) {
+	for (i = 0; mods[i] ; i++) {
 		attr_name = mods[i]->mod_type;
 
-               	if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_FORWARD_CTRLS )) {
+		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_FORWARD_CTRLS )) {
 			char * config_attr_value;
 			int done=0;
-        		for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-		                config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
+        	for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+        		config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
 				if (!cb_is_control_forwardable(cb,config_attr_value)) {
 				        slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
 						"control %s can't be forwarded.\n",config_attr_value);
@@ -428,100 +428,111 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					return SLAPI_DSE_CALLBACK_ERROR;
 				}
 
-			        if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+				if(SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
 					if (!done) {
 						cb_unregister_all_supported_control(cb);
 						done=1;
 					}
 					cb_register_supported_control(cb,config_attr_value,0);
-				} else
+				} else {
 			        if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-					cb_register_supported_control(cb,config_attr_value,0);
-				} else 
-			        if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-					cb_unregister_supported_control(cb,config_attr_value,0);
+			        	cb_register_supported_control(cb,config_attr_value,0);
+			        } else {
+			        	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+			        		cb_unregister_supported_control(cb,config_attr_value,0);
+			        	}
+			        }
 				}
 			}
-			if (NULL == mods[i]->mod_bvalues)
+			if (NULL == mods[i]->mod_bvalues){
 				cb_unregister_all_supported_control(cb);
-		} else
-                if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_DEBUG )) {
-			/* assume single-valued */
-                        if (mods[i]->mod_op & LDAP_MOD_DELETE)
-				cb_set_debug(0);
-			else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op))
-				cb_set_debug(1);
-		} else
- 		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINING_COMPONENTS )) {
-                        char * config_attr_value;
-                        int done=0;
-
-                        slapi_rwlock_wrlock(cb->config.rwl_config_lock);
-
-                        for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-                                config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-                                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
-                                        if (!done) {
-					        charray_free(cb->config.chaining_components);
-					        cb->config.chaining_components=NULL;
-                                                done=1;
-                                        }
-					/* XXXSD assume dn. Normalize it */
-					charray_add(&cb->config.chaining_components,
-						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-                                } else
-                                if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-					charray_add(&cb->config.chaining_components,
-						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-                                } else
-                                if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-					charray_remove(cb->config.chaining_components,
-						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)),
-						0 /* freeit */);
-                                }
-                        }
-                        if (NULL == mods[i]->mod_bvalues) {
-				charray_free(cb->config.chaining_components);
-				cb->config.chaining_components=NULL;
 			}
+		} else {
+			if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_DEBUG )) {
+				/* assume single-valued */
+				if (mods[i]->mod_op & LDAP_MOD_DELETE){
+					cb_set_debug(0);
+				} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+					cb_set_debug(1);
+				}
+			} else {
+				if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINING_COMPONENTS )) {
+					char * config_attr_value;
+					int done=0;
 
-                        slapi_rwlock_unlock(cb->config.rwl_config_lock);
-		} else
-			if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINABLE_COMPONENTS )) {
-				char *config_attr_value;
-				char *attr_val;
-				int done=0;
+					slapi_rwlock_wrlock(cb->config.rwl_config_lock);
 
-				slapi_rwlock_wrlock(cb->config.rwl_config_lock);
+					for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+						config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
+						if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+							if (!done) {
+								charray_free(cb->config.chaining_components);
+								cb->config.chaining_components=NULL;
+								done=1;
+							}
+							/* XXXSD assume dn. Normalize it */
+							charray_add(&cb->config.chaining_components,
+							        slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+						} else {
+							if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+								charray_add(&cb->config.chaining_components,
+								        slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+							} else {
+								if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+									char *remove_val = slapi_ch_strdup(config_attr_value);
+									charray_remove(cb->config.chaining_components,
+									        slapi_dn_normalize(remove_val),	0 /* freeit */);
+									slapi_ch_free_string(&remove_val);
+								}
+							}
+						}
+					}
+					if (NULL == mods[i]->mod_bvalues) {
+						charray_free(cb->config.chaining_components);
+						cb->config.chaining_components=NULL;
+					}
 
-				for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
-					config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
-					if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
-						if (!done) {
+					slapi_rwlock_unlock(cb->config.rwl_config_lock);
+				} else {
+					if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_CHAINABLE_COMPONENTS )) {
+						char *config_attr_value;
+						char *attr_val;
+						int done=0;
+
+						slapi_rwlock_wrlock(cb->config.rwl_config_lock);
+
+						for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
+							config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
+							if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {
+								if (!done) {
+									charray_free(cb->config.chainable_components);
+									cb->config.chainable_components=NULL;
+									done=1;
+								}
+								charray_add(&cb->config.chainable_components,
+								        slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+							} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+								charray_add(&cb->config.chainable_components,
+								        slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
+							} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
+								attr_val = slapi_dn_normalize(slapi_ch_strdup(config_attr_value));
+								charray_remove(cb->config.chainable_components, attr_val, 0 /* freeit */);
+								slapi_ch_free_string(&attr_val);
+							}
+						}
+						if (NULL == mods[i]->mod_bvalues) {
 							charray_free(cb->config.chainable_components);
 							cb->config.chainable_components=NULL;
-							done=1;
 						}
-						charray_add(&cb->config.chainable_components,
-						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-					} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
-						charray_add(&cb->config.chainable_components,
-						slapi_dn_normalize(slapi_ch_strdup(config_attr_value)));
-					} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-						attr_val = slapi_dn_normalize(slapi_ch_strdup(config_attr_value));
-						charray_remove(cb->config.chainable_components, attr_val, 0 /* freeit */);
-						slapi_ch_free_string(&attr_val);
+
+						slapi_rwlock_unlock(cb->config.rwl_config_lock);
 					}
 				}
-				if (NULL == mods[i]->mod_bvalues) {
-					charray_free(cb->config.chainable_components);
-					cb->config.chainable_components=NULL;
-				}
-
-				slapi_rwlock_unlock(cb->config.rwl_config_lock);
+			}
 		}
 	}
 	*returncode=LDAP_SUCCESS;
+
 	return SLAPI_DSE_CALLBACK_OK;
 }
 

@@ -581,6 +581,8 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 				slapi_ch_free_string(&uniqueid);
 			}
 			break;
+		default:
+			slapi_ch_free_string(&uniqueid);
 	}
 	slapi_ch_free_string(&chgtype);
 	slapi_ch_free_string(&chgnr);

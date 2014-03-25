@@ -1260,8 +1260,8 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
     const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods,
     Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
-    Slapi_Mods *smods = slapi_mods_new();
-    Slapi_Mods *new_smods = slapi_mods_new();
+    Slapi_Mods *smods;
+    Slapi_Mods *new_smods;
     LDAPMod *mod = NULL;
     windows_attribute_map *attr_map = user_attribute_map;
 
@@ -1270,6 +1270,8 @@ posix_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
         plugin_op_finished();
         return;
     }
+    smods = slapi_mods_new();
+    new_smods = slapi_mods_new();
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = user_mssfu_attribute_map;
@@ -1337,8 +1339,8 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry
     const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods,
     Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
-    Slapi_Mods *smods = slapi_mods_new();
-    Slapi_Mods *new_smods = slapi_mods_new();
+    Slapi_Mods *smods;
+    Slapi_Mods *new_smods;
     LDAPMod *mod = NULL;
     windows_attribute_map *attr_map = group_attribute_map;
 
@@ -1347,6 +1349,9 @@ posix_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry
         plugin_op_finished();
         return;
     }
+
+    smods = slapi_mods_new();
+    new_smods = slapi_mods_new();
 
     if (posix_winsync_config_get_msSFUSchema())
         attr_map = group_mssfu_attribute_map;
