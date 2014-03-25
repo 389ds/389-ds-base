@@ -737,7 +737,9 @@ static int ldapu_cert_searchfn_default (void *cert, LDAP *ld,
 
 	rv = ldapu_get_cert_subject_dn(cert, &subjectDN);
 
-	if (rv != LDAPU_SUCCESS || !subjectDN || !*subjectDN) return rv;
+	if (rv != LDAPU_SUCCESS || !subjectDN){
+		return rv;
+	}
 	len = strlen(certmap_info->searchAttr) + strlen(subjectDN) +
 	    strlen("=") + 1;
 	certFilter = (char *)ldapu_malloc(len * sizeof(char));

@@ -230,29 +230,27 @@ release_and_return:
 int
 chainingdb_bind( Slapi_PBlock *pb )
 {
-
-	int 			status=LDAP_SUCCESS;
-	int 			allocated_errmsg;
-	int 			rc=LDAP_SUCCESS;
-	cb_backend_instance 	*cb;
-	Slapi_Backend		*be;
-	const char      *dn = NULL;
-	Slapi_DN        *sdn = NULL;
-	Slapi_DN        *mysdn = NULL;
-	int                     method;
-	struct berval           *creds, **urls;
-	char 			*matcheddn,*errmsg;
-	LDAPControl         	**reqctrls, **resctrls, **ctrls;
-	char 			* mechanism;
-	int 			freectrls=1;
-	int 			bind_retry;
+	cb_backend_instance *cb;
+	Slapi_Backend *be;
+	struct berval *creds = NULL, **urls = NULL;
+	const char *dn = NULL;
+	Slapi_DN *sdn = NULL;
+	Slapi_DN *mysdn = NULL;
+	char *matcheddn = NULL, *errmsg = NULL;
+	LDAPControl **reqctrls = NULL, **resctrls = NULL, **ctrls = NULL;
+	char *mechanism = NULL;
+	int status=LDAP_SUCCESS;
+	int allocated_errmsg = 0;
+	int rc = LDAP_SUCCESS;
+	int freectrls = 1;
+	int bind_retry;
+	int method;
 	
 	if ( LDAP_SUCCESS != (rc = cb_forward_operation(pb) )) {
 		cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
 		return SLAPI_BIND_FAIL;
 	}
 
-	ctrls=NULL;
 	/* don't add proxy auth control. use this call to check for supported   */
 	/* controls only.							*/
 	if ( LDAP_SUCCESS != ( rc = cb_update_controls( pb, NULL, &ctrls, 0 )) ) {
@@ -285,11 +283,6 @@ chainingdb_bind( Slapi_PBlock *pb )
 
 	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_BIND);
 
-	matcheddn=errmsg=NULL;
-	allocated_errmsg = 0;
-	resctrls=NULL;
-	urls=NULL;
-
 	/* Check wether the chaining BE is available or not */
 	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
 		slapi_sdn_free(&mysdn);
@@ -313,12 +306,14 @@ chainingdb_bind( Slapi_PBlock *pb )
 			cb_ping_farm(cb,NULL,0);
 		}
 		rc = LDAP_OPERATIONS_ERROR;
+	} else {
+		allocated_errmsg = 1;
 	}
 
 	if ( rc != LDAP_USER_CANCELLED ) {  /* not abandoned */
 		if ( resctrls != NULL ) {
 			slapi_pblock_set( pb, SLAPI_RESCONTROLS, resctrls );
-			freectrls=0;
+			freectrls = 0;
 		}
 
 		if ( rc != LDAP_SUCCESS ) {
@@ -332,7 +327,7 @@ chainingdb_bind( Slapi_PBlock *pb )
 	if ( freectrls && ( resctrls != NULL )) {
 		ldap_controls_free( resctrls );
 	}
-	slapi_ch_free((void **)& matcheddn );
+	slapi_ch_free_string(&matcheddn);
 	if ( allocated_errmsg ) {
 		slapi_ch_free_string(&errmsg);
 	}

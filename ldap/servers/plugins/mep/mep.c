@@ -2637,6 +2637,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         /* Bail out if the plug-in close function was just called. */
         if (!g_plugin_started) {
             mep_config_unlock();
+            slapi_ch_free_string(&managed_dn);
             slapi_pblock_destroy(mep_pb);
             return 0;
         }

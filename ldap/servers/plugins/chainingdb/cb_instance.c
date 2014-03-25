@@ -405,7 +405,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                                	} else
                                	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                                        	charray_remove(inst->illegal_attributes,
-                                               	slapi_ch_strdup(config_attr_value),
+                                               	config_attr_value,
 												0 /* freeit */);
                                	}
                         }

@@ -1284,11 +1284,15 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 *returncode = LDAP_OPERATIONS_ERROR;
                 mtn_unlock();
                 slapi_sdn_free(&subtree);
+                slapi_ch_free_string(&plugin_fct);
+                slapi_ch_free_string(&plugin_lib);
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
 
             mtn_unlock();
             slapi_sdn_free(&subtree);
+            slapi_ch_free_string(&plugin_fct);
+            slapi_ch_free_string(&plugin_lib);
             *returncode = LDAP_SUCCESS;
             return SLAPI_DSE_CALLBACK_OK;
         }
@@ -1301,18 +1305,18 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 slapi_entry_attr_find(entryAfter,
                              "nsslapd-distribution-funct", &attr);
                 slapi_attr_first_value(attr, &val);
+                slapi_ch_free_string(&plugin_fct);
                 if (NULL == val) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                     "Warning: The nsslapd-distribution-funct attribute"
                     " has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entryAfter), 0, 0);
-                    plugin_fct = NULL;
                 }
                 plugin_fct = slapi_ch_strdup(slapi_value_get_string(val));
             }
             else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
-                plugin_fct = NULL;
+                slapi_ch_free_string(&plugin_fct);
             }
             plugin_flag = 1;
         }
@@ -1325,21 +1329,20 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 slapi_entry_attr_find(entryAfter,
                              "nsslapd-distribution-plugin", &attr);
                 slapi_attr_first_value(attr, &val);
+                slapi_ch_free_string(&plugin_lib);
                 if (NULL == val) {
                     LDAPDebug(LDAP_DEBUG_ANY,
                         "Warning: The nsslapd-distribution-plugin attribute"
                         " has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entryAfter), 0, 0);
-                    plugin_lib = NULL;
                 }
                 plugin_lib = slapi_ch_strdup(slapi_value_get_string(val));
             }
             else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op))
             {
-                plugin_lib = NULL;
+                slapi_ch_free_string(&plugin_lib);
             }
             plugin_flag = 1;
-
         }
     }
 
