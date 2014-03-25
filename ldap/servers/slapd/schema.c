@@ -61,6 +61,7 @@ typedef struct sizedbuffer
 	size_t size;
 } sizedbuffer;
 
+
 typedef char *(*schema_strstr_fn_t)( const char *big, const char *little);
 
 /*
@@ -135,6 +136,12 @@ typedef struct repl_schema_policy {
         schema_item_t *attributes;
 } repl_schema_policy_t;
 
+struct schema_mods_indexes {
+        int index;
+        char *new_value;
+        struct schema_mods_indexes *next;
+};
+
 /*
  * pschemadse is based on the general implementation in dse
  */
@@ -194,6 +201,12 @@ static void schema_create_errormsg( char *errorbuf, size_t errorbufsize,
 #else
         ;
 #endif
+static PRBool check_replicated_schema(LDAPMod **mods, char *replica_role, char **attr_name);
+static void modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schema_mods_indexes **at_list, struct schema_mods_indexes **oc_list);
+static void modify_schema_apply_new_definitions(char *attr_name, struct schema_mods_indexes *list);
+static void modify_schema_free_new_definitions(struct schema_mods_indexes *def_list);
+static int schema_oc_compare(struct objclass *oc_1, struct objclass *oc_2, char *description);
+static int schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *message, int debug_logging);
 static int schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message, int replica_role);
 static int schema_at_superset_check_syntax_oids(char *oid1, char *oid2);
 static int schema_at_superset_check_mr(struct asyntaxinfo *a1, struct asyntaxinfo *a2, char *info);
@@ -2063,6 +2076,46 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 
   slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
   slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+
+  /* In case we receive a schema from a supplier, check if we can accept it
+   * (it is a superset of our own schema).
+   * If it is not a superset, pick up what could extend our schema and return
+   */
+  if (is_replicated_operation) {
+          char *attr_name = NULL;
+          struct schema_mods_indexes *at_list = NULL;
+          struct schema_mods_indexes *oc_list = NULL;
+
+          if (!check_replicated_schema(mods, OC_CONSUMER, &attr_name)) {
+
+                  /* we will refuse to apply this schema 
+                   * Try to capture in it what would extends our own schema
+                   */
+                  modify_schema_get_new_definitions(pb, mods, &at_list, &oc_list);
+                  if (at_list) {
+                          modify_schema_apply_new_definitions("attributetypes", at_list);
+                  }
+                  if (oc_list) {
+                          modify_schema_apply_new_definitions("objectclasses", oc_list);
+                  }
+                  
+                  /* No need to hold the lock for these list that are local */
+                  modify_schema_free_new_definitions(at_list);
+                  modify_schema_free_new_definitions(oc_list);
+                  
+                  /* now return, we will not apply that schema */
+                  schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+			                  schema_errprefix_generic, attr_name,
+			                  "Replace is not possible, local consumer schema is a superset of the supplier" );
+                  slapi_log_error(SLAPI_LOG_FATAL, "schema",
+			                  "[C] Local %s must not be overwritten (set replication log for additional info)\n",
+			                  attr_name);
+                  *returncode = LDAP_UNWILLING_TO_PERFORM;
+                  return (SLAPI_DSE_CALLBACK_ERROR);
+          }
+  }
+  
+  
   schema_dse_lock_write();
 
   /*
@@ -2136,62 +2189,23 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 					"Replace is not allowed on the subschema subentry" );
 		  rc = SLAPI_DSE_CALLBACK_ERROR;
 	  } else {
-		  if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {
-			  if (is_replicated_operation) {
+		  if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {			  
 			      /*
-			       * before accepting the schema checks if the local consumer schema is not
-			       * a superset of the supplier schema
-			       */
-			      if (schema_attributetypes_superset_check(mods[i]->mod_bvalues, OC_CONSUMER)) {
-			    	  schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-			                  schema_errprefix_generic, mods[i]->mod_type,
-			                  "Replace is not possible, local consumer schema is a superset of the supplier" );
-			          slapi_log_error(SLAPI_LOG_FATAL, "schema",
-			                  "Local %s must not be overwritten (set replication log for additional info)\n",
-			                  mods[i]->mod_type);
-			          *returncode = LDAP_UNWILLING_TO_PERFORM;
-			      } else {
-			          /*
-			           * Replace all attributes
-			           */
-			    	  *returncode = schema_replace_attributes( pb, mods[i], returntext,
-			    			  SLAPI_DSE_RETURNTEXT_SIZE );
-			      }
-			  } else {
-			      /*
-			       * Replace all objectclasses
+			       * Replace all attributetypes
+                               * It has already been checked that if it was a replicated schema
+                               * it is a superset of the current schema. That is fine to apply the mods
 			       */
 			      *returncode = schema_replace_attributes( pb, mods[i], returntext,
 				          SLAPI_DSE_RETURNTEXT_SIZE );
-			  }
 		  } else if (strcasecmp (mods[i]->mod_type, "objectclasses") == 0) {
-                          if (is_replicated_operation) {
-                                  /* before accepting the schema checks if the local consumer schema is not
-                                   * a superset of the supplier schema
-                                   */
-                                  if (schema_objectclasses_superset_check(mods[i]->mod_bvalues, OC_CONSUMER)) {
-                                          
-                                          schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                                  schema_errprefix_generic, mods[i]->mod_type,
-                                                  "Replace is not possible, local consumer schema is a superset of the supplier" );
-                                          slapi_log_error(SLAPI_LOG_FATAL, "schema",
-                                                  "Local %s must not be overwritten (set replication log for additional info)\n",
-                                                  mods[i]->mod_type);
-                                          *returncode = LDAP_UNWILLING_TO_PERFORM;
-                                  } else {
-                                          /*
-                                           * Replace all objectclasses
-                                           */
-                                          *returncode = schema_replace_objectclasses(pb, mods[i],
-                                                  returntext, SLAPI_DSE_RETURNTEXT_SIZE);
-                                  }                                
-                         } else {
                                   /*
                                    * Replace all objectclasses
+                                   * It has already been checked that if it was a replicated schema
+                                   * it is a superset of the current schema. That is fine to apply the mods
                                    */
                                   *returncode = schema_replace_objectclasses(pb, mods[i],
                                                   returntext, SLAPI_DSE_RETURNTEXT_SIZE);                                 
-                         }
+                         
 		  } else if (strcasecmp (mods[i]->mod_type, "nsschemacsn") == 0) {
 			if (is_replicated_operation) {
 				/* Update the schema CSN */
@@ -6139,8 +6153,6 @@ slapi_schema_get_superior_name(const char *ocname_or_oid)
 	return superior;
 }
 
-
-
 /* Check if the oc_list1 is a superset of oc_list2.
  * oc_list1 is a superset if it exists objectclass in oc_list1 that
  * do not exist in oc_list2. Or if a OC in oc_list1 required more attributes
@@ -6156,9 +6168,8 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
         struct objclass *oc_1, *oc_2;
         char *description;
         int debug_logging = 0;
-        int rc, i, j;
+        int rc;
         int repl_schema_policy;
-        int found;
 
         if (message == NULL) {
                 description = "";
@@ -6209,12 +6220,28 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                         /* try to retrieve it with the name*/
                         oc_2 = oc_find_nolock(oc_1->oc_name, oc_list2, PR_TRUE);
                 }
-                if (oc_2 == NULL) {
+                if (oc_2) {
+                        if (schema_oc_compare(oc_1, oc_2, description) > 0) {
+                                rc = 1;
+                                if (debug_logging) {
+                                        if (replica_role == REPL_SCHEMA_AS_CONSUMER) {
+                                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Local %s schema objectclasses is a superset of"
+                                                        " the received one.\n", oc_1->oc_name);
+                                        } else {
+                                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Remote %s schema objectclasses is a superset of"
+                                                        " the received one.\n", oc_1->oc_name);
+                                        }
+                                        continue;
+                                } else {
+                                        break;
+                                }
+                        }                 
+                } else {
                         slapi_log_error(SLAPI_LOG_REPL, "schema", "Fail to retrieve in the %s schema [%s or %s]\n", 
                                 description,
                                 oc_1->oc_name, 
                                 oc_1->oc_oid);
-
+                        
                         /* The oc_1 objectclasses is supperset */
                         rc = 1;
                         if(debug_logging){
@@ -6224,25 +6251,176 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                             break;
                         }
                 }
+        }
+        slapi_rwlock_unlock( schema_policy_lock );
+        
+        return rc;
+}
+/* call must hold oc_lock at least in read */
+static struct schema_mods_indexes *
+schema_list_oc2learn(struct objclass *oc_remote_list, struct objclass *oc_local_list, int replica_role) {
+        struct objclass *oc_remote, *oc_local;
+        struct schema_mods_indexes *head = NULL, *mods_index;
+        int index = 0;
+        int repl_schema_policy;
+        char *message;
+        
+        if (replica_role == REPL_SCHEMA_AS_SUPPLIER) {
+                message = "remote consumer";
+        } else {
+                message = "remote supplier";
+        }
 
-                /* First check the MUST */
-                if (oc_1->oc_orig_required) {
-                        for (i = 0; oc_1->oc_orig_required[i] != NULL; i++) {
-                                /* For each required attribute from the remote schema check that 
-                                 * it is also required in the local schema
+        slapi_rwlock_rdlock( schema_policy_lock );        
+        for (oc_remote = oc_remote_list; oc_remote != NULL; oc_remote = oc_remote->oc_next, index++) {
+                
+                /* If this objectclass is not checked (accept) or rejects schema update */
+                repl_schema_policy = schema_check_policy(replica_role, REPL_SCHEMA_OBJECTCLASS, oc_remote->oc_name, oc_remote->oc_oid);
+                if ((repl_schema_policy == REPL_SCHEMA_UPDATE_ACCEPT_VALUE) || (repl_schema_policy == REPL_SCHEMA_UPDATE_REJECT_VALUE)) {
+                        continue;
+                }
+        
+
+                oc_local = oc_find_nolock(oc_remote->oc_oid, oc_local_list, PR_TRUE);
+                if (oc_local == NULL) {
+                        /* try to retrieve it with the name*/
+                        oc_local = oc_find_nolock(oc_remote->oc_name, oc_local_list, PR_TRUE);
+                }
+                if ((oc_local == NULL) ||
+                        (schema_oc_compare(oc_local, oc_remote, message) < 0)) {
+                        /* This replica does not know this objectclass, It needs to be added */
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Add that unknown/extended objectclass %s (%s)\n",
+                                oc_remote->oc_name,
+                                oc_remote->oc_oid);
+
+                        if ((mods_index = (struct schema_mods_indexes *) slapi_ch_calloc(1, sizeof (struct schema_mods_indexes))) == NULL) {
+                                slapi_log_error(SLAPI_LOG_FATAL, "schema", "Fail to Add (no memory) objectclass %s (%s)\n",
+                                        oc_remote->oc_name,
+                                        oc_remote->oc_oid);
+                                continue;
+                        }
+                        
+                        /* insert it in the list */
+                        mods_index->index     = index;
+                        mods_index->next      = head;
+                        mods_index->new_value = NULL;
+                        head                  = mods_index;
+                }
+        }
+        slapi_rwlock_unlock( schema_policy_lock );
+        return head;
+}
+static struct schema_mods_indexes *
+schema_list_attr2learn(struct asyntaxinfo *at_list_local, struct asyntaxinfo *at_list_remote, int replica_role)
+{
+        struct asyntaxinfo *at_remote, *at_local;
+        struct schema_mods_indexes *head = NULL, *mods_index;
+        int index = 0;
+        int repl_schema_policy;
+        int debug_logging = 0;
+        char *message;
+
+        if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                debug_logging = 1;
+        }
+        
+        if (replica_role == REPL_SCHEMA_AS_SUPPLIER) {
+                message = "remote consumer";
+        } else {
+                message = "remote supplier";
+        }
+
+        slapi_rwlock_rdlock(schema_policy_lock);
+        for (at_remote = at_list_remote; at_remote != NULL; at_remote = at_remote->asi_next, index++) {
+                /* If this objectclass is not checked (accept) or rejects schema update */
+                repl_schema_policy = schema_check_policy(replica_role, REPL_SCHEMA_ATTRIBUTE, at_remote->asi_name, at_remote->asi_oid);;
+                if ((repl_schema_policy == REPL_SCHEMA_UPDATE_ACCEPT_VALUE) || (repl_schema_policy == REPL_SCHEMA_UPDATE_REJECT_VALUE)) {
+                        continue;
+                }
+                
+                if (((at_local = attr_syntax_find(at_remote, at_list_local)) == NULL) || 
+                        (schema_at_compare(at_local, at_remote, message, debug_logging) < 0)) {
+                        /* This replica does not know this attribute, It needs to be added */
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Add that unknown/extended attribute %s (%s)\n",
+                                at_remote->asi_name,
+                                at_remote->asi_oid);
+
+                        if ((mods_index = (struct schema_mods_indexes *) slapi_ch_calloc(1, sizeof (struct schema_mods_indexes))) == NULL) {
+                                slapi_log_error(SLAPI_LOG_FATAL, "schema", "Fail to Add (no memory) attribute %s (%s)\n",
+                                        at_remote->asi_name,
+                                        at_remote->asi_oid);
+                                continue;
+                        }
+                        
+                        /* insert it in the list */
+                        mods_index->index     = index;
+                        mods_index->next      = head;
+                        mods_index->new_value = NULL;
+                        head                  = mods_index;
+                        
+                }                       
+        }
+        slapi_rwlock_unlock(schema_policy_lock);
+        return head;
+}
+
+/* If oc_1 > oc2  returns 1
+ * else it returns 0
+ */
+static PRBool
+schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, char *description) 
+{
+        int found;
+        int i,j;
+        PRBool moved_must_to_may;
+        
+        /* safety checking */
+        if (!oc_1) {
+                return 0;
+        } else if (!oc_2) {
+                return 1;
+        }
+       
+
+        /* First check the MUST */
+        if (oc_1->oc_orig_required) {
+                for (i = 0; oc_1->oc_orig_required[i] != NULL; i++) {
+                        /* For each required attribute from oc1 schema check that 
+                         * it is also required in the oc2 schema
+                         */
+                        found = 0;
+                        if (oc_2->oc_orig_required) {
+                                for (j = 0; oc_2->oc_orig_required[j] != NULL; j++) {
+                                        if (strcasecmp(oc_2->oc_orig_required[j], oc_1->oc_orig_required[i]) == 0) {
+                                                found = 1;
+                                                break;
+                                        }
+                                }
+                        }
+                        if (!found) {
+                                /* Before stating that oc1 is a superset of oc2, we need to verify that the 'required'
+                                 * attribute (from oc1) is missing in 'required' oc2 because it is 
+                                 * now 'allowed' in oc2
                                  */
-                                found = 0;
-                                if (oc_2->oc_orig_required) {
-                                        for (j = 0; oc_2->oc_orig_required[j] != NULL; j++) {
-                                                if (strcasecmp(oc_2->oc_orig_required[j], oc_1->oc_orig_required[i]) == 0) {
-                                                        found = 1;
+                                moved_must_to_may = PR_FALSE;
+                                if (oc_2->oc_orig_allowed) {
+                                        for (j = 0; oc_2->oc_orig_allowed[j] != NULL; j++) {
+                                                if (strcasecmp(oc_2->oc_orig_allowed[j], oc_1->oc_orig_required[i]) == 0) {
+                                                        moved_must_to_may = PR_TRUE;
                                                         break;
                                                 }
                                         }
                                 }
-                                if (!found) {
-                                        /* The required attribute in the remote protocol (remote_oc->oc_orig_required[i])
-                                         * is not required in the local protocol
+
+                                if (moved_must_to_may) {
+                                        /* This is a special case where oc1 is actually NOT a superset of oc2 */
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is no longer 'required' in '%s' of the %s schema but is now 'allowed'\n",
+                                                oc_1->oc_orig_required[i],
+                                                oc_1->oc_name,
+                                                description);
+                                } else {
+                                        /* The required attribute in the oc1 
+                                         * is not required in the oc2
                                          */
                                         slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not required in '%s' of the %s schema\n",
                                                 oc_1->oc_orig_required[i],
@@ -6250,63 +6428,161 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                                                 description);
 
                                         /* The oc_1 objectclasses is supperset */
-                                        rc = 1;
-                                        if(debug_logging){
-                                            /* we continue to check all attributes so we log what is wrong */
-                                            continue;
-                                        } else {
-                                            break;
-                                        }
-                                }
-                        }
-                }
-
-                /* Second check the MAY */
-                if (oc_1->oc_orig_allowed) {
-                        for (i = 0; oc_1->oc_orig_allowed[i] != NULL; i++) {
-                                /* For each required attribute from the remote schema check that 
-                                 * it is also required in the local schema
-                                 */
-                                found = 0;
-                                if (oc_2->oc_orig_allowed) {
-                                        for (j = 0; oc_2->oc_orig_allowed[j] != NULL; j++) {
-                                                if (strcasecmp(oc_2->oc_orig_allowed[j], oc_1->oc_orig_allowed[i]) == 0) {
-                                                        found = 1;
-                                                        break;
-                                                }
-                                        }
-                                }
-                                if (!found) {
-                                        /* The required attribute in the remote protocol (remote_oc->oc_orig_allowed[i])
-                                         * is not required in the local protocol
-                                         */
-                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not allowed in '%s' of the %s schema\n",
-                                                oc_1->oc_orig_allowed[i],
-                                                oc_1->oc_name,
-                                                description);
-
-                                        /* The oc_1 objectclasses is superset */
-                                        rc = 1;
-                                        if(debug_logging){
-                                            /* we continue to check all attributes so we log what is wrong */
-                                            continue;
-                                        } else {
-                                            break;
-                                        }
+                                        return 1;
                                 }
                         }
                 }
         }
-        slapi_rwlock_unlock( schema_policy_lock );
+
+        /* Second check the MAY */
+        if (oc_1->oc_orig_allowed) {
+                for (i = 0; oc_1->oc_orig_allowed[i] != NULL; i++) {
+                        /* For each required attribute from the remote schema check that 
+                         * it is also required in the local schema
+                         */
+                        found = 0;
+                        if (oc_2->oc_orig_allowed) {
+                                for (j = 0; oc_2->oc_orig_allowed[j] != NULL; j++) {
+                                        if (strcasecmp(oc_2->oc_orig_allowed[j], oc_1->oc_orig_allowed[i]) == 0) {
+                                                found = 1;
+                                                break;
+                                        }
+                                }
+                        }
+                        if (!found) {
+                                /* The allowed attribute in the remote schema (remote_oc->oc_orig_allowed[i])
+                                 * is not allowed in the local schema
+                                 */
+                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not allowed in '%s' of the %s schema\n",
+                                        oc_1->oc_orig_allowed[i],
+                                        oc_1->oc_name,
+                                        description);
+
+                                /* The oc_1 objectclasses is superset */
+                                return 1;
+                        }
+                }
+        }
+
+ 
+        return 0;
+}
+
+
+/* Compare two objectclass definitions
+ * it compares:
+
+ * It returns:
+ *   1: if oc_1 is a superset of oc_2
+ *  -1: if oc_2 is a superset of oc_1
+ *   0: if oc_1 and at_2 are equivalent
+ */
+static int
+schema_oc_compare(struct objclass *oc_1, struct objclass *oc_2, char *description) 
+{
+        if (schema_oc_compare_strict(oc_1, oc_2, description) > 0) {
+                return 1;
+        } else if (schema_oc_compare_strict(oc_2, oc_1, description) > 0) {
+                return -1;
+        } else {
+                return 0;
+        }
+}
+
+/* Compare two attributes definitions
+ * it compares:
+ *  - single/multi value
+ *  - syntax
+ *  - matching rules
+ * It returns:
+ *   1: if at_1 is a superset of at_2
+ *  -1: if at_2 is a superset of at_1
+ *   0: if at_1 and at_2 are equivalent
+ */
+static int
+schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *message, int debug_logging) 
+{
+        char *info = NULL;
         
-        return rc;
+        /* safety checking */
+        if (! at_1) {
+                if (!at_2) {
+                        return 0;
+                } else {
+                        return -1;
+                }
+        } else if (!at_2) {
+                return 1;
+        }
+
+        /*
+         *  Check for single vs. multi value
+         */
+        if (!(at_1->asi_flags & SLAPI_ATTR_FLAG_SINGLE) && (at_2->asi_flags & SLAPI_ATTR_FLAG_SINGLE)) {
+
+                /* at_1 is a superset */
+                if (debug_logging) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] is not "
+                                "\"single-valued\" \n", message, at_1->asi_name);
+                }
+                return 1;
+        }
+        if ((at_1->asi_flags & SLAPI_ATTR_FLAG_SINGLE) && !(at_2->asi_flags & SLAPI_ATTR_FLAG_SINGLE)) {
+                /* at_2 is a superset */
+                if (debug_logging) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] is not "
+                                "\"single-valued\" \n", message, at_1->asi_name);
+                }
+                return -1;
+        }
+
+        /*
+         *  Check the syntaxes
+         */
+        if (schema_at_superset_check_syntax_oids(at_1->asi_syntax_oid, at_2->asi_syntax_oid)) {
+                /* at_1 is a superset */
+                if (debug_logging) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] syntax "
+                                "can not be overwritten\n", message, at_1->asi_name);
+                }
+                return 1;
+        }
+        if (schema_at_superset_check_syntax_oids(at_2->asi_syntax_oid, at_1->asi_syntax_oid)) {
+                /* at_2 is a superset */
+                if (debug_logging) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] syntax "
+                                "can not be overwritten\n", message, at_2->asi_name);
+                }
+                return -1;
+        }
+
+        /*
+         *  Check some matching rules - not finished yet...
+         *
+         *  For now, skip the matching rule check (rc is never equal to -1)
+         */
+        if (schema_at_superset_check_mr(at_1, at_2, info)) {
+                if (debug_logging) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
+                                "rule can not be overwritten\n", message, at_1->asi_name);
+                }
+                return 1;
+        }
+        if (schema_at_superset_check_mr(at_2, at_1, info)) {
+                if (debug_logging) {
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
+                                "rule can not be overwritten\n", message, at_2->asi_name);
+                }
+                return -1;
+        }
+
+        return 0;
 }
 
 static int
 schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message, int replica_role)
 {
     struct asyntaxinfo *at_1, *at_2;
-    char *info = NULL;
     int debug_logging = 0;
     int repl_schema_policy;
     int rc = 0;
@@ -6344,51 +6620,22 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
         }
         
         /* check if at_1 exists in at_list2 */
-        if((at_2 = attr_syntax_find(at_1, at_list2))){
-            /*
-             *  Check for single vs. multi value
-             */
-            if(!(at_1->asi_flags & SLAPI_ATTR_FLAG_SINGLE) && (at_2->asi_flags & SLAPI_ATTR_FLAG_SINGLE)){
-                /* at_list 1 is a superset */
-                rc = 1;
-                if(debug_logging){
-                	slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] is not "
-                	        "\"single-valued\" \n",message, at_1->asi_name);
-                    continue;
-                } else {
-                    break;
+        if((at_2 = attr_syntax_find(at_1, at_list2))) {
+                if (schema_at_compare(at_1, at_2, message, debug_logging) > 0) {
+                        rc = 1;
+                        if (debug_logging) {
+                                if (replica_role == REPL_SCHEMA_AS_CONSUMER) {
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Local %s schema attributetypes is a superset of"
+                                                " the received one.\n", at_1->asi_name);
+                                } else {
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Remote %s schema attributetypes is a superset of"
+                                                " the received one.\n", at_1->asi_name);
+                                }
+                                continue;
+                        } else {
+                                break;
+                        }
                 }
-            }
-
-            /*
-             *  Check the syntaxes
-             */
-            if(schema_at_superset_check_syntax_oids(at_1->asi_syntax_oid, at_2->asi_syntax_oid)){
-                 /* at_list 1 is a superset */
-                 rc = 1;
-                 if(debug_logging){
-                     slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] syntax "
-                             "can not be overwritten\n",message, at_1->asi_name);
-                     continue;
-                 } else {
-                     break;
-                 }
-             }
-             /*
-              *  Check some matching rules - not finished yet...
-              *
-              *  For now, skip the matching rule check (rc is never equal to -1)
-              */
-             if(rc == -1 && schema_at_superset_check_mr(at_1, at_2, info)){
-                 rc = 1;
-                 if(debug_logging){
-                     slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
-                             "rule can not be overwritten\n",message, at_1->asi_name);
-                     continue;
-                 } else {
-                     break;
-                 }
-             }
         } else {
             rc = 1;
             if(debug_logging){
@@ -6802,6 +7049,7 @@ schema_berval_to_atlist(struct berval **at_berval)
     return head;
 }
 
+
 int
 schema_objectclasses_superset_check(struct berval **remote_schema, char *type)
 {
@@ -6827,19 +7075,19 @@ schema_objectclasses_superset_check(struct berval **remote_schema, char *type)
                  */
 
                 if (remote_oc_list) {
-                        oc_lock_read();
+                        oc_lock_read();                       
                         if (strcmp(type, OC_SUPPLIER) == 0) {
                                 /* Check if the remote_oc_list from a consumer are or not 
                                  * a superset of the objectclasses of the local supplier schema
                                  */
-                                rc = schema_oc_superset_check(remote_oc_list, g_get_global_oc_nolock(), "local supplier", REPL_SCHEMA_AS_SUPPLIER);
+                                rc = schema_oc_superset_check(remote_oc_list, g_get_global_oc_nolock(), "remote consumer", REPL_SCHEMA_AS_SUPPLIER);
                         } else {
                                 /* Check if the objectclasses of the local consumer schema are or not
                                  * a superset of the remote_oc_list from a supplier
                                  */
                                 rc = schema_oc_superset_check(g_get_global_oc_nolock(), remote_oc_list, "remote supplier", REPL_SCHEMA_AS_CONSUMER);
                         }
-                        
+
                         oc_unlock();
                 }
                 
@@ -6889,4 +7137,429 @@ schema_attributetypes_superset_check(struct berval **remote_schema, char *type)
         schema_atlist_free(remote_at_list);
     }
     return rc;
+}
+
+/* Do the internal MOD and update the local "nsSchemaCSN" with a local timestamp
+ * It could be a good idea to set the 'nsSchemaCSN' with the maximum of local time and
+ * the CSN received with the remote schema
+ */
+static void
+modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
+{
+        Slapi_PBlock *newpb;
+	int op_result;
+        CSN *schema_csn;
+        
+        /* allocate internal mod components: pblock*/
+        newpb = slapi_pblock_new();
+        
+	slapi_modify_internal_set_pb_ext (
+			newpb,
+			sdn,
+			slapi_mods_get_ldapmods_byref (smods),
+			NULL, /* Controls */
+			NULL,
+			(void *)plugin_get_default_component_id(),
+			0);	
+
+	/* do modify */
+	slapi_modify_internal_pb (newpb);
+	slapi_pblock_get (newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
+        if (op_result == LDAP_SUCCESS) {              
+                /* Update the schema csn if the operation succeeded */
+                schema_csn = csn_new();
+                if (NULL != schema_csn) {
+                        csn_set_replicaid(schema_csn, 0);
+                        csn_set_time(schema_csn, current_time());
+                        g_set_global_schema_csn(schema_csn);
+                }
+        }
+
+        slapi_pblock_destroy(newpb);
+}
+
+/* Prepare slapi_mods for the internal mod 
+ * Caller must free smods with slapi_mods_done
+ */
+static void
+modify_schema_prepare_mods(Slapi_Mods *smods, char *type, struct schema_mods_indexes *values)
+{   
+        struct schema_mods_indexes *object;
+        struct berval *bv;
+        struct berval **bvps;
+        int nb_values, i;
+            
+        for (object = values, nb_values = 0; object != NULL; object = object->next, nb_values++);
+        bvps = (struct berval **) slapi_ch_calloc(1, (nb_values + 1) * sizeof(struct berval *));
+        
+        
+        for (i = 0, object = values; object != NULL; i++, object = object->next) {
+                bv = (struct berval *) slapi_ch_malloc(sizeof(struct berval));
+                bv->bv_len = strlen(object->new_value);
+                bv->bv_val = (void*) object->new_value;
+                bvps[i] = bv;
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "MOD[%d] add (%s): %s\n", i, type, object->new_value);
+        }
+        bvps[nb_values] = NULL;
+        slapi_mods_init (smods, 2);
+        slapi_mods_add_modbvps( smods, LDAP_MOD_ADD, type, bvps );
+        for (i = 0; bvps[i] != NULL; i++) {
+                /* bv_val should not be free. It belongs to the incoming MOD */
+                slapi_ch_free((void **) &bvps[i]);
+        }
+        slapi_ch_free((void **) &bvps);
+        
+}
+
+/* called by modify_schema_dse/supplier_learn_new_definitions to learn new 
+ * definitions via internal mod.
+ * Internal mod is important, because we want those definitions to be updated in 99user.ldif
+ * and we are not sure that the current operation will succeeds or not.
+ */
+static void
+modify_schema_apply_new_definitions(char *attr_name, struct schema_mods_indexes *list)
+{
+        Slapi_Mods smods = {0};
+        Slapi_DN *sdn = NULL;
+        
+        if (list == NULL)
+                return;
+        
+        /* Then the sdn */
+        sdn = slapi_sdn_new();
+	if (!sdn) {
+		slapi_log_error( SLAPI_LOG_FATAL, "schema", "modify_schema_apply_new_definitions Out of memory \n");
+		goto done;
+	}
+        slapi_sdn_set_dn_byval(sdn, SLAPD_SCHEMA_DN);
+        
+        /* prepare the mods */
+        modify_schema_prepare_mods(&smods, attr_name, list);
+        
+        /* update the schema with the new attributetypes */
+        /* No need to lock the schema_dse as the internal mod will do */
+        modify_schema_internal_mod(sdn, &smods);
+        
+        
+done:
+        if (sdn) {
+                slapi_sdn_free(&sdn);
+        }               
+        slapi_mods_done (&smods);
+}
+
+/* 
+ * This routines retrieves from the remote schema (mods) the
+ * definitions (attributetypes/objectclasses), that are:
+ *   - unknown from the local schema
+ *   - a superset of the local definition
+ *
+ * It then builds two lists (to be freed by the caller) with those definitions.
+ * Those list contains a duplicate of the definition (string).
+ */
+static void
+modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schema_mods_indexes **at_list, struct schema_mods_indexes **oc_list)
+{
+        struct asyntaxinfo *remote_at_list;
+        struct objclass *remote_oc_list;
+        int is_replicated_operation = 0;
+        int replace_allowed = 0;
+        slapdFrontendConfig_t *slapdFrontendConfig;
+        int i;
+        struct schema_mods_indexes *at2learn_list = NULL;
+        struct schema_mods_indexes *at2learn;
+        struct schema_mods_indexes *oc2learn_list = NULL;
+        struct schema_mods_indexes *oc2learn;
+
+
+        slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+        
+        /* by default nothing to learn */
+        *at_list = NULL;
+        *oc_list = NULL; 
+        
+        /* We are only looking for schema received from a supplier */
+        if (!is_replicated_operation || !mods) {
+                return ;
+        }
+
+        /* Check if we are allowed to update the schema (if needed) */
+        slapdFrontendConfig = getFrontendConfig();
+        CFG_LOCK_READ(slapdFrontendConfig);
+        if ((0 == strcasecmp(slapdFrontendConfig->schemareplace, CONFIG_SCHEMAREPLACE_STR_ON)) ||
+                (0 == strcasecmp(slapdFrontendConfig->schemareplace, CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY))) {
+                replace_allowed = 1;
+        }
+        CFG_UNLOCK_READ(slapdFrontendConfig);
+        if (!replace_allowed) {
+                return;
+        }
+
+        
+        /* First retrieve unknowns attributetypes because an unknown objectclasses
+         * may be composed of unknown attributetypes
+         */
+        at2learn_list = NULL;
+        oc2learn_list = NULL;
+        schema_dse_lock_read();
+        for (i = 0; mods[i]; i++) {
+                if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op) && (mods[i]->mod_bvalues)) {
+
+                        if (strcasecmp(mods[i]->mod_type, "attributetypes") == 0) {
+                                /* we have some MOD_replace of attributetypes*/
+
+                                /* First build an attribute list from the remote schema */
+                                if ((remote_at_list = schema_berval_to_atlist(mods[i]->mod_bvalues)) == NULL) {
+                                        /* If we can not build an attributes list from the mods, just skip
+                                         * it and look for objectclasses
+                                         */
+                                        slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                                                "Not able to build an attributes list (%s) from the schema received from the supplier\n",
+                                                mods[i]->mod_type);
+                                        continue;
+                                }
+                                /* Build a list of attributestype to learn from the remote definitions */
+                                attr_syntax_read_lock();
+                                at2learn_list = schema_list_attr2learn(attr_syntax_get_global_at(), remote_at_list, REPL_SCHEMA_AS_CONSUMER);
+                                attr_syntax_unlock_read();
+                                                                         
+                                /* For each of them copy the value to set */
+                                for (at2learn = at2learn_list; at2learn != NULL; at2learn = at2learn->next) {
+                                        struct berval	*bv;
+                                        bv = mods[i]->mod_bvalues[at2learn->index]; /* takes the berval from the selected mod */
+                                        at2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
+                                        memcpy(at2learn->new_value, bv->bv_val, bv->bv_len);
+                                        at2learn->new_value[bv->bv_len] = '\0';
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "take attributetypes: %s\n", at2learn->new_value);
+                                }
+                                                                       
+                                /* Free the remote schema list */
+                                schema_atlist_free(remote_at_list);
+                                
+                        } else if (strcasecmp(mods[i]->mod_type, "objectclasses") == 0) {
+                                /* we have some MOD_replace of objectclasses */
+
+                                /* First build an objectclass list from the remote schema */
+                                if ((remote_oc_list = schema_berval_to_oclist(mods[i]->mod_bvalues)) == NULL) {
+                                        /* If we can not build an objectclasses list from the mods, just skip
+                                         * it and look for attributes
+                                         */
+                                        slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                                                "Not able to build an objectclasses list (%s) from the schema received from the supplier\n",
+                                                mods[i]->mod_type);
+                                        continue;
+                                }
+                                /* Build a list of objectclasses to learn from the remote definitions */
+                                oc_lock_read();
+                                oc2learn_list = schema_list_oc2learn(remote_oc_list, g_get_global_oc_nolock(), REPL_SCHEMA_AS_CONSUMER);
+                                oc_unlock();
+                                
+                                /* For each of them copy the value to set */
+                                for (oc2learn = oc2learn_list; oc2learn != NULL; oc2learn = oc2learn->next) {
+                                        struct berval	*bv;
+                                        bv = mods[i]->mod_bvalues[oc2learn->index]; /* takes the berval from the selected mod */
+                                        oc2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
+                                        memcpy(oc2learn->new_value, bv->bv_val, bv->bv_len);
+                                        oc2learn->new_value[bv->bv_len] = '\0';
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "take objectclass: %s\n", oc2learn->new_value);
+                                }
+                                
+                                /* Free the remote schema list*/
+                                schema_oclist_free(remote_oc_list);
+                        }
+                }
+        }
+        schema_dse_unlock();
+        
+        *at_list = at2learn_list;
+        *oc_list = oc2learn_list;
+}
+
+/* 
+ * It evaluate if the schema in the mods, is a superset of
+ * the local schema.
+ * Called when we know the mods comes from/to a replicated session
+ * Caller must not hold schema_dse lock
+ * 
+ *   mods: set of mod to apply to the schema
+ *   replica_role:
+ *      OC_CONSUMER: means the caller is acting as a consumer (receiving a schema)
+ *      OC_SUPPLIER: means the caller is acting as a supplier (sending a schema)
+ * 
+ * It returns:
+ *  - PR_TRUE: if replicated schema is a superset of local schema
+ *  - PR_FALSE: if local schema is a superset of local schema
+ */
+static PRBool
+check_replicated_schema(LDAPMod **mods, char *replica_role, char **attr_name) 
+{
+        int i;
+        PRBool rc = PR_TRUE;
+        
+        schema_dse_lock_read();
+        for (i = 0; mods[i]; i++) {
+                if ((SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) && strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {
+                        if (schema_attributetypes_superset_check(mods[i]->mod_bvalues, replica_role)) {
+                                rc = PR_FALSE;
+                                *attr_name = mods[i]->mod_type;
+                                break;
+                        }
+                } else if ((SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) && strcasecmp (mods[i]->mod_type, "objectclasses") == 0) {
+                        if (schema_objectclasses_superset_check(mods[i]->mod_bvalues, replica_role)) {
+                                rc =  PR_FALSE;
+                                *attr_name = mods[i]->mod_type;
+                                break;
+                        }
+                        
+                }
+                
+        }
+        schema_dse_unlock();
+        
+        return rc;
+}
+
+/* Free the list of definitions allocated in modify_schema_get_new_definitions/supplier_get_new_definitions */
+static void
+modify_schema_free_new_definitions(struct schema_mods_indexes *def_list)
+{
+        struct schema_mods_indexes *def, *head;
+        
+        for (head = def_list; head != NULL; ) {
+                def = head;
+                head = head->next;
+                
+                /* Free the string definition that was copied from the berval */
+                if (def->new_value) {
+                        slapi_ch_free((void**) &def->new_value);
+                }
+                
+                /* Then the definition cell */
+                slapi_ch_free((void **) &def);               
+        }
+}
+
+/* This functions is called by a supplier.
+ * It builds lists of definitions (attributetypes/objectclasses) to learn 
+ * objectclasses:  received objectclass definitions
+ * attributetypes: received attribute definitions
+ * new_oc: list of definitions to learn (list should be freed by the caller)
+ * new_at: list of definitions to learn (list should be freed by the caller)
+ */
+
+static void
+supplier_get_new_definitions(struct berval **objectclasses, struct berval **attributetypes, struct schema_mods_indexes **new_oc, struct schema_mods_indexes **new_at)
+{
+        int replace_allowed = 0;
+        slapdFrontendConfig_t *slapdFrontendConfig;
+        struct asyntaxinfo *remote_at_list;
+        struct objclass *remote_oc_list;
+        struct schema_mods_indexes *at2learn_list = NULL;
+        struct schema_mods_indexes *at2learn;
+        struct schema_mods_indexes *oc2learn_list = NULL;
+        struct schema_mods_indexes *oc2learn;
+
+        *new_oc = NULL;
+        *new_at = NULL;
+        
+        if ((objectclasses == NULL) && (attributetypes == NULL)) {
+                return;
+        }
+        /* Check if we are allowed to update the schema (if needed) */
+        slapdFrontendConfig = getFrontendConfig();
+        CFG_LOCK_READ(slapdFrontendConfig);
+        if ((0 == strcasecmp(slapdFrontendConfig->schemareplace, CONFIG_SCHEMAREPLACE_STR_ON)) ||
+                (0 == strcasecmp(slapdFrontendConfig->schemareplace, CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY))) {
+                replace_allowed = 1;
+        }
+        CFG_UNLOCK_READ(slapdFrontendConfig);
+        if (!replace_allowed) {
+                return;
+        }
+        
+        schema_dse_lock_read();
+        /* 
+         * Build the list of objectclasses
+         */
+        /* from berval to objclass more convenient to compare */
+        if ((remote_oc_list = schema_berval_to_oclist(objectclasses)) != NULL) {
+                /* Build a list of objectclasses to learn from the remote definitions */
+                oc_lock_read();
+                oc2learn_list = schema_list_oc2learn(remote_oc_list, g_get_global_oc_nolock(), REPL_SCHEMA_AS_SUPPLIER);
+                oc_unlock();
+
+                /* For each of them copy the value to set */
+                for (oc2learn = oc2learn_list; oc2learn != NULL; oc2learn = oc2learn->next) {
+                        struct berval *bv;
+                        bv = objectclasses[oc2learn->index]; /* takes the berval from the selected objectclass */
+                        oc2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
+                        memcpy(oc2learn->new_value, bv->bv_val, bv->bv_len);
+                        oc2learn->new_value[bv->bv_len] = '\0';
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "supplier takes objectclass: %s\n", oc2learn->new_value);
+                }
+
+                /* Free the remote schema list*/
+                schema_oclist_free(remote_oc_list);
+        } else {
+                /* If we can not build an objectclasses list */
+                slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                        "Not able to build an objectclasses list from the consumer schema\n");
+        }
+
+        
+        /*
+         * Build the list of attributetypes
+         */
+        /* First build an attribute list from the remote schema */
+        if ((remote_at_list = schema_berval_to_atlist(attributetypes)) != NULL) {
+                /* Build a list of attributestype to learn from the remote definitions */
+                attr_syntax_read_lock();
+                at2learn_list = schema_list_attr2learn(attr_syntax_get_global_at(), remote_at_list, REPL_SCHEMA_AS_SUPPLIER);
+                attr_syntax_unlock_read();
+
+                /* For each of them copy the value to set */
+                for (at2learn = at2learn_list; at2learn != NULL; at2learn = at2learn->next) {
+                        struct berval *bv;
+                        bv = attributetypes[at2learn->index]; /* takes the berval from the selected mod */
+                        at2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
+                        memcpy(at2learn->new_value, bv->bv_val, bv->bv_len);
+                        at2learn->new_value[bv->bv_len] = '\0';
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "supplier takes attributetypes: %s\n", at2learn->new_value);
+                }
+
+                /* Free the remote schema list */
+                schema_atlist_free(remote_at_list);
+        } else {
+                /* If we can not build an attributes list from the mods, just skip
+                 * it and look for objectclasses
+                 */
+                slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                        "Not able to build an attributes list from the consumer schema");
+        }
+        schema_dse_unlock();
+        *new_oc = oc2learn_list;
+        *new_at = at2learn_list;
+        
+}
+
+/* This functions is called by a supplier when it detects new definitions (objectclasses/attributetypes)
+ * or extension of existing definitions in a consumer schema.
+ * This function, build lists of definitions to "learn" and add those definitions in the schema and 99user.ldif
+ */
+void 
+supplier_learn_new_definitions(struct berval **objectclasses, struct berval **attributetypes)
+{
+        struct schema_mods_indexes *oc_list = NULL;
+        struct schema_mods_indexes *at_list = NULL;
+        
+        supplier_get_new_definitions(objectclasses, attributetypes, &oc_list, &at_list);
+        if (at_list) {
+                modify_schema_apply_new_definitions("attributetypes", at_list);
+        }
+        if (oc_list) {
+                modify_schema_apply_new_definitions("objectclasses", oc_list);
+        }
+        /* No need to hold the lock for these list that are local */
+        modify_schema_free_new_definitions(at_list);
+        modify_schema_free_new_definitions(oc_list);
 }
