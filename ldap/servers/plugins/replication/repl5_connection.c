@@ -99,6 +99,7 @@ typedef struct repl_connection
 /*** from proto-slap.h ***/
 int schema_objectclasses_superset_check(struct berval **remote_schema, char *type);
 int schema_attributetypes_superset_check(struct berval **remote_schema, char *type);
+void supplier_learn_new_definitions(struct berval **objectclasses, struct berval **attributetypes);
 /* Controls we add on every outbound operation */
 
 static LDAPControl manageDSAITControl = {LDAP_CONTROL_MANAGEDSAIT, {0, ""}, '\0'};
@@ -1518,6 +1519,84 @@ attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type,
 	return return_value;
 }
 
+/* It returns the objectclasses and attributetypes of the remote schema
+ * in the form of berval arrays.
+ * In case of success, the caller must free those berval arrays with ber_bvecfree
+ *  */
+static ConnResult
+supplier_read_consumer_definitions(Repl_Connection *conn, struct berval ***remote_objectclasses, struct berval ***remote_attributetypes)
+{
+        ConnResult return_value = CONN_OPERATION_SUCCESS;
+        struct berval **remote_schema_objectclasses_bervals = NULL;
+        struct berval **remote_schema_attributetypes_bervals = NULL;
+        
+        *remote_objectclasses  = NULL;
+        *remote_attributetypes = NULL;
+        
+        /* read the objectclass then the attribytetype from the remote schema */
+        return_value = conn_read_entry_attribute(conn, "cn=schema", "objectclasses", &remote_schema_objectclasses_bervals);
+        if (return_value == CONN_OPERATION_SUCCESS) {
+                *remote_objectclasses = remote_schema_objectclasses_bervals;
+                
+                return_value = conn_read_entry_attribute(conn, "cn=schema", "attributetypes", &remote_schema_attributetypes_bervals);
+                if (return_value == CONN_OPERATION_SUCCESS) {
+                        *remote_attributetypes = remote_schema_attributetypes_bervals;
+                } else {
+                        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                                "%s: Fail to retrieve the remote schema attributetypes\n",
+                                agmt_get_long_name(conn->agmt));
+                }
+        } else {
+                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                        "%s: Fail to retrieve the remote schema objectclasses\n",
+                        agmt_get_long_name(conn->agmt));
+        }
+
+        if (return_value != CONN_OPERATION_SUCCESS) {
+                /* in case of failure free everything */
+                *remote_objectclasses = NULL;
+                if (remote_schema_objectclasses_bervals) {
+                        ber_bvecfree(remote_schema_objectclasses_bervals);
+                }
+
+                *remote_attributetypes = NULL;
+                if (remote_schema_attributetypes_bervals) {
+                        ber_bvecfree(remote_schema_attributetypes_bervals);
+                }
+        }
+        return return_value;
+        
+}
+//
+
+static PRBool
+update_consumer_schema(Repl_Connection *conn)
+{
+        struct berval **remote_schema_objectclasses_bervals = NULL;
+        struct berval **remote_schema_attributetypes_bervals = NULL;
+        PRBool ok_to_send_schema = PR_TRUE;
+        
+        if (supplier_read_consumer_definitions(conn, &remote_schema_objectclasses_bervals, &remote_schema_attributetypes_bervals) == CONN_OPERATION_SUCCESS) {
+                if (schema_objectclasses_superset_check(remote_schema_objectclasses_bervals, OC_SUPPLIER) ||
+                        schema_attributetypes_superset_check(remote_schema_attributetypes_bervals, OC_SUPPLIER)) {
+
+                        /* The consumer contains definitions that needs to be learned */
+                        supplier_learn_new_definitions(remote_schema_objectclasses_bervals, remote_schema_attributetypes_bervals);
+                        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                                "[S] Schema %s must not be overwritten (set replication log for additional info)\n",
+                                agmt_get_long_name(conn->agmt));
+                        ok_to_send_schema = PR_FALSE;
+                }
+                ber_bvecfree(remote_schema_objectclasses_bervals);
+                ber_bvecfree(remote_schema_attributetypes_bervals);
+        } else {
+                /* We can not be sure, be conservative and not send the schema */
+                ok_to_send_schema = PR_FALSE;
+        }
+        return ok_to_send_schema;
+        
+}
+
 /*
  * Read the remote server's schema entry, then read the local schema entry,
  * and compare the nsschemacsn attribute. If the local csn is newer, or
@@ -1568,79 +1647,45 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 			return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
 		}
 		else
-		{
-			struct berval **remote_schema_csn_bervals = NULL;
-			/* Get remote server's schema */
-			return_value = conn_read_entry_attribute(conn, "cn=schema", nsschemacsn,
-				&remote_schema_csn_bervals);
-			if (CONN_OPERATION_SUCCESS == return_value)
-			{
-				if (NULL != remote_schema_csn_bervals && NULL != remote_schema_csn_bervals[0])
-				{
-					char remotecsnstr[CSN_STRSIZE + 1] = {0};
-					memcpy(remotecsnstr, remote_schema_csn_bervals[0]->bv_val,
-						remote_schema_csn_bervals[0]->bv_len);
-					remotecsnstr[remote_schema_csn_bervals[0]->bv_len] = '\0';
-					*remotecsn = csn_new_by_string(remotecsnstr);
-					if (*remotecsn && (csn_compare(localcsn, *remotecsn) <= 0))
-					{
-						return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
-					}
-					/* Need to free the remote_schema_csn_bervals */
-					ber_bvecfree(remote_schema_csn_bervals);
-				}
-				if (return_value != CONN_SCHEMA_NO_UPDATE_NEEDED) {
-					struct berval **remote_schema_objectclasses_bervals = NULL;
-					struct berval **remote_schema_attributetypes_bervals = NULL;
-					/* before pushing the schema do some checking */
+		{			
+                        if (!update_consumer_schema(conn)) {
+                                /* At least one schema definition (attributetypes/objectclasses) of the consumer
+                                 * is a superset of the supplier.
+                                 * It is not possible push the schema immediately.
+                                 * Note: in update_consumer_schema, it may update the local supplier schema.
+                                 * So it could be possible that a second attempt (right now) of update_consumer_schema
+                                 * would be successful
+                                 */
+                                if (!update_consumer_schema(conn)) {
+                                        return_value = CONN_OPERATION_FAILED;
+                                }
+                        } 
+                        if (return_value == CONN_OPERATION_SUCCESS) {
+                                struct berval **remote_schema_csn_bervals = NULL;
 
-					/* First objectclasses */
-					return_value = conn_read_entry_attribute(conn, "cn=schema", "objectclasses",
-															&remote_schema_objectclasses_bervals);
-					if (return_value == CONN_OPERATION_SUCCESS) {
-						/* Check if the consumer objectclasses are a superset of the local supplier schema */
-						if (schema_objectclasses_superset_check(remote_schema_objectclasses_bervals, OC_SUPPLIER)) {
-							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"Schema %s must not be overwritten (set replication log for additional info)\n",
-									agmt_get_long_name(conn->agmt));
-							return_value = CONN_OPERATION_FAILED;
-						}
-						if(remote_schema_objectclasses_bervals){
-							ber_bvecfree(remote_schema_objectclasses_bervals);
-						}
-					} else {
-						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-								"%s: Fail to retrieve the remote schema objectclasses\n",
-								agmt_get_long_name(conn->agmt));
-					}
-					if (return_value == CONN_OPERATION_SUCCESS) {
-						/* Next attribute types */
-						return_value = conn_read_entry_attribute(conn, "cn=schema", "attributetypes",
-																&remote_schema_attributetypes_bervals);
-						if (return_value == CONN_OPERATION_SUCCESS) {
-							/* Check if the consumer attributes are a superset of the local supplier schema */
-							if (schema_attributetypes_superset_check(remote_schema_attributetypes_bervals, OC_SUPPLIER)) {
-								slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-										"Schema %s must not be overwritten (set replication log for additional info)\n",
-										agmt_get_long_name(conn->agmt));
-								return_value = CONN_OPERATION_FAILED;
-							}
-							if(remote_schema_attributetypes_bervals){
-								ber_bvecfree(remote_schema_attributetypes_bervals);
-							}
-						} else {
-							slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-									"%s: Fail to retrieve the remote schema attribute types\n",
-									agmt_get_long_name(conn->agmt));
-						}
-					}
-					/* In case of success, possibly log a message */
-					if (return_value == CONN_OPERATION_SUCCESS) {
-						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-								"Schema checking successful: ok to push the schema (%s)\n", agmt_get_long_name(conn->agmt));
-					}
-				}
-			}
+                                /* Get remote server's schema */
+                                return_value = conn_read_entry_attribute(conn, "cn=schema", nsschemacsn,
+                                        &remote_schema_csn_bervals);
+                                if (CONN_OPERATION_SUCCESS == return_value) {
+                                        if (NULL != remote_schema_csn_bervals && NULL != remote_schema_csn_bervals[0]) {
+                                                char remotecsnstr[CSN_STRSIZE + 1] = {0};
+                                                memcpy(remotecsnstr, remote_schema_csn_bervals[0]->bv_val,
+                                                        remote_schema_csn_bervals[0]->bv_len);
+                                                remotecsnstr[remote_schema_csn_bervals[0]->bv_len] = '\0';
+                                                *remotecsn = csn_new_by_string(remotecsnstr);
+                                                if (*remotecsn && (csn_compare(localcsn, *remotecsn) <= 0)) {
+                                                        return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
+                                                }
+                                                /* Need to free the remote_schema_csn_bervals */
+                                                ber_bvecfree(remote_schema_csn_bervals);
+                                        }
+                                        if (return_value == CONN_OPERATION_SUCCESS) {
+                                                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                                        "Schema checking successful: ok to push the schema (%s)\n", agmt_get_long_name(conn->agmt));
+                                        }
+
+                                }
+                        }
 		}
 	}
 	if (CONN_OPERATION_SUCCESS == return_value)

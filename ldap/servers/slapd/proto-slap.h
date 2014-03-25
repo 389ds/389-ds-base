@@ -1028,6 +1028,7 @@ void schema_free_extensions(schemaext *extensions);
 schemaext *schema_copy_extensions(schemaext *extensions);
 int schema_objectclasses_superset_check(struct berval **remote_schema, char *type);
 int schema_attributetypes_superset_check(struct berval **remote_schema, char *type);
+void  supplier_learn_new_definitions(struct berval **objectclasses, struct berval **attributetypes);
 
 /*
  * schemaparse.c
