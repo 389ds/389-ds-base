@@ -1378,9 +1378,10 @@ int import_main_offline(void *arg)
     import_log_notice(job, "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
+    import_log_notice(job, "Generating numsubordinates (this may take several minutes to complete)...");
     if ( (!(job->flags & FLAG_REINDEXING) || (job->flags & FLAG_DN2RDN)) &&
-         (ret = update_subordinatecounts(be, job->mothers, job->encrypt, NULL))
-         != 0 ) {
+         (ret = update_subordinatecounts(be, job, NULL)) != 0 )
+    {
         import_log_notice(job, "Failed to update numsubordinates attributes");
         goto error;
     }
@@ -1390,10 +1391,10 @@ int import_main_offline(void *arg)
         /* And the ancestorid index */
         /* Creating ancestorid from the scratch; delete the index file first. */
         struct attrinfo *ai = NULL;
+
         ainfo_get(be, "ancestorid", &ai);
         dblayer_erase_index_file(be, ai, 0);
- 
-        if ((ret = ldbm_ancestorid_create_index(be)) != 0) {
+        if ((ret = ldbm_ancestorid_create_index(be, job)) != 0) {
             import_log_notice(job, "Failed to create ancestorid index");
             goto error;
         }

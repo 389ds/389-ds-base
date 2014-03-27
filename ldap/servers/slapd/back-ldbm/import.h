@@ -162,6 +162,7 @@ typedef struct {
     int encrypt;
     Slapi_Value *usn_value;     /* entryusn for import */
     FILE *upgradefd;            /* used for the upgrade */
+    int numsubordinates;
 } ImportJob;
 
 #define FLAG_INDEX_ATTRS	0x01	/* should we index the attributes? */
@@ -211,6 +212,9 @@ struct _import_worker_info {
 #define ABORTED    0x8
 #define QUIT       0x10  /* quit intentionally.
                           * introduced to distinguish from ABORTED, FINISHED */
+
+#define PROGRESS_INTERVAL 100000 /* number of IDs processed that triggers an update */
+
 #define CORESTATE  0xff
 #define DN_NORM    0x100 /* do dn normalization in upgrade */
 #define DN_NORM_SP 0x200 /* do dn normalization for multi spaces in upgrade */
@@ -247,6 +251,7 @@ void reset_progress( void );
 void report_progress( int count, int done );
 int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
 		 int *status);
+int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn);
 
 /* import-threads.c */
 void import_producer(void *param);
@@ -254,3 +259,6 @@ void index_producer(void *param);
 void upgradedn_producer(void *param);
 void import_foreman(void *param);
 void import_worker(void *param);
+
+/* ancestorid.c */
+int ldbm_ancestorid_create_index(backend *be, ImportJob *job);

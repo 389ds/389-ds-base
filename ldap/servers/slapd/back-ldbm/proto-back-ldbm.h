@@ -44,6 +44,7 @@
 #ifndef _PROTO_BACK_LDBM
 #define _PROTO_BACK_LDBM
 
+
 /*
  * attr.c
  */
@@ -343,7 +344,6 @@ int import_subcount_mother_init(import_subcount_stuff *mothers,ID parent_id, siz
 int import_subcount_mother_count(import_subcount_stuff *mothers,ID parent_id);
 void import_subcount_stuff_init(import_subcount_stuff *stuff);
 void import_subcount_stuff_term(import_subcount_stuff *stuff);
-int update_subordinatecounts(backend *be,import_subcount_stuff *mothers, int isencrypted, DB_TXN *txn);
 void import_configure_index_buffer_size(size_t size);
 size_t import_get_index_buffer_size();
 int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
@@ -665,7 +665,6 @@ void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li);
 /*
  * ancestorid.c
  */
-int ldbm_ancestorid_create_index(backend *be);
 int ldbm_ancestorid_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int ldbm_ancestorid_read(backend *be, back_txn *txn, ID id, IDList **idl);
 int ldbm_ancestorid_read_ext(backend *be, back_txn *txn, ID id, IDList **idl, int allidslimit);

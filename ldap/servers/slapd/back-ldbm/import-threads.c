@@ -741,7 +741,7 @@ import_producer(void *param)
         job->fifo.item[idx].esize = newesize;
 
         /* Add the entry size to total fifo size */
-        job->fifo.c_bsize += ep->ep_entry? job->fifo.item[idx].esize : 0;
+        job->fifo.c_bsize += ep->ep_entry ? job->fifo.item[idx].esize : 0;
 
         /* Update the job to show our progress */
         job->lead_ID = id;
@@ -2201,16 +2201,17 @@ import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
 
     /* Now check if fifo has enough space for the new entry */
-    while ((job->fifo.c_bsize + new_esize) > job->fifo.bsize) {
+    while ((job->fifo.c_bsize + new_esize) > job->fifo.bsize && !(job->flags & FLAG_ABORT)) {
         for ( i = 0, slot_found = 0 ; i < job->fifo.size ; i++ ) {
             temp_ep = job->fifo.item[i].entry;
             if (temp_ep) {
                 if (temp_ep->ep_refcnt == 0 && temp_ep->ep_id <= job->ready_EID) {
                     job->fifo.item[i].entry = NULL;
-                    if (job->fifo.c_bsize > job->fifo.item[i].esize)
+                    if (job->fifo.c_bsize > job->fifo.item[i].esize){
                         job->fifo.c_bsize -= job->fifo.item[i].esize;
-                    else
+                    } else {
                         job->fifo.c_bsize = 0;
+                    }
                     backentry_free(&temp_ep);
                     slot_found = 1;
                 }

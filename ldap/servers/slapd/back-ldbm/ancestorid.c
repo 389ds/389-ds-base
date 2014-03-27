@@ -42,6 +42,7 @@
 
 
 #include "back-ldbm.h"
+#include "import.h"
 
 static char *sourcefile = LDBM_ANCESTORID_STR;
 
@@ -70,10 +71,10 @@ static void id2idl_hash_destroy(id2idl_hash *ht);
 static int ldbm_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid);
 static int check_cache(id2idl_hash *ht);
 static IDList *idl_union_allids(backend *be, struct attrinfo *ai, IDList *a, IDList *b);
-static int ldbm_ancestorid_default_create_index(backend *be);
-static int ldbm_ancestorid_new_idl_create_index(backend *be);
+static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job);
+static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job);
 
-static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
+static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
 {
     int ret = 0;
     DB *db    = NULL;
@@ -83,6 +84,8 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
     struct attrinfo *ai = NULL;
     IDList *nodes = NULL;
     ID id;
+    int started_progress_logging = 0;
+    int key_count = 0;
 
     /* Open the parentid index */
     ainfo_get( be, LDBM_PARENTID_STR, &ai );
@@ -100,7 +103,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
         ldbm_nasty(sourcefile,13020,ret);
         goto out;
     }
-
+    import_log_notice(job, "Gathering ancestorid non-leaf IDs...");
     /* For each key which is an equality key */
     do {
         ret = dbc->c_get(dbc,&key,&data,DB_NEXT_NODUP);
@@ -108,8 +111,21 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
             id = (ID) strtoul((char*)key.data+1, NULL, 10);
             idl_insert(&nodes, id);
         }
-    } while (ret == 0);
+        key_count++;
+        if(job && !(key_count % PROGRESS_INTERVAL)){
+            import_log_notice(job, "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+                    (key_count * 100 / job->numsubordinates), key_count);
+            started_progress_logging = 1;
+        }
+    } while (ret == 0 && !(job->flags & FLAG_ABORT));
 
+    if(started_progress_logging){
+        /* finish what we started logging */
+        import_log_notice(job, "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+                (key_count * 100 / job->numsubordinates), key_count);
+
+    }
+    import_log_notice(job, "Finished gathering ancestorid non-leaf IDs.");
     /* Check for success */
     if (ret == DB_NOTFOUND) ret = 0;
     if (ret != 0) ldbm_nasty(sourcefile,13030,ret);
@@ -158,11 +174,11 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
  *   (guaranteed after a database import but not after a subtree move)
  *
  */
-int ldbm_ancestorid_create_index(backend *be)
+int ldbm_ancestorid_create_index(backend *be, ImportJob *job)
 {
 	return (idl_get_idl_new()) ?
-		ldbm_ancestorid_new_idl_create_index(be) :
-	    ldbm_ancestorid_default_create_index(be);
+		ldbm_ancestorid_new_idl_create_index(be, job) :
+	    ldbm_ancestorid_default_create_index(be, job);
 }
 
 /*
@@ -171,8 +187,9 @@ int ldbm_ancestorid_create_index(backend *be)
  * quite a bit slower than ldbm_ancestorid_new_idl_create_index()
  * when the new mode is used, particularly with large databases.
  */
-static int ldbm_ancestorid_default_create_index(backend *be)
+static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
 {
+    int key_count = 0;
     int ret = 0;
     DB *db_pid    = NULL;
     DB *db_aid    = NULL;
@@ -187,6 +204,7 @@ static int ldbm_ancestorid_default_create_index(backend *be)
     ID id, parentid;
     id2idl_hash *ht = NULL;
     id2idl *ididl;
+    int started_progress_logging = 0;
 
     /*
      * We need to iterate depth-first through the non-leaf nodes
@@ -199,10 +217,8 @@ static int ldbm_ancestorid_default_create_index(backend *be)
      * correct order.
      */
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "Creating ancestorid index\n", 0,0,0);
-
     /* Get the non-leaf node IDs */
-    ret = ldbm_get_nonleaf_ids(be, txn, &nodes);
+    ret = ldbm_get_nonleaf_ids(be, txn, &nodes, job);
     if (ret != 0) return ret;
 
     /* Get the ancestorid index */
@@ -243,6 +259,7 @@ static int ldbm_ancestorid_default_create_index(backend *be)
     key.ulen = sizeof(keybuf);
     key.flags = DB_DBT_USERMEM;
 
+    import_log_notice(job, "Creating ancestorid index (old idl)...");
     /* Iterate from highest to lowest ID */
     nids = nodes->b_nids;
     do {
@@ -259,6 +276,20 @@ static int ldbm_ancestorid_default_create_index(backend *be)
         if (ret != 0) {
             ldbm_nasty(sourcefile,13070,ret);
             break;
+        }
+
+        /* check if we need to abort */
+        if(job->flags & FLAG_ABORT){
+            import_log_notice(job, "ancestorid creation aborted.");
+            ret = -1;
+            break;
+        }
+
+        key_count++;
+        if(job && !(key_count % PROGRESS_INTERVAL)){
+        	import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
+        	        (key_count * 100 / job->numsubordinates), key_count);
+        	 started_progress_logging = 1;
         }
 
         /* Insert into ancestorid for this node */
@@ -314,11 +345,6 @@ static int ldbm_ancestorid_default_create_index(backend *be)
     ret = check_cache(ht);
 
  out:
-    if (ret == 0) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "Created ancestorid index\n", 0,0,0);
-    } else {
-        LDAPDebug(LDAP_DEBUG_ANY, "Failed to create ancestorid index\n", 0,0,0);
-    }
 
     /* Destroy the cache */
     id2idl_hash_destroy(ht);
@@ -338,6 +364,12 @@ static int ldbm_ancestorid_default_create_index(backend *be)
 
     /* Enable the index */
     if (ret == 0) {
+        if(started_progress_logging){
+            /* finish what we started logging */
+            import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
+                    (key_count * 100 / job->numsubordinates), key_count);
+        }
+        import_log_notice(job, "Created ancestorid index (old idl).");
         ai_aid->ai_indexmask &= ~INDEX_OFFLINE;
     }
 
@@ -351,8 +383,9 @@ static int ldbm_ancestorid_default_create_index(backend *be)
  * ldbm_ancestorid_default_create_index(), particularly on
  * large databases.  Cf. bug 469800.
  */
-static int ldbm_ancestorid_new_idl_create_index(backend *be)
+static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 {
+    int key_count = 0;
     int ret = 0;
     DB *db_pid    = NULL;
     DB *db_aid    = NULL;
@@ -365,6 +398,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
     IDList *children = NULL;
     NIDS nids;
     ID id, parentid;
+    int started_progress_logging = 0;
 
     /*
      * We need to iterate depth-first through the non-leaf nodes
@@ -377,8 +411,6 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
      * correct order.
      */
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "Creating ancestorid index\n", 0,0,0);
-
 	/* Bail now if we did not get here honestly. */
 	if (!idl_get_idl_new()) {
 		LDAPDebug(LDAP_DEBUG_ANY, "Cannot create ancestorid index.  " 
@@ -387,7 +419,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
 	}
 
     /* Get the non-leaf node IDs */
-    ret = ldbm_get_nonleaf_ids(be, txn, &nodes);
+    ret = ldbm_get_nonleaf_ids(be, txn, &nodes, job);
     if (ret != 0) return ret;
 
     /* Get the ancestorid index */
@@ -425,6 +457,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
     key.ulen = sizeof(keybuf);
     key.flags = DB_DBT_USERMEM;
 
+    import_log_notice(job, "Creating ancestorid index (new idl)...");
     /* Iterate from highest to lowest ID */
     nids = nodes->b_nids;
     do {
@@ -441,6 +474,20 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
         if (ret != 0) {
             ldbm_nasty(sourcefile,13070,ret);
             break;
+        }
+
+        /* check if we need to abort */
+        if(job->flags & FLAG_ABORT){
+            import_log_notice(job, "ancestorid creation aborted.");
+            ret = -1;
+            break;
+        }
+
+        key_count++;
+        if(job && !(key_count % PROGRESS_INTERVAL)){
+            import_log_notice(job, "Creating ancestorid index: progress %d%% (ID count %d)",
+                    (key_count * 100 / job->numsubordinates), key_count);
+            started_progress_logging = 1;
         }
 
 		/* Instead of maintaining a full accounting of IDs in a hashtable
@@ -498,7 +545,12 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
 
  out:
     if (ret == 0) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "Created ancestorid index\n", 0,0,0);
+        if(started_progress_logging){
+            /* finish what we started logging */
+            import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
+                    (key_count * 100 / job->numsubordinates), key_count);
+        }
+        import_log_notice(job, "Created ancestorid index (new idl).");
     } else {
         LDAPDebug(LDAP_DEBUG_ANY, "Failed to create ancestorid index\n", 0,0,0);
     }

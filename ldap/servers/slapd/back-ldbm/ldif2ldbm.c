@@ -505,9 +505,12 @@ static int import_subcount_trawl(backend *be,
  * Returns: Nothing
  * 
  */
-int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
-                             int isencrypted, DB_TXN *txn)
+int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
 {
+    import_subcount_stuff *mothers = job->mothers;
+    int isencrypted = job->encrypt;
+    int started_progress_logging = 0;
+    int key_count = 0;
     int ret = 0;
     DB *db    = NULL;
     DBC *dbc  = NULL; 
@@ -524,7 +527,6 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
         ldbm_nasty(sourcefile,67,ret);
         return(ret);
     }
-
     /* Get a cursor so we can walk through the parentid */
     ret = db->cursor(db,txn,&dbc,0);
     if (ret != 0 ) {
@@ -557,6 +559,21 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
             }
             break;
         }
+        /* check if we need to abort */
+        if(job->flags & FLAG_ABORT){
+            import_log_notice(job, "numsubordinate generation aborted.");
+            break;
+        }
+        /*
+         * Do an update count
+         */
+        key_count++;
+        if(!(key_count % PROGRESS_INTERVAL)){
+            import_log_notice(job, "numsubordinate generation: processed %d entries...",
+                    key_count);
+            started_progress_logging = 1;
+        }
+
         if (*(char*)key.data == EQ_PREFIX) {
             char *idptr = NULL;
     
@@ -605,6 +622,12 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
             slapi_ch_free(&(key.data));
             key.data = NULL;
         }
+    }
+    if(started_progress_logging){
+        /* Finish what we started... */
+        import_log_notice(job, "numsubordinate generation: processed %d entries.",
+                key_count);
+        job->numsubordinates = key_count;
     }
 
     ret = dbc->c_close(dbc);
