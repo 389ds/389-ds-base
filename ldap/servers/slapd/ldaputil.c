@@ -1011,8 +1011,8 @@ slapi_ldap_bind(
        than the currently unused clientctrls */
     ldap_get_option(ld, LDAP_OPT_CLIENT_CONTROLS, &clientctrls);
     if (clientctrls && clientctrls[0] &&
-	slapi_control_present(clientctrls, START_TLS_OID, NULL, NULL)) {
-	secure = 2;
+        slapi_control_present(clientctrls, START_TLS_OID, NULL, NULL)) {
+        secure = 2;
     } else {
 #if defined(USE_OPENLDAP)
 	/* openldap doesn't have a SSL/TLS yes/no flag - so grab the
@@ -1051,12 +1051,12 @@ slapi_ldap_bind(
 	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
 			    "Set up conn to use client auth\n");
 	}
-	bvcreds.bv_val = NULL; /* ignore username and passed in creds */
-	bvcreds.bv_len = 0; /* for external auth */
-	bindid = NULL;
+        bvcreds.bv_val = NULL; /* ignore username and passed in creds */
+        bvcreds.bv_len = 0; /* for external auth */
+        bindid = NULL;
     } else { /* other type of auth */
-	bvcreds.bv_val = (char *)creds;
-	bvcreds.bv_len = creds ? strlen(creds) : 0;
+        bvcreds.bv_val = (char *)creds;
+        bvcreds.bv_len = creds ? strlen(creds) : 0;
     }
 
     if (secure == 2) { /* send start tls */
@@ -1084,31 +1084,29 @@ slapi_ldap_bind(
 			bindid, creds);
 	if ((rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
 	                         NULL /* clientctrls */, &mymsgid))) {
-	    char *myhostname = NULL;
-	    char *copy = NULL;
+	    char *hostname = NULL;
+	    char *host_port = NULL;
 	    char *ptr = NULL;
 	    int myerrno = errno;
 	    int gaierr = 0;
 
-	    ldap_get_option(ld, LDAP_OPT_HOST_NAME, &myhostname);
-	    if (myhostname) {
-	        ptr = strchr(myhostname, ':');
+	    ldap_get_option(ld, LDAP_OPT_HOST_NAME, &host_port);
+	    if (host_port) {
+	        ptr = strchr(host_port, ':');
 	        if (ptr) {
-	            copy = slapi_ch_strdup(myhostname);
-	            *(copy + (ptr - myhostname)) = '\0';
-	            slapi_ch_free_string(&myhostname);
-	            myhostname = copy;
+	            hostname = slapi_ch_strdup(host_port);
+	            *(hostname + (ptr - host_port)) = '\0';
 	        }
 	    }
-
 	    if (0 == myerrno) {
 	        struct addrinfo *result = NULL;
-	        gaierr = getaddrinfo(myhostname, NULL, NULL, &result);
+	        gaierr = getaddrinfo(hostname, NULL, NULL, &result);
 	        myerrno = errno;
 	        if (result) {
 	            freeaddrinfo(result);
 	        }
 	    }
+
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
 			    "Error: could not send bind request for id "
 			    "[%s] authentication mechanism [%s]: error %d (%s), system error %d (%s), "
@@ -1119,8 +1117,9 @@ slapi_ldap_bind(
 			    PR_GetError(), slapd_pr_strerror(PR_GetError()),
 			    myerrno ? myerrno : gaierr,
 			    myerrno ? slapd_system_strerror(myerrno) : gai_strerror(gaierr),
-			    myhostname ? myhostname : "unknown host");
-	    slapi_ch_free_string(&myhostname);
+			    host_port ? host_port : "unknown host");
+	    slapi_ch_free_string(&hostname);
+	    slapi_ch_free_string(&host_port);
 	    goto done;
 	}
 

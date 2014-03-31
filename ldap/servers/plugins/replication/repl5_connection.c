@@ -138,6 +138,7 @@ static void repl5_debug_timeout_callback(time_t when, void *arg);
 
 /* Forward declarations */
 static void close_connection_internal(Repl_Connection *conn);
+static void conn_delete_internal(Repl_Connection *conn);
 
 /*
  * Create a new connection object. Returns a pointer to the object, or
@@ -182,11 +183,22 @@ conn_new(Repl_Agmt *agmt)
 	rpc->plain = NULL;
 	return rpc;
 loser:
-	conn_delete(rpc);
+	conn_delete_internal(rpc);
 	slapi_ch_free((void**)&rpc);
 	return NULL;
 }
 
+static PRBool
+conn_connected_locked(Repl_Connection *conn, int locked)
+{
+	PRBool return_value;
+
+	if(!locked) PR_Lock(conn->lock);
+	return_value = STATE_CONNECTED == conn->state;
+	if(!locked) PR_Unlock(conn->lock);
+
+	return return_value;
+}
 
 /*
  * Return PR_TRUE if the connection is in the connected state
@@ -194,13 +206,8 @@ loser:
 static PRBool
 conn_connected(Repl_Connection *conn)
 {
-	PRBool return_value;
-	PR_Lock(conn->lock);
-	return_value = STATE_CONNECTED == conn->state;
-	PR_Unlock(conn->lock);
-	return return_value;
+	return conn_connected_locked(conn, 1);
 }
-
 
 /*
  * Destroy a connection object.
@@ -243,7 +250,6 @@ conn_delete(Repl_Connection *conn)
 		if (slapi_eq_cancel(conn->linger_event) == 1)
 		{
 			/* Event was found and cancelled. Destroy the connection object. */
-			PR_Unlock(conn->lock);
 			destroy_it = PR_TRUE;
 		}
 		else
@@ -254,15 +260,14 @@ conn_delete(Repl_Connection *conn)
 			 * off, so arrange for the event to destroy the object .
 			 */
 			conn->delete_after_linger = PR_TRUE;
-			PR_Unlock(conn->lock);
 		}
 	}
 	if (destroy_it)
 	{
 		conn_delete_internal(conn);
 	}
+	PR_Unlock(conn->lock);
 }
-
 
 /*
  * Return the last operation type processed by the connection
@@ -327,17 +332,18 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 			while (!slapi_is_shutting_down())
 			{
 				/* we have to make sure the update sending thread does not
-				   attempt to call conn_disconnect while we are reading
+				   attempt to close connection while we are reading
 				   results - so lock the conn while we get the results */
 				PR_Lock(conn->lock);
+
 				if ((STATE_CONNECTED != conn->state) || !conn->ld) {
 					rc = -1;
 					return_value = CONN_NOT_CONNECTED;
 					PR_Unlock(conn->lock);
 					break;
 				}
-
 				rc = ldap_result(conn->ld, send_msgid, 1, &local_timeout, &res);
+
 				PR_Unlock(conn->lock);
 
 				if (0 != rc)
@@ -661,8 +667,10 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 	server_controls[1] = update_control;
 	server_controls[2] = NULL;
 
-	/* lock the conn to prevent the result reader thread
-	   from closing the connection out from under us */
+	/*
+	 * Lock the conn to prevent the result reader thread
+	 * from closing the connection out from under us.
+	 */
 	PR_Lock(conn->lock);
 	if (STATE_CONNECTED == conn->state)
 	{
@@ -804,7 +812,6 @@ conn_send_rename(Repl_Connection *conn, const char *dn,
 		NULL /* extop OID */, NULL /* extop payload */, message_id);
 }
 
-
 /*
  * Send an LDAP extended operation.
  */
@@ -817,7 +824,6 @@ conn_send_extended_operation(Repl_Connection *conn, const char *extop_oid,
 		NULL /* newrdn */, NULL /* newparent */,  0 /* deleteoldrdn */,
 		update_control, extop_oid, payload, message_id);
 }
-
 
 /*
  * Synchronously read an entry and return a specific attribute's values.
@@ -837,6 +843,8 @@ conn_read_entry_attribute(Repl_Connection *conn, const char *dn,
 	LDAPControl *server_controls[2];
 	LDAPMessage *res = NULL;
 	char *attrs[2];
+
+	PR_Lock(conn->lock);
 
 	PR_ASSERT(NULL != type);
 	if (conn_connected(conn))
@@ -860,7 +868,7 @@ conn_read_entry_attribute(Repl_Connection *conn, const char *dn,
 		}
 		else if (IS_DISCONNECT_ERROR(ldap_rc))
 		{
-			conn_disconnect(conn);
+			close_connection_internal(conn);
 			return_value = CONN_NOT_CONNECTED;
 		}
 		else
@@ -878,9 +886,10 @@ conn_read_entry_attribute(Repl_Connection *conn, const char *dn,
 	{
 		return_value = CONN_NOT_CONNECTED;
 	}
+	PR_Unlock(conn->lock);
+
 	return return_value;
 }
-
 
 /*
  * Return an pointer to a string describing the connection's status.
@@ -891,8 +900,6 @@ conn_get_status(Repl_Connection *conn)
 {
 	return conn->status;
 }
-
-
 
 /*
  * Cancel any outstanding linger timer. Should be called when
@@ -925,7 +932,6 @@ conn_cancel_linger(Repl_Connection *conn)
 	PR_Unlock(conn->lock);
 }
 
-
 /*
  * Called when our linger timeout timer expires. This means
  * we should check to see if perhaps the connection's become
@@ -956,7 +962,6 @@ linger_timeout(time_t event_time, void *arg)
 		conn_delete_internal(conn);
 	}
 }
-
 
 /*
  * Indicate that a session is ending. The linger timer starts when
@@ -995,8 +1000,6 @@ conn_start_linger(Repl_Connection *conn)
 	PR_Unlock(conn->lock);
 }
 
-
-
 /*
  * If no connection is currently active, opens a connection and binds to
  * the remote server. If a connection is open (e.g. lingering) then
@@ -1015,10 +1018,14 @@ conn_connect(Repl_Connection *conn)
 	ConnResult return_value = CONN_OPERATION_SUCCESS;
 	int pw_ret = 1;
 
-	/** Connection already open just return SUCCESS **/
-	if(conn->state == STATE_CONNECTED) goto done;
-
 	PR_Lock(conn->lock);
+
+	/* Connection already open, just return SUCCESS */
+	if(conn->state == STATE_CONNECTED){
+		PR_Unlock(conn->lock);
+		return return_value;
+	}
+
 	if (conn->flag_agmt_changed) {
 		/* So far we cannot change Hostname and Port */
 		/* slapi_ch_free((void **)&conn->hostname); */
@@ -1033,7 +1040,6 @@ conn_connect(Repl_Connection *conn)
 		conn->port = agmt_get_port(conn->agmt); /* port could be updated */
 		slapi_ch_free((void **)&conn->plain);
 	}
-	PR_Unlock(conn->lock);
 
 	creds = agmt_get_credentials(conn->agmt);
 
@@ -1174,6 +1180,7 @@ done:
 	{
 		close_connection_internal(conn);
 	}
+	PR_Unlock(conn->lock);
 
 	return return_value;
 }
@@ -1209,7 +1216,6 @@ conn_disconnect(Repl_Connection *conn)
 	PR_Unlock(conn->lock);
 }
 
-
 /*
  * Determine if the remote replica supports DS 5.0 replication.
  * Return codes:
@@ -1226,6 +1232,7 @@ conn_replica_supports_ds5_repl(Repl_Connection *conn)
 	ConnResult return_value;
 	int ldap_rc;
 
+	PR_Lock(conn->lock);
 	if (conn_connected(conn))
 	{
 		if (conn->supports_ds50_repl == -1) {
@@ -1273,7 +1280,7 @@ conn_replica_supports_ds5_repl(Repl_Connection *conn)
 				if (IS_DISCONNECT_ERROR(ldap_rc))
 				{
 					conn->last_ldap_error = ldap_rc;	/* specific reason */
-					conn_disconnect(conn);
+					close_connection_internal(conn);
 					return_value = CONN_NOT_CONNECTED;
 				}
 				else
@@ -1293,9 +1300,10 @@ conn_replica_supports_ds5_repl(Repl_Connection *conn)
 		/* Not connected */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	PR_Unlock(conn->lock);
+
 	return return_value;
 }
-
 
 /*
  * Determine if the remote replica supports DS 7.1 replication.
@@ -1313,6 +1321,7 @@ conn_replica_supports_ds71_repl(Repl_Connection *conn)
 	ConnResult return_value;
 	int ldap_rc;
 
+	PR_Lock(conn->lock);
 	if (conn_connected(conn))
 	{
 		if (conn->supports_ds71_repl == -1) {
@@ -1344,7 +1353,7 @@ conn_replica_supports_ds71_repl(Repl_Connection *conn)
 				if (IS_DISCONNECT_ERROR(ldap_rc))
 				{
 					conn->last_ldap_error = ldap_rc;	/* specific reason */
-					conn_disconnect(conn);
+					close_connection_internal(conn);
 					return_value = CONN_NOT_CONNECTED;
 				}
 				else
@@ -1364,6 +1373,8 @@ conn_replica_supports_ds71_repl(Repl_Connection *conn)
 		/* Not connected */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	PR_Unlock(conn->lock);
+
 	return return_value;
 }
 
@@ -1383,6 +1394,7 @@ conn_replica_supports_ds90_repl(Repl_Connection *conn)
 	ConnResult return_value;
 	int ldap_rc;
 
+	PR_Lock(conn->lock);
 	if (conn_connected(conn))
 	{
 		if (conn->supports_ds90_repl == -1) {
@@ -1414,7 +1426,7 @@ conn_replica_supports_ds90_repl(Repl_Connection *conn)
 				if (IS_DISCONNECT_ERROR(ldap_rc))
 				{
 					conn->last_ldap_error = ldap_rc;        /* specific reason */
-					conn_disconnect(conn);
+					close_connection_internal(conn);
 					return_value = CONN_NOT_CONNECTED;
 				}
 				else
@@ -1423,7 +1435,7 @@ conn_replica_supports_ds90_repl(Repl_Connection *conn)
 				}
 			}
 			if (NULL != res)
-                                ldap_msgfree(res);
+				ldap_msgfree(res);
 		}
 		else
 		{
@@ -1435,6 +1447,8 @@ conn_replica_supports_ds90_repl(Repl_Connection *conn)
 		/* Not connected */
 		return_value = CONN_NOT_CONNECTED;
 	}
+	PR_Unlock(conn->lock);
+
 	return return_value;
 }
 
@@ -1451,7 +1465,6 @@ conn_replica_is_readonly(Repl_Connection *conn)
 		return CONN_IS_NOT_READONLY;
 	}
 }
-
 
 /*
  * Return 1 if "value" is a value of attribute type "type" in entry "entry".
@@ -1501,9 +1514,6 @@ attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type,
 	return return_value;
 }
 
-
-
-
 /*
  * Read the remote server's schema entry, then read the local schema entry,
  * and compare the nsschemacsn attribute. If the local csn is newer, or
@@ -1533,7 +1543,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 		return_value = CONN_OPERATION_FAILED;
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "NULL remote CSN\n");
 	}
-	else if (!conn_connected(conn))
+	else if (!conn_connected_locked(conn, 0 /* not locked */))
 	{
 		return_value = CONN_NOT_CONNECTED;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1699,6 +1709,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 	{
 		csn_free(&localcsn);
 	}
+
 	return return_value;
 }
 
