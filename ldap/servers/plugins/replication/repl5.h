@@ -445,6 +445,7 @@ typedef enum
 	CONN_SUPPORTS_DS90_REPL,
 	CONN_DOES_NOT_SUPPORT_DS90_REPL
 } ConnResult;  
+
 Repl_Connection *conn_new(Repl_Agmt *agmt);
 ConnResult conn_connect(Repl_Connection *conn);
 void conn_disconnect(Repl_Connection *conn);

@@ -282,6 +282,8 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 {
 	int done = 0;
 	int loops = 0;
+	int last_entry = 0;
+
 	/* Keep pulling results off the LDAP connection until we catch up to the last message id stored in the rd */
 	while (!done) 
 	{
@@ -304,9 +306,16 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 		/* If not then sleep a bit */
 		DS_Sleep(PR_SecondsToInterval(1));
 		loops++;
+
+		if(last_entry < cb_data->last_message_id_received){
+		    /* we are making progress - reset the loop counter */
+		    loops = 0;
+		}
+		last_entry = cb_data->last_message_id_received;
+
 		/* If we sleep forever then we can conclude that something bad happened, and bail... */
 		/* Arbitrary 30 second delay : basically we should only expect to wait as long as it takes to process a few operations, which should be on the order of a second at most */
-		if (!done && (loops > 300))
+		if (!done && (loops > 30))
 		{
 			/* Log a warning */
 			slapi_log_error(SLAPI_LOG_FATAL, NULL,
@@ -458,7 +467,9 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 
 	if (!prp->repl50consumer) 
 	{
-		repl5_tot_waitfor_async_results(&cb_data);
+		if(cb_data.rc == LDAP_SUCCESS){ /* no need to wait if we already failed */
+			repl5_tot_waitfor_async_results(&cb_data);
+		}
 		rc = repl5_tot_destroy_async_result_thread(&cb_data);
 		if (rc) {
 			slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "%s: repl5_tot_run: "
@@ -480,15 +491,15 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	agmt_update_done(prp->agmt, 1);
 	release_replica(prp);
 	
-    if (rc != LDAP_SUCCESS)
-    {
-        slapi_log_error (SLAPI_LOG_REPL, repl_plugin_name, "%s: repl5_tot_run: "
-                         "failed to obtain data to send to the consumer; LDAP error - %d\n", 
-                         agmt_get_long_name(prp->agmt), rc);
+	if (rc != LDAP_SUCCESS)
+	{
+		slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "Total update failed for replica \"%s\", "
+				         "error (%d)\n", agmt_get_long_name(prp->agmt), rc);
 		agmt_set_last_init_status(prp->agmt, rc, 0, "Total update aborted");
-    } else {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Finished total update of replica "
-						"\"%s\". Sent %lu entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
+	} else {
+		slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "Finished total update of replica "
+		                 "\"%s\". Sent %lu entries.\n",
+		                 agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
 	}
 
