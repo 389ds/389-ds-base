@@ -81,6 +81,7 @@ static int replica_config_search (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry*
 static int replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,  int *returncode, char *returntext, void *arg);
 static int replica_config_change_type_and_id (Replica *r, const char *new_type, const char *new_id, char *returntext, int apply_mods);
 static int replica_config_change_updatedn (Replica *r, const LDAPMod *mod, char *returntext, int apply_mods);
+static int replica_config_change_updatedngroup (Replica *r, const LDAPMod *mod, char *returntext, int apply_mods);
 static int replica_config_change_flags (Replica *r, const char *new_flags,  char *returntext, int apply_mods);
 static int replica_execute_task (Object *r, const char *task_name, char *returntext, int apply_mods);
 static int replica_execute_cl2ldif_task (Object *r, char *returntext);
@@ -380,8 +381,16 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                  */
                 if (strcasecmp (config_attr, attr_replicaBindDn) == 0)
                 {
-				    *returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
+			*returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
                 }
+                else if (strcasecmp (config_attr, attr_replicaBindDnGroup) == 0)
+                {
+			*returncode = replica_config_change_updatedngroup (r, mods[i], errortext, apply_mods);
+                }
+                else if (strcasecmp (config_attr, attr_replicaBindDnGroupCheckInterval) == 0)
+                {
+			replica_set_groupdn_checkinterval (r, -1);
+		}
                 else if (strcasecmp (config_attr, attr_replicaReferral) == 0)
                 {
                     if (apply_mods) {
@@ -438,9 +447,17 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                     break;
                 }
 
-                if (strcasecmp (config_attr, attr_replicaBindDn) == 0)
-			    {
-				    *returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
+                if (strcasecmp (config_attr, attr_replicaBindDn) == 0) {
+			*returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
+                }
+                else if (strcasecmp (config_attr, attr_replicaBindDnGroup) == 0)
+                {
+			*returncode = replica_config_change_updatedngroup (r, mods[i], errortext, apply_mods);
+                }
+                else if (strcasecmp (config_attr, attr_replicaBindDnGroupCheckInterval) == 0)
+                {
+			int interval = atoi(config_attr_value);
+			replica_set_groupdn_checkinterval (r, interval);
                 }
                 else if (strcasecmp (config_attr, attr_replicaType) == 0)
 			    {
@@ -1014,6 +1031,26 @@ replica_config_change_updatedn (Replica *r, const LDAPMod *mod, char *returntext
 		slapi_mod_init_byref(&smod, (LDAPMod *)mod); /* cast away const */
 		slapi_valueset_set_from_smod(vs, &smod);
 		replica_set_updatedn(r, vs, mod->mod_op);
+		slapi_mod_done(&smod);
+		slapi_valueset_free(vs);
+	}
+
+    return LDAP_SUCCESS;
+}
+
+static int
+replica_config_change_updatedngroup (Replica *r, const LDAPMod *mod, char *returntext,
+                                int apply_mods)
+{
+    PR_ASSERT (r);
+
+    if (apply_mods)
+    {
+		Slapi_Mod smod;
+		Slapi_ValueSet *vs= slapi_valueset_new();
+		slapi_mod_init_byref(&smod, (LDAPMod *)mod); /* cast away const */
+		slapi_valueset_set_from_smod(vs, &smod);
+		replica_set_groupdn(r, vs, mod->mod_op);
 		slapi_mod_done(&smod);
 		slapi_valueset_free(vs);
 	}

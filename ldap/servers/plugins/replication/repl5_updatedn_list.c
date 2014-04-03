@@ -100,6 +100,37 @@ replica_updatedn_list_new(const Slapi_Entry *entry)
     return (ReplicaUpdateDNList)hash;
 }
 
+Slapi_ValueSet *
+replica_updatedn_group_new(const Slapi_Entry *entry)
+{
+	Slapi_ValueSet *vs = NULL;
+	if (entry) {
+		Slapi_Attr *attr = NULL;
+		if (!slapi_entry_attr_find(entry, attr_replicaBindDnGroup, &attr)) {
+			slapi_attr_get_valueset(attr, &vs);
+		}
+	}	
+	return (vs);
+}
+
+ReplicaUpdateDNList
+replica_groupdn_list_new(const Slapi_ValueSet *vs)
+{
+    /* allocate table */
+    PLHashTable *hash = PL_NewHashTable(4, PL_HashString, PL_CompareStrings,
+						updatedn_compare_dns, NULL, NULL);
+    if (hash == NULL) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_new_updatedn_list: "
+                        "failed to allocate hash table; NSPR error - %d\n",
+                        PR_GetError ());	
+        return NULL;
+    }
+
+    replica_updatedn_list_delete(hash, NULL); /* delete all values */
+    replica_updatedn_list_add_ext(hash, vs, 1);
+
+    return (ReplicaUpdateDNList)hash;
+}
 void
 replica_updatedn_list_free(ReplicaUpdateDNList list)
 {
@@ -115,7 +146,14 @@ void
 replica_updatedn_list_replace(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
 {
 	replica_updatedn_list_delete(list, NULL); /* delete all values */
-	replica_updatedn_list_add(list, vs);
+	replica_updatedn_list_add_ext(list, vs, 0);
+}
+
+void
+replica_updatedn_list_group_replace(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
+{
+	replica_updatedn_list_delete(list, NULL); /* delete all values */
+	replica_updatedn_list_add_ext(list, vs, 1);
 }
 
 /* if vs is given, delete only those values - otherwise, delete all values */
@@ -153,8 +191,68 @@ replica_updatedn_list_delete(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
 	return;
 }
 
+Slapi_ValueSet *
+replica_updatedn_list_get_members(Slapi_DN *dn)
+{
+	static char* const filter_groups = "(|(objectclass=groupOfNames)(objectclass=groupOfUniqueNames)(objectclass=groupOfURLs))";
+	static char* const	type_member = "member";
+	static char* const	type_uniquemember = "uniquemember";
+	static char* const	type_memberURL = "memberURL";
+
+	int rval;
+	char *attrs[4]; 
+	Slapi_PBlock *mpb = slapi_pblock_new ();
+	Slapi_ValueSet *members = slapi_valueset_new();
+		
+	attrs[0] = type_member;
+	attrs[1] = type_uniquemember;
+	attrs[2] = type_memberURL;
+	attrs[3] = NULL;
+	slapi_search_internal_set_pb (  mpb, slapi_sdn_get_ndn(dn), LDAP_SCOPE_BASE, filter_groups,
+					&attrs[0], 0, NULL /* controls */, NULL /* uniqueid */,
+					repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
+	slapi_search_internal_pb(mpb);
+	slapi_pblock_get(mpb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
+	if (rval == LDAP_SUCCESS) {
+		Slapi_Entry	**ep;
+		slapi_pblock_get(mpb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &ep);
+		if ((ep != NULL) && (ep[0] != NULL)) {
+			Slapi_Attr *attr = NULL;
+			Slapi_Attr *nextAttr = NULL;
+			Slapi_ValueSet *vs = NULL;
+			char *attrType;
+			slapi_entry_first_attr ( ep[0],  &attr);
+			while (attr) {
+				slapi_attr_get_type ( attr, &attrType );
+
+				if ((strcasecmp (attrType, type_member) == 0) ||
+				    (strcasecmp (attrType, type_uniquemember) == 0 ))  {
+					slapi_attr_get_valueset(attr, &vs);
+					slapi_valueset_join_attr_valueset(attr, members, vs);
+					slapi_valueset_free(vs);
+				} else if (strcasecmp (attrType, type_memberURL) == 0) {
+					/* not yet supported */
+				}
+				slapi_entry_next_attr ( ep[0], attr, &nextAttr );
+				attr = nextAttr;
+			}
+		}
+	}
+	slapi_free_search_results_internal(mpb);
+	slapi_pblock_destroy (mpb);
+	return(members);
+}
+/* 
+ * add  a list of dns to the ReplicaUpdateDNList.
+ * The dn could be the dn of a group, so get the entry 
+ * and check the objectclass. If it is a static or dynamic group
+ * generate the list of member dns and recursively call 
+ * replica_updatedn_list_add().
+ * The dn of the group is added to the list, so it will detect 
+ * potential circular group definitions
+ */
 void
-replica_updatedn_list_add(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
+replica_updatedn_list_add_ext(ReplicaUpdateDNList list, const Slapi_ValueSet *vs, int group_update)
 {
 	PLHashTable *hash = list;
 	Slapi_ValueSet *vs_nc = (Slapi_ValueSet *)vs; /* cast away const */
@@ -176,11 +274,28 @@ replica_updatedn_list_add(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
 							ndn);
 			slapi_sdn_free(&dn);
 		} else {
+			Slapi_ValueSet *members = NULL;
 			PL_HashTableAdd(hash, ndn, dn);
+			/* add it, even if it is a group dn, this will 
+			 * prevent problems with circular group definitions
+			 * then check if it has mor members to add */
+			if (group_update) {
+				members = replica_updatedn_list_get_members(dn);
+				if (members) {
+					replica_updatedn_list_add_ext(list, members, 1);
+					/* free members */
+					slapi_valueset_free(members);
+				}
+			}
 		}
 	}
 
 	return;
+}
+void
+replica_updatedn_list_add(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
+{
+	replica_updatedn_list_add_ext(list, vs, 0);
 }
 
 PRBool

@@ -59,11 +59,16 @@
  * A replica is a locally-held copy of a portion of the DIT.
  */
 struct replica {
-	Slapi_DN *repl_root;			/* top of the replicated area			*/
-	char *repl_name;                /* unique replica name                  */
+	Slapi_DN *repl_root;		/* top of the replicated are */
+	char *repl_name;                /* unique replica name */
 	PRBool new_name;                /* new name was generated - need to be saved */
 	ReplicaUpdateDNList updatedn_list;	/* list of dns with which a supplier should bind
-										   to update this replica				*/
+						   to update this replica				*/
+	Slapi_ValueSet			*updatedn_groups; /* set of groups whose memebers are
+							    * allowed to update replica */
+	ReplicaUpdateDNList groupdn_list;      /* exploded listof dns from update group */
+	PRUint32			updatedn_group_last_check;
+	int				updatedn_group_check_interval;
 	ReplicaType	 repl_type;			/* is this replica read-only ?			*/
 	PRBool  legacy_consumer;        /* if true, this replica is supplied by 4.0 consumer */
 	char*   legacy_purl;            /* partial url of the legacy supplier   */
@@ -341,33 +346,42 @@ replica_destroy(void **arg)
 	 */
 
 	if (r->repl_eqcxt_rs)
-    {
+	{
 		repl_name = slapi_eq_get_arg (r->repl_eqcxt_rs);
 		slapi_ch_free (&repl_name);
 		slapi_eq_cancel(r->repl_eqcxt_rs);
 		r->repl_eqcxt_rs = NULL;
-    }
+	}
 
 	if (r->repl_eqcxt_tr)
-    {
+	{
 		repl_name = slapi_eq_get_arg (r->repl_eqcxt_tr);
 		slapi_ch_free (&repl_name);
 		slapi_eq_cancel(r->repl_eqcxt_tr);
 		r->repl_eqcxt_tr = NULL;
-    }
+	}
 
 	if (r->repl_root)
-    {
+	{
 		slapi_sdn_free(&r->repl_root);
-    }
+	}
 
 	slapi_ch_free_string(&r->locking_purl);
 
 	if (r->updatedn_list)
-    {
+	{
 		replica_updatedn_list_free(r->updatedn_list);
 		r->updatedn_list = NULL;
-    }
+	}
+
+	if (r->groupdn_list)
+	{
+		replica_updatedn_list_free(r->groupdn_list);
+		r->groupdn_list = NULL;
+	}
+	if (r->updatedn_groups) {
+		slapi_valueset_free(r->updatedn_groups);
+	}
 
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free ((void**)&r->repl_name);
@@ -823,6 +837,13 @@ replica_set_protocol_timeout(Replica *r, PRUint64 timeout)
 		slapi_counter_set_value(r->protocol_timeout, timeout);
 	}
 }
+void
+replica_set_groupdn_checkinterval(Replica *r, int interval)
+{
+	if(r){
+		r->updatedn_group_check_interval = interval ;
+	}
+}
 
 /* 
  * Sets the replica type.
@@ -932,7 +953,7 @@ replica_set_legacy_purl (Replica *r, const char *purl)
  * Returns true if sdn is the same as updatedn and false otherwise 
  */
 PRBool 
-replica_is_updatedn (const Replica *r, const Slapi_DN *sdn)
+replica_is_updatedn (Replica *r, const Slapi_DN *sdn)
 {
 	PRBool result;
 
@@ -940,24 +961,35 @@ replica_is_updatedn (const Replica *r, const Slapi_DN *sdn)
 
 	PR_Lock(r->repl_lock);
 
-    if (sdn == NULL)
-    {
-        result = (r->updatedn_list == NULL);    
-    }
-    else if (r->updatedn_list == NULL)
-    {
-        result = PR_FALSE;
-    }
-    else
-    {
-		result = replica_updatedn_list_ismember(r->updatedn_list, sdn);
-    }
+        if ((r->updatedn_list == NULL) &&
+	    (r->groupdn_list == NULL)) {
+    		if (sdn == NULL) {
+			result = PR_TRUE;
+		} else {
+			result = PR_FALSE;
+		}
+	} else {
+		result = PR_FALSE;
+    		if (r->updatedn_list ) {
+			result = replica_updatedn_list_ismember(r->updatedn_list, sdn);
+    		}
+		if ((result == PR_FALSE) && r->groupdn_list ) {
+			/* check and rebuild groupdns */
+			if (r->updatedn_group_check_interval > -1) {
+				time_t now = time(NULL); 
+				if (now - r->updatedn_group_last_check > r->updatedn_group_check_interval) {
+					replica_updatedn_list_replace( r->groupdn_list, r->updatedn_groups);
+					r->updatedn_group_last_check = now;
+				}
+			}
+			result = replica_updatedn_list_ismember(r->groupdn_list, sdn);
+		}
+	}
 
 	PR_Unlock(r->repl_lock);
 
 	return result;
 }
-
 /* 
  * Sets updatedn list for this replica 
  */
@@ -979,6 +1011,45 @@ replica_set_updatedn (Replica *r, const Slapi_ValueSet *vs, int mod_op)
 	else if (SLAPI_IS_MOD_ADD(mod_op))
 		replica_updatedn_list_add(r->updatedn_list, vs);
 
+	PR_Unlock(r->repl_lock);
+}
+
+/* 
+ * Sets updatedn list for this replica 
+ */
+void 
+replica_set_groupdn (Replica *r, const Slapi_ValueSet *vs, int mod_op)
+{
+	PR_ASSERT (r);
+
+	PR_Lock(r->repl_lock);
+
+	if (!r->groupdn_list)
+		r->groupdn_list = replica_updatedn_list_new(NULL);
+	if (!r->updatedn_groups)
+		r->updatedn_groups = slapi_valueset_new();
+
+	if (SLAPI_IS_MOD_DELETE(mod_op) || vs == NULL ||
+		(0 == slapi_valueset_count(vs))) {
+		/* null value also causes list deletion */
+		slapi_valueset_free (r->updatedn_groups);
+		r->updatedn_groups = NULL;
+		replica_updatedn_list_delete(r->groupdn_list, vs);
+	} else if (SLAPI_IS_MOD_REPLACE(mod_op)) {
+		if (r->updatedn_groups) {
+			slapi_valueset_done(r->updatedn_groups);
+		} else {
+			r->updatedn_groups = slapi_valueset_new();
+		}
+		slapi_valueset_set_valueset(r->updatedn_groups, vs);
+		replica_updatedn_list_group_replace(r->groupdn_list, vs);
+	} else if (SLAPI_IS_MOD_ADD(mod_op)) {
+		if (!r->updatedn_groups) {
+			r->updatedn_groups = slapi_valueset_new();
+		}
+		slapi_valueset_join_attr_valueset(NULL, r->updatedn_groups, vs);
+		replica_updatedn_list_add_ext(r->groupdn_list, vs, 1);
+	}
 	PR_Unlock(r->repl_lock);
 }
 
@@ -1693,6 +1764,8 @@ _replica_check_validity (const Replica *r)
 	nsds5ReplicaType:	<type of the replica: primary, read-write or read-only>
 	nsState:		<state of the csn generator> missing the first time replica is started
 	nsds5ReplicaBindDN:		<supplier update dn> consumers only
+	nsds5ReplicaBindDNGroup: group, containing replicaBindDNs
+	nsds5ReplicaBindDNGroupCheckInterval: defines how frequently to check for update of bindGroup
 	nsds5ReplicaReferral: <referral URL to updatable replica> consumers only
 	nsds5ReplicaPurgeDelay: <time, in seconds, to keep purgeable CSNs, 0 == keep forever>
 	nsds5ReplicaTombstonePurgeInterval: <time, in seconds, between tombstone purge runs, 0 == don't reap>
@@ -1851,6 +1924,19 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
 
     /* get replication bind dn */
     r->updatedn_list = replica_updatedn_list_new(e);
+
+    /* get replication bind dn groups */
+    r->updatedn_groups = replica_updatedn_group_new(e);
+    r->groupdn_list = replica_groupdn_list_new(r->updatedn_groups);
+    r->updatedn_group_last_check = time(NULL);
+    /* get groupdn check interval */
+    val = slapi_entry_attr_get_charptr (e, attr_replicaBindDnGroupCheckInterval);
+    if (val) {
+	r->updatedn_group_check_interval = atoi(val);
+        slapi_ch_free ((void**)&val);
+    } else {
+	r->updatedn_group_check_interval = -1;
+    }
 
     /* get replica name */
     val = slapi_entry_attr_get_charptr (e, attr_replicaName);
