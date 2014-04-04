@@ -1532,6 +1532,16 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
 
         ++sr->sr_lookthroughcount;    /* checked above */
 
+        /* Make sure the backend is available */
+        if( be->be_state != BE_STATE_STARTED ){
+            slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                                   "Backend is stopped", 0, NULL );
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
+            delete_search_result_set(pb, &sr);
+            rc = SLAPI_FAIL_GENERAL;
+            goto bail;
+        }
+
         /* get the entry */
         e = id2entry( be, id, &txn, &err );
         if ( e == NULL )
