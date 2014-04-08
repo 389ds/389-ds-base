@@ -216,6 +216,7 @@ typedef unsigned short u_int16_t;
 #define DEFAULT_IMPORT_INDEX_BUFFER_SIZE  0
 #define SUBLEN                   3
 #define LDBM_CACHE_RETRY_COUNT 1000 /* Number of times we re-try a cache operation */
+#define RETRY_CACHE_LOCK 2 /* error code to signal a retry of the cache lock */
 #define IDL_FETCH_RETRY_COUNT 5 /* Number of times we re-try idl_fetch if it returns deadlock */
 #define IMPORT_SUBCOUNT_HASHTABLE_SIZE 500 /* Number of buckets in hash used to accumulate subcount for broody parents */
 
