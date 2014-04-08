@@ -335,14 +335,37 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * (find_entry2modify_only_ext), a wrong parent could be found,
 			 * and numsubordinate count could get confused.
 			 */
-			ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
+			ID pid;
+			int cache_retry_count = 0;
+			int cache_retry = 0;
+
+			pid = (ID)strtol(pid_str, (char **)NULL, 10);
 			slapi_ch_free_string(&pid_str);
-			parent = id2entry(be, pid ,NULL, &retval);
-			if (parent && cache_lock_entry(&inst->inst_cache, parent)) {
-				/* Failed to obtain parent entry's entry lock */
-				CACHE_RETURN(&(inst->inst_cache), &parent);
-				retval = -1;
-				goto error_return;
+
+			/*
+			 * Its possible that the parent entry retrieved from the cache in id2entry
+			 * could be removed before we lock it, because tombstone purging updated/replaced
+			 * the parent.  If we fail to lock the entry, just try again.
+			 */
+			while(1){
+				parent = id2entry(be, pid ,NULL, &retval);
+				if (parent && (cache_retry = cache_lock_entry(&inst->inst_cache, parent))) {
+					/* Failed to obtain parent entry's entry lock */
+					if(cache_retry == RETRY_CACHE_LOCK &&
+					   cache_retry_count < LDBM_CACHE_RETRY_COUNT)
+					{
+						/* try again */
+						DS_Sleep(PR_MillisecondsToInterval(100));
+						cache_retry_count++;
+						continue;
+					}
+					retval = -1;
+					CACHE_RETURN(&(inst->inst_cache), &parent);
+					goto error_return;
+				} else {
+					/* entry locked, move on */
+					break;
+				}
 			}
 		}
 		if (NULL == parent) {
@@ -1224,6 +1247,7 @@ diskfull_return:
 	slapi_ch_free((void**)&errbuf);
 	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
+	slapi_sdn_done(&parentsdn);
 	if (pb->pb_conn)
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
