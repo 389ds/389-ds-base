@@ -1483,7 +1483,9 @@ void cache_unlock(struct cache *cache)
 
 /* locks an entry so that it can be modified (you should have gotten the
  * entry via cache_find_*).
- * returns 0 on success, 1 if the entry is scheduled for deletion.
+ * returns 0 on success,
+ * returns 1 if the entry lock could not be created
+ * returns 2 (RETRY_CACHE_LOCK) if the entry is scheduled for deletion.
  */
 int cache_lock_entry(struct cache *cache, struct backentry *e)
 {
@@ -1515,7 +1517,7 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
        PR_Unlock(cache->c_mutex);
        PR_ExitMonitor(e->ep_mutexp);
        LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
-       return 1;
+       return RETRY_CACHE_LOCK;
     }
     PR_Unlock(cache->c_mutex);
 
