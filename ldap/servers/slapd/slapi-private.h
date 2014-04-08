@@ -404,43 +404,47 @@ char *slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, 
 
 /* operation.c */
 
-#define OP_FLAG_PS                       0x00001
-#define OP_FLAG_PS_CHANGESONLY           0x00002
-#define OP_FLAG_GET_EFFECTIVE_RIGHTS     0x00004  
-#define OP_FLAG_REPLICATED               0x00008 /* A Replicated Operation */
-#define OP_FLAG_REPL_FIXUP               0x00010 /* A Fixup Operation, 
+#define OP_FLAG_PS                       0x000001
+#define OP_FLAG_PS_CHANGESONLY           0x000002
+#define OP_FLAG_GET_EFFECTIVE_RIGHTS     0x000004
+#define OP_FLAG_REPLICATED               0x000008 /* A Replicated Operation */
+#define OP_FLAG_REPL_FIXUP               0x000010 /* A Fixup Operation,
                                                   * generated as a consequence
                                                   * of a Replicated Operation.
                                                   */
-#define OP_FLAG_INTERNAL                 SLAPI_OP_FLAG_INTERNAL  /* 0x00020 */ 
-#define OP_FLAG_ACTION_LOG_ACCESS        0x00040
-#define OP_FLAG_ACTION_LOG_AUDIT         0x00080
-#define OP_FLAG_ACTION_SCHEMA_CHECK      0x00100
-#define OP_FLAG_ACTION_LOG_CHANGES       0x00200
-#define OP_FLAG_ACTION_INVOKE_FOR_REPLOP 0x00400
-#define OP_FLAG_NEVER_CHAIN              SLAPI_OP_FLAG_NEVER_CHAIN  /* 0x0800 */
-#define OP_FLAG_TOMBSTONE_ENTRY          0x01000
-#define OP_FLAG_RESURECT_ENTRY           0x02000
-#define OP_FLAG_LEGACY_REPLICATION_DN    0x04000 /* Operation done by legacy 
+#define OP_FLAG_INTERNAL                 SLAPI_OP_FLAG_INTERNAL  /* 0x000020 */
+#define OP_FLAG_ACTION_LOG_ACCESS        0x000040
+#define OP_FLAG_ACTION_LOG_AUDIT         0x000080
+#define OP_FLAG_ACTION_SCHEMA_CHECK      0x000100
+#define OP_FLAG_ACTION_LOG_CHANGES       0x000200
+#define OP_FLAG_ACTION_INVOKE_FOR_REPLOP 0x000400
+#define OP_FLAG_NEVER_CHAIN              SLAPI_OP_FLAG_NEVER_CHAIN  /* 0x000800 */
+#define OP_FLAG_TOMBSTONE_ENTRY          0x001000
+#define OP_FLAG_RESURECT_ENTRY           0x002000
+#define OP_FLAG_LEGACY_REPLICATION_DN    0x004000 /* Operation done by legacy
                                                   * replication DN
                                                   */
-#define OP_FLAG_ACTION_NOLOG             0x08000 /* Do not log the entry in 
+#define OP_FLAG_ACTION_NOLOG             0x008000 /* Do not log the entry in
                                                   * audit log or change log
                                                   */
-#define OP_FLAG_SKIP_MODIFIED_ATTRS      0x10000 /* Do not update the 
+#define OP_FLAG_SKIP_MODIFIED_ATTRS      0x010000 /* Do not update the
                                                   * modifiersname,
                                                   * modifiedtimestamp, etc.
                                                   * attributes
                                                   */
-#define OP_FLAG_REPL_RUV                 0x20000 /* Flag to tell to the backend
+#define OP_FLAG_REPL_RUV                 0x020000 /* Flag to tell to the backend
                                                   * that the entry to be added/
                                                   * modified is RUV. This info
                                                   * is used to skip VLV op.
                                                   * (see #329951)
                                                   */
-#define OP_FLAG_PAGED_RESULTS            0x40000 /* simple paged results */
-#define OP_FLAG_SERVER_SIDE_SORTING      0x80000 /* server side sorting  */
+#define OP_FLAG_PAGED_RESULTS            0x040000 /* simple paged results */
+#define OP_FLAG_SERVER_SIDE_SORTING      0x080000 /* server side sorting  */
+#define OP_FLAG_REVERSE_CANDIDATE_ORDER  0x100000 /* reverse the search candidate list */
 
+/* reverse search states */
+#define REV_STARTED 1
+#define LAST_REV_ENTRY 2
 
 CSN *operation_get_csn(Slapi_Operation *op);
 void operation_set_csn(Slapi_Operation *op,CSN *csn);

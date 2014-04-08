@@ -1388,6 +1388,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     int                    pr_idx = -1;
     Slapi_Connection       *conn;
     Slapi_Operation        *op;
+    int                    reverse_list = 0;
 
     slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &basesdn );
     if (NULL == basesdn) {
@@ -1414,6 +1415,18 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     slapi_pblock_get( pb, SLAPI_TXN, &txn.back_txn_txn );
     slapi_pblock_get( pb, SLAPI_CONNECTION, &conn );
     slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+
+    if((reverse_list = operation_is_flag_set(op, OP_FLAG_REVERSE_CANDIDATE_ORDER))){
+        /*
+         * Start at the end of the list and work our way forward.  Since a single
+         * search can enter this function multiple times, we need to keep track
+         * of our state, and only initialize sr_current once.
+         */
+        if(!op->o_reverse_search_state){
+            sr->sr_current = sr->sr_candidates->b_nids;
+            op->o_reverse_search_state = REV_STARTED;
+        }
+    }
 
     if ( !txn.back_txn_txn ) {
         dblayer_txn_init( li, &txn );
@@ -1514,8 +1527,32 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             goto bail;
         }
             
-        /* get the entry */
-        id = idl_iterator_dereference_increment(&(sr->sr_current), sr->sr_candidates);
+        /*
+         * Get the entry ID
+         */
+        if(reverse_list){
+            /*
+             * This is probably a tombstone reaping, we need to process in the candidate
+             * list in reserve order, or else we can orphan tombstone entries by removing
+             * it's parent tombstone entry first.
+             */
+            id = idl_iterator_dereference_decrement(&(sr->sr_current), sr->sr_candidates);
+            if((sr->sr_current == 0) && op->o_reverse_search_state != LAST_REV_ENTRY){
+                /*
+                 * We hit the last entry and we need to process it, but the decrement
+                 * function will keep returning the last entry.  So we need to mark that
+                 * we have hit the last entry so we know to stop on the next pass.
+                 */
+                op->o_reverse_search_state = LAST_REV_ENTRY;
+            } else if(op->o_reverse_search_state == LAST_REV_ENTRY){
+                /* we're done */
+                id = NOID;
+            }
+        } else {
+            /* Process the candidate list in the normal order. */
+            id = idl_iterator_dereference_increment(&(sr->sr_current), sr->sr_candidates);
+        }
+
         if ( id == NOID )
         {
             /* No more entries */
@@ -1526,6 +1563,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             }
             slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
             delete_search_result_set(pb, &sr);
+            op->o_reverse_search_state = 0;
             rc = 0;
             goto bail;
         }
@@ -1731,7 +1769,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
           }
         }
     }
+
 bail:
+    if(rc){
+        op->o_reverse_search_state = 0;
+    }
+
     return rc;
 }
 

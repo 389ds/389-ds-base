@@ -98,6 +98,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int opreturn = 0;
 	int free_delete_existing_entry = 0;
 	int not_an_error = 0;
+	int updated_num = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -501,7 +502,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 						retval = -1;
 						goto error_return;
 					}
-
+					/* MARK */
+					updated_num = 1;
 					/*
 					 * Replication urp_post_delete will delete the parent entry
 					 * if it is a glue entry without any more children.
@@ -1293,6 +1295,10 @@ diskfull_return:
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n",
 				(long long unsigned int)pb->pb_conn->c_connid, operation->o_opid);
+	}
+
+	if(!updated_num && ldap_result_code != 32){
+		slapi_log_error (SLAPI_LOG_FATAL,"MARK", "Failed to update numsubordinates\n");
 	}
 	return rc;
 }
