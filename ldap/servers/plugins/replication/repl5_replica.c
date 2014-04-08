@@ -2793,7 +2793,10 @@ process_reap_entry (Slapi_Entry *entry, void *cb_data)
 							"%s\n", slapi_entry_get_dn(entry));
 		}
 	}
-	(*num_entriesp)++;
+	if(!is_ruv_tombstone_entry(entry)){
+		/* Don't update the count for the database tombstone entry */
+		(*num_entriesp)++;
+	}
 
 	return 0;
 }
@@ -2878,7 +2881,8 @@ _replica_reap_tombstones(void *arg)
 		slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(replica->repl_root),
 									 LDAP_SCOPE_SUBTREE, "(&(objectclass=nstombstone)(nscpentrydn=*))",
 									 attrs, 0, ctrls, NULL,
-									 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+									 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+									 OP_FLAG_REVERSE_CANDIDATE_ORDER);
 
 		cb_data.rc = 0;
 		cb_data.num_entries = 0UL;

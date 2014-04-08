@@ -266,6 +266,7 @@ idl_iterator idl_iterator_increment(idl_iterator *i);
 idl_iterator idl_iterator_decrement(idl_iterator *i);
 ID idl_iterator_dereference(idl_iterator i, const IDList *idl);
 ID idl_iterator_dereference_increment(idl_iterator *i, const IDList *idl);
+ID idl_iterator_dereference_decrement(idl_iterator *i, const IDList *idl);
 size_t idl_sizeof(IDList *idl);
 int idl_store_block(backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a);
 void idl_set_tune(int val);

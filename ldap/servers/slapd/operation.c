@@ -200,6 +200,7 @@ operation_new(int flags)
 		o->o_connid = 0;
 		o->o_next = NULL;
 		o->o_flags= flags;
+		o->o_reverse_search_state = 0;
 		if ( config_get_accesslog_level() & LDAP_DEBUG_TIMING ) {
 			o->o_interval = PR_IntervalNow();
 		} else {

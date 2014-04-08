@@ -1228,5 +1228,6 @@ diskfull_return:
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
 	}
+
 	return rc;
 }
