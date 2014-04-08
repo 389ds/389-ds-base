@@ -1348,6 +1348,7 @@ typedef struct op {
 	struct slapi_operation_parameters o_params;
 	struct slapi_operation_results o_results;
 	int o_pagedresults_sizelimit;
+	int o_reverse_search_state;
 } Operation;
 
 /*

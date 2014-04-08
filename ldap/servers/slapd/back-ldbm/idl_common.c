@@ -494,3 +494,9 @@ ID idl_iterator_dereference_increment(idl_iterator *i, const IDList *idl)
 	return t;
 }
 
+ID idl_iterator_dereference_decrement(idl_iterator *i, const IDList *idl)
+{
+	idl_iterator_decrement(i);
+	return idl_iterator_dereference(*i,idl);
+
+}
