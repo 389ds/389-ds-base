@@ -1838,7 +1838,7 @@ agmt_notify_change(Repl_Agmt *agmt, Slapi_PBlock *pb)
 					int i, j;
 
 					slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-					for (i = 0; !affects_non_fractional_attribute && NULL != agmt->frac_attrs[i]; i++)
+					for (i = 0; mods && !affects_non_fractional_attribute && NULL != agmt->frac_attrs[i]; i++)
 					{
 						for (j = 0; !affects_non_fractional_attribute && NULL != mods[j]; j++)
 						{

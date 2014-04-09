@@ -1074,7 +1074,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    for (i = 0; mods[i] != NULL; i++) {
+    for (i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
         if ( (strcasecmp(mods[i]->mod_type, "cn") == 0) ||
              (strcasecmp(mods[i]->mod_type,
                  MAPPING_TREE_PARENT_ATTRIBUTE) == 0) )

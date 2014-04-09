@@ -321,7 +321,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_rwlock_wrlock (legacy_consumer_config_lock);
 		
-	for (i = 0; (mods[i] && (!not_allowed)); i++)
+	for (i = 0; mods && (mods[i] && (!not_allowed)); i++)
 	{
 		if (mods[i]->mod_op & LDAP_MOD_DELETE)
 		{

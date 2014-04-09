@@ -287,7 +287,7 @@ ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    for (i = 0; mods[i] != NULL; i++) {
+    for (i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
 
         char *config_attr = (char *)mods[i]->mod_type;
 
