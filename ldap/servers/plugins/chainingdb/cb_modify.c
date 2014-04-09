@@ -291,7 +291,7 @@ cb_remove_illegal_mods(cb_backend_instance *inst, LDAPMod **mods)
         	slapi_rwlock_wrlock(inst->rwl_config_lock);
 
 		for (j=0; inst->illegal_attributes[j]; j++) {
-        		for ( i = 0; mods[i] != NULL; i++ ) {
+        		for ( i = 0; mods && mods[i] != NULL; i++ ) {
 				if (slapi_attr_types_equivalent(inst->illegal_attributes[j],mods[i]->mod_type)) {
                         		tmp = mods[i];
                         		for ( j = i; mods[j] != NULL; j++ ) {

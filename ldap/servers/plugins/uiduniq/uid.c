@@ -761,7 +761,7 @@ preop_modify(Slapi_PBlock *pb)
        which are add or replace ops and are bvalue encoded
     */
     /* find out how many mods meet this criteria */
-    for(;*mods;mods++)
+    for(;mods && *mods;mods++)
     {
         mod = *mods;
         if ((slapi_attr_type_cmp(mod->mod_type, attrName, 1) == 0) && /* mod contains target attr */

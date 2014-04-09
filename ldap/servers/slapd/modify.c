@@ -391,14 +391,17 @@ do_modify( Slapi_PBlock *pb )
 	mods = slapi_mods_get_ldapmods_passout (&smods);
 
 	/* normalize the mods */
-	normalized_mods = normalize_mods2bvals((const LDAPMod**)mods);
-	ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
-	if (normalized_mods == NULL) {
-		op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"",
-		                           "mod includes invalid dn format");
-		send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
-		                 "mod includes invalid dn format", 0, NULL);
-		goto free_and_return;
+	if (mods) {
+		normalized_mods = normalize_mods2bvals((const LDAPMod**)mods);
+		ldap_mods_free (mods, 1 /* Free the Array and the Elements */);
+		if (normalized_mods == NULL) {
+			/* NOTE: normalize_mods2bvals only handles DN syntax currently */
+			op_shared_log_error_access(pb, "MOD", rawdn?rawdn:"",
+						   "mod includes invalid dn format");
+			send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
+					 "mod includes invalid dn format", 0, NULL);
+			goto free_and_return;
+		}
 	}
 	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, normalized_mods);
 
@@ -1391,7 +1394,7 @@ hash_rootpw (LDAPMod **mods)
 		return 0;
 	}
 
-	for (i=0; mods[i] != NULL; i++) {
+	for (i=0; (mods != NULL) && (mods[i] != NULL); i++) {
 		LDAPMod *mod = mods[i];
 		if (strcasecmp (mod->mod_type, CONFIG_ROOTPW_ATTRIBUTE) != 0) 
 			continue;

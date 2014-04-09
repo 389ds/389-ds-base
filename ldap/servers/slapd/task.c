@@ -774,7 +774,7 @@ static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
 
     /* ignore eAfter, just scan the mods for anything unacceptable */
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-    for (i = 0; mods[i] != NULL; i++) {
+    for (i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
         /* for some reason, "modifiersName" and "modifyTimestamp" are
          * stuck in by the server */
         if ((strcasecmp(mods[i]->mod_type, "ttl") != 0) &&

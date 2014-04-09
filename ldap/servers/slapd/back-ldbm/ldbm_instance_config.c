@@ -767,7 +767,7 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
      * 2nd pass: set apply mods to 1 to apply changes to internal storage 
      */ 
     for ( apply_mod = 0; apply_mod <= 1 && LDAP_SUCCESS == rc; apply_mod++ ) {
-        for (i = 0; mods[i] && LDAP_SUCCESS == rc; i++) {
+        for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
             attr_name = mods[i]->mod_type;
 
             if (strcasecmp(attr_name, CONFIG_INSTANCE_SUFFIX) == 0) {

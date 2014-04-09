@@ -560,7 +560,7 @@ apply_mods( Slapi_Entry *e, LDAPMod **mods )
   LDAPDebug( LDAP_DEBUG_TRACE, "=> apply_mods\n", 0, 0, 0 );
   
   err = LDAP_SUCCESS;
-  for ( j = 0; mods[j] != NULL; j++ ) {
+  for ( j = 0; (mods != NULL) && (mods[j] != NULL); j++ ) {
     switch ( mods[j]->mod_op & ~LDAP_MOD_BVALUES ) {
     case LDAP_MOD_ADD:
       LDAPDebug( LDAP_DEBUG_ARGS, "   add: %s\n",

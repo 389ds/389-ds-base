@@ -340,7 +340,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-    for (i = 0; mods[i] != NULL; i++)
+    for (i = 0; mods && mods[i] != NULL; i++)
 	{
         if (mods[i]->mod_op & LDAP_MOD_DELETE)
 		{
