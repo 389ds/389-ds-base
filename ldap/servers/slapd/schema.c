@@ -1829,7 +1829,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
    * True for DS 4.x as well, although it tried to keep going even after
    * an error was detected (which was very wrong).
    */
-  for (i = 0; rc == SLAPI_DSE_CALLBACK_OK && mods[i]; i++) {
+  for (i = 0; rc == SLAPI_DSE_CALLBACK_OK && mods && mods[i]; i++) {
 	schema_dse_attr_name  = (char *) mods[i]->mod_type;
 	num_mods++; /* incr the number of mods */
 

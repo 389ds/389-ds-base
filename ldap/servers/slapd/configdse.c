@@ -394,7 +394,7 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 	 */
 	for ( apply_mods = 0; apply_mods <= 1; apply_mods++ ) {
 		int i = 0;
-		for (i = 0; (mods[i] && (LDAP_SUCCESS == rc)); i++) {
+		for (i = 0; mods && (mods[i] && (LDAP_SUCCESS == rc)); i++) {
 			/* send all aci modifications to the backend */
 			config_attr = (char *)mods[i]->mod_type;
 			if (ignore_attr_type(config_attr))
@@ -497,7 +497,7 @@ postop_modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	returntext[0] = '\0';
 
-	for (i = 0; mods[i]; i++) {
+	for (i = 0; mods && mods[i]; i++) {
 		if (mods[i]->mod_op & LDAP_MOD_REPLACE ) {
 			/* Check if the server needs to be restarted */
 			for (j = 0; j < num_requires_restart; j++)

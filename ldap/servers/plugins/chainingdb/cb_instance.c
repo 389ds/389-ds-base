@@ -305,7 +305,7 @@ int cb_instance_modify_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* entr
         slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 
 	/* First pass to validate input */
-        for (i = 0; mods[i] && LDAP_SUCCESS == rc; i++) {
+        for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
                 attr_name = mods[i]->mod_type;
 
 		/* specific processing for multi-valued attributes */
@@ -378,7 +378,7 @@ int cb_instance_modify_config_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
 
 	/* input checked in the preop modify callback */
 
-        for (i = 0; mods[i] && LDAP_SUCCESS == rc; i++) {
+        for (i = 0; mods && mods[i] && LDAP_SUCCESS == rc; i++) {
                 attr_name = mods[i]->mod_type;
 
 		/* specific processing for multi-valued attributes */

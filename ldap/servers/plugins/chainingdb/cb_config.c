@@ -380,7 +380,7 @@ cb_config_modify_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slap
  
         slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
  
-  	for (i = 0; mods[i] ; i++) {
+  	for (i = 0; mods && mods[i] ; i++) {
                 attr_name = mods[i]->mod_type;
  
                 if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_FORWARD_CTRLS )) {
@@ -413,7 +413,7 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 
-	for (i = 0; mods[i] ; i++) {
+	for (i = 0; mods && mods[i] ; i++) {
 		attr_name = mods[i]->mod_type;
 
 		if ( !strcasecmp ( attr_name, CB_CONFIG_GLOBAL_FORWARD_CTRLS )) {

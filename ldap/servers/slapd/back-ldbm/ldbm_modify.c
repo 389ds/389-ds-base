@@ -253,7 +253,7 @@ modify_apply_check_expand(
 	 * If the objectClass attribute type was modified in any way, expand
 	 * the objectClass values to reflect the inheritance hierarchy.
 	 */
-	for ( i = 0; mods[i] != NULL && !repl_op; ++i ) {
+	for ( i = 0; (mods != NULL) && (mods[i] != NULL) && !repl_op; ++i ) {
 		if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
 			slapi_schema_expand_objectclasses( ec->ep_entry );
 			break;
@@ -938,7 +938,7 @@ remove_illegal_mods(LDAPMod **mods)
 	LDAPMod		*tmp;
 
 	/* remove any attempts by the user to modify these attrs */
-	for ( i = 0; mods[i] != NULL; i++ ) {
+	for ( i = 0; (mods != NULL) && (mods[i] != NULL); i++ ) {
 		if ( strcasecmp( mods[i]->mod_type, numsubordinates ) == 0
 		    || strcasecmp( mods[i]->mod_type, hassubordinates ) == 0 )
 		{

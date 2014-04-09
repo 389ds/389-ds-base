@@ -154,7 +154,7 @@ write_audit_file(
     	addlenstr( l, attr_changetype );
     	addlenstr( l, ": modify\n" );
     	mods = change;
-    	for ( j = 0; mods[j] != NULL; j++ )
+    	for ( j = 0; (mods != NULL) && (mods[j] != NULL); j++ )
 		{
 			int operationtype= mods[j]->mod_op & ~LDAP_MOD_BVALUES;
 
