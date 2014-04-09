@@ -355,7 +355,7 @@ write_changelog(
 	   that has been added, replaced, or deleted. */
 	fprintf( fp, "changetype: modify\n" );
 	mods = (LDAPMod **)change;
-	for ( j = 0; mods[j] != NULL; j++ ) {
+	for ( j = 0; (mods != NULL) && (mods[j] != NULL); j++ ) {
 	    switch ( mods[j]->mod_op & ~LDAP_MOD_BVALUES ) {
 	    case LDAP_MOD_ADD:
 		fprintf( fp, "add: %s\n", mods[j]->mod_type );

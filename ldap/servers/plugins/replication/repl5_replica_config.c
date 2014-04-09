@@ -351,7 +351,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
         if (*returncode != LDAP_SUCCESS)
             break;
 
-        for (i = 0; (mods[i] && (LDAP_SUCCESS == rc)); i++)
+        for (i = 0; mods && (mods[i] && (LDAP_SUCCESS == rc)); i++)
 		{
             if (*returncode != LDAP_SUCCESS)
                 break;
@@ -699,7 +699,7 @@ replica_config_post_modify(Slapi_PBlock *pb,
         if (*returncode != LDAP_SUCCESS)
             break;
 
-        for (i = 0; (mods[i] && (LDAP_SUCCESS == rc)); i++)
+        for (i = 0; mods && (mods[i] && (LDAP_SUCCESS == rc)); i++)
         {
             if (*returncode != LDAP_SUCCESS)
                 break;
