@@ -131,6 +131,7 @@ do_bind( Slapi_PBlock *pb )
     ber_tag_t ber_rc;
     int rc = 0;
     Slapi_DN *sdn = NULL;
+    int bind_sdn_in_pb = 0; /* is sdn set in the pb? */
     Slapi_Entry *referral;
     char errorbuf[BUFSIZ];
     char **supported, **pmech;
@@ -369,6 +370,7 @@ do_bind( Slapi_PBlock *pb )
     isroot = slapi_dn_isroot( slapi_sdn_get_ndn(sdn) );
     slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
     slapi_pblock_set( pb, SLAPI_BIND_TARGET_SDN, (void*)sdn );
+    bind_sdn_in_pb = 1; /* pb now owns sdn */
     slapi_pblock_set( pb, SLAPI_BIND_METHOD, &method );
     slapi_pblock_set( pb, SLAPI_BIND_SASLMECHANISM, saslmech );
     slapi_pblock_set( pb, SLAPI_BIND_CREDENTIALS, &cred );
@@ -861,7 +863,9 @@ account_locked:
 free_and_return:;
     if (be)
         slapi_be_Unlock(be);
-    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
+    if (bind_sdn_in_pb) {
+	    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
+    }
     slapi_sdn_free(&sdn);
     slapi_ch_free_string( &saslmech );
     slapi_ch_free( (void **)&cred.bv_val );
