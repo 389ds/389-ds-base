@@ -69,6 +69,7 @@ do_search( Slapi_PBlock *pb )
 	int			i, err, attrsonly;
 	ber_int_t		scope, deref, sizelimit, timelimit;
 	char		*rawbase = NULL;
+	int             rawbase_set_in_pb = 0; /* was rawbase set in pb? */
 	char		*base = NULL, *fstr = NULL;
 	struct slapi_filter	*filter = NULL;
 	char		**attrs = NULL;
@@ -339,6 +340,7 @@ do_search( Slapi_PBlock *pb )
 	}
 
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET_DN, rawbase );
+	rawbase_set_in_pb = 1; /* rawbase is now owned by pb */
 	slapi_pblock_set( pb, SLAPI_SEARCH_SCOPE, &scope );
 	slapi_pblock_set( pb, SLAPI_SEARCH_DEREF, &deref );
 	slapi_pblock_set( pb, SLAPI_SEARCH_FILTER, filter );
@@ -375,7 +377,9 @@ free_and_return:;
 			operation->o_flags &= ~OP_FLAG_PS;
 		}
 		/* we strdup'd this above - need to free */
-		slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &rawbase);
+		if (rawbase_set_in_pb) {
+			slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &rawbase);
+		}
 		slapi_ch_free_string(&rawbase);
 	}
 }
