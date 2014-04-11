@@ -45,6 +45,7 @@
 
 static changeNumber retrocl_internal_cn = 0;
 static changeNumber retrocl_first_cn = 0;
+static int check_last_changenumber = 0;
 
 /*
  * Function: a2changeNumber
@@ -408,15 +409,20 @@ changeNumber retrocl_assign_changenumber(void)
 
     slapi_rwlock_wrlock(retrocl_cn_lock);
 
-    if(retrocl_internal_cn <= retrocl_first_cn){ 
+    if((check_last_changenumber) || 
+	((retrocl_internal_cn <= retrocl_first_cn) &&
+	(retrocl_internal_cn > 1 ))){ 
         /* the numbers have become out of sync - retrocl_get_changenumbers
          * gets called only once during startup and it may have had a problem 
          * getting the last changenumber.         
          * If there was any problem then update the lastchangenumber from the changelog db.
          * This function is being called by only the thread that is actually writing
          * to the changelog.
+         *
+         * after the first change was applied both _cn numbers are 1, that's ok
          */                                                         
-        retrocl_update_lastchangenumber();                                   
+        retrocl_update_lastchangenumber(); 
+	check_last_changenumber = 0;                                  
     }                             
     retrocl_internal_cn++;
     cn = retrocl_internal_cn;
@@ -424,4 +430,11 @@ changeNumber retrocl_assign_changenumber(void)
     slapi_rwlock_unlock(retrocl_cn_lock);
 
     return cn;
+}
+
+void retrocl_set_check_changenumber(void)
+{
+	slapi_rwlock_wrlock(retrocl_cn_lock);
+	check_last_changenumber = 1;
+	slapi_rwlock_unlock(retrocl_cn_lock);
 }

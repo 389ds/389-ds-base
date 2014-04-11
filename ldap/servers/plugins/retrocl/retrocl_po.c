@@ -367,7 +367,8 @@ write_replog_db(
 	newPb = slapi_pblock_new ();
 	slapi_add_entry_internal_set_pb( newPb, e, NULL /* controls */, 
 					 g_plg_identity[PLUGIN_RETROCL], 
-					 0 /* actions */ );
+					/* dont leave entry in cache if main oparation is aborted */
+					 SLAPI_OP_FLAG_NEVER_CACHE);
 	slapi_add_internal_pb (newPb);
 	slapi_pblock_get( newPb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
 	slapi_pblock_destroy(newPb);
@@ -607,6 +608,10 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
 
     if (rc != LDAP_SUCCESS) {
         LDAPDebug1Arg(LDAP_DEBUG_TRACE,"not applying change if op failed %d\n",rc);
+	/* this could also mean that the changenumber is no longer correct
+	 * set a flag to check at next assignment
+	 */
+	retrocl_set_check_changenumber();
         return SLAPI_PLUGIN_SUCCESS;
     }
 

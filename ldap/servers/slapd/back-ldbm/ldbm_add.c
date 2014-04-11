@@ -113,6 +113,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_resurect_operation= 0;
 	int is_tombstone_operation= 0;
 	int is_fixup_operation= 0;
+	int is_remove_from_cache= 0;
 	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	entry_address addr = {0};
@@ -131,6 +132,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	is_tombstone_operation= operation_is_flag_set(operation,OP_FLAG_TOMBSTONE_ENTRY);
 	is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
 	is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
+	is_remove_from_cache = operation_is_flag_set(operation, OP_FLAG_NEVER_CACHE);
 
 	inst = (ldbm_instance *) be->be_instance_info;
 	if (inst && inst->inst_ref_count) {
@@ -1166,6 +1168,8 @@ common_return:
 					}
 				}
 			}
+			if (is_remove_from_cache)
+				CACHE_REMOVE(&inst->inst_cache, addingentry);
 			CACHE_RETURN( &inst->inst_cache, &addingentry );
 		}
 		if (inst->inst_ref_count) {

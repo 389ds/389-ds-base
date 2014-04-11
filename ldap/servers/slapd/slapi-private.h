@@ -442,6 +442,7 @@ char *slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, 
 #define OP_FLAG_PAGED_RESULTS            0x040000 /* simple paged results */
 #define OP_FLAG_SERVER_SIDE_SORTING      0x080000 /* server side sorting  */
 #define OP_FLAG_REVERSE_CANDIDATE_ORDER  0x100000 /* reverse the search candidate list */
+#define OP_FLAG_NEVER_CACHE		 0x200000 /* never keep the entry in cache */
 
 /* reverse search states */
 #define REV_STARTED 1

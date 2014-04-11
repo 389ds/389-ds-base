@@ -159,6 +159,7 @@ extern void         retrocl_set_first_changenumber(changeNumber cn);
 extern changeNumber retrocl_get_last_changenumber(void);
 extern void         retrocl_commit_changenumber(void);
 extern void         retrocl_release_changenumber(void);
+extern void         retrocl_set_check_changenumber(void);
 extern changeNumber retrocl_assign_changenumber(void);
 extern int          retrocl_get_changenumbers(void);
 extern void         retrocl_forget_changenumbers(void);
