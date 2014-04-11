@@ -2780,7 +2780,7 @@ agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn)
         if(op == SLAPI_OPERATION_MODIFY)
         {
             slapi_rwlock_rdlock(agmt->attr_lock);
-            for ( excluded_count = 0, mod_count = 0; NULL != mods[ mod_count ]; mod_count++){
+            for ( excluded_count = 0, mod_count = 0; mods && (NULL != mods[ mod_count ]); mod_count++){
                 if(charray_inlist(agmt->frac_attrs, mods[mod_count]->mod_type)){
                     excluded_count++;
                 } else if(charray_inlist(agmt->attrs_to_strip, mods[mod_count]->mod_type)){

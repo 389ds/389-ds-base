@@ -695,6 +695,10 @@ repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod ** mods)
 	int strip = 1;
 	int i, j, k;
 
+	if (mods == NULL) {
+                return retval;
+	}
+
 	if (a) {
 		/* Iterate through the fractional attr list */
 		for ( i = 0; a[i] != NULL; i++ ) 
