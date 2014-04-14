@@ -2349,9 +2349,9 @@ import_foreman(void *param)
             goto error;
         }
 
-        if (entryrdn_get_switch() /* subtree-rename: on */ ||
-            !slapi_entry_flag_is_set(fi->entry->ep_entry,
-                                     SLAPI_ENTRY_FLAG_TOMBSTONE)) {
+        if ((entryrdn_get_switch() /* subtree-rename: on */ &&
+             !slapi_entry_flag_is_set(fi->entry->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE)) ||
+            !entryrdn_get_switch() ) {
             /* parentid index
              * (we have to do this here, because the parentID is dependent on
              * looking up by entrydn/entryrdn.)
@@ -2362,7 +2362,7 @@ import_foreman(void *param)
             if (ret != 0)
                 goto error;
         }
-            
+
         if (!slapi_entry_flag_is_set(fi->entry->ep_entry,
                                      SLAPI_ENTRY_FLAG_TOMBSTONE)) {
             /* Lastly, before we're finished with the entry, pass it to the 
