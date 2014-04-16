@@ -2800,7 +2800,7 @@ slapi_entry_add_value (Slapi_Entry *e, const char *type, const Slapi_Value *valu
     Slapi_Attr **a= NULL;
     attrlist_find_or_create(&e->e_attrs, type, &a);
     if(value != (Slapi_Value *) NULL) {
-        slapi_valueset_add_value ( &(*a)->a_present_values, value);
+        slapi_valueset_add_attr_value_ext(*a, &(*a)->a_present_values, (Slapi_Value *)value, 0);
     }
     return 0;
 }
