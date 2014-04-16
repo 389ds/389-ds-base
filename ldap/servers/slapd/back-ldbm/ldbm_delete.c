@@ -1095,12 +1095,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		CACHE_RETURN(&inst->inst_cache, &e);
 		e = NULL;
 	}
-
-	if (parent_found)
-	{
-		 /* Replace the old parent entry with the newly modified one */
-		modify_switch_entries( &parent_modify_c,be);
-	}
 	
 	if (ruv_c_init) {
 		if (modify_switch_entries(&ruv_c, be) != 0 ) {
@@ -1110,6 +1104,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			retval = -1;
 			goto error_return;
 		}
+	}
+
+	if (parent_found)
+	{
+		/* Replace the old parent entry with the newly modified one */
+		modify_switch_entries( &parent_modify_c,be);
 	}
 
 	rc= 0;
