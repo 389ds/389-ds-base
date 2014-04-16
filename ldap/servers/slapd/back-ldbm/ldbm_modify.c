@@ -122,6 +122,44 @@ int modify_switch_entries(modify_context *mc,backend *be)
 	return ret;
 }
 
+/*
+ * Switch the new with the old(original) - undoing modify_switch_entries()
+ * This expects modify_term() to be called next, as the old "new" entry
+ * is now gone(replaced by the original entry).
+ */
+int
+modify_unswitch_entries(modify_context *mc,backend *be)
+{
+	struct backentry *tmp_be;
+	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+	int ret = 0;
+
+	if (mc->old_entry!=NULL && mc->new_entry!=NULL) {
+		/* switch the entries, and reset the new, new, entry */
+		tmp_be = mc->new_entry;
+		mc->new_entry = mc->old_entry;
+		mc->new_entry->ep_state = 0;
+		mc->new_entry->ep_refcnt = 0;
+		mc->new_entry_in_cache = 0;
+		mc->old_entry = tmp_be;
+
+		ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
+		if (ret == 0) {
+			/*
+			 * The new entry was originally locked, so since we did the
+			 * switch we need to unlock the "new" entry, and return the
+			 * "old" one.  modify_term() will then return the "new" entry.
+			 */
+			cache_unlock_entry(&inst->inst_cache, mc->new_entry);
+			CACHE_RETURN( &(inst->inst_cache), &(mc->old_entry) );
+			mc->new_entry_in_cache = 1;
+			mc->old_entry = NULL;
+		}
+	}
+
+	return ret;
+}
+
 /* This routine does that part of a modify operation which involves
    updating the on-disk data: updates idices, id2entry. 
    Copes properly with DB_LOCK_DEADLOCK. The caller must be able to cope with 
