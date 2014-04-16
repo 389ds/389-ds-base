@@ -1157,6 +1157,8 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 	char *current_type_name = NULL;
 	int rewrite_rfc1274 = 0;
 	int vattr_flags = 0;
+	char *dn = NULL;
+	char **default_attrs = NULL;
 
 	if(real_attrs_only == SLAPI_SEND_VATTR_FLAG_REALONLY)
 		vattr_flags = SLAPI_REALATTRS_ONLY;
@@ -1193,6 +1195,10 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 
 	rewrite_rfc1274 = config_get_rewrite_rfc1274();
 
+	dn = slapi_entry_get_dn_const(e);
+	if (dn == NULL || *dn == '\0' ) {
+		default_attrs = slapi_entry_attr_get_charray(e, CONFIG_RETURN_DEFAULT_OPATTR);
+	}
 	/* Send the attrs back to the client */
 	for (current_type = vattr_typethang_first(typelist); current_type; current_type = vattr_typethang_next(current_type) ) {
 
@@ -1222,6 +1228,14 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 						sendit = 1;
 						name_to_return = op->o_searchattrs[i];
 						break;
+					}
+				}
+				if (!sendit && default_attrs) {
+					for ( i = 0; default_attrs != NULL && default_attrs[i] != NULL; i++ ) {
+						if ( slapi_attr_type_cmp( default_attrs[i], current_type_name, SLAPI_TYPE_CMP_SUBTYPE ) == 0 ) {
+							sendit = 1;
+							break;
+						}
 					}
 				}
 			}
@@ -1323,6 +1337,9 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 exit:
 	if (NULL != typelist) {
 		slapi_vattr_attrs_free(&typelist,typelist_flags);
+	}
+	if (NULL != default_attrs) {
+		slapi_ch_free((void**)&default_attrs);
 	}
 	return rc;
 }

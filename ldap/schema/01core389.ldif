@@ -297,6 +297,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2302 NAME 'nsslapd-listen-backlog-size' 
 attributeTypes: ( 2.16.840.1.113730.3.1.2303 NAME 'nsslapd-ignore-time-skew' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2304 NAME 'nsslapd-dynamic-plugins' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2305 NAME 'nsslapd-moddn-aci' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2306 NAME 'nsslapd-return-default-opattr' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
 #
 # objectclasses
 #

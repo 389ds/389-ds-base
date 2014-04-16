@@ -2150,6 +2150,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PLUGIN_LOGGING "nsslapd-plugin-logging"
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
 #define CONFIG_DYNAMIC_PLUGINS "nsslapd-dynamic-plugins"
+#define CONFIG_RETURN_DEFAULT_OPATTR "nsslapd-return-default-opattr"
 
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
