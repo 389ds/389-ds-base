@@ -116,8 +116,13 @@ replica_updatedn_group_new(const Slapi_Entry *entry)
 ReplicaUpdateDNList
 replica_groupdn_list_new(const Slapi_ValueSet *vs)
 {
+    PLHashTable *hash;
+
+    if (vs == NULL) {
+	return NULL;
+    }
     /* allocate table */
-    PLHashTable *hash = PL_NewHashTable(4, PL_HashString, PL_CompareStrings,
+    hash = PL_NewHashTable(4, PL_HashString, PL_CompareStrings,
 						updatedn_compare_dns, NULL, NULL);
     if (hash == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_new_updatedn_list: "
