@@ -117,6 +117,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int is_ruv = 0;				 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
 	entry_address addr = {0};
+	int parent_switched = 0;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -974,6 +975,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	{
 		/* switch the parent entry copy into play */
 		modify_switch_entries( &parent_modify_c,be);
+		parent_switched = 1;
 	}
 
 	if (ruv_c_init) {
@@ -1046,6 +1048,17 @@ error_return:
 		dblayer_remember_disk_filled(li);
 		ldbm_nasty("Add",80,rc);
 		disk_full = 1;
+	} else if (0 == rc) {
+		rc = SLAPI_FAIL_GENERAL;
+	}
+
+	if (parent_switched){
+		/*
+		 * Restore the old parent entry, switch the new with the original.
+		 * Otherwise the numsubordinate count will be off, and could later
+		 * be written to disk.
+		 */
+		modify_unswitch_entries( &parent_modify_c,be);
 	}
 
 diskfull_return:
