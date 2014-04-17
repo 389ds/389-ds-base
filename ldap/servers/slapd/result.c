@@ -1157,7 +1157,7 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 	char *current_type_name = NULL;
 	int rewrite_rfc1274 = 0;
 	int vattr_flags = 0;
-	char *dn = NULL;
+	const char *dn = NULL;
 	char **default_attrs = NULL;
 
 	if(real_attrs_only == SLAPI_SEND_VATTR_FLAG_REALONLY)
