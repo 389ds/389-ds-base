@@ -108,6 +108,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	
 	slapi_sdn_init(&nscpEntrySDN);
+	slapi_sdn_init(&parentsdn);
 
 	/* dblayer_txn_init needs to be called before "goto error_return" */
 	dblayer_txn_init(li,&txn);
@@ -444,7 +445,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * seems to deadlock the database when dblayer_txn_begin is
 			 * called.
 			 */
-			slapi_sdn_init(&parentsdn);
 			slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, pb->pb_backend, is_tombstone_entry);
 			if ( !slapi_sdn_isempty(&parentsdn) )
 			{
