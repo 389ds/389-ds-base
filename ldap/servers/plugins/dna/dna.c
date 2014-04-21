@@ -101,6 +101,7 @@
 #define DNA_HOSTNAME           "dnaHostname"
 #define DNA_PORTNUM            "dnaPortNum"
 #define DNA_SECURE_PORTNUM     "dnaSecurePortNum"
+#define DNA_REMOTE_BUFSIZ      15 /* max size for bind method & protocol */
 #define DNA_REMOTE_BIND_METHOD "dnaRemoteBindMethod"
 #define DNA_REMOTE_CONN_PROT   "dnaRemoteConnProtocol"
 
@@ -191,6 +192,9 @@ struct configEntry {
 static PRCList *dna_global_config = NULL;
 static Slapi_RWLock *g_dna_cache_lock;
 
+static struct dnaServer *dna_global_servers = NULL;
+static Slapi_RWLock *g_dna_cache_server_lock;
+
 static void *_PluginID = NULL;
 static const char *_PluginDN = NULL;
 
@@ -204,6 +208,7 @@ static char *secureportnum = NULL;
  */
 struct dnaServer {
     PRCList list;
+    Slapi_DN *sdn;
     char *host;
     unsigned int port;
     unsigned int secureport;
@@ -214,6 +219,7 @@ struct dnaServer {
     char *remote_conn_prot;
     char *remote_binddn; /* contains pointer to main config binddn */
     char *remote_bindpw; /* contains pointer to main config bindpw */
+    struct dnaServer *next; /* used for the global server list */
 };
 
 static char *dna_extend_exop_oid_list[] = {
@@ -262,7 +268,7 @@ static void dna_notice_allocation(struct configEntry *config_entry,
                                   PRUint64 new, PRUint64 last);
 static int dna_update_shared_config(struct configEntry * config_entry);
 static void dna_update_config_event(time_t event_time, void *arg);
-static int dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers);
+static int dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int get_all);
 static void dna_free_shared_server(struct dnaServer **server);
 static void dna_delete_shared_servers(PRCList **servers);
 static int dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper);
@@ -285,6 +291,9 @@ static void dna_create_valcheck_filter(struct configEntry *config_entry, PRUint6
 static int dna_isrepl(Slapi_PBlock *pb);
 static int dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bind_passwd,
                                        char **bind_method, int *is_ssl, int *port);
+static int dna_load_shared_servers();
+static void dna_delete_global_servers();
+static int dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, char *value);
 
 /**
  *
@@ -336,6 +345,21 @@ void dna_write_lock()
 void dna_unlock()
 {
     slapi_rwlock_unlock(g_dna_cache_lock);
+}
+
+void dna_server_read_lock()
+{
+    slapi_rwlock_rdlock(g_dna_cache_server_lock);
+}
+
+void dna_server_write_lock()
+{
+    slapi_rwlock_wrlock(g_dna_cache_server_lock);
+}
+
+void dna_server_unlock()
+{
+    slapi_rwlock_unlock(g_dna_cache_server_lock);
 }
 
 /**
@@ -546,11 +570,16 @@ dna_start(Slapi_PBlock * pb)
                     "--> dna_start\n");
 
     g_dna_cache_lock = slapi_new_rwlock();
-
     if (!g_dna_cache_lock) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: lock creation failed\n");
+                        "dna_start: global config lock creation failed\n");
+        return DNA_FAILURE;
+    }
 
+    g_dna_cache_server_lock = slapi_new_rwlock();
+    if (!g_dna_cache_server_lock) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start: global server lock creation failed\n");
         return DNA_FAILURE;
     }
 
@@ -594,6 +623,15 @@ dna_start(Slapi_PBlock * pb)
         return DNA_FAILURE;
     }
 
+    /*
+     * Load all shared server configs
+     */
+    if (dna_load_shared_servers() ) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start: shared config server initialization failed.\n");
+        return DNA_FAILURE;
+    }
+
     slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
                     "dna: ready for service\n");
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
@@ -618,6 +656,10 @@ dna_close(Slapi_PBlock * pb)
     slapi_destroy_rwlock(g_dna_cache_lock);
     g_dna_cache_lock = NULL;
 
+    dna_delete_global_servers();
+    slapi_destroy_rwlock(g_dna_cache_server_lock);
+    g_dna_cache_server_lock = NULL;
+
     slapi_ch_free_string(&hostname);
     slapi_ch_free_string(&portnum);
     slapi_ch_free_string(&secureportnum);
@@ -626,6 +668,82 @@ dna_close(Slapi_PBlock * pb)
                     "<-- dna_close\n");
 
     return DNA_SUCCESS;
+}
+
+/*
+ * Free the global linkedl ist of shared servers
+ */
+static void
+dna_delete_global_servers()
+{
+    struct dnaServer *server, *next;
+
+    if(dna_global_servers){
+        server = dna_global_servers;
+        while(server){
+            next = server->next;
+            dna_free_shared_server(&server);
+            server = next;
+        }
+        dna_global_servers = NULL;
+    }
+}
+
+/*
+ * Look through the global config entries, and build a global
+ * shared server config list.
+ */
+static int
+dna_load_shared_servers()
+{
+    struct configEntry *config_entry = NULL;
+    struct dnaServer *server = NULL, *global_servers = NULL;
+    PRCList *server_list = NULL;
+    PRCList *config_list = NULL;
+    int ret = 0;
+
+    /* First free the existing list. */
+    dna_delete_global_servers();
+
+    /* Now build the new list. */
+    dna_write_lock();
+    if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
+        config_list = PR_LIST_HEAD(dna_global_config);
+        while (config_list != dna_global_config) {
+            PRCList *shared_list = NULL;
+            config_entry = (struct configEntry *) config_list;
+
+            if(dna_get_shared_servers(config_entry,
+                                      &shared_list,
+                                      1 /* get all the servers */))
+            {
+                dna_unlock();
+                return -1;
+            }
+
+            dna_server_write_lock();
+            if (shared_list) {
+                server_list = PR_LIST_HEAD(shared_list);
+                while (server_list != shared_list) {
+                    server = (struct dnaServer *)server_list;
+                    if(global_servers == NULL){
+                        dna_global_servers = global_servers = server;
+                    } else {
+                        global_servers->next = server;
+                        global_servers = server;
+                    }
+                    server_list = PR_NEXT_LINK(server_list);
+                }
+                slapi_ch_free((void **)&shared_list);
+            }
+            dna_server_unlock();
+
+            config_list = PR_NEXT_LINK(config_list);
+        }
+    }
+    dna_unlock();
+
+    return ret;
 }
 
 /*
@@ -1233,6 +1351,7 @@ dna_free_shared_server(struct dnaServer **server)
         return;
     }
     s = *server;
+    slapi_sdn_free(&s->sdn);
     slapi_ch_free_string(&s->host);
     slapi_ch_free_string(&s->remote_bind_method);
     slapi_ch_free_string(&s->remote_conn_prot);
@@ -1330,6 +1449,7 @@ dna_update_config_event(time_t event_time, void *arg)
                 Slapi_PBlock *dna_pb = NULL;
                 Slapi_DN *sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
                 Slapi_Backend *be = slapi_be_select(sdn);
+
                 slapi_sdn_free(&sdn);
                 if (be) {
                     dna_pb = slapi_pblock_new();
@@ -1416,7 +1536,7 @@ static int dna_fix_maxval(struct configEntry *config_entry,
     } else if (!skip_range_request && config_entry->shared_cfg_base) {
         /* Find out if there are any other servers to request
          * range from. */
-        dna_get_shared_servers(config_entry, &servers);
+        dna_get_shared_servers(config_entry, &servers, 0 );
 
         if (servers) {
             /* We have other servers we can try to extend
@@ -1506,7 +1626,7 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
 }
 
 static int
-dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
+dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int get_all)
 {
     int ret = LDAP_SUCCESS;
     Slapi_PBlock *pb = NULL;
@@ -1556,13 +1676,14 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
         /* We found some entries.  Go through them and
          * order them based off of remaining values. */
         for (i = 0; entries[i]; i++) {
-            /* skip our own shared config entry */
-            if (slapi_sdn_compare(cfg_sdn, slapi_entry_get_sdn(entries[i]))) {
+            /* skip our own shared config entry, unless we want all the servers */
+            if (get_all || slapi_sdn_compare(cfg_sdn, slapi_entry_get_sdn(entries[i]))) {
                 struct dnaServer *server = NULL;
 
                 /* set up the server list entry */
                 server = (struct dnaServer *) slapi_ch_calloc(1,
                          sizeof(struct dnaServer));
+                server->sdn = slapi_sdn_new_dn_byval(slapi_entry_get_ndn(entries[i]));
                 server->host = slapi_entry_attr_get_charptr(entries[i],
                                                             DNA_HOSTNAME);
                 server->port = slapi_entry_attr_get_uint(entries[i], DNA_PORTNUM);
@@ -1631,7 +1752,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers)
                 } else {
                     /* Find the right slot for this entry. We
                      * want to order the entries based off of
-                     * the remaining number of values, higest
+                     * the remaining number of values, highest
                      * to lowest. */
                     struct dnaServer *sitem;
                     PRCList* item = PR_LIST_HEAD(*servers);
@@ -1904,6 +2025,36 @@ static int dna_dn_is_config(char *dn)
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_is_config\n");
+
+    return ret;
+}
+
+static int
+dna_dn_is_shared_config(Slapi_PBlock *pb, char *dn)
+{
+    struct configEntry *config_entry = NULL;
+    Slapi_Entry *entry = NULL;
+    Slapi_Attr *attr = NULL;
+    PRCList *list = NULL;
+    int ret = 0;
+
+    dna_read_lock();
+    if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
+        list = PR_LIST_HEAD(dna_global_config);
+        while (list != dna_global_config) {
+            config_entry = (struct configEntry *) list;
+            if (slapi_dn_issuffix(dn, config_entry->shared_cfg_base)) {
+                slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
+                /* If the entry has the dnaHost attribute, it is a shared entry */
+                if (slapi_entry_attr_find(entry, DNA_HOSTNAME, &attr) == 0) {
+                    ret = 1;
+                    break;
+                }
+            }
+            list = PR_NEXT_LINK(list);
+        }
+    }
+    dna_unlock();
 
     return ret;
 }
@@ -2236,6 +2387,39 @@ static int dna_get_next_value(struct configEntry *config_entry,
 }
 
 /*
+ * Get a value from the global server list.  The dna_server_read_lock()
+ * should be held prior to calling this function.
+ */
+static int
+dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, char *value)
+{
+    struct dnaServer *server = NULL;
+    Slapi_DN *server_sdn = NULL;
+    int found = 0;
+
+    server_sdn = slapi_sdn_new_dn_byref(config_entry->shared_cfg_dn);
+    if (dna_global_servers) {
+        server = dna_global_servers;
+        while (server) {
+            if(slapi_sdn_compare(server->sdn, server_sdn) == 0){
+                if(strcmp(attr, DNA_REMOTE_BIND_METHOD) == 0){
+                    PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_bind_method);
+                    found = 1;
+                    break;
+                } else if(strcmp(attr, DNA_REMOTE_CONN_PROT) == 0){
+                    PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_conn_prot);
+                    found = 1;
+                    break;
+                }
+            }
+            server = server->next;
+        }
+    }
+    slapi_sdn_free(&server_sdn);
+
+    return found;
+}
+/*
  * dna_update_shared_config()
  *
  * Updates the shared config entry if one is
@@ -2287,8 +2471,9 @@ dna_update_shared_config(struct configEntry * config_entry)
              * already exist, we add it. */
             if (ret == LDAP_NO_SUCH_OBJECT) {
                 Slapi_Entry *e = NULL;
-                Slapi_DN *sdn = 
-                        slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
+                Slapi_DN *sdn = slapi_sdn_new_normdn_byref(config_entry->shared_cfg_dn);
+                char bind_meth[DNA_REMOTE_BUFSIZ];
+                char conn_prot[DNA_REMOTE_BUFSIZ];
 
                 /* Set up the new shared config entry */
                 e = slapi_entry_alloc();
@@ -2303,6 +2488,16 @@ dna_update_shared_config(struct configEntry * config_entry)
                     slapi_entry_add_string(e, DNA_SECURE_PORTNUM, secureportnum);
                 }
                 slapi_entry_add_string(e, DNA_REMAINING, remaining_vals);
+
+                /* Grab the remote server settings */
+                dna_server_read_lock();
+                if(dna_get_shared_config_attr_val(config_entry, DNA_REMOTE_BIND_METHOD, bind_meth)) {
+                    slapi_entry_add_string(e, DNA_REMOTE_BIND_METHOD, bind_meth);
+                }
+                if(dna_get_shared_config_attr_val(config_entry, DNA_REMOTE_CONN_PROT, conn_prot)){
+                    slapi_entry_add_string(e, DNA_REMOTE_CONN_PROT,conn_prot);
+                }
+                dna_server_unlock();
 
                 /* clear pb for re-use */
                 slapi_pblock_init(pb);
@@ -3892,6 +4087,9 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
         if ((dn = dna_get_dn(pb))) {
             if (dna_dn_is_config(dn)) {
                 dna_load_plugin_config(pb, 0);
+            }
+            if(dna_dn_is_shared_config(pb, dn) == 0){
+                dna_load_shared_servers();
             }
         }
     }
