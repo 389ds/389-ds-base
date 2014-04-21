@@ -361,6 +361,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					}
 					retval = -1;
 					CACHE_RETURN(&(inst->inst_cache), &parent);
+					slapi_sdn_done(&parentsdn);
 					goto error_return;
 				} else {
 					/* entry locked, move on */
@@ -397,6 +398,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			                                      op, &haschildren);
 			/* The modify context now contains info needed later */
 			if (0 != retval) {
+				slapi_sdn_done(&parentsdn);
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
@@ -1247,7 +1249,6 @@ diskfull_return:
 	slapi_ch_free((void**)&errbuf);
 	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
-	slapi_sdn_done(&parentsdn);
 	if (pb->pb_conn)
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
