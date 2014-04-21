@@ -108,6 +108,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
 	
 	slapi_sdn_init(&nscpEntrySDN);
+	slapi_sdn_init(&parentsdn);
 
 	/* dblayer_txn_init needs to be called before "goto error_return" */
 	dblayer_txn_init(li,&txn);
@@ -321,7 +322,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	 * seems to deadlock the database when dblayer_txn_begin is
 	 * called.
 	 */
-	slapi_sdn_init(&parentsdn);
 	slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, pb->pb_backend, is_tombstone_entry);
 	if ( !slapi_sdn_isempty(&parentsdn) )
 	{
@@ -361,7 +361,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					}
 					retval = -1;
 					CACHE_RETURN(&(inst->inst_cache), &parent);
-					slapi_sdn_done(&parentsdn);
 					goto error_return;
 				} else {
 					/* entry locked, move on */
@@ -398,7 +397,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			                                      op, &haschildren);
 			/* The modify context now contains info needed later */
 			if (0 != retval) {
-				slapi_sdn_done(&parentsdn);
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
@@ -418,7 +416,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 		}
 	}
-	slapi_sdn_done(&parentsdn);
     
 	if(create_tombstone_entry)
 	{
@@ -1249,6 +1246,7 @@ diskfull_return:
 	slapi_ch_free((void**)&errbuf);
 	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
+	slapi_sdn_done(&parentsdn);
 	if (pb->pb_conn)
 	{
 		slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_delete", "leave conn=%" NSPRIu64 " op=%d\n", pb->pb_conn->c_connid, operation->o_opid);
