@@ -568,7 +568,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		
 			if ( !is_fixup_operation )
 			{
-				if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) ) {
+				if (!repl_op && slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) ) {
 					ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
                 			ldap_result_message = "Operation not allowed on tombstone entry.";
 					slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modify",
