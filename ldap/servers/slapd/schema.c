@@ -205,7 +205,7 @@ static PRBool check_replicated_schema(LDAPMod **mods, char *replica_role, char *
 static void modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schema_mods_indexes **at_list, struct schema_mods_indexes **oc_list);
 static void modify_schema_apply_new_definitions(char *attr_name, struct schema_mods_indexes *list);
 static void modify_schema_free_new_definitions(struct schema_mods_indexes *def_list);
-static int schema_oc_compare(struct objclass *oc_1, struct objclass *oc_2, char *description);
+static int schema_oc_compare(struct objclass *oc_1, struct objclass *oc_2, const char *description);
 static int schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *message, int debug_logging);
 static int schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_list2, char *message, int replica_role);
 static int schema_at_superset_check_syntax_oids(char *oid1, char *oid2);
@@ -6175,15 +6175,15 @@ slapi_schema_get_superior_name(const char *ocname_or_oid)
 static int
 schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, char *message, int replica_role) {
         struct objclass *oc_1, *oc_2;
-        char *description;
+        const char *description;
         int debug_logging = 0;
         int rc;
         int repl_schema_policy;
 
         if (message == NULL) {
-                description = "";
+                description = (const char *) "";
         } else {
-                description = message;
+                description = (const char *) message;
         }
         
         /* by default assum oc_list1 == oc_list2 */
@@ -6272,12 +6272,12 @@ schema_list_oc2learn(struct objclass *oc_remote_list, struct objclass *oc_local_
         struct schema_mods_indexes *head = NULL, *mods_index;
         int index = 0;
         int repl_schema_policy;
-        char *message;
+        const char *message;
         
         if (replica_role == REPL_SCHEMA_AS_SUPPLIER) {
-                message = "remote consumer";
+                message = (const char *) "remote consumer";
         } else {
-                message = "remote supplier";
+                message = (const char *) "remote supplier";
         }
 
         slapi_rwlock_rdlock( schema_policy_lock );        
@@ -6377,7 +6377,7 @@ schema_list_attr2learn(struct asyntaxinfo *at_list_local, struct asyntaxinfo *at
  * else it returns 0
  */
 static PRBool
-schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, char *description) 
+schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, const char *description) 
 {
         int found;
         int i,j;
@@ -6486,7 +6486,7 @@ schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, char *des
  *   0: if oc_1 and at_2 are equivalent
  */
 static int
-schema_oc_compare(struct objclass *oc_1, struct objclass *oc_2, char *description) 
+schema_oc_compare(struct objclass *oc_1, struct objclass *oc_2, const char *description) 
 {
         if (schema_oc_compare_strict(oc_1, oc_2, description) > 0) {
                 return 1;
