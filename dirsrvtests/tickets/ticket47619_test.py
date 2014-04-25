@@ -253,8 +253,7 @@ def test_ticket47619_reindex(topology):
     '''
     Reindex all the attributes in ATTRIBUTES
     '''
-    args = {TASK_WAIT: True,
-            TASK_TIMEOUT: 10}
+    args = {TASK_WAIT: True}
     for attr in ATTRIBUTES:
         rc = topology.master.tasks.reindex(suffix=RETROCL_SUFFIX, attrname=attr, args=args)
         assert rc == 0

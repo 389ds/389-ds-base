@@ -62,7 +62,7 @@ class TopologyMaster1Master2(object):
         self.master2 = master2
 
 
-#@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
     '''
         This fixture is used to create a replicated topology for the 'module'.
@@ -1140,8 +1140,8 @@ def run_isolated():
     '''
     global installation1_prefix
     global installation2_prefix
-    installation1_prefix = '/home/tbordaz/install'
-    installation2_prefix = '/home/tbordaz/install'
+    installation1_prefix = None
+    installation2_prefix = None
         
     topo = topology(True)
     topo.master1.log.info("\n\n######################### Ticket 47553 ######################\n")

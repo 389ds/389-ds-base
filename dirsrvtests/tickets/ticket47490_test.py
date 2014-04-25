@@ -331,10 +331,10 @@ def test_ticket47490_one(topology):
     
 def test_ticket47490_two(topology):
     """
-        Summary: Extra OC Schema is NOT pushed - error
+        Summary: Extra OC Schema is pushed - (ticket 47721 allows to learn missing def)
         
         If consumer schema is a superset (one extra OC) of supplier schema, then
-        schema is not pushed and there is a message in the error log
+        schema is pushed and there is a message in the error log
         State at startup 
             - supplier +masterNewOCA
             - consumer +masterNewOCA
@@ -357,14 +357,15 @@ def test_ticket47490_two(topology):
     consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was NOT updated on the consumer
+    # with 47721, supplier learns the missing definition
     log.debug("test_ticket47490_two master_schema_csn=%s", master_schema_csn)
     log.debug("test_ticket47490_two consumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn != consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
+    # This message may happen during the learning phase
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology.master.errorlog_file, regex)
-    assert res
 
 
 def test_ticket47490_three(topology):
@@ -435,10 +436,10 @@ def test_ticket47490_four(topology):
     
 def test_ticket47490_five(topology):
     """
-        Summary: Same OC - extra MUST: Schema is NOT pushed - error
+        Summary: Same OC - extra MUST: Schema is pushed - (fix for 47721)
         
         If consumer schema is  a superset (OC with more MUST), then
-        schema is  not pushed and there is a message in the error log
+        schema is  pushed (fix for 47721) and there is a message in the error log
         State at startup 
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber
@@ -466,21 +467,15 @@ def test_ticket47490_five(topology):
     consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was NOT updated on the consumer
+    # with 47721, supplier learns the missing definition
     log.debug("test_ticket47490_five master_schema_csn=%s", master_schema_csn)
     log.debug("ctest_ticket47490_five onsumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn != consumer_schema_csn
     
-    #Check that replication logging display additional message about 'telexNumber' not being
-    # required in the master schema
-    # This message appears before 'must not be overwritten' so it should be check first
-    regex = re.compile("Attribute telexNumber is not required in 'consumerNewOCA' of the local supplier schema")
-    res = pattern_errorlog(topology.master.errorlog_file, regex)
-    assert res != None
-    
     # Check the error log of the supplier does not contain an error
+    # This message may happen during the learning phase
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology.master.errorlog_file, regex)
-    assert res != None
 
 def test_ticket47490_six(topology):
     """
@@ -517,6 +512,7 @@ def test_ticket47490_six(topology):
     assert master_schema_csn == consumer_schema_csn
     
     # Check the error log of the supplier does not contain an error
+    # This message may happen during the learning phase
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology.master.errorlog_file, regex)
     assert res == None
@@ -563,10 +559,10 @@ def test_ticket47490_seven(topology):
 
 def test_ticket47490_eight(topology):
     """
-        Summary: Same OC - extra MAY: Schema is NOT pushed - error
+        Summary: Same OC - extra MAY: Schema is pushed (fix for 47721)
         
         If consumer schema is a superset (OC with more MAY), then
-        schema is  not pushed and there is  message in the error log
+        schema is  pushed (fix for 47721) and there is  message in the error log
         State at startup
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
@@ -593,21 +589,16 @@ def test_ticket47490_eight(topology):
     consumer_schema_csn = topology.consumer.schema.get_schema_csn()
     
     # Check the schemaCSN was not updated on the consumer
+    # with 47721, supplier learns the missing definition
     log.debug("test_ticket47490_eight master_schema_csn=%s", master_schema_csn)
     log.debug("ctest_ticket47490_eight onsumer_schema_csn=%s", consumer_schema_csn)
     assert master_schema_csn != consumer_schema_csn
     
-    #Check that replication logging display additional message about 'postOfficeBox' not being
-    # allowed in the master schema
-    # This message appears before 'must not be overwritten' so it should be check first
-    regex = re.compile("Attribute postOfficeBox is not allowed in 'consumerNewOCA' of the local supplier schema")
-    res = pattern_errorlog(topology.master.errorlog_file, regex)
-    assert res != None
-    
     # Check the error log of the supplier does not contain an error
+    # This message may happen during the learning phase
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology.master.errorlog_file, regex)
-    assert res != None
+    
     
 def test_ticket47490_nine(topology):
     """
