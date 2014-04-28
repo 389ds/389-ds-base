@@ -725,10 +725,8 @@ dna_load_shared_servers()
     struct dnaServer *server = NULL, *global_servers = NULL;
     PRCList *server_list = NULL;
     PRCList *config_list = NULL;
+    int freed_servers = 0;
     int ret = 0;
-
-    /* First free the existing list. */
-    dna_delete_global_servers();
 
     /* Now build the new list. */
     dna_write_lock();
@@ -747,6 +745,10 @@ dna_load_shared_servers()
             }
 
             dna_server_write_lock();
+            if(!freed_servers){
+                dna_delete_global_servers();
+                freed_servers = 1;
+            }
             if (shared_list) {
                 server_list = PR_LIST_HEAD(shared_list);
                 while (server_list != shared_list) {
