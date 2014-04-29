@@ -54,31 +54,30 @@
 
 int 
 chainingdb_build_candidate_list ( Slapi_PBlock *pb )
-{ 
-
-	Slapi_Backend		* be;
-	Slapi_Operation		* op;
-	char 			*filter;
-	const char		*target = NULL;
-	Slapi_DN		*target_sdn = NULL;
-	int			scope,attrsonly,sizelimit,timelimit,rc,searchreferral;
-	char 			**attrs=NULL;
-	LDAPControl 		**controls=NULL;		
-	LDAPControl 		**ctrls=NULL;		
-	LDAP				*ld=NULL;
-	cb_backend_instance	*cb = NULL;
-	cb_searchContext 	*ctx=NULL;
-	struct timeval		timeout;
-	time_t			optime;
-	int 			doit,parse_rc;
-	LDAPMessage 		*res=NULL;
-	char                    *matched_msg,*error_msg;
-	LDAPControl             **serverctrls=NULL;
-	char                    **referrals=NULL;
-	char			*cnxerrbuf=NULL;
-	time_t 			endbefore=0;
-	time_t			endtime = 0;
-	cb_outgoing_conn	*cnx;
+{
+	cb_backend_instance *cb = NULL;
+	cb_outgoing_conn    *cnx;
+	cb_searchContext    *ctx = NULL;
+	Slapi_Backend       *be;
+	Slapi_Operation     *op;
+	LDAPControl         **serverctrls = NULL;
+	LDAPControl         **controls = NULL;
+	LDAPControl         **ctrls = NULL;
+	LDAPMessage         *res = NULL;
+	LDAP                *ld = NULL;
+	Slapi_DN            *target_sdn = NULL;
+	const char          *target = NULL;
+	char                *filter;
+	char                **attrs = NULL;
+	struct timeval      timeout;
+	time_t              optime;
+	time_t              endbefore = 0;
+	time_t              endtime = 0;
+	char                *matched_msg, *error_msg;
+	char                **referrals = NULL;
+	char                *cnxerrbuf = NULL;
+	int                 scope, attrsonly, sizelimit, timelimit, searchreferral;
+	int                 rc, parse_rc, doit;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	cb = cb_get_instance(be);
@@ -92,53 +91,50 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	target = slapi_sdn_get_dn(target_sdn);
 
 	if ( LDAP_SUCCESS != (parse_rc=cb_forward_operation(pb) )) {
-
 		/* Don't return errors */
-
 		if (cb_debug_on()) {
 			slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 			"local search: base:<%s> scope:<%s> filter:<%s>\n",target,
 			scope==LDAP_SCOPE_SUBTREE?"SUBTREE":scope==LDAP_SCOPE_ONELEVEL ? "ONE-LEVEL" : "BASE" , filter);
 		}
 
-                ctx = (cb_searchContext *)slapi_ch_calloc(1,sizeof(cb_searchContext));
-                ctx->type = CB_SEARCHCONTEXT_ENTRY;
-                ctx->data=NULL;
- 
-                slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
-                return 0;
-        }
+		ctx = (cb_searchContext *)slapi_ch_calloc(1,sizeof(cb_searchContext));
+		ctx->type = CB_SEARCHCONTEXT_ENTRY;
+		ctx->data=NULL;
+		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
 
-        cb_update_monitor_info(pb,cb,SLAPI_OPERATION_SEARCH);
-
-	/* Check wether the chaining BE is available or not */
-        if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
-                return -1;
-        }
-
-	if (cb_debug_on()) {
-        	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-		"chained search: base:<%s> scope:<%s> filter:<%s>\n",target,
-		scope==LDAP_SCOPE_SUBTREE?"SUBTREE":scope==LDAP_SCOPE_ONELEVEL ? "ONE-LEVEL" : "BASE" , filter);
+		return 0;
 	}
 
-        slapi_pblock_get( pb, SLAPI_SEARCH_ATTRS, &attrs );
-        slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
-        slapi_pblock_get( pb, SLAPI_REQCONTROLS, &controls );
-        slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
-        slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
-       	slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
+	cb_update_monitor_info(pb,cb,SLAPI_OPERATION_SEARCH);
 
+	/* Check wether the chaining BE is available or not */
+	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
+		return -1;
+	}
+
+	if (cb_debug_on()) {
+		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			"chained search: base:<%s> scope:<%s> filter:<%s>\n",target,
+			scope==LDAP_SCOPE_SUBTREE ? "SUBTREE": scope==LDAP_SCOPE_ONELEVEL ? "ONE-LEVEL" : "BASE",
+			filter);
+	}
+
+	slapi_pblock_get( pb, SLAPI_SEARCH_ATTRS, &attrs );
+	slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly );
+	slapi_pblock_get( pb, SLAPI_REQCONTROLS, &controls );
+	slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &timelimit );
+	slapi_pblock_get( pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit );
+	slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
 
 	if ((scope != LDAP_SCOPE_BASE) && (scope != LDAP_SCOPE_ONELEVEL) && (scope != LDAP_SCOPE_SUBTREE)) {
-	        cb_send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "Bad scope", 0, NULL );
+		cb_send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "Bad scope", 0, NULL );
 		return 1;
 	}
 
 	searchreferral=cb->searchreferral;
 
 	if (( scope != LDAP_SCOPE_BASE ) && ( searchreferral )) {
-
 		int i;
 		struct berval bv,*bvals[2];
 		Slapi_Entry ** aciArray=(Slapi_Entry **) slapi_ch_malloc(2*sizeof(Slapi_Entry *));
@@ -168,9 +164,8 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 		ctx = (cb_searchContext *)slapi_ch_calloc(1,sizeof(cb_searchContext));
 		ctx->type = CB_SEARCHCONTEXT_ENTRY;
 		ctx->data=aciArray;
-
-                slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
-                return 0;
+		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
+		return 0;
 	}
 
 	/*
@@ -184,9 +179,9 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 		time_t now=current_time();
 		endbefore=optime + timelimit;
 		if (now >= endbefore) {
-                	cb_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL,NULL, 0, NULL);
-            		slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
-                	return 1;
+			cb_send_ldap_result( pb, LDAP_TIMELIMIT_EXCEEDED, NULL,NULL, 0, NULL);
+			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
+			return 1;
 		}
 		timeout.tv_sec=(time_t)timelimit-(now-optime);
 		timeout.tv_usec=0;
@@ -200,20 +195,15 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
 	if ( (attrs == NULL) && operation_is_flag_set(op, OP_FLAG_INTERNAL) ) {
 		attrs = cb->every_attribute;
-
-	}
-	else
-	{
+	} else {
 		int i;
-		if ( attrs != NULL )
-		{
+		if ( attrs != NULL ) {
 			for ( i = 0; attrs[i] != NULL; i++ ) {
-				if ( strcasecmp( "nsrole", attrs[i] ) == 0 ) 
-				{
+				if ( strcasecmp( "nsrole", attrs[i] ) == 0 ){
 					attrs = cb->every_attribute;
 					break;
 				}
-		}
+			}
 		}
 	}
 
@@ -245,19 +235,19 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	 */
 
 	if ( LDAP_SUCCESS != (rc = cb_update_controls( pb,ld,&ctrls,CB_UPDATE_CONTROLS_ADDAUTH ))) {
-                cb_send_ldap_result( pb, rc, NULL,NULL, 0, NULL);
-                cb_release_op_connection(cb->pool,ld,0);
-                return 1;
-        }
-
-        if ( slapi_op_abandoned( pb )) {
-                cb_release_op_connection(cb->pool,ld,0);
-    		if ( NULL != ctrls)
-                	ldap_controls_free(ctrls);
-                return 1;
+		cb_send_ldap_result( pb, rc, NULL,NULL, 0, NULL);
+		cb_release_op_connection(cb->pool,ld,0);
+		return 1;
 	}
 
-        ctx = (cb_searchContext *) slapi_ch_calloc(1,sizeof(cb_searchContext));
+	if ( slapi_op_abandoned( pb )) {
+		cb_release_op_connection(cb->pool,ld,0);
+		if ( NULL != ctrls)
+			ldap_controls_free(ctrls);
+		return 1;
+	}
+
+	ctx = (cb_searchContext *) slapi_ch_calloc(1,sizeof(cb_searchContext));
 
 	/*
 	** We need to store the connection handle in the search context
@@ -276,14 +266,14 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 		timeout.tv_sec=timeout.tv_usec=-1;
 
  	/* heart-beat management */
-        if (cb->max_idle_time>0)
-                endtime=current_time() + cb->max_idle_time;
+	if (cb->max_idle_time>0)
+		endtime=current_time() + cb->max_idle_time;
 
-	rc=ldap_search_ext(ld ,target,scope,filter,attrs,attrsonly,  
-   		ctrls, NULL, &timeout,sizelimit, &(ctx->msgid) );
+	rc = ldap_search_ext(ld ,target,scope,filter,attrs,attrsonly,
+	                     ctrls, NULL, &timeout,sizelimit, &(ctx->msgid) );
 
-    	if ( NULL != ctrls)
-                ldap_controls_free(ctrls);
+	if ( NULL != ctrls)
+		ldap_controls_free(ctrls);
 
 	if ( LDAP_SUCCESS != rc ) {
 		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, ldap_err2string(rc), 0, NULL);
@@ -299,136 +289,131 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
 	doit=1;
 	while (doit) {
+		if (cb_check_forward_abandon(cb,pb,ctx->ld,ctx->msgid)) {
+			slapi_ch_free((void **) &ctx);
+			return 1;
+		}
 
-        	if (cb_check_forward_abandon(cb,pb,ctx->ld,ctx->msgid)) {
-                        slapi_ch_free((void **) &ctx);
-                        return 1;
-                }
+		rc = ldap_result(ld,ctx->msgid,LDAP_MSG_ONE,&cb->abandon_timeout,&res);
+		switch ( rc ) {
+		case -1:
+			/* An error occurred. return now */
+			rc = slapi_ldap_get_lderrno(ld,NULL,NULL);
+			/* tuck away some errors in a OPERATION_ERROR */
+			if (CB_LDAP_CONN_ERROR(rc)) {
+				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
+				ldap_err2string( rc ), 0, NULL);
+			} else {
+				cb_send_ldap_result(pb,rc, NULL, NULL,0,NULL);
+			}
+			cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
+			if (res)
+				ldap_msgfree(res);
+			slapi_ch_free((void **)&ctx);
+			return 1;
 
-     		rc=ldap_result(ld,ctx->msgid,LDAP_MSG_ONE,&cb->abandon_timeout,&res);
-        	switch ( rc ) {
-        		case -1:
-                        	/* An error occurred. return now */
-                        	rc = slapi_ldap_get_lderrno(ld,NULL,NULL);
-				/* tuck away some errors in a OPERATION_ERROR */
-				if (CB_LDAP_CONN_ERROR(rc)) {
-					cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
-						 ldap_err2string( rc ), 0, NULL);
-				} else {
-                        		cb_send_ldap_result(pb,rc, NULL, NULL,0,NULL);
+		case 0:
+			/* Local timeout management */
+			if (timelimit != -1) {
+				if (current_time() > endbefore) {
+					slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+						"Local timeout expiration\n");
+					cb_send_ldap_result(pb,LDAP_TIMELIMIT_EXCEEDED,
+						NULL,NULL, 0, NULL);
+					/* Force connection close */
+					cb_release_op_connection(cb->pool,ld,1);
+					if (res)
+						ldap_msgfree(res);
+					slapi_ch_free((void **)&ctx);
+					return 1;
 				}
-                        	cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-                        	if (res)
-                                	ldap_msgfree(res);
-                        	slapi_ch_free((void **)&ctx);
-                        	return 1;
-                	case 0:
-				
-				/* Local timeout management */
-				if (timelimit != -1) {
-					if (current_time() > endbefore) {
-
-						slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
-							"Local timeout expiration\n");
-
-						cb_send_ldap_result(pb,LDAP_TIMELIMIT_EXCEEDED,
-							NULL,NULL, 0, NULL);
-						/* Force connection close */
-                        			cb_release_op_connection(cb->pool,ld,1);
-                        			if (res)
-                                			ldap_msgfree(res);
-                        			slapi_ch_free((void **)&ctx);
-                        			return 1;
-					}
-				}
-				/* heart-beat management */
-                        	if ((rc=cb_ping_farm(cb,cnx,endtime)) != LDAP_SUCCESS) {
-					cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
-                                        	ldap_err2string(rc), 0, NULL);
-                       			cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-                        		if (res)
-                                		ldap_msgfree(res);
-                        		slapi_ch_free((void **)&ctx);
-                        		return 1;
-				}
+			}
+			/* heart-beat management */
+			if ((rc=cb_ping_farm(cb,cnx,endtime)) != LDAP_SUCCESS) {
+				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
+									ldap_err2string(rc), 0, NULL);
+				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
+				if (res)
+					ldap_msgfree(res);
+				slapi_ch_free((void **)&ctx);
+				return 1;
+			}
 
 #ifdef CB_YIELD
-                        	DS_Sleep(PR_INTERVAL_NO_WAIT);
+			DS_Sleep(PR_INTERVAL_NO_WAIT);
 #endif
-                        	break;
-       			case LDAP_RES_SEARCH_ENTRY:
-                	case LDAP_RES_SEARCH_REFERENCE:
-				/* Some results received   */
-				/* don't parse result here */
-				ctx->pending_result=res;
-				ctx->pending_result_type=rc;
-				doit=0;
-				break;
-   			case LDAP_RES_SEARCH_RESULT:
+			break;
+
+		case LDAP_RES_SEARCH_ENTRY:
+		case LDAP_RES_SEARCH_REFERENCE:
+			/* Some results received   */
+			/* don't parse result here */
+			ctx->pending_result=res;
+			ctx->pending_result_type=rc;
+			doit = 0;
+			break;
+
+		case LDAP_RES_SEARCH_RESULT:
+			matched_msg=NULL;
+			error_msg=NULL;
+			referrals=NULL;
+			serverctrls=NULL;
+			parse_rc=ldap_parse_result(ld,res,&rc,&matched_msg,
+				&error_msg,&referrals, &serverctrls, 0 );
+			if ( parse_rc != LDAP_SUCCESS ) {
+				static int warned_parse_rc = 0;
+				if (!warned_parse_rc && error_msg) {
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						"%s%s%s\n",
+						matched_msg?matched_msg:"",
+						(matched_msg&&(*matched_msg!='\0'))?": ":"",
+						error_msg );
+					warned_parse_rc = 1;
+				}
+				cb_send_ldap_result( pb, parse_rc, NULL, ENDUSERMSG, 0, NULL );
+				rc=-1;
+			} else if ( rc != LDAP_SUCCESS ) {
+				static int warned_rc = 0;
+				if (!warned_rc) {
+					slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
+					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+						"%s%s%s\n",
+						matched_msg?matched_msg:"",
+						(matched_msg&&(*matched_msg!='\0'))?": ":"",
+						error_msg );
+					warned_rc = 1;
+				}
+				cb_send_ldap_result( pb, rc, NULL, ENDUSERMSG, 0, NULL);
+				/* BEWARE: matched_msg and error_msg points */
+				/* to ld fields.			    */
 				matched_msg=NULL;
 				error_msg=NULL;
-				referrals=NULL;
-				serverctrls=NULL;
-				parse_rc=ldap_parse_result(ld,res,&rc,&matched_msg,
-					&error_msg,&referrals, &serverctrls, 0 );
-				if ( parse_rc != LDAP_SUCCESS ) {
-					static int warned_parse_rc = 0;
-					if (!warned_parse_rc && error_msg) {
-						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-						            "%s%s%s\n", 
-						            matched_msg?matched_msg:"",
-						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
-						            error_msg );
-						warned_parse_rc = 1;
-					}
-					cb_send_ldap_result( pb, parse_rc, NULL,
-					                     ENDUSERMSG, 0, NULL );
-					rc=-1;
-				} else if ( rc != LDAP_SUCCESS ) {
-					static int warned_rc = 0;
-					if (!warned_rc) {
-						slapi_ldap_get_lderrno( ctx->ld, 
-						                        &matched_msg, &error_msg );
-						slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-						            "%s%s%s\n", 
-						            matched_msg?matched_msg:"",
-						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
-						            error_msg );
-						warned_rc = 1;
-					}
-					cb_send_ldap_result( pb, rc, NULL, ENDUSERMSG, 0, NULL);
-					/* BEWARE: matched_msg and error_msg points */
-					/* to ld fields.			    */
-					matched_msg=NULL;
-					error_msg=NULL;
-					rc=-1;
-				}
+				rc = -1;
+			}
 
-                                slapi_ch_free((void **)&matched_msg);
-                                slapi_ch_free((void **)&error_msg);
-                                if (serverctrls)
-                                       	ldap_controls_free(serverctrls);
-                                if (referrals)
-                                       	charray_free(referrals);
+			slapi_ch_free((void **)&matched_msg);
+			slapi_ch_free((void **)&error_msg);
+			if (serverctrls)
+				ldap_controls_free(serverctrls);
+			if (referrals)
+				charray_free(referrals);
+			if (rc != LDAP_SUCCESS) {
+				cb_release_op_connection(cb->pool,ld,
+				CB_LDAP_CONN_ERROR(rc));
+				ldap_msgfree(res);
+				slapi_ch_free((void **)&ctx);
+				return -1;
+			}
 
-				if (rc!=LDAP_SUCCESS) {
-                        		cb_release_op_connection(cb->pool,ld,
-						CB_LDAP_CONN_ERROR(rc));
-	                                ldap_msgfree(res);
-                        		slapi_ch_free((void **)&ctx);
-					return -1;
-                        	}
-
-				/* Store the msg in the ctx */
-				/* Parsed in iterate.       */
-
-				ctx->pending_result=res;
-				ctx->pending_result_type=LDAP_RES_SEARCH_RESULT;
-				doit=0;
+			/* Store the msg in the ctx */
+			/* Parsed in iterate.       */
+			ctx->pending_result = res;
+			ctx->pending_result_type = LDAP_RES_SEARCH_RESULT;
+			doit = 0;
 		}
 	}
+	slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
 
-        slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,ctx);
 	return 0;
 }
 

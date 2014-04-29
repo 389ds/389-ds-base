@@ -54,23 +54,22 @@
 int
 chaining_back_add ( Slapi_PBlock *pb )
 {
-
-	Slapi_Backend 		*be;
-	Slapi_Entry		*e;
-	cb_backend_instance 	*cb;
-	LDAPControl 		**serverctrls=NULL;
-	LDAPControl 		**ctrls=NULL;
-	int 			rc,parse_rc,msgid,i;
-	LDAP 			*ld=NULL;
-	char         		**referrals=NULL;
-	LDAPMod			** mods;
-	LDAPMessage		* res;
-	char 			* matched_msg, *error_msg;
-	const char		*dn = NULL;
-	Slapi_DN		*sdn = NULL;
-	char			*cnxerrbuf=NULL;
-	time_t 			endtime = 0;
-	cb_outgoing_conn	*cnx;
+	cb_outgoing_conn    *cnx;
+	Slapi_Backend       *be;
+	Slapi_Entry         *e;
+	cb_backend_instance *cb;
+	LDAPControl         **serverctrls = NULL;
+	LDAPControl         **ctrls = NULL;
+	LDAPMod             **mods;
+	LDAPMessage         *res;
+	LDAP                *ld = NULL;
+	Slapi_DN            *sdn = NULL;
+	const char          *dn = NULL;
+	char                **referrals = NULL;
+	char                *matched_msg, *error_msg;
+	char                *cnxerrbuf = NULL;
+	time_t              endtime = 0;
+	int                 rc, parse_rc, msgid, i;
 	
 	if ( (rc=cb_forward_operation(pb)) != LDAP_SUCCESS ) {
 		cb_send_ldap_result( pb, rc, NULL, "Remote data access disabled", 0, NULL );
@@ -85,7 +84,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 
 	/* Check wether the chaining BE is available or not */
 	if ( cb_check_availability( cb, pb ) == FARMSERVER_UNAVAILABLE ){
-	  return -1;
+		return -1;
 	}
 
 	slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn );
@@ -108,8 +107,8 @@ chaining_back_add ( Slapi_PBlock *pb )
 	cb_eliminate_illegal_attributes(cb,e);
 
 	if ((rc = slapi_entry2mods ((const Slapi_Entry *)e, NULL, &mods)) != LDAP_SUCCESS) {
-                cb_send_ldap_result( pb, rc,NULL,NULL, 0, NULL);
-                return -1;
+		cb_send_ldap_result( pb, rc,NULL,NULL, 0, NULL);
+		return -1;
 	}
 
 	/* Grab a connection handle */
@@ -118,12 +117,11 @@ chaining_back_add ( Slapi_PBlock *pb )
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
 			slapi_log_error(SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-			                "cb_get_connection failed (%d) %s\n",
-			                rc, ldap_err2string(rc));
+				"cb_get_connection failed (%d) %s\n",
+				rc, ldap_err2string(rc));
 			warned_get_conn = 1;
 		}
-		cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, 
-		                    cnxerrbuf, 0, NULL);
+		cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, cnxerrbuf, 0, NULL);
 		ldap_mods_free(mods, 1);
 		slapi_ch_free_string(&cnxerrbuf);
 		/* ping the farm.
@@ -135,23 +133,23 @@ chaining_back_add ( Slapi_PBlock *pb )
 	
 	/* Control management */
 	if ( (rc = cb_update_controls( pb,ld,&ctrls,CB_UPDATE_CONTROLS_ADDAUTH)) != LDAP_SUCCESS ) {
-                cb_send_ldap_result( pb, rc, NULL,NULL, 0, NULL);
+		cb_send_ldap_result( pb, rc, NULL,NULL, 0, NULL);
 		cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
 		ldap_mods_free(mods,1);
-                return -1;
+		return -1;
 	}
 
-        if ( slapi_op_abandoned( pb )) {
-                cb_release_op_connection(cb->pool,ld,0);
+	if ( slapi_op_abandoned( pb )) {
+		cb_release_op_connection(cb->pool,ld,0);
 		ldap_mods_free(mods,1);
 		if ( NULL != ctrls)
 			ldap_controls_free(ctrls);
-                return -1;
-        }
+		return -1;
+	}
 
 	/* heart-beat management */
 	if (cb->max_idle_time>0)
-        	endtime=current_time() + cb->max_idle_time;
+		endtime=current_time() + cb->max_idle_time;
 
 	/* Send LDAP operation to the remote host */
 	rc = ldap_add_ext( ld, dn, mods, ctrls, NULL, &msgid );
@@ -161,10 +159,9 @@ chaining_back_add ( Slapi_PBlock *pb )
 
 	if ( rc != LDAP_SUCCESS ) {
 		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-		                 "ldap_add_ext failed -- %s\n", ldap_err2string(rc) );
+			"ldap_add_ext failed -- %s\n", ldap_err2string(rc) );
 
-		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-		                     ENDUSERMSG, 0, NULL );
+		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, ENDUSERMSG, 0, NULL );
 		cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
 		ldap_mods_free(mods,1);
 		return -1;
@@ -183,31 +180,31 @@ chaining_back_add ( Slapi_PBlock *pb )
 			return -1;
 		}
 
-   		rc = ldap_result( ld, msgid, 0, &cb->abandon_timeout, &res );
-   		switch ( rc ) {
-   		case -1:
-                	cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
-				ldap_err2string(rc), 0, NULL);
+		rc = ldap_result( ld, msgid, 0, &cb->abandon_timeout, &res );
+		switch ( rc ) {
+		case -1:
+			cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL, ldap_err2string(rc), 0, NULL);
 			cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
 			ldap_mods_free(mods,1);
 			if (res)
 				ldap_msgfree(res);
-                	return -1;
+			return -1;
 		case 0:
 
 			if ((rc=cb_ping_farm(cb,cnx,endtime)) != LDAP_SUCCESS) {
+				/*
+				 * does not respond. give up and return a
+				 * error to the client.
+				 */
 
-				/* does not respond. give up and return a*/
-				/* error to the client.			 */
-
-               			/*cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
+				/*cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
 					ldap_err2string(rc), 0, NULL);*/
-				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,     "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL);
+				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL, "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL);
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
 				ldap_mods_free(mods,1);
 				if (res)
 					ldap_msgfree(res);
-               			return -1;
+				return -1;
 			}
 #ifdef CB_YIELD
 			DS_Sleep(PR_INTERVAL_NO_WAIT);
@@ -219,20 +216,19 @@ chaining_back_add ( Slapi_PBlock *pb )
 			referrals=NULL;
 
 			parse_rc = ldap_parse_result( ld, res, &rc, &matched_msg, 
-         			&error_msg, &referrals, &serverctrls, 1 );
+					&error_msg, &referrals, &serverctrls, 1 );
 
 			if ( parse_rc != LDAP_SUCCESS ) {
 				static int warned_parse_rc = 0;
 				if (!warned_parse_rc) {
 					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-						            "%s%s%s\n", 
-						            matched_msg?matched_msg:"",
-						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
-					                ldap_err2string(parse_rc));
+						"%s%s%s\n",
+						matched_msg?matched_msg:"",
+						(matched_msg&&(*matched_msg!='\0'))?": ":"",
+						ldap_err2string(parse_rc));
 					warned_parse_rc = 1;
 				}
-				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
-				                     ENDUSERMSG, 0, NULL );
+				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, ENDUSERMSG, 0, NULL );
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(parse_rc));
 				ldap_mods_free(mods,1);
 				slapi_ch_free((void **)&matched_msg);
@@ -250,10 +246,10 @@ chaining_back_add ( Slapi_PBlock *pb )
 				static int warned_rc = 0;
 				if (!warned_rc && error_msg) {
 					slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
-						            "%s%s%s\n", 
-						            matched_msg?matched_msg:"",
-						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
-						            error_msg );
+						"%s%s%s\n",
+						matched_msg?matched_msg:"",
+						(matched_msg&&(*matched_msg!='\0'))?": ":"",
+						error_msg );
 					warned_rc = 1;
 				}
 				cb_send_ldap_result( pb, rc, matched_msg, ENDUSERMSG, 0, refs);
@@ -276,22 +272,20 @@ chaining_back_add ( Slapi_PBlock *pb )
 			/* Add control response sent by the farm server */
 
 			for (i=0; serverctrls && serverctrls[i];i++)
-        			slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, serverctrls[i]);
+				slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, serverctrls[i]);
 			if (serverctrls)
-	                	ldap_controls_free(serverctrls);
+				ldap_controls_free(serverctrls);
 			/* jarnou: free matched_msg, error_msg, and referrals if necessary */
-		 	slapi_ch_free((void **)&matched_msg);
-		     	slapi_ch_free((void **)&error_msg);
-		       	if (referrals) 
-		       		charray_free(referrals);
-        		cb_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-
+			slapi_ch_free((void **)&matched_msg);
+			slapi_ch_free((void **)&error_msg);
+			if (referrals)
+				charray_free(referrals);
+			cb_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 			slapi_entry_free(e);
-        		slapi_pblock_set( pb, SLAPI_ADD_ENTRY, NULL );
+			slapi_pblock_set( pb, SLAPI_ADD_ENTRY, NULL );
 
 			return 0;
 		}
 	}
-
 	/* Never reached */
 }
