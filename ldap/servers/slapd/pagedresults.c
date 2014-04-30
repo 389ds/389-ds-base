@@ -130,7 +130,8 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                 }
             }
         }
-        if (!conn->c_pagedresults.prl_list[*index].pr_mutex) {
+        if ((*index > -1) && (*index < conn->c_pagedresults.prl_maxlen) &&
+            !conn->c_pagedresults.prl_list[*index].pr_mutex) {
             conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();
         }
         conn->c_pagedresults.prl_count++;
@@ -270,6 +271,7 @@ pagedresults_free_one( Connection *conn, Operation *op, int index )
                 prp->pr_current_be->be_search_results_release &&
                 prp->pr_search_result_set) {
                 prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
+                prp->pr_current_be = NULL;
             }
             if (prp->pr_mutex) {
                 /* pr_mutex is reused; back it up and reset it. */
@@ -307,6 +309,7 @@ pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
                         prp->pr_current_be->be_search_results_release &&
                         prp->pr_search_result_set) {
                         prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
+                        prp->pr_current_be = NULL;
                     }
                     prp->pr_flags |= CONN_FLAG_PAGEDRESULTS_ABANDONED;
                     prp->pr_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
@@ -724,6 +727,7 @@ pagedresults_cleanup(Connection *conn, int needlock)
         if (prp->pr_current_be && prp->pr_search_result_set &&
             prp->pr_current_be->be_search_results_release) {
             prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
+            prp->pr_current_be = NULL;
             rc = 1;
         }
         if (prp->pr_mutex) {
@@ -771,6 +775,7 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
         if (prp->pr_current_be && prp->pr_search_result_set &&
             prp->pr_current_be->be_search_results_release) {
             prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
+            prp->pr_current_be = NULL;
             rc = 1;
         }
     }
