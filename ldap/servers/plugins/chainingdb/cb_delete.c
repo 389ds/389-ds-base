@@ -137,7 +137,6 @@ chaining_back_delete ( Slapi_PBlock *pb )
 
 	if ( slapi_op_abandoned( pb )) {
 		cb_release_op_connection(cb->pool,ld,0);
-	if ( NULL != ctrls)
 		ldap_controls_free(ctrls);
 		return -1;
 	}
@@ -147,12 +146,20 @@ chaining_back_delete ( Slapi_PBlock *pb )
 		endtime=current_time() + cb->max_idle_time;
 
 	/*
+	 * Call the backend preoperation plugins
+	 */
+	if((rc = slapi_plugin_call_preop_be_plugins(pb, SLAPI_PLUGIN_DEL_OP))){
+		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, "delete (%s): pre betxn failed, error (%d)\n",dn,rc);
+		cb_release_op_connection(cb->pool,ld,0);
+		ldap_controls_free(ctrls);
+		return -1;
+	}
+
+	/*
 	 * Send LDAP operation to the remote host
 	 */
-
 	rc = ldap_delete_ext( ld, dn, ctrls, NULL, &msgid );
-	if ( NULL != ctrls)
-		ldap_controls_free(ctrls);
+	ldap_controls_free(ctrls);
 	if ( rc != LDAP_SUCCESS ) {
 		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 			ldap_err2string(rc), 0, NULL);
@@ -171,8 +178,7 @@ chaining_back_delete ( Slapi_PBlock *pb )
 			cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 				ldap_err2string(rc), 0, NULL);
 			cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-			if (res)
-				ldap_msgfree(res);
+			ldap_msgfree(res);
 			return -1;
 		case 0:
 			if ((rc=cb_ping_farm(cb,cnx,endtime)) != LDAP_SUCCESS) {
@@ -182,8 +188,7 @@ chaining_back_delete ( Slapi_PBlock *pb )
 					ldap_err2string(rc), 0, NULL);*/
 				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,"FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL);
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-				if (res)
-					ldap_msgfree(res);
+				ldap_msgfree(res);
 				return -1;
 			}
 #ifdef CB_YIELD
@@ -207,13 +212,10 @@ chaining_back_delete ( Slapi_PBlock *pb )
 				cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 				                     ENDUSERMSG, 0, NULL );
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(parse_rc));
-				slapi_ch_free((void **)&matched_msg);
-				slapi_ch_free((void **)&error_msg);
-				if (serverctrls)
-					ldap_controls_free(serverctrls);
-				/* jarnou: free referrals */
-				if (referrals)
-					charray_free(referrals);
+				slapi_ch_free_string(&matched_msg);
+				slapi_ch_free_string(&error_msg);
+				ldap_controls_free(serverctrls);
+				charray_free(referrals);
 				return -1;
 			}
 
@@ -230,29 +232,29 @@ chaining_back_delete ( Slapi_PBlock *pb )
 				}
 				cb_send_ldap_result( pb, rc, matched_msg, ENDUSERMSG, 0, refs);
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-				slapi_ch_free((void **)&matched_msg);
-				slapi_ch_free((void **)&error_msg);
+				slapi_ch_free_string(&matched_msg);
+				slapi_ch_free_string(&error_msg);
 				if (refs) 
 					ber_bvecfree(refs);
-				if (referrals) 
-					charray_free(referrals);
-				if (serverctrls)
-					ldap_controls_free(serverctrls);
+				charray_free(referrals);
+				ldap_controls_free(serverctrls);
 				return -1;
 			}
 
 			cb_release_op_connection(cb->pool,ld,0);
 
+			/* Call the backend postoperation plugins */
+			if((rc = slapi_plugin_call_postop_be_plugins(pb, SLAPI_PLUGIN_DEL_OP))){
+				slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, "delete (%s): post betxn failed, error (%d)\n",dn,rc);
+			}
+
 			/* Add control response sent by the farm server */
 			for (i=0; serverctrls && serverctrls[i];i++)
 				slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, serverctrls[i]);
-			if (serverctrls)
-				ldap_controls_free(serverctrls);
-			/* jarnou: free matched_msg, error_msg, and referrals if necessary */
-			slapi_ch_free((void **)&matched_msg);
-			slapi_ch_free((void **)&error_msg);
-			if (referrals)
-				charray_free(referrals);
+			ldap_controls_free(serverctrls);
+			slapi_ch_free_string(&matched_msg);
+			slapi_ch_free_string(&error_msg);
+			charray_free(referrals);
 			cb_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 
 			return 0;

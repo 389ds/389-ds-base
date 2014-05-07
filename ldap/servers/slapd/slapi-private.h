@@ -1262,6 +1262,40 @@ void    DS_Sleep(PRIntervalTime ticks);
 /* plugin.c */
 int plugin_enabled(const char *plugin_name, void *identity);
 
+/**
+ * For "database" plugins that need to call preoperation backend & backend txn plugins.
+ * This function should be called right before the operation is performed.
+ *
+ * \param Slapi_PBLock object
+ * \param int operation
+ *
+ *     Operations:
+ *         SLAPI_PLUGIN_ADD_OP
+ *         SLAPI_PLUGIN_MOD_OP
+ *         SLAPI_PLUGIN_MODRDN_OP
+ *         SLAPI_PLUGIN_DEL_OP
+ *
+ * \return zero on success, non-zero for failure
+ */
+int slapi_plugin_call_preop_be_plugins(Slapi_PBlock *pb, int operation);
+
+/**
+ * For "database" plugins that need to call postoperation backend & backend txn plugins.
+ * This function should be called right after the operation is performed.
+ *
+ * \param Slapi_PBLock object
+ * \param int operation
+ *
+ *     Operations:
+ *         SLAPI_PLUGIN_ADD_OP
+ *         SLAPI_PLUGIN_MOD_OP
+ *         SLAPI_PLUGIN_MODRDN_OP
+ *         SLAPI_PLUGIN_DEL_OP
+ *
+ * \return zero on success, non-zero for failure
+ */
+int slapi_plugin_call_postop_be_plugins(Slapi_PBlock *pb, int operation);
+
 /* protect_db.c */
 /* is_slapd_running()
  * returns 1 if slapd is running, 0 if not, -1 on error
