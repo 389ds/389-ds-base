@@ -242,8 +242,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 
 	if ( slapi_op_abandoned( pb )) {
 		cb_release_op_connection(cb->pool,ld,0);
-		if ( NULL != ctrls)
-			ldap_controls_free(ctrls);
+		ldap_controls_free(ctrls);
 		return 1;
 	}
 
@@ -272,8 +271,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	rc = ldap_search_ext(ld ,target,scope,filter,attrs,attrsonly,
 	                     ctrls, NULL, &timeout,sizelimit, &(ctx->msgid) );
 
-	if ( NULL != ctrls)
-		ldap_controls_free(ctrls);
+	ldap_controls_free(ctrls);
 
 	if ( LDAP_SUCCESS != rc ) {
 		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, ldap_err2string(rc), 0, NULL);
@@ -307,8 +305,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 				cb_send_ldap_result(pb,rc, NULL, NULL,0,NULL);
 			}
 			cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-			if (res)
-				ldap_msgfree(res);
+			ldap_msgfree(res);
 			slapi_ch_free((void **)&ctx);
 			return 1;
 
@@ -322,8 +319,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 						NULL,NULL, 0, NULL);
 					/* Force connection close */
 					cb_release_op_connection(cb->pool,ld,1);
-					if (res)
-						ldap_msgfree(res);
+					ldap_msgfree(res);
 					slapi_ch_free((void **)&ctx);
 					return 1;
 				}
@@ -333,8 +329,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
 									ldap_err2string(rc), 0, NULL);
 				cb_release_op_connection(cb->pool,ld,CB_LDAP_CONN_ERROR(rc));
-				if (res)
-					ldap_msgfree(res);
+				ldap_msgfree(res);
 				slapi_ch_free((void **)&ctx);
 				return 1;
 			}
@@ -391,12 +386,10 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 				rc = -1;
 			}
 
-			slapi_ch_free((void **)&matched_msg);
-			slapi_ch_free((void **)&error_msg);
-			if (serverctrls)
-				ldap_controls_free(serverctrls);
-			if (referrals)
-				charray_free(referrals);
+			slapi_ch_free_string(&matched_msg);
+			slapi_ch_free_string(&error_msg);
+			ldap_controls_free(serverctrls);
+			charray_free(referrals);
 			if (rc != LDAP_SUCCESS) {
 				cb_release_op_connection(cb->pool,ld,
 				CB_LDAP_CONN_ERROR(rc));
@@ -547,8 +540,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 		if (cb_check_forward_abandon(cb,pb,ctx->ld,ctx->msgid)) {
 			/* cnx handle released */
-			if (ctx->pending_result)
-				ldap_msgfree(ctx->pending_result);
+			ldap_msgfree(ctx->pending_result);
 			slapi_ch_free((void **) &ctx);
 			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL );
 			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
@@ -589,8 +581,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 	                cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, ldap_err2string( rc ), 0, NULL);
 			
-			if (res) 
-				ldap_msgfree(res);
+			ldap_msgfree(res);
 			cb_release_op_connection(cb->pool,ctx->ld,CB_LDAP_CONN_ERROR(rc));
 			slapi_ch_free((void **)&ctx);
 			return -1;
@@ -604,8 +595,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 				cb_send_ldap_result(pb,LDAP_OPERATIONS_ERROR, NULL,
                                        	ldap_err2string(rc), 0, NULL);
 
-				if (res) 
-					ldap_msgfree(res);
+				ldap_msgfree(res);
 				cb_release_op_connection(cb->pool,ctx->ld,CB_LDAP_CONN_ERROR(rc));
 				slapi_ch_free((void **)&ctx);
 				return -1;
@@ -751,12 +741,10 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 				retcode=0;
 			}
 
-                        if (serverctrls)
-                                ldap_controls_free(serverctrls);
-		       	slapi_ch_free((void **)&matched_msg);
-		       	slapi_ch_free((void **)&error_msg);
-			if (referrals)
-				charray_free(referrals);
+			ldap_controls_free(serverctrls);
+			slapi_ch_free_string(&matched_msg);
+			slapi_ch_free_string(&error_msg);
+			charray_free(referrals);
 
 			cb_release_op_connection(cb->pool,ctx->ld,0);
 			slapi_ch_free((void **)&ctx);

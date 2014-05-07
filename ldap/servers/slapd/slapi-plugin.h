@@ -7231,6 +7231,12 @@ typedef struct slapi_plugindesc {
    corresponds to pb_search_ctrls */
 #define SLAPI_SEARCH_CTRLS			198
 
+/* plugin be/betxn operations */
+#define SLAPI_PLUGIN_ADD_OP			199
+#define SLAPI_PLUGIN_MOD_OP			200
+#define SLAPI_PLUGIN_MODRDN_OP			201
+#define SLAPI_PLUGIN_DEL_OP			202
+
 #define SLAPI_RESULT_CODE			881
 #define SLAPI_RESULT_TEXT			882
 #define SLAPI_RESULT_MATCHED			883

@@ -56,6 +56,7 @@ free_cb_backend(cb_backend *cb)
         slapi_ch_free_string(&cb->pluginDN);
         slapi_ch_free_string(&cb->configDN);
         slapi_ch_array_free(cb->config.chainable_components);
+        slapi_ch_array_free(cb->config.chaining_components);
         slapi_ch_array_free(cb->config.forward_ctrls);
         slapi_ch_free((void **)&cb);
     }
@@ -67,8 +68,6 @@ int cb_back_close( Slapi_PBlock *pb )
 	cb_backend_instance *inst;
 	cb_backend *cb = cb_get_backend_type();
 	int rc;
-
-
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 	if (be == NULL) {
@@ -103,6 +102,7 @@ int cb_back_close( Slapi_PBlock *pb )
 		const char *betype = slapi_be_gettype(be);
 		if (!betype || strcasecmp(betype,CB_CHAINING_BACKEND_TYPE)) {
 			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, "Wrong database type.\n");
+			free_cb_backend(cb);
 			return 0;
 		}
 	}

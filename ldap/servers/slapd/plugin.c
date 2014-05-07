@@ -4399,3 +4399,96 @@ slapi_plugin_running(Slapi_PBlock *pb)
 
     return rc;
 }
+
+/*
+ *  Allow "database" plugins to call the backend/backend txn plugins.
+ */
+int
+slapi_plugin_call_preop_be_plugins(Slapi_PBlock *pb, int function)
+{
+    int be_func, betxn_func;
+    int rc = 0;
+
+    switch(function){
+        case SLAPI_PLUGIN_ADD_OP:
+            be_func = SLAPI_PLUGIN_BE_PRE_ADD_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
+            break;
+        case SLAPI_PLUGIN_MOD_OP:
+            be_func = SLAPI_PLUGIN_BE_PRE_MODIFY_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
+            break;
+        case SLAPI_PLUGIN_MODRDN_OP:
+            be_func = SLAPI_PLUGIN_BE_PRE_MODRDN_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN;
+            break;
+        case SLAPI_PLUGIN_DEL_OP:
+            be_func = SLAPI_PLUGIN_BE_PRE_DELETE_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN;
+            break;
+        default:
+            /* invalid function */
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_plugin_call_preop_betxn_plugins",
+                "Invalid function specified - backend plugins will not be called.\n");
+            return 0;
+    }
+
+    /*
+     * Call the be preop plugins.
+     */
+    plugin_call_plugins(pb, be_func);
+    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+
+    /*
+     * Call the betxn preop plugins.
+     */
+    if (rc == LDAP_SUCCESS) {
+        plugin_call_plugins(pb, betxn_func);
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+    }
+
+    return rc;
+}
+
+int
+slapi_plugin_call_postop_be_plugins(Slapi_PBlock *pb, int function)
+{
+    int be_func, betxn_func;
+    int rc = 0;
+
+    switch(function){
+        case SLAPI_PLUGIN_ADD_OP:
+            be_func = SLAPI_PLUGIN_BE_POST_ADD_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
+            break;
+        case SLAPI_PLUGIN_MOD_OP:
+            be_func = SLAPI_PLUGIN_BE_POST_MODIFY_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
+            break;
+        case SLAPI_PLUGIN_MODRDN_OP:
+            be_func = SLAPI_PLUGIN_BE_POST_MODRDN_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
+            break;
+        case SLAPI_PLUGIN_DEL_OP:
+            be_func = SLAPI_PLUGIN_BE_POST_DELETE_FN;
+            betxn_func = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
+            break;
+        default:
+            /* invalid function */
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_plugin_call_postop_betxn_plugins",
+                "Invalid function specified - backend plugins will not be called.\n");
+            return 0;
+    }
+
+    /* next, give the be txn plugins a crack at it */;
+    plugin_call_plugins(pb, betxn_func);
+    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+
+    /* finally, give the be plugins a crack at it */
+    plugin_call_plugins(pb, be_func);
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
+    }
+
+    return rc;
+}
