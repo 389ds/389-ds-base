@@ -1309,20 +1309,31 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	char *op_str = 0;
 	const char *op_to;
 	const char *op_this;
-	Slapi_Value *to_dn_val;
-	Slapi_Value *this_dn_val;
+	Slapi_Value *to_dn_val = NULL;
+	Slapi_Value *this_dn_val = NULL;
 
 	op_to = slapi_sdn_get_ndn(op_to_sdn);
 	op_this = slapi_sdn_get_ndn(op_this_sdn);
-	to_dn_val = slapi_value_new_string(op_to);
-	this_dn_val = slapi_value_new_string(op_this);
 
-	if(this_dn_val == NULL || to_dn_val == NULL){
+	/* Make sure we have valid DN's for the group(op_this) and the new member(op_to) */
+	if(op_to && op_this){
+		to_dn_val = slapi_value_new_string(op_to);
+		this_dn_val = slapi_value_new_string(op_this);
+	}
+	if(to_dn_val == NULL){
+		const char *udn = op_to_sdn ? slapi_sdn_get_udn(op_to_sdn) : "";
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-			"memberof_modop_one_replace_r: failed to get DN values (NULL)\n");
+			"memberof_modop_one_replace_r: failed to get DN value from "
+			"member value (%s)\n", udn);
 		goto bail;
 	}
-
+	if(this_dn_val == NULL){
+		const char *udn = op_this_sdn ? slapi_sdn_get_udn(op_this_sdn) : "";
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"memberof_modop_one_replace_r: failed to get DN value from"
+			"group (%s)\n", udn);
+		goto bail;
+	}
 	/* op_this and op_to are both case-normalized */
 	slapi_value_set_flags(this_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 	slapi_value_set_flags(to_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
