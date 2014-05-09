@@ -112,7 +112,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJo
             idl_insert(&nodes, id);
         }
         key_count++;
-        if(job && !(key_count % PROGRESS_INTERVAL)){
+        if(!(key_count % PROGRESS_INTERVAL)){
             import_log_notice(job, "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
                     (key_count * 100 / job->numsubordinates), key_count);
             started_progress_logging = 1;
@@ -286,7 +286,7 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
         }
 
         key_count++;
-        if(job && !(key_count % PROGRESS_INTERVAL)){
+        if(!(key_count % PROGRESS_INTERVAL)){
         	import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
         	        (key_count * 100 / job->numsubordinates), key_count);
         	 started_progress_logging = 1;
@@ -484,7 +484,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
         }
 
         key_count++;
-        if(job && !(key_count % PROGRESS_INTERVAL)){
+        if(!(key_count % PROGRESS_INTERVAL)){
             import_log_notice(job, "Creating ancestorid index: progress %d%% (ID count %d)",
                     (key_count * 100 / job->numsubordinates), key_count);
             started_progress_logging = 1;
