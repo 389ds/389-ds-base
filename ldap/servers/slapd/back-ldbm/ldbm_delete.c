@@ -90,6 +90,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 									/* replication, we must create a new tombstone entry	*/
 	int tombstone_in_cache = 0;
 	int e_in_cache = 0;
+	int remove_e_from_cache = 0;
 	entry_address *addr;
 	int addordel_flags = 0; /* passed to index_addordel */
 	char *entryusn_str = NULL;
@@ -220,6 +221,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				if (tombstone_in_cache) {
 					CACHE_REMOVE(&inst->inst_cache, tombstone);
 					CACHE_RETURN(&inst->inst_cache, &tombstone);
+					tombstone = NULL;
 					tombstone_in_cache = 0; 
 				} else {
 					backentry_free(&tombstone);
@@ -230,13 +232,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					goto error_return;
 				}
 			}
-
-			/* reset original entry in cache */
-			if (!e_in_cache) {
-				CACHE_ADD(&inst->inst_cache, e, NULL);
-				e_in_cache = 1;
-			}
-
 			if (ruv_c_init) {
 				/* reset the ruv txn stuff */
 				modify_term(&ruv_c, be);
@@ -272,17 +267,28 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 		if (0 == retry_count) { /* just once */
 			/* find and lock the entry we are about to modify */
+			/* 
+			 * A corner case: 
+			 * If a conflict occurred in a MMR topology, a replicated delete 
+			 * op from another master could target a conflict entry; while the
+			 * corresponding entry on this server could have been already 
+			 * deleted.  That is, the entry 'e' found with "addr" is a tomb-
+			 * stone.  If it is the case, we need to back off.
+			 */
 			if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL )
 			{
 				ldap_result_code= LDAP_NO_SUCH_OBJECT; 
 				retval = -1;
+				LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "ldbm_back_delete: Deleting entry is already deleted.\n");
 				goto error_return; /* error result sent by find_entry2modify() */
 			}
 			e_in_cache = 1; /* e is cached */
 		
-			if ( slapi_entry_has_children( e->ep_entry ) )
-			{
+			retval = slapi_entry_has_children(e->ep_entry);
+			if (retval) {
 				ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
+				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete", "Deleting entry %s has %d children.\n", 
+				                slapi_entry_get_dn(e->ep_entry), retval);
 				retval = -1;
 				goto error_return;
 			}
@@ -318,7 +324,17 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					 * Plugin indicated some kind of failure,
 					 * or that this Operation became a No-Op.
 					 */
+					slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 					if (!ldap_result_code) {
+						if (LDAP_ALREADY_EXISTS == ldap_result_code) {
+							/* 
+							 * The target entry is already a tombstone.
+							 * We need to treat this as a success,
+							 * but we need to remove the entry e from the entry cache.
+							 */
+							remove_e_from_cache = 1;
+							ldap_result_code = LDAP_SUCCESS;
+						}
 						slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 					}
 					/* restore original entry so the front-end delete code can free it */
@@ -330,8 +346,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					goto error_return;
 				}
 				/* the flag could be set in a preop plugin (e.g., USN) */
-				delete_tombstone_entry = operation_is_flag_set(operation,
-				                                               OP_FLAG_TOMBSTONE_ENTRY);
+				delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
 			}
 
 			/* call the transaction pre delete plugins just after the 
@@ -493,13 +508,15 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				}
 				if (NULL == parent) {
 					entry_address parent_addr;
-
+					if (is_tombstone_entry) {
+						parent_addr.uniqueid = slapi_entry_attr_get_charptr(e->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
+					} else {
+						parent_addr.uniqueid = NULL;
+					}
 					parent_addr.sdn = &parentsdn;
-					parent_addr.uniqueid = NULL;
-					parent = find_entry2modify_only_ext(pb, be, &parent_addr,
-					                                    TOMBSTONE_INCLUDED, &txn);
+					parent = find_entry2modify_only_ext(pb, be, &parent_addr, TOMBSTONE_INCLUDED, &txn);
 				}
-				if (NULL != parent) {
+				if (parent) {
 					int isglue;
 					size_t haschildren = 0;
 					int op = PARENTUPDATE_DEL;
@@ -516,11 +533,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					} else if (delete_tombstone_entry) {
 						op |= PARENTUPDATE_DELETE_TOMBSTONE;
 					}
-					retval = parent_update_on_childchange(&parent_modify_c,
-					                                      op, &haschildren);
+					retval = parent_update_on_childchange(&parent_modify_c, op, &haschildren);
 					/* The modify context now contains info needed later */
 					if (0 != retval) {
 						ldap_result_code= LDAP_OPERATIONS_ERROR;
+						slapi_sdn_done(&parentsdn);
 						retval = -1;
 						goto error_return;
 					}
@@ -550,9 +567,17 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				 */
 				const char *childuniqueid= slapi_entry_get_uniqueid(e->ep_entry);
 				const char *parentuniqueid= NULL;
-				char *tombstone_dn = compute_entry_tombstone_dn(slapi_entry_get_dn(e->ep_entry),
-					childuniqueid);
+				char *edn = slapi_entry_get_dn(e->ep_entry);
+				char *tombstone_dn;
 				Slapi_Value *tomb_value;
+		
+				if (slapi_is_special_rdn(edn, RDN_IS_TOMBSTONE)) {
+					LDAPDebug1Arg(LDAP_DEBUG_ANY, "Turning a tombstone into a tombstone! \"%s\"\n", edn);
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					retval = -1;
+					goto error_return;
+				}
+				tombstone_dn = compute_entry_tombstone_dn(edn, childuniqueid);
 
 				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 
@@ -674,41 +699,85 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * tentatively for now, then cache_add again when the original
 			 * entry is removed from the cache.
 			 */
-			if (cache_add_tentative( &inst->inst_cache, tombstone, NULL) == 0) {
+			retval = cache_add_tentative(&inst->inst_cache, tombstone, NULL);
+			if (0 == retval) {
 				tombstone_in_cache = 1;
-			} else if (!(tombstone->ep_state & ENTRY_STATE_NOTINCACHE)) {
-			    LDAPDebug1Arg(LDAP_DEBUG_CACHE,
-			                  "id2entry_add tombstone (%s) is in cache\n",
-			                  slapi_entry_get_dn(tombstone->ep_entry));
-			    tombstone_in_cache = 1;
-			}
-			retval = id2entry_add( be, tombstone, &txn );
-			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS, "delete 1 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
-				/* Abort and re-try */
-				continue;
-			}
-			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add failed, err=%d %s\n",
-					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+			} else {
+				LDAPDebug2Args(LDAP_DEBUG_ANY,
+				               "tombstone entry %s failed to add to the cache: %d\n",
+				               slapi_entry_get_dn(tombstone->ep_entry), retval);
+				tombstone_in_cache = 0;
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				DEL_SET_ERROR(ldap_result_code, 
 							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
-			if (cache_replace( &inst->inst_cache, e, tombstone ) != 0 ) {
-				LDAPDebug0Args( LDAP_DEBUG_BACKLDBM, "ldbm_back_delete cache_replace failed\n");
-				DEL_SET_ERROR(ldap_result_code, 
-							  LDAP_OPERATIONS_ERROR, retry_count);
-				retval= -1;
-				goto error_return;
-			} else {
-				e_in_cache = 0; /* e un-cached */
+			retval = id2entry_add( be, tombstone, &txn );
+			if (DB_LOCK_DEADLOCK == retval) {
+				LDAPDebug( LDAP_DEBUG_BACKLDBM, "delete 1 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+				/* Abort and re-try */
+				continue;
 			}
-			/* tombstone was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
-			   and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -
-			   drop the extra ref added by cache_replace */
-			CACHE_RETURN( &inst->inst_cache, &tombstone );
+			if (retval) {
+				LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add failed, err=%d %s\n",
+				           retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
+				DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+				goto error_return;
+			}
+			if (tombstone_in_cache) {
+				retval = cache_replace(&inst->inst_cache, e, tombstone);
+				if (retval) {
+					LDAPDebug(LDAP_DEBUG_CACHE, "ldbm_back_delete: cache_replace failed (%d): %s --> %s\n",
+					          retval, slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn(tombstone->ep_entry));
+					retval= -1;
+					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+					goto error_return;
+				}
+			} else {
+				struct backentry *imposter = NULL;
+				retval = CACHE_ADD(&inst->inst_cache, tombstone, &imposter);
+				if (retval > 0) {
+					if (imposter) {
+						/* 
+						 * The same tombstone entry (different Slapi_Entry) is already
+						 * generated and set to cache.  Back off. 
+						 */
+						CACHE_RETURN(&inst->inst_cache, &imposter);
+						LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
+						              "ldbm_delete: cache add: same DN tombstone in cache: %s\n",
+						              slapi_entry_get_dn(tombstone->ep_entry));
+					} else {
+						/* 
+						 * The same tombstone entry (same Slapi_Entry) is being created.
+						 * Something is wrong.  We should clean it up from the cache,
+						 * and back off.
+						 */
+						tombstone_in_cache = 1;
+						LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
+						              "ldbm_delete: cache add: same tombstone in cache: %s\n",
+						              slapi_entry_get_dn(tombstone->ep_entry));
+					}
+					retval= -1;
+					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+					goto error_return;
+				} else if (retval < 0) {
+					LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
+					              "ldbm_delete: cache add: Add %s failed.\n",
+					              slapi_entry_get_dn(tombstone->ep_entry));
+					/* Complete add error */
+					retval= -1;
+					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+					goto error_return;
+				}
+			}
+			if (tombstone_in_cache) {
+				/* tombstone was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
+				   and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -
+				   drop the extra ref added by cache_replace */
+				CACHE_RETURN( &inst->inst_cache, &tombstone );
+			}
+			tombstone_in_cache = 1;
 		}
 		else
 		{
@@ -716,13 +785,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			retval = id2entry_delete( be, e, &txn );
 			if (DB_LOCK_DEADLOCK == retval)
 			{
-				LDAPDebug( LDAP_DEBUG_ARGS, "delete 2 DEADLOCK\n", 0, 0, 0 );
+				LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "delete 2 DEADLOCK\n");
 				/* Retry txn */
 				continue;
 			}
-			if (retval  != 0 ) {
-			  	if (retval == DB_RUNRECOVERY || 
-				    LDBM_OS_ERR_IS_DISKFULL(retval)) {
+			if (retval) {
+				if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval)) {
 				    disk_full = 1;
 				}
 				DEL_SET_ERROR(ldap_result_code, 
@@ -739,12 +807,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		retval = index_addordel_entry( be, e, addordel_flags, &txn );
 		if (DB_LOCK_DEADLOCK == retval)
 		{
-			LDAPDebug( LDAP_DEBUG_ARGS, "delete 1 DEADLOCK\n", 0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "delete 1 DEADLOCK\n");
 			/* Retry txn */
 			continue;
 		}
-		if (retval != 0) {
-			LDAPDebug( LDAP_DEBUG_TRACE, "index_del_entry failed\n", 0, 0, 0 );
+		if (retval) {
+			LDAPDebug(LDAP_DEBUG_ANY, "index_del_entry(%s, 0x%x) failed (%d)\n", 
+			          slapi_entry_get_dn(e->ep_entry), addordel_flags, retval);
 			DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
 		}
@@ -759,14 +828,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_VALUE_TOMBSTONE,
 							tombstone->ep_id,BE_INDEX_ADD, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS,
+				LDAPDebug( LDAP_DEBUG_BACKLDBM,
 							"delete (adding %s) DB_LOCK_DEADLOCK\n",
 							SLAPI_ATTR_VALUE_TOMBSTONE, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
-			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE,
+			if (retval) {
+				LDAPDebug( LDAP_DEBUG_ANY,
 							"delete (adding %s) failed, err=%d %s\n",
 							SLAPI_ATTR_VALUE_TOMBSTONE, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -779,14 +848,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							slapi_entry_get_uniqueid(tombstone->ep_entry),
 							tombstone->ep_id,BE_INDEX_ADD,&txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS,
+				LDAPDebug( LDAP_DEBUG_BACKLDBM,
 							"delete (adding %s) DB_LOCK_DEADLOCK\n",
 							SLAPI_ATTR_UNIQUEID, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
-			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE,
+			if (retval) {
+				LDAPDebug( LDAP_DEBUG_ANY,
 							"delete (adding %s) failed, err=%d %s\n",
 							SLAPI_ATTR_UNIQUEID, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -799,14 +868,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							slapi_sdn_get_ndn(&nscpEntrySDN),
 							tombstone->ep_id, BE_INDEX_ADD, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS,
+				LDAPDebug( LDAP_DEBUG_BACKLDBM,
 							"delete (adding %s) DB_LOCK_DEADLOCK\n",
 							SLAPI_ATTR_NSCP_ENTRYDN, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
-			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE, 
+			if (retval) {
+				LDAPDebug( LDAP_DEBUG_ANY, 
 							"delete (adding %s) failed, err=%d %s\n",
 							SLAPI_ATTR_NSCP_ENTRYDN, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -823,14 +892,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							entryusn_str, tombstone->ep_id, BE_INDEX_ADD, &txn);
 				slapi_ch_free_string(&entryusn_str);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug( LDAP_DEBUG_ARGS,
+					LDAPDebug( LDAP_DEBUG_BACKLDBM,
 								"delete (adding %s) DB_LOCK_DEADLOCK\n",
 								SLAPI_ATTR_ENTRYUSN, 0, 0 );
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
-					LDAPDebug( LDAP_DEBUG_TRACE, 
+					LDAPDebug( LDAP_DEBUG_ANY, 
 								"delete (adding %s) failed, err=%d %s\n",
 								SLAPI_ATTR_ENTRYUSN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -854,13 +923,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					                                  svals, NULL, e->ep_id, 
 					                                  BE_INDEX_ADD, &txn);
 					if (DB_LOCK_DEADLOCK == retval) {
-						LDAPDebug0Args( LDAP_DEBUG_ARGS,
+						LDAPDebug0Args( LDAP_DEBUG_BACKLDBM,
 										"delete (updating " LDBM_PARENTID_STR ") DB_LOCK_DEADLOCK\n");
 						/* Retry txn */
 						continue;
 					}
 					if ( retval ) {
-						LDAPDebug( LDAP_DEBUG_TRACE, 
+						LDAPDebug( LDAP_DEBUG_ANY, 
 								"delete (deleting %s) failed, err=%d %s\n",
 								LDBM_PARENTID_STR, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -870,15 +939,16 @@ ldbm_back_delete( Slapi_PBlock *pb )
 						goto error_return;
 					}
 				}
+#if 0 /* The entryrdn element is already deleted in the index_addordel_entry */
 				retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug0Args( LDAP_DEBUG_ARGS,
+					LDAPDebug0Args( LDAP_DEBUG_BACKLDBM,
 								"delete (deleting entryrdn) DB_LOCK_DEADLOCK\n");
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
-					LDAPDebug2Args( LDAP_DEBUG_TRACE, 
+					LDAPDebug2Args( LDAP_DEBUG_ANY, 
 								"delete (deleting entryrdn) failed, err=%d %s\n",
 								retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -887,21 +957,21 @@ ldbm_back_delete( Slapi_PBlock *pb )
 								  LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
 				}
+#endif
 				retval = entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug0Args( LDAP_DEBUG_ARGS,
+					LDAPDebug0Args( LDAP_DEBUG_BACKLDBM,
 								"adding (adding tombstone entryrdn) DB_LOCK_DEADLOCK\n");
 					/* Retry txn */
 					continue;
 				}
-				if (0 != retval) {
-					LDAPDebug2Args( LDAP_DEBUG_TRACE, 
-								"adding (adding tombstone entryrdn) failed, err=%d %s\n",
-								retval,
-								(msg = dblayer_strerror( retval )) ? msg : "" );
+				if (retval) {
+					LDAPDebug(LDAP_DEBUG_ANY, 
+					          "adding (adding tombstone entryrdn %s) failed, err=%d %s\n",
+					          slapi_entry_get_dn(tombstone->ep_entry),
+					          retval, (msg = dblayer_strerror( retval )) ? msg : "" );
 					if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-					DEL_SET_ERROR(ldap_result_code, 
-								  LDAP_OPERATIONS_ERROR, retry_count);
+					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
 				}
 			}
@@ -918,14 +988,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							SLAPI_ATTR_VALUE_TOMBSTONE, e->ep_id,
 							BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS,
+				LDAPDebug( LDAP_DEBUG_BACKLDBM,
 							"delete (deleting %s) DB_LOCK_DEADLOCK\n",
 							SLAPI_ATTR_VALUE_TOMBSTONE, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE,
+				LDAPDebug( LDAP_DEBUG_ANY,
 							"delete (deleting %s) failed, err=%d %s\n",
 							SLAPI_ATTR_VALUE_TOMBSTONE, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -938,14 +1008,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							slapi_entry_get_uniqueid(e->ep_entry),
 							e->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS,
+				LDAPDebug( LDAP_DEBUG_BACKLDBM,
 							"delete (deleting %s) DB_LOCK_DEADLOCK\n",
 							SLAPI_ATTR_UNIQUEID, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE,
+				LDAPDebug( LDAP_DEBUG_ANY,
 							"delete (deleting %s) failed, err=%d %s\n",
 							SLAPI_ATTR_UNIQUEID, retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -962,14 +1032,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 								nscpedn, e->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 				slapi_ch_free((void **)&nscpedn);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug( LDAP_DEBUG_ARGS,
+					LDAPDebug( LDAP_DEBUG_BACKLDBM,
 								"delete (deleting %s) DB_LOCK_DEADLOCK\n",
 								SLAPI_ATTR_NSCP_ENTRYDN, 0, 0 );
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
-					LDAPDebug( LDAP_DEBUG_TRACE,
+					LDAPDebug( LDAP_DEBUG_ANY,
 								"delete (deleting %s) failed, err=%d %s\n",
 								SLAPI_ATTR_NSCP_ENTRYDN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -988,14 +1058,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 				slapi_ch_free_string(&entryusn_str);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug( LDAP_DEBUG_ARGS,
+					LDAPDebug( LDAP_DEBUG_BACKLDBM,
 								"delete (deleting %s) DB_LOCK_DEADLOCK\n",
 								SLAPI_ATTR_ENTRYUSN, 0, 0 );
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
-					LDAPDebug( LDAP_DEBUG_TRACE, 
+					LDAPDebug( LDAP_DEBUG_ANY, 
 								"delete (deleting %s) failed, err=%d %s\n",
 								SLAPI_ATTR_ENTRYUSN, retval,
 								(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -1009,13 +1079,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			{
 				retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug0Args( LDAP_DEBUG_ARGS,
+					LDAPDebug0Args( LDAP_DEBUG_BACKLDBM,
 							"delete (deleting entryrdn) DB_LOCK_DEADLOCK\n");
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
-					LDAPDebug2Args( LDAP_DEBUG_TRACE, 
+					LDAPDebug2Args( LDAP_DEBUG_ANY, 
 							"delete (deleting entryrdn) failed, err=%d %s\n",
 							retval,
 							(msg = dblayer_strerror( retval )) ? msg : "" );
@@ -1032,12 +1102,12 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			retval = modify_update_all(be,pb,&parent_modify_c,&txn);
 			if (DB_LOCK_DEADLOCK == retval)
 			{
-				LDAPDebug( LDAP_DEBUG_ARGS, "del 4 DEADLOCK\n", 0, 0, 0 );
+				LDAPDebug( LDAP_DEBUG_BACKLDBM, "del 4 DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_TRACE, "delete 3 BAD, err=%d %s\n",
+				LDAPDebug( LDAP_DEBUG_ANY, "delete 3 BAD, err=%d %s\n",
 					   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				DEL_SET_ERROR(ldap_result_code, 
@@ -1055,7 +1125,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 			if (DB_LOCK_DEADLOCK == retval)
 			{
-				LDAPDebug( LDAP_DEBUG_ARGS, "delete DEADLOCK vlv_update_index\n", 0, 0, 0 );
+				LDAPDebug( LDAP_DEBUG_BACKLDBM, "delete DEADLOCK vlv_update_index\n", 0, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
@@ -1148,14 +1218,24 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	/* delete from cache and clean up */
 	if (e) {
+		if (entryrdn_get_switch()) { /* subtree-rename: on */
+			/* since the op was successful, delete the tombstone dn from the dn cache */
+			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
+			if (bdn) { /* in the dncache, remove it. */
+				CACHE_REMOVE(&inst->inst_dncache, bdn);
+				CACHE_RETURN(&inst->inst_dncache, &bdn);
+			}
+		}
 		if (e_in_cache) {
 			CACHE_REMOVE(&inst->inst_cache, e);
+			cache_unlock_entry(&inst->inst_cache, e);
+			CACHE_RETURN(&inst->inst_cache, &e);
+		} else {
+			cache_unlock_entry(&inst->inst_cache, e);
 		}
-		cache_unlock_entry(&inst->inst_cache, e);
-		CACHE_RETURN(&inst->inst_cache, &e);
 		e = NULL;
 	}
-	
+
 	if (ruv_c_init) {
 		if (modify_switch_entries(&ruv_c, be) != 0 ) {
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -1176,16 +1256,36 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	goto common_return;
 
 error_return:
-	if (inst && tombstone_in_cache)
-	{
-		CACHE_REMOVE( &inst->inst_cache, tombstone );
-		CACHE_RETURN( &inst->inst_cache, &tombstone );
-		tombstone = NULL;
-		tombstone_in_cache = 0;
+	if (tombstone) {
+		if (entryrdn_get_switch()) { /* subtree-rename: on */
+			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, tombstone->ep_id);
+			if (bdn) { /* already in the dncache. Delete it. */
+				CACHE_REMOVE(&inst->inst_dncache, bdn);
+				CACHE_RETURN(&inst->inst_dncache, &bdn);
+			} 
+		}
+		if (tombstone_in_cache) { /* successfully replaced */
+			CACHE_REMOVE( &inst->inst_cache, tombstone );
+			CACHE_RETURN( &inst->inst_cache, &tombstone );
+			tombstone = NULL;
+			tombstone_in_cache = 0;
+		} else {
+			backentry_free( &tombstone );
+		}
 	}
-	else
-	{
-		backentry_free( &tombstone );
+
+	/* Need to return to cache after post op plugins are called */
+	if (e) {
+		if (e_in_cache) {
+			if (remove_e_from_cache) {
+				/* The entry is already transformed to a tombstone. */
+				CACHE_REMOVE( &inst->inst_cache, e );
+			}
+			cache_unlock_entry( &inst->inst_cache, e );
+			CACHE_RETURN( &inst->inst_cache, &e );
+		} else {
+			cache_unlock_entry( &inst->inst_cache, e );
+		}
 	}
 
 	if (retval == DB_RUNRECOVERY) {
@@ -1246,15 +1346,33 @@ common_return:
 		   for the post op plugins */
 		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 	}
-	if (inst && tombstone_in_cache)
-	{
-		CACHE_RETURN( &inst->inst_cache, &tombstone );
-		tombstone = NULL;
-		tombstone_in_cache = 0;
-	}
-	else
-	{
-		backentry_free( &tombstone );
+	if (inst && tombstone) {
+		if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+			/* since the op was successful, add the addingentry's dn to the dn cache */
+			struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
+			                                     tombstone->ep_id);
+			if (bdn) { /* already in the dncache */
+				CACHE_RETURN(&inst->inst_dncache, &bdn);
+			} else { /* not in the dncache yet */
+				Slapi_DN *tombstonesdn = slapi_sdn_dup(slapi_entry_get_sdn(tombstone->ep_entry));
+				if (tombstonesdn) {
+					bdn = backdn_init(tombstonesdn, tombstone->ep_id, 0);
+					if (bdn) {
+						CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+						slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_delete",
+						                "set %s to dn cache\n", slapi_sdn_get_dn(tombstonesdn));
+						CACHE_RETURN(&inst->inst_dncache, &bdn);
+					}
+				}
+			}
+		}
+		if (tombstone_in_cache) { /* successfully replaced */
+			CACHE_RETURN( &inst->inst_cache, &tombstone );
+			tombstone = NULL;
+			tombstone_in_cache = 0;
+		} else {
+			backentry_free( &tombstone );
+		}
 	}
 	
 	/* result code could be used in the bepost plugin functions. */
@@ -1267,17 +1385,6 @@ common_return:
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
 	}
 
-	/* Need to return to cache after post op plugins are called */
-	if (inst) {
-		if (retval && e) { /* error case */
-			cache_unlock_entry( &inst->inst_cache, e );
-			CACHE_RETURN( &inst->inst_cache, &e );
-		}
-		if (inst->inst_ref_count) {
-			slapi_counter_decrement(inst->inst_ref_count);
-		}
-	}
-	
 	if (ruv_c_init) {
 		modify_term(&ruv_c, be);
 	}
@@ -1291,7 +1398,7 @@ diskfull_return:
 		}
 		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
-	modify_term(&parent_modify_c,be);
+	modify_term(&parent_modify_c, be);
 	if (rc == 0 && opcsn && !is_fixup_operation && !delete_tombstone_entry)
 	{
 		/* URP Naming Collision

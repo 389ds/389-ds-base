@@ -753,10 +753,17 @@ static void op_shared_add (Slapi_PBlock *pb)
 
 				slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
 				do_ps_service(pse, NULL, LDAP_CHANGETYPE_ADD, 0);
-
-				/* If be_add succeeded, then e is consumed.  We
-				 * set e to NULL to prevent freeing it ourselves. */
-				e = NULL;
+				/* 
+				 * If be_add succeeded, then e is consumed except the resurect case.
+				 * If it is resurect, the corresponding tombstone entry is resurected
+				 * and put into the cache.
+				 * Otherwise, we set e to NULL to prevent freeing it ourselves.
+				 */
+				if (operation_is_flag_set(operation,OP_FLAG_RESURECT_ENTRY) && save_e) {
+					e = save_e;
+				} else {
+					e = NULL;
+				}
 			}
 			else
 			{

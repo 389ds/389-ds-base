@@ -1444,3 +1444,70 @@ slapi_get_plugin_name(const char *path, const char *lib)
 
     return fullname;
 }
+
+/*
+ * Check if rdn is a slecial rdn/dn or not.
+ * If flag is IS_TOMBSTONE, returns 1 if rdn is a tombstone rdn/dn.
+ * If flag is IS_CONFLICT, returns 1 if rdn is a conflict rdn/dn.
+ * Otherwise returns 0.
+ */
+static int util_uniqueidlen = 0;
+int
+slapi_is_special_rdn(const char *rdn, int flag)
+{
+	char *rp;
+	int plus = 0;
+	if (!util_uniqueidlen) {
+		util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/;
+	}
+
+	if ((RDN_IS_TOMBSTONE != flag) && (RDN_IS_CONFLICT != flag)) {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, "slapi_is_special_rdn: invalid flag %d\n", flag);
+		return 0; /* not a special rdn/dn */
+	}
+	if (!rdn) {
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "slapi_is_special_rdn: NULL rdn\n");
+		return 0; /* not a special rdn/dn */
+	}
+
+	if (strlen(rdn) < util_uniqueidlen) {
+		return 0; /* not a special rdn/dn */
+	}
+	rp = (char *)rdn;
+	while (rp) {
+		char *comma = NULL;
+		if (!PL_strncasecmp(rp, SLAPI_ATTR_UNIQUEID, SLAPI_ATTR_UNIQUEID_LENGTH) &&
+		    (*(rp + SLAPI_ATTR_UNIQUEID_LENGTH) == '=')) {
+			if (RDN_IS_TOMBSTONE == flag) {
+				if ((*(rp + util_uniqueidlen) == ',') ||
+				    (*(rp + util_uniqueidlen) == '\0')) {
+					return 1;
+				} else {
+					return 0;
+				}
+			} else {
+				if ((*(rp + util_uniqueidlen) == '+') ||
+				    (plus && ((*(rp + util_uniqueidlen) == ',') ||
+				              (*(rp + util_uniqueidlen) == '\0')))) {
+					return 1;
+				}
+			}
+		}
+		comma = PL_strchr(rp, ',');
+		rp = PL_strchr(rp, '+');
+		if (rp && (rp < comma)) {
+			plus = 1;
+			rp++;
+		}
+	}
+	return 0;
+}
+
+int
+slapi_uniqueIDRdnSize()
+{
+	if (!util_uniqueidlen) {
+		util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/;
+	}
+	return util_uniqueidlen;
+}

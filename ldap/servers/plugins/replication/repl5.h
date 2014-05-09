@@ -60,6 +60,7 @@
 #include "llist.h"
 #include "repl5_ruv.h"
 #include "cl4.h"
+#include "plstr.h"
 
 #define START_UPDATE_DELAY 2 /* 2 second */
 #define REPLICA_TYPE_WINDOWS 1

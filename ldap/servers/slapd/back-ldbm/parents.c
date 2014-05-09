@@ -58,11 +58,17 @@ char *tombstone_numsubordinates = LDBM_TOMBSTONE_NUMSUBORDINATES_STR;
  * The routine is allowed to modify the parent entry, and to return a set of 
  * LDAPMods reflecting the changes it made. The LDAPMods array must be freed 
  * by the called by calling ldap_free_mods(p,1)
+ *
+ *     PARENTUPDATE_RESURECT == turning a tombstone into an entry
+ *                              tombstone_numsubordinates--
+ *                              numsubordinates++
  */
 /* 
- * PARENTUPDATE_CREATE_TOMBSTONE: increment tombstone_numsubordinates
+ * PARENTUPDATE_CREATE_TOMBSTONE: turning an entry into a tombstone
+ *                                numsubordinates--
+ *                                tombstone_numsubordinates++
  * PARENTUPDATE_DELETE_TOMBSTONE: don't touch numsubordinates, and
- *                                decrement tombstone_numsubordinates
+ *                                tombstone_numsubordinates--
  */
 
 int
@@ -84,7 +90,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 	op &= PARENTUPDATE_MASK;
 
 	/* Check nobody is trying to use op == 3, it's not implemented yet */
-	PR_ASSERT( (op == PARENTUPDATE_ADD) || (op == PARENTUPDATE_DEL));
+	PR_ASSERT((op == PARENTUPDATE_ADD) || (op == PARENTUPDATE_DEL) || (op == PARENTUPDATE_RESURECT));
 
 	/* We want to invent a mods set to be passed to modify_apply_mods() */
 
@@ -114,16 +120,17 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 
 	if (PARENTUPDATE_DELETE_TOMBSTONE != repl_op) {
 		/* are we adding ? */
-		if ( (PARENTUPDATE_ADD == op) && !already_present) {
+		if (((PARENTUPDATE_ADD == op) || (PARENTUPDATE_RESURECT == op)) && !already_present) {
 			/* If so, and the parent entry does not already have a subcount 
 			 * attribute, we need to add it */
 			mod_op = LDAP_MOD_ADD;
 		} else  if (PARENTUPDATE_DEL == op) {
 			if (!already_present) {
 				/* This means that something is wrong---deleting a child but no subcount present on parent */
-				LDAPDebug0Args( LDAP_DEBUG_ANY,
-				                "numsubordinates assertion failure\n" );
+				LDAPDebug(LDAP_DEBUG_ANY, "Parent %s has no children. (op 0x%x, repl_op 0x%x)\n",
+				          slapi_entry_get_dn(mc->old_entry->ep_entry), op, repl_op);
 				slapi_mods_free(&smods);
+				PR_ASSERT(0);
 				return -1;
 			} else {
 				if (current_sub_count == 1) {
@@ -138,7 +145,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 		}
 
 		/* Now compute the new value */
-		if (PARENTUPDATE_ADD == op) {
+		if ((PARENTUPDATE_ADD == op) || (PARENTUPDATE_RESURECT == op)) {
 			current_sub_count++;
 		} else {
 			current_sub_count--;
@@ -159,8 +166,8 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 
 	/* tombstoneNumSubordinates is needed only when this is repl op
 	 * and a child is being deleted */
-	if (repl_op && (PARENTUPDATE_DEL == op)) {
-		current_sub_count = LDAP_MAXINT;
+	current_sub_count = LDAP_MAXINT;
+	if ((repl_op && (PARENTUPDATE_DEL == op)) || (PARENTUPDATE_RESURECT == op)) {
 		ret = slapi_entry_attr_find(mc->old_entry->ep_entry,
 		                            tombstone_numsubordinates, &read_attr);
 		if (0 == ret) {
@@ -175,7 +182,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 			}
 		}
 
-		if (PARENTUPDATE_DELETE_TOMBSTONE == repl_op) {
+		if ((PARENTUPDATE_DELETE_TOMBSTONE == repl_op) || (PARENTUPDATE_RESURECT == op)) {
 			/* deleting a tombstone entry: 
 			 * reaping or manually deleting it */
 			if ((current_sub_count != LDAP_MAXINT) && 
@@ -187,9 +194,7 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 				               tombstone_numsubordinates,
 				               strlen(value_buffer), value_buffer);
 			}
-		}
-
-		if (PARENTUPDATE_CREATE_TOMBSTONE == repl_op) {
+		} else if (PARENTUPDATE_CREATE_TOMBSTONE == repl_op) {
 			/* creating a tombstone entry */
 			if (current_sub_count != LDAP_MAXINT) {
 				current_sub_count++;

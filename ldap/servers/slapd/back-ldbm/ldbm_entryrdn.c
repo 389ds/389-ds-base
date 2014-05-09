@@ -396,7 +396,7 @@ entryrdn_index_read_ext(backend *be,
 
     rc = slapi_rdn_init_all_sdn(&srdn, sdn);
     if (rc < 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+        slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
                         "entryrdn_index_read: Param error: Failed to convert "
                         "%s to Slapi_RDN\n", slapi_sdn_get_dn(sdn));
         rc = LDAP_INVALID_DN_SYNTAX;
@@ -510,7 +510,8 @@ entryrdn_rename_subtree(backend *be,
                         Slapi_RDN *newsrdn,        /* new rdn */
                         const Slapi_DN *newsupsdn, /* new superior dn */
                         ID id,
-                        back_txn *txn)
+                        back_txn *txn,
+                        int flags)
 {
     int rc = -1;
     struct attrinfo *ai = NULL;
@@ -552,7 +553,7 @@ entryrdn_rename_subtree(backend *be,
         goto bail;
     }
 
-    rc = slapi_rdn_init_all_sdn(&oldsrdn, oldsdn);
+    rc = slapi_rdn_init_all_sdn_ext(&oldsrdn, oldsdn, flags);
     if (rc < 0) {
         slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                         "entryrdn_rename_subtree: Failed to convert olddn "
@@ -978,7 +979,8 @@ entryrdn_get_subordinates(backend *be,
                           const Slapi_DN *sdn,
                           ID id,
                           IDList **subordinates,
-                          back_txn *txn)
+                          back_txn *txn,
+                          int flags)
 {
     int rc = -1;
     struct attrinfo *ai = NULL;
@@ -1010,7 +1012,7 @@ entryrdn_get_subordinates(backend *be,
         goto bail;
     }
 
-    rc = slapi_rdn_init_all_sdn(&srdn, sdn);
+    rc = slapi_rdn_init_all_sdn_ext(&srdn, sdn, flags);
     if (rc) {
         if (rc < 0) {
             slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,

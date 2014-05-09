@@ -890,7 +890,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
         }
         else
         {
-            LOG("remove %d from id hash failed\n", e->ep_id, 0, 0);
+            LOG("remove %s (%d) from id hash failed\n", ndn, e->ep_id, 0);
         }
     }
 #ifdef UUIDCACHE_ON 
@@ -984,7 +984,12 @@ int cache_replace(struct cache *cache, void *oldptr, void *newptr)
 static int entrycache_replace(struct cache *cache, struct backentry *olde,
                               struct backentry *newe)
 {
-    int found;
+    int found = 0;
+    int found_in_dn = 0;
+    int found_in_id = 0;
+#ifdef UUIDCACHE_ON
+    int found_in_uuid = 0;
+#endif
     const char *oldndn;
     const char *newndn;
 #ifdef UUIDCACHE_ON 
@@ -992,6 +997,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     const char *newuuid;
 #endif
     size_t entry_size = 0;
+    struct backentry *alte = NULL;
 
     LOG("=> entrycache_replace (%s) -> (%s)\n", backentry_get_ndn(olde),
         backentry_get_ndn(newe), 0);
@@ -1015,31 +1021,21 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
      * cache tables, operation error 
      */
     if ( (olde->ep_state & ENTRY_STATE_NOTINCACHE) == 0 ) {
-        int found_in_dn = remove_hash(cache->c_dntable, (void *)oldndn, strlen(oldndn));
-        int found_in_id = remove_hash(cache->c_idtable, &(olde->ep_id), sizeof(ID));
+        found_in_dn = remove_hash(cache->c_dntable, (void *)oldndn, strlen(oldndn));
+        found_in_id = remove_hash(cache->c_idtable, &(olde->ep_id), sizeof(ID));
 #ifdef UUIDCACHE_ON
-        int found_in_uuid = remove_hash(cache->c_uuidtable, (void *)olduuid, strlen(olduuid));
+        found_in_uuid = remove_hash(cache->c_uuidtable, (void *)olduuid, strlen(olduuid));
 #endif
         found = found_in_dn && found_in_id;
 #ifdef UUIDCACHE_ON
         found = found && found_in_uuid;
 #endif
-        if (!found) {
-#ifdef UUIDCACHE_ON
-            LOG("entry cache replace: cache index tables out of sync - found dn [%d] id [%d] uuid [%d]\n",
-                found_in_dn, found_in_id, found_in_uuid);
-#else
-            LOG("entry cache replace: cache index tables out of sync - found dn [%d] id [%d]\n",
-                found_in_dn, found_in_id, 0);
-#endif
-            PR_Unlock(cache->c_mutex);
-            return 1;
-        }
     }
-    if (! entry_same_dn(newe, (void *)oldndn) &&
-         (newe->ep_state & ENTRY_STATE_NOTINCACHE) == 0) {
-        /* if we're doing a modrdn, the new entry can be in the dn table
-         * already, so we need to remove that too.
+    /* If fails, we have to make sure the both entires are removed from the cache,
+     * otherwise, we have no idea what's left in the cache or not... */
+    if (!entry_same_dn(newe, (void *)oldndn) && (newe->ep_state & ENTRY_STATE_NOTINCACHE) == 0) {
+        /* if we're doing a modrdn or turning an entry to a tombstone,
+         * the new entry can be in the dn table already, so we need to remove that too.
          */
         if (remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)))
         {
@@ -1048,20 +1044,44 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
             LOG("entry cache replace remove entry size %lu\n", newe->ep_size, 0, 0);
         }
     }
-
+    /* 
+     * The old entry could have been "removed" between the add and this replace,
+     * The entry is NOT freed, but NOT in the dn hash.
+     * which could happen since the entry is not necessarily locked.
+     * This is ok.
+     */
+    olde->ep_state = ENTRY_STATE_DELETED; /* olde is removed from the cache, so set DELETED here. */
+    if (!found) {
+        if (olde->ep_state & ENTRY_STATE_DELETED) {
+            LOG("entry cache replace (%s): cache index tables out of sync - found dn [%d] id [%d]; but the entry is alreay deleted.\n",
+                oldndn, found_in_dn, found_in_id);
+        } else {
+#ifdef UUIDCACHE_ON
+            LOG("entry cache replace: cache index tables out of sync - found dn [%d] id [%d] uuid [%d]\n",
+                found_in_dn, found_in_id, found_in_uuid);
+#else
+            LOG("entry cache replace (%s): cache index tables out of sync - found dn [%d] id [%d]\n",
+                oldndn, found_in_dn, found_in_id);
+#endif
+            PR_Unlock(cache->c_mutex);
+            return 1;
+        }
+    }
     /* now, add the new entry to the hashtables */
     /* (probably don't need such extensive error handling, once this has been
      * tested enough that we believe it works.)
      */
-    if (!add_hash(cache->c_dntable, (void *)newndn, strlen(newndn), newe, NULL)) {
-       LOG("entry cache replace: can't add dn\n", 0, 0, 0);
+    if (!add_hash(cache->c_dntable, (void *)newndn, strlen(newndn), newe, (void **)&alte)) {
+       LOG("entry cache replace (%s): can't add to dn table (returned %s)\n", 
+           newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none", 0);
        PR_Unlock(cache->c_mutex);
        return 1;
     }
-    if (!add_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID), newe, NULL)) {
-       LOG("entry cache replace: can't add id\n", 0, 0, 0);
+    if (!add_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID), newe, (void **)&alte)) {
+       LOG("entry cache replace (%s): can't add to id table (returned %s)\n", 
+           newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none", 0);
        if(remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)) == 0){
-    	   LOG("entry cache replace: failed to remove dn table\n", 0, 0, 0);
+           LOG("entry cache replace: failed to remove dn table\n", 0, 0, 0);
        }
        PR_Unlock(cache->c_mutex);
        return 1;
@@ -1071,10 +1091,10 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
                        newe, NULL)) {
        LOG("entry cache replace: can't add uuid\n", 0, 0, 0);
        if(remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)) == 0){
-    	   LOG("entry cache replace: failed to remove dn table(uuid cache)\n", 0, 0, 0);
+           LOG("entry cache replace: failed to remove dn table(uuid cache)\n", 0, 0, 0);
        }
        if(remove_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID)) == 0){
-    	   LOG("entry cache replace: failed to remove id table(uuid cache)\n", 0, 0, 0);
+           LOG("entry cache replace: failed to remove id table(uuid cache)\n", 0, 0, 0);
        }
        PR_Unlock(cache->c_mutex);
        return 1;
@@ -1088,7 +1108,6 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     } else if (newe->ep_size < olde->ep_size) {
         slapi_counter_subtract(cache->c_cursize, olde->ep_size - newe->ep_size);
     }
-    olde->ep_state = ENTRY_STATE_DELETED;
     newe->ep_state = 0;
     PR_Unlock(cache->c_mutex);
     LOG("<= entrycache_replace OK,  cache size now %lu cache count now %ld\n",
@@ -1282,7 +1301,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
     PR_Lock(cache->c_mutex);
     if (! add_hash(cache->c_dntable, (void *)ndn, strlen(ndn), e,
            (void **)&my_alt)) {
-        LOG("entry \"%s\" already in dn cache\n", backentry_get_ndn(e), 0, 0);
+        LOG("entry \"%s\" already in dn cache\n", ndn, 0, 0);
         /* add_hash filled in 'my_alt' if necessary */
         if (my_alt == e)
         {
@@ -1322,14 +1341,15 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
         {
             if (my_alt->ep_state & ENTRY_STATE_CREATING)
             {
-                LOG("the entry is reserved\n", 0, 0, 0);
+                LOG("the entry %s is reserved (ep_state: 0x%x, state: 0x%x\n", ndn, e->ep_state, state);
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 PR_Unlock(cache->c_mutex);
                 return -1;
             }
             else if (state != 0)
             {
-                LOG("the entry already exists. cannot reserve it.\n", 0, 0, 0);
+                LOG("the entry %s already exists. cannot reserve it. (ep_state: 0x%x, state: 0x%x\n",
+                    ndn, e->ep_state, state);
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 PR_Unlock(cache->c_mutex);
                 return -1;
@@ -1341,6 +1361,11 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                     if ((*alt)->ep_refcnt == 0)
                         lru_delete(cache, (void *)*alt);
                     (*alt)->ep_refcnt++;
+                    LOG("the entry %s already exists.  returning existing entry %s (state: 0x%x)\n",
+                        ndn, backentry_get_ndn(my_alt), state);
+                } else {
+                    LOG("the entry %s already exists.  Not returning existing entry %s (state: 0x%x)\n",
+                        ndn, backentry_get_ndn(my_alt), state);
                 }
                 PR_Unlock(cache->c_mutex);
                 return 1;
@@ -1355,7 +1380,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
     if (state == 0) {
         /* neither of these should fail, or something is very wrong. */
         if (! add_hash(cache->c_idtable, &(e->ep_id), sizeof(ID), e, NULL)) {
-            LOG("entry %s already in id cache!\n", backentry_get_ndn(e), 0, 0);
+            LOG("entry %s already in id cache!\n", ndn, 0, 0);
             if (already_in) {
                 /* there's a bug in the implementatin of 'modify' and 'modrdn'
                  * that i'm working around here.  basically they do a
@@ -1377,10 +1402,12 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                 return 0;
             }
             if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
-            	LOG("entrycache_add_int: failed to remove dn table\n", 0, 0, 0);
+                LOG("entrycache_add_int: failed to remove %s from dn table\n", 0, 0, 0);
             }
             e->ep_state |= ENTRY_STATE_NOTINCACHE;
             PR_Unlock(cache->c_mutex);
+            LOG("entrycache_add_int: failed to add %s to cache (ep_state: %x, already_in: %d)\n",
+                ndn, e->ep_state, already_in);
             return -1;
         }
 #ifdef UUIDCACHE_ON 
@@ -1391,10 +1418,10 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                 LOG("entry %s already in uuid cache!\n", backentry_get_ndn(e),
                             0, 0);
                 if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
-                	LOG("entrycache_add_int: failed to remove dn table(uuid cache)\n", 0, 0, 0);
+                    LOG("entrycache_add_int: failed to remove dn table(uuid cache)\n", 0, 0, 0);
                 }
                 if(remove_hash(cache->c_idtable, &(e->ep_id), sizeof(ID)) == 0){
-                	LOG("entrycache_add_int: failed to remove id table(uuid cache)\n", 0, 0, 0);
+                    LOG("entrycache_add_int: failed to remove id table(uuid cache)\n", 0, 0, 0);
                 }
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 PR_Unlock(cache->c_mutex);
@@ -1499,8 +1526,8 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
            if (!e->ep_mutexp) {
                LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
                LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                     "cache_lock_entry: failed to create a lock for %s\n",
-					 backentry_get_ndn(e));
+                             "cache_lock_entry: failed to create a lock for %s\n",
+                             backentry_get_ndn(e));
                LOG("<= cache_lock_entry (FAILED)\n", 0, 0, 0);
                return 1;
            }

@@ -45,10 +45,10 @@
 
 #include "back-ldbm.h"
 
-static const char *moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_DN *dn_newrdn, Slapi_DN *dn_newsuperiordn);
+static const char *moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_DN *dn_newrdn, Slapi_DN *dn_newsuperiordn, int is_tombstone);
 static void moddn_unlock_and_return_entry(backend *be,struct backentry **targetentry);
 static int moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Slapi_Mods *smods_wsi, int is_repl_op);
-static IDList *moddn_get_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, struct backentry *parententry, Slapi_DN *parentdn, struct backentry ***child_entries, struct backdn ***child_dns);
+static IDList *moddn_get_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, struct backentry *parententry, Slapi_DN *parentdn, struct backentry ***child_entries, struct backdn ***child_dns, int is_resurect_operation);
 static int moddn_rename_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, IDList *children, Slapi_DN *dn_parentdn, Slapi_DN *dn_newsuperiordn, struct backentry *child_entries[]);
 static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, int *e_in_cache, int *ec_in_cache);
 static void mods_remove_nsuniqueid(Slapi_Mods *smods);
@@ -110,6 +110,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     Slapi_Operation *operation;
     int is_replicated_operation= 0;
     int is_fixup_operation = 0;
+    int is_resurect_operation = 0;
+    int is_tombstone = 0;
     entry_address new_addr;
     entry_address *old_addr;
     entry_address oldparent_addr;
@@ -137,6 +139,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation );
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     is_fixup_operation = operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP);
+    is_resurect_operation = operation_is_flag_set(operation,OP_FLAG_RESURECT_ENTRY);
+    is_tombstone = operation_is_flag_set(operation,OP_FLAG_TOMBSTONE_ENTRY); /* tombstone_to_glue on parent entry*/
 
     if (NULL == sdn) {
         slapi_send_ldap_result( pb, LDAP_INVALID_DN_SYNTAX, NULL,
@@ -175,7 +179,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn );
         slapi_sdn_init_dn_byref(&dn_newrdn, newrdn);
         /* slapi_sdn_init_normdn_byref(&dn_newsuperiordn, newsuperiordn); */
-        slapi_sdn_get_parent(sdn, &dn_parentdn);
+        if (is_resurect_operation) {
+            /* no need to free this pdn. */
+            const char *pdn = slapi_dn_find_parent_ext(slapi_sdn_get_dn(sdn), is_resurect_operation);
+            slapi_sdn_set_dn_byval(&dn_parentdn, pdn);
+        } else {
+            slapi_sdn_get_parent(sdn, &dn_parentdn);
+        }
     }
     
     /* if old and new superior are equals, newsuperior should not be set
@@ -273,7 +283,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
             /* make sure the original entry is back in the cache if it was removed */
             if (!e_in_cache) {
-                CACHE_ADD(&inst->inst_cache, e, NULL);
+                if (CACHE_ADD(&inst->inst_cache, e, NULL)) {
+                    LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
+                                  "ldbm_back_modrdn: CACHE_ADD %s to cache failed\n",
+                                  slapi_entry_get_dn_const(e->ep_entry));
+                }
                 e_in_cache = 1;
             }
             slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &ent );
@@ -316,11 +330,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 goto error_return;
             }
 
-	    if (ruv_c_init) {
-		/* reset the ruv txn stuff */
-		modify_term(&ruv_c, be);
-		ruv_c_init = 0;
-	    }
+            if (ruv_c_init) {
+                /* reset the ruv txn stuff */
+                modify_term(&ruv_c, be);
+                ruv_c_init = 0;
+            }
             /* We're re-trying */
             LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
                            "Modrdn Retrying Transaction\n");
@@ -371,7 +385,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                      * it's passed to slapi_sdn_init_normdn_byref */
                     slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &newrdn);
                     slapi_sdn_init_dn_byref(&dn_newrdn, newrdn);
-                    newdn = moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn);
+                    newdn = moddn_get_newdn(pb,sdn, &dn_newrdn, dn_newsuperiordn, is_tombstone);
                     slapi_sdn_set_dn_passin(&dn_newdn,newdn);
                     new_addr.sdn = &dn_newdn;
                     new_addr.udn = NULL;
@@ -492,13 +506,15 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 goto error_return; /* error result sent by find_entry2modify() */
             }
             e_in_cache = 1; /* e is in the cache and locked */
-	    if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) ) {
-		ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
+            if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+                !is_resurect_operation) {
+                ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
                 ldap_result_message = "Operation not allowed on tombstone entry.";
-		slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modrdn",
-			"Attempt to rename a tombstone entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
-		goto error_return;
-	    }
+                slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modrdn",
+                                "Attempt to rename a tombstone entry %s\n",
+                                slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
+                goto error_return;
+            }
             /* Check that an entry with the same DN doesn't already exist. */
             {
                 Slapi_Entry *entry;
@@ -515,7 +531,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         
             /* Fetch and lock the parent of the entry that is moving */
             oldparent_addr.sdn = &dn_parentdn;
-            oldparent_addr.uniqueid = NULL;            
+            if (is_resurect_operation) {
+                oldparent_addr.uniqueid = operation->o_params.p.p_modrdn.modrdn_newsuperior_address.uniqueid;
+            } else {
+                oldparent_addr.uniqueid = NULL;            
+            }
             parententry = find_entry2modify_only( pb, be, &oldparent_addr, &txn );
             modify_init(&parent_modify_context,parententry);
         
@@ -523,7 +543,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             if(slapi_sdn_get_ndn(dn_newsuperiordn) != NULL)
             {
                 slapi_pblock_get (pb, SLAPI_MODRDN_NEWSUPERIOR_ADDRESS, &newsuperior_addr);
+                if (is_resurect_operation) {
+                    newsuperior_addr->uniqueid = slapi_entry_attr_get_charptr(e->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
+                }
                 newparententry = find_entry2modify_only( pb, be, newsuperior_addr, &txn );
+                slapi_ch_free_string(&newsuperior_addr->uniqueid);
                 modify_init(&newparent_modify_context,newparententry);
             }
         
@@ -566,8 +590,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
                 slapi_pblock_set( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, dn_newsuperiordn );
             }
-            slapi_sdn_set_dn_passin(&dn_newdn,
-                                moddn_get_newdn(pb, sdn, &dn_newrdn, dn_newsuperiordn));
+            slapi_sdn_set_dn_passin(&dn_newdn, moddn_get_newdn(pb, sdn, &dn_newrdn, dn_newsuperiordn, is_tombstone));
         
             /* Check that we're allowed to add an entry below the new superior */
             if ( newparententry == NULL )
@@ -695,6 +718,57 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 slapi_rdn_done(&srdn);
             }
         
+            if(is_resurect_operation) {
+                slapi_log_error(SLAPI_LOG_REPL, "ldbm_back_modrdn",
+                                "Resurrecting an entry %s\n", slapi_entry_get_dn(ec->ep_entry));
+                slapi_entry_attr_delete(ec->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
+                slapi_entry_delete_string(ec->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
+                /* Now also remove the nscpEntryDN */
+                if (slapi_entry_attr_delete(ec->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN) != 0){
+                    LDAPDebug(LDAP_DEBUG_REPL, "Resurrection of %s - Couldn't remove %s\n", 
+                              slapi_entry_get_dn(ec->ep_entry), SLAPI_ATTR_NSCP_ENTRYDN, 0);
+                }
+                
+                /* Set the reason (this is only a reason why modrdn is needed for resurrection) */
+                slapi_entry_add_string(ec->ep_entry, "nsds5ReplConflict", "deletedEntryHasChildren");
+        
+                /* Clear the Tombstone Flag in the entry */
+                slapi_entry_clear_flag(ec->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
+        
+                /* make sure the objectclass
+                   - does not contain any duplicate values
+                   - has CSNs for the new values we added
+                */
+                {
+                    Slapi_Attr *sa = NULL;
+                    Slapi_Value sv;
+                    const struct berval *svbv = NULL;
+        
+                    /* add the extensibleobject objectclass with csn if not present */
+                    slapi_entry_attr_find(ec->ep_entry, SLAPI_ATTR_OBJECTCLASS, &sa);
+                    slapi_value_init_string(&sv, "extensibleobject");
+                    svbv = slapi_value_get_berval(&sv);
+                    if (slapi_attr_value_find(sa, svbv)) { /* not found, so add it */
+                        if (opcsn) {
+                            value_update_csn(&sv, CSN_TYPE_VALUE_UPDATED, opcsn);
+                        }
+                        slapi_attr_add_value(sa, &sv);
+                    }
+                    value_done(&sv);
+                    
+                    /* add the glue objectclass with csn if not present */
+                    slapi_value_init_string(&sv, "glue");
+                    svbv = slapi_value_get_berval(&sv);
+                    if (slapi_attr_value_find(sa, svbv)) { /* not found, so add it */
+                        if (opcsn) {
+                            value_update_csn(&sv, CSN_TYPE_VALUE_UPDATED, opcsn);
+                        }
+                        slapi_attr_add_value(sa, &sv);
+                    }
+                    value_done(&sv);
+                }
+            }
+
             /* create it in the cache - prevents others from creating it */
             if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) ) {
                 ec_in_cache = 0; /* not in cache */
@@ -704,6 +778,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     /* somebody must've created it between dn2entry() and here */
                     /* JCMREPL - Hmm... we can't permit this to happen...? */
                     ldap_result_code= LDAP_ALREADY_EXISTS;
+                    if (is_resurect_operation) {
+                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
+                                        "cache_add_tentative failed: %s\n", slapi_entry_get_dn(ec->ep_entry));
+                    }
                     goto error_return;
                 }
                 /* so if the old dn is the same as the new dn, the entry will not be cached
@@ -751,8 +829,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
             }
         
-               slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
-               slapi_mods_init_byref(&smods_operation_wsi,mods);
+            slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
+            slapi_mods_init_byref(&smods_operation_wsi,mods);
         
             /*
              * We are about to pass the last abandon test, so from now on we are
@@ -842,48 +920,81 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 /* 
                  * Update the subordinate count of the parents to reflect the moved child.
                  */
-                if ( parententry!=NULL )
-                {
+                if (parententry) {
                     retval = parent_update_on_childchange(&parent_modify_context,
                                                           PARENTUPDATE_DEL, NULL);
                     /* The parent modify context now contains info needed later */
-                    if (0 != retval)
-                    {
+                    if (retval) {
                         goto error_return;
                     }
                 }
-                if ( newparententry!=NULL )
-                {
+                if (newparententry) {
                     retval = parent_update_on_childchange(&newparent_modify_context,
                                                           PARENTUPDATE_ADD, NULL);
                     /* The newparent modify context now contains info needed later */
-                    if (0 != retval)
-                    {
+                    if (retval) {
                         goto error_return;
                     }
                 }
             }
+            /* is_resurect_operation case, there's no new superior.  Just rename. */
+            if (is_resurect_operation && parententry) {
+                retval = parent_update_on_childchange(&parent_modify_context, PARENTUPDATE_RESURECT, NULL);
+                if (retval) {
+                    LDAPDebug(LDAP_DEBUG_BACKLDBM, "parent_update_on_childchange parent %s of %s failed, rc=%d\n",
+                              slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
+                              slapi_entry_get_dn_const(ec->ep_entry), retval);
+                    goto error_return;
+                }
+            }
         
             /*
-             * If the entry has children then we're going to have to rename them all.
+             * If the entry has children including tombstones,
+             * then we're going to have to rename them all.
              */
-            if (slapi_entry_has_children( e->ep_entry ))
-            {
+            if (slapi_entry_has_children_ext(e->ep_entry, 1)) {
                 /* JCM - This is where the subtree lock will appear */
                 if (entryrdn_get_switch()) /* subtree-rename: on */
                 {
+                    if (is_resurect_operation) {
+#if defined(DEBUG)
+                        /* Get the present value of the subcount attr, or 0 if not present */
+                        Slapi_Attr *read_attr = NULL;
+                        int sub_count = -1;
+                        if (0 == slapi_entry_attr_find(parent_modify_context.old_entry->ep_entry,
+                                                       "numsubordinates", &read_attr)) {
+                            /* decode the value */
+                            Slapi_Value *sval;
+                            slapi_attr_first_value(read_attr, &sval);
+                            if (sval) {
+                                const struct berval *bval = slapi_value_get_berval(sval);
+                                if(bval) {
+                                    sub_count = atol(bval->bv_val);
+                                }
+                            }
+                        }
+                        LDAPDebug(LDAP_DEBUG_ANY, "parent_update_on_childchange parent %s of %s numsub=%d\n",
+                                  slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
+                                  slapi_entry_get_dn_const(e->ep_entry), sub_count);
+#endif
+                        slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                                        "%s has children\n", slapi_entry_get_dn(e->ep_entry));
+                    }
                     children = moddn_get_children(&txn, pb, be, e, sdn,
-                                                  &child_entries, &child_dns);
+                                                  &child_entries, &child_dns, is_resurect_operation);
                 }
                 else
                 {
                     children = moddn_get_children(&txn, pb, be, e, sdn,
-                                                  &child_entries, NULL);
+                                                  &child_entries, NULL, 0);
                 }
         
                 /* JCM - Shouldn't we perform an access control check on all the children. */
                 /* JCMREPL - But, the replication client has total rights over its subtree, so no access check needed. */
                 /* JCM - A subtree move could break ACIs, static groups, and dynamic groups. */
+            } else if (is_resurect_operation) {
+                slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modrdn",
+                                "%s has NO children\n", slapi_entry_get_dn(e->ep_entry));
             }
         
             /*
@@ -937,10 +1048,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             /* Retry txn */
             continue;
         }
-        if (retval != 0 )
+        if (retval)
         {
-            LDAPDebug( LDAP_DEBUG_TRACE, "modrdn_rename_entry_update_indexes failed, err=%d %s\n",
-                       retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+            LDAPDebug(LDAP_DEBUG_ANY, "modrdn_rename_entry_update_indexes %s --> %s failed, err=%d\n",
+                      slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn(ec->ep_entry), retval);
             if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
             MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
             goto error_return;
@@ -1060,14 +1171,17 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             slapi_rdn_init_sdn(&newsrdn, (const Slapi_DN *)&dn_newdn);
             retval = entryrdn_rename_subtree(be, (const Slapi_DN *)sdn, &newsrdn,
                                              (const Slapi_DN *)dn_newsuperiordn,
-                                             e->ep_id, &txn);
+                                             e->ep_id, &txn, is_tombstone);
             slapi_rdn_done(&newsrdn);
             if (retval != 0) {
                 if (retval == DB_LOCK_DEADLOCK) continue;
                 if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
                     disk_full = 1;
-                MOD_SET_ERROR(ldap_result_code, 
-                              LDAP_OPERATIONS_ERROR, retry_count);
+                MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+                slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modrdn",
+                                "entryrdn_rename_subtree failed (%d); dn: %s, newsrdn: %s, dn_newsuperiordn: %s\n",
+                                retval, slapi_sdn_get_dn(sdn), slapi_rdn_get_rdn(&newsrdn),
+                                slapi_sdn_get_dn(dn_newsuperiordn));
                 goto error_return;
             }
         }
@@ -1093,7 +1207,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             goto error_return;
         }
 
-	if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
+        if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
             ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
             if (-1 == ruv_c_init) {
                 LDAPDebug( LDAP_DEBUG_ANY,
@@ -1193,6 +1307,12 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                  * "renamed" dn is generated based upon the moved subtree.
                  */
                 for (i = 0; child_entries[i] != NULL; i++) {
+                    if (is_resurect_operation) {
+                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
+                                        "Calling cache remove & return %s (refcnt: %d)\n", 
+                                        slapi_entry_get_dn(child_entries[i]->ep_entry),
+                                        child_entries[i]->ep_refcnt);
+                    }
                     CACHE_REMOVE( &inst->inst_cache, child_entries[i] );
                     cache_unlock_entry( &inst->inst_cache, child_entries[i] );
                     CACHE_RETURN( &inst->inst_cache, &child_entries[i] );
@@ -1229,21 +1349,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
 
 error_return:
     /* result already sent above - just free stuff */
-    if ( NULL != postentry )
-    {
+    if (postentry) {
         slapi_entry_free( postentry );
         postentry= NULL;
         /* make sure caller doesn't attempt to free this */
         slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
     }
-    if (e && entryrdn_get_switch() && inst)
-    {
-        struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
-        CACHE_REMOVE(&inst->inst_dncache, bdn);
-        CACHE_RETURN(&inst->inst_dncache, &bdn);
-    }
-    if(children)
-    {
+    if(children) {
         int i = 0;
         if (child_entries && *child_entries && inst)
         {
@@ -1341,9 +1453,32 @@ common_return:
 
     /* Free up the resource we don't need any more */
     if (ec) {
+        if (is_resurect_operation) {
+            slapi_log_error(SLAPI_LOG_REPL, "ldbm_back_modrdn",
+                            "Resurrecting an entry %s: result: %d, %d\n", 
+                            slapi_entry_get_dn(ec->ep_entry), ldap_result_code, retval);
+        }
+        if (inst && (0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+            /* since the op was successful, add the addingentry's dn to the dn cache */
+            struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ec->ep_id);
+            if (bdn) { /* already in the dncache */
+                CACHE_RETURN(&inst->inst_dncache, &bdn);
+            } else { /* not in the dncache yet */
+                Slapi_DN *ecsdn = slapi_sdn_dup(slapi_entry_get_sdn(ec->ep_entry));
+                if (ecsdn) {
+                    bdn = backdn_init(ecsdn, ec->ep_id, 0);
+                    if (bdn) {
+                        CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+                        CACHE_RETURN(&inst->inst_dncache, &bdn);
+                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
+                                        "set %s to dn cache\n", slapi_sdn_get_dn(sdn));
+                    }
+                }
+            }
+        }
         /* remove the new entry from the cache if the op failed -
            otherwise, leave it in */
-        if (ec_in_cache && inst) {
+        if (ec_in_cache && ec && inst) {
             if (retval) {
                 CACHE_REMOVE( &inst->inst_cache, ec );
             }
@@ -1355,16 +1490,16 @@ common_return:
         ec_in_cache = 0;
     }
 
-    /* put e back in the cache if the modrdn failed */
-    if (e) {
-        if (!e_in_cache && retval && inst) {
-            CACHE_ADD(&inst->inst_cache, e, NULL);
-            e_in_cache = 1;
+    if (inst) {
+        if (e && entryrdn_get_switch() && (0 == retval)) {
+            struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
+            CACHE_REMOVE(&inst->inst_dncache, bdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
         }
-    }
-    if (inst && inst->inst_ref_count) {
-        slapi_counter_decrement(inst->inst_ref_count);
-    }
+        if (inst->inst_ref_count) {
+            slapi_counter_decrement(inst->inst_ref_count);
+        }
+	}
 
     moddn_unlock_and_return_entry(be,&e);
 
@@ -1374,11 +1509,11 @@ common_return:
 
     if (ldap_result_code!=-1)
     {
-		if (not_an_error) {
-			/* This is mainly used by urp.  Solved conflict is not an error.
-			 * And we don't want the supplier to halt sending the updates. */
-			ldap_result_code = LDAP_SUCCESS;
-		}
+        if (not_an_error) {
+            /* This is mainly used by urp.  Solved conflict is not an error.
+             * And we don't want the supplier to halt sending the updates. */
+            ldap_result_code = LDAP_SUCCESS;
+        }
         slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn,
                     ldap_result_message, 0,NULL );
     }
@@ -1427,7 +1562,7 @@ common_return:
  * Work out what the new DN of the entry will be.
  */
 static const char *
-moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_DN *dn_newrdn, Slapi_DN *dn_newsuperiordn)
+moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_DN *dn_newrdn, Slapi_DN *dn_newsuperiordn, int is_tombstone)
 {
     char *newdn;
     const char *newrdn= slapi_sdn_get_dn(dn_newrdn);
@@ -1448,18 +1583,18 @@ moddn_get_newdn(Slapi_PBlock *pb, Slapi_DN *dn_olddn, Slapi_DN *dn_newrdn, Slapi
     else
     {
         /* construct the new dn */
-        char *pdn;
-        const char *dn= slapi_sdn_get_dn(dn_olddn);
-        pdn = slapi_dn_beparent( pb, dn );
-        if ( pdn != NULL )
-        {
-            newdn= slapi_dn_plus_rdn(pdn, newrdn); /* JCM - Use Slapi_RDN */
+        const char *dn = slapi_sdn_get_dn((const Slapi_DN *)dn_olddn);
+        if (slapi_dn_isbesuffix(pb, dn)) {
+            newdn = slapi_ch_strdup(newrdn);
+        } else {
+            /* no need to free this pdn. */
+            const char *pdn = slapi_dn_find_parent_ext(dn, is_tombstone);
+            if (pdn) {
+                newdn = slapi_dn_plus_rdn(pdn, newrdn);
+            } else {
+                newdn = slapi_ch_strdup(newrdn);
+            }
         }
-        else
-        {
-            newdn= slapi_ch_strdup(newrdn);
-        }
-        slapi_ch_free( (void**)&pdn );
     }
     return newdn;
 }
@@ -1686,6 +1821,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
     Slapi_Operation *operation;
     int is_ruv = 0;                 /* True if the current entry is RUV */
     int orig_ec_in_cache = 0;
+    int cache_rc = 0;
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
@@ -1697,7 +1833,12 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
      * Update the ID to Entry index. 
      * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
      */
-    retval = id2entry_add( be, *ec, ptxn );
+    retval = id2entry_add_ext(be, *ec, ptxn, 1, &cache_rc);
+    if (cache_rc) {
+        LDAPDebug(LDAP_DEBUG_CACHE,
+                  "modrdn_rename_entry_update_indexes: adding %s failed to add to the cache (rc: %d, cache_rc: %d)\n",
+                  slapi_entry_get_dn(e->ep_entry), retval, cache_rc);
+    }
     if (DB_LOCK_DEADLOCK == retval)
     {
         /* Retry txn */
@@ -1791,11 +1932,11 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         }
     }
     if (cache_replace( &inst->inst_cache, e, *ec ) != 0 ) {
-        LDAPDebug0Args( LDAP_DEBUG_BACKLDBM, "modrdn_rename_entry_update_indexes cache_replace failed\n");
+        LDAPDebug2Args(LDAP_DEBUG_CACHE,
+                       "modrdn_rename_entry_update_indexes cache_replace %s -> %s failed\n",
+                       slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn((*ec)->ep_entry));
         retval= -1;
         goto error_return;
-    } else {
-        *e_in_cache = 0; /* e un-cached */
     }
     if (orig_ec_in_cache) {
         /* ec was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
@@ -2011,7 +2152,8 @@ moddn_get_children(back_txn *ptxn,
                    struct backentry *parententry,
                    Slapi_DN *dn_parentdn,
                    struct backentry ***child_entries,
-                   struct backdn ***child_dns)
+                   struct backdn ***child_dns,
+                   int is_resurect_operation)
 {
     ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
     int err= 0;
@@ -2039,7 +2181,7 @@ moddn_get_children(back_txn *ptxn,
     {
         err = entryrdn_get_subordinates(be,
                         slapi_entry_get_sdn_const(parententry->ep_entry),
-                        parententry->ep_id, &candidates, ptxn);
+                        parententry->ep_id, &candidates, ptxn, is_resurect_operation);
         if (err) {
             LDAPDebug1Arg( LDAP_DEBUG_ANY, "moddn_get_children: "
                            "entryrdn_get_subordinates returned %d\n", err);
@@ -2058,8 +2200,13 @@ moddn_get_children(back_txn *ptxn,
         slapi_filter_free(filter,1);
     }
         
-    if (candidates!=NULL)
-    {
+    if (candidates) {
+        Slapi_DN parentsdn = {0};
+        if (is_resurect_operation) {
+            slapi_sdn_get_parent(dn_parentdn, &parentsdn);
+            dn_parentdn = &parentsdn;
+        }
+
         sr_current = idl_iterator_init(candidates);
         result_idl= idl_alloc(candidates->b_nids);
         do
@@ -2092,6 +2239,7 @@ moddn_get_children(back_txn *ptxn,
             }
         } while (id!=NOID);
         idl_free(candidates);
+        slapi_sdn_done(&parentsdn);
     }
     
     nids = result_idl ? result_idl->b_nids : 0;
