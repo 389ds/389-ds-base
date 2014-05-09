@@ -900,7 +900,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
          */
         if (entryrdn_get_noancestorid()) {
             /* subtree-rename: on && no ancestorid */
-            *err = entryrdn_get_subordinates(be, &sdn, id, &idl, txn);
+            *err = entryrdn_get_subordinates(be, &sdn, id, &idl, txn, 0);
         } else {
             *err = ldbm_ancestorid_read(be, txn, id, &idl);
         }

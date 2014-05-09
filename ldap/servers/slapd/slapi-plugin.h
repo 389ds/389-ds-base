@@ -1979,6 +1979,17 @@ int slapi_entry_attr_has_syntax_value(const Slapi_Entry *e, const char *type, co
 int slapi_entry_has_children(const Slapi_Entry *e);
 
 /**
+ * This function determines if the specified entry has child entries
+ * including the tombstoned descendents.
+ *
+ * \param e Entry that you want to test for child entries.
+ * \param include_tombstone If non-zero, check tombstone_subordinates, too.
+ * \return \c 1 if the entry you supply has child entries.
+ * \return \c 0 if the entry you supply has child entries.
+ */
+int slapi_entry_has_children_ext(const Slapi_Entry *e, int include_tombstone);
+
+/**
  * This function determines if an entry is the root DSE.
  *
  * The root DSE is a special entry that contains information about the Directory
@@ -3126,9 +3137,11 @@ void slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
  * \see slapi_rdn_set_rdn()
  */
 void slapi_rdn_set_dn(Slapi_RDN *rdn,const char *dn);
+void slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int skip_tombstone);
 Slapi_RDN *slapi_rdn_new_all_dn(const char *dn);
 int slapi_rdn_init_all_dn(Slapi_RDN *rdn, const char *dn);
 int slapi_rdn_init_all_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn);
+int slapi_rdn_init_all_sdn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn, int is_tombstone);
 
 /**
  * Sets the RDN value in a \c Slapi_RDN structure from a \c Slapi_DN.
@@ -3562,6 +3575,24 @@ size_t slapi_rdn_get_size(Slapi_RDN *srdn);
  * \return The value of the given RDN.
  */
 char * slapi_rdn_get_value(const char *rdn);
+
+/**
+ * Check if the rdn is multivalued or not
+ *
+ * \param rdn A pointer to rdn to exam.
+ * \return 1, if the rdn is multi valued.
+ *         0, if the rdn is simgle valued.
+ */
+int slapi_rdn_is_multivalued(Slapi_RDN *rdn);
+
+/**
+ * Check if the rdn is a conflict rdn or not
+ *
+ * \param rdn A pointer to rdn to exam.
+ * \return 1, if the rdn is a conflict rdn
+ *         0, if the rdn is not a conflict rdn
+ */
+int slapi_rdn_is_conflict(Slapi_RDN *rdn);
 
 /*
  * utility routines for dealing with DNs
@@ -7797,6 +7828,20 @@ char *slapi_pw_get_scheme_name(PWScheme *pass_scheme);
  * \return Nothing.
  */
 void slapi_free_pw_scheme(PWScheme *pass_scheme);
+
+/** Check if rdn is a slecial rdn/dn or not.
+ * 
+ * \param rdn rdn/dn to check
+ * \param flags specify the type: RDN_IS_TOMBSTONE or RDN_IS_CONFLICT or 0
+ *
+ * \return 1 if rdn matches the flag. 
+ *   If flag is IS_TOMBSTONE, returns 1 if rdn is a tombstone rdn/dn.
+ *   If flag is IS_CONFLICT, returns 1 if rdn is a conflict rdn/dn.
+ * \return 0 otherwise
+ */
+#define RDN_IS_TOMBSTONE 0x1
+#define RDN_IS_CONFLICT  0x2
+int slapi_is_special_rdn(const char *rdn, int flag);
 
 #ifdef __cplusplus
 }

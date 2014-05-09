@@ -1209,7 +1209,7 @@ subtree_candidates(
             /* subtree-rename: on && no ancestorid */
             *err = entryrdn_get_subordinates(be,
                                          slapi_entry_get_sdn_const(e->ep_entry),
-                                         e->ep_id, &descendants, &txn);
+                                         e->ep_id, &descendants, &txn, 0);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(tmp);

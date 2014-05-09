@@ -3310,9 +3310,10 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
  * Author/Modifier: RJP
  */
 int
-slapi_entry_has_children(const Slapi_Entry *entry)
+slapi_entry_has_children_ext(const Slapi_Entry *entry, int include_tombstone)
 {
 	Slapi_Attr *attr;
+	int count = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_has_children( %s )\n", slapi_entry_get_dn_const(entry), 0, 0);
 
@@ -3322,21 +3323,46 @@ slapi_entry_has_children(const Slapi_Entry *entry)
 		Slapi_Value *sval;
 		slapi_attr_first_value( attr, &sval );
 		if(sval!=NULL)
-		{	   
+		{
 			const struct berval *bval = slapi_value_get_berval( sval );
 			if(bval!=NULL)
 			{
 				/* The entry has the attribute, and it's non-zero */
-				if (strcmp(bval->bv_val, "0") != 0)
-				{
-					LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_has_children 1\n", 0, 0, 0 );
-					return(1);
+				count = strtol(bval->bv_val, (char **)NULL, 10);
+				if (count > 0) {
+					LDAPDebug1Arg( LDAP_DEBUG_TRACE, "<= slapi_has_children %d\n", count);
+					return count;
+				}
+			}
+		}
+	}
+	/*If the subordinatecount exists, and it's nonzero, then return 1.*/
+	if (include_tombstone && (slapi_entry_attr_find( entry, "tombstonenumsubordinates", &attr) == 0))
+	{
+		Slapi_Value *sval;
+		slapi_attr_first_value( attr, &sval );
+		if(sval!=NULL)
+		{
+			const struct berval *bval = slapi_value_get_berval( sval );
+			if(bval!=NULL)
+			{
+				/* The entry has the attribute, and it's non-zero */
+				count = strtol(bval->bv_val, (char **)NULL, 10);
+				if (count > 0) {
+					LDAPDebug1Arg( LDAP_DEBUG_TRACE, "<= slapi_has_tombstone_children %d\n", count);
+					return count;
 				}
 			}
 		}
 	}
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_has_children 0\n", 0, 0, 0 );
 	return(0);
+}
+
+int
+slapi_entry_has_children(const Slapi_Entry *entry)
+{
+	return slapi_entry_has_children_ext(entry, 0);
 }
 
 /*
