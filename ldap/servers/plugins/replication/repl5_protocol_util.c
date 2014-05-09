@@ -689,16 +689,17 @@ protocol_response2string (int response)
 int
 repl5_strip_fractional_mods(Repl_Agmt *agmt, LDAPMod ** mods)
 {
-	char **a = agmt_get_fractional_attrs(agmt);
+	char **a;
 	char **attrs_to_strip;
 	int retval = 0;
 	int strip = 1;
 	int i, j, k;
 
 	if (mods == NULL) {
-                return retval;
+		return retval;
 	}
 
+	a = agmt_get_fractional_attrs(agmt);
 	if (a) {
 		/* Iterate through the fractional attr list */
 		for ( i = 0; a[i] != NULL; i++ ) 

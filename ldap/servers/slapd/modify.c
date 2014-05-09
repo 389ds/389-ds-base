@@ -402,8 +402,8 @@ do_modify( Slapi_PBlock *pb )
 					 "mod includes invalid dn format", 0, NULL);
 			goto free_and_return;
 		}
+		slapi_pblock_set(pb, SLAPI_MODIFY_MODS, normalized_mods);
 	}
-	slapi_pblock_set(pb, SLAPI_MODIFY_MODS, normalized_mods);
 
 	op_shared_modify ( pb, pw_change, old_pw );
 
