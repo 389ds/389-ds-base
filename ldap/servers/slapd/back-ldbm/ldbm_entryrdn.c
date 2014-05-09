@@ -2802,6 +2802,8 @@ _entryrdn_delete_key(backend *be,
     int issuffix = 0;
     Slapi_RDN *tmpsrdn = NULL;
     int db_retry = 0;
+    int done = 0;
+    char buffer[RDN_BULK_FETCH_BUFFER_SIZE]; 
 
     slapi_log_error(SLAPI_LOG_TRACE, ENTRYRDN_TAG,
                                      "--> _entryrdn_delete_key\n");
@@ -2835,45 +2837,79 @@ _entryrdn_delete_key(backend *be,
     /* check if the target element has a child or not */
     keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, id);
     key.data = (void *)keybuf;
-    key.size = key.ulen = strlen(nrdn) + 1;
+    key.size = key.ulen = strlen(keybuf) + 1;
     key.flags = DB_DBT_USERMEM;    
 
+    /* Setting the bulk fetch buffer */
     memset(&data, 0, sizeof(data));
-    data.flags = DB_DBT_MALLOC;
+    data.ulen = sizeof(buffer);
+    data.size = sizeof(buffer);
+    data.data = buffer;
+    data.flags = DB_DBT_USERMEM;
 
-    for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
-        rc = cursor->c_get(cursor, &key, &data, DB_SET);
-        if (rc) {
+    done = 0;
+    while (!done) {
+        rc = cursor->c_get(cursor, &key, &data, DB_SET|DB_MULTIPLE);
+        if (DB_LOCK_DEADLOCK == rc) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_delete_key: cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
+            /* try again */
+            continue;
+        } else if (DB_NOTFOUND == rc) {
+            /* no children; ok */
+            done = 1;
+            continue;
+        } else if (rc) {
+            _entryrdn_cursor_print_error("_entryrdn_delete_key",
+                                         key.data, data.size, data.ulen, rc);
+            goto bail;
+        }
+        
+        do {
+            rdn_elem *childelem = NULL;
+            DBT dataret;
+            void *ptr;
+            DB_MULTIPLE_INIT(ptr, &data);
+            do {
+                memset(&dataret, 0, sizeof(dataret));
+                DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
+                if (NULL == dataret.data || NULL == ptr) {
+                    break;
+                }
+                childelem = (rdn_elem *)dataret.data;
+                if (!slapi_is_special_rdn(childelem->rdn_elem_nrdn_rdn, RDN_IS_TOMBSTONE)) {
+                    /* there's at least one live child */
+                    slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
+                                    "_entryrdn_delete_key: Failed to remove %s; "
+                                    "has a child %s\n", nrdn, 
+                                    (char *)childelem->rdn_elem_nrdn_rdn);
+                    rc = -1;
+                    goto bail;
+                }
+            } while (NULL != dataret.data && NULL != ptr);
+retry_get:
+            rc = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP|DB_MULTIPLE);
             if (DB_LOCK_DEADLOCK == rc) {
                 slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                "_entryrdn_delete_key: cursor get deadlock\n");
+                                "_entryrdn_delete_key: retry cursor get deadlock\n");
+#ifdef FIX_TXN_DEADLOCKS
+#error if txn != NULL, have to retry the entire transaction
+#endif
                 /* try again */
-                if (db_txn) {
-                    goto bail; /* have to abort/retry the entire transaction */
-                } else {
-                    ENTRYRDN_DELAY; /* sleep for a bit then retry immediately */
-                }
-            } else if (DB_NOTFOUND != rc) {
+                goto retry_get;
+            } else if (DB_NOTFOUND == rc) {
+                rc = 0;
+                done = 1;
+                break;
+            } else if (rc) {
                 _entryrdn_cursor_print_error("_entryrdn_delete_key",
                                              key.data, data.size, data.ulen, rc);
                 goto bail;
-            } else {
-                break; /* DB_NOTFOUND - ok */
             }
-        } else {
-            slapi_ch_free(&data.data);
-            slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                            "_entryrdn_delete_key: Failed to remove %s; "
-                            "has children\n", nrdn);
-            rc = -1;
-            goto bail;
-        }
-    }
-    if (RETRY_TIMES == db_retry) {
-        slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
-                        "_entryrdn_delete_key: failed after [%d] iterations\n", db_retry);
-        rc = DB_LOCK_DEADLOCK;
-        goto bail;
+        } while (0 == rc);
     }
 
     workid = id;
