@@ -998,6 +998,13 @@ int slapi_uniqueIDIsUUID(const Slapi_UniqueID *uId);
  */
 int slapi_uniqueIDSize( void );
 
+/* Name:		slapi_uniqueIDRdnSize
+   Description:	returns size of SLAPI_ATTR_UNIQUEID=slapi_uniqueIDSize()
+   Parameters:  none
+   Return:		size of the string version of "SLAPI_ATTR_UNIQUEID=uniqueID" in bytes
+ */
+int slapi_uniqueIDRdnSize( void );
+
 /* Name:		slapi_uniqueIDDup
    Description:	duplicates an UniqueID object
    Parameters:	uId - id to duplicate

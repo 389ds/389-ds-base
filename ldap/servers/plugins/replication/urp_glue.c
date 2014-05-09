@@ -153,7 +153,7 @@ static const char *glue_entry =
 	"objectclass: top\n"
 	"objectclass: extensibleObject\n" /* JCMREPL - To avoid schema checking. */
 	"objectclass: glue\n"
-	"nsuniqueid: %s\n"
+	"nsuniqueid: %s\n" /* this uniqueid is set to Slapi_Entry in slapi_str2entry. */
 	"%s: %s\n"; /* Add why it's been created */
 
 static int
@@ -166,15 +166,15 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 	Slapi_DN *sdn = NULL;
 	Slapi_RDN *newrdn = slapi_rdn_new_rdn(rdn);
 	char *estr, *rdnstr, *rdntype, *rdnval, *rdnpair;
-	sdn = slapi_sdn_new_dn_byval(slapi_sdn_get_ndn(superiordn));
+	sdn = slapi_sdn_new_ndn_byval(slapi_sdn_get_ndn(superiordn));
 	slapi_sdn_add_rdn(sdn,rdn);
 
 	/* must take care of multi-valued rdn: split rdn into different lines introducing
 	 * '\n' between each type/value pair. 
-	 */	
+	 */
 	alloc_len = RDNBUFSIZE;
 	rdnstr = slapi_ch_malloc(alloc_len);
-	rdnpair = rdnstr;	
+	rdnpair = rdnstr;
 	*rdnpair = '\0';   /* so that strlen(rdnstr) may return 0 the first time it's called */
 	while ((rdnval_index = slapi_rdn_get_next(newrdn, rdnval_index, &rdntype, &rdnval)) != -1) {
 	        rdntype_len = strlen(rdntype);
@@ -188,7 +188,7 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 		}
 		slapi_ldif_put_type_and_value_with_options(&rdnpair, rdntype, rdnval, rdnval_len, LDIF_OPT_NOWRAP);
 		*rdnpair = '\0';
-	}	  
+	}
 	estr= slapi_ch_smprintf(glue_entry, slapi_sdn_get_ndn(sdn), rdnstr, uniqueid, 
 			ATTR_NSDS5_REPLCONFLICT, reason);
 	slapi_ch_free((void**)&rdnstr);
@@ -196,9 +196,7 @@ do_create_glue_entry(const Slapi_RDN *rdn, const Slapi_DN *superiordn, const cha
 	slapi_ch_free((void**)&newrdn);
 	e = slapi_str2entry( estr, 0 );
 	PR_ASSERT(e!=NULL);
-	if ( e!=NULL )
-	{
-		slapi_entry_set_uniqueid (e, slapi_ch_strdup(uniqueid));
+	if (e) {
 		op_result = urp_fixup_add_entry (e, NULL, NULL, opcsn, 0);
 	}
 	slapi_ch_free_string(&estr);
@@ -232,7 +230,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 
 		slapi_pblock_get( pb, SLAPI_BACKEND, &backend );
 		slapi_sdn_get_backend_parent ( dn, superiordn, backend );
-		slapi_sdn_get_rdn ( dn, rdn );
+		slapi_rdn_set_dn_ext(rdn, slapi_sdn_get_dn(dn), 1/* skip nsuniqeid=..., in dn */);
 
 		while(!done)
 		{
@@ -246,16 +244,30 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 					done= 1;
 					break;
 				case LDAP_ALREADY_EXISTS:
+				{
+					struct slapi_operation_parameters *op_params;
+					/* This is okay.  While creating a glue, a real entry was added. */
 					slapi_log_error ( SLAPI_LOG_FATAL, repl_plugin_name,
 						"%s: Skipped creating glue entry %s uniqueid=%s reason Entry Already Exists\n",
 						sessionid, dnstr, uniqueid);
+					op_result = LDAP_SUCCESS;
+					/* If we could not create a glue having the nsuniqueid,
+					 * we have to abandon it. */
+					slapi_pblock_get(pb, SLAPI_OPERATION_PARAMETERS, &op_params);
+					slapi_ch_free_string(&op_params->p.p_add.parentuniqueid);
 					done= 1;
 					break;
+				}
 				case LDAP_NO_SUCH_OBJECT:
 					/* The parent is missing */
 					{
 					/* JCMREPL - Create the parent ... recursion?... but what's the uniqueid? */
-					PR_ASSERT(0); /* JCMREPL */
+					slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name,
+						"%s: Can't created glue entry %s uniqueid=%s, error %d; "
+						"Possibly, parent entry is a conflict entry.\n",
+						sessionid, dnstr, uniqueid, op_result);
+					done= 1;
+					break;
 					}
 				default:
 					slapi_log_error ( SLAPI_LOG_FATAL, repl_plugin_name,

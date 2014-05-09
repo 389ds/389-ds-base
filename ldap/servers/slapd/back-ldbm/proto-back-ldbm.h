@@ -190,6 +190,7 @@ struct backentry *dn2entry_ext(Slapi_Backend *be, const Slapi_DN *sdn, back_txn 
 struct backentry *dn2entry_or_ancestor(Slapi_Backend *be, const Slapi_DN *sdn, Slapi_DN *ancestor, back_txn *txn, int *err);
 struct backentry *dn2ancestor(Slapi_Backend *be,const Slapi_DN *sdn,Slapi_DN *ancestordn,back_txn *txn,int *err);
 int get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, int plock_parameter, int must_exist);
+int get_copy_of_entry_ext(Slapi_PBlock *pb, ID id, const entry_address *addr, back_txn *txn, int plock_parameter, int must_exist);
 void done_with_pblock_entry(Slapi_PBlock *pb, int plock_parameter);
 
 /*
@@ -699,8 +700,8 @@ int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int
 entryrdn_index_read_ext(backend *be, const Slapi_DN *sdn, ID *id, int flags, back_txn *txn);
-int entryrdn_rename_subtree(backend *be, const Slapi_DN *oldsdn, Slapi_RDN *newsrdn, const Slapi_DN *newsupsdn, ID id, back_txn *txn);
-int entryrdn_get_subordinates(backend *be, const Slapi_DN *sdn, ID id, IDList **subordinates, back_txn *txn);
+int entryrdn_rename_subtree(backend *be, const Slapi_DN *oldsdn, Slapi_RDN *newsrdn, const Slapi_DN *newsupsdn, ID id, back_txn *txn, int flags);
+int entryrdn_get_subordinates(backend *be, const Slapi_DN *sdn, ID id, IDList **subordinates, back_txn *txn, int flags);
 int entryrdn_lookup_dn(backend *be, const char *rdn, ID id, char **dn, back_txn *txn);
 int entryrdn_get_parent(backend *be, const char *rdn, ID id, char **prdn, ID *pid, back_txn *txn);
 #endif
