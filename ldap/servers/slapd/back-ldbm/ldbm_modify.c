@@ -116,8 +116,14 @@ int modify_switch_entries(modify_context *mc,backend *be)
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int ret = 0;
 	if (mc->old_entry!=NULL && mc->new_entry!=NULL) {
-	    ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
-            if (ret == 0) mc->new_entry_in_cache = 1;
+		ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
+		if (ret == 0) {
+			mc->new_entry_in_cache = 1;
+		} else {
+			LDAPDebug(LDAP_DEBUG_CACHE, "modify_switch_entries: replacing %s with %s failed (%d)\n",
+			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
+			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
+		}
 	}
 	return ret;
 }
@@ -154,6 +160,10 @@ modify_unswitch_entries(modify_context *mc,backend *be)
 			CACHE_RETURN( &(inst->inst_cache), &(mc->old_entry) );
 			mc->new_entry_in_cache = 1;
 			mc->old_entry = NULL;
+		} else {
+			LDAPDebug(LDAP_DEBUG_CACHE, "modify_unswitch_entries: replacing %s with %s failed (%d)\n",
+			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
+			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
 		}
 	}
 
@@ -722,6 +732,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 		goto error_return;
 	}
+	/* e uncached */
+	/* we must return both e (which has been deleted) and new entry ec */
+	/* cache_replace removes e from the caches */
+	cache_unlock_entry( &inst->inst_cache, e );
+	CACHE_RETURN( &inst->inst_cache, &e );
+
 	/* lock new entry in cache to prevent usage until we are complete */
 	cache_lock_entry( &inst->inst_cache, ec );
 	ec_in_cache = 1;
@@ -732,10 +748,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	/* invalidate virtual cache */
 	ec->ep_entry->e_virtual_watermark = 0;
 
-	/* we must return both e (which has been deleted) and new entry ec */
-	/* cache_replace removes e from the caches */
-	cache_unlock_entry( &inst->inst_cache, e );
-	CACHE_RETURN( &inst->inst_cache, &e );
 	/* 
 	 * LP Fix of crash when the commit will fail:
 	 * If the commit fail, the common error path will
@@ -833,8 +845,10 @@ error_return:
 		CACHE_REMOVE( &inst->inst_cache, ec );
 		/* if ec was in cache, e was not - add back e */
 		if (e) {
-			CACHE_ADD( &inst->inst_cache, e, NULL );
-			cache_lock_entry( &inst->inst_cache, e );
+			if (CACHE_ADD( &inst->inst_cache, e, NULL )) {
+				LDAPDebug1Arg( LDAP_DEBUG_CACHE, "ldbm_modify: CACHE_ADD %s failed\n",
+							   slapi_entry_get_dn(e->ep_entry));
+			}
 		}
 	}
 
@@ -849,11 +863,12 @@ common_return:
 	else
 	{
 		backentry_free(&ec);
-	}
-	
-	if (e!=NULL) {
-		cache_unlock_entry( &inst->inst_cache, e);
-		CACHE_RETURN( &inst->inst_cache, &e);
+		/* if ec was not in cache, cache_replace was not done.
+		 * i.e., e was not unlocked. */
+		if (e) {
+			cache_unlock_entry( &inst->inst_cache, e);
+			CACHE_RETURN( &inst->inst_cache, &e);
+		}
 	}
 
 	/* result code could be used in the bepost plugin functions. */

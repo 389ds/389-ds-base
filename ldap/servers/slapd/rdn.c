@@ -124,7 +124,7 @@ slapi_rdn_init_dn(Slapi_RDN *rdn,const char *dn)
  *                1 -- "dn" does not belong to the database; could be "rdn"
  */
 static int
-_slapi_rdn_init_all_dn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn)
+_slapi_rdn_init_all_dn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn, int is_tombstone)
 {
 	const char *dn = NULL;
 	const char *ndn= NULL;
@@ -202,9 +202,16 @@ _slapi_rdn_init_all_dn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn)
 	}
 
 	/* Get the last matched position */
-	if(dns)
-	{
-		rdn->rdn = slapi_ch_strdup(dns[0]);
+	if (dns) {
+		if (is_tombstone && slapi_is_special_rdn(dns[0], RDN_IS_TOMBSTONE)) {
+			/* merge nsuniqueid=...,<rdn> into one rdn */
+			rdn->rdn = slapi_ch_smprintf("%s,%s", dns[0], dns[1]);
+			slapi_ch_free_string(&dns[0]);
+			dns[0] = slapi_ch_strdup(rdn->rdn);
+			charray_remove(dns, dns[1], 1);
+		} else {
+			rdn->rdn = slapi_ch_strdup(dns[0]);
+		}
 		rdn->all_rdns = dns;
 		slapi_setbit_uchar(rdn->flag,FLAG_ALL_RDNS);
 	}
@@ -238,8 +245,35 @@ slapi_rdn_init_all_dn(Slapi_RDN *rdn, const char *dn)
 	slapi_rdn_init(rdn);
 	slapi_sdn_init(&sdn);
 	slapi_sdn_set_dn_byval(&sdn, dn);
-	rc = _slapi_rdn_init_all_dn_ext(rdn, (const Slapi_DN *)&sdn);
+	rc = _slapi_rdn_init_all_dn_ext(rdn, (const Slapi_DN *)&sdn, 0);
 	slapi_sdn_done(&sdn);
+	return rc;
+}
+
+/*
+ * This function sets DN from sdn to Slapi_RDN.
+ * Note: The underlying function _slapi_rdn_init_all_dn_ext checks if the DN
+ * is in the root or sub suffix the server owns.  If it is, the root or sub
+ * suffix is treated as one "rdn" (e.g., "dc=sub,dc=example,dc=com") and 0 is
+ * returned.  If it is not, the DN is separated by ',' and each string is set
+ * to RDN array. (e.g., input: "uid=A,ou=does_not_exist" ==> "uid=A", "ou=
+ * does_not_exist") and 1 is returned.
+ *
+ * Return Value:  0 -- Success
+ *               -1 -- Error
+ *                1 -- dn does not belong to the database
+ */
+int
+slapi_rdn_init_all_sdn_ext(Slapi_RDN *rdn, const Slapi_DN *sdn, int is_tombstone)
+{
+	int rc = 0; /* success */
+
+	if (NULL == rdn || NULL == sdn)
+	{
+		return -1;
+	}
+	slapi_rdn_init(rdn);
+	rc = _slapi_rdn_init_all_dn_ext(rdn, sdn, is_tombstone);
 	return rc;
 }
 
@@ -266,7 +300,7 @@ slapi_rdn_init_all_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn)
 		return -1;
 	}
 	slapi_rdn_init(rdn);
-	rc = _slapi_rdn_init_all_dn_ext(rdn, sdn);
+	rc = _slapi_rdn_init_all_dn_ext(rdn, sdn, 0);
 	return rc;
 }
 
@@ -288,6 +322,17 @@ slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn)
 {
 	slapi_rdn_init(rdn);
 	rdn->rdn= slapi_ch_strdup(fromrdn->rdn);
+}
+
+void
+slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int skip_tombstone)
+{
+	const char *mydn = dn;
+	slapi_rdn_done(rdn);
+	if (skip_tombstone && slapi_is_special_rdn(dn, RDN_IS_TOMBSTONE)) {
+		mydn = dn + slapi_uniqueIDRdnSize() + 1/*,*/;
+	}
+	slapi_rdn_init_dn(rdn, mydn);
 }
 
 void
@@ -473,6 +518,33 @@ slapi_rdn_contains(Slapi_RDN *rdn, const char *type, const char *value, size_t l
 }
 
 int
+slapi_rdn_is_multivalued(Slapi_RDN *rdn)
+{
+	char *p = NULL;
+	if (rdn && rdn->rdn) {
+		p = PL_strchr(rdn->rdn, '+');
+	}
+	if (p) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/*
+ * Return value 1: if rdn is a conflict rdn
+ *              0: otherwise
+ */
+int
+slapi_rdn_is_conflict(Slapi_RDN *rdn)
+{
+	if (!rdn) {
+		return 0;
+	}
+	return slapi_is_special_rdn(slapi_rdn_get_nrdn(rdn), RDN_IS_CONFLICT);
+}
+
+int
 slapi_rdn_add(Slapi_RDN *rdn, const char *type, const char *value)
 {
 	PR_ASSERT(NULL != type);
@@ -484,12 +556,32 @@ slapi_rdn_add(Slapi_RDN *rdn, const char *type, const char *value)
 	}
 	else
 	{
-		/* type=value+rdn '\0' */
-		char *newrdn = slapi_create_dn_string("%s=%s+%s", type, value, rdn->rdn);
+		char *newrdn = NULL;
+		char *rp = rdn->rdn;
+		PRUint32 uniqueidlen = slapi_uniqueIDRdnSize();
+
+		if (slapi_is_special_rdn(rp, RDN_IS_TOMBSTONE)) {
+			char *corerp = rp + uniqueidlen + 1;
+			*(rp + uniqueidlen) = '\0';
+			newrdn = slapi_create_dn_string("%s,%s=%s+%s", rp, type, value, corerp);
+		} else {
+			/* type=value+rdn '\0' */
+			newrdn = slapi_create_dn_string("%s=%s+%s", type, value, rp);
+		}
 		slapi_ch_free_string(&rdn->rdn);
 		rdn->rdn = newrdn;
 	}
 	slapi_unsetbit_uchar(rdn->flag,FLAG_RDNS);
+
+	if (rdn->all_rdns && rdn->all_rdns[0]) {
+		slapi_ch_free_string(&rdn->all_rdns[0]);
+		rdn->all_rdns[0] = slapi_ch_strdup(rdn->rdn);
+	}
+	if (rdn->all_nrdns && rdn->all_nrdns[0]) {
+		slapi_ch_free_string(&rdn->all_nrdns[0]);
+		rdn->all_nrdns[0] = slapi_ch_strdup(rdn->rdn);
+		slapi_dn_ignore_case(rdn->all_nrdns[0]);
+	}
 	return 1;
 }
 
