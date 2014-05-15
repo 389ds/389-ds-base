@@ -136,7 +136,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl)
         LDAPDebug(LDAP_DEBUG_TRACE, "found %lu nodes for ancestorid\n", 
                   (u_long)IDL_NIDS(nodes), 0, 0);
     } else {
-        idl_free(nodes);
+        idl_free(&nodes);
         *idl = NULL;
     }
 
@@ -264,7 +264,7 @@ static int ldbm_ancestorid_default_create_index(backend *be)
         /* Insert into ancestorid for this node */
         if (id2idl_hash_lookup(ht, &id, &ididl)) {
             descendants = idl_union_allids(be, ai_aid, ididl->idl, children);
-            idl_free(children);
+            idl_free(&children);
             if (id2idl_hash_remove(ht, &id) == 0) {
                 LDAPDebug(LDAP_DEBUG_ANY, "ancestorid hash_remove failed\n", 0,0,0);
             } else {
@@ -279,21 +279,21 @@ static int ldbm_ancestorid_default_create_index(backend *be)
         /* Get parentid for this entry */
         ret = ldbm_parentid(be, txn, id, &parentid);
         if (ret != 0) {
-            idl_free(descendants);
+            idl_free(&descendants);
             break;
         }
 
         /* A suffix entry does not have a parent */
         if (parentid == NOID) {
-            idl_free(descendants);
+            idl_free(&descendants);
             continue;
         }
 
         /* Insert into ancestorid for this node's parent */
         if (id2idl_hash_lookup(ht, &parentid, &ididl)) {
             IDList *idl = idl_union_allids(be, ai_aid, ididl->idl, descendants);
-            idl_free(descendants);
-            idl_free(ididl->idl);
+            idl_free(&descendants);
+            idl_free(&(ididl->idl));
             ididl->idl = idl;
         } else {
             ididl = (id2idl*)slapi_ch_calloc(1,sizeof(id2idl));
@@ -324,7 +324,7 @@ static int ldbm_ancestorid_default_create_index(backend *be)
     id2idl_hash_destroy(ht);
 
     /* Free any leftover idlists */
-    idl_free(nodes);
+    idl_free(&nodes);
 
     /* Release the parentid file */
     if (db_pid != NULL) {
@@ -456,7 +456,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
         /* Insert into ancestorid for this node */
         ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
         if (ret != 0) {
-            idl_free(children);
+            idl_free(&children);
             break;
         }
 
@@ -467,13 +467,13 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
                 slapi_log_error(SLAPI_LOG_FATAL, sourcefile,
                                 "Error: ldbm_parentid on node index [" ID_FMT "] of [" ID_FMT "]\n",
                                 nids, nodes->b_nids);
-                idl_free(children);
+                idl_free(&children);
                 goto out;
             }
     
             /* A suffix entry does not have a parent */
             if (parentid == NOID) {
-                idl_free(children);
+                idl_free(&children);
                 break;
             }
     
@@ -485,7 +485,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
             /* Insert into ancestorid for this node's parent */
             ret = idl_store_block(be, db_aid, &key, children, txn, ai_aid);
             if (ret != 0) {
-                idl_free(children);
+                idl_free(&children);
                 goto out;
             }
             id = parentid;
@@ -504,7 +504,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be)
     }
 
     /* Free any leftover idlists */
-    idl_free(nodes);
+    idl_free(&nodes);
 
     /* Release the parentid file */
     if (db_pid != NULL) {
@@ -583,7 +583,7 @@ static int ldbm_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid)
 
 static void id2idl_free(id2idl **ididl)
 {
-    idl_free((*ididl)->idl);
+    idl_free(&((*ididl)->idl));
     slapi_ch_free((void**)ididl);
 }
 
@@ -785,7 +785,7 @@ static int ldbm_ancestorid_index_update(
                 break;
             }
             node_id = idl_firstid(idl);
-            idl_free(idl);
+            idl_free(&idl);
         }
 
         /* Update ancestorid for the base entry */

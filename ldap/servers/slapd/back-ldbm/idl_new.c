@@ -277,7 +277,7 @@ IDList * idl_new_fetch(
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
                 LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc, 0, 0);
-                idl_free(idl); idl = NULL;
+                idl_free(&idl);
                 goto error;
             }
 
@@ -314,7 +314,7 @@ IDList * idl_new_fetch(
         idl_rc = idl_append_extend(&idl, id);
         if (idl_rc) {
             LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc);
-            idl_free(idl); idl = NULL;
+            idl_free(&idl);
             goto error;
         }
 #if defined(DB_ALLIDS_ON_READ)	
@@ -330,7 +330,7 @@ IDList * idl_new_fetch(
 #endif
 
     if (ret != DB_NOTFOUND) {
-        idl_free(idl); idl = NULL;
+        idl_free(&idl);
         ldbm_nasty(filename,59,ret);
         goto error;
     }
@@ -339,7 +339,7 @@ IDList * idl_new_fetch(
 
     /* check for allids value */
     if (idl != NULL && idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
-        idl_free(idl);
+        idl_free(&idl);
         idl = idl_allids(be);
         LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns allids\n", 
                   key.data, 0, 0);

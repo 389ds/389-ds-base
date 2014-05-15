@@ -85,13 +85,13 @@ idl_allids( backend *be )
 }
 
 void
-idl_free( IDList *idl ) /* JCM - pass in ** */
+idl_free( IDList **idl )
 {
-	if ( idl == NULL ) {
+	if ((NULL == idl) || (NULL == *idl)) {
 		return;
 	}
 
-	slapi_ch_free((void**)&idl );
+	slapi_ch_free((void**)idl);
 }
 
 
@@ -151,7 +151,7 @@ idl_append_extend(IDList **orig_idl, ID id)
 		/* copy over the existing contents */
 		idl_new->b_nids = idl->b_nids;
 		memcpy(idl_new->b_ids, idl->b_ids, sizeof(ID) * idl->b_nids);
-		idl_free(idl);
+		idl_free(&idl);
 		idl = idl_new;
 	}
 
@@ -243,7 +243,7 @@ idl_intersection(
 	}
 
 	if ( ni == 0 ) {
-		idl_free( n );
+		idl_free( &n );
 		return( NULL );
 	}
 	n->b_nids = ni;
@@ -355,7 +355,7 @@ idl_notin(
 		}
 
 		if ( ni == n->b_nmax ) {
-			idl_free( n );
+			idl_free( &n );
 			*new_result = idl_allids( be );
 		} else {
 			n->b_nids = ni;

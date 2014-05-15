@@ -169,8 +169,8 @@ static int import_merge_insert_input_queue(backend *be, import_merge_queue_entry
                     IDList *new_idl =
                         idl_union(be, current_entry->thang.payload.idl, idl);
 
-                    idl_free(current_entry->thang.payload.idl);
-                    idl_free(idl);
+                    idl_free(&(current_entry->thang.payload.idl));
+                    idl_free(&idl);
                     current_entry->thang.payload.idl = new_idl;
                     /* Add this file id into the entry's referenced list */
                     (current_entry->file_referenced_list)[fileno] = 1;
@@ -567,7 +567,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 		    ret = idl_store_block(be, output_file, &key,
 			thang.payload.idl, NULL, worker->index_info->ai);
 		    /* Free the key we got back from the queue */
-		    idl_free(thang.payload.idl);
+		    idl_free(&(thang.payload.idl));
 		    thang.payload.idl = NULL;
 		}
 		slapi_ch_free(&(key.data));

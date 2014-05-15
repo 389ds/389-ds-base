@@ -232,7 +232,7 @@ struct backentry * id2entry( backend *be, ID id, back_txn *txn, int *err );
  * idl.c
  */
 IDList * idl_alloc( NIDS nids );
-void idl_free( IDList *idl );
+void idl_free( IDList **idl );
 NIDS idl_length(IDList *idl);
 int idl_is_allids(IDList *idl);
 int idl_append(IDList *idl, ID id);
