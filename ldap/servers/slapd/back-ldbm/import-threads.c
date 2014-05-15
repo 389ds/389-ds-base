@@ -2354,7 +2354,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
          */
         if (IDL) {
             ID id = idl_firstid(IDL); /* entrydn is a single attr */
-            idl_free(IDL);
+            idl_free(&IDL);
             if (id != entry->ep_id) { /* case (2) */
                 import_log_notice(job, "Duplicated entrydn detected: \"%s\": "
                                        "Entry ID: (%d, %d)",
@@ -2380,7 +2380,7 @@ foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                               "\"%s\" found at line %d of file \"%s\"",
                               slapi_entry_get_dn(entry->ep_entry),
                               fi->line, fi->filename);
-            idl_free(IDL);
+            idl_free(&IDL);
             /* skip this one */
             fi->bad = FIFOITEM_BAD;
             job->skipped++;

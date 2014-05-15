@@ -292,7 +292,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
             if ( (idl = index_read( be, LDBM_ENTRYDN_STR, indextype_EQUALITY, 
                                     &bv, NULL, &err )) != NULL ) {
                 pid = idl_firstid( idl );
-                idl_free( idl );
+                idl_free( &idl );
             } else {
                 /* empty idl */
                 if ( 0 != err && DB_NOTFOUND != err ) {
@@ -592,7 +592,7 @@ int update_subordinatecounts(backend *be, import_subcount_stuff *mothers,
                     /* We get the count from the IDL */
                     sub_count = idl->b_nids;
                 }
-                idl_free(idl);
+                idl_free(&idl);
             } 
             /* Did we get the count ? */
             if (found_count) {
@@ -891,8 +891,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
                 continue;
             }
             id = idl_firstid(idl);
-            idl_free(idl);
-            idl = NULL;
+            idl_free(&idl);
         }
 
         /*
@@ -930,8 +929,8 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             idltotal = idl;
         } else if (idl) {
             idltmp = idl_union(be, idltotal, idl);
-            idl_free(idltotal);
-            idl_free(idl);
+            idl_free(&idltotal);
+            idl_free(&idl);
             idltotal = idltmp;
         }
     } /* for (i = 0; include[i]; i++) */
@@ -1333,8 +1332,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
             /* allids list is no help at all -- revert to trawling
              * the whole list. */
             ok_index = 0;
-            idl_free(idl);
-            idl = NULL;
+            idl_free(&idl);
         }
         idindex = 0;
     }
@@ -1590,7 +1588,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     }
 bye:
     if (idl) {
-        idl_free(idl);
+        idl_free(&idl);
     }
     if (dbc) {
         dbc->c_close(dbc);
@@ -1621,7 +1619,7 @@ bye:
     }
 
     ldbm_back_free_incl_excl(include_suffix, exclude_suffix);
-    idl_free(eargs.pre_exported_idl);
+    idl_free(&(eargs.pre_exported_idl));
     
     return( return_value );
 }
@@ -1935,8 +1933,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             }
         } else if (ALLIDS(idl)) {
             /* that's no help. */
-            idl_free(idl);
-            idl = NULL;
+            idl_free(&idl);
         }
     }
 
@@ -2445,7 +2442,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 err_out:
     backentry_free( &ep ); /* if ep or *ep is NULL, it does nothing */
     if (idl) {
-        idl_free(idl);
+        idl_free(&idl);
     } else {
         dbc->c_close(dbc);
     }

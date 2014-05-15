@@ -285,7 +285,7 @@ idl_new_fetch(
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
                 LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc, 0, 0);
-                idl_free(idl); idl = NULL;
+                idl_free(&idl);
                 goto error;
             }
 
@@ -323,7 +323,7 @@ idl_new_fetch(
         if (idl_rc) {
             LDAPDebug1Arg(LDAP_DEBUG_ANY,
                           "unable to extend id list (err=%d)\n", idl_rc);
-            idl_free(idl); idl = NULL;
+            idl_free(&idl);
             goto error;
         }
 #if defined(DB_ALLIDS_ON_READ)    
@@ -339,7 +339,7 @@ idl_new_fetch(
 #endif
 
     if (ret != DB_NOTFOUND) {
-        idl_free(idl); idl = NULL;
+        idl_free(&idl);
         ldbm_nasty(filename,59,ret);
         goto error;
     }
@@ -348,7 +348,7 @@ idl_new_fetch(
 
     /* check for allids value */
     if (idl != NULL && idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
-        idl_free(idl);
+        idl_free(&idl);
         idl = idl_allids(be);
         LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns allids\n", 
                   key.data, 0, 0);
@@ -501,7 +501,7 @@ idl_new_range_fetch(
         if (idl) {
             if ((lookthrough_limit != -1) &&
                 (idl->b_nids > (ID)lookthrough_limit)) {
-                idl_free(idl);
+                idl_free(&idl);
                 idl = idl_allids( be );
                 LDAPDebug0Args(LDAP_DEBUG_TRACE,
                           "idl_new_range_fetch - lookthrough_limit exceeded\n");
@@ -557,7 +557,7 @@ idl_new_range_fetch(
             if (idl_rc) {
                 LDAPDebug1Arg(LDAP_DEBUG_ANY,
                               "unable to extend id list (err=%d)\n", idl_rc);
-                idl_free(idl); idl = NULL;
+                idl_free(&idl);
                 goto error;
             }
 
@@ -618,7 +618,7 @@ idl_new_range_fetch(
         if (idl) {
             if ((lookthrough_limit != -1) &&
                 (idl->b_nids > (ID)lookthrough_limit)) {
-                idl_free(idl);
+                idl_free(&idl);
                 idl = idl_allids( be );
                 LDAPDebug0Args(LDAP_DEBUG_TRACE,
                           "idl_new_range_fetch - lookthrough_limit exceeded\n");
@@ -669,7 +669,7 @@ idl_new_range_fetch(
         if (idl_rc) {
             LDAPDebug1Arg(LDAP_DEBUG_ANY,
                           "unable to extend id list (err=%d)\n", idl_rc);
-            idl_free(idl); idl = NULL;
+            idl_free(&idl);
             goto error;
         }
 #if defined(DB_ALLIDS_ON_READ)    
@@ -688,7 +688,7 @@ idl_new_range_fetch(
         if (ret == DB_NOTFOUND) {
             ret = 0; /* normal case */
         } else {
-            idl_free(idl); idl = NULL;
+            idl_free(&idl);
             ldbm_nasty(filename,59,ret);
             goto error;
         }
@@ -696,7 +696,7 @@ idl_new_range_fetch(
 
     /* check for allids value */
     if (idl && (idl->b_nids == 1) && (idl->b_ids[0] == ALLID)) {
-        idl_free(idl);
+        idl_free(&idl);
         idl = idl_allids(be);
         LDAPDebug1Arg(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns allids\n", 
                       cur_key.data);

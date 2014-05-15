@@ -1091,7 +1091,7 @@ entryrdn_get_subordinates(backend *be,
     
 bail:
     if (rc && subordinates && *subordinates) {
-        idl_free(*subordinates);
+        idl_free(subordinates);
     }
     slapi_ch_free_string(&keybuf);
     slapi_ch_free((void **)&elem);

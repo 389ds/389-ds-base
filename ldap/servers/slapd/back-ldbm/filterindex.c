@@ -399,7 +399,7 @@ presence_candidates(
         LDAPDebug(LDAP_DEBUG_TRACE, 
                       "fallback to eq index as pres index gave allids\n", 
                       0, 0, 0);
-        idl_free(idl);
+        idl_free(&idl);
         idl = index_range_read_ext(pb, be, type, indextype_EQUALITY,
                                    SLAPI_OP_GREATER_OR_EQUAL,
                                    NULL, NULL, 0, &txn, err, allidslimit);
@@ -481,7 +481,7 @@ extensible_candidates(
                     else if (keys == NULL || keys[0] == NULL)
                     {
                         /* no keys */
-                        idl_free (idl);
+                        idl_free (&idl);
                         idl = idl_allids (be);
                     }
                     else
@@ -516,8 +516,8 @@ extensible_candidates(
                             else
                             {
                                 IDList* tmp = idl_intersection (be, idl2, idl3);
-                                idl_free (idl2);
-                                idl_free (idl3);
+                                idl_free (&idl2);
+                                idl_free (&idl3);
                                 idl2 = tmp;
                             }
                             if (idl2 == NULL) break; /* look no further */
@@ -529,8 +529,8 @@ extensible_candidates(
                         else if (idl2 != NULL)
                         {
                             IDList* tmp = idl_union (be, idl, idl2);
-                            idl_free (idl);
-                            idl_free (idl2);
+                            idl_free (&idl);
+                            idl_free (&idl2);
                             idl = tmp;
                         }
                     }
@@ -828,7 +828,7 @@ list_candidates(
                 {
                     LDAPDebug( LDAP_DEBUG_TRACE,
                         "<= list_candidates NULL\n", 0, 0, 0 );
-                    idl_free( idl );
+                    idl_free( &idl );
                     idl = NULL;
                     goto out;
                 }
@@ -838,7 +838,7 @@ list_candidates(
                 == NULL && ftype == LDAP_FILTER_AND ) {
                     LDAPDebug( LDAP_DEBUG_TRACE,
                         "<= list_candidates NULL\n", 0, 0, 0 );
-                    idl_free( idl );
+                    idl_free( &idl );
                     idl = NULL;
                     goto out;
             }
@@ -862,15 +862,15 @@ list_candidates(
                     int notin_result = 0;
                     notin_result = idl_notin( be, idl, tmp, &new_idl );
                     if (notin_result) {
-                        idl_free(idl);
+                        idl_free(&idl);
                         idl = new_idl;
                     }
                 }
             } else {
                 idl = idl_intersection(be, idl, tmp);
-                idl_free( tmp2 );
+                idl_free( &tmp2 );
             }
-            idl_free( tmp );
+            idl_free( &tmp );
             /* stop if the list has gotten too small */
             if ((idl == NULL) ||
                 (idl_length(idl) <= FILTER_TEST_THRESHOLD))
@@ -880,8 +880,8 @@ list_candidates(
             slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
 
             idl = idl_union( be, idl, tmp );
-            idl_free( tmp );
-            idl_free( tmp2 );
+            idl_free( &tmp );
+            idl_free( &tmp2 );
             /* stop if we're already committed to an exhaustive
              * search. :(
              */
@@ -890,7 +890,7 @@ list_candidates(
             if (op_is_pagedresults(operation)) {
                 int nids = IDL_NIDS(idl);
                 if ( allidslimit > 0 && nids > allidslimit ) {
-                    idl_free( idl );
+                    idl_free( &idl );
                     idl = idl_allids( be );
                 }
             }
@@ -1013,7 +1013,7 @@ keys2idl(
         }
 #endif
         if ( idl2 == NULL ) {
-            idl_free( idl );
+            idl_free( &idl );
             idl = NULL;
             break;
         }
@@ -1025,8 +1025,8 @@ keys2idl(
 
             tmp = idl;
             idl = idl_intersection(be, idl, idl2);
-            idl_free( idl2 );
-            idl_free( tmp );
+            idl_free( &idl2 );
+            idl_free( &tmp );
             if ( idl == NULL ) {
                 break;
             }

@@ -1491,7 +1491,7 @@ common_return:
     slapi_ch_free((void**)&child_dns);
     if (ldap_result_matcheddn && 0 != strcmp(ldap_result_matcheddn, "NULL"))
         slapi_ch_free((void**)&ldap_result_matcheddn);
-    idl_free(children);
+    idl_free(&children);
     slapi_sdn_done(&dn_newdn);
     slapi_sdn_done(&dn_newrdn);
     slapi_sdn_done(&dn_parentdn);
@@ -2205,7 +2205,7 @@ moddn_get_children(back_txn *ptxn,
                 }
             }
         } while (id!=NOID);
-        idl_free(candidates);
+        idl_free(&candidates);
         slapi_sdn_done(&parentsdn);
     }
     

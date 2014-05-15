@@ -48,6 +48,16 @@
 #include "back-ldbm.h"
 #include "vlv_srch.h"
 
+/* 
+ * Used for ldap_result passed to ldbm_back_search_cleanup.
+ * If (ldap_result == LDBM_SRCH_DEFAULT_RESULT) || (ldap_result == LDAP_SUCCESS), 
+ * don't call slapi_send_ldap_result.
+ * Note: mozldap ldap_result codes are all positive; openldap result codes could
+ *       be negative values.  OL (-1) is LDAP_SERVER_DOWN.  Thus, it's safe to 
+ *       borrow the value here.
+ */
+#define LDBM_SRCH_DEFAULT_RESULT (-1)
+
 /* prototypes */
 static int build_candidate_list( Slapi_PBlock *pb, backend *be,
         struct backentry *e, const char * base, int scope,
@@ -162,12 +172,14 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
                          char* ldap_result_description,
                          int function_result,
                          struct vlv_request *vlv_request_control,
-                         struct backentry *e)
+                         struct backentry *e,
+                         IDList *candidates)
 {
     int estimate = 0; /* estimated search result count */
     backend *be;
     ldbm_instance *inst;
     back_search_result_set *sr = NULL;
+    int free_candidates = 1;
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     inst = (ldbm_instance *) be->be_instance_info;
@@ -180,19 +192,26 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
     {
         sort_spec_free(sort_control);
     }
-    if(ldap_result>=LDAP_SUCCESS)
-    {
+    if ((ldap_result != LDBM_SRCH_DEFAULT_RESULT) && (ldap_result != LDAP_SUCCESS)) {
         slapi_send_ldap_result( pb, ldap_result, NULL, ldap_result_description, 0, NULL );
     }
     /* code to free the result set if we don't need it */
     /* We get it and check to see if the structure was ever used */
     slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
     if (sr) {
-        if (function_result) {
+        if (function_result) { /* failed case */
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
+            if (sr->sr_candidates == candidates) {
+                free_candidates = 0;
+            }
             delete_search_result_set(pb, &sr);
+        } else if (sr->sr_candidates == candidates) { /* succeeded case */
+            free_candidates = 0;
         }
+    }
+    if (free_candidates) {
+        idl_free(&candidates);
     }
     if (vlv_request_control)
     {
@@ -336,7 +355,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     back_search_result_set *sr = NULL;
 
     /* Fix for bugid #394184, SD, 20 Jul 00 */
-    int tmp_err = -1;  /* must be lower than LDAP_SUCCESS */
+    int tmp_err = LDBM_SRCH_DEFAULT_RESULT;
     char * tmp_desc = NULL;
     /* end Fix for defect #394184 */
 
@@ -401,7 +420,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                      */
                     return ldbm_back_search_cleanup(pb, li, sort_control, 
                                 LDAP_UNAVAILABLE_CRITICAL_EXTENSION, "Sort Control", 
-                                SLAPI_FAIL_GENERAL, NULL, NULL);
+                                SLAPI_FAIL_GENERAL, NULL, NULL, candidates);
                 } else {
                     PRUint64 conn_id;
                     int op_id;
@@ -436,7 +455,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                          */
                         return ldbm_back_search_cleanup(pb, li, sort_control,
                                 LDAP_UNAVAILABLE_CRITICAL_EXTENSION, "VLV Control", SLAPI_FAIL_GENERAL,
-                                &vlv_request_control, NULL);
+                                &vlv_request_control, NULL, candidates);
                     } else {
                         PRUint64 conn_id;
                         int op_id;
@@ -470,7 +489,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                             /* Client isn't allowed to do this. */
                             return ldbm_back_search_cleanup(pb, li, sort_control,
                                     rc, "VLV Control", SLAPI_FAIL_GENERAL,
-                                    &vlv_request_control, NULL);
+                                    &vlv_request_control, NULL, candidates);
                         }
                     }
                     /*
@@ -485,7 +504,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                 /* Can't have a VLV control without a SORT control */
                 return ldbm_back_search_cleanup(pb, li, sort_control, 
                                 LDAP_SORT_CONTROL_MISSING, "VLV Control", 
-                                SLAPI_FAIL_GENERAL, &vlv_request_control, NULL);
+                                SLAPI_FAIL_GENERAL, &vlv_request_control, NULL, candidates);
             }
         }
     }
@@ -538,13 +557,13 @@ ldbm_back_search( Slapi_PBlock *pb )
             {
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                             LDAP_UNWILLING_TO_PERFORM, ctrlstr,
-                            SLAPI_FAIL_GENERAL, &vlv_request_control, NULL);
+                            SLAPI_FAIL_GENERAL, &vlv_request_control, NULL, candidates);
             }
             else
             {
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                             LDAP_VIRTUAL_LIST_VIEW_ERROR, ctrlstr,
-                            SLAPI_FAIL_GENERAL, &vlv_request_control, NULL);
+                            SLAPI_FAIL_GENERAL, &vlv_request_control, NULL, candidates);
             }
         }
         else
@@ -559,7 +578,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                 sort_make_sort_response_control(pb, LDAP_UNWILLING_TO_PERFORM, NULL);
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                             LDAP_UNAVAILABLE_CRITICAL_EXTENSION, ctrlstr,
-                            SLAPI_FAIL_GENERAL, &vlv_request_control, NULL);
+                            SLAPI_FAIL_GENERAL, &vlv_request_control, NULL, candidates);
             }
             else /* vlv and sorting are not critical, so ignore the control */
             {
@@ -593,7 +612,7 @@ ldbm_back_search( Slapi_PBlock *pb )
         {
             /* error or referral sent by find_entry */
             return ldbm_back_search_cleanup(pb, li, sort_control, 
-                            -1, NULL, 1, &vlv_request_control, NULL);
+                            LDBM_SRCH_DEFAULT_RESULT, NULL, 1, &vlv_request_control, NULL, candidates);
         }
     }
 
@@ -616,6 +635,7 @@ ldbm_back_search( Slapi_PBlock *pb )
         /*
          * Build a list of IDs for this entry and scope
          */    
+        vlv_response_control.result = LDAP_SUCCESS;
         if ((NULL != controls) && (sort) && (vlv)) {
             /* This candidate list is for vlv, no need for sort only. */
             switch (vlv_search_build_candidate_list(pb, basesdn, &vlv_rc,
@@ -626,12 +646,12 @@ ldbm_back_search( Slapi_PBlock *pb )
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 vlv_rc, "VLV Control",
                                                 SLAPI_FAIL_GENERAL, 
-                                                &vlv_request_control, e);
+                                                &vlv_request_control, e, candidates);
             case VLV_BLD_LIST_FAILED:
                 return ldbm_back_search_cleanup(pb, li, sort_control,
                                                 vlv_response_control.result,
                                                 NULL, SLAPI_FAIL_GENERAL,
-                                                &vlv_request_control, e);
+                                                &vlv_request_control, e, candidates);
                 
             case LDAP_SUCCESS:
                 /* Log to the access log the particulars of this sort request */
@@ -652,7 +672,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                                                     LDAP_OPERATIONS_ERROR,
                                                     "Sort Response Control",
                                                     SLAPI_FAIL_GENERAL,
-                                                    &vlv_request_control, e);
+                                                    &vlv_request_control, e, candidates);
                 }
             }
         }
@@ -663,9 +683,9 @@ ldbm_back_search( Slapi_PBlock *pb )
             if (rc)
             {
                 /* Error result sent by build_candidate_list */
-                return ldbm_back_search_cleanup(pb, li, sort_control, -1,
-                                                NULL, rc, 
-                                                &vlv_request_control, e);
+                return ldbm_back_search_cleanup(pb, li, sort_control, 
+                                                LDBM_SRCH_DEFAULT_RESULT, NULL, rc, 
+                                                &vlv_request_control, e, candidates);
             }
             /*
              * If we're sorting then we must check what administrative
@@ -691,23 +711,33 @@ ldbm_back_search( Slapi_PBlock *pb )
              * If we're presenting a virtual list view, then apply the
              * search filter before sorting.
              */
-            if (virtual_list_view && (NULL != candidates))
-            {
+            if (virtual_list_view && candidates) {
                 IDList *idl = NULL;
                 Slapi_Filter *filter = NULL;
                 slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
                 rc = vlv_filter_candidates(be, pb, candidates, basesdn,
-                                          scope, filter, &idl,
-                                          lookthrough_limit, time_up);
-                if (rc == 0) {
-                    idl_free(candidates);
-                    candidates= idl;
-                }
-                else
-                {
+                                           scope, filter, &idl,
+                                           lookthrough_limit, time_up);
+                switch (rc) {
+                case LDAP_SUCCESS:  /* Everything OK */
+                case LDAP_TIMELIMIT_EXCEEDED:  /* Timeout */
+                case LDAP_ADMINLIMIT_EXCEEDED:  /* Admin limit exceeded */
+                    vlv_response_control.result = rc;
+                    idl_free(&candidates);
+                    candidates = idl;
+                    break;
+                case LDAP_UNWILLING_TO_PERFORM:  /* Too hard */
+                default: 
                     return ldbm_back_search_cleanup(pb, li, sort_control,
                                                     rc, NULL, -1, 
-                                                    &vlv_request_control, e);
+                                                    &vlv_request_control, e, candidates);
+                }
+                if (is_vlv_critical && rc) {
+                    idl_free(&candidates);
+                    candidates = idl_alloc(0);
+                    tmp_err = rc;
+                    tmp_desc = "VLV Response Control";
+                    goto vlv_bail;
                 }
             }
             /*
@@ -725,7 +755,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                     return ldbm_back_search_cleanup(pb, li, sort_control,
                                              LDAP_PROTOCOL_ERROR,
                                              "Sort Response Control", -1,
-                                             &vlv_request_control, e);
+                                             &vlv_request_control, e, candidates);
                 }
               }
               else
@@ -759,21 +789,24 @@ ldbm_back_search( Slapi_PBlock *pb )
                 /* replace the hard coded return value by the appropriate 
                  * LDAP error code */
                 switch (sort_return_value) {
-                   case LDAP_SUCCESS:  /* Everything OK */
-                    vlv_response_control.result= LDAP_SUCCESS;
+                   case LDAP_SUCCESS:
+                    /* 
+                     * we don't want to override an error from vlv 
+                     * vlv_response_control.result= LDAP_SUCCESS; 
+                     */
                     break;
                 case LDAP_PROTOCOL_ERROR:  /* A protocol error */
                     return ldbm_back_search_cleanup(pb, li, sort_control,
                                                     LDAP_PROTOCOL_ERROR,
                                                     "Sort Control", -1,
-                                                    &vlv_request_control, e);
+                                                    &vlv_request_control, e, candidates);
                 case LDAP_UNWILLING_TO_PERFORM:  /* Too hard */
                 case LDAP_OPERATIONS_ERROR:  /* Operation error */
                 case LDAP_TIMELIMIT_EXCEEDED:  /* Timeout */
-                    vlv_response_control.result= LDAP_TIMELIMIT_EXCEEDED;
-                    break;
                 case LDAP_ADMINLIMIT_EXCEEDED:  /* Admin limit exceeded */
-                    vlv_response_control.result = LDAP_ADMINLIMIT_EXCEEDED;
+                    if (!vlv_response_control.result) {
+                        vlv_response_control.result = sort_return_value;
+                    }
                     break;
                 case LDAP_OTHER:  /* Abandoned */
                     abandoned = 1; /* So that we don't return a result code */
@@ -792,11 +825,10 @@ ldbm_back_search( Slapi_PBlock *pb )
                 /* Fix for bugid #394184, SD, 05 Jul 00 */
                 /* we were not actually returning unavailableCriticalExtension;
                  now fixed (hopefully !) */
-                if (is_sorting_critical && (0 != sort_return_value))
-                {
-                    idl_free(candidates);
+                if (is_sorting_critical && sort_return_value) {
+                    idl_free(&candidates);
                     candidates = idl_alloc(0);
-                    tmp_err = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+                    tmp_err = sort_return_value;
                     tmp_desc = "Sort Response Control";
                 }
                 /* end Fix for bugid #394184 */
@@ -806,9 +838,9 @@ ldbm_back_search( Slapi_PBlock *pb )
                                           sort_return_value, sort_error_type ) )
                 {
                     return ldbm_back_search_cleanup(pb, li, sort_control,
-                                             (abandoned?-1:LDAP_PROTOCOL_ERROR),
+                                             (abandoned?LDBM_SRCH_DEFAULT_RESULT:LDAP_PROTOCOL_ERROR),
                                              "Sort Response Control", -1,
-                                             &vlv_request_control, e);
+                                             &vlv_request_control, e, candidates);
                 }
               }
             }
@@ -816,10 +848,9 @@ ldbm_back_search( Slapi_PBlock *pb )
              * If we're presenting a virtual list view, then the candidate list
              * must be trimmed down to just the range of entries requested.
              */
-            if (virtual_list_view)
-            {
-                if (NULL != candidates && candidates->b_nids>0)
-                {
+            if (virtual_list_view) {
+                if (candidates && (candidates->b_nids > 0) &&
+                    !vlv_response_control.result) {
                     IDList *idl= NULL;
                     back_txn txn = {NULL};
                     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
@@ -828,7 +859,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                         &vlv_request_control, &idl, &vlv_response_control, &txn);
                     if(vlv_response_control.result==0)
                     {
-                        idl_free(candidates);
+                        idl_free(&candidates);
                         candidates = idl;
                     }
                     else
@@ -836,26 +867,23 @@ ldbm_back_search( Slapi_PBlock *pb )
                         return ldbm_back_search_cleanup(pb, li, sort_control,
                                                     vlv_response_control.result,
                                                     NULL, -1, 
-                                                    &vlv_request_control, e);
+                                                    &vlv_request_control, e, candidates);
                     }
-                }
-                else
-                {
+                } else {
                     vlv_response_control.targetPosition = 0;
                     vlv_response_control.contentCount = 0;
-                    vlv_response_control.result = LDAP_SUCCESS;
+                    /* vlv_response_control.result = LDAP_SUCCESS; Don't override */
                 }
             }
         }
-        if (virtual_list_view)
-        {
-            if(LDAP_SUCCESS != 
-                         vlv_make_response_control( pb, &vlv_response_control ))
-            {
+vlv_bail:
+        if (virtual_list_view) {
+            if (LDAP_SUCCESS != 
+                vlv_make_response_control( pb, &vlv_response_control )) {
                 return ldbm_back_search_cleanup(pb, li, sort_control,
-                                             (abandoned?-1:LDAP_PROTOCOL_ERROR),
+                                             (abandoned?LDBM_SRCH_DEFAULT_RESULT:LDAP_PROTOCOL_ERROR),
                                              "VLV Response Control", -1,
-                                             &vlv_request_control, e);
+                                             &vlv_request_control, e, candidates);
             }
             /* Log the VLV operation */
             vlv_print_access_log(pb,&vlv_request_control,&vlv_response_control);
@@ -885,7 +913,7 @@ ldbm_back_search( Slapi_PBlock *pb )
             PR_Unlock(inst->inst_config_mutex);
 
             if (ri) {
-                idl_free(candidates);
+                idl_free(&candidates);
                 candidates = idl_alloc(0);
                 tmp_err = LDAP_UNWILLING_TO_PERFORM;
                 tmp_desc = "Search is not indexed";
@@ -948,10 +976,10 @@ ldbm_back_search( Slapi_PBlock *pb )
     }
 
     /* Fix for bugid #394184, SD, 05 Jul 00 */
-    /* tmp_err == -1: no error */
+    /* tmp_err == LDBM_SRCH_DEFAULT_RESULT: no error */
     return ldbm_back_search_cleanup(pb, li, sort_control, tmp_err, tmp_desc,
-                                    (tmp_err  == -1 ? 0 : -1), 
-                                    &vlv_request_control, NULL);
+                                    (tmp_err == LDBM_SRCH_DEFAULT_RESULT ? 0 : LDBM_SRCH_DEFAULT_RESULT), 
+                                    &vlv_request_control, NULL, candidates);
     /* end Fix for bugid #394184 */
 }
 
@@ -1212,14 +1240,14 @@ subtree_candidates(
                                          e->ep_id, &descendants, &txn, 0);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
-            idl_free(tmp);
-            idl_free(descendants);
+            idl_free(&tmp);
+            idl_free(&descendants);
         } else if (!has_tombstone_filter) {
             *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
-            idl_free(tmp);
-            idl_free(descendants);
+            idl_free(&tmp);
+            idl_free(&descendants);
         } /* else == has_tombstone_filter: do nothing */
     }
 
@@ -1847,7 +1875,7 @@ delete_search_result_set( Slapi_PBlock *pb, back_search_result_set **sr )
     }
     if ( NULL != (*sr)->sr_candidates )
     {
-        idl_free( (*sr)->sr_candidates );
+        idl_free( &((*sr)->sr_candidates) );
     }
     rc = slapi_filter_apply((*sr)->sr_norm_filter, ldbm_search_free_compiled_filter,
                             NULL, &filt_errs);
