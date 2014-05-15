@@ -280,12 +280,12 @@ idl_old_fetch(
 	if ( ! INDIRECT_BLOCK( idl ) ) {
 		/* make sure we have the current value of highest id */
 		if ( ALLIDS(idl) ) {
-			idl_free( idl );
+			idl_free( &idl );
 			idl = idl_allids( be );
 		}	
 		return( idl );
 	}
-       	idl_free( idl );
+       	idl_free( &idl );
 
 	/* Taking a transaction is expensive; so we try and optimize for the common case by not
 	   taking one above. If we have a indirect block; we need to take a transaction and re-read
@@ -307,7 +307,7 @@ idl_old_fetch(
 		dblayer_read_txn_commit(li,&s_txn);
 		/* make sure we have the current value of highest id */
 		if ( ALLIDS(idl) ) {
-			idl_free( idl );
+			idl_free( &idl );
 			idl = idl_allids( be );
 		}	
 		return( idl );
@@ -367,7 +367,7 @@ idl_old_fetch(
 	dblayer_read_txn_commit(li,&s_txn);	
 	tmp[i] = NULL;
 	slapi_ch_free((void**)&kstr );
-	idl_free( idl );
+	idl_free( &idl );
 
 	/* allocate space for the big block */
 	idl = idl_alloc( nids );
@@ -384,7 +384,7 @@ idl_old_fetch(
 		    tmp[i]->b_nids * sizeof(ID) );
 		nids += tmp[i]->b_nids;
 
-		idl_free( tmp[i] );
+		idl_free( &tmp[i] );
 	}
 	slapi_ch_free((void**)&tmp );
 
@@ -629,7 +629,7 @@ idl_old_insert_key(
 				   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
 		}
 
-		idl_free( idl );
+		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
 		return( rc );
 	}
@@ -655,10 +655,10 @@ idl_old_insert_key(
 		case 3:		/* id not inserted - block must be split */
 			/* check threshold for marking this an all-id block */
 			if ( a->ai_idl->idl_maxindirect < 2 ) {
-				idl_free( idl );
+				idl_free( &idl );
 				idl = idl_allids( be );
 				rc = idl_store( be, db, key, idl, txn );
-				idl_free( idl );
+				idl_free( &idl );
 
 				idl_unlock_list(a->ai_idl,key);
 				if ( rc != 0 && rc != DB_LOCK_DEADLOCK)
@@ -673,7 +673,7 @@ idl_old_insert_key(
 			}
 
 			idl_split_block( idl, id, &tmp, &tmp2 );
-			idl_free( idl );
+			idl_free( &idl );
 
 			/* create the header indirect block */
 			idl = idl_alloc( 3 );
@@ -686,9 +686,9 @@ idl_old_insert_key(
 			/* store it */
 			rc = idl_store( be, db, key, idl, txn );
 			if ( rc != 0 ) {
-				idl_free( idl );
-				idl_free( tmp );
-				idl_free( tmp2 );
+				idl_free( &idl );
+				idl_free( &tmp );
+				idl_free( &tmp2 );
 				if ( rc != DB_LOCK_DEADLOCK )
 				{
 					LDAPDebug( LDAP_DEBUG_ANY, "idl_insert_key 3 BAD %d %s\n",
@@ -712,9 +712,9 @@ idl_old_insert_key(
 			k2.dsize = strlen( kstr ) + 1;
 			rc = idl_store( be, db, &k2, tmp2, txn );
 			if ( rc != 0 ) {
-				idl_free( idl );
-				idl_free( tmp );
-				idl_free( tmp2 );
+				idl_free( &idl );
+				idl_free( &tmp );
+				idl_free( &tmp2 );
 				if ( rc != DB_LOCK_DEADLOCK )
 				{
 					LDAPDebug( LDAP_DEBUG_ANY, "idl_insert_key 4 BAD %d %s\n",
@@ -726,12 +726,12 @@ idl_old_insert_key(
 					    "idl_insert_key", "split", key, id);
 
 			slapi_ch_free((void**)&kstr );
-			idl_free( tmp );
-			idl_free( tmp2 );
+			idl_free( &tmp );
+			idl_free( &tmp2 );
 			break;
 		}
 
-		idl_free( idl );
+		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
 		if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 		{
@@ -759,7 +759,7 @@ idl_old_insert_key(
 		    (u_long)id, key.dptr, i);
 #endif
 		idl_unlock_list(a->ai_idl,key);
-		idl_free( idl );
+		idl_free( &idl );
 		return( 0 );
 	}
 	if ( i != 0 ) {
@@ -783,7 +783,7 @@ idl_old_insert_key(
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "nonexistent continuation block (%s)\n", k2.dptr, 0, 0 );
 		idl_unlock_list(a->ai_idl,key);
-		idl_free( idl );
+		idl_free( &idl );
 		slapi_ch_free((void**)&kstr );
 		return( -1 );
 	}
@@ -911,9 +911,9 @@ idl_old_insert_key(
 
 				slapi_ch_free( (void **)&(k2.dptr) );
 				slapi_ch_free( (void **)&(k3.dptr) );
-				idl_free( tmp );
-				idl_free( tmp2 );
-				idl_free( idl );
+				idl_free( &tmp );
+				idl_free( &tmp2 );
+				idl_free( &idl );
 				idl_unlock_list(a->ai_idl,key);
 				return( rc );
 
@@ -941,7 +941,7 @@ idl_old_insert_key(
                                  * which is not correct.
                                  */
                                 rc = 0;
-				idl_free( tmp2 );
+				idl_free( &tmp2 );
 				break;
 			}
 			if ( rc != 0 ) {
@@ -986,7 +986,7 @@ idl_old_insert_key(
 
 			/* store allid block in place of header block */
 			if ( 0 == rc ) {
-				idl_free( idl );
+				idl_free( &idl );
 				idl = idl_allids( be );
 				rc = idl_store( be, db, key, idl, txn );
 				if (NULL != disposition) {
@@ -996,14 +996,14 @@ idl_old_insert_key(
 
 			slapi_ch_free( (void **)&(k2.dptr) );
 			slapi_ch_free( (void **)&(k3.dptr) );
-			idl_free( idl );
-			idl_free( tmp );
+			idl_free( &idl );
+			idl_free( &tmp );
 			idl_unlock_list(a->ai_idl,key);
 			return( rc );
 		}
 
 		idl_split_block( tmp, id, &tmp2, &tmp3 );
-		idl_free( tmp );
+		idl_free( &tmp );
 
 		/* create a new updated indirect header block */
 		tmp = idl_alloc( idl->b_nmax + 1 );
@@ -1021,8 +1021,8 @@ idl_old_insert_key(
 		/* store the header block */
 		rc = idl_store( be, db, key, tmp, txn );
 		if ( rc != 0 ) {
-			idl_free( tmp2 );
-			idl_free( tmp3 );
+			idl_free( &tmp2 );
+			idl_free( &tmp3 );
 			break;
 		}
 
@@ -1033,8 +1033,8 @@ idl_old_insert_key(
 		k2.dsize = strlen( kstr ) + 1;
 		rc = idl_store( be, db, &k2, tmp2, txn );
 		if ( rc != 0 ) {
-			idl_free( tmp2 );
-			idl_free( tmp3 );
+			idl_free( &tmp2 );
+			idl_free( &tmp3 );
 			break;
 		}
 
@@ -1045,22 +1045,22 @@ idl_old_insert_key(
 		k2.dsize = strlen( kstr ) + 1;
 		rc = idl_store( be, db, &k2, tmp3, txn );
 		if ( rc != 0 ) {
-			idl_free( tmp2 );
-			idl_free( tmp3 );
+			idl_free( &tmp2 );
+			idl_free( &tmp3 );
 			break;
 		}
 
 		idl_check_indirect (tmp, i, tmp2, tmp3,
 				    "idl_insert_key", "indirect split", key, id);
-		idl_free( tmp2 );
-		idl_free( tmp3 );
+		idl_free( &tmp2 );
+		idl_free( &tmp3 );
 		break;
 	}
 
 	slapi_ch_free( (void **)&(k2.dptr) );
 	slapi_ch_free( (void **)&(k3.dptr) );
-	idl_free( tmp );
-	idl_free( idl );
+	idl_free( &tmp );
+	idl_free( &idl );
 	idl_unlock_list(a->ai_idl,key);
 	return( rc );
 }
@@ -1096,7 +1096,7 @@ int idl_old_store_block(
 			/* If so, store an ALLIDS block */
 			IDList *all = idl_allids(be);
 			ret = idl_store(be,db,key,all,txn);
-			idl_free(all);
+			idl_free(&all);
 		} else {
 			/* Then , is it a block which is smaller than the size at which it needs splitting ? */
 			if (idl->b_nids <= (ID)priv->idl_maxids) {
@@ -1155,7 +1155,7 @@ int idl_old_store_block(
 					make_cont_key(&cont_key,key,lead_id);
 					/* Now store the continuation block */
 					ret = idl_store(be,db,&cont_key,this_cont_block,txn);
-					idl_free(this_cont_block);
+					idl_free(&this_cont_block);
 					slapi_ch_free(&(cont_key.data));
 					if ( ret != 0 && ret != DB_LOCK_DEADLOCK )
 					{
@@ -1177,7 +1177,7 @@ int idl_old_store_block(
 	}
 done:
 	/* Free master block */
-	idl_free(master_block);
+	idl_free(&master_block);
 	return ret;
 }
 
@@ -1438,7 +1438,7 @@ idl_old_delete_key(
 			break;
 		}
 
-		idl_free( idl );
+		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= idl_delete_key(%s,%lu) %d (not indirect)\n",
 			   key->dptr, (u_long)id, rc );
@@ -1459,7 +1459,7 @@ idl_old_delete_key(
 	}
 	/* id smaller than smallest id - not there */
 	if ( i == 0 && id < idl->b_ids[i] ) {
-		idl_free( idl );
+		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= idl_delete_key(%s,%lu) -666 (id not found)\n",
 			   key->dptr, (u_long)id, 0 );
@@ -1472,7 +1472,7 @@ idl_old_delete_key(
 	/* get the block to delete from */
 	make_cont_key( &contkey, key, idl->b_ids[i] );
 	if ( (didl = idl_fetch_one( li, db, &contkey, txn, &rc )) == NULL ) {
-		idl_free( idl );
+		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
 		if ( rc != DB_LOCK_DEADLOCK )
 		{
@@ -1559,8 +1559,8 @@ idl_old_delete_key(
 		rc = 0;
 		break;
 	}
-	idl_free( idl );
-	idl_free( didl );
+	idl_free( &idl );
+	idl_free( &didl );
 	slapi_ch_free( (void **)&(contkey.dptr) );
 	idl_unlock_list(a->ai_idl,key);
 	if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
