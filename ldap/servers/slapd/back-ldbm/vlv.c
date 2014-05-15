@@ -1122,7 +1122,7 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
     goto done;
 
 error:
-    if (idl) idl_free(idl);
+    if (idl) idl_free(&idl);
 
 done:
     return rc;

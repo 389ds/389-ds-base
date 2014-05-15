@@ -197,7 +197,7 @@ index_put_idl(index_buffer_bin *bin,backend *be, DB_TXN *txn,struct attrinfo *a)
 			goto error;
 		}
 		slapi_ch_free( &(bin->key.data) );
-		idl_free(bin->value);
+		idl_free(&(bin->value));
 		/* If we're already at allids, store an allids block to prevent needless accumulation of blocks */
 		if (old_idl && ALLIDS(old_idl)) {
 			bin->value = idl_allids(be);
@@ -207,10 +207,10 @@ index_put_idl(index_buffer_bin *bin,backend *be, DB_TXN *txn,struct attrinfo *a)
 	}
 error:
 	if (old_idl) {
-		idl_free(old_idl);
+		idl_free(&old_idl);
 	}
 	if (new_idl && need_to_freed_new_idl) {
-		idl_free(new_idl);
+		idl_free(&new_idl);
 	}
 	dblayer_release_index_file( be, a, db );
 	return ret;
@@ -268,7 +268,7 @@ index_buffer_terminate(void *h)
 	for (i = 0; i < handle->buffer_size; i++) {
 		bin = &(handle->bins[i]);
 		if (bin->value) {
-			idl_free(bin->value);
+			idl_free(&(bin->value));
 			bin->value = NULL;
 		}
 		slapi_ch_free(&(bin->key.data));
@@ -1505,7 +1505,7 @@ index_range_read_ext(
             if (idl) {
                 if ((lookthrough_limit != -1) && 
                     (idl->b_nids > (ID)lookthrough_limit)) {
-                    idl_free(idl);
+                    idl_free(&idl);
                     idl = idl_allids( be );
                     LDAPDebug0Args(LDAP_DEBUG_TRACE,
                                "index_range_read lookthrough_limit exceeded\n");
@@ -1534,7 +1534,7 @@ index_range_read_ext(
              */
             if ( slapi_op_abandoned( pb )) {
                 if (NULL != idl) {
-                    idl_free(idl);
+                    idl_free(&idl);
                     idl = NULL;
                 }
                 LDAPDebug0Args(LDAP_DEBUG_TRACE,
@@ -1574,7 +1574,7 @@ index_range_read_ext(
                 /* idl tmp only contains one id */
                 /* append it at the end here; sort idlist at the end */
                 if (ALLIDS(tmp)) {
-                    idl_free(idl);
+                    idl_free(&idl);
                     idl = tmp;
                 } else {
                     ID id;
@@ -1586,7 +1586,7 @@ index_range_read_ext(
                                        1097, *err);
                         }
                     }
-                    idl_free(tmp);
+                    idl_free(&tmp);
                 }
                 if (ALLIDS(idl)) {
                     LDAPDebug0Args(LDAP_DEBUG_TRACE,

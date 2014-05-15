@@ -245,7 +245,7 @@ retry:
 				key.flags = 0;
 				for (retry_count = 0; retry_count < IDL_FETCH_RETRY_COUNT; retry_count++) {
 					err = NEW_IDL_DEFAULT;
-					idl_free(idl);
+					idl_free(&idl);
 					idl = idl_fetch( be, db, &key, parent_txn, ai, &err );
 					if(err == DB_LOCK_DEADLOCK) {
 						ldbm_nasty("ldbm_back_seq deadlock retry", 1600, err);
@@ -319,7 +319,7 @@ retry:
 		    }
 		    CACHE_RETURN( &inst->inst_cache, &e );
 		}
-		idl_free( idl );
+		idl_free( &idl );
 	}
 
 	dblayer_release_index_file( be, ai, db );
