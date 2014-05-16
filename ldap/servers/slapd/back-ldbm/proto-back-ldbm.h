@@ -143,8 +143,8 @@ int dblayer_backup(struct ldbminfo *li, char *destination_directory,
 int dblayer_restore(struct ldbminfo *li, char* source_directory, Slapi_Task *task, char *bename);
 int dblayer_copy_directory(struct ldbminfo *li, Slapi_Task *task,
                            char *instance_dir, char *destination_dir,
-                           int restore, int *cnt, int instance_dir_flag,
-                           int indexonly, int resetlsns);
+                           int restore, int *cnt, int indexonly,
+                           int resetlsns, int is_changelog);
 int dblayer_copyfile(char* source, char * destination, int overwrite, int mode);
 int dblayer_delete_instance_dir(backend *be);
 int dblayer_delete_database(struct ldbminfo *li);
