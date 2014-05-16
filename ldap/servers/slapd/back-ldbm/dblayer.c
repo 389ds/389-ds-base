@@ -5526,17 +5526,15 @@ dblayer_copy_directory(struct ldbminfo *li,
                        char *dest_dir,
                        int restore,
                        int *cnt,
-                       int instance_dir_flag,
                        int indexonly,
-                       int resetlsns)
+                       int resetlsns,
+                       int is_changelog)
 {
     dblayer_private *priv = NULL;
     char            *new_src_dir = NULL;
     char            *new_dest_dir = NULL;
     PRDir           *dirhandle = NULL;
     PRDirEntry      *direntry = NULL;
-    size_t          filename_length = 0;
-    size_t          offset = 0;
     char            *compare_piece = NULL;
     char            *filename1;
     char            *filename2;
@@ -5545,8 +5543,8 @@ dblayer_copy_directory(struct ldbminfo *li,
     char            *inst_dirp = NULL;
     char            inst_dir[MAXPATHLEN];
     char            sep;
-    int             suffix_len = 0;
-    ldbm_instance *inst = NULL;
+    int             src_is_fullpath = 0;
+    ldbm_instance   *inst = NULL;
 
     if (!src_dir || '\0' == *src_dir)
     {
@@ -5570,20 +5568,28 @@ dblayer_copy_directory(struct ldbminfo *li,
     else
         relative_instance_name++;
 
-    inst = ldbm_instance_find_by_name(li, relative_instance_name);
-    if (NULL == inst) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
-                  "Instance path %s could be invalid.\n",
-                  relative_instance_name, src_dir, 0);
-        return return_value;
+    if (is_fullpath(src_dir)) {
+        src_is_fullpath = 1;
+    }
+    if (is_changelog) {
+        if (!src_is_fullpath) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "Changelogdir \"%s\" is not full path; "
+                          "Skipping it.\n", src_dir);
+            return 0;
+        }
+    } else {
+        inst = ldbm_instance_find_by_name(li, relative_instance_name);
+        if (NULL == inst) {
+            LDAPDebug(LDAP_DEBUG_ANY, "Backend instance \"%s\" does not exist; "
+                      "Instance path %s could be invalid.\n",
+                      relative_instance_name, src_dir, 0);
+            return return_value;
+        }
     }
 
-    if (is_fullpath(src_dir))
-    {
+    if (src_is_fullpath) {
         new_src_dir = src_dir;
-    }
-    else
-    {
+    } else {
         int len;
 
         inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
@@ -5610,7 +5616,6 @@ dblayer_copy_directory(struct ldbminfo *li,
         return return_value;
     }
 
-    suffix_len = sizeof(LDBM_SUFFIX) - 1;
     while (NULL != (direntry =
                     PR_ReadDir(dirhandle, PR_SKIP_DOT | PR_SKIP_DOT_DOT)))
     {
@@ -5624,15 +5629,10 @@ dblayer_copy_directory(struct ldbminfo *li,
             continue;
         }
 
-        /* Look at the last three characters in the filename */
-        filename_length = strlen(direntry->name);
-        if (filename_length > suffix_len) {
-            offset = filename_length - suffix_len;
-        } else {
-            offset = 0;
+        compare_piece = PL_strrchr((char *)direntry->name, '.');
+        if (NULL == compare_piece) {
+            compare_piece = (char *)direntry->name;
         }
-        compare_piece = (char *)direntry->name + offset;
-
         /* rename .db3 -> .db4 or .db4 -> .db */
         if (0 == strcmp(compare_piece, LDBM_FILENAME_SUFFIX) ||
             0 == strcmp(compare_piece, LDBM_SUFFIX_OLD) ||
@@ -5732,6 +5732,7 @@ out:
 /*
  * Get changelogdir from cn=changelog5,cn=config
  * The value does not have trailing spaces nor slashes.
+ * The changelogdir value must be a fullpath.
  */
 static int
 _dblayer_get_changelogdir(struct ldbminfo *li, char **changelogdir)
@@ -5947,7 +5948,7 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             return_value = dblayer_copy_directory(li, task, changelogdir,
                                                   changelog_destdir,
                                                   0 /* backup */,
-                                                  &cnt, 0, 0, 0);
+                                                  &cnt, 0, 0, 1);
             if (return_value) {
                 LDAPDebug(LDAP_DEBUG_ANY,
                           "Backup: error in copying directory "
@@ -6619,7 +6620,8 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
                     /* Get the parent dir of changelogdir */
                     *cldirname = '\0';
                     return_value = dblayer_copy_directory(li, task, filename1,
-                                  changelogdir, 1 /* restore */, &cnt, 0, 0, 0);
+                                                          changelogdir, 1 /* restore */,
+                                                          &cnt, 0, 0, 1);
                     *cldirname = '/';
                     if (return_value) {
                         LDAPDebug1Arg(LDAP_DEBUG_ANY,
@@ -6651,7 +6653,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
             restore_dir = inst->inst_parent_dir_name;
             /* If we're doing a partial restore, we need to reset the LSNs on the data files */
             if (dblayer_copy_directory(li, task, filename1,
-                restore_dir, 1 /* restore */, &cnt, 0, 0, (bename) ? 1 : 0) == 0)
+                restore_dir, 1 /* restore */, &cnt, 0, (bename) ? 1 : 0, 0) == 0)
                 continue;
             else
             {

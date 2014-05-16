@@ -139,6 +139,12 @@ dblayer_copy_file_keybykey(DB_ENV *env,
                 (*(p + sizeof(LDBM_ENTRYRDN_STR) - 1) == '.')) {
                 /* entryrdn.db */
                 struct attrinfo *ai = NULL;
+                if (NULL == inst) {
+                    LDAPDebug0Args(LDAP_DEBUG_ANY,
+                                   "dblayer_copy_file_keybykey(entryrdn), "
+                                   "dup_cmp_fn cannot be retrieved since inst is NULL.\n");
+                    goto error;
+                }
                 ainfo_get(inst->inst_be, LDBM_ENTRYRDN_STR, &ai);
                 if (ai->ai_dup_cmp_fn) {
                         /* If set, use the special dup compare callback */
