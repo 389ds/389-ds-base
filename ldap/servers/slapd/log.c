@@ -2031,7 +2031,6 @@ slapi_log_error_ext(int severity, char *subsystem, char *fmt, va_list varg1, va_
 int
 slapi_is_loglevel_set ( const int loglevel )
 {
-
     return ( 
 #ifdef _WIN32
     *module_ldap_debug

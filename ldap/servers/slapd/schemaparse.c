@@ -51,14 +51,10 @@
 /* global_oc and global_schema_csn are both protected by oc locks */
 struct objclass		*global_oc;
 CSN *global_schema_csn = NULL; /* Timestamp for last update CSN. NULL = epoch */
+static Slapi_RWLock	*oc_lock = NULL;
 
 static int      is_duplicate( char *target, char **list, int list_max );
 static void     normalize_list( char **list );
-
-
-
-/* R/W lock used to protect the global objclass linked list. */
-static Slapi_RWLock	*oc_lock = NULL;
 
 /*
  * The oc_init_lock_callonce structure is used by NSPR to ensure

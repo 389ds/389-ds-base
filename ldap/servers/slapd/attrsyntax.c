@@ -58,6 +58,9 @@ static PLHashTable *oid2asi = NULL;
 static Slapi_RWLock *oid2asi_lock = NULL;
 static PLHashTable *internalasi = NULL;
 
+/* global attribute linked list */
+static asyntaxinfo *global_at = NULL;
+
 /*
  * This hashtable maps the name or alias of the attribute to the
  * syntax info structure for that attribute.  An attribute type has as
@@ -82,11 +85,19 @@ static void attr_syntax_delete_no_lock( struct asyntaxinfo *asip,
 		PRBool remove_from_oid_table );
 static struct asyntaxinfo *attr_syntax_get_by_oid_locking_optional( const
 		char *oid, PRBool use_lock);
+static void attr_syntax_insert( struct asyntaxinfo *asip );
+static void attr_syntax_remove( struct asyntaxinfo *asip );
 
 #ifdef ATTR_LDAP_DEBUG
 static void attr_syntax_print();
 #endif
 static int attr_syntax_init(void);
+
+struct asyntaxinfo *
+attr_syntax_get_global_at()
+{
+	return global_at;
+}
 
 void
 attr_syntax_read_lock(void)
@@ -202,13 +213,14 @@ attr_syntax_free( struct asyntaxinfo *a )
 	PR_ASSERT( a->asi_refcnt == 0 );
 
 	cool_charray_free( a->asi_aliases );
-	slapi_ch_free( (void**)&a->asi_name );
-	slapi_ch_free( (void **)&a->asi_desc );
-	slapi_ch_free( (void **)&a->asi_oid );
-	slapi_ch_free( (void **)&a->asi_superior );
-	slapi_ch_free( (void **)&a->asi_mr_equality );
-	slapi_ch_free( (void **)&a->asi_mr_ordering );
-	slapi_ch_free( (void **)&a->asi_mr_substring );
+	slapi_ch_free_string(&a->asi_name );
+	slapi_ch_free_string(&a->asi_desc );
+	slapi_ch_free_string(&a->asi_oid );
+	slapi_ch_free_string(&a->asi_superior );
+	slapi_ch_free_string(&a->asi_mr_equality );
+	slapi_ch_free_string(&a->asi_mr_ordering );
+	slapi_ch_free_string(&a->asi_mr_substring );
+	slapi_ch_free_string(&a->asi_syntax_oid);
 	schema_free_extensions(a->asi_extensions);
 	slapi_ch_free( (void **) &a );
 }
@@ -380,6 +392,7 @@ attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
 				}
 				/* ref count is 0 and it's flagged for
 				 * deletion, so it's safe to free now */
+				attr_syntax_remove(asi);
 				attr_syntax_free(asi);
 				if(use_lock) {
 					AS_UNLOCK_WRITE(name2asi_lock);
@@ -410,6 +423,9 @@ attr_syntax_add_by_name(struct asyntaxinfo *a, int lock)
 	if (lock) {
 		AS_LOCK_WRITE(name2asi_lock);
 	}
+
+	/* insert the attr into the global linked list */
+	attr_syntax_insert(a);
 
 	PL_HashTableAdd(name2asi, a->asi_name, a);
 	if ( a->asi_aliases != NULL ) {
@@ -475,6 +491,7 @@ attr_syntax_delete_no_lock( struct asyntaxinfo *asi,
 			 * then to call return.  The last return will then take care of
 			 * the free.  The only way this free would happen here is if
 			 * you return the syntax before calling delete. */
+			attr_syntax_remove(asi);
 			attr_syntax_free(asi);
 		}
 	}
@@ -764,10 +781,46 @@ attr_syntax_dup( struct asyntaxinfo *a )
 	newas->asi_mr_eq_plugin = a->asi_mr_eq_plugin;
 	newas->asi_mr_ord_plugin = a->asi_mr_ord_plugin;
 	newas->asi_mr_sub_plugin = a->asi_mr_sub_plugin;
+	newas->asi_syntax_oid = slapi_ch_strdup(a->asi_syntax_oid);
+	newas->asi_next = NULL;
+	newas->asi_prev = NULL;
 
 	return( newas );
 }
 
+static void
+attr_syntax_insert(struct asyntaxinfo *asip )
+{
+    /* Insert at top of list */
+    asip->asi_prev = NULL;
+    asip->asi_next = global_at;
+    if(global_at){
+        global_at->asi_prev = asip;
+        global_at = asip;
+    } else {
+        global_at = asip;
+    }
+}
+
+static void
+attr_syntax_remove(struct asyntaxinfo *asip )
+{
+    struct asyntaxinfo *prev, *next;
+
+    prev = asip->asi_prev;
+    next = asip->asi_next;
+    if(prev){
+        prev->asi_next = next;
+        if(next){
+            next->asi_prev = prev;
+        }
+    } else {
+        if(next){
+            next->asi_prev = NULL;
+        }
+        global_at = next;
+    }
+}
 
 /*
  * Add a new attribute type to the schema.
@@ -918,6 +971,7 @@ attr_syntax_create(
 	a.asi_mr_substring = (char*)mr_substring;
 	a.asi_extensions = extensions;
 	a.asi_plugin = plugin_syntax_find( attr_syntax );
+	a.asi_syntax_oid = (char *)attr_syntax ;
 	a.asi_syntaxlength = syntaxlength;
 	/* ideally, we would report an error and fail to start if there was some problem
 	   with the matching rule - but since this functionality is new, and we might
@@ -1502,4 +1556,22 @@ slapi_reload_internal_attr_syntax()
 	}
 	attr_syntax_enumerate_attrs_ext(internalasi, attr_syntax_internal_asi_add, NULL);
 	return rc;
+}
+
+/*
+ * See if the attribute at1 is in the list of at2.  Change by name, and oid(if necessary).
+ */
+struct asyntaxinfo *
+attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2)
+{
+	struct asyntaxinfo *asi;
+
+	for(asi = at2; asi != NULL; asi = asi->asi_next){
+		if(strcasecmp(at1->asi_name, asi->asi_name) == 0 || strcmp(at1->asi_oid, asi->asi_oid) == 0){
+			/* found it */
+			return asi;
+		}
+	}
+
+	return NULL;
 }
