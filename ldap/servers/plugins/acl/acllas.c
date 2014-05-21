@@ -3653,7 +3653,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	/* Check the scope */
 	if ( ludp->lud_scope == LDAP_SCOPE_SUBTREE ) {
 		if (!slapi_dn_issuffix(n_clientdn, ludp->lud_dn)) {
-			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 							 "acllas__client_match_URL: url [%s] scope is subtree but dn [%s] "
 							 "is not a suffix of [%s]\n",
 							 normed, ludp->lud_dn, n_clientdn );
@@ -3663,7 +3663,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		char    *parent = slapi_dn_parent (n_clientdn);
 
 		if (slapi_utf8casecmp ((ACLUCHP)parent, (ACLUCHP)ludp->lud_dn) != 0 ) {
-			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 							 "acllas__client_match_URL: url [%s] scope is onelevel but dn [%s] "
 							 "is not a direct child of [%s]\n",
 							 normed, ludp->lud_dn, parent );
@@ -3673,7 +3673,7 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		slapi_ch_free_string(&parent);
 	} else  { /* default */
 		if (slapi_utf8casecmp ( (ACLUCHP)n_clientdn, (ACLUCHP)ludp->lud_dn) != 0 ) {
-			slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 							 "acllas__client_match_URL: url [%s] scope is base but dn [%s] "
 							 "does not match [%s]\n",
 							 normed, ludp->lud_dn, n_clientdn );
