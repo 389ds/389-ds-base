@@ -139,11 +139,4 @@ int linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
                            Slapi_Entry *eAfter, int *returncode,
                            char *returntext, void *arg);
 
-/*
- * misc
- */
-int linked_attrs_is_started();
-void linked_attrs_op_started();
-void linked_attrs_op_finished();
-
 extern int plugin_is_betxn;

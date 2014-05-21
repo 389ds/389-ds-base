@@ -110,9 +110,6 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	}
 
 out:
-	if(rv != SLAPI_DSE_CALLBACK_OK){
-		linked_attrs_op_finished();
-	}
 
 	return rv;
 }
@@ -204,8 +201,6 @@ linked_attrs_fixup_task_thread(void *arg)
 	slapi_task_log_status(task, "Linked attributes fixup task complete.\n");
 	slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM, "Linked attributes fixup task complete.\n");
 	slapi_task_inc_progress(task);
-
-	linked_attrs_op_finished();
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
