@@ -582,6 +582,8 @@ int config_get_plugin_logging();
 int config_set_connection_nocanon(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_plugin_logging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_listen_backlog_size(void);
+int config_set_cn_uses_dn_syntax_in_dns(const char *attrname, char *value, char *errorbuf, int apply);
+int config_get_cn_uses_dn_syntax_in_dns();
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);

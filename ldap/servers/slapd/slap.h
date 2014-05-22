@@ -2140,6 +2140,8 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PLUGIN_LOGGING "nsslapd-plugin-logging"
 #define CONFIG_LISTEN_BACKLOG_SIZE	"nsslapd-listen-backlog-size"
 
+#define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
+
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
@@ -2401,6 +2403,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t connection_nocanon; /* if "on" sets LDAP_OPT_X_SASL_NOCANON */
   slapi_onoff_t plugin_logging; /* log all internal plugin operations */
   slapi_onoff_t ignore_time_skew;
+  slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
 #if defined(LINUX)
   int malloc_mxfast;            /* mallopt M_MXFAST */
   int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */
