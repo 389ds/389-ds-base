@@ -61,6 +61,7 @@ static void reset_rdn_avs( struct berval **rdn_avsp, int *rdn_av_countp );
 static void sort_rdn_avs( struct berval *avs, int count, int escape );
 static int rdn_av_cmp( struct berval *av1, struct berval *av2 );
 static void rdn_av_swap( struct berval *av1, struct berval *av2, int escape );
+static int does_cn_uses_dn_syntax_in_dns(char *type, char *dn);
 
 /* normalized dn cache related definitions*/
 struct
@@ -621,6 +622,10 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 /* Reset the character we modified. */
                 *d = savechar;
 
+                if (!is_dn_syntax) {
+                    is_dn_syntax = does_cn_uses_dn_syntax_in_dns(typestart, src);
+                }
+
                 state = B4VALUE;
                 *d++ = *s++;
             } else if (ISCLOSEBRACKET(*s)) { /* special care for ACL macro */
@@ -639,6 +644,10 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                 /* Reset the character we modified. */
                 *d = savechar;
 
+                if (!is_dn_syntax) {
+                    is_dn_syntax = does_cn_uses_dn_syntax_in_dns(typestart, src);
+                }
+
                 state = INVALUE; /* skip a trailing space */
                 *d++ = *s++;
             } else if (ISSPACE(*s)) {
@@ -656,6 +665,10 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
 
                 /* Reset the character we modified. */
                 *d = savechar;
+
+                if (!is_dn_syntax) {
+                    is_dn_syntax = does_cn_uses_dn_syntax_in_dns(typestart, src);
+                }
 
                 state = B4EQUAL; /* skip a trailing space */
             } else if (ISQUOTE(*s) || SEPARATOR(*s)) {
@@ -1029,6 +1042,18 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                         while (ISSPACE(*s)) /* remove leading spaces */
                             s++;
                     }
+                }
+            } else if (ISSPACE(*s)) {
+                while (ISSPACE(*s)) {
+                    s++;
+                }
+                /* 
+                 * dn_syntax_attr=ABC,   XYZ --> dn_syntax_attr=ABC,XYZ
+                 * non_dn_syntax_attr=ABC,   XYZ --> dn_syntax_attr=ABC, XYZ
+                 */
+                if (!is_dn_syntax) {
+                    --s;
+                    *d++ = *s++;
                 }
             } else {
                 *d++ = *s++;
@@ -3172,3 +3197,23 @@ slapi_sdn_common_ancestor(Slapi_DN *dn1, Slapi_DN *dn2)
     charray_free(dns2);
     return slapi_sdn_new_ndn_passin(common);
 }
+
+/*
+ * Return 1 - if nsslapd-cn-uses-dn-syntax-in-dns is true &&
+ *            the type is "cn" && dn is under "cn=config"
+ * Return 0 - otherwise
+ */
+static int
+does_cn_uses_dn_syntax_in_dns(char *type, char *dn)
+{
+    int rc = 0;  /* by default off */
+    char *ptr = NULL;
+    if (type && dn && config_get_cn_uses_dn_syntax_in_dns() &&
+        (PL_strcasecmp(type, "cn") == 0) && (ptr = PL_strrchr(dn, ','))) {
+        if (PL_strcasecmp(++ptr, "cn=config") == 0) {
+            rc = 1;
+        }
+    }
+    return rc;
+}
+
