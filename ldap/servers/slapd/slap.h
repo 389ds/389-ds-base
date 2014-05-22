@@ -272,6 +272,7 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_DIR_MODE				S_IRWXU
 #endif
 
+#define SLAPD_DEFAULT_ERRORLOG_LEVEL			16384
 #define SLAPD_DEFAULT_IDLE_TIMEOUT			0		/* seconds - 0 == never */
 #define SLAPD_DEFAULT_SIZELIMIT				2000	/* use -1 for no limit */
 #define SLAPD_DEFAULT_TIMELIMIT				3600	/* use -1 for no limit */

@@ -118,7 +118,6 @@ typedef enum {
 	CONFIG_CONSTANT_STRING, /* for #define values, e.g. */
 	CONFIG_SPECIAL_REFERRALLIST, /* this is a berval list */
 	CONFIG_SPECIAL_SSLCLIENTAUTH, /* maps strings to an enumeration */
-	CONFIG_SPECIAL_ERRORLOGLEVEL, /* requires & with LDAP_DEBUG_ANY */
 	CONFIG_STRING_OR_EMPTY, /* use an empty string */
 	CONFIG_SPECIAL_ANON_ACCESS_SWITCH, /* maps strings to an enumeration */
 	CONFIG_SPECIAL_VALIDATE_CERT_SWITCH, /* maps strings to an enumeration */
@@ -289,7 +288,7 @@ slapi_onoff_t init_mempool_switch;
 static int
 isInt(ConfigVarType type)
 {
-    return type == CONFIG_INT || type == CONFIG_ON_OFF || type == CONFIG_SPECIAL_SSLCLIENTAUTH || type == CONFIG_SPECIAL_ERRORLOGLEVEL;
+    return type == CONFIG_INT || type == CONFIG_ON_OFF || type == CONFIG_SPECIAL_SSLCLIENTAUTH;
 }
 
 /* the caller will typically have to cast the result based on the ConfigVarType */
@@ -339,7 +338,7 @@ static struct config_get_and_set {
 	{CONFIG_LOGLEVEL_ATTRIBUTE, config_set_errorlog_level,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.errorloglevel,
-		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL, NULL},
+		CONFIG_INT, NULL, STRINGIFYDEFINE(SLAPD_DEFAULT_ERRORLOG_LEVEL)},
 	{CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_logging_enabled,
@@ -1520,7 +1519,7 @@ FrontendConfig_init () {
   cfg->errorlog_minfreespace = 5;
   cfg->errorlog_exptime = 1;
   cfg->errorlog_exptimeunit = slapi_ch_strdup(INIT_ERRORLOG_EXPTIMEUNIT);
-  cfg->errorloglevel = 0;
+  cfg->errorloglevel = SLAPD_DEFAULT_ERRORLOG_LEVEL;
 
   init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
   cfg->auditlog_mode = slapi_ch_strdup(INIT_AUDITLOG_MODE);
@@ -7473,16 +7472,6 @@ config_set_value(
         slapi_entry_attr_set_charptr(e, cgas->attr_name,
                                      (value && *((char **)value)) ?
                                      *((char **)value) : "unknown");
-        break;
-
-    case CONFIG_SPECIAL_ERRORLOGLEVEL:
-        if (value) {
-            int ival = *(int *)value;
-            ival &= ~LDAP_DEBUG_ANY;
-            slapi_entry_attr_set_int(e, cgas->attr_name, ival);
-        }
-        else
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "");
         break;
 
     case CONFIG_SPECIAL_ANON_ACCESS_SWITCH:

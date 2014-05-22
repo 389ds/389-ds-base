@@ -798,10 +798,12 @@ disk_monitoring_thread(void *nothing)
          */
         if(verbose_logging != 0 && verbose_logging != LDAP_DEBUG_ANY){
             LDAPDebug(LDAP_DEBUG_ANY, "Disk space is low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
-                "temporarily setting error loglevel to zero.\n", dirstr,
-                (disk_space / 1024), 0);
+                "temporarily setting error loglevel to the default level(%d).\n", dirstr,
+                (disk_space / 1024), SLAPD_DEFAULT_ERRORLOG_LEVEL);
             /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
-            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE, "0", errorbuf, CONFIG_APPLY);
+            config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
+                                      STRINGIFYDEFINE(SLAPD_DEFAULT_ERRORLOG_LEVEL),
+                                      errorbuf, CONFIG_APPLY);
             continue;
         }
         /*
