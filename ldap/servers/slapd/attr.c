@@ -840,7 +840,7 @@ attr_value_find_wsi(Slapi_Attr *a, const struct berval *bval, Slapi_Value **valu
 int
 slapi_attr_add_value(Slapi_Attr *a, const Slapi_Value *v)
 {
-	slapi_valueset_add_value( &a->a_present_values, v);
+	slapi_valueset_add_attr_value_ext( a, &a->a_present_values, (Slapi_Value *)v, 0);
 	return 0;
 }
 
@@ -869,7 +869,7 @@ slapi_attr_set_valueset(Slapi_Attr *a, const Slapi_ValueSet *vs)
 int 
 attr_add_deleted_value(Slapi_Attr *a, const Slapi_Value *v)
 {
-    slapi_valueset_add_value( &a->a_deleted_values, v);
+    slapi_valueset_add_attr_value_ext( a, &a->a_deleted_values, (Slapi_Value *)v, 0);
 	return 0;
 }
 

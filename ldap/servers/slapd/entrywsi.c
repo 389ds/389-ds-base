@@ -52,7 +52,7 @@ entry_present_value_to_deleted_value(Slapi_Attr *a, Slapi_Value *v)
 	Slapi_Value *r= valueset_remove_value(a, &a->a_present_values, v);
 	if(r!=NULL)
 	{
-		slapi_valueset_add_value_ext(&a->a_deleted_values, r, SLAPI_VALUE_FLAG_PASSIN);
+		slapi_valueset_add_attr_value_ext(a, &a->a_deleted_values, r, SLAPI_VALUE_FLAG_PASSIN);
 	}
 	return LDAP_SUCCESS;
 }
@@ -77,7 +77,7 @@ entry_deleted_value_to_present_value(Slapi_Attr *a, Slapi_Value *v)
 	Slapi_Value *r= valueset_remove_value(a, &a->a_deleted_values, v);
 	if(r!=NULL)
 	{
-		slapi_valueset_add_value_ext(&a->a_present_values, r, SLAPI_VALUE_FLAG_PASSIN);
+		slapi_valueset_add_attr_value_ext(a, &a->a_present_values, r, SLAPI_VALUE_FLAG_PASSIN);
 	}
 	return LDAP_SUCCESS;
 }
@@ -1273,9 +1273,9 @@ resolve_attribute_state_to_present_or_deleted(Slapi_Entry *e, Slapi_Attr *a, Sla
 			if((csn_compare(vucsn,deletedcsn)>=0) ||
 	        		value_distinguished_at_csn(e, a, valuestoupdate[i], deletedcsn))
 			{
-				slapi_valueset_add_value_ext(&a->a_present_values, valuestoupdate[i], SLAPI_VALUE_FLAG_PASSIN);
+				slapi_valueset_add_attr_value_ext(a, &a->a_present_values, valuestoupdate[i], SLAPI_VALUE_FLAG_PASSIN);
 			} else {
-				slapi_valueset_add_value_ext(&a->a_deleted_values, valuestoupdate[i], SLAPI_VALUE_FLAG_PASSIN);
+				slapi_valueset_add_attr_value_ext(a, &a->a_deleted_values, valuestoupdate[i], SLAPI_VALUE_FLAG_PASSIN);
 			}
 		}
 	}
