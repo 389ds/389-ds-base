@@ -196,8 +196,8 @@ if ($sizeCount eq "all"){$sizeCount = "100000";}
 #                                     #
 #######################################
 
-print "\nAccess Log Analyzer $logversion\n";
-print "\nCommand: logconv.pl @ARGV\n\n";
+print "Access Log Analyzer $logversion\n";
+print "Command: logconv.pl @ARGV\n";
 
 my $rootDNBindCount = 0;
 my $anonymousBindCount = 0;
@@ -414,19 +414,27 @@ for (my $count=0; $count < $file_count; $count++){
         if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
                 next;
         }
-        $linesProcessed = 0; $lineBlockCount = 0;
+	if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
+		next;
+	}
+	if (-z $files[$count]){
+		# access log is empty
+		print "Skipping empty access log ($files[$count])...\n";
+		next;
+	}
+	$linesProcessed = 0; $lineBlockCount = 0;
+	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$atime,$mtime,$ctime,$blksize,$blocks);
+	($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$cursize,
+	 $atime,$mtime,$ctime,$blksize,$blocks) = stat($files[$count]);
+	print sprintf "[%03d] %-30s\tsize (bytes): %12s\n",$logCount, $files[$count], $cursize;
 	$logCount--;
-		my $logCountStr;
+	my $logCountStr;
 	if($logCount < 10 ){ 
 		# add a zero for formatting purposes
 		$logCountStr = "0" . $logCount;
 	} else {
 		$logCountStr = $logCount;
 	}
-		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$atime,$mtime,$ctime,$blksize,$blocks);
-		($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$cursize,
-		 $atime,$mtime,$ctime,$blksize,$blocks) = stat($files[$count]);
-		print sprintf "[%s] %-30s\tsize (bytes): %12s\n",$logCountStr, $files[$count], $cursize;
 	
 	open(LOG,"$files[$count]") or do { openFailed($!, $files[$count]) };
 	my $firstline = "yes";
@@ -452,7 +460,12 @@ for (my $count=0; $count < $file_count; $count++){
 	print_stats_block( $s_stats );
 	print_stats_block( $m_stats );
 	$totalLineCount = $totalLineCount + $linesProcessed;
-		statusreport();
+	statusreport();
+}
+
+if ($totalLineCount eq "0"){
+	print "There was no logging to process, exiting...\n";
+	exit 1;
 }
 
 print "\n\nTotal Log Lines Analysed:  " . ($totalLineCount - 1) . "\n";
@@ -1366,7 +1379,7 @@ sub displayUsage {
 
 	print "Usage:\n\n";
 
-	print " ./logconv.pl [-h] [-d|--rootdn <rootDN>] [-s|--sizeLimit <size limit>] [-v|verison] [-Vi|verbose]\n";
+	print " ./logconv.pl [-h] [-d|--rootdn <rootDN>] [-s|--sizeLimit <size limit>] [-v|verison] [-V|verbose]\n";
 	print " [-S|--startTime <start time>] [-E|--endTime <end time>] \n";
 	print " [-efcibaltnxrgjuyp] [ access log ... ... ]\n\n";
 
@@ -2440,7 +2453,7 @@ removeDataFiles
 	$needCleanup = 0;
 }
 
-END { print "Cleaning up temp files . . .\n"; removeDataFiles(); print "Done\n"; }
+END { print "Cleaning up temp files...\n"; removeDataFiles(); print "Done.\n"; }
 
 sub
 getIPfromConn
