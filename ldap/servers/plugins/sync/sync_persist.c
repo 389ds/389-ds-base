@@ -97,14 +97,15 @@ int sync_del_persist_post_op(Slapi_PBlock *pb)
 
 int sync_mod_persist_post_op(Slapi_PBlock *pb)
 {
-	Slapi_Entry *e;
+	Slapi_Entry *e, *e_prev;
 
 	if ( !SYNC_IS_INITIALIZED()) {
 		return(0);
 	}
 
 	slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
-	sync_queue_change(e, NULL, LDAP_REQ_MODIFY);
+	slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e_prev);
+	sync_queue_change(e, e_prev, LDAP_REQ_MODIFY);
 
 	return( 0 );
 }
@@ -180,7 +181,7 @@ sync_queue_change( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype )
 		/* if the change is a modrdn then we need to check if the entry was 
 		 * moved into scope, out of scope, or stays in scope
 		 */
-		if (chgtype == LDAP_REQ_MODRDN)
+		if (chgtype == LDAP_REQ_MODRDN || chgtype == LDAP_REQ_MODIFY)
 			prev_match = slapi_sdn_scope_test( slapi_entry_get_sdn_const(eprev), base, scope ) &&
 				( 0 == slapi_vattr_filter_test( req->req_pblock, eprev, req->req_filter, 0 /* verify_access */ ));
 
@@ -194,9 +195,8 @@ sync_queue_change( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype )
 
 			matched++;
 			node = (SyncQueueNode *)slapi_ch_calloc( 1, sizeof( SyncQueueNode ));
-			node->sync_entry = slapi_entry_dup( e );
 			
-			if ( chgtype == LDAP_REQ_MODRDN) {
+			if ( chgtype == LDAP_REQ_MODRDN || chgtype == LDAP_REQ_MODIFY) {
 				if (prev_match && cur_match)
 					node->sync_chgtype = LDAP_REQ_MODIFY;
 				else if (prev_match)
@@ -205,6 +205,12 @@ sync_queue_change( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype )
 					node->sync_chgtype = LDAP_REQ_ADD;
 			} else {
 				node->sync_chgtype = chgtype;
+			}
+			if (node->sync_chgtype == LDAP_REQ_DELETE && chgtype == LDAP_REQ_MODIFY ) {
+				/* use previous entry to pass the filter test in sync_send_results */
+				node->sync_entry = slapi_entry_dup( eprev );
+			} else {
+				node->sync_entry = slapi_entry_dup( e );
 			}
 			/* Put it on the end of the list for this sync search */
 			PR_Lock( req->req_lock );
