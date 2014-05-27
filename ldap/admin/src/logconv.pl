@@ -200,8 +200,8 @@ if ($sizeCount eq "all"){$sizeCount = "100000";}
 #                                     #
 #######################################
 
-print "\nAccess Log Analyzer $logversion\n";
-print "\nCommand: logconv.pl @ARGV\n\n";
+print "Access Log Analyzer $logversion\n";
+print "Command: logconv.pl @ARGV\n";
 
 my $rootDNBindCount = 0;
 my $anonymousBindCount = 0;
@@ -415,12 +415,12 @@ my $logline;
 my $totalLineCount = 0;
 
 sub isTarArchive {
-	my $_ = shift;
+	local $_ = shift;
 	return /\.tar$/ || /\.tar\.bz2$/ || /\.tar.gz$/ || /\.tar.xz$/ || /\.tgz$/ || /\.tbz$/ || /\.txz$/;
 }
 
 sub isCompressed {
-	my $_ = shift;
+	local $_ = shift;
 	return /\.gz$/ || /\.bz2$/ || /\.xz$/;
 }
 
@@ -429,6 +429,11 @@ for (my $count=0; $count < $file_count; $count++){
 	my $logname = $files[$count];
 	# we moved access to the end of the list, so if its the first file skip it
 	if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
+		next;
+	}
+	if (-z $logname){
+		# access log is empty
+		print "Skipping empty access log ($logname)...\n";
 		next;
 	}
 	$linesProcessed = 0; $lineBlockCount = 0;
@@ -508,6 +513,11 @@ for (my $count=0; $count < $file_count; $count++){
 		statusreport();
 		last if (!$tariter);
 	}
+}
+
+if ($totalLineCount eq "0"){
+	print "There was no logging to process, exiting...\n";
+	exit 1;
 }
 
 print "\n\nTotal Log Lines Analysed:  " . ($totalLineCount - 1) . "\n";
@@ -2582,7 +2592,7 @@ removeDataFiles
 	$needCleanup = 0;
 }
 
-END { print "Cleaning up temp files . . .\n"; removeDataFiles(); print "Done\n"; }
+END { print "Cleaning up temp files...\n"; removeDataFiles(); print "Done.\n"; }
 
 sub
 getIPfromConn
