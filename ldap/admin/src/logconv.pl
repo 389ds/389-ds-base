@@ -56,7 +56,7 @@ Getopt::Long::Configure ("bundling");
 Getopt::Long::Configure ("permute");
 
 if ($#ARGV < 0){;
-&displayUsage;
+	&displayUsage;
 }
 
 #######################################
@@ -78,8 +78,8 @@ my $dataLocation = "/tmp";
 my $startTLSoid = "1.3.6.1.4.1.1466.20037";
 my @statnames=qw(last last_str results srch add mod modrdn moddn cmp del abandon
                  conns sslconns bind anonbind unbind notesA notesU etime);
-my $s_stats = new_stats_block( );
-my $m_stats = new_stats_block( );
+my $s_stats;
+my $m_stats;
 my $verb = "no";
 my @excludeIP;
 my $xi = 0;
@@ -99,7 +99,6 @@ my %bindReport;
 my @vlvconn;
 my @vlvop;
 my @fds;
-my $fdds = 0;
 my $reportBinds = "no";
 my $rootDN = "";
 my $needCleanup = 0;
@@ -392,34 +391,28 @@ sub statusreport {
 ##########################################
 
 if ($files[$#files] =~ m/access.rotationinfo/) {  $file_count--; }
+$logCount = $file_count;
 
-print "Processing $file_count Access Log(s)...\n\n";
+print "Processing $logCount Access Log(s)...\n";
+
 
 #print "Filename\t\t\t   Total Lines\n";
 #print "--------------------------------------------------\n";
 
 my $skipFirstFile = 0;
-if ($file_count > 1 && $files[0] =~ /\/access$/){
-        $files[$file_count] = $files[0];
-        $file_count++;
-        $skipFirstFile = 1;
+if ($logCount > 1 && $files[0] =~ /\/access$/){
+	$files[$logCount] = $files[0];
+	$skipFirstFile = 1;
+	$file_count++;
 }
-$logCount = $file_count;
+
 
 my $logline;
 my $totalLineCount = 0;
 
 for (my $count=0; $count < $file_count; $count++){
 	# we moved access to the end of the list, so if its the first file skip it
-        if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
-                next;
-        }
-	if($file_count > 1 && $count == 0 && $skipFirstFile == 1){
-		next;
-	}
-	if (-z $files[$count]){
-		# access log is empty
-		print "Skipping empty access log ($files[$count])...\n";
+	if($logCount > 1 && $count == 0 && $skipFirstFile == 1){
 		next;
 	}
 	$linesProcessed = 0; $lineBlockCount = 0;
@@ -428,6 +421,12 @@ for (my $count=0; $count < $file_count; $count++){
 	 $atime,$mtime,$ctime,$blksize,$blocks) = stat($files[$count]);
 	print sprintf "[%03d] %-30s\tsize (bytes): %12s\n",$logCount, $files[$count], $cursize;
 	$logCount--;
+	if ($cursize == 0){
+		# access log is empty
+		print "Skipping empty access log ($files[$count])...\n";
+		next;
+	}
+
 	my $logCountStr;
 	if($logCount < 10 ){ 
 		# add a zero for formatting purposes
@@ -610,6 +609,12 @@ if($elapsedDays eq "0"){
 
 if($reportBinds eq "yes"){
 	&displayBindReport();
+}
+
+if($reportStats ne ""){
+	# No need to print the general report, so exit here
+	removeDataFiles();
+	exit (0);
 }
 
 #
@@ -1366,8 +1371,8 @@ if ($usage =~ /j/i || $verb eq "yes"){
 # We're done, clean up the data files
 #
 removeDataFiles();
-
 exit (0);
+
 
 #######################
 #                     #
@@ -1524,7 +1529,11 @@ parseLineBind {
 			$bindReport{$dn}{"failedBind"} = 0;
 		}
 		if ($_ =~ /conn= *([0-9A-Z]+)/i) {
-			$bindReport{$dn}{"conn"} = $bindReport{$dn}{"conn"} . " $1 ";
+			if($bindReport{$dn}{"conn"}){
+				$bindReport{$dn}{"conn"} = $bindReport{$dn}{"conn"} . " $1 ";
+			} else {
+				$bindReport{$dn}{"conn"} = $1;
+			}
 		}
 		return;
 	}
@@ -1645,7 +1654,7 @@ sub parseLineNormal
 
 	# Additional performance stats
 	my ($time, $tzone) = split (' ', $_);
-	if (($reportStats or ($verb eq "yes") || ($usage =~ /y/)) && (!defined($last_tm) or ($time ne $last_tm)))
+	if (($reportStats || ($verb eq "yes") || ($usage =~ /y/)) && (!defined($last_tm) or ($time ne $last_tm)))
 	{
 		$last_tm = $time;
 		$time =~ s/\[//;
@@ -1685,12 +1694,16 @@ sub parseLineNormal
 		if($reportStats){ inc_stats('srch',$s_stats,$m_stats); }
 		if ($_ =~ / attrs=\"(.*)\"/i){
 			$anyAttrs++;
-			my $attr = $hashes->{attr};
-			map { $attr->{$_}++ } split /\s/, $1;
+			if ($usage =~ /r/i || $verb eq "yes"){
+				my $attr = $hashes->{attr};
+				map { $attr->{$_}++ } split /\s/, $1;
+			}
 		}
 		if (/ attrs=ALL/){
-			my $attr = $hashes->{attr};
-			$attr->{"All Attributes"}++;
+			if ($usage =~ /r/i || $verb eq "yes"){
+				my $attr = $hashes->{attr};
+				$attr->{"All Attributes"}++;
+			}
 			$anyAttrs++;
 		}
 		if ($verb eq "yes"){
@@ -1768,16 +1781,20 @@ sub parseLineNormal
 		$bindCount++;
 		if($reportStats){ inc_stats('bind',$s_stats,$m_stats); }
 		if ($1 ne ""){
-			$tmpp = $1;
-			$tmpp =~ tr/A-Z/a-z/;
-			$hashes->{bindlist}->{$tmpp}++;
 			if($1 eq $rootDN){
 				$rootDNBindCount++;
 			}
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
+				$tmpp = $1;
+				$tmpp =~ tr/A-Z/a-z/;
+				$hashes->{bindlist}->{$tmpp}++;
+			}
 		} else {
 			$anonymousBindCount++;
-			$hashes->{bindlist}->{"Anonymous Binds"}++;
-			inc_stats('anonbind',$s_stats,$m_stats);
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
+				$hashes->{bindlist}->{"Anonymous Binds"}++;
+				if($reportStats){ inc_stats('anonbind',$s_stats,$m_stats); }
+			}
 		}
 	}
 	if (m/ connection from/){
@@ -1796,15 +1813,20 @@ sub parseLineNormal
 		if ($simConnection > $maxsimConnection) {
 			$maxsimConnection = $simConnection;
 		}
-		($connID) = $_ =~ /conn=(\d*)\s/;
-		$openConnection{$connID} = $ip;
-		if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
-			$hashes->{start_time_of_connection}->{$connID} = $gmtime;
+		if ($verb eq "yes" || $usage =~ /p/ || $reportStats){
+			($connID) = $_ =~ /conn=(\d*)\s/;
+			$openConnection{$connID} = $ip;
+			if ($reportStats or ($verb eq "yes") || ($usage =~ /y/)) {
+				$hashes->{start_time_of_connection}->{$connID} = $gmtime;
+			}
 		}
 	}
 	if (m/ SSL client bound as /){$sslClientBindCount++;}
 	if (m/ SSL failed to map client certificate to LDAP DN/){$sslClientFailedCount++;}
-	if (m/ fd=/ && m/slot=/){$fdTaken++}
+	if (m/slot=/ && $_ =~ /fd= *([0-9]+)/i) {
+		$fdTaken++;
+		if ($1 > $highestFdTaken){ $highestFdTaken = $1; }
+	}
 	if (m/ fd=/ && m/closed/){
 		($connID) = $_ =~ /conn=(\d*)\s/;
 		handleConnClose($connID);
@@ -1819,20 +1841,20 @@ sub parseLineNormal
 			$op = $2;
 		}
 		if ($binddn ne ""){
-			if($binddn eq $rootDN){$rootDNBindCount++;}
-			$tmpp = $binddn;
-			$tmpp =~ tr/A-Z/a-z/;
-			$hashes->{bindlist}->{$tmpp}++;
-			if($usage =~ /f/ || $verb eq "yes"){
+			if($binddn eq $rootDN){ $rootDNBindCount++; }
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
+				$tmpp = $binddn;
+				$tmpp =~ tr/A-Z/a-z/;
+				$hashes->{bindlist}->{$tmpp}++;
 				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = $tmpp;
 			}
 		} else {
 			$anonymousBindCount++;
-			$hashes->{bindlist}->{"Anonymous Binds"}++;
-			if($usage =~ /f/ || $verb eq "yes"){
+			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
+				$hashes->{bindlist}->{"Anonymous Binds"}++;
 				$hashes->{bind_conn_op}->{"$serverRestartCount,$conn,$op"} = "";
 			}
-			inc_stats('anonbind',$s_stats,$m_stats);
+			if($reportStats){ inc_stats('anonbind',$s_stats,$m_stats); }
 		}
 	}
 	if (m/ UNBIND/){
@@ -2109,20 +2131,30 @@ sub parseLineNormal
 		}
 	}
 	if ($_ =~ /err= *([0-9]+)/i){
-		$errorCode[$1]++;
+		if ($usage =~ /e/i || $verb eq "yes"){ $errorCode[$1]++; }
 		if ($1 ne "0"){ $errorCount++;}
 		else { $successCount++;}
 	}
-	if ($_ =~ /etime= *([0-9.]+)/ ) { $hashes->{etime}->{$1}++; inc_stats_val('etime',$1,$s_stats,$m_stats); }
+	if ($_ =~ /etime= *([0-9.]+)/ ) { 
+		my $etime_val = $1;
+		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{etime}->{$etime_val}++; }
+		if ($reportStats){ inc_stats_val('etime',$etime_val,$s_stats,$m_stats); }
+	}
 	if ($_ =~ / tag=101 / || $_ =~ / tag=111 / || $_ =~ / tag=100 / || $_ =~ / tag=115 /){
-		if ($_ =~ / nentries= *([0-9]+)/i ){ $hashes->{nentries}->{$1}++; }
+		if ($_ =~ / nentries= *([0-9]+)/i ){ 
+			if ($usage =~ /n/i || $verb eq "yes"){ 
+				$hashes->{nentries}->{$1}++; 
+			}
+		}
 	}
 	if (m/objectclass=\*/i || m/objectclass=top/i ){
 		if (m/ scope=2 /){ $objectclassTopCount++;}
 	}
 	if (m/ EXT oid=/){
 		$extopCount++;
-		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ $hashes->{oid}->{$1}++; }
+		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ 
+			if ($usage =~ /x/i || $verb eq "yes"){$hashes->{oid}->{$1}++; }
+		}
 		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
 			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{ext_conn_op}->{"$serverRestartCount,$1,$2"}++;}
@@ -2181,11 +2213,6 @@ sub parseLineNormal
 			$baseCount++;
 			$scopeCount++;
 		}
-	}
-	if ($_ =~ /fd= *([0-9]+)/i ) {
-		$fds[$fdds] = $1;
-		if ($fds[$fdds] > $highestFdTaken) {$highestFdTaken = $fds[$fdds];}
-		$fdds++;
 	}
 	if ($usage =~ /f/ || $verb eq "yes"){
 		if (/ err=49 tag=/ && / dn=\"/){
