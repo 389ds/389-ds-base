@@ -388,7 +388,7 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 	} else {
 		priority = LOW_PRIORITY;
 	}
-	if(priority == 0 || priority > LOW_PRIORITY){
+	if(priority < 1 || priority > LOW_PRIORITY){
 		struct berval desc;
 		struct berval *newval[2] = {0, 0};
 
@@ -396,11 +396,12 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 		desc.bv_len = strlen(desc.bv_val);
 		newval[0] = &desc;
 		if (entry_replace_values(entry, "nsSaslMapPriority", newval) != 0){
-			LDAPDebug( LDAP_DEBUG_TRACE, "sasl_map_config_parse_entry: failed to reset priority to (%d)\n",
-					LOW_PRIORITY,0,0);
+			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_config_parse_entry: failed to reset entry "
+					"priority to (%d) - previous value (%s)\n", LOW_PRIORITY,  priority_str, 0);
 		} else {
-			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_config_parse_entry: resetting nsSaslMapPriority to lowest priority(%d)\n",
-					LOW_PRIORITY,0,0);
+			LDAPDebug( LDAP_DEBUG_ANY, "sasl_map_config_parse_entry: resetting invalid nsSaslMapPriority "
+					" value (%s) to the lowest priority (%d)\n",
+					priority_str, LOW_PRIORITY, 0);
 		}
 		priority = LOW_PRIORITY;
 	}
