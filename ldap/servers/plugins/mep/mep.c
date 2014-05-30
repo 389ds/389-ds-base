@@ -106,7 +106,7 @@ static int mep_oktodo(Slapi_PBlock *pb);
 static int mep_isrepl(Slapi_PBlock *pb);
 static Slapi_Entry *mep_create_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
-static void mep_add_managed_entry(struct configEntry *config,
+static int mep_add_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
 static void mep_rename_managed_entry(Slapi_Entry *origin,
     Slapi_DN *new_dn, Slapi_DN *old_dn);
@@ -1394,7 +1394,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
  * origin entry will also be modified to add a link to the
  * newly created managed entry.
  */
-static void
+static int
 mep_add_managed_entry(struct configEntry *config,
     Slapi_Entry *origin)
 {
@@ -1415,6 +1415,7 @@ mep_add_managed_entry(struct configEntry *config,
                     "mep_add_managed_entry: Unable to create a managed "
                     "entry from origin entry \"%s\" using config "
                     "\"%s\".\n", slapi_entry_get_dn(origin), slapi_sdn_get_dn(config->sdn));
+        return -1;
     } else {
         /* Copy the managed entry DN to use when
          * creating the pointer attribute. */
@@ -1435,6 +1436,7 @@ mep_add_managed_entry(struct configEntry *config,
                         "entry \"%s\" for origin entry \"%s\" (%s).\n",
                         managed_dn, slapi_entry_get_dn(origin),
                         ldap_err2string(result));
+            goto bail;
         } else {
             /* Add forward link to origin entry. */
             LDAPMod oc_mod;
@@ -1484,8 +1486,10 @@ mep_add_managed_entry(struct configEntry *config,
         }
     }
 
+bail:
     slapi_ch_free_string(&managed_dn);
     slapi_pblock_destroy(mod_pb);
+    return result;
 }
 
 /* mep_rename_managed_entry()
@@ -2418,6 +2422,7 @@ mep_add_post_op(Slapi_PBlock *pb)
     Slapi_Entry *e = NULL;
     Slapi_DN *sdn = NULL;
     struct configEntry *config = NULL;
+    int result = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_add_post_op\n");
@@ -2459,7 +2464,16 @@ mep_add_post_op(Slapi_PBlock *pb)
 
         mep_find_config(e, &config);
         if (config) {
-            mep_add_managed_entry(config, e);
+            if(mep_add_managed_entry(config, e)){
+                char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
+                int rc = LDAP_UNWILLING_TO_PERFORM;
+
+                PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Managed Entry Plugin rejected add operation (see errors log).\n");
+                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
+                slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+                result = SLAPI_PLUGIN_FAILURE;
+            }
         }
 
         mep_config_unlock();
@@ -2472,7 +2486,7 @@ mep_add_post_op(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_add_post_op\n");
 
-    return SLAPI_PLUGIN_SUCCESS;
+    return result;
 }
 
 static int
@@ -2548,6 +2562,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
     Slapi_Entry *post_e = NULL;
     char *managed_dn = NULL;
     struct configEntry *config = NULL;
+    int result = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_modrdn_post_op\n");
@@ -2681,6 +2696,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                 slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                         "mep_modrdn_post_op: Unable to create in-memory "
                         "managed entry from origin entry \"%s\".\n", new_dn);
+                result = SLAPI_PLUGIN_FAILURE;
                 goto bailmod;
             }
 
@@ -2713,6 +2729,7 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                             "mep_modrdn_post_op: Unable to update pointer to "
                             "origin entry \"%s\" in managed entry \"%s\" "
                             "(%s).\n", new_dn, managed_dn, ldap_err2string(result));
+
             } else {
                 /* See if we need to rename the managed entry. */
                 if (slapi_sdn_compare(slapi_entry_get_sdn(new_managed_entry), managed_sdn) != 0) {
@@ -2724,8 +2741,8 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                                     slapi_entry_get_dn(new_managed_entry),
                                     slapi_sdn_get_dn(old_sdn));
                     mep_rename_managed_entry(post_e,
-                                    slapi_entry_get_sdn(new_managed_entry),
-                                    managed_sdn);
+                                             slapi_entry_get_sdn(new_managed_entry),
+                                             managed_sdn);
                 }
 
                 /* Update all of the mapped attributes
@@ -2780,12 +2797,21 @@ bailmod:
         /* Bail out if the plug-in close function was just called. */
         if (!slapi_plugin_running(pb)) {
             mep_config_unlock();
-            return SLAPI_PLUGIN_SUCCESS;
+            return result;
         }
 
         mep_find_config(post_e, &config);
         if (config) {
-            mep_add_managed_entry(config, post_e);
+            if(mep_add_managed_entry(config, post_e)){
+                char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
+                int rc = LDAP_UNWILLING_TO_PERFORM;
+
+                PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Managed Entry Plugin rejected modrdn operation (see errors log).\n");
+                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
+                slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+                result = SLAPI_PLUGIN_FAILURE;
+            }
         }
 
         mep_config_unlock();
@@ -2793,7 +2819,7 @@ bailmod:
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_modrdn_post_op\n");
 
-    return SLAPI_PLUGIN_SUCCESS;
+    return result;
 }
 
 static int
