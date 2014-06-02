@@ -53,6 +53,6 @@ int posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 PRUint64 get_plugin_started();
 void plugin_op_started();
 void plugin_op_finished();
-void plugin_op_all_finished();
+void posix_winsync_plugin_op_all_finished();
 
 #endif

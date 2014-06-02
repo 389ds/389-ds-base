@@ -1980,7 +1980,7 @@ posix_winsync_plugin_close(Slapi_PBlock *pb)
                     "--> posix_winsync_plugin_close -- begin\n");
 
     g_plugin_started = 0;
-    plugin_op_all_finished();
+    posix_winsync_plugin_op_all_finished();
     slapi_apib_unregister(WINSYNC_v1_0_GUID);
     posix_winsync_config_free();
 
@@ -2051,7 +2051,7 @@ plugin_op_finished()
 }
 
 void
-plugin_op_all_finished()
+posix_winsync_plugin_op_all_finished()
 {
     while(slapi_counter_get_value(op_counter) > 0){
         PR_Sleep(PR_MillisecondsToInterval(100));

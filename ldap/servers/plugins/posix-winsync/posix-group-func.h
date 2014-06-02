@@ -20,5 +20,6 @@ int memberUidLockInit();
 void memberUidLockDestroy();
 int addUserToGroupMembership(Slapi_Entry *entry);
 void propogateDeletionsUpward(Slapi_Entry *, const Slapi_DN *, Slapi_ValueSet*, Slapi_ValueSet *, int);
+int hasObjectClass(Slapi_Entry *entry, const char *objectClass);
 
 #endif

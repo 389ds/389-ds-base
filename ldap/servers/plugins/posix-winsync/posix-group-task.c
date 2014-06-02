@@ -89,7 +89,7 @@ posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "posix_group_task_add: retrieved basedn: %s\n", dn);
 
-    if ((filter = fetch_attr(e, "filter", "(objectclass=ntGroup)")) == NULL) {
+    if ((filter = fetch_attr(e, "filter", "(&(objectclass=ntGroup)(|(uniquemember=*)(memberuid=*)))")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -240,6 +240,7 @@ posix_group_fix_memberuid(char *dn, char *filter_str, void *txn)
 static int
 posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
 {
+    int i;
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "_fix_memberuid ==>\n");
     cb_data *the_cb_data = (cb_data *) callback_data;
@@ -253,7 +254,11 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
     char *dn = slapi_entry_get_dn(e);
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
     LDAPMod **mods = NULL;
+    int is_posix_group = 0;
 
+    if (hasObjectClass(e, "posixGroup")) {
+        is_posix_group = 1;
+    }
 /* Clean out memberuids and dsonlymemberuids without a valid referant */
     rc = slapi_entry_attr_find(e, "memberuid", &muid_attr);
     if (rc == 0 && muid_attr) {
@@ -272,7 +277,6 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "_fix_memberuid scan for orphaned memberuids\n");
 
-        int i;
         for (i = slapi_attr_first_value(muid_attr, &v); i != -1;
              i = slapi_attr_next_value(muid_attr, i, &v)) {
             char *muid = (char *)slapi_value_get_string(v);
@@ -337,10 +341,8 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
     if (rc == 0 && obj_attr) {
         int fixMembership = 0;
         Slapi_ValueSet *bad_ums = NULL;
-
-        int i;
-        Slapi_Value * uniqval = NULL;            /* uniquemeber Attribute values          */
-
+        Slapi_Value *uniqval = NULL;   /* uniquemeber Attribute values */
+        Slapi_ValueSet *uids = NULL;
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "_fix_memberuid scan uniquemember, group %s\n", dn);
         for (i = slapi_attr_first_value(obj_attr, &uniqval); i != -1;
@@ -350,11 +352,14 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
             char *attrs[] = { "uid", "objectclass", NULL };
             Slapi_Entry *child = getEntry(member, attrs);
 
-            if (!child) {
+            if (child) {
+                slapi_entry_free(child);
+            } else {
                 slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                                 "_fix_memberuid orphaned uniquemember found: %s\n", member);
 
-                if (strncasecmp(member, "cn=", 3) == 0) {
+                if ((strncasecmp(member, "cn=", 3) == 0) ||
+                    (strncasecmp(member, "uid=", 4) == 0)) {
                     fixMembership = 1;
                 }
                 if (!bad_ums) {
@@ -362,12 +367,51 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
                 }
                 slapi_valueset_add_value(bad_ums, uniqval);
             }
+
+            if (is_posix_group) {
+                char *uid = NULL;
+                /* search uid for member (DN) */
+                slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "search %s\n", member);
+                if ((uid = searchUid(member)) != NULL) {
+                    Slapi_Value *value = slapi_value_new();
+                    /* Search an entry having "member" as DN and get uid value from it. */
+                    slapi_value_set_string_passin(value, uid);
+                    /* add uids ValueSet */
+                    if (NULL == uids) {
+                        uids = slapi_valueset_new();
+                    }
+                    slapi_valueset_add_value(uids, value);
+                    slapi_value_free(&value);
+                }
+            }
         }
+        /* If we found some posix members, replace the existing memberuid attribute
+         * with the found values.  */
+        if (uids && slapi_valueset_count(uids)) {
+            Slapi_Value *val = 0;
+            Slapi_Mod *smod = slapi_mod_new();
+            int hint = 0;
+
+            slapi_mod_init(smod, 0);
+            slapi_mod_set_operation(smod, LDAP_MOD_REPLACE | LDAP_MOD_BVALUES);
+            slapi_mod_set_type(smod, "memberuid");
+
+            /* Loop through all of our values and add them to smod */
+            hint = slapi_valueset_first_value(uids, &val);
+            while (val) {
+                /* this makes a copy of the berval */
+                slapi_mod_add_value(smod, slapi_value_get_berval(val));
+                hint = slapi_valueset_next_value(uids, hint, &val);
+            }
+            slapi_mods_add_ldapmod(smods, slapi_mod_get_ldapmod_passout(smod));
+            slapi_mod_free(&smod);
+        }
+        slapi_valueset_free(uids);
 
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "_fix_memberuid Finishing...\n");
 
-        if (fixMembership  && posix_winsync_config_get_mapNestedGrouping()) {
+        if (fixMembership && posix_winsync_config_get_mapNestedGrouping()) {
             Slapi_ValueSet *del_nested_vs = slapi_valueset_new();
 
             slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
@@ -383,7 +427,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         }
     }
 
-    mods = slapi_mods_get_ldapmods_passout(smods);
+    mods = slapi_mods_get_ldapmods_byref(smods);
     if (mods) {
         Slapi_PBlock *mod_pb = NULL;
         mod_pb = slapi_pblock_new();
@@ -400,7 +444,13 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "_fix_memberuid <==\n");
-    return rc;
+    /*
+     * Since Ticket #481 "expand nested posix groups",
+     * there's a possibility the found entry does not contain
+     * uniqueMember attribute.  But "not found" error shoud not
+     * be returned, which stops the further fixup task.
+     */
+    return 0;
 }
 
 static void
