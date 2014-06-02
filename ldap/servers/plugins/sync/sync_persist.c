@@ -292,6 +292,7 @@ sync_persist_add (Slapi_PBlock *pb)
 	if ( SYNC_IS_INITIALIZED() && NULL != pb ) {
 		/* Create the new node */
 		req = sync_request_alloc();
+		slapi_pblock_get(pb, SLAPI_OPERATION, &req->req_orig_op); /* neede to access original op */
 		req->req_pblock = sync_pblock_copy(pb);
 		slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
 		req->req_orig_base = slapi_ch_strdup(base);
@@ -566,7 +567,7 @@ sync_send_results( void *arg )
 	SyncQueueNode *qnode, *qnodenext;
 	int conn_acq_flag = 0;
 	Slapi_Connection *conn = NULL;
-	Slapi_Operation *op = NULL;
+	Slapi_Operation *op = req->req_orig_op;
 	int rc;
 	PRUint64 connid;
 	int opid;
@@ -574,7 +575,6 @@ sync_send_results( void *arg )
 	slapi_pblock_get(req->req_pblock, SLAPI_CONN_ID, &connid);
 	slapi_pblock_get(req->req_pblock, SLAPI_OPERATION_ID, &opid);
 	slapi_pblock_get(req->req_pblock, SLAPI_CONNECTION, &conn);
-	slapi_pblock_get(req->req_pblock, SLAPI_OPERATION, &op);
 
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
@@ -587,9 +587,7 @@ sync_send_results( void *arg )
 
 	while ( (conn_acq_flag == 0) && !req->req_complete && !plugin_closing) {
 		/* Check for an abandoned operation */
-		Slapi_Operation *op;
-		slapi_pblock_get(req->req_pblock, SLAPI_OPERATION, &op);
-		if ( op == NULL || slapi_op_abandoned( req->req_pblock ) ) {
+		if ( op == NULL || slapi_is_operation_abandoned( op ) ) {
 			slapi_log_error(SLAPI_LOG_PLUGIN, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Operation no longer active - terminating\n",
 						(long long unsigned int)connid, opid);

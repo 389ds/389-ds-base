@@ -52,6 +52,15 @@
 #include "fe.h"
 
 int
+slapi_is_operation_abandoned( Slapi_Operation *op )
+{
+	if (op) {
+		return( op->o_status == SLAPI_OP_STATUS_ABANDONED );
+	}
+	return 0;
+}
+
+int
 slapi_op_abandoned( Slapi_PBlock *pb )
 {
 	int	op_status;
@@ -192,6 +201,11 @@ operation_init(Slapi_Operation *o, int flags)
 
 }
 
+Slapi_Operation *
+slapi_operation_new(int flags)
+{
+	return (operation_new(flags));
+}
 /*
  * Allocate a new Slapi_Operation.
  * The flag parameter indicates whether the the operation is
@@ -425,6 +439,30 @@ void operation_set_abandoned_op (Slapi_Operation *op, unsigned long abandoned_op
 struct slapi_operation_parameters *operation_parameters_new()
 {
 	return (slapi_operation_parameters *)slapi_ch_calloc (1, sizeof (slapi_operation_parameters));
+}
+
+ber_tag_t
+slapi_operation_get_tag(Slapi_Operation *op)
+{
+	return op->o_tag;
+}
+
+ber_int_t
+slapi_operation_get_msgid(Slapi_Operation *op)
+{
+	return op->o_msgid;
+}
+
+void
+slapi_operation_set_tag(Slapi_Operation *op, ber_tag_t tag)
+{
+	op->o_tag = tag;
+}
+
+void
+slapi_operation_set_msgid(Slapi_Operation *op, ber_int_t msgid)
+{
+	op->o_msgid = msgid;
 }
 
 LDAPMod **

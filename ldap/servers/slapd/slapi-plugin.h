@@ -5145,16 +5145,22 @@ Slapi_Value *slapi_valueset_find(const Slapi_Attr *a, const Slapi_ValueSet *vs, 
  * operation routines
  */
 int slapi_op_abandoned( Slapi_PBlock *pb );
+int slapi_is_operation_abandoned( Slapi_Operation *op );
 unsigned long slapi_op_get_type(Slapi_Operation * op);
 void slapi_operation_set_flag(Slapi_Operation *op, unsigned long flag);
 void slapi_operation_clear_flag(Slapi_Operation *op, unsigned long flag);
 int slapi_operation_is_flag_set(Slapi_Operation *op, unsigned long flag);
+ber_tag_t slapi_operation_get_tag(Slapi_Operation *op);
+ber_int_t slapi_operation_get_msgid(Slapi_Operation *op);
+void slapi_operation_set_tag(Slapi_Operation *op, ber_tag_t tag);
+void slapi_operation_set_msgid(Slapi_Operation *op, ber_int_t msgid);
 int slapi_op_reserved(Slapi_PBlock *pb);
 void slapi_operation_set_csngen_handler ( Slapi_Operation *op, void *callback );
 void slapi_operation_set_replica_attr_handler ( Slapi_Operation *op, void *callback );
 int slapi_operation_get_replica_attr ( Slapi_PBlock *pb, Slapi_Operation *op, const char *type, void *value );
 char *slapi_op_type_to_string(unsigned long type);
 int slapi_op_internal( Slapi_PBlock *pb );
+Slapi_Operation *slapi_operation_new(int flags);
 
 /*
  * connection routines
@@ -7157,6 +7163,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_SEARCH_STRFILTER      115
 #define SLAPI_SEARCH_ATTRS          116
 #define SLAPI_SEARCH_GERATTRS       1160
+#define SLAPI_SEARCH_REQATTRS       1161
 #define SLAPI_SEARCH_ATTRSONLY      117
 #define SLAPI_SEARCH_IS_AND         118
 

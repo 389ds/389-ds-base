@@ -158,6 +158,7 @@ typedef struct sync_queue_node {
  */
 typedef struct sync_request {
 	Slapi_PBlock	*req_pblock;
+	Slapi_Operation	*req_orig_op;
 	PRLock		*req_lock;
 	PRThread	*req_tid;
 	char 		*req_orig_base;
