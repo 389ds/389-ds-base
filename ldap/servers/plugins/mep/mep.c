@@ -1415,7 +1415,8 @@ mep_add_managed_entry(struct configEntry *config,
                     "mep_add_managed_entry: Unable to create a managed "
                     "entry from origin entry \"%s\" using config "
                     "\"%s\".\n", slapi_entry_get_dn(origin), slapi_sdn_get_dn(config->sdn));
-        return -1;
+        result = -1;
+        goto bail;
     } else {
         /* Copy the managed entry DN to use when
          * creating the pointer attribute. */
