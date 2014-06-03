@@ -72,7 +72,8 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
 
     sdn = slapi_get_first_suffix(&node, 0);
     while (sdn) {
-        if (slapi_sdn_isparent(sdn, ds_subtree) == 0) {
+        /* if sdn is a parent of ds_subtree or sdn is the WinSync Subtree itself */
+        if (slapi_sdn_isparent(sdn, ds_subtree) || !slapi_sdn_compare(sdn, ds_subtree)) {
             theConfig.rep_suffix = sdn;
             slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "Found suffix's '%s'\n",
                             slapi_sdn_get_dn(sdn));

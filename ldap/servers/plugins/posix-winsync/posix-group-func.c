@@ -23,12 +23,12 @@
 #include <string.h>
 #include <nspr.h>
 #include "posix-wsp-ident.h"
+#include "posix-group-func.h"
 
 #define MAX_RECURSION_DEPTH (5)
 
 Slapi_Value **
 valueset_get_valuearray(const Slapi_ValueSet *vs); /* stolen from proto-slap.h */
-static int hasObjectClass(Slapi_Entry *entry, const char *objectClass);
 
 static PRMonitor *memberuid_operation_lock = 0;
 
@@ -262,7 +262,7 @@ smods_has_mod(Slapi_Mods *smods, int modtype, const char *type, const char *val)
     return rc;
 }
 
-static int
+int
 hasObjectClass(Slapi_Entry *entry, const char *objectClass)
 {
     int rc = 0;
