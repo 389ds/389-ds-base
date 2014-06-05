@@ -851,7 +851,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
 			}
 			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin failed: %d",
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin failed: %d\n",
 			              ldap_result_code ? ldap_result_code : retval);
 			goto error_return;
 		}
@@ -1160,6 +1160,8 @@ error_return:
 		{
 			if (inst) {
 				CACHE_REMOVE(&inst->inst_cache, addingentry);
+				/* tell frontend not to free this entry */
+				slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
 			}
 		}
 		else

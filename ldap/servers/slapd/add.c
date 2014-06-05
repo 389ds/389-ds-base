@@ -767,10 +767,8 @@ static void op_shared_add (Slapi_PBlock *pb)
 			}
 			else
 			{
-				/* restore e so we can free it below */
-				if (save_e) {
-					e = save_e;
-				}
+				/* PR_ASSERT(!save_e); save_e is supposed to be freed in the backend.  */
+				e = save_e;
 				if (rc == SLAPI_FAIL_DISKFULL)
 				{
 					operation_out_of_disk_space();
