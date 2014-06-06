@@ -15,8 +15,9 @@ from constants import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
+installation_prefix = '/home/nhosoi/install'
 
+ATTRIBUTE_UNIQUENESS_PLUGIN = 'cn=attribute uniqueness,cn=plugins,cn=config'
 ENTRY_NAME = 'test_entry'
     
 
@@ -26,7 +27,7 @@ class TopologyStandalone(object):
         self.standalone = standalone
 
 
-@pytest.fixture(scope="module")
+#@pytest.fixture(scope="module")
 def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
@@ -52,7 +53,7 @@ def topology(request):
     if installation_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation_prefix
     
-    standalone = DirSrv(verbose=False)
+    standalone = DirSrv(verbose=True)
     
     # Args for the standalone instance
     args_instance[SER_HOST] = HOST_STANDALONE
@@ -118,87 +119,75 @@ def topology(request):
     return TopologyStandalone(standalone)
 
 
-def test_ticket47313_run(topology):
+def test_ticket47808_run(topology):
     """
-        It adds 2 test entries
-        Search with filters including subtype and !
-		It deletes the added entries
+        It enables attribute uniqueness plugin with sn as a unique attribute
+        Add an entry 1 with sn = ENTRY_NAME
+        Add an entry 2 with sn = ENTRY_NAME
+        If the second add does not crash the server and the following search found none,
+        the bug is fixed.
     """
         
     # bind as directory manager
     topology.standalone.log.info("Bind as %s" % DN_DM)
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     
-    # enable filter error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '32')]
-    topology.standalone.modify_s(DN_CONFIG, mod)
-    
-    topology.standalone.log.info("\n\n######################### ADD ######################\n")
-    
-    # Prepare the entry with cn;fr & cn;en
-    entry_name_fr = '%s fr' % (ENTRY_NAME)
-    entry_name_en = '%s en' % (ENTRY_NAME)
-    entry_name_both = '%s both' % (ENTRY_NAME)
-    entry_dn_both = 'cn=%s, %s' % (entry_name_both, SUFFIX)
-    entry_both = Entry(entry_dn_both)
-    entry_both.setValues('objectclass', 'top', 'person')
-    entry_both.setValues('sn', entry_name_both)
-    entry_both.setValues('cn', entry_name_both)
-    entry_both.setValues('cn;fr', entry_name_fr)
-    entry_both.setValues('cn;en', entry_name_en)
-    
-    # Prepare the entry with one member
-    entry_name_en_only = '%s en only' % (ENTRY_NAME)
-    entry_dn_en_only = 'cn=%s, %s' % (entry_name_en_only, SUFFIX)
-    entry_en_only = Entry(entry_dn_en_only)
-    entry_en_only.setValues('objectclass', 'top', 'person')
-    entry_en_only.setValues('sn', entry_name_en_only)
-    entry_en_only.setValues('cn', entry_name_en_only)
-    entry_en_only.setValues('cn;en', entry_name_en)
-    
-    topology.standalone.log.info("Try to add Add %s: %r" % (entry_dn_both, entry_both))
-    topology.standalone.add_s(entry_both)
+    topology.standalone.log.info("\n\n######################### SETUP ATTR UNIQ PLUGIN ######################\n")
 
-    topology.standalone.log.info("Try to add Add %s: %r" % (entry_dn_en_only, entry_en_only))
-    topology.standalone.add_s(entry_en_only)
+    # enable attribute uniqueness plugin
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on'), (ldap.MOD_REPLACE, 'nsslapd-pluginarg0', 'sn'), (ldap.MOD_REPLACE, 'nsslapd-pluginarg1', SUFFIX)]
+    topology.standalone.modify_s(ATTRIBUTE_UNIQUENESS_PLUGIN, mod)
     
-    topology.standalone.log.info("\n\n######################### SEARCH ######################\n")
+    topology.standalone.log.info("\n\n######################### ADD USER 1 ######################\n")
     
-    # filter: (&(cn=test_entry en only)(!(cn=test_entry fr)))
-    myfilter = '(&(sn=%s)(!(cn=%s)))' % (entry_name_en_only, entry_name_fr)
-    topology.standalone.log.info("Try to search with filter %s" % myfilter)
-    ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
-    assert len(ents) == 1
-    assert ents[0].sn == entry_name_en_only
-    topology.standalone.log.info("Found %s" % ents[0].dn)
-    
-    # filter: (&(cn=test_entry en only)(!(cn;fr=test_entry fr)))
-    myfilter = '(&(sn=%s)(!(cn;fr=%s)))' % (entry_name_en_only, entry_name_fr)
-    topology.standalone.log.info("Try to search with filter %s" % myfilter)
-    ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
-    assert len(ents) == 1
-    assert ents[0].sn == entry_name_en_only
-    topology.standalone.log.info("Found %s" % ents[0].dn)
-    
-    # filter: (&(cn=test_entry en only)(!(cn;en=test_entry en)))
-    myfilter = '(&(sn=%s)(!(cn;en=%s)))' % (entry_name_en_only, entry_name_en)
-    topology.standalone.log.info("Try to search with filter %s" % myfilter)
-    ents = topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, myfilter)
-    assert len(ents) == 0
-    topology.standalone.log.info("Found none")
-    
-    topology.standalone.log.info("\n\n######################### DELETE ######################\n")
-    
-    topology.standalone.log.info("Try to delete  %s " % entry_dn_both)
-    topology.standalone.delete_s(entry_dn_both)
-    
-    topology.standalone.log.info("Try to delete  %s " % entry_dn_en_only)
-    topology.standalone.delete_s(entry_dn_en_only)
+    # Prepare entry 1
+    entry_name = '%s 1' % (ENTRY_NAME)
+    entry_dn_1 = 'cn=%s, %s' % (entry_name, SUFFIX)
+    entry_1 = Entry(entry_dn_1)
+    entry_1.setValues('objectclass', 'top', 'person')
+    entry_1.setValues('sn', ENTRY_NAME)
+    entry_1.setValues('cn', entry_name)
+    topology.standalone.log.info("Try to add Add %s: %r" % (entry_1, entry_1))
+    topology.standalone.add_s(entry_1)
 
-def test_ticket47313_final(topology):
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '0')]
-    topology.standalone.modify_s(DN_CONFIG, mod)
+    topology.standalone.log.info("\n\n######################### Restart Server ######################\n")
+    topology.standalone.stop(timeout=10)
+    topology.standalone.start(timeout=10)
     
+    topology.standalone.log.info("\n\n######################### ADD USER 2 ######################\n")
+    
+    # Prepare entry 2 having the same sn, which crashes the server 
+    entry_name = '%s 2' % (ENTRY_NAME)
+    entry_dn_2 = 'cn=%s, %s' % (entry_name, SUFFIX)
+    entry_2 = Entry(entry_dn_2)
+    entry_2.setValues('objectclass', 'top', 'person')
+    entry_2.setValues('sn', ENTRY_NAME)
+    entry_2.setValues('cn', entry_name)
+    topology.standalone.log.info("Try to add Add %s: %r" % (entry_2, entry_2))
+    try:
+      topology.standalone.add_s(entry_2)
+    except:
+      topology.standalone.log.warn("Adding %s failed" % entry_dn_2)
+      pass
+
+    topology.standalone.log.info("\n\n######################### IS SERVER UP? ######################\n")
+    ents = topology.standalone.search_s(entry_dn_1, ldap.SCOPE_BASE, '(objectclass=*)')
+    assert len(ents) == 1
+    topology.standalone.log.info("Yes, it's up.")
+
+    topology.standalone.log.info("\n\n######################### CHECK USER 2 NOT ADDED ######################\n")
+    topology.standalone.log.info("Try to search %s" % entry_dn_2)
+    try:
+        ents = topology.standalone.search_s(entry_dn_2, ldap.SCOPE_BASE, '(objectclass=*)')
+    except ldap.NO_SUCH_OBJECT:
+        topology.standalone.log.info("Found none")
+    
+    topology.standalone.log.info("\n\n######################### DELETE USER 1 ######################\n")
+    
+    topology.standalone.log.info("Try to delete  %s " % entry_dn_1)
+    topology.standalone.delete_s(entry_dn_1)
+    
+def test_ticket47808_final(topology):
     topology.standalone.stop(timeout=10)
     
 def run_isolated():
@@ -210,12 +199,12 @@ def run_isolated():
             - run this program
     '''
     global installation_prefix
-    installation_prefix =  None
+    installation_prefix = '/home/nhosoi/install'
         
     topo = topology(True)
-    test_ticket47313_run(topo)
+    test_ticket47808_run(topo)
     
-    test_ticket47313_final(topo)
+    test_ticket47808_final(topo)
 
 
 if __name__ == '__main__':
