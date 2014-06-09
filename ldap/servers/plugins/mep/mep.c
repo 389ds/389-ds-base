@@ -1462,38 +1462,57 @@ mep_add_managed_entry(struct configEntry *config,
             /* Add forward link to origin entry. */
             LDAPMod oc_mod;
             LDAPMod pointer_mod;
-            LDAPMod *mods[3];
+            LDAPMod *mods[2];
             char *oc_vals[2];
             char *pointer_vals[2];
 
             /* Clear out the pblock for reuse. */
             slapi_pblock_init(mod_pb);
 
-            /* Add the origin entry objectclass. */
+            /*
+             * Add the origin entry objectclass.  Do not check the result
+             * as we could be here because of a modrdn operation - in which
+             * case the objectclass already exists.
+             */
             oc_vals[0] = MEP_ORIGIN_OC;
             oc_vals[1] = 0;
             oc_mod.mod_op = LDAP_MOD_ADD;
             oc_mod.mod_type = SLAPI_ATTR_OBJECTCLASS;
             oc_mod.mod_values = oc_vals;
+            mods[0] = &oc_mod;
+            mods[1] = NULL;
 
-            /* Add a pointer to the managed entry. */
+            /* add the objectclass */
+            slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(origin),
+                                             mods, 0, 0, mep_get_plugin_id(), 0);
+            slapi_modify_internal_pb(mod_pb);
+            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            if (result != LDAP_SUCCESS && result != LDAP_TYPE_OR_VALUE_EXISTS){
+                slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                "mep_add_managed_entry: Failed to add managed entry "
+                                "objectclass in origin entry \"%s\", error (%s)\n",
+                                slapi_entry_get_dn(origin), ldap_err2string(result));
+                goto bail;
+            }
+            slapi_pblock_init(mod_pb);
+
+            /*
+             * Now, add a pointer to the managed entry.
+             */
             pointer_vals[0] = managed_dn;
             pointer_vals[1] = 0;
             pointer_mod.mod_op = LDAP_MOD_ADD;
             pointer_mod.mod_type = MEP_MANAGED_ENTRY_TYPE;
             pointer_mod.mod_values = pointer_vals;
+            mods[0] = &pointer_mod;
+            mods[1] = NULL;
 
-            mods[0] = &oc_mod;
-            mods[1] = &pointer_mod;
-            mods[2] = 0;
-
-            /* Perform the modify operation. */
             slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
                     "Adding %s pointer to \"%s\" in entry \"%s\"\n.",
                     MEP_MANAGED_ENTRY_TYPE, managed_dn, slapi_entry_get_dn(origin));
-            slapi_modify_internal_set_pb_ext(mod_pb, 
-                                            slapi_entry_get_sdn(origin),
-                                            mods, 0, 0, mep_get_plugin_id(), 0);
+
+            slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(origin),
+                                             mods, 0, 0, mep_get_plugin_id(), 0);
             slapi_modify_internal_pb(mod_pb);
             slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
