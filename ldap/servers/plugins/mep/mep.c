@@ -1492,7 +1492,6 @@ mep_add_managed_entry(struct configEntry *config,
                                 "mep_add_managed_entry: Failed to add managed entry "
                                 "objectclass in origin entry \"%s\", error (%s)\n",
                                 slapi_entry_get_dn(origin), ldap_err2string(result));
-                goto bail;
             }
             slapi_pblock_init(mod_pb);
 
