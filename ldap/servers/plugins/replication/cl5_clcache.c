@@ -111,6 +111,7 @@ struct clc_buffer {
 	DBT			 buf_data;			/* data retrived from db */
 	void		*buf_record_ptr;	/* ptr to the current record in data */
 	CSN			*buf_missing_csn;	/* used to detect persistent missing of CSN */
+	CSN			*buf_prev_missing_csn;	/* used to surpress the repeated messages */
 
 	/* fields for control the CSN sequence sent to the consumer */
 	struct csn_seq_ctrl_block **buf_cscbs;
@@ -376,9 +377,12 @@ clcache_load_buffer ( CLC_Buffer *buf, CSN *anchorcsn, int flag )
 		else if ( anchorcsn ) {
 			/* Report error only when the missing is persistent */
 			if ( buf->buf_missing_csn && csn_compare (buf->buf_missing_csn, anchorcsn) == 0 ) {
-				slapi_log_error ( SLAPI_LOG_FATAL, buf->buf_agmt_name,
-					"Can't locate CSN %s in the changelog (DB rc=%d). The consumer may need to be reinitialized.\n",
-					(char*)buf->buf_key.data, rc );
+				if (!buf->buf_prev_missing_csn || csn_compare (buf->buf_prev_missing_csn, anchorcsn)) {
+					slapi_log_error ( SLAPI_LOG_FATAL, buf->buf_agmt_name,
+						"Can't locate CSN %s in the changelog (DB rc=%d). If replication stops, the consumer may need to be reinitialized.\n",
+						(char*)buf->buf_key.data, rc );
+					csn_dup_or_init_by_csn (&buf->buf_prev_missing_csn, anchorcsn);
+				}
 			}
 			else {
 				csn_dup_or_init_by_csn (&buf->buf_missing_csn, anchorcsn);
@@ -915,6 +919,7 @@ clcache_delete_buffer ( CLC_Buffer **buf )
 		slapi_ch_free (&( (*buf)->buf_data.data ));
 		csn_free (&( (*buf)->buf_current_csn ));
 		csn_free (&( (*buf)->buf_missing_csn ));
+		csn_free (&( (*buf)->buf_prev_missing_csn ));
 		slapi_ch_free ( (void **) buf );
 	}
 }
