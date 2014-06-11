@@ -143,7 +143,7 @@ enum
  *         -1 - some sort of error
  */
 static int
-check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
+_check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
 {
     int rc = 1;
     Slapi_ValueSet *values = NULL;
@@ -162,7 +162,7 @@ check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
         }
         slapi_ch_free_string(&strval);
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- check_account_lock - entry [%s] has real "
+                        "<-- _check_account_lock - entry [%s] has real "
                             "attribute nsAccountLock and entry %s locked\n",
                         slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
         return rc;
@@ -189,13 +189,13 @@ check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
             slapi_vattr_values_free(&values, &actual_type_name, attr_free_flags);
         }
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- check_account_lock - entry [%s] has virtual "
+                        "<-- _check_account_lock - entry [%s] has virtual "
                             "attribute nsAccountLock and entry %s locked\n",
                         slapi_entry_get_dn_const(ds_entry), rc ? "is not" : "is");
     } else {
         rc = 1; /* no attr == entry is enabled */
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
-                        "<-- check_account_lock - entry [%s] does not "
+                        "<-- _check_account_lock - entry [%s] does not "
                             "have attribute nsAccountLock - entry is not locked\n",
                         slapi_entry_get_dn_const(ds_entry));
     }
@@ -232,7 +232,7 @@ sync_acct_disable(void *cbdata, /* the usual domain config data */
     int isvirt = 0;
 
     /* get the account lock state of the ds entry */
-    if (0 == check_account_lock(ds_entry, &isvirt)) {
+    if (0 == _check_account_lock(ds_entry, &isvirt)) {
         ds_is_enabled = 0;
     }
     if (isvirt)
@@ -379,6 +379,54 @@ sync_acct_disable(void *cbdata, /* the usual domain config data */
     return;
 }
 
+#if 0 
+/* 
+ * attr_compare_equal provided in 
+ * https://fedorahosted.org/389/attachment/ticket/47763/0025-posix-winsync.rawentry.patch
+ * Since there is no strong reason to switch to this new attr_compare_equal,
+ * continue using the original code.
+ */
+/* 
+ * Compare the first value of attr a and b.
+ *
+ * If the sizes of each value are equal AND the first values match, return TRUE.
+ * Otherwise, return FALSE.
+ *
+ * NOTE: For now only handle single values
+ */
+static int
+attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
+{
+    /* For now only handle single values */
+    Slapi_Value *va = NULL;
+    Slapi_Value *vb = NULL;
+    int num_a = 0;
+    int num_b = 0;
+    int match = 1;
+
+    slapi_attr_get_numvalues(a, &num_a);
+    slapi_attr_get_numvalues(b, &num_b);
+
+    if (num_a == num_b) {
+        slapi_attr_first_value(a, &va);
+        slapi_attr_first_value(b, &vb);
+
+        /* If either val is less than n, then check if the length, then values are
+         * equal.  If both are n or greater, then only compare the first n chars. 
+         * If n is 0, then just compare the entire attribute. */
+        if (slapi_value_get_length(va) == slapi_value_get_length(vb)) {
+            if (slapi_attr_value_find(b, slapi_value_get_berval(va)) != 0) {
+                match = 0;
+            }
+        } else {
+            match = 0;
+        }
+    } else {
+        match = 0;
+    }
+    return match;
+}
+#else /* Original code */
 /* Returns non-zero if the attribute value sets are identical.  */
 static int
 attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
@@ -396,6 +444,7 @@ attr_compare_equal(Slapi_Attr *a, Slapi_Attr *b)
     }
     return 1;
 }
+#endif
 
 /* look in the parent nodes of ds_entry for nis domain entry */
 char *
@@ -804,10 +853,10 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                     "--> _pre_ds_mod_user_cb -- begin\n");
 
-    if ((NULL == rawentry) || (NULL == ad_entry) || (NULL == ds_entry)) {
+    if ((NULL == ad_entry) || (NULL == ds_entry)) {
         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                         "<-- _pre_ds_mod_user_cb -- Empty %s entry.\n",
-                        (NULL==rawentry)?"rawentry":(NULL==ad_entry)?"ad entry":"ds entry");
+                        (NULL==ad_entry)?"ad entry":"ds entry");
         plugin_op_finished();
         return;
     }
@@ -926,7 +975,7 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
         }
         slapi_value_free(&voc);
     }
-    sync_acct_disable(cbdata, rawentry, ds_entry, ACCT_DISABLE_TO_DS, NULL, smods, do_modify);
+    sync_acct_disable(cbdata, ad_entry, ds_entry, ACCT_DISABLE_TO_DS, NULL, smods, do_modify);
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_mod_user_cb %s %s\n",
                     slapi_sdn_get_dn(slapi_entry_get_sdn_const(ds_entry)), (do_modify) ? "modified"
                         : "not modified");
@@ -978,14 +1027,16 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                 Slapi_Attr *local_attr = NULL;
                 char *local_type = NULL;
 
-                slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "1.\n");
+                slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
+                                "_pre_ds_mod_group_cb -- found AD attr %s\n", type);
                 slapi_attr_get_valueset(attr, &vs);
                 local_type = slapi_ch_strdup(attr_map[i].ldap_attribute_name);
                 slapi_entry_attr_find(ds_entry, local_type, &local_attr);
                 is_present_local = (NULL == local_attr) ? 0 : 1;
                 if (is_present_local) {
                     int values_equal = 0;
-                    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "2.\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
+                                    "_pre_ds_mod_group_cb -- compare with DS attr %s\n", local_type);
                     values_equal = attr_compare_equal(attr, local_attr);
                     if (!values_equal) {
                         slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
@@ -998,13 +1049,15 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry, Sla
                         *do_modify = 1;
                     }
                 } else {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "3.\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
+                                    "_pre_ds_mod_group_cb --  add attr\n");
 
                     slapi_mods_add_mod_values(smods, LDAP_MOD_ADD, local_type,
                                               valueset_get_valuearray(vs));
                     *do_modify = do_modify_local = 1;
                 }
-                slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "4.\n");
+                slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, 
+                                "_pre_ds_mod_group_cb -- values compared\n");
 
                 slapi_ch_free((void**) &local_type);
                 slapi_valueset_free(vs);
@@ -1150,7 +1203,7 @@ posix_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry, Slap
             }
         }
     }
-    sync_acct_disable(cbdata, rawentry, ds_entry, ACCT_DISABLE_TO_DS, ds_entry, NULL, NULL);
+    sync_acct_disable(cbdata, ad_entry, ds_entry, ACCT_DISABLE_TO_DS, ds_entry, NULL, NULL);
     plugin_op_finished();
     slapi_log_error(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name, "<-- _pre_ds_add_user_cb -- end\n");
 
