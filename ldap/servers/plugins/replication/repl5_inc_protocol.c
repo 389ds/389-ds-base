@@ -1707,15 +1707,15 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			switch (rc)
 			{
 			case CL5_SUCCESS:
-                /* check that we don't return dummy entries */
-                if (is_dummy_operation (entry.op))
-                {
-                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
-                        "%s: changelog iteration code returned a dummy entry with csn %s, "
-                        "skipping ...\n",
+				/* check that we don't return dummy entries */
+				if (is_dummy_operation (entry.op))
+				{
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"%s: changelog iteration code returned a dummy entry with csn %s, "
+						"skipping ...\n",
 						agmt_get_long_name(prp->agmt), csn_as_string(entry.op->csn, PR_FALSE, csn_str));
-				    continue;
-                }
+					continue;
+				}
 				replay_crc = replay_update(prp, entry.op, &message_id);
 				if (message_id) 
 				{
