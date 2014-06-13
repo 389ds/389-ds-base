@@ -236,9 +236,6 @@ retry:
 		dbc->c_close(dbc);
 
 		if ((0 == return_value) || (DB_NOTFOUND == return_value)) {
-			if (txn.back_txn_txn) {
-				dblayer_read_txn_commit(be, &txn);
-			}
 			/* Now check that the key we eventually settled on was an equality key ! */
 			if (key.data && *((char*)key.data) == EQ_PREFIX) {
 				/* Retrieve the idlist for this key */
@@ -255,6 +252,7 @@ retry:
 							if ((key.data != little_buffer) && (key.data != &keystring)) {
 								slapi_ch_free(&(key.data));
 							}
+							dblayer_read_txn_abort(be, &txn);
 							goto retry;
 						} else {
 							continue;
@@ -320,6 +318,14 @@ retry:
 		    CACHE_RETURN( &inst->inst_cache, &e );
 		}
 		idl_free( &idl );
+	}
+	/* if success finally commit the transaction, otherwise abort if DB_NOTFOUND */
+	if(txn.back_txn_txn){
+		if (return_value == 0) {
+			dblayer_read_txn_commit(be, &txn);
+		} else if (DB_NOTFOUND == return_value){
+			dblayer_read_txn_abort(be, &txn);
+		}
 	}
 
 	dblayer_release_index_file( be, ai, db );
