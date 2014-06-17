@@ -1220,6 +1220,11 @@ diskfull_return:
 					opreturn = -1;
 					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
 				}
+				if (addingentry_in_cache && addingentry && inst) {
+					CACHE_REMOVE(&inst->inst_cache, addingentry);
+					/* tell frontend not to free this entry */
+					slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+				}
 			}
 
 			/* Release SERIAL LOCK */
