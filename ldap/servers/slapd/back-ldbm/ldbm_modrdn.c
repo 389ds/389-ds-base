@@ -1397,6 +1397,7 @@ error_return:
                 if (!opreturn) {
                     slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
                 }
+                slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
             }
 
             /* Release SERIAL LOCK */

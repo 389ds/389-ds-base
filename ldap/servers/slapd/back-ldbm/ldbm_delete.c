@@ -75,7 +75,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	modify_context ruv_c = {0};
 	int rc = 0;
 	int ldap_result_code= LDAP_SUCCESS;
-	char *ldap_result_message= NULL;
+	char *ldap_result_message = NULL;
 	Slapi_DN *sdnp = NULL;
 	char *e_uniqueid = NULL;
 	Slapi_DN nscpEntrySDN;
@@ -1331,6 +1331,7 @@ error_return:
 			if (!opreturn) {
 				slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
 			}
+			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 		}
 
 		/* Release SERIAL LOCK */

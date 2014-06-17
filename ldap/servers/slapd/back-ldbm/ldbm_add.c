@@ -94,8 +94,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 	char *msg;
 	int	managedsait;
 	int	ldap_result_code = LDAP_SUCCESS;
-	char *ldap_result_message= NULL;
-	char *ldap_result_matcheddn= NULL;
+	char *ldap_result_message = NULL;
+	char *ldap_result_matcheddn = NULL;
 	int	retry_count = 0;
 	int	disk_full = 0;
 	modify_context parent_modify_c = {0};
@@ -1225,6 +1225,8 @@ diskfull_return:
 					/* tell frontend not to free this entry */
 					slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
 				}
+
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 			}
 
 			/* Release SERIAL LOCK */
