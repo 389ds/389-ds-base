@@ -826,6 +826,7 @@ error_return:
 				LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
 							   "returned error code %d\n", retval );
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
 				if (!opreturn) {
 					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
