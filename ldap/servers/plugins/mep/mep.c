@@ -108,7 +108,7 @@ static Slapi_Entry *mep_create_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
 static int mep_add_managed_entry(struct configEntry *config,
     Slapi_Entry *origin);
-static void mep_rename_managed_entry(Slapi_Entry *origin,
+static int mep_rename_managed_entry(Slapi_Entry *origin,
     Slapi_DN *new_dn, Slapi_DN *old_dn);
 static Slapi_Mods *mep_get_mapped_mods(struct configEntry *config,
     Slapi_Entry *origin, char **mapped_dn);
@@ -1450,9 +1450,8 @@ mep_add_managed_entry(struct configEntry *config,
             slapi_pblock_init(mod_pb);
 
             /*
-             * Add the origin entry objectclass.  Do not check the result
-             * as we could be here because of a modrdn operation - in which
-             * case the objectclass already exists.
+             * Add the origin entry objectclass. A modrdn might result in
+             * an err 20 (type or value exists), in which case just ignore it.
              */
             oc_vals[0] = MEP_ORIGIN_OC;
             oc_vals[1] = 0;
@@ -1517,7 +1516,7 @@ bail:
  * Renames a managed entry and updates the pointer in the
  * origin entry.
  */
-static void
+static int
 mep_rename_managed_entry(Slapi_Entry *origin,
                          Slapi_DN *new_dn, Slapi_DN *old_dn)
 {
@@ -1582,6 +1581,8 @@ mep_rename_managed_entry(Slapi_Entry *origin,
 bail:
     slapi_rdn_free(&srdn);
     slapi_pblock_destroy(mep_pb);
+
+    return result;
 }
 
 /*
@@ -2311,7 +2312,7 @@ mep_mod_post_op(Slapi_PBlock *pb)
     char *mapped_dn = NULL;
     Slapi_DN *mapped_sdn = NULL;
     struct configEntry *config = NULL;
-    int result = 0;
+    int result = SLAPI_PLUGIN_SUCCESS;
     LDAPMod	**mods = NULL;
     int i, abort_mod = 1;
 
@@ -2333,8 +2334,9 @@ mep_mod_post_op(Slapi_PBlock *pb)
          * backend, so don't treat the message as fatal. */
         slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
         if (e == NULL) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+            slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                             "mep_mod_post_op: Unable to fetch postop entry.\n");
+            result = SLAPI_PLUGIN_FAILURE;
             goto bail;
         }
 
@@ -2408,12 +2410,12 @@ mep_mod_post_op(Slapi_PBlock *pb)
                 }
 
                 /* Check if we need to rename the managed entry. */
-                if (mapped_dn) {
+                if (result == SLAPI_PLUGIN_SUCCESS && mapped_dn) {
                     mapped_sdn = slapi_sdn_new_normdn_passin(mapped_dn);
                     managed_sdn = slapi_sdn_new_normdn_byref(managed_dn);
 
                     if (slapi_sdn_compare(managed_sdn, mapped_sdn) != 0) {
-                        mep_rename_managed_entry(e, mapped_sdn, managed_sdn);
+                        result = mep_rename_managed_entry(e, mapped_sdn, managed_sdn);
                     }
 
                     slapi_sdn_free(&mapped_sdn);
@@ -2428,12 +2430,16 @@ mep_mod_post_op(Slapi_PBlock *pb)
         }
     }
 
-  bail:
+bail:
+    if(result){
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
+        result = SLAPI_PLUGIN_FAILURE;
+    }
     slapi_ch_free_string(&managed_dn);
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_mod_post_op\n");
 
-    return SLAPI_PLUGIN_SUCCESS;
+    return result;
 }
 
 static int
@@ -2514,6 +2520,7 @@ mep_del_post_op(Slapi_PBlock *pb)
 {
     Slapi_Entry *e = NULL;
     Slapi_DN *sdn = NULL;
+    int result = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "--> mep_del_post_op\n");
@@ -2557,7 +2564,12 @@ mep_del_post_op(Slapi_PBlock *pb)
             slapi_delete_internal_set_pb(mep_pb, managed_dn, NULL,
                                          NULL, mep_get_plugin_id(), 0);
             slapi_delete_internal_pb(mep_pb);
-
+            slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            if(result){
+                slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                "mep_del_post_op: failed to delete managed entry "
+                                "(%s) - error (%d)\n",managed_dn, result);
+            }
             slapi_ch_free_string(&managed_dn);
             slapi_pblock_destroy(mep_pb);
         }
@@ -2567,10 +2579,15 @@ mep_del_post_op(Slapi_PBlock *pb)
                         "retrieving pre-op entry %s\n", slapi_sdn_get_dn(sdn));
     }
 
+    if(result){
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
+        result = SLAPI_PLUGIN_FAILURE;
+    }
+
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_del_post_op\n");
 
-    return SLAPI_PLUGIN_SUCCESS;
+    return result;
 }
 
 static int
@@ -2599,10 +2616,10 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         new_sdn = slapi_entry_get_sdn(post_e);
         new_dn = slapi_sdn_get_dn(new_sdn);
     } else {
-        slapi_log_error(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
                         "mep_modrdn_post_op: Error "
                         "retrieving post-op entry\n");
-        return SLAPI_PLUGIN_SUCCESS;
+        return SLAPI_PLUGIN_FAILURE;
     }
 
     if ((old_sdn = mep_get_sdn(pb))) {
@@ -2660,7 +2677,13 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
             slapi_delete_internal_set_pb (mep_pb, managed_dn, NULL, NULL,
                                           mep_get_plugin_id(), 0);
             slapi_delete_internal_pb(mep_pb);
-
+            slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            if(result){
+                slapi_log_error(SLAPI_LOG_FATAL, MEP_PLUGIN_SUBSYSTEM,
+                                "mep_modrdn_post_op: failed to delete managed entry "
+                                "(%s) - error (%d)\n",managed_dn, result);
+                goto bailmod;
+            }
             /* Clear out the pblock for reuse. */
             slapi_pblock_init(mep_pb);
 
@@ -2760,9 +2783,12 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
                                     "entry \"%s\".\n ", managed_dn,
                                     slapi_entry_get_dn(new_managed_entry),
                                     slapi_sdn_get_dn(old_sdn));
-                    mep_rename_managed_entry(post_e,
+                    if((result = mep_rename_managed_entry(post_e,
                                              slapi_entry_get_sdn(new_managed_entry),
-                                             managed_sdn);
+                                             managed_sdn)))
+                    {
+                        goto bailmod;
+                    }
                 }
 
                 /* Update all of the mapped attributes
@@ -2824,17 +2850,21 @@ bailmod:
         if (config) {
             if(mep_add_managed_entry(config, post_e)){
                 char errtxt[SLAPI_DSE_RETURNTEXT_SIZE];
-                int rc = LDAP_UNWILLING_TO_PERFORM;
+                result = LDAP_UNWILLING_TO_PERFORM;
 
                 PR_snprintf(errtxt, SLAPI_DSE_RETURNTEXT_SIZE,
                         "Managed Entry Plugin rejected modrdn operation (see errors log).\n");
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, &errtxt);
-                slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
-                result = SLAPI_PLUGIN_FAILURE;
+
             }
         }
 
         mep_config_unlock();
+    }
+
+    if(result){
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &result);
+        result = SLAPI_PLUGIN_FAILURE;
     }
     slapi_log_error(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                     "<-- mep_modrdn_post_op\n");

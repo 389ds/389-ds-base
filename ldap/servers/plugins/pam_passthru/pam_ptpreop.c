@@ -673,6 +673,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
     /* Make sure the operation succeeded and bail if it didn't. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc);
     if (oprc != 0) {
+        ret = oprc;
         goto bail;
     }
 
@@ -681,6 +682,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
     if (!sdn) {
         slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "pam_passthru_postop: unale to fetch target SDN.\n");
+        ret = SLAPI_PLUGIN_FAILURE;
         goto bail;
     }
 
@@ -695,6 +697,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
             slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                             "pam_passthru_postop: unable to fetch post-op "
                             "entry for rename operation.\n");
+            ret = SLAPI_PLUGIN_FAILURE;
             goto bail;
         }
     }

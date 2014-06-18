@@ -147,7 +147,7 @@ static void memberof_set_plugin_id(void * plugin_id);
 static int memberof_compare(MemberOfConfig *config, const void *a, const void *b);
 static int memberof_qsort_compare(const void *a, const void *b);
 static void memberof_load_array(Slapi_Value **array, Slapi_Attr *attr);
-static void memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn);
+static int memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn);
 static int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char **types, plugin_search_entry_callback callback,  void *callback_data);
 static int memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn,
@@ -162,7 +162,7 @@ static int memberof_test_membership(Slapi_PBlock *pb, MemberOfConfig *config,
 static int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data);
-static void memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
+static int memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	Slapi_DN *pre_sdn, Slapi_DN *post_sdn);
 static int memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn,
@@ -556,7 +556,14 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		/* remove this DN from the
 		 * membership lists of groups
 		 */
-		memberof_del_dn_from_groups(pb, &configCopy, sdn);
+		if((ret = memberof_del_dn_from_groups(pb, &configCopy, sdn))){
+			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			                "memberof_postop_del: error deleting dn (%s) from group. Error (%d)",
+			                slapi_sdn_get_dn(sdn),ret);
+			memberof_unlock();
+			memberof_free_config(&configCopy);
+			goto bail;
+		}
 
 		/* is the entry of interest as a group? */
 		if(e && configCopy.group_filter && !slapi_filter_test_simple(e, configCopy.group_filter))
@@ -565,20 +572,28 @@ int memberof_postop_del(Slapi_PBlock *pb)
 			Slapi_Attr *attr = 0;
 
 			/* Loop through to find each grouping attribute separately. */
-			for (i = 0; configCopy.groupattrs[i]; i++)
+			for (i = 0; configCopy.groupattrs[i] && ret == LDAP_SUCCESS; i++)
 			{
 				if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_del_attr_list(pb, &configCopy, sdn, attr);
+					if((ret = memberof_del_attr_list(pb, &configCopy, sdn, attr))){
+						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+							"memberof_postop_del: error deleting attr list - dn (%s). Error (%d)",
+							slapi_sdn_get_dn(sdn),ret);
+					}
+
 				}
 			}
 		}
-
 		memberof_unlock();
-
 		memberof_free_config(&configCopy);
 	}
 
+bail:
+	if(ret){
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+		ret = SLAPI_PLUGIN_FAILURE;
+	}
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_del\n" );
 	return ret;
@@ -591,28 +606,32 @@ typedef struct _memberof_del_dn_data
 } memberof_del_dn_data;
 
 /* Deletes a member dn from all groups that refer to it. */
-static void
+static int
 memberof_del_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *sdn)
 {
 	int i = 0;
 	char *groupattrs[2] = {0, 0};
+	int rc = LDAP_SUCCESS;
 
 	/* Loop through each grouping attribute to find groups that have
 	 * dn as a member.  For any matches, delete the dn value from the
 	 * same grouping attribute. */
-	for (i = 0; config->groupattrs && config->groupattrs[i]; i++)
+	for (i = 0; config->groupattrs && config->groupattrs[i] && rc == LDAP_SUCCESS; i++)
 	{
 		memberof_del_dn_data data = {(char *)slapi_sdn_get_dn(sdn),
 		                             config->groupattrs[i]};
 
 		groupattrs[0] = config->groupattrs[i];
 
-		memberof_call_foreach_dn(pb, sdn, groupattrs,
-		                         memberof_del_dn_type_callback, &data);
+		rc = memberof_call_foreach_dn(pb, sdn, groupattrs,
+		                              memberof_del_dn_type_callback, &data);
 	}
+
+	return rc;
 }
 
-int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
+int
+memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
 {
 	int rc = 0;
 	LDAPMod mod;
@@ -654,7 +673,8 @@ int memberof_del_dn_type_callback(Slapi_Entry *e, void *callback_data)
  * is a user, you'd want "type" to be "member".  If "dn" is a group, you
  * could want type to be either "member" or "memberOf" depending on the case.
  */
-int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
+int
+memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char **types, plugin_search_entry_callback callback, void *callback_data)
 {
 	Slapi_PBlock *search_pb = NULL;
@@ -763,6 +783,11 @@ int memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 		slapi_search_internal_set_pb(search_pb, slapi_sdn_get_dn(base_sdn),
 			LDAP_SCOPE_SUBTREE, filter_str, 0, 0, 0, 0, memberof_get_plugin_id(), 0);
 		slapi_search_internal_callback_pb(search_pb, callback_data, 0, callback, 0);
+		slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+		if(rc != LDAP_SUCCESS){
+			break;
+		}
+
 
 		if(!all_backends){
 			break;
@@ -841,8 +866,12 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 			{
 				if(0 == slapi_entry_attr_find(post_e, configCopy.groupattrs[i], &attr))
 				{
-					if(memberof_moddn_attr_list(pb, &configCopy, pre_sdn,
-					                            post_sdn, attr) != 0){
+					if((ret = memberof_moddn_attr_list(pb, &configCopy, pre_sdn,
+					                            post_sdn, attr) != 0))
+					{
+						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+							"memberof_postop_modrdn - update failed for (%s), error (%d)\n",
+							slapi_sdn_get_dn(pre_sdn), ret);
 						break;
 					}
 				}
@@ -852,13 +881,25 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		/* It's possible that this is an entry who is a member
 		 * of other group entries.  We need to update any member
 		 * attributes to refer to the new name. */
-		if (pre_sdn && post_sdn) {
+		if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
 			if (entry_scope && !slapi_sdn_issuffix(post_sdn, entry_scope)) {
 				memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
-				memberof_del_dn_from_groups(pb, &configCopy, pre_sdn);
-				memberof_del_dn_type_callback(post_e, &del_data);
+				if((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_sdn))){
+					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						"memberof_postop_modrdn - delete dn failed for (%s), error (%d)\n",
+						slapi_sdn_get_dn(pre_sdn), ret);
+				}
+				if(ret == LDAP_SUCCESS && (ret = memberof_del_dn_type_callback(post_e, &del_data))){
+					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						"memberof_postop_modrdn - delete dn callback failed for (%s), error (%d)\n",
+						slapi_entry_get_dn(post_e), ret);
+				}
 			} else {
-				memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn);
+				if((ret = memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn))){
+					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						"memberof_postop_modrdn - replace dne failed for (%s), error (%d)\n",
+						slapi_sdn_get_dn(pre_sdn), ret);
+				}
 			}
 		}
 
@@ -866,6 +907,10 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		memberof_free_config(&configCopy);
 	}
 
+	if(ret){
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+		ret = SLAPI_PLUGIN_FAILURE;
+	}
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_modrdn\n" );
 	return ret;
@@ -881,12 +926,13 @@ typedef struct _replace_dn_data
 
 /* Finds any groups that have pre_dn as a member and modifies them to
  * to use post_dn instead. */
-static void
+static int
 memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	Slapi_DN *pre_sdn, Slapi_DN *post_sdn)
 {
 	int i = 0;
 	char *groupattrs[2] = {0, 0};
+	int ret = LDAP_SUCCESS;
 
 	/* Loop through each grouping attribute to find groups that have
 	 * pre_dn as a member.  For any matches, replace pre_dn with post_dn
@@ -899,9 +945,15 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 
 		groupattrs[0] = config->groupattrs[i];
 
-		memberof_call_foreach_dn(pb, pre_sdn, groupattrs, 
-			memberof_replace_dn_type_callback, &data);
+		if((ret = memberof_call_foreach_dn(pb, pre_sdn, groupattrs,
+		                                   memberof_replace_dn_type_callback,
+		                                   &data)))
+		{
+			break;
+		}
 	}
+
+	return ret;
 }
 
 
@@ -1068,7 +1120,14 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_ADD:
 					{
 						/* add group DN to targets */
-						memberof_add_smod_list(pb, &configCopy, sdn, smod);
+						if((ret = memberof_add_smod_list(pb, &configCopy, sdn, smod))){
+							slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+								"memberof_postop_modify: failed to add dn (%s) to target.  "
+								"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
+							slapi_mod_done(next_mod);
+							memberof_unlock();
+							goto bail;
+						}
 						break;
 					}
 				
@@ -1080,12 +1139,26 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 						 * entry, which the replace code deals with. */
 						if (slapi_mod_get_num_values(smod) == 0)
 						{
-							memberof_replace_list(pb, &configCopy, sdn);
+							if((ret = memberof_replace_list(pb, &configCopy, sdn))){
+								slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+									"memberof_postop_modify: failed to replace list (%s).  "
+									"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
+								slapi_mod_done(next_mod);
+								memberof_unlock();
+								goto bail;
+							}
 						}
 						else
 						{
 							/* remove group DN from target values in smod*/
-							memberof_del_smod_list(pb, &configCopy, sdn, smod);
+							if((ret = memberof_del_smod_list(pb, &configCopy, sdn, smod))){
+								slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+									"memberof_postop_modify: failed to remove dn (%s).  "
+									"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
+								slapi_mod_done(next_mod);
+								memberof_unlock();
+								goto bail;
+							}
 						}
 						break;
 					}
@@ -1093,16 +1166,24 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 				case LDAP_MOD_REPLACE:
 					{
 						/* replace current values */
-						memberof_replace_list(pb, &configCopy, sdn);
+						if((ret = memberof_replace_list(pb, &configCopy, sdn))){
+							slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+								"memberof_postop_modify: failed to replace values in  dn (%s).  "
+								"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
+							slapi_mod_done(next_mod);
+							memberof_unlock();
+							goto bail;
+						}
 						break;
 					}
 
 				default:
 					{
 						slapi_log_error(
-							SLAPI_LOG_PLUGIN,
+							SLAPI_LOG_FATAL,
 							MEMBEROF_PLUGIN_SUBSYSTEM,
 							"memberof_postop_modify: unknown mod type\n" );
+						ret = SLAPI_PLUGIN_FAILURE;
 						break;
 					}
 				}
@@ -1114,6 +1195,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 			smod = slapi_mods_get_next_smod(smods, next_mod);
 		}
 
+bail:
 		if (config_copied)
 		{
 			memberof_free_config(&configCopy);
@@ -1124,6 +1206,11 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 	}
 
 done:
+	if(ret){
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+		ret = SLAPI_PLUGIN_FAILURE;
+	}
+
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_modify\n" );
 	return ret;
@@ -1186,7 +1273,12 @@ int memberof_postop_add(Slapi_PBlock *pb)
 			{
 				if(0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
-					memberof_add_attr_list(pb, &configCopy, sdn, attr);
+					if((ret = memberof_add_attr_list(pb, &configCopy, sdn, attr))){
+						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+							"memberof_postop_add: failed to add dn(%s), error (%d)",
+							slapi_sdn_get_dn(sdn), ret);
+						break;
+					}
 				}
 			}
 
@@ -1194,6 +1286,11 @@ int memberof_postop_add(Slapi_PBlock *pb)
 
 			memberof_free_config(&configCopy);
 		}
+	}
+
+	if(ret){
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -1542,7 +1639,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		if(LDAP_MOD_DELETE == mod_op || LDAP_MOD_ADD == mod_op)
 		{
 			/* find parent groups and replace our member attr */
-			memberof_fix_memberof_callback(e, config);
+			rc = memberof_fix_memberof_callback(e, config);
 		} else {
 			/* single entry - do mod */
 			mod_pb = slapi_pblock_new();
@@ -1664,7 +1761,9 @@ int memberof_mod_smod_list(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 		strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
 		slapi_sdn_set_dn_byref(sdn, dn_str);
 
-		memberof_modop_one(pb, config, mod, group_sdn, sdn);
+		if((rc = memberof_modop_one(pb, config, mod, group_sdn, sdn))){
+			break;
+		}
 
 		bv = slapi_mod_get_next_value(smod);
 	}
@@ -1743,7 +1842,7 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 	op_this_val = slapi_value_new_string(slapi_sdn_get_ndn(op_this_sdn));
 	slapi_value_set_flags(op_this_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
-	while(val)
+	while(val && rc == 0)
 	{
 		char *dn_str = 0;
 		struct berval *bv = 0;
@@ -1779,13 +1878,13 @@ int memberof_mod_attr_list_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod,
 			slapi_sdn_set_normdn_byref(sdn, dn_str); /* dn_str is normalized */
 			if(mod == LDAP_MOD_REPLACE)
 			{
-				memberof_modop_one_replace_r(pb, config, mod, group_sdn,
+				rc = memberof_modop_one_replace_r(pb, config, mod, group_sdn,
 				                             op_this_sdn, group_sdn,
 				                             sdn, stack);
 			}
 			else
 			{
-				memberof_modop_one_r(pb, config, mod, group_sdn, 
+				rc = memberof_modop_one_r(pb, config, mod, group_sdn,
 				                     op_this_sdn, sdn, stack);
 			}
 		}

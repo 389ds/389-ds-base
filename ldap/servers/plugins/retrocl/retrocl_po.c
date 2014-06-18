@@ -150,11 +150,11 @@ static lenstr *make_changes_string(LDAPMod **ldm, const char **includeattrs)
  *            log_m - pointer to the actual change operation on a modify
  *            flag   - only used by modrdn operations - value of deleteoldrdn 
  *            curtime - the current time
- * Returns: nothing
+ * Returns: error code
  * Description: Given a change, construct an entry which is to be added to the
  *              changelog database.
  */
-static void
+static int
 write_replog_db(
     Slapi_PBlock *pb,
     int			optype,
@@ -168,20 +168,21 @@ write_replog_db(
     const char          *newsuperior
 )
 {
-    char		*edn;
-    struct berval	*vals[ 2 ];
-    struct berval	val;
-    Slapi_Entry		*e;
-    char		chnobuf[ 20 ];
-    int			err;
-    Slapi_PBlock	*newPb = NULL;
+    Slapi_PBlock *newPb = NULL;
     changeNumber changenum;
-    int			i;
-    int			extensibleObject = 0;
+    struct berval *vals[ 2 ];
+    struct berval val;
+    Slapi_Entry *e;
+    char chnobuf[ 20 ];
+    char *edn;
+    int extensibleObject = 0;
+    int	err = 0;
+    int ret = LDAP_SUCCESS;
+    int	i;
 
     if (!dn) {
         slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
-	return;
+        return ret;
     }
 
     PR_Lock(retrocl_internal_lock);
@@ -321,78 +322,79 @@ write_replog_db(
      * Finish constructing the entry.  How to do it depends on the type
      * of modification being logged.
      */
-    err = 0;
     switch ( optype ) {
     case OP_ADD:
-	if ( entry2reple( e, log_e, OP_ADD ) != 0 ) {
-	    err = 1;
-	}
-	break;
+        if ( entry2reple( e, log_e, OP_ADD ) != 0 ) {
+            err = SLAPI_PLUGIN_FAILURE;
+        }
+        break;
 
     case OP_MODIFY:
-	if ( mods2reple( e, log_m ) != 0 ) {
-	    err = 1;
-	}
-	break;
+        if ( mods2reple( e, log_m ) != 0 ) {
+            err = SLAPI_PLUGIN_FAILURE;
+        }
+        break;
 
     case OP_MODRDN:
-	if ( modrdn2reple( e, newrdn, flag, modrdn_mods, newsuperior ) != 0 ) {
-	    err = 1;
-	}
-	break;
+        if ( modrdn2reple( e, newrdn, flag, modrdn_mods, newsuperior ) != 0 ) {
+            err = SLAPI_PLUGIN_FAILURE;
+        }
+        break;
 
     case OP_DELETE:
-	if (log_e) {
-		/* we have to log the full entry */
-		if ( entry2reple( e, log_e, OP_DELETE ) != 0 ) {
-	    		err = 1;
-		}
-	} else {
-		/* Set the changetype attribute */
-		val.bv_val = "delete";
-		val.bv_len = 6;
-		slapi_entry_add_values( e, attr_changetype, vals );
-	}
-	break;
+        if (log_e) {
+            /* we have to log the full entry */
+            if ( entry2reple( e, log_e, OP_DELETE ) != 0 ) {
+                err = SLAPI_PLUGIN_FAILURE;
+            }
+        } else {
+            /* Set the changetype attribute */
+            val.bv_val = "delete";
+            val.bv_len = 6;
+            slapi_entry_add_values( e, attr_changetype, vals );
+        }
+        break;
+
     default:
-	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "replog: Unknown LDAP operation type "
-		"%d.\n", optype );
-	err = 1;
+        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                "replog: Unknown LDAP operation type %d.\n", optype );
+        err = SLAPI_PLUGIN_FAILURE;
     }
 
     /* Call the repl backend to add this entry */
     if ( 0 == err ) {
-	int rc;
+        newPb = slapi_pblock_new ();
+        slapi_add_entry_internal_set_pb( newPb, e, NULL /* controls */,
+            g_plg_identity[PLUGIN_RETROCL],
+            /* dont leave entry in cache if main oparation is aborted */
+            SLAPI_OP_FLAG_NEVER_CACHE);
+        slapi_add_internal_pb (newPb);
+        slapi_pblock_get( newPb, SLAPI_PLUGIN_INTOP_RESULT, &ret );
+        slapi_pblock_destroy(newPb);
+        if ( 0 != ret ) {
+            slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                 "replog: an error occured while adding change "
+                 "number %lu, dn = %s: %s. \n",
+                 changenum, edn, ldap_err2string( ret ));
+            retrocl_release_changenumber();
 
-	newPb = slapi_pblock_new ();
-	slapi_add_entry_internal_set_pb( newPb, e, NULL /* controls */, 
-					 g_plg_identity[PLUGIN_RETROCL], 
-					/* dont leave entry in cache if main oparation is aborted */
-					 SLAPI_OP_FLAG_NEVER_CACHE);
-	slapi_add_internal_pb (newPb);
-	slapi_pblock_get( newPb, SLAPI_PLUGIN_INTOP_RESULT, &rc );
-	slapi_pblock_destroy(newPb);
-	if ( 0 != rc ) {
-	    slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
-			     "replog: an error occured while adding change "
-			     "number %lu, dn = %s: %s. \n",
-			     changenum, edn, ldap_err2string( rc ));
-	    retrocl_release_changenumber();
-	} else {
-	/* Tell the change numbering system this one's committed to disk  */
-	    retrocl_commit_changenumber();
-	}
+        } else {
+            /* Tell the change numbering system this one's committed to disk  */
+            retrocl_commit_changenumber();
+        }
     } else {
-	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, 
-			 "An error occurred while constructing "
-			 "change record number %ld.\n",	changenum );
-	retrocl_release_changenumber();
+        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+             "An error occurred while constructing "
+             "change record number %ld.\n",	changenum );
+        retrocl_release_changenumber();
+        ret = err;
     }
     PR_Unlock(retrocl_internal_lock);
     if ( NULL != edn ) {
-	slapi_ch_free((void **) &edn);
+        slapi_ch_free((void **) &edn);
     }
 
+    return ret;
 }
 
 
@@ -585,7 +587,7 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
     Slapi_DN *newsuperior = NULL;
     Slapi_Backend *be = NULL;
     time_t curtime;
-    int rc;
+    int rc = SLAPI_PLUGIN_SUCCESS;
 
     /*
      * Check to see if the change was made to the replication backend db.
@@ -608,10 +610,10 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
 
     if (rc != LDAP_SUCCESS) {
         LDAPDebug1Arg(LDAP_DEBUG_TRACE,"not applying change if op failed %d\n",rc);
-	/* this could also mean that the changenumber is no longer correct
-	 * set a flag to check at next assignment
-	 */
-	retrocl_set_check_changenumber();
+        /* this could also mean that the changenumber is no longer correct
+         * set a flag to check at next assignment
+         */
+        retrocl_set_check_changenumber();
         return SLAPI_PLUGIN_SUCCESS;
     }
 
@@ -642,35 +644,44 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
 	
     switch ( optype ) {
     case OP_MODIFY:
-    	(void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &log_m );
-    	break;
+        (void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &log_m );
+        break;
     case OP_ADD:
-    	/*
-    	 * For adds, we want the unnormalized dn, so we can preserve
-    	 * spacing, case, when replicating it.
-    	 */
-    	(void)slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &te );
-    	if ( NULL != te ) {
-    	    dn = slapi_entry_get_dn( te );
-    	}
-    	break;
+        /*
+         * For adds, we want the unnormalized dn, so we can preserve
+         * spacing, case, when replicating it.
+         */
+        (void)slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &te );
+        if ( NULL != te ) {
+            dn = slapi_entry_get_dn( te );
+        }
+        break;
     case OP_DELETE:
-    if (retrocl_log_deleted)
-        (void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &te);
+        if (retrocl_log_deleted)
+            (void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &te);
         break;
     case OP_MODRDN:
-    	/* newrdn is used just for logging; no need to be normalized */
-    	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
-    	(void)slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
-    	(void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modrdn_mods );
-    	(void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior ); 
-    	break;
+        /* newrdn is used just for logging; no need to be normalized */
+        (void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
+        (void)slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
+        (void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modrdn_mods );
+        (void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior );
+        break;
     }
 
     /* check if we should log change to retro changelog, and
      * if so, do it here */
-    write_replog_db( pb, optype, dn, log_m, flag, curtime, te,
-		     newrdn, modrdn_mods, slapi_sdn_get_dn(newsuperior) );
+    if((rc = write_replog_db( pb, optype, dn, log_m, flag, curtime, te,
+        newrdn, modrdn_mods, slapi_sdn_get_dn(newsuperior) )))
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, "retrocl-plugin",
+                        "retrocl_postob: operation failure [%d]\n", rc);
+        if(rc < 0){
+            rc = LDAP_OPERATIONS_ERROR;
+        }
+        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+        rc = SLAPI_PLUGIN_FAILURE;
+    }
 
-    return 0;
+    return rc;
 }
