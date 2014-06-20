@@ -462,34 +462,32 @@ ldbm_back_search( Slapi_PBlock *pb )
                     }
 
                 } else {
-                    {
-                        /* Access Control Check to see if the client is allowed to use the VLV Control. */
-                        Slapi_Entry *feature;
-                        int rc;
-                        char dn[128];
-                        char *dummyAttr = "dummy#attr";
-                        char *dummyAttrs[2] = {NULL, NULL};
+                    /* Access Control Check to see if the client is allowed to use the VLV Control. */
+                    Slapi_Entry *feature;
+                    int rc;
+                    char dn[128];
+                    char *dummyAttr = "dummy#attr";
+                    char *dummyAttrs[2] = {NULL, NULL};
 
-                        dummyAttrs[0] = dummyAttr;
+                    dummyAttrs[0] = dummyAttr;
 
-                        /* This dn is normalized. */
-                        PR_snprintf(dn, sizeof (dn), "dn: oid=%s,cn=features,cn=config", LDAP_CONTROL_VLVREQUEST);
-                        feature = slapi_str2entry(dn, 0);
-                        rc = plugin_call_acl_plugin(pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
-                        slapi_entry_free(feature);
-                        if (rc != LDAP_SUCCESS) {
-                            /* Client isn't allowed to do this. */
-                            return ldbm_back_search_cleanup(pb, li, sort_control,
+                    /* This dn is normalized. */
+                    PR_snprintf(dn, sizeof (dn), "dn: oid=%s,cn=features,cn=config", LDAP_CONTROL_VLVREQUEST);
+                    feature = slapi_str2entry(dn, 0);
+                    rc = plugin_call_acl_plugin(pb, feature, dummyAttrs, NULL, SLAPI_ACL_READ, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+                    slapi_entry_free(feature);
+                    if (rc != LDAP_SUCCESS) {
+                        /* Client isn't allowed to do this. */
+                        return ldbm_back_search_cleanup(pb, li, sort_control,
                                     rc, "VLV Control", SLAPI_FAIL_GENERAL,
                                     &vlv_request_control, NULL, candidates);
-                        }
                     }
+                    /*
+                     * Sorting must always be critical for VLV; Force it be so.
+                     */
+                    is_sorting_critical= 1;
+                    virtual_list_view= 1;
                 }
-                /*
-                 * Sorting must always be critical for VLV; Force it be so.
-                 */
-                is_sorting_critical= 1;
-                virtual_list_view= 1;
             }
             else
             {
@@ -1407,7 +1405,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     back_txn               txn = {NULL};
     int                    pr_idx = -1;
     Slapi_Connection       *conn;
-    Slapi_Operation        *op;
+    Slapi_Operation        *op = NULL;
     int                    reverse_list = 0;
 
     slapi_pblock_get( pb, SLAPI_SEARCH_TARGET_SDN, &basesdn );
@@ -1791,7 +1789,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
     }
 
 bail:
-    if(rc){
+    if(rc && op) {
         op->o_reverse_search_state = 0;
     }
 

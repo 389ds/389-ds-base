@@ -942,7 +942,7 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			parent = slapi_create_dn_string("%s", orig);
 			if (!parent) {
 				parent = orig;
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+				slapi_log_error(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
 				              "cos_dn_defs_cb: "
 				              "failed to normalize parent dn %s. "
 				              "Adding the pre normalized dn.\n", 
@@ -959,18 +959,21 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			}
 			slapi_ch_free_string(&orig);
 		} else {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+			slapi_log_error(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
 			              "cos_dn_defs_cb: "
 			              "failed to get parent dn of cos definition %s.\n",
 			              pDn->val);
 			if (!pCosTemplateDn) {
 				if (!pCosTargetTree) {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTargetTree and cosTemplateDn are not set.\n");
+					slapi_log_error(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+					                "cosTargetTree and cosTemplateDn are not set.\n");
 				} else {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTemplateDn is not set.\n");
+					slapi_log_error(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+					                "cosTemplateDn is not set.\n");
 				}
 			} else if (!pCosTargetTree) {
-				LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTargetTree is not set.\n");
+				slapi_log_error(SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+				                "cosTargetTree is not set.\n");
 			}
 		}
 	}

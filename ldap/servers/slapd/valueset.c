@@ -1038,7 +1038,7 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 	int passin = flags & SLAPI_VALUE_FLAG_PASSIN;
 	int dupcheck = flags & SLAPI_VALUE_FLAG_DUPCHECK;
 
-	if (naddvals == 0) 
+	if (naddvals <= 0) 
 		return (rc);
 	
 	need = vs->num + naddvals + 1;
@@ -1071,6 +1071,11 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 			}
 		}
 		vs->max= allocate;
+	}
+	if (NULL == vs->va) {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, "slapi_valueset_add_attr_valuearray_ext: "
+		              "%s: valuearray is NULL\n", a->a_type);
+		return LDAP_OPERATIONS_ERROR;
 	}
 
 	if ( (vs->num + naddvals > VALUESET_ARRAY_SORT_THRESHOLD || dupcheck ) && 

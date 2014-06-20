@@ -1107,7 +1107,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 		}
 		goto error_return; 
 	}
-	noabort = 1;
 
 	rc= 0;
 	goto common_return;
