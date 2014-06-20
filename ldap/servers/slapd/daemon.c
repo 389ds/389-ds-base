@@ -1081,7 +1081,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	if ( n_tcps != NULL ) {
 		PRFileDesc **fdesp;
 		PRNetAddr  **nap = ports->n_listenaddr;
-		for (fdesp = n_tcps; fdesp && *fdesp; fdesp++, nap++) {
+		for (fdesp = n_tcps; fdesp && *fdesp && nap && *nap; fdesp++, nap++) {
 			if ( PR_Listen( *fdesp, config_get_listen_backlog_size() ) == PR_FAILURE ) {
 				PRErrorCode prerr = PR_GetError();
 				char		addrbuf[ 256 ];
@@ -1779,6 +1779,7 @@ daemon_register_reslimits( void )
 			&idletimeout_reslimit_handle ));
 }
 
+#if 0 /* NOT USED */
 /*
  * Compute the idle timeout for the connection.
  *
@@ -1826,7 +1827,7 @@ compute_idletimeout( slapdFrontendConfig_t *fecfg, Connection *conn )
 
 	return( idletimeout );
 }
-
+#endif
 
 #ifdef _WIN32
 static void
@@ -1891,9 +1892,6 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 {
 	Connection *c;
 	time_t curtime = current_time();
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	int idletimeout;
-	int maxthreads = config_get_maxthreadsperconn();
 #if defined( XP_WIN32 )
 	int i;
 #endif
