@@ -632,8 +632,12 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 	for ( tmp = olist; *tmp != NULL && *tmp != op; tmp = &(*tmp)->o_next )
 		;	/* NULL */
 	if ( *tmp == NULL ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: can't find op %d for conn %" NSPRIu64 "\n",
-		    (int)op->o_msgid, conn->c_connid, 0 );
+		if (op) {
+			LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: can't find op %d for conn %" NSPRIu64 "\n",
+			    (int)op->o_msgid, conn->c_connid, 0 );
+		} else {
+			LDAPDebug( LDAP_DEBUG_ANY, "connection_remove_operation: no operation provided\n");
+		}
 	} else {
 		*tmp = (*tmp)->o_next;
 	}
