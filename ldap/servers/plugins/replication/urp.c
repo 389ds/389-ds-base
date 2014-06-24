@@ -966,7 +966,8 @@ urp_add_resolve_parententry (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *ent
 	if(is_tombstone_entry(parententry)) /* The parent is a tombstone */
 	{
 		/* The parent entry must be resurected from the dead. */
-		ldap_rc = tombstone_to_glue (pb, sessionid, parententry, parentdn, REASON_RESURRECT_ENTRY, opcsn);
+		/* parentdn retrieved from entry is not tombstone dn. */
+		ldap_rc = tombstone_to_glue (pb, sessionid, parententry, parentdn, REASON_RESURRECT_ENTRY, opcsn, NULL);
 		if ( ldap_rc != LDAP_SUCCESS )
 		{
 			ldap_rc= LDAP_OPERATIONS_ERROR;

@@ -79,6 +79,6 @@ PRBool get_glue_csn(const Slapi_Entry *entry, const CSN **gluecsn);
  * urp_tombstone.c
  */
 int is_tombstone_entry(const Slapi_Entry* entry);
-int tombstone_to_glue(Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, const Slapi_DN *parentdn, const char *reason, CSN *opcsn);
+int tombstone_to_glue(Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, const Slapi_DN *parentdn, const char *reason, CSN *opcsn,     Slapi_DN **newparentdn);
 int entry_to_tombstone ( Slapi_PBlock *pb, Slapi_Entry *entry );
 PRBool get_tombstone_csn(const Slapi_Entry *entry, const CSN **delcsn);

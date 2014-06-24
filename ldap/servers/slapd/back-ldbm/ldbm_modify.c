@@ -140,7 +140,7 @@ modify_unswitch_entries(modify_context *mc,backend *be)
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int ret = 0;
 
-	if (mc->old_entry!=NULL && mc->new_entry!=NULL) {
+	if (mc->old_entry && mc->new_entry && mc->new_entry_in_cache) {
 		/* switch the entries, and reset the new, new, entry */
 		tmp_be = mc->new_entry;
 		mc->new_entry = mc->old_entry;

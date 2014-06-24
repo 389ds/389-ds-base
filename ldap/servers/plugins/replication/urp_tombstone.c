@@ -87,17 +87,18 @@ tombstone_to_glue_resolve_parent (
 	char *sessionid,
 	const Slapi_DN *parentdn,
 	const char *parentuniqueid,
-	CSN *opcsn)
+	CSN *opcsn,
+	Slapi_DN **newparentdn)
 {
 	/* Let's have a look at the parent of this entry... */
 	if(!slapi_sdn_isempty(parentdn) && parentuniqueid!=NULL)
 	{
 		int op_result;
-	    Slapi_PBlock *newpb= slapi_pblock_new();
-	    slapi_search_internal_set_pb(
-	    			newpb,
-	    			slapi_sdn_get_dn(parentdn), /* JCM - This DN just identifies the backend to be searched. */
-	    			LDAP_SCOPE_BASE,
+		Slapi_PBlock *newpb= slapi_pblock_new();
+		slapi_search_internal_set_pb(
+					newpb,
+					slapi_sdn_get_dn(parentdn), /* JCM - This DN just identifies the backend to be searched. */
+					LDAP_SCOPE_BASE,
 					"objectclass=*",
 					NULL, /*attrs*/
 					0, /*attrsonly*/
@@ -106,7 +107,7 @@ tombstone_to_glue_resolve_parent (
 					repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
 					0);
 		slapi_search_internal_pb(newpb); 
-	    slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
+		slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
 		switch(op_result)
 		{
 		case LDAP_SUCCESS:
@@ -118,7 +119,8 @@ tombstone_to_glue_resolve_parent (
 			{
 				if(is_tombstone_entry(entries[0]))
 				{
-					tombstone_to_glue (pb, sessionid, entries[0], parentdn, REASON_RESURRECT_ENTRY, opcsn);
+					tombstone_to_glue(pb, sessionid, entries[0], parentdn,
+					                  REASON_RESURRECT_ENTRY, opcsn, newparentdn);
 				}
 			}
 			else
@@ -146,14 +148,16 @@ tombstone_to_glue (
 	Slapi_PBlock *pb,
 	char *sessionid,
 	Slapi_Entry *tombstoneentry,
-	const Slapi_DN *tombstonedn,
+	const Slapi_DN *gluedn, /* does not start with uniqueid= */
 	const char *reason,
-	CSN *opcsn)
+	CSN *opcsn,
+	Slapi_DN **newparentdn)
 {
 	Slapi_DN *parentdn;
 	char *parentuniqueid;
 	const char *tombstoneuniqueid;
-	Slapi_Entry *addingentry;
+	Slapi_Entry *addingentry = NULL;
+	Slapi_Entry *addingentry_bakup = NULL;
 	const char *addingdn;
 	int op_result;
 	int rdn_is_conflict = 0;
@@ -164,23 +168,35 @@ tombstone_to_glue (
 	 * must attach the entry to the Operation
 	 */
 
-
 	/* Resurrect the parent entry first */ 
 
 	/* JCM - This DN calculation is odd. It could resolve to NULL
 	 * which won't help us identify the correct backend to search.
 	 */
-	is_suffix_dn_ext (pb, tombstonedn, &parentdn, 1 /* is_tombstone */);
-	parentuniqueid= slapi_entry_attr_get_charptr (tombstoneentry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID); /* Allocated */
-	tombstone_to_glue_resolve_parent (pb, sessionid, parentdn, parentuniqueid, opcsn);
+	is_suffix_dn_ext (pb, gluedn, &parentdn, 1 /* is_tombstone */);
+	parentuniqueid = slapi_entry_attr_get_charptr (tombstoneentry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID); /* Allocated */
+	tombstone_to_glue_resolve_parent (pb, sessionid, parentdn, parentuniqueid, opcsn, newparentdn);
 
 	/* Submit an Add operation to turn the tombstone entry into glue. */
 	/*
 	 * The tombstone is stored with an invalid DN, we must fix this.
 	 */
 	addingentry = slapi_entry_dup(tombstoneentry);
-	addingdn = slapi_sdn_get_dn(tombstonedn);
-	slapi_entry_set_sdn(addingentry, tombstonedn);
+
+	if (newparentdn && *newparentdn && slapi_sdn_compare(parentdn, *newparentdn)) {
+		/* If the parents are resolved, the tombstone's DN is going to be different... */
+		/* Update DN in addingentry */
+		Slapi_RDN *rdn = slapi_rdn_new();
+		slapi_rdn_set_dn_ext(rdn, slapi_sdn_get_dn(gluedn), SLAPI_RDN_SET_DN_INCLUDE_UNIQUEID);
+		addingdn = slapi_moddn_get_newdn(slapi_entry_get_sdn(addingentry), slapi_rdn_get_rdn(rdn),
+		                                 slapi_sdn_get_dn(*newparentdn));
+		slapi_rdn_free(&rdn);
+		slapi_sdn_init_normdn_passin(*newparentdn, addingdn); /* to return the new parentdn to the caller */
+	} else {
+		slapi_sdn_free(newparentdn); /* no change in parentdn; returning NULL */
+		addingdn = slapi_sdn_get_dn(gluedn);
+	}
+	slapi_sdn_set_normdn_byval(slapi_entry_get_sdn(addingentry), addingdn);
 	/* not just e_sdn, e_rsdn needs to be updated. */
 	slapi_rdn_set_all_dn(slapi_entry_get_srdn(addingentry), slapi_entry_get_dn_const(addingentry));
 	rdn_is_conflict = slapi_rdn_is_conflict(slapi_entry_get_srdn(addingentry));
@@ -198,6 +214,7 @@ tombstone_to_glue (
 	 * tombstoneentry from DB/entry cache is duplicated and turned to be a glue.
 	 * This addingentry is freed in op_shared_add.
 	 */
+	addingentry_bakup = slapi_entry_dup(addingentry);
 	op_result = urp_fixup_add_entry (addingentry, tombstoneuniqueid, slapi_ch_strdup(parentuniqueid), opcsn, OP_FLAG_RESURECT_ENTRY);
 	if ((LDAP_ALREADY_EXISTS == op_result) && !rdn_is_conflict) {
 		/* conflict -- there's already the same named entry added.
@@ -207,7 +224,8 @@ tombstone_to_glue (
 		 * */
 		char *conflictrdn = get_rdn_plus_uniqueid(sessionid, addingdn, tombstoneuniqueid);
 		if (conflictrdn) {
-			addingentry = slapi_entry_dup(tombstoneentry);
+			addingentry = addingentry_bakup;
+			addingentry_bakup = NULL;
 			if (!slapi_entry_attr_hasvalue(addingentry, ATTR_NSDS5_REPLCONFLICT, reason)) {
 				/* Add the reason of turning it to glue - The backend code will use it*/
 				slapi_entry_add_string(addingentry, ATTR_NSDS5_REPLCONFLICT, reason);
@@ -223,15 +241,16 @@ tombstone_to_glue (
 			addingentry = NULL;
 		}
 	}
+	slapi_entry_free(addingentry_bakup);
 	slapi_ch_free_string(&parentuniqueid);
 	if (op_result == LDAP_SUCCESS)
 	{
-		slapi_log_error (slapi_log_urp, repl_plugin_name,
+		slapi_log_error (/*slapi_log_urp*/SLAPI_LOG_FATAL, repl_plugin_name,
 			"%s: Resurrected tombstone %s to glue reason '%s'\n", sessionid, addingdn, reason);
 	}
 	else if (LDAP_ALREADY_EXISTS == op_result)
 	{
-		slapi_log_error(slapi_log_urp, repl_plugin_name,
+		slapi_log_error(/*slapi_log_urp*/SLAPI_LOG_FATAL, repl_plugin_name,
 		                "%s: No need to turn tombstone %s to glue; it was already resurrected.\n",
 		                sessionid, addingdn);
 		op_result = LDAP_SUCCESS;

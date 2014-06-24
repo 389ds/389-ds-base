@@ -324,15 +324,29 @@ slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn)
 	rdn->rdn= slapi_ch_strdup(fromrdn->rdn);
 }
 
+/*
+ * flags: 
+ * SLAPI_RDN_SET_DN_SKIP_UNIQUEID -- strip uniqueid, and set to rdn
+ * SLAPI_RDN_SET_DN_INCLUDE_UNIQUEID -- set <uniqueid,rdn> to rdn
+ */
 void
-slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int skip_tombstone)
+slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int flags)
 {
 	const char *mydn = dn;
 	slapi_rdn_done(rdn);
-	if (skip_tombstone && slapi_is_special_rdn(dn, RDN_IS_TOMBSTONE)) {
-		mydn = dn + slapi_uniqueIDRdnSize() + 1/*,*/;
+	if (flags && slapi_is_special_rdn(dn, RDN_IS_TOMBSTONE)) {
+		if (SLAPI_RDN_SET_DN_SKIP_UNIQUEID == flags) {
+			mydn = dn + slapi_uniqueIDRdnSize() + 1/*,*/;
+			slapi_rdn_init_dn(rdn, mydn);
+		} else if (SLAPI_RDN_SET_DN_INCLUDE_UNIQUEID == flags) {
+			Slapi_DN sdn = {0};
+			slapi_sdn_set_dn_byval(&sdn, dn);
+			_slapi_rdn_init_all_dn_ext(rdn, (const Slapi_DN *)&sdn, 1);
+			slapi_sdn_done(&sdn);
+		}
+	} else {
+		slapi_rdn_init_dn(rdn, mydn);
 	}
-	slapi_rdn_init_dn(rdn, mydn);
 }
 
 void

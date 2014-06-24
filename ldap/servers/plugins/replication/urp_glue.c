@@ -230,7 +230,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 
 		slapi_pblock_get( pb, SLAPI_BACKEND, &backend );
 		slapi_sdn_get_backend_parent ( dn, superiordn, backend );
-		slapi_rdn_set_dn_ext(rdn, slapi_sdn_get_dn(dn), 1/* skip nsuniqeid=..., in dn */);
+		slapi_rdn_set_dn_ext(rdn, slapi_sdn_get_dn(dn), SLAPI_RDN_SET_DN_SKIP_UNIQUEID);
 
 		while(!done)
 		{
