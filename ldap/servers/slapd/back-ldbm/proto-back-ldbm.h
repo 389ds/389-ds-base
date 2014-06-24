@@ -87,6 +87,9 @@ int cache_add_tentative(struct cache *cache, struct backentry *e,
 int cache_lock_entry(struct cache *cache, struct backentry *e);
 void cache_unlock_entry(struct cache *cache, struct backentry *e);
 int cache_replace(struct cache *cache, void *oldptr, void *newptr);
+#ifdef CACHE_DEBUG
+void check_entry_cache(struct cache *cache, struct backentry *e, int in_cache);
+#endif
 
 Hashtable *new_hash(u_long size, u_long offset, HashFn hfn,
                HashTestFn tfn);

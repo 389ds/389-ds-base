@@ -119,7 +119,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int not_an_error = 0;
 	int parent_switched = 0;
 	int noabort = 1;
-
+	int myrc = 0;
+	PRUint64 conn_id;
+	int op_id;
+	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
+		conn_id = 0; /* connection is NULL */
+	}
+	slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
@@ -811,6 +817,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 				retval = parent_update_on_childchange(&parent_modify_c,
 				                                      is_resurect_operation?PARENTUPDATE_RESURECT:PARENTUPDATE_ADD,
 				                                      NULL);
+				slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+				                "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+				                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
 				/* The modify context now contains info needed later */
 				if (retval) {
 					LDAPDebug2Args(LDAP_DEBUG_BACKLDBM, "parent_update_on_childchange: %s, rc=%d\n",
@@ -970,6 +979,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (parent_found) {
 			/* Push out the db modifications from the parent entry */
 			retval = modify_update_all(be,pb,&parent_modify_c,&txn);
+				slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+				                "conn=%lu op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+				                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
 			if (DB_LOCK_DEADLOCK == retval)
 			{
 				LDAPDebug( LDAP_DEBUG_ARGS, "add 6 DEADLOCK\n", 0, 0, 0 );
@@ -1098,8 +1110,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 	if (parent_found)
 	{
 		/* switch the parent entry copy into play */
-		modify_switch_entries(&parent_modify_c,be);
-		parent_switched = 1;
+		myrc = modify_switch_entries(&parent_modify_c,be);
+		slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+		                "conn=%lu op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+		                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
+		if (0 == myrc) {
+			parent_switched = 1;
+		}
 	}
 
 	if (ruv_c_init) {
@@ -1179,13 +1196,16 @@ error_return:
 	} else if (0 == rc) {
 		rc = SLAPI_FAIL_GENERAL;
 	}
-	if (parent_switched){
+	if (parent_switched) {
 		/*
 		 * Restore the old parent entry, switch the new with the original.
 		 * Otherwise the numsubordinate count will be off, and could later
 		 * be written to disk.
 		 */
-		modify_unswitch_entries( &parent_modify_c,be);
+		myrc = modify_unswitch_entries(&parent_modify_c, be);
+		slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+		                "conn=%lu op=%d modify_unswitch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+		                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
 	}
 diskfull_return:
 	if (disk_full) {
@@ -1282,7 +1302,10 @@ common_return:
 	if (ruv_c_init) {
 		modify_term(&ruv_c, be);
 	}
-	modify_term(&parent_modify_c,be);
+	slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+	                "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
+	                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry);
+	myrc = modify_term(&parent_modify_c,be);
 	done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY);
 	done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY);
 	done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY);

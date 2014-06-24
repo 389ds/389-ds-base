@@ -99,6 +99,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int opreturn = 0;
 	int free_delete_existing_entry = 0;
 	int not_an_error = 0;
+	int parent_switched = 0;
+	int myrc = 0;
+	PRUint64 conn_id;
+	int op_id;
+	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
+		conn_id = 0; /* connection is NULL */
+	}
+	slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -292,8 +300,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			retval = slapi_entry_has_children(e->ep_entry);
 			if (retval) {
 				ldap_result_code= LDAP_NOT_ALLOWED_ON_NONLEAF;
-				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete", "Deleting entry %s has %d children.\n", 
-				                slapi_entry_get_dn(e->ep_entry), retval);
+				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete", 
+				                "conn=%lu op=%d Deleting entry %s has %d children.\n", 
+				                conn_id, op_id, slapi_entry_get_dn(e->ep_entry), retval);
 				retval = -1;
 				goto error_return;
 			}
@@ -539,6 +548,10 @@ ldbm_back_delete( Slapi_PBlock *pb )
 						op |= PARENTUPDATE_DELETE_TOMBSTONE;
 					}
 					retval = parent_update_on_childchange(&parent_modify_c, op, &haschildren);
+					slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
+					                "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+					                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
+
 					/* The modify context now contains info needed later */
 					if (0 != retval) {
 						ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -575,9 +588,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				char *edn = slapi_entry_get_dn(e->ep_entry);
 				char *tombstone_dn;
 				Slapi_Value *tomb_value;
-		
+
 				if (slapi_is_special_rdn(edn, RDN_IS_TOMBSTONE)) {
-					LDAPDebug1Arg(LDAP_DEBUG_ANY, "Turning a tombstone into a tombstone! \"%s\"\n", edn);
+					slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+					                "conn=%lu op=%d Turning a tombstone into a tombstone! \"%s\"; e: 0x%p, cache_state: 0x%x, refcnt: %d\n", 
+					                conn_id, op_id, edn, e, e->ep_state, e->ep_refcnt);
 					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					retval = -1;
 					goto error_return;
@@ -708,9 +723,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			if (0 == retval) {
 				tombstone_in_cache = 1;
 			} else {
-				LDAPDebug2Args(LDAP_DEBUG_ANY,
-				               "tombstone entry %s failed to add to the cache: %d\n",
-				               slapi_entry_get_dn(tombstone->ep_entry), retval);
+				slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_delete",
+				                "conn=%lu op=%d tombstone entry %s failed to add to the cache: %d\n",
+				                conn_id, op_id, slapi_entry_get_dn(tombstone->ep_entry), retval);
 				tombstone_in_cache = 0;
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				DEL_SET_ERROR(ldap_result_code, 
@@ -1107,6 +1122,9 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		if (parent_found) {
 			/* Push out the db modifications from the parent entry */
 			retval = modify_update_all(be,pb,&parent_modify_c,&txn);
+			slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
+			                "conn=%lu op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+			                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
 			if (DB_LOCK_DEADLOCK == retval)
 			{
 				LDAPDebug( LDAP_DEBUG_BACKLDBM, "del 4 DEADLOCK\n", 0, 0, 0 );
@@ -1256,7 +1274,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	if (parent_found)
 	{
 		/* Replace the old parent entry with the newly modified one */
-		modify_switch_entries( &parent_modify_c,be);
+		myrc = modify_switch_entries( &parent_modify_c,be);
+		slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
+		                "conn=%lu op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+		                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
+		if (myrc == 0) {
+			parent_switched = 1;
+		}
 	}
 
 	rc= 0;
@@ -1271,6 +1295,9 @@ error_return:
 				CACHE_RETURN(&inst->inst_dncache, &bdn);
 			} 
 		}
+#ifdef CACHE_DEBUG
+		check_entry_cache(&inst->inst_cache, tombstone, tombstone_in_cache);
+#endif
 		if (tombstone_in_cache) { /* successfully replaced */
 			CACHE_REMOVE( &inst->inst_cache, tombstone );
 			CACHE_RETURN( &inst->inst_cache, &tombstone );
@@ -1283,6 +1310,9 @@ error_return:
 
 	/* Need to return to cache after post op plugins are called */
 	if (e) {
+#ifdef CACHE_DEBUG
+		check_entry_cache(&inst->inst_cache, e, e_in_cache);
+#endif
 		if (e_in_cache) {
 			if (remove_e_from_cache) {
 				/* The entry is already transformed to a tombstone. */
@@ -1346,7 +1376,17 @@ error_return:
 		/* txn is no longer valid - reset the txn pointer to the parent */
 		slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 	}
-	
+	if (parent_switched) {
+		/*
+		 * Restore the old parent entry, switch the new with the original.
+		 * Otherwise the numsubordinate count will be off, and could later
+		 * be written to disk.
+		 */
+		myrc = modify_unswitch_entries(&parent_modify_c, be);
+		slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
+		                "conn=%lu op=%d modify_unswitch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+		                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
+	}
 common_return:
 	if (orig_entry) {
 		/* NOTE: #define SLAPI_DELETE_BEPREOP_ENTRY SLAPI_ENTRY_PRE_OP */
@@ -1374,6 +1414,9 @@ common_return:
 				}
 			}
 		}
+#ifdef CACHE_DEBUG
+		check_entry_cache(&inst->inst_cache, tombstone, tombstone_in_cache);
+#endif
 		if (tombstone_in_cache) { /* successfully replaced */
 			CACHE_RETURN( &inst->inst_cache, &tombstone );
 			tombstone = NULL;
@@ -1408,7 +1451,10 @@ diskfull_return:
 		}
 		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}
-	modify_term(&parent_modify_c, be);
+	slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
+	                "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p, in_cache=%d\n",
+	                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, parent_modify_c.new_entry_in_cache);
+	myrc = modify_term(&parent_modify_c, be);
 	if (rc == 0 && opcsn && !is_fixup_operation && !delete_tombstone_entry)
 	{
 		/* URP Naming Collision

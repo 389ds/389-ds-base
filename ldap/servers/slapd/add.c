@@ -732,9 +732,9 @@ static void op_shared_add (Slapi_PBlock *pb)
 		
 		if (be->be_add != NULL)
 		{
-			rc = (*be->be_add)(pb);
 			/* backend may change this if errors and not consumed */
 			slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &save_e);
+			rc = (*be->be_add)(pb);
 			slapi_pblock_set(pb, SLAPI_ADD_ENTRY, ec);
 			if (rc == 0)
 			{

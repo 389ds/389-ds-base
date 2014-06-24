@@ -3137,7 +3137,9 @@ void slapi_rdn_init_rdn(Slapi_RDN *rdn,const Slapi_RDN *fromrdn);
  * \see slapi_rdn_set_rdn()
  */
 void slapi_rdn_set_dn(Slapi_RDN *rdn,const char *dn);
-void slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int skip_tombstone);
+#define SLAPI_RDN_SET_DN_SKIP_UNIQUEID 1
+#define SLAPI_RDN_SET_DN_INCLUDE_UNIQUEID 2
+void slapi_rdn_set_dn_ext(Slapi_RDN *rdn,const char *dn, int flags);
 Slapi_RDN *slapi_rdn_new_all_dn(const char *dn);
 int slapi_rdn_init_all_dn(Slapi_RDN *rdn, const char *dn);
 int slapi_rdn_init_all_sdn(Slapi_RDN *rdn, const Slapi_DN *sdn);

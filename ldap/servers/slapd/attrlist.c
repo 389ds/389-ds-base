@@ -312,6 +312,13 @@ int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals)
             (*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
         }
         rc = attr_replace(*a, values);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "attrlist_replace",
+                            "attr_replace (%s, %s) failed.\n",
+                            type, vals[0]->bv_val);
+            valuearray_free(&values);
+            slapi_attr_free(a);
+        }
     }
     return rc;
 }

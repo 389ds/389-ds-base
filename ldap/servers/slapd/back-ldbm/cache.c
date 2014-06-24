@@ -47,6 +47,7 @@
 #ifdef DEBUG
 #define LDAP_CACHE_DEBUG
 /* #define LDAP_CACHE_DEBUG_LRU * causes slowdown */
+/* #define CACHE_DEBUG * causes slowdown */
 #endif
 
 /* cache can't get any smaller than this (in bytes) */
@@ -1341,14 +1342,14 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
         {
             if (my_alt->ep_state & ENTRY_STATE_CREATING)
             {
-                LOG("the entry %s is reserved (ep_state: 0x%x, state: 0x%x\n", ndn, e->ep_state, state);
+                LOG("the entry %s is reserved (ep_state: 0x%x, state: 0x%x)\n", ndn, e->ep_state, state);
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 PR_Unlock(cache->c_mutex);
                 return -1;
             }
             else if (state != 0)
             {
-                LOG("the entry %s already exists. cannot reserve it. (ep_state: 0x%x, state: 0x%x\n",
+                LOG("the entry %s already exists. cannot reserve it. (ep_state: 0x%x, state: 0x%x)\n",
                     ndn, e->ep_state, state);
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 PR_Unlock(cache->c_mutex);
@@ -1519,20 +1520,20 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
     LOG("=> cache_lock_entry (%s)\n", backentry_get_ndn(e), 0, 0);
 
     if (! e->ep_mutexp) {
-       /* make sure only one thread does this */
-       PR_Lock(cache->c_emutexalloc_mutex);
-       if (! e->ep_mutexp) {
-           e->ep_mutexp = PR_NewMonitor();
-           if (!e->ep_mutexp) {
-               LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
-               LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                             "cache_lock_entry: failed to create a lock for %s\n",
-                             backentry_get_ndn(e));
-               LOG("<= cache_lock_entry (FAILED)\n", 0, 0, 0);
-               return 1;
-           }
-       }
-       PR_Unlock(cache->c_emutexalloc_mutex);
+        /* make sure only one thread does this */
+        PR_Lock(cache->c_emutexalloc_mutex);
+        if (! e->ep_mutexp) {
+            e->ep_mutexp = PR_NewMonitor();
+            if (!e->ep_mutexp) {
+                LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
+                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                              "cache_lock_entry: failed to create a lock for %s\n",
+                              backentry_get_ndn(e));
+                LOG("<= cache_lock_entry (FAILED)\n", 0, 0, 0);
+                return 1;
+            }
+        }
+        PR_Unlock(cache->c_emutexalloc_mutex);
     }
 
     /* wait on entry lock (done w/o holding the cache lock) */
@@ -2016,5 +2017,63 @@ dn_lru_verify(struct cache *cache, struct backdn *dn, int in)
         dnp = BACK_LRU_NEXT(dnp, struct backdn *);
     }
     ASSERT(is_in == in);
+}
+#endif
+
+#ifdef CACHE_DEBUG
+void
+check_entry_cache(struct cache *cache, struct backentry *e, int in_cache)
+{
+	Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
+	struct backentry *debug_e = cache_find_dn(cache, 
+	                                          slapi_sdn_get_dn(sdn),
+	                                          slapi_sdn_get_ndn_len(sdn));
+	if (in_cache) {
+		if (debug_e) { /* e is in cache */
+			CACHE_RETURN(cache, &debug_e);
+			if ((e != debug_e) && !(e->ep_state & ENTRY_STATE_DELETED)) {
+				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+				                "entry 0x%p is not in dn cache but 0x%p having the same dn %s is "
+				                "although in_cache flag is set!!!\n",
+				                e, debug_e, slapi_sdn_get_dn(sdn));
+			}
+		} else if (!(e->ep_state & ENTRY_STATE_DELETED)) {
+			slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+			                "%s (id %d) is not in dn cache although in_cache flag is set!!!\n",
+			                slapi_sdn_get_dn(sdn), e->ep_id);
+		}
+		debug_e = cache_find_id(cache, e->ep_id);
+		if (debug_e) { /* e is in cache */
+			CACHE_RETURN(cache, &debug_e);
+			if ((e != debug_e) && !(e->ep_state & ENTRY_STATE_DELETED)) {
+				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+				                "entry 0x%p is not in id cache but 0x%p having the same id %d is "
+				                "although in_cache flag is set!!!\n",
+				                e, debug_e, e->ep_id);
+			}
+		} else {
+			slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_delete",
+			                "%s (id %d) is not in id cache although in_cache flag is set!!!\n",
+			                slapi_sdn_get_dn(sdn), e->ep_id);
+		}
+	} else {
+		if (debug_e) { /* e is in cache */
+			CACHE_RETURN(cache, &debug_e);
+			if (e == debug_e) {
+				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+				                "%s (id %d) is in dn cache although in_cache flag is not set!!!\n",
+				                slapi_sdn_get_dn(sdn), e->ep_id);
+			}
+		}
+		debug_e = cache_find_id(cache, e->ep_id);
+		if (debug_e) { /* e is in cache: bad */
+			CACHE_RETURN(cache, &debug_e);
+			if (e == debug_e) {
+				slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_delete",
+				                "%s (id %d) is in id cache although in_cache flag is not set!!!\n",
+				                slapi_sdn_get_dn(sdn), e->ep_id);
+			}
+		}
+	}
 }
 #endif

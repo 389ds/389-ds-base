@@ -123,6 +123,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     int opreturn = 0;
     int free_modrdn_existing_entry = 0;
     int not_an_error = 0;
+    int myrc = 0;
+    PRUint64 conn_id;
+    int op_id;
+    if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
+        conn_id = 0; /* connection is NULL */
+    }
+    slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
     /* sdn & parentsdn need to be initialized before "goto *_return" */
     slapi_sdn_init(&dn_newdn);
@@ -263,6 +270,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             slapi_sdn_free(&dn_newsuperiordn);
             slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, orig_dn_newsuperiordn);
             orig_dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
+#ifdef CACHE_DEBUG
+            check_entry_cache(&inst->inst_cache, ec, ec_in_cache);
+#endif
             if (ec_in_cache) {
                 /* New entry 'ec' is in the entry cache.
                  * Remove it from the cache . */
@@ -747,7 +757,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     ldap_result_code= LDAP_ALREADY_EXISTS;
                     if (is_resurect_operation) {
                         slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
-                                        "cache_add_tentative failed: %s\n", slapi_entry_get_dn(ec->ep_entry));
+                                        "conn=%lu op=%d cache_add_tentative failed: %s\n", 
+                                        conn_id, op_id, slapi_entry_get_dn(ec->ep_entry));
                     }
                     goto error_return;
                 }
@@ -890,6 +901,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 if (parententry) {
                     retval = parent_update_on_childchange(&parent_modify_context,
                                                           PARENTUPDATE_DEL, NULL);
+                    slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                                    "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                                    conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
+
                     /* The parent modify context now contains info needed later */
                     if (retval) {
                         goto error_return;
@@ -898,6 +913,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 if (newparententry) {
                     retval = parent_update_on_childchange(&newparent_modify_context,
                                                           PARENTUPDATE_ADD, NULL);
+                    slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                                    "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                                    conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
                     /* The newparent modify context now contains info needed later */
                     if (retval) {
                         goto error_return;
@@ -908,9 +926,11 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             if (is_resurect_operation && parententry) {
                 retval = parent_update_on_childchange(&parent_modify_context, PARENTUPDATE_RESURECT, NULL);
                 if (retval) {
-                    LDAPDebug(LDAP_DEBUG_BACKLDBM, "parent_update_on_childchange parent %s of %s failed, rc=%d\n",
-                              slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
-                              slapi_entry_get_dn_const(ec->ep_entry), retval);
+                    slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                                    "conn=%lu op=%d parent_update_on_childchange parent %s of %s failed, rc=%d\n",
+                                    conn_id, op_id,
+                                    slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
+                                    slapi_entry_get_dn_const(ec->ep_entry), retval);
                     goto error_return;
                 }
             }
@@ -1096,6 +1116,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             else /* retval == 0 */
             {
                 retval = modify_update_all(be, pb, &newparent_modify_context, &txn);
+                slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                                "conn=%lu op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                                conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
                 if (DB_LOCK_DEADLOCK == retval)
                 {
                     /* Retry txn */
@@ -1223,7 +1246,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     }
     if(newparententry!=NULL)
     {
-        modify_switch_entries( &newparent_modify_context,be);
+        myrc = modify_switch_entries( &newparent_modify_context,be);
+        slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                        "conn=%lu op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
+                        conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, myrc);
     }
 
     slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
@@ -1446,6 +1472,9 @@ common_return:
         }
         /* remove the new entry from the cache if the op failed -
            otherwise, leave it in */
+#ifdef CACHE_DEBUG
+		check_entry_cache(&inst->inst_cache, ec, ec_in_cache);
+#endif
         if (ec_in_cache && ec && inst) {
             if (retval) {
                 CACHE_REMOVE( &inst->inst_cache, ec );
@@ -1467,7 +1496,7 @@ common_return:
         if (inst->inst_ref_count) {
             slapi_counter_decrement(inst->inst_ref_count);
         }
-	}
+    }
 
     moddn_unlock_and_return_entry(be,&e);
 
@@ -1496,8 +1525,16 @@ common_return:
     slapi_sdn_done(&dn_newdn);
     slapi_sdn_done(&dn_newrdn);
     slapi_sdn_done(&dn_parentdn);
-    modify_term(&parent_modify_context,be);
-    modify_term(&newparent_modify_context,be);
+    slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                    "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
+                    conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry);
+    myrc = modify_term(&parent_modify_context,be);
+    slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                    "conn=%lu op=%d modify_term: rc=%d\n", conn_id, op_id, myrc);
+    slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
+                    "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
+                    conn_id, op_id, newparent_modify_context.old_entry, newparent_modify_context.new_entry);
+    myrc = modify_term(&newparent_modify_context,be);
     if (free_modrdn_existing_entry) {
         done_with_pblock_entry(pb,SLAPI_MODRDN_EXISTING_ENTRY);
     } else { /* owned by original_entry */
@@ -1906,6 +1943,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         retval= -1;
         goto error_return;
     }
+	*e_in_cache = 0;
     if (orig_ec_in_cache) {
         /* ec was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
            and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -

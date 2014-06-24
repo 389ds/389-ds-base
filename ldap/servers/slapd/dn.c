@@ -2481,6 +2481,12 @@ slapi_sdn_get_rdn(const Slapi_DN *sdn,Slapi_RDN *rdn)
 	slapi_rdn_set_dn(rdn, slapi_sdn_get_dn(sdn));
 }
 
+void
+slapi_sdn_get_rdn_ext(const Slapi_DN *sdn, Slapi_RDN *rdn, int is_tombstone)
+{
+	slapi_rdn_set_dn_ext(rdn, slapi_sdn_get_dn(sdn), is_tombstone);
+}
+
 Slapi_DN *
 slapi_sdn_dup(const Slapi_DN *sdn)
 {
