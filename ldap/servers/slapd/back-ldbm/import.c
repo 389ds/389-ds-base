@@ -217,6 +217,10 @@ static void import_task_destroy(Slapi_Task *task)
 {
     ImportJob *job = (ImportJob *)slapi_task_get_data(task);
 
+    while(is_instance_busy(job->inst)){
+        /* wait for the job to finish before freeing it */
+        DS_Sleep(PR_SecondsToInterval(1));
+    }
     if (job && job->task_status) {
         slapi_ch_free((void **)&job->task_status);
         job->task_status = NULL;
