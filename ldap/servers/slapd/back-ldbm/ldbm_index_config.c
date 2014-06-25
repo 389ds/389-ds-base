@@ -347,19 +347,26 @@ int ldbm_instance_config_add_index_entry(
 int
 ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry* e)
 {
-    char *index_name;
-    int rc;
+    char *index_name = NULL;
+    int rc = LDAP_SUCCESS;
+    struct attrinfo *ai = NULL;
 
-    rc=ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
+    index_name = slapi_entry_attr_get_charptr(e, "cn");
+    if (index_name) {
+        ainfo_get(inst->inst_be, index_name, &ai);
+    }
+    if (!ai) {
+        rc=ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
+    }
     if (rc == LDAP_SUCCESS) {
     	/* Assume the caller knows if it is OK to go online immediately */
-        struct attrinfo *ai = NULL;
-
-        ainfo_get(inst->inst_be, index_name, &ai);
+        if (!ai) {
+            ainfo_get(inst->inst_be, index_name, &ai);
+        }
         PR_ASSERT(ai != NULL);
         ai->ai_indexmask &= ~INDEX_OFFLINE;
-        slapi_ch_free((void **)&index_name);
-    } 
+    }
+    slapi_ch_free_string(&index_name);
     return rc;
 }
 
