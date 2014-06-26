@@ -77,7 +77,7 @@ static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_En
 /* This is the main configuration which is updated from dse.ldif.  The
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
-static MemberOfConfig theConfig = {NULL, NULL,0, NULL, NULL, NULL};
+static MemberOfConfig theConfig = {NULL, NULL,0, NULL, NULL, NULL, NULL};
 static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
@@ -336,6 +336,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	int groupattr_name_len = 0;
 	char *allBackends = NULL;
 	char *entryScope = NULL;
+        char *entryScopeExcludeSubtree = NULL;
 	char *sharedcfg = NULL;
 
 	*returncode = LDAP_SUCCESS;
@@ -387,6 +388,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
 	entryScope = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_ATTR);
+        entryScopeExcludeSubtree = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE);
 
 	/* We want to be sure we don't change the config in the middle of
 	 * a memberOf operation, so we obtain an exclusive lock here */
@@ -510,6 +512,35 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		}
 	} else {
 		theConfig.entryScope = NULL;
+	}
+        
+        slapi_sdn_free(&theConfig.entryScopeExcludeSubtree);
+        if (entryScopeExcludeSubtree)
+	{
+        	if (theConfig.entryScope == NULL) {
+                        slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+                		"Error: Ignoring ExcludeSubtree (%s) because entryScope is not define\n",
+                		entryScopeExcludeSubtree);
+			theConfig.entryScopeExcludeSubtree = NULL;
+			slapi_ch_free_string(&entryScopeExcludeSubtree);
+                } else if (slapi_dn_syntax_check(NULL, entryScopeExcludeSubtree, 1) == 1) {
+            		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+                		"Error: Ignoring invalid DN used as plugin entry exclude subtree: [%s]\n",
+                		entryScopeExcludeSubtree);
+			theConfig.entryScopeExcludeSubtree = NULL;
+			slapi_ch_free_string(&entryScopeExcludeSubtree);
+		} else {
+			theConfig.entryScopeExcludeSubtree = slapi_sdn_new_dn_passin(entryScopeExcludeSubtree);
+		}
+	} else {
+		theConfig.entryScopeExcludeSubtree = NULL;
+	}
+        if (theConfig.entryScopeExcludeSubtree && theConfig.entryScope && !slapi_sdn_issuffix(theConfig.entryScopeExcludeSubtree, theConfig.entryScope)) {
+                slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+                        "Error: Ignoring ExcludeSubtree (%s) that is out of the scope (%s)\n",
+                        slapi_sdn_get_dn(theConfig.entryScopeExcludeSubtree),
+                        slapi_sdn_get_dn(theConfig.entryScope));
+                slapi_sdn_free(&theConfig.entryScopeExcludeSubtree);
 	}
 
 	/* release the lock */
@@ -703,6 +734,17 @@ memberof_config_get_entry_scope()
 	return entry_scope;
 }
 
+Slapi_DN *
+memberof_config_get_entry_scope_exclude_subtree()
+{
+	Slapi_DN *entry_exclude_subtree;
+
+	slapi_rwlock_rdlock(memberof_config_lock);
+	entry_exclude_subtree = theConfig.entryScopeExcludeSubtree;
+	slapi_rwlock_unlock(memberof_config_lock);
+
+	return entry_exclude_subtree;
+}
 /*
  * Check if we are modifying the config, or changing the shared config entry
  */

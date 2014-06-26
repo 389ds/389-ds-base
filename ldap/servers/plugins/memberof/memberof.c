@@ -685,6 +685,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char *cookie = NULL;
 	int all_backends = memberof_config_get_all_backends();
 	Slapi_DN *entry_scope = memberof_config_get_entry_scope();
+        Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
 	int types_name_len = 0;
 	int num_types = 0;
 	int dn_len = slapi_sdn_get_ndn_len(sdn);
@@ -693,6 +694,10 @@ memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	int i = 0;
 
 	if (entry_scope && !slapi_sdn_issuffix(sdn, entry_scope)) {
+		return (rc);
+	}
+        
+        if (entry_scope_exclude_subtree && slapi_sdn_issuffix(sdn, entry_scope_exclude_subtree)) {
 		return (rc);
 	}
 
@@ -814,6 +819,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void *caller_id = NULL;
 	Slapi_DN *entry_scope = NULL;
+        Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
 
 	entry_scope = memberof_config_get_entry_scope();
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -882,7 +888,8 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		 * of other group entries.  We need to update any member
 		 * attributes to refer to the new name. */
 		if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
-			if (entry_scope && !slapi_sdn_issuffix(post_sdn, entry_scope)) {
+			if ((entry_scope && !slapi_sdn_issuffix(post_sdn, entry_scope)) || 
+                            (entry_scope_exclude_subtree && slapi_sdn_issuffix(post_sdn, entry_scope_exclude_subtree))) {
 				memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
 				if((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_sdn))){
 					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -2030,6 +2037,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
         Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
         Slapi_ValueSet *group_norm_vals = *((memberof_get_groups_data*)callback_data)->group_norm_vals;
+        Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
 	int rc = 0;
 
 	if(slapi_is_shutting_down()){
@@ -2083,11 +2091,14 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 		goto bail;
 	}
 
-	/* Push group_dn_val into the valueset.  This memory is now owned
-	 * by the valueset. */ 
-        group_dn_val = slapi_value_new_string(group_dn);
-	slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
-        slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        /* if the group does not belong to an excluded subtree, adds it to the valueset */
+        if (!(entry_scope_exclude_subtree && slapi_sdn_issuffix(group_sdn, entry_scope_exclude_subtree))) {
+                /* Push group_dn_val into the valueset.  This memory is now owned
+                 * by the valueset. */
+                group_dn_val = slapi_value_new_string(group_dn);
+                slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
+                slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+        }
         
 	/* now recurse to find parent groups of e */
 	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
