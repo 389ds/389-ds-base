@@ -1120,7 +1120,7 @@ slapi_is_special_rdn(const char *rdn, int flag)
 	}
 	rp = (char *)rdn;
 	while (rp) {
-		char *comma = NULL;
+		char *endp = NULL;
 		if (!PL_strncasecmp(rp, SLAPI_ATTR_UNIQUEID, SLAPI_ATTR_UNIQUEID_LENGTH) &&
 		    (*(rp + SLAPI_ATTR_UNIQUEID_LENGTH) == '=')) {
 			if (RDN_IS_TOMBSTONE == flag) {
@@ -1137,10 +1137,17 @@ slapi_is_special_rdn(const char *rdn, int flag)
 					return 1;
 				}
 			}
+		} else if (RDN_IS_TOMBSTONE == flag) {
+			/* If the first part of rdn does not start with SLAPI_ATTR_UNIQUEID,
+			 * it's not a tombstone RDN. */
+			return 0;
 		}
-		comma = PL_strchr(rp, ',');
+		endp = PL_strchr(rp, ',');
+		if (!endp) {
+			endp = rp + strlen(rp);
+		}
 		rp = PL_strchr(rp, '+');
-		if (rp && (rp < comma)) {
+		if (rp && (rp < endp)) {
 			plus = 1;
 			rp++;
 		}
