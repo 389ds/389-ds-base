@@ -599,14 +599,10 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
     Slapi_Entry **entries = NULL;
     int rc;
 
-    if (deref_check_access(pb, NULL, derefdn, attrs, &retattrs,
-                           (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                        "The client does not have permission to read the requested "
-                        "attributes in entry %s\n", derefdn);
-        return;
-    }
-
+/*  If the access check on the attributes is done without retrieveing the entry
+ *  it cannot handle acis which need teh entry, eg to apply a targetfilter rule
+ *  So the determination of attrs which can be dereferenced is delayed
+ */
     derefpb = slapi_pblock_new();
     slapi_search_internal_set_pb(derefpb, derefdn, LDAP_SCOPE_BASE,
                                  "(objectclass=*)", retattrs, 0,
@@ -625,62 +621,69 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
             } else {
                 int ii;
                 int needattrvals = 1; /* need attrvals sequence? */
-                for (ii = 0; retattrs[ii]; ++ii) {
-                    Slapi_Value *sv;
-                    int idx = 0;
-                    Slapi_ValueSet* results = NULL;
-                    int type_name_disposition = 0;
-                    char* actual_type_name = NULL;
-                    int flags = 0;
-                    int buffer_flags = 0;
-                    int needpartialattr = 1; /* need PartialAttribute sequence? */
-                    int needvalsset = 1;
+                if (deref_check_access(pb, entries[0], derefdn, attrs, &retattrs,
+                          (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                             "The client does not have permission to read the requested "
+                             "attributes in entry %s\n", derefdn);
+           } else {
+                    for (ii = 0; retattrs[ii]; ++ii) {
+                        Slapi_Value *sv;
+                        int idx = 0;
+                        Slapi_ValueSet* results = NULL;
+                        int type_name_disposition = 0;
+                        char* actual_type_name = NULL;
+                        int flags = 0;
+                        int buffer_flags = 0;
+                        int needpartialattr = 1; /* need PartialAttribute sequence? */
+                        int needvalsset = 1;
 
 #if defined(USE_OLD_UNHASHED)
-                    if (is_type_forbidden(retattrs[ii])) {
-                        slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
-                            "skip forbidden attribute [%s]\n", derefdn);
-                        continue;
-                    }
+                        if (is_type_forbidden(retattrs[ii])) {
+                            slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                                "skip forbidden attribute [%s]\n", derefdn);
+                            continue;
+                        }
 #endif
-                    deref_get_values(entries[0], retattrs[ii], &results, &type_name_disposition,
-                                     &actual_type_name, flags, &buffer_flags);
+                        deref_get_values(entries[0], retattrs[ii], &results, &type_name_disposition,
+                                         &actual_type_name, flags, &buffer_flags);
 
-                    if (results) {
-                        idx = slapi_valueset_first_value(results, &sv);
-                    }
-                    for (; results && sv; idx = slapi_valueset_next_value(results, idx, &sv)) {
-                        const struct berval *bv = slapi_value_get_berval(sv);
-                        if (needattrvals) {
-                            /* we have at least one attribute with values in
-                               DerefRes.attrVals */
-                            /* attrVals is OPTIONAL - only added if there are
-                               any values to send */
-                            ber_printf(ctrlber, "t{", (LBER_CLASS_CONTEXT|LBER_CONSTRUCTED));
-                            needattrvals = 0;
+                        if (results) {
+                            idx = slapi_valueset_first_value(results, &sv);
                         }
-                        if (needpartialattr) {
-                            /* This attribute in attrVals has values */
-                            ber_printf(ctrlber, "{s", retattrs[ii]);
-                            needpartialattr = 0;
+                        for (; results && sv; idx = slapi_valueset_next_value(results, idx, &sv)) {
+                            const struct berval *bv = slapi_value_get_berval(sv);
+                            if (needattrvals) {
+                                /* we have at least one attribute with values in
+                                   DerefRes.attrVals */
+                                /* attrVals is OPTIONAL - only added if there are
+                                   any values to send */
+                                ber_printf(ctrlber, "t{", (LBER_CLASS_CONTEXT|LBER_CONSTRUCTED));
+                                needattrvals = 0;
+                            }
+                            if (needpartialattr) {
+                                /* This attribute in attrVals has values */
+                                ber_printf(ctrlber, "{s", retattrs[ii]);
+                                needpartialattr = 0;
+                            }
+                            if (needvalsset) {
+                                /* begin the vals SET of values for this attribute */
+                                ber_printf(ctrlber, "[");
+                                needvalsset = 0;
+                            }
+                            ber_printf(ctrlber, "O", bv);
+                        } /* for each value in retattrs[ii] */
+                        deref_values_free(&results, &actual_type_name, buffer_flags);
+                        if (needvalsset == 0) {
+                            ber_printf(ctrlber, "]");
                         }
-                        if (needvalsset) {
-                            /* begin the vals SET of values for this attribute */
-                            ber_printf(ctrlber, "[");
-                            needvalsset = 0;
+                        if (needpartialattr == 0) {
+                            ber_printf(ctrlber, "}");
                         }
-                        ber_printf(ctrlber, "O", bv);
-                    } /* for each value in retattrs[ii] */
-                    deref_values_free(&results, &actual_type_name, buffer_flags);
-                    if (needvalsset == 0) {
-                        ber_printf(ctrlber, "]");
-                    }
-                    if (needpartialattr == 0) {
+                    } /* for each attr in retattrs */
+                    if (needattrvals == 0) {
                         ber_printf(ctrlber, "}");
                     }
-                } /* for each attr in retattrs */
-                if (needattrvals == 0) {
-                    ber_printf(ctrlber, "}");
                 }
             }
         } else { /* nothing */
