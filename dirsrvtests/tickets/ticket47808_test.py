@@ -15,7 +15,7 @@ from constants import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = '/home/nhosoi/install'
+installation_prefix = None
 
 ATTRIBUTE_UNIQUENESS_PLUGIN = 'cn=attribute uniqueness,cn=plugins,cn=config'
 ENTRY_NAME = 'test_entry'
@@ -27,7 +27,7 @@ class TopologyStandalone(object):
         self.standalone = standalone
 
 
-#@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
@@ -199,7 +199,7 @@ def run_isolated():
             - run this program
     '''
     global installation_prefix
-    installation_prefix = '/home/nhosoi/install'
+    installation_prefix = None
         
     topo = topology(True)
     test_ticket47808_run(topo)
