@@ -1385,7 +1385,9 @@ common_return:
 	if (!delete_tombstone_entry) {
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
 	}
-
+	if (inst && inst->inst_ref_count) { 
+		slapi_counter_decrement(inst->inst_ref_count); 
+	}
 	if (ruv_c_init) {
 		modify_term(&ruv_c, be);
 	}
