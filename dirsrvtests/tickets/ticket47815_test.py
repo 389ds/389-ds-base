@@ -22,7 +22,7 @@ class TopologyStandalone(object):
         self.standalone = standalone
 
 
-pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
