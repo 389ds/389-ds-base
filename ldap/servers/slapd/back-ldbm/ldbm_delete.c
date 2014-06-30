@@ -232,6 +232,11 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					goto error_return;
 				}
 			}
+			/* reset original entry in cache */ 
+	                if (!e_in_cache) { 
+                              CACHE_ADD(&inst->inst_cache, e, NULL); 
+                              e_in_cache = 1; 
+                        } 
 			if (ruv_c_init) {
 				/* reset the ruv txn stuff */
 				modify_term(&ruv_c, be);
@@ -733,6 +738,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					retval= -1;
 					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 					goto error_return;
+				} else {
+					e_in_cache = 0;
 				}
 			} else {
 				struct backentry *imposter = NULL;
