@@ -5799,6 +5799,7 @@ char * slapi_ch_malloc( unsigned long size );
 char * slapi_ch_realloc( char *block, unsigned long size );
 char * slapi_ch_calloc( unsigned long nelem, unsigned long size );
 char * slapi_ch_strdup( const char *s );
+char * slapi_ch_strndup( const char *s, size_t size );
 void slapi_ch_free( void **ptr );
 void slapi_ch_free_string( char **s );
 struct berval*  slapi_ch_bvdup(const struct berval*);

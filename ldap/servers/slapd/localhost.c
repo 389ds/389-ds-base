@@ -119,8 +119,9 @@ find_localhost_DNS()
 	return NULL;
     }
     if (strchr (hp->h_name, '.') != NULL) {
+	long host_name_max = sysconf(_SC_HOST_NAME_MAX);
 	LDAPDebug (LDAP_DEBUG_CONFIG, "h_name == %s\n", hp->h_name, 0, 0);
-	return slapi_ch_strdup (hp->h_name);
+	return slapi_ch_strndup (hp->h_name, host_name_max);
     } else if (hp->h_aliases != NULL) {
 	for (alias = hp->h_aliases; *alias != NULL; ++alias) {
 	    if (strchr  (*alias, '.') != NULL &&
