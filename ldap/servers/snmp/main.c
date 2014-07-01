@@ -75,6 +75,7 @@ main (int argc, char *argv[]) {
     struct stat         logdir_s;
     pid_t               child_pid;
     FILE                *pid_fp;
+    long                arg_max = 0;
 
     /* Load options */
     while ((--argc > 0) && ((*++argv)[0] == '-')) {
@@ -90,11 +91,13 @@ main (int argc, char *argv[]) {
         }
     }
 
-    if (argc != 1)
+    if ((argc != 1) || (NULL == *argv)) {
         exit_usage();
+    }
 
     /* load config file */
-    if ((config_file = strdup(*argv)) == NULL) {
+    arg_max = sysconf(_SC_ARG_MAX);
+    if ((config_file = strndup(*argv, arg_max)) == NULL) {
         printf("ldap-agent: Memory error loading config file\n");
         exit(1);
     }
