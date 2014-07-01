@@ -1077,16 +1077,17 @@ is_changelog(char *filename)
 
 static void usage(char *argv0)
 {
-    char *copy = strdup(argv0);
+    long arg_max = sysconf(_SC_ARG_MAX);
+    char *copy = strndup(argv0, arg_max);
     char *p0 = NULL, *p1 = NULL;
-    if (NULL != copy) {
+    if (copy && (strlen(copy) < arg_max)) {
         /* the full path is not needed in the usages */
-        p0 = strrchr(argv0, '/');
-        if (NULL != p0) {
+        p0 = strrchr(copy, '/');
+        if (p0) {
             *p0 = '\0';
             p0++;
         } else {
-            p0 = argv0;
+            p0 = copy;
         }
         p1 = strrchr(p0, '-'); /* get rid of -bin from the usage */
         if (NULL != p1) {
@@ -1124,6 +1125,9 @@ static void usage(char *argv0)
     printf("    # display summary of objectclass.db4\n");
     printf("    %s -f objectclass.db4\n", p0);
     printf("\n");
+    if (copy) {
+        free(copy);
+    }
     exit(1);
 }
 
