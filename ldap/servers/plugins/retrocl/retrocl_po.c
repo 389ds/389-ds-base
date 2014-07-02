@@ -541,9 +541,11 @@ modrdn2reple(
     if (NULL != ldm) {
 	l = make_changes_string( ldm, lastmodattrs );
 	if ( NULL != l ) {
-	    val.bv_val = l->ls_buf;
-	    val.bv_len = l->ls_len + 1; /* string + terminating \0 */
-	    slapi_entry_add_values( e, attr_changes, vals );
+	    if (l->ls_len) {
+	        val.bv_val = l->ls_buf;
+	        val.bv_len = l->ls_len;
+	        slapi_entry_add_values( e, attr_changes, vals );
+	    }
 	    lenstr_free( &l );
 	}
     }
