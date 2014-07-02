@@ -723,8 +723,8 @@ main( int argc, char **argv)
 
 #endif /* _WIN32 */
 
+	arg_max = sysconf(_SC_ARG_MAX);
 	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
-		arg_max = sysconf(_SC_ARG_MAX);
 		myname = slapi_ch_strndup( argv[0], arg_max );
 	} else {
 		myname = slapi_ch_strndup( myname + 1, arg_max );
