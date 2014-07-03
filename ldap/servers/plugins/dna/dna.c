@@ -249,7 +249,7 @@ static int dna_be_txn_preop_init(Slapi_PBlock *pb);
  */
 static int dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq);
 static int dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply);
-static void dna_delete_config();
+static void dna_delete_config(PRCList *list);
 static void dna_free_config_entry(struct configEntry ** entry);
 static int dna_load_host_port();
 
@@ -296,7 +296,7 @@ static int dna_get_remote_config_info( struct dnaServer *server, char **bind_dn,
 static int dna_load_shared_servers();
 static void dna_delete_global_servers();
 static int dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, char *value);
-
+static PRCList *dna_config_copy();
 /**
  *
  * the ops (where the real work is done)
@@ -328,6 +328,63 @@ void plugin_init_debug_level(int *level_ptr)
     module_ldap_debug = level_ptr;
 }
 #endif
+
+/*
+ * During the plugin startup we delay the creation of the shared config entries
+ * so all the other betxn plugins have time to start.  During the "delayed"
+ * update config event we will need a copy of the global config, as we can not
+ * hold the read lock while starting a transaction(potential deadlock).
+ */
+static PRCList *
+dna_config_copy()
+{
+    PRCList *copy = (PRCList *)slapi_ch_calloc(1, sizeof(struct configEntry));
+    PRCList *config_list;
+    PR_INIT_CLIST(copy);
+    int first = 1;
+
+
+    if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
+        config_list = PR_LIST_HEAD(dna_global_config);
+        while (config_list != dna_global_config) {
+            struct configEntry *new_entry = (struct configEntry *)slapi_ch_calloc(1, sizeof(struct configEntry));
+            struct configEntry *config_entry = (struct configEntry *) config_list;
+
+            new_entry->dn = slapi_ch_strdup(config_entry->dn);
+            new_entry->types = slapi_ch_array_dup(config_entry->types);
+            new_entry->prefix = slapi_ch_strdup(config_entry->prefix);
+            new_entry->filter = slapi_ch_strdup(config_entry->filter);
+            new_entry->slapi_filter = slapi_filter_dup(config_entry->slapi_filter);
+            new_entry->generate = slapi_ch_strdup(config_entry->generate);
+            new_entry->scope = slapi_ch_strdup(config_entry->scope);
+            new_entry->shared_cfg_base = slapi_ch_strdup(config_entry->shared_cfg_base);
+            new_entry->shared_cfg_dn   = slapi_ch_strdup(config_entry->shared_cfg_dn);
+            new_entry->remote_binddn   = slapi_ch_strdup(config_entry->remote_binddn);
+            new_entry->remote_bindpw   = slapi_ch_strdup(config_entry->remote_bindpw);
+            new_entry->timeout = config_entry->timeout;
+            new_entry->interval = config_entry->interval;
+            new_entry->threshold = config_entry->threshold;
+            new_entry->nextval = config_entry->nextval;
+            new_entry->maxval = config_entry->maxval;
+            new_entry->remaining = config_entry->remaining;
+            new_entry->extend_in_progress = config_entry->extend_in_progress;
+            new_entry->next_range_lower = config_entry->next_range_lower;
+            new_entry->next_range_upper = config_entry->next_range_upper;
+            new_entry->lock = NULL;
+            new_entry->extend_lock = NULL;
+
+            if(first){
+                PR_INSERT_LINK(&(new_entry->list), copy);
+                first = 0;
+            } else {
+                PR_INSERT_BEFORE(&(new_entry->list), copy);
+            }
+            config_list = PR_NEXT_LINK(config_list);
+        }
+    }
+
+    return copy;
+}
 
 /**
  *
@@ -667,10 +724,9 @@ dna_close(Slapi_PBlock * pb)
 
     dna_write_lock();
     g_plugin_started = 0;
-    dna_delete_config();
-    dna_unlock();
-
+    dna_delete_config(NULL);
     slapi_ch_free((void **)&dna_global_config);
+    dna_unlock();
 
     dna_delete_global_servers();
     slapi_destroy_rwlock(g_dna_cache_server_lock);
@@ -798,7 +854,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
                     use_eventq?"using event queue":"");
 
     dna_write_lock();
-    dna_delete_config();
+    dna_delete_config(NULL);
 
     search_pb = slapi_pblock_new();
 
@@ -1357,13 +1413,18 @@ dna_delete_configEntry(PRCList *entry)
 }
 
 static void
-dna_delete_config()
+dna_delete_config(PRCList *list)
 {
-    PRCList *list;
+    PRCList *list_entry, *delete_list;
 
-    while (!PR_CLIST_IS_EMPTY(dna_global_config)) {
-        list = PR_LIST_HEAD(dna_global_config);
-        dna_delete_configEntry(list);
+    if(list){
+        delete_list = list;
+    } else {
+        delete_list = dna_global_config;
+    }
+    while (!PR_CLIST_IS_EMPTY(delete_list)) {
+        list_entry = PR_LIST_HEAD(delete_list);
+        dna_delete_configEntry(list_entry);
     }
 
     return;
@@ -1446,15 +1507,18 @@ dna_load_host_port()
  * Event queue callback that we use to do the initial
  * update of the shared config entries shortly after
  * startup.
+ *
+ * Since we need to start a backend transaction, a copy/snapshot of the global
+ * config is used, and then freed.
  */
 static void
 dna_update_config_event(time_t event_time, void *arg)
 {
     Slapi_PBlock *pb = NULL;
     struct configEntry *config_entry = NULL;
-    PRCList *list = NULL;
+    PRCList *copy = NULL, *list = NULL;
 
-    /* Get read lock to prevent config changes */
+    /* Get the read lock so we can copy the config */
     dna_read_lock();
 
     /* Bail out if the plug-in close function was just called. */
@@ -1462,17 +1526,21 @@ dna_update_config_event(time_t event_time, void *arg)
         goto bail;
     }
 
-    /* Loop through all config entries and update the shared
-     * config entries. */
+    /* Loop through all config entries and update the shared config entries. */
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
-        list = PR_LIST_HEAD(dna_global_config);
+        /*
+         * We need to use a copy of the config because we can not hold
+         * the read lock and start a backend transaction.
+         */
+        copy = dna_config_copy();
+        dna_unlock();
 
-        /* Create the pblock.  We'll reuse this for all
-         * shared config updates. */
+        /* Create the pblock.  We'll reuse it for all shared config updates. */
         if ((pb = slapi_pblock_new()) == NULL)
             goto bail;
 
-        while (list != dna_global_config) {
+        list = PR_LIST_HEAD(copy);
+        while (list != copy) {
             config_entry = (struct configEntry *) list;
 
             /* If a shared config dn is set, update the shared config. */
@@ -1494,8 +1562,6 @@ dna_update_config_event(time_t event_time, void *arg)
                     }
                 }
 
-                slapi_lock_mutex(config_entry->lock);
-
                 /* First delete the existing shared config entry.  This
                  * will allow the entry to be updated for things like
                  * port number changes, etc. */
@@ -1508,7 +1574,6 @@ dna_update_config_event(time_t event_time, void *arg)
                 /* Now force the entry to be recreated */
                 dna_update_shared_config(config_entry);
 
-                slapi_unlock_mutex(config_entry->lock);
                 if (dna_pb) {
                     if (0 == rc) {
                         slapi_back_transaction_commit(dna_pb);
@@ -1520,10 +1585,13 @@ dna_update_config_event(time_t event_time, void *arg)
 
             list = PR_NEXT_LINK(list);
         }
+        dna_delete_config(copy);
+        slapi_ch_free((void **)&copy);
+    } else {
+        dna_unlock();
     }
 
 bail:
-    dna_unlock();
     slapi_pblock_destroy(pb);
 }
 
@@ -2461,7 +2529,7 @@ dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, cha
  * before calling this function.
  * */
 static int
-dna_update_shared_config(struct configEntry * config_entry)
+dna_update_shared_config(struct configEntry *config_entry)
 {
     int ret = LDAP_SUCCESS;
 
