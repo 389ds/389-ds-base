@@ -626,8 +626,9 @@ nsslapd-pluginpath: libattr-unique-plugin
 nsslapd-plugininitfunc: NSUniqueAttr_Init
 nsslapd-plugintype: betxnpreoperation
 nsslapd-pluginenabled: off
-nsslapd-pluginarg0: uid
-nsslapd-pluginarg1: %ds_suffix%
+uniqueness-attribute-name: uid
+uniqueness-subtrees: %ds_suffix%
+uniqueness-across-all-subtrees: off
 nsslapd-plugin-depends-on-type: database
 
 dn: cn=7-bit check,cn=plugins,cn=config

@@ -99,13 +99,285 @@ pluginDesc = {
 	"Enforce unique attribute values" 
 };
 static void* plugin_identity = NULL;
+typedef struct attr_uniqueness_config {
+        char *attr;
+        Slapi_DN **subtrees;
+        PRBool unique_in_all_subtrees;
+        char *top_entry_oc;
+        char *subtree_entries_oc;
+        struct attr_uniqueness_config *next;
+} attr_uniqueness_config_t;
 
+#define ATTR_UNIQUENESS_ATTRIBUTE_NAME      "uniqueness-attribute-name"
+#define ATTR_UNIQUENESS_SUBTREES            "uniqueness-subtrees"
+#define ATTR_UNIQUENESS_ACROSS_ALL_SUBTREES "uniqueness-across-all-subtrees"
+#define ATTR_UNIQUENESS_TOP_ENTRY_OC        "uniqueness-top-entry-oc"
+#define ATTR_UNIQUENESS_SUBTREE_ENTRIES_OC  "uniqueness-subtree-entries-oc"
+
+static int getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass, char **requiredObjectClass);
+static struct attr_uniqueness_config *uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry);
 
 /*
  * More information about constraint failure
  */
 static char *moreInfo =
   "Another entry with the same attribute value already exists (attribute: \"%s\")";
+
+static void
+free_uniqueness_config(struct attr_uniqueness_config *config)
+{
+        int i;
+        
+        slapi_ch_free_string((char **) &config->attr);
+        for (i = 0; config->subtrees && config->subtrees[i]; i++) {
+                slapi_sdn_free(&config->subtrees[i]);
+        }
+        slapi_ch_free((void **) &config->subtrees);
+        slapi_ch_free_string((char **) &config->top_entry_oc);
+        slapi_ch_free_string((char **) &config->subtree_entries_oc);       
+}
+
+/*
+ * New styles: 
+ * ----------
+ * 
+ * uniqueness-attribute-name: uid
+ * uniqueness-subtrees: dc=people,dc=example,dc=com
+ * uniqueness-subtrees: dc=sales, dc=example,dc=com
+ * uniqueness-across-all-subtrees: on
+ * 
+ * or
+ * 
+ * uniqueness-attribute-name: uid
+ * uniqueness-top-entry-oc: organizationalUnit
+ * uniqueness-subtree-entries-oc: person
+ * 
+ * If both are present:
+ *  - uniqueness-subtrees
+ *  - uniqueness-top-entry-oc/uniqueness-subtree-entries-oc
+ * Then uniqueness-subtrees has the priority
+ * 
+ * Old styles:
+ * ----------
+ * 
+ * nsslapd-pluginarg0: uid
+ * nsslapd-pluginarg1: dc=people,dc=example,dc=com
+ * nsslapd-pluginarg2: dc=sales, dc=example,dc=com
+ * 
+ * or
+ * 
+ * nsslapd-pluginarg0: attribute=uid
+ * nsslapd-pluginarg1: markerobjectclass=organizationalUnit
+ * nsslapd-pluginarg2: requiredobjectclass=person
+ *
+ * From a Slapi_Entry of the config entry, it creates a attr_uniqueness_config.
+ * It returns a (attr_uniqueness_config *) if the configuration is valid
+ * Else it returns NULL
+ */
+static struct attr_uniqueness_config *
+uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry) 
+{
+        attr_uniqueness_config_t *tmp_config = NULL;
+        char **values = NULL;
+        int argc;
+        char **argv = NULL;
+        int rc = SLAPI_PLUGIN_SUCCESS;
+        int i;
+        int nb_subtrees = 0;
+
+        if (config_entry == NULL) {
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto done;
+        }
+
+        
+        /* We are going to fill tmp_config in a first phase */
+        if ((tmp_config = (attr_uniqueness_config_t *) slapi_ch_calloc(1, sizeof (attr_uniqueness_config_t))) == NULL) {
+                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "load_config failed to allocate configuration\n");
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto done;
+        } else {
+                /* set these to -1 for config validation */
+
+        }
+        
+        /* Check if this is new/old config style */
+        slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
+        if (argc == 0) {
+                /* This is new config style
+                 * uniqueness-attribute-name: uid
+                 * uniqueness-subtrees: dc=people,dc=example,dc=com
+                 * uniqueness-subtrees: dc=sales, dc=example,dc=com
+                 * uniqueness-across-all-subtrees: on
+                 * 
+                 * or
+                 * 
+                 * uniqueness-attribute-name: uid
+                 * uniqueness-top-entry-oc: organizationalUnit
+                 * uniqueness-subtree-entries-oc: person
+                 */
+
+                /* Attribute name of the attribute we are going to check value uniqueness */
+                tmp_config->attr = slapi_entry_attr_get_charptr(config_entry, ATTR_UNIQUENESS_ATTRIBUTE_NAME);
+                
+                /* Subtrees where uniqueness is tested  */
+                values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_SUBTREES);
+                if (values) {
+
+
+                        for (i = 0; values && values[i]; i++);
+                        if ((tmp_config->subtrees = (Slapi_DN **) slapi_ch_calloc(i + 1, sizeof (Slapi_DN *))) == NULL) {
+                                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Fail to allocate subtree array \n");
+                                rc = SLAPI_PLUGIN_FAILURE;
+                                goto done;
+                        }
+
+                        /* copy the valid subtree DN into the config */
+                        for (i = 0, nb_subtrees = 0; values && values[i]; i++) {
+                                if (slapi_dn_syntax_check(pb, values[i], 1)) { /* syntax check failed */
+                                        slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Invalid DN (skipped): %s\n", values[i]);
+                                        continue;
+                                }
+                                tmp_config->subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(values[i]);
+                                nb_subtrees++;
+
+                        }
+
+                        slapi_ch_array_free(values);
+                        values = NULL;
+                }
+
+                /* Uniqueness may be enforced accross all the subtrees, by default it is not */
+                tmp_config->unique_in_all_subtrees = slapi_entry_attr_get_bool(config_entry, ATTR_UNIQUENESS_ACROSS_ALL_SUBTREES);
+                
+                /* enforce uniqueness only if the modified entry has this objectclass */
+                tmp_config->top_entry_oc = slapi_entry_attr_get_charptr(config_entry, ATTR_UNIQUENESS_TOP_ENTRY_OC);
+                
+                /* enforce uniqueness, in the modified entry subtree, only to entries having this objectclass */
+                tmp_config->subtree_entries_oc = slapi_entry_attr_get_charptr(config_entry, ATTR_UNIQUENESS_SUBTREE_ENTRIES_OC);
+                
+        } else {
+                int result;
+                char *attrName = NULL;
+                char *markerObjectClass = NULL;
+                char *requiredObjectClass = NULL;
+                
+                /* using the old style of configuration */
+                result = getArguments(pb, &attrName, &markerObjectClass, &requiredObjectClass);
+                if (LDAP_OPERATIONS_ERROR == result) {
+                        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "Config fail: unable to parse old style\n");
+                        rc = SLAPI_PLUGIN_FAILURE;
+                        goto done;
+                
+                }
+                if (UNTAGGED_PARAMETER == result) {
+                        /* This is
+                         * nsslapd-pluginarg0: uid
+                         * nsslapd-pluginarg1: dc=people,dc=example,dc=com
+                         * nsslapd-pluginarg2: dc=sales, dc=example,dc=com
+                         * 
+                         * config attribute are in argc/argv
+                         * 
+                         * attrName is set
+                         * markerObjectClass/requiredObjectClass are NOT set
+                         */
+                        
+                        if (slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc) || slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv)) {
+                                slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "Config fail: Only attribute name is valid\n");
+                                rc = SLAPI_PLUGIN_FAILURE;
+                                goto done;
+                        }
+                        
+                        /* Store attrName in the config */
+                        tmp_config->attr = slapi_ch_strdup(attrName);
+                        argc--;
+                        argv++; /* First argument was attribute name and remaining are subtrees */
+                        
+                        /* Store the subtrees */
+                        nb_subtrees = 0;
+                        if ((tmp_config->subtrees = (Slapi_DN **) slapi_ch_calloc(argc + 1, sizeof (Slapi_DN *))) == NULL) {
+                                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Fail to allocate subtree array\n");
+                                rc = SLAPI_PLUGIN_FAILURE;
+                                goto done;
+                        }
+                        
+
+                        for (; argc > 0; argc--, argv++) {
+                                if (slapi_dn_syntax_check(pb, *argv, 1)) { /* syntax check failed */
+                                        slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Invalid DN  (skipped): %s\n", *argv);
+                                        continue;
+                                }
+                                tmp_config->subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(*argv);
+                                nb_subtrees++;
+                        }
+                        
+                        /* this interface does not configure accross subtree uniqueness*/
+                        tmp_config->unique_in_all_subtrees = PR_FALSE;
+                        
+                        /* Not really usefull, but it clarifies the config */
+                        tmp_config->subtree_entries_oc = NULL;
+                        tmp_config->top_entry_oc = NULL;
+                } else {
+                        /* This is
+                         * nsslapd-pluginarg0: attribute=uid
+                         * nsslapd-pluginarg1: markerobjectclass=organizationalUnit
+                         * nsslapd-pluginarg2: requiredobjectclass=person
+                         * 
+                         * config attributes are in 
+                         *  - attrName 
+                         *  - markerObjectClass
+                         *  - requiredObjectClass 
+                         */
+                        /* Store attrName in the config */
+                        tmp_config->attr = slapi_ch_strdup(attrName);
+                        
+                        /* There is no subtrees */
+                        tmp_config->subtrees = NULL;
+                        
+                        /* this interface does not configure accross subtree uniqueness*/
+                        tmp_config->unique_in_all_subtrees = PR_FALSE;
+                        
+                        /* set the objectclasses retrieved by getArgument */
+                        tmp_config->subtree_entries_oc = slapi_ch_strdup(requiredObjectClass);
+                        tmp_config->top_entry_oc = slapi_ch_strdup(markerObjectClass);
+                        
+                }
+                
+        }
+        
+        /* Time to check that the new configuration is valid */
+        if (tmp_config->attr == NULL) {
+                slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "Config info: attribute name not defined \n");
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto done;
+        }
+        
+        if (tmp_config->subtrees == NULL) {
+                /* Uniqueness is enforced on entries matching objectclass */
+                if (tmp_config->subtree_entries_oc == NULL) {
+                        slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "Config info: objectclass for subtree entries is not defined\n");
+                        rc = SLAPI_PLUGIN_FAILURE;
+                        goto done;
+                }
+        } else if (tmp_config->subtrees[0] == NULL) {
+                /* Uniqueness is enforced on subtrees but none are defined */
+                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: No valid subtree is defined \n");
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto done;
+        }
+
+done:
+        if (rc != SLAPI_PLUGIN_SUCCESS) {
+                if (tmp_config) {
+                        free_uniqueness_config(tmp_config);
+                        slapi_ch_free((void **) &tmp_config);
+                }
+                return NULL;
+        } else {
+                
+                return tmp_config;
+        }
+}
 
 static void
 freePblock( Slapi_PBlock *spb ) {
@@ -390,29 +662,49 @@ search_one_berval(Slapi_DN *baseDN, const char *attrName,
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-searchAllSubtrees(int argc, char *argv[], const char *attrName,
+searchAllSubtrees(Slapi_DN **subtrees, const char *attrName,
   Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass,
-  Slapi_DN *dn)
+  Slapi_DN *dn, PRBool unique_in_all_subtrees)
 {
   int result = LDAP_SUCCESS;
+  int i;
 
+  if (unique_in_all_subtrees) {
+          PRBool in_a_subtree = PR_FALSE;
+          
+          /* we need to check that the added values of this attribute
+           * are unique in all the monitored subtrees
+           */
+          
+          /* First check the target entry is in one of 
+           * the monitored subtree, so adding 'values' would
+           * violate constraint
+           */
+          for (i = 0;subtrees && subtrees[i]; i++) {
+                  if (slapi_sdn_issuffix(dn, subtrees[i])) {
+                          in_a_subtree = PR_TRUE;
+                          break;
+                  }
+          }
+          if (! in_a_subtree) {
+                  return result;
+          }
+  }
+  
   /*
    * For each DN in the managed list, do uniqueness checking if
    * the target DN is a subnode in the tree.
    */
-  for(;argc > 0;argc--,argv++)
+  for(i = 0;subtrees && subtrees[i]; i++)
   {
-    Slapi_DN *sufdn = slapi_sdn_new_dn_byref(*argv);
+    Slapi_DN *sufdn = subtrees[i];
     /*
      * The DN should already be normalized, so we don't have to
      * worry about that here.
      */
-    if (slapi_sdn_issuffix(dn, sufdn)) {
+    if (unique_in_all_subtrees || slapi_sdn_issuffix(dn, sufdn)) {
       result = search(sufdn, attrName, attr, values, requiredObjectClass, dn);
-      slapi_sdn_free(&sufdn);
       if (result) break;
-    } else {
-      slapi_sdn_free(&sufdn);
     }
   }
   return result;
@@ -561,8 +853,7 @@ preop_add(Slapi_PBlock *pb)
     int isupdatedn;
     Slapi_Entry *e;
     Slapi_Attr *attr;
-    int argc;
-    char **argv = NULL;
+    struct attr_uniqueness_config *config = NULL;
 
         /*
          * If this is a replication update, just be a noop.
@@ -573,28 +864,19 @@ preop_add(Slapi_PBlock *pb)
         {
           break;
         }
-
-    /*
-     * Get the arguments
-     */
-        result = getArguments(pb, &attrName, &markerObjectClass,
-                                                  &requiredObjectClass);
-        if (UNTAGGED_PARAMETER == result)
-        {
-          slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, 
-                          "ADD parameter untagged: %s\n", attrName);
-          result = LDAP_SUCCESS;
-          /* Statically defined subtrees to monitor */
-          err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
-          if (err) { result = uid_op_error(53); break; }
-
-          err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
-          if (err) { result = uid_op_error(54); break; }
-          argc--; argv++; /* First argument was attribute name */
-        } else if (0 != result)
-        {
-          break;
-        }
+        slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
+        if (config == NULL) {
+                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "preop_modrdn fail to retrieve the config\n");
+                result = LDAP_OPERATIONS_ERROR;
+                break;
+        }            
+        
+        /*
+         * Get the arguments
+         */
+        attrName = config->attr;
+        markerObjectClass = config->top_entry_oc;
+        requiredObjectClass = config->subtree_entries_oc;
 
     /*
      * Get the target DN for this add operation
@@ -642,8 +924,8 @@ preop_add(Slapi_PBlock *pb)
         } else
         {
           /* Subtrees listed on invocation line */
-          result = searchAllSubtrees(argc, argv, attrName, attr, NULL,
-                                     requiredObjectClass, sdn);
+          result = searchAllSubtrees(config->subtrees, attrName, attr, NULL,
+                                     requiredObjectClass, sdn, config->unique_in_all_subtrees);
         }
   END
 
@@ -696,6 +978,7 @@ preop_modify(Slapi_PBlock *pb)
   int checkmodsCapacity = 0;
   char *errtext = NULL;
   char *attrName = NULL;
+  struct attr_uniqueness_config *config = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -712,8 +995,6 @@ preop_modify(Slapi_PBlock *pb)
     LDAPMod *mod;
     Slapi_DN *sdn = NULL;
     int isupdatedn;
-    int argc;
-    char **argv = NULL;
 
     /*
      * If this is a replication update, just be a noop.
@@ -725,27 +1006,20 @@ preop_modify(Slapi_PBlock *pb)
       break;
     }
 
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
+    if (config == NULL) {
+            slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "preop_modrdn fail to retrieve the config\n");
+            result = LDAP_OPERATIONS_ERROR;
+            break;
+    }    
     /*
      * Get the arguments
      */
-        result = getArguments(pb, &attrName, &markerObjectClass,
-                                                  &requiredObjectClass);
-        if (UNTAGGED_PARAMETER == result)
-        {
-          result = LDAP_SUCCESS;
-          /* Statically defined subtrees to monitor */
-          err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
-          if (err) { result = uid_op_error(53); break; }
+    attrName = config->attr;
+    markerObjectClass = config->top_entry_oc;
+    requiredObjectClass = config->subtree_entries_oc;
 
-          err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
-          if (err) { result = uid_op_error(54); break; }
-          argc--; /* First argument was attribute name */
-          argv++;
-        } else if (0 != result)
-        {
-          break;
-        }
-
+        
     err = slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     if (err) { result = uid_op_error(61); break; }
 
@@ -809,8 +1083,8 @@ preop_modify(Slapi_PBlock *pb)
         } else
         {
             /* Subtrees listed on invocation line */
-            result = searchAllSubtrees(argc, argv, attrName, NULL,
-                                       mod->mod_bvalues, requiredObjectClass, sdn);
+            result = searchAllSubtrees(config->subtrees, attrName, NULL,
+                                       mod->mod_bvalues, requiredObjectClass, sdn, config->unique_in_all_subtrees);
         }
     }
   END
@@ -852,6 +1126,7 @@ preop_modrdn(Slapi_PBlock *pb)
   Slapi_Value *sv_requiredObjectClass = NULL;
   char *errtext = NULL;
   char *attrName = NULL;
+  struct attr_uniqueness_config *config = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -868,8 +1143,6 @@ preop_modrdn(Slapi_PBlock *pb)
     int deloldrdn = 0;
     int isupdatedn;
     Slapi_Attr *attr;
-    int argc;
-    char **argv = NULL;
 
         /*
          * If this is a replication update, just be a noop.
@@ -881,26 +1154,18 @@ preop_modrdn(Slapi_PBlock *pb)
           break;
         }
 
-    /*
-     * Get the arguments
-     */
-        result = getArguments(pb, &attrName, &markerObjectClass,
-                                                  &requiredObjectClass);
-        if (UNTAGGED_PARAMETER == result)
-        {
-          result = LDAP_SUCCESS;
-          /* Statically defined subtrees to monitor */
-          err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
-          if (err) { result = uid_op_error(53); break; }
-
-          err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
-          if (err) { result = uid_op_error(54); break; }
-          argc--; /* First argument was attribute name */
-          argv++; 
-        } else if (0 != result)
-        {
-          break;
-        }
+       slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
+       if (config == NULL) {
+               slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "preop_modrdn fail to retrieve the config\n");
+               result = LDAP_OPERATIONS_ERROR;
+               break;
+       }
+        /*
+         * Get the arguments
+         */
+        attrName = config->attr;
+        markerObjectClass = config->top_entry_oc;
+        requiredObjectClass = config->subtree_entries_oc;
 
     /* Create a Slapi_Value for the requiredObjectClass to use
      * for checking the entry. */
@@ -978,8 +1243,8 @@ preop_modrdn(Slapi_PBlock *pb)
         } else
         {
           /* Subtrees listed on invocation line */
-          result = searchAllSubtrees(argc, argv, attrName, attr, NULL,
-                                     requiredObjectClass, sdn);
+          result = searchAllSubtrees(config->subtrees, attrName, attr, NULL,
+                                     requiredObjectClass, sdn, config->unique_in_all_subtrees);
         }
   END
   /* Clean-up */
@@ -1021,16 +1286,15 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
   int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
   int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
   int premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
+  struct attr_uniqueness_config *config = NULL;
 
   BEGIN
-    int argc;
-    char **argv;
 
     /* Declare plugin version */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION,
             SLAPI_PLUGIN_VERSION_01);
     if (err) break;
-
+    
     /*
      * Get plugin identity and store it for later use
      * Used for internal operations
@@ -1049,24 +1313,12 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
     }
     slapi_ch_free_string(&plugin_type);
 
-    /*
-     * Get and normalize arguments
-     */
-    err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc);
-    if (err) break;
- 
-    err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
-    if (err) break;
-
-    /* First argument is the unique attribute name */
-    if (argc < 1) { err = -1; break; }
-    argv++; argc--;
-
-    for(;argc > 0;argc--, argv++) {
-        char *normdn = slapi_create_dn_string_case("%s", *argv);
-        slapi_ch_free_string(argv);
-        *argv = normdn;
+    /* load the config into the config list */
+    if ((config = uniqueness_entry_to_config(pb, plugin_entry)) == NULL) {
+            err = SLAPI_PLUGIN_FAILURE;
+            break;
     }
+    slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void*) config);
 
     /* Provide descriptive information */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
@@ -1088,6 +1340,11 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
   if (err) {
     slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init",
              "Error: %d\n", err);
+    if (config) {
+            slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
+            free_uniqueness_config(config);
+            slapi_ch_free((void **) &config);
+    }
     err = -1;
   }
   else
