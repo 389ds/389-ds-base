@@ -75,7 +75,7 @@ struct replica {
 	void *csn_pl_reg_id;            /* registration assignment for csn callbacks */
 	unsigned long repl_state_flags;	/* state flags							*/
 	PRUint32    repl_flags;         /* persistent, externally visible flags */
-	PRLock	*repl_lock;				/* protects entire structure			*/
+	PRMonitor *repl_lock;			/* protects entire structure			*/
 	Slapi_Eq_Context repl_eqcxt_rs;	/* context to cancel event that saves ruv */	
 	Slapi_Eq_Context repl_eqcxt_tr;	/* context to cancel event that reaps tombstones */	
 	Object *repl_csngen;			/* CSN generator for this replica */
@@ -125,7 +125,19 @@ static void start_agreements_for_replica (Replica *r, PRBool start);
 static void _delete_tombstone(const char *tombstone_dn, const char *uniqueid, int ext_op_flags);
 static void replica_strip_cleaned_rids(Replica *r);
 
-/* Allocates new replica and reads its state and state of its component from
+static void
+replica_lock(PRMonitor *lock)
+{
+	PR_EnterMonitor(lock);
+}
+
+static void
+replica_unlock(PRMonitor *lock)
+{
+	PR_ExitMonitor(lock);
+}
+/*
+ * Allocates new replica and reads its state and state of its component from
  * various parts of the DIT. 
  */
 Replica *
@@ -188,7 +200,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 		goto done;
 	}
 
-	if ((r->repl_lock = PR_NewLock()) == NULL)
+	if ((r->repl_lock = PR_NewMonitor()) == NULL)
 	{
 		if (NULL != errortext)
 		{
@@ -289,16 +301,15 @@ replica_flush(Replica *r)
 	PR_ASSERT(NULL != r);
 	if (NULL != r)
 	{
-		PR_Lock(r->repl_lock);
+		replica_lock(r->repl_lock);
 		/* Make sure we dump the CSNGen state */
 		r->repl_csn_assigned = PR_TRUE;
-		PR_Unlock(r->repl_lock);
+		replica_unlock(r->repl_lock);
 		/* This function take the Lock Inside */
 		/* And also write the RUV */
 		_replica_update_state((time_t)0, r->repl_name);
 	}
 }
-
 
 /* 
  * Deallocate a replica. arg should point to the address of a
@@ -361,7 +372,7 @@ replica_destroy(void **arg)
 
 	if (r->repl_lock)
 	{
-		PR_DestroyLock(r->repl_lock);
+		PR_DestroyMonitor(r->repl_lock);
 		r->repl_lock = NULL;
 	}
 
@@ -420,7 +431,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 
 	PR_ASSERT(r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	if (r->repl_state_flags & REPLICA_IN_USE)
 	{
 		if (isInc)
@@ -461,7 +472,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 		slapi_ch_free_string(&r->locking_purl);
 		r->locking_purl = slapi_ch_strdup(locking_purl);
 	}
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 	return rval;
 }
 
@@ -475,7 +486,7 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 
 	PR_ASSERT(r);
 	
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	isInc = (r->repl_state_flags & REPLICA_INCREMENTAL_IN_PROGRESS);
 	/* check to see if the replica is in use and log a warning if not */
 	if (!(r->repl_state_flags & REPLICA_IN_USE))
@@ -500,7 +511,7 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 		else
 			r->repl_state_flags &= ~(REPLICA_TOTAL_IN_PROGRESS);
 	}
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 /* 
@@ -547,9 +558,9 @@ replica_get_rid (const Replica *r)
 	ReplicaId rid;
 	PR_ASSERT(r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	rid = r->repl_rid;
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 	return rid;
 }
 
@@ -561,9 +572,9 @@ replica_set_rid (Replica *r, ReplicaId rid)
 {
 	PR_ASSERT(r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	r->repl_rid = rid;
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 /* Returns true if replica was initialized through ORC or import;
@@ -588,7 +599,7 @@ replica_get_ruv (const Replica *r)
 
 	PR_ASSERT(r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	PR_ASSERT (r->repl_ruv);
 
@@ -596,7 +607,7 @@ replica_get_ruv (const Replica *r)
 
 	ruv = r->repl_ruv;
 
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 
 	return ruv;
 }
@@ -611,7 +622,7 @@ replica_set_ruv (Replica *r, RUV *ruv)
 {
 	PR_ASSERT(r && ruv);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	if(NULL != r->repl_ruv) 
 	{
@@ -647,7 +658,7 @@ replica_set_ruv (Replica *r, RUV *ruv)
 	r->repl_ruv = object_new((void*)ruv, (FNFree)ruv_destroy);
 	r->repl_ruv_dirty = PR_TRUE;
 
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 /*
@@ -685,7 +696,7 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 	else
 	{
 		RUV *ruv;
-		PR_Lock(r->repl_lock);
+		replica_lock(r->repl_lock);
 		
 		if (r->repl_ruv != NULL)
 		{
@@ -752,7 +763,7 @@ replica_update_ruv(Replica *r, const CSN *updated_csn, const char *replica_purl)
 				slapi_sdn_get_dn(r->repl_root));
 			rc = RUV_NOTFOUND;
 		}
-		PR_Unlock(r->repl_lock);
+		replica_unlock(r->repl_lock);
 	}
 	return rc;
 }
@@ -768,12 +779,12 @@ replica_get_csngen (const Replica *r)
 
 	PR_ASSERT(r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	object_acquire (r->repl_csngen);
 	csngen = r->repl_csngen;
 
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 
 	return csngen;
 }
@@ -796,9 +807,9 @@ replica_set_type (Replica *r, ReplicaType type)
 {
 	PR_ASSERT(r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	r->repl_type = type;
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 /* 
@@ -824,7 +835,7 @@ replica_set_legacy_consumer (Replica *r, PRBool legacy_consumer)
 	char *replstate = NULL;
 	PR_ASSERT(r);
 
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     legacy2mmr = r->legacy_consumer && !legacy_consumer;
 
@@ -846,8 +857,8 @@ replica_set_legacy_consumer (Replica *r, PRBool legacy_consumer)
     }
 
     r->legacy_consumer = legacy_consumer;
-	repl_root_sdn = slapi_sdn_dup(r->repl_root);
-    PR_Unlock(r->repl_lock);
+    repl_root_sdn = slapi_sdn_dup(r->repl_root);
+    replica_unlock(r->repl_lock);
 
     if (legacy2mmr)
     {
@@ -866,13 +877,13 @@ replica_get_legacy_purl (const Replica *r)
 {
     char *purl;
 
-    PR_Lock (r->repl_lock);
+    replica_lock(r->repl_lock);
 
     PR_ASSERT (r->legacy_consumer);
 
-    purl = slapi_ch_strdup (r->legacy_purl);
+    purl = slapi_ch_strdup(r->legacy_purl);
 
-    PR_Unlock (r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     return purl;
 }
@@ -880,16 +891,16 @@ replica_get_legacy_purl (const Replica *r)
 void 
 replica_set_legacy_purl (Replica *r, const char *purl)
 {
-    PR_Lock (r->repl_lock);
+    replica_lock(r->repl_lock);
 
     PR_ASSERT (r->legacy_consumer);
 
-	/* slapi_ch_free accepts NULL pointer */
-	slapi_ch_free ((void**)&r->legacy_purl);
+    /* slapi_ch_free accepts NULL pointer */
+    slapi_ch_free ((void**)&r->legacy_purl);
 
     r->legacy_purl = slapi_ch_strdup (purl);
 
-    PR_Unlock (r->repl_lock);
+    replica_unlock(r->repl_lock);
 }
 
 /* 
@@ -902,7 +913,7 @@ replica_is_updatedn (const Replica *r, const Slapi_DN *sdn)
 
 	PR_ASSERT (r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
     if (sdn == NULL)
     {
@@ -917,7 +928,7 @@ replica_is_updatedn (const Replica *r, const Slapi_DN *sdn)
 		result = replica_updatedn_list_ismember(r->updatedn_list, sdn);
     }
 
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 
 	return result;
 }
@@ -930,7 +941,7 @@ replica_set_updatedn (Replica *r, const Slapi_ValueSet *vs, int mod_op)
 {
 	PR_ASSERT (r);
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	if (!r->updatedn_list)
 		r->updatedn_list = replica_updatedn_list_new(NULL);
@@ -943,7 +954,7 @@ replica_set_updatedn (Replica *r, const Slapi_ValueSet *vs, int mod_op)
 	else if (SLAPI_IS_MOD_ADD(mod_op))
 		replica_updatedn_list_add(r->updatedn_list, vs);
 
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 /* gets current replica generation for this replica */
@@ -952,16 +963,14 @@ char *replica_get_generation (const Replica *r)
     int rc = 0;
     char *gen = NULL;
 
-    if (r)
+    if (r && r->repl_ruv)
     {        
-        PR_Lock(r->repl_lock);
-
-        PR_ASSERT (r->repl_ruv);
+        replica_lock(r->repl_lock);
 	        
         if (rc == 0)
             gen = ruv_get_replica_generation ((RUV*)object_get_data (r->repl_ruv));
 
-        PR_Unlock(r->repl_lock);    
+        replica_unlock(r->repl_lock);
     }
 
     return gen;
@@ -980,7 +989,7 @@ void replica_set_flag (Replica *r, PRUint32 flag, PRBool clear)
     if (r == NULL)
         return;
 
-	PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     if (clear)
     {
@@ -991,25 +1000,25 @@ void replica_set_flag (Replica *r, PRUint32 flag, PRBool clear)
         r->repl_flags |= flag;
     }
 
-	PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 }
 
 void replica_replace_flags (Replica *r, PRUint32 flags)
 {
     if (r)
     {
-		PR_Lock(r->repl_lock);
+        replica_lock(r->repl_lock);
         r->repl_flags = flags;
-		PR_Unlock(r->repl_lock);
+        replica_unlock(r->repl_lock);
     }
 }
 
 void
 replica_get_referrals(const Replica *r, char ***referrals)
 {
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
     replica_get_referrals_nolock (r, referrals);
-    PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 }
 
 void
@@ -1093,7 +1102,7 @@ replica_update_csngen_state_ext (Replica *r, const RUV *ruv, const CSN *extracsn
         csn = (CSN*)extracsn; /* use this csn to do the update */
     }
 
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     gen = (CSNGen *)object_get_data (r->repl_csngen);
     PR_ASSERT (gen);
@@ -1103,7 +1112,7 @@ replica_update_csngen_state_ext (Replica *r, const RUV *ruv, const CSN *extracsn
 
 /* done: */
 
-    PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
     if (csn != extracsn) /* do not free the given csn */
     {
         csn_free (&csn);
@@ -1124,10 +1133,10 @@ replica_update_csngen_state (Replica *r, const RUV *ruv)
 void
 replica_dump(Replica *r)
 {
-	char *updatedn_list = NULL;
-	PR_ASSERT (r);
+    char *updatedn_list = NULL;
+    PR_ASSERT (r);
 
-	PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "Replica state:\n");	
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\treplica root: %s\n",
@@ -1137,18 +1146,18 @@ replica_dump(Replica *r)
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\treplica id: %d\n", r->repl_rid);
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tflags: %d\n", r->repl_flags);
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tstate flags: %lu\n", r->repl_state_flags);
-	if (r->updatedn_list)
-		updatedn_list = replica_updatedn_list_to_string(r->updatedn_list, "\n\t\t");
+    if (r->updatedn_list)
+        updatedn_list = replica_updatedn_list_to_string(r->updatedn_list, "\n\t\t");
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tupdate dn: %s\n",
             updatedn_list? updatedn_list : "not configured");
-	slapi_ch_free_string(&updatedn_list);
+    slapi_ch_free_string(&updatedn_list);
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\truv: %s configured and is %sdirty\n",
                     r->repl_ruv ? "" : "not", r->repl_ruv_dirty ? "" : "not ");
     slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "\tCSN generator: %s configured\n",
                     r->repl_csngen ? "" : "not");
 	/* JCMREPL - Dump Referrals */
 
-	PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 }
 
 
@@ -1164,11 +1173,11 @@ replica_get_purge_csn(const Replica *r)
 {
     CSN *csn;
 
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     csn= _replica_get_purge_csn_nolock(r);
 
-    PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     return csn;
 }
@@ -1191,11 +1200,11 @@ replica_log_ruv_elements (const Replica *r)
     
     PR_ASSERT (r);
 
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     rc = replica_log_ruv_elements_nolock (r);
 
-    PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     return rc;
 }
@@ -1210,7 +1219,7 @@ consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv)
 	int state_backend = -1;
 	const char *mtn_state = NULL;
 	
-    PR_Lock (r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	if ( supplierRuv == NULL )
 	{
@@ -1236,7 +1245,7 @@ consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv)
 		state_backend = 1;
 	}
 	/* Unlock to avoid changing MTN state under repl lock */
-    PR_Unlock (r->repl_lock);
+	replica_unlock(r->repl_lock);
 
 	if(state_backend == 0 )
 	{
@@ -1263,7 +1272,7 @@ replica_set_enabled (Replica *r, PRBool enable)
 
     PR_ASSERT (r);
 
-    PR_Lock (r->repl_lock);
+    replica_lock(r->repl_lock);
 
     if (enable)
     {
@@ -1285,7 +1294,7 @@ replica_set_enabled (Replica *r, PRBool enable)
         }   
     }
 
-    PR_Unlock (r->repl_lock);
+    replica_unlock(r->repl_lock);
 }
 
 /* This function is generally called when replica's data store
@@ -1309,7 +1318,7 @@ replica_reload_ruv (Replica *r)
 
     PR_ASSERT (r);
 
-    PR_Lock (r->repl_lock);
+    replica_lock(r->repl_lock);
 
     old_ruv_obj = r->repl_ruv;
 
@@ -1317,7 +1326,7 @@ replica_reload_ruv (Replica *r)
 
     rc = _replica_configure_ruv (r, PR_TRUE);
 
-    PR_Unlock (r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     if (rc != 0)
     {
@@ -1338,12 +1347,12 @@ replica_reload_ruv (Replica *r)
            up to date using this changelog and hence will need to be reinitialized */
 
         /* replace ruv to make sure we work with the correct changelog file */
-        PR_Lock (r->repl_lock);
+        replica_lock(r->repl_lock);
 
         new_ruv_obj = r->repl_ruv;
         r->repl_ruv = old_ruv_obj;
 
-        PR_Unlock (r->repl_lock);
+        replica_unlock(r->repl_lock);
 
         rc = cl5GetUpperBoundRUV (r, &upper_bound_ruv);
         if (rc != CL5_SUCCESS && rc != CL5_NOTFOUND)
@@ -1375,7 +1384,7 @@ replica_reload_ruv (Replica *r)
                 rc = cl5DeleteDBSync (r_obj);
 
                 /* reinstate new ruv */
-                PR_Lock (r->repl_lock);
+                replica_lock(r->repl_lock);
 
                 r->repl_ruv = new_ruv_obj;                
 
@@ -1387,22 +1396,22 @@ replica_reload_ruv (Replica *r)
                     rc = replica_log_ruv_elements_nolock (r);
                 }
 
-                PR_Unlock (r->repl_lock);
+                replica_unlock(r->repl_lock);
             } 
             else
             {
                 /* we just need to reinstate new ruv */
-                PR_Lock (r->repl_lock);
+                replica_lock(r->repl_lock);
 
                 r->repl_ruv = new_ruv_obj;
 
-                PR_Unlock (r->repl_lock);
+                replica_unlock(r->repl_lock);
             }                           
         }
         else    /* upper bound vector is not there - we have no changes logged */
         {
             /* reinstate new ruv */
-            PR_Lock (r->repl_lock);
+            replica_lock(r->repl_lock);
 
             r->repl_ruv = new_ruv_obj;
 
@@ -1410,7 +1419,7 @@ replica_reload_ruv (Replica *r)
                a starting point for iteration through the changes */
             rc = replica_log_ruv_elements_nolock (r);
 
-            PR_Unlock (r->repl_lock);                    
+            replica_unlock(r->repl_lock);
         }        
     }
 
@@ -2215,12 +2224,7 @@ _replica_configure_ruv  (Replica *r, PRBool isLocked)
 
 					/* Update also the directory entry */
 					if (RUV_UPDATE_PARTIAL == need_update) {
-						/* richm 20010821 bug 556498
-						   replica_replace_ruv_tombstone acquires the repl_lock, so release
-						   the lock then reacquire it if locked */
-						if (isLocked) PR_Unlock(r->repl_lock);
 						replica_replace_ruv_tombstone(r);
-						if (isLocked) PR_Lock(r->repl_lock);
 					} else if (RUV_UPDATE_FULL == need_update) {
 						_delete_tombstone(slapi_sdn_get_dn(r->repl_root), 
 						                  RUV_STORAGE_ENTRY_UNIQUEID, 
@@ -2404,13 +2408,13 @@ _replica_update_state (time_t when, void *arg)
 		goto done;
 	}
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	/* replica state is currently being updated
 	   or no CSN was assigned - bail out */
 	if (r->state_update_inprogress)
 	{
-		PR_Unlock(r->repl_lock); 
+		replica_unlock(r->repl_lock);
 		goto done;
 	}
 
@@ -2418,7 +2422,7 @@ _replica_update_state (time_t when, void *arg)
 	if (!r->repl_csn_assigned)
 	{
 		/* EY: the consumer needs to flush ruv to disk. */
-		PR_Unlock(r->repl_lock);
+		replica_unlock(r->repl_lock);
 		if (replica_write_ruv(r)) {
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 				"_replica_update_state: failed write RUV for %s\n",
@@ -2433,7 +2437,7 @@ _replica_update_state (time_t when, void *arg)
 	rc = csngen_get_state ((CSNGen*)object_get_data (r->repl_csngen), &smod);
 	if (rc != 0)
 	{
-		PR_Unlock(r->repl_lock);
+		replica_unlock(r->repl_lock);
 		goto done;
 	}
 
@@ -2445,7 +2449,7 @@ _replica_update_state (time_t when, void *arg)
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 			"_replica_update_state: failed to get the config dn for %s\n",
 			slapi_sdn_get_dn (r->repl_root));
-		PR_Unlock(r->repl_lock);
+		replica_unlock(r->repl_lock);
 		goto done;
 	}
 	pb = slapi_pblock_new();
@@ -2454,7 +2458,7 @@ _replica_update_state (time_t when, void *arg)
 	/* we don't want to held lock during operations since it causes lock contention
        and sometimes deadlock. So releasing lock here */
 
-    PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 
 	/* replica repl_name and new_name attributes do not get changed once
        the replica is configured - so it is ok that they are outside replica lock */
@@ -2525,27 +2529,27 @@ replica_write_ruv (Replica *r)
 
 	PR_ASSERT(r);
 
-    PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
-    if (!r->repl_ruv_dirty)
-    {
-        PR_Unlock(r->repl_lock);
-        return rc;
-    }
+	if (!r->repl_ruv_dirty)
+	{
+		replica_unlock(r->repl_lock);
+		return rc;
+	}
 
 	PR_ASSERT (r->repl_ruv);
 	
 	ruv_to_smod ((RUV*)object_get_data(r->repl_ruv), &smod);
 	ruv_last_modified_to_smod ((RUV*)object_get_data(r->repl_ruv), &smod_last_modified);
 
-    PR_Unlock (r->repl_lock);
+	replica_unlock (r->repl_lock);
 
 	mods [0] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod);
 	mods [1] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod_last_modified);
 	mods [2] = NULL;
 	pb = slapi_pblock_new();
 
-    /* replica name never changes so it is ok to reference it outside the lock */
+	/* replica name never changes so it is ok to reference it outside the lock */
 	slapi_modify_internal_set_pb_ext(
 		pb,
 		r->repl_root, /* only used to select be */
@@ -2560,7 +2564,7 @@ replica_write_ruv (Replica *r)
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 
     /* ruv does not exist - create one */
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     if (rc == LDAP_SUCCESS)
     {
@@ -2582,7 +2586,7 @@ replica_write_ruv (Replica *r)
 			slapi_sdn_get_dn(r->repl_root), rc);
 	}
 
-    PR_Unlock(r->repl_lock);	
+	replica_unlock(r->repl_lock);
 	
 	slapi_mod_done (&smod);
 	slapi_mod_done (&smod_last_modified);
@@ -2930,9 +2934,9 @@ _replica_reap_tombstones(void *arg)
 done:
 	if (replica)
 	{
-		PR_Lock(replica->repl_lock);
+		replica_lock(replica->repl_lock);
 		replica->tombstone_reap_active = PR_FALSE;
-		PR_Unlock(replica->repl_lock);
+		replica_unlock(replica->repl_lock);
 	}
 
 	if (NULL != purge_csn)
@@ -2986,7 +2990,7 @@ eq_cb_reap_tombstones(time_t when, void *arg)
 			if (replica)
 			{
 
-				PR_Lock(replica->repl_lock);
+				replica_lock(replica->repl_lock);
 
 				/* No action if purge is disabled or the previous purge is not done yet */
 				if (replica->tombstone_reap_interval != 0 &&
@@ -3007,7 +3011,7 @@ eq_cb_reap_tombstones(time_t when, void *arg)
 					}
 				}
 				/* reap thread will wait until this lock is released */
-				PR_Unlock(replica->repl_lock);
+				replica_unlock(replica->repl_lock);
 			}
 			object_release(replica_object);
 			replica_object = NULL;
@@ -3150,7 +3154,7 @@ assign_csn_callback(const CSN *csn, void *data)
     ruv = (RUV*)object_get_data (ruv_obj);
     PR_ASSERT (ruv);
 
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     r->repl_csn_assigned = PR_TRUE;
 	
@@ -3172,7 +3176,7 @@ assign_csn_callback(const CSN *csn, void *data)
 
     ruv_add_csn_inprogress (ruv, csn);
 
-    PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     object_release (ruv_obj);
 }
@@ -3194,7 +3198,7 @@ abort_csn_callback(const CSN *csn, void *data)
     ruv = (RUV*)object_get_data (ruv_obj);
     PR_ASSERT (ruv);
 
-	PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
 	if (NULL != r->min_csn_pl)
 	{
@@ -3203,7 +3207,7 @@ abort_csn_callback(const CSN *csn, void *data)
 	}
 
     ruv_cancel_csn_inprogress (ruv, csn);
-	PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     object_release (ruv_obj);
 }
@@ -3365,9 +3369,9 @@ void
 replica_set_purge_delay(Replica *r, PRUint32 purge_delay)
 {
 	PR_ASSERT(r);
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	r->repl_purge_delay = purge_delay;
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 void
@@ -3375,7 +3379,7 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 {
 	char *repl_name;
 
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 
 	/*
 	 * Leave the event there to purge the existing tombstones
@@ -3404,7 +3408,7 @@ replica_set_tombstone_reap_interval (Replica *r, long interval)
 			"tombstone_reap event (interval=%ld) was %s\n",
 			r->tombstone_reap_interval, (r->repl_eqcxt_tr ? "scheduled" : "not scheduled successfully"));
 	}
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 static void
@@ -3445,7 +3449,7 @@ replica_replace_ruv_tombstone(Replica *r)
 
     replica_strip_cleaned_rids(r);
 
-    PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     PR_ASSERT (r->repl_ruv);
     ruv_to_smod ((RUV*)object_get_data(r->repl_ruv), &smod);
@@ -3457,13 +3461,13 @@ replica_replace_ruv_tombstone(Replica *r)
             "replica_replace_ruv_tombstone: "
             "failed to get the config dn for %s\n",
             slapi_sdn_get_dn (r->repl_root));
-        PR_Unlock(r->repl_lock);
+        replica_unlock(r->repl_lock);
         goto bail;
     }
     mods[0] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod);
     mods[1] = (LDAPMod*)slapi_mod_get_ldapmod_byref(&smod_last_modified);
 
-    PR_Unlock (r->repl_lock);
+    replica_unlock(r->repl_lock);
 
     mods [2] = NULL;
     pb = slapi_pblock_new();
@@ -3508,12 +3512,12 @@ replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv)
 	{
 		RUV *local_ruv = NULL;
 
-		PR_Lock(r->repl_lock);
+		replica_lock(r->repl_lock);
 
 		local_ruv =  (RUV*)object_get_data (r->repl_ruv);
 
 		if(is_cleaned_rid(supplier_id) || local_ruv == NULL){
-			PR_Unlock(r->repl_lock);
+			replica_unlock(r->repl_lock);
 			return;
 		}
 
@@ -3535,7 +3539,7 @@ replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv)
 			/* Replace it */
 			ruv_replace_replica_purl(local_ruv, supplier_id, supplier_purl);
 		}
-		PR_Unlock(r->repl_lock);
+		replica_unlock(r->repl_lock);
 
 		/* Update also the directory entry */
 		replica_replace_ruv_tombstone(r);
@@ -3546,9 +3550,9 @@ void
 replica_set_ruv_dirty(Replica *r)
 {
 	PR_ASSERT(r);
-	PR_Lock(r->repl_lock);
+	replica_lock(r->repl_lock);
 	r->repl_ruv_dirty = PR_TRUE;
-	PR_Unlock(r->repl_lock);
+	replica_unlock(r->repl_lock);
 }
 
 PRBool
@@ -3567,7 +3571,7 @@ replica_set_state_flag (Replica *r, PRUint32 flag, PRBool clear)
     if (r == NULL)
         return;
 
-	PR_Lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
     if (clear)
     {
@@ -3578,7 +3582,7 @@ replica_set_state_flag (Replica *r, PRUint32 flag, PRBool clear)
         r->repl_state_flags |= flag;
     }
 
-	PR_Unlock(r->repl_lock);
+    replica_unlock(r->repl_lock);
 }
 
 /**
@@ -3592,9 +3596,9 @@ replica_set_tombstone_reap_stop(Replica *r, PRBool val)
     if (r == NULL)
         return;
 
-	PR_Lock(r->repl_lock);
-	r->tombstone_reap_stop = val;
-	PR_Unlock(r->repl_lock);
+    replica_lock(r->repl_lock);
+    r->tombstone_reap_stop = val;
+    replica_unlock(r->repl_lock);
 }
 
 /* replica just came back online, probably after data was reloaded */
