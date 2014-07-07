@@ -123,6 +123,7 @@ REPLICA_LEGACY_CONS      = 'legacy'
 REPLICA_BINDDN           = 'binddn'
 REPLICA_PURGE_INTERVAL   = 'purge-interval'
 REPLICA_PURGE_DELAY      = 'purge-delay'
+REPLICA_PRECISE_PURGING  = 'precise-purging'
 REPLICA_REFERRAL         = 'referral'
 REPLICA_FLAGS            = 'flags'
 
@@ -136,6 +137,7 @@ REPLICA_PROPNAME_TO_ATTRNAME = {
                                 REPLICA_BINDDN:           'nsds5replicabinddn',
                                 REPLICA_PURGE_INTERVAL:   'nsds5replicatombstonepurgeinterval',
                                 REPLICA_PURGE_DELAY:      'nsds5ReplicaPurgeDelay',
+                                REPLICA_PRECISE_PURGING:  'nsds5ReplicaPreciseTombstonePurging',
                                 REPLICA_REFERRAL:         'nsds5ReplicaReferral',
                                 REPLICA_FLAGS:            'nsds5flags'}
 

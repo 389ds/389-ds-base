@@ -160,7 +160,8 @@ class Replica(object):
                 REPLICA_LEGACY_CONS      
                 REPLICA_BINDDN           
                 REPLICA_PURGE_INTERVAL   
-                REPLICA_PURGE_DELAY      
+                REPLICA_PURGE_DELAY
+                REPLICA_PRECISE_PURGING
                 REPLICA_REFERRAL         
                 REPLICA_FLAGS      
                 
@@ -253,6 +254,7 @@ class Replica(object):
                     REPLICA_BINDDN         [defaultProperties[REPLICATION_BIND_DN]]
                     REPLICA_PURGE_INTERVAL 
                     REPLICA_PURGE_DELAY
+                    REPLICA_PRECISE_PURGING
                     REPLICA_REFERRAL
                     REPLICA_FLAGS
 
