@@ -167,7 +167,7 @@ def test_ticket47781(topology):
     # export the replication ldif
     #
     log.info('Exporting replication ldif...')
-    args = {'repl-info': True}
+    args = {EXPORT_REPL_INFO: True}
     exportTask = Tasks(topology.standalone)
     try:
         exportTask.exportLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
@@ -186,7 +186,7 @@ def test_ticket47781(topology):
     #
     log.info('Import replication LDIF file...')
     importTask = Tasks(topology.standalone)
-    args = {'wait': True}
+    args = {TASK_WAIT: True}
     try:
         importTask.importLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
         os.remove("/tmp/export.ldif")
