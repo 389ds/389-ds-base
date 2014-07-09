@@ -650,8 +650,6 @@ main( int argc, char **argv)
 	int return_value = 0;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	daemon_ports_t ports_info = {0};
-	long arg_max = 0;
-
 #ifndef __LP64__ 
 #if defined(__hpux) && !defined(__ia64)
 	/* for static constructors */
@@ -724,16 +722,9 @@ main( int argc, char **argv)
 #endif /* _WIN32 */
 
 	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
-		arg_max = sysconf(_SC_ARG_MAX);
-		myname = slapi_ch_strndup( argv[0], arg_max );
+		myname = slapi_ch_strdup( argv[0] );
 	} else {
-		myname = slapi_ch_strndup( myname + 1, arg_max );
-	}
-	if (strlen(myname) > arg_max) {
-		LDAPDebug(LDAP_DEBUG_ANY, 
-		          "proc name \"%s\" is longer than the allowed max size: %dB\n",
-		          myname, arg_max, 0);
-		exit(1);
+		myname = slapi_ch_strdup( myname + 1 );
 	}
 
 #if defined( XP_WIN32 )
