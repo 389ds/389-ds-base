@@ -510,7 +510,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
     err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
     if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
       || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL)))
-    
     {
       send_ldap_result(pb, err_code, NULL, errorbuf, 0, NULL);
       rc = -1;
@@ -713,10 +712,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           curr_search_count = -1;
         } else {
           curr_search_count = pnentries;
-          /* no more entries, but at least another backend */
-          if (pagedresults_set_current_be(pb->pb_conn, next_be, pr_idx) < 0) {
-              goto free_and_return;
-          }
         }
         estimate = 0;
       } else {
@@ -731,12 +726,20 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       pagedresults_set_search_result_set_size_estimate(pb->pb_conn, 
                                                        operation,
                                                        estimate, pr_idx);
-      next_be = NULL; /* to break the loop */
-      if (curr_search_count == -1) {
+      if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         pagedresults_lock(pb->pb_conn, pr_idx);
         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
         pagedresults_free_one(pb->pb_conn, operation, pr_idx);
         pagedresults_unlock(pb->pb_conn, pr_idx);
+        if (next_be) {
+          /* no more entries, but at least another backend */
+          if (pagedresults_set_current_be(pb->pb_conn, next_be, pr_idx) < 0) {
+              goto free_and_return;
+          }
+        }
+        next_be = NULL; /* to break the loop */
+      } else if (PAGEDRESULTS_PAGE_END == pr_stat) {
+        next_be = NULL; /* to break the loop */
       }
     } else {
       /* be_suffix null means that we are searching the default backend
