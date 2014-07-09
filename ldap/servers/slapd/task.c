@@ -1949,8 +1949,6 @@ task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     if ( file != NULL ){
         char line[4096];
         char *s = NULL;
-        /* fgets() reads in at most one less than size characters */
-        char *end_of_line = line + sizeof(line) - 1;
 
         if(logchanges){
             LDAPDebug(LDAP_DEBUG_ANY, "sysconfig reload task: processing file (%s)\n",
@@ -1962,8 +1960,8 @@ task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                 /* skip comments */
                 continue;
             } else {
-                char env_value[sizeof(line)];
-                char env_var[sizeof(line)];
+                char env_value[4096];
+                char env_var[4096];
                 int using_setenv = 0;
                 int value_index = 0;
                 int start_value = 0;
@@ -1999,7 +1997,7 @@ task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                         using_setenv = 1;
                     }
                     if(strncmp(s, "export ", 7) == 0){
-                        /* strip off "export " */
+                    	/* strip off "export " */
                         s = s + 7;
                     } else if(strncmp(s, "set ", 4) == 0){
                         /* strip off "set " */
@@ -2023,7 +2021,7 @@ task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                 /*
                  * Start parsing the names and values
                  */
-                for (; s && (s < end_of_line) && *s; s++){
+                for (; s && *s; s++){
                     /*
                      * If using "setenv", allow the first space/tab only, and start on the env value
                      */
