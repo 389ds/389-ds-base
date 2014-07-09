@@ -301,43 +301,6 @@ slapi_ch_strdup ( const char* s1)
 #endif
     return newmem;
 }
-
-char*
-slapi_ch_strndup ( const char* s1, size_t n)
-{
-    char* newmem;
-    
-    /* strdup pukes on NULL strings...bail out now */
-    if ((NULL == s1) || (0 == n)) {
-        return NULL;
-    }
-    newmem = strndup (s1, n);
-    if (newmem == NULL) {
-        int oserr = errno;
-        oom_occurred();
-
-        slapi_log_error( SLAPI_LOG_FATAL, SLAPD_MODULE,
-            "strdup of %lu characters failed; OS error %d (%s)%s\n",
-            (unsigned long)n, oserr, slapd_system_strerror( oserr ),
-            oom_advice );
-        exit (1);
-    }
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
-    }
-    PR_INCREMENT_COUNTER(slapi_ch_counter_strdup);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_created);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
-#if defined(_WIN32) && defined(DEBUG)
-    if(recording)
-    {
-        add_memory_record(newmem,strlen(s1)+1);
-    }
-#endif
-    return newmem;
-}
 #endif /* !MEMPOOL_EXPERIMENTAL */
 
 struct berval*
