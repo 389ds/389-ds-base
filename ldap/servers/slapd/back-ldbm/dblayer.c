@@ -2896,6 +2896,7 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
     dblayer_private *priv = 0;
     int return_value = 0;
     dblayer_private_env *pEnv;
+    int shutdown = g_get_shutdown();
 
     PR_ASSERT(NULL != li);
     priv = (dblayer_private*)li->li_dblayer_private;
@@ -2928,14 +2929,17 @@ int dblayer_post_close(struct ldbminfo *li, int dbmode)
         charray_free(priv->dblayer_data_directories);
         priv->dblayer_data_directories = NULL;
     }
-    slapi_ch_free_string(&priv->dblayer_dbhome_directory);
-    slapi_ch_free_string(&priv->dblayer_home_directory);
+    if(shutdown){
+        slapi_ch_free_string(&priv->dblayer_dbhome_directory);
+        slapi_ch_free_string(&priv->dblayer_home_directory);
+    }
 
     return return_value;
 }
 
 /* 
- * This function is called when the server is shutting down.
+ * This function is called when the server is shutting down, or when the
+ * backend is being disabled (e.g. backup/restore).
  * This is not safe to call while other threads are calling into the open
  * databases !!!   So: DON'T !
  */
@@ -2945,6 +2949,7 @@ int dblayer_close(struct ldbminfo *li, int dbmode)
     ldbm_instance *inst;
     Object *inst_obj;
     int return_value = 0;
+    int shutdown = g_get_shutdown();
 
     dblayer_pre_close(li);
 
@@ -2957,7 +2962,9 @@ int dblayer_close(struct ldbminfo *li, int dbmode)
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
-        vlv_close(inst);
+        if(shutdown){
+            vlv_close(inst);
+        }
         be = inst->inst_be;
         if (NULL != be->be_instance_info) {
             return_value |= dblayer_instance_close(be);
