@@ -4140,7 +4140,6 @@ print_ttilist(txn_test_iter **ttilist, size_t tticnt)
 }
 
 #define TXN_TEST_IDX_OK_IF_NULL "nscpEntryDN"
-#define TXN_TEST_MAX_INDEX_LIST_LEN 4096
 
 static void
 txn_test_init_cfg(txn_test_cfg *cfg)
@@ -4153,7 +4152,7 @@ txn_test_init_cfg(txn_test_cfg *cfg)
     cfg->flags = getenv(TXN_TEST_USE_RMW) ? DB_RMW : 0;
     cfg->use_txn = getenv(TXN_TEST_USE_TXN) ? 1 : 0;
     if (getenv(TXN_TEST_INDEXES)) {
-        indexlist_copy = slapi_ch_strndup(getenv(TXN_TEST_INDEXES), TXN_TEST_MAX_INDEX_LIST_LEN);
+        indexlist_copy = slapi_ch_strdup(getenv(TXN_TEST_INDEXES));
     } else {
         indexlist_copy = slapi_ch_strdup(indexlist);
     }
