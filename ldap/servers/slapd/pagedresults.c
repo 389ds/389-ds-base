@@ -136,6 +136,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         }
         conn->c_pagedresults.prl_count++;
     } else {
+        PagedResults *prp = NULL;
         /* Repeated paged results request.
          * PagedResults is already allocated. */
         char *ptr = slapi_ch_malloc(cookie.bv_len + 1);
@@ -143,6 +144,10 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         *(ptr+cookie.bv_len) = '\0';
         *index = strtol(ptr, NULL, 10);
         slapi_ch_free_string(&ptr);
+        prp = conn->c_pagedresults.prl_list + *index;
+        if (!(prp->pr_search_result_set)) { /* freed and reused for the next backend. */
+            conn->c_pagedresults.prl_count++;
+        }
     }
     /* reset sizelimit */
     op->o_pagedresults_sizelimit = -1;
