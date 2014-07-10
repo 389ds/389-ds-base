@@ -414,7 +414,7 @@ class DirSrv(SimpleLDAPObject):
         self.groupid   = args.get(SER_GROUP_ID, self.userid)
         self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
         self.prefix    = args.get(SER_DEPLOYED_DIR, None)
-        
+
         # Those variables needs to be revisited (sroot for 64 bits)
         #self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
         #self.errlog    = os.path.join(self.prefix, "var/log/dirsrv/slapd-%s/errors" % self.serverid)
@@ -1892,4 +1892,31 @@ class DirSrv(SimpleLDAPObject):
             XXX moved to brooker.Config
         """
         return self.config.enable_ssl(secport, secargs)
-        
+
+    def getDataDir(self, filename):
+        """
+        @param filename - the name of the test script calling  this function
+        @return - absolute path of the dirsrvtests data directory, or 'None' on error
+
+        Return the shared data directory relative to the ticket filename.
+        The caller should always use "__file__" as the argument to this function.
+
+        Get the script name from the filename that was provided:
+
+            'ds/dirsrvtests/tickets/ticket_#####_test.py' --> 'ticket_#####_test.py'
+
+        Get the full path to the filename, and convert it to the data directory:
+
+            '/home/user/389-ds-base/ds/dirsrvtests/tickets/ticket_#####_test.py' -->
+            '/home/user/389-ds-base/ds/dirsrvtests/data/'
+        """
+
+        if os.path.exists(filename):
+            script_name = os.path.basename(filename)
+            if script_name:
+                data_dir = os.path.abspath(filename).replace('tickets/' + script_name, 'data/')
+                if data_dir:
+                    return data_dir
+
+        return None
+
