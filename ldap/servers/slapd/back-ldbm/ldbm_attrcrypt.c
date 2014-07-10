@@ -344,7 +344,7 @@ attrcrypt_generate_key(attrcrypt_cipher_state *acs,PK11SymKey **symmetric_key)
 	                                                0 /*param*/,
 	                                                acs->ace->key_size,
 	                                                NULL /*keyid*/, 
-	                                                CKA_DECRYPT/*op*/,
+	                                                CKF_DECRYPT/*op*/,
 	                                                CKF_ENCRYPT/*attr*/,
 	                                                NULL);
 	if (new_symmetric_key) {
