@@ -93,11 +93,14 @@ DN_CHANGELOG    = "cn=changelog5,%s"    % DN_CONFIG
 DN_LDBM         = "cn=ldbm database,%s" % DN_PLUGIN
 DN_CHAIN        = "cn=chaining database,%s" % DN_PLUGIN
 
-DN_TASKS        = "cn=tasks,%s"         % DN_CONFIG
-DN_INDEX_TASK   = "cn=index,%s"         % DN_TASKS
-DN_MBO_TASK     = "cn=memberOf task,%s" % DN_TASKS
-DN_EXPORT_TASK  = "cn=export,%s"        % DN_TASKS
-DN_IMPORT_TASK  = "cn=import,%s"        % DN_TASKS
+DN_TASKS           = "cn=tasks,%s"            % DN_CONFIG
+DN_INDEX_TASK      = "cn=index,%s"            % DN_TASKS
+DN_EXPORT_TASK     = "cn=export,%s"           % DN_TASKS
+DN_IMPORT_TASK     = "cn=import,%s"           % DN_TASKS
+DN_BACKUP_TASK     = "cn=backup,%s"           % DN_TASKS
+DN_RESTORE_TASK    = "cn=restore,%s"          % DN_TASKS
+DN_MBO_TASK        = "cn=memberOf task,%s"    % DN_TASKS
+DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 
 RDN_REPLICA     = "cn=replica"
 

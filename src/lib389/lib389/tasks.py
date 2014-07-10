@@ -8,18 +8,22 @@ from lib389._constants import *
 from lib389.properties import *
 import ldap
 import time
+import os.path
 
 class Tasks(object):
     proxied_methods = 'search_s getEntry'.split()
+
 
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
         self.conn = conn
         self.log = conn.log
 
+
     def __getattr__(self, name):
         if name in Tasks.proxied_methods:
             return DirSrv.__getattr__(self.conn, name)
+
 
     def checkTask(self, entry, dowait=False):
         '''check task status - task is complete when the nsTaskExitCode attr is set
@@ -43,6 +47,7 @@ class Tasks(object):
             else:
                 break
         return (done, exitCode)
+
 
     def importLDIF(self, suffix=None, benamebase=None, input_file=None, args=None):
         '''
@@ -68,12 +73,15 @@ class Tasks(object):
         # Checking the parameters
         if not benamebase and not suffix:
             raise ValueError("Specify either bename or suffix")
-        
+
         if not input_file:
             raise ValueError("input_file is mandatory")
-        
+
+        if not os.path.exists(input_file):
+            raise ValueError("Import file (%s) does not exist" % input_file)
+
         # Prepare the task entry
-        cn = "import" + str(int(time.time()))
+        cn = "import_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
         dn = "cn=%s,%s" % (cn, DN_IMPORT_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -102,6 +110,7 @@ class Tasks(object):
             self.log.info("Import task %s for file %s completed successfully" % (
                     cn, input_file))
         return exitCode
+
 
     def exportLDIF(self, suffix=None, benamebase=None, output_file=None, args=None):
         '''
@@ -134,7 +143,7 @@ class Tasks(object):
             raise ValueError("output_file is mandatory")
         
         # Prepare the task entry
-        cn = "export%d" % time.time()
+        cn = "export_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
         dn = "cn=%s,%s" % (cn, DN_EXPORT_TASK)
         entry = Entry(dn)
         entry.update({
@@ -166,6 +175,111 @@ class Tasks(object):
         return exitCode
 
     
+    def db2bak(self, backup_dir=None, args=None):
+        '''
+        Perform a backup by creating a db2bak task
+
+        @param backup_dir - backup directory
+        @param args - is a dictionary that contains modifier of the task
+                wait: True/[False] - If True,  waits for the completion of the task before to return
+
+        @return exit code
+
+        @raise ValueError: if bename name does not exist
+        '''
+
+        # Checking the parameters
+        if not backup_dir:
+            raise ValueError("You must specify a backup directory.")
+        if not os.path.exists(backup_dir):
+            raise ValueError("Backup file (%s) does not exist" % backup_dir)
+
+        # build the task entry
+        cn = "backup_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        dn = "cn=%s,%s" % (cn, DN_BACKUP_TASK)
+        entry = Entry(dn)
+        entry.update({
+            'objectclass': ['top', 'extensibleObject'],
+            'cn': cn,
+            'nsArchiveDir': backup_dir,
+            'nsDatabaseType': 'ldbm database'
+        })
+
+        # start the task and possibly wait for task completion
+        try:
+            self.conn.add_s(entry)
+        except ldap.ALREADY_EXISTS:
+            self.log.error("Fail to add the backup task (%s)" % dn)
+            return -1
+
+        exitCode = 0
+        if args and args.get(TASK_WAIT, False):
+            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+
+        if exitCode:
+            self.log.error("Error: backup task %s exited with %d" % (cn, exitCode))
+        else:
+            self.log.info("Backup task %s completed successfully" % (cn))
+        return exitCode
+
+
+    def bak2db(self, bename=None, backup_dir=None, args=None):
+        '''
+        Restore a backup by creating a bak2db task
+
+        @param bename - 'commonname'/'cn' of the backend (e.g. 'userRoot')
+        @param backup_dir - backup directory
+        @param args - is a dictionary that contains modifier of the task
+                wait: True/[False] - If True,  waits for the completion of the task before to return
+
+        @return exit code
+
+        @raise ValueError: if bename name does not exist
+        '''
+
+        # Checking the parameters
+        if not backup_dir:
+            raise ValueError("You must specify a backup directory")
+        if not os.path.exists(backup_dir):
+            raise ValueError("Backup file (%s) does not exist" % backup_dir)
+
+        # If a backend name was provided then verify it
+        if bename:
+            ents = self.conn.mappingtree.list(bename=bename)
+            if len(ents) != 1:
+                raise ValueError("invalid backend name: %s" % bename)
+
+        # build the task entry
+        cn = "restore_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        dn = "cn=%s,%s" % (cn, DN_RESTORE_TASK)
+        entry = Entry(dn)
+        entry.update({
+            'objectclass': ['top', 'extensibleObject'],
+            'cn': cn,
+            'nsArchiveDir': backup_dir,
+            'nsDatabaseType': 'ldbm database'
+        })
+        if bename:
+             entry.update({'nsInstance': bename})
+
+        # start the task and possibly wait for task completion
+        try:
+            self.conn.add_s(entry)
+        except ldap.ALREADY_EXISTS:
+            self.log.error("Fail to add the backup task (%s)" % dn)
+            return -1
+
+        exitCode = 0
+        if args and args.get(TASK_WAIT, False):
+            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+
+        if exitCode:
+            self.log.error("Error: restore task %s exited with %d" % (cn, exitCode))
+        else:
+            self.log.info("Restore task %s completed successfully" % (cn))
+        return exitCode
+
+
     def reindex(self, suffix=None, benamebase=None, attrname=None, args=None):
         '''
         Reindex a 'suffix' (or 'benamebase' that stores that suffix) for a given 'attrname'. 
@@ -201,7 +315,7 @@ class Tasks(object):
             suffix = ents[0].getValue(attr_suffix)
             
         entries_backend = self.conn.backend.list(suffix=suffix)
-        cn = "index_%s_%d" % (attrname, time.time())
+        cn = "index_%s_%s" % (attrname, time.strftime("%m%d%Y_%H%M%S", time.localtime()))
         dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
         entry = Entry(dn)
         entry.update({
@@ -230,6 +344,7 @@ class Tasks(object):
             self.log.info("Index task %s completed successfully" % (
                     cn))
         return exitCode
+
 
     def fixupMemberOf(self, suffix=None, benamebase=None, filt=None, args=None):
         '''
@@ -268,7 +383,7 @@ class Tasks(object):
             
             suffix = ents[0].getValue(attr)
         
-        cn = "fixupmemberof%d" % time.time()
+        cn = "fixupmemberof_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
         dn = "cn=%s,%s" % (cn, DN_MBO_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -278,11 +393,15 @@ class Tasks(object):
             entry.setValues('filter', filt)
         
         # start the task and possibly wait for task completion
-        self.conn.add_s(entry)
+        try:
+            self.conn.add_s(entry)
+        except ldap.ALREADY_EXISTS:
+            self.log.error("Fail to add the memberOf fixup task")
+            return -1
+
         exitCode = 0
         if args and args.get(TASK_WAIT, False):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
-            
 
         if exitCode:
             self.log.error("Error: fixupMemberOf task %s for basedn %s exited with %d" % (cn, suffix, exitCode))
@@ -290,3 +409,49 @@ class Tasks(object):
             self.log.info("fixupMemberOf task %s for basedn %s completed successfully" % (cn, suffix))
         return exitCode
 
+
+    def fixupTombstones(self, bename=None, args=None):
+        '''
+            Trigger a tombstone fixup task on the specified backend
+
+            @param bename - 'commonname'/'cn' of the backend (e.g. 'userRoot').  Optional.
+            @param args - is a dictionary that contains modifier of the task
+                wait: True/[False] - If True,  waits for the completion of the task before to return
+
+            @return exit code
+
+            @raise ValueError: if bename name does not exist
+        '''
+
+        if not bename:
+            bename = DEFAULT_BENAME
+
+        # Verify the backend name
+        if bename:
+            ents = self.conn.mappingtree.list(bename=bename)
+            if len(ents) != 1:
+                raise ValueError("invalid backend name: %s" % bename)
+
+        cn = "fixupTombstone_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        dn = "cn=%s,%s" % (cn, DN_TOMB_FIXUP_TASK)
+        entry = Entry(dn)
+        entry.setValues('objectclass', 'top', 'extensibleObject')
+        entry.setValues('cn', cn)
+        entry.setValues('backend', bename)
+
+        # start the task and possibly wait for task completion
+        try:
+            self.conn.add_s(entry)
+        except ldap.ALREADY_EXISTS:
+            self.log.error("Fail to add the fixup tombstone task")
+            return -1
+
+        exitCode = 0
+        if args and args.get(TASK_WAIT, False):
+            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+
+        if exitCode:
+            self.log.error("Error: tombstone fixup task %s for backend %s exited with %d" % (cn, bename, exitCode))
+        else:
+            self.log.info("tombstone fixup task %s for backend %s completed successfully" % (cn, bename))
+        return exitCode

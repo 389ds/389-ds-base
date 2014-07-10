@@ -118,14 +118,16 @@ class Entry(object):
         return val.lower() in [x.lower() for x in self.data.get(name)]
 
     def setValue(self, name, *value):
-        """Value passed in may be a single value, several values, or a single sequence.
+        """
+        Value passed in may be a single value, several values, or a single sequence.
         For example:
            ent.setValue('name', 'value')
            ent.setValue('name', 'value1', 'value2', ..., 'valueN')
            ent.setValue('name', ['value1', 'value2', ..., 'valueN'])
            ent.setValue('name', ('value1', 'value2', ..., 'valueN'))
         Since *value is a tuple, we may have to extract a list or tuple from that
-        tuple as in the last two examples above"""
+        tuple as in the last two examples above
+        """
         if isinstance(value[0], list) or isinstance(value[0], tuple):
             self.data[name] = value[0]
         else:

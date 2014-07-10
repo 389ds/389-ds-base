@@ -173,7 +173,7 @@ class Replica(object):
                     InvalidArgumentError: If missing mandatory parameter
                     
         '''
-        
+
         # No properties provided
         if len(properties) == 0:
             return
@@ -198,10 +198,10 @@ class Replica(object):
             # that is fine, now set the values
             for prop in properties:
                 val = rawProperty(prop)
-                
+
                 # for Entry update it is a replace
                 replica_entry.update({REPLICA_PROPNAME_TO_ATTRNAME[val]: properties[prop]})
-                
+
             return
         
         # If it provides the suffix or the replicaDN, replica.list will 
@@ -213,7 +213,7 @@ class Replica(object):
             else:
                 raise ValueError("invalid suffix: %s" % suffix)
 
-            
+
         # build the MODS
         mods = []
         for prop in properties:
