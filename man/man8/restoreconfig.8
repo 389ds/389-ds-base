@@ -18,7 +18,7 @@
 .SH NAME 
 restoreconfig - Directory Server script for restoring the Admin Server configuration
 .SH SYNOPSIS
-restoreconfig [ -Z serverID ] [-h]
+restoreconfig [ \-Z serverID ] [\-h]
 .SH DESCRIPTION
 Restores the most recently saved Admin Server configuration information to the NetscapeRoot partition under the /etc/dirsrv/slapd-instance_name/ directory. 
 .SH OPTIONS
@@ -35,7 +35,7 @@ Display the usage.
 .TP
 restoreconfig
 .TP
-restoreconfig -Z instance2
+restoreconfig \-Z instance2
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

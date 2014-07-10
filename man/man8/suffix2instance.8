@@ -18,7 +18,7 @@
 .SH NAME 
 suffix2instance - Directory Server script for finding a backend name
 .SH SYNOPSIS
-suffix2instance [-Z serverID] -s suffix [-h]
+suffix2instance [\-Z serverID] \-s suffix [\-h]
 .SH DESCRIPTION
 Maps a suffix to a backend name.  This script can be run while the server is running, or stopped.
 .SH OPTIONS
@@ -36,9 +36,9 @@ The suffix DN to be mapped to a backend name.  Example: "dc=example,dc=com"
 Display the usage.
 .SH EXAMPLE
 .TP
-suffix2instance -s 'dc=example,dc=com'
+suffix2instance \-s 'dc=example,dc=com'
 .TP
-suffix2instance -Z instance3 -s 'dc=example,dc=com'
+suffix2instance \-Z instance3 \-s 'dc=example,dc=com'
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

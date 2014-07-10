@@ -18,7 +18,7 @@
 .SH NAME 
 ldif2ldap - Directory Server script for adding entries
 .SH SYNOPSIS
-ldif2ldap [-Z serverID] [-D <rootdn>] -w <password> -f <ldifFile> [-P protocol] [-h]
+ldif2ldap [\-Z serverID] [\-D <rootdn>] \-w <password> \-f <ldifFile> [\-P protocol] [\-h]
 .SH DESCRIPTION
 Performs an import operation over LDAP to the Directory Server. To run this script, the server must be running. 
 .SH OPTIONS
@@ -47,7 +47,7 @@ available for the root user.
 .br
 Display the usage.
 .SH EXAMPLE
-ldif2ldap -Z instance3 -D 'cn=directory manager' -w password -f /LDAP/ldif/entries.ldif -P STARTTLS 
+ldif2ldap \-Z instance3 \-D 'cn=directory manager' \-w password \-f /LDAP/ldif/entries.ldif \-P STARTTLS 
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

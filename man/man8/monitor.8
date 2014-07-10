@@ -18,7 +18,7 @@
 .SH NAME 
 monitor - Directory Server script for monitoring database performance
 .SH SYNOPSIS
-monitor [ -Z serverID ] [ -D rootdn ] [ -w password ] [ -b basedn ] [-P protocol] [-h]
+monitor [ \-Z serverID ] [ \-D rootdn ] [ \-w password ] [ \-b basedn ] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Retrieves performance monitoring information. To run this script, the server must be running. 
 .SH OPTIONS
@@ -48,11 +48,11 @@ available for the root user.
 Display the usage.
 .SH EXAMPLE
 .TP
-monitor -P STARTTLS
+monitor \-P STARTTLS
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .TP
-monitor -Z instance2 -D 'cn=directory manager' -w password -b 'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
+monitor \-Z instance2 \-D 'cn=directory manager' \-w password \-b 'cn=monitor,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
 
 Note: You only need to bind as the root DN if you want to look at a backend monitor.
 .SH DIAGNOSTICS

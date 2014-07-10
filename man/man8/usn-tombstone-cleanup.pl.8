@@ -18,7 +18,7 @@
 .SH NAME 
 usn-tombstone-cleanup.pl - Directory Server perl script for cleaning up tombstone entries.
 .SH SYNOPSIS
-usn-tombstone-cleanup.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -s suffix -n backend [-m maxusn_to_delete] [-P protocol] [-v] [-h]
+usn-tombstone-cleanup.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-s suffix \-n backend [\-m maxusn_to_delete] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Deletes the tombstone entries maintained by the instance if the USN Plug-in is enabled. 
 .SH OPTIONS
@@ -65,7 +65,7 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-usn-tombstone-cleanup.pl -Z instance2 -D 'cn=directory manager' -w password -n userRoot -s 'ou=people,dc=example,dc=com' -P STARTTLS 
+usn-tombstone-cleanup.pl \-Z instance2 \-D 'cn=directory manager' \-w password \-n userRoot \-s 'ou=people,dc=example,dc=com' \-P STARTTLS 
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

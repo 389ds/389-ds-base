@@ -18,7 +18,7 @@
 .SH NAME 
 vlvindex - Directory Server script for VLV indexing
 .SH SYNOPSIS
-vlvindex [-Z serverID] -n backendname | {-s includesuffix}* -T vlvTag [-d debuglevel] [-h]
+vlvindex [\-Z serverID] \-n backendname | {\-s includesuffix}* \-T vlvTag [\-d debuglevel] [\-h]
 .SH DESCRIPTION
 Creates virtual list view (VLV) indexes, known in the Directory Server Console as browsing indexes. VLV indexes introduce flexibility in the way search results are viewed.  VLV index configuration must already exist prior to running this script. The Directory Server must be stopped before running this script.
 .SH OPTIONS
@@ -45,7 +45,7 @@ Settings the debugging level.
 Display the usage.
 .SH EXAMPLE
 .TP
-vlvindex -n userRoot -T myVLVIndex -Z instance2
+vlvindex \-n userRoot \-T myVLVIndex \-Z instance2
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

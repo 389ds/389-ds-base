@@ -18,7 +18,7 @@
 .SH NAME 
 ns-newpwpolicy.pl - Directory Server perl script for preparing new password policies.
 .SH SYNOPSIS
-ns-newpwpolicy.pl [-Z serverID] [-v] [-D rootdn] { -w password | -j filename } [-P protocol] [-p port] [-h host] -U UserDN -S SuffixDN
+ns-newpwpolicy.pl [\-Z serverID] [\-v] [\-D rootdn] { \-w password | \-j filename } [\-P protocol] [\-p port] [\-h host] \-U UserDN \-S SuffixDN
 .SH DESCRIPTION
 Adds entries required for implementing the user- and subtree-level password policy.
 .SH OPTIONS
@@ -35,7 +35,7 @@ search the server instance configuration for the value.
 .B \fB\-w\fR \fIpassword\fR
 The rootdn password.
 .TP
-.B \fB\-w -\fR 
+.B \fB\-w \-\fR 
 .br
 Prompt for the rootdn password.
 .TP
@@ -64,7 +64,7 @@ Specifies the DN of the suffix entry that needs to be updated with subtree-level
 Display verbose output
 .SH EXAMPLE
 .TP
-ns-newpwpolicy.pl -Z instance3 -D 'cn=directory manager' -w password -P STARTTLS -U 'uid=user,ou=people,dc=example,dc=com' 
+ns-newpwpolicy.pl \-Z instance3 \-D 'cn=directory manager' \-w password \-P STARTTLS \-U 'uid=user,ou=people,dc=example,dc=com' 
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

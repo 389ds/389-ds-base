@@ -18,8 +18,8 @@
 .SH NAME 
 db2ldif.pl - Directory Server perl script for exporting a database to a LDIF file
 .SH SYNOPSIS
-db2ldif.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j pwfilename } [-P protocol]
-{-n backendname}* | {-s includeSuffix}* [{-x excludeSuffix}*] [-m] [-M] [-r] [-u] [-C] [-N] [-E] [-1] [-U] [-a filename] [-v] [-h]
+db2ldif.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j pwfilename } [\-P protocol]
+{\-n backendname}* | {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-m] [\-M] [\-r] [\-u] [\-C] [\-N] [\-E] [\-1] [\-U] [\-a filename] [\-v] [\-h]
 .SH DESCRIPTION
 Exports the contents of the database to LDIF. This script creates an entry in the directory that launches this dynamic task.
 .SH OPTIONS
@@ -68,7 +68,7 @@ Minimize the base64 encodings in the exported LDIF file.
 .br
 Exported ldif is stored in multiple files. These files are named : <instance>_<filename>
 .br
-By default, all instances are stored in the filename specified by the -a option.
+By default, all instances are stored in the filename specified by the \-a option.
 .TP
 .B \fB\-r\fR 
 .br
@@ -107,11 +107,11 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-db2ldif.pl -Z instance3 -n userRoot -a /LDAP/ldif/export.ldif -P STARTTLS
+db2ldif.pl \-Z instance3 \-n userRoot \-a /LDAP/ldif/export.ldif \-P STARTTLS
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .TP
-db2ldif.pl -s 'dc=example,dc=com' -a /LDAP/ldif/export.ldif -m -E -q
+db2ldif.pl \-s 'dc=example,dc=com' \-a /LDAP/ldif/export.ldif \-m \-E \-q
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

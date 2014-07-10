@@ -18,7 +18,7 @@
 .SH NAME 
 cleanallruv.pl - Directory Server perl script for issuing a cleanAllRUV task
 .SH SYNOPSIS
-cleanallruv.pl [-v] [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -b basedn -r rid  [-A] [-P protocol] [-h]
+cleanallruv.pl [\-v] [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b basedn \-r rid  [\-A] [\-P protocol] [\-h]
 .SH DESCRIPTION
 Creates and adds a cleanAllRUV task to the Directory Server
 .SH OPTIONS
@@ -68,11 +68,11 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-cleanallruv.pl -Z instance1 -D 'cn=directory manager' -j /tmp/pw.txt -b 'dc=example,dc=com' -r 87 -P STARTTLS
+cleanallruv.pl \-Z instance1 \-D 'cn=directory manager' \-j /tmp/pw.txt \-b 'dc=example,dc=com' \-r 87 \-P STARTTLS
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .TP
-cleanallruv.pl -j /export/rootdnpw.txt -b 'dc=example,dc=com' -A -r 87 
+cleanallruv.pl \-j /export/rootdnpw.txt \-b 'dc=example,dc=com' \-A \-r 87 
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

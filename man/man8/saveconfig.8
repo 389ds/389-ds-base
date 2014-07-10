@@ -18,7 +18,7 @@
 .SH NAME 
 saveconfig - Directory Server script for saving the Admin Server configuration
 .SH SYNOPSIS
-saveconfig [ -Z serverID ] [-h]
+saveconfig [ \-Z serverID ] [\-h]
 .SH DESCRIPTION
 Makes a backup of the Admin Server configuration information and stores it in /var/lib/dirsrv/slapd-instance_name/bak. 
 .SH OPTIONS
@@ -35,7 +35,7 @@ Display the usage.
 .TP
 saveconfig
 .TP
-saveconfig -Z instance3
+saveconfig \-Z instance3
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

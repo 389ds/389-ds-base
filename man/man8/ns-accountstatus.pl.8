@@ -18,7 +18,7 @@
 .SH NAME 
 ns-accountstatus.pl - Directory Server perl script for checking the status of entries.
 .SH SYNOPSIS
-ns-accountstatus.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-p port] [-h host] [-P protocol] -I DN
+ns-accountstatus.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-p port] [\-h host] [\-P protocol] \-I DN
 .SH DESCRIPTION
 Provides account status information to establish whether an entry or group of entries is inactivated.
 .SH OPTIONS
@@ -57,9 +57,9 @@ Host name of the Directory Server.
 Port number of the Directory Server.
 .SH EXAMPLE
 .TP
-ns-accountstatus.pl -Z instance3 -D 'cn=directory manager' -w password -I 'uid=user,ou=people,dc=example,dc=com'
+ns-accountstatus.pl \-Z instance3 \-D 'cn=directory manager' \-w password \-I 'uid=user,ou=people,dc=example,dc=com'
 .TP
-ns-accountstatus.pl -w password -I 'uid=user,ou=people,dc=example,dc=com' -P STARTTLS
+ns-accountstatus.pl \-w password \-I 'uid=user,ou=people,dc=example,dc=com' \-P STARTTLS
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

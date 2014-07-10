@@ -18,7 +18,7 @@
 .SH NAME 
 fixup-linkedattrs.pl - Directory Server perl script for creating a "fixup" task for linked attributes.
 .SH SYNOPSIS
-fixup-linkedattrs.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }  [-l linkDN] [-P protocol] [-v] [-h]
+fixup-linkedattrs.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-l linkDN] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Creates the managed attributes in the user entries once the linking plug-in instance is created or updates the managed attributes to keep everything in sync after operations like replication or synchronization.
 .SH OPTIONS
@@ -59,11 +59,11 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-fixup-linkedattrs.pl -Z instance1 -D 'cn=directory manager' -w password -P STARTTLS
+fixup-linkedattrs.pl \-Z instance1 \-D 'cn=directory manager' \-w password \-P STARTTLS
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .TP
-fixup-linkedattrs.pl -w password -l 'ou=people,dc=example,dc=com'
+fixup-linkedattrs.pl \-w password \-l 'ou=people,dc=example,dc=com'
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

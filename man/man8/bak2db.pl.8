@@ -18,7 +18,7 @@
 .SH NAME 
 bak2db.pl - Directory Server perl script for restoring a backup
 .SH SYNOPSIS
-bak2db.pl -a archivedir [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }  [-t dbtype] [-n backendname] [-P protocol] [-v] [-h]
+bak2db.pl \-a archivedir [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-t dbtype] [\-n backendname] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Restores a database from a backup. The Directory Server must be started prior to running this script.
 .SH OPTIONS
@@ -65,11 +65,11 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-bak2db.pl -a /LDAP/backups/20130305/ -D 'cn=directory manager' -w password -n userRoot -P LDAPS
+bak2db.pl \-a /LDAP/backups/20130305/ \-D 'cn=directory manager' \-w password \-n userRoot \-P LDAPS
 
 Note: security must be enabled to use protocol LDAPS.  If LDAPS is not available it will default to next strongest/available protocol automatically.
 .TP
-bak2db.pl -a /LDAP/backups/20130305/ -Z instance2 -w password -n example -P LDAPI
+bak2db.pl \-a /LDAP/backups/20130305/ \-Z instance2 \-w password \-n example \-P LDAPI
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

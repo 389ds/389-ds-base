@@ -18,7 +18,7 @@
 .SH NAME 
 bak2db - Directory Server script for restoring a backup
 .SH SYNOPSIS
-bak2db archivedir [-Z serverID] [-n backendname] [-q] | [-h]
+bak2db archivedir [\-Z serverID] [\-n backendname] [\-q] | [\-h]
 .SH DESCRIPTION
 Restores the database from a archived backup.  The Directory Server must be stopped prior to running this script.
 .SH OPTIONS
@@ -42,9 +42,9 @@ Quiet mode.  Reduces output of task.
 .br
 Display the usage.
 .SH EXAMPLE
-bak2db /LDAP/backups/20130305/ -Z instance1 -n userRoot
+bak2db /LDAP/backups/20130305/ \-Z instance1 \-n userRoot
 
-bak2db /LDAP/backups/20130305/ -n example
+bak2db /LDAP/backups/20130305/ \-n example
 
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 

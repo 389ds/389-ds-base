@@ -18,7 +18,7 @@
 .SH NAME 
 db2bak - Directory Server script for making a backup of the database
 .SH SYNOPSIS
-db2bak [archivedir] [-Z serverID] [-q] [-h]
+db2bak [archivedir] [\-Z serverID] [\-q] [\-h]
 .SH DESCRIPTION
 Creates a backup of the database.  This script can be executed while the server is running or stopped.
 .SH OPTIONS
@@ -40,7 +40,7 @@ Quiet mode.  Reduces output of task.
 Display the usage.
 .SH EXAMPLE
 .TP
-db2bak -Z instance2
+db2bak \-Z instance2
 
 Makes a backup of the entire database for 'instance2', and stores it in the default server instance backup directory.
 .TP

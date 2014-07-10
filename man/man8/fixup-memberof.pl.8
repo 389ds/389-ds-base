@@ -18,7 +18,7 @@
 .SH NAME 
 fixup-memberof.pl - Directory Server perl script for memberOf attributes.
 .SH SYNOPSIS
-fixup-memberof.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -b baseDN [-f filter] [-P protocol] [-v] [-h]
+fixup-memberof.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b baseDN [\-f filter] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Regenerates and updates memberOf on user entries to coordinate changes in group membership. 
 .SH OPTIONS
@@ -63,11 +63,11 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-fixup-memberof.pl -Z instance1 -D 'cn=directory manager' -w password -b 'dc=example,dc=com' -P STARTTLS
+fixup-memberof.pl \-Z instance1 \-D 'cn=directory manager' \-w password \-b 'dc=example,dc=com' \-P STARTTLS
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .TP
-fixup-memberof.pl -w password -b 'dc=example,dc=com' -f 'uid=*'
+fixup-memberof.pl \-w password \-b 'dc=example,dc=com' \-f 'uid=*'
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

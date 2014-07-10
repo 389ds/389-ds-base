@@ -18,7 +18,7 @@
 .SH NAME 
 verify-db.pl - Directory Server perl script for verifying the database.
 .SH SYNOPSIS
-verify-db.pl [-Z serverID] [ -a path ] [-h]
+verify-db.pl [\-Z serverID] [ \-a path ] [\-h]
 .SH DESCRIPTION
 Verifies the backend database files. If the server crashes because of a corrupted database, this script can be used to verify the integrity of the different database files to help isolate any problems. 
 .SH OPTIONS
@@ -36,7 +36,7 @@ Gives the path to the database directory. If this option is not passed with the 
 Display usage
 .SH EXAMPLE
 .TP
-verify-db.pl -Z instance2 -a /var/lib/dirsrv/slapd-instance2/db
+verify-db.pl \-Z instance2 \-a /var/lib/dirsrv/slapd-instance2/db
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

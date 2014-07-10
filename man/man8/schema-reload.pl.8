@@ -18,7 +18,7 @@
 .SH NAME 
 schema-reload.pl - Directory Server perl script for updating the schema.
 .SH SYNOPSIS
-schema-reload.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-P protocol] [-d schemadir] [-v] [-h]
+schema-reload.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-P protocol] [\-d schemadir] [\-v] [\-h]
 .SH DESCRIPTION
 Manually reloads the schema files used by the Directory Server instance, either in the default location, or in user-specified locations.
 .SH OPTIONS
@@ -35,7 +35,7 @@ search the server instance configuration for the value.
 .B \fB\-w\fR \fIpassword\fR
 The rootdn password.
 .TP
-.B \fB\-w -\fR 
+.B \fB\-w \-\fR 
 .br
 Prompt for the rootdn password.
 .TP
@@ -59,7 +59,7 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-schema-reload.pl -Z instance3 -D 'cn=directory manager' -w password -P STARTTLS -d /LDAP/schema/  
+schema-reload.pl \-Z instance3 \-D 'cn=directory manager' \-w password \-P STARTTLS \-d /LDAP/schema/  
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

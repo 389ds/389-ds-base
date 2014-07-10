@@ -18,7 +18,7 @@
 .SH NAME 
 upgradednformat - Directory Server script for upgrading the DN format
 .SH SYNOPSIS
-upgradednformat -n backendname -a database_directory [-Z serverID] [-N] [-h]
+upgradednformat \-n backendname \-a database_directory [\-Z serverID] [\-N] [\-h]
 .SH DESCRIPTION
 Updates older-style DN syntaxes to RFC 4514-style DN syntaxes for migrated databases.  This is usually needed after migrating from an older version of Directory Server.  This script must be run while the server is stopped.
 .SH OPTIONS
@@ -42,7 +42,7 @@ Only checks whether any DNs in the database need to be updated.
 Display the usage.
 .SH EXAMPLE
 .TP
-upgradednformat -n userRoot -a /var/lib/dirsrv/slapd-instance2/db -Z instance2
+upgradednformat \-n userRoot \-a /var/lib/dirsrv/slapd-instance2/db \-Z instance2
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

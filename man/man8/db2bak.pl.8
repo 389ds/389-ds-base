@@ -18,7 +18,7 @@
 .SH NAME 
 db2bak.pl - Directory Server perl script for creating a backup
 .SH SYNOPSIS
-db2bak.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }  [-t dbtype] [-a backupdir] [-P protocol] [-v] [-h]
+db2bak.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-t dbtype] [\-a backupdir] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Creates a backup of the Directory Server database.  The 
 Directory Server must be started prior to running this script.
@@ -63,7 +63,7 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-db2bak.pl -Z instance1 -D 'cn=directory manager' -w password -a /LDAP/backups/20130305 -P LDAPI
+db2bak.pl \-Z instance1 \-D 'cn=directory manager' \-w password \-a /LDAP/backups/20130305 \-P LDAPI
 
 Note: LDAPI must be enabled to use this protocol.  If LDAPI is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

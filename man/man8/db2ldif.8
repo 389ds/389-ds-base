@@ -18,9 +18,9 @@
 .SH NAME 
 db2ldif - Directory Server script for exporting the database
 .SH SYNOPSIS
-db2ldif [-Z serverID] {-n backend_instance}* | {-s includeSuffix}* [{-x excludeSuffix}*] [-a outputFile] [-m] [-M] [-r] [-u] [-U] [-C] [-N] [-E] [-1] [-q] [-h]
+db2ldif [\-Z serverID] {\-n backend_instance}* | {\-s includeSuffix}* [{\-x excludeSuffix}*] [\-a outputFile] [\-m] [\-M] [\-r] [\-u] [\-U] [\-C] [\-N] [\-E] [\-1] [\-q] [\-h]
 .SH DESCRIPTION
-Exports the contents of the database to a LDIF file. This script can be executed while the server is still running, except when using the -r option.
+Exports the contents of the database to a LDIF file. This script can be executed while the server is still running, except when using the \-r option.
 .SH OPTIONS
 A summary of options is included below:
 .TP
@@ -48,7 +48,7 @@ Minimize the base64 encodings in the exported LDIF file.
 .br
 Exported ldif is stored in multiple files. These files are named : <instance>_<filename>
 .br
-By default, all instances are stored in the filename specified by the -a option.
+By default, all instances are stored in the filename specified by the \-a option.
 .TP
 .B \fB\-r\fR 
 .br
@@ -87,9 +87,9 @@ Quiet mode.  Suppresses output of the script.
 Display the usage.
 .SH EXAMPLE
 .TP
-db2ldif -Z instance3 -n userRoot -a /LDAP/ldif/export.ldif
+db2ldif \-Z instance3 \-n userRoot \-a /LDAP/ldif/export.ldif
 .TP
-db2ldif -s 'dc=example,dc=com' -a /LDAP/ldif/export.ldif -m -E -q
+db2ldif \-s 'dc=example,dc=com' \-a /LDAP/ldif/export.ldif \-m \-E \-q
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

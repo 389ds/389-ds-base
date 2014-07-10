@@ -18,7 +18,7 @@
 .SH NAME 
 ns-inactivate.pl - Directory Server perl script for inactivating entries.
 .SH SYNOPSIS
-ns-inactivate.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } [-p port] [-h host] [-P protocol] -I DN
+ns-inactivate.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-p port] [\-h host] [\-P protocol] \-I DN
 .SH DESCRIPTION
 Inactivates, and consequently locks, an entry or group of entries. 
 .SH OPTIONS
@@ -35,7 +35,7 @@ search the server instance configuration for the value.
 .B \fB\-w\fR \fIpassword\fR
 The rootdn password.
 .TP
-.B \fB\-w -\fR 
+.B \fB\-w \-\fR 
 .br
 Prompt for the rootdn password.
 .TP
@@ -57,7 +57,7 @@ Host name of the Directory Server.
 Port number of the Directory Server.
 .SH EXAMPLE
 .TP
-ns-inactivate.pl -Z instance2 -D 'cn=directory manager' -j /tmp/passwd.txt -P STARTTLS -I 'uid=user,ou=people,dc=example,dc=com'  
+ns-inactivate.pl \-Z instance2 \-D 'cn=directory manager' \-j /tmp/passwd.txt \-P STARTTLS \-I 'uid=user,ou=people,dc=example,dc=com'  
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS

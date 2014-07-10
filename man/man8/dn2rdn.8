@@ -18,7 +18,7 @@
 .SH NAME 
 dn2rdn - Directory Server script to check for outdated index versions
 .SH SYNOPSIS
-dn2rdn [-Z serverID] [-h] [-f] [-v] [-d debuglevel]
+dn2rdn [\-Z serverID] [\-h] [\-f] [\-v] [\-d debuglevel]
 .SH DESCRIPTION
 Checks the database index version, and if it's in a old format, then it will rebuild the indexes.  The server instance needs to be stopped prior to running this script.
 .SH OPTIONS
@@ -45,7 +45,7 @@ Display the usage.
 .SH EXAMPLE
 dn2rdn
 
-dn2rdn -Z instance3 -f
+dn2rdn \-Z instance3 \-f
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
 non-zero exit status and a diagnostic message being written 

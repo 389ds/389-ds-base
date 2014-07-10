@@ -18,7 +18,7 @@
 .SH NAME 
 dbverify - Directory Server script for indexing attributes
 .SH SYNOPSIS
-dbverify [-Z serverID] [-n backend] [-V] [-v] [-d debuglevel] [-h]
+dbverify [\-Z serverID] [\-n backend] [\-V] [\-v] [\-d debuglevel] [\-h]
 .SH DESCRIPTION
 Verifies the backend database files. If the server crashes because of a corrupted database, this command can be used to verify the integrity of the different database files to help isolate any problems.  This script should be run while the server instacne is stopped.
 .SH OPTIONS
@@ -46,7 +46,7 @@ Display the version of the Directory Server.
 .br
 Display the usage.
 .SH EXAMPLE
-dbverify -Z instance3 -n userRoot -V
+dbverify \-Z instance3 \-n userRoot \-V
 
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 

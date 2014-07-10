@@ -18,7 +18,7 @@
 .SH NAME 
 syntax-validate.pl - Directory Server perl script for validating attribute syntax.
 .SH SYNOPSIS
-syntax-validate.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -b baseDN [-f filter] [-P protocol] [-v] [-h]
+syntax-validate.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } \-b baseDN [\-f filter] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Syntax validation checks every modification to attributes to make sure that the new value has the required syntax for that attribute type. All attribute syntaxes are validated against the definitions in RFC 4514. 
 .SH OPTIONS
@@ -35,7 +35,7 @@ search the server instance configuration for the value.
 .B \fB\-w\fR \fIpassword\fR
 The rootdn password.
 .TP
-.B \fB\-w -\fR 
+.B \fB\-w \-\fR 
 .br
 Prompt for the rootdn password.
 .TP
@@ -62,7 +62,7 @@ Display verbose output
 Display usage
 .SH EXAMPLE
 .TP
-syntax-validate.pl -Z instance2 -D 'cn=directory manager' -w password -b 'dc=example,dc=com' -f 'cn=*' -P STARTTLS 
+syntax-validate.pl \-Z instance2 \-D 'cn=directory manager' \-w password \-b 'dc=example,dc=com' \-f 'cn=*' \-P STARTTLS 
 
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS
