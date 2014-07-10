@@ -113,15 +113,15 @@ static int _entryrdn_open_index(backend *be, struct attrinfo **ai, DB **dbp);
 static char *_entryrdn_encrypt_key(backend *be, const char *key, struct attrinfo *ai);
 static char *_entryrdn_decrypt_key(backend *be, const char *key, struct attrinfo *ai);
 #endif
-static int _entryrdn_get_elem(DBC *cursor, DBT *key, DBT *data, const char *comp_key, rdn_elem **elem);
-static int _entryrdn_get_tombstone_elem(DBC *cursor, Slapi_RDN *srdn, DBT *key, const char *comp_key, rdn_elem **elem);
+static int _entryrdn_get_elem(DBC *cursor, DBT *key, DBT *data, const char *comp_key, rdn_elem **elem, DB_TXN *db_txn);
+static int _entryrdn_get_tombstone_elem(DBC *cursor, Slapi_RDN *srdn, DBT *key, const char *comp_key, rdn_elem **elem, DB_TXN *db_txn);
 static int _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type, DB_TXN *db_txn);
 static int _entryrdn_del_data(DBC *cursor,  DBT *key, DBT *data, DB_TXN *db_txn);
 static int _entryrdn_insert_key(backend *be, DBC *cursor, Slapi_RDN *srdn, ID id, DB_TXN *db_txn);
 static int _entryrdn_insert_key_elems(backend *be, DBC *cursor, Slapi_RDN *srdn, DBT *key, rdn_elem *elem, rdn_elem *childelem, size_t childelemlen, DB_TXN *db_txn);
 static int _entryrdn_delete_key(backend *be, DBC *cursor, Slapi_RDN *srdn, ID id, DB_TXN *db_txn);
 static int _entryrdn_index_read(backend *be, DBC *cursor, Slapi_RDN *srdn, rdn_elem **elem, rdn_elem **parentelem, rdn_elem ***childelems, int flags, DB_TXN *db_txn);
-static int _entryrdn_append_childidl(DBC *cursor, const char *nrdn, ID id, IDList **affectedidl);
+static int _entryrdn_append_childidl(DBC *cursor, const char *nrdn, ID id, IDList **affectedidl, DB_TXN *db_txn);
 static void _entryrdn_cursor_print_error(char *fn, void *key, size_t need, size_t actual, int rc);
 
 static int entryrdn_warning_on_encryption = 1;
@@ -1074,6 +1074,9 @@ entryrdn_get_subordinates(backend *be,
 
     rc = _entryrdn_index_read(be, cursor, &srdn, &elem,
                               NULL, &childelems, 0/*flags*/, db_txn);
+    if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
+        goto bail;
+    }
 
     for (cep = childelems; cep && *cep; cep++) {
         ID childid = id_stored_to_internal((*cep)->rdn_elem_id);
@@ -1088,7 +1091,7 @@ entryrdn_get_subordinates(backend *be,
 
         /* set indirect subordinates to the idlist */
         rc = _entryrdn_append_childidl(cursor, (*cep)->rdn_elem_nrdn_rdn,
-                                       childid, subordinates);
+                                       childid, subordinates, db_txn);
         if (rc) {
             slapi_log_error(SLAPI_LOG_FATAL, ENTRYRDN_TAG,
                             "entryrdn_get_subordinates: Appending %d to idl "
@@ -1255,13 +1258,16 @@ retry_get0:
         rc = cursor->c_get(cursor, &key, &data, DB_SET);
         if (rc) {
             if (DB_LOCK_DEADLOCK == rc) {
-                /* try again */
-                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                "entryrdn_get_parent: cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-                goto retry_get0;
+                if (db_txn) {
+                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "entryrdn_get_parent: cursor get deadlock while under txn -> failure\n");
+                    goto bail;
+                } else {
+                    /* try again */
+                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "entryrdn_get_parent: cursor get deadlock\n");
+                    goto retry_get0;
+                }
             } else if (DB_NOTFOUND == rc) { /* could be a suffix or
                                                note: no parent for suffix */
                 slapi_ch_free_string(&keybuf);
@@ -1273,13 +1279,15 @@ retry_get1:
                 rc = cursor->c_get(cursor, &key, &data, DB_SET);
                 if (rc) {
                     if (DB_LOCK_DEADLOCK == rc) {
-                        /* try again */
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                        "entryrdn_get_parent: retry cursor get deadlock\n");
-                        goto retry_get1;
+                        if (db_txn) {
+                            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                    "entryrdn_get_parent: cursor get deadlock while under txn -> failure\n");
+                        } else {
+                            /* try again */
+                            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                    "entryrdn_get_parent: retry cursor get deadlock\n");
+                            goto retry_get1;
+                        }
                     } else if (DB_NOTFOUND != rc) {
                         _entryrdn_cursor_print_error("entryrdn_lookup_dn",
                                             key.data, data.size, data.ulen, rc);
@@ -1465,13 +1473,15 @@ retry_get0:
     rc = cursor->c_get(cursor, &key, &data, DB_SET);
     if (rc) {
         if (DB_LOCK_DEADLOCK == rc) {
-            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                            "entryrdn_get_parent: cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-            /* try again */
-            goto retry_get0;
+            if (db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "entryrdn_get_parent: cursor get deadlock while under txn -> failure\n");
+            } else {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "entryrdn_get_parent: cursor get deadlock\n");
+                /* try again */
+                goto retry_get0;
+            }
         } else if (DB_NOTFOUND == rc) { /* could be a suffix
                                            note: no parent for suffix */
             slapi_ch_free_string(&keybuf);
@@ -1483,13 +1493,15 @@ retry_get1:
             rc = cursor->c_get(cursor, &key, &data, DB_SET);
             if (rc) {
                 if (DB_LOCK_DEADLOCK == rc) {
-                    /* try again */
-                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                    "entryrdn_get_parent: retry cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-                    goto retry_get1;
+                    if (db_txn) {
+                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "entryrdn_get_parent: cursor get deadlock while under txn -> failure\n");
+                    } else {
+                        /* try again */
+                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "entryrdn_get_parent: retry cursor get deadlock\n");
+                        goto retry_get1;
+                    }
                 } else if (DB_NOTFOUND != rc) {
                     _entryrdn_cursor_print_error("entryrdn_get_parent",
                                             key.data, data.size, data.ulen, rc);
@@ -1773,7 +1785,8 @@ _entryrdn_get_elem(DBC *cursor,
                    DBT *key,
                    DBT *data,
                    const char *comp_key,
-                   rdn_elem **elem)
+                   rdn_elem **elem,
+                   DB_TXN *db_txn)
 {
     int rc = 0;
     void *ptr = NULL;
@@ -1795,13 +1808,15 @@ retry_get:
     *elem = (rdn_elem *)data->data;
     if (rc) {
         if (DB_LOCK_DEADLOCK == rc) {
-            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                            "_entryrdn_get_elem: cursor get deadlock\n");
-            /* try again */
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-            goto retry_get;
+                if (db_txn) {
+                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_get_elem: cursor get deadlock while under txn -> failure\n");
+                } else {
+                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                                "_entryrdn_get_elem: cursor get deadlock\n");
+                        /* try again */
+                        goto retry_get;
+                }
         } else if (DB_BUFFER_SMALL == rc) {
             /* try again */
             data->flags = DB_DBT_MALLOC;
@@ -1837,7 +1852,8 @@ _entryrdn_get_tombstone_elem(DBC *cursor,
                              Slapi_RDN *srdn,
                              DBT *key,
                              const char *comp_key,
-                             rdn_elem **elem)
+                             rdn_elem **elem,
+                             DB_TXN *db_txn)
 {
     int rc = 0;
     DBT data;
@@ -1868,13 +1884,17 @@ _entryrdn_get_tombstone_elem(DBC *cursor,
 retry_get0:
     rc = cursor->c_get(cursor, key, &data, DB_SET|DB_MULTIPLE);
     if (DB_LOCK_DEADLOCK == rc) {
-        /* try again */
-        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                        "_entryrdn_get_tombstone_elem: cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-        goto retry_get0;
+        if (db_txn) {
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                    "_entryrdn_get_tombstone_elem: cursor get deadlock while under txn -> failure\n");
+            goto bail;
+        } else {
+            /* try again */
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                    "_entryrdn_get_tombstone_elem: cursor get deadlock\n");
+            goto retry_get0;
+        }
+
     } else if (DB_NOTFOUND == rc) {
         rc = 0; /* Child not found is ok */
         goto bail;
@@ -1923,13 +1943,16 @@ retry_get0:
 retry_get1:
         rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP|DB_MULTIPLE);
         if (DB_LOCK_DEADLOCK == rc) {
-            /* try again */
-            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                            "_entryrdn_get_tombstone_elem: retry cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-            goto retry_get1;
+            if (db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_get_tombstone_elem: cursor get deadlock while under txn -> failure\n");
+                goto bail;
+            } else {
+                /* try again */
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_get_tombstone_elem: retry cursor get deadlock\n");
+                goto retry_get1;
+            }
         } else if (DB_NOTFOUND == rc) {
             rc = 0;
             goto bail; /* done */
@@ -2561,11 +2584,18 @@ _entryrdn_insert_key(backend *be,
     data.flags = DB_DBT_USERMEM;
 
     /* getting the suffix element */
-    rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, &elem); 
+    rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, &elem, db_txn); 
     if (rc) {
         const char *myrdn = slapi_rdn_get_nrdn(srdn);
         const char **ep = NULL;
         int isexception = 0;
+        
+        if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_insert_key: Suffix \"%s\" cursor get fails: "
+                        "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
+                goto bail;
+        }
         /* Check the RDN is in the exception list */
         for (ep = rdn_exceptions; ep && *ep; ep++) {
             if (!strcmp(*ep, myrdn)) {
@@ -2668,10 +2698,15 @@ _entryrdn_insert_key(backend *be,
         data.flags = DB_DBT_USERMEM;
         /* getting the child element */
 
-        rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem);
+        rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem, db_txn);
         if (rc) {
             slapi_ch_free((void **)&tmpelem);
-            if (DB_NOTFOUND == rc) {
+            if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_insert_key: Suffix \"%s\" cursor get fails: "
+                        "%s(%d)\n", childnrdn, dblayer_strerror(rc), rc);
+                goto bail;
+            } else if (DB_NOTFOUND == rc) {
                 /* if 0 == rdnidx, Child is a Leaf RDN to be added */
                 if (0 == rdnidx) {
                     /* keybuf (C#) is consumed in _entryrdn_insert_key_elems */
@@ -2696,7 +2731,7 @@ _entryrdn_insert_key(backend *be,
                      * latter case.
                      */
                     rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key,
-                                                          childnrdn, &tmpelem);
+                                                          childnrdn, &tmpelem, db_txn);
                     if (rc) {
                         char *dn  = NULL;
                         slapi_rdn_get_dn(tmpsrdn, &dn);
@@ -2860,13 +2895,16 @@ _entryrdn_delete_key(backend *be,
     while (!done) {
         rc = cursor->c_get(cursor, &key, &data, DB_SET|DB_MULTIPLE);
         if (DB_LOCK_DEADLOCK == rc) {
-            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                            "_entryrdn_delete_key: cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-            /* try again */
-            continue;
+            if (db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_delete_key: cursor get deadlock while under txn -> failure\n");
+                goto bail;
+            } else {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_delete_key: cursor get deadlock\n");
+                /* try again */
+                continue;
+            }
         } else if (DB_NOTFOUND == rc) {
             /* no children; ok */
             done = 1;
@@ -2902,13 +2940,16 @@ _entryrdn_delete_key(backend *be,
 retry_get:
             rc = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP|DB_MULTIPLE);
             if (DB_LOCK_DEADLOCK == rc) {
-                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                "_entryrdn_delete_key: retry cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-                /* try again */
-                goto retry_get;
+                if (db_txn) {
+                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_delete_key: cursor get deadlock while under txn -> failure\n");
+                    goto bail;
+                } else {
+                    slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                            "_entryrdn_delete_key: retry cursor get deadlock\n");
+                    /* try again */
+                    goto retry_get;
+                }
             } else if (DB_NOTFOUND == rc) {
                 rc = 0;
                 done = 1;
@@ -2994,7 +3035,7 @@ retry_get:
 
         /* Position cursor at the matching key */
         rc = _entryrdn_get_elem(cursor, &key, &data,
-                                slapi_rdn_get_nrdn(tmpsrdn), &elem); 
+                                slapi_rdn_get_nrdn(tmpsrdn), &elem, db_txn); 
         if (tmpsrdn != srdn) {
             slapi_rdn_free(&tmpsrdn);
         }
@@ -3202,13 +3243,20 @@ _entryrdn_index_read(backend *be,
     data.flags = DB_DBT_USERMEM;
 
     /* getting the suffix element */
-    rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, elem); 
+    rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, elem, db_txn); 
     if (rc || NULL == *elem) {
         slapi_ch_free((void **)elem);
+        if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
+                slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                        "_entryrdn_index_read: Suffix \"%s\" cursor get fails: "
+                        "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
+                slapi_rdn_free(&tmpsrdn);
+                goto bail;               
+        }
         if (flags & TOMBSTONE_INCLUDED) {
             /* Node might be a tombstone. */
             rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, 
-                                              &key, nrdn, elem);
+                                              &key, nrdn, elem, db_txn);
             rdnidx--; /* consider nsuniqueid=..,<RDN> one RDN */
         }
         if (rc || NULL == *elem) {
@@ -3289,9 +3337,18 @@ _entryrdn_index_read(backend *be,
         data.flags = DB_DBT_USERMEM;
 
         /* Position cursor at the matching key */
-        rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem); 
+        rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem, db_txn); 
         if (rc) {
             slapi_ch_free((void **)&tmpelem);
+            if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
+                slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                        "_entryrdn_index_read: Suffix \"%s\" cursor get fails: "
+                        "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
+                if (tmpsrdn != srdn) {
+                        slapi_rdn_free(&tmpsrdn);
+                }
+                goto bail;
+            }
             if (flags & TOMBSTONE_INCLUDED) {
                 /* Node might be a tombstone */
                 /*
@@ -3301,7 +3358,7 @@ _entryrdn_index_read(backend *be,
                  *   nsuniqueid=...,cn=A,nsuniqueid=...,ou=B,o=C
                  */
                 rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn, &key, 
-                                                  childnrdn, &tmpelem);
+                                                  childnrdn, &tmpelem, db_txn);
                 if (rc || (NULL == tmpelem)) {
                     slapi_ch_free((void **)&tmpelem);
                     if (DB_NOTFOUND != rc) {
@@ -3383,11 +3440,12 @@ retry_get0:
         if (DB_LOCK_DEADLOCK == rc) {
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                             "_entryrdn_index_read: cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-            /* try again */
-            goto retry_get0;
+            if (db_txn) {
+                goto bail;
+            } else {
+                /* try again */
+                goto retry_get0;
+            }
         } else if (DB_NOTFOUND == rc) {
             rc = 0; /* Child not found is ok */
             goto bail;
@@ -3427,11 +3485,13 @@ retry_get1:
             if (DB_LOCK_DEADLOCK == rc) {
                 slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                 "_entryrdn_index_read: retry cursor get deadlock\n");
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-                /* try again */
-                goto retry_get1;
+
+                if (db_txn) {
+                    goto bail;
+                } else {
+                    /* try again */
+                    goto retry_get1;
+                }
             } else if (DB_NOTFOUND == rc) {
                 rc = 0;
                 goto bail; /* done */
@@ -3457,7 +3517,8 @@ static int
 _entryrdn_append_childidl(DBC *cursor,
                           const char *nrdn,
                           ID id,
-                          IDList **affectedidl)
+                          IDList **affectedidl,
+                          DB_TXN *db_txn)
 {
     /* E.g., C5 */
     char *keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, id);
@@ -3483,11 +3544,12 @@ retry_get0:
         if (DB_LOCK_DEADLOCK == rc) {
             slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                             "_entryrdn_append_childidl: cursor get deadlock\n");
-            /* try again */
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-            goto retry_get0;
+            if (db_txn) {
+                goto bail;
+            } else {
+                /* try again */
+                goto retry_get0;
+            }
         } else if (DB_NOTFOUND == rc) {
             rc = 0; /* okay not to have children */
         } else {
@@ -3522,7 +3584,7 @@ retry_get0:
             }
             rc = _entryrdn_append_childidl(cursor,
                                         (const char *)myelem->rdn_elem_nrdn_rdn,
-                                        myid, affectedidl);
+                                        myid, affectedidl, db_txn);
             if (rc) {
                 goto bail;
             }
@@ -3533,11 +3595,12 @@ retry_get1:
             if (DB_LOCK_DEADLOCK == rc) {
                 slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
                                 "_entryrdn_append_childidl: retry cursor get deadlock\n");
-                /* try again */
-#ifdef FIX_TXN_DEADLOCKS
-#error if txn != NULL, have to retry the entire transaction
-#endif
-                goto retry_get1;
+                if (db_txn) {
+                    goto bail;
+                } else {
+                    /* try again */
+                    goto retry_get1;
+                }
             } else if (DB_NOTFOUND == rc) {
                 rc = 0; /* okay not to have children */
             } else {
