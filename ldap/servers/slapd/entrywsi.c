@@ -1402,6 +1402,8 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 		 */
 		/* just remove the deleted value */
 		entry_deleted_value_to_zapped_value(a,pending_value);
+		/* move the attribute to the present attributes list */
+		entry_deleted_attribute_to_present_attribute(e,a);
 		pending_value = NULL;
 		attr_set_deletion_csn(a,NULL);
 		return; /* we are done - we are keeping the present value */
