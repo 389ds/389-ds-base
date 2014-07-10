@@ -50,10 +50,10 @@
 	DATE :		03 December 1998
 	DESCRIPTION :	
 			This file is the main file of the ldclt tool. This tool 
-			is targetted to be a multi-threaded ldap client, 
+			is targeted to be a multi-threaded ldap client, 
 			specially designed to ensure good reliability of both 
 			the basic ldap server purpose, and the replication 
-			processes. It is *not* targetted against the 
+			processes. It is *not* targeted against the 
 			functionnality aspect of the product, but rather on the 
 			stress and long-term operation.
  	LOCAL :		None.
@@ -672,7 +672,7 @@ runThem (void)
 					/* New function */	/*JLS 17-11-00*/
 /* ****************************************************************************
 	FUNCTION :	shutdownThreads
-	PURPOSE :	This function is targetted to shutdown the threads.
+	PURPOSE :	This function is targeted to shutdown the threads.
 	INPUT :		None.
 	OUTPUT :	None.
 	RETURN :	-1 if error, 0 else.
@@ -1750,7 +1750,7 @@ basicInit (void)
 
 /* ****************************************************************************
 	FUNCTION :	printModeValues
-	PURPOSE :	This function is targetted to print the bits mask of
+	PURPOSE :	This function is targeted to print the bits mask of
 			the mode field.
 	INPUT :		None.
 	OUTPUT :	None.

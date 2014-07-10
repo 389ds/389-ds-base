@@ -278,7 +278,7 @@ int ldclt_alloc_ber( LDAP *ld, BerElement **berp );
 
 /* ****************************************************************************
 	FUNCTION :	my_ldap_err2string
-	PURPOSE :	This function is targetted to encapsulate the standard
+	PURPOSE :	This function is targeted to encapsulate the standard
 			function ldap_err2string(), that sometimes returns
 			a NULL pointer and thus crashes the appicaliton :-(
 	INPUT :		err	= error to decode

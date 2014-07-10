@@ -51,7 +51,7 @@
 	DESCRIPTION :	
 			This file implements the management of the data that 
 			are manipulated by ldclt.
-			It is targetted to contain all the functions needed for 
+			It is targeted to contain all the functions needed for 
 			the images, etc...
 	LOCAL :		None.
 	HISTORY :

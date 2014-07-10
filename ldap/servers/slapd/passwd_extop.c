@@ -187,7 +187,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
   
 		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
-		/* Retreive and duplicate the response controls since they will be
+		/* Retrieve and duplicate the response controls since they will be
 		 * destroyed along with the pblock used for the internal operation. */
 		slapi_pblock_get(&pb, SLAPI_RESCONTROLS, &pb_resp_controls);
 		if (pb_resp_controls) {

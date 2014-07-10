@@ -1094,7 +1094,7 @@ urp_annotate_dn (char *sessionid, const Slapi_Entry *entry, CSN *opcsn, const ch
 }
 
 /*
- * An URP Naming Collision helper function. Retreives a list of entries
+ * An URP Naming Collision helper function. Retrieves a list of entries
  * that have the given dn excluding the unique id of the entry. Any 
  * entries returned will be entries that have been added with the same
  * dn, but caused a naming conflict when replicated. The URP to fix

@@ -1644,9 +1644,9 @@ int slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int check_re
  * \return \c 1 if the entry has any attribute values that violate the syntax rules
  *         imposed by the associated attribute type.  If the \c pb parameter was
  *         passed in, an error message describing the syntax violations will be
- *         set in the #SLAPI_PB_RESULT_TEXT paramter.
+ *         set in the #SLAPI_PB_RESULT_TEXT parameter.
  * \warning The \c pb parameter can be \c NULL.  It is used to store an error
- *         message with details of any syntax violations.  The \c pb paramter
+ *         message with details of any syntax violations.  The \c pb parameter
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
@@ -1665,7 +1665,7 @@ int slapi_entry_syntax_check( Slapi_PBlock *pb, Slapi_Entry *e, int override );
  *         parameter was passed in, an error message will be set in the
  *         #SLAPI_PB_RESULT_TEXT parameter.
  * \warning The \c pb parameter can be \c NULL.  It is used to store an error
- *         message with details of any syntax violations.  The \c pb paramter
+ *         message with details of any syntax violations.  The \c pb parameter
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
@@ -1684,9 +1684,9 @@ int slapi_dn_syntax_check( Slapi_PBlock *pb, const char *dn, int override );
  * \return \c 1 if the mods are adding any new attribute values that violate the
  *         syntax rules imposed by the associated attribute type.  If the \c pb
  *         parameter was passed in, an error message describing the syntax violations
- *         will be set in the #SLAPI_PB_RESULT_TEXT paramter.
+ *         will be set in the #SLAPI_PB_RESULT_TEXT parameter.
  * \warning The \c pb parameter can be \c NULL.  It is used to store an error
- *         message with details of any syntax violations.  The \c pb paramter
+ *         message with details of any syntax violations.  The \c pb parameter
  *         is also used to check if the #SLAPI_IS_REPLICATED_OPERATION flag is
  *         set.   If that flag is present, no syntax checking is performed.
  */
@@ -2975,7 +2975,7 @@ int slapi_sdn_scope_test( const Slapi_DN *dn, const Slapi_DN *base, int scope );
 int slapi_sdn_scope_test_ext( const Slapi_DN *dn, const Slapi_DN *base, int scope, int flags );
 
 /**
- * Retreives the RDN from a given DN.
+ * Retrieves the RDN from a given DN.
  *
  * This function takes the DN stored in the \c Slapi_DN structure pointed to
  * by \c sdn and fills in it's RDN within the \c Slapi_RDN structure pointed
@@ -4635,7 +4635,7 @@ Slapi_Value *slapi_value_set_berval( Slapi_Value *value, const struct berval *bv
  *        the value.
  * \param vfrom Pointer to the \c Slapi_Value structure from which to
  *        get the value.
- * \return Pointer to the \c Slapi_Value structure passed as the \c value paramter.
+ * \return Pointer to the \c Slapi_Value structure passed as the \c value parameter.
  * \return \c NULL if the \c value parameter was \c NULL.
  * \warning The \c vfrom parameter must not be \c NULL.
  * \warning If the pointer to the \c Slapi_Value structure is \c NULL,

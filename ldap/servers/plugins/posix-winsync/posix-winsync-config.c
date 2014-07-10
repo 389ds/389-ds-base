@@ -263,7 +263,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MSSFU_SCHEMA, &testattr) && (NULL != testattr)) {
         mssfuSchema = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MSSFU_SCHEMA);
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_apply_config: Config paramter %s: %d\n", POSIX_WINSYNC_MSSFU_SCHEMA,
+                        "_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_MSSFU_SCHEMA,
                         mssfuSchema);
     }
 
@@ -271,7 +271,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MAP_MEMBERUID, &testattr) && (NULL != testattr)) {
         mapMemberUID = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MAP_MEMBERUID);
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_apply_config: Config paramter %s: %d\n", POSIX_WINSYNC_MAP_MEMBERUID,
+                        "_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_MAP_MEMBERUID,
                         mapMemberUID);
     }
     /* get create task value */
@@ -279,21 +279,21 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
         != testattr)) {
         createMemberOfTask = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_CREATE_MEMBEROFTASK);
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_apply_config: Config paramter %s: %d\n",
+                        "_apply_config: Config parameter %s: %d\n",
                         POSIX_WINSYNC_CREATE_MEMBEROFTASK, createMemberOfTask);
     }
     /* get lower case UID in memberUID */
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_LOWER_CASE, &testattr) && (NULL != testattr)) {
         lowercase = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_LOWER_CASE);
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_apply_config: Config paramter %s: %d\n", POSIX_WINSYNC_LOWER_CASE,
+                        "_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_LOWER_CASE,
                         lowercase);
     }
     /* propogate memberuids in nested grouping */
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MAP_NESTED_GROUPING, &testattr) && (NULL != testattr)) {
         mapNestedGrouping = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MAP_NESTED_GROUPING);
         slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
-                        "_apply_config: Config paramter %s: %d\n", POSIX_WINSYNC_MAP_NESTED_GROUPING,
+                        "_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_MAP_NESTED_GROUPING,
                         mapNestedGrouping);
     }
     /* if we got here, we have valid values for everything

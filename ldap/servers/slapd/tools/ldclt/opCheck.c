@@ -240,7 +240,7 @@ LDAPMod2attributes (
 
 /* ****************************************************************************
 	FUNCTION :	freeAttributesArray
-	PURPOSE :	This function is targetted to free an array of
+	PURPOSE :	This function is targeted to free an array of
 			struct attribute. It does not free the array itself,
 			but only the types and values memorized in it.
 	INPUT :		attribs	= array to free.

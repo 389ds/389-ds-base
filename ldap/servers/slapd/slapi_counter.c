@@ -382,7 +382,7 @@ PRUint64 slapi_counter_get_value(Slapi_Counter *counter)
          * replace *ptr with ECX:EBX */
         " lock; cmpxchg8b %0;"
         " jnz retryget;"
-        /* Put retreived value into value */
+        /* Put retrieved value into value */
         " movl %%ebx, %1;"
         " movl %%ecx, 4%1;"
 #ifdef CPU_x86

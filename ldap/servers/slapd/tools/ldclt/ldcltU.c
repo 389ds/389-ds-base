@@ -56,7 +56,7 @@
  * 	     [-S <slave>] [-P<master port>]
  * 	     [-W <waitsec>] [-Z <certfile>]
  * 
- * 	This tool is a ldap client targetted to validate the reliability of
+ * 	This tool is a ldap client targeted to validate the reliability of
  * 	the product under test under hard use.
  * 
  * 	The valid options are:
@@ -158,7 +158,7 @@ void usage ()
   (void) printf ("	     [-S <slave>] [-P<master port>]\n");
   (void) printf ("	     [-W <waitsec>] [-Z <certfile>]\n");
   (void) printf ("\n");
-  (void) printf ("	This tool is a ldap client targetted to validate the reliability of\n");
+  (void) printf ("	This tool is a ldap client targeted to validate the reliability of\n");
   (void) printf ("	the product under test under hard use.\n");
   (void) printf ("\n");
   (void) printf ("	The valid options are:\n");

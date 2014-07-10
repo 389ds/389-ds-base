@@ -957,7 +957,7 @@ enum {UID_SUCCESS,      /* operation was successfull              */
 
 /* Function:	slapi_uniqueIDNew
    Description: allocates new id
-   Paramters:   none
+   Parameters:   none
    Return:		pointer to the newly allocated id if successful
 				NULL if the system is out of memory
  */

@@ -149,7 +149,7 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 		
 		if ( (be = slapi_be_select_by_instance_name( be_name )) == NULL) {
 			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
-			"Failed to retreive backend--NOT activating it's acis\n");
+			"Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 
@@ -159,7 +159,7 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 
 		if ( (sdn = slapi_be_getsuffix( be, 0)) == NULL ) {
 			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
-			"Failed to retreive backend--NOT activating it's acis\n");
+			"Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 
@@ -176,7 +176,7 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 
 		if ( (be = slapi_be_select_by_instance_name( be_name )) == NULL) {
 			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
-			"Failed to retreive backend--NOT activating it's acis\n");
+			"Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 
@@ -186,7 +186,7 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 
 		if ( (sdn = slapi_be_getsuffix( be, 0)) == NULL ) {
 			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
-			"Failed to retreive backend--NOT activating it's acis\n");
+			"Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 																	

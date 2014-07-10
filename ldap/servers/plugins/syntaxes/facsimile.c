@@ -241,7 +241,7 @@ facsimile_validate(
 				}
 
 				/* We're guaranteed to have at least one character
-				 * past p.  This is where the fax-paramter should
+				 * past p.  This is where the fax-parameter should
 				 * start. */
 				start = p + 1;
 
@@ -258,9 +258,9 @@ facsimile_validate(
 						}
 
 						/* We're guaranteed to have another character, which
-						 * should be the beginning of the next fax-paramter.
+						 * should be the beginning of the next fax-parameter.
 						 * Adjust the start pointer to point to the beginning
-						 * of this fax-paramter. */
+						 * of this fax-parameter. */
 						start = p + 1;
 					}
 				}

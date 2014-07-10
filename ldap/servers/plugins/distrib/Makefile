@@ -72,7 +72,7 @@ endif
 
 # The sample distribution plugin is not part of DS.
 # So we generate the shared library outside of $(LIBDIR)
-# so that it's not retreived by the packaging makefiles.
+# so that it's not retrieved by the packaging makefiles.
 #LIBDIS =	$(addprefix $(LIBDIR)/, $(DIS_DLL).$(DLL_SUFFIX))
 LIBDIS =	$(addprefix $(OBJDEST)/, $(DIS_DLL).$(DLL_SUFFIX))
 

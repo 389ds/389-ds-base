@@ -436,7 +436,7 @@ acl_comp_string( CmpOp_t cmp )
  *    attr_name		Term Attribute name 
  *    cmp		Comparison operator
  *    attr_pattern	Pattern for comparison
- * Ouput:
+ * Output:
  *    acl_expr		New term added
  * Returns:
  *    0			Success
@@ -518,7 +518,7 @@ ACLExprRaw_t	*raw_expr;
  * Input:
  *    errp		The error stack
  *    acl_expr		The expression to negate
- * Ouput
+ * Output
  *    acl_expr		The negated expression
  * Returns:
  *    0			Success

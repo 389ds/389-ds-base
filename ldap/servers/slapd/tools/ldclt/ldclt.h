@@ -612,7 +612,7 @@ typedef struct main_context {
  * This structure is aimed to ease the managing of asynchronous
  * operations, keeping in memory the msgid returned by the library and
  * a free string meaning something for the user.
- * It is targetted that this string is something like a DN, and is
+ * It is targeted that this string is something like a DN, and is
  * locally managed by the list functions.
  */
 typedef struct msgid_cell {
@@ -625,7 +625,7 @@ typedef struct msgid_cell {
 
 /*
  * This structure contain the context associated with each thread.
- * It is targetted to be initiated by the main thread, and maintained
+ * It is targeted to be initiated by the main thread, and maintained
  * by each thread.
  */
 typedef struct thread_context {

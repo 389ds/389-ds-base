@@ -49,7 +49,7 @@
         VERSION :       1.0
         DATE :		15 December 1998
         DESCRIPTION :	
-			This file contains special work-arounds targetted to 
+			This file contains special work-arounds targeted to 
 			fix, or work-around, the various bugs that may appear 
 			in Solaris 2.7 libldap.
  	LOCAL :		None.

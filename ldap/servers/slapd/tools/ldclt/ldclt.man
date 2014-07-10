@@ -21,7 +21,7 @@ AVAILABILITY
         SUNQAldap
 
 DESCRIPTION
-        ldclt is a multi-threaded test tool targetted to stress a
+        ldclt is a multi-threaded test tool targeted to stress a
         ldap server with multiple simultaneous requests.
 
         The  tool  automatically set its ulimit parameters to fit
