@@ -312,11 +312,10 @@ windows_inc_run(Private_Repl_Protocol *prp)
 
 	windows_private_load_dirsync_cookie(prp->agmt);
 
-	one_way = windows_private_get_one_way(prp->agmt);
-	
 	do {
 		int rc = 0;
 
+		one_way = windows_private_get_one_way(prp->agmt);
 		/* Take action, based on current state, and compute new state. */
 		switch (current_state)
 		{
