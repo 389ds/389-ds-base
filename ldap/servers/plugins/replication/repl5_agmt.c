@@ -3032,6 +3032,11 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
     char *attrs[2];
     int rc;
 
+    if (ra->protocol == NULL) {
+	/* nothing to do, agmt is not started */
+	return;
+    }
+
     pb = slapi_pblock_new();
     if (!pb) {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
