@@ -149,6 +149,8 @@ PLUGIN_WHOAMI             = 'whoami'
 # constants
 #
 DEFAULT_USER = "nobody"
+DATA_DIR     = "data"
+TMP_DIR      = "tmp"
 
 #
 # LOG: see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/9.0/html/Administration_Guide/Configuring_Logs.html

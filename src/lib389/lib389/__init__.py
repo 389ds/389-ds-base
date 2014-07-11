@@ -1893,12 +1893,13 @@ class DirSrv(SimpleLDAPObject):
         """
         return self.config.enable_ssl(secport, secargs)
 
-    def getDataDir(self, filename):
+    def getDir(self, filename, dirtype):
         """
-        @param filename - the name of the test script calling  this function
+        @param filename - the name of the test script calling this function
+        @param dirtype - Either DATA_DIR and TMP_DIR are the allowed values
         @return - absolute path of the dirsrvtests data directory, or 'None' on error
 
-        Return the shared data directory relative to the ticket filename.
+        Return the shared data/tmp directory relative to the ticket filename.
         The caller should always use "__file__" as the argument to this function.
 
         Get the script name from the filename that was provided:
@@ -1914,9 +1915,16 @@ class DirSrv(SimpleLDAPObject):
         if os.path.exists(filename):
             script_name = os.path.basename(filename)
             if script_name:
-                data_dir = os.path.abspath(filename).replace('tickets/' + script_name, 'data/')
-                if data_dir:
-                    return data_dir
+                if dirtype == TMP_DIR:
+                    dir_path = os.path.abspath(filename).replace('tickets/' + script_name, 'tmp/')
+                elif dirtype == DATA_DIR:
+                    dir_path = os.path.abspath(filename).replace('tickets/' + script_name, 'data/')
+                else:
+                    raise ValueError("Invalid directory type (%s), acceptable values are DATA_DIR and TMP_DIR"
+                        % dirtype)
+                    return None
+                if dir_path:
+                    return dir_path
 
         return None
 
