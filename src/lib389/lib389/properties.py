@@ -256,9 +256,9 @@ INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
 #
 ####################################
 
-TASK_WAIT     = "wait"
+TASK_WAIT        = "wait"
+TASK_TOMB_STRIP  = "strip-csn"
 EXPORT_REPL_INFO = "repl-info"
-
 
 
 def rawProperty(prop):

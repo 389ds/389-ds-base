@@ -438,6 +438,8 @@ class Tasks(object):
         entry.setValues('objectclass', 'top', 'extensibleObject')
         entry.setValues('cn', cn)
         entry.setValues('backend', bename)
+        if args and args.get(TASK_TOMB_STRIP, False):
+            entry.setValues('stripcsn', 'yes')
 
         # start the task and possibly wait for task completion
         try:
