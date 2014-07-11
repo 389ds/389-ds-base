@@ -1799,15 +1799,15 @@ retry_get:
     *elem = (rdn_elem *)data->data;
     if (rc) {
         if (DB_LOCK_DEADLOCK == rc) {
-                if (db_txn) {
-                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                "_entryrdn_get_elem: cursor get deadlock while under txn -> failure\n");
-                } else {
-                        slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                                "_entryrdn_get_elem: cursor get deadlock\n");
-                        /* try again */
-                        goto retry_get;
-                }
+            if (db_txn) {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_get_elem: cursor get deadlock while under txn -> failure\n");
+            } else {
+                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                        "_entryrdn_get_elem: cursor get deadlock\n");
+                /* try again */
+                goto retry_get;
+            }
         } else if (DB_BUFFER_SMALL == rc) {
             /* try again */
             data->flags = DB_DBT_MALLOC;
@@ -2582,10 +2582,10 @@ _entryrdn_insert_key(backend *be,
         int isexception = 0;
         
         if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
-                slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
-                        "_entryrdn_insert_key: Suffix \"%s\" cursor get fails: "
-                        "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
-                goto bail;
+            slapi_log_error(ENTRYRDN_LOGLEVEL(rc), ENTRYRDN_TAG,
+                    "_entryrdn_insert_key: Suffix \"%s\" cursor get fails: "
+                    "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
+            goto bail;
         }
         /* Check the RDN is in the exception list */
         for (ep = rdn_exceptions; ep && *ep; ep++) {
@@ -3238,11 +3238,11 @@ _entryrdn_index_read(backend *be,
     if (rc || NULL == *elem) {
         slapi_ch_free((void **)elem);
         if ((rc == DB_LOCK_DEADLOCK) && db_txn) {
-                slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
-                        "_entryrdn_index_read: Suffix \"%s\" cursor get fails: "
-                        "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
-                slapi_rdn_free(&tmpsrdn);
-                goto bail;               
+            slapi_log_error(SLAPI_LOG_BACKLDBM, ENTRYRDN_TAG,
+                    "_entryrdn_index_read: Suffix \"%s\" cursor get fails: "
+                    "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
+            slapi_rdn_free(&tmpsrdn);
+            goto bail;               
         }
         if (flags & TOMBSTONE_INCLUDED) {
             /* Node might be a tombstone. */
@@ -3336,7 +3336,7 @@ _entryrdn_index_read(backend *be,
                         "_entryrdn_index_read: Suffix \"%s\" cursor get fails: "
                         "%s(%d)\n", nrdn, dblayer_strerror(rc), rc);
                 if (tmpsrdn != srdn) {
-                        slapi_rdn_free(&tmpsrdn);
+                    slapi_rdn_free(&tmpsrdn);
                 }
                 goto bail;
             }
