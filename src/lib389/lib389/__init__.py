@@ -1928,3 +1928,22 @@ class DirSrv(SimpleLDAPObject):
 
         return None
 
+    def clearTmpDir(self, filename):
+        """
+        @param filename - the name of the test script calling this function
+        @return - nothing
+
+        Clear the contents of the "tmp" dir, but leave the README file in place.
+        """
+        if os.path.exists(filename):
+            script_name = os.path.basename(filename)
+            if script_name:
+                dir_path = os.path.abspath(filename).replace('tickets/' + script_name, 'tmp/')
+                if dir_path:
+                    filelist = [ tmpfile for tmpfile in os.listdir(dir_path) if tmpfile != 'README' ]
+                    for tmpfile in filelist:
+                        os.remove(os.path.abspath(dir_path + tmpfile))
+                    return
+
+        log.fatal('Failed to clear tmp directory (%s)' % filename)
+
