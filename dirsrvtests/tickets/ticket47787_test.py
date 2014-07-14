@@ -239,7 +239,7 @@ def topology(request):
         master2.start(timeout=10)
 
     # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    master1.clearTmpDir(__file__)
 
     # 
     # Here we have two instances master and consumer
