@@ -1450,7 +1450,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
          * search can enter this function multiple times, we need to keep track
          * of our state, and only initialize sr_current once.
          */
-        if(!op->o_reverse_search_state){
+        if(!op->o_reverse_search_state && sr->sr_candidates){
             sr->sr_current = sr->sr_candidates->b_nids;
             op->o_reverse_search_state = REV_STARTED;
         }
