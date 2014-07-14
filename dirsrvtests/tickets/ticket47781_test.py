@@ -107,6 +107,9 @@ def topology(request):
         standalone.backupfile = standalone.backupFS()
         standalone.start(timeout=10)
 
+    # clear the tmp directory
+    standalone.clearTmpDir(__file__)
+
     #
     # Here we have standalone instance up and running
     # Either coming from a backup recovery

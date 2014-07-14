@@ -255,7 +255,10 @@ def topology(request):
         master2.stop(timeout=10)
         master2.backupfile = master2.backupFS()
         master2.start(timeout=10)
-    
+
+    # clear the tmp directory
+    standalone.clearTmpDir(__file__)
+
     # 
     # Here we have two instances master and consumer
     # with replication working. Either coming from a backup recovery
