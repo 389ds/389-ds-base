@@ -2174,6 +2174,7 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
     int ret;
     int scope=LDAP_SCOPE_BASE;
     int op_type;
+    int fixup = 0;
     
 
     if(mapping_tree_freed){
@@ -2192,6 +2193,7 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
 
     /* Get the target for this op */
     target_sdn = operation_get_target_spec (op);
+    fixup = operation_is_flag_set(op, OP_FLAG_TOMBSTONE_FIXUP);
 
     if(!mapping_tree_inited) {
         mapping_tree_init();
@@ -2240,14 +2242,17 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
      * or if the whole server is readonly AND backend is public (!private)
      */
     if ((ret == LDAP_SUCCESS) && *be && !be_isdeleted(*be) &&
-        ((*be)->be_readonly ||
-        (slapi_config_get_readonly() && !slapi_be_private(*be)))) {
+        (((*be)->be_readonly && !fixup) ||
+         ((slapi_config_get_readonly() && !fixup) &&
+         !slapi_be_private(*be))) )
+    {
         unsigned long op_type = operation_get_type(op);
 
         if ((op_type != SLAPI_OPERATION_SEARCH) &&
             (op_type != SLAPI_OPERATION_COMPARE) &&
             (op_type != SLAPI_OPERATION_BIND) && 
-            (op_type != SLAPI_OPERATION_UNBIND)) {
+            (op_type != SLAPI_OPERATION_UNBIND))
+        {
             ret = LDAP_UNWILLING_TO_PERFORM;
             PL_strncpyz(errorbuf, slapi_config_get_readonly() ? 
                     "Server is read-only" :

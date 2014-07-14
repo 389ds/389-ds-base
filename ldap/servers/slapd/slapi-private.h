@@ -352,6 +352,7 @@ void entry_add_rdn_csn(Slapi_Entry *e, const CSN *csn);
 /* this adds a csn to the entry's e_dncsnset but makes sure the set is in increasing csn order */
 #define ENTRY_DNCSN_INCREASING 0x1 /* for flags below */
 int entry_add_dncsn_ext(Slapi_Entry *entry, const CSN *csn, PRUint32 flags);
+const CSN *entry_get_deletion_csn(Slapi_Entry *entry);
 
 /* attr.c */
 Slapi_Attr *slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_lock);
@@ -442,7 +443,8 @@ char *slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, 
 #define OP_FLAG_PAGED_RESULTS            0x040000 /* simple paged results */
 #define OP_FLAG_SERVER_SIDE_SORTING      0x080000 /* server side sorting  */
 #define OP_FLAG_REVERSE_CANDIDATE_ORDER  0x100000 /* reverse the search candidate list */
-#define OP_FLAG_NEVER_CACHE		 0x200000 /* never keep the entry in cache */
+#define OP_FLAG_NEVER_CACHE              0x200000 /* never keep the entry in cache */
+#define OP_FLAG_TOMBSTONE_FIXUP          0x400000 /* operation is tombstone fixup op */
 
 /* reverse search states */
 #define REV_STARTED 1

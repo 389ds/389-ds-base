@@ -75,7 +75,7 @@ get_tombstone_csn(const Slapi_Entry *entry, const CSN **delcsn)
 	PRBool ists = PR_FALSE;
 	if (is_tombstone_entry(entry)) {
 		ists = PR_TRUE;
-		*delcsn = _get_deletion_csn((Slapi_Entry *)entry); /* cast away const */
+		*delcsn = entry_get_deletion_csn((Slapi_Entry *)entry); /* cast away const */
 	}
 
 	return ists;

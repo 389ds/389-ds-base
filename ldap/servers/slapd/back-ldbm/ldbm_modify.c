@@ -418,15 +418,18 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int opreturn = 0;
 	int mod_count = 0;
 	int not_an_error = 0;
+	int fixup_tombstone = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_TARGET_ADDRESS, &addr );
 	slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
 	slapi_pblock_get( pb, SLAPI_TXN, (void**)&parent_txn );
-	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
-
+	slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+
+	fixup_tombstone = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_FIXUP);
+
 	dblayer_txn_init(li,&txn); /* must do this before first goto error_return */
 	/* the calls to perform searches require the parent txn if any
 	   so set txn to the parent_txn until we begin the child transaction */
@@ -566,13 +569,15 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				}
 			}
 		
-			if ( !is_fixup_operation )
+			if ( !is_fixup_operation && !fixup_tombstone)
 			{
-				if (!repl_op && slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) ) {
+				if (!repl_op && slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE))
+				{
 					ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
                 			ldap_result_message = "Operation not allowed on tombstone entry.";
 					slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modify",
-						"Attempt to modify a tombstone entry %s\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
+						"Attempt to modify a tombstone entry %s\n",
+						slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
 					goto error_return;
 				}
 				opcsn = operation_get_csn (operation);

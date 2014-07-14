@@ -1,0 +1,11 @@
+DATA DIRECTORY README
+
+This directory is used for storing LDIF files used by the dirsrvtests scripts. 
+This directory can be retrieved via getDir() from the DirSrv class.
+
+Example:
+
+    data_dir_path = topology.standalone.getDir(__file__, DATA_DIR)
+
+    ldif_file = data_dir_path + "ticket44444/1000entries.ldif"
+

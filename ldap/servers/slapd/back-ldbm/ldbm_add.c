@@ -562,6 +562,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				addingentry->ep_id = slapi_entry_attr_get_ulong(addingentry->ep_entry,"entryid");
 				slapi_entry_attr_delete(addingentry->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
 				slapi_entry_delete_string(addingentry->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
+				slapi_entry_attr_delete(addingentry->ep_entry, SLAPI_ATTR_TOMBSTONE_CSN);
 				/* Now also remove the nscpEntryDN */
 				if (slapi_entry_attr_delete(addingentry->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN) != 0){
 					LDAPDebug(LDAP_DEBUG_REPL, "Resurrection of %s - Couldn't remove %s\n", dn, SLAPI_ATTR_NSCP_ENTRYDN, 0);
@@ -697,6 +698,26 @@ ldbm_back_add( Slapi_PBlock *pb )
 						slapi_entry_set_flag(addingentry->ep_entry,
 									SLAPI_ENTRY_FLAG_TOMBSTONE);
 					}
+					if (!slapi_entry_attr_hasvalue(addingentry->ep_entry,
+							SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE))
+					{
+						slapi_entry_add_string(addingentry->ep_entry,
+								SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
+						slapi_entry_set_flag(addingentry->ep_entry,
+								SLAPI_ENTRY_FLAG_TOMBSTONE);
+					}
+					if (attrlist_find( addingentry->ep_entry->e_attrs, SLAPI_ATTR_TOMBSTONE_CSN ) == NULL){
+						const CSN *tombstone_csn = NULL;
+						char tombstone_csnstr[CSN_STRSIZE];
+
+						/* Add the missing nsTombstoneCSN attribute to the tombstone */
+						if((tombstone_csn = entry_get_deletion_csn(addingentry->ep_entry))){
+							csn_as_string(tombstone_csn, PR_FALSE, tombstone_csnstr);
+							slapi_entry_add_string(addingentry->ep_entry, SLAPI_ATTR_TOMBSTONE_CSN,
+									tombstone_csnstr);
+						}
+					}
+
 					if (NULL != operation->o_params.p.p_add.parentuniqueid)
 					{
 						slapi_entry_add_string(addingentry->ep_entry,
@@ -744,7 +765,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				}
 				pid = parententry->ep_id;
 
-				/* We may need to adjust the DN since parent could be a resrected conflict entry... */
+				/* We may need to adjust the DN since parent could be a resurrected conflict entry... */
 				if (!slapi_sdn_isparent(slapi_entry_get_sdn_const(parententry->ep_entry),
 				                        slapi_entry_get_sdn_const(addingentry->ep_entry))) {
 					Slapi_DN adjustedsdn = {0};
@@ -790,7 +811,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 			/* Tentatively add the entry to the cache.  We do this after adding any
 			 * operational attributes to ensure that the cache is sized correctly. */
-			if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL )!= 0 )
+			if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL ) != 0 )
 			{
 				LDAPDebug1Arg(LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected: %s\n",
 				              slapi_entry_get_dn_const(addingentry->ep_entry));
@@ -886,7 +907,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 			goto error_return; 
 		}
 		if (is_resurect_operation) {
-			retval = index_addordel_string(be,SLAPI_ATTR_OBJECTCLASS,SLAPI_ATTR_VALUE_TOMBSTONE,addingentry->ep_id,BE_INDEX_DEL|BE_INDEX_EQUALITY,&txn);
+			const CSN *tombstone_csn = NULL;
+			char deletion_csn_str[CSN_STRSIZE];
+
+			retval = index_addordel_string(be,SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE,
+			                 addingentry->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
 				LDAPDebug( LDAP_DEBUG_ARGS, "add 2 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
@@ -903,9 +928,33 @@ ldbm_back_add( Slapi_PBlock *pb )
 				}
 				goto error_return; 
 			}
+
+			/* Need to update the nsTombstoneCSN index */
+			if((tombstone_csn = entry_get_deletion_csn(tombstoneentry->ep_entry))){
+				csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
+				retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
+								 tombstoneentry->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
+				if (DB_LOCK_DEADLOCK == retval) {
+					LDAPDebug( LDAP_DEBUG_ARGS, "add 3 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+					/* Retry txn */
+					continue;
+				}
+				if (0 != retval) {
+					LDAPDebug(LDAP_DEBUG_TRACE, "index_addordel_string TOMBSTONE csn(%s), err=%d %s\n",
+							  slapi_entry_get_dn_const(tombstoneentry->ep_entry),
+							  retval, (msg = dblayer_strerror( retval )) ? msg : "");
+					ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+					if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
+						disk_full = 1;
+						goto diskfull_return;
+					}
+					goto error_return;
+				}
+			}
+
 			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL|BE_INDEX_EQUALITY,&txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS, "add 3 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+				LDAPDebug( LDAP_DEBUG_ARGS, "add 4 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
 				continue;
 			}
@@ -926,7 +975,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			                               addingentry->ep_id,
 			                               BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug( LDAP_DEBUG_ARGS, "add 4 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+				LDAPDebug( LDAP_DEBUG_ARGS, "add 5 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
 				/* Retry txn */
 				continue;
 			}

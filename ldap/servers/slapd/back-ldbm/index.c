@@ -393,8 +393,11 @@ index_addordel_entry(
     /* if we are adding a tombstone entry (see ldbm_add.c) */
     if ((flags & BE_INDEX_TOMBSTONE) && (flags & BE_INDEX_ADD))
     {
+        const CSN *tombstone_csn = NULL;
+        char deletion_csn_str[CSN_STRSIZE];
         Slapi_DN parent;
         Slapi_DN *sdn = slapi_entry_get_sdn(e->ep_entry);
+
         slapi_sdn_init(&parent);
         slapi_sdn_get_parent(sdn, &parent);
         /*
@@ -417,6 +420,16 @@ index_addordel_entry(
             ldbm_nasty(errmsg, 1021, result);
             return( result );
         }
+
+        if((tombstone_csn = entry_get_deletion_csn(e->ep_entry))){
+            csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
+            result = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str, e->ep_id, flags, txn);
+            if ( result != 0 ) {
+                ldbm_nasty(errmsg, 1021, result);
+                return( result );
+            }
+        }
+
         slapi_sdn_done(&parent);
         if (entryrdn_get_switch()) { /* subtree-rename: on */
             Slapi_Attr* attr;

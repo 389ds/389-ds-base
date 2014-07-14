@@ -110,6 +110,26 @@ static int import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
     return( rc );
 }
 
+/*
+ * Check if the tombstonecsn is missing, if so add it.
+ */
+static void
+import_generate_tombstone_csn(Slapi_Entry *e)
+{
+    if(e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+        if (attrlist_find( e->e_attrs, SLAPI_ATTR_TOMBSTONE_CSN ) == NULL){
+            const CSN *tombstone_csn = NULL;
+            char tombstone_csnstr[CSN_STRSIZE];
+
+            /* Add the tombstone csn str */
+            if((tombstone_csn = entry_get_deletion_csn(e))){
+                csn_as_string(tombstone_csn, PR_FALSE, tombstone_csnstr);
+                slapi_entry_add_string(e, SLAPI_ATTR_TOMBSTONE_CSN, tombstone_csnstr);
+            }
+        }
+    }
+}
+
 
 /**********  BETTER LDIF PARSER  **********/
 
@@ -642,6 +662,8 @@ import_producer(void *param)
         if (g_get_global_lastmod()) {
             import_add_created_attrs(e);
         }
+        /* Add nsTombstoneCSN to tombstone entries unless it's already present */
+        import_generate_tombstone_csn(e);
 
         ep = import_make_backentry(e, id);
         if ((ep == NULL) || (ep->ep_entry == NULL)) {
@@ -2795,6 +2817,7 @@ import_worker(void *param)
     int is_objectclass_attribute;
     int is_nsuniqueid_attribute;
     int is_nscpentrydn_attribute;
+    int is_nstombstonecsn_attribute;
     void *attrlist_cursor;
     
     PR_ASSERT(NULL != info);
@@ -2822,6 +2845,8 @@ import_worker(void *param)
         (strcasecmp(info->index_info->name, SLAPI_ATTR_UNIQUEID) == 0);
     is_nscpentrydn_attribute =
         (strcasecmp(info->index_info->name, SLAPI_ATTR_NSCP_ENTRYDN) == 0);
+    is_nstombstonecsn_attribute =
+        (strcasecmp(info->index_info->name, SLAPI_ATTR_TOMBSTONE_CSN) == 0);
 
     if (1 != idl_get_idl_new()) {
         /* Is there substring indexing going on here ? */
@@ -3006,6 +3031,20 @@ import_worker(void *param)
                         svals, NULL, ep->ep_id, BE_INDEX_ADD | (job->encrypt ? 0 : BE_INDEX_DONT_ENCRYPT), NULL, &idl_disposition,
                         substring_key_buffer);
 
+                    if (0 != ret) {
+                        /* Something went wrong, eg disk filled up */
+                        goto error;
+                    }
+                }
+            }
+            if(is_nstombstonecsn_attribute){
+                const CSN *tomb_csn = entry_get_deletion_csn(ep->ep_entry);
+                char tomb_csnstr[CSN_STRSIZE];
+
+                if(tomb_csn){
+                    csn_as_string(tomb_csn, PR_FALSE, tomb_csnstr);
+                    ret = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN,
+                                  tomb_csnstr, ep->ep_id, BE_INDEX_ADD, NULL);
                     if (0 != ret) {
                         /* Something went wrong, eg disk filled up */
                         goto error;

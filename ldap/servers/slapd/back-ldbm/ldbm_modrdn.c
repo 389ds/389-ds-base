@@ -732,6 +732,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 slapi_log_error(SLAPI_LOG_REPL, "ldbm_back_modrdn",
                                 "Resurrecting an entry %s\n", slapi_entry_get_dn(ec->ep_entry));
                 slapi_entry_attr_delete(ec->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
+                slapi_entry_attr_delete(ec->ep_entry, SLAPI_ATTR_TOMBSTONE_CSN);
                 slapi_entry_delete_string(ec->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
                 /* Now also remove the nscpEntryDN */
                 if (slapi_entry_attr_delete(ec->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN) != 0){

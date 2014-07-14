@@ -2179,6 +2179,69 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         }
 
         /*
+         * If this entry is a tombstone, update the 'nstombstonecsn' index
+         */
+        if(ep->ep_entry->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE){
+            const CSN *tombstone_csn = NULL;
+            char deletion_csn_str[CSN_STRSIZE];
+
+            if((tombstone_csn = entry_get_deletion_csn(ep->ep_entry))){
+                if (!run_from_cmdline) {
+                    rc = dblayer_txn_begin(be, NULL, &txn);
+                    if (0 != rc) {
+                        slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_ldbm2index",
+                            "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)\n",
+                            inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
+                        if (task) {
+                            slapi_task_log_notice(task, "%s: ERROR: failed to begin txn for "
+                                                  "update index '%s' (err %d: %s)",
+                                                  inst->inst_name, indexAttrs[j], rc,
+                                                  dblayer_strerror(rc));
+                        }
+                        return_value = -2;
+                        goto err_out;
+                    }
+                }
+
+                csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
+                rc = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
+                                           ep->ep_id, BE_INDEX_ADD, &txn);
+                if (rc != 0) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_ldbm2index",
+                        "%s: ERROR: failed to update index '%s' (err %d: %s)\n",
+                        inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
+                    if (task) {
+                        slapi_task_log_notice(task, "%s: ERROR: failed to update index '%s' "
+                                                    "(err %d: %s)", inst->inst_name,
+                                                    SLAPI_ATTR_TOMBSTONE_CSN, rc,
+                                                    dblayer_strerror(rc));
+                    }
+                    if (!run_from_cmdline) {
+                        dblayer_txn_abort(be, &txn);
+                    }
+                    return_value = -2;
+                    goto err_out;
+                }
+                if (!run_from_cmdline) {
+                    rc = dblayer_txn_commit(be, &txn);
+                    if (0 != rc) {
+                        slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_ldbm2index",
+                            "%s: ERROR: failed to commit txn for update index '%s' (err %d: %s)\n",
+                            inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
+                        if (task) {
+                            slapi_task_log_notice(task,"%s: ERROR: failed to commit txn for "
+                                                  "update index '%s' (err %d: %s)",
+                                                  inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN,
+                                                  rc, dblayer_strerror(rc));
+                        }
+                        return_value = -2;
+                        goto err_out;
+                    }
+                }
+            }
+        }
+
+        /*
          * Update the attribute indexes
          */
         if (indexAttrs != NULL) {

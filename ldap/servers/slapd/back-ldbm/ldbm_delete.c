@@ -102,12 +102,14 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int parent_switched = 0;
 	int myrc = 0;
 	PRUint64 conn_id;
+	const CSN *tombstone_csn = NULL;
+	char deletion_csn_str[CSN_STRSIZE];
 	int op_id;
+
 	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
 		conn_id = 0; /* connection is NULL */
 	}
-	slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
-
+	slapi_pblock_get( pb, SLAPI_OPERATION_ID, &op_id);
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdnp );
@@ -629,10 +631,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					/* The suffix entry has no parent */
 					slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID, parentuniqueid);
 				}
+				if(opcsn){
+					csn_as_string(opcsn, PR_FALSE, deletion_csn_str);
+					slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str);
+				}
 				slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN, slapi_sdn_get_ndn(&nscpEntrySDN));
 				tomb_value = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
-				value_update_csn(tomb_value, CSN_TYPE_VALUE_UPDATED,
-					operation_get_csn(operation));
+				value_update_csn(tomb_value, CSN_TYPE_VALUE_UPDATED, operation_get_csn(operation));
 				slapi_entry_add_value(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, tomb_value);
 				slapi_value_free(&tomb_value);
 				/* XXXggood above used to be: slapi_entry_add_string(tombstone->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE); */
@@ -846,6 +851,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * above, but we want it to remain in the nsUniqueID and nscpEntryDN indexes
 			 * and for objectclass=tombstone.
 			 */
+
+
 			retval = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS, 
 							SLAPI_ATTR_VALUE_TOMBSTONE,
 							tombstone->ep_id,BE_INDEX_ADD, &txn);
@@ -858,14 +865,42 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			}
 			if (retval) {
 				LDAPDebug( LDAP_DEBUG_ANY,
-							"delete (adding %s) failed, err=%d %s\n",
-							SLAPI_ATTR_VALUE_TOMBSTONE, retval,
-							(msg = dblayer_strerror( retval )) ? msg : "" );
+				           "delete (adding %s) failed, err=%d %s\n",
+				           SLAPI_ATTR_VALUE_TOMBSTONE, retval,
+				           (msg = dblayer_strerror( retval )) ? msg : "" );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				DEL_SET_ERROR(ldap_result_code, 
 							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
+
+			/* Need to update the nsTombstoneCSN index */
+			if((tombstone_csn = entry_get_deletion_csn(tombstone->ep_entry))){
+				csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
+				retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN,
+				                               deletion_csn_str, tombstone->ep_id,
+				                               BE_INDEX_ADD, &txn);
+				if (DB_LOCK_DEADLOCK == retval) {
+					LDAPDebug( LDAP_DEBUG_BACKLDBM,
+					           "delete tombstone csn(adding %s) DB_LOCK_DEADLOCK\n",
+					           deletion_csn_str, 0, 0 );
+					/* Retry txn */
+					continue;
+				}
+				if (0 != retval) {
+					LDAPDebug( LDAP_DEBUG_ANY,
+							   "delete tombsone csn(adding %s) failed, err=%d %s\n",
+							   deletion_csn_str,
+							   retval,
+							   (msg = dblayer_strerror( retval )) ? msg : "" );
+					if (LDBM_OS_ERR_IS_DISKFULL(retval)){
+						disk_full = 1;
+					}
+					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+					goto error_return;
+				}
+			}
+
 			retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
 							slapi_entry_get_uniqueid(tombstone->ep_entry),
 							tombstone->ep_id,BE_INDEX_ADD,&txn);
@@ -1002,7 +1037,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		{
 			/* 
 			 * We need to remove the Tombstone entry from the remaining indexes:
-			 * objectclass=nsTombstone, nsUniqueID, nscpEntryDN
+			 * objectclass=nsTombstone, nsUniqueID, nscpEntryDN, nsTombstoneCSN
 			 */
 			char *nscpedn = NULL;
 
@@ -1026,6 +1061,34 @@ ldbm_back_delete( Slapi_PBlock *pb )
 							  LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
+
+			/* Need to update the nsTombstoneCSN index */
+			if((tombstone_csn = entry_get_deletion_csn(e->ep_entry))){
+				csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
+				retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN,
+				                               deletion_csn_str, e->ep_id,
+				                               BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
+				if (DB_LOCK_DEADLOCK == retval) {
+					LDAPDebug( LDAP_DEBUG_BACKLDBM,
+					           "delete tombstone csn(deleting %s) DB_LOCK_DEADLOCK\n",
+					           deletion_csn_str, 0, 0 );
+					/* Retry txn */
+					continue;
+				}
+				if (0 != retval) {
+					LDAPDebug( LDAP_DEBUG_ANY,
+					           "delete tombsone csn(deleting %s) failed, err=%d %s\n",
+					           deletion_csn_str,
+					           retval,
+					           (msg = dblayer_strerror( retval )) ? msg : "" );
+					if (LDBM_OS_ERR_IS_DISKFULL(retval)){
+						disk_full = 1;
+					}
+					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+					goto error_return;
+				}
+			}
+
 			retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
 							slapi_entry_get_uniqueid(e->ep_entry),
 							e->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);

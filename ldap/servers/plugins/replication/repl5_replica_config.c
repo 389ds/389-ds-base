@@ -381,24 +381,24 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                  */
                 if (strcasecmp (config_attr, attr_replicaBindDn) == 0)
                 {
-			*returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
+                    *returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
                 }
                 else if (strcasecmp (config_attr, attr_replicaBindDnGroup) == 0)
                 {
-			*returncode = replica_config_change_updatedngroup (r, mods[i], errortext, apply_mods);
+                    *returncode = replica_config_change_updatedngroup (r, mods[i], errortext, apply_mods);
                 }
                 else if (strcasecmp (config_attr, attr_replicaBindDnGroupCheckInterval) == 0)
                 {
-			replica_set_groupdn_checkinterval (r, -1);
-		}
+                    replica_set_groupdn_checkinterval (r, -1);
+                }
                 else if (strcasecmp (config_attr, attr_replicaReferral) == 0)
                 {
                     if (apply_mods) {
-				        replica_set_referrals(r, NULL);
-						if (!replica_is_legacy_consumer (r)) {
-							consumer5_set_mapping_tree_state_for_replica(r, NULL);
-						}
-					}
+                        replica_set_referrals(r, NULL);
+                        if (!replica_is_legacy_consumer (r)) {
+                             consumer5_set_mapping_tree_state_for_replica(r, NULL);
+                        }
+                    }
                 }
                 else if (strcasecmp (config_attr, type_replicaLegacyConsumer) == 0)
                 {
@@ -428,6 +428,11 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                     if (apply_mods)
                         replica_set_backoff_max(r, PROTOCOL_BACKOFF_MAXIMUM);
                 }
+                else if (strcasecmp (config_attr, type_replicaPrecisePurge) == 0 )
+                {
+                    if (apply_mods)
+                        replica_set_precise_purging(r, 0);
+                    }
                 else
                 {
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -448,16 +453,16 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 }
 
                 if (strcasecmp (config_attr, attr_replicaBindDn) == 0) {
-			*returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
+                    *returncode = replica_config_change_updatedn (r, mods[i], errortext, apply_mods);
                 }
                 else if (strcasecmp (config_attr, attr_replicaBindDnGroup) == 0)
                 {
-			*returncode = replica_config_change_updatedngroup (r, mods[i], errortext, apply_mods);
+                    *returncode = replica_config_change_updatedngroup (r, mods[i], errortext, apply_mods);
                 }
                 else if (strcasecmp (config_attr, attr_replicaBindDnGroupCheckInterval) == 0)
                 {
-			int interval = atoi(config_attr_value);
-			replica_set_groupdn_checkinterval (r, interval);
+                    int interval = atoi(config_attr_value);
+                    replica_set_groupdn_checkinterval (r, interval);
                 }
                 else if (strcasecmp (config_attr, attr_replicaType) == 0)
 			    {
@@ -584,6 +589,35 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                             break;
                         }
                         replica_set_backoff_max(r, val);
+                    }
+                }
+                else if (strcasecmp (config_attr, type_replicaPrecisePurge) == 0 )
+                {
+                    if (apply_mods)
+                    {
+                        if (apply_mods && config_attr_value[0])
+                        {
+                            PRUint64 on_off = 0;
+
+                            if (strcasecmp(config_attr_value, "on") == 0){
+                                on_off = 1;
+                            } else if (strcasecmp(config_attr_value, "off") == 0){
+                                on_off = 0;
+                            } else{
+                                /* Invalid value */
+                                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                                PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "Invalid value for %s: %s  Value should be \"on\" or \"off\"\n",
+                                        type_replicaPrecisePurge, config_attr_value);
+                                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                                        "Invalid value for %s: %s  Value should be \"on\" or \"off\")\n",
+                                        type_replicaPrecisePurge, config_attr_value);
+                                break;
+                            }
+                            replica_set_precise_purging(r, on_off);
+                        } else if (apply_mods) {
+                            replica_set_precise_purging(r, 0);
+                        }
                     }
                 }
                 else

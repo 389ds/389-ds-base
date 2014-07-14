@@ -67,6 +67,7 @@ static int shutting_down = 0;
 #define TASK_RESTORE_DN   "cn=restore,cn=tasks,cn=config"
 #define TASK_INDEX_DN     "cn=index,cn=tasks,cn=config"
 #define TASK_UPGRADEDB_DN "cn=upgradedb,cn=tasks,cn=config"
+#define TASK_TOMBSTONE_FIXUP_DN  "cn=fixup tombstones,cn=tasks,cn=config"
 
 #define TASK_LOG_NAME           "nsTaskLog"
 #define TASK_STATUS_NAME        "nsTaskStatus"
@@ -77,6 +78,10 @@ static int shutting_down = 0;
 #define DEFAULT_TTL     "120"   /* seconds */
 #define TASK_SYSCONFIG_FILE_ATTR "sysconfigfile" /* sysconfig reload task file attr */
 #define TASK_SYSCONFIG_LOGCHANGES_ATTR "logchanges"
+#define TASK_TOMBSTONE_FIXUP "fixup tombstones task"
+#define TASK_TOMBSTONE_FIXUP_BACKEND "backend"
+#define TASK_TOMBSTONE_FIXUP_SUFFIX "suffix"
+#define TASK_TOMBSTONE_FIXUP_STRIPCSN "stripcsn"
 
 #define LOG_BUFFER              256
 /* if the cumul. log gets larger than this, it's truncated: */
@@ -224,29 +229,12 @@ void slapi_task_log_status(Slapi_Task *task, char *format, ...)
     slapi_task_status_changed(task);
 }
 
-void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list ap)
+void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list ap)
 {
-    if (! task->task_status)
-        task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
-    if (! task->task_status)
-        return;        /* out of memory? */
-
-    PR_vsnprintf(task->task_status, (10 * LOG_BUFFER), format, ap);
-    slapi_task_status_changed(task);
-}
-
-/* this adds a line to the 'nsTaskLog' value, which is cumulative (anything
- * logged here is added to the end)
- */
-void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
-{
-    va_list ap;
     char buffer[LOG_BUFFER];
     size_t len;
 
-    va_start(ap, format);
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
-    va_end(ap);
 
     if (task->task_log_lock) {
         PR_Lock(task->task_log_lock);
@@ -286,12 +274,29 @@ void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
     slapi_task_status_changed(task);
 }
 
-void slapi_task_log_notice_ext(Slapi_Task *task, char *format, va_list ap)
+void slapi_task_log_status_ext(Slapi_Task *task, char *format, va_list ap)
 {
+    if (! task->task_status)
+        task->task_status = (char *)slapi_ch_malloc(10 * LOG_BUFFER);
+    if (! task->task_status)
+        return;        /* out of memory? */
+
+    PR_vsnprintf(task->task_status, (10 * LOG_BUFFER), format, ap);
+    slapi_task_status_changed(task);
+}
+
+/* this adds a line to the 'nsTaskLog' value, which is cumulative (anything
+ * logged here is added to the end)
+ */
+void slapi_task_log_notice(Slapi_Task *task, char *format, ...)
+{
+    va_list ap;
     char buffer[LOG_BUFFER];
     size_t len;
 
+    va_start(ap, format);
     PR_vsnprintf(buffer, LOG_BUFFER, format, ap);
+    va_end(ap);
 
     if (task->task_log_lock) {
         PR_Lock(task->task_log_lock);
@@ -2090,6 +2095,314 @@ done:
     return rc;
 }
 
+/*
+ * Add the nsTombstoneCSN attribute/value to the entry.
+ */
+static int
+fixup_tombstone(Slapi_PBlock *pb, char *suffix, Slapi_Entry *e, int *fixup_count)
+{
+    LDAPMod mod;
+    LDAPMod *mods[2];
+    const CSN *tombstone_csn = NULL;
+    char deletion_csn_str[CSN_STRSIZE];
+    char *val[2];
+    int rc = LDAP_SUCCESS;
+
+    if((tombstone_csn = entry_get_deletion_csn(e))){
+        slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
+            "Fixing tombstone (%s)\n", slapi_entry_get_dn(e));
+
+        /* We have an entry tombstone that needs fixing */
+        slapi_pblock_init(pb);
+        csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
+        mods[0] = &mod;
+        mods[1] = 0;
+
+        val[0] = deletion_csn_str;
+        val[1] = 0;
+
+        mod.mod_op = LDAP_MOD_ADD;
+        mod.mod_type = SLAPI_ATTR_TOMBSTONE_CSN;
+        mod.mod_values = val;
+
+        slapi_modify_internal_set_pb_ext( pb, slapi_entry_get_sdn(e),
+            mods, 0, 0, (void *)plugin_get_default_component_id(),
+            OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_TOMBSTONE_FIXUP);
+        slapi_modify_internal_pb(pb);
+
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        pblock_done(pb);
+        if(rc == LDAP_SUCCESS){
+            (*fixup_count)++;
+        }
+    }
+
+    return rc;
+}
+
+/*
+ * Strip out nsTombstoneCSN so the task can be run again to remove them.  Used
+ * solely for testing the fixup task.
+ */
+static void
+strip_tombstone(Slapi_PBlock *pb, char *suffix, Slapi_Entry *e, int *strip_count)
+{
+    LDAPMod mod;
+    LDAPMod *mods[2];
+    int rc = 0;
+
+    slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
+            "Stripping tombstone (%s)\n", slapi_entry_get_dn(e));
+
+    /* We have an entry tombstone that needs stripping */
+    slapi_pblock_init(pb);
+    mods[0] = &mod;
+    mods[1] = 0;
+
+    mod.mod_op = LDAP_MOD_DELETE;
+    mod.mod_type = SLAPI_ATTR_TOMBSTONE_CSN;
+    mod.mod_values = NULL;
+
+    slapi_modify_internal_set_pb_ext( pb, slapi_entry_get_sdn(e),
+             mods, 0, 0, (void *)plugin_get_default_component_id(),
+             OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_TOMBSTONE_FIXUP);
+    slapi_modify_internal_pb(pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    pblock_done(pb);
+
+    if(rc == LDAP_SUCCESS){
+        (*strip_count)++;
+    } else {
+        slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
+            "Stripping tombstone (%s) failed, error %d\n", slapi_entry_get_dn(e), rc);
+    }
+}
+
+struct task_tombstone_data
+{
+    char **base;
+    int stripcsn;
+    Slapi_Task *task;
+};
+
+/*
+ * Fix tombstone thread - add missing nsTombstoneCSN
+ */
+static void
+task_fixup_tombstone_thread(void *arg)
+{
+    struct task_tombstone_data *task_data = arg;
+    Slapi_Entry **entries = NULL;
+    Slapi_Task *task = task_data->task;
+    char **base = task_data->base;
+    char *filter = NULL;
+    int fixup_count = 0;
+    int rc, i, j;
+
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Beginning tombstone fixup task...\n");
+    slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
+                    "Beginning tombstone fixup task...\n");
+
+    if(task_data->stripcsn){
+        /* find tombstones with nsTombstoneCSN */
+        filter = "(&(nstombstonecsn=*)(objectclass=nsTombstone))";
+    } else {
+        /* find tombstones missing nsTombstoneCSN */
+        filter = "(&(!(nstombstonecsn=*))(objectclass=nsTombstone))";
+    }
+
+    /* Okay check the specified backends only */
+    for(i = 0; base && base[i]; i++){
+        Slapi_PBlock *search_pb = slapi_pblock_new();
+
+        /* find entries that need fixing... */
+        slapi_search_internal_set_pb(search_pb, base[i], LDAP_SCOPE_SUBTREE,
+                filter, NULL, 0, NULL, NULL, plugin_get_default_component_id(), 0);
+        slapi_search_internal_pb(search_pb);
+
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (rc != LDAP_SUCCESS) {
+            slapi_task_log_notice(task,
+                    "Failed to search backend for tombstones, error %d\n", rc);
+            slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
+                    "Failed to search backend for tombstones, error %d\n", rc);
+            slapi_pblock_destroy(search_pb);
+            slapi_task_finish(task, rc);
+            return;
+        }
+
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries) {
+            Slapi_PBlock *fixup_pb = slapi_pblock_new();
+
+            /* process all the tombstone entries */
+            for (j = 0; entries[j]; j++){
+                if(task_data->stripcsn){
+                    /* strip nsTombstoneCSN - used to testing */
+                    strip_tombstone(fixup_pb, base[i], entries[j], &fixup_count);
+                } else if((rc = fixup_tombstone(fixup_pb, base[i], entries[j], &fixup_count))){
+                    /* Failed to update tombstone, log it and move on... */
+                    slapi_task_log_notice(task,
+                           "Failed to update tombstone entry (%s) error %d\n",
+                            slapi_entry_get_dn(entries[j]), rc);
+                    slapi_log_error(SLAPI_LOG_FATAL, TASK_TOMBSTONE_FIXUP,
+                            "Failed to update tombstone entry (%s) error %d\n",
+                            slapi_entry_get_dn(entries[j]), rc);
+                }
+            }
+            slapi_free_search_results_internal(search_pb);
+            slapi_pblock_destroy(fixup_pb);
+        }
+        slapi_pblock_destroy(search_pb);
+        slapi_task_inc_progress(task);
+    }
+    slapi_task_log_notice(task, "%s %d tombstones.\n",
+                          task_data->stripcsn ? "Stripped" : "Fixed", fixup_count);
+    slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP, "%s %d tombstones.\n",
+                    task_data->stripcsn ? "Stripped" : "Fixed", fixup_count);
+    slapi_task_inc_progress(task);
+    slapi_task_finish(task, rc);
+    slapi_ch_array_free(base);
+    slapi_ch_free((void **)&task_data);
+}
+
+
+/*
+ *  task_fixup_tombstones_add
+ *
+ *  Check all the existing tombstones and add nsTombstoneCSN if missing.
+ *
+ *  dn: cn=fixem,cn=fixup tombstones,cn=tasks,cn=config
+ *  objectclass: top
+ *  objectclass: extensibleObject
+ *  cn: fixem
+ *  backend: userRoot
+ *  suffix: dc=example,dc=com
+ *  stripcsn: yes
+ *
+ *  backend & suffix are optional.  If skipped, all backends/suffixes are
+ *  checked.  Multiple suffixes can also be specified.
+ *
+ *  Hidden option: "stripcsn" is strictly used to verify the fixup task: run
+ *  the task using the strip option to strip tombstones of "nsTombstoneCSN",
+ *  then run task, without the strip option, to add "nsTombstoneCSN" back.
+ */
+static int
+task_fixup_tombstones_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
+                          int *returncode, char *returntext, void *arg)
+{
+    Slapi_Backend *be = NULL;
+    Slapi_Task *task = NULL;
+    struct task_tombstone_data *task_data = NULL;
+    const Slapi_DN *base_sdn = NULL;
+    PRThread *thread = NULL;
+    char **backend = NULL;
+    char **suffix = NULL;
+    char **base = NULL;
+    char *stripcsn = NULL;
+    int i;
+
+    /*
+     * Get the task options.  We will store all the "backends" in the suffix array.
+     */
+    if((suffix = slapi_entry_attr_get_charray(e, TASK_TOMBSTONE_FIXUP_SUFFIX))){
+        for (i = 0; suffix && suffix[i]; i++){
+            char *dn = slapi_create_dn_string("%s", suffix[i]);
+
+            if(dn){
+                if(slapi_dn_syntax_check(pb, dn, 1)){
+                    /* invalid suffix name */
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Invalid DN (%s) used for \"suffix\"\n", suffix[i]);
+                    *returncode = LDAP_INVALID_DN_SYNTAX;
+                    goto done;
+                } else {
+                    slapi_ch_array_add(&base, dn);
+                }
+            }
+        }
+    }
+    if((backend = slapi_entry_attr_get_charray(e, TASK_TOMBSTONE_FIXUP_BACKEND))){
+        for (i = 0; backend && backend[i]; i++){
+            if((be = slapi_be_select_by_instance_name(backend[i]))){
+                if((base_sdn = slapi_be_getsuffix(be, 0))){
+                    slapi_ch_array_add(&base, slapi_ch_strdup(slapi_sdn_get_ndn(base_sdn)));
+                } else {
+                    /* failed to get a suffix */
+                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                            "Failed to find a suffix for the backend(%s)\n", backend[i]);
+                    *returncode = LDAP_UNWILLING_TO_PERFORM;
+                    goto done;
+                }
+            } else {
+                /* Failed to find a backend */
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Failed to find a backend using (%s)\n", backend[i]);
+                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                goto done;
+            }
+        }
+    }
+
+    /*
+     * If suffix is NULL, we check all the backends
+     */
+    if(base == NULL){
+        char *cookie = NULL;
+
+        /* Gather all the backends */
+        be = slapi_get_first_backend(&cookie);
+        while(be){
+            if((base_sdn = slapi_be_getsuffix(be, 0)) && !be->be_private){
+                const char *suf = slapi_sdn_get_ndn(base_sdn);
+                /* Need to skip the retro changelog */
+                if(strcmp(suf, "cn=changelog"))
+                {
+                    slapi_ch_array_add(&base, slapi_ch_strdup(suf));
+                }
+            }
+            be = slapi_get_next_backend(cookie);
+        }
+    }
+
+    task = slapi_new_task(slapi_entry_get_ndn(e));
+    task_data = (struct task_tombstone_data *)slapi_ch_calloc(1, sizeof(struct task_tombstone_data));
+    task_data->base = base;
+    task_data->task = task;
+    if((stripcsn = slapi_entry_attr_get_charptr(e, TASK_TOMBSTONE_FIXUP_STRIPCSN))){
+        if(strcasecmp(stripcsn, "yes") == 0 || strcasecmp(stripcsn, "on") == 0){
+            task_data->stripcsn = 1;
+        }
+        slapi_ch_free_string(&stripcsn);
+    }
+
+    /* start the db2index as a separate thread */
+    thread = PR_CreateThread(PR_USER_THREAD, task_fixup_tombstone_thread,
+                             (void *)task_data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                  "task_fixup_tombstones_add: unable to create index thread!\n", 0, 0, 0);
+        *returncode = LDAP_OPERATIONS_ERROR;
+        slapi_task_finish(task, *returncode);
+        slapi_ch_array_free(base);
+        slapi_ch_free((void **)&task_data);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+
+done:
+    slapi_ch_array_free(suffix);
+    slapi_ch_array_free(backend);
+
+    if (*returncode != LDAP_SUCCESS){
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
 /* cleanup old tasks that may still be in the DSE from a previous session
  * (this can happen if the server crashes [no matter how unlikely we like
  * to think that is].)
@@ -2170,6 +2483,7 @@ void task_init(void)
     slapi_task_register_handler("index", task_index_add);
     slapi_task_register_handler("upgradedb", task_upgradedb_add);
     slapi_task_register_handler("sysconfig reload", task_sysconfig_reload_add);
+    slapi_task_register_handler("fixup tombstones", task_fixup_tombstones_add);
 }
 
 /* called when the server is shutting down -- abort all existing tasks */

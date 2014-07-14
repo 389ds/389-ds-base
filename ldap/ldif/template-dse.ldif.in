@@ -967,6 +967,13 @@ cn: uniquemember
 nssystemindex: false
 nsindextype: eq
 
+dn: cn=nsTombstoneCSN,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: nsTombstoneCSN
+nssystemindex: true
+nsindextype: eq
+
 dn: cn=monitor, cn=ldbm database, cn=plugins, cn=config
 objectclass: top
 objectclass: extensibleObject

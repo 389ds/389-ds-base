@@ -1,0 +1,10 @@
+TMP DIRECTORY README
+
+This directory is used to store files(LDIFs, etc) that are created during the ticket script runtime.  The script is also responsible for removing any files it places in this directory.  This directory can be retrieved via getDir() from the DirSrv class.
+
+Example:
+
+    tmp_dir_path = topology.standalone.getDir(__file__, TMP_DIR)
+
+    new_ldif = tmp_dir_path + "export.ldif"
+

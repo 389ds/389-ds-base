@@ -1527,3 +1527,26 @@ resolve_attribute_state_single_valued(Slapi_Entry *e, Slapi_Attr *a, int attribu
 	}
 }
 
+const CSN *
+entry_get_deletion_csn(Slapi_Entry *e)
+{
+	const CSN *deletion_csn = NULL;
+
+	PR_ASSERT(NULL != e);
+	if (NULL != e)
+	{
+		Slapi_Attr *oc_attr = NULL;
+		if (entry_attr_find_wsi(e, SLAPI_ATTR_OBJECTCLASS, &oc_attr) == ATTRIBUTE_PRESENT)
+		{
+			Slapi_Value *tombstone_value = NULL;
+			struct berval v;
+			v.bv_val = SLAPI_ATTR_VALUE_TOMBSTONE;
+			v.bv_len = strlen(SLAPI_ATTR_VALUE_TOMBSTONE);
+			if (attr_value_find_wsi(oc_attr, &v, &tombstone_value) == VALUE_PRESENT)
+			{
+				deletion_csn = value_get_csn(tombstone_value, CSN_TYPE_VALUE_UPDATED);
+			}
+		}
+	}
+	return deletion_csn;
+}

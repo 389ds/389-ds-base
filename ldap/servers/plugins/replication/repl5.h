@@ -173,6 +173,7 @@ extern const char *type_nsds5ReplicaStripAttrs;
 extern const char *type_replicaProtocolTimeout;
 extern const char *type_replicaBackoffMin;
 extern const char *type_replicaBackoffMax;
+extern const char *type_replicaPrecisePurge;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -595,7 +596,6 @@ void replica_destroy_dn_hash ();
 int replica_add_by_dn (const char *dn);
 int replica_delete_by_dn (const char *dn);
 int replica_is_being_configured (const char *dn);
-const CSN * _get_deletion_csn(Slapi_Entry *e);
 int legacy_consumer_init_referrals (Replica *r);
 void consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv);
 Object *replica_get_for_backend (const char *be_name);
@@ -619,6 +619,8 @@ void replica_set_backoff_max(Replica *r, PRUint64 max);
 int replica_get_agmt_count(Replica *r);
 void replica_incr_agmt_count(Replica *r);
 void replica_decr_agmt_count(Replica *r);
+PRUint64 replica_get_precise_purging(Replica *r);
+void replica_set_precise_purging(Replica *r, PRUint64 on_off);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */

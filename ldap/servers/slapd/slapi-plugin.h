@@ -498,6 +498,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_UNIQUEID			"nsuniqueid"
 #define SLAPI_ATTR_OBJECTCLASS			"objectclass"
 #define SLAPI_ATTR_VALUE_TOMBSTONE		"nsTombstone"
+#define SLAPI_ATTR_TOMBSTONE_CSN		"nsTombstoneCSN"
 #define SLAPI_ATTR_VALUE_PARENT_UNIQUEID	"nsParentUniqueID"
 #define SLAPI_ATTR_VALUE_SUBENTRY		"ldapsubentry"
 #define SLAPI_ATTR_NSCP_ENTRYDN 		"nscpEntryDN"
@@ -508,6 +509,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_UNIQUEID_LENGTH		10
 #define SLAPI_ATTR_OBJECTCLASS_LENGTH		11
 #define SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH	11
+#define SLAPI_ATTR_TOMBSTONE_CSN_LENGTH		14
 #define SLAPI_ATTR_VALUE_PARENT_UNIQUEID_LENGTH	16
 #define SLAPI_ATTR_VALUE_SUBENTRY_LENGTH	12
 #define SLAPI_ATTR_NSCP_ENTRYDN_LENGTH 		11

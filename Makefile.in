@@ -1950,6 +1950,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50acctusabilityplugin.ldif \
 	ldap/admin/src/scripts/50automemberplugin.ldif \
 	ldap/admin/src/scripts/50memberofindex.ldif \
+	ldap/admin/src/scripts/50nstombstonecsn.ldif \
 	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
 	ldap/admin/src/scripts/50managedentriesplugin.ldif \
 	ldap/admin/src/scripts/50memberofplugin.ldif \

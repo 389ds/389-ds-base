@@ -95,6 +95,7 @@ struct replica {
 	Slapi_Counter *protocol_timeout;/* protocol shutdown timeout */
 	Slapi_Counter *backoff_min;		/* backoff retry minimum */
 	Slapi_Counter *backoff_max;		/* backoff retry maximum */
+	Slapi_Counter *precise_purging;		/* Enable precise tombstone purging */
 	PRUint64 agmt_count;			/* Number of agmts */
 };
 
@@ -1086,7 +1087,7 @@ char *replica_get_generation (const Replica *r)
     if (r && r->repl_ruv)
     {        
         replica_lock(r->repl_lock);
-	        
+
         if (rc == 0)
             gen = ruv_get_replica_generation ((RUV*)object_get_data (r->repl_ruv));
 
@@ -1789,6 +1790,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     Slapi_Attr *a = NULL;
     Slapi_Attr *attr;
     CSNGen *gen;
+    char *precise_purging = NULL;
     char buf [SLAPI_DSE_RETURNTEXT_SIZE];
     char *errormsg = errortext? errortext : buf;
     char *val;
@@ -1872,6 +1874,25 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
         slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
     } else {
         slapi_counter_set_value(r->protocol_timeout, ptimeout);
+    }
+
+    /* check for precise tombstone purging */
+    precise_purging = slapi_entry_attr_get_charptr(e, type_replicaPrecisePurge);
+    if(precise_purging){
+        if (strcasecmp(precise_purging, "on") == 0){
+            slapi_counter_set_value(r->precise_purging, 1);
+        } else if (strcasecmp(precise_purging, "off") == 0){
+            slapi_counter_set_value(r->precise_purging, 0);
+        } else{
+            /* Invalid value */
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                    "Invalid value for %s: %s  Using default value (off)\n",
+                    type_replicaPrecisePurge, precise_purging);
+            slapi_counter_set_value(r->precise_purging, 0);
+        }
+        slapi_ch_free_string(&precise_purging);
+    } else {
+        slapi_counter_set_value(r->precise_purging, 0);
     }
 
     /* get replica flags */
@@ -2862,7 +2883,7 @@ replica_ruv_smods_for_op( Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods 
 
 
 const CSN *
-_get_deletion_csn(Slapi_Entry *e)
+entry_get_deletion_csn(Slapi_Entry *e)
 {
 	const CSN *deletion_csn = NULL;
 
@@ -2950,7 +2971,7 @@ process_reap_entry (Slapi_Entry *entry, void *cb_data)
 	   objectclass attribute values - if we need more attributes returned by the
 	   search in the future, see _replica_reap_tombstones below and add more to the
 	   attrs array */
-	deletion_csn = _get_deletion_csn(entry);
+	deletion_csn = entry_get_deletion_csn(entry);
 
 	if ((NULL == deletion_csn || csn_compare(deletion_csn, purge_csn) < 0) &&
 		(!is_ruv_tombstone_entry(entry))) {
@@ -3043,9 +3064,26 @@ _replica_reap_tombstones(void *arg)
 	if (NULL != purge_csn) 
 	{
 		LDAPControl **ctrls;
-		int oprc;
 		reap_callback_data cb_data;
+		char deletion_csn_str[CSN_STRSIZE];
+		char tombstone_filter[128];
 		char **attrs = NULL;
+		int oprc;
+
+		if (replica_get_precise_purging(replica)){
+			/*
+			 * Using precise tombstone purging.  Create filter to lookup the exact
+			 * entries that need to be purged by using a range search on the new
+			 * tombstone csn index.
+			 */
+			csn_as_string(purge_csn, PR_FALSE, deletion_csn_str);
+			PR_snprintf(tombstone_filter, 128,
+			        "(&(%s<=%s)(objectclass=nsTombstone))", SLAPI_ATTR_TOMBSTONE_CSN,
+			        csn_as_string(purge_csn, PR_FALSE, deletion_csn_str));
+		} else {
+			/* Use the old inefficient filter */
+			PR_snprintf(tombstone_filter, 128, "(objectclass=nsTombstone)");
+		}
 
 		/* we just need the objectclass - for the deletion csn
 		   and the dn and nsuniqueid - for possible deletion
@@ -3055,6 +3093,7 @@ _replica_reap_tombstones(void *arg)
 		charray_add(&attrs, slapi_ch_strdup("objectclass"));
 		charray_add(&attrs, slapi_ch_strdup("nsuniqueid"));
 		charray_add(&attrs, slapi_ch_strdup("tombstonenumsubordinates"));
+		charray_add(&attrs, slapi_ch_strdup(SLAPI_ATTR_TOMBSTONE_CSN));
 
 		ctrls = (LDAPControl **)slapi_ch_calloc (3, sizeof (LDAPControl *));
 		ctrls[0] = create_managedsait_control();
@@ -3062,7 +3101,7 @@ _replica_reap_tombstones(void *arg)
 		ctrls[2] = NULL;
 		pb = slapi_pblock_new();
 		slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(replica->repl_root),
-									 LDAP_SCOPE_SUBTREE, "(objectclass=nstombstone)",
+									 LDAP_SCOPE_SUBTREE, tombstone_filter,
 									 attrs, 0, ctrls, NULL,
 									 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
 									 OP_FLAG_REVERSE_CANDIDATE_ORDER);
@@ -4064,6 +4103,24 @@ replica_set_backoff_max(Replica *r, PRUint64 max)
 {
 	if(r){
 		slapi_counter_set_value(r->backoff_max, max);
+	}
+}
+
+void
+replica_set_precise_purging(Replica *r, PRUint64 on_off)
+{
+	if(r){
+		slapi_counter_set_value(r->precise_purging, on_off);
+	}
+}
+
+PRUint64
+replica_get_precise_purging(Replica *r)
+{
+	if(r){
+		return slapi_counter_get_value(r->precise_purging);
+	} else {
+		return 0;
 	}
 }
 
