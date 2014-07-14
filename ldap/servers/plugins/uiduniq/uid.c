@@ -223,15 +223,9 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                 /* Subtrees where uniqueness is tested  */
                 values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_SUBTREES);
                 if (values) {
-
-
                         for (i = 0; values && values[i]; i++);
-                        if ((tmp_config->subtrees = (Slapi_DN **) slapi_ch_calloc(i + 1, sizeof (Slapi_DN *))) == NULL) {
-                                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Fail to allocate subtree array \n");
-                                rc = SLAPI_PLUGIN_FAILURE;
-                                goto done;
-                        }
-
+                        /* slapi_ch_calloc never returns NULL unless the 2 args are 0 or negative. */
+                        tmp_config->subtrees = (Slapi_DN **) slapi_ch_calloc(i + 1, sizeof (Slapi_DN *)));
                         /* copy the valid subtree DN into the config */
                         for (i = 0, nb_subtrees = 0; values && values[i]; i++) {
                                 if (slapi_dn_syntax_check(pb, values[i], 1)) { /* syntax check failed */
