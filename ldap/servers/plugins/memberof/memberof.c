@@ -558,7 +558,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		 */
 		if((ret = memberof_del_dn_from_groups(pb, &configCopy, sdn))){
 			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-			                "memberof_postop_del: error deleting dn (%s) from group. Error (%d)",
+			                "memberof_postop_del: error deleting dn (%s) from group. Error (%d)\n",
 			                slapi_sdn_get_dn(sdn),ret);
 			memberof_unlock();
 			memberof_free_config(&configCopy);
@@ -578,7 +578,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 				{
 					if((ret = memberof_del_attr_list(pb, &configCopy, sdn, attr))){
 						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-							"memberof_postop_del: error deleting attr list - dn (%s). Error (%d)",
+							"memberof_postop_del: error deleting attr list - dn (%s). Error (%d)\n",
 							slapi_sdn_get_dn(sdn),ret);
 					}
 
@@ -1282,7 +1282,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 				{
 					if((ret = memberof_add_attr_list(pb, &configCopy, sdn, attr))){
 						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-							"memberof_postop_add: failed to add dn(%s), error (%d)",
+							"memberof_postop_add: failed to add dn(%s), error (%d)\n",
 							slapi_sdn_get_dn(sdn), ret);
 						break;
 					}
