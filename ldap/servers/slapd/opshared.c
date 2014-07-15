@@ -1302,16 +1302,26 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
 
         /* Check for possible get_effective_rights control */
-        if ( operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS )
-        {
+        if (e) {
+          if (operation->o_flags & OP_FLAG_GET_EFFECTIVE_RIGHTS) {
             char *errbuf = NULL;
             char **gerattrs = NULL;
             char **gerattrsdup = NULL;
             char **gap = NULL;
             char *gapnext = NULL;
 
-            slapi_pblock_get( pb, SLAPI_SEARCH_GERATTRS, &gerattrs );
+            if (PAGEDRESULTS_PAGE_END == pr_stat)
+            {
+                /* 
+                 * read ahead -- there is at least more entry.
+                 * undo it and return the PAGE_END
+                 */
+                be->be_prev_search_results(pb);
+                done = 1;
+                continue;
+            }
 
+            slapi_pblock_get( pb, SLAPI_SEARCH_GERATTRS, &gerattrs );
             gerattrsdup = cool_charray_dup(gerattrs);
             gap = gerattrsdup;
             do
@@ -1414,15 +1424,15 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
             while (gap && ++gap && *gap);
             slapi_pblock_set( pb, SLAPI_SEARCH_GERATTRS, gerattrs );
             cool_charray_free(gerattrsdup);
-            if (NULL == e)
-            {
-                /* no more entries */
-                done = 1;
-                pr_stat = PAGEDRESULTS_SEARCH_END;
+            if (pagesize == *pnentries)
+            { 
+                /* PAGED RESULTS: reached the pagesize */
+                /* We don't set "done = 1" here.
+                 * We read ahead next entry to check whether there is
+                 * more entries to return or not. */
+                pr_stat = PAGEDRESULTS_PAGE_END;
             }
-        }
-        else if (e)
-        {
+          } else { /* not GET_EFFECTIVE_RIGHTS */
             if (PAGEDRESULTS_PAGE_END == pr_stat)
             {
                 /* 
@@ -1469,6 +1479,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                  * more entries to return or not. */
                 pr_stat = PAGEDRESULTS_PAGE_END;
             }
+          }
         }
         else
         {
