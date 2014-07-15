@@ -1746,7 +1746,6 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
 
     errno = 0;
     threshold = strtoll(value, &endp, 10);
-
     if ( *endp != '\0' || threshold <= 4096 || errno == ERANGE ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: \"%s\" is invalid, threshold must be greater than 4096 and less then %lld",
@@ -1788,8 +1787,7 @@ config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf,
     }
 
     period = strtol(value, &endp, 10);
-
-    if ( *endp != '\0' || period < 1 ) {
+    if ( *endp != '\0' || period < 1 || errno == ERANGE ) {
         PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, grace period must be at least 1 minute",
                       attrname, value);
         retVal = LDAP_OPERATIONS_ERROR;
@@ -1821,9 +1819,17 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
+    char *endp;
     long size;
 
-    size = atol(value);
+    size = strtol(value, &endp, 10);
+    if ( *endp != '\0' || errno == ERANGE){
+        retVal = LDAP_OPERATIONS_ERROR;
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) "
+                    "is invalid\n",attrname, value);
+        return retVal;
+    }
+
     if(size < 0){
         size = 0; /* same as -1 */
     }
@@ -1846,13 +1852,21 @@ config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, in
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    int default_size = atoi(DEFAULT_SASL_MAXBUFSIZE);
-    int size;
+    long default_size = atol(DEFAULT_SASL_MAXBUFSIZE);
+    long size;
+    char *endp;
 
-    size = atoi(value);
+    size = strtol(value, &endp, 10);
+    if ( *endp != '\0' || errno == ERANGE){
+        retVal = LDAP_OPERATIONS_ERROR;
+        PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) "
+                    "is invalid\n",attrname, value);
+        return retVal;
+    }
+
     if(size < default_size){
-        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "nsslapd-sasl-max-buffer-size is too low (%d), "
-            "setting to default value (%d).\n",size, default_size);
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "nsslapd-sasl-max-buffer-size is too low (%ld), "
+            "setting to default value (%ld).\n",size, default_size);
         size = default_size;
     }
     if(apply){
@@ -1888,7 +1902,6 @@ config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
 
   errno = 0;
   nPort = strtol(port, &endp, 10);
-  
   if ( *endp != '\0' || errno == ERANGE || nPort > LDAP_PORT_MAX || nPort < 0 ) {
 	retVal = LDAP_OPERATIONS_ERROR;
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
@@ -1898,8 +1911,7 @@ config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
   }
 
   if ( nPort == 0 ) {
-        LDAPDebug( LDAP_DEBUG_ANY,
-                           "Information: Non-Secure Port Disabled\n", 0, 0, 0 );
+      LDAPDebug( LDAP_DEBUG_ANY, "Information: Non-Secure Port Disabled\n", 0, 0, 0 );
   }
   
   if ( apply ) {
@@ -1926,7 +1938,6 @@ config_set_secureport( const char *attrname, char *port, char *errorbuf, int app
 
   errno = 0;
   nPort = strtol(port, &endp, 10);
-  
   if (*endp != '\0' || errno == ERANGE || nPort > LDAP_PORT_MAX || nPort <= 0 ) {
 	retVal = LDAP_OPERATIONS_ERROR;
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
@@ -2573,7 +2584,7 @@ config_set_pw_minlength( const char *attrname, char *value, char *errorbuf, int 
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
-  
+
   errno = 0;
   minLength = strtol(value, &endp, 10);
 
@@ -2960,7 +2971,7 @@ config_set_pw_inhistory( const char *attrname, char *value, char *errorbuf, int 
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
-  
+
   errno = 0;
   history = strtol(value, &endp, 10);
 
@@ -3157,6 +3168,7 @@ config_set_pw_gracelimit( const char *attrname, char *value, char *errorbuf, int
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
+
   errno = 0;
   gracelimit = strtol(value, &endp, 10);
 
@@ -4107,7 +4119,7 @@ config_set_timelimit( const char *attrname, char *value, char *errorbuf, int app
   if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
-  
+
   errno = 0;
   nVal = strtol(value, &endp, 10);
 
@@ -5747,18 +5759,29 @@ config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int ap
 {
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  long size;
+  char *endp;
   
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
   
+  errno = 0;
+  size = strtol(value, &endp, 10);
+  if ( *endp != '\0' || errno == ERANGE){
+    retVal = LDAP_OPERATIONS_ERROR;
+    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) "
+                "is invalid\n",attrname, value);
+    return retVal;
+  }
+
   if ( !apply ) {
 	return retVal;
   }
 
   CFG_LOCK_WRITE(slapdFrontendConfig);
 
-  slapdFrontendConfig->maxbersize = atoi(value);
+  slapdFrontendConfig->maxbersize = size;
   
   CFG_UNLOCK_WRITE(slapdFrontendConfig);
   return retVal;
@@ -5789,6 +5812,7 @@ config_set_maxsasliosize( const char *attrname, char *value, char *errorbuf, int
         return LDAP_OPERATIONS_ERROR;
   }
 
+  errno = 0;
   maxsasliosize = strtol(value, &endptr, 10);
 
   /* Check for non-numeric garbage in the value */
@@ -5842,6 +5866,7 @@ config_set_localssf( const char *attrname, char *value, char *errorbuf, int appl
         return LDAP_OPERATIONS_ERROR;
   }
 
+  errno = 0;
   localssf = (int) strtol(value, &endptr, 10);
 
   /* Check for non-numeric garbage in the value */
@@ -5884,6 +5909,7 @@ config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply 
         return LDAP_OPERATIONS_ERROR;
   }
 
+  errno = 0;
   minssf = (int) strtol(value, &endptr, 10);
 
   /* Check for non-numeric garbage in the value */
@@ -5970,20 +5996,31 @@ config_set_max_filter_nest_level( const char *attrname, char *value,
 {
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  char *endp;
+  long level;
   
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
   
+  errno = 0;
+  level = strtol(value, &endp, 10);
+  if ( *endp != '\0' || errno == ERANGE){
+      retVal = LDAP_OPERATIONS_ERROR;
+      PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) "
+                  "is invalid\n",attrname, value);
+      return retVal;
+  }
+
   if ( !apply ) {
 	return retVal;
   }
 
 #ifdef ATOMIC_GETSET_FILTER_NEST_LEVEL
-  PR_AtomicSet(&slapdFrontendConfig->max_filter_nest_level, atoi(value));
+  PR_AtomicSet(&slapdFrontendConfig->max_filter_nest_level, level);
 #else
   CFG_LOCK_WRITE(slapdFrontendConfig);
-  slapdFrontendConfig->max_filter_nest_level = atoi(value);
+  slapdFrontendConfig->max_filter_nest_level = level;
   CFG_UNLOCK_WRITE(slapdFrontendConfig);
 #endif
   return retVal;
@@ -6677,14 +6714,24 @@ config_set_outbound_ldap_io_timeout( const char *attrname, char *value,
 		char *errorbuf, int apply )
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	long timeout;
+	char *endp;
 	
 	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 		return LDAP_OPERATIONS_ERROR;
 	}
 
+	errno = 0;
+	timeout = strtol(value, &endp, 10);
+	if ( *endp != '\0' || errno == ERANGE){
+		PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) "
+					"is invalid\n",attrname, value);
+		return LDAP_OPERATIONS_ERROR;
+	}
+
 	if ( apply ) {
 		CFG_LOCK_WRITE(slapdFrontendConfig);
-		slapdFrontendConfig->outbound_ldap_io_timeout = atoi( value );
+		slapdFrontendConfig->outbound_ldap_io_timeout = timeout;
 		CFG_UNLOCK_WRITE(slapdFrontendConfig);	
 	}
 	return LDAP_SUCCESS;
@@ -7253,7 +7300,7 @@ config_set_connection_buffer( const char *attrname, char *value,
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-	return LDAP_OPERATIONS_ERROR;
+        return LDAP_OPERATIONS_ERROR;
     }
 
     if ((strcasecmp(value, "0") != 0) && (strcasecmp(value, "1") != 0) &&
@@ -7265,7 +7312,7 @@ config_set_connection_buffer( const char *attrname, char *value,
     }
 
     if ( !apply ) {
-	return retVal;
+        return retVal;
     }
 
     PR_AtomicSet(&slapdFrontendConfig->connection_buffer, atoi(value));
@@ -7277,13 +7324,23 @@ config_set_listen_backlog_size( const char *attrname, char *value,
 		char *errorbuf, int apply )
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+	long size;
+	char *endp;
 	
 	if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 		return LDAP_OPERATIONS_ERROR;
 	}
 
+	errno = 0;
+	size = strtol(value, &endp, 10);
+	if ( *endp != '\0' || errno == ERANGE){
+		PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) "
+					"is invalid\n",attrname, value);
+		return LDAP_OPERATIONS_ERROR;
+	}
+
 	if ( apply ) {
-    		PR_AtomicSet(&slapdFrontendConfig->listen_backlog_size, atoi(value));
+		PR_AtomicSet(&slapdFrontendConfig->listen_backlog_size, size);
 	}
 	return LDAP_SUCCESS;
 }
