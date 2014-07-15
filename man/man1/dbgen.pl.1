@@ -65,6 +65,12 @@ Location of directory containing data files, default is /usr/share/dirsrv/data
 .TP
 .B \-n number
 Number of entries to be generated
+.TP
+.B \-b number
+Beginning number for RDN e.g. uid=1 (ending number is \-n value + beginning number)
+.TP
+.B \-j number
+0 pad numbers used in RDN to this many digits e.g. with 4 1 becomes 0001 (ignored unless \-b number is specified)
 .br
 .SH AUTHOR
 dbgen.pl was written by the 389 Project.
