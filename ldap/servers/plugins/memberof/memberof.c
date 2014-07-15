@@ -1604,9 +1604,8 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			slapi_entry_attr_find( e, config->groupattrs[i], &members );
 			if(members)
 			{
-				if(memberof_mod_attr_list_r(pb, config, mod_op, group_sdn,
-				   op_this_sdn, members, ll) != 0){
-					rc = -1;
+				if((rc = memberof_mod_attr_list_r(pb, config, mod_op, group_sdn,
+				   op_this_sdn, members, ll)) != 0){
 					goto bail;
 				}
 			}
