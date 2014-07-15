@@ -1839,23 +1839,28 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     }
 
     /* grab and validate the backoff retry settings */
-    backoff_min = slapi_entry_attr_get_int(e, type_replicaBackoffMin);
-    if(backoff_min <= 0){
-        if (backoff_min != 0){
+    if(slapi_entry_attr_exists(e, type_replicaBackoffMin)){
+        backoff_min = slapi_entry_attr_get_int(e, type_replicaBackoffMin);
+        if(backoff_min <= 0){
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Invalid value for %s: %d  Using default value (%d)\n",
-                type_replicaBackoffMin, backoff_min, PROTOCOL_BACKOFF_MINIMUM );
+                    type_replicaBackoffMin, backoff_min, PROTOCOL_BACKOFF_MINIMUM );
+            backoff_min = PROTOCOL_BACKOFF_MINIMUM;
         }
+    } else {
         backoff_min = PROTOCOL_BACKOFF_MINIMUM;
     }
 
-    backoff_max = slapi_entry_attr_get_int(e, type_replicaBackoffMax);
-    if(backoff_max <= 0){
-        if(backoff_max != 0) {
+    if(slapi_entry_attr_exists(e, type_replicaBackoffMax)){
+        backoff_max = slapi_entry_attr_get_int(e, type_replicaBackoffMax);
+        if(backoff_max <= 0){
             slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Invalid value for %s: %d  Using default value (%d)\n",
-                type_replicaBackoffMax, backoff_max, PROTOCOL_BACKOFF_MAXIMUM );
+                    type_replicaBackoffMax, backoff_max, PROTOCOL_BACKOFF_MAXIMUM );
+            backoff_max = PROTOCOL_BACKOFF_MAXIMUM;
         }
+    } else {
         backoff_max = PROTOCOL_BACKOFF_MAXIMUM;
     }
+
     if(backoff_min > backoff_max){
         /* Ok these values are invalid, reset back the defaults */
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Backoff minimum (%d) can not be greater than "

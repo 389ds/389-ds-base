@@ -3123,11 +3123,21 @@ slapi_entry_attr_set_ulong( Slapi_Entry* e, const char *type, unsigned long l)
     slapi_entry_attr_replace( e, type, bvals );
 }
 
+int
+slapi_entry_attr_exists(Slapi_Entry *e, const char *type)
+{
+    Slapi_Attr *attr;
+
+    if(slapi_entry_attr_find(e, type, &attr) == 0){
+        return 1;
+    }
+    return 0;
+}
+
 /* JCM: The strcasecmp below should really be a bervalcmp
  * deprecatred in favour of slapi_entry_attr_has_syntax_value
  * which does respect the syntax of the attribute type.
 */
-
 SLAPI_DEPRECATED int
 slapi_entry_attr_hasvalue(const Slapi_Entry *e, const char *type, const char *value) /* JCM - (const char *) => (struct berval *) */
 {

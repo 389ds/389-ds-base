@@ -1983,6 +1983,16 @@ void slapi_entry_attr_set_longlong( Slapi_Entry* e, const char *type, long long 
 void slapi_entry_attr_set_ulong(Slapi_Entry* e, const char *type, unsigned long l);
 
 /**
+ * Check if an attribute is set in the entry
+ *
+ * \param e Entry that you want to check.
+ * \param type Attribute type that you want to test for the value specified.
+ * \return 1 if attribute is present in the entry
+ * \return 0 if the attribute is not present in the entry.
+ */
+int slapi_entry_attr_exists(Slapi_Entry *e, const char *type);
+
+/**
  * Determines if an attribute in an entry contains a specified value.
  *
  * The syntax of the attribute type is taken into account when checking
