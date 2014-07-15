@@ -5302,7 +5302,7 @@ static int read_metadata(struct ldbminfo *li)
                     nextline++;
                 }
             }
-            sscanf(thisline,"%[a-z]%c%s",attribute,&delimiter,value);
+            sscanf(thisline,"%512[a-z]%c%128s",attribute,&delimiter,value);
             if (0 == strcmp("cachesize",attribute)) {
                 priv->dblayer_previous_cachesize = strtoul(value, NULL, 10);
             } else if (0 == strcmp("ncache",attribute)) {
