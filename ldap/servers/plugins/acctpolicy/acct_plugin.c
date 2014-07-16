@@ -111,7 +111,7 @@ acct_record_login( const char *dn )
 	/* if we are not allowed to modify the state attr we're done
          * this could be intentional, so just return
          */
-	if (! update_is_allowed_attr(cfg->state_attr_name) )
+	if (! update_is_allowed_attr(cfg->always_record_login_attr) )
 		return rc;
  
 	plugin_id = get_identity();
@@ -124,7 +124,7 @@ acct_record_login( const char *dn )
 	vals [1] = NULL;
 
 	mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
-	mod.mod_type = cfg->state_attr_name;
+	mod.mod_type = cfg->always_record_login_attr;
 	mod.mod_bvalues = vals;
 
 	mods[0] = &mod;
@@ -142,13 +142,13 @@ acct_record_login( const char *dn )
 
 	if (ldrc != LDAP_SUCCESS) {
 		slapi_log_error( SLAPI_LOG_FATAL, POST_PLUGIN_NAME,
-			"Recording %s=%s failed on \"%s\" err=%d\n", cfg->state_attr_name,
+			"Recording %s=%s failed on \"%s\" err=%d\n", cfg->always_record_login_attr,
 			timestr, dn, ldrc );
 		rc = -1;
 		goto done;
 	} else {
 		slapi_log_error( SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
-			"Recorded %s=%s on \"%s\"\n", cfg->state_attr_name, timestr, dn );
+			"Recorded %s=%s on \"%s\"\n", cfg->always_record_login_attr, timestr, dn );
 	}
 
 done:

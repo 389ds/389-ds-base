@@ -100,6 +100,15 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
                  slapi_ch_free_string( &newcfg->alt_state_attr_name ); /*none - NULL */
 	} /* else use configured value */
 
+	newcfg->always_record_login_attr = get_attr_string_val( e, CFG_RECORD_LOGIN_ATTR );
+	/* What user attribute will store the last login time 
+	 * of a user. If empty, should have the same value as 
+	 * stateattrname. default value: empty
+	 */
+	if( newcfg->always_record_login_attr == NULL ) {
+		newcfg->always_record_login_attr = slapi_ch_strdup( newcfg->state_attr_name );
+	}
+
 	newcfg->spec_attr_name = get_attr_string_val( e, CFG_SPEC_ATTR );
 	if( newcfg->spec_attr_name == NULL ) {
 		newcfg->spec_attr_name = slapi_ch_strdup( DEFAULT_SPEC_ATTR );
@@ -159,5 +168,6 @@ free_config()
 	slapi_ch_free_string(&globalcfg.alt_state_attr_name);
 	slapi_ch_free_string(&globalcfg.spec_attr_name);
 	slapi_ch_free_string(&globalcfg.limit_attr_name);
+	slapi_ch_free_string(&globalcfg.always_record_login_attr);
 }
 
