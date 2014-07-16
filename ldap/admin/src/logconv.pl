@@ -1551,7 +1551,8 @@ sub displayUsage {
 	print "                 j       Recommendations\n";
 	print "                 u       Unindexed Search Stats\n";
 	print "                 y       Connection Latency Stats\n";
-	print "                 p       Open Connection ID Stats\n\n";
+	print "                 p       Open Connection ID Stats\n";
+	print "                 U       Unindexed Search Summary\n\n";
 
 	print "  Examples:\n\n";
 
