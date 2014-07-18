@@ -135,19 +135,6 @@ def _header(topology, label):
     topology.standalone.log.info("#######")
     topology.standalone.log.info("###############################################")
 
-def _uniqueness_config_entry(topology, name=None):
-    if not name:
-        return None
-    
-    ent = topology.standalone.getEntry("cn=%s,%s" % (PLUGIN_ATTR_UNIQUENESS, DN_PLUGIN), ldap.SCOPE_BASE, 
-                                    "(objectclass=nsSlapdPlugin)",
-                                    ['objectClass', 'cn', 'nsslapd-pluginPath', 'nsslapd-pluginInitfunc',
-                                     'nsslapd-pluginType', 'nsslapd-pluginEnabled', 'nsslapd-plugin-depends-on-type',
-                                     'nsslapd-pluginId', 'nsslapd-pluginVersion', 'nsslapd-pluginVendor',
-                                     'nsslapd-pluginDescription'])
-    ent.dn = "cn=%s uniqueness,%s" % (name, DN_PLUGIN)
-    return ent
-
 def test_ticket47714_init(topology):
     """
     1. Add account policy entry to the DB    
@@ -168,8 +155,6 @@ def test_ticket47714_init(topology):
                                                     'givenname': TEST_USER,
                                                     'userPassword': TEST_USER_PW,
                                                     'acctPolicySubentry': ACCT_POLICY_DN})))
-
-    log.info("\n######################### Adding cos entry ######################\n")
 
 def test_ticket47714_run_0(topology):
     """
