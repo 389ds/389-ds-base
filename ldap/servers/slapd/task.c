@@ -1439,7 +1439,6 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
         database_type = my_database_type;
 
     /* get backend that has db2archive and the database type matches.  */
-    cookie = NULL;
     be = slapi_get_first_backend(&cookie);
     while (be) {
         if (NULL != be->be_database->plg_db2archive &&
@@ -1448,7 +1447,7 @@ static int task_backup_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
         be = (backend *)slapi_get_next_backend (cookie);
     }
-    slapi_ch_free((void **)&cookie);
+    slapi_ch_free_string(&cookie);
     if (NULL == be || NULL == be->be_database->plg_db2archive) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: no db2archive function defined.\n", 0, 0, 0);
@@ -1578,7 +1577,6 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
     instance_name = fetch_attr(e, "nsInstance", NULL);
 
     /* get backend that has archive2db and the database type matches.  */
-    cookie = NULL;
     be = slapi_get_first_backend (&cookie);
     while (be) {
         if (NULL != be->be_database->plg_archive2db &&
@@ -1587,7 +1585,7 @@ static int task_restore_add(Slapi_PBlock *pb, Slapi_Entry *e,
 
         be = (backend *)slapi_get_next_backend (cookie);
     }
-    slapi_ch_free((void **)&cookie);
+    slapi_ch_free_string(&cookie);
     if (NULL == be || NULL == be->be_database->plg_archive2db) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: no archive2db function defined.\n", 0, 0, 0);
@@ -1837,7 +1835,6 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     force = fetch_attr(e, "nsForceToReindex", NULL);
 
     /* get backend that has db2archive and the database type matches.  */
-    cookie = NULL;
     be = slapi_get_first_backend(&cookie);
     while (be) {
         if (NULL != be->be_database->plg_upgradedb)
@@ -1845,7 +1842,7 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
 
         be = (backend *)slapi_get_next_backend (cookie);
     }
-    slapi_ch_free((void **)&cookie);
+    slapi_ch_free_string(&cookie);
     if (NULL == be) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "ERROR: no upgradedb is defined.\n", 0, 0, 0);
@@ -2367,6 +2364,7 @@ task_fixup_tombstones_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
             }
             be = slapi_get_next_backend(cookie);
         }
+        slapi_ch_free_string(&cookie);
     }
 
     task = slapi_new_task(slapi_entry_get_ndn(e));
