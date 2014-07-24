@@ -288,13 +288,21 @@ int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals)
     if (vals == NULL || vals[0] == NULL) {
         (void)attrlist_delete(alist, type);
     } else {
-        attrlist_find_or_create(alist, type, &a);
+        int created = attrlist_find_or_create(alist, type, &a);
         valuearray_init_bervalarray(vals, &values);
         if (slapi_attr_is_dn_syntax_attr(*a)) {
             valuearray_dn_normalize_value(values);
             (*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
         }
-        rc = attr_replace(*a, values);
+        rc = attr_replace(*a, values); /* values is consumed */
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "attrlist_replace",
+                            "attr_replace (%s, %s) failed.\n",
+                            type, vals[0]->bv_val);
+            if (created) {
+                attrlist_delete(alist, type);
+            }
+        }
     }
     return rc;
 }
@@ -315,13 +323,21 @@ int attrlist_replace_with_flags(Slapi_Attr **alist, const char *type, struct ber
     if (vals == NULL || vals[0] == NULL) {
         (void)attrlist_delete(alist, type);
     } else {
-        attrlist_find_or_create(alist, type, &a);
+        int created = attrlist_find_or_create(alist, type, &a);
         valuearray_init_bervalarray_with_flags(vals, &values, flags);
         if (slapi_attr_is_dn_syntax_attr(*a)) {
             valuearray_dn_normalize_value(values);
             (*a)->a_flags |= SLAPI_ATTR_FLAG_NORMALIZED_CES;
         }
         rc = attr_replace(*a, values);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "attrlist_replace",
+                            "attr_replace (%s, %s) failed.\n",
+                            type, vals[0]->bv_val);
+            if (created) {
+                attrlist_delete(alist, type);
+            }
+        }
     }
     return rc;
 }
