@@ -135,6 +135,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/schema-reload.pl ldap/admin/src/scripts/syntax-validate.pl \
 	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
+	ldap/admin/src/scripts/dbmon.sh \
 	$(POSIX_WINSYNC_PLUGIN_LDIF)
 
 clean-local:
@@ -370,6 +371,7 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
 	ldap/admin/src/scripts/upgradedb \
+	ldap/admin/src/scripts/dbmon.sh \
     wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
@@ -511,6 +513,7 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/db2index.8 man/man8/db2index.pl.8 \
         man/man8/ldif2db.8 man/man8/ldif2db.pl.8 \
         man/man8/dbverify.8 man/man8/verify-db.pl.8 \
+        man/man8/dbmon.sh.8 \
         man/man8/dn2rdn.8 man/man8/ldif2ldap.8 \
         man/man8/restoreconfig.8 man/man8/saveconfig.8 \
         man/man8/suffix2instance.8 man/man8/monitor.8 \
