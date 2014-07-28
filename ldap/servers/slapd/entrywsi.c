@@ -1086,7 +1086,7 @@ entry_compute_nscpentrywsi(computed_attr_context *c,char* type,Slapi_Entry *e,sl
 int 
 entry_computed_attr_init()
 {
-	slapi_compute_add_evaluator(entry_compute_nscpentrywsi);
+	slapi_compute_add_evaluator_ext(entry_compute_nscpentrywsi, 1 /* root only */);
 	return 0;
 }
 
