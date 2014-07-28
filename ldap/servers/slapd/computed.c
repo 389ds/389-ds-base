@@ -58,6 +58,7 @@ struct _computed_attr_context {
 struct _compute_evaluator {
 	struct _compute_evaluator *next;
 	slapi_compute_callback_t function;
+	int rootonly;
 };
 typedef struct _compute_evaluator compute_evaluator;
 
@@ -91,6 +92,13 @@ compute_call_evaluators(computed_attr_context *c,slapi_compute_output_t outfn,ch
 	/* Walk along the list (locked) calling the evaluator functions util one says yes, an error happens, or we finish */
 	PR_RWLock_Rlock(compute_evaluators_lock);
 	for (current = compute_evaluators; (current != NULL) && (-1 == rc); current = current->next) {
+		if (current->rootonly) {
+			int isroot;
+			slapi_pblock_get(c->pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+			if (!isroot) {
+				continue;
+			}
+		}
 		rc = (*(current->function))(c,type,e,outfn);
 	}
 	PR_RWLock_Unlock(compute_evaluators_lock);
@@ -134,6 +142,10 @@ compute_stock_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi
 
 int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 {
+	return slapi_compute_add_evaluator_ext(function, 0);
+}
+int slapi_compute_add_evaluator_ext(slapi_compute_callback_t function, int rootonly)
+{
 	int rc = 0;
 	compute_evaluator *new_eval = NULL;
 	PR_ASSERT(NULL != function);
@@ -145,6 +157,7 @@ int slapi_compute_add_evaluator(slapi_compute_callback_t function)
 	} else {
 		new_eval->next = compute_evaluators;
 		new_eval->function = function;
+		new_eval->rootonly = rootonly;
 		compute_evaluators = new_eval;
 	}
 	PR_RWLock_Unlock(compute_evaluators_lock);
