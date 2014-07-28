@@ -59,6 +59,7 @@ struct _computed_attr_context {
 struct _compute_evaluator {
 	struct _compute_evaluator *next;
 	slapi_compute_callback_t function;
+	int rootonly;
 };
 typedef struct _compute_evaluator compute_evaluator;
 
@@ -95,6 +96,13 @@ int compute_call_evaluators_nolock(computed_attr_context *c,slapi_compute_output
         compute_evaluator *current = NULL;
         
         for (current = compute_evaluators; (current != NULL) && (-1 == rc); current = current->next) {
+		if (current->rootonly) {
+			int isroot;
+			slapi_pblock_get(c->pb, SLAPI_REQUESTOR_ISROOT, &isroot);
+			if (!isroot) {
+				continue;
+			}
+		}
                 rc = (*(current->function))(c,type,e,outfn);
         }
         return rc;
@@ -157,13 +165,18 @@ compute_stock_evaluator(computed_attr_context *c,char* type,Slapi_Entry *e,slapi
 }
 
 static void
-compute_add_evaluator_nolock(slapi_compute_callback_t function, compute_evaluator *new_eval)
+compute_add_evaluator_nolock(slapi_compute_callback_t function, compute_evaluator *new_eval, int rootonly)
 {
     new_eval->next = compute_evaluators;
     new_eval->function = function;
+    new_eval->rootonly = rootonly;
     compute_evaluators = new_eval;
 }
 int slapi_compute_add_evaluator(slapi_compute_callback_t function)
+{
+	return slapi_compute_add_evaluator_ext(function, 0);
+}
+int slapi_compute_add_evaluator_ext(slapi_compute_callback_t function, int rootonly)
 {
 	int rc = 0;
 	compute_evaluator *new_eval = NULL;
@@ -187,7 +200,7 @@ int slapi_compute_add_evaluator(slapi_compute_callback_t function)
                     slapi_rwlock_wrlock(compute_evaluators_lock);
                 }
                 
-                compute_add_evaluator_nolock(function, new_eval);
+                compute_add_evaluator_nolock(function, new_eval, rootonly);
                 
                 if (need_lock) {
                     slapi_rwlock_unlock(compute_evaluators_lock);
