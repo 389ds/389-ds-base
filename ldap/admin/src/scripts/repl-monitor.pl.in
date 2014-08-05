@@ -281,6 +281,7 @@ $prompt = "";
 
 	# Start with the given host and port
 	# The index names in %ld are defined in Mozilla::LDAP::Utils::ldapArgs()
+	&set_server_params();
 	&add_server ("$ld{host}:$ld{port}:$ld{bind}:$ld{pswd}:$ld{cert}");
 
 	$serveridx = 0;
@@ -323,6 +324,32 @@ sub validateArgs
 	}
 
 	return $rc;
+}
+
+sub set_server_params
+{
+    my ($host, $port, $binddn, $bindpwd, $bindcert);
+    
+    ($host, $port, $binddn, $bindpwd, $bindcert) = split (/:/, $allconnections[0]);
+    if($opt_p && $opt_p ne ""){
+        $ld{port} = $opt_p
+    } elsif(!$port || $port eq ""){
+        $ld{port} = "389";
+    } else {
+        $ld{port} = $port;
+    }
+    if($host && $host ne ""){
+        $ld{host} = $host;
+    }
+    if($binddn){
+        $ld{bind} = $binddn;
+    }
+    if($bindpwd){
+        $ld{pswd} = $bindpwd;
+    }
+    if($bindcert){
+        $ld{cert} = $bindcert;
+    }
 }
 
 sub read_cfg_file
