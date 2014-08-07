@@ -186,7 +186,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_ID:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug( LDAP_DEBUG_TRACE,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_ID \n", 0, 0, 0 );
 			return (-1);
 		}
