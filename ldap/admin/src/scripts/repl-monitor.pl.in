@@ -1008,7 +1008,10 @@ sub add_server
 	$hostnode = $1 if $host =~ /^(.+?)\./;
 
 	# new host:port
-	if (!$binddn || $binddn eq "" || !$bindpwd || $bindpwd eq "" || !$bindcert || $bindcert eq "") {
+	if (!$binddn   || $binddn eq ""   || $binddn eq "*"   ||
+	    !$bindpwd  || $bindpwd eq ""  || $bindpwd eq "*"  ||
+	    !$bindcert || $bindcert eq "" || $bindcert eq "*" )
+	{
 		#
 		# Look up connection parameter in the order of
 		#	host:port
@@ -1043,8 +1046,8 @@ sub add_server
 				$binddn = $d;
 			}
 		}
-		if($prompt eq "yes" && ($w eq "" || (!$bindpwd || $bindpwd eq ""))){
-            $bindpwd = passwdPrompt($h, $p);
+		if($prompt eq "yes" && ($w eq "" || (!$bindpwd || $bindpwd eq "" || $bindpwd eq "*"))){
+			$bindpwd = passwdPrompt($h, $p);
 		} elsif ($passwd ne ""){
             $bindpwd = $passwd;
 		} else {
