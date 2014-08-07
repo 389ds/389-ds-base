@@ -121,68 +121,90 @@ static char * configDN = "cn=encryption,cn=config";
 /* ----------------------- Multiple cipher support ------------------------ */
 
 
+/* flags */
+#define CIPHER_IS_DEFAULT       0x1
+#define CIPHER_MUST_BE_DISABLED 0x2
+#define CIPHER_IS_WEAK          0x4
+#define CIPHER_IS_DEPRECATED    0x8
 static char **cipher_names = NULL;
 typedef struct {
-	char *version;
     char *name;
     int num;
+    int flags; 
 } cipherstruct;
 
+static cipherstruct *_conf_ciphers = NULL;
+static void _conf_init_ciphers();
+/* 
+ * This lookup table is for supporting the old cipher name.
+ * Once swtiching to the NSS cipherSuiteName is done,
+ * this lookup_cipher table can be removed.
+ */
+typedef struct {
+    char *alias;
+    char *name;
+} lookup_cipher;
+static lookup_cipher _lookup_cipher[] = {
+    {"rc4",                                 "SSL_CK_RC4_128_WITH_MD5"},
+    {"rc4export",                           "SSL_CK_RC4_128_EXPORT40_WITH_MD5"},
+    {"rc2",                                 "SSL_CK_RC2_128_CBC_WITH_MD5"},
+    {"rc2export",                           "SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5"},
+    /*{"idea",                              "SSL_EN_IDEA_128_CBC_WITH_MD5"}, */
+    {"des",                                 "SSL_CK_DES_64_CBC_WITH_MD5"},
+    {"desede3",                             "SSL_CK_DES_192_EDE3_CBC_WITH_MD5"},
+    {"rsa_rc4_128_md5",                     "TLS_RSA_WITH_RC4_128_MD5"},
+    {"rsa_rc4_128_sha",                     "TLS_RSA_WITH_RC4_128_SHA"},
+    {"rsa_3des_sha",                        "TLS_RSA_WITH_3DES_EDE_CBC_SHA"},
+    {"tls_rsa_3des_sha",                    "TLS_RSA_WITH_3DES_EDE_CBC_SHA"},
+    {"rsa_fips_3des_sha",                   "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
+    {"fips_3des_sha",                       "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
+    {"rsa_des_sha",                         "TLS_RSA_WITH_DES_CBC_SHA"},
+    {"rsa_fips_des_sha",                    "SSL_RSA_FIPS_WITH_DES_CBC_SHA"},
+    {"fips_des_sha",                        "SSL_RSA_FIPS_WITH_DES_CBC_SHA"}, /* ditto */
+    {"rsa_rc4_40_md5",                      "TLS_RSA_EXPORT_WITH_RC4_40_MD5"},
+    {"tls_rsa_rc4_40_md5",                  "TLS_RSA_EXPORT_WITH_RC4_40_MD5"},
+    {"rsa_rc2_40_md5",                      "TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5"},
+    {"tls_rsa_rc2_40_md5",                  "TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5"},
+    {"rsa_null_md5",                        "TLS_RSA_WITH_NULL_MD5"}, /* disabled by default */
+    {"rsa_null_sha",                        "TLS_RSA_WITH_NULL_SHA"}, /* disabled by default */
+    {"tls_rsa_export1024_with_rc4_56_sha",  "TLS_RSA_EXPORT1024_WITH_RC4_56_SHA"},
+    {"rsa_rc4_56_sha",                      "TLS_RSA_EXPORT1024_WITH_RC4_56_SHA"}, /* ditto */
+    {"tls_rsa_export1024_with_des_cbc_sha", "TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA"},
+    {"rsa_des_56_sha",                      "TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA"}, /* ditto */
+    {"fortezza",                            ""}, /* deprecated */
+    {"fortezza_rc4_128_sha",                ""}, /* deprecated */
+    {"fortezza_null",                       ""}, /* deprecated */
 
-static cipherstruct _conf_ciphers[] = {
-    {"SSL3","rc4", SSL_EN_RC4_128_WITH_MD5},
-    {"SSL3","rc4export", SSL_EN_RC4_128_EXPORT40_WITH_MD5},
-    {"SSL3","rc2", SSL_EN_RC2_128_CBC_WITH_MD5},
-    {"SSL3","rc2export", SSL_EN_RC2_128_CBC_EXPORT40_WITH_MD5},
-    /*{"idea", SSL_EN_IDEA_128_CBC_WITH_MD5}, */
-    {"SSL3","des", SSL_EN_DES_64_CBC_WITH_MD5},
-    {"SSL3","desede3", SSL_EN_DES_192_EDE3_CBC_WITH_MD5},
-    {"SSL3","rsa_rc4_128_md5", SSL_RSA_WITH_RC4_128_MD5},
-    {"SSL3","rsa_rc4_128_sha", SSL_RSA_WITH_RC4_128_SHA},
-    {"SSL3","rsa_3des_sha", SSL_RSA_WITH_3DES_EDE_CBC_SHA},
-    {"SSL3","rsa_des_sha", SSL_RSA_WITH_DES_CBC_SHA},
-    {"SSL3","rsa_fips_3des_sha", SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA},
-    {"SSL3","fips_3des_sha", SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA}, /* ditto */
-    {"SSL3","rsa_fips_des_sha", SSL_RSA_FIPS_WITH_DES_CBC_SHA},
-    {"SSL3","fips_des_sha", SSL_RSA_FIPS_WITH_DES_CBC_SHA}, /* ditto */
-    {"SSL3","rsa_rc4_40_md5", SSL_RSA_EXPORT_WITH_RC4_40_MD5},
-    {"SSL3","rsa_rc2_40_md5", SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5},
-    {"SSL3","rsa_null_md5", SSL_RSA_WITH_NULL_MD5}, /* disabled by default */
-    {"SSL3","rsa_null_sha", SSL_RSA_WITH_NULL_SHA}, /* disabled by default */
-    {"TLS","tls_rsa_export1024_with_rc4_56_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA},
-    {"TLS","rsa_rc4_56_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA}, /* ditto */
-    {"TLS","tls_rsa_export1024_with_des_cbc_sha", TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA},
-    {"TLS","rsa_des_56_sha", TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA}, /* ditto */
-    {"SSL3","fortezza", SSL_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA}, /* deprecated */
-    {"SSL3","fortezza_rc4_128_sha", SSL_FORTEZZA_DMS_WITH_RC4_128_SHA}, /* deprecated */
-    {"SSL3","fortezza_null", SSL_FORTEZZA_DMS_WITH_NULL_SHA},  /* deprecated */
-	
-    /*{"SSL3","dhe_dss_40_sha", SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA}, */
-    {"SSL3","dhe_dss_des_sha", SSL_DHE_DSS_WITH_DES_CBC_SHA},
-    {"SSL3","dhe_dss_3des_sha", SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA},
-    /*{"SSL3","dhe_rsa_40_sha", SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA}, */
-    {"SSL3","dhe_rsa_des_sha", SSL_DHE_RSA_WITH_DES_CBC_SHA},
-    {"SSL3","dhe_rsa_3des_sha", SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA},
+    /*{"dhe_dss_40_sha", SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA, 0}, */
+    {"dhe_dss_des_sha",                     "TLS_DHE_DSS_WITH_DES_CBC_SHA"},
+    {"dhe_dss_3des_sha",                    "TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA"},
+    {"dhe_rsa_40_sha",                      "TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA"},
+    {"dhe_rsa_des_sha",                     "TLS_DHE_RSA_WITH_DES_CBC_SHA"},
+    {"dhe_rsa_3des_sha",                    "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA"},
 
-    {"TLS","tls_rsa_aes_128_sha", TLS_RSA_WITH_AES_128_CBC_SHA},
-    {"TLS","rsa_aes_128_sha", TLS_RSA_WITH_AES_128_CBC_SHA}, /* ditto */
-    {"TLS","tls_dhe_dss_aes_128_sha", TLS_DHE_DSS_WITH_AES_128_CBC_SHA},
-    {"TLS","tls_dhe_rsa_aes_128_sha", TLS_DHE_RSA_WITH_AES_128_CBC_SHA},
+    {"tls_rsa_aes_128_sha",                 "TLS_RSA_WITH_AES_128_CBC_SHA"},
+    {"rsa_aes_128_sha",                     "TLS_RSA_WITH_AES_128_CBC_SHA"}, /* ditto */
+    {"tls_dh_dss_aes_128_sha",              ""}, /* deprecated */
+    {"tls_dh_rsa_aes_128_sha",              ""}, /* deprecated */
+    {"tls_dhe_dss_aes_128_sha",             "TLS_DHE_DSS_WITH_AES_128_CBC_SHA"},
+    {"tls_dhe_rsa_aes_128_sha",             "TLS_DHE_RSA_WITH_AES_128_CBC_SHA"},
 
-    {"TLS","tls_rsa_aes_256_sha", TLS_RSA_WITH_AES_256_CBC_SHA},
-    {"TLS","rsa_aes_256_sha", TLS_RSA_WITH_AES_256_CBC_SHA}, /* ditto */
-    {"TLS","tls_dhe_dss_aes_256_sha", TLS_DHE_DSS_WITH_AES_256_CBC_SHA},
-    {"TLS","tls_dhe_rsa_aes_256_sha", TLS_DHE_RSA_WITH_AES_256_CBC_SHA},
-    /*{"TLS","tls_dhe_dss_1024_des_sha", TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA}, */
-    {"TLS","tls_dhe_dss_1024_rc4_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA},
-    {"TLS","tls_dhe_dss_rc4_128_sha", TLS_DHE_DSS_WITH_RC4_128_SHA},
+    {"tls_rsa_aes_256_sha",                 "TLS_RSA_WITH_AES_256_CBC_SHA"},
+    {"rsa_aes_256_sha",                     "TLS_RSA_WITH_AES_256_CBC_SHA"}, /* ditto */
+    {"tls_dss_aes_256_sha",                 ""}, /* deprecated */
+    {"tls_rsa_aes_256_sha",                 ""}, /* deprecated */
+    {"tls_dhe_dss_aes_256_sha",             "TLS_DHE_DSS_WITH_AES_256_CBC_SHA"},
+    {"tls_dhe_rsa_aes_256_sha",             "TLS_DHE_RSA_WITH_AES_256_CBC_SHA"},
+    /*{"tls_dhe_dss_1024_des_sha",          ""}, */
+    {"tls_dhe_dss_1024_rc4_sha",            "TLS_RSA_EXPORT1024_WITH_RC4_56_SHA"},
+    {"tls_dhe_dss_rc4_128_sha",             "TLS_DHE_DSS_WITH_RC4_128_SHA"},
 #if defined(NSS_TLS12)
     /* New in NSS 3.15 */
-    {"TLS","tls_rsa_aes_128_gcm_sha", TLS_RSA_WITH_AES_128_GCM_SHA256},
-    {"TLS","tls_dhe_rsa_aes_128_gcm_sha", TLS_DHE_RSA_WITH_AES_128_GCM_SHA256},
-    {"TLS","tls_dhe_dss_aes_128_gcm_sha", TLS_DHE_DSS_WITH_AES_128_GCM_SHA256},
+    {"tls_rsa_aes_128_gcm_sha",             "TLS_RSA_WITH_AES_128_GCM_SHA256"},
+    {"tls_dhe_rsa_aes_128_gcm_sha",         "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"},
+    {"tls_dhe_dss_aes_128_gcm_sha",         NULL}, /* not available */
 #endif
-    {NULL, NULL, 0}
+    {NULL, NULL}
 };
 
 static void
@@ -217,17 +239,24 @@ char ** getSupportedCiphers()
 {
 	SSLCipherSuiteInfo info;
 	char *sep = "::";
-	int number_of_ciphers = sizeof (_conf_ciphers) /sizeof(cipherstruct);
+	int number_of_ciphers = SSL_NumImplementedCiphers;
 	int i;
 	int idx = 0;
 	PRBool isFIPS = slapd_pk11_isFIPS();
-	if (cipher_names == NULL ) {
-		cipher_names = (char **) slapi_ch_calloc ((number_of_ciphers +1 ) , sizeof(char *));
+
+	_conf_init_ciphers();
+
+	if ((cipher_names == NULL) && (_conf_ciphers)) {
+		cipher_names = (char **)slapi_ch_calloc((number_of_ciphers + 1), sizeof(char *));
 		for (i = 0 ; _conf_ciphers[i].name != NULL; i++ ) {
 			SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[i].num,&info,sizeof(info));
 			/* only support FIPS approved ciphers in FIPS mode */
 			if (!isFIPS || info.isFIPS) {
-				cipher_names[idx++] = PR_smprintf("%s%s%s%s%s%s%s%s%d",_conf_ciphers[i].version,sep,_conf_ciphers[i].name,sep,info.symCipherName,sep,info.macAlgorithmName,sep,info.symKeyBits);
+				cipher_names[idx++] = PR_smprintf("%s%s%s%s%s%s%d",
+						_conf_ciphers[i].name,sep,
+						info.symCipherName,sep,
+						info.macAlgorithmName,sep,
+						info.symKeyBits);
 			}
 		}
 		cipher_names[idx] = NULL;
@@ -240,7 +269,7 @@ cipher_check_fips(int idx, char ***suplist, char ***unsuplist)
 {
     PRBool rc = PR_TRUE;
 
-    if (slapd_pk11_isFIPS()) {
+    if (_conf_ciphers && slapd_pk11_isFIPS()) {
         SSLCipherSuiteInfo info;
         if (SECFailure == SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[idx].num,
                                                  &info, sizeof info)) {
@@ -273,24 +302,94 @@ cipher_check_fips(int idx, char ***suplist, char ***unsuplist)
     return rc;
 }
 
-void
-_conf_setallciphers(int active, char ***suplist, char ***unsuplist)
+static void
+_conf_init_ciphers()
 {
     int x;
+    SECStatus rc;
+    SSLCipherSuiteInfo info;
+    const PRUint16 *implementedCiphers = SSL_GetImplementedCiphers();
 
-    /* MLM - change: Because null_md5 is NOT encrypted at all, force
-     *       them to activate it by name. */
-    for(x = 0; _conf_ciphers[x].name; x++)  {
-        PRBool enabled = active ? PR_TRUE : PR_FALSE;
-        if(active && (!strcmp(_conf_ciphers[x].name, "rsa_null_md5") ||
-                      !strcmp(_conf_ciphers[x].name, "rsa_null_sha")))
-        {
+    /* Initialize _conf_ciphers */
+    if (_conf_ciphers) {
+        return;
+    }
+    _conf_ciphers = (cipherstruct *)slapi_ch_calloc(SSL_NumImplementedCiphers + 1, sizeof(cipherstruct));
+
+    for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
+        rc = SSL_GetCipherSuiteInfo(implementedCiphers[x], &info, sizeof info);
+        if (SECFailure == rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                            "Warning: failed to get the cipher suite info of cipher ID %d\n",
+                            implementedCiphers[x]);
             continue;
         }
-        if (enabled) {
-            enabled = cipher_check_fips(x, suplist, unsuplist);
+        if (!_conf_ciphers[x].num) { /* initialize each cipher */
+            _conf_ciphers[x].name = slapi_ch_strdup(info.cipherSuiteName);
+            _conf_ciphers[x].num = implementedCiphers[x];
+            if (info.symCipher == ssl_calg_null) {
+                _conf_ciphers[x].flags |= CIPHER_MUST_BE_DISABLED;
+            } else {
+                _conf_ciphers[x].flags |= info.isExportable?CIPHER_IS_WEAK:
+                                          (info.symCipher < ssl_calg_3des)?CIPHER_IS_WEAK:
+                                          (info.effectiveKeyBits < 128)?CIPHER_IS_WEAK:0;
+            }
         }
-        SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
+    }
+    return;
+}
+
+#define CIPHER_SET_ALL     1
+#define CIPHER_SET_NONE    0
+#define CIPHER_SET_DEFAULT 2
+/*
+ * flag: 1 -- enable all
+ *       0 -- disable all
+ *       2 -- set default ciphers
+ */  
+static void
+_conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
+{
+    int x;
+    SECStatus rc;
+    PRBool setdefault = (flag == CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE;
+    PRBool enabled = (flag == CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE;
+    PRBool setme;
+    const PRUint16 *implementedCiphers = SSL_GetImplementedCiphers();
+    SSLCipherSuiteInfo info;
+
+    _conf_init_ciphers();
+
+    for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
+        if (!(_conf_ciphers[x].flags & CIPHER_IS_DEFAULT)) {
+            /* 
+             * SSL_CipherPrefGetDefault
+             * If the application has not previously set the default preference,
+             * SSL_CipherPrefGetDefault returns the factory setting.
+             */
+            rc = SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &setme);
+            if (SECFailure == rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                    "Warning: failed to get the default state of cipher %s\n",
+                    _conf_ciphers[x].name);
+                continue;
+            }
+            if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
+                setme = PR_FALSE;
+            }
+            _conf_ciphers[x].flags |= setme?CIPHER_IS_DEFAULT:0;
+        }
+        if (setdefault) {
+            /* Use the NSS default settings */
+        } else if (enabled && !(_conf_ciphers[x].flags & CIPHER_MUST_BE_DISABLED)) {
+            setme = PR_TRUE;
+        } else {
+            setme = PR_FALSE;
+        }
+        if (setme) {
+            setme = cipher_check_fips(x, suplist, unsuplist);
+        }
+        SSL_CipherPrefSetDefault(_conf_ciphers[x].num, setme);
     }
 }
 
@@ -309,40 +408,61 @@ charray2str(char **ary, const char *delim)
     return str;
 }
 
+void
+_conf_dumpciphers()
+{
+    int x;
+    PRBool enabled;
+    /* {"SSL3","rc4", SSL_EN_RC4_128_WITH_MD5}, */
+    slapd_SSL_warn("Configured NSS Ciphers");
+    for (x = 0; _conf_ciphers[x].name; x++) {
+        SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
+        if (enabled) {
+            slapd_SSL_warn("\t%s: enabled%s%s%s", _conf_ciphers[x].name,
+                           (_conf_ciphers[x].flags&CIPHER_IS_WEAK)?", (WEAK CIPHER)":"",
+                           (_conf_ciphers[x].flags&CIPHER_IS_DEPRECATED)?", (DEPRECATED)":"",
+                           (_conf_ciphers[x].flags&CIPHER_MUST_BE_DISABLED)?", (MUST BE DISABLED)":"");
+        } else if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
+            slapd_SSL_warn("\t%s: disabled%s%s%s", _conf_ciphers[x].name,
+                           (_conf_ciphers[x].flags&CIPHER_IS_WEAK)?", (WEAK CIPHER)":"",
+                           (_conf_ciphers[x].flags&CIPHER_IS_DEPRECATED)?", (DEPRECATED)":"",
+                           (_conf_ciphers[x].flags&CIPHER_MUST_BE_DISABLED)?", (MUST BE DISABLED)":"");
+        }
+    }
+}
+
 char *
 _conf_setciphers(char *ciphers)
 {
     char *t, err[MAGNUS_ERROR_LEN];
-    int x, active;
+    int x, i, active;
     char *raw = ciphers;
     char **suplist = NULL;
     char **unsuplist = NULL;
+    int lookup;
 
-    /* Default is to activate all of them */
-    if(!ciphers || ciphers[0] == '\0') {
-        _conf_setallciphers(1, &suplist, NULL);
-        if (suplist && *suplist) {
-            if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
-                char *str = charray2str(suplist, ",");
-                slapd_SSL_warn("Security Initialization: FIPS mode is enabled - only the following "
-                               "cipher suites are approved for FIPS: [%s] - "
-                               "all other cipher suites are disabled - if "
-                               "you want to use other cipher suites, you must use modutil to "
-                               "disable FIPS in the internal token.",
-                               str ? str : "(none)");
-                slapi_ch_free_string(&str);
-            }
-        }
-        slapi_ch_free((void **)&suplist); /* strings inside are static */
+    /* #47838: harden the list of ciphers available by default */
+    /* Default is to activate all of them ==> none of them*/
+    if (!ciphers || (ciphers[0] == '\0') || !PL_strcasecmp(ciphers, "default")) {
+        _conf_setallciphers(CIPHER_SET_DEFAULT, NULL, NULL);
+        slapd_SSL_warn("Security Initialization: Enabling default cipher set.");
+        _conf_dumpciphers();
         return NULL;
     }
-    /*
-     * Enable all the ciphers by default and the following while loop would
-     * disable the user disabled ones.  This is needed because we added a new
-     * set of ciphers in the table. Right now there is no support for this
-     * from the console
-     */
-    _conf_setallciphers(1, &suplist, NULL);
+
+    if (PL_strcasestr(ciphers, "+all")) {
+        /*
+         * Enable all the ciphers if "+all" and the following while loop would
+         * disable the user disabled ones.  This is needed because we added a new
+         * set of ciphers in the table. Right now there is no support for this
+         * from the console
+         */
+        _conf_setallciphers(CIPHER_SET_ALL, &suplist, NULL);
+    } else {
+        /* If "+all" is not in nsSSL3Ciphers value, disable all first,
+         * then enable specified ciphers. */
+        _conf_setallciphers(0 /* disabled */, NULL, NULL);
+    }
 
     t = ciphers;
     while(t) {
@@ -354,24 +474,45 @@ _conf_setciphers(char *ciphers)
           case '-':
             active = 0; break;
           default:
-			PR_snprintf(err, sizeof(err), "invalid ciphers <%s>: format is "
-					"+cipher1,-cipher2...", raw);
+            PR_snprintf(err, sizeof(err), "invalid ciphers <%s>: format is "
+                    "+cipher1,-cipher2...", raw);
             return slapi_ch_strdup(err);
         }
         if( (t = strchr(ciphers, ',')) )
             *t++ = '\0';
 
-        if(!strcasecmp(ciphers, "all"))
-            _conf_setallciphers(active, NULL, NULL);
-        else {
+        if(strcasecmp(ciphers, "all")) { /* if not all */
+            PRBool enabled = active ? PR_TRUE : PR_FALSE;
+            lookup = 1;
             for(x = 0; _conf_ciphers[x].name; x++) {
-                if(!strcasecmp(ciphers, _conf_ciphers[x].name)) {
-                  PRBool enabled = active ? PR_TRUE : PR_FALSE;
-                  if (enabled) {
-                      enabled = cipher_check_fips(x, NULL, &unsuplist);
-                  }
-                  SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
-                  break;
+                if(!PL_strcasecmp(ciphers, _conf_ciphers[x].name)) {
+                    if (enabled) {
+                        enabled = cipher_check_fips(x, NULL, &unsuplist);
+                    }
+                    SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
+                    lookup = 0;
+                    break;
+                }
+            }
+            if (lookup) { /* lookup with old cipher name and get NSS cipherSuiteName */
+                for (i = 0; _lookup_cipher[i].alias; i++) {
+                    if (!PL_strcasecmp(ciphers, _lookup_cipher[i].alias)) {
+                        if (!_lookup_cipher[i].name[0]) {
+                            slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d",
+                                           ciphers, NSS_VMAJOR, NSS_VMINOR);
+                            break;
+                        }
+                        for (x = 0; _conf_ciphers[x].name; x++) {
+                            if (!PL_strcasecmp(_lookup_cipher[i].name, _conf_ciphers[x].name)) {
+                                if (enabled) {
+                                    enabled = cipher_check_fips(x, NULL, &unsuplist);
+                                }
+                                SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
+                                break;
+                            }
+                        }
+                        break;
+                    }
                 }
             }
             if(!_conf_ciphers[x].name) {
@@ -399,6 +540,8 @@ _conf_setciphers(char *ciphers)
 
     slapi_ch_free((void **)&suplist); /* strings inside are static */
     slapi_ch_free((void **)&unsuplist); /* strings inside are static */
+
+    _conf_dumpciphers();
         
     return NULL;
 }
@@ -855,7 +998,8 @@ svrcore_setup()
  * on a secure port.
  */
 int
-slapd_ssl_init() {
+slapd_ssl_init()
+{
     PRErrorCode errorCode;
     char ** family_list;
     char *val = NULL;
@@ -919,7 +1063,7 @@ slapd_ssl_init() {
 		}
 
 		activation = slapi_entry_attr_get_charptr( entry, "nssslactivation" );
-		if((!activation) || (!strcasecmp(activation, "off"))) {
+		if((!activation) || (!PL_strcasecmp(activation, "off"))) {
 			/* this family was turned off, goto next */
 			slapi_ch_free((void **) &activation);
 			continue;
@@ -929,8 +1073,8 @@ slapd_ssl_init() {
 
 		token = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
                 if( token ) {
-                        if( !strcasecmp(token, "internal") ||
-                            !strcasecmp(token, "internal (software)"))
+                        if( !PL_strcasecmp(token, "internal") ||
+                            !PL_strcasecmp(token, "internal (software)"))
     				slot = slapd_pk11_getInternalKeySlot();
      			else
     				slot = slapd_pk11_findSlotByName(token);
@@ -977,7 +1121,7 @@ slapd_ssl_init() {
 
     /* Step Three.5: Set SSL cipher preferences */
     *cipher_string = 0;
-    if(ciphers && (*ciphers) && strcmp(ciphers, "blank"))
+    if(ciphers && (*ciphers) && PL_strcmp(ciphers, "blank"))
          PL_strncpyz(cipher_string, ciphers, sizeof(cipher_string));
     slapi_ch_free((void **) &ciphers);
 
@@ -991,19 +1135,16 @@ slapd_ssl_init() {
     }
 
     freeConfigEntry( &entry );
-
-
+ 
     /* Introduce a way of knowing whether slapd_ssl_init has
      * already been executed. */
     _security_library_initialized = 1; 
 
-
-    if ( rv != 0 )
-	  return rv;
-
+    if ( rv != 0 ) {
+        return rv;
+    }
 
     return 0;
-
 }
 
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
@@ -1307,7 +1448,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             }
 
             activation = slapi_entry_attr_get_charptr( e, "nssslactivation" );
-            if((!activation) || (!strcasecmp(activation, "off"))) {
+            if((!activation) || (!PL_strcasecmp(activation, "off"))) {
                 /* this family was turned off, goto next */
                 slapi_ch_free((void **) &activation);
                 freeConfigEntry( &e );
@@ -1319,8 +1460,8 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             token = slapi_entry_attr_get_charptr( e, "nsssltoken" );
             personality = slapi_entry_attr_get_charptr( e, "nssslpersonalityssl" );
             if( token && personality ) {
-                if( !strcasecmp(token, "internal") ||
-                    !strcasecmp(token, "internal (software)") )
+                if( !PL_strcasecmp(token, "internal") ||
+                    !PL_strcasecmp(token, "internal (software)") )
                     PL_strncpyz(cert_name, personality, sizeof(cert_name));
                 else
                     /* external PKCS #11 token - attach token name */
@@ -1538,9 +1679,9 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     if ( e != NULL ) {
         val = slapi_entry_attr_get_charptr( e, "nsSSL3" );
         if ( val ) {
-            if ( !strcasecmp( val, "off" ) ) {
+            if ( !PL_strcasecmp( val, "off" ) ) {
                 enableSSL3 = PR_FALSE;
-            } else if ( !strcasecmp( val, "on" ) ) {
+            } else if ( !PL_strcasecmp( val, "on" ) ) {
                 enableSSL3 = PR_TRUE;
             } else {
                 enableSSL3 = slapi_entry_attr_get_bool( e, "nsSSL3" );
@@ -1557,9 +1698,9 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         slapi_ch_free_string( &val );
         val = slapi_entry_attr_get_charptr( e, "nsTLS1" );
         if ( val ) {
-            if ( !strcasecmp( val, "off" ) ) {
+            if ( !PL_strcasecmp( val, "off" ) ) {
                 enableTLS1 = PR_FALSE;
-            } else if ( !strcasecmp( val, "on" ) ) {
+            } else if ( !PL_strcasecmp( val, "on" ) ) {
                 enableTLS1 = PR_TRUE;
             } else {
                 enableTLS1 = slapi_entry_attr_get_bool( e, "nsTLS1" );
@@ -1718,7 +1859,7 @@ slapd_SSL_client_auth (LDAP* ld)
             }
 
             activation = slapi_entry_attr_get_charptr( entry, "nssslactivation" );
-            if((!activation) || (!strcasecmp(activation, "off"))) {
+            if((!activation) || (!PL_strcasecmp(activation, "off"))) {
                     /* this family was turned off, goto next */
 					slapi_ch_free((void **) &activation);
 					freeConfigEntry( &entry );
@@ -1729,7 +1870,7 @@ slapd_SSL_client_auth (LDAP* ld)
 
             personality = slapi_entry_attr_get_charptr( entry, "nssslpersonalityssl" );
             cipher = slapi_entry_attr_get_charptr( entry, "cn" );
-	    if ( cipher && !strcasecmp(cipher, "RSA" )) {
+	    if ( cipher && !PL_strcasecmp(cipher, "RSA" )) {
 			char *ssltoken;
 
 			/* If there already is a token name, use it */
@@ -1742,8 +1883,8 @@ slapd_SSL_client_auth (LDAP* ld)
 
 			ssltoken = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
  			if( ssltoken && personality ) {
-			  if( !strcasecmp(ssltoken, "internal") ||
-			      !strcasecmp(ssltoken, "internal (software)") ) {
+			  if( !PL_strcasecmp(ssltoken, "internal") ||
+			      !PL_strcasecmp(ssltoken, "internal (software)") ) {
 
 						/* Translate config internal name to more
 			 			 * readable form.  Certificate name is just
