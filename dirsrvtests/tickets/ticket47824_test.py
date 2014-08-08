@@ -195,10 +195,16 @@ def test_ticket47824_run(topology):
     os.system('rm -f %s' % SUBLDIF0TMP)
     os.system('rm -f %s' % SUBLDIF1TMP)
     os.system('rm -f %s' % SUBLDIF2TMP)
-    os.system('dbgen.pl -s %s -o %s -n 10' % (MYSUFFIX, MYLDIF))
-    os.system('dbgen.pl -s %s -o %s -n 10' % (SUBSUFFIX0, SUBLDIF0TMP))
-    os.system('dbgen.pl -s %s -o %s -n 10' % (SUBSUFFIX1, SUBLDIF1TMP))
-    os.system('dbgen.pl -s %s -o %s -n 10' % (SUBSUFFIX2, SUBLDIF2TMP))
+    if hasattr(topology.standalone, 'prefix'):
+        prefix = topology.standalone.prefix
+    else:
+        prefix = None
+    dbgen_prog = prefix + '/bin/dbgen.pl'
+    topology.standalone.log.info('dbgen: %s' % dbgen_prog)
+    os.system('%s -s %s -o %s -n 10' % (dbgen_prog, MYSUFFIX, MYLDIF))
+    os.system('%s -s %s -o %s -n 10' % (dbgen_prog, SUBSUFFIX0, SUBLDIF0TMP))
+    os.system('%s -s %s -o %s -n 10' % (dbgen_prog, SUBSUFFIX1, SUBLDIF1TMP))
+    os.system('%s -s %s -o %s -n 10' % (dbgen_prog, SUBSUFFIX2, SUBLDIF2TMP))
 
     os.system('cat %s | sed -e "s/\<objectClass: organization\>/objectClass: organizationalUnit/" | sed -e "/^o:.*/d" > %s' % (SUBLDIF0TMP, SUBLDIF0))
     os.system('cat %s | sed -e "s/\<objectClass: organization\>/objectClass: organizationalUnit/" | sed -e "/^o:.*/d" > %s' % (SUBLDIF1TMP, SUBLDIF1))
