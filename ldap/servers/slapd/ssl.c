@@ -356,7 +356,6 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
     PRBool enabled = (flag == CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE;
     PRBool setme;
     const PRUint16 *implementedCiphers = SSL_GetImplementedCiphers();
-    SSLCipherSuiteInfo info;
 
     _conf_init_ciphers();
 
