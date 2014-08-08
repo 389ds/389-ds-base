@@ -156,8 +156,13 @@ def test_ticket47664_run(topology):
     MYLDIF = '%s%s' % (mytmp, _MYLDIF)
     os.system('ls %s' % MYLDIF)
     os.system('rm -f %s' % MYLDIF)
-    os.system('dbgen.pl -s %s -o %s -n 14' % (MYSUFFIX, MYLDIF))
-
+    if hasattr(topology.standalone, 'prefix'):
+        prefix = topology.standalone.prefix
+    else:
+        prefix = None
+    dbgen_prog = prefix + '/bin/dbgen.pl'
+    topology.standalone.log.info('dbgen_prog: %s' % dbgen_prog)
+    os.system('%s -s %s -o %s -n 14' % (dbgen_prog, MYSUFFIX, MYLDIF))
     cmdline = 'egrep dn: %s | wc -l' % MYLDIF
     p = os.popen(cmdline, "r")
     dnnumstr = p.readline()
