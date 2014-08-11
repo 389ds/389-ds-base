@@ -354,13 +354,15 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
     SECStatus rc;
     PRBool setdefault = (flag == CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE;
     PRBool enabled = (flag == CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE;
-    PRBool setme;
+    PRBool setme = PR_FALSE;
     const PRUint16 *implementedCiphers = SSL_GetImplementedCiphers();
 
     _conf_init_ciphers();
 
     for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
-        if (!(_conf_ciphers[x].flags & CIPHER_IS_DEFAULT)) {
+        if (_conf_ciphers[x].flags & CIPHER_IS_DEFAULT) {
+            setme = PR_TRUE;
+        } else {
             /* 
              * SSL_CipherPrefGetDefault
              * If the application has not previously set the default preference,
