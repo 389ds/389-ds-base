@@ -2,7 +2,7 @@
 #
 # @package_name@    This starts and stops @package_name@
 #
-# chkconfig:   - 21 79
+# chkconfig:   - 59 73
 # description: @capbrand@ Directory Server
 # processname: @sbindir@/ns-slapd
 # configdir:   @sysconfdir@/@package_name@/
