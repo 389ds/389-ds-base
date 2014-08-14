@@ -1263,22 +1263,55 @@ grok_filter_list(struct slapi_filter    *flist)
 #endif
 
 /* Helper function for can_skip_filter_test() */
+static int grok_filter_not_subtype(struct slapi_filter *f)
+{
+    /* If we haven't determined that we can't skip the filter test already,
+     * do one last check for attribute subtypes.  We don't need to worry 
+     * about any complex filters here since grok_filter() will have already
+     * assumed that we can't skip the filter test in those cases. */
+     
+    int rc = 1;   
+    char *type = NULL;
+    char *basetype = NULL;
+
+    /* We don't need to free type since that's taken
+     * care of when the filter is free'd later.  We
+     * do need to free basetype when we are done. */
+    slapi_filter_get_attribute_type(f, &type);
+    basetype = slapi_attr_basetype(type, NULL, 0);
+
+    /* Is the filter using an attribute subtype? */
+    if (strcasecmp(type, basetype) != 0) {
+        /* If so, we can't optimize since attribute subtypes
+         * are simply indexed under their basetype attribute.
+         * The basetype index has no knowledge of the subtype
+         * itself.  In the future, we should add support for
+         * indexing the subtypes so we can optimize this type
+         * of search. */
+            rc = 0;
+        }
+    slapi_ch_free_string(&basetype);
+    return rc;
+}
+
 static int grok_filter(struct slapi_filter    *f)
 {
     switch ( f->f_choice ) {
     case LDAP_FILTER_EQUALITY:
-        return 1; /* If there's an ID list and an equality filter, we can skip the filter test */
+        /* If there's an ID list and an equality filter, we can skip the filter test */
+        return grok_filter_not_subtype(f);
     case LDAP_FILTER_SUBSTRINGS:
         return 0;
 
     case LDAP_FILTER_GE:
-        return 1;
+        return grok_filter_not_subtype(f);
 
     case LDAP_FILTER_LE:
-        return 1;
+        return grok_filter_not_subtype(f);
 
     case LDAP_FILTER_PRESENT:
-        return 1; /* If there's an ID list, and a presence filter, we can skip the filter test */
+        /* If there's an ID list, and a presence filter, we can skip the filter test */
+        return grok_filter_not_subtype(f);
 
     case LDAP_FILTER_APPROX:
         return 0;
@@ -1287,10 +1320,18 @@ static int grok_filter(struct slapi_filter    *f)
         return 0;
 
     case LDAP_FILTER_AND:
-        return 0; /* Unless we check to see whether the presence and equality branches 
-                    of the search filter were all indexed, we get things wrong here,
-                    so let's punt for now */
-        /* return grok_filter_list(f->f_and);  AND clauses are potentially OK  */
+        /* Unless we check to see whether the presence and equality branches 
+         * of the search filter were all indexed, we get things wrong here,
+         * so let's punt for now 
+         */
+	if (f->f_and->f_next == NULL) {
+		/* there is only one AND component,
+		 * if it is a simple filter, we can skip it
+		 */
+		return grok_filter(f->f_and);
+	} else {
+		return 0;
+	}
 
     case LDAP_FILTER_OR:
         return 0;
@@ -1333,32 +1374,6 @@ can_skip_filter_test(
     /* Grok the filter and tell me if it has only equality components in it */
     rc = grok_filter(f);
 
-    /* If we haven't determined that we can't skip the filter test already,
-     * do one last check for attribute subtypes.  We don't need to worry 
-     * about any complex filters here since grok_filter() will have already
-     * assumed that we can't skip the filter test in those cases. */
-    if (rc != 0) {
-        char *type = NULL;
-        char *basetype = NULL;
-
-        /* We don't need to free type since that's taken
-         * care of when the filter is free'd later.  We
-         * do need to free basetype when we are done. */
-        slapi_filter_get_attribute_type(f, &type);
-        basetype = slapi_attr_basetype(type, NULL, 0);
-
-        /* Is the filter using an attribute subtype? */
-        if (strcasecmp(type, basetype) != 0) {
-            /* If so, we can't optimize since attribute subtypes
-             * are simply indexed under their basetype attribute.
-             * The basetype index has no knowledge of the subtype
-             * itself.  In the future, we should add support for
-             * indexing the subtypes so we can optimize this type
-             * of search. */
-            rc = 0;
-        }
-        slapi_ch_free_string(&basetype);
-    }
 
     return rc;
 }
