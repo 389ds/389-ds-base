@@ -713,7 +713,7 @@ Slapi_Value *
 slapi_valueset_find(const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v)
 {
 	Slapi_Value *r= NULL;
-	if(vs->num > 0) {
+	if(vs && (vs->num > 0)) {
 		if (vs->sorted) {
 			r = valueset_find_sorted(a,vs,v,NULL);
 		} else {
