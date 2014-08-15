@@ -6055,6 +6055,7 @@ const char * slapi_be_gettype(Slapi_Backend *be);
 
 int slapi_be_is_flag_set(Slapi_Backend * be, int flag);
 void slapi_be_set_flag(Slapi_Backend * be, int flag);
+void slapi_be_unset_flag(Slapi_Backend * be, int flag);
 #define SLAPI_BE_FLAG_REMOTE_DATA   0x1  /* entries held by backend are remote */
 #define SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST   0x10  /* force to call filter_test (search only) */
 

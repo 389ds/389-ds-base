@@ -559,13 +559,18 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
 }
 
 int slapi_be_is_flag_set(Slapi_Backend * be, int flag)
-{ 
+{
     return be->be_flags & flag;
 }
 
 void slapi_be_set_flag(Slapi_Backend * be, int flag)
-{ 
-    be->be_flags|= flag;
+{
+    be->be_flags |= flag;
+}
+
+void slapi_be_unset_flag(Slapi_Backend * be, int flag)
+{
+    be->be_flags &= ~flag;
 }
 
 char * slapi_be_get_name(Slapi_Backend * be)
