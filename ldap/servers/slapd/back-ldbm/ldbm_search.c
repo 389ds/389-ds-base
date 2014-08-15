@@ -183,6 +183,11 @@ ldbm_back_search_cleanup(Slapi_PBlock *pb,
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     inst = (ldbm_instance *) be->be_instance_info;
+    /* 
+     * In case SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST is set, 
+     * clean it up for the following sessions.
+     */
+    slapi_be_unset_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
     CACHE_RETURN(&inst->inst_cache, &e); /* NULL e is handled correctly */
     if (inst->inst_ref_count) {
         slapi_counter_decrement(inst->inst_ref_count);
