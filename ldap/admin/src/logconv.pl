@@ -1693,10 +1693,11 @@ sub parseLineNormal
 		$srchCount++;
 		if($reportStats){ inc_stats('srch',$s_stats,$m_stats); }
 		if ($_ =~ / attrs=\"(.*)\"/i){
+			my $attrlist = $1;
 			$anyAttrs++;
 			if ($usage =~ /r/i || $verb eq "yes"){
 				my $attr = $hashes->{attr};
-				map { $attr->{$_}++ } split /\s/, $1;
+				map { $attr->{$_}++ } split /\s/, $attrlist;
 			}
 		}
 		if (/ attrs=ALL/){
@@ -2131,8 +2132,9 @@ sub parseLineNormal
 		}
 	}
 	if ($_ =~ /err= *([0-9]+)/i){
-		if ($usage =~ /e/i || $verb eq "yes"){ $errorCode[$1]++; }
-		if ($1 ne "0"){ $errorCount++;}
+		my $errcode = $1;
+		if ($usage =~ /e/i || $verb eq "yes"){ $errorCode[$errcode]++; }
+		if ($errcode ne "0"){ $errorCount++;}
 		else { $successCount++;}
 	}
 	if ($_ =~ /etime= *([0-9.]+)/ ) { 
@@ -2142,8 +2144,9 @@ sub parseLineNormal
 	}
 	if ($_ =~ / tag=101 / || $_ =~ / tag=111 / || $_ =~ / tag=100 / || $_ =~ / tag=115 /){
 		if ($_ =~ / nentries= *([0-9]+)/i ){ 
+			my $nents = $1;
 			if ($usage =~ /n/i || $verb eq "yes"){ 
-				$hashes->{nentries}->{$1}++; 
+				$hashes->{nentries}->{$nents}++; 
 			}
 		}
 	}
@@ -2152,10 +2155,12 @@ sub parseLineNormal
 	}
 	if (m/ EXT oid=/){
 		$extopCount++;
+		my $oid;
 		if ($_ =~ /oid=\" *([0-9\.]+)/i ){ 
-			if ($usage =~ /x/i || $verb eq "yes"){$hashes->{oid}->{$1}++; }
+			$oid = $1;
+			if ($usage =~ /x/i || $verb eq "yes"){$hashes->{oid}->{$oid}++; }
 		}
-		if ($1 && $1 eq $startTLSoid){$startTLSCount++;}
+		if ($oid && $oid eq $startTLSoid){$startTLSCount++;}
 		if ($verb eq "yes"){
 			if ($_ =~ /conn= *([0-9A-Z]+) +op= *([0-9\-]+)/i){ $hashes->{ext_conn_op}->{"$serverRestartCount,$1,$2"}++;}
 		}
