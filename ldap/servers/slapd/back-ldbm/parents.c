@@ -126,11 +126,11 @@ parent_update_on_childchange(modify_context *mc,int op, size_t *new_sub_count )
 			mod_op = LDAP_MOD_ADD;
 		} else  if (PARENTUPDATE_DEL == op) {
 			if (!already_present) {
-				/* This means that something is wrong---deleting a child but no subcount present on parent */
+				/* This means that there was a conflict.  Before coming to this point,
+				 * the entry to be deleted was deleted... */
 				LDAPDebug(LDAP_DEBUG_ANY, "Parent %s has no children. (op 0x%x, repl_op 0x%x)\n",
 				          slapi_entry_get_dn(mc->old_entry->ep_entry), op, repl_op);
 				slapi_mods_free(&smods);
-				PR_ASSERT(0);
 				return -1;
 			} else {
 				if (current_sub_count == 1) {
