@@ -5784,7 +5784,7 @@ static int _cl5DBOpenFileByReplicaName (const char *replName, const char *replGe
 	if (checkDups)
 	{
 		PR_Lock (s_cl5Desc.fileLock);
-        file_name = _cl5MakeFileName (replName, replGen);
+		file_name = _cl5MakeFileName (replName, replGen);
 		tmpObj = objset_find (s_cl5Desc.dbFiles, _cl5CompareDBFile, file_name);
 		slapi_ch_free((void **)&file_name);
 		if (tmpObj)	/* this file already exist */
@@ -5859,10 +5859,10 @@ done:;
 
 	if (checkDups)
 	{
-		PR_Unlock (s_cl5Desc.fileLock);		
-	}	
+		PR_Unlock (s_cl5Desc.fileLock);
+	}
 
-	return rc;		
+	return rc;
 }
 
 /* adds file to the db file list */
@@ -6026,7 +6026,14 @@ out:
 		 * and re-create it.
 		 */ 
 		if (PR_GetError() == PR_FILE_EXISTS_ERROR) {
+			PRErrorCode prerr;
 			PR_DeleteSemaphore((*dbFile)->semaName);
+			prerr = PR_GetError();
+			if (PR_SUCCESS != prerr) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				                "_cl5NewDBFile: PR_DeleteSemaphore: %s; NSPR error - %d\n",
+				                (*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", prerr);
+			}
 			(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName,
 					PR_SEM_CREATE | PR_SEM_EXCL, 0666,
 					s_cl5Desc.dbConfig.maxConcurrentWrites );
@@ -6036,9 +6043,19 @@ out:
 		 * we should just error out. */
 		if ((*dbFile)->sema == NULL )
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-				"_cl5NewDBFile: failed to create semaphore %s; NSPR error - %d\n",
-				(*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", PR_GetError());
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_EXISTS_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				                "_cl5NewDBFile: PR_OpenSemaphore: %s; sema: 0x%p, NSPR error - %d\n",
+				                (*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", (*dbFile)->sema, prerr);
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				                "             : Leftover semaphores may exist.  "
+				                "Run \"ipcs -s\", and remove them with \"ipcrm -s <SEMID>\" if any\n");
+			} else {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				                "_cl5NewDBFile: failed to create semaphore %s; NSPR error - %d\n",
+				                (*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", prerr);
+			}
 			rc = CL5_SYSTEM_ERROR;
 			goto done;
 		}

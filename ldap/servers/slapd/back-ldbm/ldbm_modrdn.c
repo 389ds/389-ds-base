@@ -50,7 +50,7 @@ static void moddn_unlock_and_return_entry(backend *be,struct backentry **targete
 static int moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Slapi_Mods *smods_wsi, int is_repl_op);
 static IDList *moddn_get_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, struct backentry *parententry, Slapi_DN *parentdn, struct backentry ***child_entries, struct backdn ***child_dns, int is_resurect_operation);
 static int moddn_rename_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, IDList *children, Slapi_DN *dn_parentdn, Slapi_DN *dn_newsuperiordn, struct backentry *child_entries[]);
-static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, int *e_in_cache, int *ec_in_cache);
+static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3);
 static void mods_remove_nsuniqueid(Slapi_Mods *smods);
 
 #define MOD_SET_ERROR(rc, error, count)                                        \
@@ -67,8 +67,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     struct ldbminfo  *li;
     struct backentry *e= NULL;
     struct backentry *ec= NULL;
-    int ec_in_cache= 0;
-    int e_in_cache= 0;
     back_txn txn;
     back_txnid parent_txn;
     int retval = -1;
@@ -83,8 +81,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     struct backentry *parententry= NULL;
     struct backentry *newparententry= NULL;
     struct backentry *original_entry = NULL;
-    struct backentry *original_parent = NULL;
-    struct backentry *original_newparent = NULL;
+    struct backentry *tmpentry = NULL;
     modify_context parent_modify_context = {0};
     modify_context newparent_modify_context = {0};
     modify_context ruv_c = {0};
@@ -270,29 +267,22 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             slapi_sdn_free(&dn_newsuperiordn);
             slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, orig_dn_newsuperiordn);
             orig_dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
-#ifdef CACHE_DEBUG
-            check_entry_cache(&inst->inst_cache, ec, ec_in_cache);
-#endif
-            if (ec_in_cache) {
-                /* New entry 'ec' is in the entry cache.
-                 * Remove it from the cache . */
-                CACHE_REMOVE(&inst->inst_cache, ec);
-                CACHE_RETURN(&inst->inst_cache, &ec);
-#ifdef DEBUG_CACHE
-                PR_ASSERT(ec == NULL);
-#endif
-                ec_in_cache = 0;
-            } else {
-                backentry_free(&ec);
+            /* must duplicate ec before returning it to cache,
+             * which could free the entry. */
+            if ( (tmpentry = backentry_dup( ec )) == NULL ) {
+                ldap_result_code= LDAP_OPERATIONS_ERROR;
+                goto error_return;
             }
-            /* make sure the original entry is back in the cache if it was removed */
-            if (!e_in_cache) {
-                if (CACHE_ADD(&inst->inst_cache, e, NULL)) {
+            if (cache_is_in_cache(&inst->inst_cache, ec)) {
+                CACHE_REMOVE(&inst->inst_cache, ec);
+            }
+            CACHE_RETURN(&inst->inst_cache, &ec);
+            if (!cache_is_in_cache(&inst->inst_cache, e)) {
+                if (CACHE_ADD(&inst->inst_cache, e, NULL) < 0) {
                     LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
                                   "ldbm_back_modrdn: CACHE_ADD %s to cache failed\n",
                                   slapi_entry_get_dn_const(e->ep_entry));
                 }
-                e_in_cache = 1;
             }
             slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &ent );
             if (ent && (ent != original_entry->ep_entry)) {
@@ -300,16 +290,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, NULL );
             }
             ec = original_entry;
-            if ( (original_entry = backentry_dup( ec )) == NULL ) {
-                ldap_result_code= LDAP_OPERATIONS_ERROR;
-                goto error_return;
-            }
+            original_entry = tmpentry;
+            tmpentry = NULL;
             slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, original_entry->ep_entry );
             free_modrdn_existing_entry = 0; /* owned by original_entry now */
-            if (!ec_in_cache) {
+            if (!cache_is_in_cache(&inst->inst_cache, ec)) {
                 /* Put the resetted entry 'ec' into the cache again. */
-                if (cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0) {
-                    ec_in_cache = 0; /* not in cache */
+                if (cache_add_tentative( &inst->inst_cache, ec, NULL ) < 0) {
                     /* allow modrdn even if the src dn and dest dn are identical */
                     if ( 0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
                                                 (const Slapi_DN *)sdn) ) {
@@ -321,8 +308,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     }
                     /* so if the old dn is the same as the new dn, the entry will not be cached
                        until it is replaced with cache_replace */
-                } else {
-                    ec_in_cache = 1;
                 }
             }
 
@@ -509,7 +494,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 ldap_result_code= -1;
                 goto error_return; /* error result sent by find_entry2modify() */
             }
-            e_in_cache = 1; /* e is in the cache and locked */
             if (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
                 !is_resurect_operation) {
                 ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
@@ -747,8 +731,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
 
             /* create it in the cache - prevents others from creating it */
-            if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) != 0 ) ) {
-                ec_in_cache = 0; /* not in cache */
+            if (( cache_add_tentative( &inst->inst_cache, ec, NULL ) < 0 ) ) {
                 /* allow modrdn even if the src dn and dest dn are identical */
                 if ( 0 != slapi_sdn_compare((const Slapi_DN *)&dn_newdn,
                                             (const Slapi_DN *)sdn) ) {
@@ -764,46 +747,41 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
                 /* so if the old dn is the same as the new dn, the entry will not be cached
                    until it is replaced with cache_replace */
-            } else {
-                ec_in_cache = 1;
             }
-        
             /* Build the list of modifications required to the existing entry */
+            slapi_mods_init(&smods_generated,4);
+            slapi_mods_init(&smods_generated_wsi,4);
+            ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(sdn),
+                                ec, &smods_generated_wsi, is_replicated_operation);
+            if (ldap_result_code != LDAP_SUCCESS) {
+                if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
+                    ldap_result_message = "Modification of old rdn attribute type not allowed.";
+                goto error_return;
+            }
+            if (!entryrdn_get_switch()) /* subtree-rename: off */
             {
-                slapi_mods_init(&smods_generated,4);
-                slapi_mods_init(&smods_generated_wsi,4);
-                ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(sdn),
-                                    ec, &smods_generated_wsi, is_replicated_operation);
-                if (ldap_result_code != LDAP_SUCCESS) {
-                    if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
-                        ldap_result_message = "Modification of old rdn attribute type not allowed.";
-                    goto error_return;
-                }
-                if (!entryrdn_get_switch()) /* subtree-rename: off */
-                {
-                    /*
-                    * Remove the old entrydn index entry, and add the new one.
-                    */
-                    slapi_mods_add( &smods_generated, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR,
-                                strlen(backentry_get_ndn(e)), backentry_get_ndn(e));
-                    slapi_mods_add( &smods_generated, LDAP_MOD_REPLACE, LDBM_ENTRYDN_STR,
-                                strlen(backentry_get_ndn(ec)), backentry_get_ndn(ec));
-                }
-        
                 /*
-                 * Update parentid if we have a new superior.
-                 */
-                if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL) {
-                    char buf[40]; /* Enough for an ID */
-                    
-                    if (parententry != NULL) {
-                        sprintf( buf, "%lu", (u_long)parententry->ep_id );
-                        slapi_mods_add_string(&smods_generated, LDAP_MOD_DELETE, LDBM_PARENTID_STR, buf);
-                    }
-                    if (newparententry != NULL) {
-                        sprintf( buf, "%lu", (u_long)newparententry->ep_id );
-                        slapi_mods_add_string(&smods_generated, LDAP_MOD_REPLACE, LDBM_PARENTID_STR, buf);
-                    }
+                * Remove the old entrydn index entry, and add the new one.
+                */
+                slapi_mods_add( &smods_generated, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR,
+                            strlen(backentry_get_ndn(e)), backentry_get_ndn(e));
+                slapi_mods_add( &smods_generated, LDAP_MOD_REPLACE, LDBM_ENTRYDN_STR,
+                            strlen(backentry_get_ndn(ec)), backentry_get_ndn(ec));
+            }
+    
+            /*
+             * Update parentid if we have a new superior.
+             */
+            if(slapi_sdn_get_dn(dn_newsuperiordn)!=NULL) {
+                char buf[40]; /* Enough for an ID */
+                
+                if (parententry != NULL) {
+                    sprintf( buf, "%lu", (u_long)parententry->ep_id );
+                    slapi_mods_add_string(&smods_generated, LDAP_MOD_DELETE, LDBM_PARENTID_STR, buf);
+                }
+                if (newparententry != NULL) {
+                    sprintf( buf, "%lu", (u_long)newparententry->ep_id );
+                    slapi_mods_add_string(&smods_generated, LDAP_MOD_REPLACE, LDBM_PARENTID_STR, buf);
                 }
             }
         
@@ -1029,7 +1007,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         /*
          * Update the indexes for the entry.
          */
-        retval = modrdn_rename_entry_update_indexes(&txn, pb, li, e, &ec, &smods_generated, &smods_generated_wsi, &smods_operation_wsi, &e_in_cache, &ec_in_cache);
+        retval = modrdn_rename_entry_update_indexes(&txn, pb, li, e, &ec, &smods_generated, &smods_generated_wsi, &smods_operation_wsi);
         if (DB_LOCK_DEADLOCK == retval)
         {
             /* Retry txn */
@@ -1472,19 +1450,13 @@ common_return:
         }
         /* remove the new entry from the cache if the op failed -
            otherwise, leave it in */
-#ifdef CACHE_DEBUG
-		check_entry_cache(&inst->inst_cache, ec, ec_in_cache);
-#endif
-        if (ec_in_cache && ec && inst) {
-            if (retval) {
+        if (ec && inst) {
+            if (retval && cache_is_in_cache(&inst->inst_cache, ec)) {
                 CACHE_REMOVE( &inst->inst_cache, ec );
             }
             CACHE_RETURN( &inst->inst_cache, &ec );
-        } else {
-            backentry_free( &ec );
         }
         ec = NULL;
-        ec_in_cache = 0;
     }
 
     if (inst) {
@@ -1546,8 +1518,7 @@ common_return:
     slapi_ch_free_string(&original_newrdn);
     slapi_sdn_free(&orig_dn_newsuperiordn);
     backentry_free(&original_entry);
-    backentry_free(&original_parent);
-    backentry_free(&original_newparent);
+    backentry_free(&tmpentry);
     slapi_entry_free(original_targetentry);
     slapi_ch_free((void**)&errbuf);
     if (retval == 0 && opcsn != NULL && !is_fixup_operation)
@@ -1817,7 +1788,9 @@ mods_remove_nsuniqueid(Slapi_Mods *smods)
  * mods contains the list of attribute change made.
  */
 static int
-modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, int *e_in_cache, int *ec_in_cache)
+modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, 
+                                   struct backentry *e, struct backentry **ec,
+                                   Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3)
 {
     backend *be;
     ldbm_instance *inst;
@@ -1825,7 +1798,6 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
     char *msg;
     Slapi_Operation *operation;
     int is_ruv = 0;                 /* True if the current entry is RUV */
-    int orig_ec_in_cache = 0;
     int cache_rc = 0;
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -1833,7 +1805,6 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
     is_ruv = operation_is_flag_set(operation, OP_FLAG_REPL_RUV);
     inst = (ldbm_instance *) be->be_instance_info;
 
-    orig_ec_in_cache = *ec_in_cache;
     /*
      * Update the ID to Entry index. 
      * Note that id2entry_add replaces the entry, so the Entry ID stays the same.
@@ -1855,7 +1826,6 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         LDAPDebug( LDAP_DEBUG_ANY, "modrdn_rename_entry_update_indexes: id2entry_add failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
         goto error_return;
     }
-    *ec_in_cache = 1; /* id2entry_add adds to cache if not already in */
     if(smods1!=NULL && slapi_mods_get_num_mods(smods1)>0)
     {
         /*
@@ -1943,13 +1913,6 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         retval= -1;
         goto error_return;
     }
-	*e_in_cache = 0;
-    if (orig_ec_in_cache) {
-        /* ec was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
-           and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -
-           drop the extra ref added by cache_replace */
-        CACHE_RETURN( &inst->inst_cache, ec );
-    }
 error_return:
     return retval;
 }
@@ -1984,9 +1947,6 @@ moddn_rename_child_entry(
     int olddncomps= 0;
     int need= 1; /* For the '\0' */
     int i;
-    int e_in_cache = 1;
-    int ec_in_cache = 0;
-
     olddn = slapi_entry_get_dn((*ec)->ep_entry);
     if (NULL == olddn) {
         return retval;
@@ -2048,8 +2008,7 @@ moddn_rename_child_entry(
          * Update all the indexes.
          */
         retval = modrdn_rename_entry_update_indexes(ptxn, pb, li, e, ec,
-                                                    smodsp, NULL, NULL,
-                                                    &e_in_cache, &ec_in_cache);
+                                                    smodsp, NULL, NULL);
         /* JCMREPL - Should the children get updated modifiersname and lastmodifiedtime? */
         slapi_mods_done(&smods);
     }
