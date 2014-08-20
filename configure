@@ -19288,14 +19288,14 @@ fi
 
       ldap_lib_ldif=""
   LDFLAGS="$LDFLAGS"
-  as_ac_Lib=`$as_echo "ac_cv_lib_ldap$ol_libver''_ldif_open" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ldif_open in -lldap$ol_libver" >&5
-$as_echo_n "checking for ldif_open in -lldap$ol_libver... " >&6; }
+  as_ac_Lib=`$as_echo "ac_cv_lib_ldif$ol_libver''__init" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for _init in -lldif$ol_libver" >&5
+$as_echo_n "checking for _init in -lldif$ol_libver... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lldap$ol_libver  $LIBS"
+LIBS="-lldif$ol_libver  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -19305,11 +19305,11 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char ldif_open ();
+char _init ();
 int
 main ()
 {
-return ldif_open ();
+return _init ();
   ;
   return 0;
 }
@@ -19327,11 +19327,55 @@ eval ac_res=\$$as_ac_Lib
 	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
 $as_echo "$ac_res" >&6; }
 if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
-  ldap_lib_ldif=
-else
   ldap_lib_ldif=-lldif$ol_libver
+else
+  ldap_lib_ldif=
 fi
 
+  if test -z "$ldap_lib_ldif" ; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for _init in -lldif" >&5
+$as_echo_n "checking for _init in -lldif... " >&6; }
+if ${ac_cv_lib_ldif__init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lldif  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char _init ();
+int
+main ()
+{
+return _init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ldif__init=yes
+else
+  ac_cv_lib_ldif__init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ldif__init" >&5
+$as_echo "$ac_cv_lib_ldif__init" >&6; }
+if test "x$ac_cv_lib_ldif__init" = xyes; then :
+  ldap_lib_ldif=-lldif
+else
+  ldap_lib_ldif=
+fi
+
+  fi
 
   LDFLAGS="$save_ldflags"
   CPPFLAGS="$save_cppflags"
