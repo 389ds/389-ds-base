@@ -146,8 +146,12 @@ if test "$with_openldap" = yes ; then
   dnl ldif functionality into libldap
   ldap_lib_ldif=""
   LDFLAGS="$LDFLAGS"
-  AC_CHECK_LIB([ldap$ol_libver], [ldif_open], [ldap_lib_ldif=],
-               [ldap_lib_ldif=-lldif$ol_libver])
+  AC_CHECK_LIB([ldif$ol_libver], [_init], [ldap_lib_ldif=-lldif$ol_libver],
+    [ldap_lib_ldif=])
+  if test -z "$ldap_lib_ldif" ; then
+    AC_CHECK_LIB([ldif], [_init], [ldap_lib_ldif=-lldif],
+      [ldap_lib_ldif=])
+  fi
   AC_SUBST([ldap_lib_ldif])
   LDFLAGS="$save_ldflags"
   CPPFLAGS="$save_cppflags"
