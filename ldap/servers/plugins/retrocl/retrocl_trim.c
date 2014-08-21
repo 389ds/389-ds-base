@@ -131,51 +131,68 @@ delete_changerecord( changeNumber cnum )
 }
 
 /*
- * Function: handle_getchangerecord_result
+ * Function: handle_getchangetime_result
  * Arguments: op - pointer to Operation struct for this operation
  *            err - error code returned from search
  * Returns: nothing
- * Description: result handler for get_changerecord().  Sets the crt_err
+ * Description: result handler for get_changetime().  Sets the crt_err
  *              field of the cnum_result_t struct to the error returned
  *              from the backend.
  */
 static void
-handle_getchangerecord_result( int err, void *callback_data )
+handle_getchangetime_result( int err, void *callback_data )
 {
     cnum_result_t *crt = callback_data;
 
     if ( crt == NULL ) {
 	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
-		"handle_getchangerecord_result: callback_data NULL\n" );
+		"handle_getchangetime_result: callback_data NULL\n" );
     } else {
 	crt->crt_err = err;
     }
 }
 
 /*
- * Function: handle_getchangerecord_search
+ * Function: handle_getchangetime_search
  * Arguments: op - pointer to Operation struct for this operation
  *            e - entry returned by backend
  * Returns: 0 in all cases
- * Description: Search result operation handler for get_changerecord().
+ * Description: Search result operation handler for get_changetime().
  *              Sets fields in the cnum_result_t struct pointed to by
  *              op->o_handler_data.
  */
 static int
-handle_getchangerecord_search( Slapi_Entry *e, void *callback_data)
+handle_getchangetime_search( Slapi_Entry *e, void *callback_data)
 {
     cnum_result_t *crt = callback_data;
+    int rc;
+    Slapi_Attr	*attr;
 
-    if ( crt == NULL ) {
-	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
-		"handle_getchangerecord_search: op->o_handler_data NULL\n" );
-    } else if ( crt->crt_nentries > 0 ) {
-	/* only return the first entry, I guess */
-	slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
-		"handle_getchangerecord_search: multiple entries returned\n" );
+    if (crt == NULL) {
+        slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                "handle_getchangetime_search: op->o_handler_data NULL\n");
+    } else if (crt->crt_nentries > 0) {
+        /* only return the first entry, I guess */
+        slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                "handle_getchangetime_search: multiple entries returned\n");
     } else {
-	crt->crt_nentries++;
-	crt->crt_entry = e;
+        crt->crt_nentries++;
+        crt->crt_time = 0;
+
+        if (NULL != e) {
+            Slapi_Value *sval = NULL;
+            const struct berval *val = NULL;
+            rc = slapi_entry_attr_find(e, attr_changetime, &attr);
+            /* Bug 624442: Logic checking for lack of timestamp was
+               reversed. */
+            if (0 != rc || slapi_attr_first_value(attr, &sval) == -1 ||
+                    (val = slapi_value_get_berval(sval)) == NULL ||
+                    NULL == val->bv_val) {
+                crt->crt_time = 0;
+            } else {
+                crt->crt_time = parse_localTime(val->bv_val);
+            }
+        }
     }
 
     return 0;
@@ -183,47 +200,52 @@ handle_getchangerecord_search( Slapi_Entry *e, void *callback_data)
 
 
 /*
- * Function: get_changerecord
+ * Function: get_changetime
  * Arguments: cnum - number of change record to retrieve
- * Returns: Pointer to an entry structure.  The caller must free the entry.
- *          If "err" is non-NULL, an error code is returned in the memory
- *          location it points to.
- * Description: Retrieve the change record entry whose number is "cnum".
+ * Returns: Taking the attr_changetime of the 'cnum' entry,
+ * it converts it into time_t (parse_localTime) and returns this time value.
+ * It returns 0 in the following cases:
+ *  - changerecord entry has not attr_changetime
+ *  - attr_changetime attribute has no value
+ *  - attr_changetime attribute value is empty
+ * 
+ * Description: Retrieve attr_changetime ("changetime") from a changerecord whose number is "cnum".
  */
-static Slapi_Entry *get_changerecord( changeNumber cnum, int *err )
+static time_t get_changetime( changeNumber cnum, int *err ) 
 {
-    cnum_result_t	crt, *crtp = &crt;
-    char		fstr[ 16 + CNUMSTR_LEN + 2 ];
+    cnum_result_t crt, *crtp = &crt;
+    char fstr[ 16 + CNUMSTR_LEN + 2 ];
     Slapi_PBlock *pb;
 
-    if ( cnum == 0UL ) {
-	if ( err != NULL ) {
-	    *err = LDAP_PARAM_ERROR;
-	}
-	return NULL;
+    if (cnum == 0UL) {
+        if (err != NULL) {
+            *err = LDAP_PARAM_ERROR;
+        }
+        return 0;
     }
-    crtp->crt_nentries = crtp->crt_err = 0; crtp->crt_entry = NULL;
-    PR_snprintf( fstr, sizeof(fstr), "%s=%ld", attr_changenumber, cnum );
-    
-    pb = slapi_pblock_new ();
-    slapi_search_internal_set_pb (pb, RETROCL_CHANGELOG_DN, 
-				  LDAP_SCOPE_SUBTREE, fstr,
-				  (char **)get_cleattrs(),  /* cast const */
-				  0 /* attrsonly */,
-				  NULL /* controls */, NULL /* uniqueid */,
-				  g_plg_identity[PLUGIN_RETROCL], 
-				  0 /* actions */);
+    crtp->crt_nentries = crtp->crt_err = 0;
+    crtp->crt_time = 0;
+    PR_snprintf(fstr, sizeof (fstr), "%s=%ld", attr_changenumber, cnum);
 
-    slapi_search_internal_callback_pb (pb, crtp, 
-				       handle_getchangerecord_result, 
-				       handle_getchangerecord_search, NULL );
-    if ( err != NULL ) {
-	*err = crtp->crt_err;
+    pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(pb, RETROCL_CHANGELOG_DN,
+            LDAP_SCOPE_SUBTREE, fstr,
+            (char **) get_cleattrs(), /* cast const */
+            0 /* attrsonly */,
+            NULL /* controls */, NULL /* uniqueid */,
+            g_plg_identity[PLUGIN_RETROCL],
+            0 /* actions */);
+
+    slapi_search_internal_callback_pb(pb, crtp,
+            handle_getchangetime_result,
+            handle_getchangetime_search, NULL);
+    if (err != NULL) {
+        *err = crtp->crt_err;
     }
 
-    slapi_pblock_destroy (pb);
+    slapi_pblock_destroy(pb);
 
-    return( crtp->crt_entry );
+    return ( crtp->crt_time);
 }
 
 /*
@@ -241,7 +263,6 @@ static int trim_changelog(void)
     int			rc = 0, ldrc, done;
     time_t		now;
     changeNumber	first_in_log = 0, last_in_log = 0;
-    Slapi_Entry		*e = NULL;
     int			num_deleted = 0;
     int me,lt;
     
@@ -264,7 +285,6 @@ static int trim_changelog(void)
 
 	while ( !done && retrocl_trimming == 1 ) {
 	    int		did_delete;
-	    Slapi_Attr	*attr;
 
 	    did_delete = 0;
 	    first_in_log = retrocl_get_first_changenumber();
@@ -282,32 +302,21 @@ static int trim_changelog(void)
 		break;
 	    }
 	    if ( me > 0L ) {
-	        e = get_changerecord( first_in_log, &ldrc );
-		if ( NULL != e ) {
-		    Slapi_Value *sval = NULL;
-		    const struct berval *val = NULL;
-		    rc = slapi_entry_attr_find( e, attr_changetime, &attr );
-		    /* Bug 624442: Logic checking for lack of timestamp was
-		       reversed. */
-		    if ( 0 != rc  || slapi_attr_first_value( attr,&sval ) == -1 ||
-			    (val = slapi_value_get_berval ( sval )) == NULL ||
-				NULL == val->bv_val ) {
-			/* What to do if there's no timestamp? Just delete it. */
-		      retrocl_set_first_changenumber( first_in_log + 1 );
-		      ldrc = delete_changerecord( first_in_log );
-		      num_deleted++;
-		      did_delete = 1;
-		    } else {
-			time_t change_time = parse_localTime( val->bv_val );
-			if ( change_time + me < now ) {
-			    retrocl_set_first_changenumber( first_in_log + 1 );
-			    ldrc = delete_changerecord( first_in_log );
-			    num_deleted++;
-			    did_delete = 1;
-			}
-		    /* slapi_entry_free( e ); */ /* XXXggood should we be freeing this? */
-		    }
-		}
+            time_t change_time = get_changetime(first_in_log, &ldrc);
+            if (change_time) {
+                if ((change_time + me) < now) {
+                    retrocl_set_first_changenumber(first_in_log + 1);
+                    ldrc = delete_changerecord(first_in_log);
+                    num_deleted++;
+                    did_delete = 1;
+                }
+            } else {
+                /* What to do if there's no timestamp? Just delete it. */
+                retrocl_set_first_changenumber(first_in_log + 1);
+                ldrc = delete_changerecord(first_in_log);
+                num_deleted++;
+                did_delete = 1;
+             }   
 	    }
 	    if ( !did_delete ) {
 		done = 1;
