@@ -62,7 +62,7 @@ typedef unsigned long changeNumber;
 typedef struct _cnum_result_t {
     int		crt_nentries;	/* number of entries returned from search */
     int		crt_err;	/* err returned from backend */
-    Slapi_Entry	*crt_entry;	/* The entry returned from the backend */
+    time_t	crt_time;	/* The changetime of the entry retrieved from the backend */
 } cnum_result_t;
 
 typedef struct _cnumRet {
