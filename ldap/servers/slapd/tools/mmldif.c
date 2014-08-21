@@ -333,7 +333,6 @@ int mm_diff(stats_t *statsp)
     entry_t *   hashentry2;
     char        fingerprint[16];
     int stat;
-    int count;
     int records = 0;
     int added;
     struct entryblock *block, *next;
@@ -443,12 +442,9 @@ int mm_diff(stats_t *statsp)
     for (i = 0; i < ndirectories; i++) {
         rewind(edfin[i].fp);
         edfin[i].end = FALSE;
-        pindex = i / 32;
-        pmask = 1 << (i % 32);
 
         LDAPDebug(LDAP_DEBUG_TRACE, 
 		  "loading authoritative data from directory %d\n", i, 0, 0);
-        count = 0;
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
@@ -476,7 +472,6 @@ int mm_diff(stats_t *statsp)
             }
             if (!(hashentry->flags & LOADED))
             {
-                count++;
                 hashentry->first = newrecord(attrib);
                 hashentry->flags |= LOADED;
                 LDAPDebug(LDAP_DEBUG_TRACE, " ...data loaded\n", 0, 0, 0);
@@ -514,12 +509,9 @@ int mm_diff(stats_t *statsp)
     for (i = 0; i < ndirectories; i++) {
         rewind(edfin[i].fp);
         edfin[i].end = FALSE;
-        pindex = i / 32;
-        pmask = 1 << (i % 32);
 
         LDAPDebug(LDAP_DEBUG_TRACE, 
 		  "generating differences for directory %d\n", i, 0, 0);
-        count = 0;
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
@@ -1319,9 +1311,9 @@ putvalue(
     b64 = initEnc64((unsigned char *)value, valuelen);
     *lptr = ':';
     *(lptr+1) = ' ';
-    rc = Enc64(b64, (unsigned char *)(lptr+2), 80-(lptr-line), &len);
-    *(lptr +len+2) = '\n';
-    *(lptr + len +3) = 0;
+    Enc64(b64, (unsigned char *)(lptr+2), 80-(lptr-line), &len);
+    *(lptr+len+2) = '\n';
+    *(lptr+len+3) = 0;
     return_code = fputs(line, fh);
     if (return_code < 0)
         goto return_bit;
@@ -1400,8 +1392,6 @@ mm_getvalue(
         }
         return FALSE;
     }
-
-    att = &first->data;
 
     for (attnum = 1, att = &first->data;
          attnum <= first->nattrs;
