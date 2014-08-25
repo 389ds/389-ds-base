@@ -406,7 +406,8 @@ sub check_and_add_entry
     my $sentry = $conn->search($aentry->{dn}, "base", "(objectclass=*)", 0, ("*", "aci"));
     if ($sentry) {
         debug(3, "check_and_add_entry: Found entry " . $sentry->getDN() . "\n");
-        if (! @ctypes) { # entry exists, and this is not a modify op
+        if ( (! @ctypes) or ("add" eq lc($ctypes[0])) ) { # entry exists, and this is not a modify op
+                                                      # or add is explicitely specified
             debug(3, "check_and_add_entry: skipping entry " . $sentry->getDN() . "\n");
             return 1; # ignore - return success
         }
