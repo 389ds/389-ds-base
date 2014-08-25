@@ -965,6 +965,13 @@ cn: uniquemember
 nssystemindex: false
 nsindextype: eq
 
+dn: cn=targetuniqueid,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
+objectclass: top
+objectclass: nsIndex
+cn: targetuniqueid
+nssystemindex: true
+nsindextype: eq
+
 dn: cn=monitor, cn=ldbm database, cn=plugins, cn=config
 objectclass: top
 objectclass: extensibleObject

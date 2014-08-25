@@ -560,6 +560,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50fixNsState.pl \
 	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
 	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
+	ldap/admin/src/scripts/50targetuniqueid.ldif \
 	ldap/ldif/50replication-plugins.ldif \
 	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
 	$(POSIX_WINSYNC_PLUGIN_LDIF) \
@@ -574,6 +575,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/70upgradefromldif.pl \
 	ldap/admin/src/scripts/80upgradednformat.pl \
 	ldap/admin/src/scripts/81changelog.pl \
+	ldap/admin/src/scripts/82targetuniqueidindex.pl \
 	ldap/admin/src/scripts/90subtreerename.pl \
 	ldap/admin/src/scripts/91subtreereindex.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
