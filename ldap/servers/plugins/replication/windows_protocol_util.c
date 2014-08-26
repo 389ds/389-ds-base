@@ -626,7 +626,6 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 						"%s: Remote replica already acquired\n",
 						agmt_get_long_name(prp->agmt));
-								return_value = ACQUIRE_FATAL_ERROR;
 		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica\n", 0, 0, 0 );
         return ACQUIRE_SUCCESS;
     }
@@ -1662,6 +1661,8 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 		{
 			LDAPMod **mapped_mods = NULL;
 			char *newrdn = NULL;
+			int ldap_op = 0;
+			int ldap_result_code = 0;
 
 			/*
 			 * If the magic objectclass and attributes have been added to the entry
@@ -1707,12 +1708,24 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			/* Check if a naming attribute is being modified. */
 			if (windows_check_mods_for_rdn_change(prp, op->p.p_modify.modify_mods, local_entry, remote_dn, &newrdn)) {
 				/* Issue MODRDN */
+				/* 
+				 * remote_dn is in GUID format. Thus, this MODRDN does not change the remote_dn but the DN on AD only.
+				 * Thus, no need to "rename" remote_dn for the following windows_conn_send_modify.
+				 */
 				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: renaming remote entry \"%s\" with new RDN of \"%s\"\n",
 				                agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(remote_dn), newrdn);
 				return_value = windows_conn_send_rename(prp->conn, slapi_sdn_get_dn(remote_dn),
 				                                        newrdn, NULL, 1 /* delete old RDN */,
 				                                        NULL, NULL /* returned controls */);
 				slapi_ch_free_string(&newrdn);
+				windows_conn_get_error(prp->conn, &ldap_op, &ldap_result_code);
+				if (return_value != CONN_OPERATION_SUCCESS) {
+					if (!ldap_result_code) {
+						/* op failed but no ldap error code ??? */
+						ldap_result_code = LDAP_OPERATIONS_ERROR;
+					}
+					goto bail_modify;
+				}
 			}
 
 			/* It's possible that the mapping process results in an empty mod list, in which case we don't bother with the replay */
@@ -1721,8 +1734,6 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				return_value = CONN_OPERATION_SUCCESS;
 			} else 
 			{
-				int ldap_op = 0;
-				int ldap_result_code = 0;
 				if (slapi_is_loglevel_set(SLAPI_LOG_REPL))
 				{
 					int i = 0;
@@ -1761,6 +1772,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 					windows_conn_set_error(prp->conn, ldap_result_code);
 				}
 			}
+bail_modify:
 			if (mapped_mods)
 			{
 				ldap_mods_free(mapped_mods,1);
@@ -6013,7 +6025,7 @@ windows_dirsync_inc_run(Private_Repl_Protocol *prp)
 
 		while ( (e = windows_conn_get_search_result(prp->conn) ) != NULL)
 		{
-			rc = windows_process_dirsync_entry(prp,e,0);
+			(void)windows_process_dirsync_entry(prp,e,0);
 			if (e) 
 			{
 				slapi_entry_free(e);
