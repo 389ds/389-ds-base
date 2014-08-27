@@ -2503,12 +2503,16 @@ dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, cha
         while (server) {
             if(slapi_sdn_compare(server->sdn, server_sdn) == 0){
                 if(strcmp(attr, DNA_REMOTE_BIND_METHOD) == 0){
-                    PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_bind_method);
-                    found = 1;
+                    if (server->remote_bind_method) {
+                        PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_bind_method);
+                        found = 1;
+                    }
                     break;
                 } else if(strcmp(attr, DNA_REMOTE_CONN_PROT) == 0){
-                    PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_conn_prot);
-                    found = 1;
+                    if (server->remote_conn_prot) {
+                        PR_snprintf(value, DNA_REMOTE_BUFSIZ, "%s", server->remote_conn_prot);
+                        found = 1;
+                    }
                     break;
                 }
             }
