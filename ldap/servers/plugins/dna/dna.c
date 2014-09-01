@@ -87,6 +87,7 @@
 #define DNA_GENERATE        "dnaMagicRegen"
 #define DNA_FILTER          "dnaFilter"
 #define DNA_SCOPE           "dnaScope"
+#define DNA_EXCLUDE_SCOPE   "dnaExcludeScope"
 #define DNA_REMOTE_BIND_DN  "dnaRemoteBindDN"
 #define DNA_REMOTE_BIND_PW  "dnaRemoteBindCred"
 
@@ -164,6 +165,7 @@ struct configEntry {
     Slapi_Filter *slapi_filter;
     char *generate;
     char *scope;
+    Slapi_DN **excludescope;
     PRUint64 interval;
     PRUint64 threshold;
     char *shared_cfg_base;
@@ -356,6 +358,17 @@ dna_config_copy()
             new_entry->slapi_filter = slapi_filter_dup(config_entry->slapi_filter);
             new_entry->generate = slapi_ch_strdup(config_entry->generate);
             new_entry->scope = slapi_ch_strdup(config_entry->scope);
+            if (config_entry->excludescope == NULL) {
+                new_entry->excludescope = NULL;
+            } else {
+                int i;
+                
+                for (i = 0; config_entry->excludescope[i]; i++);
+                new_entry->excludescope = (Slapi_DN **) slapi_ch_calloc(sizeof (Slapi_DN *), i + 1);
+                for (i = 0; new_entry->excludescope[i]; i++) {
+                    new_entry->excludescope[i] = slapi_sdn_dup(config_entry->excludescope[i]);
+                }
+            }
             new_entry->shared_cfg_base = slapi_ch_strdup(config_entry->shared_cfg_base);
             new_entry->shared_cfg_dn   = slapi_ch_strdup(config_entry->shared_cfg_dn);
             new_entry->remote_binddn   = slapi_ch_strdup(config_entry->remote_binddn);
@@ -906,6 +919,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     int entry_added = 0;
     int i = 0;
     int ret = DNA_SUCCESS;
+    char **plugin_attr_values;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_parse_config_entry\n");
@@ -1056,6 +1070,31 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 
     slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                     "----------> %s [%s]\n", DNA_SCOPE, entry->scope);
+    
+    plugin_attr_values = slapi_entry_attr_get_charray(e, DNA_EXCLUDE_SCOPE);
+    if (plugin_attr_values) {
+        int j = 0;
+        
+        /* Allocate the array of excluded scopes */
+        for (i = 0; plugin_attr_values[i]; i++);
+        entry->excludescope = (Slapi_DN **) slapi_ch_calloc(sizeof (Slapi_DN *), i + 1);
+        
+        /* Copy them in the config at the condition they are valid DN */
+        for (i = 0; plugin_attr_values[i]; i++) {
+            if (slapi_dn_syntax_check(NULL, plugin_attr_values[i], 1) == 1) {
+                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "Error: Ignoring invalid DN used as excluded scope: [%s]\n",  plugin_attr_values[i]);
+                slapi_ch_free_string(&plugin_attr_values[i]);
+            } else {
+                entry->excludescope[j++] = slapi_sdn_new_dn_passin(plugin_attr_values[i]);
+            }
+        }
+        slapi_ch_free((void**) &plugin_attr_values);
+    }
+    for (i = 0; entry->excludescope && entry->excludescope[i]; i++) {
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                "----------> %s[%d] [%s]\n", DNA_EXCLUDE_SCOPE, i, slapi_sdn_get_dn(entry->excludescope[i]));
+    }
 
     /* optional, if not specified set -1 which is converted to the max unsigned
      * value */
@@ -1381,6 +1420,14 @@ dna_free_config_entry(struct configEntry ** entry)
     slapi_filter_free(e->slapi_filter, 1);
     slapi_ch_free_string(&e->generate);
     slapi_ch_free_string(&e->scope);
+    if (e->excludescope) {
+        int i;
+        
+        for (i = 0; e->excludescope[i]; i++) {
+            slapi_sdn_free(&e->excludescope[i]);
+        }
+        slapi_ch_free((void **)&e->excludescope);
+    }
     slapi_ch_free_string(&e->shared_cfg_base);
     slapi_ch_free_string(&e->shared_cfg_dn);
     slapi_ch_free_string(&e->remote_binddn);
@@ -3311,6 +3358,13 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                 goto next;
             }
 
+            /* is this entry in an excluded scope? */
+            for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
+                if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
+                    goto next;
+                }
+            }
+            
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
                 ret = slapi_vattr_filter_test(pb, e, config_entry->slapi_filter, 0);
@@ -3509,7 +3563,14 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                 !slapi_dn_issuffix(dn, config_entry->scope)) {
                 goto next;
             }
-
+            
+            /* is this entry in an excluded scope? */
+            for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
+                if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
+                    goto next;
+                }
+            }
+            
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
                 ret = slapi_vattr_filter_test(pb, e, 
@@ -3955,6 +4016,13 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
                     goto next;
             }
 
+            /* is this entry in an excluded scope? */
+            for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
+                if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
+                    goto next;
+                }
+            }
+            
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
                 if(LDAP_SUCCESS != slapi_vattr_filter_test(pb,e,config_entry->slapi_filter, 0))
@@ -4562,6 +4630,9 @@ void dna_dump_config_entry(struct configEntry * entry)
     printf("<---- filter ---------> %s\n", entry->filter);
     printf("<---- prefix ---------> %s\n", entry->prefix);
     printf("<---- scope ----------> %s\n", entry->scope);
+    for (i = 0; entry->excludescope && entry->excludescope[i]; i++) {
+        printf("<---- excluded scope -> %s\n", slapi_sdn_get_dn(entry->excludescope[i]));
+    }
     printf("<---- next value -----> %" PRIu64 "\n", entry->nextval);
     printf("<---- max value ------> %" PRIu64 "\n", entry->maxval);
     printf("<---- interval -------> %" PRIu64 "\n", entry->interval);
