@@ -589,13 +589,14 @@ deref_values_free(Slapi_ValueSet** results, char** actual_type_name, int buffer_
     slapi_vattr_values_free(results, actual_type_name, buffer_flags);
 }
 
-static void
-deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, const char **attrs)
+static int
+deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, const char *derefattr, const char **attrs)
 {
     char **retattrs = NULL;
     Slapi_PBlock *derefpb = NULL;
     Slapi_Entry **entries = NULL;
     int rc;
+    int needcontrol = 0;
 
 /*  If the access check on the attributes is done without retrieveing the entry
  *  it cannot handle acis which need teh entry, eg to apply a targetfilter rule
@@ -624,7 +625,9 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                     slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
                              "The client does not have permission to read the requested "
                              "attributes in entry %s\n", derefdn);
-           } else {
+                } else {
+		    needcontrol = 1;
+                    ber_printf(ctrlber, "{ss", derefattr, derefdn); /* begin DerefRes + derefAttr + derefVal */
                     for (ii = 0; retattrs[ii]; ++ii) {
                         Slapi_Value *sv;
                         int idx = 0;
@@ -681,6 +684,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                     if (needattrvals == 0) {
                         ber_printf(ctrlber, "}");
                     }
+                    ber_printf(ctrlber, "}"); /* end DerefRes */
                 }
             }
         } else { /* nothing */
@@ -697,7 +701,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
     slapi_pblock_destroy(derefpb);
     slapi_ch_free((void **)&retattrs); /* retattrs does not own the strings */
 
-    return;
+    return needcontrol;
 }
 
 static int
@@ -711,6 +715,7 @@ deref_pre_entry(Slapi_PBlock *pb)
     LDAPControl *ctrl = NULL;
     const LDAPControl **searchctrls = NULL;
     LDAPControl **newsearchctrls = NULL;
+    int needcontrol = 0;
 
     if (!speclist) {
         return 0; /* nothing to do */
@@ -754,31 +759,26 @@ deref_pre_entry(Slapi_PBlock *pb)
         for (; results && sv; idx = slapi_valueset_next_value(results, idx, &sv)) {
             const char *derefdn = slapi_value_get_string(sv);
 
-            ber_printf(ctrlber, "{ss", spec->derefattr, derefdn); /* begin DerefRes + derefAttr + derefVal */
-            deref_do_deref_attr(pb, ctrlber, derefdn, (const char **)spec->attrs);
-            ber_printf(ctrlber, "}"); /* end DerefRes */
+            needcontrol += deref_do_deref_attr(pb, ctrlber, derefdn, spec->derefattr,  (const char **)spec->attrs);
         }
         deref_values_free(&results, &actual_type_name, buffer_flags);
     }
 
     ber_printf(ctrlber, "}"); /* end control val */
-
-    slapi_build_control(LDAP_CONTROL_X_DEREF, ctrlber, 0, &ctrl);
-
-    ber_free(ctrlber, 1);
-
-    /* get the list of controls */
+ 
+    if (needcontrol) {
+        slapi_build_control(LDAP_CONTROL_X_DEREF, ctrlber, 0, &ctrl);
+        /* get the list of controls */
 	slapi_pblock_get(pb, SLAPI_SEARCH_CTRLS, &searchctrls);
-
-    /* dup them */
-    slapi_add_controls(&newsearchctrls, (LDAPControl **)searchctrls, 1);
-
-    /* add our control */
-    slapi_add_control_ext(&newsearchctrls, ctrl, 0);
-    ctrl = NULL; /* newsearchctrls owns it now */
-
-    /* set the controls in the pblock */
-    slapi_pblock_set(pb, SLAPI_SEARCH_CTRLS, newsearchctrls);
+        /* dup them */
+        slapi_add_controls(&newsearchctrls, (LDAPControl **)searchctrls, 1);
+        /* add our control */
+        slapi_add_control_ext(&newsearchctrls, ctrl, 0);
+        ctrl = NULL; /* newsearchctrls owns it now */
+        /* set the controls in the pblock */
+        slapi_pblock_set(pb, SLAPI_SEARCH_CTRLS, newsearchctrls);
+    }
+    ber_free(ctrlber, 1);
 
     return 0;
 }
