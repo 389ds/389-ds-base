@@ -19407,7 +19407,7 @@ $as_echo "#define HAVE_LDAP_URL_PARSE_EXT 1" >>confdefs.h
 fi
 
       ldap_lib_ldif=""
-  LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS -lldap$ol_libver"
   as_ac_Lib=`$as_echo "ac_cv_lib_ldif$ol_libver''__init" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for _init in -lldif$ol_libver" >&5
 $as_echo_n "checking for _init in -lldif$ol_libver... " >&6; }
@@ -21330,7 +21330,6 @@ fi
 
 
 # write out paths for binary components
-
 
 
 

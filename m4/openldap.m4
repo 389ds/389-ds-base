@@ -145,7 +145,7 @@ if test "$with_openldap" = yes ; then
   dnl look for separate libldif - newer versions of openldap have moved the
   dnl ldif functionality into libldap
   ldap_lib_ldif=""
-  LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS -lldap$ol_libver"
   AC_CHECK_LIB([ldif$ol_libver], [_init], [ldap_lib_ldif=-lldif$ol_libver],
     [ldap_lib_ldif=])
   if test -z "$ldap_lib_ldif" ; then
