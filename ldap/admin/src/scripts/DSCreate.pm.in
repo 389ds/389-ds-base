@@ -48,7 +48,7 @@ use DSUtil;
 use Inf;
 use FileConn;
 
-use Net::Domain qw(hostfqdn);
+use Sys::Hostname;
 # tempfiles
 use File::Temp qw(tempfile tempdir);
 use File::Path;
@@ -820,7 +820,7 @@ sub setDefaults {
     }
 
     if (!$inf->{General}->{FullMachineName}) {
-        $inf->{General}->{FullMachineName} = hostfqdn;
+        $inf->{General}->{FullMachineName} = hostname();
     }
 
     if (!$inf->{General}->{SuiteSpotUserID}) {

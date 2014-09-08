@@ -55,7 +55,7 @@ use Exporter ();
 @EXPORT_OK = qw();
 
 # hostname
-use Net::Domain qw(hostfqdn);
+use Sys::Hostname;
 
 # load perldap
 use Mozilla::LDAP::Conn;

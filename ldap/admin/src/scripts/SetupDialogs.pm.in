@@ -43,7 +43,7 @@ use strict;
 use DialogManager;
 use Setup;
 use Dialog;
-use Net::Domain qw(hostfqdn);
+use Sys::Hostname;
 use DSUtil;
 
 my $welcome = new DialogYesNo (
@@ -112,7 +112,7 @@ my $hostdlg = new Dialog (
     sub {
         my $self = shift;
         return $self->{manager}->{inf}->{General}->{FullMachineName} ||
-            hostfqdn;
+            hostname();
     },
     sub {
         my $self = shift;

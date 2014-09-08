@@ -40,7 +40,7 @@ package DSDialogs;
 
 use strict;
 
-use Net::Domain qw(hostname hostfqdn);
+use Sys::Hostname;
 use DialogManager;
 use Setup;
 use Dialog;
@@ -86,7 +86,7 @@ my $dsserverid = new Dialog (
         if (!defined($serverid)) {
             $serverid = $self->{manager}->{inf}->{General}->{FullMachineName};
             if (!defined($serverid)) {
-                $serverid = hostfqdn;
+                $serverid = hostname();
             }
             # strip out the leftmost domain component
             $serverid =~ s/\..*$//;
@@ -124,7 +124,7 @@ my $dssuffix = new Dialog (
         if (!defined($suffix)) {
             $suffix = $self->{manager}->{inf}->{General}->{FullMachineName};
             if (!defined($suffix)) {
-                $suffix = hostfqdn;
+                $suffix = hostname();
             }
             $suffix =~ s/^[^\.]*\.//; # just the domain part
             # convert fqdn to dc= domain components
