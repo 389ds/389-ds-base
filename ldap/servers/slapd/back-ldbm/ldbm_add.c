@@ -1209,21 +1209,6 @@ error_return:
 	{
 		next_id_return( be, addingentry->ep_id );
 	}
-	if ( addingentry )
-	{
-		if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
-			CACHE_REMOVE(&inst->inst_cache, addingentry);
-			/* tell frontend not to free this entry */
-			slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
-		}
-		else if (!cache_has_otherref(&inst->inst_cache, addingentry))
-		{
-			if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
-				backentry_clear_entry(addingentry); /* e is released in the frontend */
-			}
-		}
-		CACHE_RETURN( &inst->inst_cache, &addingentry );
-	}
 	if (rc == DB_RUNRECOVERY) {
 		dblayer_remember_disk_filled(li);
 		ldbm_nasty("Add",80,rc);
@@ -1244,6 +1229,20 @@ error_return:
 	}
 diskfull_return:
 	if (disk_full) {
+		if ( addingentry ) {
+			if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
+				CACHE_REMOVE(&inst->inst_cache, addingentry);
+				/* tell frontend not to free this entry */
+				slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+			}
+			else if (!cache_has_otherref(&inst->inst_cache, addingentry))
+			{
+				if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
+					backentry_clear_entry(addingentry); /* e is released in the frontend */
+				}
+			}
+			CACHE_RETURN( &inst->inst_cache, &addingentry );
+		}
 		rc = return_on_disk_full(li);
 	} else {
 		/* It is safer not to abort when the transaction is not started. */
@@ -1277,13 +1276,41 @@ diskfull_return:
 				}
 				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 			}
-
+			if ( addingentry ) {
+				if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
+					CACHE_REMOVE(&inst->inst_cache, addingentry);
+					/* tell frontend not to free this entry */
+					slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+				}
+				else if (!cache_has_otherref(&inst->inst_cache, addingentry))
+				{
+					if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
+						backentry_clear_entry(addingentry); /* e is released in the frontend */
+					}
+				}
+				CACHE_RETURN( &inst->inst_cache, &addingentry );
+			}
 			/* Release SERIAL LOCK */
 			if (!noabort) {
 				dblayer_txn_abort(be, &txn); /* abort crashes in case disk full */
 			}
 			/* txn is no longer valid - reset the txn pointer to the parent */
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+		} else {
+			if ( addingentry ) {
+				if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
+					CACHE_REMOVE(&inst->inst_cache, addingentry);
+					/* tell frontend not to free this entry */
+					slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+				}
+				else if (!cache_has_otherref(&inst->inst_cache, addingentry))
+				{
+					if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
+						backentry_clear_entry(addingentry); /* e is released in the frontend */
+					}
+				}
+				CACHE_RETURN( &inst->inst_cache, &addingentry );
+			}
 		}
 		if (!not_an_error) {
 			rc = SLAPI_FAIL_GENERAL;
