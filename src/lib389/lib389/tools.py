@@ -212,9 +212,13 @@ class DirSrvTools(object):
                 elif line.find("Initialization Failed") >= 0:
                     # sometimes the server fails to start - try again
                     rc = os.system(fullCmd)
+                    pos = logfp.tell()
+                    break
                 elif line.find("exiting.") >= 0:
                     # possible transient condition - try again
                     rc = os.system(fullCmd)
+                    pos = logfp.tell()
+                    break
                 pos = logfp.tell()
                 line = logfp.readline()
             if line.find("PR_Bind") >= 0:
