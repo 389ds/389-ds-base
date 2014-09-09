@@ -163,6 +163,10 @@ main( int argc, char **argv)
 
 	if ( !oldpath || !newpath || !cred )
 	{
+		free(oldpath);
+		free(newpath);
+		free(prefixCred);
+		free(pluginpath);
 		usage(cmd);
 	}
 
@@ -208,6 +212,10 @@ main( int argc, char **argv)
 			"DES Plugin", 1 /* report errors */ );
 	if ( fct == NULL )
 	{
+		free(oldpath);
+		free(newpath);
+		free(prefixCred);
+		free(pluginpath);
 		usage(cmd);
 		return(1);
 	}
@@ -215,7 +223,10 @@ main( int argc, char **argv)
 	newcred = (fct)(oldpath, newpath, cred);
 
 	fprintf(stdout, "%s", newcred);
-
+	free(oldpath);
+	free(newpath);
+	free(prefixCred);
+	free(pluginpath);
 	return(0);
 	
 }
