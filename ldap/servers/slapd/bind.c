@@ -769,6 +769,7 @@ do_bind( Slapi_PBlock *pb )
                 }
 
                 if ( rc == SLAPI_BIND_SUCCESS ) {
+                    int myrc = 0;
                     if (!auto_bind) {
                         /* 
                          * There could be a race that bind_target_entry was not added 
@@ -779,9 +780,9 @@ do_bind( Slapi_PBlock *pb )
                         if (!bind_target_entry) {
                             bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
                             if (bind_target_entry) {
-                                rc = slapi_check_account_lock(pb, bind_target_entry,
+                                myrc = slapi_check_account_lock(pb, bind_target_entry,
                                                               pw_response_requested, 1, 1);
-                                if (1 == rc) { /* account is locked */
+                                if (1 == myrc) { /* account is locked */
                                     goto account_locked;
                                 }
                             } else {
@@ -795,8 +796,8 @@ do_bind( Slapi_PBlock *pb )
                         if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                             /* check if need new password before sending 
                                the bind success result */
-                            rc = need_new_pw(pb, &t, bind_target_entry, pw_response_requested);
-                            switch (rc) {
+                            myrc = need_new_pw(pb, &t, bind_target_entry, pw_response_requested);
+                            switch (myrc) {
                             case 1:
                                 (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
                                 break;
@@ -811,8 +812,8 @@ do_bind( Slapi_PBlock *pb )
                     if (auth_response_requested) {
                         slapi_add_auth_response_control(pb, slapi_sdn_get_ndn(sdn));
                     }
-                    if (-1 == rc) {
-                        /* neeed_new_pw failed; need_new_pw already send_ldap_result in it. */
+                    if (-1 == myrc) {
+                        /* need_new_pw failed; need_new_pw already send_ldap_result in it. */
                         goto free_and_return;
                     } 
                 } else {	/* anonymous */
