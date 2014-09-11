@@ -119,7 +119,21 @@ static char * configDN = "cn=encryption,cn=config";
 #define FILE_PATHSEP '/'
 
 /* ----------------------- Multiple cipher support ------------------------ */
+/* cipher set flags */
+#define CIPHER_SET_ALL             0x1
+#define CIPHER_SET_NONE            0x0
+#define CIPHER_SET_DEFAULT         0x2
+#define CIPHER_SET_CORE            (CIPHER_SET_ALL|CIPHER_SET_DEFAULT|CIPHER_SET_NONE)
+#define CIPHER_SET_ALLOWWEAKCIPHER 0x10 /* can be or'ed with other CIPHER_SET flags */
 
+#define CIPHER_SET_ISDEFAULT(flag) \
+  ((((flag)&CIPHER_SET_CORE) == CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE)
+#define CIPHER_SET_ISALL(flag) \
+  ((((flag)&CIPHER_SET_CORE) == CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE)
+#define CIPHER_SET_ALLOWSWEAKCIPHER(flag) \
+  (((flag)&CIPHER_SET_ALLOWWEAKCIPHER) ? PR_TRUE : PR_FALSE)
+#define CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flag) \
+  ((flag)&~CIPHER_SET_ALLOWWEAKCIPHER)
 
 /* flags */
 #define CIPHER_IS_DEFAULT       0x1
@@ -158,7 +172,7 @@ static lookup_cipher _lookup_cipher[] = {
     {"tls_rsa_3des_sha",                    "TLS_RSA_WITH_3DES_EDE_CBC_SHA"},
     {"rsa_fips_3des_sha",                   "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
     {"fips_3des_sha",                       "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
-    {"rsa_des_sha",                         "TLS_RSA_WITH_DES_CBC_SHA"},
+    {"rsa_des_sha",                         "SSL_RSA_WITH_DES_CBC_SHA"},
     {"rsa_fips_des_sha",                    "SSL_RSA_FIPS_WITH_DES_CBC_SHA"},
     {"fips_des_sha",                        "SSL_RSA_FIPS_WITH_DES_CBC_SHA"}, /* ditto */
     {"rsa_rc4_40_md5",                      "TLS_RSA_EXPORT_WITH_RC4_40_MD5"},
@@ -339,21 +353,20 @@ _conf_init_ciphers()
     return;
 }
 
-#define CIPHER_SET_ALL     1
-#define CIPHER_SET_NONE    0
-#define CIPHER_SET_DEFAULT 2
 /*
- * flag: 1 -- enable all
- *       0 -- disable all
- *       2 -- set default ciphers
+ * flag: CIPHER_SET_ALL     -- enable all
+ *       CIPHER_SET_NONE    -- disable all
+ *       CIPHER_SET_DEFAULT -- set default ciphers
+ *       CIPHER_SET_ALLOW_WEAKCIPHER -- allow weak ciphers (can be or'ed with the ather CIPHER_SET flags)
  */  
 static void
 _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
 {
     int x;
     SECStatus rc;
-    PRBool setdefault = (flag == CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE;
-    PRBool enabled = (flag == CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE;
+    PRBool setdefault = CIPHER_SET_ISDEFAULT(flag);
+    PRBool enabled = CIPHER_SET_ISALL(flag);
+    PRBool allowweakcipher = CIPHER_SET_ALLOWSWEAKCIPHER(flag);
     PRBool setme = PR_FALSE;
     const PRUint16 *implementedCiphers = SSL_GetImplementedCiphers();
 
@@ -361,8 +374,9 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
 
     for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
         if (_conf_ciphers[x].flags & CIPHER_IS_DEFAULT) {
+            /* certainly, not the first time. */
             setme = PR_TRUE;
-        } else {
+        } else if (setdefault) {
             /* 
              * SSL_CipherPrefGetDefault
              * If the application has not previously set the default preference,
@@ -375,15 +389,16 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
                     _conf_ciphers[x].name);
                 continue;
             }
-            if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
+            if (!allowweakcipher && (_conf_ciphers[x].flags & CIPHER_IS_WEAK)) {
                 setme = PR_FALSE;
             }
             _conf_ciphers[x].flags |= setme?CIPHER_IS_DEFAULT:0;
-        }
-        if (setdefault) {
-            /* Use the NSS default settings */
         } else if (enabled && !(_conf_ciphers[x].flags & CIPHER_MUST_BE_DISABLED)) {
-            setme = PR_TRUE;
+            if (!allowweakcipher && (_conf_ciphers[x].flags & CIPHER_IS_WEAK)) {
+                setme = PR_FALSE;
+            } else {
+                setme = PR_TRUE;
+            }
         } else {
             setme = PR_FALSE;
         }
@@ -433,7 +448,7 @@ _conf_dumpciphers()
 }
 
 char *
-_conf_setciphers(char *ciphers)
+_conf_setciphers(char *ciphers, int flags)
 {
     char *t, err[MAGNUS_ERROR_LEN];
     int x, i, active;
@@ -445,7 +460,7 @@ _conf_setciphers(char *ciphers)
     /* #47838: harden the list of ciphers available by default */
     /* Default is to activate all of them ==> none of them*/
     if (!ciphers || (ciphers[0] == '\0') || !PL_strcasecmp(ciphers, "default")) {
-        _conf_setallciphers(CIPHER_SET_DEFAULT, NULL, NULL);
+        _conf_setallciphers((CIPHER_SET_DEFAULT|CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flags)), NULL, NULL);
         slapd_SSL_warn("Security Initialization: Enabling default cipher set.");
         _conf_dumpciphers();
         return NULL;
@@ -458,11 +473,11 @@ _conf_setciphers(char *ciphers)
          * set of ciphers in the table. Right now there is no support for this
          * from the console
          */
-        _conf_setallciphers(CIPHER_SET_ALL, &suplist, NULL);
+        _conf_setallciphers(CIPHER_SET_ALL|CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flags), &suplist, NULL);
     } else {
         /* If "+all" is not in nsSSL3Ciphers value, disable all first,
          * then enable specified ciphers. */
-        _conf_setallciphers(0 /* disabled */, NULL, NULL);
+        _conf_setallciphers(CIPHER_SET_NONE /* disabled */, NULL, NULL);
     }
 
     t = ciphers;
@@ -482,12 +497,28 @@ _conf_setciphers(char *ciphers)
         if( (t = strchr(ciphers, ',')) )
             *t++ = '\0';
 
-        if(strcasecmp(ciphers, "all")) { /* if not all */
+        if (strcasecmp(ciphers, "all")) { /* if not all */
             PRBool enabled = active ? PR_TRUE : PR_FALSE;
             lookup = 1;
-            for(x = 0; _conf_ciphers[x].name; x++) {
-                if(!PL_strcasecmp(ciphers, _conf_ciphers[x].name)) {
+            for (x = 0; _conf_ciphers[x].name; x++) {
+                if (!PL_strcasecmp(ciphers, _conf_ciphers[x].name)) {
+                    if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
+                        if (CIPHER_SET_ALLOWSWEAKCIPHER(flags)) {
+                            slapd_SSL_warn("Cipher %s is weak.  It is enabled since allowWeakCipher is \"on\" "
+                                           "(default setting for the backward compatibility). "
+                                           "We strongly recommend to set it to \"off\".  "
+                                           "Please replace the value of allowWeakCipher with \"off\" in "
+                                           "the encryption config entry cn=encryption,cn=config and "
+                                           "restart the server.", ciphers);
+                        } else {
+                            /* if the cipher is weak and we don't allow weak cipher,
+                               disable it. */
+                            enabled = PR_FALSE;
+                        }
+                    }
                     if (enabled) {
+                        /* if the cipher is not weak or we allow weak cipher,
+                           check fips. */
                         enabled = cipher_check_fips(x, NULL, &unsuplist);
                     }
                     SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
@@ -499,14 +530,33 @@ _conf_setciphers(char *ciphers)
                 for (i = 0; _lookup_cipher[i].alias; i++) {
                     if (!PL_strcasecmp(ciphers, _lookup_cipher[i].alias)) {
                         if (!_lookup_cipher[i].name[0]) {
-                            slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d",
-                                           ciphers, NSS_VMAJOR, NSS_VMINOR);
-                            break;
+                            slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d.  Ignoring %s",
+                                           ciphers, NSS_VMAJOR, NSS_VMINOR, ciphers);
+                            continue;
                         }
                         for (x = 0; _conf_ciphers[x].name; x++) {
                             if (!PL_strcasecmp(_lookup_cipher[i].name, _conf_ciphers[x].name)) {
                                 if (enabled) {
-                                    enabled = cipher_check_fips(x, NULL, &unsuplist);
+                                    if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
+                                        if (CIPHER_SET_ALLOWSWEAKCIPHER(flags)) {
+                                            slapd_SSL_warn("Cipher %s is weak. "
+                                                           "It is enabled since allowWeakCipher is \"on\" "
+                                                           "(default setting for the backward compatibility). "
+                                                           "We strongly recommend to set it to \"off\".  "
+                                                           "Please replace the value of allowWeakCipher with \"off\" in "
+                                                           "the encryption config entry cn=encryption,cn=config and "
+                                                           "restart the server.", ciphers);
+                                        } else {
+                                            /* if the cipher is weak and we don't allow weak cipher,
+                                               disable it. */
+                                            enabled = PR_FALSE;
+                                        }
+                                    }
+                                    if (enabled) {
+                                        /* if the cipher is not weak or we allow weak cipher,
+                                           check fips. */
+                                        enabled = cipher_check_fips(x, NULL, &unsuplist);
+                                    }
                                 }
                                 SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
                                 break;
@@ -1008,6 +1058,7 @@ slapd_ssl_init()
     int rv = 0;
     PK11SlotInfo *slot;
     Slapi_Entry *entry = NULL;
+    int allowweakcipher = CIPHER_SET_ALLOWWEAKCIPHER;
 
     /* Get general information */
 
@@ -1017,21 +1068,21 @@ slapd_ssl_init()
     ciphers = slapi_entry_attr_get_charptr( entry, "nsssl3ciphers" );
 
     /* We are currently using the value of sslSessionTimeout
-	   for ssl3SessionTimeout, see SSL_ConfigServerSessionIDCache() */
+       for ssl3SessionTimeout, see SSL_ConfigServerSessionIDCache() */
     /* Note from Tom Weinstein on the meaning of the timeout:
 
        Timeouts are in seconds.  '0' means use the default, which is
-	   24hrs for SSL3 and 100 seconds for SSL2.
+       24hrs for SSL3 and 100 seconds for SSL2.
     */
 
     if(!val) {
       errorCode = PR_GetError();
       slapd_SSL_warn("Security Initialization: Failed to retrieve SSL "
                      "configuration information ("
-					 SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
-		     		 "nssslSessionTimeout: %s ",
-		     		 errorCode, slapd_pr_strerror(errorCode),
-		     (val ? "found" : "not found"));
+                     SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
+                     "nssslSessionTimeout: %s ",
+                     errorCode, slapd_pr_strerror(errorCode),
+             (val ? "found" : "not found"));
       slapi_ch_free((void **) &val);
       slapi_ch_free((void **) &ciphers);
       freeConfigEntry( &entry );
@@ -1042,79 +1093,86 @@ slapd_ssl_init()
     slapi_ch_free((void **) &val);
 
     if (svrcore_setup()) {
-	freeConfigEntry( &entry );
-	return -1;
+        freeConfigEntry( &entry );
+        return -1;
     }
 
-    if((family_list = getChildren(configDN))) {
-		char **family;
-		char *token;
-		char *activation;
-
-	for (family = family_list; *family; family++) {
-
-		token = NULL;
-		activation = NULL;
-
-		freeConfigEntry( &entry );
-
- 		getConfigEntry( *family, &entry );
-		if ( entry == NULL ) {
-			continue;
-		}
-
-		activation = slapi_entry_attr_get_charptr( entry, "nssslactivation" );
-		if((!activation) || (!PL_strcasecmp(activation, "off"))) {
-			/* this family was turned off, goto next */
-			slapi_ch_free((void **) &activation);
-			continue;
-		}
-
-		slapi_ch_free((void **) &activation);
-
-		token = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
-                if( token ) {
-                        if( !PL_strcasecmp(token, "internal") ||
-                            !PL_strcasecmp(token, "internal (software)"))
-    				slot = slapd_pk11_getInternalKeySlot();
-     			else
-    				slot = slapd_pk11_findSlotByName(token);
-    		} else {
-		        errorCode = PR_GetError();
-      			slapd_SSL_warn("Security Initialization: Unable to get token ("
-				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
-				       errorCode, slapd_pr_strerror(errorCode));
-      			freeChildren(family_list);
-      			freeConfigEntry( &entry );
-      			return -1;
-		}
-
-		slapi_ch_free((void **) &token);
-
-		if (!slot) {
-		        errorCode = PR_GetError();
-      			slapd_SSL_warn("Security Initialization: Unable to find slot ("
-				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				       errorCode, slapd_pr_strerror(errorCode));
-      			freeChildren(family_list);
-      			freeConfigEntry( &entry );
-      			return -1;
-    		}
-    		/* authenticate */
-    		if(slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess)
-    		{
-		        errorCode = PR_GetError();
-      			slapd_SSL_warn("Security Initialization: Unable to authenticate ("
-				       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				       errorCode, slapd_pr_strerror(errorCode));
-      			freeChildren(family_list);
-      			freeConfigEntry( &entry );
-      			return -1;
-    		}
-    	}
-	freeChildren( family_list );
+    val = slapi_entry_attr_get_charptr(entry, "allowWeakCipher");
+    if (val && (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") || 
+                !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no"))) {
+        allowweakcipher = 0;
     }
-	freeConfigEntry( &entry );
+    slapi_ch_free((void **) &val);
+ 
+    if ((family_list = getChildren(configDN))) {
+        char **family;
+        char *token;
+        char *activation;
+
+        for (family = family_list; *family; family++) {
+
+            token = NULL;
+            activation = NULL;
+
+            freeConfigEntry( &entry );
+
+            getConfigEntry( *family, &entry );
+            if ( entry == NULL ) {
+                continue;
+            }
+
+            activation = slapi_entry_attr_get_charptr( entry, "nssslactivation" );
+            if((!activation) || (!PL_strcasecmp(activation, "off"))) {
+                /* this family was turned off, goto next */
+                slapi_ch_free((void **) &activation);
+                continue;
+            }
+
+            slapi_ch_free((void **) &activation);
+
+            token = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
+            if ( token ) {
+                if (!PL_strcasecmp(token, "internal") ||
+                    !PL_strcasecmp(token, "internal (software)")) {
+                    slot = slapd_pk11_getInternalKeySlot();
+                } else {
+                    slot = slapd_pk11_findSlotByName(token);
+                }
+            } else {
+                errorCode = PR_GetError();
+                slapd_SSL_warn("Security Initialization: Unable to get token ("
+                       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
+                       errorCode, slapd_pr_strerror(errorCode));
+                freeChildren(family_list);
+                freeConfigEntry( &entry );
+                return -1;
+            }
+
+            slapi_ch_free((void **) &token);
+
+            if (!slot) {
+                errorCode = PR_GetError();
+                slapd_SSL_warn("Security Initialization: Unable to find slot ("
+                       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                       errorCode, slapd_pr_strerror(errorCode));
+                freeChildren(family_list);
+                freeConfigEntry( &entry );
+                return -1;
+            }
+            /* authenticate */
+            if (slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
+                errorCode = PR_GetError();
+                slapd_SSL_warn("Security Initialization: Unable to authenticate ("
+                       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                       errorCode, slapd_pr_strerror(errorCode));
+                freeChildren(family_list);
+                freeConfigEntry( &entry );
+                return -1;
+            }
+        }
+        freeChildren( family_list );
+        freeConfigEntry( &entry );
+    }
 
     /* ugaston- Cipher preferences must be set before any sslSocket is created
      * for such sockets to take preferences into account.
@@ -1126,13 +1184,13 @@ slapd_ssl_init()
          PL_strncpyz(cipher_string, ciphers, sizeof(cipher_string));
     slapi_ch_free((void **) &ciphers);
 
-    if( NULL != (val = _conf_setciphers(cipher_string)) ) {
-         errorCode = PR_GetError();
-         slapd_SSL_warn("Security Initialization: Failed to set SSL cipher "
-			"preference information: %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
-			val, errorCode, slapd_pr_strerror(errorCode));
-         rv = 3;
-	slapi_ch_free((void **) &val);
+    if ( NULL != (val = _conf_setciphers(cipher_string, allowweakcipher)) ) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Failed to set SSL cipher "
+            "preference information: %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
+            val, errorCode, slapd_pr_strerror(errorCode));
+        rv = 3;
+        slapi_ch_free((void **) &val);
     }
 
     freeConfigEntry( &entry );
