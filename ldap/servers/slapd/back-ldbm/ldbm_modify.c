@@ -526,6 +526,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 					CACHE_REMOVE(&inst->inst_cache, ec);
 				}
 				CACHE_RETURN(&inst->inst_cache, &ec);
+				slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
 				ec = original_entry;
 				original_entry = tmpentry;
 				tmpentry = NULL;
