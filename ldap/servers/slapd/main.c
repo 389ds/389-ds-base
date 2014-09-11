@@ -3077,6 +3077,24 @@ slapd_debug_level_usage( void )
 }
 #endif /* LDAP_DEBUG */
 
+static int
+force_to_disable_security(const char *what, int *init_ssl, daemon_ports_t *ports_info)
+{
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+	errorbuf[0] = '\0';
+
+    LDAPDebug2Args(LDAP_DEBUG_ANY, "ERROR: %s Initialization Failed.  Disabling %s.\n", what, what);
+    ports_info->s_socket = SLAPD_INVALID_SOCKET;
+    ports_info->s_port = 0;
+    *init_ssl = 0;
+    if (config_set_security(CONFIG_SECURITY_ATTRIBUTE, "off", errorbuf, 1)) {
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "ERROR: Failed to disable %s: \"%s\".\n", 
+                       CONFIG_SECURITY_ATTRIBUTE, errorbuf[0]?errorbuf:"no error message");
+        return 1;
+    }
+	return 0;
+}
+
 /*
   This function does all NSS and SSL related initialization
   required during startup.  We use this function rather
@@ -3113,20 +3131,20 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
 	 * modules can assume NSS is available
 	 */
 	if ( slapd_nss_init((slapd_exemode == SLAPD_EXEMODE_SLAPD),
-                        (slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
-        LDAPDebug(LDAP_DEBUG_ANY,
-                  "ERROR: NSS Initialization Failed.\n", 0, 0, 0);
-        return 1;
+	                    (slapd_exemode != SLAPD_EXEMODE_REFERRAL) /* have config? */ )) {
+	    if (force_to_disable_security("NSS", &init_ssl, ports_info)) {
+	        return 1;
+	    }
 	}
 
 	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
         client_auth_init();
 	}
 
-	if ( init_ssl && ( 0 != slapd_ssl_init())) {
-		LDAPDebug(LDAP_DEBUG_ANY,
-                  "ERROR: SSL Initialization Failed.\n", 0, 0, 0 );
-		return 1;
+	if (init_ssl && slapd_ssl_init()) {
+	    if (force_to_disable_security("SSL", &init_ssl, ports_info)) {
+	        return 1;
+	    }
 	}
 
 	if ((slapd_exemode == SLAPD_EXEMODE_SLAPD) ||
@@ -3134,10 +3152,10 @@ slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
 		if ( init_ssl ) {
 			PRFileDesc **sock;
 			for (sock = ports_info->s_socket; sock && *sock; sock++) {
-				if ( 0 != slapd_ssl_init2(sock, 0) ) {
-					LDAPDebug(LDAP_DEBUG_ANY,
-                              "ERROR: SSL Initialization phase 2 Failed.\n", 0, 0, 0 );
-					return 1;
+				if ( slapd_ssl_init2(sock, 0) ) {
+				    if (force_to_disable_security("SSL2", &init_ssl, ports_info)) {
+				        return 1;
+				    }
 				}
 			}
 		}
