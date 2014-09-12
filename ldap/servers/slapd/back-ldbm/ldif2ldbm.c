@@ -2195,7 +2195,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         if (task) {
                             slapi_task_log_notice(task, "%s: ERROR: failed to begin txn for "
                                                   "update index '%s' (err %d: %s)",
-                                                  inst->inst_name, indexAttrs[j], rc,
+                                                  inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc,
                                                   dblayer_strerror(rc));
                         }
                         return_value = -2;

@@ -160,6 +160,7 @@ int nt_load(NameTable *nt, const char *filename)
             free(s);
             break;
         }
+        free(s);
     }
     PR_Close(fd);
     return nt->size;
