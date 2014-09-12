@@ -2044,10 +2044,10 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 		goto bail;
 	}
 
-	if (!groupvals)
+	if (!groupvals || !group_norm_vals)
 	{
 		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
-			"memberof_get_groups_callback: NULL groupvals\n");
+			"memberof_get_groups_callback: NULL groupvals or group_norm_vals\n");
 		rc = -1;
 		goto bail;
 
@@ -2076,7 +2076,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	 * in config.  We only need this attribute for it's syntax so the comparison can be
 	 * performed.  Since all of the grouping attributes are validated to use the Dinstinguished
 	 * Name syntax, we can safely just use the first group_slapiattr. */
-	if (group_norm_vals && slapi_valueset_find(
+	if (slapi_valueset_find(
 		((memberof_get_groups_data*)callback_data)->config->group_slapiattrs[0], group_norm_vals, group_ndn_val))
 	{
 		/* we either hit a recursive grouping, or an entry is
