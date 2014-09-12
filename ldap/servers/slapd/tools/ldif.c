@@ -142,7 +142,8 @@ int main( int argc, char **argv )
 		}
 
 		if (( out = ldif_type_and_value( type, val, cur )) == NULL ) {
-		    	perror( "ldif_type_and_value" );
+			perror( "ldif_type_and_value" );
+			free( val );
 			return( 1 );
 		}
 
@@ -166,6 +167,7 @@ int main( int argc, char **argv )
 				maxlen *= 2;
 				if( (buf = (char *)realloc(buf, maxlen)) == NULL ) {
 					perror( "realloc" );
+					free( buf );
 					return( 1 );
 				}
 				(void)fgets(buf+curlen, maxlen/2 + 1, stdin);
@@ -176,6 +178,7 @@ int main( int argc, char **argv )
 			if (( out = ldif_type_and_value( type, buf, strlen( buf ) ))
 				== NULL ) {
 				perror( "ldif_type_and_value" );
+				free( buf );
 				return( 1 );
 			}
 			fputs( out, stdout );
