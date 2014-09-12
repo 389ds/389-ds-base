@@ -673,54 +673,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				goto error_return;
 			}
 			if (tombstone_in_cache) {
-				retval = cache_replace(&inst->inst_cache, e, tombstone);
-				if (retval) {
-					LDAPDebug(LDAP_DEBUG_CACHE, "ldbm_back_delete: cache_replace failed (%d): %s --> %s\n",
-					          retval, slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn(tombstone->ep_entry));
-					retval= -1;
-					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
-					goto error_return;
-				} else {
-					e_in_cache = 0;
-				}
-			} else {
-				struct backentry *imposter = NULL;
-				retval = CACHE_ADD(&inst->inst_cache, tombstone, &imposter);
-				if (retval > 0) {
-					if (imposter) {
-						/* 
-						 * The same tombstone entry (different Slapi_Entry) is already
-						 * generated and set to cache.  Back off. 
-						 */
-						CACHE_RETURN(&inst->inst_cache, &imposter);
-						LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
-						              "ldbm_delete: cache add: same DN tombstone in cache: %s\n",
-						              slapi_entry_get_dn(tombstone->ep_entry));
-					} else {
-						/* 
-						 * The same tombstone entry (same Slapi_Entry) is being created.
-						 * Something is wrong.  We should clean it up from the cache,
-						 * and back off.
-						 */
-						tombstone_in_cache = 1;
-						LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
-						              "ldbm_delete: cache add: same tombstone in cache: %s\n",
-						              slapi_entry_get_dn(tombstone->ep_entry));
-					}
-					retval= -1;
-					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
-					goto error_return;
-				} else if (retval < 0) {
-					LDAPDebug1Arg(LDAP_DEBUG_CACHE, 
-					              "ldbm_delete: cache add: Add %s failed.\n",
-					              slapi_entry_get_dn(tombstone->ep_entry));
-					/* Complete add error */
-					retval= -1;
-					DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
-					goto error_return;
-				}
-			}
-			if (tombstone_in_cache) {
 				/* tombstone was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
 				   and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -
 				   drop the extra ref added by cache_replace */
@@ -1130,6 +1082,16 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		goto error_return;
 	}
 
+	if (create_tombstone_entry) {
+		retval = cache_replace(&inst->inst_cache, e, tombstone);
+		if (retval) {
+			LDAPDebug(LDAP_DEBUG_CACHE, "ldbm_back_delete: cache_replace failed (%d): %s --> %s\n",
+			        retval, slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn(tombstone->ep_entry));
+			retval= -1;
+			goto error_return;
+		}
+	}
+
 	/* call the transaction post delete plugins just before the commit */
 	if (plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
 		LDAPDebug0Args( LDAP_DEBUG_ANY, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
@@ -1332,6 +1294,22 @@ common_return:
 	 */
 	if (!delete_tombstone_entry) {
 		plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_DELETE_FN);
+	}
+
+	if (e) {
+		if (e_in_cache) {
+			if (remove_e_from_cache) {
+				/* The entry is already transformed to a tombstone. */
+				CACHE_REMOVE( &inst->inst_cache, e );
+			}
+		}
+		cache_unlock_entry( &inst->inst_cache, e );
+		CACHE_RETURN( &inst->inst_cache, &e );
+		/*
+		 * e is unlocked and no longer in cache.
+		 * It could be freed at any moment.
+		 */
+		e = NULL;
 	}
 
 	if (ruv_c_init) {
