@@ -269,7 +269,16 @@ def _status_entry_both_server(topology, name=None, desc=None, debug=True):
     if not name:
         return
     topology.master1.log.info("\n\n######################### Tombstone on M1 ######################\n")
-    ent_m1 = _find_tombstone(topology.master1, SUFFIX, 'sn', name)
+    attr  = 'description'
+    found = False
+    attempt = 0
+    while not found and attempt < 10:
+        ent_m1 = _find_tombstone(topology.master1, SUFFIX, 'sn', name)
+        if attr in ent_m1.getAttrs():
+            found = True
+        else:
+            time.sleep(1)
+            attempt = attempt + 1
     assert ent_m1
     
     topology.master1.log.info("\n\n######################### Tombstone on M2 ######################\n")
