@@ -5582,7 +5582,7 @@ void slapi_td_get_val(int indexType, void **value);
 int slapi_td_dn_init(void);
 int slapi_td_set_dn(char *dn);
 void slapi_td_get_dn(char **dn);
-int slapi_td_plugin_lock_init();
+int slapi_td_plugin_lock_init(void);
 int slapi_td_set_plugin_locked(int *value);
 void slapi_td_get_plugin_locked(int **value);
 
