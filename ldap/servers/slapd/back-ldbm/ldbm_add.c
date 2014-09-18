@@ -84,6 +84,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	struct backentry *addingentry = NULL;
 	struct backentry *parententry = NULL;
 	struct backentry *originalentry = NULL;
+	struct backentry *tmpentry = NULL;
 	ID pid;
 	int	isroot;
 	char *errbuf= NULL;
@@ -103,12 +104,11 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int ruv_c_init = 0;
 	int rc;
 	int addingentry_id_assigned= 0;
-	int addingentry_in_cache= 0;
-	int tombstone_in_cache= 0;
 	Slapi_DN *sdn = NULL;
 	Slapi_DN parentsdn;
 	Slapi_Operation *operation;
 	int dblock_acquired= 0;
+	int is_remove_from_cache= 0;
 	int is_replicated_operation= 0;
 	int is_resurect_operation= 0;
 	int is_tombstone_operation= 0;
@@ -118,6 +118,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	entry_address addr = {0};
 	int parent_switched = 0;
 	int noabort = 1;
+	const char *dn = NULL;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -425,7 +426,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 			ldap_result_code= -1;
 			goto error_return;  /* error result sent by find_entry2modify() */
 		}
-		tombstone_in_cache = 1;
 
 		addingentry = backentry_dup( tombstoneentry );
 		if ( addingentry==NULL )
@@ -684,14 +684,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 	/* Tentatively add the entry to the cache.  We do this after adding any
 	 * operational attributes to ensure that the cache is sized correctly. */
-	if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL )!= 0 )
+	if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL ) < 0 )
 	{
 		LDAPDebug1Arg(LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected: %s\n",
 		              slapi_entry_get_dn_const(addingentry->ep_entry));
 		ldap_result_code= LDAP_ALREADY_EXISTS;
 		goto error_return;
 	}
-	addingentry_in_cache = 1;
 
 	/*
 	 * Before we add the entry, find out if the syntax of the aci
@@ -740,32 +739,31 @@ ldbm_back_add( Slapi_PBlock *pb )
 			noabort = 1;
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 
-			if (addingentry_in_cache) {
+			/* must duplicate addingentry before returning it to cache,
+			 * which could free the entry. */
+			if ( (tmpentry = backentry_dup( addingentry )) == NULL ) {
+				ldap_result_code= LDAP_OPERATIONS_ERROR;
+				goto error_return;
+			}
+			if (cache_is_in_cache(&inst->inst_cache, addingentry)) {
 				/* addingentry is in cache.  Remove it once. */
 				retval = CACHE_REMOVE(&inst->inst_cache, addingentry);
 				if (retval) {
 					LDAPDebug1Arg(LDAP_DEBUG_CACHE, "ldbm_add: cache_remove %s failed.\n",
 					              slapi_entry_get_dn_const(addingentry->ep_entry));
 				}
-				CACHE_RETURN(&inst->inst_cache, &addingentry);
-			} else {
-				backentry_free(&addingentry);
 			}
+			CACHE_RETURN(&inst->inst_cache, &addingentry);
 			slapi_pblock_set( pb, SLAPI_ADD_ENTRY, originalentry->ep_entry );
 			addingentry = originalentry;
-			if ( (originalentry = backentry_dup( addingentry )) == NULL ) {
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
+			originalentry = tmpentry;
+			tmpentry = NULL;
+			/* Adding the resetted addingentry to the cache. */
+			if (cache_add_tentative(&inst->inst_cache, addingentry, NULL) < 0) {
+				LDAPDebug1Arg(LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected: %s\n",
+					slapi_entry_get_dn_const(addingentry->ep_entry));
+				ldap_result_code = LDAP_ALREADY_EXISTS;
 				goto error_return;
-			}
-			if (addingentry_in_cache) {
-				/* Adding the resetted addingentry to the cache. */
-				if (cache_add_tentative(&inst->inst_cache, addingentry, NULL) != 0) {
-					LDAPDebug1Arg(LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected: %s\n",
-					              slapi_entry_get_dn_const(addingentry->ep_entry));
-					ldap_result_code = LDAP_ALREADY_EXISTS;
-					addingentry_in_cache = 0;
-					goto error_return;
-				}
 			}
 			if (ruv_c_init) {
 				/* reset the ruv txn stuff */
@@ -1038,10 +1036,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 			retval = -1;
 			goto error_return;
 		}
-		if (addingentry_in_cache) { /* decrease the refcnt added by tentative */
-			CACHE_RETURN( &inst->inst_cache, &addingentry );
-		}
-		addingentry_in_cache = 1; /* reset it to make it sure... */
 		/*
 		 * The tombstone was locked down in the cache... we can
 		 * get rid of the entry in the cache now.
@@ -1056,9 +1050,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 				CACHE_RETURN(&inst->inst_dncache, &bdn);
 			}
 		}
-		cache_unlock_entry( &inst->inst_cache, tombstoneentry );
-		CACHE_RETURN( &inst->inst_cache, &tombstoneentry );
-		tombstone_in_cache = 0;
 	}
 	if (parent_found)
 	{
@@ -1116,20 +1107,6 @@ error_return:
 	{
 		next_id_return( be, addingentry->ep_id );
 	}
-	if ( addingentry )
-	{
-		if ( addingentry_in_cache )
-		{
-			CACHE_REMOVE(&inst->inst_cache, addingentry);
-		}
-		else
-		{
-			if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
-				backentry_clear_entry(addingentry); /* e is released in the frontend */
-			}
-			backentry_free( &addingentry ); /* release the backend wrapper, here */
-		}
-	}
 	if (rc == DB_RUNRECOVERY) {
 		dblayer_remember_disk_filled(li);
 		ldbm_nasty("Add",80,rc);
@@ -1149,6 +1126,21 @@ error_return:
 
 diskfull_return:
 	if (disk_full) {
+		if ( addingentry )
+		{
+			if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
+				CACHE_REMOVE(&inst->inst_cache, addingentry);
+				/* tell frontend not to free this entry */
+				slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+			}
+			else if (!cache_has_otherref(&inst->inst_cache, addingentry))
+			{
+				if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
+					backentry_clear_entry(addingentry); /* e is released in the frontend */
+				}
+			}
+			CACHE_RETURN( &inst->inst_cache, &addingentry );
+		}
 		rc = return_on_disk_full(li);
 	} else {
 		/* It is safer not to abort when the transaction is not started. */
@@ -1187,38 +1179,57 @@ diskfull_return:
 			}
 			/* txn is no longer valid - reset the txn pointer to the parent */
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+		} else {
+			if ( addingentry ) {
+				if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
+					CACHE_REMOVE(&inst->inst_cache, addingentry);
+					/* tell frontend not to free this entry */
+					slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+				}
+				else if (!cache_has_otherref(&inst->inst_cache, addingentry))
+				{
+					if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
+						backentry_clear_entry(addingentry); /* e is released in the frontend */
+					}
+				}
+				CACHE_RETURN( &inst->inst_cache, &addingentry );
+			}
 		}
 		rc = SLAPI_FAIL_GENERAL;
 	}
 	
 common_return:
 	if (inst) {
-		if(tombstone_in_cache && tombstoneentry) {
+		if (tombstoneentry && cache_is_in_cache(&inst->inst_cache, tombstoneentry)) {
 			cache_unlock_entry(&inst->inst_cache, tombstoneentry);
 			CACHE_RETURN(&inst->inst_cache, &tombstoneentry);
 		}
-	}
-	if (addingentry_in_cache && addingentry) {
-		if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
-			/* since the op was successful, add the addingentry's dn to the dn cache */
-			struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
-			                                     addingentry->ep_id);
-			if (bdn) { /* already in the dncache */
-				CACHE_RETURN(&inst->inst_dncache, &bdn);
-			} else { /* not in the dncache yet */
-				Slapi_DN *addingsdn = slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
-				if (addingsdn) {
-					bdn = backdn_init(addingsdn, addingentry->ep_id, 0);
-					if (bdn) {
-						CACHE_ADD( &inst->inst_dncache, bdn, NULL );
-						CACHE_RETURN(&inst->inst_dncache, &bdn);
-						slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_add",
-						                "set %s to dn cache\n", slapi_sdn_get_dn(sdn));
+		if (addingentry) {
+			if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
+				/* since adding the entry to the entry cache was successful,
+				 * let's add the dn to dncache, if not yet done. */
+				struct backdn *bdn = dncache_find_id(&inst->inst_dncache,
+				                                     addingentry->ep_id);
+				if (bdn) { /* already in the dncache */
+					CACHE_RETURN(&inst->inst_dncache, &bdn);
+				} else { /* not in the dncache yet */
+					Slapi_DN *addingsdn = slapi_sdn_dup(slapi_entry_get_sdn(addingentry->ep_entry));
+					if (addingsdn) {
+						bdn = backdn_init(addingsdn, addingentry->ep_id, 0);
+						if (bdn) {
+							CACHE_ADD( &inst->inst_dncache, bdn, NULL );
+							CACHE_RETURN(&inst->inst_dncache, &bdn);
+							slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_add",
+							                "set %s to dn cache\n", dn);
+						}
 					}
 				}
 			}
+			if (is_remove_from_cache) {
+				CACHE_REMOVE(&inst->inst_cache, addingentry);
+			}
+			CACHE_RETURN( &inst->inst_cache, &addingentry );
 		}
-		CACHE_RETURN( &inst->inst_cache, &addingentry );
 	}
 	/* bepost op needs to know this result */
 	slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -1240,6 +1251,7 @@ common_return:
 		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
 	}
 	backentry_free(&originalentry);
+	backentry_free(&tmpentry);
 	slapi_sdn_done(&parentsdn);
 	slapi_ch_free( (void**)&ldap_result_matcheddn );
 	slapi_ch_free( (void**)&errbuf );
