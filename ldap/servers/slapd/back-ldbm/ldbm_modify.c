@@ -65,7 +65,6 @@ void modify_init(modify_context *mc,struct backentry *old_entry)
 	PR_ASSERT(NULL == mc->new_entry);
 
 	mc->old_entry = old_entry;
-	mc->new_entry_in_cache = 0;
 	mc->attr_encrypt = 1;
 }
 
@@ -96,16 +95,13 @@ int modify_term(modify_context *mc,struct backend *be)
 
     slapi_mods_free(&mc->smods);
     /* Unlock and return entries */
-    if (NULL != mc->old_entry)  {
+    if (mc->old_entry)  {
         cache_unlock_entry(&inst->inst_cache, mc->old_entry);
         CACHE_RETURN( &(inst->inst_cache), &(mc->old_entry) );
         mc->old_entry= NULL;
     }
-    if (mc->new_entry_in_cache) {
-        CACHE_RETURN( &(inst->inst_cache), &(mc->new_entry) );
-    } else {
-        backentry_free(&(mc->new_entry));
-    }
+
+    CACHE_RETURN( &(inst->inst_cache), &(mc->new_entry) );
     mc->new_entry= NULL;
     return 0;
 }
@@ -115,11 +111,9 @@ int modify_switch_entries(modify_context *mc,backend *be)
 {
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int ret = 0;
-	if (mc->old_entry!=NULL && mc->new_entry!=NULL) {
+	if (mc->old_entry && mc->new_entry) {
 		ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
-		if (ret == 0) {
-			mc->new_entry_in_cache = 1;
-		} else {
+		if (ret){
 			LDAPDebug(LDAP_DEBUG_CACHE, "modify_switch_entries: replacing %s with %s failed (%d)\n",
 			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
 			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
@@ -140,13 +134,19 @@ modify_unswitch_entries(modify_context *mc,backend *be)
 	ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
 	int ret = 0;
 
-	if (mc->old_entry!=NULL && mc->new_entry!=NULL) {
+	if (mc->old_entry && mc->new_entry &&
+	    cache_is_in_cache(&inst->inst_cache, mc->new_entry)) {
 		/* switch the entries, and reset the new, new, entry */
 		tmp_be = mc->new_entry;
 		mc->new_entry = mc->old_entry;
 		mc->new_entry->ep_state = 0;
-		mc->new_entry->ep_refcnt = 0;
-		mc->new_entry_in_cache = 0;
+		if (cache_has_otherref(&(inst->inst_cache), mc->new_entry)) {
+			/* some other thread refers the entry */
+			CACHE_RETURN(&(inst->inst_cache), &(mc->new_entry));
+		} else {
+			/* don't call CACHE_RETURN, that frees the entry!  */
+			mc->new_entry->ep_refcnt = 0;
+		}
 		mc->old_entry = tmp_be;
 
 		ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
@@ -157,9 +157,7 @@ modify_unswitch_entries(modify_context *mc,backend *be)
 			 * "old" one.  modify_term() will then return the "new" entry.
 			 */
 			cache_unlock_entry(&inst->inst_cache, mc->new_entry);
-			CACHE_RETURN( &(inst->inst_cache), &(mc->old_entry) );
-			mc->new_entry_in_cache = 1;
-			mc->old_entry = NULL;
+			cache_lock_entry(&inst->inst_cache, mc->old_entry);
 		} else {
 			LDAPDebug(LDAP_DEBUG_CACHE, "modify_unswitch_entries: replacing %s with %s failed (%d)\n",
 			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
@@ -362,7 +360,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	backend *be;
 	ldbm_instance *inst = NULL;
 	struct ldbminfo		*li;
-	struct backentry	*e = NULL, *ec = NULL, *original_entry = NULL;
+	struct backentry	*e = NULL, *ec = NULL;
+	struct backentry    *original_entry = NULL, *tmpentry = NULL;;
 	Slapi_Entry		*postentry = NULL;
 	LDAPMod			**mods = NULL;
 	LDAPMod			**mods_original = NULL;
@@ -382,7 +381,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	int dblock_acquired= 0;
 	entry_address *addr;
-	int ec_in_cache = 0;
 	int is_fixup_operation= 0;
 	int is_ruv = 0;                 /* True if the current entry is RUV */
 	CSN *opcsn = NULL;
@@ -551,14 +549,21 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 			ldap_mods_free(mods, 1);
 			slapi_pblock_set(pb, SLAPI_MODIFY_MODS, copy_mods(mods_original));
-			/* ec is not really added to the cache until cache_replace, so we
-			   don't have to worry about the cache here */
-			backentry_free(&ec);
-			slapi_pblock_set( pb, SLAPI_MODIFY_EXISTING_ENTRY, original_entry->ep_entry );
-			ec = original_entry;
-			if ( (original_entry = backentry_dup( ec )) == NULL ) {
-				ldap_result_code= LDAP_OPERATIONS_ERROR;
-				goto error_return;
+			/* reset ec set cache in id2entry_add_ext */
+			if (ec) {
+				/* must duplicate ec before returning it to cache,
+				 * which could free the entry. */
+				if ( (tmpentry = backentry_dup( ec )) == NULL ) {
+					ldap_result_code= LDAP_OPERATIONS_ERROR;
+					goto error_return;
+				}
+				if (cache_is_in_cache(&inst->inst_cache, ec)) {
+					CACHE_REMOVE(&inst->inst_cache, ec);
+				}
+				CACHE_RETURN(&inst->inst_cache, &ec);
+				ec = original_entry;
+				original_entry = tmpentry;
+				tmpentry = NULL;
 			}
 
 			if (ruv_c_init) {
@@ -740,7 +745,6 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	/* lock new entry in cache to prevent usage until we are complete */
 	cache_lock_entry( &inst->inst_cache, ec );
-	ec_in_cache = 1;
 
 	postentry = slapi_entry_dup( ec->ep_entry );
 	slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
@@ -842,11 +846,11 @@ error_return:
 	}
 
 	/* if ec is in cache, remove it, then add back e if we still have it */
-	if (ec_in_cache) {
+	if (inst && cache_is_in_cache(&inst->inst_cache, ec)) {
 		CACHE_REMOVE( &inst->inst_cache, ec );
 		/* if ec was in cache, e was not - add back e */
 		if (e) {
-			if (CACHE_ADD( &inst->inst_cache, e, NULL )) {
+			if (CACHE_ADD( &inst->inst_cache, e, NULL ) < 0) {
 				LDAPDebug1Arg( LDAP_DEBUG_CACHE, "ldbm_modify: CACHE_ADD %s failed\n",
 							   slapi_entry_get_dn(e->ep_entry));
 			}
@@ -856,20 +860,17 @@ error_return:
 common_return:
 	slapi_mods_done(&smods);
 	
-	if (ec_in_cache)
-	{
-		cache_unlock_entry( &inst->inst_cache, ec);
-		CACHE_RETURN( &inst->inst_cache, &ec );
-	}
-	else
-	{
-		backentry_free(&ec);
-		/* if ec was not in cache, cache_replace was not done.
-		 * i.e., e was not unlocked. */
-		if (e) {
+	if(inst){
+		if (cache_is_in_cache( &inst->inst_cache, ec))
+		{
+			cache_unlock_entry( &inst->inst_cache, ec);
+		} else if (e) {
+			/* if ec was not in cache, cache_replace was not done.
+			 * i.e., e was not unlocked. */
 			cache_unlock_entry( &inst->inst_cache, e);
 			CACHE_RETURN( &inst->inst_cache, &e);
 		}
+		CACHE_RETURN(&inst->inst_cache, &ec);
 	}
 
 	/* result code could be used in the bepost plugin functions. */
@@ -895,6 +896,7 @@ common_return:
 	/* free our backups */
 	ldap_mods_free(mods_original, 1);
 	backentry_free(&original_entry);
+	backentry_free(&tmpentry);
 	slapi_ch_free_string(&errbuf);
 
 	return rc;

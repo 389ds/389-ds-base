@@ -402,7 +402,7 @@ struct cache {
     Slapi_Counter *c_tries;
     struct backcommon *c_lruhead;	/* add entries here */
     struct backcommon *c_lrutail;	/* remove entries here */
-    PRLock *c_mutex;			/* lock for cache operations */
+    PRMonitor *c_mutex;			/* lock for cache operations */
     PRLock *c_emutexalloc_mutex;
 };
 
@@ -694,7 +694,6 @@ typedef struct _import_subcount_stuff import_subcount_stuff;
 /* Handy structures for modify operations */
 
 struct _modify_context {
-	int new_entry_in_cache;
 	struct backentry *old_entry;
 	struct backentry *new_entry;
 	Slapi_Mods *smods;

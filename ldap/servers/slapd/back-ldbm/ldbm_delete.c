@@ -60,6 +60,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	struct ldbminfo	*li = NULL;
 	struct backentry *e = NULL;
 	struct backentry *tombstone = NULL;
+	struct backentry *tmptombstone = NULL;
 	struct backentry *original_tombstone = NULL;
 	const char *dn = NULL;
 	back_txn txn;
@@ -89,8 +90,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int delete_tombstone_entry = 0;	/* We must remove the given tombstone entry from the DB	*/
 	int create_tombstone_entry = 0;	/* We perform a "regular" LDAP delete but since we use	*/
 									/* replication, we must create a new tombstone entry	*/
-	int tombstone_in_cache = 0;
-	int e_in_cache = 0;
 	int remove_e_from_cache = 0;
 	entry_address *addr;
 	int addordel_flags = 0; /* passed to index_addordel */
@@ -99,6 +98,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	Slapi_DN parentsdn;
 	int opreturn = 0;
 	int free_delete_existing_entry = 0;
+	ID ep_id = 0;
+	ID tomb_ep_id = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -194,7 +195,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "ldbm_back_delete: Deleting entry is already deleted.\n");
 		goto error_return; /* error result sent by find_entry2modify() */
 	}
-	e_in_cache = 1; /* e is cached */
+	ep_id = e->ep_id;
 
 	retval = slapi_entry_has_children(e->ep_entry);
 	if (retval) {
@@ -472,6 +473,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			parentuniqueid= slapi_entry_get_uniqueid(parent_modify_c.old_entry->ep_entry);
 		}
 		tombstone = backentry_dup( e );
+		tomb_ep_id = tombstone->ep_id;
 		slapi_entry_set_dn(tombstone->ep_entry,tombstone_dn); /* Consumes DN */
 		if (entryrdn_get_switch()) /* subtree-rename: on */
 		{
@@ -534,25 +536,20 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 			/* reset tombstone entry */
 			if (original_tombstone) {
-				if (tombstone_in_cache) {
-					CACHE_REMOVE(&inst->inst_cache, tombstone);
-					CACHE_RETURN(&inst->inst_cache, &tombstone);
-					tombstone = NULL;
-					tombstone_in_cache = 0; 
-				} else {
-					backentry_free(&tombstone);
-				}
-				tombstone = original_tombstone;
-				if ( (original_tombstone = backentry_dup( tombstone )) == NULL ) {
+				/* must duplicate tombstone before returning it to cache,
+				 * which could free the entry. */
+				if ( (tmptombstone = backentry_dup( original_tombstone )) == NULL ) {
 					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto error_return;
 				}
+				if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
+					CACHE_REMOVE(&inst->inst_cache, tombstone);
+				}
+				CACHE_RETURN(&inst->inst_cache, &tombstone);
+				tombstone = original_tombstone;
+				original_tombstone = tmptombstone;
+				tmptombstone = NULL;
 			}
-			/* reset original entry in cache */ 
-			if (!e_in_cache) { 
-				CACHE_ADD(&inst->inst_cache, e, NULL); 
-				e_in_cache = 1; 
-			} 
 			if (ruv_c_init) {
 				/* reset the ruv txn stuff */
 				modify_term(&ruv_c, be);
@@ -647,13 +644,10 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * entry is removed from the cache.
 			 */
 			retval = cache_add_tentative(&inst->inst_cache, tombstone, NULL);
-			if (0 == retval) {
-				tombstone_in_cache = 1;
-			} else {
+			if (0 > retval) {
 				LDAPDebug2Args(LDAP_DEBUG_ANY,
 				               "tombstone entry %s failed to add to the cache: %d\n",
 				               slapi_entry_get_dn(tombstone->ep_entry), retval);
-				tombstone_in_cache = 0;
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				DEL_SET_ERROR(ldap_result_code, 
 							  LDAP_OPERATIONS_ERROR, retry_count);
@@ -672,13 +666,6 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				DEL_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 				goto error_return;
 			}
-			if (tombstone_in_cache) {
-				/* tombstone was already added to the cache via cache_add_tentative (to reserve its spot in the cache)
-				   and/or id2entry_add - so it already had one refcount - cache_replace adds another refcount -
-				   drop the extra ref added by cache_replace */
-				CACHE_RETURN( &inst->inst_cache, &tombstone );
-			}
-			tombstone_in_cache = 1;
 		}
 		else
 		{
@@ -1129,22 +1116,22 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	/* delete from cache and clean up */
 	if (e) {
-		if (entryrdn_get_switch()) { /* subtree-rename: on */
+		if (cache_is_in_cache(&inst->inst_cache, e)) {
+			ep_id = e->ep_id;
+			CACHE_REMOVE(&inst->inst_cache, e);
+		}
+		cache_unlock_entry(&inst->inst_cache, e);
+		CACHE_RETURN(&inst->inst_cache, &e);
+		e = NULL;
+
+		if (entryrdn_get_switch() && ep_id) { /* subtree-rename: on */
 			/* since the op was successful, delete the tombstone dn from the dn cache */
-			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
+			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ep_id);
 			if (bdn) { /* in the dncache, remove it. */
 				CACHE_REMOVE(&inst->inst_dncache, bdn);
 				CACHE_RETURN(&inst->inst_dncache, &bdn);
 			}
 		}
-		if (e_in_cache) {
-			CACHE_REMOVE(&inst->inst_cache, e);
-			cache_unlock_entry(&inst->inst_cache, e);
-			CACHE_RETURN(&inst->inst_cache, &e);
-		} else {
-			cache_unlock_entry(&inst->inst_cache, e);
-		}
-		e = NULL;
 	}
 
 	if (ruv_c_init) {
@@ -1168,36 +1155,23 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 error_return:
 	if (tombstone) {
-		if (entryrdn_get_switch()) { /* subtree-rename: on */
+		if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
+			tomb_ep_id = tombstone->ep_id;
+		}
+
+		if (entryrdn_get_switch() && tomb_ep_id) { /* subtree-rename: on */
 			/* since the op was successful, add the addingentry's dn to the dn cache */
-			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, tombstone->ep_id);
+			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, tomb_ep_id);
 			if (bdn) { /* already in the dncache. Delete it. */
 				CACHE_REMOVE(&inst->inst_dncache, bdn);
 				CACHE_RETURN(&inst->inst_dncache, &bdn);
-			} 
-		}
-		if (tombstone_in_cache) { /* successfully replaced */
-			CACHE_REMOVE( &inst->inst_cache, tombstone );
-			CACHE_RETURN( &inst->inst_cache, &tombstone );
-			tombstone = NULL;
-			tombstone_in_cache = 0;
-		} else {
-			backentry_free( &tombstone );
-		}
-	}
-
-	/* Need to return to cache after post op plugins are called */
-	if (e) {
-		if (e_in_cache) {
-			if (remove_e_from_cache) {
-				/* The entry is already transformed to a tombstone. */
-				CACHE_REMOVE( &inst->inst_cache, e );
 			}
-			cache_unlock_entry( &inst->inst_cache, e );
-			CACHE_RETURN( &inst->inst_cache, &e );
-		} else {
-			cache_unlock_entry( &inst->inst_cache, e );
 		}
+		if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
+			CACHE_REMOVE( &inst->inst_cache, tombstone );
+		}
+		CACHE_RETURN( &inst->inst_cache, &tombstone );
+		tombstone = NULL;
 	}
 
 	if (retval == DB_RUNRECOVERY) {
@@ -1258,7 +1232,7 @@ common_return:
 		   for the post op plugins */
 		slapi_pblock_set( pb, SLAPI_DELETE_BEPREOP_ENTRY, orig_entry );
 	}
-	if (tombstone) {
+	if (inst && tombstone) {
 		if ((0 == retval) && entryrdn_get_switch()) { /* subtree-rename: on */
 			/* since the op was successful, add the addingentry's dn to the dn cache */
 			struct backdn *bdn = dncache_find_id(&inst->inst_dncache, tombstone->ep_id);
@@ -1277,13 +1251,8 @@ common_return:
 				}
 			}
 		}
-		if (tombstone_in_cache) { /* successfully replaced */
-			CACHE_RETURN( &inst->inst_cache, &tombstone );
-			tombstone = NULL;
-			tombstone_in_cache = 0;
-		} else {
-			backentry_free( &tombstone );
-		}
+		CACHE_RETURN( &inst->inst_cache, &tombstone );
+		tombstone = NULL;
 	}
 	
 	/* result code could be used in the bepost plugin functions. */
@@ -1297,7 +1266,7 @@ common_return:
 	}
 
 	if (e) {
-		if (e_in_cache) {
+		if (cache_is_in_cache(&inst->inst_cache, e)) {
 			if (remove_e_from_cache) {
 				/* The entry is already transformed to a tombstone. */
 				CACHE_REMOVE( &inst->inst_cache, e );
@@ -1342,6 +1311,7 @@ diskfull_return:
 		slapi_pblock_set(pb, SLAPI_DELETE_EXISTING_ENTRY, NULL);
 	}
 	backentry_free(&original_tombstone);
+	backentry_free(&tmptombstone);
 	slapi_ch_free((void**)&errbuf);
 	slapi_sdn_done(&nscpEntrySDN);
 	slapi_ch_free_string(&e_uniqueid);
