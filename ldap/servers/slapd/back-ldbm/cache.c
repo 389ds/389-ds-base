@@ -1506,10 +1506,12 @@ int cache_add_tentative(struct cache *cache, struct backentry *e,
 {
     return entrycache_add_int(cache, e, ENTRY_STATE_CREATING, alt);
 }
+
 void cache_lock(struct cache *cache)
 {
     PR_EnterMonitor(cache->c_mutex);
 }
+
 void cache_unlock(struct cache *cache)
 {
     PR_ExitMonitor(cache->c_mutex);
@@ -2095,9 +2097,9 @@ cache_has_otherref(struct cache *cache, void *ptr)
         return hasref;
     }
     bep = (struct backcommon *)ptr;
-    /* slows down too much? PR_Lock(cache->c_mutex); */
+    cache_lock(cache);
     hasref = bep->ep_refcnt;
-    /* PR_Unlock(cache->c_mutex); */
+    cache_unlock(cache);
     return (hasref>1)?1:0;
 }
 
@@ -2111,8 +2113,8 @@ cache_is_in_cache(struct cache *cache, void *ptr)
         return in_cache;
     }
     bep = (struct backcommon *)ptr;
-    /* slows down too much? PR_Lock(cache->c_mutex); */
+    cache_lock(cache);
     in_cache = (bep->ep_state & (ENTRY_STATE_DELETED|ENTRY_STATE_NOTINCACHE))?0:1;
-    /* PR_Unlock(cache->c_mutex); */
+    cache_unlock(cache);
     return in_cache;
 }
