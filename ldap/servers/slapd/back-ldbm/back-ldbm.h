@@ -705,7 +705,6 @@ typedef struct _import_subcount_stuff import_subcount_stuff;
 /* Handy structures for modify operations */
 
 struct _modify_context {
-	int new_entry_in_cache;
 	struct backentry *old_entry;
 	struct backentry *new_entry;
 	Slapi_Mods *smods;
