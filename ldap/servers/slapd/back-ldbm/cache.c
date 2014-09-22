@@ -1352,7 +1352,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                     LOG("the entry %s already exists.  returning existing entry %s (state: 0x%x)\n",
                         ndn, backentry_get_ndn(my_alt), state);
                     cache_unlock(cache);
-                    return -1;
+                    return 1;
                 } else {
                     LOG("the entry %s already exists.  Not returning existing entry %s (state: 0x%x)\n",
                         ndn, backentry_get_ndn(my_alt), state);
