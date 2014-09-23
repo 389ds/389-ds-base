@@ -172,7 +172,7 @@ static lookup_cipher _lookup_cipher[] = {
     {"tls_rsa_3des_sha",                    "TLS_RSA_WITH_3DES_EDE_CBC_SHA"},
     {"rsa_fips_3des_sha",                   "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
     {"fips_3des_sha",                       "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
-    {"rsa_des_sha",                         "SSL_RSA_WITH_DES_CBC_SHA"},
+    {"rsa_des_sha",                         "TLS_RSA_WITH_DES_CBC_SHA"},
     {"rsa_fips_des_sha",                    "SSL_RSA_FIPS_WITH_DES_CBC_SHA"},
     {"fips_des_sha",                        "SSL_RSA_FIPS_WITH_DES_CBC_SHA"}, /* ditto */
     {"rsa_rc4_40_md5",                      "TLS_RSA_EXPORT_WITH_RC4_40_MD5"},
@@ -455,7 +455,7 @@ _conf_setciphers(char *ciphers, int flags)
     char *raw = ciphers;
     char **suplist = NULL;
     char **unsuplist = NULL;
-    int lookup;
+    PRBool enabledOne = PR_FALSE;
 
     /* #47838: harden the list of ciphers available by default */
     /* Default is to activate all of them ==> none of them*/
@@ -474,6 +474,7 @@ _conf_setciphers(char *ciphers, int flags)
          * from the console
          */
         _conf_setallciphers(CIPHER_SET_ALL|CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flags), &suplist, NULL);
+        enabledOne = PR_TRUE;
     } else {
         /* If "+all" is not in nsSSL3Ciphers value, disable all first,
          * then enable specified ciphers. */
@@ -499,7 +500,7 @@ _conf_setciphers(char *ciphers, int flags)
 
         if (strcasecmp(ciphers, "all")) { /* if not all */
             PRBool enabled = active ? PR_TRUE : PR_FALSE;
-            lookup = 1;
+            int lookup = 1;
             for (x = 0; _conf_ciphers[x].name; x++) {
                 if (!PL_strcasecmp(ciphers, _conf_ciphers[x].name)) {
                     if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
@@ -558,6 +559,9 @@ _conf_setciphers(char *ciphers, int flags)
                                         enabled = cipher_check_fips(x, NULL, &unsuplist);
                                     }
                                 }
+                                if (enabled) {
+                                    enabledOne = PR_TRUE; /* At least one active cipher is set. */
+                                }
                                 SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
                                 break;
                             }
@@ -566,15 +570,14 @@ _conf_setciphers(char *ciphers, int flags)
                     }
                 }
             }
-            if(!_conf_ciphers[x].name) {
-                PR_snprintf(err, sizeof(err), "unknown cipher %s", ciphers);
-                slapi_ch_free((void **)&suplist); /* strings inside are static */
-                slapi_ch_free((void **)&unsuplist); /* strings inside are static */
-                return slapi_ch_strdup(err);
+            if (!lookup && !_conf_ciphers[x].name) { /* If lookup, it's already reported. */
+                slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d.  Ignoring %s",
+                               ciphers, NSS_VMAJOR, NSS_VMINOR, ciphers);
             }
         }
-        if(t)
+        if(t) {
             ciphers = t;
+        }
     }
     if (unsuplist && *unsuplist) {
         char *strsup = charray2str(suplist, ",");
@@ -592,6 +595,10 @@ _conf_setciphers(char *ciphers, int flags)
     slapi_ch_free((void **)&suplist); /* strings inside are static */
     slapi_ch_free((void **)&unsuplist); /* strings inside are static */
 
+    if (!enabledOne) {
+        char *nocipher = PR_smprintf("No active cipher suite is available.");
+        return nocipher;
+    }
     _conf_dumpciphers();
         
     return NULL;
