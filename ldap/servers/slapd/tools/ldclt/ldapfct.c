@@ -2308,17 +2308,6 @@ createMissingNodes (
   if (freeAttrib (attrs) < 0)
     return (-1);
 
-  ret = ldap_unbind_ext (cnx, NULL, NULL);
-  if (ret != LDAP_SUCCESS)
-  {
-    fprintf (stderr, "ldclt[%d]: T%03d: cannot ldap_unbind(), error=%d (%s)\n",
-			mctx.pid, tttctx->thrdNum, ret, strerror (ret));
-    fflush (stderr);
-    if (addErrorStat (ret) < 0)
-      return (-1);
-    return (-1);
-  }
-
   /*
    * Ouf ! End of this function.
    */
