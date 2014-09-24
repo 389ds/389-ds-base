@@ -25,6 +25,8 @@ LDAPSPORT = '10636'
 SERVERCERT = 'Server-Cert'
 plus_all_ecount = 0
 plus_all_dcount = 0
+plus_all_ecount_noweak = 0
+plus_all_dcount_noweak = 0
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -220,7 +222,7 @@ def test_ticket47838_run_0(topology):
     All ciphers are enabled except null.
     Note: allowWeakCipher: on
     """
-    _header(topology, 'Test Case 1 - Check the ciphers availability for "+all"')
+    _header(topology, 'Test Case 1 - Check the ciphers availability for "+all"; allowWeakCipher: on')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
@@ -235,8 +237,8 @@ def test_ticket47838_run_0(topology):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    assert ecount >= 31
-    assert dcount <= 36
+    assert ecount >= 60
+    assert dcount <= 7
     global plus_all_ecount
     global plus_all_dcount
     plus_all_ecount = ecount
@@ -250,9 +252,9 @@ def test_ticket47838_run_1(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
-    Note: allowWeakCipher: off for +all
+    Note: default allowWeakCipher (i.e., off) for +all
     """
-    _header(topology, 'Test Case 2 - Check the ciphers availability for "+all" with not allowing WeakCiphers')
+    _header(topology, 'Test Case 2 - Check the ciphers availability for "+all" with default allowWeakCiphers')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
@@ -271,6 +273,11 @@ def test_ticket47838_run_1(topology):
     ecount = int(enabled.readline().rstrip())
     dcount = int(disabled.readline().rstrip())
 
+    global plus_all_ecount_noweak
+    global plus_all_dcount_noweak
+    plus_all_ecount_noweak = ecount
+    plus_all_dcount_noweak = dcount
+
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
     assert ecount >= 31
@@ -284,12 +291,11 @@ def test_ticket47838_run_2(topology):
     """
     Check nsSSL3Ciphers: +rsa_aes_128_sha,+rsa_aes_256_sha
     rsa_aes_128_sha, tls_rsa_aes_128_sha, rsa_aes_256_sha, tls_rsa_aes_256_sha are enabled.
+    default allowWeakCipher
     """
-    _header(topology, 'Test Case 3 - Check the ciphers availability for "+rsa_aes_128_sha,+rsa_aes_256_sha"')
+    _header(topology, 'Test Case 3 - Check the ciphers availability for "+rsa_aes_128_sha,+rsa_aes_256_sha" with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-    #topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+rsa_aes_128_sha,+rsa_aes_256_sha'),
-    #                                             (ldap.MOD_REPLACE, 'allowWeakCipher', 'on')])
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+rsa_aes_128_sha,+rsa_aes_256_sha')])
 
     log.info("\n######################### Restarting the server ######################\n")
@@ -314,6 +320,7 @@ def test_ticket47838_run_3(topology):
     """
     Check nsSSL3Ciphers: -all
     All ciphers are disabled.
+    default allowWeakCipher
     """
     _header(topology, 'Test Case 4 - Check the ciphers availability for "-all"')
 
@@ -327,23 +334,23 @@ def test_ticket47838_run_3(topology):
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
-    disabled = os.popen('egrep "SSL alert:" %s | egrep \": disabled\" | wc -l' % topology.standalone.errlog)
     ecount = int(enabled.readline().rstrip())
-    dcount = int(disabled.readline().rstrip())
 
     log.info("Enabled ciphers: %d" % ecount)
-    log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
-    global plus_all_dcount
     assert ecount == 0
-    assert dcount == (plus_all_ecount + plus_all_dcount)
+
+    disabledmsg = os.popen('egrep "Disabling SSL" %s' % topology.standalone.errlog)
+    log.info("Disabling SSL message?: %s" % disabledmsg.readline())
+    assert disabledmsg != ''
 
 def test_ticket47838_run_4(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
+    default allowWeakCipher
     """
-    _header(topology, 'Test Case 5 - Check no nssSSL3Chiphers (default setting)')
+    _header(topology, 'Test Case 5 - Check no nssSSL3Chiphers (default setting) with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3Ciphers', '-all')])
@@ -374,8 +381,9 @@ def test_ticket47838_run_5(topology):
     """
     Check nsSSL3Ciphers: default
     Default ciphers are enabled.
+    default allowWeakCipher
     """
-    _header(topology, 'Test Case 6 - Check default nssSSL3Chiphers (default setting)')
+    _header(topology, 'Test Case 6 - Check default nssSSL3Chiphers (default setting) with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'default')])
@@ -406,8 +414,9 @@ def test_ticket47838_run_6(topology):
     """
     Check nssSSL3Chiphers: +all,-rsa_rc4_128_md5
     All ciphers are disabled.
+    default allowWeakCipher
     """
-    _header(topology, 'Test Case 7 - Check nssSSL3Chiphers: +all,-tls_dhe_rsa_aes_128_gcm_sha')
+    _header(topology, 'Test Case 7 - Check nssSSL3Chiphers: +all,-tls_dhe_rsa_aes_128_gcm_sha with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all,-tls_dhe_rsa_aes_128_gcm_sha')])
@@ -425,19 +434,20 @@ def test_ticket47838_run_6(topology):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    global plus_all_ecount
-    global plus_all_dcount
-    log.info("ALL Ecount: %d" % plus_all_ecount)
-    log.info("ALL Dcount: %d" % plus_all_dcount)
-    assert ecount == (plus_all_ecount - 1)
-    assert dcount == (plus_all_dcount + 1)
+    global plus_all_ecount_noweak
+    global plus_all_dcount_noweak
+    log.info("ALL Ecount: %d" % plus_all_ecount_noweak)
+    log.info("ALL Dcount: %d" % plus_all_dcount_noweak)
+    assert ecount == (plus_all_ecount_noweak - 1)
+    assert dcount == (plus_all_dcount_noweak + 1)
 
 def test_ticket47838_run_7(topology):
     """
     Check nssSSL3Chiphers: -all,+rsa_rc4_128_md5
     All ciphers are disabled.
+    default allowWeakCipher
     """
-    _header(topology, 'Test Case 8 - Check nssSSL3Chiphers: -all,+rsa_rc4_128_md5')
+    _header(topology, 'Test Case 8 - Check nssSSL3Chiphers: -all,+rsa_rc4_128_md5 with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '-all,+rsa_rc4_128_md5')])
@@ -497,8 +507,10 @@ def test_ticket47838_run_9(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
+    allowWeakCipher: on
+    nsslapd-errorlog-level: 0
     """
-    _header(topology, 'Test Case 10 - Check no nssSSL3Chiphers (default setting) with no errorlog-level')
+    _header(topology, 'Test Case 10 - Check no nssSSL3Chiphers (default setting) with no errorlog-level & allowWeakCipher on')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', None),
@@ -518,12 +530,12 @@ def test_ticket47838_run_9(topology):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    assert ecount == 12
+    assert ecount == 23
     assert dcount == 0
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
     log.info("Weak ciphers in the default setting: %d" % wcount)
-    assert wcount == 0
+    assert wcount == 11
 
 def test_ticket47838_run_10(topology):
     """
@@ -535,8 +547,10 @@ def test_ticket47838_run_10(topology):
         -SSL_CK_RC4_128_WITH_MD5,-SSL_CK_RC4_128_EXPORT40_WITH_MD5,
         -SSL_CK_RC2_128_CBC_WITH_MD5,-SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5,
         -SSL_CK_DES_64_CBC_WITH_MD5,-SSL_CK_DES_192_EDE3_CBC_WITH_MD5
+    allowWeakCipher: on
+    nsslapd-errorlog-level: 0
     """
-    _header(topology, 'Test Case 11 - Check nssSSL3Chiphers: long list using the NSS Cipher Suite name')
+    _header(topology, 'Test Case 11 - Check nssSSL3Chiphers: long list using the NSS Cipher Suite name with allowWeakCipher on')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 
