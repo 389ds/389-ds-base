@@ -120,18 +120,34 @@ static char * configDN = "cn=encryption,cn=config";
 
 /* ----------------------- Multiple cipher support ------------------------ */
 /* cipher set flags */
-#define CIPHER_SET_ALL             0x1
-#define CIPHER_SET_NONE            0x0
-#define CIPHER_SET_DEFAULT         0x2
-#define CIPHER_SET_CORE            (CIPHER_SET_ALL|CIPHER_SET_DEFAULT|CIPHER_SET_NONE)
-#define CIPHER_SET_ALLOWWEAKCIPHER 0x10 /* can be or'ed with other CIPHER_SET flags */
+#define CIPHER_SET_NONE               0x0
+#define CIPHER_SET_ALL                0x1
+#define CIPHER_SET_DEFAULT            0x2
+#define CIPHER_SET_DEFAULTWEAKCIPHER  0x10 /* allowWeakCipher is not set in cn=encryption */
+#define CIPHER_SET_ALLOWWEAKCIPHER    0x20 /* allowWeakCipher is on */
+#define CIPHER_SET_DISALLOWWEAKCIPHER 0x40 /* allowWeakCipher is off */
 
 #define CIPHER_SET_ISDEFAULT(flag) \
-  ((((flag)&CIPHER_SET_CORE) == CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE)
+  (((flag)&CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE)
 #define CIPHER_SET_ISALL(flag) \
-  ((((flag)&CIPHER_SET_CORE) == CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE)
-#define CIPHER_SET_ALLOWSWEAKCIPHER(flag) \
+  (((flag)&CIPHER_SET_ALL) ? PR_TRUE : PR_FALSE)
+
+#define ALLOWWEAK_ISDEFAULT(flag) \
+  (((flag)&CIPHER_SET_DEFAULTWEAKCIPHER) ? PR_TRUE : PR_FALSE)
+#define ALLOWWEAK_ISON(flag) \
   (((flag)&CIPHER_SET_ALLOWWEAKCIPHER) ? PR_TRUE : PR_FALSE)
+#define ALLOWWEAK_ISOFF(flag) \
+  (((flag)&CIPHER_SET_DISALLOWWEAKCIPHER) ? PR_TRUE : PR_FALSE)
+/*
+ * If ISALL or ISDEFAULT, allowWeakCipher is true only if CIPHER_SET_ALLOWWEAKCIPHER.
+ * Otherwise (user specified cipher list), allowWeakCipher is true 
+ * if CIPHER_SET_ALLOWWEAKCIPHER or CIPHER_SET_DEFAULTWEAKCIPHER.
+ */
+#define CIPHER_SET_ALLOWSWEAKCIPHER(flag) \
+  ((CIPHER_SET_ISDEFAULT(flag)|CIPHER_SET_ISALL(flag)) ? \
+   (ALLOWWEAK_ISON(flag) ? PR_TRUE : PR_FALSE) : \
+   (!ALLOWWEAK_ISOFF(flag) ? PR_TRUE : PR_FALSE))
+
 #define CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flag) \
   ((flag)&~CIPHER_SET_ALLOWWEAKCIPHER)
 
@@ -460,7 +476,7 @@ _conf_setciphers(char *ciphers, int flags)
     /* #47838: harden the list of ciphers available by default */
     /* Default is to activate all of them ==> none of them*/
     if (!ciphers || (ciphers[0] == '\0') || !PL_strcasecmp(ciphers, "default")) {
-        _conf_setallciphers((CIPHER_SET_DEFAULT|CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flags)), NULL, NULL);
+        _conf_setallciphers((CIPHER_SET_DEFAULT|flags), NULL, NULL);
         slapd_SSL_warn("Security Initialization: Enabling default cipher set.");
         _conf_dumpciphers();
         return NULL;
@@ -473,7 +489,7 @@ _conf_setciphers(char *ciphers, int flags)
          * set of ciphers in the table. Right now there is no support for this
          * from the console
          */
-        _conf_setallciphers(CIPHER_SET_ALL|CIPHER_SET_DISABLE_ALLOWSWEAKCIPHER(flags), &suplist, NULL);
+        _conf_setallciphers((CIPHER_SET_ALL|flags), &suplist, NULL);
         enabledOne = PR_TRUE;
     } else {
         /* If "+all" is not in nsSSL3Ciphers value, disable all first,
@@ -504,7 +520,7 @@ _conf_setciphers(char *ciphers, int flags)
             for (x = 0; _conf_ciphers[x].name; x++) {
                 if (!PL_strcasecmp(ciphers, _conf_ciphers[x].name)) {
                     if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
-                        if (CIPHER_SET_ALLOWSWEAKCIPHER(flags)) {
+                        if (active && CIPHER_SET_ALLOWSWEAKCIPHER(flags)) { 
                             slapd_SSL_warn("Cipher %s is weak.  It is enabled since allowWeakCipher is \"on\" "
                                            "(default setting for the backward compatibility). "
                                            "We strongly recommend to set it to \"off\".  "
@@ -521,6 +537,9 @@ _conf_setciphers(char *ciphers, int flags)
                         /* if the cipher is not weak or we allow weak cipher,
                            check fips. */
                         enabled = cipher_check_fips(x, NULL, &unsuplist);
+                    }
+                    if (enabled) {
+                        enabledOne = PR_TRUE; /* At least one active cipher is set. */
                     }
                     SSL_CipherPrefSetDefault(_conf_ciphers[x].num, enabled);
                     lookup = 0;
@@ -539,7 +558,7 @@ _conf_setciphers(char *ciphers, int flags)
                             if (!PL_strcasecmp(_lookup_cipher[i].name, _conf_ciphers[x].name)) {
                                 if (enabled) {
                                     if (_conf_ciphers[x].flags & CIPHER_IS_WEAK) {
-                                        if (CIPHER_SET_ALLOWSWEAKCIPHER(flags)) {
+                                        if (active && CIPHER_SET_ALLOWSWEAKCIPHER(flags)) {
                                             slapd_SSL_warn("Cipher %s is weak. "
                                                            "It is enabled since allowWeakCipher is \"on\" "
                                                            "(default setting for the backward compatibility). "
@@ -1065,7 +1084,7 @@ slapd_ssl_init()
     int rv = 0;
     PK11SlotInfo *slot;
     Slapi_Entry *entry = NULL;
-    int allowweakcipher = CIPHER_SET_ALLOWWEAKCIPHER;
+    int allowweakcipher = CIPHER_SET_DEFAULTWEAKCIPHER;
 
     /* Get general information */
 
@@ -1105,9 +1124,18 @@ slapd_ssl_init()
     }
 
     val = slapi_entry_attr_get_charptr(entry, "allowWeakCipher");
-    if (val && (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") || 
-                !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no"))) {
-        allowweakcipher = 0;
+    if (val) {
+        if (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") || 
+                !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no")) {
+            allowweakcipher = CIPHER_SET_DISALLOWWEAKCIPHER;
+        } else if (!PL_strcasecmp(val, "on") || !PL_strcasecmp(val, "true") || 
+                !PL_strcmp(val, "1") || !PL_strcasecmp(val, "yes")) {
+            allowweakcipher = CIPHER_SET_ALLOWWEAKCIPHER;
+        } else {
+            slapd_SSL_warn("The value of allowWeakCipher \"%s\" in "
+                           "cn=encryption,cn=config is invalid. "
+                           "Ignoring it and set it to default.", val);
+        }
     }
     slapi_ch_free((void **) &val);
  
