@@ -216,6 +216,24 @@ def test_ticket47838_init(topology):
                                               'nsSSLToken': 'internal (software)',
                                               'nsSSLActivation': 'on'})))
 
+def comp_nsSSLEnableCipherCount(topology, ecount):
+    """
+    Check nsSSLEnabledCipher count with ecount
+    """
+    log.info("Checking nsSSLEnabledCiphers...")
+    msgid = topology.standalone.search_ext(ENCRYPTION_DN, ldap.SCOPE_BASE, 'cn=*', ['nsSSLEnabledCiphers'])
+    enabledciphercnt = 0
+    rtype, rdata, rmsgid = topology.standalone.result2(msgid)
+    topology.standalone.log.info("%d results" % len(rdata))
+
+    topology.standalone.log.info("Results:")
+    for dn, attrs in rdata:
+        topology.standalone.log.info("dn: %s" % dn)
+        if attrs.has_key('nsSSLEnabledCiphers'):
+            enabledciphercnt = len(attrs['nsSSLEnabledCiphers'])
+    topology.standalone.log.info("enabledCipherCount: %d" % enabledciphercnt)
+    assert ecount == enabledciphercnt
+
 def test_ticket47838_run_0(topology):
     """
     Check nsSSL3Ciphers: +all
@@ -247,6 +265,8 @@ def test_ticket47838_run_0(topology):
     wcount = int(weak.readline().rstrip())
     log.info("Weak ciphers: %d" % wcount)
     assert wcount <= 29
+
+    comp_nsSSLEnableCipherCount(topology, ecount)
 
 def test_ticket47838_run_1(topology):
     """
@@ -287,6 +307,8 @@ def test_ticket47838_run_1(topology):
     log.info("Weak ciphers: %d" % wcount)
     assert wcount <= 29
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_2(topology):
     """
     Check nsSSL3Ciphers: +rsa_aes_128_sha,+rsa_aes_256_sha
@@ -316,6 +338,8 @@ def test_ticket47838_run_2(topology):
     assert ecount == 2
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_3(topology):
     """
     Check nsSSL3Ciphers: -all
@@ -343,6 +367,8 @@ def test_ticket47838_run_3(topology):
     disabledmsg = os.popen('egrep "Disabling SSL" %s' % topology.standalone.errlog)
     log.info("Disabling SSL message?: %s" % disabledmsg.readline())
     assert disabledmsg != ''
+
+    comp_nsSSLEnableCipherCount(topology, ecount)
 
 def test_ticket47838_run_4(topology):
     """
@@ -377,6 +403,8 @@ def test_ticket47838_run_4(topology):
     log.info("Weak ciphers in the default setting: %d" % wcount)
     assert wcount == 0
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_5(topology):
     """
     Check nsSSL3Ciphers: default
@@ -410,6 +438,8 @@ def test_ticket47838_run_5(topology):
     log.info("Weak ciphers in the default setting: %d" % wcount)
     assert wcount == 0
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_6(topology):
     """
     Check nssSSL3Chiphers: +all,-rsa_rc4_128_md5
@@ -441,6 +471,8 @@ def test_ticket47838_run_6(topology):
     assert ecount == (plus_all_ecount_noweak - 1)
     assert dcount == (plus_all_dcount_noweak + 1)
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_7(topology):
     """
     Check nssSSL3Chiphers: -all,+rsa_rc4_128_md5
@@ -469,6 +501,8 @@ def test_ticket47838_run_7(topology):
     global plus_all_dcount
     assert ecount == 1
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
+
+    comp_nsSSLEnableCipherCount(topology, ecount)
 
 def test_ticket47838_run_8(topology):
     """
@@ -503,6 +537,8 @@ def test_ticket47838_run_8(topology):
     log.info("Weak ciphers in the default setting: %d" % wcount)
     assert wcount == 0
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_9(topology):
     """
     Check no nsSSL3Ciphers
@@ -536,6 +572,8 @@ def test_ticket47838_run_9(topology):
     wcount = int(weak.readline().rstrip())
     log.info("Weak ciphers in the default setting: %d" % wcount)
     assert wcount == 11
+
+    comp_nsSSLEnableCipherCount(topology, ecount)
 
 def test_ticket47838_run_10(topology):
     """
@@ -579,6 +617,8 @@ def test_ticket47838_run_10(topology):
 
     topology.standalone.log.info("ticket47838 was successfully verified.");
 
+    comp_nsSSLEnableCipherCount(topology, ecount)
+
 def test_ticket47838_run_11(topology):
     """
     Check nssSSL3Chiphers: +fortezza
@@ -602,6 +642,8 @@ def test_ticket47838_run_11(topology):
     else:
         log.info("Expected error message was not found")
         assert False
+
+    comp_nsSSLEnableCipherCount(topology, 0)
 
 def test_ticket47838_run_last(topology):
     """
@@ -627,7 +669,9 @@ def test_ticket47838_run_last(topology):
         log.info("Expected error message was not found")
         assert False
 
-    topology.standalone.log.info("ticket47838 was successfully verified.");
+    comp_nsSSLEnableCipherCount(topology, 0)
+
+    topology.standalone.log.info("ticket47838, 47880, 47908 were successfully verified.");
 
 def test_ticket47838_final(topology):
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
