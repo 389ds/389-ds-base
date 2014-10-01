@@ -256,7 +256,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
    	int 	targetattrfilterslen = strlen(aci_targetattrfilters);
         int     target_to_len        = strlen(aci_target_to);
         int     target_from_len      = strlen(aci_target_from);
-        PRBool  is_target_to;
+        PRBool  is_target_to = PR_FALSE;
 
 	__acl_strip_leading_space( &str );
 
