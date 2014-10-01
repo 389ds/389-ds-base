@@ -2475,13 +2475,13 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			int done;
 
 
-			if (aclpb->aclpb_access & SLAPI_ACL_ADD &&
-				aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS) {
+			if ((aclpb->aclpb_access & SLAPI_ACL_ADD) &&
+			    (aci->aci_type & ACI_TARGET_ATTR_ADD_FILTERS)) {
 
 				attrFilterArray = aci->targetAttrAddFilters;
 
-			} else if (aclpb->aclpb_access & SLAPI_ACL_DELETE && 
-						aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS) {
+			} else if ((aclpb->aclpb_access & SLAPI_ACL_DELETE) && 
+			           (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS)) {
 				
 				attrFilterArray = aci->targetAttrDelFilters;
 
@@ -2490,7 +2490,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			attr_matched = ACL_TRUE;
 			num_attrs = 0;
 
-			while (attrFilterArray[num_attrs] && attr_matched) {
+			while (attrFilterArray && attrFilterArray[num_attrs] && attr_matched) {
 				attrFilter = attrFilterArray[num_attrs];
 
 				/* 
