@@ -3810,7 +3810,7 @@ int plugin_build_operation_action_bitmap (int input_actions, const struct slapdp
 	if (plugin == NULL)
 		plugin = &global_default_plg;
 
-	if (plugin->plg_conf.plgc_log_access)
+	if (plugin->plg_conf.plgc_log_access || config_get_plugin_logging())
 		result_actions |= OP_FLAG_ACTION_LOG_ACCESS;
 
 	if (plugin->plg_conf.plgc_log_audit)
