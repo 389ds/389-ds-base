@@ -1535,7 +1535,7 @@ FrontendConfig_init () {
 
   init_entryusn_global = cfg->entryusn_global = LDAP_OFF; 
   cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT); 
-  cfg->allowed_to_delete_attrs = slapi_ch_strdup("nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
+  cfg->allowed_to_delete_attrs = slapi_ch_strdup("passwordadmindn nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
   cfg->default_naming_context = NULL; /* store normalized dn */
   cfg->allowed_sasl_mechs = NULL;
 
