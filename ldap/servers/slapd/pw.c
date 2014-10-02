@@ -1643,12 +1643,26 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	slapdFrontendConfig_t *slapdFrontendConfig;
 	int optype = -1;
 
-	slapdFrontendConfig = getFrontendConfig();
-	pwdpolicy = (passwdPolicy *)slapi_ch_calloc(1, sizeof(passwdPolicy));
+	/* If we already allocated a pw policy, return it */
+	if(pb && pb->pwdpolicy){
+		return pb->pwdpolicy;
+	}
+
+	if (g_get_active_threadcnt() == 0){
+		/*
+		 * If the server is starting up the thread count will be zero, so
+		 * we should not proceed, because not all the backends have been
+		 * initialized yet.
+		 */
+		return NULL;
+	}
 
 	if (pb) {
 		slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
 	}
+
+	slapdFrontendConfig = getFrontendConfig();
+	pwdpolicy = (passwdPolicy *)slapi_ch_calloc(1, sizeof(passwdPolicy));
 
 	if (dn && (slapdFrontendConfig->pwpolicy_local == 1)) {
 		/*  If we're doing an add, COS does not apply yet so we check
