@@ -4163,7 +4163,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
             if (dna_dn_is_config(dn)) {
                 dna_load_plugin_config(pb, 0);
             }
-            if(dna_dn_is_shared_config(pb, dn) == 0){
+            if(dna_dn_is_shared_config(pb, dn)){
                 dna_load_shared_servers();
             }
         }
