@@ -225,33 +225,33 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			free_delete_existing_entry = 1; /* must free the dup */
 			if (create_tombstone_entry) {
 				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
-			}
 
-			/* reset tombstone entry */
-			if (original_tombstone) {
-				/* must duplicate tombstone before returning it to cache,
-				 * which could free the entry. */
-				if ( (tmptombstone = backentry_dup( original_tombstone )) == NULL ) {
-					ldap_result_code= LDAP_OPERATIONS_ERROR;
-					goto error_return;
-				}
-				if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
-					CACHE_REMOVE(&inst->inst_cache, tombstone);
-				}
-				CACHE_RETURN(&inst->inst_cache, &tombstone);
-				if (tombstone) {
+				/* reset tombstone entry */
+				if (original_tombstone) {
+					/* must duplicate tombstone before returning it to cache,
+					 * which could free the entry. */
+					if ( (tmptombstone = backentry_dup( original_tombstone )) == NULL ) {
+						ldap_result_code= LDAP_OPERATIONS_ERROR;
+						goto error_return;
+					}
+					if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
+						CACHE_REMOVE(&inst->inst_cache, tombstone);
+					}
+					CACHE_RETURN(&inst->inst_cache, &tombstone);
+					if (tombstone) {
+						slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete", 
+						                "conn=%lu op=%d [retry: %d] tombstone %s is not freed!!! refcnt %d, state %d\n",
+						                conn_id, op_id, retry_count, slapi_entry_get_dn(tombstone->ep_entry),
+						                tombstone->ep_refcnt, tombstone->ep_state);
+					}
+					tombstone = original_tombstone;
+					original_tombstone = tmptombstone;
+					tmptombstone = NULL;
+				} else {
 					slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete", 
-					                "conn=%lu op=%d [retry: %d] tombstone %s is not freed!!! refcnt %d, state %d\n",
-					                conn_id, op_id, retry_count, slapi_entry_get_dn(tombstone->ep_entry),
-					                tombstone->ep_refcnt, tombstone->ep_state);
+					                "conn=%lu op=%d [retry: %d] No original_tombstone for %s!!\n",
+					                conn_id, op_id, retry_count, slapi_entry_get_dn(e->ep_entry));
 				}
-				tombstone = original_tombstone;
-				original_tombstone = tmptombstone;
-				tmptombstone = NULL;
-			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete", 
-				                "conn=%lu op=%d [retry: %d] No original_tombstone for %s!!\n",
-				                conn_id, op_id, retry_count, slapi_entry_get_dn(e->ep_entry));
 			}
 			if (ruv_c_init) {
 				/* reset the ruv txn stuff */
