@@ -636,11 +636,11 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				if (SLAPI_PLUGIN_NOOP == opreturn) {
 					not_an_error = 1;
 					rc = opreturn = LDAP_SUCCESS;
-					goto error_return;
 				} else if (!opreturn) {
-					opreturn = -1;
+					opreturn = SLAPI_PLUGIN_FAILURE;
 					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
 				}
+				goto error_return;
 			}
 			/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
 			slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
