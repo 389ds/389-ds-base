@@ -562,7 +562,12 @@ static void op_shared_add (Slapi_PBlock *pb)
 
 			/* check password syntax */
 			if (!pw_is_pwp_admin(pb, pwpolicy) &&
-			    check_pw_syntax(pb, slapi_entry_get_sdn_const(e), present_values, NULL, e, 0) == 0)
+			    check_pw_syntax(pb, slapi_entry_get_sdn_const(e), present_values, NULL, e, 0) != 0)
+			{
+				/* error result is sent from check_pw_syntax */
+				goto done;
+			}
+			else
 			{
 				Slapi_Value **vals= NULL;
 				valuearray_add_valuearray(&unhashed_password_vals, present_values, 0);
@@ -575,9 +580,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 				/* Add the unhashed password pseudo-attribute to the entry */
 				pwdtype = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
 				slapi_entry_add_values_sv(e, pwdtype, unhashed_password_vals);
-			} else {
-				/* error result is sent from check_pw_syntax */
-				goto done;
 			}
 		}
 

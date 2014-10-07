@@ -1643,11 +1643,6 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 	slapdFrontendConfig_t *slapdFrontendConfig;
 	int optype = -1;
 
-	/* If we already allocated a pw policy, return it */
-	if(pb && pb->pwdpolicy){
-		return pb->pwdpolicy;
-	}
-
 	if (g_get_active_threadcnt() == 0){
 		/*
 		 * If the server is starting up the thread count will be zero, so
