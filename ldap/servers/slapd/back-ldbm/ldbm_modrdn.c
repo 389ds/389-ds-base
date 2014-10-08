@@ -269,7 +269,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             orig_dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
             /* must duplicate ec before returning it to cache,
              * which could free the entry. */
-            if ( (tmpentry = backentry_dup( ec )) == NULL ) {
+            if ((tmpentry = backentry_dup(original_entry?original_entry:ec)) == NULL) {
                 ldap_result_code= LDAP_OPERATIONS_ERROR;
                 goto error_return;
             }
@@ -289,10 +289,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 slapi_entry_free(ent);
                 slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, NULL );
             }
+            slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, original_entry->ep_entry );
             ec = original_entry;
             original_entry = tmpentry;
             tmpentry = NULL;
-            slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, original_entry->ep_entry );
             free_modrdn_existing_entry = 0; /* owned by original_entry now */
             if (!cache_is_in_cache(&inst->inst_cache, ec)) {
                 /* Put the resetted entry 'ec' into the cache again. */
