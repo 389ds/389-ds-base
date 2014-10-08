@@ -225,7 +225,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
 			/* must duplicate addingentry before returning it to cache,
 			 * which could free the entry. */
-			if ( (tmpentry = backentry_dup( addingentry )) == NULL ) {
+			if ((tmpentry = backentry_dup(originalentry?originalentry:addingentry)) == NULL) {
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				goto error_return;
 			}
