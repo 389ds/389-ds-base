@@ -581,7 +581,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 				   there are present values with a later CSN - otherwise, even though
 				   the value will be updated with a VDCSN which is later than the VUCSN,
 				   the attribute will not be deleted */
-				if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE) && valueset_isempty(&a->a_present_values))
+				if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE) && valuesupdated && *valuesupdated)
 				{
 					attr_set_deletion_csn(a,csn);			
 				}
