@@ -521,7 +521,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			if (ec) {
 				/* must duplicate ec before returning it to cache,
 				 * which could free the entry. */
-				if ( (tmpentry = backentry_dup( ec )) == NULL ) {
+				if ((tmpentry = backentry_dup(original_entry?original_entry:ec)) == NULL) {
 					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto error_return;
 				}
