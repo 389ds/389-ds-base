@@ -2160,7 +2160,7 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
     }
 
     /* Start the ber encoding with the DN */
-    rc = ber_printf( ber, "{s{", slapi_entry_get_dn_const(e) );
+    rc = ber_printf( ber, "t{s{", LDAP_RES_SEARCH_ENTRY, slapi_entry_get_dn_const(e) );
     if ( rc == -1 ) {
         rc = -1;
         goto cleanup;
