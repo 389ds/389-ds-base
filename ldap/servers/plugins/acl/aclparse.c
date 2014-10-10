@@ -1849,9 +1849,9 @@ static int
 acl_check_for_target_macro( aci_t *aci_item, char *value)
 {
 
-	char			*str = NULL;
+	char *str = NULL;
 
-	str = strstr(value, ACL_TARGET_MACRO_DN_KEY /* ($dn) */);	
+	str = PL_strcasestr(value, ACL_TARGET_MACRO_DN_KEY /* ($dn) */);
 	
 	if (str != NULL) {
 		char *p0 = NULL, *p1 = NULL;
@@ -1871,10 +1871,17 @@ acl_check_for_target_macro( aci_t *aci_item, char *value)
 		aci_item->aci_type &= ~ACI_TARGET_DN;
 		aci_item->aci_type |= ACI_TARGET_MACRO_DN;
 		aci_item->aci_macro = (aciMacro *)slapi_ch_malloc(sizeof(aciMacro));
-		aci_item->aci_macro->match_this = slapi_ch_strdup(value);
-		aci_item->aci_macro->macro_ptr = strstr( aci_item->aci_macro->match_this,
-												 ACL_TARGET_MACRO_DN_KEY);
-		return(1);											
+		/* Macro dn needs to normalize. E.g., "ou=Groups, ($dN), dn=example,dn=com" */
+		aci_item->aci_macro->match_this = slapi_create_dn_string_case("%s", value);
+		if (NULL == aci_item->aci_macro->match_this) {
+			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+			                "acl_check_for_target_macro: Error: Invalid macro target dn: \"%s\"\n", value);
+			aci_item->aci_type &= ~ACI_TARGET_MACRO_DN;
+			slapi_ch_free((void **)&aci_item->aci_macro);
+			return -1;
+		}
+		aci_item->aci_macro->macro_ptr = PL_strcasestr(aci_item->aci_macro->match_this, ACL_TARGET_MACRO_DN_KEY);
+		return(1);
 	}
 
 	return(0);
