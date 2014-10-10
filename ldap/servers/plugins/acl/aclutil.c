@@ -782,7 +782,7 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	macro_prefix = slapi_ch_strdup(match_this);
 	
 	/* we know it's got a $(dn) */
-	tmp_ptr = strstr(macro_prefix, ACL_TARGET_MACRO_DN_KEY);	
+	tmp_ptr = PL_strcasestr(macro_prefix, ACL_TARGET_MACRO_DN_KEY);	
 	if (!tmp_ptr) {
 		LDAPDebug(LDAP_DEBUG_ACL,"acl_match_macro_in_target: "
 				"Target macro DN key \"%s\" not found in \"%s\".\n",
