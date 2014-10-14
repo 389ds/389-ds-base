@@ -182,7 +182,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		int optype, ldaprc;
 		windows_conn_get_error(prp->conn, &optype, &ldaprc);
 		agmt_set_last_init_status(prp->agmt, ldaprc,
-				  prp->last_acquire_response_code, NULL);
+				  prp->last_acquire_response_code, 0, NULL);
 		goto done;
 	}
 	else if (prp->terminate)
@@ -192,9 +192,9 @@ windows_tot_run(Private_Repl_Protocol *prp)
 		goto done;    
 	}
 
-	agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
+	agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total schema update in progress");
 
-	agmt_set_last_init_status(prp->agmt, 0, 0, "Total update in progress");
+	agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update in progress");
 
 	agmt_set_update_in_progress(prp->agmt, PR_TRUE);
 
@@ -253,15 +253,15 @@ windows_tot_run(Private_Repl_Protocol *prp)
 	rc = cb_data.rc;
 	windows_release_replica(prp);
 		
-	if (rc != LDAP_SUCCESS) {
+	if (rc != CONN_OPERATION_SUCCESS) {
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name, "%s: windows_tot_run: "
 		                "failed to obtain data to send to the consumer; LDAP error - %d\n", 
 		                agmt_get_long_name(prp->agmt), rc);
-		agmt_set_last_init_status(prp->agmt, rc, 0, "Total update aborted");
+		agmt_set_last_init_status(prp->agmt, 0, 0, rc, "Total update aborted");
 	} else {
 		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "Finished total update of replica "
 						"\"%s\". Sent %lu entries.\n", agmt_get_long_name(prp->agmt), cb_data.num_entries);
-		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
+		agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
 		/* Now update our consumer RUV for this agreement.
 		 * This ensures that future incrememental updates work.
 		 */

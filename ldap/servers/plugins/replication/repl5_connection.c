@@ -147,6 +147,37 @@ static void repl5_debug_timeout_callback(time_t when, void *arg);
 static void close_connection_internal(Repl_Connection *conn);
 static void conn_delete_internal(Repl_Connection *conn);
 
+
+/* converts consumer's response to a string */
+char *
+conn_result2string (int result)
+{
+    switch (result)
+    {
+        case CONN_OPERATION_SUCCESS:            return "operation success";
+        case CONN_OPERATION_FAILED:             return "operation failure";
+        case CONN_NOT_CONNECTED:                return "not connected";
+        case CONN_SUPPORTS_DS5_REPL:            return "consumer supports all DS5 extop";
+        case CONN_DOES_NOT_SUPPORT_DS5_REPL:    return "consumer does not support all DS5 extop";
+        case CONN_SCHEMA_UPDATED:               return "consumer schema updated";
+        case CONN_SCHEMA_NO_UPDATE_NEEDED:      return "consumer schema up to date";
+        case CONN_LOCAL_ERROR:                  return "local error";
+        case CONN_BUSY:                         return "consumer is busy";
+        case CONN_SSL_NOT_ENABLED:              return "NSS not initialized";
+        case CONN_TIMEOUT:                      return "time out";
+        case CONN_SUPPORTS_DS71_REPL:           return "consumer supports all DS71 extop";
+        case CONN_DOES_NOT_SUPPORT_DS71_REPL:   return "consumer does not support all DS7.1 extop";
+        case CONN_IS_READONLY:                  return "consumer is read only";  
+        case CONN_IS_NOT_READONLY:              return "consumer is not read only";
+        case CONN_SUPPORTS_DIRSYNC:             return "consumer supports DIRSYNC control";
+        case CONN_DOES_NOT_SUPPORT_DIRSYNC:     return "consumer does not support DIRSYNC control";
+        case CONN_IS_WIN2K3:                    return "consumer is W2K3 or after";
+        case CONN_NOT_WIN2K3:                   return "consumer is before W2K3";
+        case CONN_SUPPORTS_DS90_REPL:           return "consumer supports all DS90 extop";
+        case CONN_DOES_NOT_SUPPORT_DS90_REPL:   return "consumer does not support all DS90 extop";
+        default:                                return NULL;
+    }
+}
 /*
  * Create a new connection object. Returns a pointer to the object, or
  * NULL if an error occurs.

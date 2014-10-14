@@ -244,7 +244,7 @@ prot_initialize_replica(Repl_Protocol *rp)
 	rp->next_state = STATE_PERFORMING_TOTAL_UPDATE;
 	/* Stop the incremental protocol, if running */
 	rp->prp_incremental->stop(rp->prp_incremental);
-	if (rp->prp_total) agmt_set_last_init_status(rp->prp_total->agmt, 0, 0, NULL);
+	if (rp->prp_total) agmt_set_last_init_status(rp->prp_total->agmt, 0, 0, 0, NULL);
     PR_Unlock(rp->lock);
 }
 

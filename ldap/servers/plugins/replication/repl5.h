@@ -384,7 +384,7 @@ void agmt_set_update_in_progress (Repl_Agmt *ra, PRBool in_progress);
 PRBool agmt_get_update_in_progress (const Repl_Agmt *ra);
 void agmt_set_last_init_start (Repl_Agmt *ra, time_t start_time);
 void agmt_set_last_init_end (Repl_Agmt *ra, time_t end_time);
-void agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *msg);
+void agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, int connrc, const char *msg);
 void agmt_inc_last_update_changecount (Repl_Agmt *ra, ReplicaId rid, int skipped);
 void agmt_get_changecount_string (Repl_Agmt *ra, char *buf, int bufsize);
 int agmt_set_replicated_attributes_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
@@ -431,7 +431,9 @@ time_t backoff_step(Backoff_Timer *bt);
 int backoff_expired(Backoff_Timer *bt, int margin);
 void backoff_delete(Backoff_Timer **btp);
 
-/* In repl5_connection.c */
+/* In repl5_connection.c 
+ * keep in sync with conn_result2string
+ */
 typedef struct repl_connection Repl_Connection;
 typedef enum
 {   
@@ -456,8 +458,9 @@ typedef enum
 	CONN_NOT_WIN2K3,
 	CONN_SUPPORTS_DS90_REPL,
 	CONN_DOES_NOT_SUPPORT_DS90_REPL
-} ConnResult;  
+} ConnResult;
 
+char *conn_result2string (int result);
 Repl_Connection *conn_new(Repl_Agmt *agmt);
 ConnResult conn_connect(Repl_Connection *conn);
 void conn_disconnect(Repl_Connection *conn);
