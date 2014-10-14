@@ -592,7 +592,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
     {
         if (agmt_initialize_replica(agmt) != 0) {
             /* The suffix/repl agmt is disabled */
-            agmt_set_last_init_status(agmt, 0, NSDS50_REPL_DISABLED, NULL);
+            agmt_set_last_init_status(agmt, 0, NSDS50_REPL_DISABLED, 0, NULL);
             if(agmt_is_enabled(agmt)){
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Suffix is disabled");
             } else {

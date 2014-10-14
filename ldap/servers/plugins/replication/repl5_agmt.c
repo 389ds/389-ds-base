@@ -2424,15 +2424,25 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 }
 
 void
-agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *message)
+agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, int connrc, const char *message)
 {
+    char *connmsg = NULL;
+    char unknown_connrc[100] = {0};
+    
+    connmsg = conn_result2string(connrc);
+    if (connrc && (connmsg == NULL)) {
+        /* That was an unknown connection error */
+        PR_snprintf(unknown_connrc, sizeof(unknown_connrc), "Unknown connection error (%d)", connrc);
+        connmsg = unknown_connrc;
+    }
+    
 	PR_ASSERT(NULL != ra);
 	if (NULL != ra)
 	{
 		if (ldaprc != LDAP_SUCCESS)
 		{
 			char *replmsg = NULL;
-
+            
 			if ( replrc ) {
 				replmsg = protocol_response2string(replrc);
 				/* Do not mix the unknown replication error with the known ldap one */
@@ -2440,9 +2450,10 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 					replmsg = NULL;
 				}
 			}
-			PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s%sLDAP error: %s%s%s",
+			PR_snprintf(ra->last_init_status, STATUS_LEN, "%d %s%sLDAP error: %s%s%s%s%s",
 				ldaprc, message?message:"",message?"":" - ",
-				slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "");
+				slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "",
+                    connrc ? " - " : "", connrc ? connmsg : "");
 		}
 		/* ldaprc == LDAP_SUCCESS */
 		else if (replrc != 0)
@@ -2476,11 +2487,18 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *me
 			else
 			{
 				PR_snprintf(ra->last_init_status, STATUS_LEN,
-					"%d Replication error acquiring replica: %s%s%s",
+					"%d Replication error acquiring replica: %s%s%s%s%s",
 					replrc, protocol_response2string(replrc),
-					message?" - ":"",message?message:"");
+					message?" - ":"",message?message:"",
+                    connrc?" - ":"",connrc?connmsg:"");
 			}
 		}
+        else if (connrc != CONN_OPERATION_SUCCESS) {
+            PR_snprintf(ra->last_init_status, STATUS_LEN,
+					"%d connection error: %s%s%s",
+					connrc, connmsg,
+					message?" - ":"",message?message:"");
+        }
 		else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
 		{
 			PR_snprintf(ra->last_init_status, STATUS_LEN,

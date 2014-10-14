@@ -369,7 +369,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 		int optype, ldaprc;
 		conn_get_error(prp->conn, &optype, &ldaprc);
 		agmt_set_last_init_status(prp->agmt, ldaprc,
-				  prp->last_acquire_response_code, NULL);
+				  prp->last_acquire_response_code, 0, NULL);
         goto done;
     }
 	else if (prp->terminate)
@@ -381,7 +381,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	hostname = agmt_get_hostname(prp->agmt);
 	portnum = agmt_get_port(prp->agmt);
 
-    agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update in progress");
+    agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total schema update in progress");
 	remote_schema_csn = agmt_get_consumer_schema_csn ( prp->agmt );
 	rc = conn_push_schema(prp->conn, &remote_schema_csn);
 
@@ -396,11 +396,11 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 						"total update session.\n",
 						hostname, portnum);
 		/* But keep going */
-		agmt_set_last_init_status(prp->agmt, 0, rc, "Total schema update failed");
+		agmt_set_last_init_status(prp->agmt, 0, rc, 0, "Total schema update failed");
 	}
 	else
 	{
-		agmt_set_last_init_status(prp->agmt, 0, 0, "Total schema update succeeded");
+		agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total schema update succeeded");
 	}
 
     /* ONREPL - big assumption here is that entries a returned in the id order
@@ -409,7 +409,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
        properly updated because bulk import at the moment skips orphand entries. */
 	/* XXXggood above assumption may not be valid if orphaned entry moved???? */
 
-    agmt_set_last_init_status(prp->agmt, 0, 0, "Total update in progress");
+    agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update in progress");
 
     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Beginning total update of replica "
 		"\"%s\".\n", agmt_get_long_name(prp->agmt));
@@ -459,7 +459,9 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	}
 
     /* this search get all the entries from the replicated area including tombstones
-       and referrals */
+       and referrals 
+       Note that cb_data.rc contains values from ConnResult
+     */
     slapi_search_internal_callback_pb (pb, &cb_data /* callback data */,
                                        get_result /* result callback */,
                                        send_entry /* entry callback */,
@@ -474,7 +476,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 
 	if (!prp->repl50consumer) 
 	{
-		if(cb_data.rc == LDAP_SUCCESS){ /* no need to wait if we already failed */
+		if(cb_data.rc == CONN_OPERATION_SUCCESS){ /* no need to wait if we already failed */
 			repl5_tot_waitfor_async_results(&cb_data);
 		}
 		rc = repl5_tot_destroy_async_result_thread(&cb_data);
@@ -498,16 +500,16 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	agmt_update_done(prp->agmt, 1);
 	release_replica(prp);
 	
-	if (rc != LDAP_SUCCESS)
+	if (rc != CONN_OPERATION_SUCCESS)
 	{
 		slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "Total update failed for replica \"%s\", "
 				         "error (%d)\n", agmt_get_long_name(prp->agmt), rc);
-		agmt_set_last_init_status(prp->agmt, rc, 0, "Total update aborted");
+		agmt_set_last_init_status(prp->agmt, 0, 0, rc, "Total update aborted");
 	} else {
 		slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "Finished total update of replica "
 		                 "\"%s\". Sent %lu entries.\n",
 		                 agmt_get_long_name(prp->agmt), cb_data.num_entries);
-		agmt_set_last_init_status(prp->agmt, 0, 0, "Total update succeeded");
+		agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
 	}
 
 done:
@@ -825,12 +827,14 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 	if (CONN_NOT_CONNECTED == rc) {
 		((callback_data*)cb_data)->rc = -2;
 		retval = -1;
-	} else if (CONN_OPERATION_SUCCESS == rc) {
-		retval = 0;
 	} else {
-		((callback_data*)cb_data)->rc = rc;
-		retval = -1;
-	}
+        ((callback_data*) cb_data)->rc = rc;
+        if (CONN_OPERATION_SUCCESS == rc) {
+            retval = 0;
+        } else {
+            retval = -1;
+        }
+    }
 error:
 	return retval;
 }
