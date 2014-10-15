@@ -237,12 +237,12 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ACL_ADD		0x20
 #define SLAPI_ACL_SELF		0x40
 #define SLAPI_ACL_PROXY		0x80
-#define SLAPI_ACL_ALL		0x7f
 /* Values 0x200 and 0x400 are booked (acl.h) by
  * ACLPB_SLAPI_ACL_WRITE_ADD
  * ACLPB_SLAPI_ACL_WRITE_DEL
  */
 #define SLAPI_ACL_MODDN         0x0800
+#define SLAPI_ACL_ALL           0x087f
         
 
 /*
