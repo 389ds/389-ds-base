@@ -456,38 +456,45 @@ _ger_get_entry_rights (
 		entryrights |= SLAPI_ACL_DELETE;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "d", NULL);
 	}
-	/*
-	 * Some limitation/simplification applied here:
-	 * - The modrdn right requires the rights to delete the old rdn and
-	 *   the new one. However we have no knowledge of what the new rdn
-	 *   is going to be.
-	 * - In multi-valued RDN case, we check the right on
-	 *   the first rdn type only for now.
-	 */
-	rdn = slapi_rdn_new_dn ( slapi_entry_get_ndn (e) );
-	slapi_rdn_get_first(rdn, &rdntype, &rdnvalue);
-	if ( NULL != rdntype ) {
-		slapi_log_error (SLAPI_LOG_ACL, plugin_name,
-			"_ger_get_entry_rights: SLAPI_ACL_WRITE_DEL & _ADD %s\n", rdntype );
-		if (acl_access_allowed(gerpb, e, rdntype, NULL,
-				ACLPB_SLAPI_ACL_WRITE_DEL) == LDAP_SUCCESS &&
-			acl_access_allowed(gerpb, e, rdntype, NULL,
-				ACLPB_SLAPI_ACL_WRITE_ADD) == LDAP_SUCCESS)
-		{
-			/* n - rename e */
-			entryrights |= SLAPI_ACL_WRITE;
-			_append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
-		}
-	}
-	slapi_rdn_free ( &rdn );
-
-         if (acl_access_allowed(gerpb, e, NULL, NULL, SLAPI_ACL_MODDN) == LDAP_SUCCESS) {
-                slapi_log_error (SLAPI_LOG_ACL, plugin_name,
-			"_ger_get_entry_rights: SLAPI_ACL_MODDN %s\n", slapi_entry_get_ndn (e) );
-                /* n - rename e */
-		entryrights |= SLAPI_ACL_MODDN;
-		_append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
+    
+    if (config_get_moddn_aci()) {
+        /* The server enforces the new MODDN aci right.
+         * So the status 'n' is set if this right is granted.
+         * Opposed to the legacy mode where this flag is set if 
+         * WRITE was granted on rdn attrbibute
+         */
+        if (acl_access_allowed(gerpb, e, NULL, NULL, SLAPI_ACL_MODDN) == LDAP_SUCCESS) {
+            slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                    "_ger_get_entry_rights: SLAPI_ACL_MODDN %s\n", slapi_entry_get_ndn(e));
+            /* n - rename e */
+            entryrights |= SLAPI_ACL_MODDN;
+            _append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
         }
+    } else {
+        /*
+         * Some limitation/simplification applied here:
+         * - The modrdn right requires the rights to delete the old rdn and
+         *   the new one. However we have no knowledge of what the new rdn
+         *   is going to be.
+         * - In multi-valued RDN case, we check the right on
+         *   the first rdn type only for now.
+         */
+        rdn = slapi_rdn_new_dn(slapi_entry_get_ndn(e));
+        slapi_rdn_get_first(rdn, &rdntype, &rdnvalue);
+        if (NULL != rdntype) {
+            slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                    "_ger_get_entry_rights: SLAPI_ACL_WRITE_DEL & _ADD %s\n", rdntype);
+            if (acl_access_allowed(gerpb, e, rdntype, NULL,
+                    ACLPB_SLAPI_ACL_WRITE_DEL) == LDAP_SUCCESS &&
+                    acl_access_allowed(gerpb, e, rdntype, NULL,
+                    ACLPB_SLAPI_ACL_WRITE_ADD) == LDAP_SUCCESS) {
+                /* n - rename e */
+                entryrights |= SLAPI_ACL_WRITE;
+                _append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
+            }
+        }
+        slapi_rdn_free(&rdn);
+    }
 	if ( entryrights == 0 )
 	{
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "none", NULL);
