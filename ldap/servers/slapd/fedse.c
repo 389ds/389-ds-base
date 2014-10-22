@@ -77,6 +77,8 @@
 
 extern char ** getSupportedCiphers();
 extern char ** getEnabledCiphers();
+extern int getSSLVersionInfo(int *ssl2, int *ssl3, int *tls1);
+extern int getSSLVersionRange(char **min, char **max);
 
 /* Note: These DNs are no need to be normalized */
 static const char *internal_entries[] =
@@ -108,8 +110,7 @@ static const char *internal_entries[] =
     "cn:encryption\n"
 	"nsSSLSessionTimeout:0\n"
 	"nsSSLClientAuth:allowed\n"
-	"nsSSL2:off\n"
-	"nsSSL3:off\n",
+	"sslVersionMin:tls1.1\n",
 
     "dn:cn=monitor\n"
     "objectclass:top\n"
@@ -1688,15 +1689,38 @@ dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int 
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
+static void
+setEntrySSLVersion(Slapi_Entry *entry, char *sslversion, char *newval)
+{
+    char *v = slapi_entry_attr_get_charptr(entry, sslversion);
+
+    if (v) {
+        if (PL_strcasecmp(v, newval)) { /* did not match */
+            struct berval bv;
+            struct berval *bvals[2];
+            bvals[0] = &bv;
+            bvals[1] = NULL;
+            bv.bv_val = newval;
+            bv.bv_len = strlen(bv.bv_val);
+            slapi_entry_attr_replace(entry, sslversion, bvals );
+        }
+        slapi_ch_free_string(&v);
+    } else {
+        slapi_entry_attr_set_charptr(entry, sslversion, newval);
+    }
+}
+
 /*This function takes care of the search on the attribute nssslsupportedciphers in cn=encryption,cn=config" entry. This would get the list of supported ciphers from the table in ssl.c and always return that value */
 int
 search_encryption( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
-
     struct berval           *vals[2];
     struct berval           val;
     char ** cipherList = getSupportedCiphers(); /*Get the string array of supported ciphers here */
     char ** enabledCipherList = getEnabledCiphers(); /*Get the string array of enabled ciphers here */
+    int ssl2, ssl3, tls1;
+    char *sslVersionMin = NULL;
+    char *sslVersionMax = NULL;
     vals[0] = &val;
     vals[1] = NULL;
 
@@ -1719,6 +1743,19 @@ search_encryption( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_Entry *entryAfter
         attrlist_merge ( &entry->e_attrs, "nsSSLEnabledCiphers", vals);
         enabledCipherList++;
     }
+
+    if (!getSSLVersionInfo(&ssl2, &ssl3, &tls1)) { /* 0 if the version info is initialized */
+        setEntrySSLVersion(entry, "nsSSL2", ssl2?"on":"off");
+        setEntrySSLVersion(entry, "nsSSL3", ssl3?"on":"off");
+        setEntrySSLVersion(entry, "nsTLS1", tls1?"on":"off");
+    }
+
+    if (!getSSLVersionRange(&sslVersionMin, &sslVersionMax)) { /* 0 if the range is initialized or supported */
+        setEntrySSLVersion(entry, "sslVersionMin", sslVersionMin);
+        setEntrySSLVersion(entry, "sslVersionMax", sslVersionMax);
+    }
+    slapi_ch_free_string(&sslVersionMin);
+    slapi_ch_free_string(&sslVersionMax);
 
     return SLAPI_DSE_CALLBACK_OK;
 }
