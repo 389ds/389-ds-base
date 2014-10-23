@@ -201,7 +201,8 @@ def test_ticket47838_init(topology):
 
     log.info("\n######################### enable SSL in the directory server with all ciphers ######################\n")
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'on'),
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
+                                                 (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
                                                  (ldap.MOD_REPLACE, 'nsSSLClientAuth', 'allowed'),
                                                  (ldap.MOD_REPLACE, 'allowWeakCipher', 'on'),
                                                  (ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all')])
@@ -645,19 +646,171 @@ def test_ticket47838_run_11(topology):
 
     comp_nsSSLEnableCipherCount(topology, 0)
 
+def test_ticket47928_run_0(topology):
+    """
+    No SSL version config parameters.
+    Check SSL3 (TLS1.0) is off.
+    """
+    _header(topology, 'Test Case 13 - No SSL version config parameters')
+
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+    # add them once and remove them
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'off'),
+                                                 (ldap.MOD_REPLACE, 'nsTLS1', 'on'),
+                                                 (ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.1'),
+                                                 (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.2')])
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3', None),
+                                                 (ldap.MOD_DELETE, 'nsTLS1', None),
+                                                 (ldap.MOD_DELETE, 'sslVersionMin', None),
+                                                 (ldap.MOD_DELETE, 'sslVersionMax', None)])
+    topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
+
+    log.info("\n######################### Restarting the server ######################\n")
+    topology.standalone.stop(timeout=10)
+    os.system('mv %s %s.47838_11' % (topology.standalone.errlog, topology.standalone.errlog))
+    os.system('touch %s' % (topology.standalone.errlog))
+    topology.standalone.start(timeout=120)
+
+    errmsg = os.popen('egrep "SSL alert:" %s | egrep "Default SSL Version settings; Configuring the version range as min: TLS1.1"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+def test_ticket47928_run_1(topology):
+    """
+    No nsSSL3, nsTLS1; sslVersionMin > sslVersionMax
+    Check sslVersionMax is ignored.
+    """
+    _header(topology, 'Test Case 14 - No nsSSL3, nsTLS1; sslVersionMin > sslVersionMax')
+
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.2'),
+                                                 (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.1')])
+
+    log.info("\n######################### Restarting the server ######################\n")
+    topology.standalone.stop(timeout=10)
+    os.system('mv %s %s.47838_12' % (topology.standalone.errlog, topology.standalone.errlog))
+    os.system('touch %s' % (topology.standalone.errlog))
+    topology.standalone.start(timeout=120)
+
+    errmsg = os.popen('egrep "SSL alert:" %s | egrep "The min value of NSS version range"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+    errmsg = os.popen('egrep "SSL Initialization" %s | egrep "Configured SSL version range: min: TLS1.2, max: TLS1"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+def test_ticket47928_run_2(topology):
+    """
+    nsSSL3: on; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2
+    Conflict between nsSSL3 and range; nsSSL3 is disabled
+    """
+    _header(topology, 'Test Case 15 - nsSSL3: on; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2')
+
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.1'),
+                                                 (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.2'),
+                                                 (ldap.MOD_REPLACE, 'nsSSL3', 'on')])
+
+    log.info("\n######################### Restarting the server ######################\n")
+    topology.standalone.stop(timeout=10)
+    os.system('mv %s %s.47838_13' % (topology.standalone.errlog, topology.standalone.errlog))
+    os.system('touch %s' % (topology.standalone.errlog))
+    topology.standalone.start(timeout=120)
+
+    errmsg = os.popen('egrep "SSL alert:" %s | egrep "Found unsecure configuration: nsSSL3: on"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+    errmsg = os.popen('egrep "SSL alert:" %s | egrep "Respect the supported range."' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+    errmsg = os.popen('egrep "SSL Initialization" %s | egrep "Configured SSL version range: min: TLS1.1, max: TLS1"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+def test_ticket47928_run_3(topology):
+    """
+    nsSSL3: on; nsTLS1: off; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2
+    Conflict between nsSSL3/nsTLS1 and range; nsSSL3 is disabled; nsTLS1 is enabled.
+    """
+    _header(topology, 'Test Case 16 - nsSSL3: on; nsTLS1: off; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2')
+
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'sslVersionMin', 'TLS1.1'),
+                                                 (ldap.MOD_REPLACE, 'sslVersionMax', 'TLS1.2'),
+                                                 (ldap.MOD_REPLACE, 'nsSSL3', 'on'),
+                                                 (ldap.MOD_REPLACE, 'nsTLS1', 'off')])
+
+    log.info("\n######################### Restarting the server ######################\n")
+    topology.standalone.stop(timeout=10)
+    os.system('mv %s %s.47838_14' % (topology.standalone.errlog, topology.standalone.errlog))
+    os.system('touch %s' % (topology.standalone.errlog))
+    topology.standalone.start(timeout=120)
+
+    errmsg = os.popen('egrep "SSL alert:" %s | egrep "Found unsecure configuration: nsSSL3: on"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+    errmsg = os.popen('egrep "SSL alert:" %s | egrep "Respect the configured range."' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
+    errmsg = os.popen('egrep "SSL Initialization" %s | egrep "Configured SSL version range: min: TLS1.1, max: TLS1"' % topology.standalone.errlog)
+    if errmsg != "":
+        log.info("Expected message:")
+        log.info("%s" % errmsg.readline())
+    else:
+        log.info("Expected message was not found")
+        assert False
+
 def test_ticket47838_run_last(topology):
     """
     Check nssSSL3Chiphers: all <== invalid value
     All ciphers are disabled.
     """
-    _header(topology, 'Test Case 13 - Check nssSSL3Chiphers: all, which is invalid')
+    _header(topology, 'Test Case 17 - Check nssSSL3Chiphers: all, which is invalid')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', None)])
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'all')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology.standalone.stop(timeout=10)
-    os.system('mv %s %s.47838_10' % (topology.standalone.errlog, topology.standalone.errlog))
+    os.system('mv %s %s.47838_15' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
     topology.standalone.start(timeout=120)
 
@@ -671,7 +824,7 @@ def test_ticket47838_run_last(topology):
 
     comp_nsSSLEnableCipherCount(topology, 0)
 
-    topology.standalone.log.info("ticket47838, 47880, 47908 were successfully verified.");
+    topology.standalone.log.info("ticket47838, 47880, 47908, 47928 were successfully verified.");
 
 def test_ticket47838_final(topology):
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -706,6 +859,10 @@ def run_isolated():
     test_ticket47838_run_9(topo)
     test_ticket47838_run_10(topo)
     test_ticket47838_run_11(topo)
+    test_ticket47928_run_0(topo)
+    test_ticket47928_run_1(topo)
+    test_ticket47928_run_2(topo)
+    test_ticket47928_run_3(topo)
 
     test_ticket47838_run_last(topo)
     
