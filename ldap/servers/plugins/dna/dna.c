@@ -960,6 +960,14 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     }
 
     for (i = 0; entry->types && entry->types[i]; i++) {
+        if (!slapi_attr_syntax_exists(entry->types[i])){
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry: dnaType (%s) does "
+                            "not exist.\n",
+                            entry->types[i]);
+            ret = DNA_FAILURE;
+            goto bail;
+        }
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_TYPE, entry->types[i]);
     }
