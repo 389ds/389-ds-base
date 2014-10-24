@@ -423,6 +423,7 @@ static void resolve_attribute_state_present_to_deleted(Slapi_Entry *e, Slapi_Att
 static void resolve_attribute_state_to_present_or_deleted(Slapi_Entry *e, Slapi_Attr *a, Slapi_Value **valuestoupdate, int attribute_state);
 static int entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags);
 static int entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags);
+
 static int
 entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
 {
@@ -439,11 +440,11 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 
 	if(slapi_attr_flag_is_set(a,SLAPI_ATTR_FLAG_SINGLE))
 	{
-		retVal = entry_add_present_values_wsi_single_valued( e, type, bervals, csn, urp, 0 );
+		retVal = entry_add_present_values_wsi_single_valued( e, a->a_type, bervals, csn, urp, 0 );
 	}
 	else
 	{
-		retVal = entry_add_present_values_wsi_multi_valued( e, type, bervals, csn, urp, 0 );
+		retVal = entry_add_present_values_wsi_multi_valued( e, a->a_type, bervals, csn, urp, 0 );
 	}
 	return retVal;
 }
