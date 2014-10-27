@@ -1215,7 +1215,6 @@ slapd_ssl_init()
     PRErrorCode errorCode;
     char ** family_list;
     char *val = NULL;
-    int rv = 0;
     PK11SlotInfo *slot;
     Slapi_Entry *entry = NULL;
 
@@ -1333,10 +1332,6 @@ slapd_ssl_init()
     /* Introduce a way of knowing whether slapd_ssl_init has
      * already been executed. */
     _security_library_initialized = 1; 
-
-    if ( rv != 0 ) {
-        return rv;
-    }
 
     return 0;
 }
