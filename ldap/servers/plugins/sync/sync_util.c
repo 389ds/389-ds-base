@@ -552,21 +552,21 @@ Sync_Cookie *
 sync_cookie_parse (char *cookie)
 {
 	char *p, *q;
-	Sync_Cookie *sc;
+	Sync_Cookie *sc = NULL;
 
 	if (cookie == NULL || *cookie == '\0' ) {
 		return NULL;
 	}
 
+	/* 
+	 * Format of cookie: server_signature#client_signature#change_info_number
+	 * If the cookie is malformed, NULL is returned.
+	 */
 	p = q = cookie;
-	sc = (Sync_Cookie *)slapi_ch_malloc(sizeof(Sync_Cookie));
-
-	sc->cookie_client_signature = NULL;
-	sc->cookie_server_signature = NULL;
-	sc->cookie_change_info = -1;
 	p = strchr(q, '#');
 	if (p) {
 		*p = '\0';
+		sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
 		sc->cookie_server_signature = slapi_ch_strdup(q);
 		q = p + 1;
 		p = strchr(q, '#');
@@ -574,21 +574,32 @@ sync_cookie_parse (char *cookie)
 			*p = '\0';
 			sc->cookie_client_signature = slapi_ch_strdup(q);
 			sc->cookie_change_info = sync_number2int(p+1);
+			if (sc->cookie_change_info < 0) {
+				goto error_return;
+			}
+		} else {
+			goto error_return;
 		}
 	}
-		
 	return (sc);
+error_return:
+	slapi_ch_free_string(&(sc->cookie_client_signature));
+	slapi_ch_free_string(&(sc->cookie_server_signature));
+	slapi_ch_free((void **)&sc);
+	return NULL;
 }
 
 int
 sync_cookie_isvalid (Sync_Cookie *testcookie, Sync_Cookie *refcookie)
 {
 	/* client and server info must match */
-	if (strcmp(testcookie->cookie_client_signature,refcookie->cookie_client_signature) ||
-		strcmp(testcookie->cookie_server_signature,refcookie->cookie_server_signature) || 
-		testcookie->cookie_change_info == -1 || 
-		testcookie->cookie_change_info > refcookie->cookie_change_info )
+	if ((testcookie && refcookie) &&
+		(strcmp(testcookie->cookie_client_signature,refcookie->cookie_client_signature) ||
+		 strcmp(testcookie->cookie_server_signature,refcookie->cookie_server_signature) ||
+		 testcookie->cookie_change_info == -1 ||
+		 testcookie->cookie_change_info > refcookie->cookie_change_info)) {
 		return (0);
+	}
 	/* could add an additional check if the requested state in client cookie is still
 	 * available. Accept any state request for now.
 	 */
