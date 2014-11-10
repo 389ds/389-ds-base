@@ -430,9 +430,10 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
     int keySize = 0;
     char* cipher = NULL;
     char* extraErrorMsg = "";
-	SSLChannelInfo channelInfo;
-	SSLCipherSuiteInfo cipherInfo;
-	char* subject = NULL;
+    SSLChannelInfo channelInfo;
+    SSLCipherSuiteInfo cipherInfo;
+    char* subject = NULL;
+    char sslversion[64];
 
 	if ( (slapd_ssl_getChannelInfo (prfd, &channelInfo, sizeof(channelInfo))) != SECSuccess ) {
 		PRErrorCode errorCode = PR_GetError();
@@ -460,38 +461,48 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
      * to be enough, close the SSL connection. */
     if ( conn->c_flags & CONN_FLAG_START_TLS ) {
         if ( cipherInfo.symKeyBits == 0 ) {
-	        start_tls_graceful_closure( conn, NULL, 1 );
-		goto done;
-	}
+            start_tls_graceful_closure( conn, NULL, 1 );
+            goto done;
+        }
     }
 
     if (config_get_SSLclientAuth() == SLAPD_SSLCLIENTAUTH_OFF ) {
-		slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " SSL %i-bit %s\n",
-				(long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL" );
-		goto done;
-    } 
+        (void) slapi_getSSLVersion_str(channelInfo.protocolVersion, sslversion, sizeof(sslversion));
+        slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " %s %i-bit %s\n",
+                (long long unsigned int)conn->c_connid, 
+                sslversion, keySize, cipher ? cipher : "NULL" );
+        goto done;
+    }
     if (clientCert == NULL) {
-	slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " SSL %i-bit %s\n",
-			(long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL" );
+        (void) slapi_getSSLVersion_str(channelInfo.protocolVersion, sslversion, sizeof(sslversion));
+        slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " %s %i-bit %s\n",
+                (long long unsigned int)conn->c_connid, 
+                sslversion, keySize, cipher ? cipher : "NULL" );
     } else {
-	subject = subject_of (clientCert);
-	if (!subject) {
-		slapi_log_access( LDAP_DEBUG_STATS,
-		       "conn=%" NSPRIu64 " SSL %i-bit %s; missing subject\n",
-		       (long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL");
-		goto done;
-	}
-	{
-	    char* issuer  = issuer_of (clientCert);
-	    char sbuf[ BUFSIZ ], ibuf[ BUFSIZ ];
-	    slapi_log_access( LDAP_DEBUG_STATS,
-		       "conn=%" NSPRIu64 " SSL %i-bit %s; client %s; issuer %s\n",
-		       (long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL",
-		       subject ? escape_string( subject, sbuf ) : "NULL",
-		       issuer  ? escape_string( issuer,  ibuf ) : "NULL");
-	    if (issuer) free (issuer);
-	}
-	slapi_dn_normalize (subject);
+        subject = subject_of (clientCert);
+        if (!subject) {
+            (void) slapi_getSSLVersion_str(channelInfo.protocolVersion,
+                                                 sslversion, sizeof(sslversion));
+            slapi_log_access( LDAP_DEBUG_STATS,
+                       "conn=%" NSPRIu64 " %s %i-bit %s; missing subject\n",
+                       (long long unsigned int)conn->c_connid, 
+                       sslversion, keySize, cipher ? cipher : "NULL");
+            goto done;
+        }
+        {
+            char* issuer  = issuer_of (clientCert);
+            char sbuf[ BUFSIZ ], ibuf[ BUFSIZ ];
+            (void) slapi_getSSLVersion_str(channelInfo.protocolVersion,
+                                                 sslversion, sizeof(sslversion));
+            slapi_log_access( LDAP_DEBUG_STATS,
+                        "conn=%" NSPRIu64 " %s %i-bit %s; client %s; issuer %s\n",
+                        (long long unsigned int)conn->c_connid,
+                        sslversion, keySize, cipher ? cipher : "NULL",
+                        subject ? escape_string( subject, sbuf ) : "NULL",
+                        issuer  ? escape_string( issuer,  ibuf ) : "NULL");
+            if (issuer) free (issuer);
+        }
+        slapi_dn_normalize (subject);
 	{
 	    LDAPMessage* chain = NULL;
 		char *basedn = config_get_basedn();
@@ -525,14 +536,20 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
         sdn = slapi_sdn_new_dn_passin(clientDN);
         clientDN = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
         slapi_sdn_free(&sdn);
+        (void) slapi_getSSLVersion_str(channelInfo.protocolVersion,
+                                             sslversion, sizeof(sslversion));
         slapi_log_access (LDAP_DEBUG_STATS, 
-                          "conn=%" NSPRIu64 " SSL client bound as %s\n",
-                          (long long unsigned int)conn->c_connid, clientDN);
+                          "conn=%" NSPRIu64 " %s client bound as %s\n",
+                          (long long unsigned int)conn->c_connid,
+                          sslversion, clientDN);
     } else if (clientCert != NULL) {
+        (void) slapi_getSSLVersion_str(channelInfo.protocolVersion,
+                                             sslversion, sizeof(sslversion));
         slapi_log_access (LDAP_DEBUG_STATS,
-                          "conn=%" NSPRIu64 " SSL failed to map client "
+                          "conn=%" NSPRIu64 " %s failed to map client "
                           "certificate to LDAP DN (%s)\n",
-                          (long long unsigned int)conn->c_connid, extraErrorMsg );
+                          (long long unsigned int)conn->c_connid,
+                          sslversion, extraErrorMsg);
     }
 
 	/*
