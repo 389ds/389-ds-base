@@ -463,7 +463,6 @@ cb_get_connection(cb_conn_pool * pool,
 					ldap_controls_free(serverctrls);
 				}
 			} else if (secure == 2) {
-				int rc;
 				/* the start_tls operation is usually performed in slapi_ldap_bind, but
 				   since we are not binding we still need to start_tls */
 				if (cb_debug_on()) {
