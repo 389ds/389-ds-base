@@ -6604,6 +6604,7 @@ int slapi_config_remove_callback(int operation, int flags, const char *base, int
 
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
 int slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb);
+int slapi_plugin_task_unregister_handler(const char *name, dseCallbackFn func);
 void slapi_task_begin(Slapi_Task *task, int total_work);
 void slapi_task_inc_progress(Slapi_Task *task);
 void slapi_task_finish(Slapi_Task *task, int rc);

@@ -461,6 +461,25 @@ int slapi_task_get_refcount(Slapi_Task *task)
 }
 
 int
+slapi_plugin_task_unregister_handler(const char *name, dseCallbackFn func)
+{
+    char *base = NULL;
+    int rc = 0;
+
+    base = slapi_create_dn_string("cn=%s,%s", name, TASK_BASE_DN);
+
+    slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, base,
+                                 LDAP_SCOPE_SUBTREE, "(objectclass=*)", func);
+    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP,
+                                 base, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny);
+    slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP,
+                                 base, LDAP_SCOPE_BASE, "(objectclass=*)", task_deny);
+    slapi_ch_free_string(&base);
+
+    return rc;
+}
+
+int
 slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb)
 {
     Slapi_PBlock *add_pb = NULL;
