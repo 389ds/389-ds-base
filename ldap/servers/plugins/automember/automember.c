@@ -397,6 +397,14 @@ automember_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                     "--> automember_close\n");
 
+    /* unregister the tasks */
+    slapi_plugin_task_unregister_handler("automember rebuild membership",
+            automember_task_add);
+    slapi_plugin_task_unregister_handler("automember export updates",
+            automember_task_add_export_updates);
+    slapi_plugin_task_unregister_handler("automember map updates",
+            automember_task_add_map_entries);
+
     automember_delete_config();
     slapi_ch_free((void **)&g_automember_config);
     slapi_sdn_free(&_PluginDN);

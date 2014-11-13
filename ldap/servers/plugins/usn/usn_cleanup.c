@@ -58,6 +58,14 @@ usn_cleanup_start(Slapi_PBlock *pb)
     return rc;
 }
 
+int
+usn_cleanup_close()
+{
+    int rc = slapi_plugin_task_unregister_handler("USN tombstone cleanup task",
+                                         usn_cleanup_add);
+    return rc;
+}
+
 /*
  * Task thread
  */

@@ -300,6 +300,7 @@ usn_close(Slapi_PBlock *pb)
 {
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM, "--> usn_close\n");
 
+    usn_cleanup_close();
     slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP,
             "", LDAP_SCOPE_BASE, "(objectclass=*)", usn_rootdse_search);
 

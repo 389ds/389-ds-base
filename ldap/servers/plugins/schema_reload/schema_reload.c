@@ -131,6 +131,8 @@ schemareload_start(Slapi_PBlock *pb)
 static int
 schemareload_close(Slapi_PBlock *pb)
 {
+
+    slapi_plugin_task_unregister_handler("schema reload task", schemareload_add);
     PR_DestroyLock(schemareload_lock);
 
     return 0;

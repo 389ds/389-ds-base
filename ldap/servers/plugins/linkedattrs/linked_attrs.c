@@ -383,6 +383,8 @@ linked_attrs_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, LINK_PLUGIN_SUBSYSTEM,
                     "--> linked_attrs_close\n");
 
+    slapi_plugin_task_unregister_handler("fixup linked attributes", linked_attrs_fixup_task_add);
+
     linked_attrs_delete_config();
     slapi_destroy_rwlock(g_config_lock);
     g_config_lock = NULL;

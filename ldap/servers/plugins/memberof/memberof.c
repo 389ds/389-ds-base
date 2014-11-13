@@ -454,6 +454,7 @@ int memberof_postop_close(Slapi_PBlock *pb)
 	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_close\n" );
 
+	slapi_plugin_task_unregister_handler("memberof task", memberof_task_add);
 	memberof_release_config();
 	slapi_sdn_free(&_ConfigAreaDN);
 	slapi_sdn_free(&_pluginDN);

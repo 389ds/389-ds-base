@@ -237,6 +237,7 @@ posix_winsync_config(Slapi_Entry *config_e)
 void
 posix_winsync_config_free()
 {
+    slapi_plugin_task_unregister_handler("memberuid task", posix_group_task_add);
     slapi_entry_free(theConfig.config_e);
     theConfig.config_e = NULL;
     slapi_destroy_mutex(theConfig.lock);
