@@ -110,7 +110,7 @@ static const char *internal_entries[] =
     "cn:encryption\n"
 	"nsSSLSessionTimeout:0\n"
 	"nsSSLClientAuth:allowed\n"
-	"sslVersionMin:tls1.1\n",
+	"sslVersionMin:TLS1.0\n",
 
     "dn:cn=monitor\n"
     "objectclass:top\n"
