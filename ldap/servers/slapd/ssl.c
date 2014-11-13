@@ -87,12 +87,22 @@
 /* TLS1.1 is defined in RFC4346. */
 #define NSS_TLS11 1
 #else
-/* 
- * TLS1.0 is defined in RFC2246.
- * Close to SSL 3.0.
- */
 #define NSS_TLS10 1
 #endif
+
+/******************************************************************************
+ * Default SSL Version Rule
+ * Old SSL version attributes:
+ *   nsSSL3: off -- nsSSL3 == SSL_LIBRARY_VERSION_3_0
+ *   nsTLS1: on  -- nsTLS1 == SSL_LIBRARY_VERSION_TLS_1_0 and greater
+ *   Note: TLS1.0 is defined in RFC2246, which is close to SSL 3.0.
+ * New SSL version attributes:
+ *   sslVersionMin: TLS1.0
+ *   sslVersionMax: max ssl version supported by NSS
+ ******************************************************************************/
+
+#define DEFVERSION "TLS1.0"
+#define CURRENT_DEFAULT_SSL_VERSION SSL_LIBRARY_VERSION_TLS_1_0
 
 extern char* slapd_SSL3ciphers;
 extern symbol_t supported_ciphers[];
@@ -253,12 +263,12 @@ static lookup_cipher _lookup_cipher[] = {
 PRBool enableSSL2 = PR_FALSE;
 /*
  * nsSSL3: on -- disable SSLv3 by default.
- * Corresonding to SSL_LIBRARY_VERSION_3_0 and SSL_LIBRARY_VERSION_TLS_1_0 
+ * Corresonding to SSL_LIBRARY_VERSION_3_0
  */
 PRBool enableSSL3 = PR_FALSE;
 /*
  * nsTLS1: on -- enable TLS1 by default.
- * Corresonding to SSL_LIBRARY_VERSION_TLS_1_1 and greater.
+ * Corresonding to SSL_LIBRARY_VERSION_TLS_1_0 and greater.
  */
 PRBool enableTLS1 = PR_TRUE;
 
@@ -927,14 +937,14 @@ restrict_SSLVersionRange(void)
         slapd_SSL_warn("Found unsecure configuration: nsSSL3: on; "
                        "We strongly recommend to disable nsSSL3 in %s.", configDN);
         if (enableTLS1) {
-            if (slapdNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_0) {
+            if (slapdNSSVersions.min >= CURRENT_DEFAULT_SSL_VERSION) {
                 slapd_SSL_warn("Configured range: min: %s, max: %s; "
                                "but both nsSSL3 and nsTLS1 are on. "
                                "Respect the supported range.",
                                mymin, mymax);
                 enableSSL3 = PR_FALSE;
             }
-            if (slapdNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_1) {
+            if (slapdNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
                 slapd_SSL_warn("Configured range: min: %s, max: %s; "
                                "but both nsSSL3 and nsTLS1 are on. "
                                "Resetting the max to the supported max SSL version: %s.",
@@ -943,7 +953,7 @@ restrict_SSLVersionRange(void)
             }
         } else {
             /* nsTLS1 is explicitly set to off. */
-            if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_0) {
+            if (enabledNSSVersions.min >= CURRENT_DEFAULT_SSL_VERSION) {
                 slapd_SSL_warn("Supported range: min: %s, max: %s; "
                                "but nsSSL3 is on and nsTLS1 is off. "
                                "Respect the supported range.",
@@ -951,20 +961,20 @@ restrict_SSLVersionRange(void)
                 slapdNSSVersions.min = SSLVGreater(slapdNSSVersions.min, enabledNSSVersions.min);
                 enableSSL3 = PR_FALSE;
                 enableTLS1 = PR_TRUE;
-            } else if (slapdNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_0) { 
+            } else if (slapdNSSVersions.min >= CURRENT_DEFAULT_SSL_VERSION) { 
                 slapd_SSL_warn("Configured range: min: %s, max: %s; "
                                "but nsSSL3 is on and nsTLS1 is off. "
                                "Respect the configured range.",
                                mymin, mymax);
                 enableSSL3 = PR_FALSE;
                 enableTLS1 = PR_TRUE;
-            } else if (slapdNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_1) {
+            } else if (slapdNSSVersions.min < CURRENT_DEFAULT_SSL_VERSION) {
                 slapd_SSL_warn("Too low configured range: min: %s, max: %s; "
-                               "We strongly recommend to set sslVersionMax higher than %s.",
-                               mymin, mymax, emax);
+                               "We strongly recommend to set sslVersionMin higher than %s.",
+                               mymin, mymax, DEFVERSION);
             } else {
                 /* 
-                 * slapdNSSVersions.min <= SSL_LIBRARY_VERSION_TLS_1_0 &&
+                 * slapdNSSVersions.min < SSL_LIBRARY_VERSION_TLS_1_0 &&
                  * slapdNSSVersions.max >= SSL_LIBRARY_VERSION_TLS_1_1
                  */
                 slapd_SSL_warn("Configured range: min: %s, max: %s; "
@@ -976,7 +986,7 @@ restrict_SSLVersionRange(void)
         }
     } else {
         if (enableTLS1) {
-            if (enabledNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_1) {
+            if (enabledNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
                 /* TLS1 is on, but TLS1 is not supported by NSS.  */
                 slapd_SSL_warn("Supported range: min: %s, max: %s; "
                                "Setting the version range based upon the supported range.",
@@ -985,17 +995,17 @@ restrict_SSLVersionRange(void)
                 slapdNSSVersions.min = enabledNSSVersions.min;
                 enableSSL3 = PR_TRUE;
                 enableTLS1 = PR_FALSE;
-            } else if ((slapdNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_1) ||
-                       (slapdNSSVersions.min < SSL_LIBRARY_VERSION_TLS_1_1)) {
+            } else if ((slapdNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) ||
+                       (slapdNSSVersions.min < CURRENT_DEFAULT_SSL_VERSION)) {
                 slapdNSSVersions.max = enabledNSSVersions.max;
-                slapdNSSVersions.min = SSLVGreater(SSL_LIBRARY_VERSION_TLS_1_1, enabledNSSVersions.min);
-                slapd_SSL_warn("Default SSL Version settings; "
-                               "Configuring the version range as min: %s, max: %s; ",
-                               mymin, mymax);
+                slapdNSSVersions.min = SSLVGreater(CURRENT_DEFAULT_SSL_VERSION, enabledNSSVersions.min);
+                slapd_SSL_warn("nsTLS1 is on, but the version range is lower than \"%s\"; "
+                               "Configuring the version range as default min: %s, max: %s.",
+                               DEFVERSION, DEFVERSION, emax);
             } else {
                 /* 
-                 * slapdNSSVersions.min >= SSL_LIBRARY_VERSION_TLS_1_1 &&
-                 * slapdNSSVersions.max >= SSL_LIBRARY_VERSION_TLS_1_1
+                 * slapdNSSVersions.min >= SSL_LIBRARY_VERSION_TLS_1_0 &&
+                 * slapdNSSVersions.max >= SSL_LIBRARY_VERSION_TLS_1_0
                  */
                 ;
             }
@@ -1004,14 +1014,14 @@ restrict_SSLVersionRange(void)
                            "Respect the configured range.",
                            emin, emax);
             /* nsTLS1 is explicitly set to off. */
-            if (slapdNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_0) {
+            if (slapdNSSVersions.min >= CURRENT_DEFAULT_SSL_VERSION) {
                 enableTLS1 = PR_TRUE;
-            } else if (slapdNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_1) {
+            } else if (slapdNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
                 enableSSL3 = PR_TRUE;
             } else {
                 /* 
-                 * slapdNSSVersions.min <= SSL_LIBRARY_VERSION_TLS_1_0 &&
-                 * slapdNSSVersions.max >= SSL_LIBRARY_VERSION_TLS_1_1
+                 * slapdNSSVersions.min < SSL_LIBRARY_VERSION_TLS_1_0 &&
+                 * slapdNSSVersions.max >= SSL_LIBRARY_VERSION_TLS_1_0
                  */
                 enableSSL3 = PR_TRUE;
                 enableTLS1 = PR_TRUE;
@@ -1434,17 +1444,17 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
         sscanf(vp, "%4f", &tlsv);
         if (tlsv < 1.1) { /* TLS1.0 */
             if (ismin) {
-                if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_0) {
+                if (enabledNSSVersions.min > CURRENT_DEFAULT_SSL_VERSION) {
                     slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
                                    "\"%s\" is lower than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emin);
                    (*rval) = enabledNSSVersions.min;
                 } else {
-                   (*rval) = SSL_LIBRARY_VERSION_TLS_1_0;
+                   (*rval) = CURRENT_DEFAULT_SSL_VERSION;
                 }
             } else {
-                if (enabledNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_0) {
+                if (enabledNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
                     /* never happens */
                     slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
                                    "\"%s\" is higher than the supported version; "
@@ -1452,7 +1462,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
                                    val, emax);
                     (*rval) = enabledNSSVersions.max;
                 } else {
-                    (*rval) = SSL_LIBRARY_VERSION_TLS_1_0;
+                    (*rval) = CURRENT_DEFAULT_SSL_VERSION;
                 }
             }
         } else if (tlsv < 1.2) { /* TLS1.1 */
@@ -1906,7 +1916,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             } else {
                 enableTLS1 = slapi_entry_attr_get_bool( e, "nsTLS1" );
             }
-        } else if (enabledNSSVersions.max > SSL_LIBRARY_VERSION_TLS_1_0) {
+        } else if (enabledNSSVersions.max >= CURRENT_DEFAULT_SSL_VERSION) {
             enableTLS1 = PR_TRUE; /* If available, enable TLS1 */
         }
         slapi_ch_free_string( &val );
