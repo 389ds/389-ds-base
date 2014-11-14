@@ -411,8 +411,8 @@ static struct config_get_and_set {
 		CONFIG_INT, NULL, DEFAULT_PW_GRACELIMIT},
 	{CONFIG_PW_ADMIN_DN_ATTRIBUTE, config_set_pw_admin_dn,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.pw_policy.pw_admin,
-		CONFIG_STRING, NULL, ""},
+		NULL,
+		CONFIG_STRING, (ConfigGetFunc)config_get_pw_admin_dn, ""},
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_rotationsync_enabled,
@@ -4734,6 +4734,19 @@ config_get_pagedsizelimit() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
   return retVal; 
+}
+
+char *
+config_get_pw_admin_dn()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_strdup(slapi_sdn_get_dn(slapdFrontendConfig->pw_policy.pw_admin));
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
 }
 
 char *

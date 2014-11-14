@@ -500,6 +500,7 @@ int config_get_groupevalnestlevel();
 struct berval **config_get_defaultreferral();
 char *config_get_userat();
 int config_get_timelimit();
+char *config_get_pw_admin_dn();
 char* config_get_useroc();
 char *config_get_accesslog();
 char *config_get_errorlog();
