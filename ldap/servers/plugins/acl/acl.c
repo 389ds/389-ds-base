@@ -1450,9 +1450,7 @@ acl_check_mods(
 			    if (be != NULL)
 				slapi_pblock_get ( pb, SLAPI_BE_LASTMOD, &lastmod );
 			}
-			if (lastmod &&
-			    (strcmp (mod->mod_type, "modifiersname")== 0 ||
-			     strcmp (mod->mod_type, "modifytimestamp")== 0)) {
+			if (lastmod && slapi_attr_is_last_mod(mod->mod_type)) {
 				/* skip pseudo attr(s)  */
 				continue; 
 			}
