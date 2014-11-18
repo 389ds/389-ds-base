@@ -1059,6 +1059,8 @@ encode_attr(
 
 #define LASTMODATTR( x )	(strcasecmp( x, "modifytimestamp" ) == 0 \
 				    || strcasecmp( x, "modifiersname" ) == 0 \
+				    || strcasecmp( x, "internalmodifytimestamp" ) == 0 \
+				    || strcasecmp( x, "internalmodifiersname" ) == 0 \
 				    || strcasecmp( x, "createtimestamp" ) == 0 \
 				    || strcasecmp( x, "creatorsname" ) == 0)
 
