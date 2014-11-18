@@ -1017,9 +1017,7 @@ addnew(FILE * edf3, const char *changetype, record_t * first)
     for (attnum = 1, att = &first->data;
          attnum <= first->nattrs;
          attnum++, att = attribnext(att)) {
-        if (!stricmp(attribname(att), "modifytimestamp"))
-            continue;
-        if (!stricmp(attribname(att), "modifiersname"))
+        if (slapi_attr_is_last_mod(attribname(att)))
             continue;
         if (!putvalue(edf3, NULL, attribname(att), att->namelen,
                       attribvalue(att), att->valuelen)) {
@@ -1074,15 +1072,11 @@ addmodified(FILE * edf3, attrib1_t * attrib, record_t * first)
      */
     while (a != NULL || num_b <= tot_b) {
         /* ignore operational attrs */
-        if (num_b <= tot_b &&
-            (stricmp(attribname(b), "modifytimestamp") == 0 ||
-             stricmp(attribname(b), "modifiersname") == 0)) {
+        if ( num_b <= tot_b && slapi_attr_is_last_mod(attribname(b)) ){
             b = attribnext(b); num_b++;
             continue;
         }
-        if (a != NULL &&
-            (stricmp(a->name, "modifytimestamp") == 0 ||
-             stricmp(a->name, "modifiersname") == 0)) {
+        if (a != NULL && slapi_attr_is_last_mod(a->name)) {
             a = a->next;
             continue;
         }

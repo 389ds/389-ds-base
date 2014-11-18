@@ -224,6 +224,23 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 }
 
 /*
+ * If the attribute is one of the last mod attributes return 1,
+ * otherwise return 0;
+ */
+int
+slapi_attr_is_last_mod(char *attr)
+{
+    if(strcasecmp (attr, "modifytimestamp") == 0 ||
+       strcasecmp (attr, "modifiersname") == 0 ||
+       strcasecmp (attr, "internalmodifytimestamp") == 0 ||
+       strcasecmp (attr, "internalmodifiersname") == 0)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+/*
  * Returns: 0    - if the operation is successful
  *        < 0    - if operation fails. 
  * Note that an operation is considered "failed" if a result is sent 

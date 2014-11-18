@@ -484,8 +484,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                     }
                 }
                 /* ignore modifiers attributes added by the server */
-                else if (strcasecmp (config_attr, "modifytimestamp") == 0 ||
-                         strcasecmp (config_attr, "modifiersname") == 0)
+                else if (slapi_attr_is_last_mod(config_attr))
                 {
                     *returncode = LDAP_SUCCESS;
                 }

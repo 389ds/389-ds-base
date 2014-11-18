@@ -4982,6 +4982,8 @@ int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2);
 Slapi_Filter *slapi_filter_dup(Slapi_Filter *f);
 int slapi_filter_changetype(Slapi_Filter *f, const char *newtype);
 
+int slapi_attr_is_last_mod(char *attr);
+
 /**
  * Normalize in-place the given filter.  Normalizes the attribute types always.
  * If norm_values is true, will also normalize the values.

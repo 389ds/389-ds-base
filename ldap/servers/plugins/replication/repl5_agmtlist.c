@@ -488,8 +488,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			repl5_set_debug_timeout(val);
 			slapi_ch_free_string(&val);
 		}
-        else if (strcasecmp (mods[i]->mod_type, "modifytimestamp") == 0 ||
-                 strcasecmp (mods[i]->mod_type, "modifiersname") == 0 ||
+        else if (slapi_attr_is_last_mod(mods[i]->mod_type) ||
                  strcasecmp (mods[i]->mod_type, "description") == 0)
         {
             /* ignore modifier's name and timestamp attributes and the description. */
