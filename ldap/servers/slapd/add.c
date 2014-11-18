@@ -911,8 +911,8 @@ static int check_rdn_for_created_attrs(Slapi_Entry *e)
     int i, rc = 0;
     Slapi_RDN *rdn = NULL;
     char *value = NULL;
-    char *type[] = {SLAPI_ATTR_UNIQUEID, "modifytimestamp", "createtimestamp",
-                   "creatorsname", "modifiersname", 0};
+    char *type[] = {SLAPI_ATTR_UNIQUEID, "modifytimestamp", "modifiersname", "internalmodifytimestamp",
+                    "internalmodifiersname", "createtimestamp", "creatorsname", 0};
 
     if ((rdn = slapi_rdn_new())) {
         slapi_rdn_init_dn(rdn, slapi_entry_get_dn_const(e));

@@ -357,15 +357,10 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                 config_attr = (char *) mods[i]->mod_type; 
                 config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
 
-#define ATTR_MODIFIERSNAME	"modifiersname"
-#define ATTR_MODIFYTIMESTAMP	"modifytimestamp"
-
-				if ( strcasecmp ( config_attr, ATTR_MODIFIERSNAME ) == 0 ) {
-                    continue;
-                }
-				if ( strcasecmp ( config_attr, ATTR_MODIFYTIMESTAMP ) == 0 ) {
+				if ( slapi_attr_is_last_mod(config_attr)){
 					continue;
                 }
+
                 /* replace existing value */
                 if ( strcasecmp (config_attr, CONFIG_CHANGELOG_DIR_ATTRIBUTE ) == 0 )
 				{

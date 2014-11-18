@@ -1849,10 +1849,9 @@ int ldbm_config_ignored_attr(char *attr_name)
     if (!strcasecmp("objectclass", attr_name) ||
         !strcasecmp("cn", attr_name) ||
         !strcasecmp("creatorsname", attr_name) ||
-        !strcasecmp("modifiersname", attr_name) ||
         !strcasecmp("createtimestamp", attr_name) ||
         !strcasecmp(LDBM_NUMSUBORDINATES_STR, attr_name) ||
-        !strcasecmp("modifytimestamp", attr_name)) {
+        slapi_attr_is_last_mod(attr_name)){
         return 1;
     } else {
         return 0;

@@ -802,8 +802,8 @@ static int task_modify(Slapi_PBlock *pb, Slapi_Entry *e,
          * stuck in by the server */
         if ((strcasecmp(mods[i]->mod_type, "ttl") != 0) &&
             (strcasecmp(mods[i]->mod_type, "nsTaskCancel") != 0) &&
-            (strcasecmp(mods[i]->mod_type, "modifiersName") != 0) &&
-            (strcasecmp(mods[i]->mod_type, "modifyTimestamp") != 0)) {
+            !slapi_attr_is_last_mod(mods[i]->mod_type))
+        {
             /* you aren't allowed to change this! */
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             return SLAPI_DSE_CALLBACK_ERROR;
