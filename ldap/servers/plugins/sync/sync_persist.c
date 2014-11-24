@@ -661,10 +661,10 @@ sync_send_results( void *arg )
 				ectrls = (LDAPControl **)slapi_ch_calloc(2, sizeof (LDAPControl *));
 				if (req->req_cookie)
 					sync_cookie_update(req->req_cookie, ec);
-					sync_create_state_control(ec, &ectrls[0], chg_type, req->req_cookie);
-	    			rc = slapi_send_ldap_search_entry( req->req_pblock,
-								ec, ectrls,
-								noattrs?noattrs:attrs, attrsonly );
+				sync_create_state_control(ec, &ectrls[0], chg_type, req->req_cookie);
+				rc = slapi_send_ldap_search_entry( req->req_pblock,
+							ec, ectrls,
+							noattrs?noattrs:attrs, attrsonly );
 				if (rc) {
 					slapi_log_error(SLAPI_LOG_CONNS, SYNC_PLUGIN_SUBSYSTEM,
 							"Error %d sending entry %s\n",

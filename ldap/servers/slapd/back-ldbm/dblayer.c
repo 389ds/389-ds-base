@@ -4805,19 +4805,18 @@ static int checkpoint_threadmain(void *param)
 
             for (inst_obj = objset_first_obj(li->li_instance_set);
                  inst_obj;
-                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+                 inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
+            {
                 inst = (ldbm_instance *)object_get_data(inst_obj);
                 rc = dblayer_get_id2entry(inst->inst_be, &db);
-                if (!db) {
+                if (!db || rc ) {
                     continue;
                 }
                 LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, "compactdb: Compacting DB start: %s\n",
                               inst->inst_name);
                 rc = dblayer_txn_begin(inst->inst_be, NULL, &txn);
                 if (rc) {
-                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                                  "compactdb: transaction begin failed: %d\n",
-                                  rc);
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY, "compactdb: transaction begin failed: %d\n", rc);
                     break;
                 }
                 rc = db->compact(db, txn.back_txn_txn, NULL/*start*/, NULL/*stop*/, 
@@ -4826,12 +4825,20 @@ static int checkpoint_threadmain(void *param)
                     LDAPDebug(LDAP_DEBUG_ANY,
                               "compactdb: failed to compact %s; db error - %d %s\n",
                               inst->inst_name, rc, db_strerror(rc));
-                    rc = dblayer_txn_abort(inst->inst_be, &txn);
+                    if((rc = dblayer_txn_abort(inst->inst_be, &txn))){
+                        LDAPDebug(LDAP_DEBUG_ANY, "compactdb: failed to abort txn (%s) db error - %d %s\n",
+                                  inst->inst_name, rc, db_strerror(rc));
+                        break;
+                    }
                 } else {
                     LDAPDebug2Args(LDAP_DEBUG_BACKLDBM,
                                    "compactdb: compact %s - %d pages freed\n",
                                    inst->inst_name, c_data.compact_pages_free);
-                    rc = dblayer_txn_commit(inst->inst_be, &txn);
+                    if((rc = dblayer_txn_commit(inst->inst_be, &txn))){
+                        LDAPDebug(LDAP_DEBUG_ANY, "compactdb: failed to commit txn (%s) db error - %d %s\n",
+                                  inst->inst_name, rc, db_strerror(rc));
+                        break;
+                    }
                 }
             }
             time_of_last_comapctdb_completion = current_time();    /* seconds since epoch */
