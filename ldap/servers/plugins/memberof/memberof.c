@@ -2540,8 +2540,10 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
 
-	/* get a list of all of the groups this user belongs to */
-	groups = memberof_get_groups(config, sdn);
+	if(!config->skip_nested){
+		/* get a list of all of the groups this user belongs to */
+		groups = memberof_get_groups(config, sdn);
+	}
 
 	/* If we found some groups, replace the existing memberOf attribute
 	 * with the found values.  */
