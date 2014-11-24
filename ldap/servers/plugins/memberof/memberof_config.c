@@ -193,6 +193,7 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	Slapi_DN *config_sdn = NULL;
 	char *syntaxoid = NULL;
 	char *config_dn = NULL;
+	char *skip_nested = NULL;
 	int not_dn_syntax = 0;
 
 	*returncode = LDAP_UNWILLING_TO_PERFORM; /* be pessimistic */
@@ -272,6 +273,16 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 		goto done;
 	}
 
+	if ((skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR))){
+		if(strcasecmp(skip_nested, "on") != 0 && strcasecmp(skip_nested, "off") != 0){
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+				"The %s configuration attribute must be set to "
+				"\"on\" or \"off\".  (illegal value: %s)",
+				MEMBEROF_SKIP_NESTED_ATTR, skip_nested);
+			goto done;
+		}
+	}
+
 	if ((config_dn = slapi_entry_attr_get_charptr(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA))){
 		/* Now check the shared config attribute, validate it now */
 
@@ -305,6 +316,7 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 done:
 	slapi_sdn_free(&config_sdn);
 	slapi_ch_free_string(&config_dn);
+	slapi_ch_free_string(&skip_nested);
 
 	if (*returncode != LDAP_SUCCESS)
 	{
@@ -336,8 +348,9 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	int groupattr_name_len = 0;
 	char *allBackends = NULL;
 	char *entryScope = NULL;
-        char *entryScopeExcludeSubtree = NULL;
+	char *entryScopeExcludeSubtree = NULL;
 	char *sharedcfg = NULL;
+	char *skip_nested = NULL;
 
 	*returncode = LDAP_SUCCESS;
 
@@ -388,7 +401,8 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
 	entryScope = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_ATTR);
-        entryScopeExcludeSubtree = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE);
+	entryScopeExcludeSubtree = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE);
+	skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR);
 
 	/* We want to be sure we don't change the config in the middle of
 	 * a memberOf operation, so we obtain an exclusive lock here */
@@ -487,6 +501,14 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		memberof_attr = NULL; /* config now owns memory */
 	}
 
+	if (skip_nested){
+		if(strcasecmp(skip_nested,"on") == 0){
+			theConfig.skip_nested = 1;
+		} else {
+			theConfig.skip_nested = 0;
+		}
+	}
+
 	if (allBackends)
 	{
 		if(strcasecmp(allBackends,"on")==0){
@@ -556,6 +578,7 @@ done:
 	slapi_ch_array_free(groupattrs);
 	slapi_ch_free_string(&memberof_attr);
 	slapi_ch_free_string(&allBackends);
+	slapi_ch_free_string(&skip_nested);
 
 	if (*returncode != LDAP_SUCCESS)
 	{
@@ -626,6 +649,10 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 		{
 			slapi_ch_free_string(&dest->memberof_attr);
 			dest->memberof_attr = slapi_ch_strdup(src->memberof_attr);
+		}
+
+		if(src->skip_nested){
+			dest->skip_nested = src->skip_nested;
 		}
 
 		if(src->allBackends)
