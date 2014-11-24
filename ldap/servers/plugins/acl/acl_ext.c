@@ -300,12 +300,14 @@ acl_operation_ext_destructor ( void *ext, void *object, void *parent )
 		int					attr_only = 0;
 		PRLock			*shared_lock = aclcb->aclcb_lock;
 
-		if (aclcb->aclcb_lock ) PR_Lock ( shared_lock );
+		if (aclcb->aclcb_lock )
+			PR_Lock ( shared_lock );
 		else {
 			goto clean_aclpb;
 		}
 		if ( !aclcb->aclcb_lock ) {
-			slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "aclcb lock released! aclcb cache can't be refreshed\n");
+			slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
+			        "aclcb lock released! aclcb cache can't be refreshed\n");
 			PR_Unlock ( shared_lock );
 			goto clean_aclpb;
 		}
@@ -313,29 +315,29 @@ acl_operation_ext_destructor ( void *ext, void *object, void *parent )
 		/* We need to refresh the aclcb cache */
 		if ( aclpb->aclpb_state & ACLPB_UPD_ACLCB_CACHE )
 			acl_clean_aclEval_context ( &aclcb->aclcb_eval_context, 0 /* clean*/ );
-			if ( aclpb->aclpb_prev_entryEval_context.acle_numof_attrs ) {
-				c_evalContext = &aclpb->aclpb_prev_entryEval_context;
-			} else {
-				c_evalContext = &aclpb->aclpb_curr_entryEval_context;
-			}
+		if ( aclpb->aclpb_prev_entryEval_context.acle_numof_attrs ) {
+			c_evalContext = &aclpb->aclpb_prev_entryEval_context;
+		} else {
+			c_evalContext = &aclpb->aclpb_curr_entryEval_context;
+		}
 
-			if (( aclpb->aclpb_state & ACLPB_INCR_ACLCB_CACHE ) &&
-				! ( aclpb->aclpb_state & ACLPB_UPD_ACLCB_CACHE ))
-				attr_only = 1;
+		if (( aclpb->aclpb_state & ACLPB_INCR_ACLCB_CACHE ) &&
+			! ( aclpb->aclpb_state & ACLPB_UPD_ACLCB_CACHE ))
+			attr_only = 1;
 
-			acl_copyEval_context ( NULL, c_evalContext, &aclcb->aclcb_eval_context, attr_only );
+		acl_copyEval_context ( NULL, c_evalContext, &aclcb->aclcb_eval_context, attr_only );
 
-			aclcb->aclcb_aclsignature = aclpb->aclpb_signature;
-			if ( aclcb->aclcb_sdn &&
-					(0 != slapi_sdn_compare ( aclcb->aclcb_sdn,
-										aclpb->aclpb_authorization_sdn ) ) ) {
-				slapi_sdn_set_ndn_byval( aclcb->aclcb_sdn,
-					slapi_sdn_get_ndn ( aclpb->aclpb_authorization_sdn ) );
-			}
-			aclcb->aclcb_state = 0;
-			aclcb->aclcb_state |= ACLCB_HAS_CACHED_EVALCONTEXT;
-		
-			PR_Unlock ( shared_lock );
+		aclcb->aclcb_aclsignature = aclpb->aclpb_signature;
+		if ( aclcb->aclcb_sdn &&
+		     (0 != slapi_sdn_compare( aclcb->aclcb_sdn, aclpb->aclpb_authorization_sdn )))
+		{
+			slapi_sdn_set_ndn_byval( aclcb->aclcb_sdn,
+			        slapi_sdn_get_ndn ( aclpb->aclpb_authorization_sdn ) );
+		}
+		aclcb->aclcb_state = 0;
+		aclcb->aclcb_state |= ACLCB_HAS_CACHED_EVALCONTEXT;
+
+		PR_Unlock ( shared_lock );
 	}
 
 clean_aclpb:

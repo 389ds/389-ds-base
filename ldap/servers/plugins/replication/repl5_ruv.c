@@ -693,7 +693,6 @@ set_max_csn_nolock_ext(RUV *ruv, const CSN *max_csn, const char *replica_purl, P
 			                csn_as_string(replica->csn, PR_FALSE, csn2));
 			return_value = RUV_COVERS_CSN;
 		}
-		return_value = RUV_SUCCESS;
 	}
 	return return_value;
 }
