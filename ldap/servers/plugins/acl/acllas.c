@@ -1693,10 +1693,6 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		} else {
 			rc = (matched == ACL_TRUE ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
 		}
-	} else {
-		rc = LAS_EVAL_FAIL;
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-			"Returning UNDEFINED for authmethod evaluation.\n");
 	}
 
 	return rc;

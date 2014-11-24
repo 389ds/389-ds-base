@@ -2040,9 +2040,10 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		** acl in  the entry cache list.
 		*/
 		if (!((res_right & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ)) &&
-			(aci_right & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ))))
+			(aci_right & (SLAPI_ACL_SEARCH | SLAPI_ACL_READ)))){
 			matches = ACL_FALSE;
 			goto acl__resource_match_aci_EXIT;			
+		}
 	}
 
 	
