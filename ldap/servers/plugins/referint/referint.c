@@ -1250,7 +1250,18 @@ update_integrity(Slapi_DN *origSDN,
                                          slapi_sdn_get_dn(newsuperior),
                                          mod_pb);
                                 }
-                                /* Should we stop if one modify returns an error? */
+                                if (rc) {
+                                    if (use_txn) {
+                                        /*
+                                         * We're using backend transactions,
+                                         * so we need to stop on failure.
+                                         */
+                                        rc = SLAPI_PLUGIN_FAILURE;
+                                        goto free_and_return;
+                                    } else {
+                                        rc = SLAPI_PLUGIN_SUCCESS;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1267,17 +1278,16 @@ update_integrity(Slapi_DN *origSDN,
             }
             slapi_free_search_results_internal(search_result_pb);
         }
-	if (plugin_ContainerScope) {
-		/* at the moment only a single scope is supported
-		 * so the loop ends after the first iteration
-		 */
-		sdn = NULL;
-	} else {
-        	sdn = slapi_get_next_suffix( &node, 0 );
-	}
+        if (plugin_ContainerScope) {
+            /* at the moment only a single scope is supported
+             * so the loop ends after the first iteration
+             */
+            sdn = NULL;
+        } else {
+            sdn = slapi_get_next_suffix( &node, 0 );
+        }
     }
-    /* if got here, then everything good rc = 0 */
-    rc = SLAPI_PLUGIN_SUCCESS;
+
 
 free_and_return:
     /* free filter and search_results_pb */
