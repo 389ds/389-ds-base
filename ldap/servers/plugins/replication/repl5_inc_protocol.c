@@ -940,7 +940,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   /* Destroy the backoff timer, since we won't need it anymore */
                   backoff_delete(&prp_priv->backoff);
               }
-              use_busy_backoff_timer = PR_FALSE;
          } else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)){
              /* changes are available */
              if ( prp_priv->backoff == NULL || backoff_expired (prp_priv->backoff, 60)){

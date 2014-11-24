@@ -2011,28 +2011,33 @@ slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins,
 	}
 
 	rc = ber_printf( ber, "{" );
-	if ( seconds >= 0 || logins >= 0 ) {
-		if ( seconds >= 0 ) {
-			rc = ber_printf( ber, "t{ti}", LDAP_TAG_PWP_WARNING,
-							LDAP_TAG_PWP_SECSLEFT,
-							seconds );
-		} 
-		else {
-			rc = ber_printf( ber, "t{ti}", LDAP_TAG_PWP_WARNING,
-							LDAP_TAG_PWP_GRCLOGINS,
-							logins );
+	if ( rc != -1){
+		if(seconds >= 0 || logins >= 0 ) {
+			if ( seconds >= 0 ) {
+				rc = ber_printf( ber, "t{ti}", LDAP_TAG_PWP_WARNING,
+								LDAP_TAG_PWP_SECSLEFT,
+								seconds );
+			}
+			else {
+				rc = ber_printf( ber, "t{ti}", LDAP_TAG_PWP_WARNING,
+								LDAP_TAG_PWP_GRCLOGINS,
+								logins );
+			}
+		}
+		if (rc != -1){
+			if ( error >= 0 ) {
+				rc = ber_printf( ber, "te", LDAP_TAG_PWP_ERROR, error );
+			}
+			if (rc != -1){
+				rc = ber_printf( ber, "}" );
+				if ( rc != -1 )
+				{
+					rc = ber_flatten( ber, &bvp );
+				}
+			}
 		}
 	}
-	if ( error >= 0 ) {
-		rc = ber_printf( ber, "te", LDAP_TAG_PWP_ERROR, error );
-	}
-	rc = ber_printf( ber, "}" );
 
-	if ( rc != -1 )
-	{
-		rc = ber_flatten( ber, &bvp );
-	}
-    
 	ber_free( ber, 1 );
 
 	if ( rc != -1 )
@@ -2041,11 +2046,11 @@ slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins,
 		new_ctrl.ldctl_oid = LDAP_X_CONTROL_PWPOLICY_RESPONSE;
 		new_ctrl.ldctl_value = *bvp;
 		new_ctrl.ldctl_iscritical = 0;         
-		rc= slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &new_ctrl );
+		rc = slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &new_ctrl );
 		ber_bvfree(bvp);
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_pwpolicy_make_response_control", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_pwpolicy_make_response_control (%d)", rc, 0, 0 );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }
