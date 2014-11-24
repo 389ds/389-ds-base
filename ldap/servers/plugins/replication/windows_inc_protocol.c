@@ -676,63 +676,64 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						  backoff_delete(&prp_priv->backoff);
 					  }
 					else if (event_occurred(prp, EVENT_BACKOFF_EXPIRED))
-					  {
+					{
 						rc = windows_acquire_replica(prp, &ruv, 1 /* check RUV for incremental */);
 						use_busy_backoff_timer = PR_FALSE;
 						if (rc == ACQUIRE_SUCCESS)
-						  {
-						next_state = STATE_SENDING_UPDATES;
-						  }
+						{
+							next_state = STATE_SENDING_UPDATES;
+						}
 						else if (rc == ACQUIRE_REPLICA_BUSY)
-						  {
-						next_state = STATE_BACKOFF;
-						use_busy_backoff_timer = PR_TRUE;
-						  }
+						{
+							next_state = STATE_BACKOFF;
+							use_busy_backoff_timer = PR_TRUE;
+						}
 						else if (rc == ACQUIRE_CONSUMER_WAS_UPTODATE)
-						  {
+						{
 							next_state = STATE_WAIT_CHANGES;
-						  }
+						}
 						else if (rc == ACQUIRE_TRANSIENT_ERROR)
-						  {
-						next_state = STATE_BACKOFF;
-						  }
+						{
+							next_state = STATE_BACKOFF;
+						}
 						else if (rc == ACQUIRE_FATAL_ERROR)
-						  {
-						next_state = STATE_STOP_FATAL_ERROR;
-						  }
-						if (rc != ACQUIRE_SUCCESS)
-						  {
-						int optype, ldaprc;
-						windows_conn_get_error(prp->conn, &optype, &ldaprc);
-						agmt_set_last_update_status(prp->agmt, ldaprc,
-										prp->last_acquire_response_code, NULL);
-						  }
-								/*
-								 * We either need to step the backoff timer, or
-								 * destroy it if we don't need it anymore.
-								 */
-						if (STATE_BACKOFF == next_state)
-						  {
-						time_t next_fire_time;
-						time_t now;
-						/* Step the backoff timer */
-						time(&now);
-						next_fire_time = backoff_step(prp_priv->backoff);
-						/* And go back to sleep */
-						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-								"%s: Replication session backing off for %ld seconds\n",
-								agmt_get_long_name(prp->agmt),
-								next_fire_time - now);
+						{
+							next_state = STATE_STOP_FATAL_ERROR;
+						}
 
-						protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
-						  }
+						if (rc != ACQUIRE_SUCCESS)
+						{
+							int optype, ldaprc;
+							windows_conn_get_error(prp->conn, &optype, &ldaprc);
+							agmt_set_last_update_status(prp->agmt, ldaprc,
+										prp->last_acquire_response_code, NULL);
+						}
+
+						/*
+						 * We either need to step the backoff timer, or
+						 * destroy it if we don't need it anymore.
+						 */
+						if (STATE_BACKOFF == next_state)
+						{
+							time_t next_fire_time;
+							time_t now;
+							/* Step the backoff timer */
+							time(&now);
+							next_fire_time = backoff_step(prp_priv->backoff);
+							/* And go back to sleep */
+							slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+									"%s: Replication session backing off for %ld seconds\n",
+									agmt_get_long_name(prp->agmt),
+									next_fire_time - now);
+
+							protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+						}
 						else
-						  {
-						/* Destroy the backoff timer, since we won't need it anymore */
-						backoff_delete(&prp_priv->backoff);
-						  }            
-						use_busy_backoff_timer = PR_FALSE;
-					  }
+						{
+							/* Destroy the backoff timer, since we won't need it anymore */
+							backoff_delete(&prp_priv->backoff);
+						}
+					}
 					else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET))
 					  {
 						/* changes are available */

@@ -2027,7 +2027,7 @@ done:
         char *ridstr = NULL;
         char *token = NULL;
         char *repl_root;
-        char *iter;
+        char *iter = NULL;
         int i;
 
         for(i = 0; clean_vals[i]; i++){
