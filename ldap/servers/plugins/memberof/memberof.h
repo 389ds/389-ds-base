@@ -84,6 +84,7 @@ typedef struct memberofconfig {
 	Slapi_Filter *group_filter;
 	Slapi_Attr **group_slapiattrs;
 	int skip_nested;
+	int fixup_task;
 } MemberOfConfig;
 
 
