@@ -2301,6 +2301,9 @@ void memberof_fixup_task_thread(void *arg)
 	memberof_copy_config(&configCopy, memberof_get_config());
 	memberof_unlock_config();
 
+	/* Mark this as a task operation */
+	configCopy.fixup_task = 1;
+
 	/* get the memberOf operation lock */
 	memberof_lock();
 
@@ -2465,7 +2468,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
 
-	if(!config->skip_nested){
+	if(!config->skip_nested || config->fixup_task){
 		/* get a list of all of the groups this user belongs to */
 		groups = memberof_get_groups(config, sdn);
 	}
