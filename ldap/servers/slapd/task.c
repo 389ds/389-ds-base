@@ -131,9 +131,9 @@ slapi_new_task(const char *dn)
 }
 
 Slapi_Task *
-slapi_plugin_new_task(const char *dn, void *plugin)
+slapi_plugin_new_task(const char *dn, void *plugin_pb)
 {
-    return new_task(dn, plugin);
+    return new_task(dn, plugin_pb);
 }
 
 /* slapi_destroy_task: destroy a task
@@ -583,9 +583,11 @@ void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func)
  ***********************************/
 /* create a new task, fill in DN, and setup modify callback */
 static Slapi_Task *
-new_task(const char *rawdn, void *plugin)
+new_task(const char *rawdn, void *plugin_pb)
 {
     Slapi_Task *task = NULL;
+    Slapi_PBlock *pb = (Slapi_PBlock *)plugin_pb;
+    void *plugin = pb ? pb->pb_plugin : NULL;
     char *dn = NULL;
 
     if (rawdn == NULL) {
