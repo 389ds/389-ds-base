@@ -25,6 +25,8 @@ import subprocess
 import tarfile
 import re
 import glob
+import pwd
+import grp
 
 import lib389
 from lib389 import *
@@ -53,6 +55,9 @@ PATH_SETUP_DS_ADMIN = "/setup-ds-admin.pl"
 PATH_SETUP_DS = CMD_PATH_SETUP_DS
 PATH_REMOVE_DS = CMD_PATH_REMOVE_DS
 PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
+GROUPADD = "/usr/sbin/groupadd"
+USERADD = "/usr/sbin/useradd"
+NOLOGIN = "/sbin/nologin"
 
 class DirSrvTools(object):
     """DirSrv mix-in."""
@@ -169,7 +174,7 @@ class DirSrvTools(object):
         if hasattr(self, 'errlog'):
             errLog = self.errlog
         else:
-            errLog = os.path.join(self.prefix, "var/log/dirsrv/slapd-%s/errors" % self.serverid)
+            errLog = os.path.join(self.prefix or "/", "var/log/dirsrv/slapd-%s/errors" % self.serverid)
         done = False
         started = True
         lastLine = ""
@@ -527,7 +532,7 @@ class DirSrvTools(object):
         DirSrvTools.start(dirsrv, True)
 
     @staticmethod
-    def runInfProg(prog, content, verbose):
+    def runInfProg(prog, content, verbose, prefix=None):
         """run a program that takes an .inf style file on stdin"""
         cmd = [prog]
         if verbose:
@@ -833,6 +838,60 @@ class DirSrvTools(object):
 
         conn.replicaSetupAll(repArgs)
         return conn
+
+    @staticmethod
+    def makeGroup(group=DEFAULT_USER):
+        try:
+            grp.getgrnam(group)
+            print "OK group %s exists" % group
+        except KeyError:
+            print "Adding group %s" % group
+            cmd = [ GROUPADD, '-r', group]
+            subprocess.Popen(cmd)
+
+    @staticmethod
+    def makeUser(user=DEFAULT_USER, group=DEFAULT_USER, home=DEFAULT_USERHOME):
+        try:
+            pwd.getpwnam(user)
+            print "OK user %s exists" % user
+        except KeyError:
+            print "Adding user %s" % user
+            cmd = [ USERADD, '-g', group,
+                   '-c', "lib389 DS user",
+                    '-r',
+                    '-d', home,
+                    '-s', NOLOGIN,
+                    user]
+            subprocess.Popen(cmd)
+
+    @staticmethod
+    def lib389User(user=DEFAULT_USER):
+        DirSrvTools.makeGroup(group=user)
+        DirSrvTools.makeUser(user=user, group=user, home=DEFAULT_USERHOME)
+
+    @staticmethod
+    def testLocalhost():
+        '''
+        Checks that the 127.0.0.1 is resolved as localhost.localdomain
+        This is required by DSUtil.pm:checkHostname else setup-ds.pl fails
+        '''
+        hostFile='/etc/hosts'
+        loopbackIpPattern='127.0.0.1'
+        expectedHost = 'localhost.localdomain'
+
+        hostfp = open(hostFile, 'r')
+        hostfp.seek(0, os.SEEK_CUR)
+
+        done = False
+        try:
+            while not done:
+                line = hostfp.readline()
+                if line.find(loopbackIpPattern) >= 0:
+                    words = line.split()
+                    assert(words[1] == expectedHost)
+                    done = True
+        except AssertionError:
+            raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" % (expectedHost, loopbackIpPattern))
 
 
 class MockDirSrv(object):

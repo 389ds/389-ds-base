@@ -387,6 +387,7 @@ class DirSrv(SimpleLDAPObject):
            
            @raise ValueError - if missing mandatory properties or invalid state of DirSrv
         '''
+        DirSrvTools.testLocalhost()
         if self.state != DIRSRV_STATE_INIT and self.state != DIRSRV_STATE_ALLOCATED:
             raise ValueError("invalid state for calling allocate: %s" % self.state)
         
@@ -413,7 +414,7 @@ class DirSrv(SimpleLDAPObject):
         self.serverid  = args.get(SER_SERVERID_PROP, None)
         self.groupid   = args.get(SER_GROUP_ID, self.userid)
         self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
-        self.prefix    = args.get(SER_DEPLOYED_DIR, None)
+        self.prefix    = args.get(SER_DEPLOYED_DIR) or '/'
 
         # Those variables needs to be revisited (sroot for 64 bits)
         #self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
@@ -497,7 +498,7 @@ class DirSrv(SimpleLDAPObject):
                 
                 variable = value.split('=',1)[0]
                 value    = value.split('=',1)[1]  
-                value    = value.strip(' \t')     # remove heading/ending space/tab
+                value    = value.strip(' \t\n')     # remove heading/ending space/tab/newline
                 for property in (CONF_SERVER_DIR,
                                  CONF_SERVERBIN_DIR,
                                  CONF_CONFIG_DIR,
@@ -596,6 +597,10 @@ class DirSrv(SimpleLDAPObject):
             if privconfig_head:
                 pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
                 found = search_dir(instances, pattern, self.serverid)
+                if len(instances) > 0:
+                    self.log.info("List from %s" % privconfig_head)
+                    for instance in instances:
+                        self.log.info("list instance %r\n" % instance)
                 if found:
                     assert len(instances) == 1
                 else:
@@ -607,16 +612,28 @@ class DirSrv(SimpleLDAPObject):
             if not found:
                 pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
                 search_dir(instances, pattern, self.serverid)
-            
+                if len(instances) > 0:
+                    self.log.info("List from %s" % privconfig_head)
+                    for instance in instances:
+                        self.log.info("list instance %r\n" % instance)
+
         else:
             # all instances must be retrieved
             if privconfig_head:
                 pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
                 search_dir(instances, pattern)
-            
+                if len(instances) > 0:
+                    self.log.info("List from %s" % privconfig_head)
+                    for instance in instances:
+                        self.log.info("list instance %r\n" % instance)
+
             pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
             search_dir(instances, pattern)
-                
+            if len(instances) > 0:
+                self.log.info("List from %s" % privconfig_head)
+                for instance in instances:
+                    self.log.info("list instance %r\n" % instance)
+
         return instances
             
 
@@ -644,6 +661,7 @@ class DirSrv(SimpleLDAPObject):
         }        
         """
 
+        DirSrvTools.lib389User(user=DEFAULT_USER)
         prog = get_sbin_dir(None, self.prefix) + CMD_PATH_SETUP_DS
 
         if not os.path.isfile(prog):
@@ -662,7 +680,7 @@ class DirSrv(SimpleLDAPObject):
                 SER_DEPLOYED_DIR:    self.prefix,
                 SER_BACKUP_INST_DIR: self.backupdir}
         content = formatInfData(args)
-        DirSrvTools.runInfProg(prog, content, verbose)
+        DirSrvTools.runInfProg(prog, content, verbose, prefix=self.prefix)
 
         
     def create(self):
@@ -722,6 +740,8 @@ class DirSrv(SimpleLDAPObject):
 
         # Now time to remove the instance
         prog = get_sbin_dir(None, self.prefix) + CMD_PATH_REMOVE_DS
+        if (not self.prefix or self.prefix == '/') and os.geteuid() != 0:
+            raise ValueError("Error: without prefix deployment it is required to be root user")
         cmd = "%s -i %s%s" % (prog, DEFAULT_INST_HEAD, self.serverid)
         self.log.debug("running: %s " % cmd)
         try:
@@ -958,9 +978,13 @@ class DirSrv(SimpleLDAPObject):
         # goes under the directory where the DS is deployed
         listFilesToBackup = []
         here = os.getcwd()
-        os.chdir(self.prefix)
-        prefix_pattern = "%s/" % self.prefix
-        
+        if self.prefix:
+            os.chdir("%s/" % self.prefix)
+            prefix_pattern = "%s/" % self.prefix
+        else:
+            os.chdir("/")
+            prefix_pattern = None
+
         # build the list of directories to scan
         instroot = "%s/slapd-%s" % (self.sroot, self.serverid)
         ldir = [ instroot ]
@@ -978,9 +1002,21 @@ class DirSrv(SimpleLDAPObject):
         # now scan the directory list to find the files to backup
         for dirToBackup in ldir:
             for root, dirs, files in os.walk(dirToBackup):
+
+                for b_dir in dirs:
+                    name = os.path.join(root, b_dir)
+                    log.debug("backupFS b_dir = %s (%s) [name=%s]" % (b_dir, self.prefix, name))
+                    if prefix_pattern:
+                        name = re.sub(prefix_pattern, '', name)
+
+                    if os.path.isdir(name):
+                        listFilesToBackup.append(name)
+                        log.debug("backupFS add = %s (%s)" % (name, self.prefix))
+
                 for file in files:
                     name = os.path.join(root, file)
-                    name = re.sub(prefix_pattern, '', name)
+                    if prefix_pattern:
+                        name = re.sub(prefix_pattern, '', name)
 
                     if os.path.isfile(name):
                         listFilesToBackup.append(name)
@@ -994,8 +1030,7 @@ class DirSrv(SimpleLDAPObject):
 
         
         for name in listFilesToBackup:
-            if os.path.isfile(name):
-                tar.add(name)
+            tar.add(name)
         tar.close()
         log.info("backupFS: archive done : %s" % backup_file)
         
@@ -1048,7 +1083,12 @@ class DirSrv(SimpleLDAPObject):
         
         # Then restore from the directory where DS was deployed
         here = os.getcwd()
-        os.chdir(self.prefix)
+        if self.prefix:
+            prefix_pattern = "%s/" % self.prefix
+            os.chdir(prefix_pattern)
+        else:
+            prefix_pattern = "/"
+            os.chdir(prefix_pattern)
         
         tar = tarfile.open(backup_file)
         for member in tar.getmembers():

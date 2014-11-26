@@ -41,7 +41,6 @@ defaultProperties = {
 
 
 CFGSUFFIX = "o=NetscapeRoot"
-DEFAULT_USER = "nobody"
 
 # Some DN constants
 DN_DM = "cn=Directory Manager"
@@ -149,6 +148,7 @@ PLUGIN_WHOAMI             = 'whoami'
 # constants
 #
 DEFAULT_USER = "nobody"
+DEFAULT_USERHOME = "/tmp/lib389_home"
 DATA_DIR     = "data"
 TMP_DIR      = "tmp"
 
