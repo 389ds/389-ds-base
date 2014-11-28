@@ -40,6 +40,13 @@ class TopologyMasterConsumer(object):
         consumer.open()
         self.consumer = consumer
 
+def _header(topology, label):
+    topology.master.log.info("\n\n###############################################")
+    topology.master.log.info("#######")
+    topology.master.log.info("####### %s" % label)
+    topology.master.log.info("#######")
+    topology.master.log.info("###################################################")
+    
 def pattern_errorlog(file, log_pattern):
     try:
         pattern_errorlog.last_pos += 1
@@ -84,17 +91,47 @@ def mod_OC(instance, oid_ext, name, old_must=None, old_may=None, new_must=None, 
     new_oc = _oc_definition(oid_ext, name, new_must, new_may)
     instance.schema.del_schema('objectClasses', old_oc)
     instance.schema.add_schema('objectClasses', new_oc)
+
+def support_schema_learning(topology):
+    """
+    with https://fedorahosted.org/389/ticket/47721, the supplier and consumer can learn 
+    schema definitions when a replication occurs.
+    Before that ticket: replication of the schema fails requiring administrative operation
+    In the test the schemaCSN (master consumer) differs
     
-def trigger_schema_push(topology):
+    After that ticket: replication of the schema succeeds (after an initial phase of learning)
+    In the test the schema CSN (master consumer) are in sync
+    
+    This function returns True if 47721 is fixed in the current release
+    False else
+    """
+    ent = topology.consumer.getEntry(DN_CONFIG, ldap.SCOPE_BASE, "(cn=config)", ['nsslapd-versionstring'])
+    if ent.hasAttr('nsslapd-versionstring'):
+        val = ent.getValue('nsslapd-versionstring')
+        version = val.split('/')[1].split('.') # something like ['1', '3', '1', '23', 'final_fix']
+        major = int(version[0])
+        minor = int(version[1])
+        if major > 1:
+            return True
+        if minor > 3:
+            # version is 1.4 or after
+            return True
+        if minor == 3:
+            if version[2].isdigit():
+                if int(version[2]) >= 3:
+                    return True
+        return False
+        
+def trigger_update(topology):
     """
         It triggers an update on the supplier. This will start a replication
         session and a schema push
     """
     try:
-        trigger_schema_push.value += 1
+        trigger_update.value += 1
     except AttributeError:
-        trigger_schema_push.value = 1
-    replace = [(ldap.MOD_REPLACE, 'telephonenumber', str(trigger_schema_push.value))]
+        trigger_update.value = 1
+    replace = [(ldap.MOD_REPLACE, 'telephonenumber', str(trigger_update.value))]
     topology.master.modify_s(ENTRY_DN, replace)
     
     # wait 10 seconds that the update is replicated
@@ -103,15 +140,33 @@ def trigger_schema_push(topology):
         try:
             ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['telephonenumber'])
             val = ent.telephonenumber or "0"
-            if int(val) == trigger_schema_push.value:
+            if int(val) == trigger_update.value:
                 return
             # the expected value is not yet replicated. try again
             time.sleep(1)
             loop += 1
-            log.debug("trigger_schema_push: receive %s (expected %d)" % (val, trigger_schema_push.value))
+            log.debug("trigger_update: receive %s (expected %d)" % (val, trigger_update.value))
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
             loop += 1
+    
+def trigger_schema_push(topology):
+    '''
+    Trigger update to create a replication session.
+    In case of 47721 is fixed and the replica needs to learn the missing definition, then
+    the first replication session learn the definition and the second replication session
+    push the schema (and the schemaCSN.
+    This is why there is two updates and replica agreement is stopped/start (to create a second session)
+    '''
+    agreements = topology.master.agreement.list(suffix=SUFFIX, consumer_host=topology.consumer.host, consumer_port=topology.consumer.port)
+    assert(len(agreements) == 1)
+    ra = agreements[0]
+    trigger_update(topology)
+    topology.master.agreement.pause(ra.dn)
+    topology.master.agreement.resume(ra.dn)
+    trigger_update(topology)
+    
+    
 
 @pytest.fixture(scope="module")
 def topology(request):
@@ -313,6 +368,8 @@ def test_ticket47490_one(topology):
             - consumer +masterNewOCA
         
     """
+    _header(topology, "Extra OC Schema is pushed - no error")
+    
     log.debug("test_ticket47490_one topology %r (master %r, consumer %r" % (topology, topology.master, topology.consumer))
     # update the schema of the supplier so that it is a superset of 
     # consumer. Schema should be pushed
@@ -347,6 +404,8 @@ def test_ticket47490_two(topology):
         
     """
     
+    _header(topology, "Extra OC Schema is pushed - (ticket 47721 allows to learn missing def)")
+    
     # add this OC on consumer. Supplier will no push the schema
     add_OC(topology.consumer, 1, 'consumerNewOCA')
     
@@ -363,13 +422,15 @@ def test_ticket47490_two(topology):
     # with 47721, supplier learns the missing definition
     log.debug("test_ticket47490_two master_schema_csn=%s", master_schema_csn)
     log.debug("test_ticket47490_two consumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn != consumer_schema_csn
+    if support_schema_learning(topology):
+        assert master_schema_csn == consumer_schema_csn
+    else:
+        assert master_schema_csn != consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology.master.errorlog_file, regex)
-
 
 def test_ticket47490_three(topology):
     """
@@ -384,7 +445,9 @@ def test_ticket47490_three(topology):
             - supplier +masterNewOCA +masterNewOCB +consumerNewOCA
             - consumer +masterNewOCA +masterNewOCB +consumerNewOCA
 
-    """    
+    """
+    _header(topology, "Extra OC Schema is pushed - no error")
+    
     # Do an upate to trigger the schema push attempt
     # add this OC on consumer. Supplier will no push the schema
     add_OC(topology.master, 1, 'consumerNewOCA')
@@ -419,7 +482,9 @@ def test_ticket47490_four(topology):
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber
                         
-    """    
+    """
+    _header(topology, "Same OC - extra MUST: Schema is pushed - no error")
+    
     mod_OC(topology.master, 2, 'masterNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD, new_may=MAY_OLD)
     
         
@@ -455,7 +520,9 @@ def test_ticket47490_five(topology):
                        +must=telexnumber                   +must=telexnumber
                         
         Note: replication log is enabled to get more details
-    """    
+    """
+    _header(topology, "Same OC - extra MUST: Schema is pushed - (fix for 47721)")
+    
     # get more detail why it fails
     topology.master.enableReplLogging()
     
@@ -473,12 +540,16 @@ def test_ticket47490_five(topology):
     # with 47721, supplier learns the missing definition
     log.debug("test_ticket47490_five master_schema_csn=%s", master_schema_csn)
     log.debug("ctest_ticket47490_five onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn != consumer_schema_csn
+    if support_schema_learning(topology):
+        assert master_schema_csn == consumer_schema_csn
+    else:
+        assert master_schema_csn != consumer_schema_csn
     
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology.master.errorlog_file, regex)
+    
 
 def test_ticket47490_six(topology):
     """
@@ -499,7 +570,8 @@ def test_ticket47490_six(topology):
                        +must=telexnumber                   +must=telexnumber
                         
         Note: replication log is enabled to get more details
-    """    
+    """
+    _header(topology, "Same OC - extra MUST: Schema is pushed - no error")
 
     
     # add telenumber to 'consumerNewOCA' on the consumer
@@ -521,8 +593,6 @@ def test_ticket47490_six(topology):
     assert res == None
 
 
-
-
 def test_ticket47490_seven(topology):
     """
         Summary: Same OC - extra MAY: Schema is pushed - no error
@@ -541,7 +611,9 @@ def test_ticket47490_seven(topology):
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                          
-    """    
+    """
+    _header(topology, "Same OC - extra MAY: Schema is pushed - no error")
+
     mod_OC(topology.master, 2, 'masterNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD, new_may=MAY_NEW)
     
         
@@ -580,7 +652,9 @@ def test_ticket47490_eight(topology):
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox    
-    """    
+    """
+    _header(topology, "Same OC - extra MAY: Schema is pushed (fix for 47721)")
+    
     mod_OC(topology.consumer, 1, 'consumerNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD, new_may=MAY_NEW)
 
     # modify OC on the supplier so that its nsSchemaCSN is larger than the consumer (wait 2s)
@@ -595,7 +669,10 @@ def test_ticket47490_eight(topology):
     # with 47721, supplier learns the missing definition
     log.debug("test_ticket47490_eight master_schema_csn=%s", master_schema_csn)
     log.debug("ctest_ticket47490_eight onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn != consumer_schema_csn
+    if support_schema_learning(topology):
+        assert master_schema_csn == consumer_schema_csn
+    else:
+        assert master_schema_csn != consumer_schema_csn
     
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
@@ -625,7 +702,9 @@ def test_ticket47490_nine(topology):
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox +may=postOfficeBox
-    """    
+    """
+    _header(topology, "Same OC - extra MAY: Schema is pushed - no error")
+    
     mod_OC(topology.master, 1, 'consumerNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD, new_may=MAY_NEW)
         
     trigger_schema_push(topology)
