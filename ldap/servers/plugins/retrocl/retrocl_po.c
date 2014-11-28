@@ -101,6 +101,12 @@ static lenstr *make_changes_string(LDAPMod **ldm, const char **includeattrs)
 		continue;
 	    }
 	}
+	if (SLAPD_UNHASHED_PW_NOLOG == slapi_config_get_unhashed_pw_switch()) {
+		if (0 == strcasecmp(ldm[ i ]->mod_type, PSEUDO_ATTR_UNHASHEDUSERPASSWORD)) {
+			/* If nsslapd-unhashed-pw-switch == nolog, skip writing it to cl. */
+			continue;
+		}
+	}
 	switch ( ldm[ i ]->mod_op  & ~LDAP_MOD_BVALUES ) {
 	case LDAP_MOD_ADD:
 	    addlenstr( l, "add: " );

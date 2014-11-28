@@ -836,8 +836,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 * before calling the preop plugins
 	 */
 
-	if (pw_change && !repl_op &&
-	    (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch())) {
+	if (pw_change && !repl_op ) {
 		Slapi_Value **va = NULL;
 
 		unhashed_pw_attr = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
@@ -907,13 +906,15 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 						 *  Finally, delete the unhashed userpassword
 						 *  (this will update the password entry extension)
 						 */
-						bval.bv_val = password;
-						bval.bv_len = strlen(password);
-						bv[0] = &bval;
-						bv[1] = NULL;
-						valuearray_init_bervalarray(bv, &va);
-						slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
-						valuearray_free(&va);
+						if (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch()) {
+							bval.bv_val = password;
+							bval.bv_len = strlen(password);
+							bv[0] = &bval;
+							bv[1] = NULL;
+							valuearray_init_bervalarray(bv, &va);
+							slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+							valuearray_free(&va);
+						}
 					} else {
 						/*
 						 *  Password is encoded, try and find a matching unhashed_password to delete
@@ -945,19 +946,23 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 								if(strcmp(unhashed_pwsp->pws_name, "CLEAR") == 0){
 									if((*(pwsp->pws_cmp))((char *)unhashed_pwd , valpwd) == 0 ){
 										/* match, add the delete mod for this particular unhashed userpassword */
-										valuearray_init_bervalarray(bv, &va);
-										slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
-										valuearray_free(&va);
-										free_pw_scheme( unhashed_pwsp );
+										if (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch()) {
+										    valuearray_init_bervalarray(bv, &va);
+										    slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+										    valuearray_free(&va);
+										    free_pw_scheme( unhashed_pwsp );
+										}
 										break;
 									}
 								} else {
 									/*
 									 *  We have a hashed unhashed_userpassword!  We must delete it.
 									 */
-									valuearray_init_bervalarray(bv, &va);
-									slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
-									valuearray_free(&va);
+									if (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch()) {
+										valuearray_init_bervalarray(bv, &va);
+										slapi_mods_add_mod_values(&smods, pw_mod->mod_op, unhashed_pw_attr, va);
+										valuearray_free(&va);
+									}
 								}
 								free_pw_scheme( unhashed_pwsp );
 							}
@@ -972,7 +977,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 				if (remove_unhashed_pw && !slapi_entry_attr_find(e, unhashed_pw_attr, &a)){
 					slapi_mods_add_mod_values(&smods, pw_mod->mod_op,unhashed_pw_attr, va);
 				}
-			} else {
+			} else if (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch()) {
 				/* add pseudo password attribute */
 				valuearray_init_bervalarray_unhashed_only(pw_mod->mod_bvalues, &va);
 				if(va){
