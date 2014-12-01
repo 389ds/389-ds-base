@@ -990,7 +990,7 @@ replica_is_updatedn (Replica *r, const Slapi_DN *sdn)
 			if (r->updatedn_group_check_interval > -1) {
 				time_t now = time(NULL); 
 				if (now - r->updatedn_group_last_check > r->updatedn_group_check_interval) {
-					replica_updatedn_list_replace( r->groupdn_list, r->updatedn_groups);
+					replica_updatedn_list_group_replace( r->groupdn_list, r->updatedn_groups);
 					r->updatedn_group_last_check = now;
 				}
 			}
