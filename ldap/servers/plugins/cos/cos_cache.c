@@ -1864,6 +1864,8 @@ static void cos_cache_del_schema(cosCache *pCache)
 			}
 		}
 	}
+	/* Finally, remove the first attribute's objectclass list */
+	cos_cache_del_attrval_list(&(pCache->ppAttrIndex[0]->pObjectclasses));
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_cache_del_schema\n",0,0,0);
 }
