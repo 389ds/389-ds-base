@@ -290,10 +290,10 @@ age_str2time (const char *age)
 			ageval *= ( 7 * 24 * 60 * 60 );
 			break;
 		default:
-			slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, 
+			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
 							"age_str2time: unknown unit \"%c\" "
 							"for maxiumum changelog age\n", unit );
-			ageval = -1;
+			ageval = 0;
 	}
 
 	return ageval;
