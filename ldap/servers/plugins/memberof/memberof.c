@@ -408,7 +408,6 @@ int memberof_postop_start(Slapi_PBlock *pb)
 		}
 	}
 
-	memberof_set_plugin_area(slapi_entry_get_sdn(config_e));
 	memberof_set_config_area(slapi_entry_get_sdn(config_e));
 	if (( rc = memberof_config( config_e, pb )) != LDAP_SUCCESS ) {
 		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,

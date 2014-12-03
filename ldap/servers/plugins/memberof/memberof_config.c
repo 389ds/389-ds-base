@@ -342,56 +342,40 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	*returncode = LDAP_SUCCESS;
 
 	/*
-	 * Apply the config settings from the shared config entry
+	 * Check if this is a shared config entry
 	 */
 	sharedcfg = slapi_entry_attr_get_charptr(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA);
 	if(sharedcfg){
-		int rc = 0;
-
-		rc = slapi_dn_syntax_check(pb, sharedcfg, 1);
-		if (rc) { /* syntax check failed */
-			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,"memberof_apply_config: "
-					"%s does not contain a valid DN (%s)\n",
-					SLAPI_PLUGIN_SHARED_CONFIG_AREA, sharedcfg);
-			*returncode = LDAP_INVALID_DN_SYNTAX;
-			goto done;
-		}
 		if((config_sdn = slapi_sdn_new_dn_byval(sharedcfg))){
 			slapi_search_internal_get_entry(config_sdn, NULL, &config_entry, memberof_get_plugin_id());
 			if(config_entry){
-				char errtext[SLAPI_DSE_RETURNTEXT_SIZE];
-				int err = 0;
-				/*
-				 * If we got here, we are updating the shared config area, so we need to
-				 * validate and apply the settings from that config area.
-				 */
-				if ( SLAPI_DSE_CALLBACK_ERROR == memberof_validate_config (pb, NULL, config_entry, &err, errtext,0))
-				{
-					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-									"%s", errtext);
-					*returncode = LDAP_UNWILLING_TO_PERFORM;
-					goto done;
-
-				}
+				/* Set the entry to be the shared config entry.  Validation was done in preop */
 				e = config_entry;
 			} else {
-				/* this should of been checked in preop validation */
-				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_apply_config: "
-						"Failed to locate shared config entry (%s)\n",sharedcfg);
+				/* This should of been checked in preop validation */
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					"memberof_apply_config: Failed to locate shared config entry (%s)",
+					sharedcfg);
+				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,"%s\n",returntext);
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
 				goto done;
 			}
 		}
 	}
 
+	/*
+	 * Apply the config settings
+	 */
 	groupattrs = slapi_entry_attr_get_charray(e, MEMBEROF_GROUP_ATTR);
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
 	entryScope = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_ATTR);
         entryScopeExcludeSubtree = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE);
 
-	/* We want to be sure we don't change the config in the middle of
-	 * a memberOf operation, so we obtain an exclusive lock here */
+	/*
+	 * We want to be sure we don't change the config in the middle of
+	 * a memberOf operation, so we obtain an exclusive lock here
+	 */
 	memberof_wlock_config();
 
 	if (groupattrs)
@@ -402,8 +386,10 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		theConfig.groupattrs = groupattrs;
 		groupattrs = NULL; /* config now owns memory */
 
-		/* We allocate a list of Slapi_Attr using the groupattrs for
-		 * convenience in our memberOf comparison functions */
+		/*
+		 * We allocate a list of Slapi_Attr using the groupattrs for
+		 * convenience in our memberOf comparison functions
+		 */
 		for (i = 0; theConfig.group_slapiattrs && theConfig.group_slapiattrs[i]; i++)
 		{
 			slapi_attr_free(&theConfig.group_slapiattrs[i]);
@@ -412,8 +398,10 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		/* Count the number of groupattrs. */
 		for (num_groupattrs = 0; theConfig.groupattrs && theConfig.groupattrs[num_groupattrs]; num_groupattrs++)
 		{
-			/* Add up the total length of all attribute names.  We need
-			 * to know this for building the group check filter later. */
+			/*
+			 * Add up the total length of all attribute names.  We need
+			 * to know this for building the group check filter later.
+			 */
 			groupattr_name_len += strlen(theConfig.groupattrs[num_groupattrs]);
 		}
 
@@ -434,8 +422,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		/* Terminate the list. */
 		theConfig.group_slapiattrs[i] = NULL;
 
-		/* The filter is based off of the groupattr, so we
-		 * update it here too. */
+		/* The filter is based off of the groupattr, so we update it here too. */
 		slapi_filter_free(theConfig.group_filter, 1);
 
 		if (num_groupattrs > 1)
@@ -463,11 +450,13 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 			filter_str = slapi_ch_smprintf("(%s=*)", theConfig.groupattrs[0]);
 		}
 
-		/* Log an error if we were unable to build the group filter for some
+		/*
+		 * Log an error if we were unable to build the group filter for some
 		 * reason.  If this happens, the memberOf plugin will not be able to
 		 * check if an entry is a group, causing it to not catch changes.  This
 		 * shouldn't happen, but there may be some garbage configuration that
-		 * could trigger this. */
+		 * could trigger this.
+		 */
 		if ((theConfig.group_filter = slapi_str2filter(filter_str)) == NULL)
 		{
 			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
@@ -547,13 +536,10 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	memberof_unlock_config();
 
 done:
-	slapi_ch_free_string(&sharedcfg);
 	slapi_sdn_free(&config_sdn);
-	if(config_entry){
-		/* we switched the entry pointer to the shared config entry - which needs to be freed */
-		slapi_entry_free(e);
-	}
+	slapi_entry_free(config_entry);
 	slapi_ch_array_free(groupattrs);
+	slapi_ch_free_string(&sharedcfg);
 	slapi_ch_free_string(&memberof_attr);
 	slapi_ch_free_string(&allBackends);
 
@@ -745,6 +731,7 @@ memberof_config_get_entry_scope_exclude_subtree()
 
 	return entry_exclude_subtree;
 }
+
 /*
  * Check if we are modifying the config, or changing the shared config entry
  */
@@ -753,53 +740,133 @@ memberof_shared_config_validate(Slapi_PBlock *pb)
 {
 	Slapi_Entry *e = 0;
 	Slapi_Entry *resulting_e = 0;
-	Slapi_DN *sdn = 0;
+	Slapi_Entry *config_entry = NULL;
+	Slapi_DN *sdn = NULL;
+	Slapi_DN *config_sdn = NULL;
 	Slapi_Mods *smods = 0;
+	Slapi_Mod *smod = NULL, *nextmod = NULL;
 	LDAPMod **mods = NULL;
 	char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
+	char *configarea_dn = NULL;
 	int ret = SLAPI_PLUGIN_SUCCESS;
 
 	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
 
-   	if (slapi_sdn_issuffix(sdn, memberof_get_config_area()) &&
-   	    slapi_sdn_compare(sdn, memberof_get_config_area()) == 0)
-   	{
-   		/*
-   		 * This is the shared config entry.  Apply the mods and set/validate
-   		 * the config
-   		 */
-		int result = 0;
-
+	if (slapi_sdn_compare(sdn, memberof_get_plugin_area()) == 0 ||
+	    slapi_sdn_compare(sdn, memberof_get_config_area()) == 0)
+	{
 		slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
 		if(e){
+			/*
+			 * Create a copy of the entry and apply the
+			 * mods to create the resulting entry.
+			 */
 			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
 			smods = slapi_mods_new();
 			slapi_mods_init_byref(smods, mods);
-
-			/* Create a copy of the entry and apply the
-			 * mods to create the resulting entry. */
 			resulting_e = slapi_entry_dup(e);
 			if (mods && (slapi_entry_apply_mods(resulting_e, mods) != LDAP_SUCCESS)) {
 				/* we don't care about this, the update is invalid and will be caught later */
 				goto bail;
 			}
 
-			if ( SLAPI_DSE_CALLBACK_ERROR == memberof_validate_config (pb, NULL, resulting_e, &ret, returntext,0)) {
-				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-								"%s", returntext);
-				ret = LDAP_UNWILLING_TO_PERFORM;
+			if (slapi_sdn_compare(sdn, memberof_get_plugin_area())){
+				/*
+				 * This entry is a plugin config area entry, validate it.
+				 */
+				if( SLAPI_DSE_CALLBACK_ERROR == memberof_validate_config (pb, NULL, resulting_e, &ret, returntext,0)) {
+					ret = LDAP_UNWILLING_TO_PERFORM;
+				}
+			} else {
+				/*
+				 * This is the memberOf plugin entry, check if we are adding/replacing the
+				 * plugin config area.
+				 */
+				nextmod = slapi_mod_new();
+				for (smod = slapi_mods_get_first_smod(smods, nextmod);
+					 smod != NULL;
+					 smod = slapi_mods_get_next_smod(smods, nextmod) )
+				{
+					if ( PL_strcasecmp(SLAPI_PLUGIN_SHARED_CONFIG_AREA, slapi_mod_get_type(smod)) == 0 )
+					{
+						/*
+						 * Okay, we are modifying the plugin config area, we only care about
+						 * adds and replaces.
+						 */
+						if(SLAPI_IS_MOD_REPLACE(slapi_mod_get_operation(smod)) ||
+						   SLAPI_IS_MOD_ADD(slapi_mod_get_operation(smod)))
+						{
+						    struct berval *bv = NULL;
+						    int rc = 0;
+
+							bv = slapi_mod_get_first_value(smod);
+							configarea_dn = slapi_ch_strdup(bv->bv_val);
+							if(configarea_dn){
+								/* Check the DN syntax */
+								rc = slapi_dn_syntax_check(pb, configarea_dn, 1);
+								if (rc) { /* syntax check failed */
+									PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+										"%s does not contain a valid DN (%s)",
+										SLAPI_PLUGIN_SHARED_CONFIG_AREA, configarea_dn);
+									ret = LDAP_UNWILLING_TO_PERFORM;
+									goto bail;
+								}
+
+								/* Check if the plugin config area entry exists */
+								if((config_sdn = slapi_sdn_new_dn_byval(configarea_dn))){
+									rc = slapi_search_internal_get_entry(config_sdn, NULL, &config_entry,
+										memberof_get_plugin_id());
+									if(config_entry){
+										int err = 0;
+										/*
+										 * Validate the settings from the new config area.
+										 */
+										if ( memberof_validate_config(pb, NULL, config_entry, &err, returntext,0)
+											 == SLAPI_DSE_CALLBACK_ERROR )
+										{
+											ret = LDAP_UNWILLING_TO_PERFORM;
+											goto bail;
+
+										}
+									} else {
+										/* The config area does not exist */
+										PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+											"Unable to locate shared config entry (%s) error %d",
+											slapi_sdn_get_dn(memberof_get_config_area()), rc);
+										ret = LDAP_UNWILLING_TO_PERFORM;
+										goto bail;
+									}
+								}
+							}
+							slapi_ch_free_string(&configarea_dn);
+							slapi_sdn_free(&config_sdn);
+							slapi_entry_free(config_entry);
+						}
+					}
+				}
 			}
 		} else {
-			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate: "
-											"Unable to locate shared config entry (%s) error %d\n",
-											slapi_sdn_get_dn(memberof_get_config_area()), result);
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Unable to locate shared config entry (%s)",
+				slapi_sdn_get_dn(memberof_get_config_area()));
 			ret = LDAP_UNWILLING_TO_PERFORM;
 		}
    	}
 
 bail:
+
+	if (ret){
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+		slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, returntext);
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate: %s/n",
+			returntext);
+	}
+	slapi_sdn_free(&config_sdn);
+	if(nextmod)
+		slapi_mod_free(&nextmod);
 	slapi_mods_free(&smods);
 	slapi_entry_free(resulting_e);
+	slapi_entry_free(config_entry);
+	slapi_ch_free_string(&configarea_dn);
 
 	return ret;
 }
