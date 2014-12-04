@@ -725,7 +725,7 @@ struct dn_defs_info {
 /*
  * Currently, always returns 0 to continue the search for definitions, even
  * if a particular attempt to add a definition fails: info.ret gets set to
- * zero only if we succed to add a def.
+ * zero only if we succeed to add a def.
 */
 static int 
 cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
@@ -1056,10 +1056,10 @@ bail:
 	/* This particular definition may not have yielded anything
      * worth caching (eg. no template was found for it) but
      * that should not cause us to abort the search for other more well behaved
-     * definitions.
+     * definitions unless we are shutting down.
      * return info->ret;
-    */
-    return (0);
+     */
+    return slapi_is_shutting_down();
 
 }
 
@@ -1116,7 +1116,7 @@ struct tmpl_info {
 /*
  * Currently, always returns 0 to continue the search for templates, even
  * if a particular attempt to add a template fails: info.ret gets set to
- * zero only if we succed to add at least one tmpl.
+ * zero only if we succeed to add at least one tmpl.
 */
 static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 	cosAttrValue *pDn = 0;
@@ -1166,7 +1166,7 @@ static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 				
 				if(pSneakyVal == NULL)
 				{
-					/* look for the atrribute in the dynamic attributes */
+					/* look for the attribute in the dynamic attributes */
 					if(cos_cache_attrval_exists(info->pAttrs, attrType))
 					{
 						pSneakyVal = &pCosAttribute;
@@ -1269,10 +1269,10 @@ static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 		}
 	}			
 	/*
-	 * Always contine the search even if a particular attempt
-	 * to add a template failed.
-	*/	
-	return 0;
+	 * Always continue the search even if a particular attempt
+	 * to add a template failed unless we are shutting down
+	 */
+	return slapi_is_shutting_down();
 }
 
 /*
