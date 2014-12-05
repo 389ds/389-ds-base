@@ -1010,7 +1010,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	    exit( 1 );
 	}
 
-	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps,i_unix);
 	init_op_threads ();
 	detect_timeout_support();
 
@@ -1143,6 +1142,9 @@ void slapd_daemon( daemon_ports_t *ports )
 	listener_idxs = (listener_info *)slapi_ch_calloc(n_listeners, sizeof(*listener_idxs));
 	/* Now we write the pid file, indicating that the server is finally and listening for connections */
 	write_pid_file();
+
+	/* The server is ready and listening for connections. Logging "slapd started" message. */
+	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps,i_unix);
 
 	/* The meat of the operation is in a loop on a call to select */
 	while(!g_get_shutdown())
