@@ -69,7 +69,7 @@ if ($#ARGV < 0){;
 
 my $file_count = 0;
 my $arg_count = 0;
-my $logversion = "8.0";
+my $logversion = "8.1";
 my $sizeCount = "20";
 my $startFlag = 0;
 my $startTime = 0;
@@ -262,7 +262,14 @@ my $startTLSCount = 0;
 my $ldapiCount = 0;
 my $autobindCount = 0;
 my $limit = 25000; # number of lines processed to trigger output
-
+my $searchStat;
+my $modStat;
+my $addStat;
+my $deleteStat;
+my $modrdnStat;
+my $compareStat;
+my $bindCountStat;
+my %cipher = ();
 my @removefiles = ();
 
 my @conncodes = qw(A1 B1 B4 T1 T2 B2 B3 R1 P1 P2 U1);
@@ -680,27 +687,45 @@ if($reportStats ne ""){
 
 print "Restarts:                     $serverRestartCount\n";
 print "Total Connections:            $connectionCount\n";
-print " - StartTLS Connections:      $startTLSCount\n";
-print " - LDAPS Connections:         $sslCount\n";
+print " - LDAP Connections:          " . ($connectionCount - $sslCount - $ldapiCount) . "\n";
 print " - LDAPI Connections:         $ldapiCount\n";
+print " - LDAPS Connections:         $sslCount\n";
+print " - StartTLS Extended Ops:     $startTLSCount\n";
+if(%cipher){
+	print " Secure Protocol Versions:\n";
+	foreach my $key (sort { $b cmp $a } keys %cipher) {
+		print "  - $key - $cipher{$key}\n";
+	}
+	print "\n";
+}
+
 print "Peak Concurrent Connections:  $maxsimConnection\n";
 print "Total Operations:             $allOps\n";
 print "Total Results:                $allResults\n";
 my ($perf, $tmp);
 if ($allOps ne "0"){
- print sprintf "Overall Performance:          %.1f%%\n\n" , ($perf = ($tmp = ($allResults / $allOps)*100) > 100 ? 100.0 : $tmp) ;
- }
-else {
- print "Overall Performance:          No Operations to evaluate\n\n";
+	print sprintf "Overall Performance:          %.1f%%\n\n" , ($perf = ($tmp = ($allResults / $allOps)*100) > 100 ? 100.0 : $tmp) ;
+} else {
+	print "Overall Performance:          No Operations to evaluate\n\n";
 }
 
-my $searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($srchCount / $totalTimeInSecs), $srchCount / ($totalTimeInSecs/60);
-my $modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modCount / $totalTimeInSecs, $modCount/($totalTimeInSecs/60);
-my $addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$addCount/$totalTimeInSecs, $addCount/($totalTimeInSecs/60);
-my $deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delCount/$totalTimeInSecs, $delCount/($totalTimeInSecs/60);
-my $modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdnCount/$totalTimeInSecs, $modrdnCount/($totalTimeInSecs/60);
-my $compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs, $cmpCount/($totalTimeInSecs/60);
-my $bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
+if ($totalTimeInSecs == 0){
+	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+} else {
+	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($srchCount / $totalTimeInSecs), $srchCount / ($totalTimeInSecs/60);
+	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modCount / $totalTimeInSecs, $modCount/($totalTimeInSecs/60);
+	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$addCount/$totalTimeInSecs, $addCount/($totalTimeInSecs/60);
+	$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delCount/$totalTimeInSecs, $delCount/($totalTimeInSecs/60);
+	$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdnCount/$totalTimeInSecs, $modrdnCount/($totalTimeInSecs/60);
+	$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs, $cmpCount/($totalTimeInSecs/60);
+	$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
+}
 
 format STDOUT =
 Searches:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -973,7 +998,7 @@ print " - SASL Binds:                $saslBindCount\n";
 if ($saslBindCount > 0){
 	my $saslmech = $hashes->{saslmech};
 	foreach my $saslb ( sort {$saslmech->{$b} <=> $saslmech->{$a} } (keys %{$saslmech}) ){
-		printf "    %-4s  %-12s\n",$saslmech->{$saslb}, $saslb;
+		printf "    %-4s - %s\n",$saslb, $saslmech->{$saslb};
 	}
 }
 
@@ -1908,6 +1933,18 @@ sub parseLineNormal
 		handleRestart();
 	}
 	if (m/ SSL connection from/){$sslCount++; if($reportStats){ inc_stats('sslconns',$s_stats,$m_stats); }}
+	# Gather TLS and SSL version info
+	if ($_ =~ /conn= *([0-9A-Z]+) TLS *(.*)/){
+		$cipher{"TLS" . $2}++;
+	}
+	if ($_ =~ /conn= *([0-9A-Z]+) SSL *(.*)/){
+		my $sslversion = $2;
+		if(/SSL /){
+			$cipher{"SSL " . $sslversion}++;
+		} else {
+			$cipher{"SSL" . $sslversion}++;
+		}
+	}
 	if (m/ connection from local to /){$ldapiCount++;}
 	if($_ =~ /AUTOBIND dn=\"(.*)\"/){
 		$autobindCount++;
