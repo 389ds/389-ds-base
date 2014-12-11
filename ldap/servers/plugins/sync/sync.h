@@ -76,6 +76,8 @@ typedef struct sync_update {
 	Slapi_Entry *upd_e;
 } Sync_UpdateNode;
 
+#define SYNC_CALLBACK_PREINIT (-1)
+
 typedef struct sync_callback {
 	Slapi_PBlock *orig_pb;
 	int changenr;

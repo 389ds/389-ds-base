@@ -373,6 +373,7 @@ sync_handle_cnum_entry(Slapi_Entry *e, void *cb_data)
 				if( NULL != value && NULL != value->bv_val &&
 					'\0' != value->bv_val[0]) {
 					cb->changenr = sync_number2int(value->bv_val);
+					cb->cb_err = 0; /* changenr successfully set */
 				}
 			}
 		}
@@ -500,7 +501,7 @@ sync_cookie_get_change_info(Sync_CallBackData *scbd)
 	slapi_pblock_init(seq_pb);
 
 	slapi_seq_internal_set_pb(seq_pb, base, SLAPI_SEQ_LAST, attrname, NULL, NULL, 0, 0, 
-		plugin_get_default_component_id(), 0);							  
+		plugin_get_default_component_id(), 0);
 
 	rc = slapi_seq_internal_callback_pb (seq_pb, scbd, NULL, sync_handle_cnum_entry, NULL);
 	slapi_pblock_destroy(seq_pb);
@@ -518,15 +519,20 @@ sync_cookie_create (Slapi_PBlock *pb)
 
 	Sync_CallBackData scbd;
 	int rc;
-	Sync_Cookie *sc = (Sync_Cookie *)slapi_ch_malloc(sizeof(Sync_Cookie));
+	Sync_Cookie *sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
 
-
+	scbd.cb_err = SYNC_CALLBACK_PREINIT;
 	rc = sync_cookie_get_change_info (&scbd);
 
 	if (rc == 0) {
 		sc->cookie_server_signature = sync_cookie_get_server_info(pb);
 		sc->cookie_client_signature = sync_cookie_get_client_info(pb);
-		sc->cookie_change_info = scbd.changenr;
+		if (scbd.cb_err == SYNC_CALLBACK_PREINIT) {
+			/* changenr is not initialized. */
+			sc->cookie_change_info = 0;
+		} else {
+			sc->cookie_change_info = scbd.changenr;
+		}
 	} else {
 		slapi_ch_free ((void **)&sc);
 		sc = NULL;
