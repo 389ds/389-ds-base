@@ -64,10 +64,12 @@
 #define CL_ATTR_NEWSUPERIOR "newsuperior"
 #define CL_SRCH_BASE "cn=changelog"
 
+#define SYNC_INVALID_CHANGENUM ((unsigned long)-1)
+
 typedef struct sync_cookie {
 	char *cookie_client_signature;
 	char *cookie_server_signature;
-	int cookie_change_info;
+	unsigned long cookie_change_info;
 } Sync_Cookie;
 
 typedef struct sync_update {
@@ -80,8 +82,8 @@ typedef struct sync_update {
 
 typedef struct sync_callback {
 	Slapi_PBlock *orig_pb;
-	int changenr;
-	int change_start;
+	unsigned long changenr;
+	unsigned long change_start;
 	int cb_err;
 	Sync_UpdateNode *cb_updates;
 } Sync_CallBackData;
@@ -112,6 +114,7 @@ int sync_cookie_isvalid (Sync_Cookie *testcookie, Sync_Cookie *refcookie);
 void sync_cookie_free (Sync_Cookie **freecookie);
 char * sync_cookie2str(Sync_Cookie *cookie);
 int sync_number2int(char *nrstr);
+unsigned long sync_number2ulong(char *nrstr);
 char *sync_nsuniqueid2uuid(const char *nsuniqueid);
 
 int sync_is_active (Slapi_Entry *e, Slapi_PBlock *pb);

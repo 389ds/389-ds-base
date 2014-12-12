@@ -266,10 +266,10 @@ sync_cookie2str(Sync_Cookie *cookie)
 	char *cookiestr = NULL;
 
 	if (cookie) {
-		cookiestr = slapi_ch_smprintf("%s#%s#%d",
-				cookie->cookie_server_signature,
-				cookie->cookie_client_signature,
-				cookie->cookie_change_info);
+		cookiestr = slapi_ch_smprintf("%s#%s#%lu",
+		                               cookie->cookie_server_signature,
+		                               cookie->cookie_client_signature,
+		                               cookie->cookie_change_info);
 	}
 	return(cookiestr);
 }
@@ -370,10 +370,11 @@ sync_handle_cnum_entry(Slapi_Entry *e, void *cb_data)
 			slapi_attr_first_value( chattr,&sval );
 			if ( NULL != sval ) {
 				value = slapi_value_get_berval ( sval );
-				if( NULL != value && NULL != value->bv_val &&
-					'\0' != value->bv_val[0]) {
-					cb->changenr = sync_number2int(value->bv_val);
-					cb->cb_err = 0; /* changenr successfully set */
+				if (value && value->bv_val && ('\0' != value->bv_val[0])) {
+					cb->changenr = sync_number2ulong(value->bv_val);
+					if (SYNC_INVALID_CHANGENUM != cb->changenr) {
+						cb->cb_err = 0; /* changenr successfully set */
+					}
 				}
 			}
 		}
@@ -452,31 +453,30 @@ sync_cookie_get_client_info(Slapi_PBlock *pb)
 	clientinfo = slapi_ch_smprintf("%s:%s:%s",clientdn,targetdn,strfilter);
 	return (clientinfo);
 }
-static int
+static unsigned long
 sync_cookie_get_change_number(int lastnr, const char *uniqueid)
 {
 	Slapi_PBlock *srch_pb;
 	Slapi_Entry **entries;
 	Slapi_Entry *cl_entry;
 	int rv;
-	int newnr = -1;
+	unsigned long newnr = SYNC_INVALID_CHANGENUM;
 	char *filter = slapi_ch_smprintf("(&(changenumber>=%d)(targetuniqueid=%s))",lastnr,uniqueid);
 
 	srch_pb = slapi_pblock_new();
-    	slapi_search_internal_set_pb(srch_pb, CL_SRCH_BASE,
-           				LDAP_SCOPE_SUBTREE, filter,
-            				NULL, 0, NULL, NULL, plugin_get_default_component_id(), 0);
- 	slapi_search_internal_pb(srch_pb);
+	slapi_search_internal_set_pb(srch_pb, CL_SRCH_BASE, LDAP_SCOPE_SUBTREE, filter,
+	                             NULL, 0, NULL, NULL, plugin_get_default_component_id(), 0);
+	slapi_search_internal_pb(srch_pb);
 	slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_RESULT, &rv);
-	if ( rv == LDAP_SUCCESS) {
+	if (rv == LDAP_SUCCESS) {
 		slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-    		if (entries && *entries) {
+		if (entries && *entries) {
 			Slapi_Attr *attr;
 			Slapi_Value *val;
 			cl_entry = *entries; /* only use teh first one */
 			slapi_entry_attr_find(cl_entry, CL_ATTR_CHANGENUMBER, &attr);
 			slapi_attr_first_value(attr, &val);
-			newnr = sync_number2int((char *)slapi_value_get_string(val));
+			newnr = sync_number2ulong((char *)slapi_value_get_string(val));
 		}
 	}
 
@@ -579,8 +579,8 @@ sync_cookie_parse (char *cookie)
 		if (p) {
 			*p = '\0';
 			sc->cookie_client_signature = slapi_ch_strdup(q);
-			sc->cookie_change_info = sync_number2int(p+1);
-			if (sc->cookie_change_info < 0) {
+			sc->cookie_change_info = sync_number2ulong(p+1);
+			if (SYNC_INVALID_CHANGENUM == sc->cookie_change_info) {
 				goto error_return;
 			}
 		} else {
@@ -716,14 +716,28 @@ sync_pblock_copy(Slapi_PBlock *src)
 	return dest;
 }
 
-int sync_number2int(char *chgnrstr)
+int
+sync_number2int(char *chgnrstr)
 {
 	char *end;
 	int nr;
-	nr = strtoul(chgnrstr, &end, 10);
+	nr = (int)strtoul(chgnrstr, &end, 10);
 	if ( *end == '\0') {
 		return (nr);
 	} else {
 		return (-1);
+	}
+}
+
+unsigned long
+sync_number2ulong(char *chgnrstr)
+{
+	char *end;
+	unsigned long nr;
+	nr = strtoul(chgnrstr, &end, 10);
+	if ( *end == '\0') {
+		return (nr);
+	} else {
+		return SYNC_INVALID_CHANGENUM;
 	}
 }

@@ -293,9 +293,9 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
 	cb_data.orig_pb = pb;
 	cb_data.change_start = client_cookie->cookie_change_info;
 
-	filter = slapi_ch_smprintf("(&(changenumber>=%d)(changenumber<=%d))",
-					client_cookie->cookie_change_info,
-					server_cookie->cookie_change_info);
+	filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu))",
+	                           client_cookie->cookie_change_info,
+	                           server_cookie->cookie_change_info);
 	slapi_search_internal_set_pb(
 		seq_pb, 
 		CL_SRCH_BASE,
@@ -305,7 +305,7 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
 		0,
 		NULL, NULL, 
 		plugin_get_default_component_id(),
-		0);							  
+		0);
 
 	rc = slapi_search_internal_callback_pb (
 		seq_pb, &cb_data, NULL, sync_read_entry_from_changelog, NULL);
@@ -460,6 +460,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 	int chg_req;
 	int prev = 0;
 	int index = 0;
+	unsigned long chgnum = 0;
 	Sync_CallBackData *cb = (Sync_CallBackData *) cb_data;
 
 	if (cb == NULL) {
@@ -470,13 +471,28 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 	if (uniqueid == NULL) {
 		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
 			"Retro Changelog does not provied nsuniquedid."
-			"Check RCL plugin configuration." );
+			"Check RCL plugin configuration.\n" );
 		return(1);
 	}
-	chgtype = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHGTYPE);
 	chgnr = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHANGENUMBER);
-
-	index = sync_number2int(chgnr) - cb->change_start;
+	chgnum = sync_number2ulong(chgnr);
+	if (SYNC_INVALID_CHANGENUM == chgnum) {
+		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
+			"Change number provided by Retro Changelog is invalid: %s\n", chgnr);
+		slapi_ch_free_string(&chgnr);
+		slapi_ch_free_string(&uniqueid);
+		return(1);
+	}
+	if (chgnum < cb->change_start) {
+		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
+			"Change number provided by Retro Changelog %s is less than the initial number %lu\n",
+			chgnr, cb->change_start);
+		slapi_ch_free_string(&chgnr);
+		slapi_ch_free_string(&uniqueid);
+		return(1);
+	}
+	index = chgnum - cb->change_start;
+	chgtype = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHGTYPE);
 	chg_req = sync_str2chgreq(chgtype);
 	switch (chg_req){ 
 		case LDAP_REQ_ADD:
