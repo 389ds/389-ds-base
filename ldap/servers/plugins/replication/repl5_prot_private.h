@@ -79,6 +79,8 @@ typedef struct private_repl_protocol
 
 extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new();
 extern Private_Repl_Protocol *Repl_5_Tot_Protocol_new();
+extern int repl5_tot_last_rcv_msgid(Repl_Connection *conn);
+extern int repl5_tot_flowcontrol_detection(Repl_Connection *conn, int increment);
 extern Private_Repl_Protocol *Windows_Inc_Protocol_new();
 extern Private_Repl_Protocol *Windows_Tot_Protocol_new();
 
