@@ -87,6 +87,8 @@
 #include "slapi-plugin.h"
 
 #define DEFAULT_TIMEOUT 600 /* (seconds) default outbound LDAP connection */
+#define DEFAULT_FLOWCONTROL_WINDOW 1000 /* #entries sent without acknowledgment */
+#define DEFAULT_FLOWCONTROL_PAUSE 2000 /* msec of pause when #entries sent witout acknowledgment */
 #define STATUS_LEN 1024
 
 struct changecounter {
@@ -145,6 +147,12 @@ typedef struct repl5agmt {
 	int agreement_type;
 	Slapi_Counter *protocol_timeout;
 	char *maxcsn; /* agmt max csn */
+	long flowControlWindow; /* This is the maximum number of entries 
+	                         * sent without acknowledgment
+	                         */
+	long flowControlPause; /* When nb of not acknowledged entries overpass totalUpdateWindow
+	                        * This is the duration (in msec) that the RA will pause before sending the next entry
+	                        */
 	Slapi_RWLock *attr_lock; /* RW lock for all the stripped attrs */
 } repl5agmt;
 
@@ -342,6 +350,28 @@ agmt_new_from_entry(Slapi_Entry *e)
 		if (slapi_attr_first_value(sattr, &sval) == 0)
 		{
 			ra->timeout = slapi_value_get_long(sval);
+		}
+	}
+
+	/* flow control update window. */
+	ra->flowControlWindow = DEFAULT_FLOWCONTROL_WINDOW;
+	if (slapi_entry_attr_find(e, type_nsds5ReplicaFlowControlWindow, &sattr) == 0)
+	{
+		Slapi_Value *sval;
+		if (slapi_attr_first_value(sattr, &sval) == 0)
+		{
+			ra->flowControlWindow = slapi_value_get_long(sval);
+		}
+	}
+
+	/* flow control update pause. */
+	ra->flowControlPause = DEFAULT_FLOWCONTROL_PAUSE;
+	if (slapi_entry_attr_find(e, type_nsds5ReplicaFlowControlPause, &sattr) == 0)
+	{
+		Slapi_Value *sval;
+		if (slapi_attr_first_value(sattr, &sval) == 0)
+		{
+			ra->flowControlPause = slapi_value_get_long(sval);
 		}
 	}
 
@@ -1014,6 +1044,26 @@ agmt_get_pausetime(const Repl_Agmt *ra)
 	return return_value;
 }
 
+long
+agmt_get_flowcontrolwindow(const Repl_Agmt *ra)
+{
+	long return_value;
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	return_value = ra->flowControlWindow;
+	PR_Unlock(ra->lock);
+	return return_value;
+}
+long
+agmt_get_flowcontrolpause(const Repl_Agmt *ra)
+{
+	long return_value;
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	return_value = ra->flowControlPause;
+	PR_Unlock(ra->lock);
+	return return_value;
+}
 /*
  * Warning - reference to the long name of the agreement is returned.
  * The long name of an agreement is the DN of the agreement entry,
@@ -1775,6 +1825,90 @@ agmt_set_timeout_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 	return return_value;
 }
 
+/*
+ * Set or reset the windows of entries sent without acknowledgment.
+ * The window is used during update to determine the number of
+ * entries will be send by the replica agreement without acknowledgment from the consumer
+ *
+ * Returns 0 if window set, or -1 if an error occurred.
+ */
+int
+agmt_set_flowcontrolwindow_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = -1;
+
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	if (ra->stop_in_progress)
+	{
+		PR_Unlock(ra->lock);
+		return return_value;
+	}
+
+	slapi_entry_attr_find(e, type_nsds5ReplicaFlowControlWindow, &sattr);
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			long tmpval = slapi_value_get_long(sval);
+			if (tmpval >= 0) {
+				ra->flowControlWindow = tmpval;
+				return_value = 0; /* success! */
+			}
+		}
+	}
+	PR_Unlock(ra->lock);
+	if (return_value == 0)
+	{
+		prot_notify_agmt_changed(ra->protocol, ra->long_name);
+	}
+	return return_value;
+}
+
+/*
+ * Set or reset the pause duration when #entries sent without acknowledgment overpass flow control window
+ *
+ * Returns 0 if pause set, or -1 if an error occurred.
+ */
+int
+agmt_set_flowcontrolpause_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = -1;
+
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	if (ra->stop_in_progress)
+	{
+		PR_Unlock(ra->lock);
+		return return_value;
+	}
+
+	slapi_entry_attr_find(e, type_nsds5ReplicaFlowControlPause, &sattr);
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			long tmpval = slapi_value_get_long(sval);
+			if (tmpval >= 0) {
+				ra->flowControlPause = tmpval;
+				return_value = 0; /* success! */
+			}
+		}
+	}
+	PR_Unlock(ra->lock);
+	if (return_value == 0)
+	{
+		prot_notify_agmt_changed(ra->protocol, ra->long_name);
+	}
+	return return_value;
+}
+
 int
 agmt_set_timeout(Repl_Agmt *ra, long timeout)
 {
@@ -1784,6 +1918,32 @@ agmt_set_timeout(Repl_Agmt *ra, long timeout)
         return -1;
     }
     ra->timeout = timeout;
+    PR_Unlock(ra->lock);
+
+    return 0;
+}
+int
+agmt_set_flowcontrolwindow(Repl_Agmt *ra, long window)
+{
+    PR_Lock(ra->lock);
+    if (ra->stop_in_progress){
+        PR_Unlock(ra->lock);
+        return -1;
+    }
+    ra->flowControlWindow = window;
+    PR_Unlock(ra->lock);
+
+    return 0;
+}
+int
+agmt_set_flowcontrolpause(Repl_Agmt *ra, long pause)
+{
+    PR_Lock(ra->lock);
+    if (ra->stop_in_progress){
+        PR_Unlock(ra->lock);
+        return -1;
+    }
+    ra->flowControlPause = pause;
     PR_Unlock(ra->lock);
 
     return 0;

@@ -330,6 +330,32 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             }
 		}
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+					type_nsds5ReplicaFlowControlWindow))
+		{
+			/* New replica timeout */
+			if (agmt_set_flowcontrolwindow_from_entry(agmt, e) != 0)
+			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+						"failed to update the flow control window for agreement %s\n",
+						agmt_get_long_name(agmt));	
+				*returncode = LDAP_OPERATIONS_ERROR;
+				rc = SLAPI_DSE_CALLBACK_ERROR;
+			}
+		}
+		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+					type_nsds5ReplicaFlowControlPause))
+		{
+			/* New replica timeout */
+			if (agmt_set_flowcontrolpause_from_entry(agmt, e) != 0)
+			{
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+						"failed to update the flow control pause for agreement %s\n",
+						agmt_get_long_name(agmt));	
+				*returncode = LDAP_OPERATIONS_ERROR;
+				rc = SLAPI_DSE_CALLBACK_ERROR;
+			}
+		}
+		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
 					type_nsds5ReplicaBusyWaitTime))
 		{
 			/* New replica busywaittime */
