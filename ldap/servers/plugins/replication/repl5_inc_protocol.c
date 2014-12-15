@@ -108,6 +108,7 @@ typedef struct result_data
 	int stop_result_thread; /* Flag used to tell the result thread to exit */
 	int last_message_id_sent;
 	int last_message_id_received;
+	int flowcontrol_detection;
 	int result; /* The UPDATE_TRANSIENT_ERROR etc */
 } result_data;
 
@@ -458,6 +459,23 @@ repl5_inc_destroy_async_result_thread(result_data *rd)
 		(void)PR_JoinThread(tid);
 	}
 	return retval;
+}
+
+/* The interest of this routine is to give time to the consumer
+ * to apply the sent updates and return the acks.
+ * So the caller should not hold the replication connection lock
+ * to let the RA.reader receives the acks.
+ */
+static void
+repl5_inc_flow_control_results(Repl_Agmt *agmt, result_data *rd)
+{
+    PR_Lock(rd->lock);
+    if ((rd->last_message_id_received <= rd->last_message_id_sent) &&
+        ((rd->last_message_id_sent - rd->last_message_id_received) >= agmt_get_flowcontrolwindow(agmt))) {
+        rd->flowcontrol_detection++;
+        DS_Sleep(PR_MillisecondsToInterval(agmt_get_flowcontrolpause(agmt)));
+    }
+    PR_Unlock(rd->lock);
 }
 
 static void
@@ -1683,7 +1701,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	{
 		int finished = 0;
 		ConnResult replay_crc;
-        char csn_str[CSN_STRSIZE];
+		char csn_str[CSN_STRSIZE];
 
 		/* Start the results reading thread */
 		rd = repl5_inc_rd_new(prp);
@@ -1818,6 +1836,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						sop->replica_id = replica_id;
 						PL_strncpyz(sop->uniqueid, uniqueid, sizeof(sop->uniqueid));
 						repl5_int_push_operation(rd,sop);
+						repl5_inc_flow_control_results(prp->agmt, rd);
 					} else {
 						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 							"%s: Skipping update operation with no message_id (uniqueid %s, CSN %s):\n",
@@ -1906,6 +1925,17 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			}
 			*num_changes_sent = rd->num_changes_sent;
 		}
+		PR_Lock(rd->lock);
+		if (rd->flowcontrol_detection) {
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: Incremental update flow control triggered %d times\n"
+					"You may increase %s and/or decrease %s in the replica agreement configuration\n",
+					agmt_get_long_name(prp->agmt),
+					rd->flowcontrol_detection,
+					type_nsds5ReplicaFlowControlPause,
+					type_nsds5ReplicaFlowControlWindow);             
+		}
+		PR_Unlock(rd->lock);
 		repl5_inc_rd_destroy(&rd);
 
 		cl5_operation_parameters_done ( entry.op );
