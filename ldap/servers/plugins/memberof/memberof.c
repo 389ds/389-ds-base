@@ -2764,7 +2764,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 	mytaskdata->bind_dn = slapi_ch_strdup(bind_dn);
 
 	/* allocate new task now */
-	task = slapi_plugin_new_task(slapi_entry_get_ndn(e), pb);
+	task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
 
 	/* register our destructor for cleaning up our private data */
 	slapi_task_set_destructor_fn(task, memberof_task_destructor);

@@ -1265,6 +1265,38 @@ preop_modrdn(Slapi_PBlock *pb)
 
 }
 
+static int
+uiduniq_start(Slapi_PBlock *pb)
+{
+    Slapi_Entry *plugin_entry = NULL;
+    struct attr_uniqueness_config *config = NULL;
+
+    if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &plugin_entry) == 0){
+        /* load the config into the config list */
+        if ((config = uniqueness_entry_to_config(pb, plugin_entry)) == NULL) {
+            return SLAPI_PLUGIN_FAILURE;
+        }
+        slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void*) config);
+    }
+
+    return 0;
+}
+
+static int
+uiduniq_close(Slapi_PBlock *pb)
+{
+    Slapi_Entry *plugin_entry = NULL;
+    struct attr_uniqueness_config *config = NULL;
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
+    if (config) {
+            slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
+            free_uniqueness_config(config);
+            slapi_ch_free((void **) &config);
+    }
+    return 0;
+}
+
 /* ------------------------------------------------------------ */
 /*
  * Initialize the plugin
@@ -1307,13 +1339,6 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
     }
     slapi_ch_free_string(&plugin_type);
 
-    /* load the config into the config list */
-    if ((config = uniqueness_entry_to_config(pb, plugin_entry)) == NULL) {
-            err = SLAPI_PLUGIN_FAILURE;
-            break;
-    }
-    slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void*) config);
-
     /* Provide descriptive information */
     err = slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
             (void*)&pluginDesc);
@@ -1329,30 +1354,26 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
     err = slapi_pblock_set(pb, premdn, (void*)preop_modrdn);
     if (err) break;
 
+    err = slapi_pblock_set(pb, SLAPI_PLUGIN_START_FN, (void *) uiduniq_start);
+    if (err) break;
+
+    err = slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) uiduniq_close);
+    if (err) break;
+
+
   END
 
   if (err) {
-    slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init",
-             "Error: %d\n", err);
-    if (config) {
-            slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
-            free_uniqueness_config(config);
-            slapi_ch_free((void **) &config);
-    }
+    slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init", "Error: %d\n", err);
     err = -1;
   }
   else
-    slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init",
-             "plugin loaded\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init", "plugin loaded\n");
 
   return err;
 }
 
-int
-uidunique_init(Slapi_PBlock *pb)
-{
-  return NSUniqueAttr_Init(pb);
-}
+
 
 
 /* ------------------------------------------------------------ */

@@ -58,6 +58,11 @@
 #define CHECK_ALL 0
 #define CHECK_TYPE 1
 
+/* plugin removal flags */
+#define PLUGIN_NOT_FOUND 0
+#define PLUGIN_REMOVED 1
+#define PLUGIN_BUSY 2
+
 static char *critical_plugins[] = { "cn=ldbm database,cn=plugins,cn=config",
                                     "cn=ACL Plugin,cn=plugins,cn=config",
                                     "cn=ACL preoperation,cn=plugins,cn=config",
@@ -3294,7 +3299,7 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type)
     struct slapdplugin *plugin = NULL;
     struct slapdplugin *plugin_next = NULL;
     struct slapdplugin *plugin_prev = NULL;
-    int removed = 0;
+    int removed = PLUGIN_NOT_FOUND;
     int type;
 
     /* look everywhere for other plugin functions with the plugin id */
@@ -3315,7 +3320,13 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type)
 
                 pblock_init(&pb);
                 plugin_set_stopped(plugin);
-                plugin_op_all_finished(plugin);
+                if (slapi_counter_get_value(plugin->plg_op_counter) > 0){
+                    /*
+                     * Plugin is still busy, and we might be blocking it
+                     * by holding global plugin lock so return for now.
+                     */
+                    return PLUGIN_BUSY;
+                }
                 plugin_call_one( plugin, SLAPI_PLUGIN_CLOSE_FN, &pb);
 
                 if(plugin_prev){
@@ -3332,7 +3343,7 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type)
                 plugin_remove_from_shutdown(plugin);
                 plugin->plg_removed = 1;
                 plugin->plg_started = 0;
-                removed = 1;
+                removed = PLUGIN_REMOVED;
             } else {
                 plugin_prev = plugin;
             }
@@ -3362,14 +3373,9 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
     const char *plugin_dn = slapi_entry_get_dn_const(plugin_entry);
     char *value = NULL;
     int td_locked = 1;
-    int removed = 0;
+    int removed = PLUGIN_BUSY;
     int type = 0;
     int rc = LDAP_SUCCESS;
-
-    if(!locked){
-        slapi_rwlock_wrlock(global_rwlock);
-    }
-    slapi_td_set_plugin_locked(&td_locked);
 
     /* Critical server plugins can not be disabled */
     if(plugin_is_critical(plugin_entry)){
@@ -3390,54 +3396,62 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
         rc = -1;
         goto done;
     } else {
-        rc = plugin_get_type_and_list(value, &type, &plugin_list);
-        if ( rc != 0 ) {
-            /* error: unknown plugin type */
-            LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: unknown plugin type \"%s\" in entry \"%s\"\n",
-                      value, slapi_entry_get_dn_const(plugin_entry), 0);
-            PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: unknown plugin type "
-                         "\"%s\" in entry.",value);
-            rc = -1;
-            goto done;
-        }
-
-        /*
-         * Skip syntax/matching rule/database plugins - these can not be disabled as it
-         * could break existing schema.  We allow the update to occur, but it will
-         * not take effect until the next server restart.
-         */
-        if(type == SLAPI_PLUGIN_SYNTAX || type == SLAPI_PLUGIN_MATCHINGRULE || type == SLAPI_PLUGIN_DATABASE){
-            removed = 1;  /* avoids error check below */
-            goto done;
-        }
-
-        /*
-         * Now remove the plugin from the list and the hashtable
-         */
-        for(plugin = *plugin_list; plugin ; plugin = plugin->plg_next){
-            if(strcasecmp(plugin->plg_dn, plugin_dn) == 0){
-                /*
-                 * Make sure there are no other plugins that depend on this one before removing it
-                 */
-                if(plugin_delete_check_dependency(plugin, CHECK_ALL, returntext) != LDAP_SUCCESS){
-                    LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: failed to disable/delete plugin (%s)\n",
-                              plugin->plg_dn,0,0);
-                    rc = -1;
-                    goto done;
-                }
-                removed = plugin_remove_plugins(plugin, value);
-                break;
+        while(removed == PLUGIN_BUSY){
+            removed = PLUGIN_NOT_FOUND;
+            if(!locked){
+                slapi_rwlock_wrlock(global_rwlock);
             }
+            slapi_td_set_plugin_locked(&td_locked);
+
+            rc = plugin_get_type_and_list(value, &type, &plugin_list);
+            if ( rc != 0 ) {
+                /* error: unknown plugin type */
+                LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: unknown plugin type \"%s\" in entry \"%s\"\n",
+                          value, slapi_entry_get_dn_const(plugin_entry), 0);
+                PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: unknown plugin type "
+                         "\"%s\" in entry.",value);
+                rc = -1;
+                goto unlock;
+            }
+
+            /*
+             * Skip syntax/matching rule/database plugins - these can not be disabled as it
+             * could break existing schema.  We allow the update to occur, but it will
+             * not take effect until the next server restart.
+             */
+            if(type == SLAPI_PLUGIN_SYNTAX || type == SLAPI_PLUGIN_MATCHINGRULE || type == SLAPI_PLUGIN_DATABASE){
+                removed = PLUGIN_REMOVED;  /* avoids error check below */
+                goto unlock;
+            }
+
+            /*
+             * Now remove the plugin from the list and the hashtable
+             */
+            for(plugin = *plugin_list; plugin ; plugin = plugin->plg_next){
+                if(strcasecmp(plugin->plg_dn, plugin_dn) == 0){
+                    /*
+                     * Make sure there are no other plugins that depend on this one before removing it
+                     */
+                    if(plugin_delete_check_dependency(plugin, CHECK_ALL, returntext) != LDAP_SUCCESS){
+                        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: failed to disable/delete plugin (%s)\n",
+                                  plugin->plg_dn,0,0);
+                        rc = -1;
+                        break;
+                    }
+                    removed = plugin_remove_plugins(plugin, value);
+                    break;
+                }
+            }
+unlock:
+            if(!locked){
+                slapi_rwlock_unlock(global_rwlock);
+            }
+            td_locked = 0;
+            slapi_td_set_plugin_locked(&td_locked);
         }
     }
 
 done:
-    if(!locked){
-        slapi_rwlock_unlock(global_rwlock);
-    }
-    td_locked = 0;
-    slapi_td_set_plugin_locked(&td_locked);
-
     slapi_ch_free_string(&value);
 
     if(!removed && rc == 0){
