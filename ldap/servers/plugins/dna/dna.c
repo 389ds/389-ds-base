@@ -2406,7 +2406,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
         } else {
             /* dna_first_free_value() failed for some unknown reason */
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_next_value: failed to allocate a new ID!! (set(%d) (max: %d)\n",setval,config_entry->maxval);
+                            "dna_get_next_value: failed to allocate a new ID!!\n");
             goto done;
         }
     }
@@ -3415,8 +3415,6 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                         /* dna_first_free_value() failed for some unknown reason */
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                         "dna_pre_op: failed to allocate a new ID!! 2\n");
-                        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                                    "dna_get_next_value: failed to allocate a new ID!! (set(%d) (max: %d)\n",setval,config_entry->maxval);
                         /* Set an error string to be returned to the client. */
                         *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3682,8 +3680,6 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                         /* dna_first_free_value() failed for some unknown reason */
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                         "dna_pre_op: failed to allocate a new ID!!\n");
-                        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                                    "dna_get_next_value: failed to allocate a new ID!! (set(%d) (max: %d)\n",setval,config_entry->maxval);
                         /* Set an error string to be returned to the client. */
                         *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                            " %s failed! Unable to proceed.",
