@@ -1223,7 +1223,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	
 	/* See if we have a  parent[2].attr" rule */
 	if (strstr(attrName, "parent[") != NULL) {
-		char	*word, *str, *next;
+		char	*word, *str, *next = NULL;
 	
 		numOflevels = 0;
 		n_currEntryDn = slapi_entry_get_ndn ( lasinfo.resourceEntry );
@@ -1489,7 +1489,7 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	/* See if we have a  parent[2].attr" rule */
 	if (strstr(attrName, "parent[") != NULL) {
-		char	*word, *str, *next;
+		char	*word, *str, *next = NULL;
 	
 		numOflevels = 0;
 		n_currEntryDn = slapi_entry_get_ndn ( lasinfo.resourceEntry );
@@ -2659,7 +2659,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 		/* See if we have a  parent[2].attr" rule */
 		if (strstr(attrName, "parent[") != NULL) {
-			char	*word, *str, *next;
+			char	*word, *str, *next = NULL;
 
 			numOflevels = 0;
 			n_currEntryDn = slapi_entry_get_ndn ( lasinfo.resourceEntry ) ;

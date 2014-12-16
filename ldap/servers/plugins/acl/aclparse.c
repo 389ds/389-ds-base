@@ -600,7 +600,7 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 	ACLListHandle_t *handle = NULL;
 	char            *newstr = NULL;
 	char            *word;
-	char            *next;
+	char            *next = NULL;
 	const char      *brkstr = " ;";
 	int             checkversion = 0;
 
@@ -1367,7 +1367,7 @@ __aclp__get_aci_right (char *str)
 {
 
 	char	*sav_str = slapi_ch_strdup(str);
-	char	*t, *tt;
+	char	*t, *tt = NULL;
 	int   	type = 0;
 	char 	*delimiter = ",";
 	char 	*val = NULL;
