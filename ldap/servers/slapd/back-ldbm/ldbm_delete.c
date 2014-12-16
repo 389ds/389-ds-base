@@ -1116,6 +1116,13 @@ ldbm_back_delete( Slapi_PBlock *pb )
 
 	/* delete from cache and clean up */
 	if (e) {
+		struct backentry *old_e = e;
+
+		e = cache_find_id(&inst->inst_cache,e->ep_id);
+		if(e != old_e){
+			/* return the old entry, and proceed with the new one */
+			CACHE_RETURN(&inst->inst_cache, &old_e);
+		}
 		if (cache_is_in_cache(&inst->inst_cache, e)) {
 			ep_id = e->ep_id;
 			CACHE_REMOVE(&inst->inst_cache, e);
