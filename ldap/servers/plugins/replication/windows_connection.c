@@ -595,7 +595,7 @@ windows_LDAPMessage2Entry(Slapi_Entry *e, Repl_Connection *conn,
 				char *dupa = slapi_ch_strdup(a);
 				char *newa = NULL; /* dup of 'a' with next range */
 				char *p, *wp, *pp; /* work pointers */
-				char *iter;
+				char *iter = NULL;
 				int high = 0;
 				int sizea = strlen(a) + 2;
 				/* handling subtype(s) */
