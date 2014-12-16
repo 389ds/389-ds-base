@@ -1827,6 +1827,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int retval = -1;
     int need_be_postop = 0;
     int plugin_started = 0;
+    int internal_op = 0;
 
     PR_ASSERT(pb);
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
@@ -1842,6 +1843,8 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         /* already returned result */
         return retval;
     }
+
+    internal_op = operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL);
 
     /* Find the entry we are about to modify. */
     ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
@@ -2039,20 +2042,22 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         }
     }
     /*
-     * Perform postop plugin configuration changes
+     * Perform postop plugin configuration changes unless this is an internal operation
      */
-    if(returncode == LDAP_SUCCESS){
-        dse_post_modify_plugin(ec, ecc, mods);
-    } else if(plugin_started){
-        if(plugin_started == 1){
-        	/* the op failed, turn the plugin off */
-            plugin_delete(ecc, returntext, 0 /* not locked */);
-        } else if (plugin_started == 2){
-            /*
-             * This probably can't happen, but...
-             * the op failed, turn the plugin back on.
-             */
-            plugin_add(ecc, returntext, 0 /* not locked */);
+    if(!internal_op){
+        if(returncode == LDAP_SUCCESS){
+            dse_post_modify_plugin(ec, ecc, mods);
+        } else if(plugin_started){
+            if(plugin_started == 1){
+                /* the op failed, turn the plugin off */
+                plugin_delete(ecc, returntext, 0 /* not locked */);
+            } else if (plugin_started == 2){
+                /*
+                 * This probably can't happen, but...
+                 * the op failed, turn the plugin back on.
+                 */
+                plugin_add(ecc, returntext, 0 /* not locked */);
+            }
         }
     }
 
@@ -2065,6 +2070,7 @@ static void
 dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods)
 {
     char *enabled = NULL;
+    int restart_plugin = 1;
     int i;
 
     if (!slapi_entry_attr_hasvalue(entryBefore, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
@@ -2080,31 +2086,18 @@ dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMo
          !strcasecmp(enabled, "on"))
     {
         for(i = 0; mods && mods[i]; i++){
-            /* Check if we are modifying a plugin's config, if so restart the plugin */
-            if (strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_PATH) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_INITFN) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_TYPE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_DEPENDS_ON_TYPE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_DEPENDS_ON_NAMED) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_SCHEMA_CHECK) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_BE_TXN) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_TARGET_SUBTREE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_EXCLUDE_TARGET_SUBTREE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_BIND_SUBTREE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_EXCLUDE_BIND_SUBTREE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOAD_NOW) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOAD_GLOBAL) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_PRECEDENCE) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOG_ACCESS) == 0 ||
-                strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_LOG_AUDIT) == 0 )
-            {
-                /* for all other plugin config changes, restart the plugin */
-                if(plugin_restart(entryBefore, entryAfter) != LDAP_SUCCESS){
-                    slapi_log_error(SLAPI_LOG_FATAL,"dse_post_modify_plugin", "The configuration change "
-                            "for plugin (%s) could not be applied dynamically, and will be ignored until "
-                            "the server is restarted.\n",
-                            slapi_entry_get_dn(entryBefore));
-                }
+            if (strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_ENABLED) == 0){
+                /* we already stop/started the pugin - don't do it again */
+                restart_plugin = 0;
+                break;
+            }
+        }
+        if(restart_plugin){       /* for all other plugin config changes, restart the plugin */
+            if(plugin_restart(entryBefore, entryAfter) != LDAP_SUCCESS){
+                slapi_log_error(SLAPI_LOG_FATAL,"dse_post_modify_plugin", "The configuration change "
+                        "for plugin (%s) could not be applied dynamically, and will be ignored until "
+                        "the server is restarted.\n",
+                        slapi_entry_get_dn(entryBefore));
             }
         }
     }
@@ -2690,7 +2683,10 @@ slapi_config_register_callback_plugin(int operation,
             Slapi_DN dn;
 
             slapi_sdn_init_dn_byref(&dn,base);
-            rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn, fn_arg, pb ? pb->pb_plugin: NULL));
+            /* if a pblock was passed, this is a plugin, so set the f_arg as the plugin */
+            rc = (NULL != dse_register_callback(pdse, operation, flags, &dn, scope, filter, fn,
+                                                pb ? (void*)pb->pb_plugin : fn_arg,
+                                                pb ? pb->pb_plugin: NULL));
             slapi_sdn_done(&dn);
         }
     }
