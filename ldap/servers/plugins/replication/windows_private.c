@@ -946,7 +946,7 @@ create_subtree_pairs(char **pairs)
 	subtreePair *spp;
 	char **ptr;
 	char *p0, *p1;
-	char *saveptr;
+	char *saveptr = NULL;
 	int cnt;
 
 	for (cnt = 0, ptr = pairs; ptr && *ptr; cnt++, ptr++) ;

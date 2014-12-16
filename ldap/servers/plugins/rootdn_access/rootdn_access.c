@@ -222,7 +222,7 @@ rootdn_load_config(Slapi_PBlock *pb)
     Slapi_Entry *e = NULL;
     char *openTime = NULL;
     char *closeTime = NULL;
-    char *token, *iter, *copy;
+    char *token, *iter = NULL, *copy;
     char hour[3], min[3];
     int result = 0;
     int time;
