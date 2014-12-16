@@ -202,6 +202,7 @@ static char *hostname = NULL;
 static char *portnum = NULL;
 static char *secureportnum = NULL;
 
+static Slapi_Eq_Context eq_ctx = {0};
 
 /**
  * server struct for shared ranges
@@ -708,6 +709,7 @@ dna_close(Slapi_PBlock * pb)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_close\n");
 
+    slapi_eq_cancel(eq_ctx);
     dna_delete_config(NULL);
     slapi_ch_free((void **)&dna_global_config);
     slapi_destroy_rwlock(g_dna_cache_lock);
@@ -869,7 +871,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
          * starting up  would cause the change to not
          * get changelogged. */
         time(&now);
-        slapi_eq_once(dna_update_config_event, NULL, now + 30);
+        eq_ctx = slapi_eq_once(dna_update_config_event, NULL, now + 30);
     } else {
         dna_update_config_event(0, NULL);
     }
@@ -2404,7 +2406,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
         } else {
             /* dna_first_free_value() failed for some unknown reason */
             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_next_value: failed to allocate a new ID!!\n");
+                            "dna_get_next_value: failed to allocate a new ID!! (set(%d) (max: %d)\n",setval,config_entry->maxval);
             goto done;
         }
     }
@@ -3401,7 +3403,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                         ret = dna_first_free_value(config_entry, &setval);
                         if (LDAP_SUCCESS != ret){
                             slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                            "dna_pre_op: failed to allocate a new ID\n");
+                                            "dna_pre_op: failed to allocate a new ID 1\n");
                             /* Set an error string to be returned to the client. */
                             *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3412,7 +3414,9 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                     } else {
                         /* dna_first_free_value() failed for some unknown reason */
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                                        "dna_pre_op: failed to allocate a new ID!!\n");
+                                        "dna_pre_op: failed to allocate a new ID!! 2\n");
+                        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                                    "dna_get_next_value: failed to allocate a new ID!! (set(%d) (max: %d)\n",setval,config_entry->maxval);
                         /* Set an error string to be returned to the client. */
                         *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3678,6 +3682,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                         /* dna_first_free_value() failed for some unknown reason */
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                         "dna_pre_op: failed to allocate a new ID!!\n");
+                        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                                                    "dna_get_next_value: failed to allocate a new ID!! (set(%d) (max: %d)\n",setval,config_entry->maxval);
                         /* Set an error string to be returned to the client. */
                         *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                            " %s failed! Unable to proceed.",

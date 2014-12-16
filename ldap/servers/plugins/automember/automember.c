@@ -406,7 +406,6 @@ automember_close(Slapi_PBlock * pb)
             automember_task_add_map_entries);
 
     automember_delete_config();
-    slapi_ch_free((void **)&g_automember_config);
     slapi_sdn_free(&_PluginDN);
     slapi_sdn_free(&_ConfigAreaDN);
     slapi_destroy_rwlock(g_automember_config_lock);
@@ -449,6 +448,8 @@ automember_load_config()
     /* Clear out any old config. */
     automember_config_write_lock();
     automember_delete_config();
+    g_automember_config = (PRCList *)slapi_ch_calloc(1, sizeof(struct configEntry));
+    PR_INIT_CLIST(g_automember_config);
 
     search_pb = slapi_pblock_new();
 
@@ -866,6 +867,7 @@ automember_delete_config()
         list = PR_LIST_HEAD(g_automember_config);
         automember_delete_configEntry(list);
     }
+    slapi_ch_free((void **)&g_automember_config);
 
     return;
 }

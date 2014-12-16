@@ -217,7 +217,7 @@ rootdn_close(Slapi_PBlock *pb)
     slapi_ch_array_free(hosts);
     slapi_ch_array_free(hosts_to_deny);
     slapi_ch_array_free(ips);
-    slapi_ch_array_free(ips);
+    slapi_ch_array_free(ips_to_deny);
 
     return 0;
 }
@@ -416,6 +416,8 @@ rootdn_load_config(Slapi_PBlock *pb)
         }
     } else {
         /* failed to get the plugin entry */
+        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                "Failed to get plugin entry\n");
         result = -1;
     }
 

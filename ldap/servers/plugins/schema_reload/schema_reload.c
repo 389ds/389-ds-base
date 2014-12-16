@@ -273,7 +273,7 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
     schemadir = fetch_attr(e, "schemadir", NULL);
 
     /* allocate new task now */
-    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), pb);
+    task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     if (task == NULL) {
         slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "unable to allocate new task!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
