@@ -1461,7 +1461,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	char *repl_root;
 	char *payload = NULL;
 	char *certify_all;
-	char *iter;
+	char *iter = NULL;
 	int rc = LDAP_SUCCESS;
 
 	slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &extop_oid);
@@ -1589,7 +1589,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 	char *force = NULL;
 	char *extop_oid;
 	char *repl_root;
-	char *iter;
+	char *iter = NULL;
 	int release_it = 0;
 	int rid = 0;
 	int rc = LDAP_OPERATIONS_ERROR;
