@@ -509,7 +509,7 @@ attr_index_parse_idlistsize(struct attrinfo *ai, const char *strval, struct inde
 	int rc = 0; /* assume success */
 	char *mystr = slapi_ch_strdup(strval); /* copy for strtok */
 	char *values = NULL;
-	char *lasts, *val, *ptr;
+	char *lasts = NULL, *val, *ptr;
 	int seen_limit = 0, seen_type = 0, seen_flags = 0, seen_values = 0;
 	Slapi_Attr *attr = &ai->ai_sattr;
 

@@ -2046,7 +2046,7 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
         char *forcing;
         char *csnpart;
         char *ridstr;
-        char *iter;
+        char *iter = NULL;
         int i;
 
         for(i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++){
