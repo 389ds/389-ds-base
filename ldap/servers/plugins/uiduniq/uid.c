@@ -1285,7 +1285,6 @@ uiduniq_start(Slapi_PBlock *pb)
 static int
 uiduniq_close(Slapi_PBlock *pb)
 {
-    Slapi_Entry *plugin_entry = NULL;
     struct attr_uniqueness_config *config = NULL;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
@@ -1312,7 +1311,6 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
   int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
   int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
   int premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
-  struct attr_uniqueness_config *config = NULL;
 
   BEGIN
 
