@@ -344,10 +344,6 @@ void retrocl_create_cle (void)
     val.bv_len = strlen(val.bv_val);
     slapi_entry_add_values( e, "cn", vals );  
     
-    val.bv_val = RETROCL_ACL;
-    val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values( e, "aci", vals );  
-
     pb = slapi_pblock_new ();
     slapi_add_entry_internal_set_pb( pb, e, NULL /* controls */, 
 				     g_plg_identity[PLUGIN_RETROCL], 

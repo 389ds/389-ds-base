@@ -305,6 +305,68 @@ char *retrocl_get_config_str(const char *attrt)
     return ma;
 }
 
+static void
+retrocl_remove_legacy_default_aci(void)
+{
+    Slapi_PBlock *pb = NULL;
+    Slapi_Entry **entries;
+    char **aci_vals = NULL;
+    char *attrs[] = {"aci", NULL};
+    int rc;
+
+    pb = slapi_pblock_new();
+    slapi_search_internal_set_pb(pb, RETROCL_CHANGELOG_DN, LDAP_SCOPE_BASE, "objectclass=*",
+            attrs, 0, NULL, NULL, g_plg_identity[PLUGIN_RETROCL] , 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS) {
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if(entries && entries[0]){
+            if((aci_vals = slapi_entry_attr_get_charray(entries[0], "aci"))){
+                if(charray_inlist(aci_vals, RETROCL_ACL)){
+                    /*
+                     * Okay, we need to remove the aci
+                     */
+                    LDAPMod mod;
+                    LDAPMod *mods[2];
+                    char *val[2];
+                    Slapi_PBlock *mod_pb = 0;
+
+                    mod_pb = slapi_pblock_new();
+                    mods[0] = &mod;
+                    mods[1] = 0;
+                    val[0] = RETROCL_ACL;
+                    val[1] = 0;
+                    mod.mod_op = LDAP_MOD_DELETE;
+                    mod.mod_type = "aci";
+                    mod.mod_values = val;
+
+                    slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(entries[0]),
+                                                    mods, 0, 0, g_plg_identity[PLUGIN_RETROCL], 0);
+                    slapi_modify_internal_pb(mod_pb);
+                    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+                    if(rc == LDAP_SUCCESS){
+                        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                                "Successfully removed vulnerable legacy default aci \"%s\".  "
+                                "If the aci removal was not desired please use a different \"acl "
+                                "name\" so it is not removed at the next plugin startup.\n",
+                                RETROCL_ACL);
+                    } else {
+                        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                                "Failed to removed vulnerable legacy default aci (%s) error %d\n",
+                                RETROCL_ACL, rc);
+                    }
+                    slapi_pblock_destroy(mod_pb);
+                }
+                slapi_ch_array_free(aci_vals);
+            }
+        }
+    }
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy(pb);
+}
+
+
 /*
  * Function: retrocl_start
  *
@@ -335,7 +397,10 @@ static int retrocl_start (Slapi_PBlock *pb)
       LDAPDebug1Arg(LDAP_DEBUG_TRACE,"Couldnt find backend, not trimming retro changelog (%d).\n",rc);
       return rc;
     }
-   
+
+    /* Remove the old default aci as it exposes passwords changes to anonymous users */
+    retrocl_remove_legacy_default_aci();
+
     retrocl_init_trimming();
 
     if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0) {
