@@ -15,6 +15,7 @@
 [Unit]
 Description=@capbrand@ Directory Server %i.
 PartOf=@systemdgroupname@
+After=chronyd.service
 
 [Service]
 Type=forking
