@@ -484,6 +484,7 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 	}
 
 	newstr = slapi_ch_strdup (str);
+	next = NULL;
 	word = ldap_utf8strtok_r(newstr, " ", &next);
 	if (strcasecmp (word, "version") == 0) {
 		word = ldap_utf8strtok_r(NULL, " ", &next);
@@ -1189,7 +1190,7 @@ __aclp__get_aci_right (char *str)
 {
 
 	char	*sav_str = slapi_ch_strdup(str);
-	char	*t, *tt;
+	char	*t, *tt = NULL;
 	int   	type = 0;
 	char 	*delimiter = ",";
 	char 	*val = NULL;
