@@ -102,5 +102,5 @@ class Plugins(object):
         if len(ents) != 1:
             raise ValueError("%s is unknown")
         
-        self.conn.modify_s(dn, [(ldap.MOD_REPLACE, PLUGIN_PROPNAME_TO_ATTRNAME[PLUGIN_ENABLE], PLUGINS_ENABLE_ON_VALUE)])
+        self.conn.modify_s(dn, [(ldap.MOD_REPLACE, PLUGIN_PROPNAME_TO_ATTRNAME[PLUGIN_ENABLE], PLUGINS_ENABLE_OFF_VALUE)])
 
