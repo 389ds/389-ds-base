@@ -183,6 +183,8 @@ $entry = "${dn}${misc}${cn}${basedn}${args}";
 open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
 print(FOO "$entry");
 close(FOO);
+$retcode = $?>>8;
+exit ($retcode);
 
 sub libpath_add {
     my $libpath = shift;
