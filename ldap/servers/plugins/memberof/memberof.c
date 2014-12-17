@@ -921,7 +921,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 					} 
 				if(ret == LDAP_SUCCESS) {
 						memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
-						if(ret = memberof_del_dn_type_callback(post_e, &del_data)){
+						if((ret = memberof_del_dn_type_callback(post_e, &del_data))){
 							slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"memberof_postop_modrdn - delete dn callback failed for (%s), error (%d)\n",
 								slapi_entry_get_dn(post_e), ret);
