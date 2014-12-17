@@ -186,9 +186,9 @@ sub usage {
 		open(FD,"| $modifyCfg ");
 		print(FD $modConfig);
 		close(FD);
-		$retcode = $?;
+		$retcode = $?>>8;
 		if ( $retcode != 0 ) {
-			print( STDERR "Error $retcode while modifing \"cn=config\". Exiting.\n" );
+			print( STDERR "Error $retcode while modifying \"cn=config\". Exiting.\n" );
 			exit ($retcode);
 		}
 		else {
@@ -203,6 +203,7 @@ sub usage {
 		$esc_opt_U =~ s/=/\\=/g;
 		print (STDERR "host = $opt_h, port = $opt_p, userDN = \"$norm_opt_U\"\n\n") if $opt_v;
 		$retcode = `$ldapsearch -h $opt_h -p $opt_p -b \"$norm_opt_U\" -s base \"\"`;
+		$retcode = $retcode>>8;
 		if ($retcode != 0 ) {
 			print( STDERR "the user entry $norm_opt_U does not exist. Exiting.\n");
 			exit ($retcode);
@@ -267,9 +268,9 @@ sub usage {
 		open(FD,"| $modifyCfg ");
 		print(FD $modConfig);
 		close(FD);
-		$retcode = $?;
+		$retcode = $?>>8;
 		if ( $retcode != 0 ) {
-			print( STDERR "Error $retcode while modifing $norm_opt_U. Exiting.\n" );
+			print( STDERR "Error $retcode while modifying $norm_opt_U. Exiting.\n" );
 			exit ($retcode);
 		}
 		else {
@@ -280,9 +281,9 @@ sub usage {
 		open(FD,"| $modifyCfg ");
 		print(FD $modConfig);
 		close(FD);
-		$retcode = $?;
+		$retcode = $?>>8;
 		if ( $retcode != 0 ) {
-			print( STDERR "Error $retcode while modifing \"cn=config\". Exiting.\n" );
+			print( STDERR "Error $retcode while modifying \"cn=config\". Exiting.\n" );
 			exit ($retcode);
 		}
 		else {
