@@ -31,6 +31,7 @@ BRANCH2_DN = 'ou=branch2,' + DEFAULT_SUFFIX
 GROUP_OU = 'ou=groups,' + DEFAULT_SUFFIX
 PEOPLE_OU = 'ou=people,' + DEFAULT_SUFFIX
 GROUP_DN = 'cn=group,' + DEFAULT_SUFFIX
+CONFIG_AREA = 'nsslapd-pluginConfigArea'
 
 '''
    Functional tests for each plugin
@@ -85,6 +86,35 @@ def test_dependency(inst, plugin):
 
 ################################################################################
 #
+# Wait for task to complete
+#
+################################################################################
+def wait_for_task(conn, task_dn):
+    finished = False
+    count = 0
+    while count < 60:
+        try:
+            task_entry = conn.search_s(task_dn, ldap.SCOPE_BASE, 'objectclass=*')
+            if not task_entry:
+                log.fatal('wait_for_task: Search failed to find task: ' + task_dn)
+                assert False
+            if task_entry[0].hasAttr('nstaskexitcode'):
+                # task is done
+                finished = True
+                break
+        except ldap.LDAPError, e:
+            log.fatal('wait_for_task: Search failed: ' + e.message['desc'])
+            assert False
+
+        time.sleep(1)
+        count += 1
+    if not finished:
+        log.error('wait_for_task: Task (%s) did not complete!' % task_dn)
+        assert False
+
+
+################################################################################
+#
 # Test Account Policy Plugin (0)
 #
 ################################################################################
@@ -97,6 +127,7 @@ def test_acctpolicy(inst, args=None):
         return True
 
     CONFIG_DN = 'cn=config,cn=Account Policy Plugin,cn=plugins,cn=config'
+
     log.info('Testing ' + PLUGIN_ACCT_POLICY + '...')
 
     ############################################################################
@@ -123,23 +154,12 @@ def test_acctpolicy(inst, args=None):
         log.error('test_acctpolicy: Failed to add config entry: error ' + e.message['desc'])
         assert False
 
-    # Now set the config entry in the plugin entry
-    #try:
-    #    inst.modify_s('cn=' + PLUGIN_ACCT_POLICY + ',cn=plugins,cn=config',
-    #                  [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', CONFIG_DN)])
-    #except ldap.LDAPError, e:
-    #    log.error('test_acctpolicy: Failed to set config entry in plugin entry: error ' + e.message['desc'])
-    #    assert False
-
     ############################################################################
     # Test plugin
     ############################################################################
 
-    # !!!! acctpolicy does have have a dse callabck to check for live updates - restart plugin for now !!!!
-    inst.plugins.disable(name=PLUGIN_ACCT_POLICY)
-    inst.plugins.enable(name=PLUGIN_ACCT_POLICY)
-
     # Add an entry
+    time.sleep(1)
     try:
         inst.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
                                  'sn': '1',
@@ -154,10 +174,11 @@ def test_acctpolicy(inst, args=None):
     try:
         inst.simple_bind_s(USER1_DN, "password")
     except ldap.LDAPError, e:
-        log.error('test_acctpolicy:Failed to bind as user1: ' + e.message['desc'])
+        log.error('test_acctpolicy: Failed to bind as user1: ' + e.message['desc'])
         assert False
 
     # Bind as Root DN
+    time.sleep(1)
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError, e:
@@ -185,14 +206,11 @@ def test_acctpolicy(inst, args=None):
         log.error('test_acctpolicy: Failed to modify config entry: error ' + e.message['desc'])
         assert False
 
-    # !!!! must restart for now !!!!!
-    inst.plugins.disable(name=PLUGIN_ACCT_POLICY)
-    inst.plugins.enable(name=PLUGIN_ACCT_POLICY)
-
     ############################################################################
     # Test plugin
     ############################################################################
 
+    time.sleep(1)
     # login as user
     try:
         inst.simple_bind_s(USER1_DN, "password")
@@ -200,6 +218,7 @@ def test_acctpolicy(inst, args=None):
         log.error('test_acctpolicy: Failed to bind(2nd) as user1: ' + e.message['desc'])
         assert False
 
+    time.sleep(1)
     # Bind as Root DN
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
@@ -498,7 +517,7 @@ def test_automember(inst, args=None):
         log.error('test_automember: Failed to user3 to branch2: error ' + e.message['desc'])
         assert False
 
-    # Check the group - uniquemember sahould not exist
+    # Check the group - uniquemember should not exist
     try:
         entries = inst.search_s(GROUP_DN, ldap.SCOPE_BASE,
                                 '(uniquemember=' + BUSER3_DN + ')')
@@ -512,9 +531,10 @@ def test_automember(inst, args=None):
     # Enable plugin
     inst.plugins.enable(name=PLUGIN_AUTOMEMBER)
 
+    TASK_DN = 'cn=task-' + str(int(time.time())) + ',cn=automember rebuild membership,cn=tasks,cn=config'
     # Add the task
     try:
-        inst.add_s(Entry(('cn=task-' + str(int(time.time())) + ',cn=automember rebuild membership,cn=tasks,cn=config', {
+        inst.add_s(Entry((TASK_DN, {
                           'objectclass': 'top extensibleObject'.split(),
                           'basedn': 'ou=branch2,' + DEFAULT_SUFFIX,
                           'filter': 'objectclass=top'})))
@@ -522,7 +542,7 @@ def test_automember(inst, args=None):
         log.error('test_automember: Failed to add task: error ' + e.message['desc'])
         assert False
 
-    time.sleep(3)  # Wait for the task to do its work
+    wait_for_task(inst, TASK_DN)
 
     # Verify the fixup task worked
     try:
@@ -722,7 +742,7 @@ def test_dna(inst, args=None):
     try:
         inst.delete_s(USER1_DN)
     except ldap.LDAPError, e:
-        log.error('test_automember: Failed to delete test entry1: ' + e.message['desc'])
+        log.error('test_dna: Failed to delete test entry1: ' + e.message['desc'])
         assert False
 
     inst.plugins.disable(name=PLUGIN_DNA)
@@ -914,32 +934,11 @@ def test_linkedattrs(inst, args=None):
         log.fatal('test_linkedattrs: Search for user1 failed: ' + e.message['desc'])
         assert False
 
-    # Verify that the task does not work yet(not until we enable the plugin)
-    try:
-        inst.add_s(Entry(('cn=task-' + str(int(time.time())) + ',cn=fixup linked attributes,cn=tasks,cn=config', {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': DEFAULT_SUFFIX,
-                          'filter': '(objectclass=top)'})))
-    except ldap.LDAPError, e:
-        log.error('test_linkedattrs: Failed to add task: error ' + e.message['desc'])
-        assert False
-
-    time.sleep(3)  # Wait for the task to do, or not do, its work
-
-    # The entry should still not have a manager attribute
-    try:
-        entries = inst.search_s(USER2_DN, ldap.SCOPE_BASE, '(manager=*)')
-        if entries:
-            log.fatal('test_linkedattrs: user2 incorrectly has a "manager" attr')
-            assert False
-    except ldap.LDAPError, e:
-        log.fatal('test_linkedattrs: Search for user2 failed: ' + e.message['desc'])
-        assert False
-
     # Enable the plugin and rerun the task entry
     inst.plugins.enable(name=PLUGIN_LINKED_ATTRS)
 
     # Add the task again
+    TASK_DN = 'cn=task-' + str(int(time.time())) + ',cn=fixup linked attributes,cn=tasks,cn=config'
     try:
         inst.add_s(Entry(('cn=task-' + str(int(time.time())) + ',cn=fixup linked attributes,cn=tasks,cn=config', {
                           'objectclass': 'top extensibleObject'.split(),
@@ -949,7 +948,7 @@ def test_linkedattrs(inst, args=None):
         log.error('test_linkedattrs: Failed to add task: error ' + e.message['desc'])
         assert False
 
-    time.sleep(3)  # Wait for the task to do its work
+    wait_for_task(inst, TASK_DN)
 
     # Check if user2 now has a manager attribute now
     try:
@@ -1011,6 +1010,7 @@ def test_memberof(inst, args=None):
         return
 
     PLUGIN_DN = 'cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config'
+    SHARED_CONFIG_DN = 'cn=memberOf Config,' + DEFAULT_SUFFIX
 
     log.info('Testing ' + PLUGIN_MEMBER_OF + '...')
 
@@ -1048,6 +1048,16 @@ def test_memberof(inst, args=None):
         log.error('test_memberof: Failed to add group: error ' + e.message['desc'])
         assert False
 
+    try:
+        inst.add_s(Entry((SHARED_CONFIG_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'memberofgroupattr': 'member',
+                          'memberofattr': 'memberof'
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to shared config entry: error ' + e.message['desc'])
+        assert False
+
     # Check if the user now has a "memberOf" attribute
     try:
         entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
@@ -1069,7 +1079,7 @@ def test_memberof(inst, args=None):
     try:
         entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
         if entries:
-            log.fatal('test_memberof: user1 incorrect has memberOf attr')
+            log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
     except ldap.LDAPError, e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
@@ -1116,7 +1126,173 @@ def test_memberof(inst, args=None):
     try:
         entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
         if entries:
-            log.fatal('test_memberof: user1 incorrect has memberOf attr')
+            log.fatal('test_memberof: user1 incorrectly has memberOf attr')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
+        assert False
+
+    ############################################################################
+    # Set the shared config entry and test the plugin
+    ############################################################################
+
+    # The shared config entry uses "member" - the above test uses "uniquemember"
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, CONFIG_AREA, SHARED_CONFIG_DN)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to set plugin area: error ' + e.message['desc'])
+        assert False
+
+    # Delete the test entries then readd them to start with a clean slate
+    try:
+        inst.delete_s(USER1_DN)
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to delete test entry1: ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.delete_s(GROUP_DN)
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to delete test group: ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.add_s(Entry((USER1_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'uid': 'user1'
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to add user1: error ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.add_s(Entry((GROUP_DN, {
+                          'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
+                          'cn': 'group',
+                          'member': USER1_DN
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to add group: error ' + e.message['desc'])
+        assert False
+
+    # Test the shared config
+    # Check if the user now has a "memberOf" attribute
+    try:
+        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
+        if not entries:
+            log.fatal('test_memberof: user1 missing memberOf')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
+        assert False
+
+    # Remove "member" should remove "memberOf" from the entry
+    try:
+        inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'member', None)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to delete member: error ' + e.message['desc'])
+        assert False
+
+    # Check that "memberOf" was removed
+    try:
+        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
+        if entries:
+            log.fatal('test_memberof: user1 incorrectly has memberOf attr')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
+        assert False
+
+    ############################################################################
+    # Change the shared config entry to use 'uniquemember' and test the plugin
+    ############################################################################
+
+    try:
+        inst.modify_s(SHARED_CONFIG_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to set shared plugin entry(uniquemember): error '
+            + e.message['desc'])
+        assert False
+
+    try:
+        inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'uniquemember', USER1_DN)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
+        assert False
+
+    # Check if the user now has a "memberOf" attribute
+    try:
+        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
+        if not entries:
+            log.fatal('test_memberof: user1 missing memberOf')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
+        assert False
+
+    # Remove "uniquemember" should remove "memberOf" from the entry
+    try:
+        inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'uniquemember', None)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to delete member: error ' + e.message['desc'])
+        assert False
+
+    # Check that "memberOf" was removed
+    try:
+        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
+        if entries:
+            log.fatal('test_memberof: user1 incorrectly has memberOf attr')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
+        assert False
+
+    ############################################################################
+    # Remove shared config from plugin, and retest
+    ############################################################################
+
+    # First change the plugin to use member before we move the shared config that uses uniquemember
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member')])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to update config(uniquemember): error ' + e.message['desc'])
+        assert False
+
+    # Remove shared config from plugin
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, CONFIG_AREA, None)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'member', USER1_DN)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
+        assert False
+
+    # Check if the user now has a "memberOf" attribute
+    try:
+        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
+        if not entries:
+            log.fatal('test_memberof: user1 missing memberOf')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
+        assert False
+
+    # Remove "uniquemember" should remove "memberOf" from the entry
+    try:
+        inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'member', None)])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to delete member: error ' + e.message['desc'])
+        assert False
+
+    # Check that "memberOf" was removed
+    try:
+        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
+        if entries:
+            log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
     except ldap.LDAPError, e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
@@ -1127,6 +1303,13 @@ def test_memberof(inst, args=None):
     ############################################################################
 
     inst.plugins.disable(name=PLUGIN_MEMBER_OF)
+
+    # First change the plugin to use uniquemember
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to update config(uniquemember): error ' + e.message['desc'])
+        assert False
 
     # Add uniquemember, should not update USER1
     try:
@@ -1145,36 +1328,12 @@ def test_memberof(inst, args=None):
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
-    # Run fixup task while plugin disabled - should not add "memberOf
-    # Verify that the task does not work yet(not until we enable the plugin)
-    try:
-        inst.add_s(Entry(('cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK, {
-                          'objectclass': 'top extensibleObject'.split(),
-                          'basedn': DEFAULT_SUFFIX,
-                          'filter': 'objectclass=top'})))
-    except ldap.NO_SUCH_OBJECT:
-        pass
-    except ldap.LDAPError, e:
-        log.error('test_memberof: Failed to add task: error ' + e.message['desc'])
-        assert False
-
-    time.sleep(3)  # Wait for the task to do, or not do, its work
-
-    # Check for "memberOf"
-    try:
-        entries = inst.search_s(USER1_DN, ldap.SCOPE_BASE, '(memberOf=*)')
-        if entries:
-            log.fatal('test_memberof: user1 incorrectly has memberOf attr')
-            assert False
-    except ldap.LDAPError, e:
-        log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
-        assert False
-
     # Enable the plugin, and run the task
     inst.plugins.enable(name=PLUGIN_MEMBER_OF)
 
+    TASK_DN = 'cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK
     try:
-        inst.add_s(Entry(('cn=task-' + str(int(time.time())) + ',' + DN_MBO_TASK, {
+        inst.add_s(Entry((TASK_DN, {
                           'objectclass': 'top extensibleObject'.split(),
                           'basedn': DEFAULT_SUFFIX,
                           'filter': 'objectclass=top'})))
@@ -1182,7 +1341,7 @@ def test_memberof(inst, args=None):
         log.error('test_memberof: Failed to add task: error ' + e.message['desc'])
         assert False
 
-    time.sleep(3)  # Wait for the task to do its work
+    wait_for_task(inst, TASK_DN)
 
     # Check for "memberOf"
     try:
@@ -1214,6 +1373,12 @@ def test_memberof(inst, args=None):
         inst.delete_s(GROUP_DN)
     except ldap.LDAPError, e:
         log.error('test_memberof: Failed to delete test group: ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.delete_s(SHARED_CONFIG_DN)
+    except ldap.LDAPError, e:
+        log.error('test_memberof: Failed to delete shared config entry: ' + e.message['desc'])
         assert False
 
     ############################################################################
@@ -1285,9 +1450,6 @@ def test_mep(inst, args=None):
     except ldap.LDAPError, e:
         log.error('test_mep: Failed to add template entry: error ' + e.message['desc'])
         assert False
-
-   # log.info('geb.....')
-  #  time.sleep(30)
 
     # Add the config entry
     try:
@@ -1456,19 +1618,10 @@ def test_passthru(inst, args=None):
     # Create second instance
     passthru_inst = DirSrv(verbose=False)
 
-    #if installation1_prefix:
-    #    args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Args for the master1 instance
-    """
-    args_instance[SER_HOST] = '127.0.0.1'
-    args_instance[SER_PORT] = '33333'
-    args_instance[SER_SERVERID_PROP] = 'passthru'
-    """
-    args_instance[SER_HOST] = 'localhost.localdomain'
+    # Args for the instance
+    args_instance[SER_HOST] = LOCALHOST
     args_instance[SER_PORT] = 33333
     args_instance[SER_SERVERID_PROP] = 'passthru'
-
     args_instance[SER_CREATION_SUFFIX] = PASS_SUFFIX1
     args_passthru_inst = args_instance.copy()
     passthru_inst.allocate(args_passthru_inst)
@@ -1615,6 +1768,7 @@ def test_referint(inst, args=None):
 
     log.info('Testing ' + PLUGIN_REFER_INTEGRITY + '...')
     PLUGIN_DN = 'cn=' + PLUGIN_REFER_INTEGRITY + ',cn=plugins,cn=config'
+    SHARED_CONFIG_DN = 'cn=RI Config,' + DEFAULT_SUFFIX
 
     ############################################################################
     # Configure plugin
@@ -1658,6 +1812,28 @@ def test_referint(inst, args=None):
                           })))
     except ldap.LDAPError, e:
         log.error('test_referint: Failed to add group: error ' + e.message['desc'])
+        assert False
+
+    # Grab the referint log file from the plugin
+
+    try:
+        entries = inst.search_s(PLUGIN_DN, ldap.SCOPE_BASE, '(objectclass=top)')
+        REFERINT_LOGFILE = entries[0].getValue('referint-logfile')
+    except ldap.LDAPError, e:
+        log.fatal('test_referint: Unable to search plugin entry: ' + e.message['desc'])
+        assert False
+
+    # Add shared config entry
+    try:
+        inst.add_s(Entry((SHARED_CONFIG_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'referint-membership-attr': 'member',
+                          'referint-update-delay': '0',
+                          'referint-logfile': REFERINT_LOGFILE,
+                          'referint-logchanges': '0'
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to shared config entry: error ' + e.message['desc'])
         assert False
 
     # Delete a user
@@ -1709,6 +1885,150 @@ def test_referint(inst, args=None):
         assert False
 
     ############################################################################
+    # Set the shared config entry and test the plugin
+    ############################################################################
+
+    # The shared config entry uses "member" - the above test used "uniquemember"
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, CONFIG_AREA, SHARED_CONFIG_DN)])
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to set plugin area: error ' + e.message['desc'])
+        assert False
+
+    # Delete the group, and readd everything
+    try:
+        inst.delete_s(GROUP_DN)
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to delete group: ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.add_s(Entry((USER1_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'uid': 'user1'
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to add user1: error ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.add_s(Entry((USER2_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'uid': 'user2'
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to add user2: error ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.add_s(Entry((GROUP_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'cn': 'group',
+                          'member': USER1_DN,
+                          'uniquemember': USER2_DN
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to add group: error ' + e.message['desc'])
+        assert False
+
+    # Delete a user
+    try:
+        inst.delete_s(USER1_DN)
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to delete user1: ' + e.message['desc'])
+        assert False
+
+    # Check for integrity
+    try:
+        entry = inst.search_s(GROUP_DN, ldap.SCOPE_BASE, '(member=' + USER1_DN + ')')
+        if entry:
+            log.error('test_referint: user1 was not removed from group')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
+        assert False
+
+    ############################################################################
+    # Change the shared config entry to use 'uniquemember' and test the plugin
+    ############################################################################
+
+    try:
+        inst.modify_s(SHARED_CONFIG_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'uniquemember')])
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to set shared plugin entry(uniquemember): error '
+            + e.message['desc'])
+        assert False
+
+    # Delete a user
+    try:
+        inst.delete_s(USER2_DN)
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to delete user1: ' + e.message['desc'])
+        assert False
+
+    # Check for integrity
+    try:
+        entry = inst.search_s(GROUP_DN, ldap.SCOPE_BASE, '(uniquemember=' + USER2_DN + ')')
+        if entry:
+            log.error('test_referint: user2 was not removed from group')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
+        assert False
+
+    ############################################################################
+    # Remove shared config from plugin, and retest
+    ############################################################################
+
+    # First change the plugin to use member before we move the shared config that uses uniquemember
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'member')])
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to update config(uniquemember): error ' + e.message['desc'])
+        assert False
+
+    # Remove shared config from plugin
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, CONFIG_AREA, None)])
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to add uniquemember: error ' + e.message['desc'])
+        assert False
+
+    # Add test user
+    try:
+        inst.add_s(Entry((USER1_DN, {
+                          'objectclass': 'top extensibleObject'.split(),
+                          'uid': 'user1'
+                          })))
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to add user1: error ' + e.message['desc'])
+        assert False
+
+    # Add user to group
+    try:
+        inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'member', USER1_DN)])
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to add uniquemember: error ' + e.message['desc'])
+        assert False
+
+    # Delete a user
+    try:
+        inst.delete_s(USER1_DN)
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to delete user1: ' + e.message['desc'])
+        assert False
+
+    # Check for integrity
+    try:
+        entry = inst.search_s(GROUP_DN, ldap.SCOPE_BASE, '(member=' + USER1_DN + ')')
+        if entry:
+            log.error('test_referint: user1 was not removed from group')
+            assert False
+    except ldap.LDAPError, e:
+        log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
+        assert False
+
+    ############################################################################
     # Test plugin dependency
     ############################################################################
 
@@ -1721,7 +2041,13 @@ def test_referint(inst, args=None):
     try:
         inst.delete_s(GROUP_DN)
     except ldap.LDAPError, e:
-        log.error('test_referint: Failed to delete user1: ' + e.message['desc'])
+        log.error('test_referint: Failed to delete group: ' + e.message['desc'])
+        assert False
+
+    try:
+        inst.delete_s(SHARED_CONFIG_DN)
+    except ldap.LDAPError, e:
+        log.error('test_referint: Failed to delete shared config entry: ' + e.message['desc'])
         assert False
 
     ############################################################################
@@ -1863,7 +2189,7 @@ def test_rootdn(inst, args=None):
                           'userpassword': 'password'
                           })))
     except ldap.LDAPError, e:
-        log.error('test_retrocl: Failed to add user1: error ' + e.message['desc'])
+        log.error('test_rootdn: Failed to add user1: error ' + e.message['desc'])
         assert False
 
     # Set an aci so we can modify the plugin after ew deny the root dn

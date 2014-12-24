@@ -53,9 +53,11 @@ acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id ) {
 			PLUGIN_CONFIG_DN, rc );
 		return( -1 );
 	}
-
+	config_wr_lock();
+	free_config();
 	newcfg = get_config();
 	rc = acct_policy_entry2config( config_entry, newcfg );
+	config_unlock();
 
 	slapi_entry_free( config_entry );
 
@@ -85,8 +87,8 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
 	} else if (!update_is_allowed_attr(newcfg->state_attr_name)) {
 		/* log a warning that this attribute cannot be updated */
 		slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
-							 "The configured state attribute [%s] cannot be updated, accounts will always become inactive.\n",
-							 newcfg->state_attr_name );
+			"The configured state attribute [%s] cannot be updated, accounts will always become inactive.\n",
+			newcfg->state_attr_name );
 	}
 
 	newcfg->alt_state_attr_name = get_attr_string_val( e, CFG_ALT_LASTLOGIN_STATE_ATTR );

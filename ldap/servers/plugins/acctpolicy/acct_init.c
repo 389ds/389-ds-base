@@ -63,6 +63,47 @@ int acct_postop_init( Slapi_PBlock *pb );
 int acct_bind_preop( Slapi_PBlock *pb );
 int acct_bind_postop( Slapi_PBlock *pb );
 
+static void *_PluginID = NULL;
+static Slapi_DN *_PluginDN = NULL;
+static Slapi_DN *_ConfigAreaDN = NULL;
+static Slapi_RWLock *config_rwlock = NULL;
+
+void
+acct_policy_set_plugin_id(void *pluginID)
+{
+    _PluginID = pluginID;
+}
+
+void *
+acct_policy_get_plugin_id()
+{
+    return _PluginID;
+}
+
+void
+acct_policy_set_plugin_sdn(Slapi_DN *pluginDN)
+{
+    _PluginDN = pluginDN;
+}
+
+Slapi_DN *
+acct_policy_get_plugin_sdn()
+{
+    return _PluginDN;
+}
+
+void
+acct_policy_set_config_area(Slapi_DN *sdn)
+{
+    _ConfigAreaDN = sdn;
+}
+
+Slapi_DN *
+acct_policy_get_config_area()
+{
+    return _ConfigAreaDN;
+}
+
 /*
   Master init function for the account plugin
 */
@@ -120,12 +161,30 @@ acct_policy_init( Slapi_PBlock *pb )
   which is needed to retrieve the plugin configuration
 */
 int
-acct_policy_start( Slapi_PBlock *pb ) {
+acct_policy_start( Slapi_PBlock *pb )
+{
 	acctPluginCfg *cfg;
 	void *plugin_id = get_identity();
+	Slapi_DN *plugindn = NULL;
+	char *config_area = NULL;
 
 	if(slapi_plugin_running(pb)){
 		return 0;
+	}
+
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &plugindn);
+	acct_policy_set_plugin_sdn(slapi_sdn_dup(plugindn));
+
+	/* Set the alternate config area if one is defined. */
+	slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
+	if (config_area) {
+		acct_policy_set_config_area(slapi_sdn_new_normdn_byval(config_area));
+	}
+
+	if(config_rwlock == NULL){
+		if((config_rwlock = slapi_new_rwlock()) == NULL){
+			return( CALLBACK_ERR );
+		}
 	}
 
 	/* Load plugin configuration */
@@ -151,6 +210,10 @@ acct_policy_close( Slapi_PBlock *pb )
 {
 	int rc = 0;
 
+	slapi_destroy_rwlock(config_rwlock);
+	config_rwlock = NULL;
+	slapi_sdn_free(&_PluginDN);
+	slapi_sdn_free(&_ConfigAreaDN);
 	free_config();
 
 	return rc;
@@ -168,8 +231,11 @@ acct_preop_init( Slapi_PBlock *pb ) {
 		return( CALLBACK_ERR );
 	}
 
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN,
-				(void *) acct_bind_preop ) != 0 ) {
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN, (void *) acct_bind_preop ) != 0 ||
+	     slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ADD_FN, (void *) acct_add_pre_op) != 0 ||
+	     slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODIFY_FN, (void *) acct_mod_pre_op) != 0 ||
+	     slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_DELETE_FN, (void *) acct_del_pre_op) != 0)
+	{
 		slapi_log_error( SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
 				"Failed to set plugin callback function\n" );
 		return( CALLBACK_ERR );
@@ -192,8 +258,11 @@ acct_postop_init( Slapi_PBlock *pb )
 			return( CALLBACK_ERR );
 	}
 
-	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_POST_BIND_FN,
-				(void *)acct_bind_postop ) != 0 ) {
+
+	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_POST_BIND_FN, (void *)acct_bind_postop ) != 0 ||
+	     slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN, (void *) acct_post_op) != 0 ||
+		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *) acct_post_op) != 0)
+	{
 		slapi_log_error( SLAPI_LOG_FATAL, POST_PLUGIN_NAME,
 				"Failed to set plugin callback function\n" );
 		return( CALLBACK_ERR );
@@ -208,3 +277,23 @@ acct_postop_init( Slapi_PBlock *pb )
 	return( CALLBACK_OK );
 }
 
+/*
+ * Wrappers for config locking
+ */
+void
+config_rd_lock()
+{
+	slapi_rwlock_rdlock(config_rwlock);
+}
+
+void
+config_wr_lock()
+{
+	slapi_rwlock_wrlock(config_rwlock);
+}
+
+void
+config_unlock()
+{
+	slapi_rwlock_unlock(config_rwlock);
+}

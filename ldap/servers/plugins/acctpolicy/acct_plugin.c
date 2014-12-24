@@ -28,6 +28,46 @@ Hewlett-Packard Development Company, L.P.
 #include "acctpolicy.h"
 
 /*
+ * acct_policy_dn_is_config()
+ *
+ * Checks if dn is a plugin config entry.
+ */
+static int
+acct_policy_dn_is_config(Slapi_DN *sdn)
+{
+    int ret = 0;
+
+    slapi_log_error(SLAPI_LOG_TRACE, PLUGIN_NAME,
+                    "--> automember_dn_is_config\n");
+
+    if (sdn == NULL) {
+        goto bail;
+    }
+
+    /* If an alternate config area is configured, treat it's child
+     * entries as config entries.  If the alternate config area is
+     * not configured, treat children of the top-level plug-in
+     * config entry as our config entries. */
+    if (acct_policy_get_config_area()) {
+        if (slapi_sdn_issuffix(sdn, acct_policy_get_config_area()) &&
+            slapi_sdn_compare(sdn, acct_policy_get_config_area())) {
+            ret = 1;
+        }
+    } else {
+        if (slapi_sdn_issuffix(sdn, acct_policy_get_plugin_sdn()) &&
+            slapi_sdn_compare(sdn, acct_policy_get_plugin_sdn())) {
+            ret = 1;
+        }
+    }
+
+bail:
+    slapi_log_error(SLAPI_LOG_TRACE, PLUGIN_NAME,
+                    "<-- automember_dn_is_config\n");
+
+    return ret;
+}
+
+/*
   Checks bind entry for last login state and compares current time with last
   login time plus the limit to decide whether to deny the bind.
 */
@@ -39,6 +79,7 @@ acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, a
 	int rc = 0; /* Optimistic default */
 	acctPluginCfg *cfg;
 
+	config_rd_lock();
 	cfg = get_config();
 	if( ( lasttimestr = get_attr_string_val( target_entry,
 		cfg->state_attr_name ) ) != NULL ) {
@@ -75,6 +116,7 @@ acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, a
 	}
 
 done:
+	config_unlock();
 	/* Deny bind; the account has exceeded the inactivity limit */
 	if( rc == 1 ) {
 		slapi_send_ldap_result( pb, LDAP_CONSTRAINT_VIOLATION, NULL,
@@ -106,13 +148,14 @@ acct_record_login( const char *dn )
 	Slapi_PBlock *modpb = NULL;
 	int skip_mod_attrs = 1; /* value doesn't matter as long as not NULL */
 
+	config_rd_lock();
 	cfg = get_config();
 
 	/* if we are not allowed to modify the state attr we're done
          * this could be intentional, so just return
          */
 	if (! update_is_allowed_attr(cfg->always_record_login_attr) )
-		return rc;
+		goto done;
  
 	plugin_id = get_identity();
 
@@ -152,6 +195,7 @@ acct_record_login( const char *dn )
 	}
 
 done:
+	config_unlock();
 	slapi_pblock_destroy( modpb );
 	slapi_ch_free_string( &timestr );
 
@@ -274,6 +318,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 		goto done;
 	}
 
+	config_rd_lock();
 	cfg = get_config();
 	tracklogin = cfg->always_record_login;
 
@@ -296,6 +341,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 			}
 		}
 	}
+	config_unlock();
 
 	if( tracklogin ) {
 		rc = acct_record_login( dn );
@@ -319,3 +365,133 @@ done:
 
 	return( rc == 0 ? CALLBACK_OK : CALLBACK_ERR );
 }
+
+static int acct_pre_op( Slapi_PBlock *pb, int modop )
+{
+	Slapi_DN *sdn = 0;
+	Slapi_Entry *e = 0;
+	Slapi_Mods *smods = 0;
+	LDAPMod **mods;
+	int free_entry = 0;
+	char *errstr = NULL;
+	int ret = SLAPI_PLUGIN_SUCCESS;
+
+	slapi_log_error(SLAPI_LOG_TRACE, PRE_PLUGIN_NAME, "--> acct_pre_op\n");
+
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+
+	if (acct_policy_dn_is_config(sdn)) {
+		/* Validate config changes, but don't apply them.
+		 * This allows us to reject invalid config changes
+		 * here at the pre-op stage.  Applying the config
+		 * needs to be done at the post-op stage. */
+
+		if (LDAP_CHANGETYPE_ADD == modop) {
+			slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
+
+			/* If the entry doesn't exist, just bail and
+			 * let the server handle it. */
+			if (e == NULL) {
+				goto bail;
+			}
+		} else if (LDAP_CHANGETYPE_MODIFY == modop) {
+			/* Fetch the entry being modified so we can
+			 * create the resulting entry for validation. */
+			if (sdn) {
+				slapi_search_internal_get_entry(sdn, 0, &e, get_identity());
+				free_entry = 1;
+			}
+
+			/* If the entry doesn't exist, just bail and
+			 * let the server handle it. */
+			if (e == NULL) {
+				goto bail;
+			}
+
+			/* Grab the mods. */
+			slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
+			smods = slapi_mods_new();
+			slapi_mods_init_byref(smods, mods);
+
+			/* Apply the  mods to create the resulting entry. */
+			if (mods && (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS)) {
+				/* The mods don't apply cleanly, so we just let this op go
+				 * to let the main server handle it. */
+				goto bailmod;
+			}
+		} else if (modop == LDAP_CHANGETYPE_DELETE){
+				ret = LDAP_UNWILLING_TO_PERFORM;
+				slapi_log_error(SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
+					"acct_pre_op: can not delete plugin config entry [%d]\n", ret);
+		} else {
+			errstr = slapi_ch_smprintf("acct_pre_op: invalid op type %d", modop);
+			ret = LDAP_PARAM_ERROR;
+			goto bail;
+		}
+	}
+
+	bailmod:
+	/* Clean up smods. */
+	if (LDAP_CHANGETYPE_MODIFY == modop) {
+		slapi_mods_free(&smods);
+	}
+
+	bail:
+	if (free_entry && e)
+		slapi_entry_free(e);
+
+	if (ret) {
+		slapi_log_error(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+						"acct_pre_op: operation failure [%d]\n", ret);
+		slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
+		slapi_ch_free((void **)&errstr);
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
+		ret = SLAPI_PLUGIN_FAILURE;
+	}
+
+	slapi_log_error(SLAPI_LOG_TRACE, PRE_PLUGIN_NAME, "<-- acct_pre_op\n");
+
+	return ret;
+}
+
+int
+acct_add_pre_op( Slapi_PBlock *pb )
+{
+	return acct_pre_op(pb, LDAP_CHANGETYPE_ADD);
+}
+
+int
+acct_mod_pre_op( Slapi_PBlock *pb )
+{
+	return acct_pre_op(pb, LDAP_CHANGETYPE_MODIFY);
+}
+
+int
+acct_del_pre_op( Slapi_PBlock *pb )
+{
+	return acct_pre_op(pb, LDAP_CHANGETYPE_DELETE);
+}
+
+int
+acct_post_op(Slapi_PBlock *pb)
+{
+	Slapi_DN *sdn = NULL;
+
+	slapi_log_error(SLAPI_LOG_TRACE, POST_PLUGIN_NAME,
+		"--> acct_policy_post_op\n");
+
+	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+	if (acct_policy_dn_is_config(sdn)){
+		if( acct_policy_load_config_startup( pb, get_identity() ) ) {
+			slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
+				"acct_policy_start failed to load configuration\n" );
+			return( CALLBACK_ERR );
+		}
+	}
+
+	slapi_log_error(SLAPI_LOG_TRACE, POST_PLUGIN_NAME,
+		"<-- acct_policy_mod_post_op\n");
+
+	return SLAPI_PLUGIN_SUCCESS;
+}
+

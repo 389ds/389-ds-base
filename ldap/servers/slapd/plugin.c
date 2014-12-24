@@ -454,10 +454,21 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
 	{
 		/* We stash the pblock plugin pointer to preserve the callers context */
 		struct slapdplugin *p;
+		int locked = 0;
+
+		locked = slapi_td_get_plugin_locked();
+		if (!locked) {
+			slapi_rwlock_rdlock(global_rwlock);
+		}
+
 		slapi_pblock_get(pb, SLAPI_PLUGIN, &p);
 		/* Call the operation on the Global Plugins */
 		rc = plugin_call_list(global_plugin_list[plugin_list_number], whichfunction, pb);
 		slapi_pblock_set(pb, SLAPI_PLUGIN, p);
+
+		if (!locked) {
+			slapi_rwlock_unlock(global_rwlock);
+		}
 	}
 	else
 	{
@@ -1080,12 +1091,6 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 	int ret = 0;
 	int i = 0;
 
-	/*
-	 * Disable registered plugin functions so preops/postops/etc
-	 * dont get called prior to the plugin being started (due to
-	 * plugins performing ops on the DIT)
-	 */
-	global_plugin_callbacks_enabled = 0;
 	global_plugins_started = 0;
 
 	/* Count the plugins so we can allocate memory for the config array */
@@ -1404,6 +1409,7 @@ plugin_free_plugin_dep_config(plugin_dep_config **cfg)
 			}
 			slapi_ch_free_string(&config[index].type);
 			slapi_ch_free_string(&config[index].name);
+			slapi_ch_free_string(&config[index].config_area);
 			pblock_done(&config[index].pb);
 			index++;
 		}
@@ -1909,16 +1915,6 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 	int	rc;
 	int return_value = 0;
 	int count = 0;
-	int *locked = 0;
-
-	/*
-	 *  Take the read lock
-	 */
-	slapi_td_get_plugin_locked(&locked);
-	if(locked == 0){
-		slapi_rwlock_rdlock(global_rwlock);
-	}
-
 
 	for (; list != NULL; list = list->plg_next)
 	{
@@ -1997,9 +1993,6 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 
 		if(call_one)
 			break;
-	}
-	if(locked == 0){
-		slapi_rwlock_unlock(global_rwlock);
 	}
 
 	return( return_value );
@@ -2323,6 +2316,7 @@ plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
 	}
 
 	slapi_rwlock_wrlock(global_rwlock);
+	slapi_td_set_plugin_locked();
 
     if(plugin_delete(pentryBefore, returntext, 1) == LDAP_SUCCESS){
     	if(plugin_add(pentryAfter, returntext, 1) == LDAP_SUCCESS){
@@ -2346,6 +2340,7 @@ plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
     }
 
     slapi_rwlock_unlock(global_rwlock);
+    slapi_td_set_plugin_unlocked();
 
     return rc;
 }
@@ -2995,12 +2990,11 @@ int
 plugin_add(Slapi_Entry *entry, char *returntext, int locked)
 {
     int rc = LDAP_SUCCESS;
-    int td_locked = 1;
 
     if(!locked){
         slapi_rwlock_wrlock(global_rwlock);
+        slapi_td_set_plugin_locked();
     }
-    slapi_td_set_plugin_locked(&td_locked);
 
     if((rc = plugin_setup(entry, 0, 0, 1, returntext)) != LDAP_SUCCESS){
         LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_add: plugin_setup failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
@@ -3015,9 +3009,8 @@ plugin_add(Slapi_Entry *entry, char *returntext, int locked)
 done:
     if(!locked){
         slapi_rwlock_unlock(global_rwlock);
+        slapi_td_set_plugin_unlocked();
     }
-    td_locked = 0;
-    slapi_td_set_plugin_locked(&td_locked);
 
     return rc;
 }
@@ -3372,7 +3365,6 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
     struct slapdplugin *plugin = NULL;
     const char *plugin_dn = slapi_entry_get_dn_const(plugin_entry);
     char *value = NULL;
-    int td_locked = 1;
     int removed = PLUGIN_BUSY;
     int type = 0;
     int rc = LDAP_SUCCESS;
@@ -3400,8 +3392,8 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
             removed = PLUGIN_NOT_FOUND;
             if(!locked){
                 slapi_rwlock_wrlock(global_rwlock);
+                slapi_td_set_plugin_locked();
             }
-            slapi_td_set_plugin_locked(&td_locked);
 
             rc = plugin_get_type_and_list(value, &type, &plugin_list);
             if ( rc != 0 ) {
@@ -3445,9 +3437,8 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
 unlock:
             if(!locked){
                 slapi_rwlock_unlock(global_rwlock);
+                slapi_td_set_plugin_unlocked();
             }
-            td_locked = 0;
-            slapi_td_set_plugin_locked(&td_locked);
         }
     }
 

@@ -146,7 +146,7 @@ def test_ticket47560(topology):
             Enable or disable mbo plugin depending on 'value' ('on'/'off')
         """
         # enable/disable the mbo plugin
-        if value != 'on':
+        if value == 'on':
             topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
         else:
             topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)

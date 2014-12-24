@@ -168,19 +168,38 @@ slapi_td_plugin_lock_init()
 }
 
 int
-slapi_td_set_plugin_locked(int *value)
+slapi_td_set_plugin_locked()
 {
-    if(slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void *)value) == PR_FAILURE){
+    int val = 12345;
+
+    if(slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void *)&val) == PR_FAILURE){
         return PR_FAILURE;
     }
 
     return PR_SUCCESS;
 }
 
-void
-slapi_td_get_plugin_locked(int **value)
+int
+slapi_td_set_plugin_unlocked()
 {
-    slapi_td_get_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void **)value);
+    if(slapi_td_set_val(SLAPI_TD_PLUGIN_LIST_LOCK, NULL) == PR_FAILURE){
+        return PR_FAILURE;
+    }
+
+    return PR_SUCCESS;
+}
+
+int
+slapi_td_get_plugin_locked()
+{
+    int *value = 0;
+
+    slapi_td_get_val(SLAPI_TD_PLUGIN_LIST_LOCK, (void **)&value);
+    if(value){
+        return 1;
+    } else{
+        return 0;
+    }
 }
 
 /* requestor dn */
