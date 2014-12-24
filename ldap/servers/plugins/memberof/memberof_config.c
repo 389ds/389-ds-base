@@ -867,7 +867,6 @@ memberof_shared_config_validate(Slapi_PBlock *pb)
 							}
 							slapi_ch_free_string(&configarea_dn);
 							slapi_sdn_free(&config_sdn);
-							slapi_entry_free(config_entry);
 						}
 					}
 				}

@@ -82,7 +82,8 @@ get_attr_string_val( Slapi_Entry* target_entry, char* attr_name ) {
 */
 int
 get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
-		acctPolicy **policy ) {
+		acctPolicy **policy )
+{
 	Slapi_DN *sdn = NULL;
 	Slapi_Entry *policy_entry = NULL;
 	Slapi_Attr *attr;
@@ -93,8 +94,6 @@ get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
 	acctPluginCfg *cfg;
     int rc = 0;
 
-	cfg = get_config();
-
 	if( policy == NULL ) {
 		/* Bad parameter */
 		return( -1 );
@@ -102,19 +101,22 @@ get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
 
 	*policy = NULL;
 
+	config_rd_lock();
+	cfg = get_config();
 	/* Return success and NULL policy */
 	policy_dn = get_attr_string_val( target_entry, cfg->spec_attr_name );
 	if( policy_dn == NULL ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"\"%s\" is not governed by an account inactivity "
 				"policy subentry\n", slapi_entry_get_ndn( target_entry ) );
-        if (cfg->inactivitylimit != ULONG_MAX) {
-            goto dopolicy;
-        }
+		if (cfg->inactivitylimit != ULONG_MAX) {
+			goto dopolicy;
+		}
 		slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"\"%s\" is not governed by an account inactivity "
 				"global policy\n", slapi_entry_get_ndn( target_entry ) );
-        return rc;
+		config_unlock();
+		return rc;
 	}
 
 	sdn = slapi_sdn_new_dn_byref( policy_dn );
@@ -153,7 +155,8 @@ dopolicy:
 		}
 	}
 done:
-    slapi_ch_free_string( &policy_dn );
+	config_unlock();
+	slapi_ch_free_string( &policy_dn );
 	slapi_entry_free( policy_entry );
 	return( rc );
 }

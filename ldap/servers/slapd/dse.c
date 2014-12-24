@@ -2426,8 +2426,6 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         }
     }
 
-    /* entry has been freed, so make sure no one tries to use it later */
-    slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
     slapi_send_ldap_result(pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
     return dse_add_return(rc, e);
 }

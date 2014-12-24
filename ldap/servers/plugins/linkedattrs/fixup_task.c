@@ -197,8 +197,8 @@ linked_attrs_fixup_task_thread(void *arg)
     linked_attrs_unlock();
 
 	/* Log finished message. */
-	slapi_task_log_notice(task, "Linked attributes fixup task complete.\n");
-	slapi_task_log_status(task, "Linked attributes fixup task complete.\n");
+	slapi_task_log_notice(task, "Linked attributes fixup task complete.");
+	slapi_task_log_status(task, "Linked attributes fixup task complete.");
 	slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM, "Linked attributes fixup task complete.\n");
 	slapi_task_inc_progress(task);
 

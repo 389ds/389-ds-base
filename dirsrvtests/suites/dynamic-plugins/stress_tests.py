@@ -21,6 +21,7 @@ from constants import *
 log = logging.getLogger(__name__)
 
 NUM_USERS = 250
+GROUP_DN = 'cn=stress-group,' + DEFAULT_SUFFIX
 
 
 def openConnection(inst):
@@ -55,6 +56,14 @@ def configureMO(inst):
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
     except ldap.LDAPError, e:
         log.error('configureMO: Failed to update config(uniquemember): error ' + e.message['desc'])
+        assert False
+
+
+def cleanup(conn):
+    try:
+        conn.delete_s(GROUP_DN)
+    except ldap.LDAPError, e:
+        log.error('cleanup: failed to delete group (' + GROUP_DN + ') error: ' + e.message['desc'])
         assert False
 
 
@@ -97,7 +106,6 @@ class AddUsers(threading.Thread):
         idx = 0
 
         if self.addToGroup:
-            GROUP_DN = 'cn=stress-group,' + DEFAULT_SUFFIX
             try:
                 conn.add_s(Entry((GROUP_DN,
                     {'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),

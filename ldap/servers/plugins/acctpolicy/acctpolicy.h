@@ -69,10 +69,9 @@ typedef struct accountpolicy {
 int get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry,
 	void *plugin_id, acctPolicy **policy );
 void free_acctpolicy( acctPolicy **policy );
-int has_attr( Slapi_Entry* target_entry, char* attr_name,
-	char** val );
+int has_attr( Slapi_Entry* target_entry, char* attr_name, char** val );
 char* get_attr_string_val( Slapi_Entry* e, char* attr_name );
-void* get_identity();
+void* get_identity(void);
 void set_identity(void*);
 time_t gentimeToEpochtime( char *gentimestr );
 char* epochtimeToGentime( time_t epochtime ); 
@@ -80,6 +79,22 @@ int update_is_allowed_attr (const char *attr);
 
 /* acct_config.c */
 int acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id );
-acctPluginCfg* get_config();
-void free_config();
+acctPluginCfg* get_config(void);
+void free_config(void);
+
+/* acct_init.c */
+void acct_policy_set_plugin_sdn(Slapi_DN *pluginDN);
+Slapi_DN * acct_policy_get_plugin_sdn(void);
+void acct_policy_set_config_area(Slapi_DN *sdn);
+Slapi_DN * acct_policy_get_config_area(void);
+void config_rd_lock(void);
+void config_wr_lock(void);
+void config_unlock(void);
+
+/* acc_plugins.c */
+int acct_add_pre_op( Slapi_PBlock *pb );
+int acct_mod_pre_op( Slapi_PBlock *pb );
+int acct_del_pre_op( Slapi_PBlock *pb );
+int acct_post_op( Slapi_PBlock *pb );
+
 
