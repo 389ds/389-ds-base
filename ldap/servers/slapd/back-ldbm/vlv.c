@@ -74,7 +74,10 @@ int vlv_AddSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     struct vlvSearch* newVlvSearch= vlvSearch_new();
-    backend *be = inst->inst_be;
+    backend *be = NULL;
+    if (inst) {
+        be = inst->inst_be;
+    }
     
     if (NULL == be) { /* backend is not associated */
         vlvSearch_delete(&newVlvSearch);
@@ -417,8 +420,19 @@ vlv_init(ldbm_instance *inst)
     }
 
     /* Only need to register these callbacks for SLAPD mode... */
-    if(basedn!=NULL)
+    if(basedn)
     {
+        /* In case the vlv indexes are already registered, clean them up before register them. */
+        slapi_config_remove_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_SearchIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_AddSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_AddIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifySearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODIFY,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_DeleteSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry);
+        slapi_config_remove_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry);
+
         slapi_config_register_callback(SLAPI_OPERATION_SEARCH,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_SearchIndexEntry,(void*)inst);
         slapi_config_register_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_AddSearchEntry,(void*)inst);
         slapi_config_register_callback(SLAPI_OPERATION_ADD,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_AddIndexEntry,(void*)inst);
@@ -428,7 +442,7 @@ vlv_init(ldbm_instance *inst)
         slapi_config_register_callback(SLAPI_OPERATION_DELETE,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_DeleteIndexEntry,(void*)inst);
         slapi_config_register_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,searchfilter,vlv_ModifyRDNSearchEntry,(void*)inst);
         slapi_config_register_callback(SLAPI_OPERATION_MODRDN,DSE_FLAG_PREOP,basedn,scope,indexfilter,vlv_ModifyRDNIndexEntry,(void*)inst);
-		slapi_ch_free_string(&basedn);
+        slapi_ch_free_string(&basedn);
     }
 
 out:
@@ -438,8 +452,8 @@ out:
 /* Removes callbacks from above when  instance is removed. */
 
 int 
-vlv_remove_callbacks(ldbm_instance *inst) {
-
+vlv_remove_callbacks(ldbm_instance *inst)
+{
     int return_value= LDAP_SUCCESS;
     int scope= LDAP_SCOPE_SUBTREE;
     char *basedn = NULL;
