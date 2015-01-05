@@ -3054,25 +3054,19 @@ static int cos_cache_attr_compare(const void *e1, const void *e2)
 	int com_Result;
 	cosAttributes *pAttr = (*(cosAttributes**)e1);
 	cosTemplates *pTemplate = (cosTemplates*)pAttr->pParent;
-    cosDefinitions *pDef = (cosDefinitions*)pTemplate->pParent;
-	cosAttrValue *pcostt = pDef->pCosTargetTree;
 	cosAttributes *pAttr1 = (*(cosAttributes**)e2);
 	cosTemplates *pTemplate1 = (cosTemplates*)pAttr1->pParent;
-	cosDefinitions *pDef1 = (cosDefinitions*)pTemplate1->pParent;
-    cosAttrValue *pcostt1 = pDef1->pCosTargetTree;
         
 	/* Now compare the names of the attributes */
 	com_Result = slapi_utf8casecmp((unsigned char*)(*(cosAttributes**)e1)->pAttrName,(unsigned char*)(*(cosAttributes**)e2)->pAttrName);
+	if(0 == com_Result){
+		/* Now compare the cosPriorities */
+		com_Result = pTemplate->cosPriority - pTemplate1->cosPriority;
+	}
 	if(0 == com_Result)
-	/* Now compare the definition Dn parents */
-      com_Result = slapi_utf8casecmp((unsigned char*)pcostt1->val,(unsigned char*)pcostt->val);   
-	  if(0 == com_Result)
-	/* Now compare the cosPririoties */     
-	     com_Result = pTemplate->cosPriority - pTemplate1->cosPriority;
-	/* Now compare the prirority */ 
-		  if(0 == com_Result)
-	            return -1;   
-		  return com_Result;
+		return -1;
+
+	return com_Result;
 }
 
 static int cos_cache_string_compare(const void *e1, const void *e2)
