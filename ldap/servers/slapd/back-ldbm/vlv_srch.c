@@ -572,6 +572,7 @@ vlvIndex_delete(struct vlvIndex** ppvs)
             }
         }
         internal_ldap_free_sort_keylist((*ppvs)->vlv_sortkey);
+        dblayer_erase_index_file_nolock((*ppvs)->vlv_be, (*ppvs)->vlv_attrinfo, 1 /* chkpt if not busy */);
         attrinfo_delete(&((*ppvs)->vlv_attrinfo));
         slapi_ch_free((void**)&((*ppvs)->vlv_name));
         slapi_ch_free((void**)&((*ppvs)->vlv_filename));
@@ -618,7 +619,7 @@ vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const 
         {
             if(p->vlv_sortkey[n]->sk_matchruleoid!=NULL)
             {
-				create_matchrule_indexer(&p->vlv_mrpb[n],p->vlv_sortkey[n]->sk_matchruleoid,p->vlv_sortkey[n]->sk_attrtype);
+                create_matchrule_indexer(&p->vlv_mrpb[n],p->vlv_sortkey[n]->sk_matchruleoid,p->vlv_sortkey[n]->sk_attrtype);
             }
 
         }
@@ -632,7 +633,7 @@ vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const 
 
         /* Create an attrinfo structure */
         p->vlv_attrinfo->ai_type= slapi_ch_smprintf("%s%s",file_prefix,filename);
-    	p->vlv_attrinfo->ai_indexmask= INDEX_VLV;
+        p->vlv_attrinfo->ai_indexmask= INDEX_VLV;
 
         /* Check if the index file actually exists */
         if(li!=NULL)
@@ -657,14 +658,14 @@ vlvIndex_get_indexlength(struct vlvIndex* p, DB *db, back_txn *txn)
 
     if(!p->vlv_indexlength_cached)
     {
-       	DBC *dbc = NULL;
-    	DB_TXN	*db_txn = NULL;
+        DBC *dbc = NULL;
+        DB_TXN *db_txn = NULL;
         int err= 0;
-		if (NULL != txn)
+        if (NULL != txn)
         {
-			db_txn = txn->back_txn_txn;
+            db_txn = txn->back_txn_txn;
         }
-       	err = db->cursor(db, db_txn, &dbc, 0);
+        err = db->cursor(db, db_txn, &dbc, 0);
         if(err==0)
         {
             DBT key= {0};
@@ -924,7 +925,7 @@ vlvIndex_createfilename(struct vlvIndex* pIndex, char **ppc)
     *p= '\0';
     if(strlen(filename)==0)
     {
-       	LDAPDebug( LDAP_DEBUG_ANY, "Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", pIndex->vlv_name, 0, 0);
+        LDAPDebug( LDAP_DEBUG_ANY, "Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", pIndex->vlv_name, 0, 0);
         filenameValid= 0;
     }
     /* JCM: Check if this file clashes with another VLV Index filename */

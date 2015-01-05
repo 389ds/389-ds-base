@@ -718,15 +718,15 @@ typedef struct _modify_context modify_context;
 
 /* This structure was moved here from dblayer.c because the ldbm_instance 
  * structure uses the dblayer_handle structure.  */
-struct tag_dblayer_handle; typedef struct tag_dblayer_handle dblayer_handle;
 struct tag_dblayer_handle
 {
 	DB*	dblayer_dbp;
 	PRLock *dblayer_lock;	/* used when anyone wants exclusive access to a file */
-	dblayer_handle *dblayer_handle_next;
+	struct tag_dblayer_handle *dblayer_handle_next;
 	void **dblayer_handle_ai_backpointer; /* Voodo magic pointer to the place where we store a 
 											pointer to this handle in the attrinfo structure */
 };
+typedef struct tag_dblayer_handle dblayer_handle;
 
 /* This structure was moved here from perfctrs.c so the ldbm_instance structure
  * could use it. */

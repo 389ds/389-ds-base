@@ -2740,7 +2740,7 @@ int dblayer_close_indexes(backend *be)
         pDB = handle->dblayer_dbp;
         return_value |= pDB->close(pDB,0);
         next = handle->dblayer_handle_next;
-        *(handle->dblayer_handle_ai_backpointer) = NULL;
+        *((dblayer_handle **)handle->dblayer_handle_ai_backpointer) = NULL;
         slapi_ch_free((void**)&handle);
     }
 
@@ -3341,39 +3341,32 @@ int dblayer_get_index_file(backend *be, struct attrinfo *a, DB** ppDB, int open_
                                    a, &pDB);
   if (0 == return_value) {
       /* Opened it OK */
-      dblayer_handle *handle = (dblayer_handle *) 
-        slapi_ch_calloc(1, sizeof(dblayer_handle));
-      
-      if (NULL == handle) {
-        /* Memory allocation failed */
-        return_value = -1;
-      } else {
-        dblayer_handle *prev_handle = inst->inst_handle_tail;
+      dblayer_handle *handle = (dblayer_handle *)slapi_ch_calloc(1, sizeof(dblayer_handle));
+      dblayer_handle *prev_handle = inst->inst_handle_tail;
         
-        PR_ASSERT(NULL != pDB);
-        /* Store the returned DB* in our own private list of
-         * open files */
-        if (NULL == prev_handle) {
+      PR_ASSERT(NULL != pDB);
+      /* Store the returned DB* in our own private list of
+       * open files */
+      if (NULL == prev_handle) {
           /* List was empty */
           inst->inst_handle_tail = handle;
           inst->inst_handle_head = handle;
-        } else {
+      } else {
           /* Chain the handle onto the last structure in the
            * list */
           inst->inst_handle_tail = handle;
           prev_handle->dblayer_handle_next = handle;
-        }
-        /* Stash a pointer to our wrapper structure in the
-         * attrinfo structure */
-        handle->dblayer_dbp = pDB;
-        /* And, most importantly, return something to the caller!*/
-        *ppDB = pDB;
-        /* and save the hande in the attrinfo structure for
-         * next time */
-        a->ai_dblayer = handle;
-        /* don't need to update count -- we incr'd it already */
-        handle->dblayer_handle_ai_backpointer = &(a->ai_dblayer);
       }
+      /* Stash a pointer to our wrapper structure in the
+       * attrinfo structure */
+      handle->dblayer_dbp = pDB;
+      /* And, most importantly, return something to the caller!*/
+      *ppDB = pDB;
+      /* and save the hande in the attrinfo structure for
+       * next time */
+      a->ai_dblayer = handle;
+      /* don't need to update count -- we incr'd it already */
+      handle->dblayer_handle_ai_backpointer = &(a->ai_dblayer);
   } else {
     /* Did not open it OK ! */
     /* Do nothing, because return value and fact that we didn't
@@ -3445,10 +3438,10 @@ dblayer_db_remove(dblayer_private_env * env, char const path[], char const dbNam
 int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
                                 PRBool use_lock, int no_force_checkpoint)
 {
-  struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
-  dblayer_private *priv = (dblayer_private*) li->li_dblayer_private;
-  struct dblayer_private_env *pEnv = priv->dblayer_env;
-  ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+  struct ldbminfo *li = NULL;
+  dblayer_private *priv = NULL;
+  struct dblayer_private_env *pEnv = NULL;
+  ldbm_instance *inst = NULL;
   dblayer_handle *handle = NULL;
   char dbName[MAXPATHLEN];
   char *dbNamep;
@@ -3457,9 +3450,25 @@ int dblayer_erase_index_file_ex(backend *be, struct attrinfo *a,
   int rc = 0;
   DB *db = 0;
 
-  if (NULL == pEnv)        /* db does not exist */
+  if ((NULL == be) || (NULL == be->be_database)) {
     return rc;
- 
+  }
+  inst = (ldbm_instance *)be->be_instance_info;
+  if (NULL == inst) {
+    return rc;
+  }
+  li = (struct ldbminfo *)be->be_database->plg_private;
+  if (NULL == li) {
+    return rc;
+  }
+  priv = (dblayer_private*)li->li_dblayer_private;
+  if (NULL == priv) {
+    return rc;
+  }
+  pEnv = priv->dblayer_env;
+  if (NULL == pEnv) {      /* db does not exist */
+    return rc;
+  }
   /* Added for bug 600401. Somehow the checkpoint thread deadlocked on
      index file with this function, index file couldn't be removed on win2k.
      Force a checkpoint here to break deadlock.
