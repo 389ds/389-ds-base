@@ -108,7 +108,8 @@ static const char *internal_entries[] =
 	"nsSSLSessionTimeout:0\n"
 	"nsSSLClientAuth:allowed\n"
 	"nsSSL2:off\n"
-	"nsSSL3:off\n",
+	"nsSSL3:off\n"
+	"nsTLS1:on\n",
 
     "dn:cn=monitor\n"
     "objectclass:top\n"
