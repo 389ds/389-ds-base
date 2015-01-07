@@ -260,7 +260,7 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 
 /* cosDefinitions manipulation */
 static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_cacheable);
-static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs, int *vattr_cacheable);
+static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs);
 static int cos_cache_add_defn(cosDefinitions **pDefs, cosAttrValue **dn, int cosType, cosAttrValue **tree, cosAttrValue **tmpDn, cosAttrValue **spec, cosAttrValue **pAttrs, cosAttrValue **pOverrides, cosAttrValue **pOperational, cosAttrValue **pCosMerge, cosAttrValue **pCosOpDefault);
 static int cos_cache_entry_is_cos_related( Slapi_Entry *e);
 
@@ -619,9 +619,9 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_build_definition_list\n",0,0,0);
 
 	/*
-		the class of service definitions may be anywhere in the DIT,
-		so our first task is to find them.
-	*/
+	 * The class of service definitions may be anywhere in the DIT,
+	 * so our first task is to find them.
+	 */
 
 	attrs[0] = "namingcontexts";
 	attrs[1] = 0;
@@ -629,9 +629,9 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 	LDAPDebug( LDAP_DEBUG_PLUGIN, "cos: Building class of service cache after status change.\n",0,0,0);
 
 	/*
-	 * XXXrbyrne: this looks really ineficient--should be using
+	 * XXXrbyrne: this looks really inefficient--should be using
 	 * slapi_get_next_suffix(), rather than searching for namingcontexts.
-	*/
+	 */
 
 	pSuffixSearch = slapi_search_internal("",LDAP_SCOPE_BASE,"(objectclass=*)",NULL,attrs,0);
 	if(pSuffixSearch)
@@ -671,19 +671,21 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 							{
 								/* here's a suffix, lets search it... */
 								if(suffixVals[valIndex]->bv_val)
-									if(!cos_cache_add_dn_defs(suffixVals[valIndex]->bv_val ,pDefs, vattr_cacheable))
+								{
+									if(!cos_cache_add_dn_defs(suffixVals[valIndex]->bv_val ,pDefs))
+									{
+										*vattr_cacheable = -1;
 										cos_def_available = 1;
-								
+										break;
+									}
+								}
 								valIndex++;
 							}
-
-
 							ber_bvecfree( suffixVals );
 							suffixVals = NULL;
 						}
 					}
 				}
-
 			} while(!slapi_entry_next_attr(pSuffixList[suffixIndex], suffixAttr, &suffixAttr));
 		}
 		suffixIndex++;
@@ -708,7 +710,6 @@ next:
 		slapi_free_search_results_internal(pSuffixSearch);
 		slapi_pblock_destroy(pSuffixSearch);
 	}
-
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_cache_build_definition_list\n",0,0,0);
 	return ret;
@@ -750,10 +751,6 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 	char *norm_dn = NULL;
 	info=(struct dn_defs_info *)callback_data;
 	
-			
-	/* assume cacheable */
-	info->vattr_cacheable = -1;
-
 	cos_cache_add_attrval(&pDn, slapi_entry_get_dn(e));
 	if(slapi_entry_first_attr(e, &dnAttr)) {
 		goto bail;
@@ -1076,7 +1073,7 @@ bail:
 
 #define DN_DEF_FILTER "(&(|(objectclass=cosSuperDefinition)(objectclass=cosDefinition))(objectclass=ldapsubentry))"
 
-static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs, int *vattr_cacheable)
+static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs)
 {
 	Slapi_PBlock *pDnSearch = 0;
 	struct dn_defs_info info = {NULL, 0, 0};
@@ -1084,7 +1081,6 @@ static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs, int *vattr_ca
 	if (pDnSearch) {
 		info.ret=-1; /* assume no good defs */
 		info.pDefs=pDefs;
-		info.vattr_cacheable = 0; /* assume not cacheable */
 		slapi_search_internal_set_pb(pDnSearch, dn, LDAP_SCOPE_SUBTREE,
 									 DN_DEF_FILTER,NULL,0,
 									 NULL,NULL,cos_get_plugin_identity(),0);
@@ -1095,8 +1091,6 @@ static int cos_cache_add_dn_defs(char *dn, cosDefinitions **pDefs, int *vattr_ca
 								  NULL /* referral_callback */);
 		slapi_pblock_destroy (pDnSearch);
 	}
-
-	*vattr_cacheable = info.vattr_cacheable;
 
 	return info.ret;
 }
