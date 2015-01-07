@@ -79,6 +79,24 @@
 #define MAXPATHLEN 1024
 #endif
 
+#if NSS_VMAJOR * 100 + NSS_VMINOR >= 315
+/* TLS1.2 is defined in RFC5246. */
+#define NSS_TLS12 1
+#elif NSS_VMAJOR * 100 + NSS_VMINOR >= 314
+/* TLS1.1 is defined in RFC4346. */
+#define NSS_TLS11 1
+#else
+#define NSS_TLS10 1
+#endif
+
+#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
+static SSLVersionRange enabledNSSVersions;
+static SSLVersionRange slapdNSSVersions;
+#endif
+
+/* E.g., "SSL3", "TLS1.2", "Unknown SSL version: 0x0" */
+#define VERSION_STR_LENGTH 64
+
 extern char* slapd_SSL3ciphers;
 extern symbol_t supported_ciphers[];
 
@@ -165,6 +183,12 @@ static cipherstruct _conf_ciphers[] = {
     /*{"TLS","tls_dhe_dss_1024_des_sha", TLS_DHE_DSS_EXPORT1024_WITH_DES_CBC_SHA}, */
     {"TLS","tls_dhe_dss_1024_rc4_sha", TLS_RSA_EXPORT1024_WITH_RC4_56_SHA},
     {"TLS","tls_dhe_dss_rc4_128_sha", TLS_DHE_DSS_WITH_RC4_128_SHA},
+#if defined(NSS_TLS12)
+    /* New in NSS 3.15 */
+    {"tls_rsa_aes_128_gcm_sha",             "TLS_RSA_WITH_AES_128_GCM_SHA256"},
+    {"tls_dhe_rsa_aes_128_gcm_sha",         "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"},
+    {"tls_dhe_dss_aes_128_gcm_sha",         NULL}, /* not available */
+#endif
     {NULL, NULL, 0}
 };
 
@@ -524,6 +548,54 @@ warn_if_no_key_file(const char *dir, int no_log)
     return ret;
 }
 
+#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
+/* 
+ * If non NULL buf and positive bufsize is given,
+ * the memory is used to store the version string.
+ * Otherwise, the memory for the string is allocated.
+ * The latter case, caller is responsible to free it.
+ */
+char *
+slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize)
+{
+    char *vstr = buf;
+    if (vnum >= SSL_LIBRARY_VERSION_3_0) {
+        if (vnum == SSL_LIBRARY_VERSION_3_0) { /* SSL3 */
+            if (buf && bufsize) { 
+                PR_snprintf(buf, bufsize, "SSL3"); 
+            } else { 
+                vstr = slapi_ch_smprintf("SSL3"); 
+            } 
+        } else { /* TLS v X.Y */
+            const char *TLSFMT = "TLS%d.%d";
+            int minor_offset = 0; /* e.g. 0x0401 -> TLS v 2.1, not 2.0 */
+
+            if ((vnum & SSL_LIBRARY_VERSION_3_0) == SSL_LIBRARY_VERSION_3_0) {
+                minor_offset = 1; /* e.g. 0x0301 -> TLS v 1.0, not 1.1 */
+            }
+            if (buf && bufsize) { 
+                PR_snprintf(buf, bufsize, TLSFMT, (vnum >> 8) - 2, (vnum & 0xff) - minor_offset); 
+            } else { 
+                vstr = slapi_ch_smprintf(TLSFMT, (vnum >> 8) - 2, (vnum & 0xff) - minor_offset); 
+            }
+        }
+    } else if (vnum == SSL_LIBRARY_VERSION_2) { /* SSL2 */
+        if (buf && bufsize) {
+            PR_snprintf(buf, bufsize, "SSL2");
+        } else {
+            vstr = slapi_ch_smprintf("SSL2");
+        }
+    } else {
+        if (buf && bufsize) {
+            PR_snprintf(buf, bufsize, "Unknown SSL version: 0x%x", vnum); 
+        } else {
+            vstr = slapi_ch_smprintf("Unknown SSL version: 0x%x", vnum);
+        }
+    }
+    return vstr;
+}
+#endif
+
 /*
  * slapd_nss_init() is always called from main(), even if we do not
  * plan to listen on a secure port.  If config_available is 0, the
@@ -548,6 +620,17 @@ slapd_nss_init(int init_ssl, int config_available)
 	char *certdb_file_name = NULL;
 	char *keydb_file_name = NULL;
 	char *secmoddb_file_name = NULL;
+#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
+	char emin[VERSION_STR_LENGTH], emax[VERSION_STR_LENGTH];
+	/* Get the range of the supported SSL version */
+	SSL_VersionRangeGetSupported(ssl_variant_stream, &enabledNSSVersions);
+	
+	(void) slapi_getSSLVersion_str(enabledNSSVersions.min, emin, sizeof(emin));
+	(void) slapi_getSSLVersion_str(enabledNSSVersions.max, emax, sizeof(emax));
+	slapi_log_error(SLAPI_LOG_CONFIG, "SSL Initialization",
+	                "supported range by NSS: min: %s, max: %s\n",
+	                emin, emax);
+#endif
 
 	/* set in slapd_bootstrap_config,
 	   thus certdir is available even if config_available is false */
@@ -879,9 +962,13 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     char* tmpDir;
     Slapi_Entry *e = NULL;
     PRBool enableSSL2 = PR_FALSE;
-    PRBool enableSSL3 = PR_TRUE;
+    PRBool enableSSL3 = PR_FALSE;
     PRBool enableTLS1 = PR_TRUE;
     PRBool fipsMode = PR_FALSE;
+#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
+    PRUint16 NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
+    PRUint16 NSSVersionMax = enabledNSSVersions.max;
+#endif
 
     /* turn off the PKCS11 pin interactive mode */
 #ifndef _WIN32
@@ -1226,23 +1313,54 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         }
         slapi_ch_free_string( &val );
     }
-    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, enableSSL3);
-    if (sslStatus != SECSuccess) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to %s SSLv3 "
-               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-               enableSSL3 ? "enable" : "disable",
-               errorCode, slapd_pr_strerror(errorCode));
-    }
+#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
+    if (NSSVersionMin > 0) {
+        char mymin[VERSION_STR_LENGTH], mymax[VERSION_STR_LENGTH];
+        /* Use new NSS API SSL_VersionRangeSet (NSS3.14 or newer) */
+        if (enableTLS1) {
+            NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
+        }
+        if (enableSSL3) {
+            NSSVersionMin = SSL_LIBRARY_VERSION_3_0;
+        }
+        slapdNSSVersions.min = NSSVersionMin;
+        slapdNSSVersions.max = NSSVersionMax;
+        (void) slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
+        (void) slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
+        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                        "Configured SSL version range: min: %s, max: %s\n",
+                        mymin, mymax);
+        sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
+        if (sslStatus == SECSuccess) {
+            /* Set the restricted value to the cn=encryption entry */
+        } else {
+            slapd_SSL_error("SSL Initialization 2: "
+                            "Failed to set SSL range: min: %s, max: %s\n",
+                            mymin, mymax);
+        }
+    } else {
+#endif
+        /* deprecated code */
+        sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, enableSSL3);
+        if (sslStatus != SECSuccess) {
+            errorCode = PR_GetError();
+            slapd_SSL_warn("Security Initialization: Failed to %s SSLv3 "
+                   "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                   enableSSL3 ? "enable" : "disable",
+                   errorCode, slapd_pr_strerror(errorCode));
+        }
 
-    sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_TLS, enableTLS1);
-    if (sslStatus != SECSuccess) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to %s TLSv1 "
-               "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-               enableTLS1 ? "enable" : "disable",
-               errorCode, slapd_pr_strerror(errorCode));
+        sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_TLS, enableTLS1);
+        if (sslStatus != SECSuccess) {
+            errorCode = PR_GetError();
+            slapd_SSL_warn("Security Initialization: Failed to %s TLSv1 "
+                   "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                   enableTLS1 ? "enable" : "disable",
+                   errorCode, slapd_pr_strerror(errorCode));
+        }
+#if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     }
+#endif
     freeConfigEntry( &e );
 
     if(( slapd_SSLclientAuth = config_get_SSLclientAuth()) != SLAPD_SSLCLIENTAUTH_OFF ) {
