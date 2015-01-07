@@ -1326,6 +1326,25 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
 /* add.c */
 void add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e);
 
+/* ssl.c */
+/*
+ * If non NULL buf and positive bufsize is given,
+ * the memory is used to store the version string.
+ * Otherwise, the memory for the string is allocated.
+ * The latter case, caller is responsible to free it.
+ */
+/* vnum is supposed to be in one of the following:
+ * nss3/sslproto.h
+ * #define SSL_LIBRARY_VERSION_2                   0x0002
+ * #define SSL_LIBRARY_VERSION_3_0                 0x0300
+ * #define SSL_LIBRARY_VERSION_TLS_1_0             0x0301
+ * #define SSL_LIBRARY_VERSION_TLS_1_1             0x0302
+ * #define SSL_LIBRARY_VERSION_TLS_1_2             0x0303
+ * #define SSL_LIBRARY_VERSION_TLS_1_3             0x0304
+ * ...
+ */
+char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
+
 #ifdef __cplusplus
 }
 #endif

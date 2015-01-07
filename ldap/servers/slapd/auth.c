@@ -433,6 +433,7 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 	SSLChannelInfo channelInfo;
 	SSLCipherSuiteInfo cipherInfo;
 	char* subject = NULL;
+	char sslversion[64];
 
 	if ( (slapd_ssl_getChannelInfo (prfd, &channelInfo, sizeof(channelInfo))) != SECSuccess ) {
 		PRErrorCode errorCode = PR_GetError();
@@ -465,59 +466,63 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 	}
     }
 
+    (void) slapi_getSSLVersion_str(channelInfo.protocolVersion, sslversion, sizeof(sslversion));
     if (config_get_SSLclientAuth() == SLAPD_SSLCLIENTAUTH_OFF ) {
-		slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " SSL %i-bit %s\n",
-				(long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL" );
+		slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " %s %i-bit %s\n",
+		                  (long long unsigned int)conn->c_connid,
+		                  sslversion, keySize, cipher ? cipher : "NULL" );
 		goto done;
-    } 
+    }
     if (clientCert == NULL) {
-	slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " SSL %i-bit %s\n",
-			(long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL" );
+        slapi_log_access (LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " %s %i-bit %s\n",
+                          (long long unsigned int)conn->c_connid,
+                          sslversion, keySize, cipher ? cipher : "NULL" );
     } else {
-	subject = subject_of (clientCert);
-	if (!subject) {
-		slapi_log_access( LDAP_DEBUG_STATS,
-		       "conn=%" NSPRIu64 " SSL %i-bit %s; missing subject\n",
-		       (long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL");
-		goto done;
-	}
-	{
-	    char* issuer  = issuer_of (clientCert);
-	    char sbuf[ BUFSIZ ], ibuf[ BUFSIZ ];
-	    slapi_log_access( LDAP_DEBUG_STATS,
-		       "conn=%" NSPRIu64 " SSL %i-bit %s; client %s; issuer %s\n",
-		       (long long unsigned int)conn->c_connid, keySize, cipher ? cipher : "NULL",
-		       subject ? escape_string( subject, sbuf ) : "NULL",
-		       issuer  ? escape_string( issuer,  ibuf ) : "NULL");
-	    if (issuer) free (issuer);
-	}
-	slapi_dn_normalize (subject);
-	{
-	    LDAPMessage* chain = NULL;
-		char *basedn = config_get_basedn();
-		int err;
+        subject = subject_of (clientCert);
+        if (!subject) {
+            slapi_log_access( LDAP_DEBUG_STATS,
+                              "conn=%" NSPRIu64 " %s %i-bit %s; missing subject\n",
+                              (long long unsigned int)conn->c_connid,
+                              sslversion, keySize, cipher ? cipher : "NULL");
+            goto done;
+        }
+        {
+            char* issuer  = issuer_of (clientCert);
+            char sbuf[ BUFSIZ ], ibuf[ BUFSIZ ];
+            slapi_log_access( LDAP_DEBUG_STATS,
+                              "conn=%" NSPRIu64 " %s %i-bit %s; client %s; issuer %s\n",
+                              (long long unsigned int)conn->c_connid,
+                              sslversion, keySize, cipher ? cipher : "NULL",
+                              subject ? escape_string( subject, sbuf ) : "NULL",
+                              issuer  ? escape_string( issuer,  ibuf ) : "NULL");
+            if (issuer) free (issuer);
+        }
+        slapi_dn_normalize (subject);
+        {
+            LDAPMessage* chain = NULL;
+            char *basedn = config_get_basedn();
+            int err;
 
-	    err = ldapu_cert_to_ldap_entry
-	              (clientCert, internal_ld, basedn?basedn:""/*baseDN*/, &chain);
-	    if (err == LDAPU_SUCCESS && chain) {
-		LDAPMessage* entry = slapu_first_entry (internal_ld, chain);
-		if (entry) {
-		    /* clientDN is duplicated in slapu_get_dn */
-		    clientDN = slapu_get_dn (internal_ld, entry);
-		} else {
-		  
-		    extraErrorMsg = "no entry";
-		    LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %s\n",
-			       extraErrorMsg, 0, 0);
-		}
-	    } else {
-		extraErrorMsg = ldapu_err2string(err);
-	        LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
-			   err, extraErrorMsg, chain ? "" : " NULL");
-	    }
-		slapi_ch_free_string(&basedn);
-	    slapu_msgfree (internal_ld, chain);
-	}
+            err = ldapu_cert_to_ldap_entry
+                      (clientCert, internal_ld, basedn?basedn:""/*baseDN*/, &chain);
+            if (err == LDAPU_SUCCESS && chain) {
+                LDAPMessage* entry = slapu_first_entry (internal_ld, chain);
+                if (entry) {
+                    /* clientDN is duplicated in slapu_get_dn */
+                    clientDN = slapu_get_dn (internal_ld, entry);
+                } else {
+                    extraErrorMsg = "no entry";
+                    LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %s\n",
+                               extraErrorMsg, 0, 0);
+                }
+            } else {
+                extraErrorMsg = ldapu_err2string(err);
+                LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
+                           err, extraErrorMsg, chain ? "" : " NULL");
+            }
+            slapi_ch_free_string(&basedn);
+            slapu_msgfree (internal_ld, chain);
+        }
     }
 
     if (clientDN != NULL) {
@@ -525,14 +530,16 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
         sdn = slapi_sdn_new_dn_passin(clientDN);
         clientDN = slapi_ch_strdup(slapi_sdn_get_dn(sdn));
         slapi_sdn_free(&sdn);
-        slapi_log_access (LDAP_DEBUG_STATS, 
-                          "conn=%" NSPRIu64 " SSL client bound as %s\n",
-                          (long long unsigned int)conn->c_connid, clientDN);
+        slapi_log_access (LDAP_DEBUG_STATS,
+                          "conn=%" NSPRIu64 " %s client bound as %s\n",
+                          (long long unsigned int)conn->c_connid,
+                          sslversion, clientDN);
     } else if (clientCert != NULL) {
         slapi_log_access (LDAP_DEBUG_STATS,
-                          "conn=%" NSPRIu64 " SSL failed to map client "
+                          "conn=%" NSPRIu64 " %s failed to map client "
                           "certificate to LDAP DN (%s)\n",
-                          (long long unsigned int)conn->c_connid, extraErrorMsg );
+                          (long long unsigned int)conn->c_connid,
+                          sslversion, extraErrorMsg);
     }
 
 	/*
