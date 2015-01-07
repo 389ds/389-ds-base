@@ -128,6 +128,7 @@ static char * configDN = "cn=encryption,cn=config";
 
 
 static char **cipher_names = NULL;
+static char **enabled_cipher_names = NULL;
 typedef struct {
 	char *version;
     char *name;
@@ -220,7 +221,8 @@ slapd_SSL_warn(char *fmt, ...)
     va_end(args);
 }
 
-char ** getSupportedCiphers()
+char **
+getSupportedCiphers()
 {
 	SSLCipherSuiteInfo info;
 	char *sep = "::";
@@ -240,6 +242,44 @@ char ** getSupportedCiphers()
 		cipher_names[idx] = NULL;
 	}
 	return cipher_names;
+}
+
+char **
+getEnabledCiphers()
+{
+    SSLCipherSuiteInfo info;
+    char *sep = "::";
+    int number_of_ciphers = 0;
+    int x;
+    int idx = 0;
+    PRBool enabled;
+
+    /* We have to wait until the SSL initialization is done. */
+    if (!slapd_ssl_listener_is_initialized()) {
+        return NULL;
+    }
+    if ((enabled_cipher_names == NULL)) {
+        for (x = 0; _conf_ciphers[x].name; x++) {
+            SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
+            if (enabled) {
+                number_of_ciphers++;
+            }
+        }
+        enabled_cipher_names = (char **)slapi_ch_calloc((number_of_ciphers + 1), sizeof(char *));
+        for (x = 0; _conf_ciphers[x].name; x++) {
+            SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
+            if (enabled) {
+                SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[x].num,&info,sizeof(info));
+                enabled_cipher_names[idx++] = PR_smprintf("%s%s%s%s%s%s%d",
+                        _conf_ciphers[x].name,sep,
+                        info.symCipherName,sep,
+                        info.macAlgorithmName,sep,
+                        info.symKeyBits);
+            }
+        }
+    }
+
+    return enabled_cipher_names;
 }
 
 static PRBool
