@@ -76,6 +76,7 @@
 #endif  /* _WIN32 */
 
 extern char ** getSupportedCiphers();
+extern char ** getEnabledCiphers();
 
 /* Note: These DNs are no need to be normalized */
 static const char *internal_entries[] =
@@ -1696,11 +1697,12 @@ search_encryption( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_Entry *entryAfter
     struct berval           *vals[2];
     struct berval           val;
     char ** cipherList = getSupportedCiphers(); /*Get the string array of supported ciphers here */
+    char ** enabledCipherList = getEnabledCiphers(); /*Get the string array of enabled ciphers here */
     vals[0] = &val;
     vals[1] = NULL;
 
     attrlist_delete ( &entry->e_attrs, "nsSSLSupportedCiphers");
-    while (*cipherList) /* iterarate thru each of them and add to the attr value */
+    while (cipherList && *cipherList) /* iterarate thru each of them and add to the attr value */
     {
         char *cipher = *cipherList;
         val.bv_val = (char* ) cipher;
@@ -1708,6 +1710,16 @@ search_encryption( Slapi_PBlock *pb, Slapi_Entry *entry, Slapi_Entry *entryAfter
         attrlist_merge ( &entry->e_attrs, "nsSSLSupportedCiphers", vals);
         cipherList++;
     }
+
+    attrlist_delete ( &entry->e_attrs, "nsSSLEnabledCiphers");
+	while (enabledCipherList && *enabledCipherList) /* iterarate thru each of them and add to the attr value */
+	{
+	    char *cipher = *enabledCipherList;
+	    val.bv_val = (char* ) cipher;
+	    val.bv_len = strlen ( val.bv_val );
+	    attrlist_merge ( &entry->e_attrs, "nsSSLEnabledCiphers", vals);
+	    enabledCipherList++;
+	}
 
     return SLAPI_DSE_CALLBACK_OK;
 }
