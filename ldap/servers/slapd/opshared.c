@@ -86,7 +86,7 @@ int op_shared_is_allowed_attr (const char *attr_name, int replicated_op)
          * check to see if attribute is marked as one clients can't modify
          */
 
-        asi = attr_syntax_get_by_name( attr_name );
+        asi = attr_syntax_get_by_name( attr_name, 0 );
         if ( NULL != asi &&
              0 != ( asi->asi_flags & SLAPI_ATTR_FLAG_NOUSERMOD )) {
             /* this attribute is not allowed */
