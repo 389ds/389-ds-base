@@ -680,9 +680,13 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			}
 			retVal = LDAP_NO_SUCH_ATTRIBUTE;
 		}
-		if ((LDAP_MOD_REPLACE == mod_op) && replacevals && replacevals[0])
+		if ((LDAP_MOD_REPLACE == mod_op))
 		{
-			/* Create a new attribute and set the adcsn */
+			/* Create a new attribute and set the adcsn 
+                         * We need to do this always to set the deletion csn
+                         * The attribute would otherwise be created in the 
+                         * entry_add_.. function
+                         */
 			Slapi_Attr *a = slapi_attr_new();
 			slapi_attr_init(a, type);
 			attr_set_deletion_csn(a,csn); 
