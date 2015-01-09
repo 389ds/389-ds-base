@@ -175,8 +175,8 @@ slapi_attr_types_equivalent(const char *t1, const char *t2)
 		return 0;
 	}
 
-	asi1 = attr_syntax_get_by_name(t1);
-	asi2 = attr_syntax_get_by_name(t2);
+	asi1 = attr_syntax_get_by_name(t1, 0);
+	asi2 = attr_syntax_get_by_name(t2, 0);
 	if (NULL != asi1) {
 		if (NULL != asi2) {
 			/* Both found - compare normalized names */
@@ -277,7 +277,7 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 			{
 				basetype = tmp;	/* basetype was malloc'd */
 			}
-			asi = attr_syntax_get_by_name_locking_optional(basetype, use_lock);
+			asi = attr_syntax_get_by_name_locking_optional(basetype, use_lock, 0);
 		}
 		if(NULL == asi)
 		{
@@ -288,7 +288,7 @@ slapi_attr_init_locking_optional(Slapi_Attr *a, const char *type, PRBool use_loc
 			 * attribute type that has that syntax.
 			 */
 			asi = attr_syntax_get_by_name_locking_optional(
-					ATTR_WITH_OCTETSTRING_SYNTAX, use_lock);
+					ATTR_WITH_OCTETSTRING_SYNTAX, use_lock, 0);
 		}
 		else
 		{

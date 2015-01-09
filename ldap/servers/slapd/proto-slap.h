@@ -117,7 +117,7 @@ void attr_syntax_write_lock(void);
 void attr_syntax_unlock_read(void);
 void attr_syntax_unlock_write(void);
 int attr_syntax_exists (const char *attr_name);
-void attr_syntax_delete ( struct asyntaxinfo *asip );
+void attr_syntax_delete ( struct asyntaxinfo *asip, PRUint32 schema_flags );
 #define SLAPI_SYNTAXLENGTH_NONE		(-1)	/* for syntaxlength parameter */
 int attr_syntax_create( const char *attr_oid, char *const*attr_names,
 		int num_names, const char *attr_desc, const char *attr_superior,
@@ -126,15 +126,17 @@ int attr_syntax_create( const char *attr_oid, char *const*attr_names,
 		const char *attr_syntax, int syntaxlength, unsigned long flags,
 		struct asyntaxinfo **asip );
 void attr_syntax_free( struct asyntaxinfo *a );
-int attr_syntax_add( struct asyntaxinfo *asip );
+int attr_syntax_add( struct asyntaxinfo *asip, PRUint32 schema_flags );
 char *attr_syntax_normalize_no_lookup( const char *s );
 void attr_syntax_enumerate_attrs(AttrEnumFunc aef, void *arg, PRBool writelock);
 void attr_syntax_all_clear_flag( unsigned long flag );
 void attr_syntax_delete_all_not_flagged( unsigned long flag );
-struct asyntaxinfo *attr_syntax_get_by_oid ( const char *oid );
-struct asyntaxinfo *attr_syntax_get_by_name ( const char *name );
-struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name, PRBool use_lock );
+struct asyntaxinfo *attr_syntax_get_by_oid ( const char *oid, PRUint32 schema_flags );
+struct asyntaxinfo *attr_syntax_get_by_name ( const char *name, PRUint32 schema_flags );
 struct asyntaxinfo *attr_syntax_get_by_name_with_default ( const char *name );
+struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name, PRBool use_lock, PRUint32 schema_flags );
+struct asyntaxinfo *attr_syntax_get_global_at();
+void attr_syntax_swap_ht(void);
 /*
  * Call attr_syntax_return() when you are done using a value returned
  * by attr_syntax_get_by_oid() or attr_syntax_get_by_name().

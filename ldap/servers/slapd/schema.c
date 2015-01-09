@@ -154,6 +154,8 @@ static int schema_strcmp( const char *s1, const char *s2 );
 static int schema_strcmp_array( char **sa1, char **sa2,
 		const char *ignorestr );
 static PRBool schema_type_is_interesting( const char *type );
+static void reload_schemafile_lock(void);
+static void reload_schemafile_unlock(void);
 static void schema_create_errormsg( char *errorbuf, size_t errorbufsize,
 		const char *prefix, const char *name, const char *fmt, ... )
 #ifdef __GNUC__ 
@@ -2125,7 +2127,7 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	
 	sscanf (attr_ldif, "%s name %s syntax %s",
 			psbAttrOid->buffer, psbAttrName->buffer, psbAttrSyntax->buffer);
-	if ((a = attr_syntax_get_by_name ( psbAttrName->buffer)) != NULL ) {
+	if ((a = attr_syntax_get_by_name ( psbAttrName->buffer, 0 )) != NULL ) {
 	  /* only modify attrs which were user defined */
 	  if (a->asi_flags & SLAPI_ATTR_FLAG_STD_ATTR) {
 		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
@@ -2177,7 +2179,7 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  }
 
 	  /* Delete it. */
-	  attr_syntax_delete( a );
+	  attr_syntax_delete( a, 0 );
 	  attr_syntax_return( a );
 	}
 	else {
@@ -2300,7 +2302,7 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 	}
 
 	/* check to see if the oid is already in use by an attribute */
-	if (!rc && (pasyntaxinfo = attr_syntax_get_by_oid(pnew_oc->oc_oid))) {
+	if (!rc && (pasyntaxinfo = attr_syntax_get_by_oid(pnew_oc->oc_oid, flags))) {
 		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
 				pnew_oc->oc_name,
 				"The OID \"%s\" is also used by the attribute type \"%s\"",
@@ -2419,7 +2421,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		 * handle the various cases.
 		 */
 		if ( NULL == ( oldasip =
-					attr_syntax_get_by_oid( newasip->asi_oid ))) {
+					attr_syntax_get_by_oid( newasip->asi_oid, 0 ))) {
 			/* new attribute type */
 			LDAPDebug( LDAP_DEBUG_TRACE, "schema_replace_attributes:"
 					" new type %s (OID %s)\n",
@@ -2437,14 +2439,14 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 						" replacing type %s (OID %s)\n",
 						newasip->asi_name, newasip->asi_oid, 0 );
 				/* flag for deletion */
-				attr_syntax_delete( oldasip );
+				attr_syntax_delete( oldasip, 0 );
 			}
 
 			attr_syntax_return( oldasip );
 		}
 
 		if ( NULL != newasip ) {	/* add new or replacement definition */
-			rc = attr_syntax_add( newasip );
+			rc = attr_syntax_add( newasip, 0 );
 			if ( LDAP_SUCCESS != rc ) {
 				schema_create_errormsg( errorbuf, errorbufsize,
 						schema_errprefix_at, newasip->asi_name,
@@ -3355,7 +3357,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     if (!status && (NULL != pSuperior)) {
         struct asyntaxinfo *asi_parent;
         
-        asi_parent = attr_syntax_get_by_name(pSuperior);
+        asi_parent = attr_syntax_get_by_name(pSuperior, schema_flags);
         /* if we find no match then server won't start or add the attribute type */
         if (asi_parent == NULL) {
             LDAPDebug (LDAP_DEBUG_PARSE,
@@ -3467,7 +3469,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         struct asyntaxinfo    *tmpasi;
 
         if (!(flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
-            ( NULL != ( tmpasi = attr_syntax_get_by_oid(pOid)))) {
+            ( NULL != ( tmpasi = attr_syntax_get_by_oid(pOid, schema_flags)))) {
             schema_create_errormsg( errorbuf, errorbufsize,
                 schema_errprefix_at, first_attr_name,
                 "Could not be added because the OID \"%s\" is already in use",
@@ -3490,7 +3492,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         if ( NULL != asipp ) {
             *asipp = tmpasip;    /* just return it */
         } else {                /* add the new attribute to the global store */
-            status = attr_syntax_add( tmpasip );
+            status = attr_syntax_add( tmpasip, schema_flags );
             if ( LDAP_SUCCESS != status ) {
                 if ( 0 != (flags & SLAPI_ATTR_FLAG_OVERRIDE) &&
                             LDAP_TYPE_OR_VALUE_EXISTS == status ) {
@@ -4307,6 +4309,59 @@ get_tagged_oid( const char *tag, const char **inputp,
 	return( oid );
 }
 
+/* 
+ * Reload the schema files
+ *
+ * This is only called from the schema_reload task.  The flag DSE_SCHEMA_LOCKED
+ * is also only set been called from this function.  To not interrupt clients
+ * we will  rebuild the schema in separate hash tables, and then swap the
+ * hash tables once the schema is completely reloaded.  We use the DSE_SCHEMA_LOCKED
+ * flag to tell the attribute syntax functions to use the temporary hashtables.
+ */
+int
+slapi_reload_schema_files(char *schemadir)
+{
+	int rc = LDAP_SUCCESS;
+	struct dse *my_pschemadse = NULL;
+	/* get be to lock */
+	Slapi_Backend *be = slapi_be_select_by_instance_name( DSE_SCHEMA );
+
+	if (NULL == be)
+	{
+		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
+				"schema file reload failed\n" );
+		return LDAP_LOCAL_ERROR;
+	}
+	slapi_be_Wlock(be);	/* be lock must be outer of schemafile lock */
+	reload_schemafile_lock();
+	oc_delete_all_nolock();
+	rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
+	                         DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
+	if (rc) {
+		/*
+		 * The schema has been reloaded into the temporary hash tables.
+		 * Take the write lock, wipe out the existing hash tables, and
+		 * swap in the new ones.
+		 */
+		attr_syntax_write_lock();
+		attr_syntax_delete_all_for_schemareload(SLAPI_ATTR_FLAG_KEEP);
+		attr_syntax_swap_ht();
+		attr_syntax_unlock_write();
+		slapi_reload_internal_attr_syntax();
+
+		dse_destroy(pschemadse);
+		pschemadse = my_pschemadse;
+		reload_schemafile_unlock();
+		slapi_be_Unlock(be);
+		return LDAP_SUCCESS;
+	} else {
+		reload_schemafile_unlock();
+		slapi_be_Unlock(be);
+		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
+				"schema file reload failed\n" );
+		return LDAP_LOCAL_ERROR;
+	}
+}
 
 /*
  * sprintf to `outp' the contents of `tag' followed by `oid' followed by a
@@ -4814,49 +4869,6 @@ slapi_validate_schema_files(char *schemadir)
 		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
 		                 "schema file validation failed\n" );
 		return LDAP_OBJECT_CLASS_VIOLATION;
-	}
-}
-
-/* 
- * API to reload the schema files.
- * Rule: this function is called when slapi_validate_schema_files is passed.
- *       Schema checking is skipped in this function.
- */
-int
-slapi_reload_schema_files(char *schemadir)
-{
-	int rc = LDAP_SUCCESS;
-	struct dse *my_pschemadse = NULL;
-	/* get be to lock */
-	Slapi_Backend *be = slapi_be_select_by_instance_name( DSE_SCHEMA );
-
-	if (NULL == be)
-	{
-		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
-				"schema file reload failed\n" );
-		return LDAP_LOCAL_ERROR;
-	}
-	slapi_be_Wlock(be);	/* be lock must be outer of schemafile lock */
-	reload_schemafile_lock();
-	/* Exclude attr_syntax not to grab from the hash table while cleaning up  */
-	attr_syntax_write_lock();
-	attr_syntax_delete_all_for_schemareload(SLAPI_ATTR_FLAG_KEEP);
-	oc_delete_all_nolock();
-	attr_syntax_unlock_write();
-	rc = init_schema_dse_ext(schemadir, be, &my_pschemadse,
-	                         DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_LOCKED);
-	if (rc) {
-		dse_destroy(pschemadse);
-		pschemadse = my_pschemadse;
-		reload_schemafile_unlock();
-		slapi_be_Unlock(be);
-		return LDAP_SUCCESS;
-	} else {
-		reload_schemafile_unlock();
-		slapi_be_Unlock(be);
-		slapi_log_error( SLAPI_LOG_FATAL, "schema_reload",
-				"schema file reload failed\n" );
-		return LDAP_LOCAL_ERROR;
 	}
 }
 

@@ -73,14 +73,19 @@ static Slapi_RWLock *name2asi_lock = NULL;
 #define AS_UNLOCK_READ(l)	slapi_rwlock_unlock(l)
 #define AS_UNLOCK_WRITE(l)	slapi_rwlock_unlock(l)
 
+/*
+ * For the schema reload task, we need to use separate temporary hashtables & linked lists
+ */
+static PLHashTable *oid2asi_tmp = NULL;
+static PLHashTable *name2asi_tmp = NULL;
 
 static struct asyntaxinfo *default_asi = NULL;
 
 static void *attr_syntax_get_plugin_by_name_with_default( const char *type );
 static void attr_syntax_delete_no_lock( struct asyntaxinfo *asip,
-		PRBool remove_from_oid_table );
+		PRBool remove_from_oid_table, PRUint32 schema_flags );
 static struct asyntaxinfo *attr_syntax_get_by_oid_locking_optional( const
-		char *oid, PRBool use_lock);
+		char *oid, PRBool use_lock, PRUint32 schema_flags);
 
 #ifdef ATTR_LDAP_DEBUG
 static void attr_syntax_print();
@@ -198,8 +203,6 @@ attr_syntax_check_oids()
 void
 attr_syntax_free( struct asyntaxinfo *a )
 {
-	PR_ASSERT( a->asi_refcnt == 0 );
-
 	cool_charray_free( a->asi_aliases );
 	slapi_ch_free( (void**)&a->asi_name );
 	slapi_ch_free( (void **)&a->asi_desc );
@@ -228,9 +231,9 @@ attr_syntax_new()
  * be returned by calling to attr_syntax_return().
  */
 struct asyntaxinfo *
-attr_syntax_get_by_oid(const char *oid)
+attr_syntax_get_by_oid(const char *oid, PRUint32 schema_flags)
 {
-	return attr_syntax_get_by_oid_locking_optional( oid, PR_TRUE);
+	return attr_syntax_get_by_oid_locking_optional( oid, PR_TRUE, schema_flags);
 }
 
 
@@ -243,15 +246,30 @@ attr_syntax_get_by_oid(const char *oid)
  * same use_lock parameter.
  */
 static struct asyntaxinfo *
-attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock )
+attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock, PRUint32 schema_flags )
 {
 	struct asyntaxinfo *asi = 0;
-	if (oid2asi)
+	PLHashTable *ht = oid2asi;
+	int using_tmp_ht = 0;
+
+	if (schema_flags & DSE_SCHEMA_LOCKED){
+		ht = oid2asi_tmp;
+		using_tmp_ht = 1;
+		use_lock = 0;
+	}
+	if (ht)
 	{
 		if ( use_lock ) {
 			AS_LOCK_READ(oid2asi_lock);
 		}
-		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(oid2asi, oid);
+		if (!using_tmp_ht){
+			/*
+			 * The oid2asi pointer could have been rewritten by the schema_reload task
+			 * while waiting on the lock, so grab it again.
+			 */
+			ht = oid2asi;
+		}
+		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(ht, oid);
 		if (asi)
 		{
 			PR_AtomicIncrement( &asi->asi_refcnt );
@@ -272,18 +290,22 @@ attr_syntax_get_by_oid_locking_optional( const char *oid, PRBool use_lock )
  * to worry about resource contention.
  */
 static void
-attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, int lock)
+attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, PRUint32 schema_flags, int lock)
 {
 	if (0 != attr_syntax_init()) return;
 
-	if (lock) {
-		AS_LOCK_WRITE(oid2asi_lock);
-	}
+	if(schema_flags & DSE_SCHEMA_LOCKED){
+		PL_HashTableAdd(oid2asi_tmp, oid, a);
+	} else {
+		if (lock) {
+			AS_LOCK_WRITE(oid2asi_lock);
+		}
 
-	PL_HashTableAdd(oid2asi, oid, a);
+		PL_HashTableAdd(oid2asi, oid, a);
 
-	if (lock) {
-		AS_UNLOCK_WRITE(oid2asi_lock);
+		if (lock) {
+			AS_UNLOCK_WRITE(oid2asi_lock);
+		}
 	}
 }
 
@@ -296,18 +318,19 @@ attr_syntax_add_by_oid(const char *oid, struct asyntaxinfo *a, int lock)
  * be returned by calling to attr_syntax_return().
  */
 struct asyntaxinfo *
-attr_syntax_get_by_name(const char *name)
+attr_syntax_get_by_name(const char *name, PRUint32 schema_flags)
 {
-	return attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
+	return attr_syntax_get_by_name_locking_optional(name, PR_TRUE, schema_flags);
 }
 
 struct asyntaxinfo *
 attr_syntax_get_by_name_with_default(const char *name)
 {
 	struct asyntaxinfo *asi = NULL;
-	asi = attr_syntax_get_by_name_locking_optional(name, PR_TRUE);
+
+	asi = attr_syntax_get_by_name_locking_optional(name, PR_TRUE, 0);
 	if (asi == NULL)
-		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
+		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX, 0);
 	if ( asi == NULL ) 
 		asi = default_asi;
 	return asi;
@@ -322,15 +345,30 @@ attr_syntax_get_by_name_with_default(const char *name)
  * same use_lock parameter.
  */
 struct asyntaxinfo *
-attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock)
+attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUint32 schema_flags)
 {
 	struct asyntaxinfo *asi = 0;
-	if (name2asi)
+	PLHashTable *ht = name2asi;
+	int using_tmp_ht = 0;
+
+	if (schema_flags & DSE_SCHEMA_LOCKED){
+		ht = name2asi_tmp;
+		using_tmp_ht = 1;
+		use_lock = 0;
+	}
+	if (ht)
 	{
 		if ( use_lock ) {
 			AS_LOCK_READ(name2asi_lock);
 		}
-		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, name);
+		if(!using_tmp_ht){
+			/*
+			 * The name2asi pointer could have been rewritten by the schema_reload task
+			 * while waiting on the lock, so grab it again.
+			 */
+			ht = name2asi;
+		}
+		asi = (struct asyntaxinfo *)PL_HashTableLookup_const(ht, name);
 		if ( NULL != asi ) {
 			PR_AtomicIncrement( &asi->asi_refcnt );
 		}
@@ -339,7 +377,7 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock)
 		}
 	}
 	if (!asi) /* given name may be an OID */
-		asi = attr_syntax_get_by_oid_locking_optional(name, use_lock);
+		asi = attr_syntax_get_by_oid_locking_optional(name, use_lock, schema_flags);
 
 	return asi;
 }
@@ -402,26 +440,37 @@ attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock)
  * to worry about resource contention.
  */
 static void
-attr_syntax_add_by_name(struct asyntaxinfo *a, int lock)
+attr_syntax_add_by_name(struct asyntaxinfo *a, PRUint32 schema_flags, int lock)
 {
 	if (0 != attr_syntax_init()) return;
 
-	if (lock) {
-		AS_LOCK_WRITE(name2asi_lock);
-	}
+	if (schema_flags & DSE_SCHEMA_LOCKED ){
+		PL_HashTableAdd(name2asi_tmp, a->asi_name, a);
+		if ( a->asi_aliases != NULL ) {
+			int i;
 
-	PL_HashTableAdd(name2asi, a->asi_name, a);
-	if ( a->asi_aliases != NULL ) {
-		int		i;
+			for ( i = 0; a->asi_aliases[i] != NULL; ++i ) {
+				PL_HashTableAdd(name2asi_tmp, a->asi_aliases[i], a);
+			}
+		}
+	} else {
+		if (lock) {
+			AS_LOCK_WRITE(name2asi_lock);
+		}
 
-		for ( i = 0; a->asi_aliases[i] != NULL; ++i ) {
-			PL_HashTableAdd(name2asi, a->asi_aliases[i], a);
+		PL_HashTableAdd(name2asi, a->asi_name, a);
+		if ( a->asi_aliases != NULL ) {
+			int i;
+
+			for ( i = 0; a->asi_aliases[i] != NULL; ++i ) {
+				PL_HashTableAdd(name2asi, a->asi_aliases[i], a);
+			}
+		}
+		if (lock) {
+			AS_UNLOCK_WRITE(name2asi_lock);
 		}
 	}
 
-	if (lock) {
-		AS_UNLOCK_WRITE(name2asi_lock);
-	}
 }
 
 
@@ -430,7 +479,7 @@ attr_syntax_add_by_name(struct asyntaxinfo *a, int lock)
  * and oids.
  */
 void
-attr_syntax_delete( struct asyntaxinfo *asi )
+attr_syntax_delete( struct asyntaxinfo *asi, PRUint32 schema_flags )
 {
 	PR_ASSERT( asi );
 
@@ -438,7 +487,7 @@ attr_syntax_delete( struct asyntaxinfo *asi )
 		AS_LOCK_WRITE(oid2asi_lock);
 		AS_LOCK_WRITE(name2asi_lock);
 
-		attr_syntax_delete_no_lock( asi, PR_TRUE );
+		attr_syntax_delete_no_lock( asi, PR_TRUE, schema_flags );
 
 		AS_UNLOCK_WRITE(name2asi_lock);
 		AS_UNLOCK_WRITE(oid2asi_lock);
@@ -452,19 +501,34 @@ attr_syntax_delete( struct asyntaxinfo *asi )
  */
 static void
 attr_syntax_delete_no_lock( struct asyntaxinfo *asi,
-		PRBool remove_from_oidtable )
+		PRBool remove_from_oidtable, PRUint32 schema_flags )
 {
-	int		i;
+	PLHashTable *ht = NULL;
+	int using_tmp_ht = 0;
+	int i;
 
+	if (schema_flags & DSE_SCHEMA_LOCKED){
+		using_tmp_ht = 1;
+	}
 	if (oid2asi && remove_from_oidtable ) {
-		PL_HashTableRemove(oid2asi, asi->asi_oid);
+		if (using_tmp_ht){
+			ht = oid2asi_tmp;
+		} else {
+			ht = oid2asi;
+		}
+		PL_HashTableRemove(ht, asi->asi_oid);
 	}
 
 	if(name2asi) {
-		PL_HashTableRemove(name2asi, asi->asi_name);
+		if (using_tmp_ht){
+			ht = name2asi_tmp;
+		} else {
+			ht = name2asi;
+		}
+		PL_HashTableRemove(ht, asi->asi_name);
 		if ( asi->asi_aliases != NULL ) {
 			for ( i = 0; asi->asi_aliases[i] != NULL; ++i ) {
-				PL_HashTableRemove(name2asi, asi->asi_aliases[i]);
+				PL_HashTableRemove(ht, asi->asi_aliases[i]);
 			}
 		}
 		if ( asi->asi_refcnt > 0 ) {
@@ -496,7 +560,7 @@ slapi_attr_syntax_normalize( const char *s )
 	struct asyntaxinfo *asi = NULL;
 	char *r = NULL;
 
-	if((asi=attr_syntax_get_by_name(s)) != NULL ) {
+	if((asi=attr_syntax_get_by_name(s, 0)) != NULL ) {
 		r = slapi_ch_strdup(asi->asi_name);
 		attr_syntax_return( asi );
 	}
@@ -507,7 +571,6 @@ slapi_attr_syntax_normalize( const char *s )
 	return r;
 }
 
-
 /*
  * attr_syntax_exists: return 1 if attr_name exists, 0 otherwise
  *
@@ -517,7 +580,8 @@ attr_syntax_exists(const char *attr_name)
 {
 	struct asyntaxinfo	*asi;
 
-	asi = attr_syntax_get_by_name(attr_name);
+
+	asi = attr_syntax_get_by_name(attr_name, 0);
 	attr_syntax_return( asi );
 
 	if ( asi != NULL )
@@ -686,13 +750,13 @@ attr_syntax_get_plugin_by_name_with_default( const char *type )
 	/*
 	 * first we look for this attribute type explictly
 	 */
-	if ( (asi = attr_syntax_get_by_name(type)) == NULL ) {
+	if ( (asi = attr_syntax_get_by_name(type, 0)) == NULL ) {
 		/*
 		 * no syntax for this type... return Octet String
 		 * syntax.  we accomplish this by looking up a well known
 		 * attribute type that has that syntax.
 		 */
-		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX);
+		asi = attr_syntax_get_by_name(ATTR_WITH_OCTETSTRING_SYNTAX, 0);
 		if (asi == NULL) 
 			asi = default_asi;
 	}
@@ -729,14 +793,13 @@ attr_syntax_dup( struct asyntaxinfo *a )
 	return( newas );
 }
 
-
 /*
  * Add a new attribute type to the schema.
  *
  * Returns an LDAP error code (LDAP_SUCCESS if all goes well).
  */
 int 
-attr_syntax_add( struct asyntaxinfo *asip )
+attr_syntax_add( struct asyntaxinfo *asip, PRUint32 schema_flags )
 {
 	int i, rc = LDAP_SUCCESS;
 	int nolock = asip->asi_flags & SLAPI_ATTR_FLAG_NOLOCKING;
@@ -748,7 +811,7 @@ attr_syntax_add( struct asyntaxinfo *asip )
 
 	/* make sure the oid is unique */
 	if ( NULL != ( oldas_from_oid = attr_syntax_get_by_oid_locking_optional(
-					asip->asi_oid, !nolock))) {
+					asip->asi_oid, !nolock, schema_flags))) {
 		if ( 0 == (asip->asi_flags & SLAPI_ATTR_FLAG_OVERRIDE)) {
 			/* failure - OID is in use; no override flag */
 			rc = LDAP_TYPE_OR_VALUE_EXISTS;
@@ -760,7 +823,7 @@ attr_syntax_add( struct asyntaxinfo *asip )
      * the primary name and OID point to the same schema definition.
 	 */
 	if ( NULL != ( oldas_from_name = attr_syntax_get_by_name_locking_optional(
-					asip->asi_name, !nolock))) {
+					asip->asi_name, !nolock, schema_flags))) {
 		if ( 0 == (asip->asi_flags & SLAPI_ATTR_FLAG_OVERRIDE)
 					|| ( oldas_from_oid != oldas_from_name )) {
 			/* failure; no override flag OR OID and name don't match */
@@ -768,7 +831,7 @@ attr_syntax_add( struct asyntaxinfo *asip )
 			goto cleanup_and_return;
 		}
 		/* Flag for deletion.  We are going to override this attr */
-		attr_syntax_delete(oldas_from_name);
+		attr_syntax_delete(oldas_from_name, schema_flags);
 	} else if ( NULL != oldas_from_oid ) {
 		/* failure - OID is in use but name does not exist */
 		rc = LDAP_TYPE_OR_VALUE_EXISTS;
@@ -782,11 +845,11 @@ attr_syntax_add( struct asyntaxinfo *asip )
 
 			if ( NULL != ( tmpasi =
 							attr_syntax_get_by_name_locking_optional(
-							asip->asi_aliases[i], !nolock))) {
+							asip->asi_aliases[i], !nolock, schema_flags))) {
 				if (asip->asi_flags & SLAPI_ATTR_FLAG_OVERRIDE) {
 					/* Flag for tmpasi for deletion.  It will be free'd
 					 * when attr_syntax_return is called. */
-					attr_syntax_delete(tmpasi);
+					attr_syntax_delete(tmpasi, schema_flags);
 				} else {
 					/* failure - one of the aliases is already in use */
 					rc = LDAP_TYPE_OR_VALUE_EXISTS;
@@ -805,8 +868,8 @@ attr_syntax_add( struct asyntaxinfo *asip )
 	/* ditto for the override one */
 	asip->asi_flags &= ~SLAPI_ATTR_FLAG_OVERRIDE;
 	
-	attr_syntax_add_by_oid( asip->asi_oid, asip, !nolock);
-	attr_syntax_add_by_name( asip, !nolock);
+	attr_syntax_add_by_oid( asip->asi_oid, asip, schema_flags, !nolock);
+	attr_syntax_add_by_name( asip, schema_flags, !nolock);
 
 cleanup_and_return:
 	attr_syntax_return_locking_optional( oldas_from_oid, !nolock );
@@ -979,7 +1042,7 @@ slapi_attr_type2plugin( const char *type, void **pi )
 int
 slapi_attr_get_oid( const Slapi_Attr *a, char **oid )
 {
-	struct asyntaxinfo *asi = attr_syntax_get_by_name(a->a_type);
+	struct asyntaxinfo *asi = attr_syntax_get_by_name(a->a_type, 0);
 	if (asi) {
 		*oid = asi->asi_oid;
 		attr_syntax_return(asi);
@@ -995,7 +1058,7 @@ slapi_attr_get_oid( const Slapi_Attr *a, char **oid )
 int
 slapi_attr_get_oid_copy( const Slapi_Attr *a, char **oidp )
 {
-	struct asyntaxinfo *asi = attr_syntax_get_by_name(a->a_type);
+	struct asyntaxinfo *asi = attr_syntax_get_by_name(a->a_type, 0);
 	if (asi) {
 		*oidp = slapi_ch_strdup( asi->asi_oid );
 		attr_syntax_return(asi);
@@ -1191,7 +1254,7 @@ attr_syntax_delete_if_not_flagged(struct asyntaxinfo *asip, void *arg)
 	PR_ASSERT( fi != NULL );
 
 	if ( 0 == ( asip->asi_flags & fi->asef_flag )) {
-		attr_syntax_delete_no_lock( asip, PR_FALSE );
+		attr_syntax_delete_no_lock( asip, PR_FALSE, 0 );
 		return ATTR_SYNTAX_ENUM_REMOVE;
 	} else {
 		return ATTR_SYNTAX_ENUM_NEXT;
@@ -1207,7 +1270,7 @@ attr_syntax_force_to_delete(struct asyntaxinfo *asip, void *arg)
 	fi = (struct attr_syntax_enum_flaginfo *)arg;
 	PR_ASSERT( fi != NULL );
 
-	attr_syntax_delete_no_lock( asip, PR_FALSE );
+	attr_syntax_delete_no_lock( asip, PR_FALSE, 0 );
 	return ATTR_SYNTAX_ENUM_REMOVE;
 }
 
@@ -1272,6 +1335,7 @@ attr_syntax_delete_all_for_schemareload(unsigned long flag)
 
 #define ATTR_DEFAULT_SYNTAX_OID	"1.1"
 #define ATTR_DEFAULT_SYNTAX	"defaultdirstringsyntax"
+
 static int
 attr_syntax_init(void)
 {
@@ -1288,6 +1352,14 @@ attr_syntax_init(void)
 					"slapi_new_rwlock() for oid2asi lock failed\n" );
 			return 1;
 		}
+	}
+
+	if (!oid2asi_tmp)
+	{
+		/* temporary hash table for schema reload */
+		oid2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
+		                              hashNocaseCompare,
+		                              PL_CompareValues, 0, 0);
 	}
 
 	if (!name2asi)
@@ -1310,6 +1382,14 @@ attr_syntax_init(void)
 	                                DIRSTRING_SYNTAX_OID, 
 	                                SLAPI_ATTR_FLAG_NOUSERMOD );
 	}
+	if (!name2asi_tmp)
+	{
+		/* temporary hash table for schema reload */
+		name2asi_tmp = PL_NewHashTable(2047, hashNocaseString,
+		                               hashNocaseCompare,
+		                               PL_CompareValues, 0, 0);
+	}
+
 	return 0;
 }
 
@@ -1379,7 +1459,7 @@ slapi_add_internal_attr_syntax( const char *name, const char *oid,
 			 &asip );
 
 	if ( rc == LDAP_SUCCESS ) {
-		rc = attr_syntax_add( asip );
+		rc = attr_syntax_add( asip, 0 );
 		if ( rc == LDAP_SUCCESS ) {
 			if (attr_syntax_internal_asi_add_ht(asip)) {
 				slapi_log_error(SLAPI_LOG_FATAL,
@@ -1387,6 +1467,8 @@ slapi_add_internal_attr_syntax( const char *name, const char *oid,
 				                "Failed to stash internal asyntaxinfo: %s.\n",
 				                asip->asi_name);
 			}
+		} else {
+			attr_syntax_free(asip);
 		}
 	}
 
@@ -1406,7 +1488,7 @@ attr_syntax_internal_asi_add(struct asyntaxinfo *asip, void *arg)
 	/* Copy is needed since when reloading the schema,
 	 * existing syntax info is cleaned up. */
 	asip_copy = attr_syntax_dup(asip);
-	rc = attr_syntax_add(asip_copy);
+	rc = attr_syntax_add(asip_copy, 0);
 	if (LDAP_SUCCESS != rc) {
 		attr_syntax_free(asip_copy);
 	}
@@ -1426,3 +1508,25 @@ slapi_reload_internal_attr_syntax()
 	attr_syntax_enumerate_attrs_ext(internalasi, attr_syntax_internal_asi_add, NULL);
 	return rc;
 }
+
+/*
+ * schema reload - now that we have loaded the schema into temporary
+ * hash tables, swap out the old for the new.
+ */
+void
+attr_syntax_swap_ht()
+{
+	/* Remove the old hash tables */
+	PL_HashTableDestroy(name2asi);
+	PL_HashTableDestroy(oid2asi);
+
+	/*
+	 * Swap the hash table/linked list pointers, and set the
+	 * temporary pointers to NULL
+	 */
+	name2asi = name2asi_tmp;
+	name2asi_tmp = NULL;
+	oid2asi = oid2asi_tmp;
+	oid2asi_tmp = NULL;
+}
+
