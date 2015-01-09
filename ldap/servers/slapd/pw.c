@@ -145,7 +145,7 @@ slapi_pw_find_sv(
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_pw_find value: \"%s\"\n", slapi_value_get_string(v), 0, 0 ); /* JCM Innards */
 
-    for ( i = 0; vals[i] != NULL; i++ )
+    for ( i = 0; vals && vals[i]; i++ )
     {
 		pwsp = pw_val2scheme( (char*)slapi_value_get_string(vals[i]), &valpwd, 1 ); /* JCM Innards*/
 		if ( pwsp != NULL && 
@@ -287,9 +287,12 @@ struct pw_scheme *
 pw_val2scheme( char *val, char **valpwdp, int first_is_default )
 {
 	struct pw_scheme	*pwsp;
-    int     		namelen, prefixlen;
+	int 			namelen, prefixlen;
 	char			*end, buf[ PWD_MAX_NAME_LEN + 1 ];
 
+	if (NULL == val) {
+		return( NULL );
+	}
 	if ( *val != PWD_HASH_PREFIX_START ||
 	    ( end = strchr( val, PWD_HASH_PREFIX_END )) == NULL ||
 	    ( namelen = end - val - 1 ) > PWD_MAX_NAME_LEN ) {
