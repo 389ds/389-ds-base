@@ -4324,9 +4324,16 @@ windows_generate_dn_value_mods(char *local_type, const Slapi_Attr *attr, Slapi_M
 	return ret;
 }
 
-/* Generate the mods for an update in either direction.  Be careful... the "remote" entry is the DS entry in the to_windows case, but the AD entry in the other case. */
+/* 
+ * Generate the mods for an update in either direction.  
+ */
 static int
-windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,Slapi_Entry *local_entry, int to_windows, Slapi_Mods *smods, int *do_modify)
+windows_generate_update_mods(Private_Repl_Protocol *prp,
+                             Slapi_Entry *remote_entry,
+                             Slapi_Entry *local_entry,
+                             int to_windows,
+                             Slapi_Mods *smods,
+                             int *do_modify)
 {
 	int retval = 0;
 	Slapi_Attr *attr = NULL;
@@ -4336,6 +4343,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 	int rc = 0;
 	int is_nt4 = windows_private_get_isnt4(prp->agmt);
 	const Slapi_DN *local_subtree = NULL;
+	Slapi_Entry *target_entry = NULL;
+
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
 	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
 
@@ -4352,14 +4361,16 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 
 	if (to_windows)
 	{
-		windows_is_local_entry_user_or_group(remote_entry,&is_user,&is_group);
+		windows_is_local_entry_user_or_group(local_entry,&is_user,&is_group);
+		target_entry = local_entry;
 	} else
 	{
 		windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
+		target_entry = remote_entry;
 	}
 
-	for (rc = slapi_entry_first_attr(remote_entry, &attr); rc == 0;
-	     rc = slapi_entry_next_attr(remote_entry, attr, &attr)) 
+	for (rc = slapi_entry_first_attr(target_entry, &attr); rc == 0;
+	     rc = slapi_entry_next_attr(target_entry, attr, &attr)) 
 	{
 		int is_present_local = 0;
 		char *type = NULL;
@@ -4399,7 +4410,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 		}
 
 		if (to_windows && (0 == slapi_attr_type_cmp(local_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE))) {
-			slapi_entry_attr_find(local_entry,FAKE_STREET_ATTR_NAME,&local_attr);
+			slapi_entry_attr_find(remote_entry,FAKE_STREET_ATTR_NAME,&local_attr);
 		} else {
 			slapi_entry_attr_find(local_entry,local_type,&local_attr);
 		}
@@ -4441,8 +4452,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				if (!values_equal)
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are different\n",
-					slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+					                "windows_generate_update_mods: %s, %s : values are different\n",
+					                slapi_entry_get_dn_const(local_entry), local_type);
 
 					if (to_windows && ((0 == slapi_attr_type_cmp(local_type, "streetAddress", SLAPI_TYPE_CMP_SUBTYPE)) ||
 						(0 == slapi_attr_type_cmp(local_type, "telephoneNumber", SLAPI_TYPE_CMP_SUBTYPE)) ||
@@ -4498,7 +4509,8 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,Slapi_Entry *remote_entr
 				} else
 				{
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
-					"windows_generate_update_mods: %s, %s : values are equal\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(local_entry)), local_type);
+					                "windows_generate_update_mods: %s, %s : values are equal\n", 
+					                slapi_entry_get_dn_const(local_entry), local_type);
 				}
 			} else {
 				/* A dn-valued attribute : need to take special steps */
