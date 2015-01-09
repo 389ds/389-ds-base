@@ -1536,6 +1536,8 @@ entry2str_internal_size_attrlist( const Slapi_Attr *attrlist, int entry2str_ctrl
 				 * We need to add the size for that.
 				 */
 				elen += 1 + LDIF_CSNPREFIX_MAXLENGTH + CSN_STRSIZE;
+                                /* need also space for ";deletedattribute;deleted" */
+                                elen += DELETED_ATTR_STRSIZE + DELETED_VALUE_STRSIZE;
 			}
 		}
 	}
