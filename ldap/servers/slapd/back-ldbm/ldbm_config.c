@@ -1036,7 +1036,7 @@ static int ldbm_config_db_lock_set(void *arg, void *value, char *errorbuf, int p
     if (apply) {
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_dblayer_private->dblayer_lock_config = val;
-            LDAPDebug(LDAP_DEBUG_ANY, "New db cache size will not take affect until the server is restarted\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_ANY, "New db max lock count will not take affect until the server is restarted\n", 0, 0, 0);
         } else {
             li->li_dblayer_private->dblayer_lock_config = val;
         }
@@ -1482,7 +1482,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_VERBOSE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_verbose_get, &ldbm_config_db_verbose_set, 0},
     {CONFIG_DB_DEBUG, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_debug_get, &ldbm_config_db_debug_set, 0},
     {CONFIG_DB_NAMED_REGIONS, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_named_regions_get, &ldbm_config_db_named_regions_set, 0},
-    {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, 0},
+    {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_DB_PRIVATE_MEM, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_private_mem_get, &ldbm_config_db_private_mem_set, 0},
     {CONFIG_DB_PRIVATE_IMPORT_MEM, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_private_import_mem_get, &ldbm_config_db_private_import_mem_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONDIF_DB_ONLINE_IMPORT_ENCRYPT, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_online_import_encrypt_get, &ldbm_config_db_online_import_encrypt_set, 0},
