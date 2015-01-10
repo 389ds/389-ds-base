@@ -178,6 +178,8 @@ struct dblayer_private
     PRCondVar *thread_count_cv;     /* condition variable for housekeeping thread shutdown */
     int dblayer_lockdown;           /* use DB_LOCKDOWN */
     int dblayer_lock_config;
+    int dblayer_previous_lock_config;/* Max lock count when we last shut down--
+                                      * used to determine if we delete the mpool */
     u_int32_t dblayer_deadlock_policy;    /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
     int dblayer_compactdb_interval; /* interval to execute compact id2entry dbs */
 };
