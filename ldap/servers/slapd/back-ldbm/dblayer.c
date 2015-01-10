@@ -1069,6 +1069,8 @@ static void dblayer_dump_config_tracing(dblayer_private *priv)
     LDAPDebug(LDAP_DEBUG_TRACE,"private import mem=%d\n",priv->dblayer_private_import_mem,0,0);
     LDAPDebug(LDAP_DEBUG_TRACE,"shm_key=%ld\n",priv->dblayer_shm_key,0,0);
     LDAPDebug(LDAP_DEBUG_TRACE,"lockdown=%d\n",priv->dblayer_lockdown,0,0);
+    LDAPDebug(LDAP_DEBUG_TRACE,"locks=%d\n",priv->dblayer_lock_config,0,0);
+    LDAPDebug(LDAP_DEBUG_TRACE,"previous_locks=%d\n",priv->dblayer_previous_lock_config,0,0);
     LDAPDebug(LDAP_DEBUG_TRACE,"tx_max=%d\n",priv->dblayer_tx_max,0,0);
 }
 
@@ -1597,13 +1599,24 @@ dblayer_start(struct ldbminfo *li, int dbmode)
 
     /* Is the cache being re-sized ? (If we're just doing an archive or export,
      * we don't care if the cache is being re-sized) */
-    if ( (priv->dblayer_previous_cachesize || priv->dblayer_previous_ncache) &&
-         ((priv->dblayer_cachesize != priv->dblayer_previous_cachesize) ||
-          (priv->dblayer_ncache != priv->dblayer_previous_ncache)) &&
-         !(dbmode & (DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE)) ) {
-         LDAPDebug(LDAP_DEBUG_ANY,
-                      "I'm resizing my cache now...cache was %lu and is now %lu\n",
+    if ((priv->dblayer_previous_cachesize || priv->dblayer_previous_ncache) &&
+        (priv->dblayer_previous_lock_config) &&
+        ((priv->dblayer_cachesize != priv->dblayer_previous_cachesize) ||
+         (priv->dblayer_ncache != priv->dblayer_previous_ncache) ||
+         (priv->dblayer_lock_config != priv->dblayer_previous_lock_config)) &&
+        !(dbmode & (DBLAYER_ARCHIVE_MODE|DBLAYER_EXPORT_MODE)) ) {
+        if (priv->dblayer_cachesize != priv->dblayer_previous_cachesize) {
+            LDAPDebug(LDAP_DEBUG_ANY, "resizing db cache size: %lu -> %lu\n",
                       priv->dblayer_previous_cachesize, priv->dblayer_cachesize, 0);
+        }
+        if (priv->dblayer_ncache != priv->dblayer_previous_ncache) {
+            LDAPDebug(LDAP_DEBUG_ANY, "resizing db cache count: %d -> %d\n",
+                      priv->dblayer_previous_ncache, priv->dblayer_ncache, 0);
+        }
+        if (priv->dblayer_lock_config != priv->dblayer_previous_lock_config) {
+            LDAPDebug(LDAP_DEBUG_ANY, "resizing max db lock count: %d -> %d\n",
+                      priv->dblayer_previous_lock_config, priv->dblayer_lock_config, 0);
+        }
         dblayer_reset_env(li);
         /*
          * Once pEnv->remove (via dblayer_reset_env) has been called,
@@ -4786,8 +4799,8 @@ static int commit_good_database(dblayer_private *priv)
             filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
         return -1;
     } 
-    PR_snprintf(line,sizeof(line),"cachesize:%lu\nncache:%d\nversion:%d\n",
-            priv->dblayer_cachesize, priv->dblayer_ncache, DB_VERSION_MAJOR);
+    PR_snprintf(line,sizeof(line),"cachesize:%lu\nncache:%d\nversion:%d\nlocks:%d\n",
+            (long unsigned int)priv->dblayer_cachesize, priv->dblayer_ncache, DB_VERSION_MAJOR, priv->dblayer_lock_config);
     num_bytes = strlen(line);
     return_value = slapi_write_buffer(prfd, line, num_bytes);
     if (return_value != num_bytes)
@@ -4833,6 +4846,7 @@ static int read_metadata(struct ldbminfo *li)
      * priv->dblayer_recovery_required = 0; */
     priv->dblayer_previous_cachesize = 0;
     priv->dblayer_previous_ncache = 0;
+    priv->dblayer_previous_lock_config = 0;
     /* Open the guard file and read stuff, then delete it */
     PR_snprintf(filename,sizeof(filename),"%s/guardian",priv->dblayer_home_directory);
 
@@ -4902,6 +4916,9 @@ static int read_metadata(struct ldbminfo *li)
                 number = atoi(value);
                 priv->dblayer_previous_ncache = number;
             } else if (0 == strcmp("version",attribute)) {
+            } else if (0 == strcmp("locks",attribute)) {
+                number = atoi(value);
+                priv->dblayer_previous_lock_config = number;
             }
             if (NULL == nextline || '\0' == *nextline) {
                 /* Nothing more to read */
