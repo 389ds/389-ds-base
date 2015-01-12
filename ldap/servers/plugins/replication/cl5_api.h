@@ -47,6 +47,7 @@
 
 #include "repl5.h"
 #include "repl5_prot_private.h"
+#include <errno.h>
 
 #define BDB_IMPL			"bdb"			/* changelog type */
 #define BDB_REPLPLUGIN		"libreplication-plugin" /* This backend plugin */
