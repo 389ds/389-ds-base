@@ -398,20 +398,58 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
                 }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE ) == 0 )
 				{
-					if (config_attr_value && config_attr_value[0] != '\0')
-					{
-						config.compactInterval = atoi (config_attr_value);
-					}
-					else
-					{
-						config.compactInterval = 0;
-					}
+                    char *endp = NULL;
+                    long value;
+
+                    errno = 0;
+
+                    if (config_attr_value && config_attr_value[0] != '\0')
+                    {
+                        value = strtol(config_attr_value, &endp, 10);
+
+                        if (*endp != '\0' || errno == ERANGE || value < 0 ) {
+                            if (returntext)
+                            {
+                                PR_snprintf ( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "%s: invalid value \"%s\", %s must range from 0 to %lld",
+                                              CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, config_attr_value,
+                                              CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE,
+                                              (long long int)LONG_MAX );
+                                              *returncode = LDAP_UNWILLING_TO_PERFORM;
+                                goto done;
+                            }
+                            config.compactInterval = value;
+                        }
+                    }
+                    else
+                    {
+                        config.compactInterval = 0;
+                    }
                 }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_TRIM_ATTRIBUTE ) == 0 )
                 {
+                    char *endp = NULL;
+                    long value;
+
+                    errno = 0;
+
                     if (config_attr_value && config_attr_value[0] != '\0')
                     {
-                        config.trimInterval = atoi (config_attr_value);
+                        value = strtol(config_attr_value, &endp, 10);
+
+                        if (*endp != '\0' || errno == ERANGE || value < 0 ) {
+                            if (returntext)
+                            {
+                                PR_snprintf ( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                              "%s: invalid value \"%s\", %s must range from 0 to %lld",
+                                              CONFIG_CHANGELOG_TRIM_ATTRIBUTE, config_attr_value,
+                                              CONFIG_CHANGELOG_TRIM_ATTRIBUTE,
+                                              (long long int)LONG_MAX );
+                                *returncode = LDAP_UNWILLING_TO_PERFORM;
+                                goto done;
+                            }
+                            config.trimInterval = value;
+                        }
                     }
                     else
                     {
@@ -761,7 +799,24 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	arg = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
 	if (arg)
 	{
-		config->compactInterval = atoi (arg);
+		char *endp = NULL;
+		long value;
+
+		errno = 0;
+
+		if (arg)
+		{
+			value = strtol(arg, &endp, 10);
+			if (*endp != '\0' || errno == ERANGE || value < 0 ) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+					"changelog5_extract_config: %s: invalid value \"%s\", using default value (%d)\n",
+					CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, arg,
+					CHANGELOGDB_COMPACT_INTERVAL );
+				config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
+			} else {
+				config->compactInterval = value;
+			}
+		}
 		slapi_ch_free_string(&arg);
 	}
 	else
@@ -771,7 +826,24 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
 	if (arg)
 	{
-		config->trimInterval = atoi (arg);
+		char *endp = NULL;
+		long value;
+
+		errno = 0;
+
+		if (arg)
+		{
+			value = strtol(arg, &endp, 10);
+			if (*endp != '\0' || errno == ERANGE || value < 0 ) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+					"changelog5_extract_config: %s: invalid value \"%s\", using default value (%d)\n",
+					CONFIG_CHANGELOG_TRIM_ATTRIBUTE, arg,
+					CHANGELOGDB_TRIM_INTERVAL );
+				config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
+			} else {
+				config->trimInterval = value;
+			}
+		}
 		slapi_ch_free_string(&arg);
 	}
 	else
