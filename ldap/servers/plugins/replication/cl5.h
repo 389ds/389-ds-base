@@ -56,8 +56,8 @@ typedef struct changelog5Config
 /* the changelog DB configuration parameters are defined as CL5DBConfig in cl5_api.h */
 	CL5DBConfig dbconfig;	
 	char *symmetricKey;
-	int compactInterval;
-	int trimInterval;
+	long compactInterval;
+	long trimInterval;
 }changelog5Config;
 
 /* initializes changelog*/

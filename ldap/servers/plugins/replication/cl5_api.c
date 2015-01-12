@@ -1232,6 +1232,11 @@ cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval, int 
 		s_cl5Desc.dbTrim.trimInterval = trimInterval;
 	}
 
+	/* The config was updated, notify the changelog trimming thread */
+	PR_Lock(s_cl5Desc.clLock);
+	PR_NotifyCondVar(s_cl5Desc.clCvar);
+	PR_Unlock(s_cl5Desc.clLock);
+
 	PR_Unlock (s_cl5Desc.dbTrim.lock);
 	
 	_cl5RemoveThread ();
