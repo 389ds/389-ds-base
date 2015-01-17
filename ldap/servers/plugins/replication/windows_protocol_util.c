@@ -1689,7 +1689,9 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 			windows_map_mods_for_replay(prp,op->p.p_modify.modify_mods, &mapped_mods, is_user, &password);
 			if (is_user) {
 				winsync_plugin_call_pre_ad_mod_user_mods_cb(prp->agmt,
-				                                            windows_private_get_raw_entry(prp->agmt),
+				                                            windows_private_get_raw_entry(prp->agmt)?
+				                                            windows_private_get_raw_entry(prp->agmt):
+				                                            remote_entry,
 				                                            local_dn,
 				                                            local_entry,
 				                                            op->p.p_modify.modify_mods,
@@ -1697,7 +1699,9 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 				                                            &mapped_mods);
 			} else if (is_group) {
 				winsync_plugin_call_pre_ad_mod_group_mods_cb(prp->agmt,
-				                                            windows_private_get_raw_entry(prp->agmt),
+				                                            windows_private_get_raw_entry(prp->agmt)?
+				                                            windows_private_get_raw_entry(prp->agmt):
+				                                            remote_entry,
 				                                            local_dn,
 				                                            local_entry,
 				                                            op->p.p_modify.modify_mods,
