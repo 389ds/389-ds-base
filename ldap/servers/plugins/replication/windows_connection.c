@@ -814,10 +814,6 @@ next:
 		slapi_ch_free_string(&filter_copy);
 		ldap_controls_free(serverctrls_copy);
 		serverctrls_copy = NULL;
-
-		/* clear it here in case the search fails and
-		   we are left with a bogus old entry */
-		windows_private_set_raw_entry(conn->agmt, NULL);
 		conn->last_ldap_error = ldap_rc;
 		if (NULL != res)
 		{
