@@ -893,6 +893,73 @@ class DirSrvTools(object):
         except AssertionError:
             raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" % (expectedHost, loopbackIpPattern))
 
+    @staticmethod
+    def runUpgrade(prefix, online=True):
+        '''
+        Run "setup-ds.pl --update"  We simply pass in one DirSrv isntance, and
+        this will update all the instances that are in this prefix.  For the update
+        to work we must fix/adjust the permissions of the scripts in:
+
+            /prefix/lib[64]/dirsrv/slapd-INSTANCE/
+        '''
+
+        if not prefix:
+            prefix = ''
+            # This is an RPM run - check if /lib exists, if not use /lib64
+            if os.path.isdir('/usr/lib/dirsrv'):
+                libdir = '/usr/lib/dirsrv/'
+            else:
+                if os.path.isdir('/usr/lib64/dirsrv'):
+                    libdir = '/usr/lib64/dirsrv/'
+                else:
+                    log.fatal('runUpgrade: failed to find slapd lib dir!')
+                    assert False
+        else:
+            # Standard prefix lib location
+            libdir = '/lib/dirsrv/'
+
+        # Gather all the instances so we can adjust the permissions, otherwise
+        servers = []
+        path = prefix + '/etc/dirsrv'
+        for files in os.listdir(path):
+            if files.startswith('slapd-'):
+                servers.append(prefix + libdir + files)
+
+        if len(servers) == 0:
+            # This should not happen
+            log.fatal('runUpgrade: no servers found!')
+            assert False
+
+        '''
+        The setup script calls things like /lib/dirsrv/slapd-instance/db2bak, etc,
+        and when we run the setup perl script it gets permission denied as the default
+        permissions are 750.  Adjust the permissions to 755.
+        '''
+        for instance in servers:
+            for files in os.listdir(instance):
+                os.chmod(instance + '/' +files, 755)
+
+        # Run the "upgrade"
+        try:
+            process = subprocess.Popen([prefix + '/sbin/setup-ds.pl', '--update'], shell=False, stdin=subprocess.PIPE)
+            # Answer the interactive questions, as "--update" currently does not work with INF files
+            process.stdin.write('yes\n')
+            if(online):
+                process.stdin.write('online\n')
+                for x in servers:
+                    process.stdin.write(DN_DM + '\n')
+                    process.stdin.write(PW_DM + '\n')
+            else:
+                process.stdin.write('offline\n')
+            process.stdin.close()
+            process.wait()
+            if process.returncode != 0:
+                log.fatal('runUpgrade failed!  Error: ' + process.returncode)
+                assert False
+        except:
+            log.fatal('runUpgrade failed!')
+            assert False
+
 
 class MockDirSrv(object):
     host = 'localhost'

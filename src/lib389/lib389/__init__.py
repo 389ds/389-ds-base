@@ -1987,3 +1987,13 @@ class DirSrv(SimpleLDAPObject):
 
         log.fatal('Failed to clear tmp directory (%s)' % filename)
 
+    def upgrade(self, upgradeMode):
+        """
+        @param upgradeMode - the upgrade is either "online" or "offline"
+        """
+        if upgradeMode == 'online':
+            online = True
+        else:
+            online = False
+        DirSrvTools.runUpgrade(self.prefix, online)
+
