@@ -53,9 +53,9 @@
 
  
 /* Used by SSL and DES plugin */
-#ifdef NEED_TOK_DES
-static char  tokDes[34] = "Communicator Generic Crypto Svcs";
-static char ptokDes[34] = "Internal (Software) Token        ";
+#ifdef NEED_TOK_PBE
+static char  tokPBE[34] = "Communicator Generic Crypto Svcs";
+static char ptokPBE[34] = "Internal (Software) Token        ";
 #endif
 
 /*
@@ -306,6 +306,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define	REPL_DBTAG		"repl"
 
 #define ATTR_NETSCAPEMDSUFFIX "netscapemdsuffix"
+
+#define PWD_PBE_DELIM '-'
 
 #define REFERRAL_REMOVE_CMD "remove"
 
@@ -1592,7 +1594,7 @@ struct pw_scheme {
    char    *(*pws_enc)( char *pwd );
 
    /* thread-safe decoding function (returns pointer to malloc'd string) */
-   char    *(*pws_dec)( char *pwd );
+   char    *(*pws_dec)( char *pwd, char *algid);
 };
 
 typedef struct passwordpolicyarray {

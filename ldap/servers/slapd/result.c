@@ -2083,7 +2083,8 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 			slapi_pblock_get( pb, SLAPI_OPERATION_TYPE, &optype );
 			if(optype == SLAPI_OPERATION_SEARCH && /* search, */
 			   strcmp(notes_str,"") &&  /* that's unindexed, */
-			   !(config_get_accesslog_level() & LDAP_DEBUG_ARGS)) /* and not logged in access log */
+			   !(config_get_accesslog_level() & LDAP_DEBUG_ARGS) && /* and not logged in access log */
+			   !(op->o_flags & SLAPI_OP_FLAG_IGNORE_UNINDEXED) ) /* and not ignoring unindexed search */
 			{
 				struct slapdplugin *plugin = NULL;
 				struct slapi_componentid *cid = NULL;

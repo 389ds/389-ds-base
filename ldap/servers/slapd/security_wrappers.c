@@ -409,3 +409,9 @@ PK11SymKey *slapd_pk11_TokenKeyGenWithFlags(PK11SlotInfo *slot,
 	return PK11_TokenKeyGenWithFlags(slot, type, param, keySize, keyid, 
 	                                 opFlags, attrFlags, wincx);
 }
+
+CK_MECHANISM_TYPE
+slapd_PK11_GetPBECryptoMechanism(SECAlgorithmID *algid, SECItem **params, SECItem *pwitem)
+{
+	return PK11_GetPBECryptoMechanism(algid, params, pwitem );
+}
