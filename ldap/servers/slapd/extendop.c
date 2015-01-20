@@ -361,6 +361,8 @@ do_extended( Slapi_PBlock *pb )
 
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
+	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
+	
 	rc = plugin_call_exop_plugins( pb, extoid );
 
 	if ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT != rc ) {
