@@ -396,15 +396,6 @@ libderef_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(AM_CFLAGS) $(CFLAGS) $(libderef_plugin_la_LDFLAGS) \
 	$(LDFLAGS) -o $@
-libdes_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1)
-am_libdes_plugin_la_OBJECTS =  \
-	ldap/servers/plugins/rever/libdes_plugin_la-des.lo \
-	ldap/servers/plugins/rever/libdes_plugin_la-rever.lo
-libdes_plugin_la_OBJECTS = $(am_libdes_plugin_la_OBJECTS)
-libdes_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
-	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(AM_CFLAGS) $(CFLAGS) $(libdes_plugin_la_LDFLAGS) $(LDFLAGS) \
-	-o $@
 libdistrib_plugin_la_DEPENDENCIES = libslapd.la
 am_libdistrib_plugin_la_OBJECTS =  \
 	ldap/servers/plugins/distrib/libdistrib_plugin_la-distrib.lo
@@ -548,6 +539,15 @@ libpassthru_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(AM_CFLAGS) $(CFLAGS) $(libpassthru_plugin_la_LDFLAGS) \
 	$(LDFLAGS) -o $@
+libpbe_plugin_la_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1)
+am_libpbe_plugin_la_OBJECTS =  \
+	ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo \
+	ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo
+libpbe_plugin_la_OBJECTS = $(am_libpbe_plugin_la_OBJECTS)
+libpbe_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(AM_CFLAGS) $(CFLAGS) $(libpbe_plugin_la_LDFLAGS) $(LDFLAGS) \
+	-o $@
 libposix_winsync_plugin_la_DEPENDENCIES = libslapd.la \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libposix_winsync_plugin_la_OBJECTS = ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo \
@@ -1154,14 +1154,13 @@ SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libcollation_plugin_la_SOURCES) \
 	$(libcontentsync_plugin_la_SOURCES) \
 	$(libcos_plugin_la_SOURCES) $(libderef_plugin_la_SOURCES) \
-	$(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) \
-	$(libdna_plugin_la_SOURCES) \
+	$(libdistrib_plugin_la_SOURCES) $(libdna_plugin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
 	$(liblinkedattrs_plugin_la_SOURCES) \
 	$(libmanagedentries_plugin_la_SOURCES) \
 	$(libmemberof_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
-	$(libpassthru_plugin_la_SOURCES) \
+	$(libpassthru_plugin_la_SOURCES) $(libpbe_plugin_la_SOURCES) \
 	$(libposix_winsync_plugin_la_SOURCES) \
 	$(libpresence_plugin_la_SOURCES) \
 	$(libpwdstorage_plugin_la_SOURCES) \
@@ -1190,14 +1189,13 @@ DIST_SOURCES = $(libavl_a_SOURCES) $(libldaputil_a_SOURCES) \
 	$(libcollation_plugin_la_SOURCES) \
 	$(libcontentsync_plugin_la_SOURCES) \
 	$(libcos_plugin_la_SOURCES) $(libderef_plugin_la_SOURCES) \
-	$(libdes_plugin_la_SOURCES) $(libdistrib_plugin_la_SOURCES) \
-	$(libdna_plugin_la_SOURCES) \
+	$(libdistrib_plugin_la_SOURCES) $(libdna_plugin_la_SOURCES) \
 	$(libhttp_client_plugin_la_SOURCES) \
 	$(liblinkedattrs_plugin_la_SOURCES) \
 	$(libmanagedentries_plugin_la_SOURCES) \
 	$(libmemberof_plugin_la_SOURCES) $(libns_dshttpd_la_SOURCES) \
 	$(libpam_passthru_plugin_la_SOURCES) \
-	$(libpassthru_plugin_la_SOURCES) \
+	$(libpassthru_plugin_la_SOURCES) $(libpbe_plugin_la_SOURCES) \
 	$(libposix_winsync_plugin_la_SOURCES) \
 	$(libpresence_plugin_la_SOURCES) \
 	$(libpwdstorage_plugin_la_SOURCES) \
@@ -1637,7 +1635,7 @@ server_LTLIBRARIES = libslapd.la libns-dshttpd.la
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
-	libdes-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
+	libpbe-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libcontentsync-plugin.la \
@@ -1991,7 +1989,9 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/82targetuniqueidindex.pl \
 	ldap/admin/src/scripts/90subtreerename.pl \
 	ldap/admin/src/scripts/91subtreereindex.pl \
+	ldap/admin/src/scripts/50AES-pbe-plugin.ldif\
 	ldap/admin/src/scripts/50updateconfig.ldif \
+	ldap/admin/src/scripts/52updateAESplugin.pl \
 	ldap/admin/src/scripts/dnaplugindepends.ldif
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
@@ -2363,14 +2363,14 @@ libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
-# libdes-plugin
+# libpbe-plugin
 #-----------------------
-libdes_plugin_la_SOURCES = ldap/servers/plugins/rever/des.c \
+libpbe_plugin_la_SOURCES = ldap/servers/plugins/rever/pbe.c \
 	ldap/servers/plugins/rever/rever.c
 
-libdes_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
-libdes_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
-libdes_plugin_la_LDFLAGS = -avoid-version
+libpbe_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
+libpbe_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
+libpbe_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdistrib-plugin
@@ -3596,21 +3596,6 @@ ldap/servers/plugins/deref/libderef_plugin_la-deref.lo:  \
 
 libderef-plugin.la: $(libderef_plugin_la_OBJECTS) $(libderef_plugin_la_DEPENDENCIES) $(EXTRA_libderef_plugin_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libderef_plugin_la_LINK) -rpath $(serverplugindir) $(libderef_plugin_la_OBJECTS) $(libderef_plugin_la_LIBADD) $(LIBS)
-ldap/servers/plugins/rever/$(am__dirstamp):
-	@$(MKDIR_P) ldap/servers/plugins/rever
-	@: > ldap/servers/plugins/rever/$(am__dirstamp)
-ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) ldap/servers/plugins/rever/$(DEPDIR)
-	@: > ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
-ldap/servers/plugins/rever/libdes_plugin_la-des.lo:  \
-	ldap/servers/plugins/rever/$(am__dirstamp) \
-	ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
-ldap/servers/plugins/rever/libdes_plugin_la-rever.lo:  \
-	ldap/servers/plugins/rever/$(am__dirstamp) \
-	ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
-
-libdes-plugin.la: $(libdes_plugin_la_OBJECTS) $(libdes_plugin_la_DEPENDENCIES) $(EXTRA_libdes_plugin_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libdes_plugin_la_LINK) -rpath $(serverplugindir) $(libdes_plugin_la_OBJECTS) $(libdes_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/distrib/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/distrib
 	@: > ldap/servers/plugins/distrib/$(am__dirstamp)
@@ -3900,6 +3885,21 @@ ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo:  \
 
 libpassthru-plugin.la: $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_DEPENDENCIES) $(EXTRA_libpassthru_plugin_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(libpassthru_plugin_la_LINK) -rpath $(serverplugindir) $(libpassthru_plugin_la_OBJECTS) $(libpassthru_plugin_la_LIBADD) $(LIBS)
+ldap/servers/plugins/rever/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/rever
+	@: > ldap/servers/plugins/rever/$(am__dirstamp)
+ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ldap/servers/plugins/rever/$(DEPDIR)
+	@: > ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo:  \
+	ldap/servers/plugins/rever/$(am__dirstamp) \
+	ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
+ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo:  \
+	ldap/servers/plugins/rever/$(am__dirstamp) \
+	ldap/servers/plugins/rever/$(DEPDIR)/$(am__dirstamp)
+
+libpbe-plugin.la: $(libpbe_plugin_la_OBJECTS) $(libpbe_plugin_la_DEPENDENCIES) $(EXTRA_libpbe_plugin_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(libpbe_plugin_la_LINK) -rpath $(serverplugindir) $(libpbe_plugin_la_OBJECTS) $(libpbe_plugin_la_LIBADD) $(LIBS)
 ldap/servers/plugins/posix-winsync/$(am__dirstamp):
 	@$(MKDIR_P) ldap/servers/plugins/posix-winsync
 	@: > ldap/servers/plugins/posix-winsync/$(am__dirstamp)
@@ -5441,8 +5441,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl_po.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl_rootdse.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/retrocl/$(DEPDIR)/libretrocl_plugin_la-retrocl_trim.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-des.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-rever.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-pbe.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-rever.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/roles/$(DEPDIR)/libroles_plugin_la-roles_cache.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/roles/$(DEPDIR)/libroles_plugin_la-roles_plugin.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@ldap/servers/plugins/rootdn_access/$(DEPDIR)/librootdn_access_plugin_la-rootdn_access.Plo@am__quote@
@@ -6739,20 +6739,6 @@ ldap/servers/plugins/deref/libderef_plugin_la-deref.lo: ldap/servers/plugins/der
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libderef_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/deref/libderef_plugin_la-deref.lo `test -f 'ldap/servers/plugins/deref/deref.c' || echo '$(srcdir)/'`ldap/servers/plugins/deref/deref.c
 
-ldap/servers/plugins/rever/libdes_plugin_la-des.lo: ldap/servers/plugins/rever/des.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdes_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/rever/libdes_plugin_la-des.lo -MD -MP -MF ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-des.Tpo -c -o ldap/servers/plugins/rever/libdes_plugin_la-des.lo `test -f 'ldap/servers/plugins/rever/des.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/des.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-des.Tpo ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-des.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/rever/des.c' object='ldap/servers/plugins/rever/libdes_plugin_la-des.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdes_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/rever/libdes_plugin_la-des.lo `test -f 'ldap/servers/plugins/rever/des.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/des.c
-
-ldap/servers/plugins/rever/libdes_plugin_la-rever.lo: ldap/servers/plugins/rever/rever.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdes_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/rever/libdes_plugin_la-rever.lo -MD -MP -MF ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-rever.Tpo -c -o ldap/servers/plugins/rever/libdes_plugin_la-rever.lo `test -f 'ldap/servers/plugins/rever/rever.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/rever.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-rever.Tpo ldap/servers/plugins/rever/$(DEPDIR)/libdes_plugin_la-rever.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/rever/rever.c' object='ldap/servers/plugins/rever/libdes_plugin_la-rever.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdes_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/rever/libdes_plugin_la-rever.lo `test -f 'ldap/servers/plugins/rever/rever.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/rever.c
-
 ldap/servers/plugins/distrib/libdistrib_plugin_la-distrib.lo: ldap/servers/plugins/distrib/distrib.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libdistrib_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/distrib/libdistrib_plugin_la-distrib.lo -MD -MP -MF ldap/servers/plugins/distrib/$(DEPDIR)/libdistrib_plugin_la-distrib.Tpo -c -o ldap/servers/plugins/distrib/libdistrib_plugin_la-distrib.lo `test -f 'ldap/servers/plugins/distrib/distrib.c' || echo '$(srcdir)/'`ldap/servers/plugins/distrib/distrib.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/distrib/$(DEPDIR)/libdistrib_plugin_la-distrib.Tpo ldap/servers/plugins/distrib/$(DEPDIR)/libdistrib_plugin_la-distrib.Plo
@@ -6990,6 +6976,20 @@ ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo: ldap/servers/plug
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/passthru/ptutil.c' object='ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpassthru_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/passthru/libpassthru_plugin_la-ptutil.lo `test -f 'ldap/servers/plugins/passthru/ptutil.c' || echo '$(srcdir)/'`ldap/servers/plugins/passthru/ptutil.c
+
+ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo: ldap/servers/plugins/rever/pbe.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpbe_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo -MD -MP -MF ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-pbe.Tpo -c -o ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo `test -f 'ldap/servers/plugins/rever/pbe.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/pbe.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-pbe.Tpo ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-pbe.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/rever/pbe.c' object='ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpbe_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/rever/libpbe_plugin_la-pbe.lo `test -f 'ldap/servers/plugins/rever/pbe.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/pbe.c
+
+ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo: ldap/servers/plugins/rever/rever.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpbe_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo -MD -MP -MF ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-rever.Tpo -c -o ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo `test -f 'ldap/servers/plugins/rever/rever.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/rever.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-rever.Tpo ldap/servers/plugins/rever/$(DEPDIR)/libpbe_plugin_la-rever.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ldap/servers/plugins/rever/rever.c' object='ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libpbe_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o ldap/servers/plugins/rever/libpbe_plugin_la-rever.lo `test -f 'ldap/servers/plugins/rever/rever.c' || echo '$(srcdir)/'`ldap/servers/plugins/rever/rever.c
 
 ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo: ldap/servers/plugins/posix-winsync/posix-winsync.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libposix_winsync_plugin_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo -MD -MP -MF ldap/servers/plugins/posix-winsync/$(DEPDIR)/libposix_winsync_plugin_la-posix-winsync.Tpo -c -o ldap/servers/plugins/posix-winsync/libposix_winsync_plugin_la-posix-winsync.lo `test -f 'ldap/servers/plugins/posix-winsync/posix-winsync.c' || echo '$(srcdir)/'`ldap/servers/plugins/posix-winsync/posix-winsync.c

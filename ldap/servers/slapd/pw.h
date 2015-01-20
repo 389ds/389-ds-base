@@ -61,7 +61,7 @@ struct pw_scheme *pw_name2scheme( char *name );
 struct pw_scheme *pw_val2scheme( char *val, char **valpwdp, int first_is_default );
 int pw_encodevals( Slapi_Value **vals );
 int pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals );
-int checkPrefix(char *cipher, char *schemaName, char **encrypt);
+int checkPrefix(char *cipher, char *schemaName, char **encrypt, char **algid);
 struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, const char *dn );
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);
 

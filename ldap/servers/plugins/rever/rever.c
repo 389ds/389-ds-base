@@ -43,12 +43,78 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-
 #include "rever.h"
 
-static Slapi_PluginDesc pdesc = { "des-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "DES storage scheme plugin" };
+static Slapi_PluginDesc pdesc_aes = { "aes-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "AES storage scheme plugin" };
+static Slapi_PluginDesc pdesc_des = { "des-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "DES storage scheme plugin" };
+
 
 static char *plugin_name = "ReverStoragePlugin";
+
+#define AES_MECH 1
+#define DES_MECH 2
+
+int
+aes_cmp( char *userpwd, char *dbpwd )
+{
+	char *cipher = NULL;
+	int rc = 0;
+
+	if ( encode(userpwd, &cipher, AES_MECH) != 0 ){
+		rc = 1;
+	} else {
+		rc = strcmp(cipher, dbpwd);
+	}
+	slapi_ch_free_string(&cipher);
+
+	return rc;
+}
+
+char *
+aes_enc( char *pwd )
+{
+	char *cipher = NULL;
+
+	if ( encode(pwd, &cipher, AES_MECH) != 0 ){
+		return(NULL);
+	} else {
+		return( cipher );
+	}
+}
+
+char *
+aes_dec( char *pwd, char *alg )
+{
+	char *plain = NULL;
+
+	if ( decode(pwd, &plain, AES_MECH, alg) != 0 ){
+		return(NULL);
+	} else {
+		return( plain );
+	}
+}
+
+int
+aes_init( Slapi_PBlock *pb)
+{
+       char *name = slapi_ch_strdup(AES_REVER_SCHEME_NAME);
+       int rc;
+
+       slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> aes_init\n" );
+
+       rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01 );
+       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc_aes );
+       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN, (void *) aes_enc);
+       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *) aes_cmp );
+       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN, (void *) aes_dec );
+       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, name );
+
+       init_pbe_plugin();
+
+       slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= aes_init %d\n", rc );
+
+       return( rc );
+}
 
 int
 des_cmp( char *userpwd, char *dbpwd )
@@ -56,12 +122,13 @@ des_cmp( char *userpwd, char *dbpwd )
 	char *cipher = NULL;
 	int rc = 0;
 
-	if ( encode(userpwd, &cipher) != 0 )
+	if ( encode(userpwd, &cipher, DES_MECH) != 0 ){
 		rc = 1;
-	else
+	} else {
 		rc = strcmp(cipher, dbpwd);
+	}
+	slapi_ch_free_string(&cipher);
 
-	slapi_ch_free((void**)&cipher);
 	return rc;
 }
 
@@ -70,10 +137,11 @@ des_enc( char *pwd )
 {
 	char *cipher = NULL;
 	
-	if ( encode(pwd, &cipher) != 0 )
+	if ( encode(pwd, &cipher, DES_MECH ) != 0 ){
 		return(NULL);
-	else
+	} else {
 		return( cipher );
+	}
 }
 
 char *
@@ -81,37 +149,31 @@ des_dec( char *pwd )
 {
 	char *plain = NULL;
 	
-	if ( decode(pwd, &plain) != 0 )
+	if ( decode(pwd, &plain, DES_MECH, NULL) != 0 ){
 		return(NULL);
-	else
+	} else {
 		return( plain );
+	}
 }
 
 int
 des_init( Slapi_PBlock *pb )
 {
+	char *name = slapi_ch_strdup(DES_REVER_SCHEME_NAME);
 	int	rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> des_init\n" );
 
-	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
-	    (void *) SLAPI_PLUGIN_VERSION_01 );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
-	    (void *)&pdesc );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN,
-	    (void *) des_enc);
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
-	    (void *) des_cmp );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN,
-	    (void *) des_dec );
-	name = slapi_ch_strdup(REVER_SCHEME_NAME);
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    name );
+	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01 );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc_des );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN, (void *) des_enc);
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *) des_cmp );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN, (void *) des_dec );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, name );
 
-	init_des_plugin();
+	init_pbe_plugin();
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= des_init %d\n\n", rc );
+	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= des_init %d\n", rc );
 
 	return( rc );
 }

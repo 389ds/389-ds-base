@@ -222,6 +222,7 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_OP_FLAG_NO_ACCESS_CHECK	0x10000 /* Do not check for access control - bypass them */
 #define SLAPI_OP_FLAG_BYPASS_REFERRALS	0x40000 /* Useful for performing internal operations on read-only replica */
 #define SLAPI_OP_FLAG_NEVER_CACHE	0x200000 /* added entry should not be kept in cache */
+#define SLAPI_OP_FLAG_IGNORE_UNINDEXED		0x800000 /* Do not log unindexed search */
 
 #define SLAPI_OC_FLAG_REQUIRED	0x0001
 #define SLAPI_OC_FLAG_ALLOWED	0x0002

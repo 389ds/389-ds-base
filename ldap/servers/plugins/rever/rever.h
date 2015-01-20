@@ -49,7 +49,10 @@
 #include "slap.h"
 #include "ldaplog.h"
 
-#define REVER_SCHEME_NAME	"DES"
+#define AES_MECH 1
+#define DES_MECH 2
+#define AES_REVER_SCHEME_NAME	"AES"
+#define DES_REVER_SCHEME_NAME	"DES"
 #define PWD_HASH_PREFIX_START   '{'
 #define PWD_HASH_PREFIX_END '}'
 
@@ -58,10 +61,10 @@ int rever_cmp( char *userpwd, char *dbpwd );
 char *rever_enc( char *pwd );
 char *rever_dec( char *pwd );
 int rever_init( Slapi_PBlock *pb );
-void init_des_plugin();
+void init_pbe_plugin();
 
-int encode(char *inPlain, char ** outCipher);
-int decode(char *inCipher, char **outPlain);
+int encode(char *inPlain, char **outCipher, int mech);
+int decode(char *inCipher, char **outPlain, int mech, char *algid);
 
 char *migrateCredentials(char *oldpath, char *newpath, char *oldcred);
 typedef char *(*migrate_fn_type)(char *, char *, char *);

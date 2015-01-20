@@ -22,6 +22,6 @@ nsslapd-plugintype: object
 nsslapd-pluginbetxn: on
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-named: ldbm database
-nsslapd-plugin-depends-on-named: DES
+nsslapd-plugin-depends-on-named: AES
 nsslapd-plugin-depends-on-named: Class of Service
 

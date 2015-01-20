@@ -64,7 +64,7 @@
 #include <string.h>
 #include <errno.h>
 
-#define NEED_TOK_DES /* defines tokDes and ptokDes - see slap.h */
+#define NEED_TOK_PBE /* defines tokPBE and ptokPBE - see slap.h */
 #include "slap.h"
 
 #include "svrcore.h"
@@ -1108,7 +1108,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	/******** Initialise NSS *********/
     
 	nssFlags &= (~NSS_INIT_READONLY);
-	slapd_pk11_configurePKCS11(NULL, NULL, tokDes, ptokDes, NULL, NULL, NULL, NULL, 0, 0 );
+	slapd_pk11_configurePKCS11(NULL, NULL, tokPBE, ptokPBE, NULL, NULL, NULL, NULL, 0, 0 );
 	secStatus = NSS_Initialize(certdir, NULL, NULL, "secmod.db", nssFlags);
 
 	dongle_file_name = PR_smprintf("%s/pin.txt", certdir);
