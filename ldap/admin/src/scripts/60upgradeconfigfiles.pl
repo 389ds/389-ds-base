@@ -16,7 +16,7 @@ sub runinst {
     # make a backup directory to store the deleted config file, then
     # don't really delete it, just move it to that directory
     my $mode = (stat($inf->{slapd}->{config_dir}))[2];
-    my $bakdir = $inf->{slapd}->{bak_dir} . ".bak";
+    my $bakdir = $inf->{slapd}->{config_dir} . "/bak" ;
     if (! -d $bakdir) {
         $! = 0; # clear
         mkdir $bakdir, $mode;
