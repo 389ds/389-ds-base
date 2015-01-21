@@ -318,8 +318,8 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			 * have a target and it must have a macro.
 			*/
 		
-			if ((strcasestr(str, ACL_RULE_MACRO_DN_KEY) != NULL) ||
-			    (strcasestr(str, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL)) {
+			if ((PL_strcasestr(str, ACL_RULE_MACRO_DN_KEY) != NULL) ||
+			    (PL_strcasestr(str, ACL_RULE_MACRO_DN_LEVELS_KEY) != NULL)) {
 			
 				/* Must have a targetmacro */
 				if ( !(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
