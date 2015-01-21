@@ -1250,7 +1250,7 @@ acl_replace_str(char * s, char *substr, char* replace_with_str) {
 		char *working_s, *suffix, *prefix, *patched;
 		int replace_with_len, substr_len, prefix_len, suffix_len;
 
-		if (strcasestr(s, substr) == NULL) {
+		if (PL_strcasestr(s, substr) == NULL) {
 			return(slapi_ch_strdup(s));
 		} else {
 
@@ -1260,7 +1260,7 @@ acl_replace_str(char * s, char *substr, char* replace_with_str) {
 		
 			working_s = slapi_ch_strdup(s);	
 			prefix = working_s;
-			str = strcasestr(prefix, substr);
+			str = PL_strcasestr(prefix, substr);
 			
 			while (str != NULL) {
 				
@@ -1287,7 +1287,7 @@ acl_replace_str(char * s, char *substr, char* replace_with_str) {
 
 				working_s = patched;
 				prefix = working_s;
-				str = strcasestr(prefix, substr);		
+				str = PL_strcasestr(prefix, substr);
 				
 			}
 
