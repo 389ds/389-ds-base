@@ -275,6 +275,7 @@ int ldclt_build_control( char *oid, BerElement *ber, int freeber, char iscritica
 #endif
 int ldclt_alloc_ber( LDAP *ld, BerElement **berp );
 
+static SSLVersionRange enabledNSSVersions;
 
 /* ****************************************************************************
 	FUNCTION :	my_ldap_err2string
@@ -647,14 +648,6 @@ ldclt_clientauth(thread_context	*tttctx, LDAP *ld, const char *path, const char 
       thrdNum = tttctx->thrdNum;
   }
 
-  rc = NSS_Initialize(path, "", "", SECMOD_DB, NSS_INIT_READONLY);
-  if (rc != SECSuccess) {
-    printf ("ldclt[%d]: T%03d: Cannot NSS_Initialize(%s) %d\n",
-	    mctx.pid, thrdNum, path, PR_GetError());
-    fflush(stdout);
-    goto done;
-  }
-
   if ((colon = PL_strchr(certname, ':' ))) {
     token_name = PL_strndup(certname, colon-certname);
   }
@@ -741,6 +734,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
   int thrdNum = 0;
   int ret = -1;
   int binded = 0;
+  SSLVersionRange range;
 
   if (tttctx) {
     thrdNum = tttctx->thrdNum;
@@ -787,6 +781,21 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
       free(certdir);
       goto done;
     }
+	/* Initialize NSS */
+    ret = NSS_Initialize(certdir, "", "", SECMOD_DB, NSS_INIT_READONLY);
+    if (ret != SECSuccess) {
+      printf ("ldclt[%d]: T%03d: Cannot NSS_Initialize(%s) %d\n",
+              mctx.pid, thrdNum, certdir, PR_GetError());
+      fflush(stdout);
+      goto done;
+    }
+
+	/* Set supported SSL version range. */
+    SSL_VersionRangeGetSupported(ssl_variant_stream, &enabledNSSVersions);
+    range.min = enabledNSSVersions.min;
+    range.max = enabledNSSVersions.max;
+    SSL_VersionRangeSetDefault(ssl_variant_stream, &range);
+
     if ((mode & CLTAUTH) &&
         (ret = ldclt_clientauth(tttctx, ld, certdir, mctx.cltcertname, mctx.keydbpin))) {
       free(certdir);
