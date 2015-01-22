@@ -1810,6 +1810,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 	CSN *localcsn = NULL;
 	Slapi_PBlock *spb = NULL;
 	char localcsnstr[CSN_STRSIZE + 1] = {0};
+	char remotecnsstr[CSN_STRSIZE+1] = {0};
 
 	if (!remotecsn)
 	{
@@ -1838,6 +1839,16 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 		}
 		else
 		{			
+                        if (*remotecsn) {
+                            csn_as_string (*remotecsn, PR_FALSE, remotecnsstr);
+                            csn_as_string (localcsn, PR_FALSE, localcsnstr);
+                            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                                        "[S] Checking consumer schema localcsn:%s / remotecsn:%s\n", localcsnstr, remotecnsstr);
+                        } else {
+                            csn_as_string (localcsn, PR_FALSE, localcsnstr);
+                            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                                        "[S] Checking consumer schema localcsn:%s / remotecsn:NULL\n", localcsnstr);
+                        }
                         if (!update_consumer_schema(conn)) {
                                 /* At least one schema definition (attributetypes/objectclasses) of the consumer
                                  * is a superset of the supplier.
@@ -1846,7 +1857,11 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
                                  * So it could be possible that a second attempt (right now) of update_consumer_schema
                                  * would be successful
                                  */
+                                slapi_log_error(SLAPI_LOG_REPL, "schema",
+                                                        "[S] schema definitions may have been learned\n");
                                 if (!update_consumer_schema(conn)) {
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema",
+                                                        "[S] learned definitions are not suffisant to try to push the schema \n");
                                         return_value = CONN_OPERATION_FAILED;
                                 }
                         } 
@@ -1862,6 +1877,8 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
                                                 memcpy(remotecsnstr, remote_schema_csn_bervals[0]->bv_val,
                                                         remote_schema_csn_bervals[0]->bv_len);
                                                 remotecsnstr[remote_schema_csn_bervals[0]->bv_len] = '\0';
+                                                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                                        "[S] Reread remotecsn:%s\n", remotecsnstr);
                                                 *remotecsn = csn_new_by_string(remotecsnstr);
                                                 if (*remotecsn && (csn_compare(localcsn, *remotecsn) <= 0)) {
                                                         return_value = CONN_SCHEMA_NO_UPDATE_NEEDED;
