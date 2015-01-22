@@ -139,6 +139,7 @@ typedef struct repl_schema_policy {
 struct schema_mods_indexes {
         int index;
         char *new_value;
+        char *old_value;
         struct schema_mods_indexes *next;
 };
 
@@ -155,9 +156,9 @@ static int oc_check_required(Slapi_PBlock *, Slapi_Entry *,struct objclass *);
 static int oc_check_allowed_sv(Slapi_PBlock *, Slapi_Entry *e, const char *type, struct objclass **oclist );
 static int schema_delete_objectclasses ( Slapi_Entry *entryBefore,
 		LDAPMod *mod, char *errorbuf, size_t errorbufsize,
-		int schema_ds4x_compat );
+		int schema_ds4x_compat, int is_internal_operation);
 static int schema_delete_attributes ( Slapi_Entry *entryBefore,
-		LDAPMod *mod, char *errorbuf, size_t errorbufsize);
+		LDAPMod *mod, char *errorbuf, size_t errorbufsize, int is_internal_operation);
 static int schema_add_attribute ( Slapi_PBlock *pb, LDAPMod *mod,
 		char *errorbuf, size_t errorbufsize, int schema_ds4x_compat );
 static int schema_add_objectclass ( Slapi_PBlock *pb, LDAPMod *mod,
@@ -2074,7 +2075,9 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
   int schema_modify_enabled = config_get_schemamod();
   int reapply_mods = 0;
   int is_replicated_operation = 0;
-
+  int is_internal_operation = 0;
+  Slapi_Operation *operation = NULL;
+  
   if (!schema_modify_enabled) {
 	*returncode = LDAP_UNWILLING_TO_PERFORM;
 	schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -2085,6 +2088,8 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 
   slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
   slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
+  slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
+  is_internal_operation = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
   /* In case we receive a schema from a supplier, check if we can accept it
    * (it is a superset of our own schema).
@@ -2153,11 +2158,11 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 	if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
 	  if (strcasecmp (mods[i]->mod_type, "objectclasses") == 0) {
 		*returncode = schema_delete_objectclasses (entryBefore, mods[i],
-					returntext, SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat );
+					returntext, SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat, is_internal_operation);
 	  }
 	  else if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {
 		*returncode = schema_delete_attributes (entryBefore, mods[i],
-					returntext, SLAPI_DSE_RETURNTEXT_SIZE );
+					returntext, SLAPI_DSE_RETURNTEXT_SIZE, is_internal_operation);
 	  }
 	  else {
 		*returncode= LDAP_NO_SUCH_ATTRIBUTE;
@@ -2196,6 +2201,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		  schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					schema_errprefix_generic, mods[i]->mod_type, 
 					"Replace is not allowed on the subschema subentry" );
+                  slapi_log_error(SLAPI_LOG_REPL, "schema", "modify_schema_dse: Replace is not allowed on the subschema subentry\n");
 		  rc = SLAPI_DSE_CALLBACK_ERROR;
 	  } else {
 		  if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {			  
@@ -2264,7 +2270,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		 * Add a new objectclass
 		 */
 		*returncode = schema_add_objectclass ( pb, mods[i], returntext,
-				SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat );
+				SLAPI_DSE_RETURNTEXT_SIZE, schema_ds4x_compat);
 	  }
 	  else {
 		if ( schema_ds4x_compat ) {
@@ -2465,16 +2471,20 @@ oc_add_nolock(struct objclass *newoc)
  */
 static int 
 schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
-		char *errorbuf, size_t errorbufsize, int schema_ds4x_compat )
+		char *errorbuf, size_t errorbufsize, int schema_ds4x_compat, int is_internal_operation)
 {
   int i;
   int rc = LDAP_SUCCESS;	/* optimistic */
   struct objclass *poc, *poc2,  *delete_oc = NULL;
   
   if ( NULL == mod->mod_bvalues ) {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
-				NULL, "Cannot remove all schema object classes" );
+	if (is_internal_operation) {
+		slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Remove all objectclass in Internal op\n");
+	} else {
+		schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_oc,
+			NULL, "Cannot remove all schema object classes");
 		return LDAP_UNWILLING_TO_PERFORM;
+	}
   }
 
   for (i = 0; mod->mod_bvalues[i]; i++) {
@@ -2492,11 +2502,19 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  for (poc2 = g_get_global_oc_nolock(); poc2 != NULL; poc2 = poc2->oc_next) {
 		if (poc2->oc_superior &&  
 			(strcasecmp (poc2->oc_superior, delete_oc->oc_name) == 0)) {
-		  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
+			if (is_internal_operation) {
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Should not delete object class (%s) which has child object classes"
+					". But accept it because it is internal operation\n",
+					delete_oc->oc_name);
+			} else {
+				schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_oc,
 					delete_oc->oc_name, "Cannot delete an object class"
-					" which has child object classes" );
-		  rc = LDAP_UNWILLING_TO_PERFORM;
-		  goto unlock_and_return;
+					" which has child object classes");
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Cannot delete an object class (%s) which has child object classes\n",
+					delete_oc->oc_name);
+				rc = LDAP_UNWILLING_TO_PERFORM;
+				goto unlock_and_return;
+			}
 		}
 	  }
 
@@ -2505,10 +2523,19 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  }
 	  
 	  else {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
-				delete_oc->oc_name, "Cannot delete a standard object class" );
-		rc = LDAP_UNWILLING_TO_PERFORM;
-		goto unlock_and_return;
+		  if (is_internal_operation) {
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Should not delete a standard object class (%s)"
+				  ". But accept it because it is internal operation\n",
+				  delete_oc->oc_name);
+			  oc_delete_nolock (poc->oc_name);
+		  } else {
+			  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
+				  delete_oc->oc_name, "Cannot delete a standard object class" );
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Cannot delete a standard object class (%s)\n",
+				  delete_oc->oc_name);
+			  rc = LDAP_UNWILLING_TO_PERFORM;
+			  goto unlock_and_return;
+		  }
 	  }
 	}
 	else {
@@ -2552,7 +2579,7 @@ schema_return(int rc,struct sizedbuffer * psb1,struct sizedbuffer *psb2,struct s
  */
 static int 
 schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
-		char *errorbuf, size_t errorbufsize)
+		char *errorbuf, size_t errorbufsize, int is_internal_operation)
 {
   char *attr_ldif, *oc_list_type = "";
   asyntaxinfo *a;
@@ -2563,10 +2590,14 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
   struct sizedbuffer *psbAttrSyntax= sizedbuffer_construct(BUFSIZ);
 
   if (NULL == mod->mod_bvalues) {
-	schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+	  if (is_internal_operation) {
+		slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Remove all attributetypes in Internal op\n");
+	  } else {
+		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
 			NULL, "Cannot remove all schema attribute types" );
-    return schema_return(LDAP_UNWILLING_TO_PERFORM,psbAttrOid,psbAttrName,
+		return schema_return(LDAP_UNWILLING_TO_PERFORM,psbAttrOid,psbAttrName,
 			psbAttrSyntax,NULL);
+	  }
   }
 
   for (i = 0; mod->mod_bvalues[i]; i++) {
@@ -2592,12 +2623,20 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	if ((a = attr_syntax_get_by_name ( psbAttrName->buffer)) != NULL ) {
 	  /* only modify attrs which were user defined */
 	  if (a->asi_flags & SLAPI_ATTR_FLAG_STD_ATTR) {
-		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				psbAttrName->buffer,
-				"Cannot delete a standard attribute type" );
-		attr_syntax_return( a );
-        return schema_return(LDAP_UNWILLING_TO_PERFORM,psbAttrOid,psbAttrName,
-				psbAttrSyntax,NULL);
+		  if (is_internal_operation) {
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Should not delete a standard attribute type (%s)"
+				  ". But accept it because it is internal operation\n",
+				  psbAttrName->buffer);
+		  } else {
+			  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
+				  psbAttrName->buffer,
+				  "Cannot delete a standard attribute type");
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Cannot delete a standard attribute type (%s)\n",
+				  psbAttrName->buffer);
+			  attr_syntax_return(a);
+			  return schema_return(LDAP_UNWILLING_TO_PERFORM, psbAttrOid, psbAttrName,
+				  psbAttrSyntax, NULL);
+		  }
 	  }
 
 	  /* Do not allow deletion if referenced by an object class. */
@@ -2627,17 +2666,32 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	    }
 
 		if (attr_in_use_by_an_oc) {
-		  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
-				psbAttrName->buffer, "Is included in the %s list for object class %s.  Cannot delete.",
-				oc_list_type, oc->oc_name );
-		  break;
+			if (is_internal_operation) {
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Should not delete an attribute (%s) used in oc (%s)"
+					". But accept it because it is internal operation\n",
+					oc_list_type, oc->oc_name);
+			} else {
+				schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_at,
+					psbAttrName->buffer, "Is included in the %s list for object class %s.  Cannot delete.",
+					oc_list_type, oc->oc_name);
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Could delete an attribute (%s) used in oc (%s)"
+					". But accept it because it is internal operation\n",
+					oc_list_type, oc->oc_name);
+				break;
+			}
 		}
 	  }
 	  oc_unlock();
 	  if (attr_in_use_by_an_oc) {
-		attr_syntax_return( a );
-        return schema_return(LDAP_UNWILLING_TO_PERFORM,psbAttrOid,psbAttrName,
-				psbAttrSyntax,NULL);
+		if (is_internal_operation) {
+			slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Should not delete an attribute used in oc"
+				". But accept it because it is internal operation\n");
+
+		} else {
+			attr_syntax_return(a);
+			return schema_return(LDAP_UNWILLING_TO_PERFORM, psbAttrOid, psbAttrName,
+				psbAttrSyntax, NULL);
+		}
 	  }
 
 	  /* Delete it. */
@@ -2744,7 +2798,10 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 		}
 	}
 
-	/* check to see if the superior oc exists */
+	/* check to see if the superior oc exists 
+	 * This is not enforced for internal op (when learning new schema
+	 * definitions from a replication session) 
+	 */
 	if (!rc && pnew_oc->oc_superior &&
 				((psup_oc = oc_find_nolock (pnew_oc->oc_superior, NULL, PR_FALSE)) == NULL)) {
 		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
@@ -2798,7 +2855,10 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize,
 	    sizedbuffer_destroy(psbOcOid);	
 	}
 
-	/* check to see if the oc's attributes are valid */
+	/* check to see if the oc's attributes are valid 
+	 * This is not checked if this is an internal operation (learning schema
+	 * definitions from a replication session)
+	 */
 	if (!rc && !(flags & DSE_SCHEMA_NO_CHECK) &&
 		schema_check_oc_attrs ( pnew_oc, errorbuf, errorbufsize,
 								0 /* don't strip options */ ) == 0 ) {
@@ -6265,11 +6325,101 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
         
         return rc;
 }
+
+static char *
+schema_oc_to_string(struct objclass *oc)
+{
+    char *oc_str;
+    int i;
+    int size = 0;
+    
+    /* Compute the size of the string that can contain
+     * the oc definition and allocates it
+     */
+    if (oc->oc_oid)  size += strlen(oc->oc_oid);
+    if (oc->oc_name) size += strlen(oc->oc_name);
+    if (oc->oc_desc) size += strlen(oc->oc_desc);
+    if (oc->oc_orig_required) {
+        for (i =0; oc->oc_orig_required[i] != NULL; i++) {
+            size += strlen(oc->oc_orig_required[i]);
+            size += 3;
+        }       
+    }
+    if (oc->oc_orig_allowed) {
+        for (i =0; oc->oc_orig_allowed[i] != NULL; i++) {
+            size += strlen(oc->oc_orig_allowed[i]);
+            size += 3;
+        }
+    }
+    size += strlen(schema_oc_kind_strings_with_spaces[oc->oc_kind]);
+    
+    size += 128; /* for all keywords: NAME, DESC, SUP... */
+    if ((oc_str = (char *) slapi_ch_calloc(1, size)) == NULL) {
+        return NULL;
+    }
+    
+    /* OID + name */
+    sprintf(oc_str, "( %s NAME '%s'", (oc->oc_oid) ? oc->oc_oid : "", oc->oc_name);
+    
+    /* description */
+    strcat(oc_str, " DESC '");
+    if (oc->oc_desc) {
+        strcat(oc_str, oc->oc_desc);
+    }
+    strcat(oc_str, "'");
+    
+    /* SUP */
+    if (oc->oc_superior) {
+        strcat(oc_str, " SUP '");
+        strcat(oc_str, oc->oc_superior);
+        strcat(oc_str, "'");
+    }
+    
+    /* oc_kind */
+    strcat(oc_str, schema_oc_kind_strings_with_spaces[oc->oc_kind]);
+    
+    /* MUST */
+    if (oc->oc_orig_required) {
+        strcat(oc_str, " MUST ( ");
+        for ( i = 0; oc->oc_orig_required[i] != NULL; ++i ) {
+            if (i > 0) {
+                strcat(oc_str, " $ ");
+            }
+            strcat(oc_str, oc->oc_orig_required[i]);
+        }
+        strcat(oc_str, " ) ");
+    }
+    
+    /* MAY */
+    if (oc->oc_orig_allowed) {
+        strcat(oc_str, " MAY ( ");
+        for ( i = 0; oc->oc_orig_allowed[i] != NULL; ++i ) {
+            if (i > 0) {
+                strcat(oc_str, " $ ");
+            }
+            strcat(oc_str, oc->oc_orig_allowed[i]);
+        }
+        strcat(oc_str, " ) ");
+    }
+    
+    /* flags */
+    if (oc->oc_flags & OC_FLAG_USER_OC) {
+        strcat(oc_str, " X-ORIGIN 'blahblahblah'");
+    }
+    
+    strcat(oc_str, " )");
+    slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_oc_to_string: replace (old[%d]=%s)\n",
+                                                size, oc_str);
+    
+    return(oc_str);
+    
+}
 /* call must hold oc_lock at least in read */
 static struct schema_mods_indexes *
 schema_list_oc2learn(struct objclass *oc_remote_list, struct objclass *oc_local_list, int replica_role) {
         struct objclass *oc_remote, *oc_local;
         struct schema_mods_indexes *head = NULL, *mods_index;
+        struct schema_mods_indexes *tail = NULL;
         int index = 0;
         int repl_schema_policy;
         const char *message;
@@ -6309,11 +6459,22 @@ schema_list_oc2learn(struct objclass *oc_remote_list, struct objclass *oc_local_
                                 continue;
                         }
                         
-                        /* insert it in the list */
+                        /* insert it at the end of the list 
+			 * to keep the order of the original schema
+			 * For example superior oc should be declared first
+			 */
                         mods_index->index     = index;
-                        mods_index->next      = head;
+                        mods_index->next      = NULL;
                         mods_index->new_value = NULL;
-                        head                  = mods_index;
+                        if (oc_local) {
+                            mods_index->old_value = schema_oc_to_string(oc_local);
+                        }
+                        if (head == NULL) {
+                            head = mods_index;
+                        } else {
+                            tail->next = mods_index;
+                        }
+                        tail = mods_index;
                 }
         }
         slapi_rwlock_unlock( schema_policy_lock );
@@ -7173,17 +7334,27 @@ modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
 	/* do modify */
 	slapi_modify_internal_pb (newpb);
 	slapi_pblock_get (newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
-        if (op_result == LDAP_SUCCESS) {              
-                /* Update the schema csn if the operation succeeded */
-                schema_csn = csn_new();
-                if (NULL != schema_csn) {
-                        csn_set_replicaid(schema_csn, 0);
-                        csn_set_time(schema_csn, current_time());
-                        g_set_global_schema_csn(schema_csn);
-                }
-        }
+	if (op_result == LDAP_SUCCESS) {
+		char *type;
 
-        slapi_pblock_destroy(newpb);
+		if (smods && smods->mods) {
+			type = smods->mods[0]->mod_type;
+		} else {
+			type = "unknown";
+		}
+		slapi_log_error(SLAPI_LOG_REPL, "schema", "modify_schema_internal_mod: successfully learn %s definitions\n", type);
+		/* Update the schema csn if the operation succeeded */
+		schema_csn = csn_new();
+		if (NULL != schema_csn) {
+			csn_set_replicaid(schema_csn, 0);
+			csn_set_time(schema_csn, current_time());
+			g_set_global_schema_csn(schema_csn);
+		}
+	} else {
+		slapi_log_error(SLAPI_LOG_FATAL, "schema", "modify_schema_internal_mod: fail to learn schema definitions (%d) \n", op_result);
+	}
+
+	slapi_pblock_destroy(newpb);
 }
 
 /* Prepare slapi_mods for the internal mod 
@@ -7191,32 +7362,80 @@ modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
  */
 static void
 modify_schema_prepare_mods(Slapi_Mods *smods, char *type, struct schema_mods_indexes *values)
-{   
-        struct schema_mods_indexes *object;
-        struct berval *bv;
-        struct berval **bvps;
-        int nb_values, i;
-            
-        for (object = values, nb_values = 0; object != NULL; object = object->next, nb_values++);
-        bvps = (struct berval **) slapi_ch_calloc(1, (nb_values + 1) * sizeof(struct berval *));
-        
-        
+{
+    struct schema_mods_indexes *object;
+    struct berval *bv;
+    struct berval **bvps_del = NULL;
+    struct berval **bvps_add = NULL;
+    int nb_values_del, nb_values_add, i;
+    int nb_mods;
+
+    /* Checks the values to delete */
+    for (object = values, nb_values_del = 0; object != NULL; object = object->next) {
+        if (object->old_value) {
+            nb_values_del++;
+        }
+    }
+    if (nb_values_del) {
+        bvps_del = (struct berval **) slapi_ch_calloc(1, (nb_values_del + 1) * sizeof (struct berval *));
+
+        for (i = 0, object = values; object != NULL; object = object->next) {
+            if (object->old_value) {
+                bv = (struct berval *) slapi_ch_malloc(sizeof (struct berval));
+                bv->bv_len = strlen(object->old_value);
+                bv->bv_val = (void*) object->old_value;
+                bvps_del[i] = bv;
+                i++;
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "MOD[%d] del (%s): %s\n", i, type, object->old_value);
+            }
+        }
+        bvps_del[nb_values_del] = NULL;
+    }
+
+    /* Checks the values to add */
+    for (object = values, nb_values_add = 0; object != NULL; object = object->next, nb_values_add++);
+
+    if (nb_values_add) {
+        bvps_add = (struct berval **) slapi_ch_calloc(1, (nb_values_add + 1) * sizeof (struct berval *));
+
+
         for (i = 0, object = values; object != NULL; i++, object = object->next) {
-                bv = (struct berval *) slapi_ch_malloc(sizeof(struct berval));
-                bv->bv_len = strlen(object->new_value);
-                bv->bv_val = (void*) object->new_value;
-                bvps[i] = bv;
-                slapi_log_error(SLAPI_LOG_REPL, "schema", "MOD[%d] add (%s): %s\n", i, type, object->new_value);
+            bv = (struct berval *) slapi_ch_malloc(sizeof (struct berval));
+            bv->bv_len = strlen(object->new_value);
+            bv->bv_val = (void*) object->new_value;
+            bvps_add[i] = bv;
+            slapi_log_error(SLAPI_LOG_REPL, "schema", "MOD[%d] add (%s): %s\n", i, type, object->new_value);
         }
-        bvps[nb_values] = NULL;
-        slapi_mods_init (smods, 2);
-        slapi_mods_add_modbvps( smods, LDAP_MOD_ADD, type, bvps );
-        for (i = 0; bvps[i] != NULL; i++) {
-                /* bv_val should not be free. It belongs to the incoming MOD */
-                slapi_ch_free((void **) &bvps[i]);
+        bvps_add[nb_values_add] = NULL;
+    }
+
+    /* Prepare the mods */
+    nb_mods = 1;
+    if (bvps_del) nb_mods++;
+    if (bvps_add) nb_mods++;
+    slapi_mods_init(smods, nb_mods);
+    if (bvps_del) slapi_mods_add_modbvps(smods, LDAP_MOD_DELETE, type, bvps_del);
+    if (bvps_add) slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, type, bvps_add);
+
+
+    /* clean up */
+    if (bvps_del) {
+
+        for (i = 0; bvps_del[i] != NULL; i++) {
+            /* bv_val should not be free. It belongs to the incoming MOD */
+            slapi_ch_free((void **) &bvps_del[i]);
         }
-        slapi_ch_free((void **) &bvps);
-        
+        slapi_ch_free((void **) &bvps_del);
+    }
+
+    if (bvps_add) {
+
+        for (i = 0; bvps_add[i] != NULL; i++) {
+            /* bv_val should not be free. It belongs to the incoming MOD */
+            slapi_ch_free((void **) &bvps_add[i]);
+        }
+        slapi_ch_free((void **) &bvps_add);
+    }
 }
 
 /* called by modify_schema_dse/supplier_learn_new_definitions to learn new 
