@@ -1,5 +1,5 @@
 """Tools for creating and managing servers
-    
+
     uses DirSrv
 """
 __all__ = ['DirSrvTools']
@@ -33,15 +33,13 @@ from lib389 import *
 from lib389.properties import *
 
 from lib389.utils import (
-    getcfgdsuserdn, 
-    getcfgdsinfo, 
-    getcfgdsuserdn, 
+    getcfgdsuserdn,
+    getcfgdsinfo,
+    getcfgdsuserdn,
     update_newhost_with_fqdn,
     get_sbin_dir, get_server_user, getdomainname,
     isLocalHost, formatInfData, getserverroot,
-    
-    update_admin_domain,getadminport,getdefaultsuffix,
-    
+    update_admin_domain, getadminport, getdefaultsuffix,
     )
 from lib389._ldifconn import LDIFConn
 from lib389._constants import DN_DM
@@ -58,6 +56,7 @@ PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
 GROUPADD = "/usr/sbin/groupadd"
 USERADD = "/usr/sbin/useradd"
 NOLOGIN = "/sbin/nologin"
+
 
 class DirSrvTools(object):
     """DirSrv mix-in."""
@@ -159,7 +158,7 @@ class DirSrvTools(object):
         """NOTE: this tries to open the log!
         """
         if not hasattr(self, 'sroot'):
-            # If the instance was previously create, retrieve 'sroot' from 
+            # If the instance was previously create, retrieve 'sroot' from
             # sys/priv config file (e.g <prefix>/etc/sysconfig/dirsrv-<serverid or $HOME/.dirsrv/dirsrv-<serverid>
             props = self.list()
             if len(props) == 0:
@@ -168,7 +167,7 @@ class DirSrvTools(object):
             else:
                 assert len(props) == 1
                 self.sroot = props[0][CONF_SERVER_DIR]
-                
+
         instanceDir = os.path.join(self.sroot, "slapd-" + self.inst)
 
         if hasattr(self, 'errlog'):
@@ -285,7 +284,7 @@ class DirSrvTools(object):
         else:
             log.debug("Starting server %r" % self)
             return DirSrvTools.serverCmd(self, 'start', verbose, timeout)
-        
+
     @staticmethod
     def _infoInstanceBackupFS(dirsrv):
         """
@@ -294,10 +293,10 @@ class DirSrvTools(object):
                 - Directory name containing the backup (e.g. /tmp/slapd-standalone.bck)
                 - The pattern of the backup files (e.g. /tmp/slapd-standalone.bck/backup*.tar.gz)
         """
-        backup_dir = "%s/slapd-%s.bck" % (dirsrv.backupdir, dirsrv.inst)     
-        backup_pattern = os.path.join(backup_dir, "backup*.tar.gz") 
+        backup_dir = "%s/slapd-%s.bck" % (dirsrv.backupdir, dirsrv.inst)
+        backup_pattern = os.path.join(backup_dir, "backup*.tar.gz")
         return backup_dir, backup_pattern
-    
+
     @staticmethod
     def clearInstanceBackupFS(dirsrv=None, backup_file=None):
         """
@@ -320,7 +319,6 @@ class DirSrvTools(object):
                     log.info("clearInstanceBackupFS: fail to remove %s" % backup_file)
                     pass
 
-            
     @staticmethod
     def checkInstanceBackupFS(dirsrv):
         """
@@ -336,22 +334,21 @@ class DirSrvTools(object):
             # returns the first found backup
             return list_backup_files[0]
 
-        
     @staticmethod
     def instanceBackupFS(dirsrv):
         """
             Saves the files of an instance under /tmp/slapd-<instance_name>.bck/backup_HHMMSS.tar.gz
             and return the archive file name.
-            If it already exists a such file, it assums it is a valid backup and 
+            If it already exists a such file, it assums it is a valid backup and
             returns its name
-            
+
             dirsrv.sroot : root of the instance  (e.g. /usr/lib64/dirsrv)
             dirsrv.inst  : instance name (e.g. standalone for /etc/dirsrv/slapd-standalone)
             dirsrv.confdir : root of the instance config (e.g. /etc/dirsrv)
             dirsrv.dbdir: directory where is stored the database (e.g. /var/lib/dirsrv/slapd-standalone/db)
             dirsrv.changelogdir: directory where is stored the changelog (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
         """
-        
+
         # First check it if already exists a backup file
         backup_dir, backup_pattern = DirSrvTools._infoInstanceBackupFS(dirsrv)
         backup_file = DirSrvTools.checkInstanceBackupFS(dirsrv)
@@ -360,16 +357,16 @@ class DirSrvTools(object):
                 os.makedirs(backup_dir)
         else:
             return backup_file
-                
+
         # goes under the directory where the DS is deployed
         listFilesToBackup = []
         here = os.getcwd()
         os.chdir(dirsrv.prefix)
         prefix_pattern = "%s/" % dirsrv.prefix
-        
+
         # build the list of directories to scan
         instroot = "%s/slapd-%s" % (dirsrv.sroot, dirsrv.inst)
-        ldir = [ instroot ]
+        ldir = [instroot]
         if hasattr(dirsrv, 'confdir'):
             ldir.append(dirsrv.confdir)
         if hasattr(dirsrv, 'dbdir'):
@@ -378,8 +375,8 @@ class DirSrvTools(object):
             ldir.append(dirsrv.changelogdir)
         if hasattr(dirsrv, 'errlog'):
             ldir.append(os.path.dirname(dirsrv.errlog))
-        if hasattr(dirsrv, 'accesslog') and  os.path.dirname(dirsrv.accesslog) not in ldir:
-            ldir.append(os.path.dirname(dirsrv.accesslog))        
+        if hasattr(dirsrv, 'accesslog') and os.path.dirname(dirsrv.accesslog) not in ldir:
+            ldir.append(os.path.dirname(dirsrv.accesslog))
 
         # now scan the directory list to find the files to backup
         for dirToBackup in ldir:
@@ -391,30 +388,28 @@ class DirSrvTools(object):
                     if os.path.isfile(name):
                         listFilesToBackup.append(name)
                         log.debug("instanceBackupFS add = %s (%s)" % (name, dirsrv.prefix))
-                
-        
+
         # create the archive
         name = "backup_%s.tar.gz" % (time.strftime("%m%d%Y_%H%M%S"))
         backup_file = os.path.join(backup_dir, name)
         tar = tarfile.open(backup_file, "w:gz")
 
-        
         for name in listFilesToBackup:
             if os.path.isfile(name):
                 tar.add(name)
         tar.close()
         log.info("instanceBackupFS: archive done : %s" % backup_file)
-        
+
         # return to the directory where we were
         os.chdir(here)
-        
+
         return backup_file
 
     @staticmethod
     def instanceRestoreFS(dirsrv, backup_file):
         """
         """
-        
+
         # First check the archive exists
         if backup_file is None:
             log.warning("Unable to restore the instance (missing backup)")
@@ -422,11 +417,11 @@ class DirSrvTools(object):
         if not os.path.isfile(backup_file):
             log.warning("Unable to restore the instance (%s is not a file)" % backup_file)
             return 1
-        
+
         #
-        # Second do some clean up 
+        # Second do some clean up
         #
-        
+
         # previous db (it may exists new db files not in the backup)
         log.debug("instanceRestoreFS: remove subtree %s/*" % dirsrv.dbdir)
         for root, dirs, files in os.walk(dirsrv.dbdir):
@@ -434,7 +429,7 @@ class DirSrvTools(object):
                 if d not in ("bak", "ldif"):
                     log.debug("instanceRestoreFS: before restore remove directory %s/%s" % (root, d))
                     shutil.rmtree("%s/%s" % (root, d))
-        
+
         # previous error/access logs
         log.debug("instanceRestoreFS: remove error logs %s" % dirsrv.errlog)
         for f in glob.glob("%s*" % dirsrv.errlog):
@@ -444,12 +439,11 @@ class DirSrvTools(object):
         for f in glob.glob("%s*" % dirsrv.accesslog):
                 log.debug("instanceRestoreFS: before restore remove file %s" % (f))
                 os.remove(f)
-        
-        
+
         # Then restore from the directory where DS was deployed
         here = os.getcwd()
         os.chdir(dirsrv.prefix)
-        
+
         tar = tarfile.open(backup_file)
         for member in tar.getmembers():
             if os.path.isfile(member.name):
@@ -465,9 +459,9 @@ class DirSrvTools(object):
             else:
                 log.debug("instanceRestoreFS: restored %s" % member.name)
                 tar.extract(member.name)
-            
+
         tar.close()
-        
+
         #
         # Now be safe, triggers a recovery at restart
         #
@@ -479,14 +473,13 @@ class DirSrvTools(object):
             except:
                 log.warning("instanceRestoreFS: fail to remove %s" % guardian_file)
                 pass
-        
-        
+
         os.chdir(here)
-        
+
     @staticmethod
     def setupSSL(dirsrv, secport=636, sourcedir=None, secargs=None):
         """configure and setup SSL with a given certificate and restart the server.
-        
+
             See DirSrv.configSSL for the secargs values
         """
         e = dirsrv.configSSL(secport, secargs)
@@ -502,8 +495,8 @@ class DirSrvTools(object):
         if secport != 636:
             try:
                 log.debug("Configuring SELinux on port: %s", str(secport))
-                
-                subprocess.check_call([ "semanage", "port", "-a", "-t", "ldap_port_t", "-p", "tcp", str(secport) ])
+
+                subprocess.check_call(["semanage", "port", "-a", "-t", "ldap_port_t", "-p", "tcp", str(secport)])
             except OSError:
                 log.debug("Likely SELinux not supported")
                 pass
@@ -512,7 +505,7 @@ class DirSrvTools(object):
                 pass
 
         # eventually copy security files from source dir to our cert dir
-        if sourcedir:            
+        if sourcedir:
             for ff in ['cert8.db', 'key3.db', 'secmod.db', 'pin.txt', 'certmap.conf']:
                 srcf = os.path.join(sourcedir, ff)
                 destf = os.path.join(certdir, ff)
@@ -574,7 +567,7 @@ class DirSrvTools(object):
             prefix = dirsrv.prefix
         else:
             prefix = None
-        
+
         prog = get_sbin_dir(None, prefix) + PATH_REMOVE_DS
         cmd = "%s -i slapd-%s" % (prog, dirsrv.serverid)
         log.debug("running: %s " % cmd)
@@ -582,7 +575,7 @@ class DirSrvTools(object):
             os.system(cmd)
         except:
             log.exception("error executing %r" % cmd)
-            
+
     @staticmethod
     def _offlineDirsrv(args):
         '''
@@ -599,9 +592,9 @@ class DirSrvTools(object):
         '''
         instance = lib389.DirSrv(verbose=True)
         instance.allocate(args)
-        
+
         return instance
-            
+
     @staticmethod
     def existsBackup(args):
         '''
@@ -610,15 +603,14 @@ class DirSrvTools(object):
         '''
         instance = DirSrvTools._offlineDirsrv(args)
         return DirSrvTools.checkInstanceBackupFS(instance)
-        
-  
+
     @staticmethod
     def existsInstance(args):
         '''
             Check if an instance exists.
             It checks if the following directories/files exist:
                 <confdir>/slapd-<name>
-                <errlog>         
+                <errlog>
             If it exists it returns a DirSrv instance NOT initialized, else None
         '''
         instance = DirSrvTools._offlineDirsrv(args)
@@ -631,7 +623,7 @@ class DirSrvTools(object):
             instance.sroot = sroot
             instance.errlog = errorlog
             return instance
-        
+
         return None
 
     @staticmethod
@@ -642,39 +634,39 @@ class DirSrvTools(object):
         - guesses the hostname where to create the DS, using
         localhost by default;
         - figures out if the given hostname is the local host or not.
-        
+
         @param args -  a dict with the following values {
             # new instance compulsory values
             'newinstance': 'rpolli',
-            'newsuffix': 'dc=example,dc=com',            
+            'newsuffix': 'dc=example,dc=com',
             'newhost': 'localhost.localdomain',
             'newport': 22389,
-            'newrootpw': 'password',            
-            
+            'newrootpw': 'password',
+
             # optionally register instance on an admin tree
             'have_admin': True,
-            
+
             # optionally directory where to store instance backup
             'backupdir': [ /tmp ]
-            
+
             # you can configure a new dirsrv-admin
             'setup_admin': True,
-            
+
             # or you need the dirsrv-admin to be already setup
             'cfgdshost': 'localhost.localdomain',
             'cfgdsport': 22389,
             'cfgdsuser': 'admin',
             'cfgdspwd': 'admin',
-        
-        }        
+
+        }
         """
         cfgdn = lib389.CFGSUFFIX
         isLocal = update_newhost_with_fqdn(args)
-        
+
         # use prefix if binaries are relocated
         sroot = args.get('sroot', '')
         prefix = args.setdefault('prefix', '')
-        
+
         # get the backup directory to store instance backup
         backupdir = args.get('backupdir', '/tmp')
 
@@ -707,7 +699,7 @@ class DirSrvTools(object):
         #
         if args['have_admin'] and not args['setup_admin']:
             cfgconn = getcfgdsuserdn(cfgdn, args)
-            
+
         # next, get the server root if not given
         if not args['new_style']:
             getserverroot(cfgconn, isLocal, args)
@@ -723,7 +715,7 @@ class DirSrvTools(object):
         args['newport'] = args.get('newport', 389)
         args['newrootdn'] = args.get('newrootdn', DN_DM)
         args['newsuffix'] = args.get('newsuffix', getdefaultsuffix(args['newhost']))
-            
+
         if not isLocal or 'cfgdshost' in args:
             if 'admin_domain' not in args:
                 args['admin_domain'] = getdomainname(args['newhost'])
@@ -757,8 +749,7 @@ class DirSrvTools(object):
             return newconn
         except ldap.SERVER_DOWN:
             pass  # not running - create new one
-        
-                
+
         if not isLocal or 'cfgdshost' in args:
             for param in ('cfgdshost', 'cfgdsport', 'cfgdsuser', 'cfgdspwd', 'admin_domain'):
                 if param not in args:
@@ -846,7 +837,7 @@ class DirSrvTools(object):
             print "OK group %s exists" % group
         except KeyError:
             print "Adding group %s" % group
-            cmd = [ GROUPADD, '-r', group]
+            cmd = [GROUPADD, '-r', group]
             subprocess.Popen(cmd)
 
     @staticmethod
@@ -856,7 +847,7 @@ class DirSrvTools(object):
             print "OK user %s exists" % user
         except KeyError:
             print "Adding user %s" % user
-            cmd = [ USERADD, '-g', group,
+            cmd = [USERADD, '-g', group,
                    '-c', "lib389 DS user",
                     '-r',
                     '-d', home,
@@ -875,8 +866,8 @@ class DirSrvTools(object):
         Checks that the 127.0.0.1 is resolved as localhost.localdomain
         This is required by DSUtil.pm:checkHostname else setup-ds.pl fails
         '''
-        hostFile='/etc/hosts'
-        loopbackIpPattern='127.0.0.1'
+        hostFile = '/etc/hosts'
+        loopbackIpPattern = '127.0.0.1'
         expectedHost = 'localhost.localdomain'
 
         hostfp = open(hostFile, 'r')
@@ -922,7 +913,7 @@ class DirSrvTools(object):
         servers = []
         path = prefix + '/etc/dirsrv'
         for files in os.listdir(path):
-            if files.startswith('slapd-'):
+            if files.startswith('slapd-') and not files.endswith('.removed'):
                 servers.append(prefix + libdir + files)
 
         if len(servers) == 0:
@@ -937,7 +928,7 @@ class DirSrvTools(object):
         '''
         for instance in servers:
             for files in os.listdir(instance):
-                os.chmod(instance + '/' +files, 755)
+                os.chmod(instance + '/' + files, 755)
 
         # Run the "upgrade"
         try:
@@ -972,7 +963,7 @@ class MockDirSrv(object):
             self.port = dict_['port']
             if 'sslport' in dict_:
                 self.sslport = dict_['sslport']
-        
+
     def __str__(self):
         if self.sslport:
             return 'ldaps://%s:%s' % (self.host, self.sslport)
