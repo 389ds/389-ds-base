@@ -26,10 +26,12 @@ log = logging.getLogger(__name__)
 
 installation_prefix = None
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
         self.standalone = standalone
+
 
 @pytest.fixture(scope="module")
 def topology(request):
@@ -37,7 +39,7 @@ def topology(request):
         This fixture is used to create a DirSrv instance for the 'module'.
         At the beginning, there may already be an instance.
         There may also be a backup for the instance.
-    
+
         Principle:
             If instance exists:
                 restart it
@@ -55,30 +57,30 @@ def topology(request):
 
     if installation_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation_prefix
-    schemainst   = DirSrv(verbose=False)
-    
+    schemainst = DirSrv(verbose=False)
+
     # Args for the master instance
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
     schemainst.allocate(args_instance)
-    
+
     # Get the status of the backups
-    backup   = schemainst.checkBackupFS()
-    
+    backup = schemainst.checkBackupFS()
+
     # Get the status of the instance and restart it if it exists
     if schemainst.exists():
         schemainst.stop(timeout=10)
         schemainst.start(timeout=10)
-        
+
     if backup:
-        # The backup exists, assuming it is correct 
+        # The backup exists, assuming it is correct
         # we just re-init the instance with it
         if not schemainst.exists():
             schemainst.create()
             # Used to retrieve configuration information (dbdir, confdir...)
             schemainst.open()
-        
+
         # restore from backup
         schemainst.stop(timeout=10)
         schemainst.restoreFS(backup)
@@ -89,29 +91,30 @@ def topology(request):
         #        so we need to create everything
         #      - Something weird happened (instance/backup destroyed)
         #        so we discard everything and recreate all
-        
+
         # Remove the backup. So even if we have a specific backup file
         # (e.g backup) we clear all backups that an instance may have created
         if backup:
             schemainst.clearBackupFS()
-        
+
         # Remove all the instances
         if schemainst.exists():
             schemainst.delete()
-                        
+
         # Create the instances
         schemainst.create()
-        schemainst.open()    
-                
+        schemainst.open()
+
         # Time to create the backup
         schemainst.stop(timeout=10)
         schemainst.backupfile = schemainst.backupFS()
-        schemainst.start(timeout=10)    
-    # 
+        schemainst.start(timeout=10)
+    #
     return TopologyStandalone(schemainst)
 
 attrclass = ldap.schema.models.AttributeType
 occlass = ldap.schema.models.ObjectClass
+
 
 def ochasattr(subschema, oc, mustormay, attr, key):
     """See if the oc and any of its parents and ancestors have the
@@ -134,6 +137,7 @@ def ochasattr(subschema, oc, mustormay, attr, key):
                 break
     return rc
 
+
 def ochasattrs(subschema, oc, mustormay, attrs):
     key = mustormay + "dict"
     ret = []
@@ -141,6 +145,7 @@ def ochasattrs(subschema, oc, mustormay, attrs):
         if not ochasattr(subschema, oc, mustormay, attr, key):
             ret.append(attr)
     return ret
+
 
 def mycmp(v1, v2):
     v1ary, v2ary = [v1], [v2]
@@ -155,6 +160,7 @@ def mycmp(v1, v2):
         if not v1 == v2:
             return False
     return True
+
 
 def ocgetdiffs(ldschema, oc1, oc2):
     fields = ['obsolete', 'names', 'desc', 'must', 'may', 'kind', 'sup']
@@ -172,6 +178,7 @@ def ocgetdiffs(ldschema, oc1, oc2):
             ret = ret + '\t%s differs: [%s] vs. [%s]\n' % (field, oc1.__dict__[field], oc2.__dict__[field])
     return ret
 
+
 def atgetparfield(subschema, at, field):
     v = None
     for nameoroid in at.sup:
@@ -183,6 +190,7 @@ def atgetparfield(subschema, at, field):
     return v
 
 syntax_len_supported = False
+
 
 def atgetdiffs(ldschema, at1, at2):
     fields = ['names', 'desc', 'obsolete', 'sup', 'equality', 'ordering', 'substr', 'syntax',
@@ -196,6 +204,7 @@ def atgetdiffs(ldschema, at1, at2):
         if not mycmp(v1, v2):
             ret = ret + '\t%s differs: [%s] vs. [%s]\n' % (field, at1.__dict__[field], at2.__dict__[field])
     return ret
+
 
 def test_schema_comparewithfiles(topology):
     '''Compare the schema from ldap cn=schema with the schema files'''
@@ -235,24 +244,26 @@ def test_schema_comparewithfiles(topology):
                 retval = False
     assert retval
 
+
 def test_schema_final(topology):
-    topology.standalone.stop(timeout=10)
+    topology.standalone.delete()
+
 
 def run_isolated():
     '''
         run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to 
+        To run isolated without py.test, you need to
             - edit this file and comment '@pytest.fixture' line before 'topology' function.
             - set the installation prefix
             - run this program
     '''
     global installation_prefix
-    installation_prefix =  os.environ.get('PREFIX')
-        
+    installation_prefix = os.environ.get('PREFIX')
+
     topo = topology(True)
 
     test_schema_comparewithfiles(topo)
-    
+
     test_schema_final(topo)
 
 if __name__ == '__main__':

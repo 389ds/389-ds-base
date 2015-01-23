@@ -513,7 +513,7 @@ def test_dynamic_plugins(topology):
 
 
 def test_dynamic_plugins_final(topology):
-    topology.standalone.stop(timeout=10)
+    topology.standalone.delete()
 
 
 def run_isolated():
@@ -529,6 +529,8 @@ def run_isolated():
 
     topo = topology(True)
     test_dynamic_plugins(topo)
+    test_dynamic_plugins_final(topo)
+
 
 if __name__ == '__main__':
     run_isolated()

@@ -23,6 +23,7 @@ ENTRY_NAME = 'Joe Schmo'
 ENTRY_DN   = 'cn=%s,%s' % (ENTRY_NAME, SUFFIX)
 INVALID_PWDS = ('2_Short', 'No_Number', 'N0Special', '{SSHA}bBy8UdtPZwu8uZna9QOYG3Pr41RpIRVDl8wddw==')
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -131,10 +132,10 @@ def test_ticket47900(topology):
 
         We need to test how passwords are modified in
         existing entries, and when adding new entries.
-        
+
         Create the Password Admin entry, but do not set
         it as an admin yet.  Use the entry to verify invalid
-        passwords are caught.  Then activate the password 
+        passwords are caught.  Then activate the password
         admin and make sure it can bypass password policy.
     """
 
@@ -224,27 +225,26 @@ def test_ticket47900(topology):
                     "with an invalid password (%s)" % (passwd))
             assert False
 
-
     #
     # Now activate a password administator, bind as root dn to do the config
     # update, then rebind as the password admin
     #
     topology.standalone.log.info("Activate the Password Administator...")
-    
+
     # Bind as Root DN
     try:
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError, e:
         topology.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
-        assert False 
-        
+        assert False
+
     # Update config
     try:
         topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'passwordAdminDN', ADMIN_DN)])
     except ldap.LDAPError, e:
         topology.standalone.log.error('Failed to add password admin to config: ' + e.message['desc'])
         assert False
-    
+
     # Bind as Password Admin
     try:
         topology.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
@@ -274,7 +274,6 @@ def test_ticket47900(topology):
             topology.standalone.log.error('Failed to delete entry: %s' % (e.message['desc']))
             assert False
 
-
     #
     # Add the entry for the next round of testing (modify password)
     #
@@ -290,13 +289,13 @@ def test_ticket47900(topology):
     # Deactivate the password admin and make sure invalid password updates fail
     #
     topology.standalone.log.info("Deactivate Password Administator and try invalid password updates...")
-    
+
     # Bind as root DN
     try:
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError, e:
         topology.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
-        assert False 
+        assert False
 
     # Update config
     try:
@@ -311,7 +310,7 @@ def test_ticket47900(topology):
     except ldap.LDAPError, e:
         topology.standalone.log.error('Failed to bind as the Password Admin: ' + e.message['desc'])
         assert False
-        
+
     #
     # Make invalid password updates that should fail
     #
@@ -335,13 +334,13 @@ def test_ticket47900(topology):
     # Now activate a password administator
     #
     topology.standalone.log.info("Activate Password Administator and try updates again...")
-    
+
     # Bind as root DN
     try:
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     except ldap.LDAPError, e:
         topology.standalone.log.error('Root DN failed to authenticate: ' + e.message['desc'])
-        assert False 
+        assert False
 
     # Update config
     try:
@@ -349,7 +348,7 @@ def test_ticket47900(topology):
     except ldap.LDAPError, e:
         topology.standalone.log.error('Failed to add password admin to config: ' + e.message['desc'])
         assert False
-        
+
     # Bind as Password Admin
     try:
         topology.standalone.simple_bind_s(ADMIN_DN, ADMIN_PWD)
@@ -368,7 +367,7 @@ def test_ticket47900(topology):
             topology.standalone.log.error('Password update failed unexpectedly: password (%s) result (%s)'
                     % (passwd, e.message['desc']))
             assert False
-        topology.standalone.log.info('Password update succeeded (%s)' % passwd) 
+        topology.standalone.log.info('Password update succeeded (%s)' % passwd)
     #
     # Test passed
     #
@@ -376,7 +375,7 @@ def test_ticket47900(topology):
 
 
 def test_ticket47900_final(topology):
-    topology.standalone.stop(timeout=10)
+    topology.standalone.delete()
 
 
 def run_isolated():
@@ -392,7 +391,7 @@ def run_isolated():
 
     topo = topology(True)
     test_ticket47900(topo)
+    test_ticket47900_final(topo)
 
 if __name__ == '__main__':
     run_isolated()
-

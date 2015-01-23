@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 installation_prefix = None
 
-ACCT_POLICY_CONFIG_DN = 'cn=config,cn=%s,cn=plugins,cn=config' % PLUGIN_ACCT_POLICY 
+ACCT_POLICY_CONFIG_DN = 'cn=config,cn=%s,cn=plugins,cn=config' % PLUGIN_ACCT_POLICY
 ACCT_POLICY_DN = 'cn=Account Inactivation Pplicy,%s' % SUFFIX
 INACTIVITY_LIMIT = '9'
 SEARCHFILTER = '(objectclass=*)'
@@ -24,6 +24,7 @@ SEARCHFILTER = '(objectclass=*)'
 TEST_USER = 'ticket47714user'
 TEST_USER_DN = 'uid=%s,%s' % (TEST_USER, SUFFIX)
 TEST_USER_PW = '%s' % TEST_USER
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -128,6 +129,7 @@ def topology(request):
     # Time to return the topology
     return TopologyStandalone(standalone)
 
+
 def _header(topology, label):
     topology.standalone.log.info("\n\n###############################################")
     topology.standalone.log.info("#######")
@@ -135,9 +137,10 @@ def _header(topology, label):
     topology.standalone.log.info("#######")
     topology.standalone.log.info("###############################################")
 
+
 def test_ticket47714_init(topology):
     """
-    1. Add account policy entry to the DB    
+    1. Add account policy entry to the DB
     2. Add a test user to the DB
     """
     _header(topology, 'Testing Ticket 47714 - [RFE] Update lastLoginTime also in Account Policy plugin if account lockout is based on passwordExpirationTime.')
@@ -155,6 +158,7 @@ def test_ticket47714_init(topology):
                                                     'givenname': TEST_USER,
                                                     'userPassword': TEST_USER_PW,
                                                     'acctPolicySubentry': ACCT_POLICY_DN})))
+
 
 def test_ticket47714_run_0(topology):
     """
@@ -224,6 +228,7 @@ def test_ticket47714_run_0(topology):
         log.info("%s was successfully inactivated." % TEST_USER_DN)
         pass
 
+
 def test_ticket47714_run_1(topology):
     """
     Verify a new config attr alwaysRecordLoginAttr
@@ -278,14 +283,12 @@ def test_ticket47714_run_1(topology):
     log.info("First lastLoginTime: %s, Second lastLoginTime: %s" % (lastLoginTime0, lastLoginTime1))
     assert lastLoginTime0 < lastLoginTime1
 
-    topology.standalone.log.info("ticket47714 was successfully verified.");
+    topology.standalone.log.info("ticket47714 was successfully verified.")
+
 
 def test_ticket47714_final(topology):
-    log.info("\n######################### Adding Account Policy entry: %s ######################\n" % ACCT_POLICY_DN)
-    # Enabled the plugins
-    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology.standalone.plugins.disable(name=PLUGIN_ACCT_POLICY)
-    topology.standalone.stop(timeout=10)
+    topology.standalone.delete()
+
 
 def run_isolated():
     '''
@@ -300,13 +303,13 @@ def run_isolated():
 
     topo = topology(True)
     test_ticket47714_init(topo)
-    
+
     test_ticket47714_run_0(topo)
 
     test_ticket47714_run_1(topo)
-    
+
     test_ticket47714_final(topo)
-    
+
 
 if __name__ == '__main__':
     run_isolated()

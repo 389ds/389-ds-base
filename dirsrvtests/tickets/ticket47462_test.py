@@ -244,9 +244,14 @@ def test_ticket47462(topology):
     #
     try:
         topology.master1.modify_s(DES_PLUGIN,
-                      [(ldap.MOD_REPLACE, 'nsslapd-pluginPath', 'libdes-plugin'),
-                       (ldap.MOD_ADD, 'nsslapd-pluginarg2', 'description')])
+                      [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
+    except ldap.LDAPError, e:
+            log.fatal('Failed to enable DES plugin, error: ' + e.message['desc'])
+            assert False
 
+    try:
+        topology.master1.modify_s(DES_PLUGIN,
+                      [(ldap.MOD_ADD, 'nsslapd-pluginarg2', 'description')])
     except ldap.LDAPError, e:
             log.fatal('Failed to reset DES plugin, error: ' + e.message['desc'])
             assert False
@@ -258,7 +263,7 @@ def test_ticket47462(topology):
     except ldap.NO_SUCH_ATTRIBUTE:
         pass
     except ldap.LDAPError, e:
-            log.fatal('Failed to reset DES plugin, error: ' + e.message['desc'])
+            log.fatal('Failed to reset MMR plugin, error: ' + e.message['desc'])
             assert False
 
     #
@@ -428,8 +433,8 @@ def test_ticket47462(topology):
 
 
 def test_ticket47462_final(topology):
-    topology.master1.stop(timeout=10)
-    topology.master2.stop(timeout=10)
+    topology.master1.delete()
+    topology.master2.delete()
 
 
 def run_isolated():
@@ -447,6 +452,8 @@ def run_isolated():
 
     topo = topology(True)
     test_ticket47462(topo)
+    test_ticket47462_final(topo)
+
 
 if __name__ == '__main__':
     run_isolated()

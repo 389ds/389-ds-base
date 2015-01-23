@@ -120,7 +120,7 @@ def topology(request):
 
 def test_ticket47781(topology):
     """
-        Testing for a deadlock after doing an online import of an LDIF with 
+        Testing for a deadlock after doing an online import of an LDIF with
         replication data.  The replication agreement should be invalid.
     """
 
@@ -130,7 +130,7 @@ def test_ticket47781(topology):
     # Setup Replication
     #
     log.info('Setting up replication...')
-    topology.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER, 
+    topology.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER,
                                                   replicaId=REPLICAID_MASTER_1)
 
     properties = {RA_NAME:      r'meTo_$host:$port',
@@ -139,9 +139,9 @@ def test_ticket47781(topology):
                   RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     # The agreement should point to a server that does NOT exist (invalid port)
-    repl_agreement = topology.standalone.agreement.create(suffix=DEFAULT_SUFFIX, 
-                                                          host=topology.standalone.host, 
-                                                          port=5555, 
+    repl_agreement = topology.standalone.agreement.create(suffix=DEFAULT_SUFFIX,
+                                                          host=topology.standalone.host,
+                                                          port=5555,
                                                           properties=properties)
 
     #
@@ -196,13 +196,13 @@ def test_ticket47781(topology):
     except ValueError:
         os.remove("/tmp/export.ldif")
         assert False
-    
+
     #
     # Search for tombstones - we should not hang/timeout
     #
     log.info('Search for tombstone entries(should find one and not hang)...')
-    topology.standalone.set_option(ldap.OPT_NETWORK_TIMEOUT, 5);
-    topology.standalone.set_option(ldap.OPT_TIMEOUT, 5);
+    topology.standalone.set_option(ldap.OPT_NETWORK_TIMEOUT, 5)
+    topology.standalone.set_option(ldap.OPT_TIMEOUT, 5)
     try:
         entries = topology.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=nsTombstone')
         if not entries:
@@ -217,7 +217,7 @@ def test_ticket47781(topology):
 
 
 def test_ticket47781_final(topology):
-    topology.standalone.stop(timeout=10)
+    topology.standalone.delete()
 
 
 def run_isolated():
@@ -233,6 +233,8 @@ def run_isolated():
 
     topo = topology(True)
     test_ticket47781(topo)
+    test_ticket47781_final(topo)
+
 
 if __name__ == '__main__':
     run_isolated()
