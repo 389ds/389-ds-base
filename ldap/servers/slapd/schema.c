@@ -2487,7 +2487,7 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
 	}
   }
 
-  for (i = 0; mod->mod_bvalues[i]; i++) {
+  for (i = 0; mod->mod_bvalues && mod->mod_bvalues[i]; i++) {
 	if ( LDAP_SUCCESS != ( rc = parse_oc_str (
 				(const char *)mod->mod_bvalues[i]->bv_val, &delete_oc,
 				errorbuf, errorbufsize, 0, 0, schema_ds4x_compat, NULL))) {
@@ -2600,7 +2600,7 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  }
   }
 
-  for (i = 0; mod->mod_bvalues[i]; i++) {
+  for (i = 0; mod->mod_bvalues && mod->mod_bvalues[i]; i++) {
 	attr_ldif =(char *)  mod->mod_bvalues[i]->bv_val;
 
 	/* normalize the attr ldif */
