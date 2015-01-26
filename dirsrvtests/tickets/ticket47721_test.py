@@ -57,6 +57,7 @@ ENTRY_OC   = "top person %s" % OC_NAME
 
 BASE_OID = "1.2.3.4.5.6.7.8.9.10"
 
+SLEEP_INTERVAL = 60
 
 def _add_custom_at_definition(name='ATticket47721'):
     new_at = "( %s-oid NAME '%s' DESC 'test AT ticket 47721' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN ( 'Test 47721' 'user defined' ) )" % (name, name)
@@ -290,8 +291,8 @@ def test_ticket47721_init(topology):
                                             'cn':           BIND_NAME,
                                             'userpassword': BIND_PW})))
 
-    # enable acl error logging
-    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192))] # ACL + REPL
+    # enable repl error logging
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192))]  # REPL logging
     topology.master1.modify_s(DN_CONFIG, mod)
     topology.master2.modify_s(DN_CONFIG, mod)
 
@@ -320,6 +321,7 @@ def test_ticket47721_0(topology):
 
 
 def test_ticket47721_1(topology):
+    log.info('Running test 1...')
     #topology.master1.log.info("Attach debugger\n\n")
     #time.sleep(30)
 
@@ -357,19 +359,13 @@ def test_ticket47721_1(topology):
     time.sleep(2)
     schema_csn_master1 = topology.master1.schema.get_schema_csn()
     schema_csn_master2 = topology.master2.schema.get_schema_csn()
-    if schema_csn_master1 != schema_csn_master2:
-        # We need to give the server a little more time, then check it again
-        log.info('Schema CSNs are not in sync yet: m1 (%s) vs m2 (%s), wait a little...'
-            % (schema_csn_master1, schema_csn_master2))
-        time.sleep(30)
-        schema_csn_master1 = topology.master1.schema.get_schema_csn()
-        schema_csn_master2 = topology.master2.schema.get_schema_csn()
-
-    assert schema_csn_master1 is not None
-    assert schema_csn_master1 == schema_csn_master2
+    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
+    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
 
 
 def test_ticket47721_2(topology):
+    log.info('Running test 2...')
+
     mod = [(ldap.MOD_REPLACE, 'description', 'Hello world 2')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     topology.master1.modify_s(dn, mod)
@@ -388,11 +384,13 @@ def test_ticket47721_2(topology):
     time.sleep(2)
     schema_csn_master1 = topology.master1.schema.get_schema_csn()
     schema_csn_master2 = topology.master2.schema.get_schema_csn()
+    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
+    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
     if schema_csn_master1 != schema_csn_master2:
         # We need to give the server a little more time, then check it again
         log.info('Schema CSNs are not in sync yet: m1 (%s) vs m2 (%s), wait a little...'
             % (schema_csn_master1, schema_csn_master2))
-        time.sleep(30)
+        time.sleep(SLEEP_INTERVAL)
         schema_csn_master1 = topology.master1.schema.get_schema_csn()
         schema_csn_master2 = topology.master2.schema.get_schema_csn()
 
@@ -405,6 +403,8 @@ def test_ticket47721_3(topology):
     Check that the supplier can update its schema from consumer schema
     Update M2 schema, then trigger a replication M1->M2
     '''
+    log.info('Running test 3...')
+
     # stop RA M2->M1, so that M1 can only learn being a supplier
     ents = topology.master2.agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
@@ -436,11 +436,13 @@ def test_ticket47721_3(topology):
     time.sleep(2)
     schema_csn_master1 = topology.master1.schema.get_schema_csn()
     schema_csn_master2 = topology.master2.schema.get_schema_csn()
-    if schema_csn_master1 != schema_csn_master2:
+    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
+    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
+    if schema_csn_master1 == schema_csn_master2:
         # We need to give the server a little more time, then check it again
         log.info('Schema CSNs are not in sync yet: m1 (%s) vs m2 (%s), wait a little...'
             % (schema_csn_master1, schema_csn_master2))
-        time.sleep(30)
+        time.sleep(SLEEP_INTERVAL)
         schema_csn_master1 = topology.master1.schema.get_schema_csn()
         schema_csn_master2 = topology.master2.schema.get_schema_csn()
 
@@ -456,6 +458,8 @@ def test_ticket47721_4(topology):
     the nsschemacsn is M2>M1. But as the RA M2->M1 is disabled, M1 keeps its schemacsn.
     Update schema on M2 (nsschemaCSN update), update M2. Check they have the same schemacsn
     '''
+    log.info('Running test 4...')
+
     new = _add_custom_at_definition('ATtest4')
     topology.master1.log.info("Update schema (M1) %s " % new)
     topology.master1.schema.add_schema('attributetypes', new)
@@ -499,10 +503,12 @@ def test_ticket47721_4(topology):
     time.sleep(2)
     schema_csn_master1 = topology.master1.schema.get_schema_csn()
     schema_csn_master2 = topology.master2.schema.get_schema_csn()
+    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
+    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
     if schema_csn_master1 != schema_csn_master2:
         # We need to give the server a little more time, then check it again
-        log.info('Schema CSNs are not in sync yet, wait a little...')
-        time.sleep(30)
+        log.info('Schema CSNs are incorrectly in sync, wait a little...')
+        time.sleep(SLEEP_INTERVAL)
         schema_csn_master1 = topology.master1.schema.get_schema_csn()
         schema_csn_master2 = topology.master2.schema.get_schema_csn()
 
@@ -543,4 +549,3 @@ def run_isolated():
 
 if __name__ == '__main__':
     run_isolated()
-

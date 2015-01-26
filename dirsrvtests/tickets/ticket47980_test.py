@@ -627,6 +627,8 @@ def test_ticket47980(topology):
         log.error('Failed to add COS def for branch6: error ' + e.message['desc'])
         assert False
 
+    time.sleep(2)
+
     #
     # Now check that each user has its expected passwordPolicy subentry
     #

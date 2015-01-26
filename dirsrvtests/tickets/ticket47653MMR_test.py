@@ -356,6 +356,7 @@ def test_ticket47653_add(topology):
     ACI_BODY         = ACI_TARGET + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     topology.master1.modify_s(SUFFIX, mod)
+    time.sleep(1)
 
     # bind as bind_entry
     topology.master1.log.info("Bind as %s" % BIND_DN)
@@ -384,7 +385,11 @@ def test_ticket47653_add(topology):
         assert isinstance(e, ldap.INSUFFICIENT_ACCESS)
 
     topology.master1.log.info("Try to add Add  %s should be successful" % ENTRY_DN)
-    topology.master1.add_s(entry_with_member)
+    try:
+        topology.master1.add_s(entry_with_member)
+    except ldap.LDAPError, e:
+        topology.master1.log.info("Failed to add entry,  error: " + e.message['desc'])
+        assert False
 
     #
     # Now check the entry as been replicated
@@ -457,6 +462,7 @@ def test_ticket47653_modify(topology):
     ACI_BODY         = ACI_TARGET + ACI_TARGETATTR + ACI_TARGETFILTER + ACI_ALLOW + ACI_SUBJECT
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     topology.master1.modify_s(SUFFIX, mod)
+    time.sleep(1)
 
     # bind as bind_entry
     topology.master1.log.info("M1: Bind as %s" % BIND_DN)
