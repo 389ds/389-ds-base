@@ -145,6 +145,9 @@ check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
     int attr_free_flags = 0;
     char *strval;
 
+    if (isvirt) {
+        *isvirt = 1; /* nsAccountLock is implemeted as nsRole */
+    }
     /* first, see if the attribute is a "real" attribute */
     strval = slapi_entry_attr_get_charptr(ds_entry, "nsAccountLock");
     if (strval) { /* value is real */
