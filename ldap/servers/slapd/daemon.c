@@ -1026,7 +1026,7 @@ convert_pbe_des_to_aes()
             /*
              * Loop over all the backends looking for the password attribute
              */
-            for(be_idx = 0; backends[be_idx]; be_idx++){
+            for(be_idx = 0; backends && backends[be_idx]; be_idx++){
                 pb = slapi_pblock_new();
                 slapi_search_internal_set_pb(pb, backends[be_idx],
                         LDAP_SCOPE_SUBTREE, filter, NULL, 0, NULL, NULL,
