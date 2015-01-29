@@ -592,8 +592,8 @@ class Agreement(object):
             # use schedule hack
             self.schedule(interval)
 
-        # Allow a little time for the change to take effect
-        time.sleep(2)
+        # Allow a little time for repl agmt thread to stop
+        time.sleep(5)
 
     def resume(self, agmtdn, interval=ALWAYS):
         """Resume a paused replication agreement, paused with the "pause" method.
@@ -617,7 +617,7 @@ class Agreement(object):
             # use schedule hack
             self.schedule(interval)
 
-        # Allow a little time for the change to take effect
+        # Allow a little time for the repl agmt thread to start
         time.sleep(2)
 
     def changes(self, agmnt_dn):
