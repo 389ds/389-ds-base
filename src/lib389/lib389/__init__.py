@@ -1925,23 +1925,28 @@ class DirSrv(SimpleLDAPObject):
 
             '/home/user/389-ds-base/ds/dirsrvtests/tickets/ticket_#####_test.py' -->
             '/home/user/389-ds-base/ds/dirsrvtests/data/'
+            '/home/user/389-ds-base/ds/dirsrvtests/suites/dyanmic-plugins/test-dynamic-plugins_test.py' -->
+            '/home/user/389-ds-base/ds/dirsrvtests/data/'
         """
-
+        dir_path = None
         if os.path.exists(filename):
-            script_name = os.path.basename(filename)
-            if script_name:
-                if dirtype == TMP_DIR:
-                    dir_path = os.path.abspath(filename).replace('tickets/' + script_name, 'tmp/')
-                elif dirtype == DATA_DIR:
-                    dir_path = os.path.abspath(filename).replace('tickets/' + script_name, 'data/')
-                else:
-                    raise ValueError("Invalid directory type (%s), acceptable values are DATA_DIR and TMP_DIR"
-                        % dirtype)
-                    return None
-                if dir_path:
-                    return dir_path
+            if '/suites/' in filename:
+                idx = filename.find('/suites/')
+            elif '/tickets/' in filename:
+                idx = filename.find('/tickets/')
+            else:
+                # Unknown script location
+                return None
 
-        return None
+            if dirtype == TMP_DIR:
+                dir_path = filename[:idx] + '/tmp/'
+            elif dirtype == DATA_DIR:
+                dir_path = filename[:idx] + '/data/'
+            else:
+                raise ValueError("Invalid directory type (%s), acceptable values are DATA_DIR and TMP_DIR"
+                    % dirtype)
+
+        return dir_path
 
     def clearTmpDir(self, filename):
         """
@@ -1951,14 +1956,20 @@ class DirSrv(SimpleLDAPObject):
         Clear the contents of the "tmp" dir, but leave the README file in place.
         """
         if os.path.exists(filename):
-            script_name = os.path.basename(filename)
-            if script_name:
-                dir_path = os.path.abspath(filename).replace('tickets/' + script_name, 'tmp/')
-                if dir_path:
-                    filelist = [tmpfile for tmpfile in os.listdir(dir_path) if tmpfile != 'README']
-                    for tmpfile in filelist:
-                        os.remove(os.path.abspath(dir_path + tmpfile))
-                    return
+            if '/suites/' in filename:
+                idx = filename.find('/suites/')
+            elif '/tickets/' in filename:
+                idx = filename.find('/tickets/')
+            else:
+                # Unknown script location
+                return
+
+            dir_path = filename[:idx] + '/tmp/'
+            if dir_path:
+                filelist = [tmpfile for tmpfile in os.listdir(dir_path) if tmpfile != 'README']
+                for tmpfile in filelist:
+                    os.remove(os.path.abspath(dir_path + tmpfile))
+                return
 
         log.fatal('Failed to clear tmp directory (%s)' % filename)
 
