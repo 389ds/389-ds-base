@@ -108,7 +108,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/sasl.m4 $(top_srcdir)/m4/svrcore.m4 \
 	$(top_srcdir)/m4/icu.m4 $(top_srcdir)/m4/netsnmp.m4 \
 	$(top_srcdir)/m4/kerberos.m4 $(top_srcdir)/m4/pcre.m4 \
-	$(top_srcdir)/m4/selinux.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/selinux.m4 $(top_srcdir)/m4/lfds.m4 \
+	$(top_srcdir)/m4/nunc-stans.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -705,11 +706,14 @@ libschemareload_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(AM_CFLAGS) $(CFLAGS) $(libschemareload_plugin_la_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
+@enable_nunc_stans_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
+@enable_nunc_stans_TRUE@	$(am__DEPENDENCIES_1)
+am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
 libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/agtmmap.c ldap/servers/slapd/apibroker.c \
 	ldap/servers/slapd/attr.c ldap/servers/slapd/attrlist.c \
@@ -951,8 +955,8 @@ am_ldap_agent_bin_OBJECTS =  \
 	ldap/servers/snmp/ldap_agent_bin-ldap-agent.$(OBJEXT) \
 	ldap/servers/slapd/ldap_agent_bin-agtmmap.$(OBJEXT)
 ldap_agent_bin_OBJECTS = $(am_ldap_agent_bin_OBJECTS)
-@OPENLDAP_FALSE@am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
-ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+@OPENLDAP_FALSE@am__DEPENDENCIES_4 = $(am__DEPENDENCIES_1)
+ldap_agent_bin_DEPENDENCIES = $(am__DEPENDENCIES_4) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
@@ -993,7 +997,7 @@ am_ldif_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/ldif_bin-ldif.$(OBJEXT)
 ldif_bin_OBJECTS = $(am_ldif_bin_OBJECTS)
 ldif_bin_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_4) $(am__DEPENDENCIES_1)
 am_makstrdb_OBJECTS = lib/libsi18n/makstrdb-makstrdb.$(OBJEXT)
 makstrdb_OBJECTS = $(am_makstrdb_OBJECTS)
 makstrdb_LDADD = $(LDADD)
@@ -1007,7 +1011,7 @@ am_mmldif_bin_OBJECTS =  \
 mmldif_bin_OBJECTS = $(am_mmldif_bin_OBJECTS)
 mmldif_bin_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_4) $(am__DEPENDENCIES_1)
 am__ns_slapd_SOURCES_DIST = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/auth.c ldap/servers/slapd/bind.c \
 	ldap/servers/slapd/compare.c ldap/servers/slapd/config.c \
@@ -1419,6 +1423,9 @@ ldapsdk_lib = @ldapsdk_lib@
 ldapsdk_libdir = @ldapsdk_libdir@
 ldaptool_bindir = @ldaptool_bindir@
 ldaptool_opts = @ldaptool_opts@
+lfds_inc = @lfds_inc@
+lfds_lib = @lfds_lib@
+lfds_libdir = @lfds_libdir@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
@@ -1437,6 +1444,9 @@ nspr_libdir = @nspr_libdir@
 nss_inc = @nss_inc@
 nss_lib = @nss_lib@
 nss_libdir = @nss_libdir@
+nunc_stans_inc = @nunc_stans_inc@
+nunc_stans_lib = @nunc_stans_lib@
+nunc_stans_libdir = @nunc_stans_libdir@
 ol_libver = @ol_libver@
 oldincludedir = @oldincludedir@
 openldap_bindir = @openldap_bindir@
@@ -1502,7 +1512,10 @@ DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
 
-DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
+@enable_nunc_stans_TRUE@NUNC_STANS_INCLUDES = $(nunc_stans_inc) $(lfds_inc)
+@enable_nunc_stans_TRUE@NUNC_STANS_LINK = $(nunc_stans_lib) -lnunc-stans $(lfds_lib) -llfds
+DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I. $(NUNC_STANS_INCLUDES)
+
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
 # values prior to their being defined.  Defining them here ensures that they are properly
@@ -2146,7 +2159,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/value.c ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c $(libavl_a_SOURCES) $(am__append_1)
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NUNC_STANS_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB)
 
 #////////////////////////////////////////////////////////////////
 #

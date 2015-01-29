@@ -226,6 +226,18 @@ else
 fi
 AM_CONDITIONAL(enable_posix_winsync,test "$enable_posix_winsync" = "yes")
 
+AC_MSG_CHECKING(for --enable-nunc-stans)
+AC_ARG_ENABLE(nunc_stans,
+        AS_HELP_STRING([--enable-nunc-stans],
+                       [enable support for nunc-stans event framework (default: no)]))
+if test "$enable_nunc_stans" = yes ; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([ENABLE_NUNC_STANS], [1], [enable support for nunc-stans event framework])
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(enable_nunc_stans,test "$enable_nunc_stans" = "yes")
+
 # the default prefix - override with --prefix or --with-fhs
 AC_PREFIX_DEFAULT([/opt/$PACKAGE_NAME])
 
@@ -678,6 +690,8 @@ m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
 m4_include(m4/pcre.m4)
 m4_include(m4/selinux.m4)
+m4_include(m4/lfds.m4)
+m4_include(m4/nunc-stans.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
@@ -735,6 +749,12 @@ AC_SUBST(netsnmp_link)
 AC_SUBST(pcre_inc)
 AC_SUBST(pcre_lib)
 AC_SUBST(pcre_libdir)
+AC_SUBST(lfds_inc)
+AC_SUBST(lfds_lib)
+AC_SUBST(lfds_libdir)
+AC_SUBST(nunc_stans_inc)
+AC_SUBST(nunc_stans_lib)
+AC_SUBST(nunc_stans_libdir)
 AC_SUBST(localrundir)
 
 AC_SUBST(brand)

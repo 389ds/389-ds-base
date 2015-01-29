@@ -211,6 +211,9 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 		 * far then `c' is not being used by any operation threads, etc.
 		 */
 		connection_cleanup(c);
+#ifdef ENABLE_NUNC_STANS
+		c->c_ct = ct; /* pointer to connection table that owns this connection */
+#endif
     }
     else
     {
@@ -289,9 +292,10 @@ connection_table_dump_active_connections (Connection_Table *ct)
  * list. This list is used to find the connections that should be used in the
  * poll call. 
  */
-void
+int
 connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connection *c)
 {
+    int c_sd; /* for logging */
     /* we always have previous element because list contains a dummy header */;
     PR_ASSERT (c->c_prev);
 
@@ -300,11 +304,17 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
     connection_table_dump_active_connection (c);
 #endif
 
+    c_sd = c->c_sd;
     /*
      * Note: the connection will NOT be moved off the active list if any other threads still hold
      * a reference to the connection (that is, its reference count must be 1 or less).
      */
-    if(c->c_refcnt > 1) return;
+    if(c->c_refcnt > 1) {
+	    LDAPDebug2Args(LDAP_DEBUG_CONNS,
+		           "not moving conn %d out of active list because refcnt is %d\n",
+		           c_sd, c->c_refcnt);
+	    return 1; /* failed */
+    }
 	
     /* We need to lock here because we're modifying the linked list */
     PR_Lock(ct->table_mutex);
@@ -321,10 +331,13 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
     connection_cleanup (c);
 
     PR_Unlock(ct->table_mutex);
+
+    LDAPDebug1Arg(LDAP_DEBUG_CONNS, "moved conn %d out of active list and freed\n", c_sd);
 	
 #ifdef FOR_DEBUGGING
     connection_table_dump_active_connections (ct);
 #endif
+    return 0; /* success */
 }
 
 /*

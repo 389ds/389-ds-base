@@ -1421,6 +1421,7 @@ int mapping_tree_get_extension_type ();
  * connection.c
  */
 int connection_acquire_nolock (Connection *conn);
+int connection_acquire_nolock_ext (Connection *conn, int allow_when_closing);
 int connection_release_nolock (Connection *conn);
 int connection_is_free (Connection *conn);
 int connection_is_active_nolock (Connection *conn);
@@ -1462,6 +1463,10 @@ void slapd_wait4child (int);
 #else
 void *slapd_service_exit_wait();
 #endif
+#ifdef ENABLE_NUNC_STANS
+void ns_handle_pr_read_ready(struct ns_job_t *job);
+#endif
+void ns_connection_post_io_or_closing(Connection *conn);
 
 /*
  * main.c

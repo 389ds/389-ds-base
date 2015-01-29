@@ -158,7 +158,7 @@ Connection_Table *connection_table_new(int table_size);
 void connection_table_free(Connection_Table *ct);
 void connection_table_abandon_all_operations(Connection_Table *ct);
 Connection *connection_table_get_connection(Connection_Table *ct, int sd);
-void connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c);
+int connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c);
 void connection_table_move_connection_on_to_active_list(Connection_Table *ct, Connection *c);
 void connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e);
 void connection_table_dump_activity_to_errors_log(Connection_Table *ct);
@@ -185,6 +185,7 @@ int daemon_register_reslimits( void );
 PRFileDesc * get_ssl_listener_fd();
 int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local );
 void configure_ns_socket( int * ns );
+void ns_enable_listeners();
 
 /*
  * sasl_io.c

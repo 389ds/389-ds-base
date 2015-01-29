@@ -640,6 +640,12 @@ vendor
 capbrand
 brand
 localrundir
+nunc_stans_libdir
+nunc_stans_lib
+nunc_stans_inc
+lfds_libdir
+lfds_lib
+lfds_inc
 pcre_libdir
 pcre_lib
 pcre_inc
@@ -738,6 +744,8 @@ PKG_CONFIG_PATH
 PKG_CONFIG
 with_tmpfiles_d
 with_fhs_opt
+enable_nunc_stans_FALSE
+enable_nunc_stans_TRUE
 enable_posix_winsync_FALSE
 enable_posix_winsync_TRUE
 enable_acctpolicy_FALSE
@@ -911,6 +919,7 @@ enable_bitwise
 enable_presence
 enable_acctpolicy
 enable_posix_winsync
+enable_nunc_stans
 with_fhs
 with_fhs_opt
 with_tmpfiles_d
@@ -956,6 +965,12 @@ with_kerberos_inc
 with_kerberos_lib
 with_pcre
 with_selinux
+with_lfds
+with_lfds_inc
+with_lfds_lib
+with_nunc_stans
+with_nunc_stans_inc
+with_nunc_stans_lib
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1625,6 +1640,8 @@ Optional Features:
   --enable-acctpolicy     enable the account policy plugin (default: yes)
   --enable-posix-winsync  enable support for POSIX user/group attributes in
                           winsync (default: yes)
+  --enable-nunc-stans     enable support for nunc-stans event framework
+                          (default: no)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1717,6 +1734,15 @@ Optional Packages:
                           kerberos
   --with-pcre[=PATH]      Perl Compatible Regular Expression directory
   --with-selinux          Support SELinux policy
+  --with-lfds[=PATH]      LFDS directory
+  --with-lfds-inc=PATH    LFDS include file directory
+  --with-lfds-lib=PATH    LFDS library directory
+  --with-nunc-stans[=PATH]
+                          nunc-stans directory
+  --with-nunc-stans-inc=PATH
+                          nunc-stans include file directory
+  --with-nunc-stans-lib=PATH
+                          nunc-stans library directory
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -17887,6 +17913,32 @@ else
 fi
 
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-nunc-stans" >&5
+$as_echo_n "checking for --enable-nunc-stans... " >&6; }
+# Check whether --enable-nunc_stans was given.
+if test "${enable_nunc_stans+set}" = set; then :
+  enableval=$enable_nunc_stans;
+fi
+
+if test "$enable_nunc_stans" = yes ; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define ENABLE_NUNC_STANS 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+ if test "$enable_nunc_stans" = "yes"; then
+  enable_nunc_stans_TRUE=
+  enable_nunc_stans_FALSE='#'
+else
+  enable_nunc_stans_TRUE='#'
+  enable_nunc_stans_FALSE=
+fi
+
+
 # the default prefix - override with --prefix or --with-fhs
 
 
@@ -21241,6 +21293,214 @@ $as_echo "no" >&6; }
 fi
 
 
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# END COPYRIGHT BLOCK
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for lfds..." >&5
+$as_echo "$as_me: checking for lfds..." >&6;}
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lfds" >&5
+$as_echo_n "checking for --with-lfds... " >&6; }
+
+# Check whether --with-lfds was given.
+if test "${with_lfds+set}" = set; then :
+  withval=$with_lfds;
+  if test "$withval" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  elif test "$withval" = "no"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  elif test -d "$withval"/inc -a -d "$withval"/bin; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
+$as_echo "using $withval" >&6; }
+        lfds_lib="-L$withval/bin"
+    lfds_libdir="$withval/lib"
+    lfds_incdir="$withval/inc"
+    if ! test -e "$lfds_incdir/liblfds.h" ; then
+      as_fn_error $? "$withval include dir not found" "$LINENO" 5
+    fi
+    lfds_inc="-I$lfds_incdir"
+  else
+    echo
+    as_fn_error $? "$withval not found" "$LINENO" 5
+  fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# check for --with-lfds-inc
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lfds-inc" >&5
+$as_echo_n "checking for --with-lfds-inc... " >&6; }
+
+# Check whether --with-lfds-inc was given.
+if test "${with_lfds_inc+set}" = set; then :
+  withval=$with_lfds_inc;
+  if test -e "$withval"/liblfds.h
+  then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
+$as_echo "using $withval" >&6; }
+    lfds_incdir="$withval"
+    lfds_inc="-I$withval"
+  else
+    echo
+    as_fn_error $? "$withval not found" "$LINENO" 5
+  fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# check for --with-lfds-lib
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lfds-lib" >&5
+$as_echo_n "checking for --with-lfds-lib... " >&6; }
+
+# Check whether --with-lfds-lib was given.
+if test "${with_lfds_lib+set}" = set; then :
+  withval=$with_lfds_lib;
+  if test -d "$withval"
+  then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
+$as_echo "using $withval" >&6; }
+    lfds_lib="-L$withval"
+    lfds_libdir="$withval"
+  else
+    echo
+    as_fn_error $? "$withval not found" "$LINENO" 5
+  fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+# END COPYRIGHT BLOCK
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nunc-stans..." >&5
+$as_echo "$as_me: checking for nunc-stans..." >&6;}
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-nunc-stans" >&5
+$as_echo_n "checking for --with-nunc-stans... " >&6; }
+
+# Check whether --with-nunc-stans was given.
+if test "${with_nunc_stans+set}" = set; then :
+  withval=$with_nunc_stans;
+  if test "$withval" = "yes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  elif test "$withval" = "no"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  elif test -d "$withval"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
+$as_echo "using $withval" >&6; }
+        nunc_stans_lib="-L$withval"
+    nunc_stans_libdir="$withval"
+    nunc_stans_incdir="$withval"
+    if ! test -e "$nunc_stans_incdir/ns_thrpool.h" ; then
+      as_fn_error $? "$withval include dir not found" "$LINENO" 5
+    fi
+    nunc_stans_inc="-I$nunc_stans_incdir"
+  else
+    echo
+    as_fn_error $? "$withval not found" "$LINENO" 5
+  fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# check for --with-nunc-stans-inc
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-nunc-stans-inc" >&5
+$as_echo_n "checking for --with-nunc-stans-inc... " >&6; }
+
+# Check whether --with-nunc-stans-inc was given.
+if test "${with_nunc_stans_inc+set}" = set; then :
+  withval=$with_nunc_stans_inc;
+  if test -e "$withval"/ns_thrpool.h
+  then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
+$as_echo "using $withval" >&6; }
+    nunc_stans_incdir="$withval"
+    nunc_stans_inc="-I$withval"
+  else
+    echo
+    as_fn_error $? "$withval not found" "$LINENO" 5
+  fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# check for --with-nunc-stans-lib
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-nunc-stans-lib" >&5
+$as_echo_n "checking for --with-nunc-stans-lib... " >&6; }
+
+# Check whether --with-nunc-stans-lib was given.
+if test "${with_nunc_stans_lib+set}" = set; then :
+  withval=$with_nunc_stans_lib;
+  if test -d "$withval"
+  then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
+$as_echo "using $withval" >&6; }
+    nunc_stans_lib="-L$withval"
+    nunc_stans_libdir="$withval"
+  else
+    echo
+    as_fn_error $? "$withval not found" "$LINENO" 5
+  fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 
@@ -21286,6 +21546,12 @@ fi
 
 
 # write out paths for binary components
+
+
+
+
+
+
 
 
 
@@ -21548,6 +21814,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${enable_posix_winsync_TRUE}" && test -z "${enable_posix_winsync_FALSE}"; then
   as_fn_error $? "conditional \"enable_posix_winsync\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${enable_nunc_stans_TRUE}" && test -z "${enable_nunc_stans_FALSE}"; then
+  as_fn_error $? "conditional \"enable_nunc_stans\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${WINNT_TRUE}" && test -z "${WINNT_FALSE}"; then

@@ -131,10 +131,17 @@ void disk_monitoring_stop();
 #define FDS_SIGNAL_PIPE 0
 
 typedef struct listener_info {
+#ifdef ENABLE_NUNC_STANS
+	PRStackElem stackelem; /* must be first in struct for PRStack to work */
+#endif
 	int idx; /* index of this listener in the ct->fd array */
 	PRFileDesc *listenfd; /* the listener fd */
 	int secure;
 	int local;
+#ifdef ENABLE_NUNC_STANS
+	Connection_Table *ct; /* for listen job callback */
+	struct ns_job_t *ns_job; /* the ns accept job */
+#endif
 } listener_info;
 
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
@@ -152,6 +159,9 @@ static PRFileDesc **createprlistensockets(unsigned short port,
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf,
 	size_t addrbuflen);
 static void	set_shutdown (int);
+#ifdef ENABLE_NUNC_STANS
+static void	ns_set_shutdown (struct ns_job_t *job);
+#endif
 static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read, listener_info *listener_idxs, int max_listeners);
 
 #ifdef HPUX10
@@ -376,7 +386,10 @@ static void set_timeval_ms(struct timeval *t, int ms);
 #endif
 /* GGOODREPL static void handle_timeout( void ); */
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
-static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local );
+static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn );
+#ifdef ENABLE_NUNC_STANS
+static void ns_handle_new_connection(struct ns_job_t *job);
+#endif
 #ifdef _WIN32
 static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, int n_tcps, PRFileDesc *s_tcps);
 #else
@@ -925,7 +938,7 @@ handle_listeners(Connection_Table *ct, listener_info *listener_idxs, int n_liste
 		if (fdidx && listenfd) {
 			if (SLAPD_POLL_LISTEN_READY(ct->fd[fdidx].out_flags)) {
 				/* accept() the new connection, put it on the active list for handle_pr_read_ready */
-				int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local);
+				int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local, NULL);
 				if (rc) {
 					LDAPDebug1Arg(LDAP_DEBUG_CONNS, "Error accepting new connection listenfd=%d\n",
 					              PR_FileDesc2NativeHandle(listenfd));
@@ -1175,6 +1188,47 @@ done:
     }
 }
 
+#ifdef ENABLE_NUNC_STANS
+static ns_job_type_t ns_listen_job_flags = NS_JOB_ACCEPT|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD;
+static PRStack *ns_disabled_listeners; /* holds the disabled listeners, if any */
+static PRInt32 num_disabled_listeners;
+#endif
+
+#ifdef ENABLE_NUNC_STANS
+static void
+ns_disable_listener(listener_info *listener)
+{
+	/* tell the event framework not to listen for new connections on this listener */
+	ns_job_modify(listener->ns_job, NS_JOB_DISABLE_ONLY);
+	/* add the listener to our list of disabled listeners */
+	PR_StackPush(ns_disabled_listeners, (PRStackElem *)listener);
+	PR_AtomicIncrement(&num_disabled_listeners);
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_disable_listener: "
+        	       "disabling listener for fd [%d]: [%d] now disabled\n",
+        	       PR_FileDesc2NativeHandle(listener->listenfd),
+        	       num_disabled_listeners);
+}
+#endif
+
+void
+ns_enable_listeners()
+{
+#ifdef ENABLE_NUNC_STANS
+	int num_enabled = 0;
+	listener_info *listener;
+	while ((listener = (listener_info *)PR_StackPop(ns_disabled_listeners))) {
+		/* there was a disabled listener - re-enable it to listen for new connections */
+		ns_job_modify(listener->ns_job, ns_listen_job_flags);
+		PR_AtomicDecrement(&num_disabled_listeners);
+		num_enabled++;
+	}
+	if (num_enabled) {
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, "ns_enable_listeners: "
+			      "enabled [%d] listeners\n", num_enabled);
+	}
+#endif
+}
+
 void slapd_daemon( daemon_ports_t *ports )
 {
 	/* We are passed some ports---one for regular connections, one
@@ -1203,7 +1257,9 @@ void slapd_daemon( daemon_ports_t *ports )
 	int in_referral_mode = config_check_referral_mode();
 	int n_listeners = 0; /* number of listener sockets */
 	listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
-
+#ifdef ENABLE_NUNC_STANS
+	ns_thrpool_t *tp;
+#endif
 	int connection_table_size = get_configured_connection_table_size();
 	the_connection_table= connection_table_new(connection_table_size);
 
@@ -1379,20 +1435,46 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif /* ENABLE_LDAPI */
 #endif
 	listener_idxs = (listener_info *)slapi_ch_calloc(n_listeners, sizeof(*listener_idxs));
+#ifdef ENABLE_NUNC_STANS
+	ns_disabled_listeners = PR_CreateStack("disabled_listeners");
+#endif
+	/*
+	 * Convert old DES encoded passwords to AES
+	 */
+	convert_pbe_des_to_aes();
+
+#ifdef ENABLE_NUNC_STANS
+	if (!g_get_shutdown()) {
+		int ii;
+		PRInt32 maxthreads = 3;
+		if (getenv("MAX_THREADS")) {
+			maxthreads = atoi(getenv("MAX_THREADS"));
+		}
+		tp = ns_thrpool_new(maxthreads, maxthreads, 0, 1024);
+		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
+		ns_add_signal_job(tp, SIGTERM, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
+		ns_add_signal_job(tp, SIGHUP, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
+		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll,listener_idxs,n_listeners);
+		for (ii = 0; ii < n_listeners; ++ii) {
+			listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
+			ns_add_io_job(tp, listener_idxs[ii].listenfd, ns_listen_job_flags,
+				      ns_handle_new_connection, &listener_idxs[ii], &listener_idxs[ii].ns_job);
+
+		}
+	}
+#endif
 	/* Now we write the pid file, indicating that the server is finally and listening for connections */
 	write_pid_file();
 
 	/* The server is ready and listening for connections. Logging "slapd started" message. */
 	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps,i_unix);
 
-	/*
-	 * Convert old DES encoded passwords to AES
-	 */
-	convert_pbe_des_to_aes();
-
 	/* The meat of the operation is in a loop on a call to select */
 	while(!g_get_shutdown())
 	{
+#ifdef ENABLE_NUNC_STANS
+		DS_Sleep(1);
+#else
 #ifdef _WIN32
 		fd_set			readfds;
 		struct timeval	wakeup_timer;
@@ -1420,28 +1502,27 @@ void slapd_daemon( daemon_ports_t *ports )
 		case -1: /* Error */
 #ifdef _WIN32
 			oserr = errno;
-
 			LDAPDebug( LDAP_DEBUG_TRACE,
-			    "select failed errno %d (%s)\n", oserr,
-			    slapd_system_strerror(oserr), 0 );
+				   "select failed errno %d (%s)\n", oserr,
+				   slapd_system_strerror(oserr), 0 );
 #else
 			prerr = PR_GetError();
 			LDAPDebug( LDAP_DEBUG_TRACE, "PR_Poll() failed, "
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					prerr, slapd_system_strerror(prerr), 0 );
+				   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+				   prerr, slapd_system_strerror(prerr), 0 );
 #endif
 			break;
 		default: /* either a new connection or some new data ready */
 			/* Figure out if we are dealing with one of the listen sockets */
 #ifdef _WIN32
 			/* If so, then handle a new connection */
-			if ( n_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( n_tcps,&readfds ) ) {
+			if ( n_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( n_tcps, &readfds ) ) {
 				handle_new_connection(the_connection_table,n_tcps,NULL,0,0);
-			} 
+			}
 			/* If so, then handle a new connection */
 			if ( s_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( s_tcps_native,&readfds ) ) {
 				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,s_tcps,1,0);
-			} 
+			}
 			/* handle new data ready */
 			handle_read_ready(the_connection_table,&readfds);
 			clear_signal(&readfds);
@@ -1454,9 +1535,8 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif
 			break;
 		}
-
+#endif
 	}
-	slapi_ch_free((void **)&listener_idxs);
 	/* We get here when the server is shutting down */
 	/* Do what we have to do before death */
 
@@ -1474,6 +1554,14 @@ void slapd_daemon( daemon_ports_t *ports )
  		PR_Close( s_tcps );
 	}
 #else
+	/* shutdown the listeners - no more client ops */
+#ifdef ENABLE_NUNC_STANS
+	int ii;
+	for (ii = 0; ii < n_listeners; ++ii) {
+		ns_job_done(listener_idxs[ii].ns_job);
+	}
+#endif
+	slapi_ch_free((void **)&listener_idxs);
 	for (fdesp = n_tcps; fdesp && *fdesp; fdesp++) {
 		PR_Close( *fdesp );
 	}
@@ -1598,7 +1686,13 @@ void slapd_daemon( daemon_ports_t *ports )
 	 */
 	connection_table_free(the_connection_table);
 	the_connection_table= NULL;
+#ifdef ENABLE_NUNC_STANS
+	if (ns_thrpool_wait(tp)) {
+		/* error */
+	}
 
+	ns_thrpool_destroy(tp);
+#endif
 	be_cleanupall ();
 	connection_post_shutdown_cleanup();
 	LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
@@ -2248,6 +2342,146 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 #endif
 }
 
+#ifdef ENABLE_NUNC_STANS
+/* This function is called when the connection has been marked
+ * as closing and needs to be cleaned up.  It will keep trying
+ * and re-arming itself until there are no references.
+ */
+static void
+ns_handle_closure(struct ns_job_t *job)
+{
+	Connection *c = (Connection *)ns_job_get_data(job);
+	int do_yield = 0;
+
+	/* this function must be called from the event loop thread */
+	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
+	PR_Lock(c->c_mutex);
+	c->c_ns_close_jobs--;
+	connection_release_nolock(c); /* release ref acquired when job was added */
+	if (connection_table_move_connection_out_of_active_list(c->c_ct, c)) {
+		do_yield = 1;
+		ns_connection_post_io_or_closing(c);
+	}
+	PR_Unlock(c->c_mutex);
+	ns_job_done(job);
+	if (do_yield) {
+		/* yield thread after unlocking conn mutex */
+		PR_Sleep(PR_INTERVAL_NO_WAIT); /* yield to allow other thread to release conn */
+	}
+	return;
+}
+#endif
+#define CONN_NEEDS_CLOSING(c) (c->c_flags & CONN_FLAG_CLOSING) || (c->c_sd == SLAPD_INVALID_SOCKET)
+
+/**
+ * Schedule more I/O for this connection, or make sure that it
+ * is closed in the event loop.
+ */
+void
+ns_connection_post_io_or_closing(Connection *conn)
+{
+#ifdef ENABLE_NUNC_STANS
+	struct timeval tv;
+	ns_job_func_t job_func;
+
+	if (CONN_NEEDS_CLOSING(conn)) {
+		if (conn->c_ns_close_jobs) {
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, "already a close job in progress on conn %" NSPRIu64 " for fd=%d\n",
+				       conn->c_connid, conn->c_sd);
+			return;
+		} else {
+			/* just make sure the event is processed at the next possible event loop run */
+			tv.tv_sec = 0;
+			tv.tv_usec = 1000;
+			job_func = ns_handle_closure;
+			conn->c_ns_close_jobs++;
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, "post closure job for conn %" NSPRIu64 " for fd=%d\n",
+				       conn->c_connid, conn->c_sd);
+		}
+	} else {
+		/* process event normally - wait for I/O until idletimeout */
+		tv.tv_sec = conn->c_idletimeout;
+		tv.tv_usec = 0;
+		job_func = ns_handle_pr_read_ready;
+		LDAPDebug2Args(LDAP_DEBUG_CONNS, "post I/O job for conn %" NSPRIu64 " for fd=%d\n",
+			       conn->c_connid, conn->c_sd);
+	}
+	connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework will have reference */
+	ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
+			      NS_JOB_READ|NS_JOB_PRESERVE_FD,
+			      job_func, conn, NULL);
+#endif
+}
+
+#ifdef ENABLE_NUNC_STANS
+/* This function must be called without the thread flag, in the
+ * event loop.  This function may free the connection.  This can
+ * only be done in the event loop thread.
+ */
+void
+ns_handle_pr_read_ready(struct ns_job_t *job)
+{
+	int need_closure = 0;
+	int maxthreads = config_get_maxthreadsperconn();
+	Connection *c = (Connection *)ns_job_get_data(job);
+
+	/* this function must be called from the event loop thread */
+	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
+
+	PR_Lock(c->c_mutex);
+	LDAPDebug2Args(LDAP_DEBUG_CONNS, "activity on conn %" NSPRIu64 " for fd=%d\n",
+		       c->c_connid, c->c_sd);
+	/* if we were called due to some i/o event, see what the state of the socket is */
+	if (slapi_is_loglevel_set(SLAPI_LOG_CONNS) && !NS_JOB_IS_TIMER(ns_job_get_output_type(job)) && c && c->c_sd) {
+		/* see if socket is closed */
+		char buf[1];
+		ssize_t rc = recv(c->c_sd, buf, sizeof(buf), MSG_PEEK);
+		if (!rc) {
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket is closed conn %" NSPRIu64 " for fd=%d\n",
+				       c->c_connid, c->c_sd);
+		} else if (rc > 0) {
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket has data available for conn %" NSPRIu64 " for fd=%d\n",
+				       c->c_connid, c->c_sd);
+		} else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket has no data available conn %" NSPRIu64 " for fd=%d\n",
+				       c->c_connid, c->c_sd);
+		} else {
+			LDAPDebug(LDAP_DEBUG_CONNS, "socket has error [%d] conn %" NSPRIu64 " for fd=%d\n",
+				  errno, c->c_connid, c->c_sd);
+		}
+	}
+	connection_release_nolock(c); /* release ref acquired when job was added */
+	if (CONN_NEEDS_CLOSING(c)) {
+		need_closure = 1;
+	} else if (NS_JOB_IS_TIMER(ns_job_get_output_type(job))) {
+		/* idle timeout */
+		disconnect_server_nomutex(c, c->c_connid, -1,
+				          SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN);
+		need_closure = 1;
+	} else if ((connection_activity(c, maxthreads)) == -1) {
+		/* This might happen as a result of
+		 * trying to acquire a closing connection
+		 */
+		LDAPDebug2Args(LDAP_DEBUG_ANY, "connection_activity: abandoning conn %" NSPRIu64
+			       " as fd=%d is already closing\n", c->c_connid, c->c_sd);
+		/* The call disconnect_server should do nothing,
+		 * as the connection c should be already set to CLOSING */
+		disconnect_server_nomutex(c, c->c_connid, -1,
+				          SLAPD_DISCONNECT_POLL, EPIPE);
+		need_closure = 1;
+	} else {
+		LDAPDebug2Args(LDAP_DEBUG_CONNS, "queued conn %" NSPRIu64 " for fd=%d\n",
+			       c->c_connid, c->c_sd);
+	}
+	if (need_closure) {
+		ns_connection_post_io_or_closing(c);
+	}
+	PR_Unlock(c->c_mutex);
+	ns_job_done(job);
+	return;
+}
+#endif
+
 /*
  * wrapper functions required so we can implement ioblock_timeout and
  * avoid blocking forever.
@@ -2796,7 +3030,7 @@ handle_closed_connection(Connection *conn)
 
 /* NOTE: this routine is not reentrant */
 static int
-handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local)
+handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn)
 {
 	int ns = 0;
 	Connection *conn = NULL;
@@ -2806,6 +3040,9 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	ber_len_t maxbersize;
 	slapdFrontendConfig_t *fecfg = getFrontendConfig();
 
+	if (newconn) {
+		*newconn = NULL;
+	}
 	memset(&from, 0, sizeof(from)); /* reset to nulls so we can see what was set */
 	if ( (ns = accept_and_configure( tcps, pr_acceptfd, &from,
 		sizeof(from), secure, local, &pr_clonefd)) == SLAPD_INVALID_SOCKET ) {
@@ -2936,8 +3173,56 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 
 	g_increment_current_conn_count();
 
+	if (newconn) {
+		*newconn = conn;
+	}
 	return 0;
 }
+
+#ifdef ENABLE_NUNC_STANS
+static void
+ns_handle_new_connection(struct ns_job_t *job)
+{
+	int rc;
+	Connection *c = NULL;
+	listener_info *li = (listener_info *)ns_job_get_data(job);
+
+	/* only accept new connections if we have enough fds, more than
+	 * the number of reserved descriptors
+	 */
+	if ((li->ct->size - g_get_current_conn_count())
+	     <= config_get_reservedescriptors()) {
+		/* too many open fds - shut off this listener - when an fd is
+		 * closed, try to resume this listener
+		 */
+		ns_disable_listener(li);
+		return;
+	}
+
+	rc = handle_new_connection(li->ct, SLAPD_INVALID_SOCKET, li->listenfd, li->secure, li->local, &c);
+	if (rc) {
+		PRErrorCode prerr = PR_GetError();
+		if (PR_PROC_DESC_TABLE_FULL_ERROR == prerr) {
+			/* too many open fds - shut off this listener - when an fd is
+			 * closed, try to resume this listener
+			 */
+			ns_disable_listener(li);
+		} else {
+			LDAPDebug(LDAP_DEBUG_CONNS, "Error accepting new connection listenfd=%d [%d:%s]\n",
+				  PR_FileDesc2NativeHandle(li->listenfd), prerr,
+				  slapd_pr_strerror(prerr));
+		}
+		return;
+	}
+	/* now, set up the conn for reading - no thread - ns_handle_pr_read_ready
+	 * must be run in the event loop thread
+	 */
+	c->c_tp = ns_job_get_tp(job);
+	connection_acquire_nolock(c); /* event framework now has ref */
+	ns_add_job(ns_job_get_tp(job), NULL, NS_JOB_NONE, ns_handle_pr_read_ready, c);
+	return;
+}
+#endif
 
 static int init_shutdown_detect()
 {
@@ -3003,8 +3288,10 @@ static int init_shutdown_detect()
 	(void) SIGNAL( SIGUSR1, slapd_do_nothing );
 	(void) SIGNAL( SIGUSR2, set_shutdown );
 #endif
+#ifndef ENABLE_NUNC_STANS
 	(void) SIGNAL( SIGTERM, set_shutdown );
 	(void) SIGNAL( SIGHUP,  set_shutdown );
+#endif
 #endif /* _WIN32 */
 	return 0;
 }
@@ -3192,6 +3479,15 @@ set_shutdown (int sig)
 	(void) SIGNAL( SIGHUP,  set_shutdown );
 #endif
 }
+
+#ifdef ENABLE_NUNC_STANS
+static void
+ns_set_shutdown(struct ns_job_t *job)
+{
+	set_shutdown(0);
+	ns_thrpool_shutdown(ns_job_get_tp(job));
+}
+#endif
 
 #ifndef LINUX
 void

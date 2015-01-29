@@ -199,6 +199,8 @@ connection_done(Connection *conn)
 void
 connection_cleanup(Connection *conn)
 {
+	int enable_listeners = 0;
+
 	bind_credentials_clear( conn, PR_FALSE /* do not lock conn */,
 							PR_TRUE /* clear external creds. */ );
 	slapi_ch_free((void**)&conn->c_authtype);
@@ -232,6 +234,7 @@ connection_cleanup(Connection *conn)
 	if (conn->c_prfd)
 	{
 		PR_Close(conn->c_prfd);
+		enable_listeners = 1; /* re-enable listeners disabled due to no fds */
 	}
 #endif
 
@@ -275,6 +278,12 @@ connection_cleanup(Connection *conn)
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
+	if (enable_listeners) {
+		ns_enable_listeners();
+	}
+#ifdef ENABLE_NUNC_STANS
+	conn->c_ns_close_jobs = 0;
+#endif
 }
 
 /*
@@ -741,10 +750,10 @@ int connection_release_nolock (Connection *conn)
 }
 
 /* this function should be called under c_mutex */
-int connection_acquire_nolock (Connection *conn)
+int connection_acquire_nolock_ext (Connection *conn, int allow_when_closing)
 {
     /* connection in the closing state can't be acquired */
-    if (conn->c_flags & CONN_FLAG_CLOSING)
+    if (!allow_when_closing && (conn->c_flags & CONN_FLAG_CLOSING))
     {
 	/* This may happen while other threads are still working on this connection */
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
@@ -757,6 +766,10 @@ int connection_acquire_nolock (Connection *conn)
         conn->c_refcnt++;
         return 0;
     }
+}
+
+int connection_acquire_nolock (Connection *conn) {
+	return connection_acquire_nolock_ext(conn, 0);
 }
 
 /* returns non-0 if connection can be reused and 0 otherwise */
@@ -2169,6 +2182,9 @@ void connection_make_readable(Connection *conn)
 void connection_make_readable_nolock(Connection *conn)
 {
 	conn->c_gettingber = 0;
+	LDAPDebug2Args(LDAP_DEBUG_CONNS, "making readable conn %" NSPRIu64 " fd=%d\n",
+		       conn->c_connid, conn->c_sd);
+	ns_connection_post_io_or_closing(conn);
 }
 
 /*
@@ -3000,6 +3016,8 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	    conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) )
 	{
+		LDAPDebug(LDAP_DEBUG_CONNS, "setting conn %" NSPRIu64 " fd=%d "
+			  "to be disconnected: reason %d\n", conn->c_connid, conn->c_sd, reason);
 		/*
 		 * PR_Close must be called before anything else is done because
 		 * of NSPR problem on NT which requires that the socket on which
@@ -3070,6 +3088,14 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 				}
 			}
 		}
+		ns_connection_post_io_or_closing(conn); /* make sure event loop wakes up and closes this conn */
+
+    } else {
+	    LDAPDebug2Args(LDAP_DEBUG_CONNS, "not setting conn %d to be disconnected: %s\n",
+			   conn->c_sd,
+			   (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" :
+			    ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :
+			     ((conn->c_flags & CONN_FLAG_CLOSING) ? "conn is closing" : "unknown")));
     }
 }
 

@@ -54,6 +54,9 @@
 /* enable ldapi support in the server */
 #undef ENABLE_LDAPI
 
+/* enable support for nunc-stans event framework */
+#undef ENABLE_NUNC_STANS
+
 /* enable the pam passthru auth plugin */
 #undef ENABLE_PAM_PASSTHRU
 

@@ -172,6 +172,10 @@ typedef struct symbol_t {
 #include "csngen.h"
 #include "uuid.h"
 
+#ifdef ENABLE_NUNC_STANS
+#include <ns_thrpool.h>
+#endif
+
 #if defined(OS_solaris)
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
@@ -1503,7 +1507,11 @@ typedef struct conn {
     Conn_IO_Layer_cb c_push_io_layer_cb; /* callback to push an IO layer on the conn->c_prfd */
     Conn_IO_Layer_cb c_pop_io_layer_cb; /* callback to pop an IO layer off of the conn->c_prfd */
     void             *c_io_layer_cb_data; /* callback data */
-
+#ifdef ENABLE_NUNC_STANS
+    struct connection_table     *c_ct; /* connection table that this connection belongs to */
+    ns_thrpool_t                *c_tp; /* thread pool for this connection */
+    int                         c_ns_close_jobs; /* number of current close jobs */
+#endif
 } Connection;
 #define CONN_FLAG_SSL	1	/* Is this connection an SSL connection or not ? 
 							 * Used to direct I/O code when SSL is handled differently 
