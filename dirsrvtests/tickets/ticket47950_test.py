@@ -3,14 +3,12 @@ import sys
 import time
 import ldap
 import logging
-import socket
 import pytest
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
-from constants import *
 
 log = logging.getLogger(__name__)
 
@@ -30,22 +28,6 @@ class TopologyStandalone(object):
 def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
-        At the beginning, It may exists a standalone instance.
-        It may also exists a backup for the standalone instance.
-
-        Principle:
-            If standalone instance exists:
-                restart it
-            If backup of standalone exists:
-                create/rebind to standalone
-
-                restore standalone instance from backup
-            else:
-                Cleanup everything
-                    remove instance
-                    remove backup
-                Create instance
-                Create backup
     '''
     global installation_prefix
 
@@ -61,63 +43,23 @@ def topology(request):
     args_standalone = args_instance.copy()
     standalone.allocate(args_standalone)
 
-    # Get the status of the backups
-    backup_standalone = standalone.checkBackupFS()
-
     # Get the status of the instance and restart it if it exists
     instance_standalone = standalone.exists()
+
+    # Remove the instance
     if instance_standalone:
-        # assuming the instance is already stopped, just wait 5 sec max
-        standalone.stop(timeout=5)
-        standalone.start(timeout=10)
+        standalone.delete()
 
-    if backup_standalone:
-        # The backup exist, assuming it is correct
-        # we just re-init the instance with it
-        if not instance_standalone:
-            standalone.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            standalone.open()
+    # Create the instance
+    standalone.create()
 
-        # restore standalone instance from backup
-        standalone.stop(timeout=10)
-        standalone.restoreFS(backup_standalone)
-        standalone.start(timeout=10)
-
-    else:
-        # We should be here only in two conditions
-        #      - This is the first time a test involve standalone instance
-        #      - Something weird happened (instance/backup destroyed)
-        #        so we discard everything and recreate all
-
-        # Remove the backup. So even if we have a specific backup file
-        # (e.g backup_standalone) we clear backup that an instance may have created
-        if backup_standalone:
-            standalone.clearBackupFS()
-
-        # Remove the instance
-        if instance_standalone:
-            standalone.delete()
-
-        # Create the instance
-        standalone.create()
-
-        # Used to retrieve configuration information (dbdir, confdir...)
-        standalone.open()
-
-        # Time to create the backups
-        standalone.stop(timeout=10)
-        standalone.backupfile = standalone.backupFS()
-        standalone.start(timeout=10)
+    # Used to retrieve configuration information (dbdir, confdir...)
+    standalone.open()
 
     # clear the tmp directory
     standalone.clearTmpDir(__file__)
 
-    #
     # Here we have standalone instance up and running
-    # Either coming from a backup recovery
-    # or from a fresh (re)init
-    # Time to return the topology
     return TopologyStandalone(standalone)
 
 
@@ -205,7 +147,7 @@ def test_ticket47950(topology):
 
     try:
         topology.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=REPLICAROLE_MASTER,
-                                                  replicaId=REPLICAID_MASTER)
+                                                  replicaId=REPLICAID_MASTER_1)
         log.info('Successfully enabled replication.')
     except ValueError:
         log.error('Failed to enable replication')
@@ -247,12 +189,10 @@ def test_ticket47950(topology):
         log.error('Failed to update replica agreement: ' + repl_agreement)
         assert False
 
-    # We passed
-    log.info("Test Passed.")
-
 
 def test_ticket47953_final(topology):
     topology.standalone.delete()
+    log.info('Testcase PASSED')
 
 
 def run_isolated():

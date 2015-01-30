@@ -8,17 +8,11 @@ import sys
 import time
 import ldap
 import logging
-import socket
-import time
-import logging
 import pytest
-import re
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from constants import *
-from lib389._constants import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -73,27 +67,6 @@ def topology(request):
     '''
         This fixture is used to create a replicated topology for the 'module'.
         The replicated topology is MASTER1 <-> Master2.
-        At the beginning, It may exists a master2 instance and/or a master2 instance.
-        It may also exists a backup for the master1 and/or the master2.
-
-        Principle:
-            If master1 instance exists:
-                restart it
-            If master2 instance exists:
-                restart it
-            If backup of master1 AND backup of master2 exists:
-                create or rebind to master1
-                create or rebind to master2
-
-                restore master1 from backup
-                restore master2 from backup
-            else:
-                Cleanup everything
-                    remove instances
-                    remove backups
-                Create instances
-                Initialize replication
-                Create backups
     '''
     global installation1_prefix
     global installation2_prefix
@@ -122,135 +95,77 @@ def topology(request):
     args_master = args_instance.copy()
     master2.allocate(args_master)
 
-    # Get the status of the backups
-    backup_master1 = master1.checkBackupFS()
-    backup_master2 = master2.checkBackupFS()
-
     # Get the status of the instance and restart it if it exists
     instance_master1   = master1.exists()
-    if instance_master1:
-        master1.stop(timeout=10)
-        master1.start(timeout=10)
-
     instance_master2 = master2.exists()
+
+
+    # Remove all the instances
+    if instance_master1:
+        master1.delete()
     if instance_master2:
-        master2.stop(timeout=10)
-        master2.start(timeout=10)
+        master2.delete()
 
-    if backup_master1 and backup_master2:
-        # The backups exist, assuming they are correct
-        # we just re-init the instances with them
-        if not instance_master1:
-            master1.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            master1.open()
+    # Create the instances
+    master1.create()
+    master1.open()
+    master2.create()
+    master2.open()
 
-        if not instance_master2:
-            master2.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            master2.open()
+    #
+    # Now prepare the Master-Consumer topology
+    #
+    # First Enable replication
+    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
+    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
 
-        # restore master1 from backup
-        master1.stop(timeout=10)
-        master1.restoreFS(backup_master1)
-        master1.start(timeout=10)
+    # Initialize the supplier->consumer
 
-        # restore master2 from backup
-        master2.stop(timeout=10)
-        master2.restoreFS(backup_master2)
-        master2.start(timeout=10)
-    else:
-        # We should be here only in two conditions
-        #      - This is the first time a test involve master-consumer
-        #        so we need to create everything
-        #      - Something weird happened (instance/backup destroyed)
-        #        so we discard everything and recreate all
+    properties = {RA_NAME:      r'meTo_$host:$port',
+                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+    repl_agreement = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
 
-        # Remove all the backups. So even if we have a specific backup file
-        # (e.g backup_master) we clear all backups that an instance my have created
-        if backup_master1:
-            master1.clearBackupFS()
-        if backup_master2:
-            master2.clearBackupFS()
+    if not repl_agreement:
+        log.fatal("Fail to create a replica agreement")
+        sys.exit(1)
 
-        # Remove all the instances
-        if instance_master1:
-            master1.delete()
-        if instance_master2:
-            master2.delete()
+    log.debug("%s created" % repl_agreement)
 
-        # Create the instances
-        master1.create()
-        master1.open()
-        master2.create()
-        master2.open()
+    properties = {RA_NAME:      r'meTo_$host:$port',
+                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+    master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
 
-        #
-        # Now prepare the Master-Consumer topology
-        #
-        # First Enable replication
-        master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-        master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
+    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
+    master1.waitForReplInit(repl_agreement)
 
-        # Initialize the supplier->consumer
-
-        properties = {RA_NAME:      r'meTo_$host:$port',
-                      RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        repl_agreement = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
-
-        if not repl_agreement:
-            log.fatal("Fail to create a replica agreement")
-            sys.exit(1)
-
-        log.debug("%s created" % repl_agreement)
-
-        properties = {RA_NAME:      r'meTo_$host:$port',
-                      RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
-
-        master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-        master1.waitForReplInit(repl_agreement)
-
-        # Check replication is working fine
-        master1.add_s(Entry((TEST_REPL_DN, {
-                                                'objectclass': "top person".split(),
-                                                'sn': 'test_repl',
-                                                'cn': 'test_repl'})))
-        loop = 0
-        ent = None
-        while loop <= 10:
-            try:
-                ent = master2.getEntry(TEST_REPL_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-                break
-            except ldap.NO_SUCH_OBJECT:
-                time.sleep(1)
-                loop += 1
-        if ent is None:
-            assert False
-
-        # Time to create the backups
-        master1.stop(timeout=10)
-        master1.backupfile = master1.backupFS()
-        master1.start(timeout=10)
-
-        master2.stop(timeout=10)
-        master2.backupfile = master2.backupFS()
-        master2.start(timeout=10)
+    # Check replication is working fine
+    master1.add_s(Entry((TEST_REPL_DN, {
+                        'objectclass': "top person".split(),
+                        'sn': 'test_repl',
+                        'cn': 'test_repl'})))
+    loop = 0
+    ent = None
+    while loop <= 10:
+        try:
+            ent = master2.getEntry(TEST_REPL_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+            break
+        except ldap.NO_SUCH_OBJECT:
+            time.sleep(1)
+            loop += 1
+    if ent is None:
+        assert False
 
     # clear the tmp directory
     master1.clearTmpDir(__file__)
 
-    #
     # Here we have two instances master and consumer
-    # with replication working. Either coming from a backup recovery
-    # or from a fresh (re)init
-    # Time to return the topology
+    # with replication working.
     return TopologyMaster1Master2(master1, master2)
 
 
@@ -532,6 +447,7 @@ def test_ticket47653_modify(topology):
 def test_ticket47653_final(topology):
     topology.master1.delete()
     topology.master2.delete()
+    log.info('Testcase PASSED')
 
 
 def run_isolated():

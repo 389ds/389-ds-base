@@ -5,9 +5,7 @@ Created on Nov 7, 2013
 '''
 import os
 import sys
-import time
 import ldap
-import logging
 import socket
 import time
 import logging
@@ -17,7 +15,6 @@ from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from constants import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -180,27 +177,6 @@ def topology(request):
     '''
         This fixture is used to create a replicated topology for the 'module'.
         The replicated topology is MASTER -> Consumer.
-        At the beginning, It may exists a master instance and/or a consumer instance.
-        It may also exists a backup for the master and/or the consumer.
-
-        Principle:
-            If master instance exists:
-                restart it
-            If consumer instance exists:
-                restart it
-            If backup of master AND backup of consumer exists:
-                create or rebind to consumer
-                create or rebind to master
-
-                restore master   from backup
-                restore consumer from backup
-            else:
-                Cleanup everything
-                    remove instances
-                    remove backups
-                Create instances
-                Initialize replication
-                Create backups
     '''
     global installation_prefix
 
@@ -211,140 +187,81 @@ def topology(request):
     consumer = DirSrv(verbose=False)
 
     # Args for the master instance
-    args_instance[SER_HOST] = HOST_MASTER
-    args_instance[SER_PORT] = PORT_MASTER
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER
+    args_instance[SER_HOST] = HOST_MASTER_1
+    args_instance[SER_PORT] = PORT_MASTER_1
+    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
     args_master = args_instance.copy()
     master.allocate(args_master)
 
     # Args for the consumer instance
-    args_instance[SER_HOST] = HOST_CONSUMER
-    args_instance[SER_PORT] = PORT_CONSUMER
-    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER
+    args_instance[SER_HOST] = HOST_CONSUMER_1
+    args_instance[SER_PORT] = PORT_CONSUMER_1
+    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER_1
     args_consumer = args_instance.copy()
     consumer.allocate(args_consumer)
 
-    # Get the status of the backups
-    backup_master   = master.checkBackupFS()
-    backup_consumer = consumer.checkBackupFS()
-
-    # Get the status of the instance and restart it if it exists
+    # Get the status of the instance
     instance_master = master.exists()
-    if instance_master:
-        master.stop(timeout=10)
-        master.start(timeout=10)
-
     instance_consumer = consumer.exists()
+
+    # Remove all the instances
+    if instance_master:
+        master.delete()
     if instance_consumer:
-        consumer.stop(timeout=10)
-        consumer.start(timeout=10)
+        consumer.delete()
 
-    if backup_master and backup_consumer:
-        # The backups exist, assuming they are correct
-        # we just re-init the instances with them
-        if not instance_master:
-            master.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            master.open()
+    # Create the instances
+    master.create()
+    master.open()
+    consumer.create()
+    consumer.open()
 
-        if not instance_consumer:
-            consumer.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            consumer.open()
+    #
+    # Now prepare the Master-Consumer topology
+    #
+    # First Enable replication
+    master.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
+    consumer.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER)
 
-        # restore master from backup
-        master.stop(timeout=10)
-        master.restoreFS(backup_master)
-        master.start(timeout=10)
+    # Initialize the supplier->consumer
+    properties = {RA_NAME:      r'meTo_$host:$port',
+                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+    repl_agreement = master.agreement.create(suffix=SUFFIX, host=consumer.host, port=consumer.port, properties=properties)
 
-        # restore consumer from backup
-        consumer.stop(timeout=10)
-        consumer.restoreFS(backup_consumer)
-        consumer.start(timeout=10)
-    else:
-        # We should be here only in two conditions
-        #      - This is the first time a test involve master-consumer
-        #        so we need to create everything
-        #      - Something weird happened (instance/backup destroyed)
-        #        so we discard everything and recreate all
+    if not repl_agreement:
+        log.fatal("Fail to create a replica agreement")
+        sys.exit(1)
 
-        # Remove all the backups. So even if we have a specific backup file
-        # (e.g backup_master) we clear all backups that an instance my have created
-        if backup_master:
-            master.clearBackupFS()
-        if backup_consumer:
-            consumer.clearBackupFS()
+    log.debug("%s created" % repl_agreement)
+    master.agreement.init(SUFFIX, HOST_CONSUMER_1, PORT_CONSUMER_1)
+    master.waitForReplInit(repl_agreement)
 
-        # Remove all the instances
-        if instance_master:
-            master.delete()
-        if instance_consumer:
-            consumer.delete()
-
-        # Create the instances
-        master.create()
-        master.open()
-        consumer.create()
-        consumer.open()
-
-        #
-        # Now prepare the Master-Consumer topology
-        #
-        # First Enable replication
-        master.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER)
-        consumer.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER)
-
-        # Initialize the supplier->consumer
-
-        properties = {RA_NAME:      r'meTo_$host:$port',
-                      RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        repl_agreement = master.agreement.create(suffix=SUFFIX, host=consumer.host, port=consumer.port, properties=properties)
-
-        if not repl_agreement:
-            log.fatal("Fail to create a replica agreement")
-            sys.exit(1)
-
-        log.debug("%s created" % repl_agreement)
-        master.agreement.init(SUFFIX, HOST_CONSUMER, PORT_CONSUMER)
-        master.waitForReplInit(repl_agreement)
-
-        # Check replication is working fine
-        master.add_s(Entry((TEST_REPL_DN, {
-                                                'objectclass': "top person".split(),
-                                                'sn': 'test_repl',
-                                                'cn': 'test_repl'})))
-        ent = None
-        loop = 0
-        while loop <= 10:
-            try:
-                ent = consumer.getEntry(TEST_REPL_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-                break
-            except ldap.NO_SUCH_OBJECT:
-                time.sleep(1)
-                loop += 1
-        if ent is None:
-            assert False
-
-        # Time to create the backups
-        master.stop(timeout=10)
-        master.backupfile = master.backupFS()
-        master.start(timeout=10)
-
-        consumer.stop(timeout=10)
-        consumer.backupfile = consumer.backupFS()
-        consumer.start(timeout=10)
+    # Check replication is working fine
+    master.add_s(Entry((TEST_REPL_DN, {
+                 'objectclass': "top person".split(),
+                 'sn': 'test_repl',
+                 'cn': 'test_repl'})))
+    ent = None
+    loop = 0
+    while loop <= 10:
+        try:
+            ent = consumer.getEntry(TEST_REPL_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+            break
+        except ldap.NO_SUCH_OBJECT:
+            time.sleep(1)
+            loop += 1
+    if ent is None:
+        assert False
 
     # clear the tmp directory
     master.clearTmpDir(__file__)
 
     #
     # Here we have two instances master and consumer
-    # with replication working. Either coming from a backup recovery
-    # or from a fresh (re)init
-    # Time to return the topology
+    # with replication working.
     return TopologyMasterConsumer(master, consumer)
 
 
@@ -742,6 +659,7 @@ def test_ticket47490_nine(topology):
 def test_ticket47490_final(topology):
     topology.master.delete()
     topology.consumer.delete()
+    log.info('Testcase PASSED')
 
 
 def run_isolated():

@@ -98,8 +98,7 @@ if len(sys.argv) > 0:
     #
     # Write the imports
     #
-    TEST.write('import os\nimport sys\nimport time\nimport ldap\nimport ldap.sasl\n' +
-               'import logging\nimport socket\nimport pytest\n')
+    TEST.write('import os\nimport sys\nimport time\nimport ldap\nimport logging\nimport pytest\n')
     TEST.write('from lib389 import DirSrv, Entry, tools, tasks\nfrom lib389.tools import DirSrvTools\n' +
                'from lib389._constants import *\nfrom lib389.properties import *\nfrom lib389.tasks import *\n\n')
 
@@ -185,6 +184,7 @@ if len(sys.argv) > 0:
             TEST.write('    args_instance[SER_HOST] = HOST_MASTER_' + idx + '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_MASTER_' + idx + '\n')
             TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_' + idx + '\n')
+            TEST.write('    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX\n')
             TEST.write('    args_master = args_instance.copy()\n')
             TEST.write('    master' + idx + '.allocate(args_master)\n')
             TEST.write('    instance_master' + idx + ' = master' + idx + '.exists()\n')
@@ -203,6 +203,7 @@ if len(sys.argv) > 0:
             TEST.write('    args_instance[SER_HOST] = HOST_HUB_' + idx + '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_HUB_' + idx + '\n')
             TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_HUB_' + idx + '\n')
+            TEST.write('    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX\n')
             TEST.write('    args_hub = args_instance.copy()\n')
             TEST.write('    hub' + idx + '.allocate(args_hub)\n')
             TEST.write('    instance_hub' + idx + ' = hub' + idx + '.exists()\n')
@@ -221,6 +222,7 @@ if len(sys.argv) > 0:
             TEST.write('    args_instance[SER_HOST] = HOST_CONSUMER_' + idx + '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_CONSUMER_' + idx + '\n')
             TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_CONSUMER_' + idx + '\n')
+            TEST.write('    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX\n')
             TEST.write('    args_consumer = args_instance.copy()\n')
             TEST.write('    consumer' + idx + '.allocate(args_consumer)\n')
             TEST.write('    instance_consumer' + idx + ' = consumer' + idx + '.exists()\n')
@@ -450,6 +452,7 @@ if len(sys.argv) > 0:
             TEST.write('    args_instance[SER_HOST] = HOST_STANDALONE' + idx + '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_STANDALONE' + idx + '\n')
             TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE' + idx + '\n')
+            TEST.write('    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX\n')
             TEST.write('    args_standalone' + idx + ' = args_instance.copy()\n')
             TEST.write('    standalone' + idx + '.allocate(args_standalone' + idx + ')\n')
 

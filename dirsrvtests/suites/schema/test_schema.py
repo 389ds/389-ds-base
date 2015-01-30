@@ -10,16 +10,12 @@ import ldap
 from ldap.cidict import cidict
 from ldap.schema import SubSchema
 import logging
-import socket
-import time
-import logging
 import pytest
-import re
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from constants import *
+
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -37,21 +33,6 @@ class TopologyStandalone(object):
 def topology(request):
     '''
         This fixture is used to create a DirSrv instance for the 'module'.
-        At the beginning, there may already be an instance.
-        There may also be a backup for the instance.
-
-        Principle:
-            If instance exists:
-                restart it
-            If backup exists:
-                create or rebind to instance
-                restore instance from backup
-            else:
-                Cleanup everything
-                    remove instance
-                    remove backup
-                Create instance
-                Create backup
     '''
     global installation_prefix
 
@@ -65,51 +46,14 @@ def topology(request):
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
     schemainst.allocate(args_instance)
 
-    # Get the status of the backups
-    backup = schemainst.checkBackupFS()
-
-    # Get the status of the instance and restart it if it exists
+    # Remove all the instance
     if schemainst.exists():
-        schemainst.stop(timeout=10)
-        schemainst.start(timeout=10)
+        schemainst.delete()
 
-    if backup:
-        # The backup exists, assuming it is correct
-        # we just re-init the instance with it
-        if not schemainst.exists():
-            schemainst.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            schemainst.open()
+    # Create the instance
+    schemainst.create()
+    schemainst.open()
 
-        # restore from backup
-        schemainst.stop(timeout=10)
-        schemainst.restoreFS(backup)
-        schemainst.start(timeout=10)
-    else:
-        # We should be here only in two conditions
-        #      - This is the first test
-        #        so we need to create everything
-        #      - Something weird happened (instance/backup destroyed)
-        #        so we discard everything and recreate all
-
-        # Remove the backup. So even if we have a specific backup file
-        # (e.g backup) we clear all backups that an instance may have created
-        if backup:
-            schemainst.clearBackupFS()
-
-        # Remove all the instances
-        if schemainst.exists():
-            schemainst.delete()
-
-        # Create the instances
-        schemainst.create()
-        schemainst.open()
-
-        # Time to create the backup
-        schemainst.stop(timeout=10)
-        schemainst.backupfile = schemainst.backupFS()
-        schemainst.start(timeout=10)
-    #
     return TopologyStandalone(schemainst)
 
 attrclass = ldap.schema.models.AttributeType

@@ -7,16 +7,13 @@ import os
 import sys
 import time
 import ldap
-import time
 import logging
-import socket
 import pytest
 import threading
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from constants import *
 
 log = logging.getLogger(__name__)
 
