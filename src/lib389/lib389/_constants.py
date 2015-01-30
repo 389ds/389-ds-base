@@ -85,7 +85,6 @@ CONF_RUN_DIR       = 'RUN_DIR'
 CONF_DS_ROOT       = 'DS_ROOT'
 CONF_PRODUCT_NAME  = 'PRODUCT_NAME'
 
-
 DN_CONFIG       = "cn=config"
 DN_PLUGIN       = "cn=plugins,%s"       % DN_CONFIG
 DN_MAPPING_TREE = "cn=mapping tree,%s"  % DN_CONFIG
@@ -175,13 +174,14 @@ LOG_PLUGIN,
 LOG_MICROSECONDS,
 LOG_ACL_SUMMARY) = [1 << x for x in (range(8) + range(11, 19))]
 
+
 #
 # Constants for individual tests
 #
 SUFFIX = 'dc=example,dc=com'
 PASSWORD = 'password'
 
-# Used for standalone topology
+# Standalone topology - 10 instances
 HOST_STANDALONE = LOCALHOST
 PORT_STANDALONE = 31389
 SERVERID_STANDALONE = 'standalone'
@@ -323,7 +323,6 @@ PORT_HUB_10 = 50389
 SERVERID_HUB_10 = 'hub_10'
 REPLICAID_HUB_10 = 65535
 
-
 HOST_CONSUMER_1 = LOCALHOST
 PORT_CONSUMER_1 = 61389
 SERVERID_CONSUMER_1 = 'consumer_1'
@@ -331,7 +330,6 @@ SERVERID_CONSUMER_1 = 'consumer_1'
 HOST_CONSUMER_2 = LOCALHOST
 PORT_CONSUMER_2 = 62389
 SERVERID_CONSUMER_2 = 'consumer_2'
-
 
 HOST_CONSUMER_3 = LOCALHOST
 PORT_CONSUMER_3 = 63389
@@ -413,7 +411,7 @@ args_instance = {
                    SER_DEPLOYED_DIR: os.environ.get('PREFIX', None),
                    SER_BACKUP_INST_DIR: os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR),
                    SER_ROOT_DN: DN_DM,
-                   SER_ROOT_PW: PASSWORD,
+                   SER_ROOT_PW: PW_DM,
                    SER_HOST: LOCALHOST,
                    SER_PORT: DEFAULT_PORT,
                    SER_SERVERID_PROP: "template",

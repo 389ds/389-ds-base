@@ -359,6 +359,19 @@ class DirSrv(SimpleLDAPObject):
         self.log     = log
         self.timeout = timeout
 
+        # Reset the args (py.test reuses the args_instance for each test case)
+        args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', None)
+        args_instance[SER_BACKUP_INST_DIR] = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
+        args_instance[SER_ROOT_DN] = DN_DM
+        args_instance[SER_ROOT_PW] = PW_DM
+        args_instance[SER_HOST] = LOCALHOST
+        args_instance[SER_PORT] = DEFAULT_PORT
+        args_instance[SER_SECURE_PORT] = DEFAULT_SECURE_PORT
+        args_instance[SER_SERVERID_PROP] = "template"
+        args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
+        args_instance[SER_USER_ID] = None
+        args_instance[SER_GROUP_ID] = None
+
         self.__wrapmethods()
         self.__add_brookers__()
 
