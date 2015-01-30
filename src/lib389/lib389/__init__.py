@@ -366,7 +366,7 @@ class DirSrv(SimpleLDAPObject):
         args_instance[SER_ROOT_PW] = PW_DM
         args_instance[SER_HOST] = LOCALHOST
         args_instance[SER_PORT] = DEFAULT_PORT
-        args_instance[SER_SECURE_PORT] = DEFAULT_SECURE_PORT
+        args_instance[SER_SECURE_PORT] = None
         args_instance[SER_SERVERID_PROP] = "template"
         args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
         args_instance[SER_USER_ID] = None
@@ -1746,6 +1746,43 @@ class DirSrv(SimpleLDAPObject):
 
     def startReplication(self, agmtdn):
         return self.replica.start_and_wait(agmtdn)
+
+    def testReplication(self, suffix, *replicas):
+        '''
+            Make a "dummy" update on the the replicated suffix, and check
+            all the provided replicas to see if they received the update.
+
+            @param suffix - the replicated suffix we want to check
+            @param *replicas - DirSrv instance, DirSrv instance, ...
+
+            @return True of False if all servers are replicating correctly
+
+            @raise None
+        '''
+
+        test_value = 'test replication - ' + str(int(time.time()))
+        self.modify_s(suffix, [(ldap.MOD_REPLACE, 'description', test_value)])
+
+        for replica in replicas:
+            loop = 0
+            replicated = False
+            while loop <= 10:
+                try:
+                    entry = replica.getEntry(suffix, ldap.SCOPE_BASE, "(objectclass=*)")
+                    if entry.hasValue('description', test_value):
+                        replicated = True
+                        break
+                except ldap.LDAPError, e:
+                    log.fatal('testReplication() failed to modify (%s), error (%d)'
+                              % (suffix, e.message['desc']))
+                    return False
+                loop += 1
+                time.sleep(1)
+            if not replicated:
+                log.fatal('Replication is not in sync with replica server (%s)' % replica.serverid)
+                return False
+
+        return True
 
     def replicaSetupAll(self, repArgs):
         """setup everything needed to enable replication for a given suffix.
