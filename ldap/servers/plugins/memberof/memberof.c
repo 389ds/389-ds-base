@@ -691,7 +691,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 	char *cookie = NULL;
 	int all_backends = memberof_config_get_all_backends();
 	Slapi_DN *entry_scope = memberof_config_get_entry_scope();
-        Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
+	Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
 	int types_name_len = 0;
 	int num_types = 0;
 	int dn_len = slapi_sdn_get_ndn_len(sdn);
@@ -703,7 +703,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb, Slapi_DN *sdn,
 		return (rc);
 	}
         
-        if (entry_scope_exclude_subtree && slapi_sdn_issuffix(sdn, entry_scope_exclude_subtree)) {
+	if (entry_scope_exclude_subtree && slapi_sdn_issuffix(sdn, entry_scope_exclude_subtree)) {
 		return (rc);
 	}
 
@@ -2024,7 +2024,7 @@ Slapi_ValueSet *
 memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
 {
 	Slapi_ValueSet *groupvals = slapi_valueset_new();
-        Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
+	Slapi_ValueSet *group_norm_vals = slapi_valueset_new();
 	Slapi_Value *memberdn_val = 
 	                      slapi_value_new_string(slapi_sdn_get_ndn(member_sdn));
 	slapi_value_set_flags(memberdn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
@@ -2034,7 +2034,7 @@ memberof_get_groups(MemberOfConfig *config, Slapi_DN *member_sdn)
 	memberof_get_groups_r(config, member_sdn, &data);
 
 	slapi_value_free(&memberdn_val);
-        slapi_valueset_free(group_norm_vals);
+	slapi_valueset_free(group_norm_vals);
 
 	return groupvals;
 }
@@ -2057,12 +2057,13 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 {
 	Slapi_DN *group_sdn = slapi_entry_get_sdn(e);
 	char *group_ndn = slapi_entry_get_ndn(e);
-        char *group_dn = slapi_entry_get_dn(e);
+	char *group_dn = slapi_entry_get_dn(e);
 	Slapi_Value *group_ndn_val = 0;
-        Slapi_Value *group_dn_val = 0;
+	Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
-        Slapi_ValueSet *group_norm_vals = *((memberof_get_groups_data*)callback_data)->group_norm_vals;
-        Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
+	Slapi_ValueSet *group_norm_vals = *((memberof_get_groups_data*)callback_data)->group_norm_vals;
+	Slapi_DN *entry_scope_exclude_subtree = memberof_config_get_entry_scope_exclude_subtree();
+	MemberOfConfig *config = ((memberof_get_groups_data*)callback_data)->config;
 	int rc = 0;
 
 	if(slapi_is_shutting_down()){
@@ -2116,18 +2117,19 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 		goto bail;
 	}
 
-        /* if the group does not belong to an excluded subtree, adds it to the valueset */
-        if (!(entry_scope_exclude_subtree && slapi_sdn_issuffix(group_sdn, entry_scope_exclude_subtree))) {
-                /* Push group_dn_val into the valueset.  This memory is now owned
-                 * by the valueset. */
-                group_dn_val = slapi_value_new_string(group_dn);
-                slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
-                slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
-        }
-        
-	/* now recurse to find parent groups of e */
-	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
-		group_sdn, callback_data);
+	/* if the group does not belong to an excluded subtree, adds it to the valueset */
+	if (!(entry_scope_exclude_subtree && slapi_sdn_issuffix(group_sdn, entry_scope_exclude_subtree))) {
+			/* Push group_dn_val into the valueset.  This memory is now owned
+			 * by the valueset. */
+			group_dn_val = slapi_value_new_string(group_dn);
+			slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
+			slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
+	}
+	if(!config->skip_nested || config->fixup_task){
+		/* now recurse to find parent groups of e */
+		memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
+			group_sdn, callback_data);
+	}
 
 bail:
 	return rc;
@@ -2844,10 +2846,7 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
 
-	if(!config->skip_nested || config->fixup_task){
-		/* get a list of all of the groups this user belongs to */
-		groups = memberof_get_groups(config, sdn);
-	}
+	groups = memberof_get_groups(config, sdn);
 
 	/* If we found some groups, replace the existing memberOf attribute
 	 * with the found values.  */
