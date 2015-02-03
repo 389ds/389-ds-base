@@ -168,7 +168,7 @@ if len(sys.argv) > 0:
     # Write the 'topology function'
     #
     TEST.write('@pytest.fixture(scope="module")\n')
-    TEST.write('def topology(request): \n')
+    TEST.write('def topology(request):\n')
     TEST.write('    global installation1_prefix\n')
     TEST.write('    if installation1_prefix:\n')
     TEST.write('        args_instance[SER_DEPLOYED_DIR] = installation1_prefix\n\n')
@@ -391,16 +391,6 @@ if len(sys.argv) > 0:
         # Write replicaton check
         #
         if agmt_count > 0:
-            TEST.write('    #\n')
-            TEST.write('    # Check replication is working...\n')
-            TEST.write('    #\n')
-            TEST.write("    REPL_TEST_DN = 'cn=test repl,' + SUFFIX\n")
-            TEST.write('    master1.add_s(Entry((REPL_TEST_DN, {\n')
-            TEST.write("                  'objectclass': 'top person'.split(),\n")
-            TEST.write("                  'sn': 'test_repl',\n")
-            TEST.write("                  'cn': 'test_repl'})))\n")
-            TEST.write('    loop = 0\n')
-            TEST.write('    ent = None\n')
             # Find the lowest replica type in the deployment(consumer -> master)
             if consumers > 0:
                 replica = 'consumer1'
@@ -408,14 +398,11 @@ if len(sys.argv) > 0:
                 replica = 'hub1'
             else:
                 replica = 'master2'
-            TEST.write('    while loop <= 10:\n')
-            TEST.write('        try:\n')
-            TEST.write('            ent = ' + replica + '.getEntry(REPL_TEST_DN, ldap.SCOPE_BASE, "(objectclass=*)")\n')
-            TEST.write('            break\n')
-            TEST.write('        except ldap.NO_SUCH_OBJECT:\n')
-            TEST.write('            time.sleep(1)\n')
-            TEST.write('            loop += 1\n')
-            TEST.write('    if ent is None:\n')
+            TEST.write('    # Check replication is working...\n')
+            TEST.write('    if master1.testReplication(DEFAULT_SUFFIX, ' + replica + '):\n')
+            TEST.write("        log.info('Replication is working.')\n")
+            TEST.write('    else:\n')
+            TEST.write("        log.fatal('Replication is not working.')\n")
             TEST.write('        assert False\n')
             TEST.write('\n')
 
@@ -510,7 +497,6 @@ if len(sys.argv) > 0:
         for idx in range(consumers):
             idx += 1
             TEST.write('    topology.consumer' + str(idx) + '.delete()\n')
-        TEST.write('\n\n')
     else:
         for idx in range(instances):
             idx += 1
@@ -519,8 +505,9 @@ if len(sys.argv) > 0:
             else:
                 idx = str(idx)
             TEST.write('    topology.standalone' + idx + '.delete()\n')
-        TEST.write('\n\n')
+
     TEST.write("    log.info('Testcase PASSED')\n")
+    TEST.write('\n\n')
 
     #
     # Write the main function

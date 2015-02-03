@@ -109,20 +109,10 @@ def topology(request):
     master.waitForReplInit(repl_agreement)
 
     # Check replication is working fine
-    master.add_s(Entry((TEST_REPL_DN, {
-                        'objectclass': "top person".split(),
-                        'sn': 'test_repl',
-                        'cn': 'test_repl'})))
-    loop = 0
-    ent = None
-    while loop <= 10:
-        try:
-            ent = consumer.getEntry(TEST_REPL_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-            break
-        except ldap.NO_SUCH_OBJECT:
-            time.sleep(1)
-            loop += 1
-    if ent is None:
+    if master.testReplication(DEFAULT_SUFFIX, consumer):
+        log.info('Replication is working.')
+    else:
+        log.fatal('Replication is not working.')
         assert False
 
     # clear the tmp directory
