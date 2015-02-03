@@ -1556,7 +1556,8 @@ class DirSrv(SimpleLDAPObject):
                     args['onewaysync'].lower() == 'towindows':
                 entry.setValues("oneWaySync", args['onewaysync'])
             else:
-                raise Exception("Error: invalid value %s for oneWaySync: must be fromWindows or toWindows" % args['onewaysync'])
+                raise Exception("Error: invalid value %s for oneWaySync: must be fromWindows or toWindows"
+                                % args['onewaysync'])
 
     # args - DirSrv consumer (repoth), suffix, binddn, bindpw, timeout
     # also need an auto_init argument
@@ -1980,6 +1981,7 @@ class DirSrv(SimpleLDAPObject):
         """
         dir_path = None
         if os.path.exists(filename):
+            filename = os.path.abspath(filename)
             if '/suites/' in filename:
                 idx = filename.find('/suites/')
             elif '/tickets/' in filename:
@@ -2006,6 +2008,7 @@ class DirSrv(SimpleLDAPObject):
         Clear the contents of the "tmp" dir, but leave the README file in place.
         """
         if os.path.exists(filename):
+            filename = os.path.abspath(filename)
             if '/suites/' in filename:
                 idx = filename.find('/suites/')
             elif '/tickets/' in filename:
@@ -2018,7 +2021,13 @@ class DirSrv(SimpleLDAPObject):
             if dir_path:
                 filelist = [tmpfile for tmpfile in os.listdir(dir_path) if tmpfile != 'README']
                 for tmpfile in filelist:
-                    os.remove(os.path.abspath(dir_path + tmpfile))
+                    tmpfile = os.path.abspath(dir_path + tmpfile)
+                    if os.path.isdir(tmpfile):
+                        # Remove directory and all of its contents
+                        shutil.rmtree(tmpfile)
+                    else:
+                        os.remove(tmpfile)
+
                 return
 
         log.fatal('Failed to clear tmp directory (%s)' % filename)
@@ -2033,3 +2042,191 @@ class DirSrv(SimpleLDAPObject):
             online = False
         DirSrvTools.runUpgrade(self.prefix, online)
 
+    #
+    # The following are the functions to perform offline scripts(when the server is stopped)
+    #
+    def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt, *import_files):
+        """
+        @param bename - The backend name of the database to import
+        @param suffixes - List/tuple of suffixes to import
+        @param excludeSuffixes - List/tuple of suffixes to exclude from import
+        @param encrypt - Perform attribute encryption
+        @param input_files - Files to import: file, file, file
+        @return - True if import succeeded
+        """
+        DirSrvTools.lib389User(user=DEFAULT_USER)
+        prog = get_sbin_dir(None, self.prefix) + LDIF2DB
+
+        if not bename and not suffixes:
+            log.error("ldif2db: backend name or suffix missing")
+            return False
+
+        for ldif in import_files:
+            if not os.path.isfile(ldif):
+                log.error("ldif2db: Can't find file: %s" % ldif)
+                return False
+
+        cmd = '%s -Z %s' % (prog, self.serverid)
+        if bename:
+            cmd = cmd + ' -n ' + bename
+        if suffixes:
+            for suffix in suffixes:
+                cmd = cmd + ' -s ' + suffix
+        if excludeSuffixes:
+            for excludeSuffix in excludeSuffixes:
+                cmd = cmd + ' -x ' + excludeSuffix
+        if encrypt:
+            cmd = cmd + ' -E'
+        for ldif in import_files:
+            cmd = cmd + ' -i ' + ldif
+
+        self.stop(timeout=10)
+        log.info('Running script: %s' % cmd)
+        result = True
+        try:
+            os.system(cmd)
+        except:
+            log.error("ldif2db: error executing %s" % cmd)
+            result = False
+        self.start(timeout=10)
+
+        return result
+
+    def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data, outputfile):
+        """
+        @param bename - The backend name of the database to export
+        @param suffixes - List/tuple of suffixes to export
+        @param excludeSuffixes - List/tuple of suffixes to exclude from export
+        @param encrypt - Perform attribute encryption
+        @param repl_data - Export the replication data
+        @param outputfile - The filename for the exported LDIF
+        @return - True if export succeeded
+        """
+        DirSrvTools.lib389User(user=DEFAULT_USER)
+        prog = get_sbin_dir(None, self.prefix) + DB2LDIF
+
+        if not bename and not suffixes:
+            log.error("db2ldif: backend name or suffix missing")
+            return False
+
+        cmd = '%s -Z %s' % (prog, self.serverid)
+        if bename:
+            cmd = cmd + ' -n ' + bename
+        if suffixes:
+            for suffix in suffixes:
+                cmd = cmd + ' -s ' + suffix
+        if excludeSuffixes:
+            for excludeSuffix in excludeSuffixes:
+                cmd = cmd + ' -x ' + excludeSuffix
+        if encrypt:
+            cmd = cmd + ' -E'
+        if outputfile:
+            cmd = cmd + ' -a ' + outputfile
+        if repl_data:
+            cmd = cmd + ' -r'
+
+        self.stop(timeout=10)
+        log.info('Running script: %s' % cmd)
+        result = True
+        try:
+            os.system(cmd)
+        except:
+            log.error("db2ldif: error executing %s" % cmd)
+            result = False
+        self.start(timeout=10)
+
+        return result
+
+    def bak2db(self, archive_dir, bename=None):
+        """
+        @param archive_dir - The directory containing the backup
+        @param bename - The backend name to restore
+        @return - True if the restore succeeded
+        """
+        DirSrvTools.lib389User(user=DEFAULT_USER)
+        prog = get_sbin_dir(None, self.prefix) + BAK2DB
+
+        if not archive_dir:
+            log.error("bak2db: backup directory missing")
+            return False
+
+        cmd = '%s %s -Z %s' % (prog, archive_dir, self.serverid)
+        if bename:
+            cmd = cmd + ' -n ' + bename
+
+        self.stop(timeout=10)
+        log.info('Running script: %s' % cmd)
+        result = True
+        try:
+            os.system(cmd)
+        except:
+            log.error("bak2db: error executing %s" % cmd)
+            result = False
+        self.start(timeout=10)
+
+        return result
+
+    def db2bak(self, archive_dir):
+        """
+        @param archive_dir - The directory to write the backup to
+        @return - True if the backup succeeded
+        """
+        DirSrvTools.lib389User(user=DEFAULT_USER)
+        prog = get_sbin_dir(None, self.prefix) + DB2BAK
+
+        if not archive_dir:
+            log.error("db2bak: backup directory missing")
+            return False
+
+        cmd = '%s %s -Z %s' % (prog, archive_dir, self.serverid)
+
+        self.stop(timeout=10)
+        log.info('Running script: %s' % cmd)
+        result = True
+        try:
+            os.system(cmd)
+        except:
+            log.error("db2bak: error executing %s" % cmd)
+            result = False
+        self.start(timeout=10)
+
+        return result
+
+    def db2index(self, bename=None, suffixes=None, attrs=None, vlvTag=None):
+        """
+        @param bename - The backend name to reindex
+        @param suffixes - List/tuple of suffixes to reindex
+        @param attrs - List/tuple of the attributes to index
+        @param vlvTag - The VLV index name to index
+        @return - True if reindexing succeeded
+        """
+        DirSrvTools.lib389User(user=DEFAULT_USER)
+        prog = get_sbin_dir(None, self.prefix) + DB2INDEX
+
+        if not bename and not suffixes:
+            log.error("db2index: missing required backend name or suffix")
+            return False
+
+        cmd = '%s -Z %s' % (prog, self.serverid)
+        if bename:
+            cmd = cmd + ' -n %s' % bename
+        if suffixes:
+            for suffix in suffixes:
+                cmd = cmd + ' -s %s' % suffix
+        if attrs:
+            for attr in attrs:
+                cmd = cmd + ' -t %s' % attr
+        if vlvTag:
+            cmd = cmd + ' -T %s' % vlvTag
+
+        self.stop(timeout=10)
+        log.info('Running script: %s' % cmd)
+        result = True
+        try:
+            os.system(cmd)
+        except:
+            log.error("db2index: error executing %s" % cmd)
+            result = False
+        self.start(timeout=10)
+
+        return result

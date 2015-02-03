@@ -101,6 +101,13 @@ DN_RESTORE_TASK    = "cn=restore,%s"          % DN_TASKS
 DN_MBO_TASK        = "cn=memberOf task,%s"    % DN_TASKS
 DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 
+# Script Constants
+LDIF2DB =  '/ldif2db'
+DB2LDIF =  '/db2ldif'
+BAK2DB =   '/bak2db'
+DB2BAK =   '/db2bak'
+DB2INDEX = '/db2index'
+
 RDN_REPLICA     = "cn=replica"
 
 RETROCL_SUFFIX = "cn=changelog"
