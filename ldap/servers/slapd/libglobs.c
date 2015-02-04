@@ -86,9 +86,6 @@
 #endif
 
 #define REMOVE_CHANGELOG_CMD "remove"
-#define DEFAULT_SASL_MAXBUFSIZE "65536"
-#define SLAPD_DEFAULT_SASL_MAXBUFSIZE 65536
-#define DEFAULT_DISK_THRESHOLD "2097152"
 
 /* On UNIX, there's only one copy of slapd_ldap_debug */
 /* On NT, each module keeps its own module_ldap_debug, which */
