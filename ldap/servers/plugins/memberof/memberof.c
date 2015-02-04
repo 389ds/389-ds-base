@@ -1759,6 +1759,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	char *group_dn = slapi_entry_get_ndn(e);
 	Slapi_Value *group_dn_val = 0;
 	Slapi_ValueSet *groupvals = *((memberof_get_groups_data*)callback_data)->groupvals;
+	MemberOfConfig *config = ((memberof_get_groups_data*)callback_data)->config;
 	int rc = 0;
 
 	if(slapi_is_shutting_down()){
@@ -1816,10 +1817,11 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 	 * by the valueset. */ 
 	slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
 
-	/* now recurse to find parent groups of e */
-	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
-		group_sdn, callback_data);
-
+	if(!config->skip_nested || config->fixup_task){
+		/* now recurse to find parent groups of e */
+		memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
+		    group_sdn, callback_data);
+	}
 bail:
 	return rc;
 }
@@ -2543,10 +2545,8 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
 
-	if(!config->skip_nested || config->fixup_task){
-		/* get a list of all of the groups this user belongs to */
-		groups = memberof_get_groups(config, sdn);
-	}
+	/* get a list of all of the groups this user belongs to */
+	groups = memberof_get_groups(config, sdn);
 
 	/* If we found some groups, replace the existing memberOf attribute
 	 * with the found values.  */
