@@ -69,7 +69,7 @@ int ldap_quote_filter_value(
       int *outLen);
 
 
-static int search_one_berval(Slapi_DN *baseDN, const char *attrName,
+static int search_one_berval(Slapi_DN *baseDN, const char **attrNames,
 		const struct berval *value, const char *requiredObjectClass, Slapi_DN *target);
 
 /*
@@ -100,7 +100,8 @@ pluginDesc = {
 };
 static void* plugin_identity = NULL;
 typedef struct attr_uniqueness_config {
-        char *attr;
+        const char **attrs;
+        char *attr_friendly;
         Slapi_DN **subtrees;
         PRBool unique_in_all_subtrees;
         char *top_entry_oc;
@@ -128,7 +129,9 @@ free_uniqueness_config(struct attr_uniqueness_config *config)
 {
         int i;
         
-        slapi_ch_free_string((char **) &config->attr);
+        for (i = 0; config->attrs && config->attrs[i]; i++) {
+                slapi_ch_free_string((char **) &(config->attrs[i]));
+        }
         for (i = 0; config->subtrees && config->subtrees[i]; i++) {
                 slapi_sdn_free(&config->subtrees[i]);
         }
@@ -183,6 +186,8 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         char **argv = NULL;
         int rc = SLAPI_PLUGIN_SUCCESS;
         int i;
+        int attrLen = 0;
+        char *fp;
         int nb_subtrees = 0;
 
         if (config_entry == NULL) {
@@ -218,8 +223,18 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                  */
 
                 /* Attribute name of the attribute we are going to check value uniqueness */
-                tmp_config->attr = slapi_entry_attr_get_charptr(config_entry, ATTR_UNIQUENESS_ATTRIBUTE_NAME);
-                
+                values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_ATTRIBUTE_NAME);
+                if (values) {
+                        for (i = 0; values && values[i]; i++);
+                        tmp_config->attrs = (const char **) slapi_ch_calloc(i + 1, sizeof(char *));
+                        for (i = 0; values && values[i]; i++) {
+                                tmp_config->attrs[i] = slapi_ch_strdup(values[i]);
+                                slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "Adding attribute %s to uniqueness set\n", tmp_config->attrs[i]);
+                        }
+                        slapi_ch_array_free(values);
+                        values = NULL;
+                }
+
                 /* Subtrees where uniqueness is tested  */
                 values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_SUBTREES);
                 if (values) {
@@ -283,7 +298,8 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                         }
                         
                         /* Store attrName in the config */
-                        tmp_config->attr = slapi_ch_strdup(attrName);
+                        tmp_config->attrs = (const char **) slapi_ch_calloc(1, sizeof(char *));
+                        tmp_config->attrs[0] = slapi_ch_strdup(attrName);
                         argc--;
                         argv++; /* First argument was attribute name and remaining are subtrees */
                         
@@ -323,7 +339,8 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                          *  - requiredObjectClass 
                          */
                         /* Store attrName in the config */
-                        tmp_config->attr = slapi_ch_strdup(attrName);
+                        tmp_config->attrs = (const char **) slapi_ch_calloc(1, sizeof(char *));
+                        tmp_config->attrs[0] = slapi_ch_strdup(attrName);
                         
                         /* There is no subtrees */
                         tmp_config->subtrees = NULL;
@@ -340,12 +357,25 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         }
         
         /* Time to check that the new configuration is valid */
-        if (tmp_config->attr == NULL) {
+        /* Check that we have 1 or more value */
+        if (tmp_config->attrs == NULL) {
                 slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "Config info: attribute name not defined \n");
                 rc = SLAPI_PLUGIN_FAILURE;
                 goto done;
         }
-        
+        /* If the config is valid, prepare the friendly string for error messages */
+        for (i = 0; tmp_config->attrs && (tmp_config->attrs)[i]; i++) {
+            attrLen += strlen((tmp_config->attrs)[i]) + 1;
+        }
+        tmp_config->attr_friendly = (char *) slapi_ch_calloc(attrLen, sizeof(char *));
+        fp = tmp_config->attr_friendly;
+        for (i = 0; tmp_config->attrs && (tmp_config->attrs)[i]; i++) {
+            strcpy(fp, (tmp_config->attrs)[i] );
+            fp += strlen((tmp_config->attrs)[i]);
+            strcpy(fp, " ");
+            fp++;
+        }
+
         if (tmp_config->subtrees == NULL) {
                 /* Uniqueness is enforced on entries matching objectclass */
                 if (tmp_config->subtree_entries_oc == NULL) {
@@ -407,20 +437,39 @@ uid_op_error(int internal_error)
  */
 
 static char *
-create_filter(const char *attribute, const struct berval *value, const char *requiredObjectClass)
+create_filter(const char **attributes, const struct berval *value, const char *requiredObjectClass)
 {
   char *filter;
   char *fp;
   char *max;
-  int attrLen;
+  int  *attrLen;
+  int totalAttrLen = 0;
+  int attrCount = 0;
   int valueLen;
   int classLen = 0;
   int filterLen;
+  int i = 0;
 
-  PR_ASSERT(attribute);
+  PR_ASSERT(attributes);
 
   /* Compute the length of the required buffer */
-  attrLen = strlen(attribute);
+  for (attrCount = 0; attributes && attributes[attrCount]; attrCount++);
+  attrCount++;
+  attrLen = (int *) slapi_ch_calloc(attrCount, sizeof(int));
+  for (i = 0; attributes && attributes[i]; i++) {
+      attrLen[i] += strlen(attributes[i]);
+      totalAttrLen += attrLen[i];
+  }
+
+  /* if attrCount is 1, attrLen is already corect for usage.*/
+  if (attrCount > 1) {
+    /* Filter will be (|(attr=value)(attr=value)) */
+    /* 3 for the (| ) */
+    /* 3 for each attr for (=) not in attr or value */
+    totalAttrLen += 3 + (attrCount * 3);
+  } else {
+    totalAttrLen += 3;
+  }
 
   if (ldap_quote_filter_value(value->bv_val, 
 	value->bv_len, 0, 0, &valueLen))
@@ -428,10 +477,10 @@ create_filter(const char *attribute, const struct berval *value, const char *req
 
   if (requiredObjectClass) {
     classLen = strlen(requiredObjectClass);
-    /* "(&(objectClass=)())" == 19 */
-    filterLen = attrLen + 1 + valueLen + classLen + 19 + 1;
+    /* "(&(objectClass=)<Filter here>)" == 17 */
+    filterLen = totalAttrLen + 1 + (valueLen * attrCount) + classLen + 17 + 1;
   } else {
-    filterLen = attrLen + 1 + valueLen + 1;
+    filterLen = totalAttrLen + 1 + (valueLen * attrCount) + 1;
   }
 
   /* Allocate the buffer */
@@ -446,29 +495,57 @@ create_filter(const char *attribute, const struct berval *value, const char *req
     strcpy(fp, requiredObjectClass);
     fp += classLen;
     *fp++ = ')';
-    *fp++ = '(';
   }
 
-  /* Place attribute name in filter */
-  strcpy(fp, attribute);
-  fp += attrLen;
+  if (attrCount == 1) {
+      *fp++ = '(';
+      /* Place attribute name in filter */
+      strcpy(fp, attributes[0]);
+      fp += attrLen[0];
 
-  /* Place comparison operator */
-  *fp++ = '=';
+      /* Place comparison operator */
+      *fp++ = '=';
 
-  /* Place value in filter */
-  if (ldap_quote_filter_value(value->bv_val, value->bv_len,
-    fp, max-fp, &valueLen)) { slapi_ch_free((void**)&filter); return 0; }
-  fp += valueLen;
+      /* Place value in filter */
+      if (ldap_quote_filter_value(value->bv_val, value->bv_len,
+        fp, max-fp, &valueLen)) { slapi_ch_free((void**)&filter); return 0; }
+      fp += valueLen;
+      *fp++ = ')';
+  } else {
+      strcpy(fp, "(|");
+      fp += 2;
+
+      for (i = 0; attributes && attributes[i]; i++) {
+          strcpy(fp, "(");
+          fp += 1;
+          /* Place attribute name in filter */
+          strcpy(fp, attributes[i]);
+          fp += attrLen[i];
+
+          /* Place comparison operator */
+          *fp++ = '=';
+
+          /* Place value in filter */
+          if (ldap_quote_filter_value(value->bv_val, value->bv_len,
+            fp, max-fp, &valueLen)) { slapi_ch_free((void**)&filter); return 0; }
+          fp += valueLen;
+
+          strcpy(fp, ")");
+          fp += 1;
+      }
+      strcpy(fp, ")");
+      fp += 1;
+  }
 
   /* Close AND expression if a requiredObjectClass was set */
   if (requiredObjectClass) {
-    *fp++ = ')';
     *fp++ = ')';
   }
 
   /* Terminate */
   *fp = 0;
+
+  slapi_ch_free((void **) &attrLen);
 
   return filter;
 }
@@ -490,15 +567,16 @@ create_filter(const char *attribute, const struct berval *value, const char *req
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-search(Slapi_DN *baseDN, const char *attrName, Slapi_Attr *attr,
+search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
   struct berval **values, const char *requiredObjectClass,
   Slapi_DN *target)
 {
   int result;
 
 #ifdef DEBUG
+    /* Fix this later to print all the attr names */
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
-                    "SEARCH baseDN=%s attr=%s target=%s\n", slapi_sdn_get_dn(baseDN), attrName, 
+                    "SEARCH baseDN=%s attr=%s target=%s\n", slapi_sdn_get_dn(baseDN), attrNames[0], 
                     target?slapi_sdn_get_dn(target):"None");
 #endif
 
@@ -524,7 +602,7 @@ search(Slapi_DN *baseDN, const char *attrName, Slapi_Attr *attr,
 		vhint != -1 && LDAP_SUCCESS == result;
 		vhint = slapi_attr_next_value( attr, vhint, &v ))
 	{
-	  result = search_one_berval(baseDN, attrName,
+	  result = search_one_berval(baseDN, attrNames,
 					slapi_value_get_berval(v),
 					requiredObjectClass, target);
 	}
@@ -533,7 +611,7 @@ search(Slapi_DN *baseDN, const char *attrName, Slapi_Attr *attr,
   {
 	for (;*values != NULL && LDAP_SUCCESS == result; values++)
 	{
-	  result = search_one_berval(baseDN, attrName, *values, requiredObjectClass,
+	  result = search_one_berval(baseDN, attrNames, *values, requiredObjectClass,
 					target);
 	}
   }
@@ -548,7 +626,7 @@ search(Slapi_DN *baseDN, const char *attrName, Slapi_Attr *attr,
 
 
 static int
-search_one_berval(Slapi_DN *baseDN, const char *attrName,
+search_one_berval(Slapi_DN *baseDN, const char **attrNames,
 		const struct berval *value, const char *requiredObjectClass,
 		Slapi_DN *target)
 {
@@ -572,7 +650,7 @@ search_one_berval(Slapi_DN *baseDN, const char *attrName,
       static char *attrs[] = { "1.1", 0 };
 
       /* Create the filter - this needs to be freed */
-      filter = create_filter(attrName, value, requiredObjectClass);
+      filter = create_filter(attrNames, value, requiredObjectClass);
 
 #ifdef DEBUG
       slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -656,7 +734,7 @@ search_one_berval(Slapi_DN *baseDN, const char *attrName,
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-searchAllSubtrees(Slapi_DN **subtrees, const char *attrName,
+searchAllSubtrees(Slapi_DN **subtrees, const char **attrNames,
   Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass,
   Slapi_DN *dn, PRBool unique_in_all_subtrees)
 {
@@ -697,7 +775,7 @@ searchAllSubtrees(Slapi_DN **subtrees, const char *attrName,
      * worry about that here.
      */
     if (unique_in_all_subtrees || slapi_sdn_issuffix(dn, sufdn)) {
-      result = search(sufdn, attrName, attr, values, requiredObjectClass, dn);
+      result = search(sufdn, attrNames, attr, values, requiredObjectClass, dn);
       if (result) break;
     }
   }
@@ -785,7 +863,7 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass,
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-findSubtreeAndSearch(Slapi_DN *parentDN, const char *attrName, Slapi_Attr *attr,
+findSubtreeAndSearch(Slapi_DN *parentDN, const char **attrNames, Slapi_Attr *attr,
   struct berval **values, const char *requiredObjectClass, Slapi_DN *target,
   const char *markerObjectClass)
 {
@@ -804,7 +882,7 @@ findSubtreeAndSearch(Slapi_DN *parentDN, const char *attrName, Slapi_Attr *attr,
            * Do the search.   There is no entry that is allowed
            * to have the attribute already.
            */
-          result = search(curpar, attrName, attr, values, requiredObjectClass,
+          result = search(curpar, attrNames, attr, values, requiredObjectClass,
                           target);
           break;
         }
@@ -827,7 +905,8 @@ preop_add(Slapi_PBlock *pb)
 {
   int result;
   char *errtext = NULL;
-  char *attrName = NULL;
+  const char **attrNames = NULL;
+  char * attr_friendly = NULL;
 
 #ifdef DEBUG
   slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD begin\n");
@@ -848,6 +927,7 @@ preop_add(Slapi_PBlock *pb)
     Slapi_Entry *e;
     Slapi_Attr *attr;
     struct attr_uniqueness_config *config = NULL;
+    int i = 0;
 
         /*
          * If this is a replication update, just be a noop.
@@ -868,9 +948,10 @@ preop_add(Slapi_PBlock *pb)
         /*
          * Get the arguments
          */
-        attrName = config->attr;
+        attrNames = config->attrs;
         markerObjectClass = config->top_entry_oc;
         requiredObjectClass = config->subtree_entries_oc;
+        attr_friendly = config->attr_friendly;
 
     /*
      * Get the target DN for this add operation
@@ -889,9 +970,6 @@ preop_add(Slapi_PBlock *pb)
         err = slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
         if (err) { result = uid_op_error(52); break; }
 
-        err = slapi_entry_attr_find(e, attrName, &attr);
-        if (err) break;  /* no unique attribute */
-
         /*
          * Check if it contains the required object class
          */
@@ -904,22 +982,30 @@ preop_add(Slapi_PBlock *pb)
           }
         }
 
-        /*
-         * Passed all the requirements - this is an operation we
-         * need to enforce uniqueness on. Now find all parent entries
-         * with the marker object class, and do a search for each one.
-         */
-        if (NULL != markerObjectClass)
-        {
-          /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(sdn, attrName, attr, NULL,
-                                              requiredObjectClass, sdn,
-                                              markerObjectClass);
-        } else
-        {
-          /* Subtrees listed on invocation line */
-          result = searchAllSubtrees(config->subtrees, attrName, attr, NULL,
-                                     requiredObjectClass, sdn, config->unique_in_all_subtrees);
+        for (i = 0; attrNames && attrNames[i]; i++) {
+            err = slapi_entry_attr_find(e, attrNames[i], &attr);
+            if (!err) {
+                /*
+                 * Passed all the requirements - this is an operation we
+                 * need to enforce uniqueness on. Now find all parent entries
+                 * with the marker object class, and do a search for each one.
+                 */
+                if (NULL != markerObjectClass)
+                {
+                  /* Subtree defined by location of marker object class */
+                        result = findSubtreeAndSearch(sdn, attrNames, attr, NULL,
+                                                      requiredObjectClass, sdn,
+                                                      markerObjectClass);
+                } else
+                {
+                  /* Subtrees listed on invocation line */
+                  result = searchAllSubtrees(config->subtrees, attrNames, attr, NULL,
+                                             requiredObjectClass, sdn, config->unique_in_all_subtrees);
+                }
+                if (result != LDAP_SUCCESS) {
+                    break;
+                }
+            }
         }
   END
 
@@ -929,7 +1015,7 @@ preop_add(Slapi_PBlock *pb)
       "ADD result %d\n", result);
 
     if (result == LDAP_CONSTRAINT_VIOLATION) {
-      errtext = slapi_ch_smprintf(moreInfo, attrName);
+      errtext = slapi_ch_smprintf(moreInfo, attr_friendly);
     } else {
       errtext = slapi_ch_strdup("Error checking for attribute uniqueness.");
     }
@@ -971,8 +1057,9 @@ preop_modify(Slapi_PBlock *pb)
   LDAPMod **checkmods = NULL;
   int checkmodsCapacity = 0;
   char *errtext = NULL;
-  char *attrName = NULL;
+  const char **attrNames = NULL;
   struct attr_uniqueness_config *config = NULL;
+  char *attr_friendly = NULL;
 
 #ifdef DEBUG
     slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
@@ -989,6 +1076,7 @@ preop_modify(Slapi_PBlock *pb)
     LDAPMod *mod;
     Slapi_DN *sdn = NULL;
     int isupdatedn;
+    int i = 0;
 
     /*
      * If this is a replication update, just be a noop.
@@ -1009,9 +1097,10 @@ preop_modify(Slapi_PBlock *pb)
     /*
      * Get the arguments
      */
-    attrName = config->attr;
+    attrNames = config->attrs;
     markerObjectClass = config->top_entry_oc;
     requiredObjectClass = config->subtree_entries_oc;
+    attr_friendly = config->attr_friendly;
 
         
     err = slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -1032,14 +1121,16 @@ preop_modify(Slapi_PBlock *pb)
     for(;mods && *mods;mods++)
     {
         mod = *mods;
-        if ((slapi_attr_type_cmp(mod->mod_type, attrName, 1) == 0) && /* mod contains target attr */
-            (mod->mod_op & LDAP_MOD_BVALUES) && /* mod is bval encoded (not string val) */
-            (mod->mod_bvalues && mod->mod_bvalues[0]) && /* mod actually contains some values */
-            (SLAPI_IS_MOD_ADD(mod->mod_op) || /* mod is add */
-             SLAPI_IS_MOD_REPLACE(mod->mod_op))) /* mod is replace */
-        {
-          addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
-        }
+        for (i = 0; attrNames && attrNames[i]; i++) {
+          if ((slapi_attr_type_cmp(mod->mod_type, attrNames[i], 1) == 0) && /* mod contains target attr */
+              (mod->mod_op & LDAP_MOD_BVALUES) && /* mod is bval encoded (not string val) */
+              (mod->mod_bvalues && mod->mod_bvalues[0]) && /* mod actually contains some values */
+              (SLAPI_IS_MOD_ADD(mod->mod_op) || /* mod is add */
+               SLAPI_IS_MOD_REPLACE(mod->mod_op))) /* mod is replace */
+          {
+            addMod(&checkmods, &checkmodsCapacity, &modcount, mod);
+          }
+       }
     }
     if (modcount == 0) {
         break; /* no mods to check, we are done */
@@ -1071,13 +1162,13 @@ preop_modify(Slapi_PBlock *pb)
         if (NULL != markerObjectClass)
         {
             /* Subtree defined by location of marker object class */
-            result = findSubtreeAndSearch(sdn, attrName, NULL, 
+            result = findSubtreeAndSearch(sdn, attrNames, NULL, 
                                           mod->mod_bvalues, requiredObjectClass,
                                           sdn, markerObjectClass);
         } else
         {
             /* Subtrees listed on invocation line */
-            result = searchAllSubtrees(config->subtrees, attrName, NULL,
+            result = searchAllSubtrees(config->subtrees, attrNames, NULL,
                                        mod->mod_bvalues, requiredObjectClass, sdn, config->unique_in_all_subtrees);
         }
     }
@@ -1091,7 +1182,7 @@ preop_modify(Slapi_PBlock *pb)
       "MODIFY result %d\n", result);
 
     if (result == LDAP_CONSTRAINT_VIOLATION) {
-      errtext = slapi_ch_smprintf(moreInfo, attrName);
+      errtext = slapi_ch_smprintf(moreInfo, attr_friendly);
     } else {
       errtext = slapi_ch_strdup("Error checking for attribute uniqueness.");
     }
@@ -1119,7 +1210,7 @@ preop_modrdn(Slapi_PBlock *pb)
   Slapi_Entry *e = NULL;
   Slapi_Value *sv_requiredObjectClass = NULL;
   char *errtext = NULL;
-  char *attrName = NULL;
+  const char **attrNames = NULL;
   struct attr_uniqueness_config *config = NULL;
 
 #ifdef DEBUG
@@ -1137,6 +1228,7 @@ preop_modrdn(Slapi_PBlock *pb)
     int deloldrdn = 0;
     int isupdatedn;
     Slapi_Attr *attr;
+    int i = 0;
 
         /*
          * If this is a replication update, just be a noop.
@@ -1157,7 +1249,7 @@ preop_modrdn(Slapi_PBlock *pb)
         /*
          * Get the arguments
          */
-        attrName = config->attr;
+        attrNames = config->attrs;
         markerObjectClass = config->top_entry_oc;
         requiredObjectClass = config->subtree_entries_oc;
 
@@ -1211,11 +1303,6 @@ preop_modrdn(Slapi_PBlock *pb)
     err = slapi_entry_rename(e, rdn, deloldrdn, superior);
     if (err != LDAP_SUCCESS) { result = uid_op_error(36); break; }
 
-        /*
-         * Find any unique attribute data in the new RDN
-         */
-        err = slapi_entry_attr_find(e, attrName, &attr);
-        if (err) break;  /* no UID attribute */
 
         /*
          * Check if it has the required object class
@@ -1224,21 +1311,32 @@ preop_modrdn(Slapi_PBlock *pb)
             !slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS, sv_requiredObjectClass)) { break; }
 
         /*
-         * Passed all the requirements - this is an operation we
-         * need to enforce uniqueness on. Now find all parent entries
-         * with the marker object class, and do a search for each one.
+         * Find any unique attribute data in the new RDN
          */
-        if (NULL != markerObjectClass)
-        {
-          /* Subtree defined by location of marker object class */
-                result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrName, attr, NULL,
-                                              requiredObjectClass, sdn,
-                                              markerObjectClass);
-        } else
-        {
-          /* Subtrees listed on invocation line */
-          result = searchAllSubtrees(config->subtrees, attrName, attr, NULL,
-                                     requiredObjectClass, sdn, config->unique_in_all_subtrees);
+        for (i = 0; attrNames && attrNames[i]; i++) {
+            err = slapi_entry_attr_find(e, attrNames[i], &attr);
+            if (!err) {
+                /*
+                 * Passed all the requirements - this is an operation we
+                 * need to enforce uniqueness on. Now find all parent entries
+                 * with the marker object class, and do a search for each one.
+                 */
+                if (NULL != markerObjectClass)
+                {
+                  /* Subtree defined by location of marker object class */
+                        result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrNames, attr, NULL,
+                                                      requiredObjectClass, sdn,
+                                                      markerObjectClass);
+                } else
+                {
+                  /* Subtrees listed on invocation line */
+                  result = searchAllSubtrees(config->subtrees, attrNames, attr, NULL,
+                                             requiredObjectClass, sdn, config->unique_in_all_subtrees);
+                }
+                if (result != LDAP_SUCCESS) {
+                    break;
+                }
+            }
         }
   END
   /* Clean-up */
@@ -1251,7 +1349,7 @@ preop_modrdn(Slapi_PBlock *pb)
       "MODRDN result %d\n", result);
 
     if (result == LDAP_CONSTRAINT_VIOLATION) {
-      errtext = slapi_ch_smprintf(moreInfo, attrName);
+      errtext = slapi_ch_smprintf(moreInfo, config->attr_friendly);
     } else {
       errtext = slapi_ch_strdup("Error checking for attribute uniqueness.");
     }

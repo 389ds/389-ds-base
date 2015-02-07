@@ -296,6 +296,7 @@ def test_attruniq(inst, args=None):
                                      'cn': 'user 1',
                                      'uid': 'user1',
                                      'mail': 'user1@example.com',
+                                     'mailAlternateAddress' : 'user1@alt.example.com',
                                      'userpassword': 'password'})))
     except ldap.LDAPError, e:
         log.fatal('test_attruniq: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
@@ -343,6 +344,88 @@ def test_attruniq(inst, args=None):
         pass
     else:
         log.fatal('test_attruniq: Adding of 2nd entry(mail) incorrectly succeeded')
+        assert False
+
+    ############################################################################
+    # Reconfigure plugin for mail and mailAlternateAddress
+    ############################################################################
+
+    try:
+        inst.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
+                      [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'), 
+                       (ldap.MOD_ADD, 'uniqueness-attribute-name',
+                        'mailAlternateAddress')])
+
+    except ldap.LDAPError, e:
+        log.error('test_attruniq: Failed to reconfigure plugin for "mail mailAlternateAddress": error ' + e.message['desc'])
+        assert False
+
+    ############################################################################
+    # Test plugin - Add an entry, that has a duplicate "mail" value
+    ############################################################################
+
+    try:
+        inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
+                                 'sn': '2',
+                                 'cn': 'user 2',
+                                 'uid': 'user2',
+                                 'mail': 'user1@example.com',
+                                 'userpassword': 'password'})))
+    except ldap.CONSTRAINT_VIOLATION:
+        pass
+    else:
+        log.error('test_attruniq: Adding of 3rd entry(mail) incorrectly succeeded')
+        assert False
+
+    ############################################################################
+    # Test plugin - Add an entry, that has a duplicate "mailAlternateAddress" value
+    ############################################################################
+
+    try:
+        inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
+                                 'sn': '2',
+                                 'cn': 'user 2',
+                                 'uid': 'user2',
+                                 'mailAlternateAddress': 'user1@alt.example.com',
+                                 'userpassword': 'password'})))
+    except ldap.CONSTRAINT_VIOLATION:
+        pass
+    else:
+        log.error('test_attruniq: Adding of 4th entry(mailAlternateAddress) incorrectly succeeded')
+        assert False
+
+    ############################################################################
+    # Test plugin - Add an entry, that has a duplicate "mail" value conflicting mailAlternateAddress
+    ############################################################################
+
+    try:
+        inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
+                                 'sn': '2',
+                                 'cn': 'user 2',
+                                 'uid': 'user2',
+                                 'mail': 'user1@alt.example.com',
+                                 'userpassword': 'password'})))
+    except ldap.CONSTRAINT_VIOLATION:
+        pass
+    else:
+        log.error('test_attruniq: Adding of 5th entry(mailAlternateAddress) incorrectly succeeded')
+        assert False
+
+    ############################################################################
+    # Test plugin - Add an entry, that has a duplicate "mailAlternateAddress" conflicting mail
+    ############################################################################
+
+    try:
+        inst.add_s(Entry((USER2_DN, {'objectclass': "top extensibleObject".split(),
+                                 'sn': '2',
+                                 'cn': 'user 2',
+                                 'uid': 'user2',
+                                 'mailAlternateAddress': 'user1@example.com',
+                                 'userpassword': 'password'})))
+    except ldap.CONSTRAINT_VIOLATION:
+        pass
+    else:
+        log.error('test_attruniq: Adding of 6th entry(mail) incorrectly succeeded')
         assert False
 
     ############################################################################
