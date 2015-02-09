@@ -133,7 +133,6 @@ enum
  * Mostly copied from check_account_lock in the server code.
  * Returns: 0 - account is disabled (lock == "true")
  *          1 - account is enabled (lock == "false" or empty)
- *         -1 - some sort of error
  */
 static int
 _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
@@ -151,7 +150,9 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
     /* first, see if the attribute is a "real" attribute */
     strval = slapi_entry_attr_get_charptr(ds_entry, "nsAccountLock");
     if (strval) { /* value is real */
-        *isvirt = 0; /* value is real */
+        if (isvirt) {
+            *isvirt = 0; /* value is real */
+        }
         rc = 1; /* default to enabled */
         if (PL_strncasecmp(strval, "true", 4) == 0) {
             rc = 0; /* account is disabled */
@@ -172,7 +173,9 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
         const struct berval *bvp = NULL;
 
         rc = 1; /* default is enabled */
-        *isvirt = 1; /* value is virtual */
+        if (isvirt) {
+            *isvirt = 1; /* value is virtual */
+        }
         if ((slapi_valueset_first_value(values, &v) != -1) &&
             ((bvp = slapi_value_get_berval(v)) != NULL)) {
             if ((bvp != NULL) && (PL_strncasecmp(bvp->bv_val, "true", 4) == 0)) {
