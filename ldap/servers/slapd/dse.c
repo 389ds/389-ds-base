@@ -157,7 +157,7 @@ static struct dse_node *dse_find_node( struct dse* pdse, const Slapi_DN *dn );
 static int dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returntext);
 static int dse_add_plugin(Slapi_Entry *entry, char *returntext);
 static int dse_delete_plugin(Slapi_Entry *entry, char *returntext);
-static void dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods);
+static int dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods);
 
 /*
   richm: In almost all modes e.g. db2ldif, ldif2db, etc. we do not need/want
@@ -1916,13 +1916,41 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
             }
         } else {
             /*
-             * Check if we are enabling/disabling a plugin
+             * If we are using dynamic plugins, and we are modifying a plugin
+             * we need to do some additional checks.  First, check if we are
+             * enabling/disabling a plugin.  Then make sure the plugin still
+             * starts after applying the plugin changes.
              */
-            if((plugin_started = dse_modify_plugin(ec, ecc, returntext)) == -1){
-                returncode = LDAP_UNWILLING_TO_PERFORM;
-                rc = SLAPI_DSE_CALLBACK_ERROR;
-            } else {
-                rc = SLAPI_DSE_CALLBACK_OK;
+        	rc = SLAPI_DSE_CALLBACK_OK;
+            if(config_get_dynamic_plugins() &&
+               slapi_entry_attr_hasvalue(ec, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") )
+            {
+                if((plugin_started = dse_modify_plugin(ec, ecc, returntext)) == -1){
+                    returncode = LDAP_UNWILLING_TO_PERFORM;
+                    rc = SLAPI_DSE_CALLBACK_ERROR;
+                    retval = -1;
+                    goto done;
+                }
+                /*
+                 * If this is not a internal operation, make sure the plugin
+                 * can be restarted.
+                 */
+                if(!internal_op){
+                    if(dse_pre_modify_plugin(ec, ecc, mods)){
+                        char *errtext;
+                        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+                        if (errtext) {
+                            PL_strncpyz(returntext,
+                                        "Failed to apply plugin config change, "
+                                        "check the errors log for more info.",
+                                        sizeof(returntext));
+                        }
+                        returncode = LDAP_UNWILLING_TO_PERFORM;
+                        rc = SLAPI_DSE_CALLBACK_ERROR;
+                        retval = -1;
+                        goto done;
+                    }
+                }
             }
         }
     }
@@ -2041,43 +2069,19 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
             }
         }
     }
-    /*
-     * Perform postop plugin configuration changes unless this is an internal operation
-     */
-    if(!internal_op){
-        if(returncode == LDAP_SUCCESS){
-            dse_post_modify_plugin(ec, ecc, mods);
-        } else if(plugin_started){
-            if(plugin_started == 1){
-                /* the op failed, turn the plugin off */
-                plugin_delete(ecc, returntext, 0 /* not locked */);
-            } else if (plugin_started == 2){
-                /*
-                 * This probably can't happen, but...
-                 * the op failed, turn the plugin back on.
-                 */
-                plugin_add(ecc, returntext, 0 /* not locked */);
-            }
-        }
-    }
 
     slapi_send_ldap_result( pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
 
     return dse_modify_return(retval, ec, ecc);
 }
 
-static void
-dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods)
+static int
+dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods)
 {
     char *enabled = NULL;
     int restart_plugin = 1;
+    int rc = 0;
     int i;
-
-    if (!slapi_entry_attr_hasvalue(entryBefore, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
-            !config_get_dynamic_plugins() ){
-        /* not a plugin, or we aren't applying updates dynamically - just move on */
-        return;
-    }
 
     /*
      * Only check the mods if the plugin is enabled - no need to restart a plugin if it's not running.
@@ -2094,14 +2098,15 @@ dse_post_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMo
         }
         if(restart_plugin){       /* for all other plugin config changes, restart the plugin */
             if(plugin_restart(entryBefore, entryAfter) != LDAP_SUCCESS){
-                slapi_log_error(SLAPI_LOG_FATAL,"dse_post_modify_plugin", "The configuration change "
-                        "for plugin (%s) could not be applied dynamically, and will be ignored until "
-                        "the server is restarted.\n",
+                slapi_log_error(SLAPI_LOG_FATAL,"dse_pre_modify_plugin",
+                        "The configuration change for plugin (%s) could not be applied.\n",
                         slapi_entry_get_dn(entryBefore));
+                rc = -1;
             }
         }
     }
     slapi_ch_free_string(&enabled);
+    return rc;
 }
 
 /*
@@ -2117,12 +2122,6 @@ static int
 dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returntext)
 {
     int rc = LDAP_SUCCESS;
-
-    if (!slapi_entry_attr_hasvalue(post_entry, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin") ||
-        !config_get_dynamic_plugins() )
-    {
-        return rc;
-    }
 
     if( slapi_entry_attr_hasvalue(pre_entry, "nsslapd-pluginEnabled", "on") &&
         slapi_entry_attr_hasvalue(post_entry, "nsslapd-pluginEnabled", "off") )
