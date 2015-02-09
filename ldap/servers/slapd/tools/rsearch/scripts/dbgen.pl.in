@@ -75,6 +75,7 @@ sub PrintUsage {
 	"\t -x suppress printing pre amble\n",
 	"\t -y suppress printing organizational units\n",
 	"\t -l location of directory containing data files, default is @templatedir@\n",
+	"\t -u add groups containing uniquemembers;\n\t    generate a group for every 100 user entries created that contains the 100 members.\n",
 	"\t -v verbose\n",
 	"\t -q quiet\n",
 	"\n";
@@ -560,6 +561,12 @@ $opt_x = 0;
 $opt_y = 0;
 $opt_z = "";
 
+# group + uniquemember
+$opt_u = 0;
+$gid = 0;
+$gnum = 0;
+$membercount = 100; # default member count in a group
+
 GetOptions('number=i' => \$Number_To_Generate,
            'output=s' => \$Output_File_Name,
            'random=i' => \$Random_Seed,
@@ -577,6 +584,7 @@ GetOptions('number=i' => \$Number_To_Generate,
            'verbose' => \$Verbose,
            'debug' => \$debug,
            'quiet' => \$Quiet,
+           'uniqueMember' => \$opt_u,
            );
 
 $Random_Seed = $Random_Seed || 0xdbdbdbdb; 
@@ -598,6 +606,13 @@ $printorgunit = 1;
 if ("" != $opt_y)
 {
     $printorgunit = 0;
+}
+
+if (0 != $opt_u) {
+    if ($membercount > $Number_To_Generate) {
+        $membercount = $Number_To_Generate;
+    }
+    @members = ();
 }
 
 if ($Suffix =~ /o=/) {
@@ -649,10 +664,10 @@ print "Done\n" if $Verbose;
 if ($printpreamble)
 {
 	if ($piranha) {
-    	&PrintPreAmblePiranha($Output_File_Name);
+		&PrintPreAmblePiranha($Output_File_Name);
 	}
 	else {
-    	&PrintPreAmbleBarracuda($Output_File_Name);
+		&PrintPreAmbleBarracuda($Output_File_Name);
 	}
 }
 
@@ -778,14 +793,67 @@ for ($x= $BeginNum; $x < ($Number_To_Generate+$BeginNum); $x++) {
         $userPassword      = "$uid\n";
     }
     
- if ($PrintOrgChartDat or !$printorgunit) {
-   $dnstr = "dn: $NamingType=$rdn,ou=People,$Suffix\n",
- } else {
-   $dnstr = "dn: $NamingType=$rdn,ou=$OrgUnit,$Suffix\n";
- }
+    if ($PrintOrgChartDat or !$printorgunit) {
+      $dnstr = "$NamingType=$rdn,ou=People,$Suffix";
+    } else {
+      $dnstr = "$NamingType=$rdn,ou=$OrgUnit,$Suffix";
+    }
 
- print OUTPUT_FILE
-             $dnstr,
+    if ($opt_u) {
+        # with group + memof
+        print OUTPUT_FILE
+             "dn: $dnstr\n",
+             "objectClass: top\n",
+             "objectClass: person\n",
+             "objectClass: organizationalPerson\n",
+             "objectClass: inetAdmin\n",
+             $inetOrgPerson, $ExtraObjClasses,
+             "cn: $cn\n",
+             "sn: $sn\n",
+             "uid: $uid\n",
+             "givenName: $givenName\n",
+             "description: $description\n",
+             "userPassword: $userPassword",
+             $departmentNumber,
+             $employeeType,
+             $homePhone,
+             $initials,
+             "telephoneNumber: $telephoneNumber\n",
+             "facsimileTelephoneNumber: $facsimileTelephoneNumber\n",
+             $mobile,
+             $pager,
+             $manager,
+             $secretary,
+             $roomNumber,
+             $carLicense,
+             "l: $locality\n",
+             "ou: $OrgUnit\n",
+             "mail: $mail\n",
+             "postalAddress: $postalAddress\n",
+             "title: $title\n",
+             $mycert,
+             "\n";
+        push(@members, $dnstr);
+        $gnum += 1;
+        if ($gnum >= $membercount) {
+            my $gdnstr = "dn: cn=Group$gid,$Suffix\n";
+            print OUTPUT_FILE
+                $gdnstr,
+                "objectClass: top\n",
+                "objectClass: groupOfUniqueNames\n",
+                "cn: Group$gid\n";
+            foreach $member (@members) {
+                print OUTPUT_FILE "uniqueMember: $member\n";
+            }
+            print OUTPUT_FILE "\n";
+            @members = ();
+            $gid += 1;
+            $gnum = 0;
+        }
+    } else {
+        # no group + memof
+        print OUTPUT_FILE
+             "dn: $dnstr\n",
              "objectClass: top\n",
              "objectClass: person\n",
              "objectClass: organizationalPerson\n",
@@ -815,7 +883,8 @@ for ($x= $BeginNum; $x < ($Number_To_Generate+$BeginNum); $x++) {
              "title: $title\n",
              $mycert,
              "\n";
-    
+    }
+
     if (!$Quiet) {
         if ($x % 1000  == 0) {
             print "." if $Verbose;
@@ -833,7 +902,7 @@ if ($Verbose) {
 }
 
 exit 0;
-	       
+
 
 sub ReadOrgUnits {
     open (ORG_UNITS, $OrgUnitsFile) ||
@@ -976,13 +1045,13 @@ sub PrintManagers {
         $userPassword      = "$uid\n";
     }
     
-    $dnstr = "dn: $NamingType=$rdn,ou=People,$Suffix\n";
+    $dnstr = "$NamingType=$rdn,ou=People,$Suffix";
     if ("" ne $orgUnit) {
         $oustr = "ou: $orgUnit\n";
     }
 
  print OUTPUT_FILE
-         $dnstr,
+         "dn: $dnstr\n",
          "objectClass: top\n",
          "objectClass: person\n",
          "objectClass: organizationalPerson\n",
