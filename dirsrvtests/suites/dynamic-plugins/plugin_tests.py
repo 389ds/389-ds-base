@@ -2177,6 +2177,8 @@ def test_rootdn(inst, args=None):
 
     PLUGIN_DN = 'cn=' + PLUGIN_ROOTDN_ACCESS + ',cn=plugins,cn=config'
 
+    log.info('Testing ' + PLUGIN_ROOTDN_ACCESS + '...')
+
     ############################################################################
     # Configure plugin
     ############################################################################
@@ -2226,11 +2228,27 @@ def test_rootdn(inst, args=None):
     # Change the config
     ############################################################################
 
+    # Bind as the user who can make updates to the config
     try:
         inst.simple_bind_s(USER1_DN, 'password')
     except ldap.LDAPError, e:
         log.error('test_rootdn: failed to bind as user1')
         assert False
+
+    # First, test that invalid plugin changes are rejected
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-deny-ip', '12.12.ZZZ.12')])
+        log.fatal('test_rootdn: Incorrectly allowed to add invalid "rootdn-deny-ip: 12.12.ZZZ.12"')
+        assert False
+    except ldap.LDAPError:
+        pass
+
+    try:
+        inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-host', 'host._.com')])
+        log.fatal('test_rootdn: Incorrectly allowed to add invalid "rootdn-allow-host: host._.com"')
+        assert False
+    except ldap.LDAPError:
+        pass
 
     # Remove the restriction
     try:

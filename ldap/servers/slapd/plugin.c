@@ -99,6 +99,7 @@ static int plugin_delete_check_dependency(struct slapdplugin *plugin_entry, int 
 static char *plugin_get_type_str( int type );
 static void plugin_cleanup_list();
 static int plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type);
+static void plugin_remove_from_shutdown(struct slapdplugin *plugin_entry);
 
 static PLHashTable *global_plugin_dns = NULL;
 
@@ -2310,39 +2311,39 @@ plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
 	/* We can not restart the critical plugins */
 	if(plugin_is_critical(pentryBefore)){
 		LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) is critical to server operation.  "
-		        "Any changes will not take effect until the server is restarted.\n",
-		        slapi_entry_get_dn(pentryBefore),0,0);
+			"Any changes will not take effect until the server is restarted.\n",
+			slapi_entry_get_dn(pentryBefore),0,0);
 		return 1; /* failure - dse code will log a fatal message */
 	}
 
 	slapi_rwlock_wrlock(global_rwlock);
 	slapi_td_set_plugin_locked();
 
-    if(plugin_delete(pentryBefore, returntext, 1) == LDAP_SUCCESS){
-    	if(plugin_add(pentryAfter, returntext, 1) == LDAP_SUCCESS){
-    		LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) has been successfully "
-    		          "restarted after configuration change.\n",
-    		          slapi_entry_get_dn(pentryAfter),0,0);
-    	} else {
-    		LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to restart after "
-    		          "configuration change (%s).  Reverting to original plugin entry.\n",
-    		          slapi_entry_get_dn(pentryAfter), returntext, 0);
-    		if(plugin_add(pentryBefore, returntext, 1) == LDAP_SUCCESS){
-    			LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to reload "
-    			          "original plugin (%s)\n",slapi_entry_get_dn(pentryBefore), returntext, 0);
-    		}
-    		rc = 1;
-    	}
-    } else {
-    	LDAPDebug(LDAP_DEBUG_ANY,"plugin_restart: failed to disable/stop the plugin (%s): %s\n",
-    	          slapi_entry_get_dn(pentryBefore), returntext, 0);
-    	rc = 1;
-    }
+	if(plugin_delete(pentryBefore, returntext, 1) == LDAP_SUCCESS){
+		if(plugin_add(pentryAfter, returntext, 1) == LDAP_SUCCESS){
+			LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) has been successfully "
+				"restarted after configuration change.\n",
+				slapi_entry_get_dn(pentryAfter),0,0);
+		} else {
+			LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to restart after "
+				"configuration change (%s).  Reverting to original plugin entry.\n",
+				slapi_entry_get_dn(pentryAfter), returntext, 0);
+			if(plugin_add(pentryBefore, returntext, 1) != LDAP_SUCCESS){
+				LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to reload "
+					"original plugin (%s)\n",slapi_entry_get_dn(pentryBefore), returntext, 0);
+			}
+			rc = 1;
+		}
+	} else {
+		LDAPDebug(LDAP_DEBUG_ANY,"plugin_restart: failed to disable/stop the plugin (%s): %s\n",
+			slapi_entry_get_dn(pentryBefore), returntext, 0);
+		rc = 1;
+	}
 
-    slapi_rwlock_unlock(global_rwlock);
-    slapi_td_set_plugin_unlocked();
+	slapi_rwlock_unlock(global_rwlock);
+	slapi_td_set_plugin_unlocked();
 
-    return rc;
+	return rc;
 }
 
 static int
@@ -2946,6 +2947,11 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
         PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Init function \"%s\" for \"%s\" plugin in "
                      "library \"%s\" failed.",plugin->plg_initfunc, plugin->plg_name, plugin->plg_libpath);
         status = -1;
+		/*
+		 * The init function might have added the plugin to the global list before
+		 * it failed - attempt to remove it just in case it was added.
+		 */
+		plugin_remove_plugins(plugin, value);
 		slapi_ch_free((void**)&value);
 		goto PLUGIN_CLEANUP;
 	}
