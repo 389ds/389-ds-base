@@ -289,3 +289,17 @@ slapi_rwlock_unlock( Slapi_RWLock *rwlock )
     return ret;
 }
 
+int
+slapi_rwlock_get_size()
+{
+#ifdef USE_POSIX_RWLOCKS
+    return sizeof(pthread_rwlock_t);
+#else
+    /* 
+     * NSPR does not provide the size of PRRWLock.
+     * This is a rough estimate to maintain the entry size sane.
+     */
+    return sizeof("slapi_rwlock") + sizeof(void *) * 6;
+#endif
+}
+

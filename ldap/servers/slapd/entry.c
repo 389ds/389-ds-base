@@ -2094,7 +2094,7 @@ slapi_entry_size(Slapi_Entry *e)
     if (e->e_uniqueid) size += strlen(e->e_uniqueid) + 1;
     if (e->e_dncsnset) size += csnset_size(e->e_dncsnset);
     if (e->e_maxcsn) size += sizeof( CSN );
-    if (e->e_virtual_lock) size += sizeof(Slapi_RWLock);
+    if (e->e_virtual_lock) size += slapi_rwlock_get_size();
     /* Slapi_DN and RDN are included in Slapi_Entry */
     size += (slapi_sdn_get_size(&e->e_sdn) - sizeof(Slapi_DN));
     size += (slapi_rdn_get_size(&e->e_srdn) - sizeof(Slapi_RDN));
