@@ -6100,7 +6100,7 @@ typedef struct slapi_condvar	Slapi_CondVar;
 #ifdef USE_POSIX_RWLOCKS
 typedef pthread_rwlock_t	Slapi_RWLock;
 #else
-typedef struct slapi_rwlock	Slapi_RWLock;
+typedef PRRWLock	Slapi_RWLock;
 #endif
 Slapi_Mutex *slapi_new_mutex( void );
 void slapi_destroy_mutex( Slapi_Mutex *mutex );
@@ -6169,6 +6169,12 @@ int slapi_rwlock_wrlock( Slapi_RWLock *rwlock );
  */
 int slapi_rwlock_unlock( Slapi_RWLock *rwlock );
 
+/**
+ * Get the size of Slapi_RWLock
+ *
+ * \return the size of Slapi_RWLock
+ */
+int slapi_rwlock_get_size();
 
 /*
  * thread-safe LDAP connections

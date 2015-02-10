@@ -2782,7 +2782,7 @@ pw_get_ext_size(Slapi_Entry *entry, size_t *size)
         return LDAP_SUCCESS;
     }
     *size += sizeof(struct slapi_pw_entry_ext);
-    *size += sizeof(Slapi_RWLock);
+    *size += slapi_rwlock_get_size();
     if (LDAP_SUCCESS == slapi_pw_get_entry_ext(entry, &pw_entry_values)) {
         Slapi_Value *cvalue;
         int idx = valuearray_first_value(pw_entry_values, &cvalue);
