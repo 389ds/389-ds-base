@@ -210,27 +210,42 @@ rootdn_start(Slapi_PBlock *pb)
     return 0;
 }
 
+static void
+rootdn_free()
+{
+    slapi_ch_free_string(&daysAllowed);
+    daysAllowed = NULL;
+    slapi_ch_array_free(hosts);
+    hosts = NULL;
+    slapi_ch_array_free(hosts_to_deny);
+    hosts_to_deny = NULL;
+    slapi_ch_array_free(ips);
+    ips = NULL;
+    slapi_ch_array_free(ips_to_deny);
+    ips_to_deny = NULL;
+}
+
 static int
 rootdn_close(Slapi_PBlock *pb)
 {
-    slapi_ch_free_string(&daysAllowed);
-    slapi_ch_array_free(hosts);
-    slapi_ch_array_free(hosts_to_deny);
-    slapi_ch_array_free(ips);
-    slapi_ch_array_free(ips_to_deny);
-
+    rootdn_free();
     return 0;
 }
-
 
 static int
 rootdn_load_config(Slapi_PBlock *pb)
 {
     Slapi_Entry *e = NULL;
+    char *daysAllowed_tmp = NULL;
+    char **hosts_tmp = NULL;
+    char **hosts_to_deny_tmp = NULL;
+    char **ips_tmp = NULL;
+    char **ips_to_deny_tmp = NULL;
     char *openTime = NULL;
     char *closeTime = NULL;
     char *token, *iter = NULL, *copy;
     char hour[3], min[3];
+    size_t end;
     int result = 0;
     int time;
     int i;
@@ -243,31 +258,32 @@ rootdn_load_config(Slapi_PBlock *pb)
          */
         openTime = slapi_entry_attr_get_charptr(e, "rootdn-open-time");
         closeTime = slapi_entry_attr_get_charptr(e, "rootdn-close-time");
-        daysAllowed = slapi_entry_attr_get_charptr(e, "rootdn-days-allowed");
-        hosts = slapi_entry_attr_get_charray(e, "rootdn-allow-host");
-        hosts_to_deny = slapi_entry_attr_get_charray(e, "rootdn-deny-host");
-        ips = slapi_entry_attr_get_charray(e, "rootdn-allow-ip");
-        ips_to_deny = slapi_entry_attr_get_charray(e, "rootdn-deny-ip");
+        daysAllowed_tmp = slapi_entry_attr_get_charptr(e, "rootdn-days-allowed");
+        hosts_tmp = slapi_entry_attr_get_charray(e, "rootdn-allow-host");
+        hosts_to_deny_tmp = slapi_entry_attr_get_charray(e, "rootdn-deny-host");
+        ips_tmp = slapi_entry_attr_get_charray(e, "rootdn-allow-ip");
+        ips_to_deny_tmp = slapi_entry_attr_get_charray(e, "rootdn-deny-ip");
         /*
          *  Validate out settings
          */
-        if(daysAllowed){
-            daysAllowed = strToLower(daysAllowed);
-            if(strcspn(daysAllowed, "abcdefghijklmnopqrstuvwxyz ,")){
+        if(daysAllowed_tmp){
+            daysAllowed_tmp = strToLower(daysAllowed_tmp);
+            end = strspn(daysAllowed_tmp, "abcdefghijklmnopqrstuvwxyz ,");
+            if(!end || daysAllowed_tmp[end] != '\0'){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                    "invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n", daysAllowed);
-                slapi_ch_free_string(&daysAllowed);
+                    "invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n", daysAllowed_tmp);
+                slapi_ch_free_string(&daysAllowed_tmp);
                 result = -1;
                 goto free_and_return;
             }
             /* make sure the "days" are valid "days" */
-            copy = slapi_ch_strdup(daysAllowed);
+            copy = slapi_ch_strdup(daysAllowed_tmp);
             token = ldap_utf8strtok_r(copy, ", ", &iter);
             while(token){
                 if(strstr("mon tue wed thu fri sat sun",token) == 0){
                     slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                         "invalid rootdn-days-allowed day value(%s), must be \"Mon, Tue, Wed, Thu, Fri, Sat, or Sun\".\n", token);
-                    slapi_ch_free_string(&daysAllowed);
+                    slapi_ch_free_string(&daysAllowed_tmp);
                     slapi_ch_free_string(&copy);
                     result = -1;
                     goto free_and_return;
@@ -277,7 +293,8 @@ rootdn_load_config(Slapi_PBlock *pb)
             slapi_ch_free_string(&copy);
         }
         if(openTime){
-            if (strcspn(openTime, "0123456789")){
+            end = strspn(openTime, "0123456789");
+            if (!end || openTime[end] != '\0'){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-open-time value (%s), must be all digits\n", openTime);
                 result = -1;
@@ -304,7 +321,8 @@ rootdn_load_config(Slapi_PBlock *pb)
             open_time = (atoi(hour) * 3600) + (atoi(min) * 60);
         }
         if(closeTime){
-            if (strcspn(closeTime, "0123456789")){
+            end = strspn(closeTime, "0123456789");
+            if (!end || closeTime[end] != '\0'){
                 slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-close-time value (%s), must be all digits, and should be HHMM\n",closeTime);
                 result = -1;
@@ -338,6 +356,8 @@ rootdn_load_config(Slapi_PBlock *pb)
             slapi_ch_free_string(&openTime);
             open_time = 0;
             close_time = 0;
+            result = -1;
+            goto free_and_return;
         }
         if(close_time && open_time && close_time <= open_time){
             /* Make sure the closing time is greater than the open time */
@@ -346,70 +366,76 @@ rootdn_load_config(Slapi_PBlock *pb)
             result = -1;
             goto free_and_return;
         }
-        if(hosts){
-            for(i = 0; hosts[i] != NULL; i++){
-                if(strcspn(hosts[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")){
+        if(hosts_tmp){
+            for(i = 0; hosts_tmp[i] != NULL; i++){
+                end = strspn(hosts_tmp[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+                if(!end || hosts_tmp[i][end] != '\0'){
                     slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                        "hostname (%s) contians invalid characters, skipping\n",hosts[i]);
-                    slapi_ch_free_string(&hosts[i]);
-                    hosts[i] = slapi_ch_strdup("!invalid");
-                    continue;
+                        "hostname (%s) contains invalid characters, skipping\n",hosts_tmp[i]);
+                    slapi_ch_array_free(hosts_tmp);
+                    result = -1;
+                    goto free_and_return;
                 }
             }
         }
-        if(hosts_to_deny){
-            for(i = 0; hosts_to_deny[i] != NULL; i++){
-                if(strcspn(hosts_to_deny[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")){
+        if(hosts_to_deny_tmp){
+            for(i = 0; hosts_to_deny_tmp[i] != NULL; i++){
+                end = strspn(hosts_to_deny_tmp[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+                if(!end || hosts_to_deny_tmp[i][end] != '\0'){
                     slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                        "hostname (%s) contians invalid characters, skipping\n",hosts_to_deny[i]);
-                    slapi_ch_free_string(&hosts_to_deny[i]);
-                    hosts_to_deny[i] = slapi_ch_strdup("!invalid");
-                    continue;
+                        "hostname (%s) contains invalid characters, skipping\n",hosts_to_deny_tmp[i]);
+                    slapi_ch_array_free(hosts_to_deny_tmp);
+                    result = -1;
+                    goto free_and_return;
                 }
             }
         }
-        if(ips){
-            for(i = 0; ips[i] != NULL; i++){
-                if(strcspn(ips[i], "0123456789:ABCDEFabcdef.*")){
+        if(ips_tmp){
+            for(i = 0; ips_tmp[i] != NULL; i++){
+                end = strspn(ips_tmp[i], "0123456789:ABCDEFabcdef.");
+                if(!end || ips_tmp[i][end] != '\0'){
                     slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                        "IP address contains invalid characters (%s), skipping\n", ips[i]);
-                    slapi_ch_free_string(&ips[i]);
-                    ips[i] = slapi_ch_strdup("!invalid");
-                    continue;
+                        "IP address contains invalid characters (%s), skipping\n", ips_tmp[i]);
+                    slapi_ch_array_free(ips_tmp);
+                    result = -1;
+                    goto free_and_return;
                 }
-                if(strstr(ips[i],":") == 0){
+                if(strstr(ips_tmp[i],":") == 0){
                     /*
                      *  IPv4 - make sure it's just numbers, dots, and wildcard
                      */
-                    if(strcspn(ips[i], "0123456789.*")){
+                    end = strspn(ips_tmp[i], "0123456789.*");
+                    if(!end || ips_tmp[i][end] != '\0'){
                         slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                            "IPv4 address contains invalid characters (%s), skipping\n", ips[i]);
-                        slapi_ch_free_string(&ips[i]);
-                        ips[i] = slapi_ch_strdup("!invalid");
-                        continue;
+                            "IPv4 address contains invalid characters (%s), skipping\n", ips_tmp[i]);
+                        slapi_ch_array_free(ips_tmp);
+                        result = -1;
+                        goto free_and_return;
                     }
                 }
             }
         }
-        if(ips_to_deny){
-            for(i = 0; ips_to_deny[i] != NULL; i++){
-                if(strcspn(ips_to_deny[i], "0123456789:ABCDEFabcdef.*")){
+        if(ips_to_deny_tmp){
+            for(i = 0; ips_to_deny_tmp[i] != NULL; i++){
+                end = strspn(ips_to_deny_tmp[i], "0123456789:ABCDEFabcdef.*");
+                if(!end || ips_to_deny_tmp[i][end] != '\0'){
                     slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                        "IP address contains invalid characters (%s), skipping\n", ips_to_deny[i]);
-                    slapi_ch_free_string(&ips_to_deny[i]);
-                    ips_to_deny[i] = slapi_ch_strdup("!invalid");
-                    continue;
+                        "IP address contains invalid characters (%s), skipping\n", ips_to_deny_tmp[i]);
+                    slapi_ch_array_free(ips_to_deny_tmp);
+                    result = -1;
+                    goto free_and_return;
                 }
-                if(strstr(ips_to_deny[i],":") == 0){
+                if(strstr(ips_to_deny_tmp[i],":") == 0){
                     /*
                      *  IPv4 - make sure it's just numbers, dots, and wildcard
                      */
-                    if(strcspn(ips_to_deny[i], "0123456789.*")){
+                    end = strspn(ips_to_deny_tmp[i], "0123456789.*");
+                    if(!end || ips_to_deny_tmp[i][end] != '\0'){
                         slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
-                            "IPv4 address contains invalid characters (%s), skipping\n", ips_to_deny[i]);
-                        slapi_ch_free_string(&ips_to_deny[i]);
-                        ips_to_deny[i] = slapi_ch_strdup("!invalid");
-                        continue;
+                            "IPv4 address contains invalid characters (%s), skipping\n", ips_to_deny_tmp[i]);
+                        slapi_ch_array_free(ips_to_deny_tmp);
+                        result = -1;
+                        goto free_and_return;
                     }
                 }
             }
@@ -422,6 +448,17 @@ rootdn_load_config(Slapi_PBlock *pb)
     }
 
 free_and_return:
+    if(result == 0){
+        /*
+         * Free the existing global vars, and move the new ones over
+         */
+        rootdn_free();
+        daysAllowed = daysAllowed_tmp;
+        hosts = hosts_tmp;
+        hosts_to_deny = hosts_to_deny_tmp;
+        ips = ips_tmp;
+        ips_to_deny = ips_to_deny_tmp;
+    }
     slapi_ch_free_string(&openTime);
     slapi_ch_free_string(&closeTime);
 
@@ -479,8 +516,10 @@ rootdn_check_access(Slapi_PBlock *pb){
         char *today = day;
 
         timestr = asctime(timeinfo); // DDD MMM dd hh:mm:ss YYYY
+        memset(day, 0 ,sizeof(day));
         memmove(day, timestr, 3); // we only want the day
         today = strToLower(today);
+        daysAllowed = strToLower(daysAllowed);
 
         if(!strstr(daysAllowed, today)){
             slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not allowed for today(%s), "
