@@ -1,0 +1,64 @@
+#!/bin/sh
+
+if [ ! "$NETSITE_ROOT" ] ; then
+	NETSITE_ROOT=`pwd | sed -e s@/bin/slapd/server@@g`
+fi
+
+#export MALLOC_PERTURB_=$(($RANDOM % 255 + 1))
+#export MALLOC_CHECK_=3
+
+USE_VALGRIND=1
+
+# assumes you have renamed the original ns-slapd binary
+# to ns-slapd.original
+SLAPD=$0.original
+# by default valgrind will demangle C++ symbols for you
+# but valgrind must have mangled symbols in suppression files
+#DEMANGLE="--demangle=no"
+# use quiet mode if you only want the errors and nothing but the errors
+QUIETMODE="-q"
+
+VG_LOGDIR=${VG_LOGDIR:-/var/tmp}
+if [ ! -d $VG_LOGDIR ] ; then
+    mkdir -p $VG_LOGDIR || { echo error: could not mkdir -p $VG_LOGDIR ; exit 1; }
+fi
+
+if [ "$USE_VALGRIND" ]; then
+	if [ $TET_PNAME ]; then
+		mybase=`basename $TET_PNAME .ksh`
+		mybase=`basename $mybase .sh`
+        if [ -z "$mybase" ] ; then
+            mybase=unknown
+        fi
+        # valgrind --log-file %p is not supported on all platforms
+		outputfile=${VG_LOGDIR}/$mybase.vg.$$
+	else
+		outputfile=${VG_LOGDIR}/slapd.vg.$$
+	fi
+    if [ $USE_VALGRIND ] ; then
+	    CHECKCMD="valgrind $QUIETMODE --tool=memcheck --leak-check=yes --leak-resolution=high $DEMANGLE --num-callers=50 --log-file=$outputfile"
+    elif [ $USE_CALLGRIND ] ; then
+        # collect bus is only for valgrind 3.6 and later - it collects lock/mutex events
+        CHECKCMD="valgrind $QUIETMODE --tool=callgrind --collect-systime=yes --collect-bus=yes --separate-threads=yes --callgrind-out-file=${VG_LOGDIR}/callgrind.out.$$"
+        USE_VALGRIND=1
+    elif [ $USE_DRD ] ; then
+        CHECKCMD="valgrind $QUIETMODE --tool=drd --show-stack-usage=yes --shared-threshold=100 --exclusive-threshold=100 --error-limit=no --num-callers=50 --log-file=${VG_LOGDIR}/drd.out.$$"
+        USE_VALGRIND=1
+    fi
+fi
+
+if [ $USE_VALGRIND ]; then
+    $CHECKCMD $SLAPD "$@"
+elif [ -n "$USE_MUTRACE" ]; then
+    case "$1" in
+    db2index|suffix2instance|db2archive|archive2db|db2ldif|ldif2db)
+    $SLAPD "$@"
+    ;;
+    *)
+    LD_PRELOAD="$USE_MUTRACE" $SLAPD -d 0 "$@" > $VG_LOGDIR/mutrace.out.$$ 2>&1 &
+    ;;
+    esac
+else
+	$SLAPD "$@"
+fi
+
