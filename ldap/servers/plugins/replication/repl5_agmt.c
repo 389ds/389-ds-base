@@ -2614,26 +2614,16 @@ get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 		slapi_entry_attr_delete(e, "nsds5replicaLastInitEnd");
 
 		/* now, add the real values (singly) */
-		if (ra->last_update_start_time == 0)
-		{
-			slapi_entry_add_string(e, "nsds5replicaLastUpdateStart", "0");
-		}
-		else
-		{
-			time_tmp = format_genTime(ra->last_update_start_time);
-			slapi_entry_add_string(e, "nsds5replicaLastUpdateStart", time_tmp);
-			slapi_ch_free((void **)&time_tmp);
-		}
-		if (ra->last_update_end_time == 0)
-		{
-			slapi_entry_add_string(e, "nsds5replicaLastUpdateEnd", "0");
-		}
-		else
-		{
-			time_tmp = format_genTime(ra->last_update_end_time);
-			slapi_entry_add_string(e, "nsds5replicaLastUpdateEnd", time_tmp);
-			slapi_ch_free((void **)&time_tmp);
-		}
+		/* In case last_update_start_time is not set, 19700101000000Z is set. */
+		time_tmp = format_genTime(ra->last_update_start_time);
+		slapi_entry_add_string(e, "nsds5replicaLastUpdateStart", time_tmp);
+		slapi_ch_free((void **)&time_tmp);
+
+		/* In case last_update_end_time is not set, 19700101000000Z is set. */
+		time_tmp = format_genTime(ra->last_update_end_time);
+		slapi_entry_add_string(e, "nsds5replicaLastUpdateEnd", time_tmp);
+		slapi_ch_free((void **)&time_tmp);
+
 		agmt_get_changecount_string (ra, changecount_string, sizeof (changecount_string) );
 		slapi_entry_add_string(e, "nsds5replicaChangesSentSinceStartup", changecount_string);
 		if (ra->last_update_status[0] == '\0')
@@ -2645,26 +2635,17 @@ get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 			slapi_entry_add_string(e, "nsds5replicaLastUpdateStatus", ra->last_update_status);
 		}
 		slapi_entry_add_string(e, "nsds5replicaUpdateInProgress", ra->update_in_progress ? "TRUE" : "FALSE");
-		if (ra->last_init_start_time == 0)
-		{
-			slapi_entry_add_string(e, "nsds5replicaLastInitStart", "0");
-		}
-		else
-		{
-			time_tmp = format_genTime(ra->last_init_start_time);
-			slapi_entry_add_string(e, "nsds5replicaLastInitStart", time_tmp);
-			slapi_ch_free((void **)&time_tmp);
-		}		
-		if (ra->last_init_end_time == 0)
-		{
-			slapi_entry_add_string(e, "nsds5replicaLastInitEnd", "0");
-		}
-		else
-		{
-			time_tmp = format_genTime(ra->last_init_end_time);
-			slapi_entry_add_string(e, "nsds5replicaLastInitEnd", time_tmp);
-			slapi_ch_free((void **)&time_tmp);
-		}		
+
+		/* In case last_init_start_time is not set, 19700101000000Z is set. */
+		time_tmp = format_genTime(ra->last_init_start_time);
+		slapi_entry_add_string(e, "nsds5replicaLastInitStart", time_tmp);
+		slapi_ch_free((void **)&time_tmp);
+
+		/* In case last_init_end_time is not set, 19700101000000Z is set. */
+		time_tmp = format_genTime(ra->last_init_end_time);
+		slapi_entry_add_string(e, "nsds5replicaLastInitEnd", time_tmp);
+		slapi_ch_free((void **)&time_tmp);
+
 		if (ra->last_init_status[0] != '\0')
 		{
 			slapi_entry_add_string(e, "nsds5replicaLastInitStatus", ra->last_init_status);
