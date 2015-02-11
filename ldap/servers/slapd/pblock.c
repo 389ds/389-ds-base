@@ -1301,7 +1301,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_BIND_METHOD:
 		if(pblock->pb_op!=NULL)
 		{
-			(*(int *)value) = pblock->pb_op->o_params.p.p_bind.bind_method;
+			(*(ber_tag_t *)value) = pblock->pb_op->o_params.p.p_bind.bind_method;
 		}
 		break;
 	case SLAPI_BIND_CREDENTIALS:
@@ -2936,7 +2936,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_BIND_METHOD:
 		if(pblock->pb_op!=NULL)
 		{
-			pblock->pb_op->o_params.p.p_bind.bind_method = *((int *) value);
+			pblock->pb_op->o_params.p.p_bind.bind_method = *((ber_tag_t *) value);
 		}
 		break;
 	case SLAPI_BIND_CREDENTIALS:

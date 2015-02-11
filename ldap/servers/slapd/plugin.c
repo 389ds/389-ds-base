@@ -77,7 +77,7 @@ static int plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlo
 
 static PRBool plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock *pb);
 static PRBool plugin_matches_operation (Slapi_DN *target_spec, PluginTargetData *ptd, 
-										PRBool bindop, PRBool isroot, PRBool islocal, int method);
+										PRBool bindop, PRBool isroot, PRBool islocal, ber_tag_t method);
 
 static void plugin_config_init (struct pluginconfig *config);
 static void plugin_config_cleanup (struct pluginconfig *config);
@@ -3593,7 +3593,7 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
 	PRBool islocal;
 	PRBool bindop;
 	unsigned long op;
-	int method = -1;
+	ber_tag_t method = LBER_ERROR;
 
 	PR_ASSERT (plugin);
 	if (!pb) {
@@ -3762,7 +3762,7 @@ PRBool plugin_allow_internal_op (Slapi_DN *target_spec, struct slapdplugin *plug
 }
 
 static PRBool plugin_matches_operation (Slapi_DN *target_spec, PluginTargetData *ptd, 
-										PRBool bindop, PRBool isroot, PRBool islocal, int method)
+										PRBool bindop, PRBool isroot, PRBool islocal, ber_tag_t method)
 {
 	int cookie;
 	Slapi_DN *subtree;

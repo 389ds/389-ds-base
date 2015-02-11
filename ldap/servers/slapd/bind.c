@@ -76,7 +76,7 @@
 static void log_bind_access(
     Slapi_PBlock *pb, 
     const char* dn, 
-    int method, 
+    ber_tag_t method, 
     int version,
     const char *saslmech,
     const char *msg
@@ -889,7 +889,7 @@ static void
 log_bind_access (
     Slapi_PBlock *pb, 
     const char* dn, 
-    int method, 
+    ber_tag_t method, 
     int version,
     const char *saslmech,
     const char *msg
@@ -910,13 +910,13 @@ log_bind_access (
     } else if (msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
-                          "method=%d version=%d, %s\n",
+                          "method=%ld version=%d, %s\n",
                           (long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
                           method, version, msg );
     } else {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
-                          "method=%d version=%d\n",
+                          "method=%ld version=%d\n",
                           (long long unsigned int)pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
                           method, version );
     }

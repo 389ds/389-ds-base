@@ -371,7 +371,7 @@ send_ldap_result_ext(
 	const char *dn = NULL;
 	ber_tag_t	tag;
 	int flush_ber_element = 1;
-	int bind_method = 0;
+	ber_tag_t bind_method = 0;
 	int internal_op;
 	int i, rc, logit = 0;
 
@@ -453,7 +453,7 @@ send_ldap_result_ext(
 
 	/* invalid password.  Update the password retry here */
 	/* put this here for now.  It could be a send_result pre-op plugin. */
-	if (err == LDAP_INVALID_CREDENTIALS && bind_method != LDAP_AUTH_SASL ) {
+	if ((err == LDAP_INVALID_CREDENTIALS) && (bind_method != LDAP_AUTH_SASL)) {
 		slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 		dn = slapi_sdn_get_dn(sdn);
 		pwpolicy = new_passwdPolicy(pb, dn);

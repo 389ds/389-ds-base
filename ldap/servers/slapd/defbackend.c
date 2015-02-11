@@ -203,7 +203,8 @@ defbackend_abandon( Slapi_PBlock *pb )
 static int
 defbackend_bind( Slapi_PBlock *pb )
 {
-    int			rc, method;
+    int			rc;
+    ber_tag_t		method;
     struct berval	*cred;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_bind\n", 0, 0, 0 );
