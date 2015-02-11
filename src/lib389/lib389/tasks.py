@@ -186,8 +186,6 @@ class Tasks(object):
         # Checking the parameters
         if not backup_dir:
             raise ValueError("You must specify a backup directory.")
-        if not os.path.exists(backup_dir):
-            raise ValueError("Backup file (%s) does not exist" % backup_dir)
 
         # build the task entry
         cn = "backup_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())

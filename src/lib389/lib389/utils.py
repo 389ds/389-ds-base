@@ -21,6 +21,8 @@ import re
 import os
 import socket
 import logging
+import shutil
+import time
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ def static_var(varname, value):
 #
 searches = {
     'NAMINGCONTEXTS': ('', ldap.SCOPE_BASE, '(objectclass=*)', ['namingcontexts']),
-    'ZOMBIE'         : ('', ldap.SCOPE_SUBTREE, '(&(objectclass=glue)(objectclass=extensibleobject))', ['dn'])
+    'ZOMBIE'        : ('', ldap.SCOPE_SUBTREE, '(&(objectclass=glue)(objectclass=extensibleobject))', ['dn'])
 }
 
 #
@@ -101,21 +103,177 @@ def suffixfilt(suffix):
     nsuffix = normalizeDN(suffix)
     spacesuffix = normalizeDN(nsuffix, True)
     escapesuffix = escapeDNFiltValue(nsuffix)
-    filt = '(|(cn=%s)(cn=%s)(cn=%s)(cn="%s")(cn="%s")(cn=%s)(cn="%s"))' % (escapesuffix, nsuffix, spacesuffix, nsuffix, spacesuffix, suffix, suffix)
+    filt = ('(|(cn=%s)(cn=%s)(cn=%s)(cn="%s")(cn="%s")(cn=%s)(cn="%s"))' %
+           (escapesuffix, nsuffix, spacesuffix, nsuffix, spacesuffix, suffix, suffix))
     return filt
+
 
 #
 # path tools
 #
-
-
 def get_sbin_dir(sroot=None, prefix=None):
     """Return the sbin directory (default /usr/sbin)."""
     if sroot:
         return "%s/bin/slapd/admin/bin" % sroot
-    elif prefix:
+    elif prefix and prefix != '/':
         return "%s/sbin" % prefix
     return "/usr/sbin"
+
+
+def get_data_dir(prefix=None):
+    """Return the shared data directory (default /usr/share/dirsrv/data)."""
+    if prefix and prefix != '/':
+        return "%s/share/dirsrv/data" % prefix
+    return "/usr/share/dirsrv/data"
+
+
+def get_plugin_dir(prefix=None):
+    """
+    Return the plugin directory (default /usr/lib64/dirsrv/plugins).
+    This should be 64/32bit aware.
+    """
+    if prefix and prefix != '/':
+        # With prefix installations, even 64 bit, it can be under /usr/lib/
+        if os.path.exists("%s/usr/lib/dirsrv/plugins" % prefix):
+            return "%s/usr/lib/dirsrv/plugins" % prefix
+        else:
+            if os.path.exists("%s/usr/lib64/dirsrv/plugins" % prefix):
+                return "%s/usr/lib64/dirsrv/plugins" % prefix
+
+    # Need to check for 32/64 bit installations
+    if not os.path.exists("/usr/lib64/dirsrv/plugins"):
+        if os.path.exists("/usr/lib/dirsrv/plugins"):
+            return "/usr/lib/dirsrv/plugins"
+    return "/usr/lib64/dirsrv/plugins"
+
+
+#
+# valgrind functions
+#
+def valgrind_enable(sbin_dir, wrapper=None):
+    '''
+    Copy the valgrind ns-slapd wrapper into the /sbin directory
+    (making a backup of the original ns-slapd binary).  The server instance(s)
+    should be stopped prior to calling this function.
+
+    Then after calling valgrind_enable():
+    - Start the server instance(s) with a timeout of 60 (valgrind takes a while to startup)
+    - Run the tests
+    - Run valgrind_check_leak(instance, "leak test") - this also stops the instance
+    - Run valgrind_disable()
+
+    @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
+    @param wrapper - The valgrind wrapper script for ns-slapd (if not set, a default wrapper is used)
+    @raise IOError
+    '''
+
+    if not wrapper:
+        # use the default ns-slapd wrapper
+        wrapper = '%s/%s' % (os.path.dirname(os.path.abspath(__file__)), VALGRIND_WRAPPER)
+
+    nsslapd_orig = '%s/ns-slapd' % sbin_dir
+    nsslapd_backup = '%s/ns-slapd.original' % sbin_dir
+
+    if os.path.isfile(nsslapd_backup):
+        # There is a backup which means we never cleaned up from a previous run(failed test?)
+        # We do not want to copy ns-slapd to ns-slapd.original because ns-slapd is currently
+        # the wrapper.  Basically everything is already enabled and ready to go.
+        log.info('Valgrind is already enabled.')
+        return
+
+    # Check both nsslapd's exist
+    if not os.path.isfile(wrapper):
+        raise IOError('The valgrind wrapper (%s) does not exist or is not accessible. file=%s' % (wrapper, __file__))
+
+    if not os.path.isfile(nsslapd_orig):
+        raise IOError('The binary (%s) does not exist or is not accessible.' % nsslapd_orig)
+
+    # Make a backup of the original ns-slapd and copy the wrapper into place
+    try:
+        shutil.copy2(nsslapd_orig, nsslapd_backup)
+    except IOError as e:
+        log.fatal('valgrind_enable(): failed to backup ns-slapd, error: %s' % e.strerror)
+        raise IOError('failed to backup ns-slapd, error: ' % e.strerror)
+
+    # Copy the valgrind wrapper into place
+    try:
+        shutil.copy2(wrapper, nsslapd_orig)
+    except IOError as e:
+        log.fatal('valgrind_enable(): failed to copy valgrind wrapper to ns-slapd, error: %s' % e.strerror)
+        raise IOError('failed to copy valgrind wrapper to ns-slapd, error: ' % e.strerror)
+
+    log.info('Valgrind is now enabled.')
+
+
+def valgrind_disable(sbin_dir):
+    '''
+    Restore the ns-slapd binary to its original state - the server instances are
+    expected to be stopped.
+    @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
+    @raise ValueError
+    '''
+
+    nsslapd_orig = '%s/ns-slapd' % sbin_dir
+    nsslapd_backup = '%s/ns-slapd.original' % sbin_dir
+
+    # Restore the original ns-slapd
+    try:
+        shutil.copyfile(nsslapd_backup, nsslapd_orig)
+    except IOError as e:
+        log.fatal('valgrind_disable: failed to restore ns-slapd, error: %s' % e.strerror)
+        raise ValueError('failed to restore ns-slapd, error: ' % e.strerror)
+
+    # Delete the backup now
+    try:
+        os.remove(nsslapd_backup)
+    except OSError as e:
+        log.fatal('valgrind_disable: failed to delete backup ns-slapd, error: %s' % e.strerror)
+        raise ValueError('Failed to delete backup ns-slapd, error: ' % e.strerror)
+
+    log.info('Valgrind is now disabled.')
+
+
+def valgrind_check_leak(dirsrv_inst, pattern):
+    '''
+    Check the valgrind results file for the "leak_str"
+    @param dirsrv_inst - DirSrv object for the instance we want the result file from
+    @param pattern - A plain text or regex pattern string that should be searched for
+    @return True/False - Return true of "leak_str" is in the valgrind output file
+    @raise IOError
+    '''
+
+    cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
+           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
+
+    '''
+    The "ps -ef | grep valgrind" looks like:
+
+        nobody 26239 1 10 14:33 ? 00:00:06 valgrind -q --tool=memcheck --leak-check=yes
+        --leak-resolution=high --num-callers=50 --log-file=/var/tmp/slapd.vg.26179
+        /usr/sbin/ns-slapd.orig -D /etc/dirsrv/slapd-localhost
+        -i /var/run/dirsrv/slapd-localhost.pid -w /var/run/dirsrv/slapd-localhost.startpid
+    '''
+
+    # Run the command and grab the output
+    p = os.popen(cmd)
+    result_file = p.readline()
+    p.close()
+
+    # We need to stop the server next
+    dirsrv_inst.stop(timeout=30)
+    time.sleep(1)
+
+    # Check the result file fo the leak text
+    result_file = result_file.replace('\n', '')
+    found = False
+    vlog = open(result_file)
+    for line in vlog:
+        if re.search(pattern, line):
+            found = True
+            break
+    vlog.close()
+
+    return found
 
 
 #
@@ -209,13 +367,13 @@ def getcfgdsuserdn(cfgdn, args):
     """Return a DirSrv object bound anonymously or to the admin user.
 
     If the config ds user ID was given, not the full DN, we need to figure
-    out the full DN.  
-    
+    out the full DN.
+
     Try in order to:
         1- search the directory anonymously;
         2- look in ldap.conf;
         3- try the default DN.
-        
+
     This may raise a file or LDAP exception.
     """
     # create a connection to the cfg ds
@@ -292,7 +450,7 @@ def getnewcfgdsinfo(new_instance_arguments):
     except AttributeError:
         log.error("missing ldapurl attribute in new_instance_arguments: %r" % new_instance_arguments)
         raise
-        
+
     ary = url.hostport.split(":")
     if len(ary) < 2:
         ary.append(389)
@@ -382,45 +540,45 @@ def formatInfData(args):
         args = {
             # new instance values
             newhost, newuserid, newport, SER_ROOT_DN, newrootpw, newsuffix,
-            
+
             # The following parameters require to register the new instance
             # in the admin server
-            have_admin, cfgdshost, cfgdsport, cfgdsuser,cfgdspwd, admin_domain 
-            
+            have_admin, cfgdshost, cfgdsport, cfgdsuser,cfgdspwd, admin_domain
+
             InstallLdifFile, AddOrgEntries, ConfigFile, SchemaFile, ldapifilepath
-            
+
             # Setup the o=NetscapeRoot namingContext
             setup_admin,
         }
-        
-        @see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/8.2/html/Installation_Guide/Installation_Guide-Advanced_Configuration-Silent.html
-        [General] 
-        FullMachineName= dir.example.com 
-        SuiteSpotUserID= nobody 
-        SuiteSpotGroup= nobody 
-        AdminDomain= example.com 
-        ConfigDirectoryAdminID= admin 
-        ConfigDirectoryAdminPwd= admin 
-        ConfigDirectoryLdapURL= ldap://dir.example.com:389/o=NetscapeRoot 
 
-        [slapd] 
-        SlapdConfigForMC= Yes 
-        UseExistingMC= 0 
-        ServerPort= 389 
-        ServerIdentifier= dir 
-        Suffix= dc=example,dc=com  
-        RootDN= cn=Directory Manager 
+        @see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/8.2/html/Installation_Guide/Installation_Guide-Advanced_Configuration-Silent.html
+        [General]
+        FullMachineName= dir.example.com
+        SuiteSpotUserID= nobody
+        SuiteSpotGroup= nobody
+        AdminDomain= example.com
+        ConfigDirectoryAdminID= admin
+        ConfigDirectoryAdminPwd= admin
+        ConfigDirectoryLdapURL= ldap://dir.example.com:389/o=NetscapeRoot
+
+        [slapd]
+        SlapdConfigForMC= Yes
+        UseExistingMC= 0
+        ServerPort= 389
+        ServerIdentifier= dir
+        Suffix= dc=example,dc=com
+        RootDN= cn=Directory Manager
         RootDNPwd= password
-        ds_bename=exampleDB 
+        ds_bename=exampleDB
         AddSampleEntries= No
 
-        [admin] 
+        [admin]
         Port= 9830
-        ServerIpAddress= 111.11.11.11 
-        ServerAdminID= admin 
+        ServerIpAddress= 111.11.11.11
+        ServerAdminID= admin
         ServerAdminPwd= admin
 
-        
+
     """
     args = args.copy()
     args['CFGSUFFIX'] = lib389.CFGSUFFIX
@@ -437,22 +595,22 @@ def formatInfData(args):
         "ConfigDirectoryAdminID= %(cfgdsuser)s" "\n"
         "ConfigDirectoryAdminPwd= %(cfgdspwd)s" "\n"
         ) % args
-        
+
     content += ("\n" "\n" "[slapd]" "\n")
     content += ("ServerPort= %s\n" % args[SER_PORT])
     content += ("RootDN= %s\n"     % args[SER_ROOT_DN])
     content += ("RootDNPwd= %s\n"  % args[SER_ROOT_PW])
     content += ("ServerIdentifier= %s\n" % args[SER_SERVERID_PROP])
     content += ("Suffix= %s\n"     % args[SER_CREATION_SUFFIX])
-    
+
     # Create admin?
     if args.get('setup_admin'):
         content += (
-        "SlapdConfigForMC= Yes" "\n" 
+        "SlapdConfigForMC= Yes" "\n"
         "UseExistingMC= 0 " "\n"
         )
 
-        
+
 
     if 'InstallLdifFile' in args:
         content += """\nInstallLdifFile= %s\n""" % args['InstallLdifFile']
@@ -468,5 +626,5 @@ def formatInfData(args):
     if 'ldapifilepath' in args:
         content += "\nldapifilepath=%s\n" % args['ldapifilepath']
 
-    
+
     return content

@@ -182,6 +182,7 @@ class DirSrv(SimpleLDAPObject):
         """Initialize the DirSrv structure filling various fields, like:
                 self.errlog          -> nsslapd-errorlog
                 self.accesslog       -> nsslapd-accesslog
+                self.auditlog        -> nsslapd-auditlog
                 self.confdir         -> nsslapd-certdir
                 self.inst            -> equivalent to self.serverid
                 self.sroot/self.inst -> nsslapd-instancedir
@@ -202,10 +203,12 @@ class DirSrv(SimpleLDAPObject):
                     'nsslapd-instancedir',
                     'nsslapd-errorlog',
                     'nsslapd-accesslog',
+                    'nsslapd-auditlog',
                     'nsslapd-certdir',
                     'nsslapd-schemadir'])
                 self.errlog    = ent.getValue('nsslapd-errorlog')
                 self.accesslog = ent.getValue('nsslapd-accesslog')
+                self.auditlog  = ent.getValue('nsslapd-auditlog')
                 self.confdir   = ent.getValue('nsslapd-certdir')
                 self.schemadir = ent.getValue('nsslapd-schemadir')
 
@@ -1002,6 +1005,8 @@ class DirSrv(SimpleLDAPObject):
             ldir.append(os.path.dirname(self.errlog))
         if hasattr(self, 'accesslog') and os.path.dirname(self.accesslog) not in ldir:
             ldir.append(os.path.dirname(self.accesslog))
+        if hasattr(self, 'auditlog') and os.path.dirname(self.auditlog) not in ldir:
+            ldir.append(os.path.dirname(self.auditlog))
 
         # now scan the directory list to find the files to backup
         for dirToBackup in ldir:
@@ -1079,6 +1084,10 @@ class DirSrv(SimpleLDAPObject):
                 os.remove(f)
         log.debug("restoreFS: remove access logs %s" % self.accesslog)
         for f in glob.glob("%s*" % self.accesslog):
+                log.debug("restoreFS: before restore remove file %s" % (f))
+                os.remove(f)
+        log.debug("restoreFS: remove audit logs %s" % self.accesslog)
+        for f in glob.glob("%s*" % self.auditlog):
                 log.debug("restoreFS: before restore remove file %s" % (f))
                 os.remove(f)
 

@@ -158,6 +158,7 @@ DEFAULT_USER = "nobody"
 DEFAULT_USERHOME = "/tmp/lib389_home"
 DATA_DIR = "data"
 TMP_DIR = "tmp"
+VALGRIND_WRAPPER = "ns-slapd.valgrind"
 
 #
 # LOG: see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/9.0/html/Administration_Guide/Configuring_Logs.html
