@@ -1499,7 +1499,7 @@ dse_delete_entry(struct dse* pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
 int
 dse_bind( Slapi_PBlock *pb ) /* JCM There should only be one exit point from this function! */
 {
-	int	method; /* The bind method */
+	ber_tag_t method; /* The bind method */
 	struct berval *cred; /* The bind credentials */
 	Slapi_Value **bvals; 
     struct dse* pdse;

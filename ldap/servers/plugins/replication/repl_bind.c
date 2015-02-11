@@ -54,7 +54,7 @@ legacy_preop_bind( Slapi_PBlock *pb )
 	const char *dn = NULL;
 	Slapi_DN *sdn = NULL;
 	struct berval *cred = NULL;
-	int method;
+	ber_tag_t method;
     
 	slapi_pblock_get(pb, SLAPI_BIND_METHOD, &method);
 	slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);

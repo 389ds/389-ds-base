@@ -431,7 +431,7 @@ static int
 pam_passthru_bindpreop( Slapi_PBlock *pb )
 {
     int rc = LDAP_SUCCESS;
-    int method;
+    ber_tag_t method;
     const char *normbinddn;
     char *errmsg = NULL;
     Slapi_DN *bindsdn = NULL;
@@ -460,8 +460,8 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
      * We only handle simple bind requests that include non-NULL binddn and
      * credentials.  Let the Directory Server itself handle everything else.
      */
-    if ( method != LDAP_AUTH_SIMPLE || *normbinddn == '\0' ||
-            creds->bv_len == 0 ) {
+    if ((method != LDAP_AUTH_SIMPLE) || (*normbinddn == '\0') ||
+        (creds->bv_len == 0)) {
         slapi_log_error( SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "<= not handled (not simple bind or NULL dn/credentials)\n" );
         return retcode;

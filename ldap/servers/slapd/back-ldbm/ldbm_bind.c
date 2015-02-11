@@ -203,7 +203,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 {
 	backend *be;
 	ldbm_instance *inst;
-	int			method;
+	ber_tag_t			method;
 	struct berval		*cred;
 	struct ldbminfo		*li;
 	struct backentry	*e;

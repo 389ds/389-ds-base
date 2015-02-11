@@ -573,7 +573,7 @@ typedef struct slapi_operation_parameters
 
 		struct bind_parameters
 		{
-			int bind_method;
+			ber_tag_t bind_method;
 			struct berval *bind_creds;
 			char *bind_saslmechanism;	/* v3 sasl mechanism name */
 			struct berval *bind_ret_saslcreds;	/* v3 serverSaslCreds */

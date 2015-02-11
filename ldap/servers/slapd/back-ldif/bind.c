@@ -62,7 +62,7 @@ int
 ldif_back_bind( Slapi_PBlock *pb )
 {
   char			*dn;        /*Storage for the dn*/
-  int			method;     /*Storage for the bind method*/
+  ber_tag_t			method;     /*Storage for the bind method*/
   struct berval		*cred;      /*Storage for the bind credentials*/
   struct berval		**bvals; 
   LDIF  		*db;        /*The database*/
@@ -91,7 +91,7 @@ ldif_back_bind( Slapi_PBlock *pb )
   if ( (e = (ldif_Entry *)ldif_find_entry( pb, db, dn, &prev )) == NULL ) {
 
     /* Allow noauth binds */
-    if ( method == LDAP_AUTH_SIMPLE && cred->bv_len == 0 ) {
+    if ((method == LDAP_AUTH_SIMPLE) && (cred->bv_len == 0)) {
       rc = SLAPI_BIND_ANONYMOUS;
     } else {
       slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );

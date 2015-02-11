@@ -47,7 +47,7 @@ cb_free_bervals( struct berval **bvs );
 
 
 static int
-cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, int method, 
+cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, ber_tag_t method, 
                      char * mechanism, struct berval *creds, 
                      LDAPControl **reqctrls, char **matcheddnp, 
                      char **errmsgp, struct berval ***refurlsp,
@@ -68,7 +68,7 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, int method,
 
 static int
 cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
-               const char *dn, int method,char * mechanism, 
+               const char *dn, ber_tag_t method, char * mechanism, 
                struct berval *creds, LDAPControl **reqctrls,
                char **matcheddnp, char **errmsgp, struct berval ***refurlsp,
                LDAPControl ***resctrlsp ,int *status)
@@ -84,7 +84,7 @@ cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
         if ( slapi_op_abandoned( pb )) {
             rc = LDAP_USER_CANCELLED;
         } else {
-            rc = cb_sasl_bind_once_s( pool, dn, method,mechanism, creds, reqctrls,
+            rc = cb_sasl_bind_once_s( pool, dn, method, mechanism, creds, reqctrls,
                      matcheddnp, errmsgp, refurlsp, resctrlsp ,status);
         }
     } while ( CB_LDAP_CONN_ERROR( rc ) && --tries > 0 );
@@ -93,7 +93,7 @@ cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
 }
 
 static int
-cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, int method, 
+cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, ber_tag_t method, 
                      char * mechanism, struct berval *creds, 
                      LDAPControl **reqctrls, char **matcheddnp, 
                      char **errmsgp, struct berval ***refurlsp,
@@ -244,7 +244,7 @@ chainingdb_bind( Slapi_PBlock *pb )
 	int rc = LDAP_SUCCESS;
 	int freectrls = 1;
 	int bind_retry;
-	int method;
+	ber_tag_t method;
 	
 	if ( LDAP_SUCCESS != (rc = cb_forward_operation(pb) )) {
 		cb_send_ldap_result( pb, rc, NULL, "Chaining forbidden", 0, NULL );
@@ -276,7 +276,7 @@ chainingdb_bind( Slapi_PBlock *pb )
 	dn = slapi_sdn_get_ndn(sdn);
 
 	/* always allow noauth simple binds */
-	if (( method == LDAP_AUTH_SIMPLE) && creds->bv_len == 0 ) {
+	if ((method == LDAP_AUTH_SIMPLE) && (creds->bv_len == 0)) {
 		slapi_sdn_free(&mysdn);
 		return( SLAPI_BIND_ANONYMOUS );
 	}
