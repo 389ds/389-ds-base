@@ -49,6 +49,8 @@ struct usn_cleanup_data {
 
 static int usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e,
             Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+static void usn_cleanup_task_destructor(Slapi_Task *task);
+
 
 int
 usn_cleanup_start(Slapi_PBlock *pb)
@@ -83,8 +85,14 @@ usn_cleanup_thread(void *arg)
     Slapi_PBlock *delete_pb = NULL;
     char *filter = "objectclass=nsTombstone";
 
+    if (!task) {
+        return; /* no task */
+    }
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_cleanup_thread\n");
+    slapi_task_inc_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread --> refcount incremented.\n" );
 
     if (NULL == usn_get_identity()) { /* plugin is not initialized */
         slapi_task_log_notice(task, "USN plugin is not initialized\n");
@@ -195,14 +203,12 @@ bail:
     if (cleanup_data->maxusn_to_delete) {
         slapi_ch_free_string(&filter);
     }
-    slapi_ch_free_string(&cleanup_data->maxusn_to_delete);
-    slapi_ch_free_string(&cleanup_data->suffix);
-    slapi_ch_free_string(&cleanup_data->bind_dn);
-    slapi_ch_free((void **)&cleanup_data);
 
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rv);
-
+    slapi_task_dec_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread <-- refcount decremented.\n");
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_cleanup_thread\n");
 }
@@ -283,7 +289,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     backend = slapi_entry_attr_get_charptr(e, "backend");
     maxusn = slapi_entry_attr_get_charptr(e, "maxusn_to_delete");
 
-    if (NULL == suffix && NULL == backend) {
+    if (!suffix && !backend) {
         slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
             "USN tombstone cleanup: Both suffix and backend are missing.\n");
         *returncode = LDAP_PARAM_ERROR;
@@ -292,7 +298,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     }
 
     /* suffix is not given, but backend is; get the suffix */
-    if (NULL == suffix && NULL != backend) {
+    if (!suffix && backend) {
         be = slapi_be_select_by_instance_name(backend);
         be_suffix = slapi_be_getsuffix(be, 0);
         if (be_suffix) {
@@ -317,12 +323,6 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         goto bail;
     }
 
-    cleanup_data =
-      (struct usn_cleanup_data *)slapi_ch_malloc(sizeof(struct usn_cleanup_data));
-    cleanup_data->suffix = slapi_ch_strdup(suffix);
-    cleanup_data->maxusn_to_delete = slapi_ch_strdup(maxusn);
-    cleanup_data->bind_dn = slapi_ch_strdup(bind_dn);
-
     /* allocate new task now */
     task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     if (task == NULL) {
@@ -330,11 +330,21 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
             "USN tombstone cleanup: unable to allocate new task.\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
-        slapi_ch_free((void**)&cleanup_data);
         goto bail;
     }
 
+    /* register our destructor for cleaning up our private data */
+    slapi_task_set_destructor_fn(task, usn_cleanup_task_destructor);
+
     /* Stash our argument in the task for use by the task thread */
+    cleanup_data =
+      (struct usn_cleanup_data *)slapi_ch_malloc(sizeof(struct usn_cleanup_data));
+    cleanup_data->suffix = suffix;
+    suffix = NULL; /* don't free in this function */
+    cleanup_data->maxusn_to_delete = maxusn;
+    maxusn = NULL; /* don't free in this function */
+    cleanup_data->bind_dn = bind_dn;
+    bind_dn = NULL; /* don't free in this function */
     slapi_task_set_data(task, cleanup_data);
 
     /* start the USN tombstone cleanup task as a separate thread */
@@ -361,3 +371,23 @@ bail:
     return rv;
 }
 
+static void
+usn_cleanup_task_destructor(Slapi_Task *task)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM, "usn_cleanup_task_destructor -->\n");
+    if (task) {
+        struct usn_cleanup_data *mydata = (struct usn_cleanup_data *)slapi_task_get_data(task);
+        while (slapi_task_get_refcount(task) > 0) {
+            /* Yield to wait for the fixup task finishes. */
+            DS_Sleep (PR_MillisecondsToInterval(100));
+        }
+        if (mydata) {
+            slapi_ch_free_string(&mydata->suffix);
+            slapi_ch_free_string(&mydata->maxusn_to_delete);
+            slapi_ch_free_string(&mydata->bind_dn);
+            /* Need to cast to avoid a compiler warning */
+            slapi_ch_free((void **)&mydata);
+        }
+    }
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM, "usn_cleanup_task_destructor <--\n");
+}

@@ -86,6 +86,7 @@ static int schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
                     void *arg);
 static int schemareload_start(Slapi_PBlock *pb);
 static int schemareload_close(Slapi_PBlock *pb);
+static void schemareload_destructor(Slapi_Task *task);
 
 /* 
  * Init function
@@ -159,6 +160,12 @@ schemareload_thread(void *arg)
     int total_work = 2;
     task_data *td = NULL;
 
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, "schemareload",
+                    "schemareload_thread --> refcount incremented.\n" );
     /* Fetch our task data from the task */
     td = (task_data *)slapi_task_get_data(task);
 
@@ -174,7 +181,11 @@ schemareload_thread(void *arg)
     rv = slapi_validate_schema_files(td->schemadir);
     slapi_task_inc_progress(task);
 
-    if (LDAP_SUCCESS == rv) {
+    if (slapi_is_shutting_down()) {
+        slapi_task_log_notice(task, "Server is shuttoing down; Schema validation aborted.");
+        slapi_task_log_status(task, "Server is shuttoing down; Schema validation aborted.");
+        slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Server is shuttoing down; Schema validation aborted.");
+    } else if (LDAP_SUCCESS == rv) {
         slapi_task_log_notice(task, "Schema validation passed.");
         slapi_task_log_status(task, "Schema validation passed.");
         slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema validation passed.\n");
@@ -192,16 +203,18 @@ schemareload_thread(void *arg)
             slapi_task_log_status(task, "Schema reload task failed.");
             slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema reload task failed.\n");
         }
-        PR_Unlock(schemareload_lock);
     } else {
         slapi_task_log_notice(task, "Schema validation failed.");
         slapi_task_log_status(task, "Schema validation failed.");
         slapi_log_error(SLAPI_LOG_FATAL, "schemareload", "Schema validation failed.\n");
-        PR_Unlock(schemareload_lock);
     }
+    PR_Unlock(schemareload_lock);
 
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rv);
+    slapi_task_dec_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, "schemareload",
+                    "schemareload_thread <-- refcount decremented.\n");
 }
 
 /* extract a single value from the entry (as a string) -- if it's not in the
@@ -226,6 +239,10 @@ schemareload_destructor(Slapi_Task *task)
 {
     if (task) {
         task_data *mydata = (task_data *)slapi_task_get_data(task);
+        while (slapi_task_get_refcount(task) > 0) {
+            /* Yield to wait for the fixup task finishes. */
+            DS_Sleep (PR_MillisecondsToInterval(100));
+        }
         if (mydata) {
             slapi_ch_free_string(&mydata->schemadir);
             slapi_ch_free_string(&mydata->bind_dn);

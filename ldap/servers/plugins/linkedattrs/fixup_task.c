@@ -119,6 +119,10 @@ linked_attrs_fixup_task_destructor(Slapi_Task *task)
 {
 	if (task) {
 		task_data *mydata = (task_data *)slapi_task_get_data(task);
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
 		if (mydata) {
 			slapi_ch_free_string(&mydata->linkdn);
 			slapi_ch_free_string(&mydata->bind_dn);
@@ -137,6 +141,12 @@ linked_attrs_fixup_task_thread(void *arg)
 	int found_config = 0;
 	int rc = 0;
 
+	if (!task) {
+		return; /* no task */
+	}
+	slapi_task_inc_refcount(task);
+	slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
+	                "linked_attrs_fixup_task_thread --> refcount incremented.\n" );
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
 
@@ -154,8 +164,8 @@ linked_attrs_fixup_task_thread(void *arg)
     linked_attrs_read_lock();
     main_config = linked_attrs_get_config();
     if (!PR_CLIST_IS_EMPTY(main_config)) {
-       struct configEntry *config_entry = NULL;
-       PRCList *list = PR_LIST_HEAD(main_config);
+        struct configEntry *config_entry = NULL;
+        PRCList *list = PR_LIST_HEAD(main_config);
 
         while (list != main_config) {
             config_entry = (struct configEntry *) list;
@@ -204,6 +214,10 @@ linked_attrs_fixup_task_thread(void *arg)
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
+
+	slapi_task_dec_refcount(task);
+	slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
+	                "linked_attrs_fixup_task_thread <-- refcount decremented.\n");
 }
 
 static void 
@@ -269,7 +283,7 @@ linked_attrs_fixup_links(struct configEntry *config)
             if(rc == 0){
                 slapi_back_transaction_commit(fixup_pb);
             } else {
-            	slapi_back_transaction_abort(fixup_pb);
+                slapi_back_transaction_abort(fixup_pb);
             }
             slapi_pblock_destroy(fixup_pb);
         }
@@ -352,11 +366,20 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
     int rc = 0;
     Slapi_DN *sdn = slapi_entry_get_sdn(e);
     char *type = (char *)callback_data;
-    Slapi_PBlock *pb = slapi_pblock_new();
+    Slapi_PBlock *pb = NULL;
     char *val[1];
     LDAPMod mod;
     LDAPMod *mods[2];
 
+    /* 
+     * If the server is ordered to shutdown, stop the fixup and return an error.
+     */
+    if (slapi_is_shutting_down()) {
+        rc = -1;
+        goto bail;
+    }
+
+    pb = slapi_pblock_new();
     /* Remove all values of the passed in type. */
     val[0] = 0;
 
@@ -377,7 +400,7 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_destroy(pb);
-
+bail:
     return rc;
 }
 
@@ -394,6 +417,13 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
     LDAPMod mod;
     LDAPMod *mods[2];
 
+    /* 
+     * If the server is ordered to shutdown, stop the fixup and return an error.
+     */
+    if (slapi_is_shutting_down()) {
+        rc = -1;
+        goto done;
+    }
     /* Setup the modify operation.  Only the target will
      * change, so we only need to do this once. */
     val[0] = linkdn;

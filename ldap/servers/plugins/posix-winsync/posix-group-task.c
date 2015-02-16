@@ -165,6 +165,10 @@ posix_group_task_destructor(Slapi_Task *task)
 {
     if (task) {
         task_data *mydata = (task_data *) slapi_task_get_data(task);
+        while (slapi_task_get_refcount(task) > 0) {
+            /* Yield to wait for the fixup task finishes. */
+            DS_Sleep (PR_MillisecondsToInterval(100));
+        }
         if (mydata) {
             slapi_ch_free_string(&mydata->dn);
             slapi_ch_free_string(&mydata->filter_str);
@@ -172,6 +176,8 @@ posix_group_task_destructor(Slapi_Task *task)
             slapi_ch_free((void **) &mydata);
         }
     }
+    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+                    "posix_group_task_destructor <--\n");
 }
 
 #if 0 /* NOT USED */
@@ -245,16 +251,27 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
                     "_fix_memberuid ==>\n");
     cb_data *the_cb_data = (cb_data *) callback_data;
 
-    int rc;
+    int rc = 0;
     Slapi_Attr *muid_attr = NULL;
     Slapi_Value *v = NULL;
 
-    Slapi_Mods *smods = slapi_mods_new();
-
-    char *dn = slapi_entry_get_dn(e);
-    Slapi_DN *sdn = slapi_entry_get_sdn(e);
+    Slapi_Mods *smods = NULL;
+    char *dn = NULL;
+    Slapi_DN *sdn = NULL;
     LDAPMod **mods = NULL;
     int is_posix_group = 0;
+
+    /* 
+     * If the server is ordered to shutdown, stop the fixup and return an error.
+     */
+    if (slapi_is_shutting_down()) {
+        rc = -1;
+        goto bail;
+    }
+
+    smods = slapi_mods_new();
+    dn = slapi_entry_get_dn(e);
+    sdn = slapi_entry_get_sdn(e);
 
     if (hasObjectClass(e, "posixGroup")) {
         is_posix_group = 1;
@@ -441,7 +458,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
         slapi_pblock_destroy(mod_pb);
     }
     slapi_mods_free(&smods);
-
+bail:
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "_fix_memberuid <==\n");
     /*
@@ -450,7 +467,7 @@ posix_group_fix_memberuid_callback(Slapi_Entry *e, void *callback_data)
      * uniqueMember attribute.  But "not found" error shoud not
      * be returned, which stops the further fixup task.
      */
-    return 0;
+    return rc;
 }
 
 static void
@@ -463,6 +480,12 @@ posix_group_fixup_task_thread(void *arg)
     task_data *td = NULL;
     int rc = 0;
 
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+                    "posix_group_fixup_task_thread --> refcount incremented.\n" );
     /* Fetch our task data from the task */
     td = (task_data *) slapi_task_get_data(task);
 
@@ -491,4 +514,7 @@ posix_group_fixup_task_thread(void *arg)
 
     slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "_task_thread <==\n");
+    slapi_task_dec_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+                    "posix_group_fixup_task_thread <-- refcount decremented.\n");
 }
