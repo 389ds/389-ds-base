@@ -81,7 +81,7 @@ typedef struct memberofconfig {
 	char *memberof_attr;
 	int allBackends;
 	Slapi_DN *entryScope;
-        Slapi_DN *entryScopeExcludeSubtree;
+	Slapi_DN *entryScopeExcludeSubtree;
 	Slapi_Filter *group_filter;
 	Slapi_Attr **group_slapiattrs;
 } MemberOfConfig;

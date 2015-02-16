@@ -7958,6 +7958,15 @@ void slapi_plugin_op_finished(void *arg);
 #define RDN_IS_CONFLICT  0x2
 int slapi_is_special_rdn(const char *rdn, int flag);
 
+/**
+ * Sleeps for PRIntervalTime ticks defined in NSPR library
+ *
+ * \param PRIntervalTime ticks
+ *
+ * \return Nothing
+ */
+void    DS_Sleep(PRIntervalTime ticks);
+
 #ifdef __cplusplus
 }
 #endif

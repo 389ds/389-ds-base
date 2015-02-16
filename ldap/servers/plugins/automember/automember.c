@@ -119,9 +119,9 @@ static int automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Sla
 void automember_rebuild_task_thread(void *arg);
 void automember_export_task_thread(void *arg);
 void automember_map_task_thread(void *arg);
-void automember_task_destructor(Slapi_Task *task);
-void automember_task_export_destructor(Slapi_Task *task);
-void automember_task_map_destructor(Slapi_Task *task);
+static void automember_task_destructor(Slapi_Task *task);
+static void automember_task_export_destructor(Slapi_Task *task);
+static void automember_task_map_destructor(Slapi_Task *task);
 
 #define DEFAULT_FILE_MODE PR_IRUSR | PR_IWUSR
 
@@ -1962,11 +1962,15 @@ fetch_attr(Slapi_Entry *e, const char *attrname, const char *default_val)
     return slapi_value_get_string(val);
 }
 
-void
+static void
 automember_task_destructor(Slapi_Task *task)
 {
     if (task) {
         task_data *mydata = (task_data *)slapi_task_get_data(task);
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
         if (mydata) {
             slapi_ch_free_string(&mydata->bind_dn);
             slapi_sdn_free(&mydata->base_dn);
@@ -1976,11 +1980,15 @@ automember_task_destructor(Slapi_Task *task)
     }
 }
 
-void
+static void
 automember_task_export_destructor(Slapi_Task *task)
 {
     if (task) {
         task_data *mydata = (task_data *)slapi_task_get_data(task);
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
         if (mydata) {
             slapi_ch_free_string(&mydata->ldif_out);
             slapi_ch_free_string(&mydata->bind_dn);
@@ -1991,11 +1999,15 @@ automember_task_export_destructor(Slapi_Task *task)
     }
 }
 
-void
+static void
 automember_task_map_destructor(Slapi_Task *task)
 {
     if (task) {
         task_data *mydata = (task_data *)slapi_task_get_data(task);
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
         if (mydata) {
             slapi_ch_free_string(&mydata->ldif_out);
             slapi_ch_free_string(&mydata->ldif_in);
@@ -2114,7 +2126,8 @@ out:
  *  Search using the basedn, filter, and scope provided from the task data.
  *  Then loop of each entry, and apply the membership if applicable.
  */
-void automember_rebuild_task_thread(void *arg){
+void automember_rebuild_task_thread(void *arg)
+{
     Slapi_Task *task = (Slapi_Task *)arg;
     struct configEntry *config = NULL;
     Slapi_PBlock *search_pb = NULL, *fixup_pb = NULL;
@@ -2124,6 +2137,12 @@ void automember_rebuild_task_thread(void *arg){
     int result = 0;
     int i = 0;
 
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_error( SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                     "automember_rebuild_task_thread --> refcount incremented.\n" );
     /*
      *  Fetch our task data from the task
      */
@@ -2192,7 +2211,8 @@ void automember_rebuild_task_thread(void *arg){
                 if (slapi_dn_issuffix(slapi_entry_get_dn(entries[i]), config->scope) &&
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
                 {
-                    if(automember_update_membership(config, entries[i], NULL)){
+                    if (slapi_is_shutting_down() ||
+                        automember_update_membership(config, entries[i], NULL)) {
                         result = SLAPI_PLUGIN_FAILURE;
                         automember_config_unlock();
                         goto out;
@@ -2226,6 +2246,9 @@ out:
     }
     slapi_task_inc_progress(task);
     slapi_task_finish(task, result);
+    slapi_task_dec_refcount(task);
+    slapi_log_error( SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                     "automember_rebuild_task_thread <-- refcount decremented.\n" );
 }
 
 /*
@@ -2328,7 +2351,8 @@ out:
     return rv;
 }
 
-void automember_export_task_thread(void *arg){
+void automember_export_task_thread(void *arg)
+{
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
@@ -2339,6 +2363,13 @@ void automember_export_task_thread(void *arg){
     PRFileDesc *ldif_fd;
     int i = 0;
     int rc = 0;
+
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_error( SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                     "automember_export_task_thread --> refcount incremented.\n" );
 
     td = (task_data *)slapi_task_get_data(task);
     slapi_task_begin(task, 1);
@@ -2394,7 +2425,8 @@ void automember_export_task_thread(void *arg){
                 if (slapi_dn_issuffix(slapi_sdn_get_dn(td->base_dn), config->scope) &&
                     (slapi_filter_test_simple(entries[i], config->filter) == 0))
                 { 
-                    if(automember_update_membership(config, entries[i], ldif_fd)){
+                    if (slapi_is_shutting_down() ||
+                        automember_update_membership(config, entries[i], ldif_fd)) {
                         result = SLAPI_DSE_CALLBACK_ERROR;
                         automember_config_unlock();
                         goto out;
@@ -2423,6 +2455,9 @@ out:
     }
     slapi_task_inc_progress(task);
     slapi_task_finish(task, result);
+    slapi_task_dec_refcount(task);
+    slapi_log_error( SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                     "automember_export_task_thread <-- refcount decremented.\n" );
 }
 
 /*
@@ -2507,7 +2542,8 @@ out:
  *  Read in the text entries from ldif_in, and convert them to slapi_entries.
  *  Then, write to ldif_out what the updates would be if these entries were added
  */
-void automember_map_task_thread(void *arg){
+void automember_map_task_thread(void *arg)
+{
     Slapi_Task *task = (Slapi_Task *)arg;
     Slapi_Entry *e = NULL;
     int result = SLAPI_DSE_CALLBACK_OK;
@@ -2527,6 +2563,12 @@ void automember_map_task_thread(void *arg){
 #endif
     int rc = 0;
 
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_error( SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                     "automember_map_task_thread --> refcount incremented.\n" );
     td = (task_data *)slapi_task_get_data(task);
     slapi_task_begin(task, 1);
     slapi_task_log_notice(task, "Automember map task starting...  Reading entries from (%s)"
@@ -2586,7 +2628,8 @@ void automember_map_task_thread(void *arg){
                     if (slapi_dn_issuffix(slapi_entry_get_dn_const(e), config->scope) &&
                         (slapi_filter_test_simple(e, config->filter) == 0))
                     {
-                        if(automember_update_membership(config, e, ldif_fd_out)){
+                        if (slapi_is_shutting_down() ||
+                            automember_update_membership(config, e, ldif_fd_out)) {
                             result = SLAPI_DSE_CALLBACK_ERROR;
                             slapi_entry_free(e);
                             slapi_ch_free_string(&entrystr);
@@ -2620,6 +2663,9 @@ out:
     }
     slapi_task_inc_progress(task);
     slapi_task_finish(task, result);
+    slapi_task_dec_refcount(task);
+    slapi_log_error( SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                     "automember_map_task_thread <-- refcount decremented.\n" );
 }
 
 /*
