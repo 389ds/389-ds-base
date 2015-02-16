@@ -5,9 +5,9 @@ Created on Dec 5, 2013
 '''
 
 ####################################
-# 
+#
 # Properties supported by the server
-# 
+#
 ####################################
 
 #
@@ -36,11 +36,11 @@ SER_BACKUP_INST_DIR ='inst-backupdir'
 SER_CREATION_SUFFIX ='suffix'
 
 ####################################
-# 
+#
 # Properties supported by the Mapping Tree entries
 #
 ####################################
- 
+
 # Properties name
 MT_STATE        = 'state'
 MT_BACKEND      = 'backend-name'
@@ -77,7 +77,7 @@ MT_PROPNAME_TO_ATTRNAME = {MT_STATE:        'nsslapd-state',
                            MT_CHAIN_UPDATE: 'nsslapd-distribution-root-update'}
 
 ####################################
-# 
+#
 # Properties supported by the backend
 #
 ####################################
@@ -111,7 +111,7 @@ BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX:        'nsslapd-suffix',
                                 BACKEND_CHAIN_URLS:    'nsfarmserverurl'}
 
 ####################################
-# 
+#
 # Properties of a replica
 #
 ####################################
@@ -142,7 +142,7 @@ REPLICA_PROPNAME_TO_ATTRNAME = {
                                 REPLICA_FLAGS:            'nsds5flags'}
 
 ####################################
-# 
+#
 # Properties of a changelog
 #
 ####################################
@@ -161,7 +161,7 @@ CHANGELOG_PROPNAME_TO_ATTRNAME = {CHANGELOG_NAME:          'cn',
                                   CHANGELOG_COMPACT_INTV:  'nsslapd-changelogcompactdb-interval',}
 
 ####################################
-# 
+#
 # Properties of an entry
 #
 ####################################
@@ -178,7 +178,7 @@ ENTRY_TYPE_TO_OBJECTCLASS = {ENTRY_TYPE_PERSON:     ["top", "person"],
                              ENTRY_TYPE_INETPERSON: ["top", "person", "inetOrgPerson"]}
 
 ####################################
-# 
+#
 # Properties supported by the replica agreement
 #
 ####################################
@@ -201,6 +201,7 @@ RA_TIMEOUT              = 'timeout'
 RA_CHANGES              = 'changes'
 
 RA_OBJECTCLASS_VALUE = "nsds5replicationagreement"
+RA_WINDOWS_OBJECTCLASS_VALUE = "nsDSWindowsReplicationAgreement"
 
 RA_PROPNAME_TO_ATTRNAME = {RA_NAME:                 'cn',
                            RA_SUFFIX:               'nsds5replicaroot',
@@ -220,7 +221,7 @@ RA_PROPNAME_TO_ATTRNAME = {RA_NAME:                 'cn',
                            RA_CHANGES:              'nsds5replicaChangesSentSinceStartup'}
 
 ####################################
-# 
+#
 # Properties supported by the plugins
 #
 ####################################
@@ -232,13 +233,13 @@ PLUGIN_ENABLE   = 'enable'
 PLUGINS_OBJECTCLASS_VALUE = "nsSlapdPlugin"
 PLUGINS_ENABLE_ON_VALUE   = "on"
 PLUGINS_ENABLE_OFF_VALUE  = "off"
-    
+
 PLUGIN_PROPNAME_TO_ATTRNAME = {PLUGIN_NAME:     'cn',
                                PLUGIN_PATH:     'nsslapd-pluginPath',
                                PLUGIN_ENABLE:   'nsslapd-pluginEnabled'}
 
 ####################################
-# 
+#
 # Properties supported by the index
 #
 ####################################
@@ -251,7 +252,7 @@ INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
                               INDEX_MATCHING_RULE: 'nsMatchingRule'}
 
 ####################################
-# 
+#
 # Properties supported by the tasks
 #
 ####################################
@@ -265,27 +266,27 @@ def rawProperty(prop):
     '''
         Return the string 'prop' without the heading '+'/'-'
         @param prop - string of a property name
-        
+
         @return property name without heading '+'/'-'
-        
+
         @raise None
     '''
     if str(prop).startswith('+') or str(prop).startswith('-'):
         return prop[1::]
     else:
         return prop
-        
-        
+
+
 def inProperties(prop, properties):
     '''
         Return True if 'prop' is in the 'properties' dictionary
         Properties in 'properties' does NOT contain a heading '+'/'-', but 'prop'
         may contain heading '+'/'-'
         @param prop - string of a property name
-        @param properties - dictionary of properties. 
-        
+        @param properties - dictionary of properties.
+
         @return True/False
-        
+
         @raise None
     '''
     if rawProperty(prop) in properties:

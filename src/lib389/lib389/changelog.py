@@ -26,14 +26,14 @@ class Changelog(object):
     def list(self, suffix=None, changelogdn=None):
         if not changelogdn:
             raise InvalidArgumentError("changelog DN is missing")
-        
+
         base  = changelogdn
         filtr = "(objectclass=extensibleobject)"
-            
+
         # now do the effective search
         ents = self.conn.search_s(base, ldap.SCOPE_BASE, filtr)
         return ents
-        
+
     def create(self, dbname=DEFAULT_CHANGELOG_DB):
         """Add and return the replication changelog entry.
 
@@ -56,24 +56,32 @@ class Changelog(object):
         except ldap.ALREADY_EXISTS:
             self.log.warn("entry %s already exists" % dn)
         return(dn)
-            
-    def delete(self, changelogdn=None):
-        raise NotImplemented
-    
+
+    def delete(self):
+        '''
+        Delete the changelog entry
+        @raise LDAPError
+        '''
+        try:
+            self.conn.delete_s(DN_CHANGELOG)
+        except ldap.LDAPError, e:
+            self.log.error('Failed to delete the changelog: ' + e.message['desc'])
+            raise ldap.LDAPError
+
     def setProperties(self, changelogdn=None, properties=None):
         if not changelogdn:
             raise InvalidArgumentError("changelog DN is missing")
-        
+
         ents = self.changelog.list(changelogdn=changelogdn)
         if len(ents) != 1:
             raise ValueError("Changelog entry not found: %s" % changelogdn)
-        
+
         # check that the given properties are valid
         for prop in properties:
             # skip the prefix to add/del value
             if not inProperties(prop, CHANGELOG_PROPNAME_TO_ATTRNAME):
                 raise ValueError("unknown property: %s" % prop)
-        
+
         # build the MODS
         mods = []
         for prop in properties:
@@ -85,12 +93,12 @@ class Changelog(object):
                 op = ldap.MOD_DELETE
             else:
                 op = ldap.MOD_REPLACE
-            
+
             mods.append((op, REPLICA_PROPNAME_TO_ATTRNAME[val], properties[prop]))
-            
+
         # that is fine now to apply the MOD
         self.conn.modify_s(ents[0].dn, mods)
-        
+
 
     def getProperties(self, changelogdn=None, properties=None):
         raise NotImplemented

@@ -1770,14 +1770,16 @@ class DirSrv(SimpleLDAPObject):
             @raise None
         '''
 
-        test_value = 'test replication - ' + str(int(time.time()))
+        test_value = ('test replication from ' + self.serverid + ' to ' +
+                      replicas[0].serverid + ': ' + str(int(time.time())))
         self.modify_s(suffix, [(ldap.MOD_REPLACE, 'description', test_value)])
 
         for replica in replicas:
             loop = 0
             replicated = False
-            while loop <= 10:
+            while loop <= 30:
                 try:
+
                     entry = replica.getEntry(suffix, ldap.SCOPE_BASE, "(objectclass=*)")
                     if entry.hasValue('description', test_value):
                         replicated = True
@@ -1787,7 +1789,7 @@ class DirSrv(SimpleLDAPObject):
                               % (suffix, e.message['desc']))
                     return False
                 loop += 1
-                time.sleep(1)
+                time.sleep(2)
             if not replicated:
                 log.fatal('Replication is not in sync with replica server (%s)' % replica.serverid)
                 return False
@@ -2239,3 +2241,15 @@ class DirSrv(SimpleLDAPObject):
         self.start(timeout=10)
 
         return result
+
+    def searchAccessLog(self, pattern):
+        return DirSrvTools.searchFile(self.accesslog, pattern)
+
+    def searchAuditLog(self, pattern):
+        return DirSrvTools.searchFile(self.auditlog, pattern)
+
+    def searchErrorsLog(self, pattern):
+        return DirSrvTools.searchFile(self.errlog, pattern)
+
+    def detectDisorderlyShutdown(self):
+        return DirSrvTools.searchFile(self.errlog, DISORDERLY_SHUTDOWN)

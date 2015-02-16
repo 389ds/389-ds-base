@@ -19,8 +19,9 @@ REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
 REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
 REPLICA_RDWR_TYPE   = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
 
-REPLICA_RUV_UUID    = "ffffffff-ffffffff-ffffffff-ffffffff"
-REPLICA_OC_TOMBSTONE= "nsTombstone"
+REPLICA_RUV_UUID        = "ffffffff-ffffffff-ffffffff-ffffffff"
+REPLICA_RUV_FILTER      = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
+REPLICA_OC_TOMBSTONE    = "nsTombstone"
 REPLICATION_BIND_DN     = 'replication_bind_dn'
 REPLICATION_BIND_PW     = 'replication_bind_pw'
 REPLICATION_BIND_METHOD = 'replication_bind_method'
@@ -119,6 +120,7 @@ RETROCL_SUFFIX = "cn=changelog"
 ###
 ##################################
 
+PLUGIN_7_BIT_CHECK        = '7-bit check'
 PLUGIN_ACCT_POLICY        = 'Account Policy Plugin'
 PLUGIN_ACCT_USABILITY     = 'Account Usability Plugin'
 PLUGIN_ACL                = 'ACL Plugin'
@@ -152,13 +154,14 @@ PLUGIN_WHOAMI             = 'whoami'
 
 
 #
-# constants
+# Constants
 #
 DEFAULT_USER = "nobody"
 DEFAULT_USERHOME = "/tmp/lib389_home"
 DATA_DIR = "data"
 TMP_DIR = "tmp"
 VALGRIND_WRAPPER = "ns-slapd.valgrind"
+DISORDERLY_SHUTDOWN = 'Detected Disorderly Shutdown last time Directory Server was running, recovering database'
 
 #
 # LOG: see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/9.0/html/Administration_Guide/Configuring_Logs.html

@@ -108,7 +108,8 @@ class Agreement(object):
         if ((hour < 0) or (hour > 23)):
             raise ValueError("Bad schedule format %r: illegal hour %d" % (interval, hour))
         if int(schedule[1]) > int(schedule[3]):
-            raise ValueError("Bad schedule (start HOUR larger than end HOUR) %r: illegal hour %d" % (interval, int(schedule[1])))
+            raise ValueError("Bad schedule (start HOUR larger than end HOUR) %r: illegal hour %d" %
+                (interval, int(schedule[1])))
 
         # check the minutes
         minute = int(schedule[2])
@@ -362,11 +363,12 @@ class Agreement(object):
             # Now returns the replica agreement for that suffix that replicates to
             # consumer host/port
             if consumer_host and consumer_port:
-                filt = "(&(objectclass=%s)(%s=%s)(%s=%d))" % (RA_OBJECTCLASS_VALUE,
+                filt = "(&(|(objectclass=%s)(objectclass=%s))(%s=%s)(%s=%d))" % (RA_OBJECTCLASS_VALUE,
+                                                              RA_WINDOWS_OBJECTCLASS_VALUE,
                                                               RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST], consumer_host,
                                                               RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT], consumer_port)
             else:
-                filt = "(objectclass=%s)" % RA_OBJECTCLASS_VALUE
+                filt = "(|(objectclass=%s)(objectclass=%s))" % (RA_OBJECTCLASS_VALUE, RA_WINDOWS_OBJECTCLASS_VALUE)
             return self.conn.search_s(replica_entry.dn, ldap.SCOPE_ONELEVEL, filt)
 
     def create(self, suffix=None, host=None, port=None, properties=None):
@@ -520,6 +522,39 @@ class Agreement(object):
 
         return dn_agreement
 
+    def delete(self, suffix, replica):
+        '''
+            Delete a replication agreement
+
+            @param suffix - the suffix that the agreement is configured for
+            @replica - a DirSrv object of the server that the agreement points to
+            @raise ldap.LDAPError - for ldap operation failures
+        '''
+
+        if replica.sslport:
+            # We assume that if you are using SSL, you are using it with replication
+            port = replica.sslport
+        else:
+            port = replica.port
+
+        agmts = self.list(suffix=suffix, consumer_host=replica.host, consumer_port=port)
+        if agmts:
+            if len(agmts) > 1:
+                # Found too many agreements
+                self.log.error('Too many agreements found')
+                raise
+            else:
+                # delete the agreement
+                try:
+                    self.conn.delete_s(agmts[0].dn)
+                except ldap.LDAPError, e:
+                    self.log.error('Failed to delete agreement (%s), error: %s' %
+                        (agmts[0].dn, e.message['desc']))
+                    raise ldap.LDAPError
+        else:
+            # No agreements, error?
+            self.log.error('No agreements found')
+
     def init(self, suffix=None, consumer_host=None, consumer_port=None):
         """Trigger a total update of the consumer replica
             - self is the supplier,
@@ -547,7 +582,7 @@ class Agreement(object):
         if not consumer_port:
             self.log.fatal("initAgreement: port is missing")
             raise InvalidArgumentError('port is mandatory argument')
-                #
+        #
         # check the replica agreement already exist
         #
         replica_entries = self.conn.replica.list(suffix)
@@ -557,10 +592,13 @@ class Agreement(object):
         replica_entry = replica_entries[0]
         self.log.debug("initAgreement: looking for replica agreements under %s" % replica_entry.dn)
         try:
-            filt = "(&(objectclass=nsds5replicationagreement)(nsds5replicahost=%s)(nsds5replicaport=%d)(nsds5replicaroot=%s))" % (consumer_host, consumer_port, nsuffix)
+            filt = ("(&(objectclass=nsds5replicationagreement)(nsds5replicahost=" +
+                    "%s)(nsds5replicaport=%d)(nsds5replicaroot=%s))"
+                    % (consumer_host, consumer_port, nsuffix))
             entry = self.conn.getEntry(replica_entry.dn, ldap.SCOPE_ONELEVEL, filt)
         except ldap.NO_SUCH_OBJECT:
-            self.log.fatal("initAgreement: No replica agreement to %s:%d for suffix %s" % (consumer_host, consumer_port, nsuffix))
+            self.log.fatal("initAgreement: No replica agreement to %s:%d for suffix %s" %
+                           (consumer_host, consumer_port, nsuffix))
             raise
 
         #

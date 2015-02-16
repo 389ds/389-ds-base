@@ -882,7 +882,8 @@ class DirSrvTools(object):
                     assert(words[1] == expectedHost)
                     done = True
         except AssertionError:
-            raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" % (expectedHost, loopbackIpPattern))
+            raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" %
+                                 (expectedHost, loopbackIpPattern))
 
     @staticmethod
     def runUpgrade(prefix, online=True):
@@ -951,6 +952,21 @@ class DirSrvTools(object):
             log.fatal('runUpgrade failed!')
             assert False
 
+    @staticmethod
+    def searchFile(filename, pattern):
+        # Open the file and read it line by line
+        found = False
+        try:
+            myfile = open(filename)
+            for line in myfile:
+                if re.search(pattern, line):
+                    found = True
+            myfile.close()
+        except IOError as e:
+            log.error('Problem opening/searching file (%s): I/O error(%d): %s' % (filename, e.errno, e.strerror))
+
+        return found
+
 
 class MockDirSrv(object):
     host = 'localhost'
@@ -969,3 +985,5 @@ class MockDirSrv(object):
             return 'ldaps://%s:%s' % (self.host, self.sslport)
         else:
             return 'ldap://%s:%s' % (self.host, self.port)
+
+

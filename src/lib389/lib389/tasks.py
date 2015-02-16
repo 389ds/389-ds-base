@@ -776,25 +776,28 @@ class Tasks(object):
             self.log.info("Sysconfig Reload task (%s) completed successfully" % (cn))
         return exitCode
 
-
-    def cleanAllRUV(self, replicaid=None, force=None, args=None):
+    def cleanAllRUV(self, suffix=None, replicaid=None, force=None, args=None):
         '''
         @param replicaid - The replica ID to remove/clean
         @param force - True/False - Clean all the replicas, even if one is down
         @param args - is a dictionary that contains modifier of the task
                 wait: True/[False] - If True,  waits for the completion of the task before to return
-        @return exit code
+        @return tuple (task dn, and the exit code)
         @raise ValueError: If missing replicaid
         '''
 
         if not replicaid:
             raise ValueError("Missing required paramter: replicaid")
 
+        if not suffix:
+            raise ValueError("Missing required paramter: suffix")
+
         cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
         dn = ('cn=%s,cn=cleanallruv,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
         entry.setValues('cn', cn)
+        entry.setValues('replica-base-dn', suffix)
         entry.setValues('replica-id', replicaid)
         if force:
             entry.setValues('replica-force-cleaning', 'yes')
@@ -803,7 +806,7 @@ class Tasks(object):
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add cleanAllRUV task")
-            return -1
+            return (dn, -1)
 
         exitCode = 0
         if args and args.get(TASK_WAIT, False):
@@ -813,36 +816,41 @@ class Tasks(object):
             self.log.error("Error: cleanAllRUV task (%s) exited with %d" % (cn, exitCode))
         else:
             self.log.info("cleanAllRUV task (%s) completed successfully" % (cn))
-        return exitCode
+        return (dn, exitCode)
 
-    def abortCleanAllRUV(self, replicaid=None, certify=None, args=None):
+    def abortCleanAllRUV(self, suffix=None, replicaid=None, certify=None, args=None):
         '''
         @param replicaid - The replica ID to remove/clean
         @param certify - True/False - Certify the task was aborted on all the replicas
         @param args - is a dictionary that contains modifier of the task
                 wait: True/[False] - If True,  waits for the completion of the task before to return
-        @return exit code
+        @return tuple (task dn, and the exit code)
         @raise ValueError: If missing replicaid
         '''
 
         if not replicaid:
             raise ValueError("Missing required paramter: replicaid")
+        if not suffix:
+            raise ValueError("Missing required paramter: suffix")
 
         cn = 'task-' + time.strftime("%m%d%Y_%H%M%S", time.localtime())
         dn = ('cn=%s,cn=abort cleanallruv,cn=tasks,cn=config' % cn)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
         entry.setValues('cn', cn)
+        entry.setValues('replica-base-dn', suffix)
         entry.setValues('replica-id', replicaid)
         if certify:
-            entry.setValues('replica-certifyall', 'yes')
+            entry.setValues('replica-certify-all', 'yes')
+        else:
+            entry.setValues('replica-certify-all', 'no')
 
         # start the task and possibly wait for task completion
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
             self.log.error("Fail to add Abort cleanAllRUV task")
-            return -1
+            return (dn, -1)
 
         exitCode = 0
         if args and args.get(TASK_WAIT, False):
@@ -852,7 +860,7 @@ class Tasks(object):
             self.log.error("Error: Abort cleanAllRUV task (%s) exited with %d" % (cn, exitCode))
         else:
             self.log.info("Abort cleanAllRUV task (%s) completed successfully" % (cn))
-        return exitCode
+        return (dn, exitCode)
 
     def upgradeDB(self, nsArchiveDir=None, nsDatabaseType=None, nsForceToReindex=None, args=None):
         '''
