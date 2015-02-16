@@ -2638,6 +2638,12 @@ void memberof_fixup_task_thread(void *arg)
 	int rc = 0;
 	Slapi_PBlock *fixup_pb = NULL;
 
+	if (!task) {
+		return; /* no task */
+	}
+	slapi_task_inc_refcount(task);
+	slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	                "memberof_fixup_task_thread --> refcount incremented.\n" );
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
 
@@ -2707,6 +2713,9 @@ void memberof_fixup_task_thread(void *arg)
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
+	slapi_task_dec_refcount(task);
+	slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	                "memberof_fixup_task_thread <-- refcount decremented.\n");
 }
 
 /* extract a single value from the entry (as a string) -- if it's not in the
@@ -2798,8 +2807,14 @@ out:
 void
 memberof_task_destructor(Slapi_Task *task)
 {
+	slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+		"memberof_task_destructor -->\n" );
 	if (task) {
 		task_data *mydata = (task_data *)slapi_task_get_data(task);
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
 		if (mydata) {
 			slapi_ch_free_string(&mydata->dn);
 			slapi_ch_free_string(&mydata->bind_dn);
@@ -2808,6 +2823,8 @@ memberof_task_destructor(Slapi_Task *task)
 			slapi_ch_free((void **)&mydata);
 		}
 	}
+	slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+		"memberof_task_destructor <--\n" );
 }
 
 int memberof_fix_memberof(MemberOfConfig *config, char *dn, char *filter_str)
@@ -2846,6 +2863,14 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
 
+	/* 
+	 * If the server is ordered to shutdown, stop the fixup and return an error.
+	 */
+	if (slapi_is_shutting_down()) {
+		rc = -1;
+		goto bail;
+	}
+	/* get a list of all of the groups this user belongs to */
 	groups = memberof_get_groups(config, sdn);
 
 	/* If we found some groups, replace the existing memberOf attribute
@@ -2893,6 +2918,6 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	}
 
 	slapi_valueset_free(groups);
-	
+bail:
 	return rc;
 }

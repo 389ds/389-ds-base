@@ -113,6 +113,8 @@ static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
 static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn);
 static void modify_internal_entry(char *dn, LDAPMod **mods);
 
+static void fixup_tombstone_task_destructor(Slapi_Task *task);
+
 /***********************************
  * Public Functions
  ***********************************/ 
@@ -2218,6 +2220,12 @@ task_fixup_tombstone_thread(void *arg)
     int fixup_count = 0;
     int rc, i, j;
 
+    if (!task) {
+        return; /* no task */
+    }
+    slapi_task_inc_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, TASK_TOMBSTONE_FIXUP,
+                    "fixup_tombstone_task_thread --> refcount incremented.\n" );
     slapi_task_begin(task, 1);
     slapi_task_log_notice(task, "Beginning tombstone fixup task...\n");
     slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
@@ -2233,8 +2241,14 @@ task_fixup_tombstone_thread(void *arg)
 
     /* Okay check the specified backends only */
     for(i = 0; base && base[i]; i++){
-        Slapi_PBlock *search_pb = slapi_pblock_new();
+        Slapi_PBlock *search_pb = NULL;
 
+        if (slapi_is_shutting_down()) {
+            rc = -1;
+            goto bail;
+        }
+
+        search_pb = slapi_pblock_new();
         /* find entries that need fixing... */
         slapi_search_internal_set_pb(search_pb, base[i], LDAP_SCOPE_SUBTREE,
                 filter, NULL, 0, NULL, NULL, plugin_get_default_component_id(), 0);
@@ -2247,8 +2261,7 @@ task_fixup_tombstone_thread(void *arg)
             slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP,
                     "Failed to search backend for tombstones, error %d\n", rc);
             slapi_pblock_destroy(search_pb);
-            slapi_task_finish(task, rc);
-            return;
+            goto bail;
         }
 
         slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
@@ -2281,9 +2294,11 @@ task_fixup_tombstone_thread(void *arg)
     slapi_log_error(SLAPI_LOG_REPL, TASK_TOMBSTONE_FIXUP, "%s %d tombstones.\n",
                     task_data->stripcsn ? "Stripped" : "Fixed", fixup_count);
     slapi_task_inc_progress(task);
+bail:
     slapi_task_finish(task, rc);
-    slapi_ch_array_free(base);
-    slapi_ch_free((void **)&task_data);
+    slapi_task_dec_refcount(task);
+    slapi_log_error(SLAPI_LOG_PLUGIN, TASK_TOMBSTONE_FIXUP,
+                    "fixup_tombstone_task_thread <-- refcount decremented.\n" );
 }
 
 
@@ -2387,6 +2402,8 @@ task_fixup_tombstones_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     }
 
     task = slapi_new_task(slapi_entry_get_ndn(e));
+    /* register our destructor for cleaning up our private data */
+    slapi_task_set_destructor_fn(task, fixup_tombstone_task_destructor);
     task_data = (struct task_tombstone_data *)slapi_ch_calloc(1, sizeof(struct task_tombstone_data));
     task_data->base = base;
     task_data->task = task;
@@ -2420,6 +2437,26 @@ done:
     }
 
     return SLAPI_DSE_CALLBACK_OK;
+}
+
+static void
+fixup_tombstone_task_destructor(Slapi_Task *task)
+{
+    slapi_log_error(SLAPI_LOG_PLUGIN, TASK_TOMBSTONE_FIXUP,
+                    "fixup_tombstone_task_destructor -->\n" );
+    if (task) {
+        struct task_tombstone_data *mydata = (struct task_tombstone_data *)slapi_task_get_data(task);
+        while (slapi_task_get_refcount(task) > 0) {
+            /* Yield to wait for the fixup task finishes. */
+            DS_Sleep (PR_MillisecondsToInterval(100));
+        }
+        if (mydata) {
+            slapi_ch_array_free(mydata->base);
+            slapi_ch_free((void **)&mydata);
+        }
+    }
+    slapi_log_error(SLAPI_LOG_PLUGIN, TASK_TOMBSTONE_FIXUP,
+                    "fixup_tombstone_task_destructor <--\n" );
 }
 
 /* cleanup old tasks that may still be in the DSE from a previous session

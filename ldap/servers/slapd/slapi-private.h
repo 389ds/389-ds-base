@@ -1245,8 +1245,6 @@ void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *add
 
 /***** End of items added for the replication plugin. ***********************/
 
-void    DS_Sleep(PRIntervalTime ticks);
-
 /* macro to specify the behavior of upgradedb & upgradednformat */
 #define SLAPI_UPGRADEDB_FORCE    0x1  /* reindex all (no check w/ idl switch) */
 #define SLAPI_UPGRADEDB_SKIPINIT 0x2  /* call upgradedb as part of other op */

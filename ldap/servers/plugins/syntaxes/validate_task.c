@@ -179,6 +179,10 @@ syntax_validate_task_destructor(Slapi_Task *task)
 {
 	if (task) {
 		task_data *mydata = (task_data *)slapi_task_get_data(task);
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
 		if (mydata) {
 			slapi_ch_free_string(&mydata->dn);
 			slapi_ch_free_string(&mydata->filter_str);
@@ -197,6 +201,12 @@ syntax_validate_task_thread(void *arg)
 	task_data *td = NULL;
 	Slapi_PBlock *search_pb = slapi_pblock_new();
 
+	if (!task) {
+		return; /* no task */
+	}
+	slapi_task_inc_refcount(task);
+	slapi_log_error(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM,
+	                "syntax_validate_task_thread --> refcount incremented.\n" );
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
 
@@ -231,16 +241,26 @@ syntax_validate_task_thread(void *arg)
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
+	slapi_task_dec_refcount(task);
+	slapi_log_error(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM,
+	                "syntax_validate_task_thread <-- refcount decremented.\n"); 
 }
 
 static int
 syntax_validate_task_callback(Slapi_Entry *e, void *callback_data)
 {
-        int rc = 0;
-        char *dn = slapi_entry_get_dn(e);
+	int rc = 0;
+	char *dn = slapi_entry_get_dn(e);
 	task_data *td = (task_data *)callback_data;
 	Slapi_PBlock *pb = NULL;
 
+	/* 
+	 * If the server is ordered to shutdown, stop the fixup and return an error.
+	 */
+	if (slapi_is_shutting_down()) {
+		rc = -1;
+		goto bail;
+	}
 	/* Override the syntax checking config to force syntax checking. */
 	if (slapi_entry_syntax_check(NULL, e, 1) != 0) {
 		char *error_text = NULL;
@@ -261,7 +281,7 @@ syntax_validate_task_callback(Slapi_Entry *e, void *callback_data)
 		/* Keep a tally of the number of invalid entries found. */
 		slapi_counter_increment(td->invalid_entries);
 	}
-
+bail:
 	return rc;
 }
 

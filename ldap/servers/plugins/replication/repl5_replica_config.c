@@ -109,6 +109,8 @@ static CSN* replica_cleanallruv_find_maxcsn(Replica *replica, ReplicaId rid, cha
 static int replica_cleanallruv_get_replica_maxcsn(Repl_Agmt *agmt, char *rid_text, char *basedn, CSN **csn);
 static void preset_cleaned_rid(ReplicaId rid);
 static multimaster_mtnode_extension * _replica_config_get_mtnode_ext (const Slapi_Entry *e);
+static void replica_cleanall_ruv_destructor(Slapi_Task *task);
+static void replica_cleanall_ruv_abort_destructor(Slapi_Task *task);
 
 /*
  * Note: internal add/modify/delete operations should not be run while
@@ -1509,6 +1511,10 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
+
+    /* register our destructor for waiting the task is done */
+    slapi_task_set_destructor_fn(task, replica_cleanall_ruv_destructor);
+
     /*
      *  Get our task settings
      */
@@ -1752,6 +1758,13 @@ replica_cleanallruv_thread(void *arg)
     int aborted = 0;
     int rc = 0;
 
+    if (!data) {
+        return; /* no data */
+    }
+    if (data->task) {
+        slapi_task_inc_refcount(data->task);
+        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_cleanallruv_thread --> refcount incremented.\n");
+    }
     /*
      *  Initialize our settings
      */
@@ -1974,6 +1987,8 @@ done:
     }
     if(data->task){
         slapi_task_finish(data->task, rc);
+        slapi_task_dec_refcount(data->task);
+        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_cleanallruv_thread <-- refcount decremented.\n");
     }
     if(data->payload){
         ber_bvfree(data->payload);
@@ -1987,6 +2002,36 @@ done:
     slapi_ch_free_string(&data->force);
     slapi_ch_free_string(&rid_text);
     slapi_ch_free((void **)&data);
+}
+
+static void
+replica_cleanall_ruv_destructor(Slapi_Task *task)
+{
+	slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name,
+		"replica_cleanall_ruv_destructor -->\n" );
+	if (task) {
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
+	}
+	slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name,
+		"replica_cleanall_ruv_destructor <--\n" );
+}
+
+static void
+replica_cleanall_ruv_abort_destructor(Slapi_Task *task)
+{
+	slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name,
+		"replica_cleanall_ruv_abort_destructor -->\n" );
+	if (task) {
+		while (slapi_task_get_refcount(task) > 0) {
+			/* Yield to wait for the fixup task finishes. */
+			DS_Sleep (PR_MillisecondsToInterval(100));
+		}
+	}
+	slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name,
+		"replica_cleanall_ruv_abort_destructor <--\n" );
 }
 
 /*
@@ -2775,6 +2820,10 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
 
     /* allocate new task now */
     task = slapi_new_task(slapi_entry_get_ndn(e));
+
+    /* register our destructor for waiting the task is done */
+    slapi_task_set_destructor_fn(task, replica_cleanall_ruv_abort_destructor);
+
     /*
      *  Get our task settings
      */
@@ -2921,6 +2970,13 @@ replica_abort_task_thread(void *arg)
     int release_it = 0;
     int count = 0, rc = 0;
 
+    if (!data) {
+        return; /* no data */
+    }
+    if (data->task) {
+        slapi_task_inc_refcount(data->task);
+        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_abort_task_thread --> refcount incremented.\n");
+    }
     cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Aborting task for rid(%d)...",data->rid);
 
     /*
@@ -3028,6 +3084,8 @@ done:
 
     if(data->task){
         slapi_task_finish(data->task, agmt_not_notified);
+        slapi_task_dec_refcount(data->task);
+        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_abort_task_thread <-- refcount incremented.\n");
     }
     if(data->repl_obj && release_it)
         object_release(data->repl_obj);
