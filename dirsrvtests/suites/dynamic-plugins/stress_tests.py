@@ -44,7 +44,7 @@ def configureRI(inst):
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'uniquemember')])
     except ldap.LDAPError, e:
-        log.error('configureRI: Failed to configure RI plugin: error ' + e.message['desc'])
+        log.fatal('configureRI: Failed to configure RI plugin: error ' + e.message['desc'])
         assert False
 
 
@@ -55,7 +55,7 @@ def configureMO(inst):
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
     except ldap.LDAPError, e:
-        log.error('configureMO: Failed to update config(uniquemember): error ' + e.message['desc'])
+        log.fatal('configureMO: Failed to update config(uniquemember): error ' + e.message['desc'])
         assert False
 
 
@@ -63,7 +63,7 @@ def cleanup(conn):
     try:
         conn.delete_s(GROUP_DN)
     except ldap.LDAPError, e:
-        log.error('cleanup: failed to delete group (' + GROUP_DN + ') error: ' + e.message['desc'])
+        log.fatal('cleanup: failed to delete group (' + GROUP_DN + ') error: ' + e.message['desc'])
         assert False
 
 
@@ -83,7 +83,7 @@ class DelUsers(threading.Thread):
             try:
                 conn.delete_s(USER_DN)
             except ldap.LDAPError, e:
-                log.error('DeleteUsers: failed to delete (' + USER_DN + ') error: ' + e.message['desc'])
+                log.fatal('DeleteUsers: failed to delete (' + USER_DN + ') error: ' + e.message['desc'])
                 assert False
 
             idx += 1
@@ -113,7 +113,7 @@ class AddUsers(threading.Thread):
             except ldap.ALREADY_EXISTS:
                 pass
             except ldap.LDAPError, e:
-                log.error('AddUsers: failed to add group (' + USER_DN + ') error: ' + e.message['desc'])
+                log.fatal('AddUsers: failed to add group (' + USER_DN + ') error: ' + e.message['desc'])
                 assert False
 
         log.info('AddUsers - Adding ' + str(NUM_USERS) + ' entries (' + self.rdnval + ')...')
@@ -124,7 +124,7 @@ class AddUsers(threading.Thread):
                 conn.add_s(Entry((USER_DN, {'objectclass': 'top extensibleObject'.split(),
                            'uid': 'user' + str(idx)})))
             except ldap.LDAPError, e:
-                log.error('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])
+                log.fatal('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])
                 assert False
 
             if self.addToGroup:
@@ -132,7 +132,7 @@ class AddUsers(threading.Thread):
                 try:
                     conn.modify_s(GROUP_DN, [(ldap.MOD_ADD, 'uniquemember', USER_DN)])
                 except ldap.LDAPError, e:
-                    log.error('AddUsers: Failed to add user' + USER_DN + ' to group: error ' + e.message['desc'])
+                    log.fatal('AddUsers: Failed to add user' + USER_DN + ' to group: error ' + e.message['desc'])
                     assert False
 
             idx += 1

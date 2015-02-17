@@ -1,0 +1,95 @@
+dn:
+objectClass: top
+aci: (targetattr != "aci")(version 3.0; aci "rootdse anon read access"; allow(
+ read,search,compare) userdn="ldap:///anyone";)
+creatorsName: cn=server,cn=plugins,cn=config
+modifiersName: cn=server,cn=plugins,cn=config
+createTimestamp: 20150204165610Z
+modifyTimestamp: 20150204165610Z
+
+dn: cn=config
+cn: config
+objectClass: top
+objectClass: extensibleObject
+objectClass: nsslapdConfig
+nsslapd-schemadir: /etc/dirsrv/slapd-localhost/schema
+nsslapd-lockdir: /var/lock/dirsrv/slapd-localhost
+nsslapd-tmpdir: /tmp
+nsslapd-certdir: /etc/dirsrv/slapd-localhost
+nsslapd-ldifdir: /var/lib/dirsrv/slapd-localhost/ldif
+nsslapd-bakdir: /var/lib/dirsrv/slapd-localhost/bak
+nsslapd-rundir: /var/run/dirsrv
+nsslapd-instancedir: /usr/lib64/dirsrv/slapd-localhost
+nsslapd-accesslog-logging-enabled: on
+nsslapd-accesslog-maxlogsperdir: 10
+nsslapd-accesslog-mode: 600
+nsslapd-accesslog-maxlogsize: 100
+nsslapd-accesslog-logrotationtime: 1
+nsslapd-accesslog-logrotationtimeunit: day
+nsslapd-accesslog-logrotationsync-enabled: off
+nsslapd-accesslog-logrotationsynchour: 0
+nsslapd-accesslog-logrotationsyncmin: 0
+nsslapd-accesslog: /var/log/dirsrv/slapd-localhost/access
+nsslapd-enquote-sup-oc: off
+nsslapd-localhost: localhost.localdomain
+nsslapd-schemacheck: on
+nsslapd-syntaxcheck: on
+nsslapd-dn-validate-strict: off
+nsslapd-rewrite-rfc1274: off
+nsslapd-return-exact-case: on
+nsslapd-ssl-check-hostname: on
+nsslapd-validate-cert: warn
+nsslapd-allow-unauthenticated-binds: off
+nsslapd-require-secure-binds: off
+nsslapd-allow-anonymous####-access: on
+nsslapd-localssf: 71
+nsslapd-minssf: 0
+nsslapd-port: 389
+nsslapd-localuser: nobody
+nsslapd-errorlog-logging-enabled: on
+nsslapd-errorlog-mode: 600
+nsslapd-errorlog-maxlogsperdir: 2
+nsslapd-errorlog-maxlogsize: 100
+nsslapd-errorlog-logrotationtime: 1
+nsslapd-errorlog-logrotationtimeunit: week
+nsslapd-errorlog-logrotationsync-enabled: off
+nsslapd-errorlog-logrotationsynchour: 0
+nsslapd-errorlog-logrotationsyncmin: 0
+nsslapd-errorlog: /var/log/dirsrv/slapd-localhost/errors
+nsslapd-auditlog: /var/log/dirsrv/slapd-localhost/audit
+nsslapd-auditlog-mode: 600
+nsslapd-auditlog-maxlogsize: 100
+nsslapd-auditlog-logrotationtime: 1
+nsslapd-auditlog-logrotationtimeunit: day
+nsslapd-rootdn: cn=dm
+nsslapd-maxdescriptors: 1024
+nsslapd-max-filter-nest-level: 40
+nsslapd-ndn-cache-enabled: on
+nsslapd-sasl-mapping-fallback: off
+nsslapd-dynamic-plugins: off
+nsslapd-allow-hashed-passwords: off
+nsslapd-ldapifilepath: /var/run/slapd-localhost.socket
+nsslapd-ldapilisten: off
+nsslapd-ldapiautobind: off
+nsslapd-ldapimaprootdn: cn=dm
+nsslapd-ldapimaptoentries: off
+nsslapd-ldapiuidnumbertype: uidNumber
+nsslapd-ldapigidnumbertype: gidNumber
+nsslapd-ldapientrysearchbase: dc=example,dc=com
+nsslapd-defaultnamingcontext: dc=example,dc=com
+aci: (targetattr="*")(version 3.0; acl "Configuration Administrators Group"; a
+ llow (all) groupdn="ldap:///cn=Configuration Administrators,ou=Groups,ou=Topo
+ logyManagement,o=NetscapeRoot";)
+aci: (targetattr="*")(version 3.0; acl "Configuration Administrator"; allow (a
+ ll) userdn="ldap:///uid=admin,ou=Administrators,ou=TopologyManagement,o=Netsc
+ apeRoot";)
+aci: (targetattr = "*")(version 3.0; acl "SIE Group"; allow (all) groupdn = "l
+ dap:///cn=slapd-localhost,cn=389 Directory Server,cn=Server Group,cn=localhos
+ t.localdomain,ou=example.com,o=NetscapeRoot";)
+modifiersName: cn=dm
+modifyTimestamp: 20150205195242Z
+nsslapd-auditlog-logging-enabled: on
+nsslapd-auditlog-logging-hide-unhashed-pw: off
+nsslapd-rootpw: {SSHA}AQH9bTYZW4kfkfyHg1k+lG88H2dFOuwakzFEpw==
+numSubordinates: 10
+
