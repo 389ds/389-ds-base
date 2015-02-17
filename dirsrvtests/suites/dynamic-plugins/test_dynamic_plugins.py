@@ -108,7 +108,7 @@ def test_dynamic_plugins(topology):
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError, e:
-        ldap.error('Failed to enable dynamic plugin!' + e.message['desc'])
+        ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     while 1:

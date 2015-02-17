@@ -22,6 +22,10 @@ log = logging.getLogger(__name__)
 
 installation_prefix = None
 
+attrclass = ldap.schema.models.AttributeType
+occlass = ldap.schema.models.ObjectClass
+syntax_len_supported = False
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -55,9 +59,6 @@ def topology(request):
     schemainst.open()
 
     return TopologyStandalone(schemainst)
-
-attrclass = ldap.schema.models.AttributeType
-occlass = ldap.schema.models.ObjectClass
 
 
 def ochasattr(subschema, oc, mustormay, attr, key):
@@ -133,8 +134,6 @@ def atgetparfield(subschema, at, field):
             break
     return v
 
-syntax_len_supported = False
-
 
 def atgetdiffs(ldschema, at1, at2):
     fields = ['names', 'desc', 'obsolete', 'sup', 'equality', 'ordering', 'substr', 'syntax',
@@ -152,6 +151,9 @@ def atgetdiffs(ldschema, at1, at2):
 
 def test_schema_comparewithfiles(topology):
     '''Compare the schema from ldap cn=schema with the schema files'''
+
+    log.info('Running test_schema_comparewithfiles...')
+
     retval = True
     schemainst = topology.standalone
     ldschema = schemainst.schema.get_subschema()
@@ -187,6 +189,8 @@ def test_schema_comparewithfiles(topology):
                 log.error("name %s oid %s\n%s" % (se.names[0], oid, ret))
                 retval = False
     assert retval
+
+    log.info('test_schema_comparewithfiles: PASSED')
 
 
 def test_schema_final(topology):

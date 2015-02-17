@@ -72,7 +72,7 @@ def test_ticket47953(topology):
     #
     # Import an invalid ldif
     #
-    ldif_file = topology.standalone.getDir(__file__, DATA_DIR) + "ticket47953.ldif"
+    ldif_file = topology.standalone.getDir(__file__, DATA_DIR) + "ticket47953/ticket47953.ldif"
     importTask = Tasks(topology.standalone)
     args = {TASK_WAIT: True}
     try:
