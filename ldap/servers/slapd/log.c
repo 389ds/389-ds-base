@@ -1731,7 +1731,6 @@ slapd_log_audit_proc (
 	int	buf_len)
 {
 	if ( (loginfo.log_audit_state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL) ){
-		int err;
 		LOG_AUDIT_LOCK_WRITE( );
 		if (log__needrotation(loginfo.log_audit_fdes,
 					SLAPD_AUDIT_LOG) == LOG_ROTATE) {
@@ -4152,7 +4151,6 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if (type == SLAPD_ACCESS_LOG) {
-        int err = 0;
 
 		/* It is only safe to flush once any other threads which are copying are finished */
 		while (lbi->refcount > 0) {

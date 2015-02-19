@@ -64,7 +64,6 @@
 
 #include "slap.h"
 
-
 #define DENY_PW_CHANGE_ACI "(targetattr = \"userPassword\") ( version 3.0; acl \"disallow_pw_change_aci\"; deny (write ) userdn = \"ldap:///self\";)"
 #define GENERALIZED_TIME_LENGTH 15
 
@@ -452,7 +451,6 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{
-				typedef int (*CMPFP)(char *, char *);
 				typedef char * (*ENCFP)(char *);
 
 				pwsp =  (struct pw_scheme *) slapi_ch_calloc (1, sizeof(struct pw_scheme));
@@ -528,7 +526,6 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{
-				typedef int (*CMPFP)(char *, char *);
 				typedef char * (*ENCFP)(char *);
 
 				pwsp =  (struct pw_scheme *) slapi_ch_calloc (1, sizeof(struct pw_scheme));
