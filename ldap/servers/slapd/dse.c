@@ -704,9 +704,9 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
     if ( (NULL != pdse) && (NULL != filename) )
     {
         /* check if the "real" file exists and cam be used, if not try tmp as backup */
-	rc = dse_check_file(filename, pdse->dse_tmpfile);
+	rc = dse_check_file((char *)filename, pdse->dse_tmpfile);
 	if (!rc) 
-	    rc = dse_check_file(filename, pdse->dse_fileback);
+	    rc = dse_check_file((char *)filename, pdse->dse_fileback);
 
         if ( (rc = PR_GetFileInfo( filename, &prfinfo )) != PR_SUCCESS )
         {
