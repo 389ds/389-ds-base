@@ -883,7 +883,7 @@ class DirSrvTools(object):
                     done = True
         except AssertionError:
             raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" %
-                                 (expectedHost, loopbackIpPattern))
+                                 (loopbackIpPattern))
 
     @staticmethod
     def runUpgrade(prefix, online=True):
