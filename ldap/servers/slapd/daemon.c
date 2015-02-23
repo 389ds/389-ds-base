@@ -1202,7 +1202,7 @@ static void
 ns_disable_listener(listener_info *listener)
 {
 	/* tell the event framework not to listen for new connections on this listener */
-	ns_job_modify(listener->ns_job, NS_JOB_DISABLE_ONLY);
+	ns_job_modify(listener->ns_job, NS_JOB_DISABLE_ONLY|NS_JOB_PRESERVE_FD);
 	/* add the listener to our list of disabled listeners */
 	PR_StackPush(ns_disabled_listeners, (PRStackElem *)listener);
 	PR_AtomicIncrement(&num_disabled_listeners);
@@ -3492,7 +3492,7 @@ ns_set_shutdown(struct ns_job_t *job)
 
 	/* Signal all the worker threads to stop */
 	ns_thrpool_shutdown(ns_job_get_tp(job));
-	ns_job_done(job)
+	ns_job_done(job);
 }
 #endif
 
