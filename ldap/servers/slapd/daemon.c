@@ -3492,6 +3492,7 @@ ns_set_shutdown(struct ns_job_t *job)
 
 	/* Signal all the worker threads to stop */
 	ns_thrpool_shutdown(ns_job_get_tp(job));
+	ns_job_done(job)
 }
 #endif
 
