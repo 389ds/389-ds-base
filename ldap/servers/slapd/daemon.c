@@ -144,6 +144,9 @@ typedef struct listener_info {
 #endif
 } listener_info;
 
+static int listeners = 0; /* number of listener sockets */
+static listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
+
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
 static int get_configured_connection_table_size();
@@ -162,7 +165,7 @@ static void	set_shutdown (int);
 #ifdef ENABLE_NUNC_STANS
 static void	ns_set_shutdown (struct ns_job_t *job);
 #endif
-static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read, listener_info *listener_idxs, int max_listeners);
+static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read);
 
 #ifdef HPUX10
 static void* catch_signals();
@@ -927,10 +930,10 @@ disk_monitoring_thread(void *nothing)
 }
 
 static void
-handle_listeners(Connection_Table *ct, listener_info *listener_idxs, int n_listeners)
+handle_listeners(Connection_Table *ct)
 {
 	int idx;
-	for (idx = 0; idx < n_listeners; ++idx) {
+	for (idx = 0; idx < listeners; ++idx) {
 		int fdidx = listener_idxs[idx].idx;
 		PRFileDesc *listenfd = listener_idxs[idx].listenfd;
 		int secure = listener_idxs[idx].secure;
@@ -1203,10 +1206,10 @@ ns_disable_listener(listener_info *listener)
 	/* add the listener to our list of disabled listeners */
 	PR_StackPush(ns_disabled_listeners, (PRStackElem *)listener);
 	PR_AtomicIncrement(&num_disabled_listeners);
-        LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_disable_listener: "
-        	       "disabling listener for fd [%d]: [%d] now disabled\n",
-        	       PR_FileDesc2NativeHandle(listener->listenfd),
-        	       num_disabled_listeners);
+	LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_disable_listener: "
+	               "disabling listener for fd [%d]: [%d] now disabled\n",
+	               PR_FileDesc2NativeHandle(listener->listenfd),
+	               num_disabled_listeners);
 }
 #endif
 
@@ -1224,7 +1227,7 @@ ns_enable_listeners()
 	}
 	if (num_enabled) {
 		LDAPDebug1Arg(LDAP_DEBUG_ANY, "ns_enable_listeners: "
-			      "enabled [%d] listeners\n", num_enabled);
+		              "enabled [%d] listeners\n", num_enabled);
 	}
 #endif
 }
@@ -1255,8 +1258,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	PRThread *time_thread_p;
 	int threads;
 	int in_referral_mode = config_check_referral_mode();
-	int n_listeners = 0; /* number of listener sockets */
-	listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
 #ifdef ENABLE_NUNC_STANS
 	ns_thrpool_t *tp;
 #endif
@@ -1372,7 +1373,7 @@ void slapd_daemon( daemon_ports_t *ports )
 			netaddr2string(&ports->n_listenaddr, addrbuf, sizeof(addrbuf)),
 			ports->n_port, oserr, slapd_system_strerror( oserr ) );
 		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
-		n_listeners++;
+		listeners++;
 	}
 #else
 	if ( n_tcps != NULL ) {
@@ -1390,7 +1391,7 @@ void slapd_daemon( daemon_ports_t *ports )
 					slapd_pr_strerror( prerr ));
 				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 			}
-			n_listeners++;
+			listeners++;
 		}
 	}
 #endif
@@ -1410,7 +1411,7 @@ void slapd_daemon( daemon_ports_t *ports )
 					slapd_pr_strerror( prerr ));
 				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 			}
-			n_listeners++;
+			listeners++;
 		}
 	}
 
@@ -1429,12 +1430,12 @@ void slapd_daemon( daemon_ports_t *ports )
 					slapd_pr_strerror( prerr ));
 				g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
 			}
-			n_listeners++;
+			listeners++;
 		}
 	}
 #endif /* ENABLE_LDAPI */
 #endif
-	listener_idxs = (listener_info *)slapi_ch_calloc(n_listeners, sizeof(*listener_idxs));
+	listener_idxs = (listener_info *)slapi_ch_calloc(listeners, sizeof(*listener_idxs));
 #ifdef ENABLE_NUNC_STANS
 	ns_disabled_listeners = PR_CreateStack("disabled_listeners");
 #endif
@@ -1454,8 +1455,8 @@ void slapd_daemon( daemon_ports_t *ports )
 		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
 		ns_add_signal_job(tp, SIGTERM, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
 		ns_add_signal_job(tp, SIGHUP, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
-		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll,listener_idxs,n_listeners);
-		for (ii = 0; ii < n_listeners; ++ii) {
+		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
+		for (ii = 0; ii < listeners; ++ii) {
 			listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
 			ns_add_io_job(tp, listener_idxs[ii].listenfd, ns_listen_job_flags,
 				      ns_handle_new_connection, &listener_idxs[ii], &listener_idxs[ii].ns_job);
@@ -1492,7 +1493,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		/* This select needs to timeout to give the server a chance to test for shutdown */
 		select_return = select(connection_table_size, &readfds, NULL, 0, &wakeup_timer);
 #else
-		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll,listener_idxs,n_listeners);
+		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
 #endif
 		switch (select_return) {
@@ -1528,7 +1529,7 @@ void slapd_daemon( daemon_ports_t *ports )
 			clear_signal(&readfds);
 #else
 			/* handle new connections from the listeners */
-			handle_listeners(the_connection_table, listener_idxs, n_listeners);
+			handle_listeners(the_connection_table);
 			/* handle new data ready */
 			handle_pr_read_ready(the_connection_table, connection_table_size);
 			clear_signal(the_connection_table->fd);
@@ -1554,14 +1555,9 @@ void slapd_daemon( daemon_ports_t *ports )
  		PR_Close( s_tcps );
 	}
 #else
-	/* shutdown the listeners - no more client ops */
-#ifdef ENABLE_NUNC_STANS
-	int ii;
-	for (ii = 0; ii < n_listeners; ++ii) {
-		ns_job_done(listener_idxs[ii].ns_job);
-	}
-#endif
+	/* free the listener indexes */
 	slapi_ch_free((void **)&listener_idxs);
+
 	for (fdesp = n_tcps; fdesp && *fdesp; fdesp++) {
 		PR_Close( *fdesp );
 	}
@@ -1667,7 +1663,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		uniqueIDGenCleanup ();   
 	}
 
-	plugin_closeall( 1 /* Close Backends */, 1 /* Close Gloabls */); 
+	plugin_closeall( 1 /* Close Backends */, 1 /* Close Globals */);
 
 	if ( ! in_referral_mode ) {
 		/* Close SNMP collator after the plugins closed... 
@@ -1872,7 +1868,7 @@ static void setup_read_fds(Connection_Table *ct, fd_set *readfds, int n_tcps, in
 static int first_time_setup_pr_read_pds = 1;
 static int listen_addr_count = 0;
 static void
-setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read, listener_info *listener_idxs, int max_listeners)
+setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read)
 {
 	Connection *c= NULL;
 	Connection *next= NULL;
@@ -1998,7 +1994,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		first_time_setup_pr_read_pds = 0;
 		listen_addr_count = count;
 
-		if (n_listeners < max_listeners) {
+		if (n_listeners < listeners) {
 			listener_idxs[n_listeners].idx = 0;
 			listener_idxs[n_listeners].listenfd = NULL;
 		}
@@ -3484,7 +3480,17 @@ set_shutdown (int sig)
 static void
 ns_set_shutdown(struct ns_job_t *job)
 {
+	int i;
+
 	set_shutdown(0);
+
+	/* Stop all the long running jobs */
+	for (i = 0; i < listeners; ++i) {
+		ns_job_done(listener_idxs[i].ns_job);
+		listener_idxs[i].ns_job = NULL;
+	}
+
+	/* Signal all the worker threads to stop */
 	ns_thrpool_shutdown(ns_job_get_tp(job));
 }
 #endif
