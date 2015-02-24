@@ -453,7 +453,7 @@ extensible_candidates(
             slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &mrOID);
             slapi_pblock_get (pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
 
-            if (mrVALUES != NULL && *mrVALUES != NULL)
+            if (mrVALUES && *mrVALUES && mrTYPE)
             {
                 /*
                  * Compute keys for each of the values, individually.
