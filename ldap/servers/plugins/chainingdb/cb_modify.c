@@ -86,6 +86,10 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	}
 
 	slapi_pblock_get( pb, SLAPI_MODIFY_TARGET_SDN, &sdn );
+	if (NULL == sdn) {
+		cb_send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "Null target DN", 0, NULL );
+		return -1;
+	}
 	dn = slapi_sdn_get_dn(sdn);
 
 	if (cb_debug_on()) {
