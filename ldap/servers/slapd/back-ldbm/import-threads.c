@@ -3114,16 +3114,13 @@ static int bulk_import_start(Slapi_PBlock *pb)
     PRThread *thread = NULL;
     int ret = 0;
 
-    job = CALLOC(ImportJob);
-    if (job == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, "not enough memory to do import job\n",
-                  0, 0, 0);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    if (be == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "bulk_import_start: backend is not set\n");
         return -1;
     }
-
-    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    job = CALLOC(ImportJob);
     slapi_pblock_get(pb, SLAPI_LDIF2DB_ENCRYPT, &job->encrypt);
-    PR_ASSERT(be != NULL);
     li = (struct ldbminfo *)(be->be_database->plg_private);
     job->inst = (ldbm_instance *)be->be_instance_info;
 
