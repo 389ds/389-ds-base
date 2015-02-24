@@ -88,6 +88,11 @@ chaining_back_modrdn ( Slapi_PBlock *pb )
 	}
 
 	slapi_pblock_get( pb, SLAPI_MODRDN_TARGET_SDN, &sdn );
+	if (NULL == sdn) {
+		cb_send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "Null target DN", 0, NULL);
+		return -1;
+	}
+
 	/* newrdn is passed to ldap_rename, which does not require case-ignored
 	 * newrdn. */
 	slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn );
