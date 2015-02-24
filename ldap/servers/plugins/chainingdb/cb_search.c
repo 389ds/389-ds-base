@@ -792,6 +792,8 @@ chainingdb_prev_search_results ( Slapi_PBlock *pb )
 
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &ctx );
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_ENTRY, &entry );
-    ctx->readahead = entry;
+    if (ctx) {
+        ctx->readahead = entry;
+    }
     return;
 }
