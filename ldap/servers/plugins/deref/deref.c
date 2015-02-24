@@ -724,7 +724,7 @@ deref_pre_entry(Slapi_PBlock *pb)
     ber_printf(ctrlber, "{"); /* begin control value */
 
     slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_ORIG, &ent);
-    for (spec = deref_get_first_spec(speclist, &ii); spec;
+    for (spec = deref_get_first_spec(speclist, &ii); ent && spec;
          spec = deref_get_next_spec(speclist, &ii)) {
         Slapi_Value *sv;
         int idx = 0;
