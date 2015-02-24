@@ -99,15 +99,22 @@ legacy_preop(Slapi_PBlock *pb, const char *caller, int operation_type)
 	Slapi_Operation *operation = NULL;
 	consumer_operation_extension *opext = NULL;
 	int has_cf = 0;
-    Object *r_obj;
-    Replica *r;
+	Object *r_obj;
+	Replica *r;
 	int is_legacy_op = 0;
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation );
+	if (NULL == operation) {
+		slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, 
+		                       "Null replication operation is given", 0, NULL);
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		                "Null replication operation is given\n");
+		return -1;
+	}
 	is_legacy_op = operation_is_flag_set(operation,OP_FLAG_LEGACY_REPLICATION_DN);
-    r_obj = replica_get_replica_for_op (pb);
+	r_obj = replica_get_replica_for_op (pb);
 
-    if (r_obj == NULL) {  /* there is no replica configured for this operations */
+	if (r_obj == NULL) {  /* there is no replica configured for this operations */
 		if (is_legacy_op){
 			/* This is a legacy replication operation but there are NO replica defined
 			   Just refuse it */
