@@ -783,8 +783,11 @@ attrcrypt_crypto_op_values(attrcrypt_private *priv,  backend *be, struct attrinf
 		Slapi_Value *encrypted_value = NULL;
 
 		ret = attrcrypt_crypto_op_value(priv,be,ai,invalues[i],&encrypted_value,encrypt);
-		if (0 == ret) {
-			encrypted_values[i] = encrypted_value;	
+		if (ret) { /* If failed even once, free the entire Slapi_Value */
+			valuearray_free(&encrypted_values); /* encrypted_values is set to NULL */
+			break;
+		} else {
+			encrypted_values[i] = encrypted_value;
 		}
 	}
 	*outvalues = encrypted_values;
