@@ -155,9 +155,13 @@ matchrule_values_to_keys(Slapi_PBlock *pb,struct berval **input_values,struct be
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_INDEX_FN, &mrINDEX);
 	slapi_pblock_set (pb, SLAPI_PLUGIN_MR_VALUES, input_values);
-	mrINDEX (pb);
-	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_KEYS, output_values);
-	return 0;
+	if (mrINDEX) {
+		mrINDEX (pb);
+		slapi_pblock_get (pb, SLAPI_PLUGIN_MR_KEYS, output_values);
+		return LDAP_SUCCESS;
+	} else {
+		return LDAP_OPERATIONS_ERROR;
+	}
 }
 	
 /*
