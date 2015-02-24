@@ -1201,10 +1201,12 @@ ldbm_compute_rewriter(Slapi_PBlock *pb)
 			} else {
 				/* So let's grok the filter in detail and try to rewrite it */
 				slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &f );
-				rc = grok_and_rewrite_filter(f);
-				if (0 == rc) {
-					/* he rewrote it ! fixup the string version */
-					/* slapi_pblock_set( pb, SLAPI_SEARCH_STRFILTER, newfstr ); */
+				if (f) {
+					rc = grok_and_rewrite_filter(f);
+					if (0 == rc) {
+						/* he rewrote it ! fixup the string version */
+						/* slapi_pblock_set( pb, SLAPI_SEARCH_STRFILTER, newfstr ); */
+					}
 				}
 			}
 		}
