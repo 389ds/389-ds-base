@@ -1811,7 +1811,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         struct attrinfo *ai = NULL;
 
         slapi_pblock_get(pb, SLAPI_DB2INDEX_ATTRS, &attrs);
-        for (i = 0; attrs[i] != NULL; i++) {
+        for (i = 0; attrs && attrs[i]; i++) {
             if ( g_get_shutdown() || c_get_shutdown() ) {
                 goto err_out;
             }
