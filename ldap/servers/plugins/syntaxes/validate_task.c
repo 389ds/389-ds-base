@@ -199,7 +199,7 @@ syntax_validate_task_thread(void *arg)
 	int rc = 0;
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
-	Slapi_PBlock *search_pb = slapi_pblock_new();
+	Slapi_PBlock *search_pb = NULL;
 
 	if (!task) {
 		return; /* no task */
@@ -220,14 +220,14 @@ syntax_validate_task_thread(void *arg)
 
 	/* Perform the search and use a callback
 	 * to validate each matching entry. */
-        slapi_search_internal_set_pb(search_pb, td->dn,
-                LDAP_SCOPE_SUBTREE, td->filter_str, 0, 0,
-                0, 0, syntax_validate_get_plugin_id(), 0);
+	search_pb = slapi_pblock_new();
+	slapi_search_internal_set_pb(search_pb, td->dn,
+	        LDAP_SCOPE_SUBTREE, td->filter_str, 0, 0,
+	        0, 0, syntax_validate_get_plugin_id(), 0);
 
-        rc = slapi_search_internal_callback_pb(search_pb,
-                td, 0, syntax_validate_task_callback, 0);
+	rc = slapi_search_internal_callback_pb(search_pb, td, 0, syntax_validate_task_callback, 0);
 
-        slapi_pblock_destroy(search_pb);
+	slapi_pblock_destroy(search_pb);
 
 	/* Log finished message. */
 	slapi_task_log_notice(task, "Syntax validate task complete.  Found %" NSPRIu64
