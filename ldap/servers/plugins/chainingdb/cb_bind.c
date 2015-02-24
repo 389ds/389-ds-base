@@ -257,7 +257,7 @@ chainingdb_bind( Slapi_PBlock *pb )
 		cb_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
 		if (ctrls)
 			ldap_controls_free(ctrls);
-			return SLAPI_BIND_FAIL;
+		return SLAPI_BIND_FAIL;
 	}
 	if (ctrls)
 		ldap_controls_free(ctrls);
@@ -267,6 +267,10 @@ chainingdb_bind( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method );
 	slapi_pblock_get( pb, SLAPI_BIND_SASLMECHANISM, &mechanism);
 	slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds );
+	if (NULL == creds) {
+		cb_send_ldap_result( pb, rc, NULL, "No credentials", 0, NULL );
+		return SLAPI_BIND_FAIL;
+	}
 	slapi_pblock_get( pb, SLAPI_REQCONTROLS, &reqctrls );
 	cb = cb_get_instance(be);
 
