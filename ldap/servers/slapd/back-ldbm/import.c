@@ -1596,15 +1596,12 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
     int up_flags = 0;
     PRThread *thread = NULL;
 
-    job = CALLOC(ImportJob);
-    if (job == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, "not enough memory to do import job\n",
-                  0, 0, 0);
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    if (be == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_ldif2ldbm_deluxe: backend is not set\n");
         return -1;
     }
-
-    slapi_pblock_get( pb, SLAPI_BACKEND, &be);
-    PR_ASSERT(NULL != be);
+    job = CALLOC(ImportJob);
     job->inst = (ldbm_instance *)be->be_instance_info;
     slapi_pblock_get( pb, SLAPI_LDIF2DB_NOATTRINDEXES, &noattrindexes );
     slapi_pblock_get( pb, SLAPI_LDIF2DB_FILE, &name_array );
