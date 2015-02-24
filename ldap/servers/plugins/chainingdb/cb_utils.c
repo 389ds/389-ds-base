@@ -127,21 +127,25 @@ struct berval ** referrals2berval(char ** referrals) {
 ** We also check max hop count for loop detection for both internal
 ** and external operations
 */
+int
+cb_forward_operation(Slapi_PBlock * pb)
+{
+	Slapi_Operation          *op = NULL;
+	Slapi_Backend            *be;
+	struct slapi_componentid *cid = NULL;
+	char                     *pname;
+	cb_backend_instance      *cb;
+	int                      retcode;
+	LDAPControl              **ctrls=NULL;
 
-int cb_forward_operation(Slapi_PBlock * pb ) {
-
-	Slapi_Operation 		*op=NULL;
-        Slapi_Backend           	*be;
-        struct slapi_componentid 	*cid = NULL;
-	char 				*pname;
-        cb_backend_instance     	*cb;
-	int 				retcode;
- 	LDAPControl             	**ctrls=NULL;
-
-        slapi_pblock_get (pb, SLAPI_OPERATION, &op);
+	slapi_pblock_get (pb, SLAPI_OPERATION, &op);
+	if (NULL == op) {
+		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, "No operation is set.\n");
+		return LDAP_UNWILLING_TO_PERFORM;
+	}
 
 	/* Loop detection */
-        slapi_pblock_get( pb, SLAPI_REQCONTROLS, &ctrls );
+	slapi_pblock_get( pb, SLAPI_REQCONTROLS, &ctrls );
 
 	if ( NULL != ctrls ) {
 		struct berval   *ctl_value=NULL;
