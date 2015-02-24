@@ -575,12 +575,18 @@ sync_send_results( void *arg )
 	slapi_pblock_get(req->req_pblock, SLAPI_CONN_ID, &connid);
 	slapi_pblock_get(req->req_pblock, SLAPI_OPERATION_ID, &opid);
 	slapi_pblock_get(req->req_pblock, SLAPI_CONNECTION, &conn);
-
+	if (NULL == conn) {
+		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
+						"conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
+						(long long unsigned int)connid, opid);
+		return;
+	}
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
 		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
 						(long long unsigned int)connid, opid);
+		return;
 	}
 
 	PR_Lock( sync_request_list->sync_req_cvarlock );
