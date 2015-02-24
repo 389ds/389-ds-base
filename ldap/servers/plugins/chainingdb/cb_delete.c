@@ -84,8 +84,11 @@ chaining_back_delete ( Slapi_PBlock *pb )
 	}
 
 	slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn );
+	if (NULL == sdn) {
+		cb_send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "Null target DN", 0, NULL);
+		return -1;
+	}
 	dn = slapi_sdn_get_dn(sdn);
-
 	/* 
 	 * Check local acls
 	 */
