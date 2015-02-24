@@ -733,7 +733,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
             }
             plugin_funct = slapi_ch_strdup(slapi_value_get_string(val));
         } else if (!strcasecmp(type, "nsslapd-distribution-root-update")) {
-	    const char *sval;
+            const char *sval;
             slapi_attr_first_value(attr, &val);
             if (NULL == val) {
                 LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
@@ -3144,8 +3144,10 @@ slapi_on_internal_backends(const Slapi_DN *sdn)
  * but default to specialized use of those operations 
  * e.g rootDse search, ConfigRoot searches
  * cn=config, cn=schema etc
+ * Return value: 1 if reserved.
+ *               0 if not reserved.
+ *              -1 in error case.
  */
-
 int slapi_op_reserved(Slapi_PBlock *pb)
 {   
     int scope=LDAP_SCOPE_BASE;
@@ -3155,6 +3157,9 @@ int slapi_op_reserved(Slapi_PBlock *pb)
     Slapi_DN *target_sdn=NULL;
         
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (NULL == op) {
+        return -1;
+    }
     slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &op_type);
     /* Get the target for this op */
     target_sdn = operation_get_target_spec (op);
@@ -3162,9 +3167,8 @@ int slapi_op_reserved(Slapi_PBlock *pb)
     if( op_type == SLAPI_OPERATION_SEARCH){
         slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
         if( sdn_is_nulldn(target_sdn) && (scope == LDAP_SCOPE_BASE) ){
-                reservedOp = 1;
+            reservedOp = 1;
         } 
-                
     }            
     
     if(slapi_on_internal_backends(target_sdn)){
