@@ -231,7 +231,7 @@ write_replog_db(
             if ( entry == NULL ) {
                 slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &entry );
             }
-
+            if ( entry == NULL ) continue;
             uniqueId = slapi_entry_get_uniqueid( entry );
 
             slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
