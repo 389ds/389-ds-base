@@ -398,6 +398,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
     int number_found = 0;
     int pass_number = 0;
     DB **input_files = NULL;
+    DBC **input_cursors = NULL;
 
     PR_ASSERT(NULL != inst);
     
@@ -441,7 +442,6 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
     } else {
 	/* We really need to merge */
 	import_merge_queue_entry *merge_queue = NULL;
-	DBC **input_cursors = NULL;
 	DBT key = {0};
 	import_merge_thang thang = {0};
 	int i = 0;
@@ -629,13 +629,13 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	    }			
 	}
 	if (preclose_ret != 0) ret = preclose_ret;
-	slapi_ch_free( (void**)&input_cursors);
     }
     if (EOF == ret) {
 	ret = 0;
     }
 
 error:
+    slapi_ch_free((void**)&input_cursors);
     slapi_ch_free((void**)&input_files);
     if (ret) {
         import_log_notice(worker->job, "%s: Import merge failed. "
