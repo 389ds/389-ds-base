@@ -1260,6 +1260,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	int in_referral_mode = config_check_referral_mode();
 #ifdef ENABLE_NUNC_STANS
 	ns_thrpool_t *tp;
+	struct ns_thrpool_config tp_config;
 #endif
 	int connection_table_size = get_configured_connection_table_size();
 	the_connection_table= connection_table_new(connection_table_size);
@@ -1451,7 +1452,14 @@ void slapd_daemon( daemon_ports_t *ports )
 		if (getenv("MAX_THREADS")) {
 			maxthreads = atoi(getenv("MAX_THREADS"));
 		}
-		tp = ns_thrpool_new(maxthreads, maxthreads, 0, 1024);
+		/* Set the nunc-stans thread pool config */
+		tp_config.initial_threads = maxthreads;
+		tp_config.max_threads = maxthreads;
+		tp_config.stacksize = 0;
+		tp_config.event_queue_size = config_get_maxdescriptors();
+		tp_config.work_queue_size = config_get_maxdescriptors();
+
+		tp = ns_thrpool_new(&tp_config);
 		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
 		ns_add_signal_job(tp, SIGTERM, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
 		ns_add_signal_job(tp, SIGHUP, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);

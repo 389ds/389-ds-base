@@ -278,7 +278,7 @@ connection_cleanup(Connection *conn)
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
-	if (enable_listeners) {
+	if (enable_listeners && !g_get_shutdown()) {
 		ns_enable_listeners();
 	}
 #ifdef ENABLE_NUNC_STANS
