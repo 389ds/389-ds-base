@@ -103,11 +103,12 @@ static int slapi_log_map[] = {
     LDAP_DEBUG_PLUGIN,		/* SLAPI_LOG_PLUGIN */
     LDAP_DEBUG_TIMING,		/* SLAPI_LOG_TIMING */
     LDAP_DEBUG_BACKLDBM,	/* SLAPI_LOG_BACKLDBM */
-    LDAP_DEBUG_ACLSUMMARY	/* SLAPI_LOG_ACLSUMMARY */
+    LDAP_DEBUG_ACLSUMMARY,	/* SLAPI_LOG_ACLSUMMARY */
+    LDAP_DEBUG_NUNCSTANS	/* SLAPI_LOG_NUNCSTANS */
 };
 
 #define SLAPI_LOG_MIN	SLAPI_LOG_FATAL		/* from slapi-plugin.h */
-#define SLAPI_LOG_MAX	SLAPI_LOG_ACLSUMMARY	/* from slapi-plugin.h */
+#define SLAPI_LOG_MAX	SLAPI_LOG_NUNCSTANS	/* from slapi-plugin.h */
 #define	TBUFSIZE 50				/* size for time buffers */
 #define SLAPI_LOG_BUFSIZ 2048			/* size for data buffers */
 /**************************************************************************

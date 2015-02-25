@@ -6096,7 +6096,8 @@ int slapi_log_error_ext( int severity, char *subsystem, char *fmt, va_list varg1
 #define SLAPI_LOG_PLUGIN		14
 #define SLAPI_LOG_TIMING		15
 #define SLAPI_LOG_BACKLDBM		16
-#define SLAPI_LOG_ACLSUMMARY		17 /* ACLSUMMARY must be the last (log.c) */
+#define SLAPI_LOG_ACLSUMMARY		17
+#define SLAPI_LOG_NUNCSTANS		18 /* The last level must be set in log.c: SLAPI_LOG_MAX */
 
 int slapi_is_loglevel_set( const int loglevel );
 

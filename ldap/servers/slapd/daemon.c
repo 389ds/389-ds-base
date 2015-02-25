@@ -1232,6 +1232,27 @@ ns_enable_listeners()
 #endif
 }
 
+#ifdef ENABLE_NUNC_STANS
+/*
+ * Nunc stans logging function.
+ */
+static void
+nunc_stans_logging(int priority, const char *format, va_list varg)
+{
+	va_list varg_copy;
+	int severity = SLAPI_LOG_FATAL;
+
+	if (priority == LOG_DEBUG){
+		severity = SLAPI_LOG_NUNCSTANS;
+	} else if(priority == LOG_INFO){
+		severity = SLAPI_LOG_CONNS;
+	}
+	va_copy(varg_copy, varg);
+	slapi_log_error_ext(severity, "nunc-stans", (char *)format, varg, varg_copy);
+	va_end(varg_copy);
+}
+#endif
+
 void slapd_daemon( daemon_ports_t *ports )
 {
 	/* We are passed some ports---one for regular connections, one
@@ -1458,6 +1479,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		tp_config.stacksize = 0;
 		tp_config.event_queue_size = config_get_maxdescriptors();
 		tp_config.work_queue_size = config_get_maxdescriptors();
+		tp_config.log_fct = nunc_stans_logging;
 
 		tp = ns_thrpool_new(&tp_config);
 		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
