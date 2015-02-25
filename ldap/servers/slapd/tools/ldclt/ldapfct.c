@@ -1201,8 +1201,7 @@ connectToServer (
       fprintf (stderr, "ldclt[%d]: T%03d: cannot ldap_unbind(), error=%d (%s)\n",
 			mctx.pid, tttctx->thrdNum, ret,strerror (ret));
       fflush (stderr);
-      if (addErrorStat (ret) < 0)
-	return (-1);
+      addErrorStat(ret);
       return (-1);
     }
     tttctx->ldapCtx = NULL;
