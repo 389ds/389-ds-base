@@ -856,6 +856,30 @@ slapi_filter_join_ex( int ftype, struct slapi_filter *f1, struct slapi_filter *f
 	struct slapi_filter *return_this;
 	int insert = 0;
 
+	if ((NULL == f1) || (NULL == f2)) {
+		switch(ftype) {
+		case LDAP_FILTER_AND:
+			return NULL;
+		case LDAP_FILTER_OR:
+			return f1?f1:f2;
+		default:
+			if (NULL == f1) {
+				if (NULL == f2) {
+					return NULL;
+				} else {
+					add_this = f2;
+				}
+			} else {
+				add_this = f1;
+			}
+			fjoin = (struct slapi_filter *)slapi_ch_calloc(1, sizeof(struct slapi_filter));
+			fjoin->f_choice = ftype;
+			fjoin->f_list = add_this;
+			filter_compute_hash(fjoin);
+			return fjoin;
+		}
+	}
+
 	if(!recurse_always)
 	{
 		/* try to optimise the filter join */
