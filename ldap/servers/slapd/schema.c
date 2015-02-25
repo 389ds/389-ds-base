@@ -2089,6 +2089,14 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
   slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods );
   slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &is_replicated_operation);
   slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
+  if (NULL == operation) {
+    *returncode = LDAP_OPERATIONS_ERROR;
+    schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                schema_errprefix_generic, "Generic", 
+                "operation is null" );
+    return (SLAPI_DSE_CALLBACK_ERROR);
+  }
+
   is_internal_operation = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
   /* In case we receive a schema from a supplier, check if we can accept it
