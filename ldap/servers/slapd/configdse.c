@@ -369,8 +369,7 @@ load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *r
 	}
 
 	*returncode = retval;
-	return (retval == LDAP_SUCCESS) ? SLAPI_DSE_CALLBACK_OK
-			: SLAPI_DSE_CALLBACK_ERROR;
+	return SLAPI_DSE_CALLBACK_OK;
 }
 
 int
