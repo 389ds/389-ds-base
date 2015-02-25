@@ -597,6 +597,10 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
      */
    
     (void)slapi_pblock_get( pb, SLAPI_BACKEND, &be );
+    if (be == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "retrocl_postob: backend is not set\n");
+        return SLAPI_PLUGIN_FAILURE;
+    }
     
     if (slapi_be_logchanges(be) == 0) {
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change if not logging\n");
