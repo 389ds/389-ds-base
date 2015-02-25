@@ -987,11 +987,17 @@ copy_operation_parameters(Slapi_PBlock *pb)
         /* we only save the original operation parameters for replicated operations
            since client operations don't go through urp engine and pblock data can be logged */
         slapi_pblock_get( pb, SLAPI_OPERATION, &op );
-        PR_ASSERT (op);
-
+        if (NULL == op) {
+            slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                            "copy_operation_parameters: operation is null.\n");
+            return;
+        }
         replica = (Replica*)object_get_data (repl_obj);
-        PR_ASSERT (replica);
-
+        if (NULL == replica) {
+            slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                            "copy_operation_parameters: replica is null.\n");
+            return;
+        }
         opext = (supplier_operation_extension*) repl_sup_get_ext (REPL_SUP_EXT_OP, op);
         if (operation_is_flag_set(op,OP_FLAG_REPLICATED) &&
             !operation_is_flag_set(op, OP_FLAG_REPL_FIXUP))
@@ -1054,7 +1060,7 @@ update_ruv_component(Replica *replica, CSN *opcsn, Slapi_PBlock *pb)
  */
 static int
 write_changelog_and_ruv (Slapi_PBlock *pb)
-{	
+{
 	Slapi_Operation *op = NULL;
 	int rc;
 	slapi_operation_parameters *op_params = NULL;
@@ -1066,6 +1072,9 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 
 	/* we just let fixup operations through */
 	slapi_pblock_get( pb, SLAPI_OPERATION, &op );
+	if (NULL == op) {
+		return return_value;
+	}
 	if ((operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) ||
 		(operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)))
 	{
@@ -1125,7 +1134,9 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			const char *uniqueid = NULL;
 
 			slapi_pblock_get (pb, SLAPI_OPERATION_PARAMETERS, &op_params);
-			PR_ASSERT (op_params);
+			if (NULL == op_params) {
+				return return_value;
+			}
 
 			/* need to set uniqueid operation parameter */
 			/* we try to use the appropriate entry (pre op or post op) 
@@ -1142,12 +1153,13 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			{
 				slapi_pblock_get (pb, SLAPI_ENTRY_PRE_OP, &e);
 			}
-
-			PR_ASSERT (e);
-
+			if (NULL == e) {
+				return return_value;
+			}
 			uniqueid = slapi_entry_get_uniqueid (e);
-			PR_ASSERT (uniqueid);
-
+			if (NULL == uniqueid) {
+				return return_value;
+			}
 			op_params->target_address.uniqueid = slapi_ch_strdup (uniqueid);
 		} 
 
@@ -1343,17 +1355,20 @@ cancel_opcsn (Slapi_PBlock *pb)
     Object *repl_obj;
     Slapi_Operation *op = NULL;
 
-    PR_ASSERT (pb);
-
+    if (NULL == pb) {
+        return SLAPI_PLUGIN_SUCCESS;
+    }
     repl_obj = replica_get_replica_for_op (pb);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-    PR_ASSERT (op);
-	if (repl_obj)
+    if (NULL == op) {
+        return SLAPI_PLUGIN_SUCCESS;
+    }
+    if (repl_obj)
     {
         Replica *r;
         Object *gen_obj;
         CSNGen *gen;
-		CSN *opcsn;
+        CSN *opcsn;
 
         r = (Replica*)object_get_data (repl_obj);
         PR_ASSERT (r);
@@ -1365,11 +1380,11 @@ cancel_opcsn (Slapi_PBlock *pb)
             gen_obj = replica_get_csngen (r);        
             PR_ASSERT (gen_obj);
             gen = (CSNGen*)object_get_data (gen_obj);
-		    
-		    if (NULL != opcsn)
-		    {
-			    csngen_abort_csn (gen, operation_get_csn(op));
-		    }
+            
+            if (NULL != opcsn)
+            {
+                csngen_abort_csn (gen, operation_get_csn(op));
+            }
         
             object_release (gen_obj);
         }
