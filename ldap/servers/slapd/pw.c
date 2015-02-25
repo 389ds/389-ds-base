@@ -99,6 +99,10 @@ pw_send_ldap_result(
 	Slapi_Operation *operation = NULL;
 	
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
+	if (NULL == operation) {
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy", "pw_send_ldap_result: no operation\n");
+		return;
+	}
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
 	if (internal_op) {
@@ -203,7 +207,7 @@ char* slapi_encode_ext (Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char
 
 		if (pws_enc == NULL)
 		{
-			slapi_log_error( SLAPI_LOG_FATAL, NULL, 
+			slapi_log_error( SLAPI_LOG_FATAL, "pwdpolicy", 
 							"slapi_encode: no server scheme\n" );
 			return NULL;		
 		}
@@ -215,12 +219,12 @@ char* slapi_encode_ext (Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char
 		{
 			char * scheme_list = plugin_get_pwd_storage_scheme_list(PLUGIN_LIST_PWD_STORAGE_SCHEME);
 			if ( scheme_list != NULL ) {
-				slapi_log_error( SLAPI_LOG_FATAL, NULL, 
+				slapi_log_error( SLAPI_LOG_FATAL, "pwdpolicy", 
 								"slapi_encode: invalid scheme - %s\n"
 								"Valid values are: %s\n", alg, scheme_list );
 				slapi_ch_free((void **)&scheme_list);
 			} else {
-				slapi_log_error( SLAPI_LOG_FATAL, NULL,
+				slapi_log_error( SLAPI_LOG_FATAL, "pwdpolicy",
 								"slapi_encode: invalid scheme - %s\n"
 								"no pwdstorage scheme plugin loaded", alg);
 			}
@@ -632,6 +636,10 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
+	if (NULL == e) {
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy", "update_pw_info: no password entry \n");
+		return -1;
+	}
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 	target_dn = slapi_sdn_get_ndn(sdn);
 	pwpolicy = new_passwdPolicy(pb, target_dn);
@@ -834,7 +842,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 		return 0;
 	}
 	if (NULL == vals) {
-		slapi_log_error( SLAPI_LOG_FATAL, NULL, 
+		slapi_log_error( SLAPI_LOG_FATAL, "pwdpolicy", 
 		                 "check_pw_syntax_ext: no passwords to check\n" );
 		return -1;
 	}
@@ -844,6 +852,10 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replication);
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+	if (NULL == operation) {
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy", "check_pw_syntax_ext: no operation\n");
+		return -1;
+	}
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
 
 	/*
@@ -2527,9 +2539,9 @@ pw_entry_constructor(void *object, void *parent)
 	struct slapi_pw_entry_ext *pw_extp = NULL;
 	Slapi_RWLock *rwlock;
 	if ((rwlock = slapi_new_rwlock()) == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy",
 		                "pw_entry_constructor: slapi_new_rwlock() failed\n");
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy",
 		                "WARNING: the server cannot handle unhashed password.\n");
 		return NULL;
 	}
@@ -2569,7 +2581,7 @@ pw_exp_init ( void )
 	                                    pw_entry_destructor,
 	                                    &pw_entry_objtype,
 	                                    &pw_entry_handle) != 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy",
 		                "pw_init: slapi_register_object_extension failed; "
 		                "unhashed password is not able to access\n");
 	}
@@ -2585,7 +2597,7 @@ slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals)
 	struct slapi_pw_entry_ext *extp = NULL;
 
 	if (NULL == vals) {
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy",
 		                "slapi_pw_get_entry_ext: output param vals is NULL.\n");
 		return LDAP_PARAM_ERROR;
 	}
