@@ -321,6 +321,11 @@ usn_preop_delete(Slapi_PBlock *pb)
                     "--> usn_preop_delete\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (NULL == op) {
+        slapi_log_error(SLAPI_LOG_FATAL, USN_PLUGIN_SUBSYSTEM,
+                        "<-- usn_preop_delete failed; no operation.\n");
+        return SLAPI_PLUGIN_FAILURE;
+    }
     slapi_operation_set_replica_attr_handler(op, (void *)usn_get_attr);
 
     slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
