@@ -800,10 +800,16 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     }
 
     slapi_pblock_get(pb, SLAPI_BIND_SASLMECHANISM, &mech);
+    if (NULL == mech) {
+      rc = SASL_NOMECH;
+      goto sasl_check_result;
+    }
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
+    if (NULL == cred) {
+      rc = SASL_BADPARAM;
+      goto sasl_check_result;
+    }
     slapi_pblock_get(pb, SLAPI_PWPOLICY, &pwresponse_requested);
-    PR_ASSERT(mech);
-    PR_ASSERT(cred);
 
     /* Work around a bug in the sasl library. We've told the
      * library that CRAM-MD5 is disabled, but it gives us a
@@ -877,7 +883,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
                            cred->bv_val, cred->bv_len, 
                            &sdata, &slen);
 
- sasl_check_result:
+sasl_check_result:
 
     switch (rc) {
     case SASL_OK:               /* complete */
