@@ -217,8 +217,7 @@ clcache_set_config ()
 	 * for DB_MULTIPLE_KEY operation.
 	 */
 	_pool->pl_buffer_default_pages = CL5_DEFAULT_CONFIG_CACHEMEMSIZE / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1;
-	_pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_PAGE_COUNT;
-	if ( _pool->pl_buffer_default_pages <= 0 ) {
+	if ( _pool->pl_buffer_default_pages <= 0 ) { /* this never be true... */
 		_pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_PAGE_COUNT;
 	}
 
