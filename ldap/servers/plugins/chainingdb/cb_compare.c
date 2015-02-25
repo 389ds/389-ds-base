@@ -85,10 +85,13 @@ chaining_back_compare ( Slapi_PBlock *pb )
 		return -1;
 	}
 
-	slapi_pblock_get( pb, SLAPI_COMPARE_TARGET_SDN, &sdn );
 	slapi_pblock_get( pb, SLAPI_COMPARE_TYPE, &type );
 	slapi_pblock_get( pb, SLAPI_COMPARE_VALUE, &bval );
-
+	slapi_pblock_get( pb, SLAPI_COMPARE_TARGET_SDN, &sdn );
+	if (NULL == sdn) {
+		cb_send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL, "Null target DN", 0, NULL );
+		return -1;
+	}
 	dn = slapi_sdn_get_dn(sdn);
 
 	/* 
