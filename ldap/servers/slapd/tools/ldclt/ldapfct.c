@@ -2279,8 +2279,7 @@ createMissingNodes (
     printf ("ldclt[%d]: T%03d: Cannot add (%s), error=%d (%s)\n",
 	mctx.pid, tttctx->thrdNum, nodeDN, ret, my_ldap_err2string (ret));
     fflush (stdout);
-    if (addErrorStat (ret) < 0)
-      return (-1);
+    addErrorStat(ret);
     return (-1);
   }
 
