@@ -3449,7 +3449,10 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     int state;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    PR_ASSERT(be != NULL);
+    if (be == NULL) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_wire_import: backend is not set\n");
+        return -1;
+    }
     li = (struct ldbminfo *)(be->be_database->plg_private);
     slapi_pblock_get(pb, SLAPI_BULK_IMPORT_STATE, &state);
     slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &li->li_online_import_encrypt);
