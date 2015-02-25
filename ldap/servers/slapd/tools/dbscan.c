@@ -246,7 +246,7 @@ static char *format_raw(unsigned char *s, int len, int flags,
             if ((flags & FMT_LF_OK) && (*p == '\n')) {
                 *o++ = '\n';
                 *o++ = '\t';
-            } else if ((flags && FMT_SP_OK) && (*p == ' ')) {
+            } else if ((flags & FMT_SP_OK) && (*p == ' ')) {
                 *o++ = ' ';
             } else {
                 *o++ = '%';
