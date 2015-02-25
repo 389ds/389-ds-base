@@ -2586,7 +2586,6 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		PList_t subject, PList_t resource, PList_t auth_info,
 		PList_t global_auth)
 {
-
 	char			*s_attrName = NULL;
 	char			*attrName;
 	char			*ptr;
@@ -2731,6 +2730,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 						slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
 							"DS_LASGroupDnAttrEval: Invalid syntax: %s\n",
 							attrVal->bv_val );
+						slapi_ch_free_string(&s_attrName);
 						return 0;
 					}
 					matched =  acllas__user_ismember_of_group (
@@ -2804,37 +2804,36 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 							lasinfo.clientDn, ACLLAS_CACHE_ALL_GROUPS,
 							lasinfo.aclpb->aclpb_clientcert); 
 					if (matched == ACL_TRUE) {
-                		break;
-            		} else if ( matched == ACL_DONT_KNOW ) {
-                		/* record this but keep going--maybe another group will evaluate to TRUE */
-                		got_undefined = 1;
-            		}
+						break;
+					} else if ( matched == ACL_DONT_KNOW ) {
+						/* record this but keep going--maybe another group will evaluate to TRUE */
+						got_undefined = 1;
+					}
 				}
 				/* Deallocate the member array and the member struct */
 				for (j=0; j < info.numofGroups; j++)
 					slapi_ch_free ((void **) &info.member[j]);
 				slapi_ch_free ((void **) &info.member);
-		   	}
-		   	if (matched == ACL_TRUE) {
+			}
+			if (matched == ACL_TRUE) {
 				slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 						"groupdnattr matches at level (%d)\n", levels[i]);
 				break;
 			} else if ( matched == ACL_DONT_KNOW ) {
-                /* record this but keep going--maybe another group at another level
+				/* record this but keep going--maybe another group at another level
 				 * will evaluate to TRUE.
-				*/
-                got_undefined = 1;
-            }
-
+				 */
+				got_undefined = 1;
+			}
 		} /* NumofLevels */
 	}
-	if (s_attrName) slapi_ch_free ((void**) &s_attrName );
+	slapi_ch_free_string(&s_attrName);
 
 	/*
 	 * If no terms were undefined, then evaluate as normal.
 	 * If there was an undefined term, but another one was TRUE, then we also evaluate
 	 * as normal.  Otherwise, the whole expression is UNDEFINED.
-	*/
+	 */
 	if ( matched == ACL_TRUE || !got_undefined ) {
 		if (comparator == CMP_OP_EQ) {
 			rc = (matched == ACL_TRUE  ? LAS_EVAL_TRUE : LAS_EVAL_FALSE);
