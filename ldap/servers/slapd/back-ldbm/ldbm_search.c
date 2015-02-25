@@ -720,9 +720,12 @@ ldbm_back_search( Slapi_PBlock *pb )
                 IDList *idl = NULL;
                 Slapi_Filter *filter = NULL;
                 slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
-                rc = vlv_filter_candidates(be, pb, candidates, basesdn,
-                                           scope, filter, &idl,
-                                           lookthrough_limit, time_up);
+                rc = LDAP_OPERATIONS_ERROR;
+                if (filter) {
+                    rc = vlv_filter_candidates(be, pb, candidates, basesdn,
+                                               scope, filter, &idl,
+                                               lookthrough_limit, time_up);
+                }
                 switch (rc) {
                 case LDAP_SUCCESS:  /* Everything OK */
                 case LDAP_TIMELIMIT_EXCEEDED:  /* Timeout */
@@ -949,6 +952,11 @@ vlv_bail:
         Slapi_Filter *filter = NULL;
 
         slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
+        if (NULL == filter) {
+            tmp_err = LDAP_OPERATIONS_ERROR;
+            tmp_desc = "Filter is not set";
+            goto bail;
+        }
         if ( can_skip_filter_test( pb, filter, scope, candidates)) {
             sr->sr_flags |= SR_FLAG_CAN_SKIP_FILTER_TEST;
         }
@@ -962,6 +970,11 @@ vlv_bail:
         Slapi_Filter *filter= NULL;
 
         slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &filter);
+        if (NULL == filter) {
+            tmp_err = LDAP_OPERATIONS_ERROR;
+            tmp_desc = "Filter is not set";
+            goto bail;
+        }
         slapi_filter_free(sr->sr_norm_filter, 1);
         sr->sr_norm_filter = slapi_filter_dup(filter);
         /* step 1 - normalize all of the values used in the search filter */
@@ -979,7 +992,7 @@ vlv_bail:
             }
         }
     }
-
+bail:
     /* Fix for bugid #394184, SD, 05 Jul 00 */
     /* tmp_err == LDBM_SRCH_DEFAULT_RESULT: no error */
     return ldbm_back_search_cleanup(pb, li, sort_control, tmp_err, tmp_desc,
@@ -1009,6 +1022,12 @@ build_candidate_list( Slapi_PBlock *pb, backend *be, struct backentry *e,
     int r= 0;
 
     slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter );
+    if (NULL == filter) {
+        slapi_send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "No filter", 0, NULL );
+        r = SLAPI_FAIL_GENERAL;
+        goto bail;
+    }
+
     slapi_pblock_get( pb, SLAPI_MANAGEDSAIT, &managedsait );
 
     switch ( scope ) {
@@ -1037,7 +1056,7 @@ build_candidate_list( Slapi_PBlock *pb, backend *be, struct backentry *e,
         if (LDBM_OS_ERR_IS_DISKFULL(err)) r = return_on_disk_full(li);
         else r = SLAPI_FAIL_GENERAL;
     }
-
+bail:
     /*
      * If requested, set a flag to indicate whether the indexed
      * lookup returned an ALLIDs block.  Note that this is taken care of
