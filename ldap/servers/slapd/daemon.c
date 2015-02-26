@@ -1498,6 +1498,8 @@ void slapd_daemon( daemon_ports_t *ports )
 			maxthreads = atoi(getenv("MAX_THREADS"));
 		}
 		/* Set the nunc-stans thread pool config */
+		ns_thrpool_config_init(&tp_config);
+
 		tp_config.initial_threads = maxthreads;
 		tp_config.max_threads = maxthreads;
 		tp_config.stacksize = 0;
