@@ -1251,6 +1251,30 @@ nunc_stans_logging(int priority, const char *format, va_list varg)
 	slapi_log_error_ext(severity, "nunc-stans", (char *)format, varg, varg_copy);
 	va_end(varg_copy);
 }
+
+static void*
+nunc_stans_malloc(size_t size)
+{
+	return (void*)slapi_ch_malloc((unsigned long)size);
+}
+
+static void*
+nunc_stans_calloc(size_t count, size_t size)
+{
+	return (void*)slapi_ch_calloc((unsigned long)count, (unsigned long)size);
+}
+
+static void*
+nunc_stans_realloc(void *block, size_t size)
+{
+	return (void*)slapi_ch_realloc((char *)block, (unsigned long)size);
+}
+
+static void
+nunc_stans_free(void *ptr)
+{
+	slapi_ch_free((void **)&ptr);
+}
 #endif
 
 void slapd_daemon( daemon_ports_t *ports )
@@ -1480,6 +1504,12 @@ void slapd_daemon( daemon_ports_t *ports )
 		tp_config.event_queue_size = config_get_maxdescriptors();
 		tp_config.work_queue_size = config_get_maxdescriptors();
 		tp_config.log_fct = nunc_stans_logging;
+		tp_config.log_start_fct = NULL;
+		tp_config.log_close_fct = NULL;
+		tp_config.malloc_fct = nunc_stans_malloc;
+		tp_config.calloc_fct = nunc_stans_calloc;
+		tp_config.realloc_fct = nunc_stans_realloc;
+		tp_config.free_fct = nunc_stans_free;
 
 		tp = ns_thrpool_new(&tp_config);
 		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
