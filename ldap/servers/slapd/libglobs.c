@@ -273,6 +273,7 @@ slapi_int_t init_listen_backlog_size;
 slapi_onoff_t init_ignore_time_skew;
 slapi_onoff_t init_dynamic_plugins;
 slapi_onoff_t init_cn_uses_dn_syntax_in_dns;
+slapi_onoff_t init_global_backend_local;
 #if defined (LINUX)
 slapi_int_t init_malloc_mxfast;
 slapi_int_t init_malloc_trim_threshold;
@@ -1122,7 +1123,11 @@ static struct config_get_and_set {
 	{CONFIG_IGNORE_TIME_SKEW, config_set_ignore_time_skew,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ignore_time_skew,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_time_skew, &init_ignore_time_skew}
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_time_skew, &init_ignore_time_skew},
+	{CONFIG_GLOBAL_BACKEND_LOCK, config_set_global_backend_lock,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.global_backend_lock,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_global_backend_lock, &init_global_backend_local}	
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1570,6 +1575,7 @@ FrontendConfig_init () {
   init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
   init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
   init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
+  init_global_backend_local = LDAP_OFF;
 #if defined(LINUX)
   init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
   init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
@@ -7245,6 +7251,18 @@ config_get_ignore_time_skew(void)
 }
 
 int
+config_get_global_backend_lock()
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->global_backend_lock;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
 config_set_enable_turbo_mode( const char *attrname, char *value,
                             char *errorbuf, int apply )
 {
@@ -7279,6 +7297,19 @@ config_set_ignore_time_skew( const char *attrname, char *value,
 
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->ignore_time_skew),
+                              errorbuf, apply);
+    return retVal;
+}
+
+int
+config_set_global_backend_lock( const char *attrname, char *value,
+	                        char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->global_backend_lock),
                               errorbuf, apply);
     return retVal;
 }

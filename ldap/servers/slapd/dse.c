@@ -1828,6 +1828,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int need_be_postop = 0;
     int plugin_started = 0;
     int internal_op = 0;
+    PRBool global_lock_owned = PR_FALSE;
 
     PR_ASSERT(pb);
     if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &pdse ) < 0 ||
@@ -1871,6 +1872,12 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     /* Modify a copy of the entry*/
     ecc = slapi_entry_dup( ec );
     err = entry_apply_mods( ecc, mods );
+    
+    /* Possibly acquire the global backend lock */
+    if (global_backend_lock_requested()) {
+        global_backend_lock_lock();
+        global_lock_owned = PR_TRUE;
+    }
 
     /* XXXmcs: should we expand objectclass values here?? */
     /* give the dse callbacks the first crack at the modify */
@@ -2069,7 +2076,9 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
             }
         }
     }
-
+    if (global_lock_owned) {
+        global_backend_lock_unlock();
+    }
     slapi_send_ldap_result( pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
 
     return dse_modify_return(retval, ec, ecc);
@@ -2224,6 +2233,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     Slapi_DN *sdn = NULL;
     Slapi_DN parent;
     int need_be_postop = 0;
+    PRBool global_lock_owned = PR_FALSE;
 
     /*
      * Get the database, the dn and the entry to add
@@ -2345,6 +2355,12 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         goto done;
     }
 
+    /* Possibly acquire the global backend lock */
+    if (global_backend_lock_requested()) {
+        global_backend_lock_lock();
+        global_lock_owned = PR_TRUE;
+    }
+
     if(dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, e,
                          NULL, &returncode, returntext)!=SLAPI_DSE_CALLBACK_OK) {
         if (!returncode) {
@@ -2424,7 +2440,9 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
             slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
         }
     }
-
+    if (global_lock_owned) {
+        global_backend_lock_unlock();
+    }
     slapi_send_ldap_result(pb, returncode, NULL, returntext[0] ? returntext : NULL, 0, NULL );
     return dse_add_return(rc, e);
 }
@@ -2456,6 +2474,7 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     Slapi_Entry *ec = NULL; /* copy of entry to delete */
     Slapi_Entry *orig_entry = NULL;
     int need_be_postop = 0;
+    PRBool global_lock_owned = PR_FALSE;
 
     /*
      * Get the database and the dn
@@ -2498,6 +2517,12 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         }
         slapi_ch_free_string(&errbuf);
         goto done;
+    }
+
+    /* Possibly acquire the global backend lock */
+    if (global_backend_lock_requested()) {
+        global_backend_lock_lock();
+        global_lock_owned = PR_TRUE;
     }
 
     if(dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, ec, NULL, &returncode,returntext)==SLAPI_DSE_CALLBACK_OK) {
@@ -2551,6 +2576,9 @@ done:
         if (!returncode) {
             slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
         }
+    }
+    if (global_lock_owned) {
+        global_backend_lock_unlock();
     }
     if (returncode && !returntext[0]) {
         char *ldap_result_message = NULL;

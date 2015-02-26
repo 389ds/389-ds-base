@@ -213,6 +213,10 @@ void be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix);
 Slapi_DN *be_getconfigdn(Slapi_Backend *be,Slapi_DN *dn);
 Slapi_DN *be_getmonitordn(Slapi_Backend *be,Slapi_DN *dn);
 int be_writeconfig (Slapi_Backend *be);
+void global_backend_lock_init();
+int global_backend_lock_requested();
+void global_backend_lock_lock();
+void global_backend_lock_unlock();
 
 /*
  * backend_manager.c
@@ -404,6 +408,7 @@ int config_set_return_orig_type_switch(const char *attrname, char *value, char *
 int config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_listen_backlog_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ignore_time_skew(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_global_backend_lock(const char *attrname, char *value, char *errorbuf, int apply);
 #if defined(LINUX)
 int config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply);
@@ -596,6 +601,7 @@ int config_get_cn_uses_dn_syntax_in_dns();
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
 int config_get_ignore_time_skew();
+int config_get_global_backend_lock();
 
 #if defined(LINUX)
 int config_get_malloc_mxfast();

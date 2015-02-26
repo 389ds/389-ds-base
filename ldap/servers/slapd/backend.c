@@ -43,6 +43,9 @@
 /* backend.c - Slapi_Backend methods */
 
 #include "slap.h"
+#include "nspr.h"
+
+static PRMonitor *global_backend_mutex = NULL;
 
 void
 be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit )
@@ -144,6 +147,32 @@ be_done(Slapi_Backend *be)
     {
         slapi_destroy_rwlock(be->be_lock);
         be->be_lock = NULL;
+    }
+}
+
+void
+global_backend_lock_init()
+{
+    global_backend_mutex = PR_NewMonitor();
+}
+
+int
+global_backend_lock_requested()
+{
+    return config_get_global_backend_lock();
+}
+void
+global_backend_lock_lock() 
+{
+    if (global_backend_mutex) {
+        PR_EnterMonitor(global_backend_mutex);
+    }
+}
+
+void
+global_backend_lock_unlock() {
+    if (global_backend_mutex) {
+        PR_ExitMonitor(global_backend_mutex);
     }
 }
 

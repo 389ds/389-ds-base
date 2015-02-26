@@ -2117,6 +2117,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
 #define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
+#define CONFIG_GLOBAL_BACKEND_LOCK "nsslapd-global-backend-lock"
 
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
@@ -2423,6 +2424,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t ignore_time_skew;
   slapi_onoff_t dynamic_plugins; /* allow plugins to be dynamically enabled/disabled */
   slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
+  slapi_onoff_t global_backend_lock;
 #if defined(LINUX)
   int malloc_mxfast;            /* mallopt M_MXFAST */
   int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */

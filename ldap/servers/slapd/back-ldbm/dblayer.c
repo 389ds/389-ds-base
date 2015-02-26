@@ -3968,6 +3968,9 @@ void dblayer_lock_backend(backend *be)
     ldbm_instance *inst;
 
     PR_ASSERT(NULL != be);
+    if (global_backend_lock_requested()) {
+        global_backend_lock_lock();
+    }
     inst = (ldbm_instance *) be->be_instance_info;
     PR_ASSERT(NULL != inst);
     
@@ -3986,6 +3989,10 @@ void dblayer_unlock_backend(backend *be)
     
     if (NULL != inst->inst_db_mutex) {
         PR_ExitMonitor(inst->inst_db_mutex);
+    }
+    
+    if (global_backend_lock_requested()) {
+        global_backend_lock_unlock();
     }
 }
 
