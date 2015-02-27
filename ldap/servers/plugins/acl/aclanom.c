@@ -537,43 +537,49 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 	if ( slapi_is_loglevel_set(loglevel) ) {
 		char					*ndn = NULL;
 		Slapi_Operation			*op = NULL;
-
+		PRUint64 o_connid = 0xffffffffffffffff; /* no op */
+		int o_opid = -1; /* no op */
+ 
 		ndn = slapi_entry_get_ndn ( e ) ;
 		slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+		if (op) {
+			o_connid = op->o_connid;
+			o_opid = op->o_opid;
+		}
 
 		if ( result == LDAP_SUCCESS) {
 			const char				*aci_ndn;
 			aci_ndn = slapi_sdn_get_ndn (acl_anom_profile->anom_targetinfo[i].anom_target);
-                        if (access & SLAPI_ACL_MODDN) {
-                                slapi_log_error(loglevel, plugin_name, 
-                                        "conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) (from %s) to anonymous: acidn=\"%s\"\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
-                                        ndn,
-                                        attr ? attr:"NULL",
-                                        aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL",
-                                        aci_ndn);
-                                
-                        } else {
-                                slapi_log_error(loglevel, plugin_name, 
-                                        "conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
-                                        ndn,
-                                        attr ? attr:"NULL",
-                                        aci_ndn);
-                        }			
+			if (access & SLAPI_ACL_MODDN) {
+				slapi_log_error(loglevel, plugin_name, 
+					"conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) (from %s) to anonymous: acidn=\"%s\"\n",
+					o_connid, o_opid,
+					ndn,
+					attr ? attr:"NULL",
+					aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL",
+					aci_ndn);
+				
+			} else {
+				slapi_log_error(loglevel, plugin_name, 
+					"conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
+					o_connid, o_opid,
+					ndn,
+					attr ? attr:"NULL",
+					aci_ndn);
+			}
 		} else {
-                        if (access & SLAPI_ACL_MODDN) {
-                                slapi_log_error(loglevel, plugin_name,
-                                        "conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) (from %s) to anonymous\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
-                                        ndn, attr ? attr:"NULL" ,
-                                        aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL");
-                        } else {
-                                slapi_log_error(loglevel, plugin_name,
-                                        "conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
-                                        ndn, attr ? attr:"NULL" );
-                        }			
+			if (access & SLAPI_ACL_MODDN) {
+				slapi_log_error(loglevel, plugin_name,
+					"conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) (from %s) to anonymous\n",
+					o_connid, o_opid,
+					ndn, attr ? attr:"NULL" ,
+					aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL");
+			} else {
+				slapi_log_error(loglevel, plugin_name,
+					"conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
+					o_connid, o_opid,
+					ndn, attr ? attr:"NULL" );
+			}
 		}
 	}
 
@@ -582,8 +588,8 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 		return -1;
 	else 
 		return result;
-
 }
+
 int
 aclanom_is_client_anonymous ( Slapi_PBlock *pb )
 {
