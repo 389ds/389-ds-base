@@ -677,6 +677,7 @@ attr_index_config(
 	Slapi_Attr *attr;
 	int mr_count = 0;
 	char myreturntext[SLAPI_DSE_RETURNTEXT_SIZE];
+	int substrval = 0;
 
 	/* Get the cn */
 	if (0 == slapi_entry_attr_find(e, "cn", &attr)) {
@@ -762,6 +763,31 @@ attr_index_config(
 	 * ordering matching rule compatible with the attribute syntax, and there is
 	 * a compare function.  If not, we assume it is a RULE index definition.
 	 */
+	/*
+	 * nsSubStrBegin: 2
+	 * nsSubStrMiddle: 2
+	 * nsSubStrEnd: 2
+	 */ 
+	substrval = slapi_entry_attr_get_int(e, INDEX_ATTR_SUBSTRBEGIN);
+	if (substrval) {
+		substrlens = (int *)slapi_ch_calloc(1, sizeof(int) * INDEX_SUBSTRLEN);
+		substrlens[INDEX_SUBSTRBEGIN] = substrval;
+	}
+	substrval = slapi_entry_attr_get_int(e, INDEX_ATTR_SUBSTRMIDDLE);
+	if (substrval) {
+		if (!substrlens) {
+			substrlens = (int *)slapi_ch_calloc(1, sizeof(int) * INDEX_SUBSTRLEN);
+		}
+		substrlens[INDEX_SUBSTRMIDDLE] = substrval;
+	}
+	substrval = slapi_entry_attr_get_int(e, INDEX_ATTR_SUBSTREND);
+	if (substrval) {
+		if (!substrlens) {
+			substrlens = (int *)slapi_ch_calloc(1, sizeof(int) * INDEX_SUBSTRLEN);
+		}
+		substrlens[INDEX_SUBSTREND] = substrval;
+	}
+	a->ai_substr_lens = substrlens;
 
 	if(0 == slapi_entry_attr_find(e, "nsMatchingRule", &attr)){
 		char** official_rules;
@@ -778,21 +804,35 @@ attr_index_config(
 			Slapi_PBlock* pb = NULL;
 			int do_continue = 0; /* can we skip the RULE parsing stuff? */
 			attrValue = slapi_value_get_berval(sval);
-
-			if (strstr(attrValue->bv_val, INDEX_ATTR_SUBSTRBEGIN)) {
-				_set_attr_substrlen(INDEX_SUBSTRBEGIN, attrValue->bv_val, &substrlens);
-				do_continue = 1; /* done with j - next j */
-			} else if (strstr(attrValue->bv_val, INDEX_ATTR_SUBSTRMIDDLE)) {
-				_set_attr_substrlen(INDEX_SUBSTRMIDDLE, attrValue->bv_val,	&substrlens);
-				do_continue = 1; /* done with j - next j */
-			} else if (strstr(attrValue->bv_val, INDEX_ATTR_SUBSTREND)) {
-				_set_attr_substrlen(INDEX_SUBSTREND, attrValue->bv_val, &substrlens);
-				do_continue = 1; /* done with j - next j */
+			/*
+			 * In case nsSubstr{Begin,Middle,End}: num is not set, but set by this format:
+			 *   nsMatchingRule: nsSubstrBegin=2
+			 *   nsMatchingRule: nsSubstrMiddle=2
+			 *   nsMatchingRule: nsSubstrEnd=2
+			 */ 
+			if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTRBEGIN]) {
+				if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTRBEGIN)) {
+					_set_attr_substrlen(INDEX_SUBSTRBEGIN, attrValue->bv_val, &substrlens);
+					do_continue = 1; /* done with j - next j */
+				}
+			}
+			if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTRMIDDLE]) {
+				if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTRMIDDLE)) {
+					_set_attr_substrlen(INDEX_SUBSTRMIDDLE, attrValue->bv_val, &substrlens);
+					do_continue = 1; /* done with j - next j */
+				}
+			}
+			if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTREND]) {
+				if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTREND)) {
+					_set_attr_substrlen(INDEX_SUBSTREND, attrValue->bv_val, &substrlens);
+					do_continue = 1; /* done with j - next j */
+				}
+			}
 			/* check if this is a simple ordering specification
 			   for an attribute that has no ordering matching rule */
-			} else if (slapi_matchingrule_is_ordering(attrValue->bv_val, attrsyntax_oid) &&
-					   slapi_matchingrule_can_use_compare_fn(attrValue->bv_val) &&
-					   !a->ai_sattr.a_mr_ord_plugin) { /* no ordering for this attribute */
+			if (slapi_matchingrule_is_ordering(attrValue->bv_val, attrsyntax_oid) &&
+			    slapi_matchingrule_can_use_compare_fn(attrValue->bv_val) &&
+			    !a->ai_sattr.a_mr_ord_plugin) { /* no ordering for this attribute */
 				need_compare_fn = 1; /* get compare func for this attr */
 				do_continue = 1; /* done with j - next j */
 			}
@@ -844,7 +884,9 @@ attr_index_config(
 			slapi_pblock_destroy (pb);
 		}
 		official_rules[k] = NULL;
-		a->ai_substr_lens = substrlens;
+		if (substrlens) {
+			a->ai_substr_lens = substrlens;
+		}
 		if (k > 0) {
 			a->ai_index_rules = official_rules;
 			a->ai_indexmask |= INDEX_RULES;

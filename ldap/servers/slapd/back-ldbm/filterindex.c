@@ -936,6 +936,7 @@ substring_candidates(
     Slapi_Attr   sattr;
     back_txn     txn = {NULL};
     int          pr_idx = -1;
+    struct attrinfo *ai = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> sub_candidates\n", 0, 0, 0 );
 
@@ -950,7 +951,9 @@ substring_candidates(
      * assertion values
      */
     slapi_attr_init(&sattr, type);
-    slapi_attr_assertion2keys_sub_sv( &sattr, initial, any, final, &ivals );
+    ainfo_get(be, type, &ai);
+    slapi_pblock_set(pb, SLAPI_SYNTAX_SUBSTRLENS, ai->ai_substr_lens );
+    slapi_attr_assertion2keys_sub_sv_pb( pb, &sattr, initial, any, final, &ivals );
     attr_done(&sattr);
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
     if ( ivals == NULL || *ivals == NULL ) {

@@ -908,6 +908,19 @@ slapi_attr_assertion2keys_sub_sv(
     Slapi_Value	***ivals
 )
 {
+	return slapi_attr_assertion2keys_sub_sv_pb(NULL, sattr, initial, any, final, ivals);
+}
+
+int
+slapi_attr_assertion2keys_sub_sv_pb(
+    Slapi_PBlock *pb,
+    const Slapi_Attr *sattr,
+    char		*initial,
+    char		**any,
+    char		*final,
+    Slapi_Value	***ivals
+)
+{
 	int			rc;
 	Slapi_PBlock		pipb;
 	struct slapdplugin	*pi = NULL;
@@ -927,13 +940,16 @@ slapi_attr_assertion2keys_sub_sv(
 		pi = sattr->a_plugin;
 		a2k_fn = sattr->a_plugin->plg_syntax_assertion2keys_sub;
 	}
-	pblock_init( &pipb );
-	slapi_pblock_set( &pipb, SLAPI_PLUGIN, pi );
+	if (NULL == pb) {
+		pblock_init( &pipb );
+		pb = &pipb;
+	}
+	slapi_pblock_set( pb, SLAPI_PLUGIN, pi );
 
 	rc = -1;	/* means no assertion2keys function */
 	*ivals = NULL;
 	if ( a2k_fn != NULL ) {
-		rc = (*a2k_fn)( &pipb, initial, any, final, ivals );
+		rc = (*a2k_fn)( pb, initial, any, final, ivals );
 	}
 
 	LDAPDebug( LDAP_DEBUG_FILTER,

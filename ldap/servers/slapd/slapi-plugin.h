@@ -5849,6 +5849,8 @@ int slapi_call_syntax_assertion2keys_ava_sv( void *vpi, Slapi_Value *val,
 	Slapi_Value ***ivals, int ftype );
 int slapi_call_syntax_assertion2keys_sub_sv( void *vpi, char *initial,
 	char **any, char *final, Slapi_Value ***ivals );
+int slapi_call_syntax_assertion2keys_sub_sv_pb( Slapi_PBlock *pb, void *vpi,
+	char *initial, char **any, char *final, Slapi_Value ***ivals );
 
 int slapi_attr_values2keys_sv( const Slapi_Attr *sattr, Slapi_Value **vals,
 	Slapi_Value ***ivals, int ftype );
