@@ -163,6 +163,7 @@ static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf,
 	size_t addrbuflen);
 static void	set_shutdown (int);
 #ifdef ENABLE_NUNC_STANS
+struct ns_job_t *ns_signal_job[3];
 static void	ns_set_shutdown (struct ns_job_t *job);
 #endif
 static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read);
@@ -1514,9 +1515,9 @@ void slapd_daemon( daemon_ports_t *ports )
 		tp_config.free_fct = nunc_stans_free;
 
 		tp = ns_thrpool_new(&tp_config);
-		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
-		ns_add_signal_job(tp, SIGTERM, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
-		ns_add_signal_job(tp, SIGHUP, NS_JOB_SIGNAL, ns_set_shutdown, NULL, NULL);
+		ns_add_signal_job(tp, SIGINT, NS_JOB_SIGNAL, ns_set_shutdown, NULL, &ns_signal_job[0]);
+		ns_add_signal_job(tp, SIGTERM, NS_JOB_SIGNAL, ns_set_shutdown, NULL, &ns_signal_job[1]);
+		ns_add_signal_job(tp, SIGHUP, NS_JOB_SIGNAL, ns_set_shutdown, NULL, &ns_signal_job[2]);
 		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		for (ii = 0; ii < listeners; ++ii) {
 			listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
@@ -3554,7 +3555,11 @@ ns_set_shutdown(struct ns_job_t *job)
 
 	/* Signal all the worker threads to stop */
 	ns_thrpool_shutdown(ns_job_get_tp(job));
-	ns_job_done(job);
+
+	/* Free all the signal jobs */
+	ns_job_done(ns_signal_job[0]);
+	ns_job_done(ns_signal_job[1]);
+	ns_job_done(ns_signal_job[2]);
 }
 #endif
 
