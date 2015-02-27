@@ -15,8 +15,8 @@ DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
 if enable_nunc_stans
-NUNC_STANS_INCLUDES = $(nunc_stans_inc) $(lfds_inc)
-NUNC_STANS_LINK = $(nunc_stans_lib) -lnunc-stans $(lfds_lib) -llfds
+NUNC_STANS_INCLUDES = $(nunc_stans_inc)
+NUNC_STANS_LINK = $(nunc_stans_lib) -lnunc-stans
 endif
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I. $(NUNC_STANS_INCLUDES)
 

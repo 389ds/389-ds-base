@@ -173,7 +173,7 @@ typedef struct symbol_t {
 #include "uuid.h"
 
 #ifdef ENABLE_NUNC_STANS
-#include <ns_thrpool.h>
+#include <nunc-stans/ns_thrpool.h>
 #endif
 
 #if defined(OS_solaris)

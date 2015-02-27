@@ -643,9 +643,6 @@ localrundir
 nunc_stans_libdir
 nunc_stans_lib
 nunc_stans_inc
-lfds_libdir
-lfds_lib
-lfds_inc
 pcre_libdir
 pcre_lib
 pcre_inc
@@ -965,9 +962,6 @@ with_kerberos_inc
 with_kerberos_lib
 with_pcre
 with_selinux
-with_lfds
-with_lfds_inc
-with_lfds_lib
 with_nunc_stans
 with_nunc_stans_inc
 with_nunc_stans_lib
@@ -1734,9 +1728,6 @@ Optional Packages:
                           kerberos
   --with-pcre[=PATH]      Perl Compatible Regular Expression directory
   --with-selinux          Support SELinux policy
-  --with-lfds[=PATH]      LFDS directory
-  --with-lfds-inc=PATH    LFDS include file directory
-  --with-lfds-lib=PATH    LFDS library directory
   --with-nunc-stans[=PATH]
                           nunc-stans directory
   --with-nunc-stans-inc=PATH
@@ -21313,110 +21304,6 @@ fi
 #
 # END COPYRIGHT BLOCK
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for lfds..." >&5
-$as_echo "$as_me: checking for lfds..." >&6;}
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lfds" >&5
-$as_echo_n "checking for --with-lfds... " >&6; }
-
-# Check whether --with-lfds was given.
-if test "${with_lfds+set}" = set; then :
-  withval=$with_lfds;
-  if test "$withval" = "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-  elif test "$withval" = "no"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-  elif test -d "$withval"/inc -a -d "$withval"/bin; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
-$as_echo "using $withval" >&6; }
-        lfds_lib="-L$withval/bin"
-    lfds_libdir="$withval/lib"
-    lfds_incdir="$withval/inc"
-    if ! test -e "$lfds_incdir/liblfds.h" ; then
-      as_fn_error $? "$withval include dir not found" "$LINENO" 5
-    fi
-    lfds_inc="-I$lfds_incdir"
-  else
-    echo
-    as_fn_error $? "$withval not found" "$LINENO" 5
-  fi
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-# check for --with-lfds-inc
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lfds-inc" >&5
-$as_echo_n "checking for --with-lfds-inc... " >&6; }
-
-# Check whether --with-lfds-inc was given.
-if test "${with_lfds_inc+set}" = set; then :
-  withval=$with_lfds_inc;
-  if test -e "$withval"/liblfds.h
-  then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
-$as_echo "using $withval" >&6; }
-    lfds_incdir="$withval"
-    lfds_inc="-I$withval"
-  else
-    echo
-    as_fn_error $? "$withval not found" "$LINENO" 5
-  fi
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-# check for --with-lfds-lib
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-lfds-lib" >&5
-$as_echo_n "checking for --with-lfds-lib... " >&6; }
-
-# Check whether --with-lfds-lib was given.
-if test "${with_lfds_lib+set}" = set; then :
-  withval=$with_lfds_lib;
-  if test -d "$withval"
-  then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
-$as_echo "using $withval" >&6; }
-    lfds_lib="-L$withval"
-    lfds_libdir="$withval"
-  else
-    echo
-    as_fn_error $? "$withval not found" "$LINENO" 5
-  fi
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-# BEGIN COPYRIGHT BLOCK
-# Copyright (C) 2015 Red Hat, Inc.
-# All rights reserved.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
-# END COPYRIGHT BLOCK
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nunc-stans..." >&5
 $as_echo "$as_me: checking for nunc-stans..." >&6;}
 
@@ -21435,10 +21322,10 @@ $as_echo "no" >&6; }
   elif test -d "$withval"; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
 $as_echo "using $withval" >&6; }
-        nunc_stans_lib="-L$withval"
-    nunc_stans_libdir="$withval"
-    nunc_stans_incdir="$withval"
-    if ! test -e "$nunc_stans_incdir/ns_thrpool.h" ; then
+        nunc_stans_lib="-L$withval/lib"
+    nunc_stans_libdir="$withval/lib"
+    nunc_stans_incdir="$withval/include"
+    if ! test -e "$nunc_stans_incdir/nunc-stans/ns_thrpool.h" ; then
       as_fn_error $? "$withval include dir not found" "$LINENO" 5
     fi
     nunc_stans_inc="-I$nunc_stans_incdir"
@@ -21460,7 +21347,7 @@ $as_echo_n "checking for --with-nunc-stans-inc... " >&6; }
 # Check whether --with-nunc-stans-inc was given.
 if test "${with_nunc_stans_inc+set}" = set; then :
   withval=$with_nunc_stans_inc;
-  if test -e "$withval"/ns_thrpool.h
+  if test -e "$withval"/nunc-stans/ns_thrpool.h
   then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
 $as_echo "using $withval" >&6; }
@@ -21546,9 +21433,6 @@ fi
 
 
 # write out paths for binary components
-
-
-
 
 
 

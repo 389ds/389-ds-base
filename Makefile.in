@@ -108,8 +108,8 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/sasl.m4 $(top_srcdir)/m4/svrcore.m4 \
 	$(top_srcdir)/m4/icu.m4 $(top_srcdir)/m4/netsnmp.m4 \
 	$(top_srcdir)/m4/kerberos.m4 $(top_srcdir)/m4/pcre.m4 \
-	$(top_srcdir)/m4/selinux.m4 $(top_srcdir)/m4/lfds.m4 \
-	$(top_srcdir)/m4/nunc-stans.m4 $(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/selinux.m4 $(top_srcdir)/m4/nunc-stans.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -706,8 +706,7 @@ libschemareload_plugin_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(AM_CFLAGS) $(CFLAGS) $(libschemareload_plugin_la_LDFLAGS) \
 	$(LDFLAGS) -o $@
-@enable_nunc_stans_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) \
-@enable_nunc_stans_TRUE@	$(am__DEPENDENCIES_1)
+@enable_nunc_stans_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 am__DEPENDENCIES_3 = $(am__DEPENDENCIES_1)
 libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
@@ -1423,9 +1422,6 @@ ldapsdk_lib = @ldapsdk_lib@
 ldapsdk_libdir = @ldapsdk_libdir@
 ldaptool_bindir = @ldaptool_bindir@
 ldaptool_opts = @ldaptool_opts@
-lfds_inc = @lfds_inc@
-lfds_lib = @lfds_lib@
-lfds_libdir = @lfds_libdir@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localedir = @localedir@
@@ -1512,8 +1508,8 @@ DEBUG_DEFINES = @debug_defs@
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
 
-@enable_nunc_stans_TRUE@NUNC_STANS_INCLUDES = $(nunc_stans_inc) $(lfds_inc)
-@enable_nunc_stans_TRUE@NUNC_STANS_LINK = $(nunc_stans_lib) -lnunc-stans $(lfds_lib) -llfds
+@enable_nunc_stans_TRUE@NUNC_STANS_INCLUDES = $(nunc_stans_inc)
+@enable_nunc_stans_TRUE@NUNC_STANS_LINK = $(nunc_stans_lib) -lnunc-stans
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I. $(NUNC_STANS_INCLUDES)
 
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
