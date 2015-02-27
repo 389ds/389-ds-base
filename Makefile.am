@@ -114,7 +114,6 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/DSUtil.pm \
 	ldap/ldif/template-baseacis.ldif ldap/ldif/template-bitwise.ldif ldap/ldif/template-country.ldif \
 	ldap/ldif/template-dnaplugin.ldif ldap/ldif/template-domain.ldif ldap/ldif/template-dse.ldif \
-	ldap/ldif/50replication-plugins.ldif ldap/ldif/90betxn-plugins.ldif \
 	ldap/ldif/template-ldapi-autobind.ldif ldap/ldif/template-ldapi-default.ldif \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
@@ -135,8 +134,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/schema-reload.pl ldap/admin/src/scripts/syntax-validate.pl \
 	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
-	ldap/admin/src/scripts/dbmon.sh \
-	$(POSIX_WINSYNC_PLUGIN_LDIF)
+	$(NULL)
 
 clean-local:
 	-rm -rf dist
