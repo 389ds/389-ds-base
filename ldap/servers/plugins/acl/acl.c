@@ -257,12 +257,17 @@ acl_access_allowed(
 	Slapi_Operation		*op = NULL;
 	aclResultReason_t	decision_reason;
 	int					loglevel;
+	PRUint64 o_connid = 0xffffffffffffffff; /* no op */
+	int o_opid = -1; /* no op */
 
 	loglevel = slapi_is_loglevel_set(SLAPI_LOG_ACL) ? SLAPI_LOG_ACL : SLAPI_LOG_ACLSUMMARY;
 	slapi_pblock_get(pb, SLAPI_OPERATION, &op); /* for logging */
+	if (op) {
+		o_connid = op->o_connid;
+		o_opid = op->o_opid;
+	}
 
-	TNF_PROBE_1_DEBUG(acl_access_allowed_start,"ACL","",
-						tnf_int,access,access);
+	TNF_PROBE_1_DEBUG(acl_access_allowed_start,"ACL","", tnf_int,access,access);
 
 	decision_reason.deciding_aci = NULL;
 	decision_reason.reason = ACL_REASON_NONE;
@@ -301,8 +306,8 @@ acl_access_allowed(
 		 if (  !privateBackend && (be_readonly ||  slapi_config_get_readonly () )){
 			slapi_log_error	(loglevel, plugin_name,
 				"conn=%" NSPRIu64 " op=%d (main): Deny %s on entry(%s)"
-				": readonly backend\n",
-				(long long unsigned int)op->o_connid, op->o_opid,
+				": readonly backend\n", 
+				o_connid, o_opid,
 				acl_access2str(access),
 				n_edn);
 			return LDAP_UNWILLING_TO_PERFORM;
@@ -314,8 +319,8 @@ acl_access_allowed(
 	if (  acl_skip_access_check ( pb, e )) {
 		slapi_log_error	(loglevel,	plugin_name,
 				"conn=%" NSPRIu64 " op=%d (main): Allow %s on entry(%s)"
-				": root user\n",
-				(long long unsigned int)op->o_connid, op->o_opid,
+				": root user\n", 
+				o_connid, o_opid,
 				acl_access2str(access),
 				n_edn);
 		return(LDAP_SUCCESS);
@@ -466,7 +471,7 @@ acl_access_allowed(
 
 		slapi_log_error(loglevel, plugin_name,
 			"#### conn=%" NSPRIu64 " op=%d binddn=\"%s\"\n",
-			(long long unsigned int)op->o_connid, op->o_opid, clientDn);
+			o_connid, o_opid, clientDn);
 		aclpb->aclpb_stat_total_entries++;
 
 		if (!(access & SLAPI_ACL_PROXY) &&
@@ -711,6 +716,8 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 	Slapi_Operation *op = NULL;
 	int loglevel; 
 	int	i;
+	PRUint64 o_connid = 0xffffffffffffffff; /* no op */
+	int o_opid = -1; /* no op */
 
 	loglevel = slapi_is_loglevel_set(SLAPI_LOG_ACL) ? SLAPI_LOG_ACL : SLAPI_LOG_ACLSUMMARY;
 
@@ -724,6 +731,10 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 	}
 
 	slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_OPERATION, &op); /* for logging */
+	if (op) {
+		o_connid = op->o_connid;
+		o_opid = op->o_opid;
+	}
 
 	if (ret_val == LDAP_INSUFFICIENT_ACCESS) {
 		access_status = access_not_allowed_string;
@@ -789,7 +800,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                  slapi_log_error(loglevel, plugin_name,                                                
                                         "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
                                          ": %s\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        o_connid, o_opid,
                                         source,
                                         access_status,
                                         right, 
@@ -803,7 +814,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                 slapi_log_error(loglevel, plugin_name, 
                                         "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
                                          ": %s\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        o_connid, o_opid,
                                         source,
                                         access_status,
                                         right, 
@@ -818,7 +829,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                 slapi_log_error(loglevel, plugin_name, 
                                         "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
                                         ": %s\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        o_connid, o_opid,
                                         source,
                                         access_status,
                                         right, 
@@ -832,7 +843,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                 slapi_log_error(loglevel, plugin_name, 
                                         "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
                                         ": %s\n",
-                                        (long long unsigned int)op->o_connid, op->o_opid,
+                                        o_connid, o_opid,
                                         source,
                                         access_status,
                                         right, 
@@ -847,7 +858,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                         slapi_log_error(loglevel, plugin_name, 
                                 "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to %s"
                                 ": %s\n",
-                                (long long unsigned int)op->o_connid, op->o_opid,
+                                o_connid, o_opid,
                                 source,
                                 access_status,
                                 right, 
@@ -861,7 +872,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                         slapi_log_error(loglevel, plugin_name, 
                                 "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
                                 ": %s\n",
-                                (long long unsigned int)op->o_connid, op->o_opid,
+                                o_connid, o_opid,
                                 source,
                                 access_status,
                                 right, 
