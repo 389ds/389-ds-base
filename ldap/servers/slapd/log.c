@@ -2293,7 +2293,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short*/);
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
 			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_access_file, tbuf, 
-			logp->l_ctime, (long long int)logp->l_size);
+			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -3906,7 +3906,7 @@ log__open_errorlogfile(int logfile_state, int locked)
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%" 
 			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_error_file, tbuf,
-			logp->l_ctime, (long long int)logp->l_size);
+			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
@@ -4033,7 +4033,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 		log_convert_time (logp->l_ctime, tbuf, 1 /*short */);	
 		PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
 			NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_audit_file, tbuf, 
-			logp->l_ctime, (long long int)logp->l_size);
+			logp->l_ctime, logp->l_size);
 		LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
 		logp = logp->l_next;
 	}
