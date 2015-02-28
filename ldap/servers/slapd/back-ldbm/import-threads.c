@@ -4031,7 +4031,7 @@ _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
              * next entryusn. */
             PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN,
                     "%" NSPRIu64,
-                    (long long unsigned int)slapi_counter_get_value(be->be_usn_counter));
+                    slapi_counter_get_value(be->be_usn_counter));
         } else {
             /* import_init value is digit.
              * Initialize the entryusn values with the digit */

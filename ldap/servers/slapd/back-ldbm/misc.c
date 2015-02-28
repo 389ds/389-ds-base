@@ -83,8 +83,8 @@ void ldbm_log_access_message(Slapi_PBlock *pblock,char *string)
         return;
     }
     operation_id = operation->o_opid;
-    slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",
-            (long long unsigned int)connection_id, operation_id, string);
+    slapi_log_access(LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d %s\n",
+                     connection_id, operation_id, string);
 }
 
 int return_on_disk_full(struct ldbminfo  *li)
@@ -443,7 +443,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
     bentry = find_entry2modify_only( pb, be, &bentry_addr, &txn );
 
     if (NULL == bentry) {
-	/* Uh oh, we couldn't find and lock the RUV entry! */
+        /* Uh oh, we couldn't find and lock the RUV entry! */
         LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to retrieve and lock RUV entry\n",
             0, 0, 0 );
         rc = -1;

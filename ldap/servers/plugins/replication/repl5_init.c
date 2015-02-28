@@ -227,7 +227,7 @@ get_repl_session_id (Slapi_PBlock *pb, char *idstr, CSN **csn)
 		if (opid) {
 			slapi_pblock_get (pb, SLAPI_CONN_ID, &connid);
 			PR_snprintf (idstr, REPL_SESSION_ID_SIZE, "conn=%" NSPRIu64 " op=%d",
-					(long long unsigned int)connid, opid);
+					connid, opid);
 		}
 
 		slapi_pblock_get ( pb, SLAPI_OPERATION, &op );

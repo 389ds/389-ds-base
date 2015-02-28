@@ -171,7 +171,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     if (pb->pb_conn)
     {
         slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_modrdn", "enter conn=%" NSPRIu64 " op=%d\n",
-                (long long unsigned int)pb->pb_conn->c_connid, operation->o_opid);
+                pb->pb_conn->c_connid, operation->o_opid);
     }
 
     inst = (ldbm_instance *) be->be_instance_info;
@@ -1563,7 +1563,7 @@ common_return:
     if (pb->pb_conn)
     {
         slapi_log_error (SLAPI_LOG_TRACE, "ldbm_back_modrdn", "leave conn=%" NSPRIu64 " op=%d\n",
-                (long long unsigned int)pb->pb_conn->c_connid, operation->o_opid);
+                pb->pb_conn->c_connid, operation->o_opid);
     }
     return retval;
 }

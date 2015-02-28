@@ -609,7 +609,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
 	/* This may happen while other threads are still working on this connection */
         slapi_log_error(SLAPI_LOG_FATAL, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
-		                (long long unsigned int)conn->c_connid, conn->c_sd);
+		                conn->c_connid, conn->c_sd);
         rc = -1;
     }
     else
@@ -647,7 +647,7 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 		if (conn->c_refcnt <= 0) {
         		slapi_log_error(SLAPI_LOG_FATAL, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
-		                (long long unsigned int)conn->c_connid, conn->c_sd);
+		                conn->c_connid, conn->c_sd);
         		rc = -1;
 		} else {
         		conn->c_refcnt--;

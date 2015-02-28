@@ -578,14 +578,14 @@ sync_send_results( void *arg )
 	if (NULL == conn) {
 		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
-						(long long unsigned int)connid, opid);
+						connid, opid);
 		return;
 	}
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
 		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
-						(long long unsigned int)connid, opid);
+						connid, opid);
 		return;
 	}
 
@@ -596,7 +596,7 @@ sync_send_results( void *arg )
 		if ( op == NULL || slapi_is_operation_abandoned( op ) ) {
 			slapi_log_error(SLAPI_LOG_PLUGIN, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Operation no longer active - terminating\n",
-						(long long unsigned int)connid, opid);
+						connid, opid);
 			break;
 		}
 		if ( NULL == req->ps_eq_head || !req->req_active) {

@@ -281,7 +281,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         ber_tag_t tag = 0;
 
         slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
-                "Sent an LDAP message that was not encrypted.\n", (long long unsigned int)c->c_connid,
+                "Sent an LDAP message that was not encrypted.\n", c->c_connid,
                 c->c_sd);
 
         /* Build a berval so we can get the length before reading in the entire packet */
@@ -297,7 +297,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                     "conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable "
                     "is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in "
                     "cn=config to increase.\n",
-                    (long long unsigned int)c->c_connid, c->c_sd, maxbersize );
+                    c->c_connid, c->c_sd, maxbersize );
             PR_SetError(PR_IO_ERROR, 0);
             return PR_FAILURE;
         }
@@ -388,7 +388,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 if (*ber->ber_ptr == LDAP_REQ_UNBIND){
 #endif
                     slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
-                            "Received unencrypted UNBIND operation.\n", (long long unsigned int)c->c_connid,
+                            "Received unencrypted UNBIND operation.\n", c->c_connid,
                             c->c_sd);
                     sp->encrypted_buffer_count = sp->encrypted_buffer_offset;
                     sp->encrypted_buffer_offset = 0;
@@ -398,9 +398,9 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                         "Error: received an LDAP message (tag 0x%lx) that was not encrypted.\n",
 #ifdef USE_OPENLDAP
-                        (long long unsigned int)c->c_connid, c->c_sd, (long unsigned int)tag);
+                        c->c_connid, c->c_sd, (long unsigned int)tag);
 #else
-                        (long long unsigned int)c->c_connid, c->c_sd, (long unsigned int)*ber->ber_ptr);
+                        c->c_connid, c->c_sd, (long unsigned int)*ber->ber_ptr);
 #endif
             }
         }
@@ -409,7 +409,7 @@ done:
         /* If we got here we have garbage, or a denied LDAP operation */
         slapi_log_error( SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                 "Error: received an invalid message that was not encrypted.\n",
-                (long long unsigned int)c->c_connid, c->c_sd);
+                c->c_connid, c->c_sd);
 
         if (NULL != ber){
             ber_free(ber, 1);
