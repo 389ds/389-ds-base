@@ -474,7 +474,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"Replica in use locking_purl=%s\n",
-				(long long unsigned int)connid, opid,
+				connid, opid,
 				slapi_sdn_get_dn(r->repl_root),
 				r->locking_purl ? r->locking_purl : "unknown");
 		rval = PR_FALSE;
@@ -487,7 +487,7 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 	{
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 						"conn=%" NSPRIu64 " op=%d repl=\"%s\": Acquired replica\n",
-						(long long unsigned int)connid, opid,
+						connid, opid,
 						slapi_sdn_get_dn(r->repl_root));
 		r->repl_state_flags |= REPLICA_IN_USE;
 		if (isInc && *isInc) 
@@ -528,13 +528,13 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Replica not in use\n",
-					(long long unsigned int)connid, opid,
+					connid, opid,
 					slapi_sdn_get_dn(r->repl_root));
 	} else {
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Released replica held by locking_purl=%s\n",
-					(long long unsigned int)connid, opid,
+					connid, opid,
 					slapi_sdn_get_dn(r->repl_root),
 					r->locking_purl);
 
@@ -3411,7 +3411,6 @@ abort_csn_callback(const CSN *csn, void *data)
 	Replica *r = (Replica *)data;
 	Object *ruv_obj;
     RUV *ruv;
-    int rc;
 
 	PR_ASSERT(NULL != csn);
 	PR_ASSERT(NULL != data);
@@ -3423,11 +3422,14 @@ abort_csn_callback(const CSN *csn, void *data)
 
     replica_lock(r->repl_lock);
 
-	if (NULL != r->min_csn_pl)
-	{
-		rc = csnplRemove(r->min_csn_pl, csn);
-		PR_ASSERT(rc == 0);
-	}
+    if (NULL != r->min_csn_pl)
+    {
+        int rc = csnplRemove(r->min_csn_pl, csn);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "csnplRemove failed");
+            return;
+        }
+    }
 
     ruv_cancel_csn_inprogress (ruv, csn);
     replica_unlock(r->repl_lock);

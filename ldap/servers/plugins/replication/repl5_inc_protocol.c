@@ -1982,8 +1982,8 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 		/* Isn't listening. Do something drastic. */
 		return_value = -1;
 		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-				"%s: repl5_inc_stop: protocol does not stop after %llu seconds\n",
-				agmt_get_long_name(prp->agmt), (long long unsigned int)timeout);
+				"%s: repl5_inc_stop: protocol does not stop after %" NSPRIu64 " seconds\n",
+				agmt_get_long_name(prp->agmt), timeout);
 	}
 	else
 	{
