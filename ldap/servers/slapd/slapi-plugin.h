@@ -5860,6 +5860,8 @@ int slapi_attr_assertion2keys_ava_sv( const Slapi_Attr *sattr, Slapi_Value *val,
 	Slapi_Value ***ivals, int ftype );
 int slapi_attr_assertion2keys_sub_sv( const Slapi_Attr *sattr, char *initial,
 	char **any, char *final, Slapi_Value ***ivals );
+int slapi_attr_assertion2keys_sub_sv_pb( Slapi_PBlock *pb, const Slapi_Attr *sattr,
+	char *initial, char **any, char *final, Slapi_Value ***ivals);
 
 /**
  * Normalize the given value using the syntax associated with the
