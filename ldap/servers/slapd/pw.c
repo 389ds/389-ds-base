@@ -636,8 +636,9 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
-	if (NULL == e) {
-		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy", "update_pw_info: no password entry \n");
+	if ((NULL == operation) || (NULL == sdn) || (NULL == e)){
+		slapi_log_error(SLAPI_LOG_FATAL, "pwdpolicy", 
+		                "update_pw_info: param error - no password entry/target dn/operation\n");
 		return -1;
 	}
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
