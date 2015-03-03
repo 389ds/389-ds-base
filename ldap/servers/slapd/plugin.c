@@ -2693,24 +2693,25 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		slapi_plugin_init_fnptr p_initfunc, int add_entry, char *returntext)
 {
 	int ii = 0;
-	char attrname[BUFSIZ];
-	char *value = 0;
+	char attrname[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
+	char *value = NULL;
+	char **values = NULL;
 	struct slapdplugin *plugin = NULL;
 	struct slapdplugin **plugin_list = NULL;
-	struct slapi_componentid *cid=NULL;
+	struct slapi_componentid *cid = NULL;
 	const char *existname = 0;
 	slapi_plugin_init_fnptr initfunc = p_initfunc;
 	Slapi_PBlock pb;
 	int status = 0;
 	int enabled = 1;
 	char *configdir = 0;
+	int skipped;
 
 	attrname[0] = '\0';
 
 	if (!slapi_entry_get_sdn_const(plugin_entry))
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, "plugin_setup: DN is missing from the plugin.\n",
-				0, 0, 0);
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "plugin_setup: DN is missing from the plugin.\n");
 		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Plugin is missing dn.");
 		return -1;
 	}
@@ -2815,8 +2816,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		slapi_ch_free((void**)&value);
 	}
 
-	if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
-											   ATTR_PLUGIN_INITFN)))
+	if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_INITFN)))
 	{
 		if (!initfunc)
 		{
@@ -2906,13 +2906,35 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	value = 0;
 	ii = 0;
 	PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ii);
-	while ((value = slapi_entry_attr_get_charptr(plugin_entry, attrname)) != NULL)
-	{
-		charray_add(&plugin->plg_argv, value);
-		plugin->plg_argc++;
-		++ii;
-		PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ii);
-	}
+	skipped = 0;
+#define MAXSKIPPED 10 /* Max allowed missing args */
+	do {
+		/* 
+		 * nsslapd-pluginarg0: val0
+		 * nsslapd-pluginarg0: val00
+		 * nsslapd-pluginarg2: val2
+		 * nsslapd-pluginarg5: val5
+		 * ==>
+		 * treated as
+		 * nsslapd-pluginarg0: val0
+		 * nsslapd-pluginarg1: val00
+		 * nsslapd-pluginarg2: val2
+		 * nsslapd-pluginarg3: val5
+		 */
+		char **vp = values = slapi_entry_attr_get_charray(plugin_entry, attrname);
+		if (values) {
+			charray_add(&plugin->plg_argv, slapi_ch_strdup(*vp));
+			plugin->plg_argc++;
+			for (vp++; vp && *vp; vp++) {
+				charray_add(&plugin->plg_argv, slapi_ch_strdup(*vp));
+				plugin->plg_argc++;
+			}
+			charray_free(values);
+		} else {
+			skipped++;
+		}
+		PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ++ii);
+	} while (skipped < MAXSKIPPED);
 
 	memset((char *)&pb, '\0', sizeof(pb));
 	slapi_pblock_set(&pb, SLAPI_PLUGIN, plugin);

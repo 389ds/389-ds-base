@@ -288,7 +288,7 @@ preop_add(Slapi_PBlock *pb)
     firstSubtree++;
     argc--;
 
-    for (attrName = argv; strcmp(*attrName, ",") != 0; attrName++ )
+    for (attrName = argv; attrName && *attrName && strcmp(*attrName, ","); attrName++)
     {
       /* 
        * if the attribute is userpassword, check unhashed user password 
@@ -300,15 +300,14 @@ preop_add(Slapi_PBlock *pb)
       if ( strcasecmp(*attrName, "userpassword") == 0 )
       {
          origpwd = pwd = slapi_get_first_clear_text_pw(e);
-         if (pwd == NULL)
-	 {
+         if (pwd == NULL) {
             continue;
          }
          val.bv_val = pwd;
          val.bv_len = strlen(val.bv_val);
       } else {
          attr_name = *attrName;
-	 err = slapi_entry_attr_find(e, attr_name, &attr);
+          err = slapi_entry_attr_find(e, attr_name, &attr);
          if (err) continue; /* break;*/  /* no 7-bit attribute */
       }
 
@@ -745,11 +744,16 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     err = slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
     if (err) break;
 
+    for (attr_count = 0; argv && argv[attr_count]; attr_count++) {
+        slapi_log_error(SLAPI_LOG_PLUGIN, "NS7bitAttr_Init", "%d: %s\n",
+                        attr_count, argv[attr_count]);
+    }
     /* 
      * Arguments before "," are the 7-bit attribute names. Arguments after
      * "," are the subtree DN's. 
      */
     if (argc < 1) { err = -2; break; } /* missing arguments */
+    attr_count = 0;
     for(;*argv && strcmp(*argv, ",") != 0 && argc > 0; attr_count++, argc--, argv++);
     if (argc == 0) { err = -3; break; } /* no comma separator */
     if(attr_count == 0){ err = -4; break; } /* no attributes */
