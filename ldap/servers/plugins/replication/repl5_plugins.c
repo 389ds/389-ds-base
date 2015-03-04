@@ -1134,17 +1134,17 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		opcsn = operation_get_csn(op);
 		rc = update_ruv_component(r, opcsn, pb);
 		if (RUV_COVERS_CSN == rc) {
-        		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"write_changelog_and_ruv: RUV already covers csn for "
 					"%s (uniqid: %s, optype: %lu) csn %s\n",
 					dn, uniqueid, optype,
 					csn_as_string(oppcsn, PR_FALSE, csn_str));
-		} else if (rc != RUV_SUCCESS) {
-        		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		} else if ((rc != RUV_SUCCESS) && (rc != RUV_NOTFOUND)) {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
 					"write_changelog_and_ruv: failed to update RUV for "
-					"%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
+					"%s (uniqid: %s, optype: %lu) to changelog csn %s - rc %d\n",
 					dn, uniqueid, optype,
-					csn_as_string(oppcsn, PR_FALSE, csn_str));
+					csn_as_string(oppcsn, PR_FALSE, csn_str), rc);
 		}
 	}
 
