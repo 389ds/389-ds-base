@@ -548,7 +548,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         }
-        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_replicaProtocolTimeout)){
+        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_replicaProtocolTimeout))
+        {
             if (mods[i]->mod_op & LDAP_MOD_DELETE)
             {
                 agmt_set_protocol_timeout(agmt, 0);
@@ -572,6 +573,14 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                     break;
                 }
                 agmt_set_protocol_timeout(agmt, ptimeout);
+            }
+        }
+        else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5WaitForAsyncResults))
+        {
+            if (mods[i]->mod_op & LDAP_MOD_DELETE) {
+                (void) agmt_set_WaitForAsyncResults(agmt, NULL);
+            } else {
+                (void) agmt_set_WaitForAsyncResults(agmt, e);
             }
         }
         else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))

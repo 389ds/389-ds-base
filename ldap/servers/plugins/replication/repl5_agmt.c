@@ -154,6 +154,8 @@ typedef struct repl5agmt {
 	                        * This is the duration (in msec) that the RA will pause before sending the next entry
 	                        */
 	Slapi_RWLock *attr_lock; /* RW lock for all the stripped attrs */
+	int WaitForAsyncResults; /* Pass to DS_Sleep(PR_MillisecondsToInterval(WaitForAsyncResults))
+	                          * in repl5_inc_waitfor_async_results */
 } repl5agmt;
 
 /* Forward declarations */
@@ -315,7 +317,8 @@ agmt_new_from_entry(Slapi_Entry *e)
 	ra->port = slapi_entry_attr_get_int(e, type_nsds5ReplicaPort);
 	/* SSL, TLS, or other transport stuff */
 	ra->transport_flags = 0;
-	agmt_set_transportinfo_no_lock(ra, e);
+	(void) agmt_set_transportinfo_no_lock(ra, e);
+	(void) agmt_set_WaitForAsyncResults(ra, e);
 
 	/* DN to use when binding. May be empty if certain SASL auth is to be used e.g. EXTERNAL GSSAPI. */
 	ra->binddn = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBindDN);
@@ -1725,6 +1728,27 @@ agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
 
 	slapi_ch_free_string(&tmpstr);
 	return (rc);
+}
+
+int
+agmt_set_WaitForAsyncResults(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	int wait = 0;
+	if (e) {
+		wait = slapi_entry_attr_get_int(e, type_nsds5WaitForAsyncResults);
+	}
+	if (wait <= 0) {
+		ra->WaitForAsyncResults = 100; /* 0.1 sec */
+	} else {
+		ra->WaitForAsyncResults = wait;
+	}
+	return 0;
+}
+
+int
+agmt_get_WaitForAsyncResults(Repl_Agmt *ra)
+{
+	return ra->WaitForAsyncResults;
 }
 
 int 

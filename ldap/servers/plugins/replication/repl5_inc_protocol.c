@@ -110,6 +110,7 @@ typedef struct result_data
 	int last_message_id_received;
 	int flowcontrol_detection;
 	int result; /* The UPDATE_TRANSIENT_ERROR etc */
+	int WaitForAsyncResults;
 } result_data;
 
 /* Various states the incremental protocol can pass through */
@@ -492,18 +493,17 @@ repl5_inc_waitfor_async_results(result_data *rd)
 		slapi_log_error(SLAPI_LOG_REPL, NULL,
 					"repl5_inc_waitfor_async_results: %d %d\n",
 					rd->last_message_id_received, rd->last_message_id_sent);
-		if (rd->last_message_id_received >= rd->last_message_id_sent) 
-		{
+		if (rd->last_message_id_received >= rd->last_message_id_sent) {
 			/* If so then we're done */
 			done = 1;
-		}
-		if (rd->abort && (rd->result == UPDATE_CONNECTION_LOST))
-		{
+		} else if (rd->abort && (rd->result == UPDATE_CONNECTION_LOST)) {
 			done = 1; /* no connection == no more results */
 		}
 		PR_Unlock(rd->lock);
-		/* If not then sleep a bit */
-		DS_Sleep(PR_SecondsToInterval(1));
+		if (!done) {
+			/* If not then sleep a bit */
+			DS_Sleep(PR_MillisecondsToInterval(rd->WaitForAsyncResults));
+		}
 		loops++;
 		/* If we sleep forever then we can conclude that something bad happened, and bail... */
 		/* Arbitrary 30 second delay : basically we should only expect to wait as long as it takes to process a few operations, which should be on the order of a second at most */
@@ -1912,6 +1912,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		{
 			/* We need to ensure that we wait until all the responses have been received from our operations */
 			if (return_value != UPDATE_CONNECTION_LOST) {
+				rd->WaitForAsyncResults = agmt_get_WaitForAsyncResults(prp->agmt);
 				/* if connection was lost/closed, there will be nothing to read */
 				repl5_inc_waitfor_async_results(rd);
 			}
