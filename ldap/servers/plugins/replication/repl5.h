@@ -194,6 +194,9 @@ extern const char *type_winSyncSubtreePair;
 /* To Allow Consumer Initialisation when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
 
+/* For tuning replica release */
+extern const char *type_nsds5WaitForAsyncResults;
+
 /* replica related attributes */
 extern const char *attr_replicaId;
 extern const char *attr_replicaRoot;
@@ -412,6 +415,7 @@ void add_agmt_maxcsns(Slapi_Entry *e, Replica *r);
 void agmt_set_maxcsn(Repl_Agmt *ra);
 void agmt_remove_maxcsn(Repl_Agmt *ra);
 int agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod);
+int agmt_set_WaitForAsyncResults(Repl_Agmt *ra, const Slapi_Entry *e);
 
 /* In repl5_agmtlist.c */
 int agmtlist_config_init();
@@ -747,6 +751,9 @@ void replica_updatedn_list_enumerate(ReplicaUpdateDNList list, FNEnumDN fn, void
 void repl5_set_debug_timeout(const char *val);
 /* temp hack XXX */
 ReplicaId agmt_get_consumerRID(Repl_Agmt *ra);
+
+/* For replica release tuning */
+int agmt_get_WaitForAsyncResults(Repl_Agmt *ra);
 
 PRBool ldif_dump_is_running();
 
