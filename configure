@@ -21325,7 +21325,7 @@ $as_echo "using $withval" >&6; }
         nunc_stans_lib="-L$withval/lib"
     nunc_stans_libdir="$withval/lib"
     nunc_stans_incdir="$withval/include"
-    if ! test -e "$nunc_stans_incdir/nunc-stans/ns_thrpool.h" ; then
+    if ! test -e "$nunc_stans_incdir/nunc-stans/nunc-stans.h" ; then
       as_fn_error $? "$withval include dir not found" "$LINENO" 5
     fi
     nunc_stans_inc="-I$nunc_stans_incdir"
@@ -21347,7 +21347,7 @@ $as_echo_n "checking for --with-nunc-stans-inc... " >&6; }
 # Check whether --with-nunc-stans-inc was given.
 if test "${with_nunc_stans_inc+set}" = set; then :
   withval=$with_nunc_stans_inc;
-  if test -e "$withval"/nunc-stans/ns_thrpool.h
+  if test -e "$withval"/nunc-stans/nunc-stans.h
   then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: using $withval" >&5
 $as_echo "using $withval" >&6; }

@@ -34,7 +34,7 @@ AC_ARG_WITH(nunc-stans, AS_HELP_STRING([--with-nunc-stans@<:@=PATH@:>@],[nunc-st
     nunc_stans_lib="-L$withval/lib"
     nunc_stans_libdir="$withval/lib"
     nunc_stans_incdir="$withval/include"
-    if ! test -e "$nunc_stans_incdir/nunc-stans/ns_thrpool.h" ; then
+    if ! test -e "$nunc_stans_incdir/nunc-stans/nunc-stans.h" ; then
       AC_MSG_ERROR([$withval include dir not found])
     fi
     nunc_stans_inc="-I$nunc_stans_incdir"
@@ -49,7 +49,7 @@ AC_MSG_RESULT(no))
 AC_MSG_CHECKING(for --with-nunc-stans-inc)
 AC_ARG_WITH(nunc-stans-inc, AS_HELP_STRING([--with-nunc-stans-inc=PATH],[nunc-stans include file directory]),
 [
-  if test -e "$withval"/nunc-stans/ns_thrpool.h
+  if test -e "$withval"/nunc-stans/nunc-stans.h
   then
     AC_MSG_RESULT([using $withval])
     nunc_stans_incdir="$withval"

@@ -3278,7 +3278,7 @@ ns_handle_new_connection(struct ns_job_t *job)
 	 */
 	c->c_tp = ns_job_get_tp(job);
 	connection_acquire_nolock(c); /* event framework now has ref */
-	ns_add_job(ns_job_get_tp(job), NULL, NS_JOB_NONE, ns_handle_pr_read_ready, c);
+	ns_add_job(ns_job_get_tp(job), NS_JOB_NONE, ns_handle_pr_read_ready, c, NULL);
 	return;
 }
 #endif
