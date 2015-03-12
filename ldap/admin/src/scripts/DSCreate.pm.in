@@ -986,7 +986,7 @@ sub updateSelinuxPolicy {
     my $inf = shift;
 
     # if selinux is not available, do nothing
-    if ("@with_selinux@") {
+    if ((getLogin() eq 'root') and "@with_selinux@") {
         my $localstatedir = $inf->{slapd}->{localstatedir};
 
         # run restorecon on all of the parent directories we
@@ -1062,7 +1062,7 @@ sub updateTmpfilesDotD {
     my $parentdir;
 
     # if tmpfiles.d is not available, do nothing
-    if ($dir and -d $dir) {
+    if ((getLogin() eq 'root') and $dir and -d $dir) {
         my $filename = "$dir/@package_name@-$inf->{slapd}->{ServerIdentifier}.conf";
         if (-f $filename) {
             debug(3, "Removing the old tmpfile: $filename\n");
@@ -1131,7 +1131,7 @@ sub updateSystemD {
     my $confbasedir = "@systemdsystemconfdir@";
     my $confdir = "$confbasedir/@systemdgroupname@.wants";
 
-    if (!$unitdir or !$confdir or ! -d $unitdir or ! -d $confdir) {
+    if ((getLogin() ne 'root') or !$unitdir or !$confdir or ! -d $unitdir or ! -d $confdir) {
         debug(3, "no systemd - skipping\n");
         return ();
     }
@@ -1421,7 +1421,7 @@ sub removeDSInstance {
 
     my $tmpfilesdir = "@with_tmpfiles_d@";
     my $tmpfilesname = "$tmpfilesdir/@package_name@-$inst.conf";
-    if ($tmpfilesdir && -d $tmpfilesdir && -f $tmpfilesname) {
+    if ((getLogin() eq 'root') && $tmpfilesdir && -d $tmpfilesdir && -f $tmpfilesname) {
         my $rc = unlink($tmpfilesname);
         if ( 0 == $rc )
         {
@@ -1431,7 +1431,7 @@ sub removeDSInstance {
     }
 
     # remove the selinux label from the ports if needed
-    if ("@with_selinux@") {
+    if ((getLogin() eq 'root') and "@with_selinux@") {
         foreach my $port (@{$entry->{"nsslapd-port"}}) 
         {
             my $semanage_err;
