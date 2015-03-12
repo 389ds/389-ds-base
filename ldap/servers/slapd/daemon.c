@@ -2402,6 +2402,25 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 }
 
 #ifdef ENABLE_NUNC_STANS
+#define CONN_NEEDS_CLOSING(c) (c->c_flags & CONN_FLAG_CLOSING) || (c->c_sd == SLAPD_INVALID_SOCKET)
+/* Used internally by ns_handle_closure and ns_handle_pr_read_ready.
+ * Returns 0 if the connection was successfully closed, or 1 otherwise.
+ * Must be called with the c->c_mutex locked.
+ */
+static int
+ns_handle_closure_nomutex(Connection *c)
+{
+	int rc = 0;
+	PR_ASSERT(c->c_refcnt > 0); /* one for the conn active list, plus possible other threads */
+	PR_ASSERT(CONN_NEEDS_CLOSING(c));
+	if (connection_table_move_connection_out_of_active_list(c->c_ct, c)) {
+		/* not closed - another thread still has a ref */
+		rc = 1;
+		/* reschedule closure job */
+		ns_connection_post_io_or_closing(c);
+	}
+	return rc;
+}
 /* This function is called when the connection has been marked
  * as closing and needs to be cleaned up.  It will keep trying
  * and re-arming itself until there are no references.
@@ -2415,22 +2434,20 @@ ns_handle_closure(struct ns_job_t *job)
 	/* this function must be called from the event loop thread */
 	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
 	PR_Lock(c->c_mutex);
-	c->c_ns_close_jobs--;
-	connection_release_nolock(c); /* release ref acquired when job was added */
-	if (connection_table_move_connection_out_of_active_list(c->c_ct, c)) {
-		do_yield = 1;
-		ns_connection_post_io_or_closing(c);
-	}
+	connection_release_nolock_ext(c, 1); /* release ref acquired for event framework */
+	PR_ASSERT(c->c_ns_close_jobs == 1); /* should be exactly 1 active close job - this one */
+	c->c_ns_close_jobs--; /* this job is processing closure */
+	do_yield = ns_handle_closure_nomutex(c);
 	PR_Unlock(c->c_mutex);
 	ns_job_done(job);
 	if (do_yield) {
+		/* closure not done - another reference still outstanding */
 		/* yield thread after unlocking conn mutex */
 		PR_Sleep(PR_INTERVAL_NO_WAIT); /* yield to allow other thread to release conn */
 	}
 	return;
 }
 #endif
-#define CONN_NEEDS_CLOSING(c) (c->c_flags & CONN_FLAG_CLOSING) || (c->c_sd == SLAPD_INVALID_SOCKET)
 
 /**
  * Schedule more I/O for this connection, or make sure that it
@@ -2441,19 +2458,22 @@ ns_connection_post_io_or_closing(Connection *conn)
 {
 #ifdef ENABLE_NUNC_STANS
 	struct timeval tv;
-	ns_job_func_t job_func;
 
 	if (CONN_NEEDS_CLOSING(conn)) {
+		/* there should only ever be 0 or 1 active closure jobs */
+		PR_ASSERT((conn->c_ns_close_jobs == 0) || (conn->c_ns_close_jobs == 1));
 		if (conn->c_ns_close_jobs) {
 			LDAPDebug2Args(LDAP_DEBUG_CONNS, "already a close job in progress on conn %" NSPRIu64 " for fd=%d\n",
 				       conn->c_connid, conn->c_sd);
 			return;
 		} else {
-			/* just make sure the event is processed at the next possible event loop run */
+			/* just make sure we schedule the event to be closed in a timely manner */
 			tv.tv_sec = 0;
-			tv.tv_usec = 1000;
-			job_func = ns_handle_closure;
-			conn->c_ns_close_jobs++;
+			tv.tv_usec = slapd_wakeup_timer * 1000;
+			conn->c_ns_close_jobs++; /* now 1 active closure job */
+			connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
+			ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
+					   ns_handle_closure, conn, NULL);
 			LDAPDebug2Args(LDAP_DEBUG_CONNS, "post closure job for conn %" NSPRIu64 " for fd=%d\n",
 				       conn->c_connid, conn->c_sd);
 		}
@@ -2461,14 +2481,13 @@ ns_connection_post_io_or_closing(Connection *conn)
 		/* process event normally - wait for I/O until idletimeout */
 		tv.tv_sec = conn->c_idletimeout;
 		tv.tv_usec = 0;
-		job_func = ns_handle_pr_read_ready;
+		PR_ASSERT(0 == connection_acquire_nolock(conn)); /* event framework now has a reference */
+		ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
+				      NS_JOB_READ|NS_JOB_PRESERVE_FD,
+				      ns_handle_pr_read_ready, conn, NULL);
 		LDAPDebug2Args(LDAP_DEBUG_CONNS, "post I/O job for conn %" NSPRIu64 " for fd=%d\n",
 			       conn->c_connid, conn->c_sd);
 	}
-	connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework will have reference */
-	ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
-			      NS_JOB_READ|NS_JOB_PRESERVE_FD,
-			      job_func, conn, NULL);
 #endif
 }
 
@@ -2480,7 +2499,6 @@ ns_connection_post_io_or_closing(Connection *conn)
 void
 ns_handle_pr_read_ready(struct ns_job_t *job)
 {
-	int need_closure = 0;
 	int maxthreads = config_get_maxthreadsperconn();
 	Connection *c = (Connection *)ns_job_get_data(job);
 
@@ -2492,14 +2510,14 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 		       c->c_connid, c->c_sd);
 	/* if we were called due to some i/o event, see what the state of the socket is */
 	if (slapi_is_loglevel_set(SLAPI_LOG_CONNS) && !NS_JOB_IS_TIMER(ns_job_get_output_type(job)) && c && c->c_sd) {
-		/* see if socket is closed */
+		/* check socket state */
 		char buf[1];
 		ssize_t rc = recv(c->c_sd, buf, sizeof(buf), MSG_PEEK);
 		if (!rc) {
 			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket is closed conn %" NSPRIu64 " for fd=%d\n",
 				       c->c_connid, c->c_sd);
 		} else if (rc > 0) {
-			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket has data available for conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket read data available for conn %" NSPRIu64 " for fd=%d\n",
 				       c->c_connid, c->c_sd);
 		} else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
 			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket has no data available conn %" NSPRIu64 " for fd=%d\n",
@@ -2509,14 +2527,15 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 				  errno, c->c_connid, c->c_sd);
 		}
 	}
-	connection_release_nolock(c); /* release ref acquired when job was added */
+	connection_release_nolock_ext(c, 1); /* release ref acquired when job was added */
 	if (CONN_NEEDS_CLOSING(c)) {
-		need_closure = 1;
+		ns_handle_closure_nomutex(c);
 	} else if (NS_JOB_IS_TIMER(ns_job_get_output_type(job))) {
 		/* idle timeout */
-		disconnect_server_nomutex(c, c->c_connid, -1,
-				          SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN);
-		need_closure = 1;
+		disconnect_server_nomutex_ext(c, c->c_connid, -1,
+					      SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN,
+				              0 /* do not schedule closure, do it next */);
+		ns_handle_closure_nomutex(c);
 	} else if ((connection_activity(c, maxthreads)) == -1) {
 		/* This might happen as a result of
 		 * trying to acquire a closing connection
@@ -2525,15 +2544,13 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 			       " as fd=%d is already closing\n", c->c_connid, c->c_sd);
 		/* The call disconnect_server should do nothing,
 		 * as the connection c should be already set to CLOSING */
-		disconnect_server_nomutex(c, c->c_connid, -1,
-				          SLAPD_DISCONNECT_POLL, EPIPE);
-		need_closure = 1;
+		disconnect_server_nomutex_ext(c, c->c_connid, -1,
+				              SLAPD_DISCONNECT_POLL, EPIPE,
+				              0 /* do not schedule closure, do it next */);
+		ns_handle_closure_nomutex(c);
 	} else {
 		LDAPDebug2Args(LDAP_DEBUG_CONNS, "queued conn %" NSPRIu64 " for fd=%d\n",
 			       c->c_connid, c->c_sd);
-	}
-	if (need_closure) {
-		ns_connection_post_io_or_closing(c);
 	}
 	PR_Unlock(c->c_mutex);
 	ns_job_done(job);
@@ -3273,12 +3290,15 @@ ns_handle_new_connection(struct ns_job_t *job)
 		}
 		return;
 	}
-	/* now, set up the conn for reading - no thread - ns_handle_pr_read_ready
-	 * must be run in the event loop thread
-	 */
 	c->c_tp = ns_job_get_tp(job);
-	connection_acquire_nolock(c); /* event framework now has ref */
-	ns_add_job(ns_job_get_tp(job), NS_JOB_NONE, ns_handle_pr_read_ready, c, NULL);
+	/* This originally just called ns_handle_pr_read_ready directly - however, there
+	 * are certain cases where accept() will return a file descriptor that is not
+	 * immediately available for reading - this would cause the poll() in
+	 * connection_read_operation() to be hit - it seemed to perform better when
+	 * that poll() was avoided, even at the expense of putting this new fd back
+	 * in nunc-stans to poll for read ready.
+	 */
+	ns_connection_post_io_or_closing(c);
 	return;
 }
 #endif

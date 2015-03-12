@@ -731,7 +731,7 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 }
 
 /* this function should be called under c_mutex */
-int connection_release_nolock (Connection *conn)
+int connection_release_nolock_ext (Connection *conn, int release_only)
 {
     if (conn->c_refcnt <= 0)
     {
@@ -745,8 +745,19 @@ int connection_release_nolock (Connection *conn)
     {
         conn->c_refcnt--;
 
+        if (!release_only && (conn->c_refcnt == 1) && (conn->c_flags & CONN_FLAG_CLOSING)) {
+        	/* if refcnt == 1 usually means only the active connection list has a ref */
+        	/* refcnt == 0 means conntable just dropped the last ref */
+        	ns_connection_post_io_or_closing(conn);
+        }
+
         return 0;
     }
+}
+
+int connection_release_nolock (Connection *conn)
+{
+	return connection_release_nolock_ext(conn, 0);
 }
 
 /* this function should be called under c_mutex */
@@ -1961,6 +1972,12 @@ connection_read_ldap_data(Connection *conn, PRInt32 *err)
 	return ret;
 }
 
+static size_t
+conn_buffered_data_avail_nolock(Connection *conn)
+{
+	return conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset;
+}
+
 /* Upon returning from this function, we have either: 
    1. Read a PDU successfully.
    2. Detected some error condition with the connection which requires closing it.
@@ -1980,6 +1997,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	char *buffer = conn->c_private->c_buffer;
 	PRErrorCode err = 0;
 	PRInt32 syserr = 0;
+	size_t buffer_data_avail;
 
 	PR_Lock(conn->c_mutex);
 	/*
@@ -1995,12 +2013,11 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	
 	*tag = LBER_DEFAULT;
 	/* First check to see if we have buffered data from "before" */
-	if (conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset) {
+	if ((buffer_data_avail = conn_buffered_data_avail_nolock(conn))) {
 		/* If so, use that data first */
 		if ( 0 != get_next_from_buffer( buffer
 				+ conn->c_private->c_buffer_offset,
-				conn->c_private->c_buffer_bytes
-				- conn->c_private->c_buffer_offset,
+				buffer_data_avail,
 				&len, tag, op->o_ber, conn )) {
 			ret = CONN_DONE;
 			goto done;
@@ -2011,7 +2028,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	while (*tag == LBER_DEFAULT) {
 		int ioblocktimeout_waits = config_get_ioblocktimeout() / CONN_TURBO_TIMEOUT_INTERVAL;
 		/* We should never get here with data remaining in the buffer */
-		PR_ASSERT( !new_operation || 0 == (conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset) );
+		PR_ASSERT( !new_operation || 0 == conn_buffered_data_avail_nolock(conn) );
 		/* We make a non-blocking read call */
 		if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
 			ret = connection_read_ldap_data(conn,&err);
@@ -2088,6 +2105,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					ret = CONN_DONE;
 					goto done;
 				}
+				LDAPDebug( LDAP_DEBUG_CONNS,
+					   "connection %" NSPRIu64 " waited %d times for read to be ready\n", conn->c_connid, waits_done, 0 );
 			} else {
 				/* Some other error, typically meaning bad stuff */
 					syserr = PR_GetOSError();
@@ -2112,6 +2131,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					goto done;
 				}
 			}
+			LDAPDebug( LDAP_DEBUG_CONNS,
+				   "connection %" NSPRIu64 " read %d bytes\n", conn->c_connid, ret, 0 );
 
 			new_operation = 0;
 			ret = CONN_FOUND_WORK_TO_DO;
@@ -2119,7 +2140,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		}
 	}
 	/* If there is remaining buffered data, set the flag to tell the caller */
-	if (conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset) {
+	if (conn_buffered_data_avail_nolock(conn)) {
 		*remaining_data = 1;
 	}
 
@@ -2184,7 +2205,10 @@ void connection_make_readable_nolock(Connection *conn)
 	conn->c_gettingber = 0;
 	LDAPDebug2Args(LDAP_DEBUG_CONNS, "making readable conn %" NSPRIu64 " fd=%d\n",
 		       conn->c_connid, conn->c_sd);
-	ns_connection_post_io_or_closing(conn);
+	if (!(conn->c_flags & CONN_FLAG_CLOSING)) {
+		/* if the connection is closing, try the close in connection_release_nolock */
+		ns_connection_post_io_or_closing(conn);
+	}
 }
 
 /*
@@ -2333,7 +2357,9 @@ connection_threadmain()
 	int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
 	int doshutdown = 0;
 	int maxthreads = 0;
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 	long bypasspollcnt = 0;
+#endif
 
 #if defined( OSF1 ) || defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
@@ -2425,6 +2451,17 @@ connection_threadmain()
 		maxthreads = config_get_maxthreadsperconn();
 		more_data = 0;
 		ret = connection_read_operation(conn,op,&tag,&more_data);
+		if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
+			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
+					"conn %" NSPRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
+					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, ret, thread_turbo_flag, more_data,
+					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
+		} else if (ret == CONN_FOUND_WORK_TO_DO) {
+			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
+					"conn %" NSPRIu64 " read operation successfully - thread_turbo_flag %d more_data %d "
+					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, thread_turbo_flag, more_data,
+					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
+		}
 
 		curtime = current_time();
 #define DB_PERF_TURBO 1		
@@ -2457,11 +2494,21 @@ connection_threadmain()
 			case CONN_TIMEDOUT:
 				thread_turbo_flag = 0;
 				is_timedout = 1;
+				/* In the case of CONN_DONE, more_data could have been set to 1
+				 * in connection_read_operation before an error was encountered.
+				 * In that case, we need to set more_data to 0 - even if there is
+				 * more data available, we're not going to use it anyway.
+				 * In the case of CONN_TIMEDOUT, it is only used in one place, and
+				 * more_data will never be set to 1, so it is safe to set it to 0 here.
+				 * We need more_data to be 0 so the connection will be processed
+				 * correctly at the end of this function.
+				 */
+				more_data = 0;
 				/* note: 
 				 * should call connection_make_readable after the op is removed
 				 * connection_make_readable(conn);
 				 */
-				LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode due to %d\n",conn->c_connid,ret,0); 
+				LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode due to %d\n",conn->c_connid,ret,0);
 				goto done;
 			case CONN_SHUTDOWN:
 				LDAPDebug( LDAP_DEBUG_TRACE, 
@@ -2499,6 +2546,13 @@ connection_threadmain()
 				/* once the connection is readable, another thread may access conn,
 				 * so need locking from here on */
 				signal_listner();
+/* with nunc-stans, I see an enormous amount of time spent in the poll() in
+ * connection_read_operation() when the below code is enabled - not sure why
+ * nunc-stans makes such a huge difference - for now, just disable this code
+ * when using nunc-stans - it is supposed to be an optimization but turns out
+ * to not be the opposite with nunc-stans
+ */
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 			} else { /* more data in conn - just put back on work_q - bypass poll */
 				bypasspollcnt++;
 				PR_Lock(conn->c_mutex);
@@ -2511,11 +2565,13 @@ connection_threadmain()
 					 */
 					conn->c_idlesince = curtime;
 					connection_activity(conn, maxthreads);
+					LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " queued because more_data\n",conn->c_connid,0,0);
 				} else {
 					/* keep count of how many times maxthreads has blocked an operation */
 					conn->c_maxthreadsblocked++;
 				}
 				PR_Unlock(conn->c_mutex);
+#endif
 			}
 		}
 
@@ -2589,6 +2645,9 @@ done:
 			connection_remove_operation_ext( pb, conn, op );
 
 			/* If we're in turbo mode, we keep our reference to the connection alive */
+			/* can't use the more_data var because connection could have changed in another thread */
+			more_data = conn_buffered_data_avail_nolock(conn) ? 1 : 0;
+			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " check more_data %d thread_turbo_flag %d\n",conn->c_connid,more_data,thread_turbo_flag);
 			if (!more_data) {
 				if (!thread_turbo_flag) {
 					/*
@@ -3011,7 +3070,7 @@ static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
  */
 
 void
-disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
+disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error, int schedule_closure_job )
 {
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	    conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) )
@@ -3088,7 +3147,9 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 				}
 			}
 		}
-		ns_connection_post_io_or_closing(conn); /* make sure event loop wakes up and closes this conn */
+		if (schedule_closure_job) {
+			ns_connection_post_io_or_closing(conn); /* make sure event loop wakes up and closes this conn */
+		}
 
     } else {
 	    LDAPDebug2Args(LDAP_DEBUG_CONNS, "not setting conn %d to be disconnected: %s\n",
@@ -3097,6 +3158,12 @@ disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErro
 			    ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :
 			     ((conn->c_flags & CONN_FLAG_CLOSING) ? "conn is closing" : "unknown")));
     }
+}
+
+void
+disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
+{
+	disconnect_server_nomutex_ext(conn, opconnid, opid, reason, error, 1);
 }
 
 void

@@ -1003,6 +1003,7 @@ int send_ldap_referral( Slapi_PBlock *pb, Slapi_Entry *e, struct berval **refs,
 int send_ldapv3_referral( Slapi_PBlock *pb, struct berval **urls );
 int set_db_default_result_handlers(Slapi_PBlock *pb);
 void disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
+void disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error, int schedule_closure_job );
 long g_get_current_conn_count();
 void g_increment_current_conn_count();
 void g_decrement_current_conn_count();
@@ -1423,6 +1424,7 @@ int mapping_tree_get_extension_type ();
 int connection_acquire_nolock (Connection *conn);
 int connection_acquire_nolock_ext (Connection *conn, int allow_when_closing);
 int connection_release_nolock (Connection *conn);
+int connection_release_nolock_ext (Connection *conn, int release_only);
 int connection_is_free (Connection *conn);
 int connection_is_active_nolock (Connection *conn);
 #if defined(USE_OPENLDAP)

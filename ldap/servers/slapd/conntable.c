@@ -354,7 +354,7 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct,Connecti
 
 	PR_Lock(ct->table_mutex);
 
-	connection_acquire_nolock (c);
+	PR_ASSERT(0 == connection_acquire_nolock (c));
 
 #ifdef FOR_DEBUGGING
     slapi_log_error(SLAPI_LOG_FATAL, "connection", "Moving connection into active list\n");
