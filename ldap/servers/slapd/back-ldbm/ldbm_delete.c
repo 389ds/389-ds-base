@@ -454,13 +454,28 @@ ldbm_back_delete( Slapi_PBlock *pb )
 		char *tombstone_dn;
 		Slapi_Value *tomb_value;
 
-		if (slapi_is_special_rdn(edn, RDN_IS_TOMBSTONE)) {
+		if (slapi_entry_attr_hasvalue(e->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE) &&
+		    slapi_is_special_rdn(edn, RDN_IS_TOMBSTONE)) {
 			LDAPDebug1Arg(LDAP_DEBUG_ANY, "Turning a tombstone into a tombstone! \"%s\"\n", edn);
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
 			retval = -1;
 			goto error_return;
 		}
-		tombstone_dn = compute_entry_tombstone_dn(edn, childuniqueid);
+		if (!childuniqueid) {
+			slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_delete",
+			                "No nsUniqueId in the entry \"%s\"; e: 0x%p, cache_state: 0x%x, refcnt: %d\n", 
+			                edn, e, e->ep_state, e->ep_refcnt);
+			ldap_result_code = LDAP_OPERATIONS_ERROR;
+			retval = -1;
+			goto error_return;
+		}
+		if ((0 == PL_strncmp(edn + sizeof(SLAPI_ATTR_UNIQUEID), childuniqueid, strlen(childuniqueid))) &&
+			(*(edn + SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/) == ',')) {
+			/* The DN already starts with "nsuniqueid=...," */
+			tombstone_dn = slapi_ch_strdup(edn);
+		} else {
+			tombstone_dn = compute_entry_tombstone_dn(edn, childuniqueid);
+		}
 
 		slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 
