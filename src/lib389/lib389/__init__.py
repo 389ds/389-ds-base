@@ -448,6 +448,18 @@ class DirSrv(SimpleLDAPObject):
                                                       self.host,
                                                       self.sslport or self.port))
 
+    def openConnection(self):
+        # Open a new connection to our LDAP server
+        server = DirSrv(verbose=False)
+        args_instance[SER_HOST] = self.host
+        args_instance[SER_PORT] = self.port
+        args_instance[SER_SERVERID_PROP] = self.serverid
+        args_standalone = args_instance.copy()
+        server.allocate(args_standalone)
+        server.open()
+
+        return server
+
     def list(self, all=False):
         """
             Returns a list dictionary. For a created instance that is on the local file system
@@ -1997,6 +2009,8 @@ class DirSrv(SimpleLDAPObject):
                 idx = filename.find('/suites/')
             elif '/tickets/' in filename:
                 idx = filename.find('/tickets/')
+            elif '/stress/' in filename:
+                idx = filename.find('/stress/')
             else:
                 # Unknown script location
                 return None
