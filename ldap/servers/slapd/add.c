@@ -457,14 +457,13 @@ static void op_shared_add (Slapi_PBlock *pb)
 	int proxy_err = LDAP_SUCCESS;
 	char *errtext = NULL;
 	Slapi_DN *sdn = NULL;
-	passwdPolicy *pwpolicy;
+	passwdPolicy *pwpolicy = NULL;
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get (pb, SLAPI_ADD_ENTRY, &e);
 	slapi_pblock_get (pb, SLAPI_IS_REPLICATED_OPERATION, &repl_op);	
 	slapi_pblock_get (pb, SLAPI_IS_LEGACY_REPLICATED_OPERATION, &legacy_op);
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
-	pwpolicy = new_passwdPolicy(pb, slapi_entry_get_dn(e));
 
 	/* target spec is used to decide which plugins are applicable for the operation */
 	operation_set_target_spec (operation, slapi_entry_get_sdn (e));
@@ -561,6 +560,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			}
 
 			/* check password syntax */
+			pwpolicy = new_passwdPolicy(pb, slapi_entry_get_dn(e));
 			if (!pw_is_pwp_admin(pb, pwpolicy) &&
 			    check_pw_syntax(pb, slapi_entry_get_sdn_const(e), present_values, NULL, e, 0) != 0)
 			{
@@ -745,6 +745,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 done:
 	if (be)
 		slapi_be_Unlock(be);
+	delete_passwdPolicy(&pwpolicy);
 	slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
 	slapi_entry_free(pse);
 	slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
