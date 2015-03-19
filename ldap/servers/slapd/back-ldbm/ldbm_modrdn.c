@@ -273,8 +273,18 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 ldap_result_code= LDAP_OPERATIONS_ERROR;
                 goto error_return;
             }
+            slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &ent );
             if (cache_is_in_cache(&inst->inst_cache, ec)) {
                 CACHE_REMOVE(&inst->inst_cache, ec);
+                if (ent && (ent == ec->ep_entry)){
+                    /*
+                     * On a retry, it's possible that ec is now stored in the
+                     * pblock as SLAPI_MODRDN_EXISTING_ENTRY.  "ec" will be freed
+                     * by CACHE_RETURN below, so set ent to NULL so don't free
+                     * it again.
+                     */
+                    ent = NULL;
+                }
             }
             CACHE_RETURN(&inst->inst_cache, &ec);
             if (!cache_is_in_cache(&inst->inst_cache, e)) {
@@ -284,7 +294,6 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                                   slapi_entry_get_dn_const(e->ep_entry));
                 }
             }
-            slapi_pblock_get( pb, SLAPI_MODRDN_EXISTING_ENTRY, &ent );
             if (ent && (ent != original_entry->ep_entry)) {
                 slapi_entry_free(ent);
                 slapi_pblock_set( pb, SLAPI_MODRDN_EXISTING_ENTRY, NULL );
