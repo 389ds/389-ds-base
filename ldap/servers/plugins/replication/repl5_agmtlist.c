@@ -177,6 +177,57 @@ add_new_agreement(Slapi_Entry *e)
     return rc;
 }
 
+int
+id_extended_agreement(Repl_Agmt *agmt, LDAPMod** mods, Slapi_Entry *e)
+{
+    Slapi_Attr *sattr = NULL;
+    char *val = NULL;
+    int return_value = 0;
+    int i;
+
+    slapi_entry_attr_find(e, "objectclass", &sattr);
+    if (sattr) {
+        Slapi_Value *sval = NULL;
+        const char *val = NULL;
+        for (i = slapi_attr_first_value(sattr, &sval);
+                 i >= 0; i = slapi_attr_next_value(sattr, i, &sval)) {
+            val = slapi_value_get_string(sval);
+            if ((0 == strcasecmp(val,"top")) ||
+                (0 == strcasecmp(val,"nsds5replicationAgreement"))) {
+                continue;
+            } else {
+                /* the entry has an additional objectclass, accept mods */
+                return 1;
+            }
+        }
+    }
+    /* This modification could remove an additional objectclass.
+     * In the entry we check this mod has already been applied,
+     * so check list of mods
+     */
+    for (i = 0; NULL != mods && NULL != mods[i]; i++) {
+        if (strcasecmp(mods[i]->mod_type, "objectclass")) continue;
+        if (mods[i]->mod_bvalues){
+            int j;
+            for (j = 0; mods[i]->mod_bvalues[j]; j++){
+                slapi_ch_free_string(&val);
+                val = slapi_berval_get_string_copy (mods[i]->mod_bvalues[j]);
+                if ((0 == strcasecmp(val,"top")) ||
+                    (0 == strcasecmp(val,"nsds5replicationAgreement"))) {
+                    continue;
+                } else {
+                    /* an additional objectclass was modified */
+                    return_value = 1;
+                    break;
+                }
+            }
+        }
+        break;
+    }
+    slapi_ch_free_string(&val);
+    return return_value;
+}
+
 static int
 agmtlist_add_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter,
 	int *returncode, char *returntext, void *arg)
@@ -583,7 +634,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                 (void) agmt_set_WaitForAsyncResults(agmt, e);
             }
         }
-        else if (0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e))
+        else if ((0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e)) &&
+                 (0 == id_extended_agreement(agmt, mods, e)))
         {
             slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
                             "modification of %s attribute is not allowed\n", mods[i]->mod_type);
