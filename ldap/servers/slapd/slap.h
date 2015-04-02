@@ -306,9 +306,6 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 
 #define ATTR_NETSCAPEMDSUFFIX "netscapemdsuffix"
 
-/* Used to make unhashed passwords available to plugins. */
-#define	PSEUDO_ATTR_UNHASHEDUSERPASSWORD	"unhashed#user#password"
-
 #define REFERRAL_REMOVE_CMD "remove"
 
 /* Filenames for DSE storage */
@@ -338,6 +335,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_VALIDATE_CERT_OFF         0
 #define SLAPD_VALIDATE_CERT_ON          1
 #define SLAPD_VALIDATE_CERT_WARN        2
+
+typedef int slapi_onoff_t;
 
 struct subfilt {
 	char	*sf_type;
@@ -1891,6 +1890,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
+#define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
 #define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
@@ -2277,7 +2277,7 @@ typedef struct _slapdFrontendConfig {
   PRInt64 disk_threshold;
   int disk_grace_period;
   int disk_logging_critical;
-
+  slapi_onoff_t unhashed_pw_switch;	/* switch to on/off/nolog unhashed pw */
   int ignore_time_skew;
 #if defined(LINUX)
   int malloc_mxfast;            /* mallopt M_MXFAST */
