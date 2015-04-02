@@ -52,6 +52,7 @@ replica locked. Seems like right thing to do.
 */
 
 #include "repl5.h"
+#include "repl5_prot_private.h"
 #if defined(USE_OPENLDAP)
 #include "ldap.h"
 #else
@@ -90,6 +91,7 @@ typedef struct repl_connection
 	struct timeval timeout;
 	int flag_agmt_changed;
 	char *plain;
+	void *tot_init_callback; /* Used during total update to do flow control */
 } repl_connection;
 
 /* #define DEFAULT_LINGER_TIME (5 * 60) */ /* 5 minutes */
@@ -274,6 +276,32 @@ conn_get_error(Repl_Connection *conn, int *operation, int *error)
 	PR_Lock(conn->lock);
 	*operation = conn->last_operation;
 	*error = conn->last_ldap_error;
+	PR_Unlock(conn->lock);
+}
+
+void
+conn_set_tot_update_cb_nolock(Repl_Connection *conn, void *cb_data)
+{
+    conn->tot_init_callback = (void *) cb_data;
+}
+void
+conn_set_tot_update_cb(Repl_Connection *conn, void *cb_data)
+{
+	PR_Lock(conn->lock);
+	conn_set_tot_update_cb_nolock(conn, cb_data);
+	PR_Unlock(conn->lock);
+}
+
+void
+conn_get_tot_update_cb_nolock(Repl_Connection *conn, void **cb_data)
+{
+    *cb_data = (void *) conn->tot_init_callback;
+}
+void
+conn_get_tot_update_cb(Repl_Connection *conn, void **cb_data)
+{
+	PR_Lock(conn->lock);
+	conn_get_tot_update_cb_nolock(conn, cb_data);
 	PR_Unlock(conn->lock);
 }
 
@@ -629,6 +657,133 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 }
 #endif /* ! USE_OPENLDAP */
 
+/* 
+ * During a total update, this function checks how much entries
+ * have been sent to the consumer without having received their acknowledgment.
+ * Basically it checks how late is the consumer.
+ * 
+ * If the consumer is too late, it pause the RA.sender (releasing the lock) to
+ * let the consumer to catch up and RA.reader to receive the acknowledgments.
+ * 
+ * Caller must hold conn->lock
+ */
+static void
+check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop_oid, int sent_msgid)
+{
+    int rcv_msgid;
+    int once;
+    
+    if ((sent_msgid != 0) && (optype == CONN_EXTENDED_OPERATION) && (strcmp(extop_oid, REPL_NSDS50_REPLICATION_ENTRY_REQUEST_OID) == 0)) {
+        /* We are sending entries part of the total update of a consumer
+         * Wait a bit if the consumer needs to catchup from the current sent entries
+         */
+        rcv_msgid = repl5_tot_last_rcv_msgid(conn);
+        if (rcv_msgid == -1) {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                            "%s: check_flow_control_tot_init no callback data [ msgid sent: %d]\n",
+                            agmt_get_long_name(conn->agmt),
+                            sent_msgid);
+        } else if (sent_msgid < rcv_msgid) {
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                            "%s: check_flow_control_tot_init invalid message ids [ msgid sent: %d, rcv: %d]\n",
+                            agmt_get_long_name(conn->agmt),
+                            sent_msgid,
+                            rcv_msgid);
+        } else if ((sent_msgid - rcv_msgid) > agmt_get_flowcontrolwindow(conn->agmt)) {
+            int totalUpdatePause;
+
+            totalUpdatePause = agmt_get_flowcontrolpause(conn->agmt);
+            if (totalUpdatePause) {
+                /* The consumer is late. Last sent entry compare to last acknowledged entry 
+                 * overpass the allowed limit (flowcontrolwindow)
+                 * Give some time to the consumer to catch up
+                 */
+                once = repl5_tot_flowcontrol_detection(conn, 1);
+                PR_Unlock(conn->lock);
+                if (once == 1) {
+                    /* This is the first time we hit total update flow control.
+                     * Log it at least once to inform administrator there is
+                     * a potential configuration issue here
+                     */
+                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                            "%s: Total update flow control gives time (%d msec) to the consumer before sending more entries [ msgid sent: %d, rcv: %d])\n"
+                            "If total update fails you can try to increase %s and/or decrease %s in the replica agreement configuration\n",
+                            agmt_get_long_name(conn->agmt),
+                            totalUpdatePause,
+                            sent_msgid,
+                            rcv_msgid,
+                            type_nsds5ReplicaFlowControlPause,
+                            type_nsds5ReplicaFlowControlWindow);
+                }
+                DS_Sleep(PR_MillisecondsToInterval(totalUpdatePause));
+                PR_Lock(conn->lock);
+            }
+        }
+    }
+    
+}
+/* 
+ * Test if the connection is available to do a write.
+ * This function is doing a periodic polling of the connection.
+ * If the polling times out:
+ *  - it releases the connection lock (to let other thread ,i.e. 
+ *    replication result thread, the opportunity to use the connection)
+ *  - Sleeps for a short period (100ms)
+ *  - acquires the connection lock
+ * 
+ * It loops until
+ *  - it is available
+ *  - exceeds RA complete timeout
+ *  - server is shutdown
+ *  - connection is disconnected (Disable, stop, delete the RA
+ *    'terminate' the replication protocol and disconnect the connection)
+ * 
+ * Return:
+ *   - CONN_OPERATION_SUCCESS if the connection is available
+ *   - CONN_TIMEOUT if the overall polling/sleeping delay exceeds RA timeout
+ *   - CONN_NOT_CONNECTED if the replication connection state is disconnected
+ *   - other ConnResult
+ *
+ * Caller must hold conn->Lock. At the exit, conn->lock is held
+ */
+static ConnResult
+conn_is_available(Repl_Connection *conn)
+{
+    time_t poll_timeout_sec = 1; /* Polling for 1sec */
+    time_t yield_delay_msec = 100; /* Delay to wait */
+    time_t start_time = time( NULL );
+    time_t time_now;
+    ConnResult return_value = CONN_OPERATION_SUCCESS;
+    
+    while (!slapi_is_shutting_down() && (conn->state != STATE_DISCONNECTED)) {
+        return_value = see_if_write_available(conn, PR_SecondsToInterval(poll_timeout_sec));
+        if (return_value == CONN_TIMEOUT) {
+            /* in case of timeout we return CONN_TIMEOUT only
+             * if the RA.timeout is exceeded
+             */
+            time_now = time(NULL);
+            if (conn->timeout.tv_sec <= (time_now - start_time)) {
+                break;
+            } else {
+                /* Else give connection to others threads */
+                PR_Unlock(conn->lock);
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                        "%s: perform_operation transient timeout. retry)\n",
+                        agmt_get_long_name(conn->agmt));
+                DS_Sleep(PR_MillisecondsToInterval(yield_delay_msec));
+                PR_Lock(conn->lock);
+            }
+        } else {
+            break;
+        }
+    }
+    if (conn->state == STATE_DISCONNECTED) {
+        return_value = CONN_NOT_CONNECTED;
+    }
+    return return_value;
+}
+
+
 /*
  * Common code to send an LDAPv3 operation and collect the result.
  * Return values:
@@ -670,10 +825,13 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 
 		Slapi_Eq_Context eqctx = repl5_start_debug_timeout(&setlevel);
 
-		return_value = see_if_write_available(
-			conn, PR_SecondsToInterval(conn->timeout.tv_sec));
+                return_value = conn_is_available(conn);
 		if (return_value != CONN_OPERATION_SUCCESS) {
 			PR_Unlock(conn->lock);
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+							"%s: perform_operation connection is not available (%d)\n",
+							agmt_get_long_name(conn->agmt),
+							return_value);
 			return return_value;
 		}
 		conn->last_operation = optype;
@@ -745,6 +903,9 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		 */
 		return_value = CONN_NOT_CONNECTED;
 	}
+    
+	check_flow_control_tot_init(conn, optype, extop_oid, msgid);
+
 	PR_Unlock(conn->lock); /* release the lock */
 	if (message_id)
 	{

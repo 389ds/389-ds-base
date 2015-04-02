@@ -168,6 +168,9 @@ extern const char *type_nsds5ReplicaSessionPauseTime;
 extern const char *type_nsds5ReplicaEnabled;
 extern const char *type_nsds5ReplicaStripAttrs;
 extern const char *type_nsds5ReplicaCleanRUVnotified;
+extern const char *type_nsds5ReplicaFlowControlWindow;
+extern const char *type_nsds5ReplicaFlowControlPause;
+
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -312,6 +315,8 @@ int agmt_get_auto_initialize(const Repl_Agmt *ra);
 long agmt_get_timeout(const Repl_Agmt *ra);
 long agmt_get_busywaittime(const Repl_Agmt *ra);
 long agmt_get_pausetime(const Repl_Agmt *ra);
+long agmt_get_flowcontrolwindow(const Repl_Agmt *ra);
+long agmt_get_flowcontrolpause(const Repl_Agmt *ra);
 int agmt_start(Repl_Agmt *ra);
 int windows_agmt_start(Repl_Agmt *ra); 
 int agmt_stop(Repl_Agmt *ra);
@@ -332,6 +337,8 @@ int agmt_replarea_matches(const Repl_Agmt *ra, const Slapi_DN *name);
 int agmt_schedule_in_window_now(const Repl_Agmt *ra);
 int agmt_set_schedule_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_timeout_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
+int agmt_set_flowcontrolwindow_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
+int agmt_set_flowcontrolpause_from_entry(Repl_Agmt *ra, const Slapi_Entry *e);
 int agmt_set_busywaittime_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_pausetime_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
 int agmt_set_credentials_from_entry( Repl_Agmt *ra, const Slapi_Entry *e );
@@ -463,6 +470,10 @@ void conn_lock(Repl_Connection *conn);
 void conn_unlock(Repl_Connection *conn);
 void conn_delete_internal_ext(Repl_Connection *conn);
 const char* conn_get_bindmethod(Repl_Connection *conn);
+void conn_set_tot_update_cb(Repl_Connection *conn, void *cb_data); 
+void conn_set_tot_update_cb_nolock(Repl_Connection *conn, void *cb_data); 
+void conn_get_tot_update_cb(Repl_Connection *conn, void **cb_data); 
+void conn_get_tot_update_cb_nolock(Repl_Connection *conn, void **cb_data); 
 
 /* In repl5_protocol.c */
 typedef struct repl_protocol Repl_Protocol;

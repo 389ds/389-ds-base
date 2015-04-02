@@ -131,6 +131,9 @@ const char *type_nsds5ReplicaSessionPauseTime = "nsds5ReplicaSessionPauseTime";
 const char *type_nsds5ReplicaEnabled = "nsds5ReplicaEnabled";
 const char *type_nsds5ReplicaStripAttrs = "nsds5ReplicaStripAttrs";
 const char *type_nsds5ReplicaCleanRUVnotified = "nsds5ReplicaCleanRUVNotified";
+const char* type_nsds5ReplicaFlowControlWindow = "nsds5ReplicaFlowControlWindow";
+const char* type_nsds5ReplicaFlowControlPause = "nsds5ReplicaFlowControlPause";
+
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";
