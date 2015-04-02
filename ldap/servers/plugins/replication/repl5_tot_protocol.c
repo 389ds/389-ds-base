@@ -82,6 +82,7 @@ typedef struct callback_data
 	int stop_result_thread; /* Flag used to tell the result thread to exit */
 	int last_message_id_sent;
 	int last_message_id_received;
+	int flowcontrol_detection;
 } callback_data;
 
 /* 
@@ -416,12 +417,17 @@ repl5_tot_run(Private_Repl_Protocol *prp)
                                   LDAP_SCOPE_SUBTREE, "(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))", NULL, 0, ctrls, NULL, 
                                   repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);
 
-    cb_data.prp = prp;
-    cb_data.rc = 0;
+	cb_data.prp = prp;
+	cb_data.rc = 0;
 	cb_data.num_entries = 0UL;
 	cb_data.sleep_on_busy = 0UL;
 	cb_data.last_busy = current_time ();
+	cb_data.flowcontrol_detection = 0;
 	cb_data.lock = PR_NewLock();
+	/* This allows during perform_operation to check the callback data
+	 * especially to do flow contol on delta send msgid / recv msgid
+	 */
+	conn_set_tot_update_cb(prp->conn, (void *) &cb_data);
 
 	/* Before we get started on sending entries to the replica, we need to 
 	 * setup things for async propagation: 
@@ -492,6 +498,17 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 done:
 	slapi_sdn_free(&area_sdn);
 	slapi_ch_free_string(&hostname);
+	if (cb_data.flowcontrol_detection > 1)
+	{
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			"%s: Total update flow control triggered %d times\n"
+			"You may increase %s and/or decrease %s in the replica agreement configuration\n",
+			agmt_get_long_name(prp->agmt),
+			cb_data.flowcontrol_detection,
+			type_nsds5ReplicaFlowControlPause,
+			type_nsds5ReplicaFlowControlWindow);
+	}
+	conn_set_tot_update_cb(prp->conn, NULL);
 	if (cb_data.lock) 
 	{
 		PR_DestroyLock(cb_data.lock);
@@ -617,6 +634,37 @@ void get_result (int rc, void *cb_data)
 {
     PR_ASSERT (cb_data);
     ((callback_data*)cb_data)->rc = rc;
+}
+
+/* Call must hold the connection lock */
+int
+repl5_tot_last_rcv_msgid(Repl_Connection *conn) 
+{
+    struct callback_data *cb_data;
+    
+    conn_get_tot_update_cb_nolock(conn, (void **) &cb_data);
+    if (cb_data == NULL) {
+        return -1;
+    } else {
+        return cb_data->last_message_id_received;
+    }
+}
+
+/* Increase the flowcontrol counter
+ * Call must hold the connection lock
+ */
+int
+repl5_tot_flowcontrol_detection(Repl_Connection *conn, int increment) 
+{
+    struct callback_data *cb_data;
+    
+    conn_get_tot_update_cb_nolock(conn, (void **) &cb_data);
+    if (cb_data == NULL) {
+        return -1;
+    } else {
+        cb_data->flowcontrol_detection += increment;
+        return cb_data->flowcontrol_detection;
+    }
 }
 
 static 
