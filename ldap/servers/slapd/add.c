@@ -447,7 +447,6 @@ static void op_shared_add (Slapi_PBlock *pb)
 	int	err;
 	int internal_op, repl_op, legacy_op, lastmod;
 	char *pwdtype = NULL;
-	Slapi_Value **unhashed_password_vals = NULL;
 	Slapi_Attr *attr = NULL;
 	Slapi_Entry *referral;
 	char errorbuf[BUFSIZ];
@@ -545,6 +544,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 		{
 			Slapi_Value **present_values;
 			present_values= attr_get_present_values(attr);
+			Slapi_Value **unhashed_password_vals = NULL;
 
 			/* Set the backend in the pblock.  The slapi_access_allowed function
 			 * needs this set to work properly. */
@@ -576,11 +576,13 @@ static void op_shared_add (Slapi_PBlock *pb)
 				add_password_attrs(pb, operation, e);
 				slapi_entry_attr_replace_sv(e, SLAPI_USERPWD_ATTR, vals);
 				valuearray_free(&vals);
-				
-				/* Add the unhashed password pseudo-attribute to the entry */
-				pwdtype = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
-				slapi_entry_add_values_sv(e, pwdtype, unhashed_password_vals);
+				if (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch()) {
+					/* Add the unhashed password pseudo-attribute to the entry */
+					pwdtype = slapi_attr_syntax_normalize(PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
+					slapi_entry_add_values_sv(e, pwdtype, unhashed_password_vals);
+				}
 			}
+			valuearray_free(&unhashed_password_vals);
 		}
 
        /* look for multiple backend local credentials or replication local credentials */
@@ -751,7 +753,6 @@ done:
 	slapi_ch_free((void **)&operation->o_params.p.p_add.parentuniqueid);
 	slapi_entry_free(e);
 	slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
-	valuearray_free(&unhashed_password_vals);
 	slapi_ch_free((void**)&pwdtype);
 	slapi_ch_free_string(&proxydn);
 	slapi_ch_free_string(&proxystr);
