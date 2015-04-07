@@ -772,7 +772,13 @@ to_little_endian_double_bytes(UChar *unicode_password, int32_t unicode_password_
 }
 
 /* this entry had a password, handle it seperately */
-/* http://support.microsoft.com/?kbid=269190 */
+/* 
+ * http://support.microsoft.com/en-us/kb/269190 
+ * The password is stored in the AD and LDS database on a user object in the
+ * unicodePwd attribute. This attribute can be written under restricted
+ * conditions, but it cannot be read. The attribute can only be modified; it
+ * cannot be added on object creation or queried by a search. 
+ */
 static int
 send_password_modify(Slapi_DN *sdn,
                      char *password,
@@ -914,6 +920,7 @@ send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp, int missin
 	Slapi_Entry *remote_entry = NULL;
 	int retval;
 	unsigned long acctval = 0;
+	unsigned long pwdlastset = 0;
 	char acctvalstr[32];
 
 	/* have to first retrieve the existing entry - userAccountControl is
@@ -922,6 +929,7 @@ send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp, int missin
 	retval = windows_get_remote_entry(prp, sdn, &remote_entry);
 	if (0 == retval && remote_entry) {
 		acctval = slapi_entry_attr_get_ulong(remote_entry, "userAccountControl");
+		pwdlastset = slapi_entry_attr_get_ulong(remote_entry, "pwdLastSet");
 	}
 	slapi_entry_free(remote_entry);
 	/* if we are adding a new entry, we need to set the entry to be
@@ -931,6 +939,9 @@ send_accountcontrol_modify(Slapi_DN *sdn, Private_Repl_Protocol *prp, int missin
 			    "%s: New Windows entry %s will be enabled.\n",
 			    agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(sdn));
 	    acctval &= ~0x2; /* unset the disabled bit, if set */
+	}
+	if (pwdlastset) {
+	    acctval &= ~0x20; /* unset the PASSWD_NOTREQD bit, if set */
 	}
 	/* set the account to be a normal account */
 	acctval |= 0x0200; /* normal account == 512 */
