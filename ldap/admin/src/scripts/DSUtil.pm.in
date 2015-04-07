@@ -1433,6 +1433,7 @@ sub ldapmod {
     my $protocol_error;
     my $result;
     my $rc;
+    my $myrootdnpw = shellEscape($info{rootdnpw});
     
     # 
     # write the entry to file so we can grab the result code after running ldapmodify(-f)
@@ -1456,7 +1457,7 @@ sub ldapmod {
         unlink ($file);
         return 1;
     }
-    
+
     #
     # Execute ldapmodify using the specified/most secure protocol
     #
@@ -1468,9 +1469,9 @@ sub ldapmod {
             print "STARTTLS)\n";
         }
         if($info{openldap} eq "yes"){
-            system "ldapmodify -x -ZZ -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -ZZ -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         } else {
-            system "ldapmodify -ZZZ -P \"$info{certdir}\" -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -ZZZ -P \"$info{certdir}\" -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         }
     } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
         # 
@@ -1480,9 +1481,9 @@ sub ldapmod {
             print "LDAPS)\n";
         }
         if($info{openldap} eq "yes"){
-            system "ldapmodify -x -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         } else {
-            system "ldapmodify -Z -P \"$info{certdir}\" -p $info{secure_port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -Z -P \"$info{certdir}\" -p $info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         }
     } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
         #
@@ -1497,7 +1498,7 @@ sub ldapmod {
             if($protocol_error eq "yes"){
                 print "LDAPI)\n";
             }
-            system "ldapmodify -x -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         }
     } else {
         # 
@@ -1507,9 +1508,9 @@ sub ldapmod {
             print "LDAP)\n";
         }
         if($info{openldap} eq "yes"){
-            system "ldapmodify -x -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -x -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         } else {
-            system "ldapmodify -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{args} -f \"$file\" > /dev/null";
+            system "ldapmodify -h $info{host} -p $info{port} -D \"$info{rootdn}\" -w $myrootdnpw $info{args} -f \"$file\" > /dev/null";
         }
     }
     unlink ($file);
@@ -1528,6 +1529,7 @@ sub ldapsrch {
     my $protocol_error;
     my $search;
     my $result;
+    my $myrootdnpw = shellEscape($info{rootdnpw});
     
     $result = check_protocol(%info);
     if($result == 1){
@@ -1544,11 +1546,11 @@ sub ldapsrch {
             print "STARTTLS)\n";
         }
         if($info{openldap} eq "yes"){
-            $search = "ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
-                      "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";   
+            $search = "ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw " .
+                      "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } else {
             $search = "ldapsearch -ZZZ -P \"$info{certdir}\" -p $info{port} -h $info{host} -D \"$info{rootdn}\" " .
-                      "-w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";  
+                      "-w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         }  
     } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
         # 
@@ -1558,11 +1560,11 @@ sub ldapsrch {
             print "LDAPS)\n";
         }
         if($info{openldap} eq "yes"){
-            $search = "ldapsearch -x -LLL -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" " . 
-                      "-w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
+            $search = "ldapsearch -x -LLL -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" " .
+                      "-w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } else {
             $search = "ldapsearch -Z -P \"$info{certdir}\" -p $info{secure_port} -h $info{host} -D \"$info{rootdn}\" " .
-                      "-w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";  
+                      "-w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } 
     } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
         # 
@@ -1572,7 +1574,7 @@ sub ldapsrch {
             $search = "ldapsearch  -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} 2>/dev/null";
         } else {
-            $search = "ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+            $search = "ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         }
     } else {
@@ -1583,10 +1585,10 @@ sub ldapsrch {
             print "LDAP)\n";
         }
         if($info{openldap} eq "yes"){
-            $search = "ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+            $search = "ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } else {
-            $search = "ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" " .
+            $search = "ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         }
     }
@@ -1601,6 +1603,7 @@ sub ldapsrch_ext {
     my $protocol_error;
     my $result;
     my $txt;
+    my $myrootdnpw = shellEscape($info{rootdnpw});
     
     $result = check_protocol(%info);
     if($result == 1){
@@ -1617,9 +1620,9 @@ sub ldapsrch_ext {
             print "STARTTLS)\n";
         }
         if($info{openldap} eq "yes"){
-            return `ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         } else {
-            return `ldapsearch -ZZZ -P $info{certdir} -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -ZZZ -P $info{certdir} -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }     
     } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
         # 
@@ -1629,9 +1632,9 @@ sub ldapsrch_ext {
             print "LDAPS)\n";
         }
         if($info{openldap} eq "yes"){
-            return `ldapsearch -x -LLL -H ldaps://$info{host}:$info{secure_port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -H ldaps://$info{host}:$info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         } else {
-            return `ldapsearch -Z -P $info{certdir} -p $info{secure_port} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -Z -P $info{certdir} -p $info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }
     } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
         # 
@@ -1640,7 +1643,7 @@ sub ldapsrch_ext {
         if ($< == 0 && $info{autobind} eq "on"){
             return `ldapsearch -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect} 2>/dev/null`;
         } else {
-            return `ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }
     } else {
         # 
@@ -1650,9 +1653,9 @@ sub ldapsrch_ext {
             print "LDAP)\n";
         }
         if($info{openldap} eq "yes"){
-            return `ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         } else {
-            return `ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w \"$info{rootdnpw}\" $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }
     }
 }

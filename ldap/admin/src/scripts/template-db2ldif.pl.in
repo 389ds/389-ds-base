@@ -39,6 +39,8 @@
 # END COPYRIGHT BLOCK
 #
 
+use lib qw(/usr/lib64/dirsrv/perl);
+use DSUtil qw(shellEscape);
 use Cwd;
 
 # We lose args that are quoted when passing ARGV to a wrapper
@@ -46,7 +48,7 @@ while ($i <= $#ARGV) {
         if($ARGV[$i] =~ /^-/){
                 $wrapperArgs[$i] = $ARGV[$i];
         } else {
-                $wrapperArgs[$i] = "\"$ARGV[$i]\"";
+                $wrapperArgs[$i] = shellEscape($ARGV[$i]);
         }
         $i++;
 }
