@@ -1352,6 +1352,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             }
         }
         slapi_ch_free_string( &val );
+        freeConfigEntry( &e );
     }
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     if (NSSVersionMin > 0) {
@@ -1359,9 +1360,16 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         /* Use new NSS API SSL_VersionRangeSet (NSS3.14 or newer) */
         if (enableTLS1) {
             NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
+        } else {
+            NSSVersionMin = SSL_LIBRARY_VERSION_3_0;
+            NSSVersionMax = SSL_LIBRARY_VERSION_3_0;
         }
         if (enableSSL3) {
             NSSVersionMin = SSL_LIBRARY_VERSION_3_0;
+        } else if (!enableTLS1) {
+            slapd_SSL_error("SSL Initialization 2: Both nsSSL3 and nsTLS1 are off.  Enabling nsTLS1.");
+            NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
+            NSSVersionMax = enabledNSSVersions.max;
         }
         slapdNSSVersions.min = NSSVersionMin;
         slapdNSSVersions.max = NSSVersionMax;
@@ -1375,8 +1383,9 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             /* Set the restricted value to the cn=encryption entry */
         } else {
             slapd_SSL_error("SSL Initialization 2: "
-                            "Failed to set SSL range: min: %s, max: %s\n",
+                            "Failed to set SSL range: min: %s, max: %s.",
                             mymin, mymax);
+            return 0;
         }
     } else {
 #endif
@@ -1401,7 +1410,6 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     }
 #endif
-    freeConfigEntry( &e );
 
     if(( slapd_SSLclientAuth = config_get_SSLclientAuth()) != SLAPD_SSLCLIENTAUTH_OFF ) {
         int err;
