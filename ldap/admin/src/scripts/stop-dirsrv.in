@@ -10,8 +10,12 @@ stop_instance() {
     SERV_ID=$1
 
     # source env. for this instance
-    if [ -f $initconfig_dir/@package_name@-$SERV_ID ] ; then
-        . $initconfig_dir/@package_name@-$SERV_ID
+    if [ $SERV_ID == "admin" ] ; then
+        # ignore admin
+        return 0 
+    elif [ -f $initconfig_dir/dirsrv-$SERV_ID ] ; then
+        echo Stopping instance \"$SERV_ID\"
+        . $initconfig_dir/dirsrv-$SERV_ID
     else
         echo Instance $SERV_ID not found.
         return 1
@@ -75,7 +79,6 @@ if [ "$#" -eq 0 ]; then
     for i in $initconfig_dir/@package_name@-*; do
         regex=s,$initconfig_dir/@package_name@-,,g
         inst=`echo $i | sed -e $regex`
-        echo Stopping instance \"$inst\"
         stop_instance $inst
         if [ "$?" -ne 0 ]; then
             ret=$?
