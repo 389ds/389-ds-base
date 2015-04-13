@@ -1037,7 +1037,7 @@ static struct config_get_and_set {
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_time_skew, &init_ignore_time_skew},
 	{CONFIG_NDN_CACHE, config_set_ndn_cache_enabled,
 		NULL, 0,
-		(void**)&global_slapdFrontendConfig.ndn_cache_enabled, CONFIG_INT,
+		(void**)&global_slapdFrontendConfig.ndn_cache_enabled, CONFIG_ON_OFF,
 		(ConfigGetFunc)config_get_ndn_cache_enabled},
 	{CONFIG_NDN_CACHE_SIZE, config_set_ndn_cache_max_size,
 		NULL, 0,
