@@ -276,7 +276,27 @@ def _moddn_aci_deny_tree(topology, mod_type=None, target_from=STAGING_DN, target
     #topology.master1.modify_s(SUFFIX, mod)
     topology.master1.log.info("Add a DENY aci under %s " % PROD_EXCEPT_DN)
     topology.master1.modify_s(PROD_EXCEPT_DN, mod)
-    
+
+def _write_aci_staging(topology, mod_type=None):
+    assert mod_type is not None
+
+    ACI_TARGET = "(targetattr= \"cn\")(target=\"ldap:///cn=*,%s\")" % STAGING_DN
+    ACI_ALLOW        = "(version 3.0; acl \"write staging entries\"; allow (write)"
+    ACI_SUBJECT      = " userdn = \"ldap:///%s\";)" % BIND_DN
+    ACI_BODY         = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    mod = [(mod_type, 'aci', ACI_BODY)]
+    topology.master1.modify_s(SUFFIX, mod)
+
+def _write_aci_production(topology, mod_type=None):
+    assert mod_type is not None
+
+    ACI_TARGET = "(targetattr= \"cn\")(target=\"ldap:///cn=*,%s\")" % PRODUCTION_DN
+    ACI_ALLOW        = "(version 3.0; acl \"write production entries\"; allow (write)"
+    ACI_SUBJECT      = " userdn = \"ldap:///%s\";)" % BIND_DN
+    ACI_BODY         = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    mod = [(mod_type, 'aci', ACI_BODY)]
+    topology.master1.modify_s(SUFFIX, mod)
+
 def _moddn_aci_staging_to_production(topology, mod_type=None, target_from=STAGING_DN, target_to=PRODUCTION_DN):
     assert mod_type != None
 
@@ -293,6 +313,8 @@ def _moddn_aci_staging_to_production(topology, mod_type=None, target_from=STAGIN
     ACI_BODY         = ACI_TARGET_FROM + ACI_TARGET_TO + ACI_ALLOW + ACI_SUBJECT
     mod = [(mod_type, 'aci', ACI_BODY)]
     topology.master1.modify_s(SUFFIX, mod)
+    
+    _write_aci_staging(topology, mod_type=mod_type)
 
 def _moddn_aci_from_production_to_staging(topology, mod_type=None):
     assert mod_type != None
@@ -303,6 +325,8 @@ def _moddn_aci_from_production_to_staging(topology, mod_type=None):
     ACI_BODY         = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
     mod = [(mod_type, 'aci', ACI_BODY)]
     topology.master1.modify_s(SUFFIX, mod)
+    
+    _write_aci_production(topology, mod_type=mod_type)
 
 
 def test_ticket47553_init(topology):
@@ -347,12 +371,9 @@ def test_ticket47553_init(topology):
                                             'description': "production except DIT"})))
     
     # enable acl error logging
-    #mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '128')]
-    #topology.master1.modify_s(DN_CONFIG, mod)
-    #topology.master2.modify_s(DN_CONFIG, mod)
-    
-
-    
+    mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(128+262144))]
+    topology.master1.modify_s(DN_CONFIG, mod)
+    topology.master2.modify_s(DN_CONFIG, mod)
     
     
     # add dummy entries in the staging DIT
@@ -883,6 +904,7 @@ def test_ticket47553_moddn_staging_prod_9(topology):
     _bind_manager(topology)
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     topology.master1.modify_s(PRODUCTION_DN, mod)
+    _write_aci_staging(topology, mod_type=ldap.MOD_ADD)
     _bind_normal(topology)
     
     topology.master1.log.info("Try to MODDN %s -> %s,%s" % (old_dn, new_rdn, new_superior))
@@ -891,6 +913,7 @@ def test_ticket47553_moddn_staging_prod_9(topology):
     _bind_manager(topology)
     mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
     topology.master1.modify_s(PRODUCTION_DN, mod)
+    _write_aci_staging(topology, mod_type=ldap.MOD_DELETE)
     _bind_normal(topology)
     
     
@@ -934,6 +957,7 @@ def test_ticket47553_moddn_staging_prod_9(topology):
     _bind_manager(topology)
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     topology.master1.modify_s(PRODUCTION_DN, mod)
+    _write_aci_staging(topology, mod_type=ldap.MOD_ADD)
     _bind_normal(topology)
     
     try:
@@ -949,6 +973,7 @@ def test_ticket47553_moddn_staging_prod_9(topology):
     _bind_manager(topology)
     mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
     topology.master1.modify_s(PRODUCTION_DN, mod)
+    _write_aci_staging(topology, mod_type=ldap.MOD_DELETE)
     _bind_normal(topology)
     
     # Add the moddn aci that will be evaluated because of the config flag
@@ -1009,7 +1034,12 @@ def test_ticket47553_moddn_prod_staging(topology):
     old_dn  = "%s,%s" % (old_rdn, PRODUCTION_DN)
     new_rdn = old_rdn
     new_superior = STAGING_DN
-    
+
+    # add the write right because we want to check the moddn
+    _bind_manager(topology)
+    _write_aci_production(topology, mod_type=ldap.MOD_ADD)
+    _bind_normal(topology)
+
     try:
         topology.master1.log.info("Try to move back MODDN %s -> %s,%s" % (old_dn, new_rdn, new_superior))
         topology.master1.rename_s(old_dn, new_rdn, newsuperior=new_superior)
@@ -1019,7 +1049,11 @@ def test_ticket47553_moddn_prod_staging(topology):
     except Exception as e:
         topology.master1.log.info("Exception (expected): %s" % type(e).__name__)
         assert isinstance(e, ldap.INSUFFICIENT_ACCESS)
-    
+
+    _bind_manager(topology)
+    _write_aci_production(topology, mod_type=ldap.MOD_DELETE)
+    _bind_normal(topology)
+
     # successfull MOD with the both ACI
     _bind_manager(topology)
     _moddn_aci_staging_to_production(topology, mod_type=ldap.MOD_DELETE, target_from=STAGING_DN, target_to=PRODUCTION_DN)

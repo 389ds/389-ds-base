@@ -677,31 +677,17 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             
             /* JCMACL - Should be performed before the child check. */
             /* JCMACL - Why is the check performed against the copy, rather than the existing entry? */
+            /* This check must be performed even if the entry is renamed with its own name 
+             * No optimization here we need to check we have the write access to the target entry
+             */
+            ldap_result_code = plugin_call_acl_plugin(pb, ec->ep_entry,
+                    NULL /*attr*/, NULL /*value*/, SLAPI_ACL_WRITE,
+                    ACLPLUGIN_ACCESS_MODRDN, &errbuf);
+            if (ldap_result_code != LDAP_SUCCESS)
             {
-                Slapi_RDN *new_rdn;
-                Slapi_RDN *old_rdn;
+                goto error_return;
+            }
 
-                /* Taken from the entry */
-                old_rdn = slapi_entry_get_srdn(ec->ep_entry);
-
-                /* Taken from the request */
-                new_rdn = slapi_rdn_new();
-                slapi_sdn_get_rdn(&dn_newrdn, new_rdn);
-
-                /* Only if we change the RDN value, we need the write access to the entry */
-                if (slapi_rdn_compare(old_rdn, new_rdn)) {
-                        ldap_result_code = plugin_call_acl_plugin(pb, ec->ep_entry,
-                                NULL /*attr*/, NULL /*value*/, SLAPI_ACL_WRITE,
-                                ACLPLUGIN_ACCESS_MODRDN, &errbuf);
-                }
-
-                slapi_rdn_free(&new_rdn);
-
-                if (ldap_result_code != LDAP_SUCCESS) {
-                        goto error_return;
-                }
-            } 
-        
             /* Set the new dn to the copy of the entry */
             slapi_entry_set_sdn( ec->ep_entry, &dn_newdn );
             if (entryrdn_get_switch()) { /* subtree-rename: on */
