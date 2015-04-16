@@ -39,6 +39,9 @@
 # END COPYRIGHT BLOCK
 #
 
+use lib qw(@perlpath@);
+use DSUtil qw(shellEscape);
+
 sub usage {
 	print(STDERR "Usage: $0 [-v] -D rootdn { -w password | -w - | -j filename } \n");
 	print(STDERR "          [-a dirname] [-t dbtype]\n");
@@ -122,7 +125,8 @@ libpath_add("/usr/lib");
 
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 print("Back up directory: $archivedir\n");
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+$escaped = shellEscape($passwd);
+open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w $escaped -a" );
 print(FOO "$entry");
 close(FOO);
 $retcode = $?>>8;
