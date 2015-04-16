@@ -43,6 +43,9 @@
 # SUB-ROUTINES
 ###############################
 
+use lib qw(@perlpath@);
+use DSUtil qw(shellEscape);
+
 sub usage_and_exit
 {
 	print (STDERR "$cmd [-D rootdn] { -w password | -w - | -j filename } \n");
@@ -110,7 +113,7 @@ sub indirectLock
 
 	my $L_local;
 
-`$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$L_base\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsroledn >> {{DEV-NULL}} 2>&1 `;
+`$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$L_base\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsroledn >> {{DEV-NULL}} 2>&1 `;
 $retCode=$?;
 if ( $retCode != 0 )
 {
@@ -119,13 +122,13 @@ if ( $retCode != 0 )
 }
 
 	# Check if the role is a nested role
-	@L_Nested="$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$L_base\" \"(|(objectclass=nsNestedRoleDefinition)(objectclass=ldapsubentry))\"  ";
+	@L_Nested="$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$L_base\" \"(|(objectclass=nsNestedRoleDefinition)(objectclass=ldapsubentry))\"  ";
 	# L_isNested == 1 means that we are going through a nested role, so for each member of that
 	# nested role, check that the member is below the scope of the nested
 	$L_isNested=@L_Nested;
 
 	# Not Direct Lock, Go through roles if any
-	$L_search="$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$L_base\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsroledn ";
+	$L_search="$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$L_base\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsroledn ";
 
 	debug("\t-->indirectLock: check if $L_entry is part of a locked role from base $L_base\n\n");
 
@@ -247,7 +250,7 @@ sub memberOf
 	my $L_search;
 	my $L_currentrole;
 
-	$L_search="$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$L_entry\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsrole";
+	$L_search="$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$L_entry\" \"(|(objectclass=*)(objectclass=ldapsubentry))\" nsrole";
 
 	debug("\t\t-->memberOf: $L_search: check if $L_entry has $L_nsroledn as nsroledn attribute\n");
 
@@ -412,6 +415,7 @@ $defport= "{{SERVER-PORT}}";
 # User values
 $rootdn= "{{ROOT-DN}}";
 $rootpw= "";
+$escaped= "";
 $pwfile= "";
 $host= "{{SERVER-NAME}}";
 $port= "{{SERVER-PORT}}";
@@ -489,11 +493,12 @@ if( $entry eq "" )
 	usage_and_exit();
 }
 
+$escaped = shellEscape($rootpw);
 #
 # Check the actual existence of the entry to inactivate/activate
 # and at the same time, validate the various parm: port, host, rootdn, rootpw
 #
-@exist=`$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$entry\" \"(objectclass=*)\" dn`;
+@exist=`$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$entry\" \"(objectclass=*)\" dn`;
 $retCode1=$?;
 if ( $retCode1 != 0 )
 {
@@ -501,7 +506,7 @@ if ( $retCode1 != 0 )
 	exit $retCode1;
 }
 
-@isRole=`$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$entry\" \"(&(objectclass=LDAPsubentry)(objectclass=nsRoleDefinition))\" dn`;
+@isRole=`$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$entry\" \"(&(objectclass=LDAPsubentry)(objectclass=nsRoleDefinition))\" dn`;
 $nbLineRole=@isRole;
 $retCode2=$?;
 if ( $retCode2 != 0 )
@@ -527,7 +532,7 @@ else
 $isLocked=0;
 if ( $single == 1 )
 {
-	$searchAccountLock="$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s base -b \"$entry\" \"(objectclass=*)\" nsaccountlock";
+	$searchAccountLock="$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s base -b \"$entry\" \"(objectclass=*)\" nsaccountlock";
 	open (LDAP1, "$searchAccountLock |");
 	while (<LDAP1>) {
 		s/\n //g;
@@ -575,7 +580,7 @@ while ($cont == 0)
 	#	ldapsearch -s one -b "cn=mapping tree,cn=config" "cn=\"uid=jvedder,ou=People,o=sun.com\""
 	#
 	debug("\tSuffix from the entry: #@suffixN#\n");
-	@mapping=`$ldapsearch -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -s one -b \"cn=mapping tree, cn=config\" \"cn=\\"@suffixN\\"\" cn `;
+	@mapping=`$ldapsearch -p $port -h $host -D \"$rootdn\" -w $escaped -s one -b \"cn=mapping tree, cn=config\" \"cn=\\"@suffixN\\"\" cn `;
 
 	$retCode=$?;
 	if ( $retCode != 0 )
@@ -649,7 +654,7 @@ if ( $operation eq "inactivate" )
 		"\'cn=\"cn=nsDisabledRole,@suffixN\",cn=nsAccountInactivationTmp,@suffixN\'",
 		"cn=nsAccountInactivation_cos,@suffixN" );
 
-	$addrolescos="$ldapmodify -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -c -a >> {{DEV-NULL}} 2>&1 ";
+	$addrolescos="$ldapmodify -p $port -h $host -D \"$rootdn\" -w $escaped -c -a >> {{DEV-NULL}} 2>&1 ";
 	@role1=(
 		"dn: cn=nsManagedDisabledRole,@suffixN\n",
 		"objectclass: LDAPsubentry\n",
@@ -818,7 +823,7 @@ elsif ( $operation eq "activate" || $operation eq "get status of" )
 #
 # Inactivate/activate the entry
 #
-$action="$ldapmodify -p $port -h $host -D \"$rootdn\" -w \"$rootpw\" -c >> {{DEV-NULL}} 2>&1";
+$action="$ldapmodify -p $port -h $host -D \"$rootdn\" -w $escaped -c >> {{DEV-NULL}} 2>&1";
 if ( $single == 1 )
 {
 	@record=(

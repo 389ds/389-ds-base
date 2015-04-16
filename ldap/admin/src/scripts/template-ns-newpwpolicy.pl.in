@@ -40,6 +40,7 @@
 #
 
 use lib qw(@perlpath@);
+use DSUtil qw(shellEscape);
 
 # enable the use of our bundled perldap with our bundled ldapsdk libraries
 # all of this nonsense can be omitted if the mozldapsdk and perldap are
@@ -112,6 +113,7 @@ sub usage {
 		print (STDERR "Please provide at least -S or -U option.\n\n");
 	}
 
+	$escaped = shellEscape($opt_w);
 	# Now, check if the user/group exists
 
 	if ($opt_S) {
@@ -126,8 +128,8 @@ sub usage {
 			"cn=nsPwPolicy_cos,$opt_S"
 		);
 
-		$ldapadd="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w \"$opt_w\" -c -a 2>&1";
-		$modifyCfg="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w \"$opt_w\" -c 2>&1";
+		$ldapadd="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w $escaped -c -a 2>&1";
+		$modifyCfg="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w $escaped -c 2>&1";
 
 		@container=(
 			"dn: cn=nsPwPolicyContainer,$opt_S\n",
@@ -223,8 +225,8 @@ sub usage {
 			"cn=cn\\=nsPwPolicyEntry\\,$esc_opt_U,cn=nsPwPolicyContainer,$parentDN"
 		);
 
-		$ldapadd="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w \"$opt_w\" -c -a 2>&1";
-		$modifyCfg="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w \"$opt_w\" -c 2>&1";
+		$ldapadd="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w $escaped -c -a 2>&1";
+		$modifyCfg="$ldapmodify -p $opt_p -h $opt_h -D \"$opt_D\" -w $escaped -c 2>&1";
 
 		@container=(
 			"dn: cn=nsPwPolicyContainer,$parentDN\n",

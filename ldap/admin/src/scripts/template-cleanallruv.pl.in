@@ -39,6 +39,9 @@
 # END COPYRIGHT BLOCK
 #
 
+use lib qw(@perlpath@);
+use DSUtil qw(shellEscape);
+
 sub usage {
     print(STDERR "Usage: $0 [-v] -D rootdn { -w password | -w - | -j filename } \n");
     print(STDERR "        [-b basedn | -r rid | -A]\n");
@@ -168,7 +171,8 @@ $rid =    "replica-id: $rid\n";
 
 
 $entry = "${dn}${misc}${cn}${basedn}${rid}";
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+$escaped = shellEscape($passwd);
+open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w $escaped -a" );
 print(FOO "$entry");
 close(FOO);
 $retcode = $?>>8;

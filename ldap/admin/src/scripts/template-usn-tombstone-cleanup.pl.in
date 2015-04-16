@@ -38,6 +38,9 @@
 # END COPYRIGHT BLOCK
 #
 
+use lib qw(@perlpath@);
+use DSUtil qw(shellEscape);
+
 sub usage {
     print(STDERR "Usage: $0 [-v] -D rootdn { -w password | -w - | -j filename } -s suffix | -n backend [ -m maxusn_to_delete ]\n");
     print(STDERR " Opts: -D rootdn           - Directory Manager\n");
@@ -180,7 +183,8 @@ if ( $maxusn_arg ne "" )
 }
 
 $entry = "${dn}${misc}${cn}${basedn}${args}";
-open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w \"$passwd\" -a" );
+$escaped = shellEscape($passwd);
+open(FOO, "| ldapmodify @ldaptool_opts@ $vstr -h {{SERVER-NAME}} -p {{SERVER-PORT}} -D \"$rootdn\" -w $escaped -a" );
 print(FOO "$entry");
 close(FOO);
 $retcode = $?>>8;
