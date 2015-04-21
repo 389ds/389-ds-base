@@ -2905,7 +2905,13 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
             goto out;
         }
     } else {
-        certify_all = "yes";
+        /*
+         * The default should be not to certify all the replicas, because
+         * we might be trying to abort a clean task that is "hanging" due
+         * to unreachable replicas.  If the default is "yes" then the abort
+         * task will run into the same issue.
+         */
+        certify_all = "no";
     }
     /*
      *  Create payload
