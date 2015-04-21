@@ -676,7 +676,7 @@ int is_task_aborted(ReplicaId rid);
 void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, int skip);
 int is_pre_cleaned_rid(ReplicaId rid);
 void set_cleaned_rid(ReplicaId rid);
-void cleanruv_log(Slapi_Task *task, char *task_type, char *fmt, ...);
+void cleanruv_log(Slapi_Task *task, int rid, char *task_type, char *fmt, ...);
 char * replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 
 #define CLEANRIDSIZ 4 /* maximum number for concurrent CLEANALLRUV tasks */
