@@ -1262,27 +1262,27 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     /*
      *  Get our task settings
      */
-    if ((base_dn = fetch_attr(e, "replica-base-dn", 0)) == NULL){
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-base-dn attribute");
-        cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
-        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
-        rc = SLAPI_DSE_CALLBACK_ERROR;
-        goto out;
-    }
     if ((rid_str = fetch_attr(e, "replica-id", 0)) == NULL){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-id attribute");
-        cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, -1, CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-
+    rid = atoi(rid_str);
+    if ((base_dn = fetch_attr(e, "replica-base-dn", 0)) == NULL){
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-base-dn attribute");
+        cleanruv_log(task, (int)rid, CLEANALLRUV_ID, "%s", returntext);
+        *returncode = LDAP_OBJECT_CLASS_VIOLATION;
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        goto out;
+    }
     if ((force_cleaning = fetch_attr(e, "replica-force-cleaning", 0)) != NULL){
         if(strcasecmp(force_cleaning,"yes") != 0 && strcasecmp(force_cleaning,"no") != 0){
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for replica-force-cleaning "
                 "(%s).  Value must be \"yes\" or \"no\" for task - (%s)",
                 force_cleaning, slapi_sdn_get_dn(task_dn));
-            cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
+            cleanruv_log(task, (int)rid, CLEANALLRUV_ID, "%s", returntext);
             *returncode = LDAP_OPERATIONS_ERROR;
             rc = SLAPI_DSE_CALLBACK_ERROR;
             goto out;
@@ -1293,11 +1293,10 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     /*
      *  Check the rid
      */
-    rid = atoi(rid_str);
     if (rid <= 0 || rid >= READ_ONLY_REPLICA_ID){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - (%s)",
             rid, slapi_sdn_get_dn(task_dn));
-        cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1305,7 +1304,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     if(is_cleaned_rid(rid)){
          /* we are already cleaning this rid */
          PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica id (%d) is already being cleaned", rid);
-         cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
+         cleanruv_log(task, rid, CLEANALLRUV_ID, "%s", returntext);
          *returncode = LDAP_UNWILLING_TO_PERFORM;
          rc = SLAPI_DSE_CALLBACK_ERROR;
          goto out;
@@ -1316,7 +1315,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     dn = slapi_sdn_new_dn_byval(base_dn);
     if((r = replica_get_replica_from_dn(dn)) == NULL){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Could not find replica from dn(%s)",slapi_sdn_get_dn(dn));
-        cleanruv_log(task, CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1327,7 +1326,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
 
 out:
     if(rc){
-        cleanruv_log(task, CLEANALLRUV_ID, "Task failed...(%d)", rc);
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "Task failed...(%d)", rc);
         slapi_task_finish(task, *returncode);
     } else {
         rc = SLAPI_DSE_CALLBACK_OK;
@@ -1359,11 +1358,11 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     char *basedn = NULL;
     int rc = 0;
 
-    cleanruv_log(pre_task, CLEANALLRUV_ID,"Initiating CleanAllRUV Task...");
+    cleanruv_log(pre_task, rid, CLEANALLRUV_ID,"Initiating CleanAllRUV Task...");
 
     if(get_cleanruv_task_count() >= CLEANRIDSIZ){
         /* we are already running the maximum number of tasks */
-        cleanruv_log(pre_task, CLEANALLRUV_ID,
+        cleanruv_log(pre_task, rid, CLEANALLRUV_ID,
     	    "Exceeded maximum number of active CLEANALLRUV tasks(%d)",CLEANRIDSIZ);
         return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -1373,7 +1372,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     if(r){
         replica = (Replica*)object_get_data (r);
     } else {
-        cleanruv_log(pre_task, CLEANALLRUV_ID, "Replica object is NULL, aborting task");
+        cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Replica object is NULL, aborting task");
         return -1;
     }
     /*
@@ -1381,7 +1380,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
      */
     if(replica_get_type(replica) == REPLICA_TYPE_READONLY){
         /* this is a consumer, send error */
-        cleanruv_log(pre_task, CLEANALLRUV_ID, "Failed to clean rid (%d), task can not be run on a consumer",rid);
+        cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Failed to clean rid (%d), task can not be run on a consumer",rid);
         if(task){
             rc = -1;
             slapi_task_finish(task, rc);
@@ -1391,7 +1390,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     /*
      *  Grab the max csn of the deleted replica
      */
-    cleanruv_log(pre_task, CLEANALLRUV_ID, "Retrieving maxcsn...");
+    cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Retrieving maxcsn...");
     basedn = (char *)slapi_sdn_get_dn(replica_get_root(replica));
     maxcsn = replica_cleanallruv_find_maxcsn(replica, rid, basedn);
     if(maxcsn == NULL || csn_get_replicaid(maxcsn) == 0){
@@ -1404,7 +1403,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
         csn_init_by_string(maxcsn, "");
     }
     csn_as_string(maxcsn, PR_FALSE, csnstr);
-    cleanruv_log(pre_task, CLEANALLRUV_ID, "Found maxcsn (%s)",csnstr);
+    cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Found maxcsn (%s)",csnstr);
     /*
      *  Create payload
      */
@@ -1413,7 +1412,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     slapi_ch_free_string(&ridstr);
 
     if(payload == NULL){
-        cleanruv_log(pre_task, CLEANALLRUV_ID, "Failed to create extended op payload, aborting task");
+        cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Failed to create extended op payload, aborting task");
         rc = -1;
         goto fail;
     }
@@ -1423,7 +1422,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
      */
     data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
     if (data == NULL) {
-        cleanruv_log(pre_task, CLEANALLRUV_ID, "Failed to allocate cleanruv_data.  Aborting task.");
+        cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Failed to allocate cleanruv_data.  Aborting task.");
         rc = -1;
         goto fail;
     }
@@ -1450,7 +1449,7 @@ replica_execute_cleanall_ruv_task (Object *r, ReplicaId rid, Slapi_Task *task, c
     }
 
 fail:
-    cleanruv_log(pre_task, CLEANALLRUV_ID, "Failed to clean rid (%d)",rid);
+    cleanruv_log(pre_task, rid, CLEANALLRUV_ID, "Failed to clean rid (%d)", rid);
     if(task){
         slapi_task_finish(task, rc);
     }
@@ -1516,9 +1515,9 @@ replica_cleanallruv_thread(void *arg)
         PR_Unlock( notify_lock );
         data->repl_obj = replica_get_replica_from_dn(data->sdn);
         if(data->repl_obj == NULL){
-        	cleanruv_log(data->task, CLEANALLRUV_ID, "Unable to retrieve repl object from dn(%s).", data->sdn);
-        	aborted = 1;
-        	goto done;
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Unable to retrieve repl object from dn(%s).", data->sdn);
+            aborted = 1;
+            goto done;
         }
         data->replica = (Replica*)object_get_data(data->repl_obj);
         free_obj = 1;
@@ -1530,9 +1529,9 @@ replica_cleanallruv_thread(void *arg)
     }
     /* verify we have set our repl objects */
     if(data->repl_obj == NULL || data->replica == NULL){
-    	cleanruv_log(data->task, CLEANALLRUV_ID, "Unable to set the replica objects.");
-    	aborted = 1;
-    	goto done;
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Unable to set the replica objects.");
+        aborted = 1;
+        goto done;
     }
     if(data->repl_root == NULL){
         /* we must have resumed from start up, fill in the repl root */
@@ -1552,11 +1551,11 @@ replica_cleanallruv_thread(void *arg)
      *  Add the cleanallruv task to the repl config - so we can handle restarts
      */
     add_cleaned_rid(data->rid, data->replica, csnstr, data->force); /* marks config that we started cleaning a rid */
-    cleanruv_log(data->task, CLEANALLRUV_ID, "Cleaning rid (%d)...", data->rid);
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Cleaning rid (%d)...", data->rid);
     /*
      *  First, wait for the maxcsn to be covered
      */
-    cleanruv_log(data->task, CLEANALLRUV_ID, "Waiting to process all the updates from the deleted replica...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Waiting to process all the updates from the deleted replica...");
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data (ruv_obj);
     while(data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()){
@@ -1574,7 +1573,7 @@ replica_cleanallruv_thread(void *arg)
      *
      *  Even if we are forcing the cleaning, the replicas still need to be up
      */
-    cleanruv_log(data->task, CLEANALLRUV_ID,"Waiting for all the replicas to be online...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Waiting for all the replicas to be online...");
     if(check_agmts_are_alive(data->replica, data->rid, data->task)){
         /* error, aborted or shutdown */
         aborted = 1;
@@ -1583,7 +1582,7 @@ replica_cleanallruv_thread(void *arg)
     /*
      *  Make sure all the replicas have seen the max csn
      */
-    cleanruv_log(data->task, CLEANALLRUV_ID,"Waiting for all the replicas to receive all the deleted replica updates...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Waiting for all the replicas to receive all the deleted replica updates...");
     if(strcasecmp(data->force,"no") == 0 && check_agmts_are_caught_up(data, csnstr)){
         /* error, aborted or shutdown */
         aborted = 1;
@@ -1597,7 +1596,7 @@ replica_cleanallruv_thread(void *arg)
     /*
      *  Now send the cleanruv extended op to all the agreements
      */
-    cleanruv_log(data->task, CLEANALLRUV_ID, "Sending cleanAllRUV task to all the replicas...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Sending cleanAllRUV task to all the replicas...");
     while(agmt_not_notified && !is_task_aborted(data->rid) && !slapi_is_shutting_down()){
         agmt_obj = agmtlist_get_first_agreement_for_replica (data->replica);
         if(agmt_obj == NULL){
@@ -1615,7 +1614,7 @@ replica_cleanallruv_thread(void *arg)
                 agmt_not_notified = 0;
             } else {
                 agmt_not_notified = 1;
-                cleanruv_log(data->task, CLEANALLRUV_ID, "Failed to send task to replica (%s)",agmt_get_long_name(agmt));
+                cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Failed to send task to replica (%s)",agmt_get_long_name(agmt));
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
@@ -1631,7 +1630,7 @@ replica_cleanallruv_thread(void *arg)
         /*
          *  need to sleep between passes
          */
-        cleanruv_log(data->task, CLEANALLRUV_ID, "Not all replicas have received the "
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Not all replicas have received the "
             "cleanallruv extended op, retrying in %d seconds",interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
@@ -1646,12 +1645,13 @@ replica_cleanallruv_thread(void *arg)
     /*
      *  Run the CLEANRUV task
      */
-    cleanruv_log(data->task, CLEANALLRUV_ID,"Cleaning local ruv's...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Cleaning local ruv's...");
     replica_execute_cleanruv_task (data->repl_obj, data->rid, returntext);
     /*
      *  Wait for all the replicas to be cleaned
      */
-    cleanruv_log(data->task, CLEANALLRUV_ID,"Waiting for all the replicas to be cleaned...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,
+            "Waiting for all the replicas to be cleaned...");
 
     interval = 10;
     while(found_dirty_rid && !is_task_aborted(data->rid) && !slapi_is_shutting_down()){
@@ -1670,7 +1670,8 @@ replica_cleanallruv_thread(void *arg)
                 found_dirty_rid = 0;
             } else {
                 found_dirty_rid = 1;
-                cleanruv_log(data->task, CLEANALLRUV_ID,"Replica is not cleaned yet (%s)",agmt_get_long_name(agmt));
+                cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Replica is not cleaned yet (%s)",
+                        agmt_get_long_name(agmt));
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
@@ -1686,7 +1687,7 @@ replica_cleanallruv_thread(void *arg)
         /*
          *  need to sleep between passes
          */
-        cleanruv_log(data->task, CLEANALLRUV_ID, "Replicas have not been cleaned yet, "
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Replicas have not been cleaned yet, "
             "retrying in %d seconds", interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
@@ -1708,16 +1709,16 @@ done:
         delete_cleaned_rid_config(data);
         /* make sure all the replicas have been "pre_cleaned" before finishing */
         check_replicas_are_done_cleaning(data);
-        cleanruv_log(data->task, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
         remove_cleaned_rid(data->rid);
     } else {
         /*
          *  Shutdown or abort
          */
         if(!is_task_aborted(data->rid)){
-            cleanruv_log(data->task, CLEANALLRUV_ID,"Server shutting down.  Process will resume at server startup");
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Server shutting down.  Process will resume at server startup");
         } else {
-            cleanruv_log(data->task, CLEANALLRUV_ID,"Task aborted for rid(%d).",data->rid);
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Task aborted for rid(%d).",data->rid);
             delete_cleaned_rid_config(data);
             remove_cleaned_rid(data->rid);
         }
@@ -1753,7 +1754,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
     int not_all_cleaned = 1;
     int interval = 10;
 
-    cleanruv_log(data->task, CLEANALLRUV_ID, "Waiting for all the replicas to finish cleaning...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Waiting for all the replicas to finish cleaning...");
 
     csn_as_string(data->maxcsn, PR_FALSE, csnstr);
     filter = PR_smprintf("(%s=%d:%s:%s)", type_replicaCleanRUV,(int)data->rid, csnstr, data->force);
@@ -1781,7 +1782,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
         if(not_all_cleaned == 0 || is_task_aborted(data->rid) ){
             break;
         }
-        cleanruv_log(data->task, CLEANALLRUV_ID, "Not all replicas finished cleaning, retrying in %d seconds",interval);
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Not all replicas finished cleaning, retrying in %d seconds",interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
         PR_Unlock( notify_lock );
@@ -1856,7 +1857,7 @@ check_replicas_are_done_aborting(cleanruv_data *data )
     int not_all_aborted = 1;
     int interval = 10;
 
-    cleanruv_log(data->task, ABORT_CLEANALLRUV_ID,"Waiting for all the replicas to finish aborting...");
+    cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID,"Waiting for all the replicas to finish aborting...");
 
     filter = PR_smprintf("(%s=%d:%s)", type_replicaAbortCleanRUV, data->rid, data->repl_root);
 
@@ -1884,7 +1885,7 @@ check_replicas_are_done_aborting(cleanruv_data *data )
         if(not_all_aborted == 0){
             break;
         }
-        cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Not all replicas finished aborting, retrying in %d seconds",interval);
+        cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Not all replicas finished aborting, retrying in %d seconds",interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
         PR_Unlock( notify_lock );
@@ -1928,7 +1929,7 @@ check_agmts_are_caught_up(cleanruv_data *data, char *maxcsn)
                 not_all_caughtup = 0;
             } else {
                 not_all_caughtup = 1;
-                cleanruv_log(data->task, CLEANALLRUV_ID, "Replica not caught up (%s)",agmt_get_long_name(agmt));
+                cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Replica not caught up (%s)",agmt_get_long_name(agmt));
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
@@ -1937,7 +1938,8 @@ check_agmts_are_caught_up(cleanruv_data *data, char *maxcsn)
         if(not_all_caughtup == 0 || is_task_aborted(data->rid) ){
             break;
         }
-        cleanruv_log(data->task, CLEANALLRUV_ID, "Not all replicas caught up, retrying in %d seconds",interval);
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,
+                "Not all replicas caught up, retrying in %d seconds",interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
         PR_Unlock( notify_lock );
@@ -1985,7 +1987,8 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
                 not_all_alive = 0;
             } else {
                 not_all_alive = 1;
-                cleanruv_log(task, CLEANALLRUV_ID, "Replica not online (%s)",agmt_get_long_name(agmt));
+                cleanruv_log(task, rid, CLEANALLRUV_ID, "Replica not online (%s)",
+                        agmt_get_long_name(agmt));
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
@@ -1994,7 +1997,8 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
         if(not_all_alive == 0 || is_task_aborted(rid)){
             break;
         }
-        cleanruv_log(task, CLEANALLRUV_ID, "Not all replicas online, retrying in %d seconds...",interval);
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "Not all replicas online, retrying in %d seconds...",
+                interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
         PR_Unlock( notify_lock );
@@ -2098,8 +2102,9 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, cleanruv_data *clean_data)
     if(rc != LDAP_SUCCESS){
         char *hostname = agmt_get_hostname(agmt);
 
-        cleanruv_log(clean_data->task, CLEANALLRUV_ID, "Failed to add CLEANRUV task (%s) to replica "
-            "(%s).  You will need to manually run the CLEANRUV task on this replica (%s) error (%d)",
+        cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID,
+            "Failed to add CLEANRUV task (%s) to replica (%s).  You will need "
+            "to manually run the CLEANRUV task on this replica (%s) error (%d)",
             repl_dn, agmt_get_long_name(agmt), hostname, rc);
         slapi_ch_free_string(&hostname);
     }
@@ -2371,7 +2376,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     int rc = -1, ret, rid;
 
     if(clean_data == NULL){
-        cleanruv_log(NULL, CLEANALLRUV_ID, "delete_cleaned_rid_config: cleanruv data is NULL, "
+        cleanruv_log(NULL, clean_data->rid, CLEANALLRUV_ID, "delete_cleaned_rid_config: cleanruv data is NULL, "
                 "failed to clean the config.");
         return;
     }
@@ -2391,7 +2396,8 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS){
-        cleanruv_log(clean_data->task, CLEANALLRUV_ID,"delete_cleaned_rid_config: internal search failed(%d).",ret);
+        cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID,
+                "delete_cleaned_rid_config: internal search failed(%d).",ret);
         goto bail;
     } else {
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
@@ -2399,7 +2405,8 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
             /*
              *  No matching entries!
              */
-            cleanruv_log(clean_data->task, CLEANALLRUV_ID,"delete_cleaned_rid_config: failed to find any "
+            cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID,
+                    "delete_cleaned_rid_config: failed to find any "
                     "entries with nsds5ReplicaCleanRUV under (%s)", dn);
             goto bail;
         } else {
@@ -2450,7 +2457,8 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
                 }
 
                 if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT){
-                    cleanruv_log(clean_data->task, CLEANALLRUV_ID, "delete_cleaned_rid_config: failed to remove task data "
+                    cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID,
+                            "delete_cleaned_rid_config: failed to remove task data "
                             "from (%s) error (%d), rid (%d)", edn, rc, clean_data->rid);
                     goto bail;
                 }
@@ -2460,7 +2468,8 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
 
 bail:
     if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT){
-        cleanruv_log(clean_data->task, CLEANALLRUV_ID, "delete_cleaned_rid_config: failed to remove replica config "
+        cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID,
+            "delete_cleaned_rid_config: failed to remove replica config "
             "(%d), rid (%d)", rc, clean_data->rid);
     }
     slapi_free_search_results_internal(pb);
@@ -2518,8 +2527,10 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
 
     if(get_abort_cleanruv_task_count() >= CLEANRIDSIZ){
         /* we are already running the maximum number of tasks */
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",CLEANRIDSIZ);
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",
+                CLEANRIDSIZ);
+        cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -2531,7 +2542,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
      */
     if ((rid_str = fetch_attr(e, "replica-id", 0)) == NULL){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-id\"");
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2544,14 +2555,14 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     if (rid <= 0 || rid >= READ_ONLY_REPLICA_ID){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid replica id (%d) for task - (%s)",
             rid, slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,"%s", returntext);
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID,"%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
     if ((base_dn = fetch_attr(e, "replica-base-dn", 0)) == NULL){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-base-dn\"");
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2559,7 +2570,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     if(!is_cleaned_rid(rid) && !is_pre_cleaned_rid(rid)){
         /* we are not cleaning this rid */
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica id (%d) is not being cleaned, nothing to abort.", rid);
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2567,7 +2578,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     if(is_task_aborted(rid)){
         /* we are already aborting this rid */
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica id (%d) is already being aborted", rid);
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2578,7 +2589,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     sdn = slapi_sdn_new_dn_byval(base_dn);
     if((r = replica_get_replica_from_dn(sdn)) == NULL){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to find replica from dn(%s)", base_dn);
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2590,7 +2601,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
         if(strcasecmp(certify_all,"yes") && strcasecmp(certify_all,"no")){
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for \"replica-certify-all\", the value "
                 "must be \"yes\" or \"no\".");
-            cleanruv_log(task, ABORT_CLEANALLRUV_ID, "%s", returntext);
+            cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "%s", returntext);
             *returncode = LDAP_OPERATIONS_ERROR;
             rc = SLAPI_DSE_CALLBACK_ERROR;
             goto out;
@@ -2611,7 +2622,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     payload = create_cleanruv_payload(ridstr);
 
     if(payload == NULL){
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "Failed to create extended op payload, aborting task");
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "Failed to create extended op payload, aborting task");
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2627,7 +2638,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
      */
     data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
     if (data == NULL) {
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,"Failed to allocate abort_cleanruv_data.  Aborting task.");
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID,"Failed to allocate abort_cleanruv_data.  Aborting task.");
         *returncode = LDAP_OPERATIONS_ERROR;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2646,7 +2657,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
                 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         object_release(r);
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID,"Unable to create abort thread.  Aborting task.");
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID,"Unable to create abort thread.  Aborting task.");
         *returncode = LDAP_OPERATIONS_ERROR;
         slapi_ch_free_string(&data->certify);
         rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -2657,7 +2668,7 @@ out:
     slapi_sdn_free(&sdn);
 
     if(rc != SLAPI_DSE_CALLBACK_OK){
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "Abort Task failed (%d)", rc);
+        cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, "Abort Task failed (%d)", rc);
         slapi_task_finish(task, rc);
     }
 
@@ -2678,7 +2689,7 @@ replica_abort_task_thread(void *arg)
     int release_it = 0;
     int count = 0, rc = 0;
 
-    cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Aborting task for rid(%d)...",data->rid);
+    cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Aborting task for rid(%d)...",data->rid);
 
     /*
      *   Need to build the replica from the dn
@@ -2689,7 +2700,7 @@ replica_abort_task_thread(void *arg)
          * to timing issues, we need to wait to grab the replica obj until we get here.
          */
         if((data->repl_obj = replica_get_replica_from_dn(data->sdn)) == NULL){
-            cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Failed to get replica object from dn (%s).", slapi_sdn_get_dn(data->sdn));
+            cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Failed to get replica object from dn (%s).", slapi_sdn_get_dn(data->sdn));
             goto done;
         }
         if(data->replica == NULL && data->repl_obj){
@@ -2737,7 +2748,7 @@ replica_abort_task_thread(void *arg)
         /*
          *  need to sleep between passes
          */
-        cleanruv_log(data->task, ABORT_CLEANALLRUV_ID,"Retrying in %d seconds",interval);
+        cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID,"Retrying in %d seconds",interval);
         PR_Lock( notify_lock );
         PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
         PR_Unlock( notify_lock );
@@ -2752,17 +2763,17 @@ replica_abort_task_thread(void *arg)
 done:
     if(agmt_not_notified){
         /* failure */
-        cleanruv_log(data->task, ABORT_CLEANALLRUV_ID,"Abort task failed, will resume the task at the next server startup.");
+        cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID,"Abort task failed, will resume the task at the next server startup.");
     } else {
         /*
          *  Wait for this server to stop its cleanallruv task(which removes the rid from the cleaned list)
          */
-        cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Waiting for CleanAllRUV task to abort...");
+        cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Waiting for CleanAllRUV task to abort...");
         while(is_cleaned_rid(data->rid)){
             DS_Sleep(PR_SecondsToInterval(1));
             count++;
             if(count == 60){ /* it should not take this long */
-                cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "CleanAllRUV task failed to abort.  You might need to "
+                cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "CleanAllRUV task failed to abort.  You might need to "
                         "rerun the task.");
                 rc = -1;
                 break;
@@ -2777,9 +2788,9 @@ done:
         }
         delete_aborted_rid(data->replica, data->rid, data->repl_root, 0); /* remove the in-memory aborted rid */
         if(rc == 0){
-            cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Successfully aborted task for rid(%d)", data->rid);
+            cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Successfully aborted task for rid(%d)", data->rid);
         } else {
-            cleanruv_log(data->task, ABORT_CLEANALLRUV_ID, "Failed to abort task for rid(%d)",data->rid);
+            cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Failed to abort task for rid(%d)",data->rid);
         }
     }
 
@@ -2815,10 +2826,12 @@ replica_cleanallruv_send_abort_extop(Repl_Agmt *ra, Slapi_Task *task, struct ber
          */
         rc = crc;
         if(rc){
-        	cleanruv_log(task, ABORT_CLEANALLRUV_ID, "Failed to send extop to replica(%s).", agmt_get_long_name(ra));
+            cleanruv_log(task, agmt_get_consumer_rid(ra, conn), ABORT_CLEANALLRUV_ID,
+                    "Failed to send extop to replica(%s).", agmt_get_long_name(ra));
         }
     } else {
-        cleanruv_log(task, ABORT_CLEANALLRUV_ID, "Failed to connect to replica(%s).", agmt_get_long_name(ra));
+        cleanruv_log(task, agmt_get_consumer_rid(ra, conn), ABORT_CLEANALLRUV_ID,
+                "Failed to connect to replica(%s).", agmt_get_long_name(ra));
         rc = -1;
     }
     conn_delete_internal_ext(conn);
@@ -2853,7 +2866,7 @@ replica_cleanallruv_send_extop(Repl_Agmt *ra, cleanruv_data *clean_data, int che
                     /* extop was accepted */
                     rc = 0;
                 } else {
-                    cleanruv_log(clean_data->task, CLEANALLRUV_ID,"Replica %s does not support the CLEANALLRUV task.  "
+                    cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID,"Replica %s does not support the CLEANALLRUV task.  "
                         "Sending replica CLEANRUV task...", slapi_sdn_get_dn(agmt_get_dn_byref(ra)));
                     /*
                      *  Ok, this replica doesn't know about CLEANALLRUV, so just manually
@@ -3019,7 +3032,7 @@ replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *basedn, char *rid_text, 
                     csn_init_by_string(repl_max, remote_maxcsn);
                     if(csn_compare (repl_max, max) < 0){
                         /* we are not caught up yet, free, and return */
-                        cleanruv_log(task, CLEANALLRUV_ID,"Replica maxcsn (%s) is not caught up with deleted replica's maxcsn(%s)",
+                        cleanruv_log(task, atoi(rid_text), CLEANALLRUV_ID,"Replica maxcsn (%s) is not caught up with deleted replica's maxcsn(%s)",
                             remote_maxcsn, maxcsn);
                         rc = -1;
                     } else {
@@ -3181,7 +3194,7 @@ stop_ruv_cleaning()
  *  Write our logging to the task and error log
  */
 void
-cleanruv_log(Slapi_Task *task, char *task_type, char *fmt, ...)
+cleanruv_log(Slapi_Task *task, int rid, char *task_type, char *fmt, ...)
 {
     va_list ap1;
     va_list ap2;
@@ -3199,7 +3212,7 @@ cleanruv_log(Slapi_Task *task, char *task_type, char *fmt, ...)
         slapi_task_log_status_ext(task, fmt, ap2);
         slapi_task_inc_progress(task);
     }
-    errlog_fmt = PR_smprintf("%s: %s\n",task_type, fmt);
+    errlog_fmt = PR_smprintf("%s (rid %d): %s \n",task_type, rid, fmt);
     slapi_log_error_ext(SLAPI_LOG_FATAL, repl_plugin_name, errlog_fmt, ap3, ap4);
     slapi_ch_free_string(&errlog_fmt);
 
@@ -3261,7 +3274,7 @@ replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn)
         }
     } else {
         /* internal search failed */
-        cleanruv_log(NULL, CLEANALLRUV_ID, "replica_cleanallruv_get_local_maxcsn: internal search failed (%d)\n", res);
+        cleanruv_log(NULL, (int)rid, CLEANALLRUV_ID, "replica_cleanallruv_get_local_maxcsn: internal search failed (%d)\n", res);
     }
 
 	slapi_free_search_results_internal(search_pb);
