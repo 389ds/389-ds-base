@@ -532,3 +532,72 @@ ER3(SEC_ERROR_NOT_INITIALIZED,      		(SEC_ERROR_BASE + 154),
 ER3(SEC_ERROR_TOKEN_NOT_LOGGED_IN,  		(SEC_ERROR_BASE + 155),
 "The operation failed because the PKCS#11 token is not logged in.")
 
+ER3(SEC_ERROR_OCSP_RESPONDER_CERT_INVALID,  (SEC_ERROR_BASE + 156),
+"Configured OCSP responder's certificate is invalid.")
+
+ER3(SEC_ERROR_OCSP_BAD_SIGNATURE,      		(SEC_ERROR_BASE + 157),
+"OCSP response has an invalid signature.")
+
+ER3(SEC_ERROR_OUT_OF_SEARCH_LIMITS,      		(SEC_ERROR_BASE + 158),
+"Cert validation search is out of search limits")
+
+ER3(SEC_ERROR_INVALID_POLICY_MAPPING,      		(SEC_ERROR_BASE + 159),
+"Policy mapping contains anypolicy")
+
+ER3(SEC_ERROR_POLICY_VALIDATION_FAILED,    		(SEC_ERROR_BASE + 160),
+"Cert chain fails policy validation")
+
+ER3(SEC_ERROR_UNKNOWN_AIA_LOCATION_TYPE,    		(SEC_ERROR_BASE + 161),
+"Unknown location type in cert AIA extension")
+
+ER3(SEC_ERROR_BAD_HTTP_RESPONSE,    		(SEC_ERROR_BASE + 162),
+"Server returned bad HTTP response")
+
+ER3(SEC_ERROR_BAD_LDAP_RESPONSE,    		(SEC_ERROR_BASE + 163),
+"Server returned bad LDAP response")
+
+ER3(SEC_ERROR_FAILED_TO_ENCODE_DATA,    		(SEC_ERROR_BASE + 164),
+"Failed to encode data with ASN1 encoder")
+
+ER3(SEC_ERROR_BAD_INFO_ACCESS_LOCATION,    		(SEC_ERROR_BASE + 165),
+"Bad information access location in cert extension")
+
+ER3(SEC_ERROR_LIBPKIX_INTERNAL,      		(SEC_ERROR_BASE + 166),
+"Libpkix internal error occurred during cert validation.")
+
+ER3(SEC_ERROR_PKCS11_GENERAL_ERROR,      		(SEC_ERROR_BASE + 167),
+"A PKCS #11 module returned CKR_GENERAL_ERROR, indicating that an unrecoverable error has occurred.")
+
+ER3(SEC_ERROR_PKCS11_FUNCTION_FAILED,      		(SEC_ERROR_BASE + 168),
+"A PKCS #11 module returned CKR_FUNCTION_FAILED, indicating that the requested function could not be performed.  Trying the same operation again might succeed.")
+
+ER3(SEC_ERROR_PKCS11_DEVICE_ERROR,      		(SEC_ERROR_BASE + 169),
+"A PKCS #11 module returned CKR_DEVICE_ERROR, indicating that a problem has occurred with the token or slot.")
+
+ER3(SEC_ERROR_BAD_INFO_ACCESS_METHOD,      		(SEC_ERROR_BASE + 170),
+"Unknown information access method in certificate extension.")
+
+ER3(SEC_ERROR_CRL_IMPORT_FAILED,        		(SEC_ERROR_BASE + 171),
+"Error attempting to import a CRL.")
+
+ER3(SEC_ERROR_EXPIRED_PASSWORD,        		(SEC_ERROR_BASE + 172),
+"The password expired.")
+
+ER3(SEC_ERROR_LOCKED_PASSWORD,        		(SEC_ERROR_BASE + 173),
+"The password is locked.")
+
+ER3(SEC_ERROR_UNKNOWN_PKCS11_ERROR,        		(SEC_ERROR_BASE + 174),
+"Unknown PKCS #11 error.")
+
+ER3(SEC_ERROR_BAD_CRL_DP_URL,			(SEC_ERROR_BASE + 175),
+"Invalid or unsupported URL in CRL distribution point name.")
+
+ER3(SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED,	(SEC_ERROR_BASE + 176),
+"The certificate was signed using a signature algorithm that is disabled because it is not secure.")
+
+ER3(SEC_ERROR_LEGACY_DATABASE,			(SEC_ERROR_BASE + 177),
+"The certificate/key database is in an old, unsupported format or failed to open.")
+
+ER3(SEC_ERROR_APPLICATION_CALLBACK_ERROR,        (SEC_ERROR_BASE + 178),
+"The certificate was rejected by extra checks in the application.")
+
