@@ -100,26 +100,20 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     ber_free(ber, 1);
     if ( cookie.bv_len <= 0 ) {
         int i;
-        int maxlen;
         /* first time? */
-        maxlen = conn->c_pagedresults.prl_maxlen;
+        int maxlen = conn->c_pagedresults.prl_maxlen;
         if (conn->c_pagedresults.prl_count == maxlen) {
             if (0 == maxlen) { /* first time */
                 conn->c_pagedresults.prl_maxlen = 1;
-                conn->c_pagedresults.prl_list =
-                    (PagedResults *)slapi_ch_calloc(1,
-                                                sizeof(PagedResults));
+                conn->c_pagedresults.prl_list = (PagedResults *)slapi_ch_calloc(1, sizeof(PagedResults));
             } else {
                 /* new max length */
                 conn->c_pagedresults.prl_maxlen *= 2;
-                conn->c_pagedresults.prl_list =
-                    (PagedResults *)slapi_ch_realloc(
+                conn->c_pagedresults.prl_list = (PagedResults *)slapi_ch_realloc(
                                 (char *)conn->c_pagedresults.prl_list,
-                                sizeof(PagedResults) *
-                                conn->c_pagedresults.prl_maxlen);
+                                sizeof(PagedResults) * conn->c_pagedresults.prl_maxlen);
                 /* initialze newly allocated area */
-                memset(conn->c_pagedresults.prl_list + maxlen, '\0',
-                           sizeof(PagedResults) * maxlen);
+                memset(conn->c_pagedresults.prl_list + maxlen, '\0', sizeof(PagedResults) * maxlen);
             }
             *index = maxlen; /* the first position in the new area */
         } else {
@@ -276,8 +270,8 @@ pagedresults_free_one( Connection *conn, Operation *op, int index )
                 prp->pr_current_be->be_search_results_release &&
                 prp->pr_search_result_set) {
                 prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
-                prp->pr_current_be = NULL;
             }
+            prp->pr_current_be = NULL;
             if (prp->pr_mutex) {
                 /* pr_mutex is reused; back it up and reset it. */
                 prmutex = prp->pr_mutex;
@@ -314,8 +308,8 @@ pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
                         prp->pr_current_be->be_search_results_release &&
                         prp->pr_search_result_set) {
                         prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
-                        prp->pr_current_be = NULL;
                     }
+                    prp->pr_current_be = NULL;
                     prp->pr_flags |= CONN_FLAG_PAGEDRESULTS_ABANDONED;
                     prp->pr_flags &= ~CONN_FLAG_PAGEDRESULTS_PROCESSING;
                     conn->c_pagedresults.prl_count--;
@@ -404,16 +398,8 @@ pagedresults_set_search_result(Connection *conn, Operation *op, void *sr,
     if (conn && (index > -1)) {
         if (!locked) PR_Lock(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
-            if (sr) { /* set */
-                if (NULL ==
-                    conn->c_pagedresults.prl_list[index].pr_search_result_set) {
-                    conn->c_pagedresults.prl_list[index].pr_search_result_set = sr;
-                    rc = 0;
-                }
-            } else {  /* reset */
-                conn->c_pagedresults.prl_list[index].pr_search_result_set = sr;
-                rc = 0;
-            }
+            conn->c_pagedresults.prl_list[index].pr_search_result_set = sr;
+            rc = 0;
         }
         if (!locked) PR_Unlock(conn->c_mutex);
     }
@@ -732,9 +718,9 @@ pagedresults_cleanup(Connection *conn, int needlock)
         if (prp->pr_current_be && prp->pr_search_result_set &&
             prp->pr_current_be->be_search_results_release) {
             prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
-            prp->pr_current_be = NULL;
             rc = 1;
         }
+        prp->pr_current_be = NULL;
         if (prp->pr_mutex) {
             PR_DestroyLock(prp->pr_mutex);
         }
@@ -780,9 +766,9 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
         if (prp->pr_current_be && prp->pr_search_result_set &&
             prp->pr_current_be->be_search_results_release) {
             prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
-            prp->pr_current_be = NULL;
             rc = 1;
         }
+        prp->pr_current_be = NULL;
     }
     slapi_ch_free((void **)&conn->c_pagedresults.prl_list);
     conn->c_pagedresults.prl_maxlen = 0;
