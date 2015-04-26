@@ -874,7 +874,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
             if (PAGEDRESULTS_SEARCH_END == pr_stat) {
               if (sr) { /* in case a left over sr is found, clean it up */
+                PR_Lock(pb->pb_conn->c_mutex);
+                pagedresults_set_search_result(pb->pb_conn, operation, NULL, 1, pr_idx);
                 be->be_search_results_release(&sr);
+                PR_Unlock(pb->pb_conn->c_mutex);
               }
               if (NULL == next_be) {
                 /* no more entries && no more backends */
@@ -890,17 +893,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
               pagedresults_lock(pb->pb_conn, pr_idx);
               if ((pagedresults_set_current_be(pb->pb_conn, be, pr_idx) < 0) ||
-                  (pagedresults_set_search_result(pb->pb_conn, operation,
-                                                  sr, 0, pr_idx) < 0) ||
-                  (pagedresults_set_search_result_count(pb->pb_conn, operation,
-                                                        curr_search_count,
-                                                        pr_idx) < 0) ||
-                  (pagedresults_set_search_result_set_size_estimate(pb->pb_conn,
-                                                                 operation,
-                                                                 estimate,
-                                                                 pr_idx) < 0) ||
-                  (pagedresults_set_with_sort(pb->pb_conn, operation,
-                                              with_sort, pr_idx) < 0)) {
+                  (pagedresults_set_search_result(pb->pb_conn, operation, sr, 0, pr_idx) < 0) ||
+                  (pagedresults_set_search_result_count(pb->pb_conn, operation, curr_search_count, pr_idx) < 0) ||
+                  (pagedresults_set_search_result_set_size_estimate(pb->pb_conn, operation, estimate, pr_idx) < 0) ||
+                  (pagedresults_set_with_sort(pb->pb_conn, operation, with_sort, pr_idx) < 0)) {
                 pagedresults_unlock(pb->pb_conn, pr_idx);
                 goto free_and_return;
               }
