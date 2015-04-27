@@ -119,16 +119,17 @@ short	slapd_housekeeping_timer = 10;
 /* Do we support timeout on socket send() ? */
 int have_send_timeouts = 0;
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 PRFileDesc*		signalpipe[2];
 static int writesignalpipe = SLAPD_INVALID_SOCKET;
 static int readsignalpipe = SLAPD_INVALID_SOCKET;
+#define FDS_SIGNAL_PIPE 0
+#endif
 
 static PRThread *disk_thread_p = NULL;
 static PRCondVar *diskmon_cvar = NULL;
 static PRLock *diskmon_mutex = NULL;
 void disk_monitoring_stop();
-
-#define FDS_SIGNAL_PIPE 0
 
 typedef struct listener_info {
 #ifdef ENABLE_NUNC_STANS
@@ -176,7 +177,9 @@ static void* catch_signals();
 HANDLE  hServDoneEvent = NULL;
 #endif
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 static int createsignalpipe( void );
+#endif
 
 #if defined( _WIN32 )
 /* Set an event to hook the NT Service termination */
@@ -389,10 +392,16 @@ static void handle_read_ready(Connection_Table *ct, fd_set *readfds);
 static void set_timeval_ms(struct timeval *t, int ms);
 #endif
 /* GGOODREPL static void handle_timeout( void ); */
-static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn );
 #ifdef ENABLE_NUNC_STANS
 static void ns_handle_new_connection(struct ns_job_t *job);
+#else
+static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
+#ifdef _WIN32
+static int clear_signal(fd_set *readfdset);
+#else
+static int clear_signal(struct POLL_STRUCT *fds);
+#endif
 #endif
 #ifdef _WIN32
 static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, int n_tcps, PRFileDesc *s_tcps);
@@ -401,11 +410,6 @@ static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDes
 #endif
 static int write_pid_file();
 static int init_shutdown_detect();
-#ifdef _WIN32
-static int clear_signal(fd_set *readfdset);
-#else
-static int clear_signal(struct POLL_STRUCT *fds);
-#endif
 
 /* Globals which are used to store the sockets between
  * calls to daemon_pre_setuid_init() and the daemon thread
@@ -930,6 +934,7 @@ disk_monitoring_thread(void *nothing)
     }
 }
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 static void
 handle_listeners(Connection_Table *ct)
 {
@@ -953,6 +958,7 @@ handle_listeners(Connection_Table *ct)
 	}
 	return;
 }
+#endif /* !ENABLE_NUNC_STANS */
 
 /*
  * Convert any pre-existing DES passwords to AES.
@@ -1300,7 +1306,9 @@ void slapd_daemon( daemon_ports_t *ports )
 	PRFileDesc **fdesp = NULL; 
 #endif
 	PRIntn num_poll = 0;
-	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);	
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
+	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
+#endif
 	PRThread *time_thread_p;
 	int threads;
 	int in_referral_mode = config_check_referral_mode();
@@ -1335,7 +1343,9 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif /* ENABLE_LDAPI */
 #endif
 	
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 	createsignalpipe();
+#endif
 
 	init_shutdown_detect();
 
@@ -1533,12 +1543,16 @@ void slapd_daemon( daemon_ports_t *ports )
 	/* The server is ready and listening for connections. Logging "slapd started" message. */
 	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps,i_unix);
 
-	/* The meat of the operation is in a loop on a call to select */
+#ifdef ENABLE_NUNC_STANS
+	if (ns_thrpool_wait(tp)) {
+		LDAPDebug( LDAP_DEBUG_ANY,
+			   "ns_thrpool_wait failed errno %d (%s)\n", errno,
+			   slapd_system_strerror(errno), 0 );
+	}
+
+#else	/* The meat of the operation is in a loop on a call to select */
 	while(!g_get_shutdown())
 	{
-#ifdef ENABLE_NUNC_STANS
-		DS_Sleep(1);
-#else
 #ifdef _WIN32
 		fd_set			readfds;
 		struct timeval	wakeup_timer;
@@ -1599,8 +1613,8 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif
 			break;
 		}
-#endif
 	}
+#endif /* ENABLE_NUNC_STANS */
 	/* We get here when the server is shutting down */
 	/* Do what we have to do before death */
 
@@ -1674,6 +1688,7 @@ void slapd_daemon( daemon_ports_t *ports )
 
 	threads = g_get_active_threadcnt();
 	while ( threads > 0 ) {
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 		PRPollDesc xpd;
 		char x;
 		int spe = 0;
@@ -1702,6 +1717,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		} else {
 		    /* no data */
 		}
+#endif
 		DS_Sleep(PR_INTERVAL_NO_WAIT);
 		if ( threads != g_get_active_threadcnt() )  {
 			LDAPDebug( LDAP_DEBUG_TRACE,
@@ -1746,10 +1762,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	connection_table_free(the_connection_table);
 	the_connection_table= NULL;
 #ifdef ENABLE_NUNC_STANS
-	if (ns_thrpool_wait(tp)) {
-		/* error */
-	}
-
 	ns_thrpool_destroy(tp);
 #endif
 	be_cleanupall ();
@@ -1777,6 +1789,7 @@ void slapd_daemon( daemon_ports_t *ports )
 
 int signal_listner()
 {
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 	/* Replaces previous macro---called to bump the thread out of select */
 #if defined( _WIN32 )
 	if ( PR_Write( signalpipe[1], "", 1) != 1 ) {
@@ -1798,9 +1811,11 @@ int signal_listner()
 				errno, 0, 0 );
 	}
 #endif
+#endif
 	return( 0 );
 }
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 #ifdef _WIN32
 static int clear_signal(fd_set *readfdset)
 #else
@@ -1829,6 +1844,7 @@ static int clear_signal(struct POLL_STRUCT *fds)
 	} 
 	return 0;
 }
+#endif /* !ENABLE_NUNC_STANS */
 
 #ifdef _WIN32
 static void set_timeval_ms(struct timeval *t, int ms)
@@ -1973,6 +1989,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 			ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 		}
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 		/* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
 		count = FDS_SIGNAL_PIPE;
 #if !defined(_WIN32)
@@ -1983,7 +2000,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		ct->fd[count].fd = NULL;
 #endif
 		count++;
-
+#endif
 		/* The fds entry for n_tcps starts with n_tcps and less than n_tcpe */
 		ct->n_tcps = count;
 		if (n_tcps != NULL && accept_new_connections)
@@ -2245,6 +2262,7 @@ handle_read_ready(Connection_Table *ct, fd_set *readfds)
 #endif   /* _WIN32 */
 
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 static void
 handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 {
@@ -2400,6 +2418,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 	}
 #endif
 }
+#endif /* !ENABLE_NUNC_STANS */
 
 #ifdef ENABLE_NUNC_STANS
 #define CONN_NEEDS_CLOSING(c) (c->c_flags & CONN_FLAG_CLOSING) || (c->c_sd == SLAPD_INVALID_SOCKET)
@@ -3965,6 +3984,7 @@ netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen)
 }
 
 
+#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
 static int
 createsignalpipe( void )
 {
@@ -3997,9 +4017,9 @@ createsignalpipe( void )
 				errno, 0, 0);
 	}
 #endif
-
 	return( 0 );
 } 
+#endif
 
 
 #ifdef HPUX10
