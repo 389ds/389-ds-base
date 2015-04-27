@@ -1427,7 +1427,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     Slapi_Task *task = NULL;
     const Slapi_DN *task_dn;
     Slapi_DN *dn = NULL;
-    ReplicaId rid;
+    ReplicaId rid = -1;
     Object *r;
     const char *force_cleaning;
     const char *base_dn;
@@ -2559,7 +2559,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     int rc = -1, ret, rid;
 
     if(clean_data == NULL){
-        cleanruv_log(NULL, clean_data->rid, CLEANALLRUV_ID, "delete_cleaned_rid_config: cleanruv data is NULL, "
+        cleanruv_log(NULL, -1, CLEANALLRUV_ID, "delete_cleaned_rid_config: cleanruv data is NULL, "
                 "failed to clean the config.");
         return;
     }
@@ -2699,7 +2699,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter
     Slapi_Task *task = NULL;
     Slapi_DN *sdn = NULL;
     Replica *replica;
-    ReplicaId rid;;
+    ReplicaId rid = -1;
     Object *r;
     const char *certify_all;
     const char *base_dn;
