@@ -70,7 +70,7 @@ int ldap_quote_filter_value(
 
 
 static int search_one_berval(Slapi_DN *baseDN, const char **attrNames,
-		const struct berval *value, const char *requiredObjectClass, Slapi_DN *target);
+		const struct berval *value, const char *requiredObjectClass, Slapi_DN *target, Slapi_DN **excludes);
 
 /*
  * ISSUES:
@@ -103,6 +103,7 @@ typedef struct attr_uniqueness_config {
         const char **attrs;
         char *attr_friendly;
         Slapi_DN **subtrees;
+        Slapi_DN **exclude_subtrees;
         PRBool unique_in_all_subtrees;
         char *top_entry_oc;
         char *subtree_entries_oc;
@@ -111,6 +112,7 @@ typedef struct attr_uniqueness_config {
 
 #define ATTR_UNIQUENESS_ATTRIBUTE_NAME      "uniqueness-attribute-name"
 #define ATTR_UNIQUENESS_SUBTREES            "uniqueness-subtrees"
+#define ATTR_UNIQUENESS_EXCLUDE_SUBTREES    "uniqueness-exclude-subtrees"
 #define ATTR_UNIQUENESS_ACROSS_ALL_SUBTREES "uniqueness-across-all-subtrees"
 #define ATTR_UNIQUENESS_TOP_ENTRY_OC        "uniqueness-top-entry-oc"
 #define ATTR_UNIQUENESS_SUBTREE_ENTRIES_OC  "uniqueness-subtree-entries-oc"
@@ -135,7 +137,11 @@ free_uniqueness_config(struct attr_uniqueness_config *config)
         for (i = 0; config->subtrees && config->subtrees[i]; i++) {
                 slapi_sdn_free(&config->subtrees[i]);
         }
+        for (i = 0; config->exclude_subtrees && config->exclude_subtrees[i]; i++) {
+                slapi_sdn_free(&config->exclude_subtrees[i]);
+        }
         slapi_ch_free((void **) &config->subtrees);
+        slapi_ch_free((void **) &config->exclude_subtrees);
         slapi_ch_free_string((char **) &config->top_entry_oc);
         slapi_ch_free_string((char **) &config->subtree_entries_oc);       
 }
@@ -147,6 +153,7 @@ free_uniqueness_config(struct attr_uniqueness_config *config)
  * uniqueness-attribute-name: uid
  * uniqueness-subtrees: dc=people,dc=example,dc=com
  * uniqueness-subtrees: dc=sales, dc=example,dc=com
+ * uniqueness-exclude-subtrees: dc=machines, dc=examples, dc=com
  * uniqueness-across-all-subtrees: on
  * 
  * or
@@ -248,6 +255,27 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                                         continue;
                                 }
                                 tmp_config->subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(values[i]);
+                                nb_subtrees++;
+
+                        }
+
+                        slapi_ch_array_free(values);
+                        values = NULL;
+                }
+
+                /* Subtrees where uniqueness is explicitly ignored */
+                values = slapi_entry_attr_get_charray(config_entry, ATTR_UNIQUENESS_EXCLUDE_SUBTREES);
+                if (values) {
+                        for (i = 0; values && values[i]; i++);
+                        /* slapi_ch_calloc never returns NULL unless the 2 args are 0 or negative. */
+                        tmp_config->exclude_subtrees = (Slapi_DN **) slapi_ch_calloc(i + 1, sizeof (Slapi_DN *));
+                        /* copy the valid subtree DN into the config */
+                        for (i = 0, nb_subtrees = 0; values && values[i]; i++) {
+                                if (slapi_dn_syntax_check(pb, values[i], 1)) { /* syntax check failed */
+                                        slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Invalid DN (skipped): %s\n", values[i]);
+                                        continue;
+                                }
+                                tmp_config->exclude_subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(values[i]);
                                 nb_subtrees++;
 
                         }
@@ -376,6 +404,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
             fp++;
         }
 
+        /* Only ensure subtrees are set, no need to check excluded subtrees as setting exclusion without actual subtrees make little sense */
         if (tmp_config->subtrees == NULL) {
                 /* Uniqueness is enforced on entries matching objectclass */
                 if (tmp_config->subtree_entries_oc == NULL) {
@@ -569,7 +598,7 @@ create_filter(const char **attributes, const struct berval *value, const char *r
 static int
 search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
   struct berval **values, const char *requiredObjectClass,
-  Slapi_DN *target)
+  Slapi_DN *target, Slapi_DN **excludes)
 {
   int result;
 
@@ -604,7 +633,7 @@ search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
 	{
 	  result = search_one_berval(baseDN, attrNames,
 					slapi_value_get_berval(v),
-					requiredObjectClass, target);
+					requiredObjectClass, target, excludes);
 	}
   }
   else
@@ -612,7 +641,7 @@ search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
 	for (;*values != NULL && LDAP_SUCCESS == result; values++)
 	{
 	  result = search_one_berval(baseDN, attrNames, *values, requiredObjectClass,
-					target);
+					target, excludes);
 	}
   }
 
@@ -628,7 +657,7 @@ search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
 static int
 search_one_berval(Slapi_DN *baseDN, const char **attrNames,
 		const struct berval *value, const char *requiredObjectClass,
-		Slapi_DN *target)
+		Slapi_DN *target, Slapi_DN **excludes)
 {
 	int result;
     char *filter;
@@ -695,8 +724,28 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames,
          */
         if (!target || slapi_sdn_compare(slapi_entry_get_sdn(*entries), target) != 0)
         {
+          int i;
           result = LDAP_CONSTRAINT_VIOLATION;
-          break;
+          if (excludes == NULL || *excludes == NULL)
+          {
+            break;
+          }
+
+          /* Do the same check for excluded subtrees as resulted entries may have matched them */
+          for (i = 0;excludes && excludes[i]; i++)
+          {
+            Slapi_DN *entry_dn = slapi_entry_get_sdn(*entries);
+            if (slapi_sdn_issuffix(entry_dn, excludes[i]))
+            {
+              result = LDAP_SUCCESS;
+              break;
+            }
+          }
+
+          if (result == LDAP_CONSTRAINT_VIOLATION)
+          {
+            break;
+          }
         }
       }
 
@@ -734,7 +783,7 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames,
  *   LDAP_OPERATIONS_ERROR - a server failure.
  */
 static int
-searchAllSubtrees(Slapi_DN **subtrees, const char **attrNames,
+searchAllSubtrees(Slapi_DN **subtrees, Slapi_DN **exclude_subtrees, const char **attrNames,
   Slapi_Attr *attr, struct berval **values, const char *requiredObjectClass,
   Slapi_DN *dn, PRBool unique_in_all_subtrees)
 {
@@ -762,6 +811,22 @@ searchAllSubtrees(Slapi_DN **subtrees, const char **attrNames,
                   return result;
           }
   }
+
+  /* If DN is in the excluded subtrees, we should ignore it in any case, not only
+   * in the case of uniqueness in all subtrees. */
+  if (exclude_subtrees != NULL)
+  {
+          PRBool in_a_subtree = PR_FALSE;
+          for (i = 0;exclude_subtrees && exclude_subtrees[i]; i++) {
+                  if (slapi_sdn_issuffix(dn, exclude_subtrees[i])) {
+                          in_a_subtree = PR_TRUE;
+                          break;
+                  }
+          }
+          if (in_a_subtree) {
+                  return result;
+          }
+  }
   
   /*
    * For each DN in the managed list, do uniqueness checking if
@@ -775,7 +840,7 @@ searchAllSubtrees(Slapi_DN **subtrees, const char **attrNames,
      * worry about that here.
      */
     if (unique_in_all_subtrees || slapi_sdn_issuffix(dn, sufdn)) {
-      result = search(sufdn, attrNames, attr, values, requiredObjectClass, dn);
+      result = search(sufdn, attrNames, attr, values, requiredObjectClass, dn, exclude_subtrees);
       if (result) break;
     }
   }
@@ -865,7 +930,7 @@ getArguments(Slapi_PBlock *pb, char **attrName, char **markerObjectClass,
 static int
 findSubtreeAndSearch(Slapi_DN *parentDN, const char **attrNames, Slapi_Attr *attr,
   struct berval **values, const char *requiredObjectClass, Slapi_DN *target,
-  const char *markerObjectClass)
+  const char *markerObjectClass, Slapi_DN **excludes)
 {
   int result = LDAP_SUCCESS;
   Slapi_PBlock *spb = NULL;
@@ -883,7 +948,7 @@ findSubtreeAndSearch(Slapi_DN *parentDN, const char **attrNames, Slapi_Attr *att
            * to have the attribute already.
            */
           result = search(curpar, attrNames, attr, values, requiredObjectClass,
-                          target);
+                          target, excludes);
           break;
         }
         newpar = slapi_sdn_new();
@@ -995,11 +1060,11 @@ preop_add(Slapi_PBlock *pb)
                   /* Subtree defined by location of marker object class */
                         result = findSubtreeAndSearch(sdn, attrNames, attr, NULL,
                                                       requiredObjectClass, sdn,
-                                                      markerObjectClass);
+                                                      markerObjectClass, config->exclude_subtrees);
                 } else
                 {
                   /* Subtrees listed on invocation line */
-                  result = searchAllSubtrees(config->subtrees, attrNames, attr, NULL,
+                  result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
                                              requiredObjectClass, sdn, config->unique_in_all_subtrees);
                 }
                 if (result != LDAP_SUCCESS) {
@@ -1164,11 +1229,11 @@ preop_modify(Slapi_PBlock *pb)
             /* Subtree defined by location of marker object class */
             result = findSubtreeAndSearch(sdn, attrNames, NULL, 
                                           mod->mod_bvalues, requiredObjectClass,
-                                          sdn, markerObjectClass);
+                                          sdn, markerObjectClass, config->exclude_subtrees);
         } else
         {
             /* Subtrees listed on invocation line */
-            result = searchAllSubtrees(config->subtrees, attrNames, NULL,
+            result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, NULL,
                                        mod->mod_bvalues, requiredObjectClass, sdn, config->unique_in_all_subtrees);
         }
     }
@@ -1326,11 +1391,11 @@ preop_modrdn(Slapi_PBlock *pb)
                   /* Subtree defined by location of marker object class */
                         result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrNames, attr, NULL,
                                                       requiredObjectClass, sdn,
-                                                      markerObjectClass);
+                                                      markerObjectClass, config->exclude_subtrees);
                 } else
                 {
                   /* Subtrees listed on invocation line */
-                  result = searchAllSubtrees(config->subtrees, attrNames, attr, NULL,
+                  result = searchAllSubtrees(config->subtrees, config->exclude_subtrees, attrNames, attr, NULL,
                                              requiredObjectClass, sdn, config->unique_in_all_subtrees);
                 }
                 if (result != LDAP_SUCCESS) {

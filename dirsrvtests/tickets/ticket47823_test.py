@@ -59,11 +59,11 @@ def topology(request):
     '''
     global installation_prefix
 
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
+
 
     standalone = DirSrv(verbose=False)
-
+    if installation_prefix:
+        args_instance[SER_DEPLOYED_DIR] = installation_prefix
     # Args for the standalone instance
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
@@ -629,6 +629,7 @@ def test_ticket47823_invalid_config_1(topology):
     topology.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
 
     # Check the server did not restart
+    topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
     try:
         topology.standalone.restart(timeout=5)
         ent = topology.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
@@ -640,7 +641,7 @@ def test_ticket47823_invalid_config_1(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: attribute name not defined")
+    regex = re.compile("Config fail: unable to parse old style")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -732,6 +733,7 @@ def test_ticket47823_invalid_config_3(topology):
     topology.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
 
     # Check the server did not restart
+    topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
     try:
         topology.standalone.restart(timeout=5)
         ent = topology.standalone.getEntry(config.dn, ldap.SCOPE_BASE, "(objectclass=nsSlapdPlugin)", ALL_CONFIG_ATTRS)
@@ -743,7 +745,7 @@ def test_ticket47823_invalid_config_3(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: objectclass for subtree entries is not defined")
+    regex = re.compile("Config fail: unable to parse old style")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -925,6 +927,7 @@ def test_ticket47823_invalid_config_7(topology):
     # create an invalid config without arg0
     config = _build_config(topology, attr_name='cn', subtree_1="this_is dummy DN", subtree_2="an other=dummy DN", type_config='new', across_subtrees=False)
 
+    topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '65536')])
     # replace 'cn' uniqueness entry
     try:
         topology.standalone.delete_s(config.dn)
