@@ -282,6 +282,7 @@ connection_cleanup(Connection *conn)
 		ns_enable_listeners();
 	}
 #ifdef ENABLE_NUNC_STANS
+	/* even if !config_get_enable_nunc_stans, it is ok to set to 0 here */
 	conn->c_ns_close_jobs = 0;
 #endif
 }
@@ -2357,9 +2358,8 @@ connection_threadmain()
 	int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
 	int doshutdown = 0;
 	int maxthreads = 0;
-#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
+	int enable_nunc_stans = config_get_enable_nunc_stans();
 	long bypasspollcnt = 0;
-#endif
 
 #if defined( OSF1 ) || defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
@@ -2552,8 +2552,7 @@ connection_threadmain()
  * when using nunc-stans - it is supposed to be an optimization but turns out
  * to not be the opposite with nunc-stans
  */
-#if !defined(ENABLE_NUNC_STANS) || ENABLE_NUNC_STANS == 0
-			} else { /* more data in conn - just put back on work_q - bypass poll */
+			} else if (!enable_nunc_stans) { /* more data in conn - just put back on work_q - bypass poll */
 				bypasspollcnt++;
 				PR_Lock(conn->c_mutex);
 				/* don't do this if it would put us over the max threads per conn */
@@ -2571,7 +2570,6 @@ connection_threadmain()
 					conn->c_maxthreadsblocked++;
 				}
 				PR_Unlock(conn->c_mutex);
-#endif
 			}
 		}
 
