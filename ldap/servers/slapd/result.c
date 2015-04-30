@@ -1689,7 +1689,10 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 	int	internal_op;
 	CSN *operationcsn = NULL;
 	char csn_str[CSN_STRSIZE + 5];
-        char etime[ETIME_BUFSIZ];
+	char etime[ETIME_BUFSIZ];
+	int pr_idx = -1;
+
+	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
 
 	internal_op = operation_is_flag_set( op, OP_FLAG_INTERNAL );
 
@@ -1784,7 +1787,32 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 								  notes_str, csn_str, dn ? dn : "");
 			}
             slapi_ch_free((void**)&dn);
-        } else {
+        } else if (pr_idx > -1) {
+			if ( !internal_op )
+			{
+				slapi_log_access( LDAP_DEBUG_STATS,
+								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
+								  " pr_idx=%d\n",
+								  op->o_connid, 
+								  op->o_opid,
+								  err, tag, nentries, 
+								  etime, 
+								  notes_str, csn_str, pr_idx );
+			}
+			else
+			{
+				slapi_log_access( LDAP_DEBUG_ARGS,
+								  "conn=%s op=%d RESULT err=%d"
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
+								  " pr_idx=%d\n",
+								  LOG_INTERNAL_OP_CON_ID,
+								  LOG_INTERNAL_OP_OP_ID,
+								  err, tag, nentries, 
+								  etime, 
+								  notes_str, csn_str, pr_idx );
+			}
+		} else {
 			if ( !internal_op )
 			{
 				slapi_log_access( LDAP_DEBUG_STATS,
