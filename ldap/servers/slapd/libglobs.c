@@ -274,6 +274,9 @@ slapi_onoff_t init_ignore_time_skew;
 slapi_onoff_t init_dynamic_plugins;
 slapi_onoff_t init_cn_uses_dn_syntax_in_dns;
 slapi_onoff_t init_global_backend_local;
+#ifdef ENABLE_NUNC_STANS
+slapi_onoff_t init_enable_nunc_stans;
+#endif
 #if defined (LINUX)
 slapi_int_t init_malloc_mxfast;
 slapi_int_t init_malloc_trim_threshold;
@@ -1127,7 +1130,13 @@ static struct config_get_and_set {
 	{CONFIG_GLOBAL_BACKEND_LOCK, config_set_global_backend_lock,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.global_backend_lock,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_global_backend_lock, &init_global_backend_local}	
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_global_backend_lock, &init_global_backend_local}
+#ifdef ENABLE_NUNC_STANS
+	,{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.enable_nunc_stans,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_nunc_stans, &init_enable_nunc_stans}
+#endif
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
@@ -1576,6 +1585,9 @@ FrontendConfig_init () {
   init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
   init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
   init_global_backend_local = LDAP_OFF;
+#ifdef ENABLE_NUNC_STANS
+  init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
+#endif
 #if defined(LINUX)
   init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
   init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
@@ -7399,6 +7411,33 @@ config_get_listen_backlog_size()
   retVal = slapdFrontendConfig->listen_backlog_size;
   return retVal; 
 }
+
+#ifdef ENABLE_NUNC_STANS
+int
+config_get_enable_nunc_stans()
+{
+    int retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->enable_nunc_stans;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int
+config_set_enable_nunc_stans( const char *attrname, char *value,
+                              char *errorbuf, int apply )
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->enable_nunc_stans),
+                              errorbuf, apply);
+    return retVal;
+}
+#endif
 
 static char *
 config_initvalue_to_onoff(struct config_get_and_set *cgas, char *initvalbuf, size_t initvalbufsize)
