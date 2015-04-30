@@ -2308,12 +2308,15 @@ plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
 	char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
 	int rc = LDAP_SUCCESS;
 
-	/* We can not restart the critical plugins */
+	/*
+	 * We can not restart a critical plugin, but the operation should still
+	 * be allowed
+	 */
 	if(plugin_is_critical(pentryBefore)){
-		LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) is critical to server operation.  "
-			"Any changes will not take effect until the server is restarted.\n",
-			slapi_entry_get_dn(pentryBefore),0,0);
-		return 1; /* failure - dse code will log a fatal message */
+		LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) is critical "
+			"to server operation.  Server requires restart for changes to "
+			"take effect.\n", slapi_entry_get_dn(pentryBefore),0,0);
+		return 0;
 	}
 
 	slapi_rwlock_wrlock(global_rwlock);

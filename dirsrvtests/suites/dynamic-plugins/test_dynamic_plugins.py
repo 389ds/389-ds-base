@@ -169,6 +169,13 @@ def test_dynamic_plugins(topology):
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
+    # Test that critical plugins can be updated even though the change might not be applied
+    try:
+        topology.standalone.modify_s(DN_LDBM, [(ldap.MOD_REPLACE, 'description', 'test')])
+    except ldap.LDAPError, e:
+        ldap.fatal('Failed to apply change to critical plugin' + e.message['desc'])
+        assert False
+
     while 1:
         #
         # First run the tests with replication disabled, then rerun them with replication set up
