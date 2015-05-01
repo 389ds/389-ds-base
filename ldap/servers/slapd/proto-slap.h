@@ -1476,7 +1476,7 @@ int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,
  * pagedresults.c
  */
 int pagedresults_parse_control_value(Slapi_PBlock *pb, struct berval *psbvp,
-                                     ber_int_t *pagesize, int *index);
+                                     ber_int_t *pagesize, int *index, Slapi_Backend *be);
 void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical, 
                                        ber_int_t estimate,
                                        int curr_search_count, int index);
