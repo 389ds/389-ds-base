@@ -407,6 +407,51 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
    */
   operation_set_target_spec (pb->pb_op, basesdn);
 
+  if (be_name == NULL)
+  {
+    /* no specific backend was requested, use the mapping tree
+     */
+    err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
+    if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
+      || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL)))
+    {
+      send_ldap_result(pb, err_code, NULL, errorbuf, 0, NULL);
+      rc = -1;
+      goto free_and_return;
+    }
+    if (be_list[0] != NULL)
+    {
+      index = 0;
+      if (pr_be) { /* PAGED RESULT: be is found from the previous paging. */
+        /* move the index in the be_list which matches pr_be */
+        while (be_list[index] && be_list[index+1] && pr_be != be_list[index])
+          index++;
+      } else {
+        while (be_list[index] && be_list[index+1])
+          index++;
+      }
+      /* "be" is either pr_be or the last backend */
+      be = be_list[index];
+    }
+    else
+      be = pr_be?pr_be:NULL;
+  }
+  else
+  {
+      /* specific backend be_name was requested, use slapi_be_select_by_instance_name
+       */
+      if (pr_be) {
+        be_single = be = pr_be;
+      } else {
+        be_single = be = slapi_be_select_by_instance_name(be_name);
+      }
+      if (be_single)
+        slapi_be_Rlock(be_single);
+      be_list[0] = NULL;
+      referral_list[0] = NULL;
+      referral = NULL;
+  }
+
   /* this is time to check if mapping tree specific control
    * was used to specify that we want to parse only 
    * one backend 
@@ -471,8 +516,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       if ( slapi_control_present (ctrlp, LDAP_CONTROL_PAGEDRESULTS,
                                   &ctl_value, &iscritical) )
       {
-          rc = pagedresults_parse_control_value(pb, ctl_value,
-                                                &pagesize, &pr_idx);
+          rc = pagedresults_parse_control_value(pb, ctl_value, &pagesize, &pr_idx, be);
           /* Let's set pr_idx even if it fails; in case, pr_idx == -1. */
           slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
           if ((LDAP_SUCCESS == rc) ||
@@ -511,51 +555,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               }
           }
       }
-  }
-
-  if (be_name == NULL)
-  {
-    /* no specific backend was requested, use the mapping tree
-     */
-    err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
-    if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
-      || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL)))
-    {
-      send_ldap_result(pb, err_code, NULL, errorbuf, 0, NULL);
-      rc = -1;
-      goto free_and_return;
-    }
-    if (be_list[0] != NULL)
-    {
-      index = 0;
-      if (pr_be) { /* PAGED RESULT: be is found from the previous paging. */
-        /* move the index in the be_list which matches pr_be */
-        while (be_list[index] && be_list[index+1] && pr_be != be_list[index])
-          index++;
-      } else {
-        while (be_list[index] && be_list[index+1])
-          index++;
-      }
-      /* "be" is either pr_be or the last backend */
-      be = be_list[index];
-    }
-    else
-      be = pr_be?pr_be:NULL;
-  }
-  else
-  {
-      /* specific backend be_name was requested, use slapi_be_select_by_instance_name
-       */
-      if (pr_be) {
-        be_single = be = pr_be;
-      } else {
-        be_single = be = slapi_be_select_by_instance_name(be_name);
-      }
-      if (be_single)
-        slapi_be_Rlock(be_single);
-      be_list[0] = NULL;
-      referral_list[0] = NULL;
-      referral = NULL;
   }
 
   slapi_pblock_set(pb, SLAPI_BACKEND_COUNT, &index);
