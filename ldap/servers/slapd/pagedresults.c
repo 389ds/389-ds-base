@@ -58,7 +58,7 @@
 int
 pagedresults_parse_control_value( Slapi_PBlock *pb,
                                   struct berval *psbvp, ber_int_t *pagesize,
-                                  int *index )
+                                  int *index, Slapi_Backend *be )
 {
     int rc = LDAP_SUCCESS;
     struct berval cookie = {0};
@@ -119,6 +119,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         } else {
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (!conn->c_pagedresults.prl_list[i].pr_current_be) {
+                    conn->c_pagedresults.prl_list[i].pr_current_be = be;
                     *index = i;
                     break;
                 }
