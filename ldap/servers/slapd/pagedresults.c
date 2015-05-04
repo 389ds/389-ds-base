@@ -138,6 +138,13 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         memcpy(ptr, cookie.bv_val, cookie.bv_len);
         *(ptr+cookie.bv_len) = '\0';
         *index = strtol(ptr, NULL, 10);
+        if (conn->c_pagedresults.prl_maxlen <= *index) {
+            rc = LDAP_PROTOCOL_ERROR;
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                          "pagedresults_parse_control_value: invalid cookie: %d\n",
+                          *index);
+            goto bail;
+        }
         slapi_ch_free_string(&ptr);
         prp = conn->c_pagedresults.prl_list + *index;
         if (!(prp->pr_search_result_set)) { /* freed and reused for the next backend. */
@@ -162,6 +169,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                       "pagedresults_parse_control_value: invalid cookie: %d\n",
                       *index);
     }
+bail:
     PR_Unlock(conn->c_mutex);
 
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
