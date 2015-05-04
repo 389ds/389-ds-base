@@ -924,6 +924,7 @@ slapi_attr_assertion2keys_sub_sv_pb(
 	int			rc;
 	Slapi_PBlock		pipb;
 	struct slapdplugin	*pi = NULL;
+	struct slapdplugin	*origpi = NULL;
 	IFP a2k_fn = NULL;
 
 	LDAPDebug( LDAP_DEBUG_FILTER,
@@ -943,13 +944,21 @@ slapi_attr_assertion2keys_sub_sv_pb(
 	if (NULL == pb) {
 		pblock_init( &pipb );
 		pb = &pipb;
+	} else {
+		/* back up the original slapdplugin if any */
+		slapi_pblock_get(pb, SLAPI_PLUGIN, &origpi);
 	}
-	slapi_pblock_set( pb, SLAPI_PLUGIN, pi );
+	slapi_pblock_set(pb, SLAPI_PLUGIN, pi);
 
 	rc = -1;	/* means no assertion2keys function */
 	*ivals = NULL;
 	if ( a2k_fn != NULL ) {
 		rc = (*a2k_fn)( pb, initial, any, final, ivals );
+	}
+
+	if (pb != &pipb) {
+		/* restore the original slapdplugin if pb is not local. */
+		slapi_pblock_set(pb, SLAPI_PLUGIN, origpi);
 	}
 
 	LDAPDebug( LDAP_DEBUG_FILTER,
