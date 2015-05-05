@@ -1375,7 +1375,7 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         slapdNSSVersions.max = NSSVersionMax;
         (void) slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
         (void) slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
-        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+        slapi_log_error(SLAPI_LOG_CONFIG, "SSL Initialization",
                         "Configured SSL version range: min: %s, max: %s\n",
                         mymin, mymax);
         sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
