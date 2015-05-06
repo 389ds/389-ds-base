@@ -700,7 +700,7 @@ void set_cleaned_rid(ReplicaId rid);
 void cleanruv_log(Slapi_Task *task, int rid, char *task_type, char *fmt, ...);
 char * replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 
-#define CLEANRIDSIZ 4 /* maximum number for concurrent CLEANALLRUV tasks */
+#define CLEANRIDSIZ 64 /* maximum number for concurrent CLEANALLRUV tasks */
 
 typedef struct _cleanruv_data
 {
