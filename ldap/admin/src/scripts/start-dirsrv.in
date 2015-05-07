@@ -129,6 +129,7 @@ if [ "$#" -eq 0 ]; then
     # We're starting all instances.
     ret=0
     for i in $initconfig_dir/@package_name@-*; do
+        if [ ! -f "$i" ] ; then break ; fi
         regex=s,$initconfig_dir/@package_name@-,,g
         inst=`echo $i | sed -e $regex`
         start_instance $inst
