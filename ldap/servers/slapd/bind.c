@@ -777,7 +777,8 @@ do_bind( Slapi_PBlock *pb )
                          * was in be_bind.  Since be_bind returned SLAPI_BIND_SUCCESS,
                          * the entry is in the DS.  So, we need to retrieve it once more.
                          */
-                        if (!bind_target_entry) {
+                        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && 
+                            !bind_target_entry) {
                             bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
                             if (bind_target_entry) {
                                 myrc = slapi_check_account_lock(pb, bind_target_entry,
