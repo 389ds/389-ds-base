@@ -102,15 +102,19 @@
 #endif
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
-#define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
+#define DB_OPEN(priv, oflags, db, txnid, file, database, type, flags, mode, rval)    \
 {                                                                              \
     if (((oflags) & DB_INIT_TXN) && ((oflags) & DB_INIT_LOG))                  \
     {                                                                          \
+        if ((priv)) slapi_rwlock_rdlock((priv)->dblayer_env_lock);                             \
         (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags)|DB_AUTO_COMMIT, (mode)); \
+        if ((priv)) slapi_rwlock_unlock((priv)->dblayer_env_lock);                             \
     }                                                                          \
     else                                                                       \
     {                                                                          \
+        if ((priv)) slapi_rwlock_rdlock((priv)->dblayer_env_lock);                             \
         (rval) = ((db)->open)((db), (txnid), (file), (database), (type), (flags), (mode)); \
+        if ((priv)) slapi_rwlock_unlock((priv)->dblayer_env_lock);                             \
     }                                                                          \
 }
 /* 608145: db4.1 and newer does not require exclusive lock for checkpointing 
@@ -118,7 +122,7 @@
 #define DB_CHECKPOINT_LOCK(use_lock, lock) ;
 #define DB_CHECKPOINT_UNLOCK(use_lock, lock) ;
 #else /* older then db 41 */
-#define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
+#define DB_OPEN(env, oflags, db, txnid, file, database, type, flags, mode, rval)    \
     (rval) = (db)->open((db), (file), (database), (type), (flags), (mode))
 #define DB_CHECKPOINT_LOCK(use_lock, lock) if(use_lock) slapi_rwlock_wrlock(lock);
 #define DB_CHECKPOINT_UNLOCK(use_lock, lock) if(use_lock) slapi_rwlock_unlock(lock);
@@ -2340,7 +2344,7 @@ int dblayer_instance_start(backend *be, int mode)
 
             abs_id2entry_file = slapi_ch_smprintf( "%s%c%s", inst_dirp, 
                     get_sep(inst_dirp), ID2ENTRY LDBM_FILENAME_SUFFIX);
-            DB_OPEN(mypEnv->dblayer_openflags,
+            DB_OPEN(mypEnv, mypEnv->dblayer_openflags,
                 dbp, NULL/* txnid */, abs_id2entry_file, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
             dbp->close(dbp, 0);
@@ -2371,7 +2375,7 @@ int dblayer_instance_start(backend *be, int mode)
 #endif
             slapi_ch_free_string(&abs_id2entry_file);
         }
-        DB_OPEN(mypEnv->dblayer_openflags,
+        DB_OPEN(mypEnv, mypEnv->dblayer_openflags,
                 dbp, NULL/* txnid */, id2entry_file, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
         if (0 != return_value) {
@@ -2648,7 +2652,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv,
     }
 
     PR_ASSERT(dblayer_inst_exists(inst, NULL));
-    DB_OPEN(envflags, dbp, NULL/* txnid */, id2entry_file, subname, DB_BTREE,
+    DB_OPEN(mypEnv, envflags, dbp, NULL/* txnid */, id2entry_file, subname, DB_BTREE,
             dbflags, priv->dblayer_file_mode, rval);
     if (rval) {
         LDAPDebug(LDAP_DEBUG_ANY,
@@ -3220,7 +3224,7 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
         }
         abs_file_name = slapi_ch_smprintf("%s%c%s",
                 inst_dirp, get_sep(inst_dirp), file_name);
-        DB_OPEN(pENV->dblayer_openflags,
+        DB_OPEN(pENV, pENV->dblayer_openflags,
                 dbp, NULL/* txnid */, abs_file_name, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
         dbp->close(dbp, 0);
@@ -3236,7 +3240,7 @@ dblayer_open_file(backend *be, char* indexname, int open_flag,
 
         slapi_ch_free_string(&abs_file_name);
     }
-    DB_OPEN(pENV->dblayer_openflags,
+    DB_OPEN(pENV, pENV->dblayer_openflags,
             dbp, NULL, /* txnid */ rel_path, subname, DB_BTREE,
             open_flags, priv->dblayer_file_mode, return_value);
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR == 4100
@@ -5166,6 +5170,7 @@ int dblayer_memp_stat(struct ldbminfo *li, DB_MPOOL_STAT **gsp,
 {
     dblayer_private *priv = NULL;
     DB_ENV *env = NULL;
+    int rc;
 
     PR_ASSERT(NULL != li);
     
@@ -5175,7 +5180,10 @@ int dblayer_memp_stat(struct ldbminfo *li, DB_MPOOL_STAT **gsp,
     env = priv->dblayer_env->dblayer_DB_ENV;
     PR_ASSERT(NULL != env);
     
-    return MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
+    slapi_rwlock_wrlock(priv->dblayer_env->dblayer_env_lock);
+    rc = MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
+    slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
+    return rc;
 }
 
 /* import wants this one */
@@ -5184,6 +5192,7 @@ int dblayer_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp,
 {
     DB_ENV *env = NULL;
     dblayer_private *priv = NULL;
+    int rc;
 
     PR_ASSERT(NULL != inst);
 
@@ -5196,7 +5205,10 @@ int dblayer_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp,
     }
     PR_ASSERT(NULL != env);
 
-    return MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
+    slapi_rwlock_wrlock(priv->dblayer_env->dblayer_env_lock);
+    rc = MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
+    slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
+    return rc;
 }
 
 /* Helper functions for recovery */
