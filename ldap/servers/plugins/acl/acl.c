@@ -3209,119 +3209,58 @@ acl__TestRights(Acl_PBlock *aclpb,int access, char **right, char ** map_generic,
 int
 acl_match_substring ( Slapi_Filter *f, char *str, int exact_match)
 {
-	int 		i, rc, len;
-	char 		*p = NULL;
-	char		*end, *realval, *tmp;
-	char 		pat[BUFSIZ];
-	char 		buf[BUFSIZ];
+	int i, len, tlen;
+	char 		*p = str;
 	char		*type, *initial, *final;
 	char		**any;
-	Slapi_Regex	*re = NULL;
-	const char  *re_result = NULL;
 
 	if ( 0 != slapi_filter_get_subfilt ( f, &type, &initial, &any, &final ) ) {
 		return (ACL_FALSE);
 	}
 
-	/* convert the input to lower. */
-	for (p = str; *p; p++)
-		*p = TOLOWER ( *p );
-
-	/* construct a regular expression corresponding to the filter: */
-	pat[0] = '\0';
-	p = pat;
-	end = pat + sizeof(pat) - 2; /* leave room for null */
-
-
+	/* this assumes that str and the filter components are already
+	 * normalized. If not, it shoul be done
+	 */
 	if ( initial != NULL) {
-		strcpy (p, "^");
-		p = strchr (p, '\0');
-
-		/* 2 * in case every char is special */
-		if (p + 2 * strlen ( initial ) > end) {
-			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-				"not enough pattern space\n");
-
-			return (ACL_ERR);
+		len = strlen(initial);
+		if (exact_match) {
+			int rc = strncmp(p, initial, len);
+			if (rc) {
+				return ACL_FALSE;
+			} else {
+				p += len;
+			}  
+		} else {
+			p = strstr(p, initial);
+			if (p) {
+				p += len;
+			} else {
+				return ACL_FALSE;
+			}
 		}
-
-		if (!exact_match) {
-			strcpy (p, ".*");
-			p = strchr (p, '\0');
-		}
-		acl_strcpy_special (p, initial);
-		p = strchr (p, '\0');
 	}
 
 	if ( any != NULL) {
 		for (i = 0;  any && any[i] != NULL; i++) {
-			/* ".*" + value */
-			if (p + 2 * strlen ( any[i]) + 2 > end) {
-				slapi_log_error (SLAPI_LOG_ACL, plugin_name,
-					"not enough pattern space\n");
-				return (ACL_ERR);
+			p = strstr(p, any[i]);
+			if (p) {
+				p += strlen(any[i]);
+			} else {
+				return ACL_FALSE;
 			}
-
-			strcpy (p, ".*");
-			p = strchr (p, '\0');
-			acl_strcpy_special (p, any[i]);
-			p = strchr (p, '\0');
 		}
 	}
 
 
 	if ( final != NULL) {
-		/* ".*" + value */
-		if (p + 2 * strlen ( final ) + 2 > end) {
-			slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-				"not enough pattern space\n");
-			return (ACL_ERR);
-		}
-	
-		strcpy (p, ".*");
-		p = strchr (p, '\0');
-		acl_strcpy_special (p, final);
-		p = strchr (p, '\0');
-		strcpy (p, "$");
+		len = strlen(final);
+		tlen = strlen(p);
+		if (len > tlen) return ACL_FALSE;
+		if (strcmp(p+tlen-len, final)) return ACL_FALSE;
 	}
 
-	/* see if regex matches with the input string */
-	tmp = NULL;
-	len = strlen(str);
+	return ACL_TRUE;
 
-	if (len < sizeof(buf)) {
-		strcpy (buf, str);
-		realval = buf;
-	} else {
-		tmp = (char*) slapi_ch_malloc (len + 1);
-		strcpy (tmp, str);
-		realval = tmp;
-	}
-
-	/* What we have built is a regular pattaren expression.
-	** Now we will compile the pattern and compare wth the string to
-	** see if the input string matches with the patteren or not.
-	*/
-	re = slapi_re_comp( pat, &re_result );
-	if (NULL == re) {
-		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
-			"acl_match_substring:re_comp failed (%s)\n", re_result?re_result:"unknown");
-		return (ACL_ERR);
-	}
-
-	/* slapi_re_exec() returns 1 if the string p1 matches the last compiled
-	** regular expression, 0 if the string p1 failed to match 
-	*/
-	rc = slapi_re_exec( re, realval, -1 /* no timelimit */ );
-
-	slapi_re_free(re);
-	slapi_ch_free ( (void **) &tmp );
-
-	if (rc == 1) {
-		return ACL_TRUE;
-	} else {
-		return ACL_FALSE;
-	}
 }
 /***************************************************************************
 *
