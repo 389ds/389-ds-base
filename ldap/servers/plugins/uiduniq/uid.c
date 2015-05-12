@@ -395,7 +395,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         for (i = 0; tmp_config->attrs && (tmp_config->attrs)[i]; i++) {
             attrLen += strlen((tmp_config->attrs)[i]) + 1;
         }
-        tmp_config->attr_friendly = (char *) slapi_ch_calloc(attrLen, sizeof(char));
+        tmp_config->attr_friendly = (char *) slapi_ch_calloc(attrLen + 1, sizeof(char));
         fp = tmp_config->attr_friendly;
         for (i = 0; tmp_config->attrs && (tmp_config->attrs)[i]; i++) {
             strcpy(fp, (tmp_config->attrs)[i] );
