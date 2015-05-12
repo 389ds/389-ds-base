@@ -129,21 +129,23 @@ static char *moreInfo =
 static void
 free_uniqueness_config(struct attr_uniqueness_config *config)
 {
-        int i;
+    int i;
         
-        for (i = 0; config->attrs && config->attrs[i]; i++) {
-                slapi_ch_free_string((char **) &(config->attrs[i]));
-        }
-        for (i = 0; config->subtrees && config->subtrees[i]; i++) {
-                slapi_sdn_free(&config->subtrees[i]);
-        }
-        for (i = 0; config->exclude_subtrees && config->exclude_subtrees[i]; i++) {
-                slapi_sdn_free(&config->exclude_subtrees[i]);
-        }
-        slapi_ch_free((void **) &config->subtrees);
-        slapi_ch_free((void **) &config->exclude_subtrees);
-        slapi_ch_free_string((char **) &config->top_entry_oc);
-        slapi_ch_free_string((char **) &config->subtree_entries_oc);       
+    for (i = 0; config->attrs && config->attrs[i]; i++) {
+        slapi_ch_free_string((char **) &(config->attrs[i]));
+    }
+    for (i = 0; config->subtrees && config->subtrees[i]; i++) {
+        slapi_sdn_free(&config->subtrees[i]);
+    }
+    for (i = 0; config->exclude_subtrees && config->exclude_subtrees[i]; i++) {
+        slapi_sdn_free(&config->exclude_subtrees[i]);
+    }
+    slapi_ch_free((void **) &config->attrs);
+    slapi_ch_free((void **) &config->subtrees);
+    slapi_ch_free((void **) &config->exclude_subtrees);
+    slapi_ch_free_string(&config->attr_friendly);
+    slapi_ch_free_string((char **) &config->top_entry_oc);
+    slapi_ch_free_string((char **) &config->subtree_entries_oc);
 }
 
 /*
