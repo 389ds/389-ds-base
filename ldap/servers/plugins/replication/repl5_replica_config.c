@@ -3334,7 +3334,7 @@ get_cleanruv_task_count()
 
    slapi_rwlock_wrlock(rid_lock);
    for(i = 0; i < CLEANRIDSIZ; i++){
-       if(cleaned_rids[i] != 0){
+       if(pre_cleaned_rids[i] != 0){
            count++;
        }
    }
