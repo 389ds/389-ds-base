@@ -10,7 +10,6 @@ from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from constants import *
 
 log = logging.getLogger(__name__)
 
