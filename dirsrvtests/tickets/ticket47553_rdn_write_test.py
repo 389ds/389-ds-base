@@ -24,13 +24,14 @@ DST_ENTRY_CN = SRC_ENTRY_CN + EXT_RDN
 SRC_ENTRY_DN = "cn=%s,%s" % (SRC_ENTRY_CN, SUFFIX)
 DST_ENTRY_DN = "cn=%s,%s" % (DST_ENTRY_CN, SUFFIX)
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
         self.standalone = standalone
 
 
-#@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
     global installation1_prefix
 
@@ -55,12 +56,14 @@ def topology(request):
 
     return TopologyStandalone(standalone)
 
+
 def test_ticket47553_rdn_write_init(topology):
     topology.standalone.log.info("\n\n######################### Add entry tuser ######################\n")
     topology.standalone.add_s(Entry((SRC_ENTRY_DN, {
                                                 'objectclass': "top person".split(),
                                                 'sn': SRC_ENTRY_CN,
                                                 'cn': SRC_ENTRY_CN})))
+
 
 def test_ticket47553_rdn_write_get_ger(topology):
     ANONYMOUS_DN = ""
@@ -75,6 +78,7 @@ def test_ticket47553_rdn_write_get_ger(topology):
             topology.standalone.log.info("###############  entryLevelRights: %r" % value)
             assert 'n' not in value
 
+
 def test_ticket47553_rdn_write_modrdn_anonymous(topology):
     ANONYMOUS_DN = ""
     topology.standalone.close()
@@ -82,12 +86,10 @@ def test_ticket47553_rdn_write_modrdn_anonymous(topology):
     topology.standalone.open()
     msg_id = topology.standalone.search_ext("", ldap.SCOPE_BASE, "objectclass=*")
     rtype, rdata, rmsgid, response_ctrl = topology.standalone.result3(msg_id)
-    value = ''
     for dn, attrs in rdata:
         topology.standalone.log.info("dn: %s" % dn)
         for attr in attrs:
             topology.standalone.log.info("###############  %r: %r" % (attr, attrs[attr]))
-
 
     try:
         topology.standalone.rename_s(SRC_ENTRY_DN, "cn=%s" % DST_ENTRY_CN, delold=True)
@@ -101,6 +103,7 @@ def test_ticket47553_rdn_write_modrdn_anonymous(topology):
     except Exception as e:
         topology.standalone.log.info("The entry was not renamed (expected)")
         isinstance(e, ldap.NO_SUCH_OBJECT)
+
 
 def test_ticket47553_rdn_write(topology):
     '''
