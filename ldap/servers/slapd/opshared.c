@@ -470,46 +470,31 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       }
   }
 
-  if (be_name == NULL)
-  {
-    /* no specific backend was requested, use the mapping tree
-     */
-    err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
-    if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
-      || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL)))
-    {
-      send_ldap_result(pb, err_code, NULL, errorbuf, 0, NULL);
-      rc = -1;
-      goto free_and_return;
-    }
-    if (be_list[0] != NULL)
-    {
-      index = 0;
-      if (pr_be) { /* PAGED RESULT: be is found from the previous paging. */
-        /* move the index in the be_list which matches pr_be */
-        while (be_list[index] && be_list[index+1] && pr_be != be_list[index])
-          index++;
-      } else {
-        while (be_list[index] && be_list[index+1])
-          index++;
+  if (be_name == NULL) {
+      /* no specific backend was requested, use the mapping tree
+       */
+      err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
+      if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
+          || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL))) {
+          send_ldap_result(pb, err_code, NULL, errorbuf, 0, NULL);
+          rc = -1;
+          goto free_and_return;
       }
-      /* "be" is either pr_be or the last backend */
-      be = be_list[index];
-    }
-    else
-      be = pr_be?pr_be:NULL;
-  }
-  else
-  {
+      if (be_list[0] != NULL) {
+          index = 0;
+          while (be_list[index] && be_list[index+1]) {
+             index++;
+          }
+          be = be_list[index];
+      } else {
+          be = NULL;
+      }
+  } else {
       /* specific backend be_name was requested, use slapi_be_select_by_instance_name
        */
-      if (pr_be) {
-        be_single = be = pr_be;
-      } else {
-        be_single = be = slapi_be_select_by_instance_name(be_name);
-      }
+      be_single = be = slapi_be_select_by_instance_name(be_name);
       if (be_single) {
-        slapi_be_Rlock(be_single);
+          slapi_be_Rlock(be_single);
       }
       be_list[0] = NULL;
       referral_list[0] = NULL;
@@ -528,6 +513,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       if ( slapi_control_present (ctrlp, LDAP_CONTROL_PAGEDRESULTS,
                                   &ctl_value, &iscritical) )
       {
+          /* be is set only when this request is new. otherwise, prev be is honored. */
           rc = pagedresults_parse_control_value(pb, ctl_value, &pagesize, &pr_idx, be);
           /* Let's set pr_idx even if it fails; in case, pr_idx == -1. */
           slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
@@ -536,13 +522,24 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
               op_set_pagedresults(operation);
               pr_be = pagedresults_get_current_be(pb->pb_conn, pr_idx);
-              pr_search_result = pagedresults_get_search_result(pb->pb_conn,
-                                                                operation,
-                                                                pr_idx);
-              estimate = 
-                 pagedresults_get_search_result_set_size_estimate(pb->pb_conn,
-                                                                  operation,
-                                                                  pr_idx);
+              if (be_name) {
+                  if (pr_be != be_single) {
+                      slapi_be_Unlock(be_single);
+                      be_single = be = pr_be;
+                      slapi_be_Rlock(be_single);
+                  }
+              } else if (be_list[0]) {
+                  if (pr_be) {  /* PAGED RESULT: be is found from the previous paging. */
+                      /* move the index in the be_list which matches pr_be */
+                      index = 0;
+                      while (be_list[index] && be_list[index+1] && pr_be != be_list[index]) {
+                          index++;
+                      }
+                      be = be_list[index];
+                  }
+              }
+              pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, pr_idx);
+              estimate = pagedresults_get_search_result_set_size_estimate(pb->pb_conn, operation, pr_idx);
               if (pagedresults_get_unindexed(pb->pb_conn, operation, pr_idx)) {
                   opnote |= SLAPI_OP_NOTE_UNINDEXED;
               }
@@ -687,7 +684,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
      * change ONE-LEVEL searches to BASE 
      */
 
-    /* that's mean we only support one suffix per backend */
+    /* that means we only support one suffix per backend */
     be_suffix = slapi_be_getsuffix(be, 0);
 
     if (be_list[0] == NULL)
@@ -711,9 +708,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
        * In async paged result case, the search result might be released
        * by other theads.  We need to double check it in the locked region.
        */
-      pr_search_result = pagedresults_get_search_result(pb->pb_conn, 
-                                                        operation,
-                                                        pr_idx);
+      pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, pr_idx);
       if (pr_search_result) {
         slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
         rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
