@@ -1116,13 +1116,6 @@ int dblayer_is_cachesize_sane(size_t *cachesize)
     if (!issane) {
         *cachesize = (size_t)((pages - procpages) * pagesize);
     }
-    /* We now compensate for DB's own compensation for metadata size 
-     * They increase the actual cache size by 25%, but only for sizes
-     * less than 500Meg.
-     */
-    if (*cachesize < 500*MEGABYTE) {
-        *cachesize = (size_t)((double)*cachesize * (double)0.8);
-    }
     
     return issane;
 }
