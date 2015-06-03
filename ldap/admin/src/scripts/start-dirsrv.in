@@ -19,7 +19,7 @@ start_instance() {
     shift
 
     # source env. for this instance
-    if [ $SERV_ID == "admin" ] ; then
+    if [ "$SERV_ID" = "admin" ] ; then
         # ignore admin
         return 0 
     elif [ -f $initconfig_dir/dirsrv-$SERV_ID ] ; then

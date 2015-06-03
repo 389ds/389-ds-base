@@ -10,7 +10,7 @@
 restart_instance() {
     SERV_ID=$1
 
-    if [ $SERV_ID == "admin" ]; then
+    if [ "$SERV_ID" = "admin" ] ; then
         #ignore admin
         return 0
     fi
