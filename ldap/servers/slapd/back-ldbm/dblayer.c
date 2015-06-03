@@ -4769,22 +4769,24 @@ int dblayer_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp,
 {
     DB_ENV *env = NULL;
     dblayer_private *priv = NULL;
+    struct dblayer_private_env *dblayerenv;
     int rc;
 
     PR_ASSERT(NULL != inst);
 
     if (inst->import_env->dblayer_DB_ENV) {
-        env = inst->import_env->dblayer_DB_ENV;
+        dblayerenv = inst->import_env;
     } else {
         priv = (dblayer_private *)inst->inst_li->li_dblayer_private;
         PR_ASSERT(NULL != priv);
-        env = priv->dblayer_env->dblayer_DB_ENV;
+        dblayerenv = priv->dblayer_env;
     }
+    env = dblayerenv->dblayer_DB_ENV;
     PR_ASSERT(NULL != env);
 
-    slapi_rwlock_wrlock(priv->dblayer_env->dblayer_env_lock);
+    slapi_rwlock_wrlock(dblayerenv->dblayer_env_lock);
     rc = MEMP_STAT(env, gsp, fsp, 0, (void *)slapi_ch_malloc);
-    slapi_rwlock_unlock(priv->dblayer_env->dblayer_env_lock);
+    slapi_rwlock_unlock(dblayerenv->dblayer_env_lock);
     return rc;
 }
 
