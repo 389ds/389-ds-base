@@ -10,7 +10,7 @@ stop_instance() {
     SERV_ID=$1
 
     # source env. for this instance
-    if [ $SERV_ID == "admin" ] ; then
+    if [ "$SERV_ID" = "admin" ] ; then
         # ignore admin
         return 0 
     elif [ -f $initconfig_dir/dirsrv-$SERV_ID ] ; then
