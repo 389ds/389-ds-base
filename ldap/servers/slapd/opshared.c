@@ -517,8 +517,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           rc = pagedresults_parse_control_value(pb, ctl_value, &pagesize, &pr_idx, be);
           /* Let's set pr_idx even if it fails; in case, pr_idx == -1. */
           slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
-          if ((LDAP_SUCCESS == rc) ||
-              (LDAP_CANCELLED == rc) || (0 == pagesize)) {
+          if ((LDAP_SUCCESS == rc) || (LDAP_CANCELLED == rc) || (0 == pagesize)) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
               op_set_pagedresults(operation);
               pr_be = pagedresults_get_current_be(pb->pb_conn, pr_idx);
@@ -545,9 +544,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
               }
               slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
               if ((LDAP_CANCELLED == rc) || (0 == pagesize)) {
-                  /* paged-results-request was abandoned */
-                  pagedresults_set_response_control(pb, 0, estimate, 
-                                                    curr_search_count, pr_idx);
+                  /* paged-results-request was abandoned; making an empty cookie. */
+                  pagedresults_set_response_control(pb, 0, estimate, -1, pr_idx);
                   send_ldap_result(pb, 0, NULL,
                                    "Simple Paged Results Search abandoned",
                                    0, NULL);
@@ -574,10 +572,21 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 
       /* adjust time and size limits */
       compute_limits (pb);
-    
-      /* call the pre-search plugins. if they succeed, call the backend 
-     search function. then call the post-search plugins. */
 
+      /* set the timelimit to clean up the too-long-lived-paged results requests */
+      if (op_is_pagedresults(operation)) {
+        time_t optime, time_up;
+        int tlimit;
+        slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
+        slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
+        time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
+        pagedresults_set_timelimit(pb->pb_conn, pb->pb_op, time_up, pr_idx);
+      }
+    
+      /*
+       * call the pre-search plugins. if they succeed, call the backend 
+       * search function. then call the post-search plugins.
+       */
       /* ONREPL - should regular plugin be called for internal searches ? */
       if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_SEARCH_FN) == 0)
       {
@@ -640,16 +649,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
         slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &rc);
         goto free_and_return;
     }
-  }
-
-  /* set the timelimit to clean up the too-long-lived-paged results requests */
-  if (op_is_pagedresults(operation)) {
-    time_t optime, time_up;
-    int tlimit;
-    slapi_pblock_get( pb, SLAPI_SEARCH_TIMELIMIT, &tlimit );
-    slapi_pblock_get( pb, SLAPI_OPINITIATED_TIME, &optime );
-    time_up = (tlimit==-1 ? -1 : optime + tlimit); /* -1: no time limit */
-    pagedresults_set_timelimit(pb->pb_conn, pb->pb_op, time_up, pr_idx);
   }
 
   /* PAR: now filters have been rewritten, we can assign plugins to work on them */
@@ -880,10 +879,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
             slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
             if (PAGEDRESULTS_SEARCH_END == pr_stat) {
               if (sr) { /* in case a left over sr is found, clean it up */
-                PR_Lock(pb->pb_conn->c_mutex);
-                pagedresults_set_search_result(pb->pb_conn, operation, NULL, 1, pr_idx);
-                be->be_search_results_release(&sr);
-                PR_Unlock(pb->pb_conn->c_mutex);
+                pagedresults_free_one(pb->pb_conn, operation, pr_idx);
               }
               if (NULL == next_be) {
                 /* no more entries && no more backends */
@@ -1306,7 +1302,6 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 operation_out_of_disk_space();
             }
             pr_stat = PAGEDRESULTS_SEARCH_END;
-            pagedresults_set_timelimit(pb->pb_conn, pb->pb_op, 0, pr_idx);
             rval = -1;
             done = 1;
             continue;
