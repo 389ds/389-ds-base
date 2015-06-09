@@ -1481,7 +1481,7 @@ void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical,
                                        ber_int_t estimate,
                                        int curr_search_count, int index);
 Slapi_Backend *pagedresults_get_current_be(Connection *conn, int index);
-int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index);
+int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock);
 void *pagedresults_get_search_result(Connection *conn, Operation *op,
                                      int index);
 int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, 
