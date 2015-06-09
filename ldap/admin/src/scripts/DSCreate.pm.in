@@ -1482,17 +1482,15 @@ sub removeDSInstance {
     # update systemd files
     push @errs, updateSystemD();
     
-    # remove /var/lock/dirsrv & /var/run/dirsrv if this was the last instance
-    if(!<$pkglockdir/*>){
-        rmdir $pkglockdir;
-        rmdir $pkgrundir;
-        rmdir $pkglibdir;
-    }
-    
     # if we got here, report success
     if (@errs) {
         debug(1, "Could not successfully remove $instname\n");
     } else {
+        if (!<$pkglockdir/*>){
+            # If this was the last instance, remove /var/lock/dirsrv & /var/run/dirsrv
+            rmdir $pkglockdir;
+            rmdir $pkgrundir;
+        }
         debug(1, "Instance $instname removed.\n");
     }
 
