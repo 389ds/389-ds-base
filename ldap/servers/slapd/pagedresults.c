@@ -87,6 +87,8 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     Operation *op = pb->pb_op;
     BerElement *ber = NULL;
     PagedResults *prp = NULL;
+    time_t ctime = current_time();
+    int i;
 
     LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_parse_control_value\n");
     if ( NULL == conn || NULL == op || NULL == pagesize || NULL == index ) {
@@ -121,7 +123,6 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     /* the ber encoding is no longer needed */
     ber_free(ber, 1);
     if ( cookie.bv_len <= 0 ) {
-        int i;
         /* first time? */
         int maxlen = conn->c_pagedresults.prl_maxlen;
         if (conn->c_pagedresults.prl_count == maxlen) {
@@ -138,30 +139,22 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                 memset(conn->c_pagedresults.prl_list + maxlen, '\0', sizeof(PagedResults) * maxlen);
             }
             *index = maxlen; /* the first position in the new area */
+            prp = conn->c_pagedresults.prl_list + *index;
+            prp->pr_current_be = be;
         } else {
-            time_t ctime = current_time();
             prp = conn->c_pagedresults.prl_list;
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++, prp++) {
                 if (!prp->pr_current_be) { /* unused slot; take it */
                     prp->pr_current_be = be;
                     *index = i;
                     break;
-                } else if (((prp->pr_timelimit > 0) && (ctime < prp->pr_timelimit)) || /* timelimit exceeded */
+                } else if (((prp->pr_timelimit > 0) && (ctime > prp->pr_timelimit)) || /* timelimit exceeded */
                            (prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED) /* abandoned */) {
                     _pr_cleanup_one_slot(prp);
                     conn->c_pagedresults.prl_count--;
                     prp->pr_current_be = be;
                     *index = i;
                     break;
-                }
-            }
-            /* cleaning up the rest of the timedout if any */
-            for (++i; i < conn->c_pagedresults.prl_maxlen; i++, prp++) {
-                if (prp->pr_current_be &&
-                    (((prp->pr_timelimit > 0) && (ctime < prp->pr_timelimit)) || /* timelimit exceeded */
-                    (prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED)) /* abandoned */) {
-                    _pr_cleanup_one_slot(prp);
-                    conn->c_pagedresults.prl_count--;
                 }
             }
         }
@@ -181,8 +174,8 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         if ((conn->c_pagedresults.prl_maxlen <= *index) || (*index < 0)){
             rc = LDAP_PROTOCOL_ERROR;
             LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                          "pagedresults_parse_control_value: invalid cookie: %d\n",
-                          *index);
+                          "pagedresults_parse_control_value: invalid cookie: %d\n", *index);
+            *index = -1; /* index is invalid. reinitializing it. */
             goto bail;
         }
         prp = conn->c_pagedresults.prl_list + *index;
@@ -206,11 +199,24 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         }
     } else {
         rc = LDAP_PROTOCOL_ERROR;
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                      "pagedresults_parse_control_value: invalid cookie: %d\n",
-                      *index);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "pagedresults_parse_control_value: invalid cookie: %d\n", *index);
     }
 bail:
+    /* cleaning up the rest of the timedout or abandoned if any */
+    prp = conn->c_pagedresults.prl_list;
+    for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++, prp++) {
+        if (prp->pr_current_be &&
+            (((prp->pr_timelimit > 0) && (ctime > prp->pr_timelimit)) || /* timelimit exceeded */
+             (prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED)) /* abandoned */) {
+            _pr_cleanup_one_slot(prp);
+            conn->c_pagedresults.prl_count--;
+            if (i == *index) {
+                /* registered slot is expired and cleaned up. return cancelled. */
+                *index = -1;
+                rc = LDAP_CANCELLED;
+            }
+        }
+    }
     PR_Unlock(conn->c_mutex);
 
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
@@ -326,7 +332,9 @@ pagedresults_free_one( Connection *conn, Operation *op, int index )
     return rc;
 }
 
-/* Used for abandoning */
+/* 
+ * Used for abandoning - conn->c_mutex is already locked in do_abandone.
+ */
 int 
 pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
 {
@@ -334,7 +342,7 @@ pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
     int i;
 
     if (conn && (msgid > -1)) {
-        if (conn->c_pagedresults.prl_count <= 0) {
+        if (conn->c_pagedresults.prl_maxlen <= 0) {
             ; /* Not a paged result. */
         } else {
             LDAPDebug1Arg(LDAP_DEBUG_TRACE,
@@ -381,18 +389,18 @@ pagedresults_get_current_be(Connection *conn, int index)
 }
 
 int
-pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index)
+pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock)
 {
     int rc = -1;
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
                   "--> pagedresults_set_current_be: idx=%d\n", index);
     if (conn && (index > -1)) {
-        PR_Lock(conn->c_mutex);
+        if (!nolock) PR_Lock(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
             conn->c_pagedresults.prl_list[index].pr_current_be = be;
         }
-        PR_Unlock(conn->c_mutex);
         rc = 0;
+        if (!nolock) PR_Unlock(conn->c_mutex);
     }
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
                   "<-- pagedresults_set_current_be: %d\n", rc);
