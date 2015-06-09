@@ -847,7 +847,13 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 		if ( strstr(macro_prefix, "=*") != NULL ) {
 			int exact_match = 0;			
 
-			ndn_prefix_len = acl_match_prefix( macro_prefix, ndn, &exact_match);
+			if (macro_prefix[macro_prefix_len-1] == ',') {
+				/* macro aligns with dn components */
+				ndn_prefix_len = acl_match_prefix( macro_prefix, ndn, &exact_match);
+			} else {
+				/* do a initial * final substring match */
+				ndn_prefix_len = acl_match_substr_prefix( macro_prefix, ndn, &exact_match);
+			}
 			if (  ndn_prefix_len != -1 ) {
 				
 				/*
@@ -951,10 +957,14 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 					 * ndn[ndn_prefix_end..mndn_len-macro_suffix_len]
 					 * the -1 is because macro_suffix_eln does not include
 					 * the coma before the suffix.
+					 *
+					 * there are cases where the macro does end inside a dn component
 					*/
 
 					matched_val_len = ndn_len-macro_suffix_len-
-										ndn_prefix_end - 1;
+										ndn_prefix_end;
+					if (ndn[ndn_len - macro_suffix_len] == ',')
+						matched_val_len -= 1;
 					
 					matched_val = (char *)slapi_ch_malloc(matched_val_len + 1);
 					strncpy(matched_val, &ndn[ndn_prefix_end],
@@ -971,6 +981,24 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	return(ret_val);
 }
 
+int
+acl_match_substr_prefix( char *macro_prefix, const char *ndn, int *exact_match) {
+	int ret_code = -1;
+        char *tmp_str = NULL;
+        int initial, any, final;
+
+	*exact_match = 0;
+	tmp_str = slapi_ch_strdup(macro_prefix);
+	any = acl_strstr(tmp_str, "*");
+	tmp_str[any] = '\0';
+	initial = acl_strstr(ndn, tmp_str);
+        if (initial >= 0) {
+		final = acl_strstr(&ndn[initial+strlen(tmp_str)],&tmp_str[any+1]);
+		if (final > 0) ret_code = initial + strlen(tmp_str) +final + strlen(&tmp_str[any+1]);
+	}
+	slapi_ch_free_string(&tmp_str);
+	return (ret_code);
+}
 /*
  * Checks to see if macro_prefix is an exact prefix of ndn.
  * macro_prefix may contain a * component.
