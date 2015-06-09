@@ -132,8 +132,7 @@ do_abandon( Slapi_PBlock *pb )
 		}
 
 		operation_set_abandoned_op (pb->pb_op, o->o_abandoned_op);
-		if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_ABANDON_FN )
-		    == 0 ) {
+		if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_ABANDON_FN ) == 0 ) {
 			int	rc = 0;
 
 			if ( o->o_status != SLAPI_OP_STATUS_RESULT_SENT ) {
@@ -148,14 +147,13 @@ do_abandon( Slapi_PBlock *pb )
 			suppressed_by_plugin = 1;
 		}
 	} else {
-		LDAPDebug( LDAP_DEBUG_TRACE, "do_abandon: op not found\n", 0, 0,
-		    0 );
+		LDAPDebug0Args(LDAP_DEBUG_TRACE, "do_abandon: op not found\n");
 	}
 
 	if ( 0 == pagedresults_free_one_msgid_nolock(pb->pb_conn, id) ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 
-		                  " op=%d ABANDON targetop=Simple Paged Results\n",
-		                  pb->pb_conn->c_connid, pb->pb_op->o_opid );
+		    " op=%d ABANDON targetop=Simple Paged Results msgid=%d\n",
+		    pb->pb_conn->c_connid, pb->pb_op->o_opid, id );
 	} else if ( NULL == o ) {
 		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d ABANDON"
 			" targetop=NOTFOUND msgid=%d\n",
