@@ -1836,12 +1836,21 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
           }
         }
     }
-
-bail:
-    if(rc){
-        op->o_reverse_search_state = 0;
+    /* check for the final abandon */
+    if (slapi_op_abandoned(pb)) {
+        slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate );
+        if ( use_extension ) {
+            slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL );
+        }
+        slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY, NULL );
+        delete_search_result_set(pb, &sr);
+        rc = SLAPI_FAIL_GENERAL;
     }
 
+bail:
+    if (rc && op) {
+        op->o_reverse_search_state = 0;
+    }
     return rc;
 }
 
