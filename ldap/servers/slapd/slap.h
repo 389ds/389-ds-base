@@ -2169,6 +2169,8 @@ typedef struct _slapdEntryPoints {
 
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
+#define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
+
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
@@ -2435,6 +2437,7 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t dynamic_plugins; /* allow plugins to be dynamically enabled/disabled */
   slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
   slapi_onoff_t global_backend_lock;
+  slapi_int_t maxsimplepaged_per_conn;/* max simple paged results reqs handled per connection */
 #ifdef ENABLE_NUNC_STANS
   slapi_onoff_t enable_nunc_stans;
 #endif

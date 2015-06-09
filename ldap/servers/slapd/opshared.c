@@ -552,6 +552,11 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                   rc = LDAP_SUCCESS;
                   goto free_and_return;
               }
+          } else if (LDAP_UNWILLING_TO_PERFORM == rc) {
+              send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                               "Simple Paged Results Search exceeded administration limit",
+                               0, NULL);
+              goto free_and_return;
           } else {
               /* parse paged-results-control failed */
               if (iscritical) { /* return an error since it's critical */

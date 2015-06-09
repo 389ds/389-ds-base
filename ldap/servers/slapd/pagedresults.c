@@ -89,6 +89,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     PagedResults *prp = NULL;
     time_t ctime = current_time();
     int i;
+    int maxreqs = config_get_maxsimplepaged_per_conn();
 
     LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_parse_control_value\n");
     if ( NULL == conn || NULL == op || NULL == pagesize || NULL == index ) {
@@ -117,6 +118,13 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         LDAPDebug0Args(LDAP_DEBUG_ANY,
              "<-- pagedresults_parse_control_value: corrupted control value\n");
         return LDAP_PROTOCOL_ERROR;
+    }
+    if (!maxreqs)
+    {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                      "pagedresults_parse_control_value: simple paged results requests per conn exeeded the limit: %d\n",
+                      maxreqs);
+        return LDAP_UNWILLING_TO_PERFORM;
     }
 
     PR_Lock(conn->c_mutex);
@@ -158,6 +166,14 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
                 }
             }
         }
+        if ((maxreqs > 0) && (*index >= maxreqs)) {
+            rc = LDAP_UNWILLING_TO_PERFORM;
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+                          "pagedresults_parse_control_value: simple paged results requests per conn exeeded the limit: %d\n",
+                          maxreqs);
+            goto bail;
+        }
+
         if ((*index > -1) && (*index < conn->c_pagedresults.prl_maxlen) &&
             !conn->c_pagedresults.prl_list[*index].pr_mutex) {
             conn->c_pagedresults.prl_list[*index].pr_mutex = PR_NewLock();

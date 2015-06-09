@@ -186,6 +186,8 @@ static int invalid_sasl_mech(char *str);
 #define DEFAULT_MAXBERSIZE 2097152
 #define DEFAULT_SASL_MAXBUFSIZE "2097152"
 #define SLAPD_DEFAULT_SASL_MAXBUFSIZE 2097152
+#define DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
+#define DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
 #ifdef MEMPOOL_EXPERIMENTAL
 #define DEFAULT_MEMPOOL_MAXFREELIST "1024"
 #endif
@@ -1130,7 +1132,11 @@ static struct config_get_and_set {
 	{CONFIG_GLOBAL_BACKEND_LOCK, config_set_global_backend_lock,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.global_backend_lock,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_global_backend_lock, &init_global_backend_local}
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_global_backend_lock, &init_global_backend_local},
+	{CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE, config_set_maxsimplepaged_per_conn,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.maxsimplepaged_per_conn,
+		CONFIG_INT, config_get_maxsimplepaged_per_conn, DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
 #ifdef ENABLE_NUNC_STANS
 	,{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
 		NULL, 0,
@@ -1585,6 +1591,7 @@ FrontendConfig_init () {
   init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
   init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
   init_global_backend_local = LDAP_OFF;
+  cfg->maxsimplepaged_per_conn = DEFAULT_MAXSIMPLEPAGED_PER_CONN;
 #ifdef ENABLE_NUNC_STANS
   init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
 #endif
@@ -7862,6 +7869,49 @@ config_set_auditlog_enabled(int value){
         log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+}
+
+int
+config_set_maxsimplepaged_per_conn( const char *attrname, char *value, char *errorbuf, int apply )
+{
+  int retVal =  LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  long size;
+  char *endp;
+  
+  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+    return LDAP_OPERATIONS_ERROR;
+  }
+  
+  errno = 0;
+  size = strtol(value, &endp, 10);
+  if ( *endp != '\0' || errno == ERANGE){
+    retVal = LDAP_OPERATIONS_ERROR;
+    PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n",
+                attrname, value);
+    return retVal;
+  }
+
+  if ( !apply ) {
+    return retVal;
+  }
+
+  CFG_LOCK_WRITE(slapdFrontendConfig);
+
+  slapdFrontendConfig->maxsimplepaged_per_conn = size;
+  
+  CFG_UNLOCK_WRITE(slapdFrontendConfig);
+  return retVal;
+}
+
+int
+config_get_maxsimplepaged_per_conn()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->maxsimplepaged_per_conn;
+  return retVal; 
 }
 
 #if defined(LINUX)

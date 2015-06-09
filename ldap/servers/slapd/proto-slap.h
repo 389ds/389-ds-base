@@ -428,6 +428,8 @@ int config_set_mempool_switch( const char *attrname, char *value, char *errorbuf
 int config_set_mempool_maxfreelist( const char *attrname, char *value, char *errorbuf, int apply );
 #endif /* MEMPOOL_EXPERIMENTAL */
 
+int config_set_maxsimplepaged_per_conn( const char *attrname, char *value, char *errorbuf, int apply );
+
 int config_get_SSLclientAuth();
 int config_get_ssl_check_hostname();
 char *config_get_SSL3ciphers();
@@ -612,6 +614,8 @@ int config_get_malloc_mxfast();
 int config_get_malloc_trim_threshold();
 int config_get_malloc_mmap_threshold();
 #endif
+
+int config_get_maxsimplepaged_per_conn();
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
