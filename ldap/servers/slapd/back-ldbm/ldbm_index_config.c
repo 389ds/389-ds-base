@@ -96,7 +96,10 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     }
 
     /* ok the entry is good to process, pass it to attr_index_config */
-    attr_index_config(inst->inst_be, (char *)trace_string, 0, e, 0, 0);
+    if (attr_index_config(inst->inst_be, (char *)trace_string, 0, e, 0, 0)){
+        slapi_ch_free_string(index_name);
+        return LDAP_OPERATIONS_ERROR;
+    }
 
     return LDAP_SUCCESS;
 }
@@ -247,7 +250,10 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     	 return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    attr_index_config(inst->inst_be, "from DSE modify", 0, entryAfter, 0, 0);
+    if(attr_index_config(inst->inst_be, "from DSE modify", 0, entryAfter, 0, 0)){
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
     return SLAPI_DSE_CALLBACK_OK;
 }

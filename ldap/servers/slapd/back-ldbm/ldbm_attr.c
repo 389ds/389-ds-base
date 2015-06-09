@@ -654,7 +654,7 @@ attr_index_idlistsize_config(Slapi_Entry *e, struct attrinfo *ai, char *returnte
 	return rc;
 }
 
-void
+int
 attr_index_config(
     backend *be,
     char		*fname,
@@ -685,7 +685,7 @@ attr_index_config(
 		 attrValue = slapi_value_get_berval(sval);
 	} else {
 		LDAPDebug(LDAP_DEBUG_ANY, "attr_index_config: Missing indexing arguments\n", 0, 0, 0);
-		return;
+		return -1;
 	}
 
 	a = attrinfo_new();
@@ -707,19 +707,19 @@ attr_index_config(
 		for (j = slapi_attr_first_value(attr, &sval); j != -1;j = slapi_attr_next_value(attr, j, &sval)) {
 			hasIndexType = 1;
 			attrValue = slapi_value_get_berval(sval);
-			if ( strncasecmp( attrValue->bv_val, "pres", 4 ) == 0 ) {
+			if ( strcasecmp( attrValue->bv_val, "pres" ) == 0 ) {
 				a->ai_indexmask |= INDEX_PRESENCE;
-			} else if ( strncasecmp( attrValue->bv_val, "eq", 2 ) == 0 ) {
+			} else if ( strcasecmp( attrValue->bv_val, "eq" ) == 0 ) {
 				a->ai_indexmask |= INDEX_EQUALITY;
-			} else if ( strncasecmp( attrValue->bv_val, "approx", 6 ) == 0 ) {
+			} else if ( strcasecmp( attrValue->bv_val, "approx" ) == 0 ) {
 				a->ai_indexmask |= INDEX_APPROX;
-			} else if ( strncasecmp( attrValue->bv_val, "subtree", 7 ) == 0 ) {
+			} else if ( strcasecmp( attrValue->bv_val, "subtree" ) == 0 ) {
 				/* subtree should be located before "sub" */
 				a->ai_indexmask |= INDEX_SUBTREE;
 				a->ai_dup_cmp_fn = entryrdn_compare_dups;
-			} else if ( strncasecmp( attrValue->bv_val, "sub", 3 ) == 0 ) {
+			} else if ( strcasecmp( attrValue->bv_val, "sub" ) == 0 ) {
 				a->ai_indexmask |= INDEX_SUB;
-			} else if ( strncasecmp( attrValue->bv_val, "none", 4 ) == 0 ) {
+			} else if ( strcasecmp( attrValue->bv_val, "none" ) == 0 ) {
 				if ( a->ai_indexmask != 0 ) {
 					LDAPDebug(LDAP_DEBUG_ANY,
 						"%s: line %d: index type \"none\" cannot be combined with other types\n",
@@ -727,19 +727,19 @@ attr_index_config(
 				}
 				a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY,
-					"%s: line %d: unknown index type \"%s\" (ignored)\n",
-					fname, lineno, attrValue->bv_val);
-				LDAPDebug(LDAP_DEBUG_ANY,
+				slapi_log_error(SLAPI_LOG_FATAL, "attr_index_config",
+					"%s: line %d: unknown index type \"%s\" (ignored) in entry (%s), "
 					"valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
-					0, 0, 0);
+					fname, lineno, attrValue->bv_val, slapi_entry_get_dn(e));
+				attrinfo_delete(&a);
+				return -1;
 			}
 		}
 		if(hasIndexType == 0){
 			/* indexType missing, error out */
 			LDAPDebug(LDAP_DEBUG_ANY, "attr_index_config: Missing index type\n", 0, 0, 0);
 			attrinfo_delete(&a);
-			return;
+			return -1;
 		}
 	}
 
@@ -929,6 +929,8 @@ attr_index_config(
 		/* duplicate - existing version updated */
 		attrinfo_delete(&a);
 	}
+
+	return 0;
 }
 
 /*
