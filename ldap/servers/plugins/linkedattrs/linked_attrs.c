@@ -55,8 +55,6 @@ static Slapi_RWLock *g_config_lock;
 static void *_PluginID = NULL;
 static char *_PluginDN = NULL;
 int plugin_is_betxn = 0;
-/* For future use - enforce all linked attribute operations succeed */
-static int strict_results = 0;
 
 static Slapi_PluginDesc pdesc = { LINK_FEATURE_DESC,
                                   VENDOR,
@@ -108,14 +106,14 @@ static int linked_attrs_config_exists_reverse(struct configEntry *entry);
 static int linked_attrs_oktodo(Slapi_PBlock *pb);
 void linked_attrs_load_array(Slapi_Value **array, Slapi_Attr *attr);
 int linked_attrs_compare(const void *a, const void *b);
-static int linked_attrs_add_backpointers(char *linkdn, struct configEntry *config,
+static int linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config,
     Slapi_Mod *smod);
 static int linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
     struct configEntry *config, Slapi_Mod *smod);
 static int linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
     struct configEntry *config, Slapi_Mod *smod);
-static int linked_attrs_mod_backpointers(char *linkdn, char *type, char *scope,
-    int modop, Slapi_ValueSet *targetvals);
+static int linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
+    char *scope, int modop, Slapi_ValueSet *targetvals);
 
 /*
  * Config cache locking functions
@@ -1252,14 +1250,14 @@ linked_attrs_compare(const void *a, const void *b)
  * by the values in smod.
  */
 static int
-linked_attrs_add_backpointers(char *linkdn, struct configEntry *config,
+linked_attrs_add_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry *config,
     Slapi_Mod *smod)
 {
     Slapi_ValueSet *vals = slapi_valueset_new();
     int rc = LDAP_SUCCESS;
 
     slapi_valueset_set_from_smod(vals, smod);
-    rc = linked_attrs_mod_backpointers(linkdn, config->managedtype, config->scope,
+    rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype, config->scope,
                                   LDAP_MOD_ADD, vals);
 
     slapi_valueset_free(vals);
@@ -1294,7 +1292,7 @@ linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn,
         slapi_valueset_set_from_smod(vals, smod);
     }
 
-    rc = linked_attrs_mod_backpointers(linkdn, config->managedtype, config->scope,
+    rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype, config->scope,
                                   LDAP_MOD_DELETE, vals);
     slapi_valueset_free(vals);
 
@@ -1413,13 +1411,13 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
 
         /* Perform the actual updates to the target entries. */
         if (delvals) {
-            rc = linked_attrs_mod_backpointers(linkdn, config->managedtype,
+            rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype,
                                           config->scope, LDAP_MOD_DELETE, delvals);
             slapi_valueset_free(delvals);
         }
 
         if (rc == LDAP_SUCCESS && addvals) {
-            rc = linked_attrs_mod_backpointers(linkdn, config->managedtype,
+            rc = linked_attrs_mod_backpointers(pb, linkdn, config->managedtype,
                                           config->scope, LDAP_MOD_ADD, addvals);
             slapi_valueset_free(addvals);
         }
@@ -1437,7 +1435,7 @@ linked_attrs_replace_backpointers(Slapi_PBlock *pb, char *linkdn,
  * Performs backpointer management.
  */
 static int
-linked_attrs_mod_backpointers(char *linkdn, char *type,
+linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
     char *scope, int modop, Slapi_ValueSet *targetvals)
 {
     char *val[2];
@@ -1493,13 +1491,19 @@ linked_attrs_mod_backpointers(char *linkdn, char *type,
             slapi_modify_internal_set_pb_ext(mod_pb, targetsdn, mods, 0, 0,
                                              linked_attrs_get_plugin_id(), 0);
             slapi_modify_internal_pb(mod_pb);
-            if (strict_results){
-                /* we are enforcing strict results, so return the error */
-                slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-                if(rc != LDAP_SUCCESS){
-                    slapi_sdn_free(&targetsdn);
-                    break;
-                }
+            slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+            if(rc != LDAP_SUCCESS){
+                char *err_msg = NULL;
+
+                err_msg = PR_smprintf("Linked Attrs Plugin: Failed to update "
+                                      "link to target entry (%s) error %d",
+                                      targetdn, rc);
+                slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM, "%s\n", err_msg);
+                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, err_msg);
+                PR_smprintf_free(err_msg);
+                slapi_sdn_free(&targetsdn);
+                rc = LDAP_UNWILLING_TO_PERFORM;
+                break;
             }
             /* Initialize the pblock so we can reuse it. */
             slapi_pblock_init(mod_pb);
@@ -1684,7 +1688,7 @@ linked_attrs_mod_post_op(Slapi_PBlock *pb)
                 case LDAP_MOD_ADD:
                     /* Find the entries pointed to by the new
                      * values and add the backpointers. */
-                    rc = linked_attrs_add_backpointers(dn, config, smod);
+                    rc = linked_attrs_add_backpointers(pb, dn, config, smod);
                     break;
                 case LDAP_MOD_DELETE:
                     /* Find the entries pointed to by the deleted
@@ -1786,7 +1790,7 @@ linked_attrs_add_post_op(Slapi_PBlock *pb)
                 slapi_attr_get_valueset(attr, &vals);
                 slapi_lock_mutex(config->lock);
 
-                rc = linked_attrs_mod_backpointers(dn, config->managedtype,
+                rc = linked_attrs_mod_backpointers(pb, dn, config->managedtype,
                                               config->scope, LDAP_MOD_ADD, vals);
 
                 slapi_unlock_mutex(config->lock);
@@ -1875,7 +1879,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
                 slapi_attr_get_valueset(attr, &vals);
                 slapi_lock_mutex(config->lock);
 
-                rc = linked_attrs_mod_backpointers(dn, config->managedtype,
+                rc = linked_attrs_mod_backpointers(pb, dn, config->managedtype,
                                               config->scope, LDAP_MOD_DELETE, vals);
 
                 slapi_unlock_mutex(config->lock);
@@ -1909,7 +1913,7 @@ linked_attrs_del_post_op(Slapi_PBlock *pb)
                         slapi_lock_mutex(config->lock);
 
                         /* Delete forward link value. */
-                        rc = linked_attrs_mod_backpointers(dn, config->linktype,
+                        rc = linked_attrs_mod_backpointers(pb, dn, config->linktype,
                             config->scope, LDAP_MOD_DELETE, vals);
 
                         slapi_unlock_mutex(config->lock);
@@ -2018,7 +2022,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
             slapi_lock_mutex(config->lock);
 
             /* Delete old dn value. */
-            rc = linked_attrs_mod_backpointers(old_dn, config->managedtype,
+            rc = linked_attrs_mod_backpointers(pb, old_dn, config->managedtype,
                                           config->scope, LDAP_MOD_DELETE, vals);
 
             slapi_unlock_mutex(config->lock);
@@ -2045,7 +2049,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
             slapi_lock_mutex(config->lock);
 
             /* Add new dn value. */
-            rc = linked_attrs_mod_backpointers(new_dn, config->managedtype,
+            rc = linked_attrs_mod_backpointers(pb, new_dn, config->managedtype,
                 config->scope, LDAP_MOD_ADD, vals);
 
             slapi_unlock_mutex(config->lock);
@@ -2079,7 +2083,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
                     slapi_lock_mutex(config->lock);
 
                     /* Delete old dn value. */
-                    rc = linked_attrs_mod_backpointers(old_dn, config->linktype,
+                    rc = linked_attrs_mod_backpointers(pb, old_dn, config->linktype,
                                                   config->scope, LDAP_MOD_DELETE, vals);
                     if(rc != LDAP_SUCCESS){
                         slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
@@ -2091,7 +2095,7 @@ linked_attrs_modrdn_post_op(Slapi_PBlock *pb)
                     }
 
                     /* Add new dn value. */
-                    rc = linked_attrs_mod_backpointers(new_dn, config->linktype,
+                    rc = linked_attrs_mod_backpointers(pb, new_dn, config->linktype,
                         config->scope, LDAP_MOD_ADD, vals);
 
                     slapi_unlock_mutex(config->lock);
