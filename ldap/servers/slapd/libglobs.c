@@ -1136,7 +1136,7 @@ static struct config_get_and_set {
 	{CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE, config_set_maxsimplepaged_per_conn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxsimplepaged_per_conn,
-		CONFIG_INT, config_get_maxsimplepaged_per_conn, DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
+		CONFIG_INT, (ConfigGetFunc)config_get_maxsimplepaged_per_conn, DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
 #ifdef ENABLE_NUNC_STANS
 	,{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
 		NULL, 0,
