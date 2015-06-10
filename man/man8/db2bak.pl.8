@@ -18,7 +18,7 @@
 .SH NAME 
 db2bak.pl - Directory Server perl script for creating a backup
 .SH SYNOPSIS
-db2bak.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-t dbtype] [\-a backupdir] [\-P protocol] [\-v] [\-h]
+db2bak.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename }  [\-t dbtype] [\-a backupdir] [\-A backupdir] [\-P protocol] [\-v] [\-h]
 .SH DESCRIPTION
 Creates a backup of the Directory Server database.  The 
 Directory Server must be started prior to running this script.
@@ -48,6 +48,9 @@ The backend database type (default: ldbm database).
 .TP
 .B \fB\-a\fR \fIbackupdir\fR
 The directory where the backup should be stored.
+.TP
+.B \fB\-A\fR \fIbackupdir\fR
+This is similar to \fB-a\fR, except that a sub-directory of \fIbackupdir\fR will be created for the backup, and the name of the sub-directory will be a timestamp of the form \fIserver-instance-date_time\fR.
 .TP
 .B \fB\-P\fR \fIProtocol\fR
 The connection protocol to connect to the Directory Server.  Protocols are STARTTLS, LDAPS, LDAPI, and LDAP.
