@@ -73,8 +73,10 @@ my $logversion = "8.1";
 my $sizeCount = "20";
 my $startFlag = 0;
 my $startTime = 0;
+my $startTimeInSecs = 0;
 my $endFlag = 0;
 my $endTime = 0;
+my $endTimeInSecs = 0;
 my $minEtime = 0;
 my $reportStats = "";
 my $dataLocation = "/tmp";
@@ -432,6 +434,46 @@ sub isCompressed {
 	return /\.gz$/ || /\.bz2$/ || /\.xz$/;
 }
 
+sub convertTimeToSeconds {
+	my $log_line = shift;
+
+	my $logDate;
+	my @dateComps;
+	my ($timeMonth, $timeDay, $timeYear, $dateTotal);
+	if ($log_line =~ / *([0-9A-Z\/]+)/i ){
+		$logDate = $1;
+		@dateComps = split /\//, $logDate;
+
+		$timeMonth = 1 + $monthname{$dateComps[1]};
+		$timeMonth = $timeMonth * 3600 * 24 * 30;
+		$timeDay= $dateComps[0] * 3600 * 24;
+		$timeYear = $dateComps[2] * 365 * 3600 * 24;
+		$dateTotal = $timeMonth + $timeDay + $timeYear;
+	}
+
+	my $logTime;
+	my @timeComps;
+	my ($timeHour, $timeMinute, $timeSecond, $timeTotal);
+	if ($log_line =~ / *(:[0-9:]+)/i ){
+		$logTime = $1;
+		@timeComps = split /:/, $logTime;
+
+		$timeHour = $timeComps[1] * 3600;
+		$timeMinute = $timeComps[2] * 60;
+		$timeSecond = $timeComps[3];
+		$timeTotal = $timeHour + $timeMinute + $timeSecond;
+	}
+
+	return $timeTotal + $dateTotal;
+}
+
+if($startTime){
+	$startTimeInSecs = convertTimeToSeconds($startTime);
+}
+if($endTime){
+	$endTimeInSecs = convertTimeToSeconds($endTime);
+}
+
 $Archive::Tar::WARN = 0; # so new will shut up when reading a regular file
 for (my $count=0; $count < $file_count; $count++){
 	my $logname = $files[$count];
@@ -555,66 +597,14 @@ if($endTime){
 #
 # Get the start time in seconds
 #  
-
 my $logStart = $start;
-my $logDate;
-my @dateComps;
-my ($timeMonth, $timeDay, $timeYear, $dateTotal);
-if ($logStart =~ / *([0-9A-Z\/]+)/i ){
-        $logDate = $1;
-        @dateComps = split /\//, $logDate;
-
-        $timeMonth = 1 +$monthname{$dateComps[1]};
-        $timeMonth = $timeMonth * 3600 *24 * 30; 
-        $timeDay= $dateComps[0] * 3600 *24;
-        $timeYear = $dateComps[2] *365 * 3600 * 24;
-        $dateTotal = $timeMonth + $timeDay + $timeYear;
-}
-
-my $logTime;
-my @timeComps;
-my ($timeHour, $timeMinute, $timeSecond, $timeTotal);
-if ($logStart =~ / *(:[0-9:]+)/i ){
-        $logTime = $1;
-        @timeComps = split /:/, $logTime;
-
-        $timeHour = $timeComps[1] * 3600;
-        $timeMinute = $timeComps[2] *60;
-        $timeSecond = $timeComps[3];
-        $timeTotal = $timeHour + $timeMinute + $timeSecond;
-}
-
-my $startTotal = $timeTotal + $dateTotal;
+my $startTotal = convertTimeToSeconds($logStart);
 
 #
 # Get the end time in seconds
 #
-
 my $logEnd = $end;
-my ($endDay, $endMonth, $endYear, $endTotal);
-if ($logEnd =~ / *([0-9A-Z\/]+)/i ){
-        $logDate = $1;
-        @dateComps = split /\//, $logDate;
-
-        $endDay = $dateComps[0] *3600 * 24;
-        $endMonth = 1 + $monthname{$dateComps[1]};
-        $endMonth = $endMonth * 3600 * 24 * 30;
-        $endYear = $dateComps[2] *365 * 3600 * 24 ;
-        $dateTotal = $endDay + $endMonth + $endYear;
-}
-
-my ($endHour, $endMinute, $endSecond);
-if ($logEnd =~ / *(:[0-9:]+)/i ){
-        $logTime = $1;
-        @timeComps = split /:/, $logTime;
-
-        $endHour = $timeComps[1] * 3600;
-        $endMinute = $timeComps[2] *60;
-        $endSecond = $timeComps[3];
-        $timeTotal = $endHour + $endMinute + $endSecond;	
-}
-
-$endTotal = $timeTotal +  $dateTotal;
+my $endTotal = convertTimeToSeconds($logEnd);
 
 #
 # Tally the numbers
@@ -1629,7 +1619,8 @@ parseLineBind {
 		$end =$1;
 	}
 	if ($startTime && !$startFlag) {
-		if (index($_, $startTime) == 0) {
+		my $currentTimeInSecs = convertTimeToSeconds($_);
+		if ($currentTimeInSecs >= $startTimeInSecs) {
 			$startFlag = 1;
 			($start) = $startTime =~ /\D*(\S*)/;
 		} else {
@@ -1637,7 +1628,8 @@ parseLineBind {
 		}
 	}
 	if ($endTime && !$endFlag) {
-		if (index($_, $endTime) == 0) {
+		my $currentTimeInSecs = convertTimeToSeconds($_);
+		if ($currentTimeInSecs > $endTimeInSecs) {
 			$endFlag = 1;
 			($end) = $endTime =~ /\D*(\S*)/;
 		}
@@ -1793,9 +1785,12 @@ sub parseLineNormal
 		if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
 		$firstFile = 0;
 	}
-	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){$end =$1;}
+	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){
+		$end =$1;
+	}
 	if ($startTime && !$startFlag) {
-		if (index($_, $startTime) == 0) {
+		my $currentTimeInSecs = convertTimeToSeconds($_);
+		if ($currentTimeInSecs >= $startTimeInSecs) {
 			$startFlag = 1;
 			($start) = $startTime =~ /\D*(\S*)/;
 		} else {
@@ -1803,7 +1798,8 @@ sub parseLineNormal
 		}
 	}
 	if ($endTime && !$endFlag) {
-		if (index($_, $endTime) == 0) {
+		my $currentTimeInSecs = convertTimeToSeconds($_);
+		if ($currentTimeInSecs > $endTimeInSecs) {
 			$endFlag = 1;
 			($end) = $endTime =~ /\D*(\S*)/;
 		}
