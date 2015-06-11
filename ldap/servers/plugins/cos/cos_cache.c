@@ -284,7 +284,7 @@ void cos_cache_backend_state_change(void *handle, char *be_name,
 static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_ValueSet** results,int *type_name_disposition, char** actual_type_name, int flags, int *free_flags, void *hint);
 static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_Value *test_this, int* result, int flags, void *hint);
 static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags);
-static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr, Slapi_Value *test_this, int *result, int *ops);
+static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr, Slapi_Value *test_this, int *result, int *ops, int *indirect_cos);
 
 /* 
 	compares s2 to s1 starting from end of string until the beginning of either
@@ -2096,8 +2096,9 @@ static int cos_cache_attrval_exists(cosAttrValue *pAttrs, const char *val)
 
 static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_Entry *e, char *type, Slapi_ValueSet** results,int *type_name_disposition, char** actual_type_name, int flags, int *free_flags, void *hint)
 {
-	int ret = -1;
 	cos_cache *pCache = 0;
+	int indirect_cos = 0;
+	int ret = -1;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_vattr_get\n",0,0,0);
 	
@@ -2108,10 +2109,15 @@ static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_
 		goto bail;
 	}
 
-	ret = cos_cache_query_attr(pCache, c, e, type, results, NULL, NULL, NULL);
+	ret = cos_cache_query_attr(pCache, c, e, type, results, NULL, NULL, NULL, &indirect_cos);
 	if(ret == 0)
 	{
-        *free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES | SLAPI_VIRTUALATTRS_VALUES_CACHEABLE;
+		if(indirect_cos){
+			/* we can't cache indirect cos */
+			*free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES;
+		} else {
+			*free_flags = SLAPI_VIRTUALATTRS_RETURNED_COPIES | SLAPI_VIRTUALATTRS_VALUES_CACHEABLE;
+		}
         *actual_type_name = slapi_ch_strdup(type);
 		*type_name_disposition = SLAPI_VIRTUALATTRS_TYPE_NAME_MATCHED_EXACTLY_OR_ALIAS;
 	}
@@ -2138,7 +2144,7 @@ static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Sl
 		goto bail;
 	}
 
-	ret = cos_cache_query_attr(pCache, c, e, type, NULL, test_this, result, NULL);
+	ret = cos_cache_query_attr(pCache, c, e, type, NULL, test_this, result, NULL, NULL);
 
 	cos_cache_release(pCache);
 
@@ -2179,7 +2185,7 @@ static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,
 			lastattr = pCache->ppAttrIndex[index]->pAttrName;
 
 			if(1 == cos_cache_query_attr(pCache, NULL, e, lastattr, NULL, NULL,
-											 NULL, &props))
+											 NULL, &props, NULL))
 			{
 				/* entry contains this attr */
 				vattr_type_thang thang = {0};
@@ -2223,7 +2229,10 @@ bail:
 	overriding and allow the DS logic to pick it up by denying knowledge
 	of attribute
 */
-static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr, Slapi_Value *test_this, int *result, int *props)
+static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
+                                Slapi_Entry *e, char *type, Slapi_ValueSet **out_attr,
+                                Slapi_Value *test_this, int *result, int *props,
+                                int *indirect_cos)
 {
 	int ret = -1;
 	cosCache *pCache = (cosCache*)ptheCache;
@@ -2420,6 +2429,9 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Sl
 								if (cos_cache_follow_pointer( context, (char*)slapi_value_get_string(indirectdn),
 									type, &tmp_vals, test_this, result, pointer_flags) == 0)
 								{
+									if(indirect_cos){
+										*indirect_cos = 1;
+									}
 									hit = 1;
 									/* If the caller requested values, set them.  We need
 									 * to append values when we follow multiple pointers DNs. */
