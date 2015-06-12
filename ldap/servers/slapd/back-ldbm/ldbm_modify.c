@@ -645,6 +645,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 					opreturn = SLAPI_PLUGIN_FAILURE;
 					slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
 				}
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 				goto error_return;
 			}
 			/* The Plugin may have messed about with some of the PBlock parameters... ie. mods */
