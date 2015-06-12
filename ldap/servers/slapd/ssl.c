@@ -1342,9 +1342,6 @@ slapd_ssl_init()
         freeConfigEntry( &entry );
     }
 
-    /* ugaston- Cipher preferences must be set before any sslSocket is created
-     * for such sockets to take preferences into account.
-     */
     freeConfigEntry( &entry );
  
     /* Introduce a way of knowing whether slapd_ssl_init has
@@ -1590,6 +1587,45 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     errorbuf[0] = '\0';
 
+    /*
+     * Cipher preferences must be set before any sslSocket is created
+     * for such sockets to take preferences into account.
+     */
+    getConfigEntry(configDN, &e);
+    if (e == NULL) {
+        slapd_SSL_warn("Security Initialization: Failed get config entry %s", configDN);
+        return 1;
+    }
+    val = slapi_entry_attr_get_charptr(e, "allowWeakCipher");
+    if (val) {
+        if (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") || 
+                !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no")) {
+            allowweakcipher = CIPHER_SET_DISALLOWWEAKCIPHER;
+        } else if (!PL_strcasecmp(val, "on") || !PL_strcasecmp(val, "true") || 
+                !PL_strcmp(val, "1") || !PL_strcasecmp(val, "yes")) {
+            allowweakcipher = CIPHER_SET_ALLOWWEAKCIPHER;
+        } else {
+            slapd_SSL_warn("The value of allowWeakCipher \"%s\" in %s is invalid.",
+                           "Ignoring it and set it to default.", val, configDN);
+        }
+    }
+    slapi_ch_free((void **) &val);
+
+    /* Set SSL cipher preferences */
+    *cipher_string = 0;
+    if(ciphers && (*ciphers) && PL_strcmp(ciphers, "blank"))
+         PL_strncpyz(cipher_string, ciphers, sizeof(cipher_string));
+    slapi_ch_free((void **) &ciphers);
+
+    if ( NULL != (val = _conf_setciphers(cipher_string, allowweakcipher)) ) {
+        errorCode = PR_GetError();
+        slapd_SSL_warn("Security Initialization: Failed to set SSL cipher "
+            "preference information: %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
+            val, errorCode, slapd_pr_strerror(errorCode));
+        slapi_ch_free((void **) &val);
+    }
+    freeConfigEntry(&e);
+
     /* Import pr fd into SSL */
     pr_sock = SSL_ImportFD( NULL, sock );
     if( pr_sock == (PRFileDesc *)NULL ) {
@@ -1631,8 +1667,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     
         slapd_pk11_setSlotPWValues(slot, 0, 0);
     }
-
-
 
     /*
      * Now, get the complete list of cipher families. Each family
@@ -1816,9 +1850,8 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             "out of disk space! Make more room in /tmp "
             "and try again. (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
             errorCode, slapd_pr_strerror(errorCode));
-      }
-      else {
-    slapd_SSL_error("Config of server nonce cache failed (error %d - %s)",
+      } else {
+        slapd_SSL_error("Config of server nonce cache failed (error %d - %s)",
             errorCode, slapd_pr_strerror(errorCode));
       }
       return rv;
@@ -1985,36 +2018,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     }
 #endif
-    val = slapi_entry_attr_get_charptr(e, "allowWeakCipher");
-    if (val) {
-        if (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") || 
-                !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no")) {
-            allowweakcipher = CIPHER_SET_DISALLOWWEAKCIPHER;
-        } else if (!PL_strcasecmp(val, "on") || !PL_strcasecmp(val, "true") || 
-                !PL_strcmp(val, "1") || !PL_strcasecmp(val, "yes")) {
-            allowweakcipher = CIPHER_SET_ALLOWWEAKCIPHER;
-        } else {
-            slapd_SSL_warn("The value of allowWeakCipher \"%s\" in %s is invalid.",
-                           "Ignoring it and set it to default.", val, configDN);
-        }
-    }
-    slapi_ch_free((void **) &val);
-
-    /* Set SSL cipher preferences */
-    *cipher_string = 0;
-    if(ciphers && (*ciphers) && PL_strcmp(ciphers, "blank"))
-         PL_strncpyz(cipher_string, ciphers, sizeof(cipher_string));
-    slapi_ch_free((void **) &ciphers);
-
-    if ( NULL != (val = _conf_setciphers(cipher_string, allowweakcipher)) ) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to set SSL cipher "
-            "preference information: %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
-            val, errorCode, slapd_pr_strerror(errorCode));
-        rv = 3;
-        slapi_ch_free((void **) &val);
-    }
-
     freeConfigEntry( &e );
 
     if(( slapd_SSLclientAuth = config_get_SSLclientAuth()) != SLAPD_SSLCLIENTAUTH_OFF ) {
@@ -2059,17 +2062,17 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 /* richm 20020227
    To do LDAP client SSL init, we need to do
 
-	static void
-	ldapssl_basic_init( void )
-	{
-    	PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 0);
+    static void
+    ldapssl_basic_init( void )
+    {
+        PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 0);
 
-    	PR_SetConcurrency( 4 );
-	}
+        PR_SetConcurrency( 4 );
+    }
     NSS_Init(certdbpath);
     SSL_OptionSetDefault(SSL_ENABLE_SSL2, PR_FALSE);
-	SSL_OptionSetDefault(SSL_ENABLE_SSL3, PR_TRUE);
-	s = NSS_SetDomesticPolicy(); 
+    SSL_OptionSetDefault(SSL_ENABLE_SSL3, PR_TRUE);
+    s = NSS_SetDomesticPolicy(); 
 We already do pr_init, we don't need pr_setconcurrency, we already do nss_init and the rest
 
 */   
@@ -2095,7 +2098,7 @@ slapd_SSL_client_auth (LDAP* ld)
         char **family;
         char *personality = NULL;
         char *activation = NULL;
-		char *cipher = NULL;
+        char *cipher = NULL;
 
         for (family = family_list; *family; family++) {
             getConfigEntry( *family, &entry );
