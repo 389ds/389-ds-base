@@ -326,7 +326,7 @@ def test_ticket47838_run_4(topology):
     Default ciphers are enabled.
     default allowWeakCipher
     """
-    _header(topology, 'Test Case 5 - Check no nssSSL3Chiphers (default setting) with default allowWeakCipher')
+    _header(topology, 'Test Case 5 - Check no nsSSL3Ciphers (default setting) with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3Ciphers', '-all')])
@@ -362,7 +362,7 @@ def test_ticket47838_run_5(topology):
     Default ciphers are enabled.
     default allowWeakCipher
     """
-    _header(topology, 'Test Case 6 - Check default nssSSL3Chiphers (default setting) with default allowWeakCipher')
+    _header(topology, 'Test Case 6 - Check default nsSSL3Ciphers (default setting) with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'default')])
@@ -394,11 +394,11 @@ def test_ticket47838_run_5(topology):
 
 def test_ticket47838_run_6(topology):
     """
-    Check nssSSL3Chiphers: +all,-rsa_rc4_128_md5
+    Check nsSSL3Ciphers: +all,-rsa_rc4_128_md5
     All ciphers are disabled.
     default allowWeakCipher
     """
-    _header(topology, 'Test Case 7 - Check nssSSL3Chiphers: +all,-tls_dhe_rsa_aes_128_gcm_sha with default allowWeakCipher')
+    _header(topology, 'Test Case 7 - Check nsSSL3Ciphers: +all,-tls_dhe_rsa_aes_128_gcm_sha with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all,-tls_dhe_rsa_aes_128_gcm_sha')])
@@ -428,11 +428,11 @@ def test_ticket47838_run_6(topology):
 
 def test_ticket47838_run_7(topology):
     """
-    Check nssSSL3Chiphers: -all,+rsa_rc4_128_md5
+    Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5
     All ciphers are disabled.
     default allowWeakCipher
     """
-    _header(topology, 'Test Case 8 - Check nssSSL3Chiphers: -all,+rsa_rc4_128_md5 with default allowWeakCipher')
+    _header(topology, 'Test Case 8 - Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5 with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '-all,+rsa_rc4_128_md5')])
@@ -463,7 +463,7 @@ def test_ticket47838_run_8(topology):
     Check nsSSL3Ciphers: default + allowWeakCipher: off
     Strong Default ciphers are enabled.
     """
-    _header(topology, 'Test Case 9 - Check default nssSSL3Chiphers (default setting + allowWeakCipher: off)')
+    _header(topology, 'Test Case 9 - Check default nsSSL3Ciphers (default setting + allowWeakCipher: off)')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', 'default'),
@@ -501,7 +501,7 @@ def test_ticket47838_run_9(topology):
     allowWeakCipher: on
     nsslapd-errorlog-level: 0
     """
-    _header(topology, 'Test Case 10 - Check no nssSSL3Chiphers (default setting) with no errorlog-level & allowWeakCipher on')
+    _header(topology, 'Test Case 10 - Check no nsSSL3Ciphers (default setting) with no errorlog-level & allowWeakCipher on')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', None),
@@ -533,7 +533,7 @@ def test_ticket47838_run_9(topology):
 
 def test_ticket47838_run_10(topology):
     """
-    Check nssSSL3Chiphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
+    Check nsSSL3Ciphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
         +TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
         +TLS_DHE_RSA_WITH_DES_CBC_SHA,+SSL_RSA_FIPS_WITH_DES_CBC_SHA,
         +TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,+SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,
@@ -544,7 +544,7 @@ def test_ticket47838_run_10(topology):
     allowWeakCipher: on
     nsslapd-errorlog-level: 0
     """
-    _header(topology, 'Test Case 11 - Check nssSSL3Chiphers: long list using the NSS Cipher Suite name with allowWeakCipher on')
+    _header(topology, 'Test Case 11 - Check nsSSL3Ciphers: long list using the NSS Cipher Suite name with allowWeakCipher on')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers',
@@ -578,10 +578,10 @@ def test_ticket47838_run_10(topology):
 
 def test_ticket47838_run_11(topology):
     """
-    Check nssSSL3Chiphers: +fortezza
+    Check nsSSL3Ciphers: +fortezza
     SSL_GetImplementedCiphers does not return this as a secuire cipher suite
     """
-    _header(topology, 'Test Case 12 - Check nssSSL3Chiphers: +fortezza, which is not supported')
+    _header(topology, 'Test Case 12 - Check nsSSL3Ciphers: +fortezza, which is not supported')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+fortezza')])
@@ -760,10 +760,10 @@ def test_ticket47928_run_3(topology):
 
 def test_ticket47838_run_last(topology):
     """
-    Check nssSSL3Chiphers: all <== invalid value
+    Check nsSSL3Ciphers: all <== invalid value
     All ciphers are disabled.
     """
-    _header(topology, 'Test Case 17 - Check nssSSL3Chiphers: all, which is invalid')
+    _header(topology, 'Test Case 17 - Check nsSSL3Ciphers: all, which is invalid')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', None)])
