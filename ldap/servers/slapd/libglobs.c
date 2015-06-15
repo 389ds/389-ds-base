@@ -1123,10 +1123,10 @@ static struct config_get_and_set {
 		(void**)&global_slapdFrontendConfig.maxsimplepaged_per_conn,
 		CONFIG_INT, (ConfigGetFunc)config_get_maxsimplepaged_per_conn, DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
 #ifdef ENABLE_NUNC_STANS
-	,{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
+	{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.enable_nunc_stans,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_nunc_stans, &init_enable_nunc_stans}
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_nunc_stans, &init_enable_nunc_stans},
 #endif
 #ifdef MEMPOOL_EXPERIMENTAL
 	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
