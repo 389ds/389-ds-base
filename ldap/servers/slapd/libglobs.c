@@ -1129,7 +1129,7 @@ static struct config_get_and_set {
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_nunc_stans, &init_enable_nunc_stans},
 #endif
 #ifdef MEMPOOL_EXPERIMENTAL
-	,{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
+	{CONFIG_MEMPOOL_SWITCH_ATTRIBUTE, config_set_mempool_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.mempool_switch,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_mempool_switch,
