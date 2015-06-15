@@ -69,7 +69,6 @@
 #define SNMP_NUM_SEM_WAITS 10
 
 #include "snmp_collator.h" 
-#include "../snmp/ntagt/nslagtcom_nt.h"
 
 /* stevross: safe to assume port should be at most 5 digits ? */
 #define PORT_LEN 5
