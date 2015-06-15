@@ -46,10 +46,8 @@
 #include <ctype.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
-#endif
 #include "slap.h"
 #include <plhash.h>
 

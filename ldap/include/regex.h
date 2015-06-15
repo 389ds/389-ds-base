@@ -40,7 +40,7 @@
 #  include <config.h>
 #endif
 
-#if defined( macintosh ) || defined( DOS ) || defined( _WINDOWS ) || defined( NEED_BSDREGEX )
+#if defined( macintosh ) || defined( NEED_BSDREGEX )
 /*
  * Copyright (c) 1993 Regents of the University of Michigan.
  * All rights reserved.
@@ -97,4 +97,4 @@ int  re_subs();
 #ifdef __cplusplus
 }
 #endif
-#endif /* macintosh or DOS or or _WIN32 or NEED_BSDREGEX */
+#endif /* macintosh or NEED_BSDREGEX */

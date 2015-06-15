@@ -47,20 +47,14 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include "portable.h"
 #include "nspr.h"
-
 #include "slapi-plugin.h"
 #include "slapi-private.h"
-
 #include "http_client.h"
 #include "http_impl.h"
-
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
+
 
 /*** from proto-slap.h ***/
 
@@ -81,23 +75,13 @@ extern "C" {
 #define LDAP_DEBUG_PLUGIN	0x10000		/* 65536 */
 
 /* debugging stuff */
-#    ifdef _WIN32
-       extern int	*module_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    else /* _WIN32 */
-       extern int	slapd_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
+extern int	slapd_ldap_debug;
+#define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
        { \
 		if ( slapd_ldap_debug & level ) { \
 		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
 	    } \
        }
-#    endif /* Win32 */
 
 #ifdef __cplusplus
 }
@@ -144,15 +128,6 @@ static int _http_get_binary(char *url, char **data, int *bytesRead);
 static int _http_get_redirected_uri(char *url, char **data, int *bytesRead);
 static int _http_post(char *url, httpheader **httpheaderArray, char *body, char **data, int *bytesRead);
 static void _http_shutdown( void );
-
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /**
  *	

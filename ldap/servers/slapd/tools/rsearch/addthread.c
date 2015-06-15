@@ -44,9 +44,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef XP_UNIX
 #include <unistd.h>
-#endif
 #include "nspr.h"
 #include <netinet/tcp.h>	/* for TCP_NODELAY */
 #include "ldap.h"

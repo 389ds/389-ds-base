@@ -53,29 +53,15 @@
  
 
 #include "agtmmap.h"
-#ifndef  _WIN32
 #include <sys/mman.h>
 #include <unistd.h>
-#else
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <time.h>
-#include "nt/regparms.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
-#ifndef  _WIN32
 agt_mmap_context_t 	mmap_tbl [2] = { {AGT_MAP_UNINIT, -1, (caddr_t) -1}, 
 	 				 {AGT_MAP_UNINIT, -1, (caddr_t) -1} };
-#else
-agt_mmap_context_t 	mmap_tbl[2] = { {AGT_MAP_UNINIT, NULL, (caddr_t) -1, NULL}, 
-					 {AGT_MAP_UNINIT, NULL, (caddr_t) -1, NULL} };
-#endif /* ! _WIN32 */
-
 
 /****************************************************************************
  *
@@ -99,16 +85,14 @@ agt_mmap_context_t 	mmap_tbl[2] = { {AGT_MAP_UNINIT, NULL, (caddr_t) -1, NULL},
 int 
 agt_mopen_stats (char * statsfile, int mode, int *hdl)
 {
-	caddr_t 	fp;
-	char 		*path;
-	int		rc = 0;
-#ifndef  _WIN32
-	int 		fd;
-        char            *buf;
-	int 		err;
-	size_t		sz;
-	struct stat     fileinfo;
-#endif /*  _WIN32 */
+	caddr_t fp;
+	char *path;
+	char *buf;
+	int rc = 0;
+	int fd;
+	int err;
+	size_t sz;
+	struct stat fileinfo;
 
 	switch (mode)
 	{
@@ -142,8 +126,6 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 	else
 	     path = AGT_STATS_FILE;
 
-
-#ifndef  _WIN32
 	switch (mode)
 	{
 	     case O_RDONLY:
@@ -232,105 +214,6 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
                rc = 0;
            break;
 	} /* end switch */
-#else
-	/* _WIN32 */
-	switch (mode) {
-		case O_RDONLY:
-		{
-			HANDLE	hFile = NULL;
-			HANDLE	hMapFile = NULL;
-		
-			/* Open existing disk file for read */
-			hFile = CreateFile(path, 
-						GENERIC_READ | GENERIC_WRITE,
-						FILE_SHARE_READ | FILE_SHARE_WRITE, 
-						NULL, 
-						OPEN_EXISTING,
-						FILE_ATTRIBUTE_NORMAL, 
-						NULL);
-			if ( hFile == INVALID_HANDLE_VALUE || hFile == NULL ) return GetLastError();
-
-			/* Create mapped file handle for reading */
-			hMapFile = CreateFileMapping( hFile, NULL, PAGE_READONLY, 0,
-						sizeof(struct agt_stats_t),
-						NULL);
-			if ( hMapFile == NULL ) {
-				CloseHandle( hFile );
-				rc = GetLastError();
-				goto bail;
-			}
-
-				/* Create addr ptr to the start of the file */
-			fp = (caddr_t) MapViewOfFileEx( hMapFile, FILE_MAP_READ, 0, 0,
-					sizeof(struct agt_stats_t), NULL );
-			if ( fp == NULL ) {
-				CloseHandle( hMapFile );
-				CloseHandle( hFile );
-				rc = GetLastError();
-				goto bail;
-			}
-
-			/* Fill in info on this opaque handle */
-			mmap_tbl[0].maptype = AGT_MAP_READ;
-			mmap_tbl[0].fd = hFile;
-			mmap_tbl[0].fp = fp;
-			mmap_tbl[0].mfh = hMapFile;
-			*hdl = 0;
-
-			rc = 0;
-			break;
-		}
-		
-		case O_RDWR:
-		{
-		
-			HANDLE	hFile = NULL;
-			HANDLE	hMapFile = NULL;
-		
-			hFile = CreateFile( path, 
-						GENERIC_WRITE | GENERIC_READ,
-						FILE_SHARE_READ | FILE_SHARE_WRITE, 
-						NULL, 
-						OPEN_ALWAYS,
-						FILE_ATTRIBUTE_NORMAL, 
-						NULL );
-			if ( hFile == INVALID_HANDLE_VALUE || hFile == NULL ) return GetLastError();
-
-			/* Create mapped file handle for reading */
-			hMapFile = CreateFileMapping( hFile, NULL, PAGE_READWRITE, 0,
-						sizeof(struct agt_stats_t),
-						NULL );
-			if ( hMapFile == NULL ) {
-				CloseHandle( hFile );
-				rc = GetLastError();
-				goto bail;
-			}
-
-				/* Create addr ptr to the start of the file */
-			fp = (caddr_t) MapViewOfFileEx( hMapFile, FILE_MAP_ALL_ACCESS, 0, 0,
-					sizeof(struct agt_stats_t), NULL );
-			if ( fp == NULL ) {
-				CloseHandle( hMapFile );
-				CloseHandle( hFile );
-				rc = GetLastError();
-				goto bail;
-			}
-
-			mmap_tbl[1].maptype = AGT_MAP_RDWR;
-			mmap_tbl[1].fd = hFile;
-			mmap_tbl[1].fp = fp;
-			mmap_tbl[1].mfh = hMapFile;
-			*hdl = 1;
-
-			rc = 0;
-			break;
-
-		}
-		
-
-	}
-
-#endif /* !__WINNT__ */
 
 bail:
     return rc;
@@ -366,22 +249,10 @@ agt_mclose_stats (int hdl)
 
 	if (mmap_tbl [hdl].fp > (caddr_t) 0)
 	{
-#ifndef  _WIN32
 		munmap (mmap_tbl [hdl].fp, sizeof (struct agt_stats_t));
 		mmap_tbl [hdl].fp = (caddr_t) -1;
 		close (mmap_tbl [hdl].fd);
 		mmap_tbl [hdl].fd = -1;
-#else
-		BOOL	bUnmapped;
-
-		bUnmapped = UnmapViewOfFile( mmap_tbl[hdl].fp );
-		if ( mmap_tbl[hdl].mfh ) CloseHandle( mmap_tbl[hdl].mfh );
-		if ( mmap_tbl[hdl].fd ) CloseHandle( mmap_tbl[hdl].fd );
-
-		mmap_tbl[hdl].fp = (caddr_t) -1;
-		mmap_tbl[hdl].mfh = NULL;
-		mmap_tbl[hdl].fd = NULL;
-#endif /* ! _WIN32 */
 		mmap_tbl [hdl].maptype = AGT_MAP_UNINIT;
 		return (0);
 	}

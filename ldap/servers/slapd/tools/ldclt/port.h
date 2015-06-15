@@ -85,29 +85,6 @@ dd/mm/yy | Author	| Comments
 #endif								/*JLS 03-04-01*/
 #endif								/*JLS 01-12-00*/
 
-#ifdef _WIN32							/*JLS 01-12-00*/
-#define LDCLT_NO_DLOPEN		1				/*JLS 01-12-00*/
-#endif								/*JLS 01-12-00*/
-
-
-/************************************************************************/
-/************************************************************************/
-/****************         NT section              ***********************/
-/************************************************************************/
-/************************************************************************/
-
-#ifdef _WIN32
-
-typedef CRITICAL_SECTION	 ldclt_mutex_t;
-typedef DWORD			 ldclt_tid;
-
-extern int	 getopt (int argc, char **argv, char *optstring);
-extern int	 getsubopt(char **optionp, char **tokens, char **valuep);
-extern long	 lrand48 (void);
-extern char	*optarg;
-extern int	 optind;
-
-#else /* _WIN32 */
 
 /************************************************************************/
 /************************************************************************/
@@ -118,9 +95,6 @@ extern int	 optind;
 typedef pthread_mutex_t		ldclt_mutex_t;
 typedef pthread_t		ldclt_tid;
 
-#endif /* _WIN32 */
-
-
 /*
  * Portability functions common to all platforms
  */
@@ -129,5 +103,3 @@ extern int	ldclt_mutex_lock   (ldclt_mutex_t *mutex);
 extern int	ldclt_mutex_unlock (ldclt_mutex_t *mutex);
 extern void	ldclt_sleep (int nseconds);
 extern int	ldclt_thread_create (ldclt_tid *tid, void *(*fct)(void *), void *param);
-
-/* End of file */

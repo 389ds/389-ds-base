@@ -45,9 +45,7 @@
 #include <ldaputil/ldaputil.h> /* LDAPU_SUCCESS, ldapu_VTable_set */
 #include <ldaputil/init.h> /* ldaputil_init */
 #include <ldaputil/certmap.h> /* ldapu_cert_to_ldap_entry */
-#ifndef _WIN32
 #include <sys/param.h>	/* MAXPATHLEN */
-#endif
 #include "slap.h" /* slapi_ch_malloc */
 #include "fe.h"
 

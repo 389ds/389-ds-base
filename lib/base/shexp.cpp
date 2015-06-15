@@ -239,11 +239,7 @@ int _shexp_match(char *str, char *exp)
               case '\\':
                 ++y;
               default:
-#ifdef XP_UNIX
                 if(str[x] != exp[y])
-#else /* XP_WIN32 */
-                if(strnicmp(str + x, exp + y, 1))
-#endif /* XP_WIN32 */
                     ret = NOMATCH;
                 break;
             }
@@ -286,11 +282,7 @@ NSAPI_PUBLIC int shexp_cmp(char *str, char *exp)
       case INVALID_SXP:
         return -1;
       case NON_SXP:
-#ifdef XP_UNIX
         return (strcmp(exp,str) ? 1 : 0);
-#else  /* XP_WIN32 */
-        return (stricmp(exp,str) ? 1 : 0);
-#endif /* XP_WIN32 */
       default:
         return shexp_match(str, exp);
     }

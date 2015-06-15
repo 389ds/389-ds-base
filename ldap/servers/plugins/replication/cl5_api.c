@@ -174,13 +174,8 @@
 #define DEFAULT_THREAD_STACKSIZE 	0
 #endif
 
-#ifdef _WIN32
-#define FILE_CREATE_MODE S_IREAD | S_IWRITE
-#define DIR_CREATE_MODE  0755
-#else /* _WIN32 */
 #define FILE_CREATE_MODE S_IRUSR | S_IWUSR
 #define DIR_CREATE_MODE  0755
-#endif
 
 #define NO_DISK_SPACE 1024
 #define MIN_DISK_SPACE 10485760    /* 10 MB */

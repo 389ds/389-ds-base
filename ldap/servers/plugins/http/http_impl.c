@@ -60,10 +60,7 @@
 #include "slap.h"
 #include "slapi-private.h"
 #include "slapi-plugin-compat4.h"
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
 
 /*** from proto-slap.h ***/
 

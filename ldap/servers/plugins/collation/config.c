@@ -78,11 +78,9 @@ strtok_quote( char *line, char *sep )
 	    }
 	    break;
 
-#ifndef _WIN32
 	  case '\\':
 	    *d++ = *++next;
 	    break;
-#endif
 
 	  default:
 	    if ( ! inquote ) {

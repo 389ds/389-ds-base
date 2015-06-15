@@ -40,16 +40,9 @@
 #  include <config.h>
 #endif
 
-
 /*
  *  csngen.c - CSN Generator
  */
-
-#ifdef _WIN32
-#define _WIN32_WINNT 0x0400
-#include <windows.h>
-#endif
-
 #include <string.h>
 #include "prcountr.h"
 #include "slap.h"

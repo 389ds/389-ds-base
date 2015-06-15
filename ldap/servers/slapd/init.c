@@ -45,31 +45,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#endif
 #include "slap.h"
 #include "fe.h"
 
 void
 slapd_init()
 {
-#ifdef _WIN32
-	WSADATA	wsadata;
-	int	err;
-
-	if( err = WSAStartup(0x0101, &wsadata ) != 0 ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
-		    "Windows Sockets initialization failed, error %d (%s)\n",
-		    err, slapd_system_strerror( err ), 0 );
-		exit( 1 );
-	}
-#endif /* _WIN32 */
-
 	/* We don't worry about free'ing this stuff
          * since the only time we want to do that is when
          * the process is exiting. */

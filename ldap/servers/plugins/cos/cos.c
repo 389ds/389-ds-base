@@ -48,11 +48,8 @@
 #include "slapi-private.h"
 #include "cos_cache.h"
 #include "vattr_spi.h"
-
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
+
 
 /*** secret slapd stuff ***/
 
@@ -97,15 +94,6 @@ static Slapi_PluginDesc pdesc = { "cos", VENDOR, DS_PACKAGE_VERSION,
 
 static void * cos_plugin_identity = NULL;
 
-
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /*
 ** Plugin identity mgmt

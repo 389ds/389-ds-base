@@ -71,14 +71,6 @@ NOTE: This plugin depends on the Multi-Master Replication Plugin
 #include "repl_shared.h"
 #include "cl4.h"	/* changelog interface */
 
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /* ----------------------------- Legacy Replication Plugin */
 

@@ -44,13 +44,11 @@
 
 #include <stdio.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #ifdef AIX
 #include <time.h>
 #else
 #include <sys/time.h>
 #endif
-#endif /* _WIN32 */
 
 #include "slap.h"
 #include "fe.h"
@@ -128,13 +126,9 @@ get_timestring(time_t *t)
 {
     char	*timebuf;
 
-#if defined( _WIN32 )
-    timebuf = ctime( t );
-#else
     if ( (timebuf = slapi_ch_malloc(32)) == NULL )
-	return("No memory for get_timestring");
+        return("No memory for get_timestring");
     CTIME(t, timebuf, 32);
-#endif
     timebuf[strlen(timebuf) - 1] = '\0';	/* strip out return */
     return(timebuf);
 }
@@ -142,12 +136,8 @@ get_timestring(time_t *t)
 void
 free_timestring(char *timestr)
 {
-#if defined( _WIN32 )
-    return;
-#else
     if ( timestr != NULL )
         slapi_ch_free((void**)&timestr);
-#endif
 }
 
 /*
@@ -195,14 +185,7 @@ time_plus_sec (time_t l, long r)
        perhaps it would be better to implement it that way. */
     struct tm t;
     if (r == 0) return l; /* performance optimization */
-#ifdef _WIN32
-    {
-        struct tm *pt = localtime( &l );
-        memcpy(&t, pt, sizeof(struct tm) );
-    }
-#else
     localtime_r (&l, &t);
-#endif
     /* Conceptually, we want to do: t.tm_sec += r;
        but to avoid overflowing fields: */
     r += t.tm_sec;  t.tm_sec  = r % 60; r /= 60;
@@ -223,17 +206,12 @@ format_localTime (time_t from)
 {
     char* into;
     struct tm t;
-#ifdef _WIN32
-    {
-        struct tm *pt = localtime( &from );
-        memcpy(&t, pt, sizeof(struct tm) );
-    }
-#else
+
     localtime_r (&from, &t);
-#endif
+
     into = slapi_ch_smprintf("%.4li%.2i%.2i%.2i%.2i%.2i",
              1900L + t.tm_year, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.
-tm_sec);
+             tm_sec);
     return into;
 }
 
@@ -297,14 +275,8 @@ format_genTime (time_t from)
 {
     char* into;
     struct tm t;
-#ifdef _WIN32
-    {
-        struct tm *pt = gmtime( &from );
-        memcpy(&t, pt, sizeof(struct tm) );
-    }
-#else
+
     gmtime_r (&from, &t);
-#endif
     into = slapi_ch_malloc (20);
     strftime(into, 20, "%Y%m%d%H%M%SZ", &t);
     return into;

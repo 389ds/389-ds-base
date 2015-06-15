@@ -100,11 +100,7 @@ PR_CompareCaseStrings(const void *v1, const void *v2)
     const char *s1 = (const char *)v1;
     const char *s2 = (const char *)v2;
 
-#ifdef XP_WIN32
-    return (util_strcasecmp(s1, s2) == 0);
-#else
     return (strcasecmp(s1, s2) == 0);
-#endif
 }
 #endif /* NO_ACL_HASH_FUNCS */
 

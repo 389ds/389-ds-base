@@ -49,16 +49,11 @@
 #include "netsite.h"
 #include <string.h>
 #include <stdio.h>
-#ifdef XP_UNIX
 #include <unistd.h>
-#endif
 #include <ctype.h>
 #include "util.h"
-
-/* Under NT, this is taken care of by net.h including winsock.h */
-#ifdef XP_UNIX
 #include <netdb.h>  /* struct hostent */
-#endif
+
 extern "C" {
 #include <nspr.h>
 }
@@ -68,7 +63,6 @@ extern "C" {
 /* This is contained in resolv.h on most systems. */
 #define _PATH_RESCONF "/etc/resolv.conf"
 
-#ifdef XP_UNIX
 NSPR_BEGIN_EXTERN_C
 #ifdef Linux
 extern int getdomainname(char *, size_t);
@@ -83,7 +77,6 @@ extern int gethostname (char *name, int namelen);
 #endif
 #endif
 NSPR_END_EXTERN_C
-#endif
 
 
 /* ---------------------------- dns_guess_domain -------------------------- */

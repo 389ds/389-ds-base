@@ -65,22 +65,10 @@ extern "C" {
 
 /* calling conventions used by library */
 #ifndef LDAP_CALL
-#if defined( _WINDOWS ) || defined( _WIN32 )
-#define LDAP_C __cdecl
-#ifndef _WIN32 
-#define __stdcall _far _pascal
-#define LDAP_CALLBACK _loadds
-#else
-#define LDAP_CALLBACK
-#endif /* _WIN32 */
-#define LDAP_PASCAL __stdcall
-#define LDAP_CALL LDAP_PASCAL
-#else /* _WINDOWS */
 #define LDAP_C
 #define LDAP_CALLBACK
 #define LDAP_PASCAL
 #define LDAP_CALL
-#endif /* _WINDOWS */
 #endif /* LDAP_CALL */
 
 struct ldap_searchattr {

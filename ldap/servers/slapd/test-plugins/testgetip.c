@@ -71,11 +71,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
 #include "slapi-plugin.h"
 #include "nspr.h"
 
@@ -128,9 +126,6 @@ testgetip( Slapi_PBlock *pb )
 	return( 0 );
 }
 
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testgetip_init( Slapi_PBlock *pb )
 {

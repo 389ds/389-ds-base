@@ -201,15 +201,7 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
 
     /* fill in modifytimestamp */
     curtime = current_time();
-#ifdef _WIN32
-{
-    struct tm *pt;
-    pt = gmtime(&curtime);
-    memcpy(&utm, pt, sizeof(struct tm));
-}
-#else
     gmtime_r(&curtime, &utm);
-#endif
     strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &utm);
     bv.bv_val = buf;
     bv.bv_len = strlen(bv.bv_val);

@@ -438,46 +438,9 @@
 #define SA_HANDLER_T(x) (void (*)(int))x
 #endif
 
-#elif defined (XP_WIN32)      /* Windows NT */
-
-#include <wtypes.h>
-#include <winbase.h>
-
-typedef void* PASSWD;
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-/* size has been raised to 200 with NT 4.0 server; NT 4.0 workstation is still
- * limited
- */
-#define DAEMON_LISTEN_SIZE 200
-#define DAEMON_WIN32
-#define DLL_CAPABLE
-#define DLL_WIN32
-#define DNS_CACHE
-#define LOG_BUFFERING
-#define HAVE_STRFTIME /* no cftime */
-#define NEED_CRYPT_PROTO
-#define NEEDS_WRITEV
-#define NET_SOCKETS
-#ifndef NO_DOMAINNAME
-#define NO_DOMAINNAME
-#endif
-#ifdef BUILD_DLL
-#define NSAPI_PUBLIC __declspec(dllexport)
 #else
-#define NSAPI_PUBLIC
-#endif /* BUILD_DLL */
-#define THREAD_ANY
-#define THREAD_NSPR_KERNEL
-#define USE_NSPR
-#define USE_STRFTIME /* no cftime */
-
-#else
-
 #error "Missing defines in ns/netsite/include/base/systems.h"
-
-#endif	/* Windows NT */
+#endif
 
 /* Pick up the configuration symbols in the public interface */
 #ifndef PUBLIC_BASE_SYSTEMS_H
@@ -513,7 +476,6 @@ typedef void* PASSWD;
 /* NS_MAIL builds sec-key.c which calls systhread_init, which requires */
 /* that USE_NSPR is defined when systhr.c is compiled.  --lachman */
 /* MCC_PROXY does the same thing now --nbreslow -- LIKE HELL --ari */
-#if defined(XP_UNIX)
 #define USE_NSPR
 /* XXXrobm This is UNIX-only for the moment */
 #define LOG_BUFFERING
@@ -527,7 +489,6 @@ typedef void* PASSWD;
 #endif /* IRIX */
 #endif /* SW_THREADS */
 #define THREAD_ANY
-#endif /* XP_UNIX */
 
 /* --- End the great debate --- */
 

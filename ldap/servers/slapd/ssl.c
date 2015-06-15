@@ -42,18 +42,6 @@
 
 /* SSL-related stuff for slapd */
 
-#if defined( _WINDOWS )
-#include <windows.h>
-#include <winsock.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include "proto-ntutil.h"
-#include <string.h>
-#include <stdlib.h>
-#include <direct.h>
-#include <io.h>
-#endif
-
 #include <stdio.h>
 #include <sys/param.h>
 #include <ssl.h>
@@ -2087,11 +2075,7 @@ slapd_SSL_client_auth (LDAP* ld)
     Slapi_Entry *entry = NULL;
     char cert_name[1024];
     char *token = NULL;
-#ifndef _WIN32
     SVRCOREStdPinObj *StdPinObj;
-#else
-    SVRCOREAltPinObj *AltPinObj;
-#endif
     SVRCOREError err = SVRCORE_Success;
 
     if((family_list = getChildren(configDN))) {
@@ -2203,57 +2187,54 @@ slapd_SSL_client_auth (LDAP* ld)
     /* Free config data */
 
     if (!svrcore_setup()) {
-#ifndef _WIN32
-	StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
-	err =  SVRCORE_StdPinGetPin( &pw, StdPinObj, token );
-#else
-	AltPinObj = (SVRCOREAltPinObj *)SVRCORE_GetRegisteredPinObj();
-	pw = SVRCORE_GetPin( (SVRCOREPinObj *)AltPinObj, token, PR_FALSE);
-#endif
-	if ( err != SVRCORE_Success || pw == NULL) {
-	    errorCode = PR_GetError();
-	    slapd_SSL_warn("SSL client authentication cannot be used "
-			   "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
-			   errorCode, slapd_pr_strerror(errorCode));
-	} else {
+        StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+        err =  SVRCORE_StdPinGetPin( &pw, StdPinObj, token );
+        if ( err != SVRCORE_Success || pw == NULL) {
+            errorCode = PR_GetError();
+            slapd_SSL_warn("SSL client authentication cannot be used "
+                "(no password). (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                errorCode, slapd_pr_strerror(errorCode));
+        } else {
 #if defined(USE_OPENLDAP)
-	    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, SERVER_KEY_NAME);
-	    if (rc) {
-		slapd_SSL_warn("SSL client authentication cannot be used "
-			       "unable to set the key to use to %s", SERVER_KEY_NAME);
-	    }
-	    rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, cert_name);
-	    if (rc) {
-		slapd_SSL_warn("SSL client authentication cannot be used "
-			       "unable to set the cert to use to %s", cert_name);
-	    }
-	    /* not sure what else needs to be done for client auth - don't 
-	       currently have a way to pass in the password to use to unlock
-	       the keydb - nor a way to disable caching */
+            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, SERVER_KEY_NAME);
+            if (rc) {
+                slapd_SSL_warn("SSL client authentication cannot be used "
+                    "unable to set the key to use to %s", SERVER_KEY_NAME);
+            }
+            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, cert_name);
+            if (rc) {
+                slapd_SSL_warn("SSL client authentication cannot be used "
+                    "unable to set the cert to use to %s", cert_name);
+            }
+            /*
+             * not sure what else needs to be done for client auth - don't
+             * currently have a way to pass in the password to use to unlock
+             * the keydb - nor a way to disable caching
+             */
 #else /* !USE_OPENLDAP */
-	    rc = ldapssl_enable_clientauth (ld, SERVER_KEY_NAME, pw, cert_name);
-	    if (rc != 0) {
-		errorCode = PR_GetError();
-		slapd_SSL_warn("ldapssl_enable_clientauth(%s, %s) %i ("
-			       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-			       SERVER_KEY_NAME, cert_name, rc, 
-			       errorCode, slapd_pr_strerror(errorCode));
-	    } else {
-		/* We cannot allow NSS to cache outgoing client auth connections -
-		   each client auth connection must have it's own non-shared SSL
-		   connection to the peer so that it will go through the
-		   entire handshake protocol every time including the use of its
-		   own unique client cert - see bug 605457
-		*/
-
-		ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
-	    }
+            rc = ldapssl_enable_clientauth (ld, SERVER_KEY_NAME, pw, cert_name);
+            if (rc != 0) {
+                errorCode = PR_GetError();
+                slapd_SSL_warn("ldapssl_enable_clientauth(%s, %s) %i ("
+                    SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                    SERVER_KEY_NAME, cert_name, rc,
+                    errorCode, slapd_pr_strerror(errorCode));
+            } else {
+                /*
+                 * We cannot allow NSS to cache outgoing client auth connections -
+                 * each client auth connection must have it's own non-shared SSL
+                 * connection to the peer so that it will go through the
+                 * entire handshake protocol every time including the use of its
+                 * own unique client cert - see bug 605457
+                 */
+                 ldapssl_set_option(ld, SSL_NO_CACHE, PR_TRUE);
+            }
 #endif
-	}
+        }
     }
 
-    if (token) slapi_ch_free((void**)&token);
-    slapi_ch_free((void**)&pw);
+    slapi_ch_free_string(&token);
+    slapi_ch_free_string(&pw);
 
     LDAPDebug (LDAP_DEBUG_TRACE, "slapd_SSL_client_auth() %i\n", rc, 0, 0);
     return rc;
@@ -2289,10 +2270,6 @@ char* slapd_get_tmp_dir()
 {
 	static char tmp[MAXPATHLEN];
 	char* tmpdir = NULL;;
-#if defined( XP_WIN32 )
-	unsigned ilen;
-	char pch;
-#endif
 
 	tmp[0] = '\0';
 
@@ -2303,43 +2280,10 @@ char* slapd_get_tmp_dir()
 			 "slapd_get_tmp_dir",
 			 "config_get_tmpdir returns NULL Setting tmp dir to default\n");
 
-#if defined( XP_WIN32 )
-		ilen = sizeof(tmp);
-		GetTempPath( ilen, tmp );
-		tmp[ilen-1] = (char)0;
-		ilen = strlen(tmp);
-		/* Remove trailing slash. */
-		pch = tmp[ilen-1];
-		if( pch == '\\' || pch == '/' )
-			tmp[ilen-1] = '\0';
-#else
 		strcpy(tmp, "/tmp");
-#endif
 		return slapi_ch_strdup(tmp);
 	}
 
-#if defined( XP_WIN32 )
-	{
-		char *ptr = NULL;
-		char *endptr = tmpdir + strlen(tmpdir);
-		for(ptr = tmpdir; ptr < endptr; ptr++)
-		{
-			if('/' == *ptr)
-				*ptr = '\\';
-		}
-	}
-#endif
-
-#if defined( XP_WIN32 )
-	if(CreateDirectory(tmpdir, NULL) == 0)
-	{
-		slapi_log_error(
-			 SLAPI_LOG_FATAL,
-			 "slapd_get_tmp_dir",
-			 "CreateDirectory(%s, NULL) Error: %s\n",
-			 tmpdir, strerror(errno));	
-	}
-#else
 	if(mkdir(tmpdir, 00770) == -1)
 	{
 		if (errno == EEXIST) {
@@ -2356,7 +2300,7 @@ char* slapd_get_tmp_dir()
 			 tmpdir, strerror(errno));
 		}
 	}
-#endif
+
 	return ( tmpdir );
 }
 

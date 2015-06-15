@@ -60,13 +60,11 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef  _WIN32
 #include <errno.h>
 #ifdef LINUX
 #include <sys/statfs.h>
 #else
 #include <sys/statvfs.h>
-#endif
 #endif
 #include <fcntl.h>
 #include "prio.h"
@@ -108,11 +106,7 @@
 #define PREVLOGFILE	"Previous Log File:"
 
 /* see log.c for why this is done */
-#ifdef XP_WIN32
-typedef FILE *LOGFD;
-#else
 typedef PRFileDesc *LOGFD;
-#endif
 
 
 struct logfileinfo {

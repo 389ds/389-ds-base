@@ -47,11 +47,8 @@
 #include "portable.h"
 #include "slapi-plugin.h"
 #include "statechange.h"
-
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
+
 
 /* the circular list of systems to notify */
 typedef struct _statechange_notify
@@ -98,16 +95,6 @@ static SCNotify *statechange_find_notify(char *dn, char *filter, notify_callback
 
 static Slapi_PluginDesc pdesc = { "statechange", VENDOR, DS_PACKAGE_VERSION,
 	"state change notification service plugin" };
-
-
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 
 /* 

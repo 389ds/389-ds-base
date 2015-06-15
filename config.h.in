@@ -423,9 +423,6 @@
 /* package version */
 #undef VERSION
 
-/* UNIX */
-#undef XP_UNIX
-
 /* GNU Source */
 #undef _GNU_SOURCE
 

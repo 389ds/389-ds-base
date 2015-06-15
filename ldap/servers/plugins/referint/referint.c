@@ -45,25 +45,14 @@
 #include "portable.h"
 #include "slapi-plugin.h"
 #include "slap.h"
-
-/* include NSPR header files */
 #include "prthread.h"
 #include "prlock.h"
 #include "prerror.h"
 #include "prcvar.h"
 #include "prio.h"
-
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
 
-#ifdef _WIN32
-#define REFERINT_DEFAULT_FILE_MODE	0
-#else
 #define REFERINT_DEFAULT_FILE_MODE S_IRUSR | S_IWUSR
-#endif
-
 #define REFERINT_PLUGIN_SUBSYSTEM   "referint-plugin"   /* used for logging */
 #define REFERINT_PREOP_DESC "referint preop plugin"
 #define REFERINT_ATTR_DELAY "referint-update-delay"
@@ -129,14 +118,6 @@ static void* referint_plugin_identity = NULL;
 static int use_txn = 0;
 static int premodfn = SLAPI_PLUGIN_PRE_MODIFY_FN;
 
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 static void
 referint_lock()

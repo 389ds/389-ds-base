@@ -70,10 +70,7 @@
 #include <dlfcn.h>
 #include "slap.h"
 #include "fe.h"
-
-#if	!defined (_WIN32)
 #include <pwd.h>
-#endif  /* _WIN32 */
 
 extern char ** getSupportedCiphers();
 extern char ** getEnabledCiphers();

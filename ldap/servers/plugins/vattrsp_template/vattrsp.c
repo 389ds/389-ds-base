@@ -51,10 +51,7 @@
 /* the global plugin handle */
 static volatile vattr_sp_handle *vattr_handle = NULL;
 
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
 
 
 #define VATTRSP_PLUGIN_SUBSYSTEM   "vattrsp-template-plugin"   /* used for logging */

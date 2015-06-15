@@ -68,13 +68,8 @@
 #define UUID_H
 
 /* Set this to what your compiler uses for 64 bit data type */
-#ifdef _WIN32
-#define unsigned64_t unsigned __int64
-#define I64(C) C
-#else
 #define unsigned64_t unsigned long long
 #define I64(C) C##LL
-#endif
 
 /***** uuid related data types *****/
 /* 

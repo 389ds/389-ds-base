@@ -58,12 +58,10 @@
 #include <sys/stat.h>
 #endif /* svr4 */
 #include <fcntl.h>
-#ifndef _WIN32
 #include <errno.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
-#endif
 #include <signal.h>
 #ifdef LINUX
 #undef CTIME

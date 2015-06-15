@@ -51,17 +51,10 @@
 
 #include <stdio.h>
 #include <limits.h>
-
 #include "base/systems.h"
 #include "base/systhr.h"
 #include "base/util.h"
- 
-#ifdef XP_UNIX
 #include <unistd.h>
-#else /* XP_WIN32 */
-#include <winsock.h>
-#endif /* XP_WIN32 */
-
 #include "prinit.h"
 #include "prthread.h"
 #include "prlong.h"

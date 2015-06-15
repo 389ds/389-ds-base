@@ -54,14 +54,6 @@
 static Slapi_PluginDesc pdesc = { "ldif-backend", "Netscape", DS_PACKAGE_VERSION,
 	"LDIF backend database plugin" };
 
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /*
  *  Function: ldif_back_init

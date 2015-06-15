@@ -51,10 +51,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
-#ifndef _WIN32
 #include <sys/param.h>
-#endif /* _WIN32 */
-
 #include "portable.h" /* GGOODREPL - is this cheating? */
 #include "repl_shared.h"
 #include "llist.h"
@@ -191,7 +188,7 @@ extern const char *type_winSyncWindowsFilter;
 extern const char *type_winSyncDirectoryFilter;
 extern const char *type_winSyncSubtreePair;
 
-/* To Allow Consumer Initialisation when adding an agreement - */
+/* To Allow Consumer Initialization when adding an agreement - */
 extern const char *type_nsds5BeginReplicaRefresh;
 
 /* For tuning replica release */

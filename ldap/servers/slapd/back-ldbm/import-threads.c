@@ -52,9 +52,6 @@
 #include "back-ldbm.h"
 #include "vlv_srch.h"
 #include "import.h"
-#ifdef XP_WIN32
-#define STDIN_FILENO 0
-#endif
 
 static void import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
@@ -347,15 +344,7 @@ import_add_created_attrs(Slapi_Entry *e)
     }
 
     curtime = current_time();
-#ifdef _WIN32
-{
-    struct tm *pt;
-    pt = gmtime(&curtime);
-    memcpy(&ltm, pt, sizeof(struct tm));
-}
-#else
     gmtime_r(&curtime, &ltm);
-#endif
     strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &ltm);
 
     bv.bv_val = buf;
@@ -476,15 +465,6 @@ import_producer(void *param)
                 fd = STDIN_FILENO;
             } else {
                 int o_flag = O_RDONLY;
-#ifdef XP_WIN32
-                /* 613041 Somehow the windows low level io lose "\n"
-                   at a very particular situation using O_TEXT mode read.
-                   I think it is a windows bug for O_TEXT mode read.
-                   Use O_BINARY instead, which honestly returns chars
-                   without any translation.
-                */
-                o_flag |= O_BINARY;
-#endif
                 fd = dblayer_open_huge_file(curr_filename, o_flag, 0);
             }
             if (fd < 0) {

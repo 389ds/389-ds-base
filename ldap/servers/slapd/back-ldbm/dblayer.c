@@ -95,11 +95,9 @@
 #include "dblayer.h"
 #include <prthread.h>
 #include <prclist.h>
-#ifndef XP_WIN32
 #include <sys/types.h>
 #include <sys/statvfs.h>
 #include <sys/resource.h>
-#endif
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
@@ -793,20 +791,6 @@ static void dblayer_select_ncache(size_t cachesize, int *ncachep)
 			*ncachep, 0, 0);
 	}
 #endif
-	/* On Windows, we know that it's hard to allocate more than some 
-	 * maximum chunk. In that case
-	 * we set ncache to a sensible value.
-	 */
-#if defined(_WIN32)
-	{
-		size_t max_windows_chunk = (300 * MEGABYTE); /* This number was determined empirically on Win2k */
-		if (cachesize > max_windows_chunk) {
-			*ncachep = (cachesize / max_windows_chunk) + 1;
-			LDAPDebug(LDAP_DEBUG_ANY,"Setting ncache to: %d for Windows memory address space fragmentation\n",
-                *ncachep, 0, 0);
-		}
-	}
-#endif
 }
 
 /* This function is no longer called : 
@@ -935,7 +919,6 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
 #include <sys/pstat.h>
 #endif
 
-#if !defined(_WIN32)
 static size_t dblayer_getvirtualmemsize()
 {
     struct rlimit rl;
@@ -944,7 +927,6 @@ static size_t dblayer_getvirtualmemsize()
     getrlimit(RLIMIT_AS, &rl);
     return rl.rlim_cur;
 }
-#endif
 
 /* pages = number of pages of physical ram on the machine (corrected for 32-bit build on 64-bit machine).
  * procpages = pages currently used by this process (or working set size, sometimes)
@@ -955,26 +937,6 @@ void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_
     *pagesize = *pages = *availpages = 0;
     if (procpages)
         *procpages = 0;
-
-#ifdef _WIN32
-    {
-        SYSTEM_INFO si;
-        MEMORYSTATUS ms;
-
-        GetSystemInfo(&si);
-        ms.dwLength = sizeof(ms);
-        GlobalMemoryStatus(&ms);
-        *pagesize = si.dwPageSize;
-        *pages = ms.dwTotalPhys  / si.dwPageSize;
-        *availpages = ms.dwAvailVirtual / *pagesize;
-        if (procpages) {
-            DWORD minwss = 0, maxwss = 0;
-
-            GetProcessWorkingSetSize(GetCurrentProcess(), &minwss, &maxwss);
-            *procpages = (int)(maxwss / si.dwPageSize);
-        }
-    }
-#endif
 
 #ifdef OS_solaris
     *pagesize = (int)sysconf(_SC_PAGESIZE);
@@ -5859,9 +5821,6 @@ static int count_dbfiles_in_dir(char *directory, int *count, int recurse)
 int
 dblayer_copyfile(char *source, char *destination, int overwrite, int mode) 
 {
-#if defined _WIN32
-    return (0 == CopyFile(source,destination,overwrite ? FALSE : TRUE));
-#else
 #ifdef DB_USE_64LFS
 #define OPEN_FUNCTION dblayer_open_large
 #else
@@ -5935,7 +5894,6 @@ error:
     }
     slapi_ch_free((void**)&buffer);
     return return_value;
-#endif
 }
 
 /*

@@ -46,9 +46,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif
 #undef DEBUG                    /* disable counters */
 #include <prcountr.h>
 #include "slap.h"

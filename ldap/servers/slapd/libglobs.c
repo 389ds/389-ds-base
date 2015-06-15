@@ -62,11 +62,6 @@
 #include <time.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#if defined( _WIN32 )
-#define R_OK 04
-#include "ntslapdmessages.h"
-#include "proto-ntutil.h"
-#else
 #include <sys/time.h>
 #include <sys/param.h> /* MAXPATHLEN */
 #include <sys/socket.h>
@@ -75,7 +70,6 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <pwd.h> /* pwdnam */
-#endif
 #ifdef USE_SYSCONF
 #include <unistd.h>
 #endif /* USE_SYSCONF */
@@ -87,17 +81,8 @@
 
 #define REMOVE_CHANGELOG_CMD "remove"
 
-/* On UNIX, there's only one copy of slapd_ldap_debug */
-/* On NT, each module keeps its own module_ldap_debug, which */
-/* points to the process' slapd_ldap_debug */
-#ifdef _WIN32
-int		*module_ldap_debug;
-int __declspec(dllexport)    slapd_ldap_debug = LDAP_DEBUG_ANY;
-#else
-int     slapd_ldap_debug = LDAP_DEBUG_ANY;
-#endif
-
-char		*ldap_srvtab = "";
+int slapd_ldap_debug = LDAP_DEBUG_ANY;
+char *ldap_srvtab = "";
 
 /* Note that the 'attrname' arguments are used only for log messages */
 typedef int (*ConfigSetFunc)(const char *attrname, char *value,
@@ -880,7 +865,7 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.refer_url,
 		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
-#if !defined(_WIN32) && !defined(AIX)
+#if !defined(AIX)
 	{CONFIG_MAXDESCRIPTORS_ATTRIBUTE, config_set_maxdescriptors,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxdescriptors,
@@ -1426,15 +1411,11 @@ FrontendConfig_init () {
   init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
   cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
 
-#ifdef _WIN32
-  cfg->conntablesize = SLAPD_DEFAULT_CONNTABLESIZE;
-#else
 #ifdef USE_SYSCONF
    cfg->conntablesize  = sysconf( _SC_OPEN_MAX );
 #else /* USE_SYSCONF */
    cfg->conntablesize = getdtablesize();
 #endif /* USE_SYSCONF */
-#endif /* _WIN32 */
 
   init_accesscontrol = cfg->accesscontrol = LDAP_ON;
 #if defined(LINUX)
@@ -1623,19 +1604,9 @@ g_get_global_lastmod()
   return  config_get_lastmod();
 }
 
-
 int g_get_slapd_security_on(){
   return config_get_security();
 }
-
-
-
-#ifdef _WIN32
-void libldap_init_debug_level(int *val_ptr)
-{
-    module_ldap_debug = val_ptr;
-}
-#endif
 
 static struct snmp_vars_t global_snmp_vars;
 
@@ -3751,9 +3722,6 @@ config_set_workingdir( const char *attrname, char *value, char *errorbuf, int ap
   if ( apply) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
 	slapdFrontendConfig->workingdir = slapi_ch_strdup ( value );
-#ifdef _WIN32
-	dostounixpath(slapdFrontendConfig->workingdir);
-#endif /* _WIN32 */
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
@@ -3910,12 +3878,7 @@ config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int
   errno = 0;
   nValue = strtol(value, &endp, 0);
   
-#ifdef _WIN32
-  if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > 0xfffffe ) {
-	PR_snprintf ( errorbuf,  SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", connection table size must range from 1 to 0xfffffe", attrname, value );
-	retVal = LDAP_OPERATIONS_ERROR;
-  }
-#elif !defined(AIX)
+#if !defined(AIX)
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", connection table "
@@ -3945,9 +3908,7 @@ config_set_reservedescriptors( const char *attrname, char *value, char *errorbuf
   int maxVal = 65535;
   long nValue = 0;
   char *endp = NULL;
-#ifndef _WIN32
   struct rlimit rlp;
-#endif
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
@@ -3955,11 +3916,9 @@ config_set_reservedescriptors( const char *attrname, char *value, char *errorbuf
 	return LDAP_OPERATIONS_ERROR;
   }
 
-#ifndef _WIN32
   if ( 0 == getrlimit( RLIMIT_NOFILE, &rlp ) ) {
           maxVal = (int)rlp.rlim_max;
   }
-#endif
 
   errno = 0;
   nValue = strtol(value, &endp, 10);
@@ -4387,12 +4346,7 @@ config_set_errorlog_level( const char *attrname, char *value, char *errorbuf, in
   if ( apply ) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
 	level |= LDAP_DEBUG_ANY;
-
-#ifdef _WIN32
-	*module_ldap_debug = level;
-#else
 	slapd_ldap_debug = level;
-#endif
 	slapdFrontendConfig->errorloglevel = level;
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }

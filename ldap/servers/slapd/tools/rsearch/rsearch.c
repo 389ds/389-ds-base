@@ -56,9 +56,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#ifdef XP_UNIX
 #include <unistd.h>
-#endif
 #include "nspr.h"
 #include "rsearch.h"
 #include "nametable.h"

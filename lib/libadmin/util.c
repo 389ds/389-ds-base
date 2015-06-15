@@ -51,33 +51,24 @@
 #include "private/pprio.h"
 
 #include <base/file.h>
-#ifdef XP_UNIX
 #include <dirent.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#else
-#include <sys/stat.h>
-#endif /* WIN32? */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
-#ifdef XP_UNIX
+
 SYS_FILE lf;
-#elif defined(XP_WIN32)
-HANDLE lf;
-#endif
+
 
 char *get_flock_path(void)
 {
     char *result="";
     char *port=getenv("SERVER_PORT");
-#ifdef XP_UNIX
     result=(char *) MALLOC(strlen("/tmp/lock.%%s.")+strlen(port)+4);
     sprintf(result, "/tmp/lock.%%s.%s", port);
-#endif
     return result;
 }
 

@@ -58,12 +58,6 @@ static char copyright[] = "@(#) Copyright (c) 1993 Regents of the University of 
 static char avl_version[] = "AVL library version 1.0\n";
 #endif
 
-#ifdef _WIN32
-typedef char *caddr_t;
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
-
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>

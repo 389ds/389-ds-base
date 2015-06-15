@@ -99,9 +99,6 @@ Slapi_PluginDesc entrypdesc = { "test-entry", VENDOR, DS_PACKAGE_VERSION,
 	"sample entry modification plugin" };
 
 /* Entry store plug-in function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testentry_scramble( char **entry, unsigned long *len )
 {
@@ -122,9 +119,6 @@ testentry_scramble( char **entry, unsigned long *len )
 }
 
 /* Entry fetch plug-in function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testentry_unscramble( char **entry, unsigned long *len )
 {

@@ -160,9 +160,6 @@ testexop_babs( Slapi_PBlock *pb )
 }
 
 /* Initialization function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testexop_init( Slapi_PBlock *pb )
 {

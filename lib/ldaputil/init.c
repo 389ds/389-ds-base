@@ -56,12 +56,6 @@
 
 #include "slapi-plugin.h"
 
-#ifdef XP_WIN32
-#define DLL_SUFFIX ".dll"
-#ifndef FILE_PATHSEP
-#define FILE_PATHSEP '\\'
-#endif
-#else
 #ifndef FILE_PATHSEP
 #define FILE_PATHSEP '/'
 #endif
@@ -73,7 +67,6 @@
 #endif
 #else
 #define DLL_SUFFIX ".so"
-#endif
 #endif
 
 static int load_server_libs (const char *dir)
@@ -189,9 +182,7 @@ static LDAPUDispatchVector_t __ldapu_vector = {
     ldapu_free
 };
 
-#ifdef XP_UNIX
 LDAPUDispatchVector_t *__ldapu_table = &__ldapu_vector;
-#endif
 
 #if 0
 NSAPI_PUBLIC int CertMapDLLInitFn(LDAPUDispatchVector_t **table)

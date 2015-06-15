@@ -474,11 +474,7 @@ char *acltext;
 #include <stdio.h>
 #include <ctype.h>
 #include <libaccess/aclerror.h>
-#ifdef XP_WIN32
-#include <io.h>
-#endif
 #include "plstr.h"
-
 #include "parse.h"
 #include "aclscan.h"
 

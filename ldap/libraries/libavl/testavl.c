@@ -41,9 +41,6 @@
 #endif
 
 /* testavl.c - Test Tim Howes AVL code */
-#ifdef _WIN32
-#include <windows.h>
-#endif
 #include <sys/types.h>
 #include <stdio.h>
 #include "avl.h"

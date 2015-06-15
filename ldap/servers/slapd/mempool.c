@@ -437,12 +437,6 @@ slapi_ch_malloc( unsigned long	size )
 	PR_INCREMENT_COUNTER(slapi_ch_counter_malloc);
 	PR_INCREMENT_COUNTER(slapi_ch_counter_created);
 	PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
-#if defined(_WIN32) && defined(DEBUG)
-	if(recording)
-	{
-		add_memory_record(newmem,size);
-	}
-#endif
 
 	return( newmem );
 }
@@ -526,13 +520,6 @@ slapi_ch_realloc( char *block, unsigned long size )
 		counters_created= 1;
 	}
     PR_INCREMENT_COUNTER(slapi_ch_counter_realloc);
-#if defined(_WIN32) && defined(DEBUG)
-	if(recording)
-	{
-		remove_memory_record(block);
-		add_memory_record(newmem,size);
-	}
-#endif
 
 	return( newmem );
 }
@@ -607,12 +594,7 @@ slapi_ch_calloc( unsigned long nelem, unsigned long size )
     PR_INCREMENT_COUNTER(slapi_ch_counter_calloc);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
-#if defined(_WIN32) && defined(DEBUG)
-	if(recording)
-	{
-		add_memory_record(newmem,size);
-	}
-#endif
+
 	return( newmem );
 }
 
@@ -638,12 +620,7 @@ slapi_ch_strdup ( const char* s1 )
     PR_INCREMENT_COUNTER(slapi_ch_counter_strdup);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
-#if defined(_WIN32) && defined(DEBUG)
-	if(recording)
-	{
-		add_memory_record(newmem,strlen(s1)+1);
-	}
-#endif
+
     return newmem;
 }
 
@@ -670,15 +647,9 @@ slapi_ch_free(void **ptr)
 	unsigned long size;
 
 	if (ptr==NULL || *ptr == NULL){
-	return;
+		return;
 	}
 
-#if defined(_WIN32) && defined(DEBUG)
-	if(recording)
-	{
-		remove_memory_record(*ptr);
-	}
-#endif
 	realptr = (void *)((char *)*ptr - sizeof(unsigned long));
 	size = *(unsigned long *)realptr;
 	if (size <= 1024) {

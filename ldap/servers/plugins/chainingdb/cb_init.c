@@ -59,10 +59,6 @@ static void cb_set_backend_type(cb_backend * cb) {
 }
 
 /* Initialization function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-
 int
 chaining_back_init( Slapi_PBlock *pb )
 {

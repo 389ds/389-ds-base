@@ -57,18 +57,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #endif
-#ifdef XP_WIN32
-#include <time.h>  /* time */
-#include <sys/stat.h> /* stat */
-#include <errno.h>
-#include <direct.h>
-#include <base/nterr.h>
-/* Removed for ns security integration
-#include <xp_error.h>
-*/
-#endif
 #include <prerror.h>
-
 #include "private/pprio.h"
 #include "prlock.h"
 
@@ -89,60 +78,8 @@ PRLock *_atomic_write_lock = NULL;
     */
 NSAPI_PUBLIC int system_stat(char *path, struct stat *finfo)
 {
-#ifdef XP_WIN32
-
-    int chop, l;
-
-/* The NT stat is very peculiar about directory names. */
-/* XXX aruna - there is a bug here, maybe in the C runtime.
- * Stating the same path in a separate program succeeds. From
- * jblack's profiling, this needs to be replaced by the Win32
- * calls anyway.*/
-
-    l = strlen(path);
-    if((path[l - 1] == '/') && 
-       (!(isalpha(path[0]) && (!strcmp(&path[1], ":/")))))
-    {
-        chop = 1;
-        path[--l] = '\0';
-    }
-    else chop = 0;
-#endif /* XP_WIN32 */
-
-#ifdef XP_UNIX
     if(stat(path, finfo) == -1)
         return -1;
-#else /* XP_WIN32 */
-
-    if(_stat(path, (struct _stat *)finfo) == -1) {
-        /* XXXMB - this sucks; 
-         * try to convert to an error code we'll expect...
-         */
-        switch(errno) {
-            case ENOENT: PR_SetError(PR_FILE_NOT_FOUND_ERROR, errno); break;
-            default: PR_SetError(PR_UNKNOWN_ERROR, errno); break;
-        }
-        return -1;
-    }
-
-    /* NT sets the time fields to -1 if it thinks that the file
-     * is a device ( like com1.html, lpt1.html etc)	In this case
-     * simply set last modified time to the current time....
-     */
-
-    if (finfo->st_mtime == -1) {
-        finfo->st_mtime = time(NULL);
-    }
-    if (finfo->st_atime == -1) {
-        finfo->st_atime = 0;
-    }
-    if (finfo->st_ctime == -1) {
-        finfo->st_ctime = 0;
-    }
-    if(chop)
-        path[l++] = '/';
-
-#endif /* XP_WIN32 */
 
     if(S_ISREG(finfo->st_mode) && (path[strlen(path) - 1] == '/')) {
         /* File with trailing slash */
@@ -173,7 +110,6 @@ NSAPI_PUBLIC int system_fwrite(SYS_FILE fd, char *buf, int sz) {
 
 /* ---------------------------- Standard UNIX ----------------------------- */
 
-#ifdef XP_UNIX
 
 #include <sys/file.h>   /* flock */
 
@@ -225,20 +161,11 @@ NSAPI_PUBLIC int system_nocoredumps(void)
     return 0;
 #endif
 }
-#endif /* XP_UNIX */
 
 /* --------------------------- file_setinherit ---------------------------- */
 
 NSAPI_PUBLIC int file_setinherit(SYS_FILE fd, int value)
 {
-#if defined(XP_WIN32)
-    int ret;
-
-//    ret = SetHandleInformation((HANDLE)PR_FileDesc2NativeHandle(fd), 0, value?HANDLE_FLAG_INHERIT:0);
-	// This function did nothing before since the mask was set to 0.
-    ret = SetHandleInformation((HANDLE)PR_FileDesc2NativeHandle(fd), HANDLE_FLAG_INHERIT, value?HANDLE_FLAG_INHERIT:0);
-    return ret==0?-1:0;
-#elif defined(XP_UNIX)
     int flags = 0;
     PRInt32 nativeFD;
     PRFileDesc *bottom = fd;
@@ -272,7 +199,6 @@ fprintf(stderr, "\nInfo(file_setinherit): Native file descriptor is %d\n", nativ
     fcntl(PR_FileDesc2NativeHandle(fd), F_SETFD, flags);
     return 0;
     */
-#endif
 }
 
 NSAPI_PUBLIC SYS_FILE system_fopenRO(char *p)
@@ -317,197 +243,14 @@ NSAPI_PUBLIC int system_fclose(SYS_FILE fd)
 }
 
 
-#ifdef FILE_WIN32
-
-int CgiBuffering;
-
-NSAPI_PUBLIC SYS_FILE system_fopen(char *path, int access, int flags)
-{
-    char p2[MAX_PATH];
-    SYS_FILE ret;
-    HANDLE fd;
-
-	if (strlen(path) >= MAX_PATH) {
-		return SYS_ERROR_FD;
-	}
-
-    file_unix2local(path, p2);
-
-    fd = CreateFile(p2, access, FILE_SHARE_READ | FILE_SHARE_WRITE, 
-                    NULL, flags, 0, NULL);
-    ret = PR_ImportFile((int32)fd);
-
-    if(ret == INVALID_HANDLE_VALUE)
-        return SYS_ERROR_FD;
-
-    return ret;
-}
-
-
-
-NSAPI_PUBLIC int system_pread(SYS_FILE fd, char *buf, int BytesToRead) {
-    unsigned long BytesRead = 0;
-    int result = 0;
-    BOOLEAN TimeoutSet = FALSE;
-
-    /* XXXMB - nspr20 should be able to do this; but right now it doesn't
-     * return proper error info.
-     * fix it later...
-     */
-    if(ReadFile((HANDLE)PR_FileDesc2NativeHandle(fd), (LPVOID)buf, BytesToRead, &BytesRead, NULL) == FALSE) {
-        if (GetLastError() == ERROR_BROKEN_PIPE) {
-            return IO_EOF;
-        } else {
-            return IO_ERROR;
-        }
-    }
-    return (BytesRead ? BytesRead : IO_EOF);
-}
-
-NSAPI_PUBLIC int system_pwrite(SYS_FILE fd, char *buf, int BytesToWrite) 
-{
-    unsigned long BytesWritten;
-    
-    if (WriteFile((HANDLE)PR_FileDesc2NativeHandle(fd), (LPVOID)buf, 
-                  BytesToWrite, &BytesWritten, NULL) == FALSE) {
-        return IO_ERROR;
-    }
-    return BytesWritten;
-}
-
-
-NSAPI_PUBLIC int system_fwrite_atomic(SYS_FILE fd, char *buf, int sz) 
-{
-    int ret;
-
-#if 0
-    if(system_flock(fd) == IO_ERROR)
-        return IO_ERROR;
-#endif
-    /* XXXMB - this is technically thread unsafe, but it catches any 
-     * callers of fwrite_atomic when we're single threaded and just coming
-     * to life.
-     */
-    if (!_atomic_write_lock) {
-        _atomic_write_lock = PR_NewLock();
-    }
-    PR_Lock(_atomic_write_lock);
-    ret = system_fwrite(fd,buf,sz);
-    PR_Unlock(_atomic_write_lock);
-#if 0
-     if(system_ulock(fd) == IO_ERROR)
-        return IO_ERROR;
-#endif
-    return ret;
-}
-
-
-NSAPI_PUBLIC void file_unix2local(char *path, char *p2)
-{
-    /* Try to handle UNIX-style paths */
-    if((!strchr(path, FILE_PATHSEP))) {
-        int x;
-
-        for(x = 0; path[x]; x++)
-            p2[x] = (path[x] == '/' ? '\\' : path[x]);
-        p2[x] = '\0';
-    }
-    else
-        strcpy(p2, path);
-}
-
-
-NSAPI_PUBLIC int system_nocoredumps(void)
-{
-    return 0;
-}
-
-/* --------------------------- system_winerr ------------------------------ */
-
-
-#include <winsock.h>
-#include <errno.h>
-#include "util.h"
-
-NSAPI_PUBLIC char *system_winsockerr(void)
-{
-	int errn = WSAGetLastError();
-
-	return FindError(errn);
-}
-
-NSAPI_PUBLIC char *system_winerr(void)
-{
-	int errn = GetLastError();
-
-	if (errn == 0)
-		errn = WSAGetLastError();
-	return FindError(errn);
-}
-
-/* ------------------------- Dir related stuff ---------------------------- */
-
-
-NSAPI_PUBLIC SYS_DIR dir_open(char *pathp)
-{
-    dir_s *ret = (dir_s *) MALLOC(sizeof(dir_s));
-    char path[MAX_PATH];
-    int l;
-
-	if (strlen(pathp) >= MAX_PATH) {
-		return NULL;
-	}
-
-    l = util_sprintf(path, "%s", pathp) - 1;
-	path[strlen(pathp)] = '\0';
-    if(path[strlen(path) - 1] != FILE_PATHSEP)
-        	strcpy (path + strlen(path), "\\*.*");
-	else
-		util_sprintf(path, "%s*.*", path);
-
-    ret->de.d_name = NULL;
-    if( (ret->dp = FindFirstFile(path, &ret->fdata)) != INVALID_HANDLE_VALUE)
-        return ret;
-    FREE(ret);
-    return NULL;
-}
-
-NSAPI_PUBLIC SYS_DIRENT *dir_read(SYS_DIR ds)
-{
-    if(FindNextFile(ds->dp, &ds->fdata) == FALSE)
-        return NULL;
-    if(ds->de.d_name)
-        FREE(ds->de.d_name);
-    ds->de.d_name = STRDUP(ds->fdata.cFileName);
-
-    return &ds->de;
-}
-
-NSAPI_PUBLIC void dir_close(SYS_DIR ds)
-{
-    FindClose(ds->dp);
-    if(ds->de.d_name)
-        FREE(ds->de.d_name);
-    FREE(ds);
-}
-
-#endif /* FILE_WIN32 */
-
 NSAPI_PUBLIC int file_notfound(void)
 {
-#ifdef FILE_WIN32
-    int errn = PR_GetError();
-    return (errn == PR_FILE_NOT_FOUND_ERROR);
-#else
     return (errno == ENOENT);
-#endif
 }
 
-#ifdef XP_UNIX
 #if !defined(SNI) && !defined(LINUX)
 extern char *sys_errlist[];
 #endif /* SNI */
-#endif
 
 #define ERRMSG_SIZE 35
 #ifdef THREAD_ANY
@@ -528,9 +271,6 @@ void system_errmsg_init(void)
 #if defined(THREAD_ANY)
         errmsg_key = systhread_newkey();
 #endif
-#ifdef XP_WIN32
-        HashNtErrors();
-#endif
         if (!_atomic_write_lock)
             _atomic_write_lock = PR_NewLock();
     }
@@ -542,9 +282,6 @@ NSAPI_PUBLIC int system_errmsg_fn(char **buff, size_t maxlen)
     char *lmsg = 0; /* Local message pointer */
     size_t msglen = 0;
     PRErrorCode nscp_error;
-#ifdef XP_WIN32
-    LPTSTR sysmsg = 0;
-#endif
 
     nscp_error = PR_GetError();
 
@@ -566,21 +303,6 @@ NSAPI_PUBLIC int system_errmsg_fn(char **buff, size_t maxlen)
             lmsg = static_error;
         }
     } else {
-#if defined(XP_WIN32)
-        msglen = FormatMessage(
-                    FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ALLOCATE_BUFFER,
-                    NULL, 
-                    GetLastError(), 
-                    LOCALE_SYSTEM_DEFAULT, 
-                    (LPTSTR)&sysmsg, 
-                    0, 
-                    0);
-        if (msglen > 0)
-            lmsg = sysmsg;
-        else
-            lmsg = system_winerr();
-        SetLastError(0);
-#else
 /* replaced
 #if defined(SNI) || defined(LINUX)
 	/ C++ platform has no definition for sys_errlist /
@@ -589,9 +311,8 @@ NSAPI_PUBLIC int system_errmsg_fn(char **buff, size_t maxlen)
 	lmsg = sys_errlist[errno];
 #endif
 with lmsg =strerror(errno);*/
-	lmsg=strerror(errno);
+        lmsg=strerror(errno);
         errno = 0;
-#endif
     }
 
     /* At this point lmsg points to something. */
@@ -603,12 +324,6 @@ with lmsg =strerror(errno);*/
         memcpy(*buff, lmsg, msglen+1);
     else
         msglen = 0;
-
-#ifdef XP_WIN32
-    /* NT's FormatMessage() dynamically allocated the msg; free it */
-    if (sysmsg)
-        LocalFree(sysmsg);
-#endif
 
     return msglen;
 }

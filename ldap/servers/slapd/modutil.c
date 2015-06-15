@@ -46,9 +46,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif /* _WIN32 */					 
 #include "slap.h"
 
 #define SIZE_INIT 4	/* initial element size */

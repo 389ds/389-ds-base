@@ -184,9 +184,6 @@ entry_print( Slapi_Entry *e )
 
 int copyfile(char* source, char * destination, int overwrite, int mode) 
 {
-#if defined _WIN32
-	return (0 == CopyFile(source,destination,overwrite ? FALSE : TRUE));
-#else
 #ifdef DB_USE_64LFS
 #define OPEN_FUNCTION dblayer_open_large
 #else
@@ -252,7 +249,6 @@ error:
 	}
 	slapi_ch_free_string(&buffer);
 	return return_value;
-#endif
 }
 
 /* convert time from string like 1h (1 hour) to corresponding time in seconds */

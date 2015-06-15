@@ -854,8 +854,6 @@ EXPORTS
     slapi_mods2entry @838
 	operation_parameters_new @839
 	operation_parameters_done @840
-	slapi_ch_start_recording @841
-	slapi_ch_stop_recording @842
 	snmp_as_entry @843
 	slapi_filter_compare @844
 ; probably temporary:

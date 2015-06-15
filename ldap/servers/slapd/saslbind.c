@@ -51,9 +51,7 @@
 #include <fe.h>
 #include <sasl.h>
 #include <saslplug.h>
-#ifndef _WIN32
 #include <unistd.h>
-#endif
 
 static char *serverfqdn;
 

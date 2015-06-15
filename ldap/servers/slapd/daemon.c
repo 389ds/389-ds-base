@@ -42,12 +42,6 @@
 
 #include <string.h>
 #include <sys/types.h>
-#ifdef _WIN32
-#include <windows.h>
-#include <process.h> /* for getpid */
-#include "proto-ntutil.h"
-#include "ntslapdmessages.h"
-#else
 #include <unistd.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -62,7 +56,6 @@
 #if defined(HAVE_MNTENT_H)
 #include <mntent.h>
 #endif
-#endif
 #include <time.h>
 #include <signal.h>
 #if defined(IRIX6_2) || defined(IRIX6_3)
@@ -74,13 +67,11 @@
 #endif
 #include <fcntl.h>
 #define TCPLEN_T	int
-#if !defined( _WIN32 )
 #ifdef NEED_FILIO
 #include <sys/filio.h>
 #else /* NEED_FILIO */
 #include <sys/ioctl.h>
 #endif /* NEED_FILIO */
-#endif /* !defined( _WIN32 ) */
 /* for some reason, linux tty stuff defines CTIME */
 #include <stdio.h>
 #ifdef LINUX
@@ -115,9 +106,6 @@ int slapd_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
  */
 short	slapd_housekeeping_timer = 10;
 #endif /* notdef GGOODREPL */
-
-/* Do we support timeout on socket send() ? */
-int have_send_timeouts = 0;
 
 PRFileDesc*		signalpipe[2];
 static int writesignalpipe = SLAPD_INVALID_SOCKET;
@@ -155,9 +143,6 @@ static int get_configured_connection_table_size();
 static void get_loopback_by_addr( void );
 #endif
 
-#ifdef XP_WIN32
-static int createlistensocket(unsigned short port, const PRNetAddr *listenaddr);
-#endif
 static PRFileDesc **createprlistensockets(unsigned short port,
 	PRNetAddr **listenaddr, int secure, int local);
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf,
@@ -173,77 +158,7 @@ static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileD
 static void* catch_signals();
 #endif
 
-#if defined( _WIN32 )
-HANDLE  hServDoneEvent = NULL;
-#endif
-
 static int createsignalpipe( void );
-
-#if defined( _WIN32 )
-/* Set an event to hook the NT Service termination */
-void *slapd_service_exit_wait()
-{
-#if defined( PURIFYING )
-
-#include <sys/types.h> 
-#include <sys/stat.h>
-
-	char module[_MAX_FNAME];
-	char exit_file_name[_MAX_FNAME];
-	char drive[_MAX_DRIVE];
-	char dir[_MAX_DIR];
-	char fname[_MAX_FNAME];
-	char ext[_MAX_EXT];
-	struct stat statbuf;
-
-	memset( module, 0, sizeof( module ) );
-	memset( exit_file_name, 0, sizeof( exit_file_name ) );
-
-	GetModuleFileName(GetModuleHandle( NULL ), module, sizeof( module ) );
-
-	_splitpath( module, drive, dir, fname, ext );
-
-	PR_snprintf( exit_file_name, sizeof(exit_file_name), "%s%s%s", drive, dir, "exitnow.txt" );
-
-    LDAPDebug( LDAP_DEBUG_ANY, "PURIFYING - Create %s to terminate the process.\n", exit_file_name, 0, 0 );
-
-	while ( TRUE )
-	{
-		if( stat( exit_file_name, &statbuf ) < 0)
-		{
-			Sleep( 5000 );  /* 5 Seconds */
-			continue;
-		}
-	    LDAPDebug( LDAP_DEBUG_ANY, "slapd shutting down immediately, "
-		"\"%s\" exists - don't forget to delete it\n", exit_file_name, 0, 0 );
-		g_set_shutdown( SLAPI_SHUTDOWN_SIGNAL );
-		return NULL;
-	}
-
-#else /*  PURIFYING  */
-
-	DWORD dwWait;
-	char szDoneEvent[256];
-
-	PR_snprintf(szDoneEvent, sizeof(szDoneEvent), "NS_%s", pszServerName);
-
-	hServDoneEvent = CreateEvent( NULL,			// default security attributes (LocalSystem)
-								  TRUE,			// manual reset event
-								  FALSE,		// not-signalled
-								  szDoneEvent );// named after the service itself.
-
-    /*  Wait indefinitely until hServDoneEvent is signaled. */
-    dwWait = WaitForSingleObject( hServDoneEvent,  // event object
-								  INFINITE );      // wait indefinitely
-
-	/* The termination event has been signalled, log this occurrence, and signal to exit. */
-	ReportSlapdEvent( EVENTLOG_INFORMATION_TYPE, MSG_SERVER_SHUTDOWN_STARTING, 0, NULL );
-
-	g_set_shutdown( SLAPI_SHUTDOWN_SIGNAL );
-	return NULL;
-#endif /* PURIFYING  */
-}
-#endif /* _WIN32 */
 
 static char *
 get_pid_file()
@@ -251,63 +166,13 @@ get_pid_file()
     return(pid_file);
 }
 
-static int daemon_configure_send_timeout(int s,size_t timeout /* Miliseconds*/)
-{
-	/* Currently this function is only good for NT, and expects the s argument to be a SOCKET */
-#if defined(_WIN32)
-	return setsockopt(
-		s,
-		SOL_SOCKET,
-		SO_SNDTIMEO,
-		(char*) &timeout,
-		sizeof(timeout)
-		);
-#else
-	return 0;
-#endif
-}
-
-#if defined (_WIN32)
-/* This function is a workaround for accept problem on NT. 
-   Accept call fires on NT during syn scan even though the connection is not
-   open. This causes a resource leak. For more details, see bug 391414.
-   Experimentally, we determined that, in case of syn scan, the local     
-   address is set to 0. This in undocumented and my change in the future
-    
-   The function returns 0 if this is normal connection
-                        1 if this is syn_scan connection
-                       -1 in case of any other error
- */
-static int 
-syn_scan (int sock)
-{
-    int rc;
-    struct sockaddr_in addr;
-    int size = sizeof (addr);
-
-    if (sock == SLAPD_INVALID_SOCKET)
-        return -1;
-
-    rc = getsockname (sock, (struct sockaddr*)&addr,  &size); 
-    if (rc != 0)
-        return -1;
-    else if (addr.sin_addr.s_addr == 0)
-        return 1;
-    else
-        return 0;
-}
-
-#endif
-
 static int
-accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr, 
+accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 	int addrlen, int secure, int local, PRFileDesc **pr_clonefd)
 {
 	int ns = 0;
-
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
 
-#if !defined( XP_WIN32 ) /* UNIX */
 	(*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
 	if( !(*pr_clonefd) ) {
 		PRErrorCode prerr = PR_GetError();
@@ -316,67 +181,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 				prerr, slapd_pr_strerror(prerr), 0 );
 		return(SLAPD_INVALID_SOCKET);
 	}
-
 	ns = configure_pr_socket( pr_clonefd, secure, local );
-
-#else /* Windows */
-	if( secure ) {
-		(*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
-		if( !(*pr_clonefd) ) {
-			PRErrorCode prerr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY, "PR_Accept() failed, "
-				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", 
-			    prerr, slapd_pr_strerror(prerr), 0 );
-
-			/* Bug 613324: Call PR_NT_CancelIo if an error occurs */
-			if( (prerr == PR_IO_TIMEOUT_ERROR ) ||
-			    (prerr == PR_PENDING_INTERRUPT_ERROR) ) {
-				if( (PR_NT_CancelIo( pr_acceptfd )) != PR_SUCCESS) {
-					prerr = PR_GetError();
-					LDAPDebug( LDAP_DEBUG_ANY, 
-						"PR_NT_CancelIo() failed, "
-						SLAPI_COMPONENT_NAME_NSPR 
-						" error %d (%s)\n",
-						prerr, slapd_pr_strerror(prerr), 0 );
-				}
-			}
-			return(SLAPD_INVALID_SOCKET);
-		}
-
-		ns = configure_pr_socket( pr_clonefd, secure, local );
-
-	} else { /* !secure */
-		struct sockaddr *addr; /* NOT IPv6 enabled */
-
-		addr = (struct sockaddr *) slapi_ch_malloc( sizeof(struct sockaddr) );
-		ns = accept (s, addr, (TCPLEN_T *)&addrlen);
-
-		if (ns == SLAPD_INVALID_SOCKET) {
-			int oserr = errno;
-			
-			LDAPDebug( LDAP_DEBUG_ANY,
-				   "accept(%d) failed errno %d (%s)\n",
-				   s, oserr, slapd_system_strerror(oserr));
-		}
-
-		else if (syn_scan (ns))
-		{
-			/* this is a work around for accept problem with SYN scan on NT.
-			See bug 391414 for more details */
-			LDAPDebug(LDAP_DEBUG_ANY, "syn-scan request is received - ignored\n", 0, 0, 0);				
-			closesocket (ns);
-			ns = SLAPD_INVALID_SOCKET;
-		}
-
-		PRLDAP_SET_PORT( pr_netaddr, ((struct sockaddr_in *)addr)->sin_port );
-		PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)addr)->sin_addr.s_addr, &(pr_netaddr->ipv6.ip));
-
-		(*pr_clonefd) = NULL;
-
-		slapi_ch_free( (void **)&addr );
-		configure_ns_socket( &ns );
-	}
-#endif
 
 	return ns;
 }
@@ -384,27 +189,14 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 /* 
  * This is the shiny new re-born daemon function, without all the hair
  */
-#ifdef _WIN32
-static void setup_read_fds(Connection_Table *ct, fd_set *readfds, int n_tcps, int s_tcps );
-static void handle_read_ready(Connection_Table *ct, fd_set *readfds);
-static void set_timeval_ms(struct timeval *t, int ms);
-#endif
 /* GGOODREPL static void handle_timeout( void ); */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn );
 #ifdef ENABLE_NUNC_STANS
 static void ns_handle_new_connection(struct ns_job_t *job);
 #endif
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
-#ifdef _WIN32
-static int clear_signal(fd_set *readfdset);
-#else
 static int clear_signal(struct POLL_STRUCT *fds);
-#endif
-#ifdef _WIN32
-static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, int n_tcps, PRFileDesc *s_tcps);
-#else
 static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
-#endif
 static int write_pid_file();
 static int init_shutdown_detect();
 
@@ -417,58 +209,26 @@ int daemon_pre_setuid_init(daemon_ports_t *ports)
 	int	rc = 0;
 
 	if (0 != ports->n_port) {
-#if defined( XP_WIN32 )
-		ports->n_socket = createlistensocket((unsigned short)ports->n_port,
-											 &ports->n_listenaddr);
-#else
 		ports->n_socket = createprlistensockets(ports->n_port,
 											   ports->n_listenaddr, 0, 0);
-#endif
 	}
 
 	if ( config_get_security() && (0 != ports->s_port) ) {
 		ports->s_socket = createprlistensockets((unsigned short)ports->s_port,
 		    									ports->s_listenaddr, 1, 0);
-#ifdef XP_WIN32
-		ports->s_socket_native = PR_FileDesc2NativeHandle(ports->s_socket);
-#endif
 	} else {
 	    ports->s_socket = SLAPD_INVALID_SOCKET;
-#ifdef XP_WIN32
-	    ports->s_socket_native = SLAPD_INVALID_SOCKET;
-#endif
 	}
 
-#ifndef XP_WIN32
 #if defined(ENABLE_LDAPI)
 	/* ldapi */
 	if(0 != ports->i_port) {
 		ports->i_socket = createprlistensockets(1, ports->i_listenaddr, 0, 1);
 	}
 #endif /* ENABLE_LDAPI */
-#endif
 
 	return( rc );
 }
-
-
-/* Decide whether we're running on a platform which supports send with timeouts */
-static void detect_timeout_support()
-{
-	/* Currently we know that NT4.0 or higher DOES support timeouts */
-#if defined _WIN32
-	/* Get the OS revision */
-	OSVERSIONINFO ver;
-	ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	GetVersionEx(&ver);
-	if (ver.dwPlatformId == VER_PLATFORM_WIN32_NT && ver.dwMajorVersion >= 4) {
-		have_send_timeouts = 1;
-	}
-#else
-	/* Some UNIXen do, but for now I don't feel confident which , and whether timeouts really work there */
-#endif
-}
-
 
 /*
  * The time_shutdown static variable is used to signal the time thread
@@ -1292,17 +1052,10 @@ void slapd_daemon( daemon_ports_t *ports )
 	 * If you want me to do SSL, pass me something in the ssl port number.
 	 * If you don't, pass me zero.
 	 */
-
-#if defined( XP_WIN32 )
-	int n_tcps = 0;
-	int s_tcps_native = 0;
-	PRFileDesc *s_tcps = NULL; 
-#else
 	PRFileDesc **n_tcps = NULL; 
 	PRFileDesc **s_tcps = NULL; 
 	PRFileDesc **i_unix = NULL;
 	PRFileDesc **fdesp = NULL; 
-#endif
 	PRIntn num_poll = 0;
 	PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
 	PRThread *time_thread_p;
@@ -1335,13 +1088,10 @@ void slapd_daemon( daemon_ports_t *ports )
 	/* Retrieve the sockets from their hiding place */
 	n_tcps = ports->n_socket;
 	s_tcps = ports->s_socket;
-#ifdef XP_WIN32
-	s_tcps_native = ports->s_socket_native;
-#else
+
 #if defined(ENABLE_LDAPI)
 	i_unix = ports->i_socket;
 #endif /* ENABLE_LDAPI */
-#endif
 
 	if (!enable_nunc_stans) {
 		createsignalpipe();
@@ -1350,14 +1100,10 @@ void slapd_daemon( daemon_ports_t *ports )
 	init_shutdown_detect();
 
 	if (
-#if defined( XP_WIN32 )
-		(n_tcps == SLAPD_INVALID_SOCKET) && 
-#else
 		(n_tcps == NULL) &&
 #if defined(ENABLE_LDAPI)
 		(i_unix == NULL) &&
 #endif /* ENABLE_LDAPI */
-#endif
 	    (s_tcps == NULL) ) {	/* nothing to do */
 	    LDAPDebug( LDAP_DEBUG_ANY,
 		"no port to listen on\n", 0, 0, 0 );
@@ -1365,7 +1111,6 @@ void slapd_daemon( daemon_ports_t *ports )
 	}
 
 	init_op_threads ();
-	detect_timeout_support();
 
     /* Start the time thread */
     time_thread_p = PR_CreateThread(PR_SYSTEM_THREAD,
@@ -1419,20 +1164,6 @@ void slapd_daemon( daemon_ports_t *ports )
     }
 
 	/* We are now ready to accept incoming connections */
-#if defined( XP_WIN32 )
-	if ( n_tcps != SLAPD_INVALID_SOCKET
-				&& listen( n_tcps, config_get_listen_backlog_size() ) == -1 ) {
-		int		oserr = errno;
-		char	addrbuf[ 256 ];
-
-		slapi_log_error(SLAPI_LOG_FATAL, "slapd_daemon",
-			"listen() on %s port %d failed: OS error %d (%s)\n",
-			netaddr2string(&ports->n_listenaddr, addrbuf, sizeof(addrbuf)),
-			ports->n_port, oserr, slapd_system_strerror( oserr ) );
-		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
-		listeners++;
-	}
-#else
 	if ( n_tcps != NULL ) {
 		PRFileDesc **fdesp;
 		PRNetAddr  **nap = ports->n_listenaddr;
@@ -1451,7 +1182,6 @@ void slapd_daemon( daemon_ports_t *ports )
 			listeners++;
 		}
 	}
-#endif
 
 	if ( s_tcps != NULL ) {
 		PRFileDesc **fdesp;
@@ -1472,7 +1202,6 @@ void slapd_daemon( daemon_ports_t *ports )
 		}
 	}
 
-#if !defined( XP_WIN32 )
 #if defined(ENABLE_LDAPI)
 	if( i_unix != NULL ) {
 		PRFileDesc **fdesp;
@@ -1491,7 +1220,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		}
 	}
 #endif /* ENABLE_LDAPI */
-#endif
+
 	listener_idxs = (listener_info *)slapi_ch_calloc(listeners, sizeof(*listener_idxs));
 #ifdef ENABLE_NUNC_STANS
 	if (enable_nunc_stans) {
@@ -1555,64 +1284,27 @@ void slapd_daemon( daemon_ports_t *ports )
 	/* The meat of the operation is in a loop on a call to select */
 	while(!enable_nunc_stans && !g_get_shutdown())
 	{
-#ifdef _WIN32
-		fd_set			readfds;
-		struct timeval	wakeup_timer;
-		int			oserr;
-#endif
 		int select_return = 0;
-
-#ifndef _WIN32
 		PRErrorCode prerr;
-#endif
 
-#ifdef _WIN32
-		set_timeval_ms(&wakeup_timer, slapd_wakeup_timer);
-		setup_read_fds(the_connection_table,&readfds,n_tcps, s_tcps_native);
-		/* This select needs to timeout to give the server a chance to test for shutdown */
-		select_return = select(connection_table_size, &readfds, NULL, 0, &wakeup_timer);
-#else
 		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
-#endif
 		switch (select_return) {
 		case 0: /* Timeout */
 			/* GGOODREPL handle_timeout(); */
 			break;
 		case -1: /* Error */
-#ifdef _WIN32
-			oserr = errno;
-			LDAPDebug( LDAP_DEBUG_TRACE,
-				   "select failed errno %d (%s)\n", oserr,
-				   slapd_system_strerror(oserr), 0 );
-#else
 			prerr = PR_GetError();
 			LDAPDebug( LDAP_DEBUG_TRACE, "PR_Poll() failed, "
 				   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				   prerr, slapd_system_strerror(prerr), 0 );
-#endif
 			break;
 		default: /* either a new connection or some new data ready */
-			/* Figure out if we are dealing with one of the listen sockets */
-#ifdef _WIN32
-			/* If so, then handle a new connection */
-			if ( n_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( n_tcps, &readfds ) ) {
-				handle_new_connection(the_connection_table,n_tcps,NULL,0,0);
-			}
-			/* If so, then handle a new connection */
-			if ( s_tcps != SLAPD_INVALID_SOCKET && FD_ISSET( s_tcps_native,&readfds ) ) {
-				handle_new_connection(the_connection_table,SLAPD_INVALID_SOCKET,s_tcps,1,0);
-			}
-			/* handle new data ready */
-			handle_read_ready(the_connection_table,&readfds);
-			clear_signal(&readfds);
-#else
 			/* handle new connections from the listeners */
 			handle_listeners(the_connection_table);
 			/* handle new data ready */
 			handle_pr_read_ready(the_connection_table, connection_table_size);
 			clear_signal(the_connection_table->fd);
-#endif
 			break;
 		}
 	}
@@ -1625,14 +1317,6 @@ void slapd_daemon( daemon_ports_t *ports )
 		ps_stop_psearch_system(); /* stop any persistent searches */
 	}
 
-#ifdef _WIN32
-	if ( n_tcps != SLAPD_INVALID_SOCKET ) {
-		closesocket( n_tcps );
-	}
-	if ( s_tcps != NULL ) {
- 		PR_Close( s_tcps );
-	}
-#else
 	/* free the listener indexes */
 	slapi_ch_free((void **)&listener_idxs);
 
@@ -1670,7 +1354,6 @@ void slapd_daemon( daemon_ports_t *ports )
 		slapi_ch_free ((void**)&ports->i_listenaddr);
 #endif
 	}
-#endif
 
 	/* Might compete with housecleaning thread, but so far so good */
 	be_flushall();
@@ -1678,14 +1361,12 @@ void slapd_daemon( daemon_ports_t *ports )
 	housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
 	disk_monitoring_stop(disk_thread_p);
 
-#ifndef _WIN32
 	threads = g_get_active_threadcnt();
 	if ( threads > 0 ) {
 		LDAPDebug( LDAP_DEBUG_ANY,
 			"slapd shutting down - waiting for %d thread%s to terminate\n",
 			threads, ( threads > 1 ) ? "s" : "", 0 );
 	}
-#endif
 
 	threads = g_get_active_threadcnt();
 	while ( threads > 0 ) {
@@ -1778,16 +1459,12 @@ void slapd_daemon( daemon_ports_t *ports )
 	time_shutdown = 1;
 	PR_JoinThread( time_thread_p );
 
-#ifdef _WIN32
-	WSACleanup();
-#else
 	if ( g_get_shutdown() == SLAPI_SHUTDOWN_DISKFULL ){
 		/* This is a server-induced shutdown, we need to manually remove the pid file */
 		if( unlink(get_pid_file()) ){
 			LDAPDebug( LDAP_DEBUG_ANY, "Failed to remove pid file %s\n", get_pid_file(), 0, 0 );
 		}
 	}
-#endif
 }
 
 int signal_listner()
@@ -1796,161 +1473,37 @@ int signal_listner()
 		return( 0 );
 	}
 	/* Replaces previous macro---called to bump the thread out of select */
-#if defined( _WIN32 )
-	if ( PR_Write( signalpipe[1], "", 1) != 1 ) {
-			/* this now means that the pipe is full
-			 * this is not a problem just go-on
-			 */
-			LDAPDebug( LDAP_DEBUG_CONNS,
-				"listener could not write to signal pipe %d\n",
-				errno, 0, 0 );
-	}
-	
-#else
 	if ( write( writesignalpipe, "", 1) != 1 ) {
-			/* this now means that the pipe is full
-			 * this is not a problem just go-on
-			 */
-			LDAPDebug( LDAP_DEBUG_CONNS,
-				"listener could not write to signal pipe %d\n",
-				errno, 0, 0 );
+		/* this now means that the pipe is full
+		 * this is not a problem just go-on
+		 */
+		LDAPDebug( LDAP_DEBUG_CONNS,
+			"listener could not write to signal pipe %d\n",
+			errno, 0, 0 );
 	}
-#endif
 	return( 0 );
 }
 
-#ifdef _WIN32
-static int clear_signal(fd_set *readfdset)
-#else
 static int clear_signal(struct POLL_STRUCT *fds)
-#endif
 {
 	if (enable_nunc_stans) {
 		return 0;
 	}
-#ifdef _WIN32
-	if ( FD_ISSET(readsignalpipe, readfdset)) {
-#else
 	if ( fds[FDS_SIGNAL_PIPE].out_flags & SLAPD_POLL_FLAGS ) {
-#endif
 		char	buf[200];
 
-		LDAPDebug( LDAP_DEBUG_CONNS,
-			"listener got signaled\n",
-			0, 0, 0 );
-#ifdef _WIN32
-		if ( PR_Read( signalpipe[0], buf, 20 ) < 1 ) {
-#else
+		LDAPDebug( LDAP_DEBUG_CONNS, "listener got signaled\n",	0, 0, 0 );
 		if ( read( readsignalpipe, buf, 200 ) < 1 ) {
-#endif
-			LDAPDebug( LDAP_DEBUG_ANY,
-				"listener could not clear signal pipe\n",
+			LDAPDebug( LDAP_DEBUG_ANY, "listener could not clear signal pipe\n",
 				0, 0, 0 );
 		}
 	} 
 	return 0;
 }
 
-#ifdef _WIN32
-static void set_timeval_ms(struct timeval *t, int ms)
-{
-	t->tv_sec = ms/1000;
-	t->tv_usec = (ms % 1000)*1000;
-}
-#endif
-
-#ifdef _WIN32
-static void setup_read_fds(Connection_Table *ct, fd_set *readfds, int n_tcps, int s_tcps)
-{
-	Connection *c= NULL;
-	Connection *next= NULL;
-	int accept_new_connections;
-	static int last_accept_new_connections = -1;
-   	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-	LBER_SOCKET socketdesc = SLAPD_INVALID_SOCKET;
-
-	FD_ZERO( readfds );
-
-	accept_new_connections = ((ct->size - g_get_current_conn_count())
-	    > slapdFrontendConfig->reservedescriptors);
-	if ( ! accept_new_connections ) {
-		if ( last_accept_new_connections ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "Not listening for new "
-			    "connections - too many fds open\n", 0, 0, 0 );
-		}
-	} else {
-		if ( ! last_accept_new_connections &&
-		    last_accept_new_connections != -1 ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "Listening for new "
-			    "connections again\n", 0, 0, 0 );
-		}
-	}
-	last_accept_new_connections = accept_new_connections;
-	if (n_tcps != SLAPD_INVALID_SOCKET && accept_new_connections) {
-		FD_SET( n_tcps, readfds );
-		LDAPDebug( LDAP_DEBUG_HOUSE,
-			"listening for connections on %d\n", n_tcps, 0, 0 );
-	}
-	if (s_tcps != SLAPD_INVALID_SOCKET && accept_new_connections) {
-		FD_SET( s_tcps, readfds );
-		LDAPDebug( LDAP_DEBUG_HOUSE,
-			"listening for connections on %d\n", s_tcps, 0, 0 );
-	}
-
-	if ((s_tcps != SLAPD_INVALID_SOCKET)
-		 && (readsignalpipe != SLAPD_INVALID_SOCKET)) {
-		FD_SET( readsignalpipe, readfds );
-	}
-
-	/* Walk down the list of active connections to find 
-	 * out which connections we should poll over.  If a connection
-	 * is no longer in use, we should remove it from the linked 
-	 * list. */
-	c= connection_table_get_first_active_connection (ct);
-	while (c)
-    {
-	    next = connection_table_get_next_active_connection (ct, c);
-	    if ( c->c_mutex == NULL )
-	    {
-		    connection_table_move_connection_out_of_active_list(ct,c);
-	    }
-	    else
-	    {
-	        PR_Lock( c->c_mutex );
-			if ( c->c_flags & CONN_FLAG_CLOSING )
-			{
-			    /* A worker thread has marked that this connection
-			     * should be closed by calling disconnect_server. 
-				 * move this connection out of the active list
-				 * the last thread to use the connection will close it
-			     */
-				connection_table_move_connection_out_of_active_list(ct,c);
-			}
-			else if ( c->c_sd == SLAPD_INVALID_SOCKET )
-			{
-				connection_table_move_connection_out_of_active_list(ct,c);
-			}
-			else
-			{
-#if defined(LDAP_IOCP)	 /* When we have IO completion ports, we don't want to do this */
-			    if ( !c->c_gettingber && (c->c_flags & CONN_FLAG_SSL) )
-#else
-			    if ( !c->c_gettingber )
-#endif
-				{
-					FD_SET( c->c_sd, readfds );
-			    }
-			}
-			PR_Unlock( c->c_mutex );
-	    }
-		c = next;
-	}
-}
-#endif   /* _WIN32 */
-
 static int first_time_setup_pr_read_pds = 1;
 static int listen_addr_count = 0;
+
 static void
 setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read)
 {
@@ -1997,13 +1550,9 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		if (!enable_nunc_stans) {
 			/* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
 			count = FDS_SIGNAL_PIPE;
-#if !defined(_WIN32)
 			ct->fd[count].fd = signalpipe[0];
 			ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
 			ct->fd[count].out_flags = 0;
-#else
-			ct->fd[count].fd = NULL;
-#endif
 			count++;
 		}
 		/* The fds entry for n_tcps starts with n_tcps and less than n_tcpe */
@@ -2050,7 +1599,6 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		ct->s_tcpe = count;
 
 
-#if !defined(_WIN32)
 #if defined(ENABLE_LDAPI)
 		ct->i_unixs = count;
 		/* The fds entry for i_unix starts with i_unixs and less than i_unixe */
@@ -2073,7 +1621,6 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 			count++;
 		}
 		ct->i_unixe = count;
-#endif
 #endif
  
 		first_time_setup_pr_read_pds = 0;
@@ -2208,154 +1755,26 @@ daemon_register_reslimits( void )
 			&idletimeout_reslimit_handle ));
 }
 
-#ifdef _WIN32
-static void
-handle_read_ready(Connection_Table *ct, fd_set *readfds)
-{
-	Connection *c= NULL;
-	time_t curtime = current_time();
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	int idletimeout;
-	int maxthreads = config_get_maxthreadsperconn();
-
-#ifdef LDAP_DEBUG
-	if ( slapd_ldap_debug & LDAP_DEBUG_CONNS )
-	{
-		connection_table_dump_activity_to_errors_log(ct);
-	}
-#endif /* LDAP_DEBUG */
-
-
-	/* Instead of going through the whole connection table to see which
-	 * connections we can read from, we'll only check the slots in the
-	 * linked list */
-	c = connection_table_get_first_active_connection (ct);
-	while ( c!=NULL )
-	{
-	    if ( c->c_mutex != NULL )
-		{
-		    PR_Lock( c->c_mutex );
-		    if (connection_is_active_nolock (c) && c->c_gettingber == 0 )
-		    {
-		        /* read activity */
-		        short readready= ( FD_ISSET( c->c_sd, readfds ) );
-
-				/* read activity */
-				if ( readready )
-				{
-					LDAPDebug( LDAP_DEBUG_CONNS, "read activity on %d\n", c->c_ci, 0, 0 );
-					c->c_idlesince = curtime;
-
-					/* This is where the work happens ! */
-					connection_activity( c, maxthreads);
-
-					/* idle timeout */
-				}
-				else if (( c->c_idletimeout > 0 &&
-						(curtime - c->c_idlesince) >= c->c_idletimeout &&
-						NULL == c->c_ops )
-				{
-					disconnect_server_nomutex( c, c->c_connid, -1,
-								   SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN );
-				}
-			}
-			PR_Unlock( c->c_mutex );
-		}
-		c = connection_table_get_next_active_connection (ct, c);
-	}
-}
-#endif   /* _WIN32 */
-
-
 static void
 handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 {
 	Connection *c;
 	time_t curtime = current_time();
 	int maxthreads = config_get_maxthreadsperconn();
-#if defined( XP_WIN32 )
-	int i;
-#endif
 
-#if LDAP_DEBUG 
+#if LDAP_DEBUG
 	if ( slapd_ldap_debug & LDAP_DEBUG_CONNS )
 	{
 		connection_table_dump_activity_to_errors_log(ct);
 	}
 #endif /* LDAP_DEBUG */
 
-#if defined( XP_WIN32 )
-	/*
-	 * WIN32: this function is only called for SSL connections and
-	 * num_poll indicates exactly how many PR fds we polled on.
-	 */
-	for ( i = 0; i < num_poll; i++ )
-	{
-		short readready;
-		readready = (ct->fd[i].out_flags & SLAPD_POLL_FLAGS);
-
-		/* Find the connection we are referring to */
-		for ( c = connection_table_get_first_active_connection (ct); c != NULL; 
-              c = connection_table_get_next_active_connection (ct, c) )
-		{
-			if ( c->c_mutex != NULL )
-			{
-				PR_Lock( c->c_mutex );
-				if ( c->c_prfd == ct->fd[i].fd )
-				{
-					break;	/* c_mutex is still locked! */
-				}
-				PR_Unlock( c->c_mutex );
-			}
-		}
-
-		if ( c == NULL )
-		{	/* connection not found! */
-			LDAPDebug( LDAP_DEBUG_CONNS, "handle_pr_read_ready: "
-			    "connection not found for poll slot %d\n", i,0,0 );
-		}
-		else
-		{
-			/* c_mutex is still locked... check for activity and errors */
-			if ( !readready && ct->fd[i].out_flags && c->c_prfd == ct->fd[i].fd )
-			{
-				/* some error occured */
-				LDAPDebug( LDAP_DEBUG_CONNS,
-					"poll says connection on sd %d is bad "
-					"(closing)\n", c->c_sd, 0, 0 );
-				disconnect_server_nomutex( c, c->c_connid, -1, SLAPD_DISCONNECT_POLL, EPIPE );
-			}
-			else if ( readready && c->c_prfd == ct->fd[i].fd )
-			{
-				/* read activity */
-				LDAPDebug( LDAP_DEBUG_CONNS,
-					"read activity on %d\n", i, 0, 0 );
-				c->c_idlesince = curtime;
-
-				/* This is where the work happens ! */
-				connection_activity( c );
-			}
-			else if (( c->c_ideltimeout > 0 &&
-					c->c_prfd == ct->fd[i].fd &&
-					(curtime - c->c_idlesince) >= c->c_ideltimeout &&
-					NULL == c->c_ops )
-			{
-				/* idle timeout */
-				disconnect_server_nomutex( c, c->c_connid, -1,
-							   SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN );
-			}
-
-			PR_Unlock( c->c_mutex );
-		}
-	}
-#else
 
 	/*
-	 * non-WIN32: this function is called for all connections, so we
-	 * traverse the entire active connection list to find any errors,
-	 * activity, etc.
+	 * This function is called for all connections, so we traverse the entire
+	 * active connection list to find any errors, activity, etc.
 	 */
-	for ( c = connection_table_get_first_active_connection (ct); c != NULL; 
+	for ( c = connection_table_get_first_active_connection (ct); c != NULL;
           c = connection_table_get_next_active_connection (ct, c) )
 	{
 		if ( c->c_mutex != NULL )
@@ -2401,7 +1820,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 						 */
 						LDAPDebug (LDAP_DEBUG_ANY,
 							"connection_activity: abandoning conn %" NSPRIu64 " as fd=%d is already closing\n",
-							c->c_connid,c->c_sd,0); 
+							c->c_connid,c->c_sd,0);
 						/* The call disconnect_server should do nothing,
 						 * as the connection c should be already set to CLOSING */
 						disconnect_server_nomutex( c, c->c_connid, -1,
@@ -2420,7 +1839,6 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 			PR_Unlock( c->c_mutex );
 		}
 	}
-#endif
 }
 
 #ifdef ENABLE_NUNC_STANS
@@ -2602,35 +2020,8 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 static int
 slapd_poll( void *handle, int output )
 {
-    int		rc;
-	int ioblock_timeout = config_get_ioblocktimeout();
-	
-#if defined( XP_WIN32 )
-	if( !secure ) {
-		fd_set		handle_set;
-		struct timeval	timeout;
-		int windows_handle = (int) handle;
-
-		memset (&timeout, 0, sizeof(timeout));
-		if (ioblock_timeout > 0) {
-			timeout.tv_sec = ioblock_timeout / 1000;
-			timeout.tv_usec = (ioblock_timeout % 1000) * 1000;
-		}
-		FD_ZERO(&handle_set);
-		FD_SET(windows_handle, &handle_set);
-		rc = output ? select(FD_SETSIZE, NULL, &handle_set, NULL, &timeout)
-			: select(FD_SETSIZE, &handle_set, NULL, NULL, &timeout);
-	} else {
-		struct POLL_STRUCT	pr_pd;
-		PRIntervalTime	timeout = PR_MillisecondsToInterval( ioblock_timeout );
-
-		if (timeout < 0) timeout = 0;
-		pr_pd.fd = (PRFileDesc *)handle;
-		pr_pd.in_flags = output ? PR_POLL_WRITE : PR_POLL_READ;
-		pr_pd.out_flags = 0;
-		rc = POLL_FN(&pr_pd, 1, timeout);
-	}
-#else
+    int rc;
+    int ioblock_timeout = config_get_ioblocktimeout();
     struct POLL_STRUCT	pr_pd;
     PRIntervalTime	timeout = PR_MillisecondsToInterval(ioblock_timeout);
 
@@ -2638,70 +2029,24 @@ slapd_poll( void *handle, int output )
     pr_pd.in_flags = output ? PR_POLL_WRITE : PR_POLL_READ;
     pr_pd.out_flags = 0;
     rc = POLL_FN(&pr_pd, 1, timeout);
-#endif
 
     if (rc < 0) {
-#if defined( XP_WIN32 )
-	if( !secure ) {
-		int	oserr = errno;
-
-		LDAPDebug(LDAP_DEBUG_CONNS, "slapd_poll(%d) error %d (%s)\n",
-			  handle, oserr, slapd_system_strerror(oserr));
-		if ( SLAPD_SYSTEM_WOULD_BLOCK_ERROR(oserr)) {
-		    rc = 0;		/* try again */
-		}
-	} else {
-		PRErrorCode prerr = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_CONNS, "slapd_poll(%d) "
-				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-				handle, prerr, slapd_pr_strerror(prerr));
-		if ( prerr == PR_PENDING_INTERRUPT_ERROR ||
-			SLAPD_PR_WOULD_BLOCK_ERROR(prerr)) {
-		    rc = 0;		/* try again */
-		}
-	}
-#else
-	PRErrorCode prerr = PR_GetError();
-	LDAPDebug(LDAP_DEBUG_ANY, "slapd_poll(%d) "
-			SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			handle, prerr, slapd_pr_strerror(prerr));
-	if ( prerr == PR_PENDING_INTERRUPT_ERROR ||
-		SLAPD_PR_WOULD_BLOCK_ERROR(prerr)) {
-	    rc = 0;		/* try again */
-	}
-#endif
-
+        PRErrorCode prerr = PR_GetError();
+        LDAPDebug(LDAP_DEBUG_ANY, "slapd_poll(%d) "
+            SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+            handle, prerr, slapd_pr_strerror(prerr));
+        if ( prerr == PR_PENDING_INTERRUPT_ERROR ||
+             SLAPD_PR_WOULD_BLOCK_ERROR(prerr))
+        {
+            rc = 0; /* try again */
+        }
     } else if (rc == 0 && ioblock_timeout > 0) {
-	PRIntn ihandle;
-#if !defined( XP_WIN32 )
-	ihandle = PR_FileDesc2NativeHandle((PRFileDesc *)handle);
-#else
-	if( secure )
-		ihandle = PR_FileDesc2NativeHandle((PRFileDesc *)handle);
-	else
-		ihandle = (PRIntn)handle;
-#endif
-	LDAPDebug(LDAP_DEBUG_ANY, "slapd_poll(%d) timed out\n",
-		  ihandle, 0, 0);
-#if defined( XP_WIN32 )
-	/*
-	 * Bug 624303 - This connection will be cleaned up soon.
-	 * During cleanup (see connection_cleanup()), SSL3_SendAlert()
-	 * will be called by PR_Close(), and its default wTimeout
-	 * in sslSocket associated with the handle
-	 * is no time out (I gave up after waited for 30 minutes).
-	 * It was during this closing period that server won't
-	 * response to new connection requests.
-	 * PR_Send() null is a hack here to change the default wTimeout
-	 * (see ssl_Send()) to one second which affects PR_Close()
-	 * only in the current scenario.
-	 */ 
-	if( secure ) {
-		PR_Send ((PRFileDesc *)handle, NULL, 0, 0, PR_SecondsToInterval(1));
-	}
-#endif
-	PR_SetError(PR_IO_TIMEOUT_ERROR, EAGAIN); /* timeout */
-	rc = -1;
+        PRIntn ihandle;
+        ihandle = PR_FileDesc2NativeHandle((PRFileDesc *)handle);
+        LDAPDebug(LDAP_DEBUG_ANY, "slapd_poll(%d) timed out\n",
+                ihandle, 0, 0);
+        PR_SetError(PR_IO_TIMEOUT_ERROR, EAGAIN); /* timeout */
+        rc = -1;
     }
     return rc;
 }
@@ -3166,12 +2511,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	 */
 	conn->c_idletimeout = fecfg->idletimeout;
 	conn->c_idletimeout_handle = idletimeout_reslimit_handle;
-
-#if defined( XP_WIN32 )
-	if( !secure )
-		ber_sockbuf_set_option(conn->c_sb,LBER_SOCKBUF_OPT_DESC,&ns);
-#endif
-
 	conn->c_sd = ns;
 	conn->c_prfd = pr_clonefd;
 	conn->c_flags &= ~CONN_FLAG_CLOSING;
@@ -3181,7 +2520,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		conn->c_flags |= CONN_FLAG_SSL;
 	}
 
-#ifndef _WIN32
 	/*
 	 * clear the "returned events" field in ns' slot within the poll fds
 	 * array so that handle_read_ready() doesn't look at out_flags for an
@@ -3193,7 +2531,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
      * the connection table to the fds array.  This new connection
      * won't have a mapping. */
 	/* fds[ns].out_flags = 0; */
-#endif
 
 #if defined(USE_OPENLDAP)
 	ber_sockbuf_add_io( conn->c_sb, &openldap_sockbuf_io,
@@ -3206,11 +2543,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		func_pointers.lbextiofn_read = NULL; /* see connection_read_function */
 		func_pointers.lbextiofn_write = write_function;
 		func_pointers.lbextiofn_writev = NULL;
-#ifdef _WIN32
-		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) ns;
-#else
 		func_pointers.lbextiofn_socket_arg = (struct lextiof_socket_private *) pr_clonefd;
-#endif
 		ber_sockbuf_set_option(conn->c_sb,
 		                       LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
 	}
@@ -3247,7 +2580,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	conn->c_extension = factory_create_extension(connection_type,conn,NULL /* Parent */);
 
 #if defined(ENABLE_LDAPI)
-#if !defined( XP_WIN32 )
 	/* ldapi */
 	if( local )
 	{
@@ -3255,7 +2587,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		conn->c_local_ssf = config_get_localssf();
 		slapd_identify_local_user(conn);
 	}
-#endif
 #endif /* ENABLE_LDAPI */
 
 	connection_new_private(conn);
@@ -3331,10 +2662,6 @@ ns_handle_new_connection(struct ns_job_t *job)
 
 static int init_shutdown_detect()
 {
-
-#ifdef _WIN32
-	PRThread *service_exit_wait_tid;
-#else
   /* First of all, we must reset the signal mask to get rid of any blockages
    * the process may have inherited from its parent (such as the console), which
    * might result in the process not delivering those blocked signals, and thus, 
@@ -3350,22 +2677,8 @@ static int init_shutdown_detect()
     LDAPDebug( LDAP_DEBUG_TRACE, " %s \n", 
 	       rc ? "Failed to reset signal mask":"....Done (signal mask reset)!!", 0, 0 );
   }
-#endif
   
-#ifdef _WIN32
-
-	/* Create a thread to wait on the Win32 event which will 
-	   be signalled by the watchdog when the Service is 
-	   being halted. */
-	service_exit_wait_tid = PR_CreateThread( PR_USER_THREAD, 
-		(VFP) (void *) slapd_service_exit_wait, (void *) NULL, 
-		PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD, 
-		SLAPD_DEFAULT_THREAD_STACKSIZE);
-	if( service_exit_wait_tid == NULL ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
-		"Error: PR_CreateThread(slapd_service_exit_wait) failed\n", 0, 0, 0 );
-	}
-#elif defined ( HPUX10 )
+#if defined ( HPUX10 )
     PR_CreateThread ( PR_USER_THREAD,
                       catch_signals,
                       NULL,
@@ -3397,36 +2710,18 @@ static int init_shutdown_detect()
 		(void) SIGNAL( SIGTERM, set_shutdown );
 		(void) SIGNAL( SIGHUP,  set_shutdown );
 	}
-#endif /* _WIN32 */
+#endif /* HPUX */
 	return 0;
 }
 
-#if defined( XP_WIN32 )
-static void
-unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, int n_tcps, PRFileDesc *s_tcps)
-#else
 static void
 unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix)
-#endif
 {
 	slapdFrontendConfig_t	*slapdFrontendConfig = getFrontendConfig();
 	char					addrbuf[ 256 ];
 	int			isfirsttime = 1;
 
 	if ( ct->size <= slapdFrontendConfig->reservedescriptors ) {
-#ifdef _WIN32
-		LDAPDebug( LDAP_DEBUG_ANY,
-		    "ERROR: Not enough descriptors to accept any connections. "
-		    "This may be because the maxdescriptors configuration "
-		    "directive is too small, or the reservedescriptors "
-		    "configuration directive is too large. "
-		    "Try increasing the number of descriptors available to "
-		    "the slapd process. The current value is %d. %d "
-		    "descriptors are currently reserved for internal "
-		    "slapd use, so the total number of descriptors available "
-		    "to the process must be greater than %d.\n",
-		    ct->size, slapdFrontendConfig->reservedescriptors, slapdFrontendConfig->reservedescriptors );
-#else /* _WIN32 */
 		LDAPDebug( LDAP_DEBUG_ANY,
 		    "ERROR: Not enough descriptors to accept any connections. "
 		    "This may be because the maxdescriptors configuration "
@@ -3439,7 +2734,6 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 		    "slapd use, so the total number of descriptors available "
 		    "to the process must be greater than %d.\n",
 		    ct->size, slapdFrontendConfig->reservedescriptors, slapdFrontendConfig->reservedescriptors );
-#endif /* _WIN32 */
 		exit( 1 );
 	}
 
@@ -3449,8 +2743,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 	 * "slapd started." because some of the administrative programs
 	 * depend on this.  See ldap/admin/lib/dsalib_updown.c.
 	 */
-#if !defined( XP_WIN32 )
-	if ( n_tcps != NULL ) {					/* standard LDAP */
+	if ( n_tcps != NULL ) { /* standard LDAP */
 		PRNetAddr   **nap = NULL;
 
 		for (nap = ports->n_listenaddr; nap && *nap; nap++) {
@@ -3469,7 +2762,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 		}
 	}
 
-	if ( s_tcps != NULL ) {					/* LDAP over SSL; separate port */
+	if ( s_tcps != NULL ) { /* LDAP over SSL; separate port */
 		PRNetAddr   **sap = NULL;
 
 		for (sap = ports->s_listenaddr; sap && *sap; sap++) {
@@ -3487,23 +2780,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 			}
 		}
 	}
-#else
-	if ( n_tcps != SLAPD_INVALID_SOCKET ) {	/* standard LDAP; XP_WIN32 */
-		LDAPDebug( LDAP_DEBUG_ANY,
-			"slapd started.  Listening on %s port %d for LDAP requests\n",
-			netaddr2string(&ports->n_listenaddr, addrbuf, sizeof(addrbuf)),
-		    ports->n_port, 0 );
-	}
 
-	if ( s_tcps != NULL ) {					/* LDAP over SSL; separate port */
-		LDAPDebug( LDAP_DEBUG_ANY,
-			"Listening on %s port %d for LDAPS requests\n",
-			netaddr2string(&ports->s_listenaddr, addrbuf, sizeof(addrbuf)),
-		    ports->s_port, 0 );
-	}
-#endif
-
-#if !defined( XP_WIN32 )
 #if defined(ENABLE_LDAPI)
 	if ( i_unix != NULL ) {                                 /* LDAPI */
 		PRNetAddr   **iap = ports->i_listenaddr;
@@ -3513,33 +2790,8 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 			(*iap)->local.path, 0 );
 	}
 #endif /* ENABLE_LDAPI */
-#endif
-
 }
 
-#if defined( _WIN32 )
-/* On Windows, we signal the SCM when we're ready to accept connections */
-static int
-write_pid_file()
-{
-	if( SlapdIsAService() )
-	{
-		/* Initialization complete and successful. Set service to running */
-		LDAPServerStatus.dwCurrentState	= SERVICE_RUNNING;
-		LDAPServerStatus.dwCheckPoint = 0;
-		LDAPServerStatus.dwWaitHint = 0;
-			
-		if (!SetServiceStatus(hLDAPServerServiceStatus, &LDAPServerStatus)) {
-			ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_START_FAILED, 1, 
-				"Could not set Service status.");
-			exit(1);
-		}
-	}
-
-	ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_STARTED, 0, NULL );
-	return 0;
-}
-#else /* WIN32 */
 /* On UNIX, we create a file with our PID in it */
 static int
 write_pid_file()
@@ -3561,7 +2813,6 @@ write_pid_file()
 	}
 	return -1;
 }
-#endif /* WIN32 */
 
 static void
 set_shutdown (int sig)
@@ -3575,14 +2826,12 @@ set_shutdown (int sig)
     LDAPDebug( LDAP_DEBUG_ANY, "slapd got shutdown signal\n", 0, 0, 0 );
 #endif
 	g_set_shutdown( SLAPI_SHUTDOWN_SIGNAL );
-#ifndef _WIN32
 #ifndef LINUX
 	/* don't mess with USR1/USR2 on linux, used by libpthread */
 	(void) SIGNAL( SIGUSR2, set_shutdown );
 #endif
 	(void) SIGNAL( SIGTERM, set_shutdown );
 	(void) SIGNAL( SIGHUP,  set_shutdown );
-#endif
 }
 
 #ifdef ENABLE_NUNC_STANS
@@ -3621,9 +2870,7 @@ slapd_do_nothing (int sig)
 #if 0
 	LDAPDebug( LDAP_DEBUG_TRACE, "slapd got SIGUSR1\n", 0, 0, 0 );
 #endif
-#ifndef _WIN32
 	(void) SIGNAL( SIGUSR1, slapd_do_nothing );
-#endif
 
 #if 0
 	/*
@@ -3635,7 +2882,6 @@ slapd_do_nothing (int sig)
 }
 #endif   /* LINUX */
 
-#ifndef _WIN32
 void
 slapd_wait4child(int sig)
 {
@@ -3658,80 +2904,6 @@ slapd_wait4child(int sig)
 
         (void) SIGNAL( SIGCHLD, slapd_wait4child );
 }
-#endif
-
-#ifdef XP_WIN32
-static int
-createlistensocket(unsigned short port, const PRNetAddr *listenaddr)
-{
-	int					tcps;
-	struct sockaddr_in	addr;
-	char				*logname = "createlistensocket";
-	char				addrbuf[ 256 ];
-
-	if (!port) goto suppressed;
-
-	PR_ASSERT( listenaddr != NULL );
-
-	/* create TCP socket */
-	if ((tcps = socket(AF_INET, SOCK_STREAM, 0))
-		== SLAPD_INVALID_SOCKET) {
-		int oserr = errno;
-
-		slapi_log_error(SLAPI_LOG_FATAL, logname,
-			"socket() failed: OS error %d (%s)\n",
-			oserr, slapd_system_strerror( oserr ));
-		goto failed;
-	}
-	
-	/* initialize listener address */
-	(void) memset( (void *) &addr, '\0', sizeof(addr) );
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons( port );
-	if (listenaddr->raw.family == PR_AF_INET) {
-		addr.sin_addr.s_addr = listenaddr->inet.ip;
-	} else if (PR_IsNetAddrType(listenaddr,PR_IpAddrAny)) {
-		addr.sin_addr.s_addr = INADDR_ANY;
-	} else {
-		if (!PR_IsNetAddrType(listenaddr,PR_IpAddrV4Mapped)) {
-			/*
-			 * When Win32 supports IPv6, we will be able to use IPv6
-			 * addresses here. But not yet.
-			 */
-			slapi_log_error(SLAPI_LOG_FATAL, logname,
-					"unable to listen on %s port %d (IPv6 addresses "
-					"are not supported on this platform)\n",
-					netaddr2string(listenaddr, addrbuf, sizeof(addrbuf)),
-					port );
-			goto failed;
-		}
-
-		addr.sin_addr.s_addr = listenaddr->ipv6.ip.pr_s6_addr32[3];
-	}
-
-	LDAPDebug( LDAP_DEBUG_TRACE, "%s - binding to %s:%d\n",
-	    logname, inet_ntoa( addr.sin_addr ), port )
-
-	if ( bind( tcps, (struct sockaddr *) &addr, sizeof(addr) ) == -1 ) {
-		int oserr = errno;
-
-		slapi_log_error(SLAPI_LOG_FATAL, logname,
-			"bind() on %s port %d failed: OS error %d (%s)\n",
-			inet_ntoa( addr.sin_addr ), port, oserr,
-			slapd_system_strerror( oserr ));
-		goto failed;
-	}
-
-	return tcps;
-
-failed:
-	WSACleanup();
-	exit( 1 );
-suppressed:
-	return -1;
-}  /* createlistensocket */
-#endif   /* XP_WIN32 */
-
 
 static PRFileDesc **
 createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
@@ -3839,9 +3011,6 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 	return( sock );
 
 failed:
-#ifdef XP_WIN32
-	WSACleanup();
-#endif   /* XP_WIN32 */
 	exit( 1 );
 
 suppressed:
@@ -3997,17 +3166,6 @@ createsignalpipe( void )
 	if (enable_nunc_stans) {
 		return( 0 );
 	}
-#if defined( _WIN32 )
-	if ( PR_NewTCPSocketPair(&signalpipe[0])) {
-		PRErrorCode prerr = PR_GetError();
-		LDAPDebug( LDAP_DEBUG_ANY, "PR_CreatePipe() failed, "
-			SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			prerr, slapd_pr_strerror(prerr), SLAPD_DEFAULT_THREAD_STACKSIZE );
-		return( -1 );
-	}
-	writesignalpipe = PR_FileDesc2NativeHandle(signalpipe[1]);
-	readsignalpipe = PR_FileDesc2NativeHandle(signalpipe[0]);
-#else
 	if ( PR_CreatePipe( &signalpipe[0], &signalpipe[1] ) != 0 ) {
 		PRErrorCode prerr = PR_GetError();
 		LDAPDebug( LDAP_DEBUG_ANY, "PR_CreatePipe() failed, "
@@ -4025,7 +3183,6 @@ createsignalpipe( void )
 		LDAPDebug( LDAP_DEBUG_ANY,"createsignalpipe: failed to set FD for read pipe (%d).\n",
 				errno, 0, 0);
 	}
-#endif
 	return( 0 );
 } 
 
@@ -4126,7 +3283,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
   
 	ns = PR_FileDesc2NativeHandle( *pr_socket );
 	
-#if !defined(_WIN32)
 	/*
 	 * Some OS or third party libraries may require that low
 	 * numbered file descriptors be available, e.g., the DNS resolver
@@ -4160,7 +3316,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 				slapd_system_strerror( oserr ) );
 		}
 	}
-#endif /* !_WIN32 */
 
 	/* Set keep_alive to keep old connections from lingering */
 	pr_socketoption.option = PR_SockOpt_Keepalive;
@@ -4174,7 +3329,6 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 	}
 
 	if ( secure ) {
-	  
 		pr_socketoption.option = PR_SockOpt_Nonblocking;
 		pr_socketoption.value.non_blocking = 0;
 		if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
@@ -4186,24 +3340,18 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 		}
 	} else {
 		/* We always want to have non-blocking I/O */
-			pr_socketoption.option = PR_SockOpt_Nonblocking;
-			pr_socketoption.value.non_blocking = 1;
-			if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
-			     PRErrorCode prerr = PR_GetError();
-			     LDAPDebug( LDAP_DEBUG_ANY,
-					"PR_SetSocketOption(PR_SockOpt_Nonblocking) failed, "
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					prerr, slapd_pr_strerror(prerr), 0 );
-			}
-		 
-		 if ( have_send_timeouts ) {
-		        daemon_configure_send_timeout(ns,config_get_ioblocktimeout());
-		 }
-
+		pr_socketoption.option = PR_SockOpt_Nonblocking;
+		pr_socketoption.value.non_blocking = 1;
+		if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
+			PRErrorCode prerr = PR_GetError();
+			LDAPDebug( LDAP_DEBUG_ANY,
+				"PR_SetSocketOption(PR_SockOpt_Nonblocking) failed, "
+				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+				prerr, slapd_pr_strerror(prerr), 0 );
+		}
 	} /* else (secure) */
 
 	if ( !enable_nagle && !local ) {
-
 		 pr_socketoption.option = PR_SockOpt_NoDelay;
 		 pr_socketoption.value.no_delay = 1;
 		 if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE) {
@@ -4214,24 +3362,19 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 					prerr, slapd_pr_strerror( prerr ), 0 );
 		 }
 	} else if( !local) {
-		 pr_socketoption.option = PR_SockOpt_NoDelay;
-		 pr_socketoption.value.no_delay = 0;
-		 if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE) {
+		pr_socketoption.option = PR_SockOpt_NoDelay;
+		pr_socketoption.value.no_delay = 0;
+		if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE) {
 			PRErrorCode prerr = PR_GetError();
 			LDAPDebug( LDAP_DEBUG_ANY,
-				   "PR_SetSocketOption(PR_SockOpt_NoDelay) failed, "
-					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-					prerr, slapd_pr_strerror( prerr ), 0 );
+				"PR_SetSocketOption(PR_SockOpt_NoDelay) failed, "
+				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+				prerr, slapd_pr_strerror( prerr ), 0 );
 		 }
 	} /* else (!enable_nagle) */
-		 
 	
 	return ns;
-	       
 }
-
-
-
 
 void configure_ns_socket( int * ns )
 {
@@ -4244,9 +3387,6 @@ void configure_ns_socket( int * ns )
 	enable_nagle = 1;
 #endif
 
-	if ( have_send_timeouts ) {
-		daemon_configure_send_timeout( *ns, config_get_ioblocktimeout() );
-	}
 	/* set the nagle */
 	if ( !enable_nagle ) {
 		on = 1;

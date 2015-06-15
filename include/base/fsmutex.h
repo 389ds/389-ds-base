@@ -94,15 +94,11 @@ NSAPI_PUBLIC FSMUTEX fsmutex_init(char *name, int number, int flags);
    Sets the ownership of the underlying filesystem object to the given
    uid and gid. Only effective if the server is running as root.
  */
-#ifdef XP_UNIX
 #include <unistd.h>
 #ifdef __sony
 #include <sys/types.h>
 #endif
 NSAPI_PUBLIC void fsmutex_setowner(FSMUTEX fsm, uid_t uid, gid_t gid);
-#endif
-
-
 
 /*
    fsmutex_terminate deletes a filesystem-based mutex. A mutex will only

@@ -186,10 +186,6 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     for (i = 0;(mpfstat[i] && (mpfstat[i]->file_name != NULL)); i++) {
-#ifdef _WIN32
-        int fpos = 0;
-#endif
-
         /* only print out stats on files used by this instance */
         if (strlen(mpfstat[i]->file_name) < strlen(inst->inst_dir_name))
             continue;
@@ -205,7 +201,6 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 	slapi_ch_free_string(&absolute_pathname);
 	absolute_pathname = slapi_ch_smprintf("%s%c%s" , inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name );
 
-/* NPCTE fix for bugid 544365, esc 0. <P.R> <04-Jul-2001> */
 	/* Hide statistic of deleted files (mainly indexes) */
 	if (stat(absolute_pathname,&astat))
 	    continue;
@@ -219,25 +214,10 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
 			break;
 	if (j<i)
 		continue;
-/* end of NPCTE fix for bugid 544365 */
 
         /* Get each file's stats */
         PR_snprintf(buf, sizeof(buf), "%s", mpfstat[i]->file_name);
-#ifdef _WIN32
-        /* 
-         * For NT, switch the last
-         * backslash to a foward
-         * slash. - RJP
-         */
-        for (fpos = strlen(buf); fpos >= 0; fpos--) {
-            if (buf[fpos] == '\\') {
-                buf[fpos] = '/';
-                break;
-            }
-        }
-#endif
         MSETF("dbFilename-%d", i);
-        
         sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_cache_hit);
         MSETF("dbFileCacheHit-%d", i);
         sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_cache_miss);
@@ -247,7 +227,7 @@ int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e,
         sprintf(buf, "%lu", (unsigned long)mpfstat[i]->st_page_out);
         MSETF("dbFilePageOut-%d", i);
 
-	slapi_ch_free_string(&absolute_pathname);
+        slapi_ch_free_string(&absolute_pathname);
     }
 
     slapi_ch_free_string(&absolute_pathname);

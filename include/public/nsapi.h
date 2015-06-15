@@ -63,11 +63,7 @@
 /* Used in some places as a length limit on error messages */
 #define MAGNUS_ERROR_LEN 1024
 
-#ifdef XP_WIN32
-#define ENDLINE "\r\n"
-#else
 #define ENDLINE "\n"
-#endif
 
 /*
  * The maximum length of an error message. NOT RUN-TIME CHECKED
@@ -134,17 +130,9 @@
 /* The disk page size on this machine. */
 #define FILE_BUFFERSIZE 4096
 
-#ifdef XP_UNIX
-
 #define FILE_PATHSEP '/'
 #define FILE_PARENT "../"
 
-#elif defined(XP_WIN32)
-
-#define FILE_PATHSEP '/'
-#define FILE_PARENT "..\\"
-
-#endif /* XP_WIN32 */
 
 /* WILDPAT uses shell expressions */
 #define WILDPAT_VALID(exp)              shexp_valid(exp)
@@ -174,17 +162,6 @@
 #include <unistd.h>
 #endif
 
-#ifdef FILE_WIN32
-#include <direct.h>
-#endif /* FILE_WIN32 */
-
-#ifdef NET_WINSOCK
-#include <winsock.h>
-struct iovec {
-	char		*iov_base;
-    unsigned	iov_len;
-};
-#else
 #if !defined(SUNOS4) && !defined(HPUX) && !defined(LINUX)
 #include <sys/select.h>
 #endif
@@ -192,10 +169,7 @@ struct iovec {
 #include <sys/socket.h>
 #include <netinet/in.h> /* sockaddr and in_addr */
 #include <sys/uio.h>
-#endif /* NET_WINSOCK */
-
 #include <sys/stat.h>
-
 #include <ctype.h>  /* isspace */
 #include <stdio.h>
 #include <stdarg.h>
@@ -203,11 +177,8 @@ struct iovec {
 #include <string.h>
 #include <errno.h>
 #include <time.h>
-
-#ifdef XP_UNIX
 #include <dirent.h>
 #include <pwd.h>                /* struct passwd */
-#endif /* XP_UNIX */
 
 #ifndef BIG_LINE
 #define BIG_LINE 1024
@@ -228,28 +199,8 @@ typedef void *SYS_FILE;
 typedef void* CONDVAR;
 typedef void *COUNTING_SEMAPHORE;
 typedef void* CRITICAL;
-
-#ifdef XP_UNIX
 typedef DIR* SYS_DIR;
 typedef struct dirent SYS_DIRENT;
-#endif /* XP_UNIX */
-
-#ifdef XP_WIN32
-
-typedef struct {
-    char *d_name;
-} dirent_s;
-
-typedef struct {
-    HANDLE dp;
-    WIN32_FIND_DATA fdata;
-    dirent_s de;
-} dir_s;
-
-typedef dir_s* SYS_DIR;
-typedef dirent_s SYS_DIRENT;
-
-#endif /* XP_WIN32 */
 
 typedef struct {
     char *name,*value;
@@ -318,7 +269,6 @@ typedef struct {
 #define strncasecmp(s1, s2, n) util_strncasecmp(s1, s2, n)
 #endif /* NEED_STRNCASECMP */
 
-#ifdef XP_UNIX
 #define dir_open opendir
 #define dir_read readdir
 #define dir_close closedir
@@ -326,13 +276,6 @@ typedef struct {
 #define dir_remove rmdir
 #define system_chdir chdir
 #define file_unix2local(path,p2) strcpy(p2,path)
-#endif /* XP_UNIX */
-
-#ifdef XP_WIN32
-#define dir_create _mkdir
-#define dir_remove _rmdir
-#define system_chdir SetCurrentDirectory
-#endif /* XP_WIN32 */
 
 /*
  * Thread-safe variant of localtime

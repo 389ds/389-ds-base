@@ -69,13 +69,10 @@
 #include 	<string.h>
 #include 	<sys/types.h>
 #include	<limits.h>
-#ifndef _WIN32
 #include 	<sys/socket.h>
 #include 	<netinet/in.h>
 #include 	<arpa/inet.h>
 #include 	<netdb.h>
-#endif
-
 #include 	<ldap.h>
 #include 	<las.h>
 #include	<aclproto.h>
@@ -86,9 +83,7 @@
 #include	"slapi-private.h"
 #include	"portable.h"
 #include	"avl.h"
-
 #include	"cert.h"
-
 #include	<plhash.h>
 
 #ifdef SOLARIS

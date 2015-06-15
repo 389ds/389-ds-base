@@ -317,64 +317,6 @@ typedef struct irix_cv {
 
 #else
 
-#if defined( WIN32_KERNEL_THREADS )
-
-/***********************************
- *                                 *
- * thread definitions for Win32    *
- *                                 *
- ***********************************/
-
-#define _THREAD
-
-#include <windows.h>
-#include <process.h>
-#include "ldap.h"
-#include "ldaplog.h"
-
-typedef void	(*VFP)(void *);
-
-/* Win32 threads are preemptive */
-#define PTHREAD_PREEMPTIVE	1
-
-/* thread attributes and thread type */
-typedef int	pthread_attr_t;
-typedef HANDLE	pthread_t;
-
-/* default attr states */
-#define pthread_mutexattr_default	0
-#define pthread_condattr_default	0
-
-/* thread state - joinable or not */
-#define PTHREAD_CREATE_JOINABLE	0
-#define PTHREAD_CREATE_DETACHED	1
-/* thread scope - who is in scheduling pool */
-#define PTHREAD_SCOPE_PROCESS	0
-#define PTHREAD_SCOPE_SYSTEM	1
-
-/* mutex attributes and mutex type */
-typedef int	pthread_mutexattr_t;
-typedef HANDLE	pthread_mutex_t;
-
-/* mutex and condition variable scope - process or system */
-#define PTHREAD_SHARE_PRIVATE	0
-#define PTHREAD_SHARE_PROCESS	1
-
-/* condition variable attributes and condition variable type */
-typedef int	pthread_condattr_t;
-
-/* simulated condition variable */
-struct win32_cv_waiter {
-	pthread_t			icvw_pthread;
-	struct win32_cv_waiter	*icvw_next;
-};
-typedef struct win32_cv {
-	pthread_mutex_t		icv_mutex;
-	pthread_mutex_t		*icv_waitermutex;
-	struct win32_cv_waiter	*icv_waiterq;
-} pthread_cond_t;
-
-#endif /* NATIVE_WIN32_THREADS */
 #endif /* sgi sproc */
 #endif /* dce pthreads */
 #endif /* hp dce pthreads */

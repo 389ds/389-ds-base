@@ -50,20 +50,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-
-/* include NSPR header files */
 #include "prlock.h"
-
 #include "ldaplog.h"
 #include "portable.h"
 #include "slap.h"
-
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
 #include <sys/socket.h>
-#endif /* _WIN32 */
+
 
 /*Defines*/
 #define LDIF_DB_ADD     0

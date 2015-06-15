@@ -54,20 +54,9 @@
 
 #include "log.h"
 #include "fe.h"
-#ifndef _WIN32
 #include <pwd.h> /* getpwnam */
-#endif
-
-#if defined( XP_WIN32 )
-#include <fcntl.h>
-#include "ntslapdmessages.h"
-#include "proto-ntutil.h"
-extern HANDLE hSlapdEventSource;
-extern LPTSTR pszServerName;
-#define _PSEP '\\'
-#else
 #define _PSEP '/'
-#endif
+
 /**************************************************************************
  * GLOBALS, defines, and ...
  *************************************************************************/
@@ -163,28 +152,6 @@ slapd_log_error_proc_internal(
  *  flushes the buffer if necessary
  * LOG_CLOSE(fd) closes the logfile
  */
-#ifdef XP_WIN32
-#define LOG_OPEN_APPEND(fd, filename, mode) \
-	(((fd) = fopen((filename), "a")) != NULL)
-#define LOG_OPEN_WRITE(fd, filename, mode) \
-	(((fd) = fopen((filename), "w")) != NULL)
-#define LOG_WRITE(fd, buffer, size, headersize) \
-	if ( fwrite((buffer), (size), 1, (fd)) != 1 ) \
-	{\
-		ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_FAILED_TO_WRITE_LOG, 1, (buffer)); \
-	}
-#define LOG_WRITE_NOW(fd, buffer, size, headersize, err) do {\
-		(err) = 0; \
-		if ( fwrite((buffer), (size), 1, (fd)) != 1 ) \
-		{ \
-			ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_FAILED_TO_WRITE_LOG, 1, (buffer)); \
-			(err) = 1; \
-		}; \
-		fflush((fd)); \
-	} while (0)
-#define LOG_CLOSE(fd) \
-	fclose((fd))
-#else  /* xp_win32 */
 #define LOG_OPEN_APPEND(fd, filename, mode) \
 	(((fd) = PR_Open((filename), PR_WRONLY | PR_APPEND | PR_CREATE_FILE , \
 		mode)) != NULL)
@@ -219,7 +186,6 @@ slapd_log_error_proc_internal(
 	} while (0)
 #define LOG_CLOSE(fd) \
 	PR_Close((fd))
-#endif
 
 
 /******************************************************************************
@@ -247,40 +213,10 @@ void g_set_detached(int val)
 void g_log_init(int log_enabled)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-#if defined( XP_WIN32 )
-	/* char * instancedir = NULL; obsolete. */
-	/* To port to Windows, need to support FHS. */
-#endif
 
 	ts_time_lock = PR_NewLock();
 	if (! ts_time_lock)
 	    exit(-1);
-
-#if defined( XP_WIN32 )
-	pszServerName = slapi_ch_malloc( MAX_SERVICE_NAME );
-	/* instancedir = config_get_instancedir(); eliminated */
-	unixtodospath(instancedir);
-	if( !SlapdGetServerNameFromCmdline(pszServerName, instancedir, 1) )
-	{
-		MessageBox(GetDesktopWindow(), "Failed to get the Directory"
-			" Server name from the command-line argument.",
-			" ", MB_ICONEXCLAMATION | MB_OK);
-		exit( 1 );
-	}
-	slapi_ch_free((void **)&instancedir);
-
-    /* Register with the NT EventLog */
-    hSlapdEventSource = RegisterEventSource(NULL, pszServerName );
-    if( !hSlapdEventSource  )
-    {
-        char szMessage[256];
-        PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
-            "to set the EventLog source.", pszServerName);
-        MessageBox(GetDesktopWindow(), szMessage, " ", 
-            MB_ICONEXCLAMATION | MB_OK);
-        exit( 1 );
-    }
-#endif
 
 	/* ACCESS LOG */
 	loginfo.log_access_state = 0;
@@ -1832,16 +1768,8 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     int       size;
 
     tnl = current_time();
-#ifdef _WIN32
-    {
-        struct tm *pt = localtime( &tnl );
-        tmsp = &tms;
-        memcpy(&tms, pt, sizeof(struct tm) );
-    }
-#else
     (void)localtime_r( &tnl, &tms );
     tmsp = &tms;
-#endif
 #ifdef BSD_TIME
     tz = tmsp->tm_gmtoff;
 #else /* BSD_TIME */
@@ -1888,16 +1816,8 @@ vslapd_log_error(
     int       err = 0;
 
     tnl = current_time();
-#ifdef _WIN32
-    {
-        struct tm *pt = localtime( &tnl );
-        tmsp = &tms;
-        memcpy(&tms, pt, sizeof(struct tm) );
-    }
-#else
     (void)localtime_r( &tnl, &tms );
     tmsp = &tms;
-#endif
 #ifdef BSD_TIME
     tz = tmsp->tm_gmtoff;
 #else /* BSD_TIME */
@@ -1983,18 +1903,12 @@ slapi_log_error( int severity, char *subsystem, char *fmt, ... )
         return( -1 );
     }
 
-    if (
-#ifdef _WIN32
-         *module_ldap_debug
-#else
-         slapd_ldap_debug
-#endif
-            & slapi_log_map[ severity ] ) {
+    if ( slapd_ldap_debug & slapi_log_map[ severity ] ) {
         va_start( ap1, fmt );
         va_start( ap2, fmt );
         rc = slapd_log_error_proc_internal( subsystem, fmt, ap1, ap2 );
-            va_end( ap1 );
-            va_end( ap2 );
+        va_end( ap1 );
+        va_end( ap2 );
     } else {
         rc = 0;        /* nothing to be logged --> always return success */
     }
@@ -2010,20 +1924,14 @@ slapi_log_error_ext(int severity, char *subsystem, char *fmt, va_list varg1, va_
     if ( severity < SLAPI_LOG_MIN || severity > SLAPI_LOG_MAX ) {
         (void)slapd_log_error_proc( subsystem, "slapi_log_error: invalid severity %d (message %s)\n",
             severity, fmt );
-            return( -1 );
+        return( -1 );
     }
 
-    if (
-    #ifdef _WIN32
-        *module_ldap_debug
-    #else
-        slapd_ldap_debug
-    #endif
-        & slapi_log_map[ severity ] )
+    if ( slapd_ldap_debug & slapi_log_map[ severity ] )
     {
 	    rc = slapd_log_error_proc_internal( subsystem, fmt, varg1, varg2 );
     } else {
-        rc = 0;        /* nothing to be logged --> always return success */
+        rc = 0; /* nothing to be logged --> always return success */
     }
 
     return( rc );
@@ -2032,15 +1940,8 @@ slapi_log_error_ext(int severity, char *subsystem, char *fmt, va_list varg1, va_
 int
 slapi_is_loglevel_set ( const int loglevel )
 {
-    return ( 
-#ifdef _WIN32
-    *module_ldap_debug
-#else
-    slapd_ldap_debug
-#endif
-        & slapi_log_map[ loglevel ] ? 1 : 0);
+    return ( slapd_ldap_debug & slapi_log_map[ loglevel ] ? 1 : 0);
 }
-
 
 /******************************************************************************
 * write in the access log
@@ -2070,16 +1971,8 @@ static int vslapd_log_access(char *fmt, va_list ap)
         PR_Unlock(ts_time_lock);
     } else {
     /* nope... painstakingly create the new strftime buffer */
-#ifdef _WIN32
-        {
-            struct tm *pt = localtime( &tnl );
-            tmsp = &tms;
-            memcpy(&tms, pt, sizeof(struct tm) );
-        }
-#else
         (void)localtime_r( &tnl, &tms );
         tmsp = &tms;
-#endif
 
 #ifdef BSD_TIME
         tz = tmsp->tm_gmtoff;
@@ -3042,19 +2935,6 @@ log__extract_logheader (FILE *fp, long *f_ctime, PRInt64 *f_size)
 /* using an int implies that all logfiles will be under 2G.  this is 
  * probably a safe assumption for now.
  */
-#ifdef XP_WIN32
-static PRInt64 
-log__getfilesize(LOGFD fp)
-{
-	struct stat	info;
-	int		rv;
-
-	if ((rv = fstat(fileno(fp), &info)) != 0) {
-		return -1;
-	}
-	return (PRInt64)info.st_size;
-} 
-#else
 static PRInt64
 log__getfilesize(LOGFD fp)
 {
@@ -3076,8 +2956,6 @@ log__getfilesize_with_filename(char *filename)
 	}
 	return (PRInt64)info.size;	/* type of size is PROffset64 */
 }
-#endif
-
 
 /******************************************************************************
 * log__enough_freespace
@@ -3090,41 +2968,14 @@ log__getfilesize_with_filename(char *filename)
 static int
 log__enough_freespace(char  *path)
 {
-
-#ifdef _WIN32
-DWORD	sectorsPerCluster, bytesPerSector, freeClusters, totalClusters;
-char rootpath[4];
-#else
 #ifdef LINUX
 	struct  statfs		buf;
 #else
 	struct	statvfs		buf;
 #endif   /* LINUX */
-#endif
 	PRInt64			freeBytes;
 	PRInt64 tmpval;
 
-
-#ifdef _WIN32
-    strncpy(rootpath, path, 3);
-    rootpath[3] = '\0';
-    /* we should consider using GetDiskFreeSpaceEx here someday */
-	if ( !GetDiskFreeSpace(rootpath, &sectorsPerCluster, &bytesPerSector,
-				&freeClusters, &totalClusters)) {
-		LDAPDebug(LDAP_DEBUG_ANY, 
-			  "log__enough_freespace: Unable to get the free space\n",0,0,0);
-		return 1;
-	} else {
-	    LL_UI2L(freeBytes, freeClusters);
-	    LL_UI2L(tmpval, sectorsPerCluster);
-        LL_MUL(freeBytes, freeBytes, tmpval);
-	    LL_UI2L(tmpval, bytesPerSector);
-        LL_MUL(freeBytes, freeBytes, tmpval);
-/*		freeBytes = freeClusters * sectorsPerCluster * bytesPerSector; */
-
-	}
-		
-#else
 #ifdef LINUX
 	if (statfs(path, &buf) == -1)
 #else
@@ -3143,7 +2994,6 @@ char rootpath[4];
 	    LL_MUL(freeBytes, freeBytes, tmpval);
 	  /*		freeBytes = buf.f_bavail * buf.f_bsize; */
 	}
-#endif
 	LL_UI2L(tmpval, loginfo.log_access_minfreespace);
 	if (LL_UCMP(freeBytes, <, tmpval)) {
 	/*	if (freeBytes < loginfo.log_access_minfreespace) { */
@@ -3762,13 +3612,10 @@ log__open_errorlogfile(int logfile_state, int locked)
 	struct logfileinfo	*logp;
 	char			buffer[BUFSIZ];
 	struct passwd	*pw = NULL;
-#ifndef _WIN32
 	int rc = 0;
-#endif
 
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-#ifndef _WIN32
 	if ( slapdFrontendConfig->localuser != NULL &&
 	     slapdFrontendConfig->localuserinfo != NULL ) {
 		pw = slapdFrontendConfig->localuserinfo;
@@ -3779,7 +3626,6 @@ log__open_errorlogfile(int logfile_state, int locked)
 		log__error_emergency(buffer, 0, locked);
 		return LOG_UNABLE_TO_OPENFILE;
 	}
-#endif
 
 	if (!locked) LOG_ERROR_LOCK_WRITE( );
 
@@ -3857,7 +3703,6 @@ log__open_errorlogfile(int logfile_state, int locked)
 		return LOG_UNABLE_TO_OPENFILE;
 	}
 
-#ifndef _WIN32
 	/* make sure the logfile is owned by the localuser.  If one of the
 	 * alternate ns-slapd modes, such as db2bak, tries to log an error
 	 * at startup, it will create the logfile as root! 
@@ -3876,7 +3721,6 @@ log__open_errorlogfile(int logfile_state, int locked)
 		*/
 		return LOG_UNABLE_TO_OPENFILE;
 	}
-#endif
 
 	loginfo.log_error_fdes = fp;
 	if (logfile_state == LOGFILE_REOPENED) {
@@ -4208,16 +4052,8 @@ log_convert_time (time_t ctime, char *tbuf, int type)
 {
 	struct tm               *tmsp, tms;
 
-#ifdef _WIN32
-	{
-		struct tm *pt = localtime( &ctime );
-		tmsp = &tms;
-		memcpy(&tms, pt, sizeof(struct tm) );
-	}
-#else
 	(void)localtime_r( &ctime, &tms );
 	tmsp = &tms;
-#endif
 	if (type == 1)	/* get the short form */
 		(void) strftime (tbuf, (size_t) TBUFSIZE, "%Y%m%d-%H%M%S",tmsp);
 	else	/* wants the long form */

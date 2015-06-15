@@ -18454,9 +18454,6 @@ sttyexec=/bin/stty
 case $host in
   *-*-linux*)
 
-$as_echo "#define XP_UNIX 1" >>confdefs.h
-
-
 $as_echo "#define Linux 1" >>confdefs.h
 
 
@@ -18566,9 +18563,6 @@ $as_echo "#define USE_POSIX_RWLOCKS 1" >>confdefs.h
     ;;
   ia64-hp-hpux*)
 
-$as_echo "#define XP_UNIX 1" >>confdefs.h
-
-
 $as_echo "#define hpux 1" >>confdefs.h
 
 
@@ -18603,9 +18597,6 @@ $as_echo "#define _INCLUDE_STDC__SOURCE_199901 1" >>confdefs.h
     initdir=/init.d
     ;;
   hppa*-hp-hpux*)
-
-$as_echo "#define XP_UNIX 1" >>confdefs.h
-
 
 $as_echo "#define hpux 1" >>confdefs.h
 
@@ -18644,9 +18635,6 @@ $as_echo "#define ATOMIC_64BIT_OPERATIONS 1" >>confdefs.h
     initdir=/init.d
     ;;
   *-*-solaris*)
-
-$as_echo "#define XP_UNIX 1" >>confdefs.h
-
 
 $as_echo "#define SVR4 1" >>confdefs.h
 

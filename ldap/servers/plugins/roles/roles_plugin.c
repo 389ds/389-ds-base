@@ -63,14 +63,6 @@ static void * roles_plugin_identity = NULL;
 static Slapi_PluginDesc pdesc = { "roles",
 		VENDOR, DS_PACKAGE_VERSION, "roles plugin" };
 
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 static int roles_start( Slapi_PBlock *pb );
 static int roles_post_op( Slapi_PBlock *pb );

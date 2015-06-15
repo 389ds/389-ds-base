@@ -85,19 +85,12 @@ dd/mm/yy | Author	| Comments
 #include <fcntl.h>	/* open(), etc... */
 #include <lber.h>	/* ldap C-API BER declarations */
 #include <ldap.h>	/* ldap C-API declarations */
-#ifndef _WIN32							/*JLS 28-11-00*/
 #include <unistd.h>	/* close(), etc... */
 #include <dirent.h>	/* opendir(), etc... */
 #include <pthread.h>	/* pthreads(), etc... */
 #include <sys/mman.h>	/* mmap(), etc... */
-#endif								/*JLS 28-11-00*/
-
 #include "port.h"	/* Portability definitions */		/*JLS 28-11-00*/
 #include "ldclt.h"	/* This tool's include file */
-
-
-
-
 
 
 /* ****************************************************************************
@@ -118,8 +111,6 @@ char *getExtend (
 }
 
 
-
-
 /* ****************************************************************************
 	FUNCTION :	loadImages
 	PURPOSE :	Load the images from the given directory.
@@ -131,15 +122,8 @@ char *getExtend (
 int loadImages (
 	char	*dirpath)
 {
-#ifdef _WIN32
-  WIN32_FIND_DATA	 fileData;	/* Current file */
-  HANDLE		 dirContext;	/* Directory context */
-  char			*findPath = NULL;	/* To build the find path */
-  char			*pt;		/* To read the images */
-#else /* _WIN32 */
   DIR		*dirp = NULL;	/* Directory data */
   struct dirent	*direntp;	/* Directory entry */
-#endif /* _WIN32 */
   char		*fileName;	/* As read from the system */
   char		 name [1024];	/* To build the full path */
   struct stat	 stat_buf;	/* To read the image size */
@@ -166,20 +150,6 @@ int loadImages (
   /*
    * Open the directory
    */
-#ifdef _WIN32
-  findPath = (char *) malloc (strlen (dirpath) + 5);
-  strcpy (findPath, dirpath);
-  strcat (findPath, "/*.*");
-  dirContext = FindFirstFile (findPath, &fileData);
-  if (dirContext == INVALID_HANDLE_VALUE)
-  {
-    fprintf (stderr, "ldlct: cannot load images from %s\n", dirpath);
-    fprintf (stderr, "ldclt: try using -e imagesdir=path\n");	/*JLS 06-03-01*/
-    fflush (stderr);
-    rc = -1;
-    goto exit;
-  }
-#else /* _WIN32 */
   dirp = opendir (dirpath);
   if (dirp == NULL)
   {
@@ -190,21 +160,14 @@ int loadImages (
     rc = -1;
     goto exit;
   }
-#endif /* _WIN32 */
 
   /*
    * Process the directory.
    * We will only accept the .jpg files, as stated by the RFC.
    */
-#ifdef _WIN32
-  fileName = fileData.cFileName;
-  do
-  {
-#else
   while ((direntp = readdir (dirp)) != NULL)
   {
     fileName = direntp->d_name;
-#endif
     if (!strcmp (getExtend (fileName), "jpg"))
     {
       /*
@@ -260,28 +223,6 @@ int loadImages (
       }
       mctx.images[mctx.imagesNb-1].length = stat_buf.st_size;
 
-#ifdef _WIN32
-      /*
-       * Allocate buffer and read the data :-(
-       */
-      mctx.images[mctx.imagesNb-1].data = (char *) malloc (stat_buf.st_size);
-      if (mctx.images[mctx.imagesNb-1].data == NULL)
-      {
-	fprintf (stderr, "Cannot malloc(%d) to load %s\n",
-				stat_buf.st_size, name);
-	fflush (stderr);
-	rc = -1;
-	goto exit;
-      }
-      if (read (fd, mctx.images[mctx.imagesNb-1].data, stat_buf.st_size) < 0)
-      {
-	perror (name);
-	fprintf (stderr, "Cannot read(%s)\n", name);
-	fflush (stderr);
-	rc = -1;
-	goto exit;
-      }
-#else /* _WIN32 */
       /*
        * mmap() the image
        */
@@ -295,7 +236,6 @@ int loadImages (
 	rc = -1;
 	goto exit;
       }
-#endif /* _WIN32 */
 
       /*
        * Close the image. The mmap() will remain available, and this
@@ -312,16 +252,11 @@ int loadImages (
           fd = -1;
       }
     }
-#ifdef _WIN32
-  } while (FindNextFile(dirContext, &fileData) == TRUE);
-#else
   } /* while ((direntp = readdir (dirp)) != NULL) */
-#endif
 exit:
   /*
    * Close the directory
    */
-#ifndef _WIN32
   if (dirp && closedir (dirp) < 0)
   {
     perror (dirpath);
@@ -329,23 +264,16 @@ exit:
     fflush (stderr);
     rc = -1;
   }
-#endif
+
 
   /*
    * Normal end
    */
-#ifdef _WIN32
-  if (findPath) free (findPath);
-#endif
   if(fd != -1)
       close(fd);
 
   return rc;
 }
-
-
-
-
 
 
 /* ****************************************************************************
@@ -420,12 +348,6 @@ int getImage (
 }
 
 
-
-
-
-
-
-						/* New */	/*JLS 23-03-01*/
 /* ****************************************************************************
 	FUNCTION :	loadDataListFile
 	PURPOSE :	Load the data list file given in argument.
@@ -492,12 +414,6 @@ loadDataListFile (
 }
 
 
-
-
-
-
-
-						/* New */	/*JLS 23-03-01*/
 /* ****************************************************************************
 	FUNCTION :	dataListFile
 	PURPOSE :	Find the given data_list_file either in the list of
@@ -536,12 +452,3 @@ dataListFile (
    */
   return (dlf);
 }
-
-
-
-
-
-
-
-
-/* End of file */

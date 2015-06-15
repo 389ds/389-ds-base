@@ -91,11 +91,7 @@
 #define _DEL	2
 #define _MODRDN	3
 
-#ifdef _WIN32
-static char changelogfile[MAX_PATH+1];
-#else
 static char *changelogfile = "/tmp/changelog";
-#endif
 
 Slapi_PluginDesc postoppdesc = { "test-postop", VENDOR, DS_PACKAGE_VERSION,
 	"sample post-operation plugin" };
@@ -234,9 +230,6 @@ testpostop_abandon( Slapi_PBlock *pb )
 }
 
 /* Initialization function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testpostop_init( Slapi_PBlock *pb )
 {
@@ -271,11 +264,7 @@ format_localTime( time_t timeval )
 {
     char* into;
     struct tm t;
-#ifdef _WIN32
-    memcpy (&t, localtime (&timeval), sizeof(t));
-#else
     localtime_r (&timeval, &t);
-#endif
     
     /* Allocate memory for the formatted string.  (slapi_ch_malloc()
        should be used in server plug-ins instead of malloc().)
@@ -319,17 +308,8 @@ write_changelog(
     FILE	*fp;
     int		len, i, j;
     char*	timestr;
-#ifdef _WIN32
-	char szTmpPath[MAX_PATH+1];
-#endif
 
     /* Open the change log file */
-#ifdef _WIN32        
-	GetTempPath( MAX_PATH, szTmpPath ); 
-	strcpy( changelogfile, szTmpPath );
-	strcat( changelogfile, "\\" );
-	strcat( changelogfile, "changelog.txt" );
-#endif
 	if ( changelogfile == NULL ) {
 		return;
 	}

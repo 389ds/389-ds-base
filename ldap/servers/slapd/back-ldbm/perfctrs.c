@@ -80,142 +80,21 @@ static void perfctrs_update(perfctrs_private *priv, DB_ENV *db_env);
 static void perfctr_add_to_entry( Slapi_Entry *e, char *type,
 	PRUint32 countervalue );
 
-/*
- * Win32 specific code (to support the Windows NT/2000 Performance Monitor).
- */
-#if defined(_WIN32)
-static 
-char * string_concatenate(char *a, char* b)
-{
-	size_t string_length = 0;
-	char *string = NULL;
-
-	string_length = strlen(a) + strlen(b) + 1;
-	string = slapi_ch_malloc(string_length);
-
-	sprintf(string,"%s%s",a,b);
-	return string;
-}
-
-static void init_shared_memory(perfctrs_private *priv)
-{
-	performance_counters *perf = (performance_counters*)priv->memory;
-	if (NULL != perf) {
-		memset(perf,0,sizeof(performance_counters));
-	}
-}
-
-static int open_event(char *name, perfctrs_private *priv)
-{
-	HANDLE hEvent = INVALID_HANDLE_VALUE;
-
-	hEvent = OpenEvent(EVENT_ALL_ACCESS,FALSE,name);
-	if (NULL == hEvent) {
-		hEvent = CreateEvent(NULL,FALSE,FALSE,name);
-		if (NULL == hEvent) {
-			LDAPDebug(LDAP_DEBUG_ANY,"BAD EV 1, err=%d\n",GetLastError(),0,0);
-			return -1;
-		}
-	}
-	priv->hEvent = hEvent;
-	return 0;
-}
-
-static int open_shared_memory(char *name, perfctrs_private *priv)
-{
-	HANDLE hMapping = INVALID_HANDLE_VALUE;
-	void *pMemory = NULL;
-	/* We fear a bug in NT where it fails to attach to an existing region on calling CreateFileMapping, so let's call OpenFileMapping first */
-	hMapping = OpenFileMapping(FILE_MAP_ALL_ACCESS,FALSE,name);
-	if (NULL == hMapping) {
-		hMapping = CreateFileMapping((HANDLE)0xFFFFFFFF,NULL,PAGE_READWRITE,0,sizeof(performance_counters),name);
-		if (NULL == hMapping) {
-			LDAPDebug(LDAP_DEBUG_ANY,"BAD MAP 1, err=%d\n",GetLastError(),0,0);
-			return -1;
-		}
-	}
-	/* If we got to here, we have the mapping object open */
-	pMemory = MapViewOfFile(hMapping,FILE_MAP_ALL_ACCESS,0,0,0);
-	if (NULL == pMemory) {
-		LDAPDebug(LDAP_DEBUG_ANY,"BAD MAP 2, err=%d\n",GetLastError(),0,0);
-		return -1;
-	}
-	priv->memory = pMemory;
-	priv->hMemory = hMapping;
-	return 0;
-}
-#endif
-
 /* Init perf ctrs */
 void perfctrs_init(struct ldbminfo *li, perfctrs_private **ret_priv)
 {
 	perfctrs_private *priv = NULL;
 
-#if defined(_WIN32)
-	/* XXX What's my instance name ? */
-
-	/* 
-	 * We have a single DB environment for all backend databases.
-	 * Therefore the instance name can be the server instance name.
-	 * To match the db perf ctr DLL the instance name should be the
-	 * name of a key defined in the registry under:
-	 *   HKEY_LOCAL_MACHINE\SOFTWARE\Netscape\Directory\5
-	 * i.e. slapd-servername
-	 */
-
-	char *string = NULL;
-	char *instance_name = li->li_plugin->plg_name; /* XXX does not identify server instance */
-#endif
-
 	*ret_priv = NULL;
-
-#if defined(_WIN32)
-	/*
-	 * On Windows, the performance counters reside in shared memory.
-	 */
-	if (NULL == instance_name) {
-		goto error;
-	}
-	/* Invent the name for the shared memory region */
-	string = string_concatenate(instance_name,PERFCTRS_REGION_SUFFIX);
-	if (NULL == string) {
-		goto error;
-	}
-#endif
 
 	/*
 	 * We need the perfctrs_private area on all platforms.
 	 */
 	priv = (perfctrs_private *)slapi_ch_calloc(1,sizeof(perfctrs_private));
-
-#if defined(_WIN32)
-	/* Try to open the shared memory region */
-	open_shared_memory(string,priv);
-	free(string);
-	/* Invent the name for the update mutex */
-	string = string_concatenate(instance_name,PERFCTRS_MUTEX_SUFFIX);
-	if (NULL == string) {
-		goto error;
-	}
-	open_event(string,priv);
-	free(string);
-	init_shared_memory(priv);
-
-#else
-	/*
-	 * On other platforms, the performance counters reside in regular memory.
-	 */
 	priv->memory = slapi_ch_calloc( 1, sizeof( performance_counters ));
-#endif
 
 	*ret_priv = priv;
 	return;
-
-#if defined(_WIN32)
-error:
-	slapi_ch_free((void**)&priv);
-	return;
-#endif
 }
 
 /* Terminate perf ctrs */
@@ -234,21 +113,9 @@ void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 	slapi_ch_free((void**)&logstat);
 	LOCK_STAT(db_env, &lockstat, DB_STAT_CLEAR, (void *)slapi_ch_malloc);
 	slapi_ch_free((void**)&lockstat);
-#if defined(_WIN32)
-	if (NULL != (*priv)->memory) {
-		UnmapViewOfFile((*priv)->memory);
-	}
-	if (NULL != (*priv)->hMemory) {
-		CloseHandle((*priv)->hMemory);
-	}
-	if (NULL != (*priv)->hEvent) {
-		CloseHandle((*priv)->hEvent);
-	}
-#else
 	if (NULL != (*priv)->memory) {
 		slapi_ch_free(&(*priv)->memory);
 	}
-#endif
 
 	slapi_ch_free( (void **)priv );
 }
@@ -256,26 +123,10 @@ void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 /* Wait while checking for perfctr update requests */
 void perfctrs_wait(size_t milliseconds,perfctrs_private *priv,DB_ENV *db_env)
 {
-#if defined(_WIN32)
-	if (NULL != priv) {
-		DWORD ret = 0;
-		if (NULL != priv->hEvent) {
-			/* Sleep waiting on the perfctrs update event */
-			ret = WaitForSingleObject(priv->hEvent,milliseconds);
-			/* If we didn't time out, update the perfctrs */
-			if (ret == WAIT_OBJECT_0) {
-				perfctrs_update(priv,db_env);
-			}
-		} else {
-			Sleep(milliseconds);
-		}
-	}
-#else
 	/* Just sleep */
 	PRIntervalTime    interval;   /*NSPR timeout stuffy*/
 	interval = PR_MillisecondsToInterval(milliseconds);
 	DS_Sleep(interval);
-#endif
 }
 
 /* Update perfctrs */

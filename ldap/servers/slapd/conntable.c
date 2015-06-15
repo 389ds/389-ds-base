@@ -77,10 +77,9 @@ connection_table_new(int table_size)
 		ber_sockbuf_set_option( ct->c[i].c_sb, LBER_SOCKBUF_OPT_NO_READ_AHEAD, LBER_OPT_ON );
 		ber_sockbuf_set_option( ct->c[i].c_sb, LBER_SOCKBUF_OPT_MAX_INCOMING_SIZE, &maxbersize );
 #endif /* !USE_OPENLDAP */
-#ifndef _WIN32
 		/* all connections start out invalid */
 		ct->fd[i].fd = SLAPD_INVALID_SOCKET;
-#endif
+
 		/* The connection table has a double linked list running through it.
 		 * This is used to find out which connections should be looked at
 		 * in the poll loop.  Slot 0 in the table is always the head of 
@@ -108,31 +107,6 @@ void connection_table_free(Connection_Table *ct)
 	PR_DestroyLock(ct->table_mutex);
 	slapi_ch_free((void**)&ct);
 }
-
-
-#ifdef _WIN32
-/*
- * This function looks up connection by nspr fd. It is
- * slow because it iterrates through the entire connection
- * array. Currently, it is only used on NT in secure_read_function
- * to handle I/O timeout on SSL socket we should almost never
- * happen.
- */
-Connection*
-connection_table_get_connection_from_fd(Connection_Table *ct,PRFileDesc *prfd)
-{
-    int i;
-    for (i = 0; i < ct->size; i++)
-    {
-        if (ct->c[i].c_prfd == prfd)
-        {
-            return (&(ct->c[i]));
-        }
-    }
-
-    return NULL;
-}
-#endif
 
 void
 connection_table_abandon_all_operations(Connection_Table *ct)
@@ -434,15 +408,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 				nreadwaiters++;
 			}
 
-#ifdef _WIN32
-			{
-			struct tm *pt;
-			pt = gmtime( &ct->c[i].c_starttime );
-			memcpy(&utm, pt, sizeof(struct tm) );
-			}
-#else
 			gmtime_r( &ct->c[i].c_starttime, &utm );
-#endif
 			strftime( buf2, sizeof(buf2), "%Y%m%d%H%M%SZ", &utm );
 
 			/*

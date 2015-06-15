@@ -254,9 +254,6 @@ test_search( Slapi_PBlock *pb )
 }
 
 /* Initialization function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testbind_init( Slapi_PBlock *pb )
 {

@@ -244,9 +244,6 @@ testpreop_start( Slapi_PBlock *pb )
 }
 
 /* Initialization function */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 testpreop_init( Slapi_PBlock *pb )
 {

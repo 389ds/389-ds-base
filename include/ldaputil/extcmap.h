@@ -46,11 +46,7 @@
 #include <ldap.h>
 
 #ifndef NSAPI_PUBLIC
-#if defined( _WINDOWS ) || defined( _WIN32 ) || defined( XP_WIN32 )
-#define NSAPI_PUBLIC __declspec(dllexport)
-#else
 #define NSAPI_PUBLIC 
-#endif
 #endif
 
 
@@ -311,20 +307,9 @@ NSAPI_PUBLIC extern int CertMapDLLInitFn(LDAPUDispatchVector_t **table);
 
 extern LDAPUDispatchVector_t *__ldapu_table;
 
-#if defined( _WINDOWS ) || defined( _WIN32 ) || defined( XP_WIN32 )
-#define CertmapDLLInitFnTbl LDAPUDispatchVector_t *__ldapu_table;
-#define CertmapDLLInit(rv, libname) \
-{\
-	HANDLE h = LoadLibrary((libname)); \
-	CertMapDLLInitFn_t init_fn; \
-	if (!h) return LDAPU_CERT_MAP_INITFN_FAILED; \
-	init_fn = (CertMapDLLInitFn_t)GetProcAddress(h, "CertMapDLLInitFn"); \
-	rv = init_fn(&__ldapu_table); \
-}
-#else
 #define CertmapDLLInit(rv, libname)
 #define CertmapDLLInitFnTbl
-#endif
+
 
 #endif /* INTLDAPU */
 

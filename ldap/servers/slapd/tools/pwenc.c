@@ -40,12 +40,7 @@
 #  include <config.h>
 #endif
 
-#if defined( _WIN32 )
-#include <sys/stat.h> /* for S_IREAD and S_IWRITE */
-#include <windows.h>
-#include <time.h>
-#include "proto-ntutil.h"
-#else
+
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/param.h>
@@ -54,7 +49,6 @@
 					* this flag. But don't want to
 					* break other builds so far */
 #include <unistd.h>
-#endif
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -70,9 +64,6 @@
 int			ldap_syslog;
 int			ldap_syslog_level;
 int			slapd_ldap_debug = LDAP_DEBUG_ANY;
-#ifdef _WIN32
-int *module_ldap_debug;
-#endif
 int			detached;
 FILE			*error_logfp;
 FILE			*access_logfp;
@@ -175,11 +166,6 @@ main( argc, argv )
 	char *opts = "Hs:c:D:";
     name = argv[ 0 ];
     pwsp = cmppwsp = NULL;
-
-#ifdef _WIN32
-	module_ldap_debug = &slapd_ldap_debug;
-	libldap_init_debug_level(&slapd_ldap_debug);
-#endif
 
 	PR_Init( PR_USER_THREAD, PR_PRIORITY_NORMAL, 0 );
 	

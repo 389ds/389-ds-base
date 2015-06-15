@@ -44,11 +44,7 @@
 #define _LDAPU_ERRORS_H
 
 #ifndef NSAPI_PUBLIC
-#ifdef XP_WIN32
-#define NSAPI_PUBLIC __declspec(dllexport)
-#else
 #define NSAPI_PUBLIC 
-#endif
 #endif
 
 #ifdef DBG_PRINT

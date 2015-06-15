@@ -527,7 +527,6 @@ fi
 sttyexec=/bin/stty
 case $host in
   *-*-linux*)
-    AC_DEFINE([XP_UNIX], [1], [UNIX])
     AC_DEFINE([Linux], [1], [Linux])
     AC_DEFINE([LINUX], [1], [Linux])
     AC_DEFINE([LINUX2_0], [1], [Linux 2.0])
@@ -571,7 +570,6 @@ case $host in
     AC_DEFINE([USE_POSIX_RWLOCKS], [1], [POSIX rwlocks])
     ;;
   ia64-hp-hpux*)
-    AC_DEFINE([XP_UNIX], [1], [UNIX])
     AC_DEFINE([hpux], [1], [HP-UX])
     AC_DEFINE([HPUX], [1], [HP-UX])
     AC_DEFINE([HPUX11], [1], [HP-UX 11])
@@ -589,7 +587,6 @@ case $host in
     initdir=/init.d
     ;;
   hppa*-hp-hpux*)
-    AC_DEFINE([XP_UNIX], [1], [UNIX])
     AC_DEFINE([hpux], [1], [HP-UX])
     AC_DEFINE([HPUX], [1], [HP-UX])
     AC_DEFINE([HPUX11], [1], [HP-UX 11])
@@ -608,7 +605,6 @@ case $host in
     initdir=/init.d
     ;;
   *-*-solaris*)
-    AC_DEFINE([XP_UNIX], [1], [UNIX])
     AC_DEFINE([SVR4], [1], [SVR4])
     AC_DEFINE([__svr4], [1], [SVR4])
     AC_DEFINE([__svr4__], [1], [SVR4])

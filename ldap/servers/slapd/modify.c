@@ -63,12 +63,10 @@
 #include <time.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif
 #include "slap.h"
 #include "pratom.h"
-#if defined(irix) || defined(aix) || defined(_WIN32)
+#if defined(irix) || defined(aix)
 #include <time.h>
 #endif
 

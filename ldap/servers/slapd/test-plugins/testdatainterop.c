@@ -139,9 +139,6 @@ static int nullsuffix_bind( Slapi_PBlock *pb );
 /*
  * Initialization function.
  */
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 int
 nullsuffix_init( Slapi_PBlock *pb )
 {

@@ -41,15 +41,11 @@
 #endif
 
 /* util.c   -- utility functions -- functions available form libslapd */
-#ifdef _WIN32
-#include <direct.h> /* for getcwd */
-#else
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <stdint.h>
-#endif
 #include <fcntl.h>
 #include <libgen.h>
 #include <pk11func.h>
@@ -57,20 +53,15 @@
 #include "prtime.h"
 #include "prinrval.h"
 #include "snmp_collator.h"
+#include <sys/time.h>
 
 #define UTIL_ESCAPE_NONE      0
 #define UTIL_ESCAPE_HEX       1
 #define UTIL_ESCAPE_BACKSLASH 2
 
-#if defined( _WIN32 )
-#define _PSEP "\\"
-#define _PSEP2 "\\\\"
-#define _CSEP '\\'
-#else
 #define _PSEP "/"
 #define _PSEP2 "//"
 #define _CSEP '/'
-#endif
 
 /* slapi_filter_sprintf macros */
 #define ATTRSIZE 256   /* size allowed for an attr name */
@@ -832,16 +823,9 @@ is_abspath(const char *path)
 		return 0; /* empty path is not absolute? */
 	}
 
-#if defined( XP_WIN32 )
-	if (path[0] == '/' || path[0] == '\\' ||
-		(isalpha(path[0]) && (path[1] == ':'))) {
-		return 1; /* Windows abs path */
-	}
-#else
 	if (path[0] == '/') {
 		return 1; /* unix abs path */
 	}
-#endif
 
 	return 0; /* not an abs path */
 }
@@ -930,26 +914,10 @@ rel2abspath_ext( char *relpath, char *cwd )
     char abspath[ MAXPATHLEN + 1 ];
     char *retpath = NULL;
 
-#if defined( _WIN32 )
-   CHAR szDrive[_MAX_DRIVE];
-   CHAR szDir[_MAX_DIR];
-   CHAR szFname[_MAX_FNAME];
-   CHAR szExt[_MAX_EXT];
-#endif
-
     if ( relpath == NULL ) {
         return NULL;
     }
 
-#if defined( _WIN32 )
-    memset (&szDrive, 0, sizeof (szDrive));
-    memset (&szDir, 0, sizeof (szDir));
-    memset (&szFname, 0, sizeof (szFname));
-    memset (&szExt, 0, sizeof (szExt));
-    _splitpath( relpath, szDrive, szDir, szFname, szExt );
-    if( szDrive[0] && szDir[0] )
-        return( slapi_ch_strdup( relpath ));
-#endif
     if ( relpath[ 0 ] == _CSEP ) {     /* absolute path */
         PR_snprintf(abspath, sizeof(abspath), "%s", relpath);
     } else {                        /* relative path */
@@ -1087,30 +1055,11 @@ Description:
 		for the number of milliseconds specified.
 
 ************************************************************************/
-
-
-#if defined(_WIN32)
-
-#include "windows.h"
-
-
-void	DS_Sleep(PRIntervalTime ticks)
+void
+DS_Sleep(PRIntervalTime ticks)
 {
-DWORD mSecs = PR_IntervalToMilliseconds(ticks);
-
-	Sleep(mSecs);
-}
-
-#else	/*** UNIX ***/
-
-
-#include <sys/time.h>
-
-
-void	DS_Sleep(PRIntervalTime ticks)
-{
-long mSecs = PR_IntervalToMilliseconds(ticks);
-struct timeval tm;
+	long mSecs = PR_IntervalToMilliseconds(ticks);
+	struct timeval tm;
 
 	tm.tv_sec = mSecs / 1000;
 	tm.tv_usec = (mSecs % 1000) * 1000;
@@ -1118,7 +1067,6 @@ struct timeval tm;
 	select(0,NULL,NULL,NULL,&tm);
 }
 
-#endif
 
 
 /*****************************************************************************
@@ -1186,7 +1134,6 @@ strarray2str( char **a, char *buf, size_t buflen, int include_quotes )
    Returns 0 upon success or non-zero otherwise, usually -1 if
    some system error occurred
 */
-#ifndef _WIN32
 int
 slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 {
@@ -1213,7 +1160,6 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
         close(fd);
         return result;
 }
-#endif
 
 /*
  * Compare 2 pathes

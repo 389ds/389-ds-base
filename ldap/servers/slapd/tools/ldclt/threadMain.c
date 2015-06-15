@@ -154,31 +154,15 @@ dd/mm/yy | Author	| Comments
 #include <errno.h>	/* errno, etc... */			/*JLS 06-03-00*/
 #include <lber.h>	/* ldap C-API BER declarations */
 #include <ldap.h>	/* ldap C-API declarations */
-#ifndef _WIN32							/*JLS 29-11-00*/
 #include <unistd.h>	/* close(), etc... */
 #include <pthread.h>	/* pthreads(), etc... */
 #include <signal.h>	/* sigfillset(), etc... */
-#endif								/*JLS 29-11-00*/
-
 #include "port.h"	/* Portability definitions */		/*JLS 29-11-00*/
 #include "ldclt.h"	/* This tool's include file */
 #include "utils.h"	/* Utilities functions */		/*JLS 14-11-00*/
 #include "scalab01.h"	/* Scalab01 specific */			/*JLS 12-01-01*/
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-						/* New */	/*JLS 15-03-01*/
 /* ****************************************************************************
 	FUNCTION :	selectRandomAttrList
 	PURPOSE :	Select a random attr list.
@@ -194,9 +178,6 @@ selectRandomAttrList (
   tttctx->attrlist[0] = mctx.attrlist[rndlim(0,mctx.attrlistNb-1)];
   return (tttctx->attrlist);
 }
-
-
-
 
 
 /* ****************************************************************************
@@ -219,12 +200,6 @@ randomString (
 }
 
 
-
-
-
-
-
-						/* New */	/*JLS 28-03-01*/
 /* ****************************************************************************
 	FUNCTION :	incrementCommonCounterObject
 	PURPOSE :	Purpose of the fct
@@ -309,11 +284,6 @@ incrementCommonCounterObject (
 }
 
 
-
-
-
-
-						/* New */	/*JLS 14-03-01*/
 /* ****************************************************************************
 	FUNCTION :	incrementCommonCounter
 	PURPOSE :	Purpose of the fct
@@ -371,9 +341,6 @@ incrementCommonCounter (
 
   return (val);
 }
-
-
-
 
 
 /* ****************************************************************************
@@ -434,11 +401,6 @@ incrementNbOpers (
 }
 
 
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	ignoreError
 	PURPOSE :	Returns true or false depending on the given error
@@ -466,12 +428,6 @@ ignoreError (
     }								/*JLS 14-03-01*/
   return (0);
 }
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -562,10 +518,6 @@ addErrorStat (
 }
 
 
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	msgIdAdd
 	PURPOSE :	Add a new message id to the pending ones.
@@ -630,11 +582,6 @@ msgIdAdd (
 }
 
 
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	msgIdAttribs
 	PURPOSE :	Found the requested message id in the pending list.
@@ -660,12 +607,6 @@ msgIdAttribs (
 
   return (NULL);
 }
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -695,12 +636,6 @@ msgIdDN (
 }
 
 
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	msgIdStr
 	PURPOSE :	Found the requested message id in the pending list.
@@ -726,11 +661,6 @@ msgIdStr (
 
   return ("Error: msgid not found");
 }
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -807,13 +737,6 @@ msgIdDel (
 }
 
 
-
-
-
-
-
-
-					/* New function */	/*JLS 17-11-00*/
 /* ****************************************************************************
 	FUNCTION :	getThreadStatus
 	PURPOSE :	Get the value of a given thread's status.
@@ -853,10 +776,6 @@ getThreadStatus (
 }
 
 
-
-
-
-					/* New function */	/*JLS 17-11-00*/
 /* ****************************************************************************
 	FUNCTION :	setThreadStatus
 	PURPOSE :	Set the value of a given thread's status.
@@ -895,17 +814,6 @@ setThreadStatus (
 
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -1252,4 +1160,3 @@ threadMain (
 }
 
 
-/* End of file */

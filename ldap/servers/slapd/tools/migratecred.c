@@ -50,9 +50,7 @@
 #include <unistd.h>
 #endif
 
-#ifndef _WIN32
 #include <sys/param.h>  /* MAXPATHLEN */
-#endif
 
 #include "../plugins/rever/rever.h"
 #include "getopt_ext.h"
@@ -63,22 +61,6 @@ static void usage(char *name)
     fprintf(stderr, "New plugin path defaults to [%s] if not given\n", PLUGINDIR);
 	exit(1);
 }
-	
-#ifdef _WIN32
-/* converts '\' chars to '/' */
-static void dostounixpath(char *szText)
-{
-    if(szText)
-    {
-        while(*szText)
-        {
-            if( *szText == '\\' )
-                *szText = '/';
-            szText++;
-        }
-    }
-}
-#endif
 
 /* Script used during migration: replication and
 	chaining backend credentials must be converted.
@@ -118,16 +100,10 @@ main( int argc, char **argv)
 		{
 			case 'o':
 				oldpath = strdup(optarg);
-#ifdef _WIN32
-				dostounixpath(oldpath);
-#endif /* _WIN32 */
 
 				break;
 			case 'n':
 				newpath = strdup(optarg);
-#ifdef _WIN32
-				dostounixpath(newpath);
-#endif /* _WIN32 */
 				break;
 			case 'c':
 				{
@@ -151,10 +127,6 @@ main( int argc, char **argv)
 				break;
 			case 'p':
 				pluginpath = strdup(optarg);
-#ifdef _WIN32
-				dostounixpath(pluginpath);
-#endif /* _WIN32 */
-
 				break;
 			default: 
 				usage(cmd);
@@ -171,9 +143,6 @@ main( int argc, char **argv)
 	}
 
 
-#if defined( XP_WIN32 )
-	shared_lib = ".dll";
-#else
 #ifdef HPUX
 #ifdef __ia64
 	shared_lib = ".so";
@@ -191,13 +160,9 @@ main( int argc, char **argv)
 	shared_lib = ".so";
 #endif
 #endif
-#endif
 
 	if (!pluginpath) {
 		pluginpath = strdup(PLUGINDIR);
-#ifdef _WIN32
-		dostounixpath(pluginpath);
-#endif /* _WIN32 */
 	}
 
 	if (access(pluginpath, R_OK)) {

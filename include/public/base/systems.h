@@ -212,41 +212,11 @@
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
 
-#elif defined (XP_WIN32)      /* Windows NT */
-
-#include <wtypes.h>
-#include <winbase.h>
-
-typedef void* PASSWD;
-
-#define caddr_t PCHAR
-#define CASECMPARG_T const
-#define FILE_WIN32
-#define FILE_WIN32_MMAP
-#define MALLOC_POOLS
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
-#define NET_WINSOCK
-#define NSAPI_PUBLIC __declspec(dllexport)
-/* The stat call under NT doesn't define these macros */
-#ifndef S_ISDIR
-#define S_ISDIR(mode)   ((mode&S_IFMT) == S_IFDIR)
-#endif
-#ifndef S_ISREG
-#define S_ISREG(mode)   ((mode&S_IFMT) == S_IFREG)                             
-#endif
-#ifndef S_ISLNK
-#define S_ISLNK(x) (0)
-#endif
-#define SEM_WIN32
-#define SHMEM_WIN32_MMAP
-#define ZERO(ptr, len) ZeroMemory(ptr, len)
-
 #else
 
 #error "Missing defines in ns/netsite/include/public/base/systems.h"
 
-#endif	/* Windows NT */
+#endif
 
 #ifndef NSPR_BEGIN_EXTERN_C
 #ifdef __cplusplus

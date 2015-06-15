@@ -245,11 +245,8 @@ dd/mm/yy | Author	| Comments
 #ifdef LDAP_H_FROM_QA_WKA
 #include <proto-ldap.h>	/* ldap C-API prototypes */
 #endif
-#ifndef _WIN32							/*JLS 29-11-00*/
 #include <unistd.h>	/* close(), etc... */
 #include <pthread.h>	/* pthreads(), etc... */
-#endif								/*JLS 29-11-00*/
-
 #include "port.h"	/* Portability definitions */		/*JLS 29-11-00*/
 #include "ldclt.h"	/* This tool's include file */
 #include "utils.h"	/* Utilities functions */		/*JLS 14-11-00*/
@@ -298,12 +295,6 @@ my_ldap_err2string (
 }
 
 
-
-
-
-
-
-					/* New function */	/*JLS 14-12-00*/
 /* ****************************************************************************
 	FUNCTION :	dnFromMessage
 	PURPOSE :	Extract the matcheddnp value from an LDAP (error)
@@ -402,15 +393,6 @@ getBindAndPasswdFromFile (
 }
 
 
-
-
-
-
-
-
-
-
-					/* New function */	/*JLS 05-01-01*/
 /* ****************************************************************************
 	FUNCTION :	buildNewBindDN
 	PURPOSE :	Purpose of the fct
@@ -468,11 +450,6 @@ buildNewBindDN (
    */
   return (0);
 }
-
-
-
-
-
 
 
 #if defined(USE_OPENLDAP)
@@ -538,12 +515,6 @@ refRebindProc (
 #endif /* !USE_OPENLDAP */
 
 
-
-
-
-
-
-					/* New function */	/*JLS 08-03-01*/
 /* ****************************************************************************
 	FUNCTION :	referralSetup
 	PURPOSE :	Initiates referral features. This function is called
@@ -584,24 +555,13 @@ referralSetup (
    *        the same thing !!!!
    */
   if (mctx.referral == REFERRAL_REBIND)
-#ifdef _WIN32							/*JLS 14-03-01*/
-    ldap_set_rebind_proc (tttctx->ldapCtx, 			/*JLS 14-03-01*/
-		(LDAP_REBINDPROC_CALLBACK *)refRebindProc,	/*JLS 14-03-01*/
-		(void *)tttctx);				/*JLS 14-03-01*/
-#else								/*JLS 14-03-01*/
     ldap_set_rebind_proc (tttctx->ldapCtx, refRebindProc, (void *)tttctx);
-#endif								/*JLS 14-03-01*/
 
   /*
    * Normal end
    */
   return (0);
 }
-
-
-
-
-
 
 
 #if defined(USE_OPENLDAP)
@@ -1226,13 +1186,6 @@ connectToServer (
 }
 
 
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	buildVersatileAttribute
 	PURPOSE :	Build a new attribute value using the definitions of
@@ -1401,14 +1354,6 @@ buildVersatileAttribute (
 }
 
 
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	buildRandomRdnOrFilter
 	PURPOSE :	This function will build a random string (rdn or filter)
@@ -1423,7 +1368,6 @@ int
 buildRandomRdnOrFilter (
 	thread_context	*tttctx)
 {
-
   /*
    * Maybe we will operate with a variable base DN ?
    */
@@ -1534,13 +1478,6 @@ buildRandomRdnOrFilter (
 }
 
 
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	addAttrib
 	PURPOSE :	Add a new attribute to the given LDAPMod array
@@ -1569,9 +1506,6 @@ addAttrib (
   attrs[nb+1] = NULL;
   return (0);
 }
-
-
-
 
 
 /* ****************************************************************************
@@ -1606,12 +1540,6 @@ freeAttrib (
 }
 
 
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	strList1
 	PURPOSE :	Create a list (array) of two strings
@@ -1638,16 +1566,6 @@ strList1 (
 }
 
 
-
-
-
-
-
-
-
-
-
-					/* New function */	/*JLS 03-08-00*/
 /* ****************************************************************************
 	FUNCTION :	printErrorFromLdap
 	PURPOSE :	Print the error message returned by ldap.
@@ -1714,13 +1632,6 @@ printErrorFromLdap (
   fflush (stdout);
   return (0);
 }
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -1796,8 +1707,6 @@ done:
 }
 
 
-
-/* New function */	/*JLS 21-11-00*/
 /* ****************************************************************************
 	FUNCTION :	buildNewModAttrib
 	PURPOSE :	Build a new (random or incremental) target DN and the
@@ -1847,18 +1756,6 @@ buildNewModAttrib (
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-						/* New */	/*JLS 19-03-01*/
 /* ****************************************************************************
 	FUNCTION :	buildVersatileObject
 	PURPOSE :	Build a new entry using the definitions in the object
@@ -1920,16 +1817,6 @@ buildVersatileObject (
 
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -2080,18 +1967,6 @@ buildNewEntry (
   }
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -2320,14 +2195,6 @@ createMissingNodes (
    */
   return (0);
 }
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -2588,19 +2455,6 @@ getPending (
 
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -2881,12 +2735,6 @@ doRename (
 }
 
 
-
-
-
-
-
-						/* New */	/*JLS 02-04-01*/
 /* ****************************************************************************
 	FUNCTION :	ldclt_write_genldif
 	PURPOSE :	Implements buffered write to speed up -e genldif
@@ -2943,14 +2791,6 @@ ldclt_write_genldif (
 }
 
 
-
-
-
-
-
-
-
-						/* New */	/*JLS 19-03-01*/
 /* ****************************************************************************
 	FUNCTION :	doGenldif
 	PURPOSE :	Create a ldif file from the given parameters.
@@ -3005,16 +2845,6 @@ doGenldif (
 
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -3239,15 +3069,6 @@ doAddEntry (
 }
 
 
-
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	doAttrReplace
 	PURPOSE :	Perform an ldap_modify() operation, to replace an
@@ -3401,7 +3222,6 @@ doAttrReplace (
    */
   return (0);
 }
-
 
 
 /* ****************************************************************************
@@ -3737,13 +3557,6 @@ doDeleteEntry (
 }
 
 
-
-
-
-
-
-
-					/* New function */	/*JLS 04-05-01*/
 /* ****************************************************************************
 	FUNCTION :	doBindOnly
 	PURPOSE :	Perform only bind/unbind operations.
@@ -3775,10 +3588,6 @@ doBindOnly (
 
   return (0);
 }
-
-
-
-
 
 
 /* ****************************************************************************

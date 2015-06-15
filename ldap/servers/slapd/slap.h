@@ -76,26 +76,12 @@ static char ptokPBE[34] = "Internal (Software) Token        ";
 #define SLAPD_EXEMODE_DBVERIFY      12
 #define SLAPD_EXEMODE_UPGRADEDNFORMAT     13
 
-#ifdef _WIN32
-#ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG
-extern __declspec(dllimport) int	slapd_ldap_debug;	/* XXXmcs: should eliminate this */
-#endif /* DONT_DECLARE_SLAPD_LDAP_DEBUG */
-typedef char *caddr_t;
-void *dlsym(void *a, char *b);
-#define LOG_PID		0x01
-#define LOG_NOWAIT	0x10
-#define LOG_DEBUG	7
-#define POLL_STRUCT PRPollDesc
-#define POLL_FN PR_Poll
-#define RLIM_TYPE  int
-#else /* _WIN32 */
 #define LDAP_SYSLOG
 #include <syslog.h>
 #define RLIM_TYPE int
 #include <poll.h>
 #define POLL_STRUCT PRPollDesc
 #define POLL_FN PR_Poll
-#endif /* _WIN32 */
 
 #include <stdio.h>  /* for FILE */
 #include <stdlib.h>
@@ -112,17 +98,10 @@ void *dlsym(void *a, char *b);
 #define LITTLE_ENDIAN __LITTLE_ENDIAN
 #endif
 #include <cert.h> 
-
-#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#endif /* _WIN32 */
-
-#ifdef _WIN32
-#define LDAP_IOCP
-#endif
 
 /* Required to get portable printf/scanf format macros */
 #ifdef HAVE_INTTYPES_H
@@ -180,12 +159,8 @@ typedef struct symbol_t {
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
 #else 
-#  if defined(_WIN32)
-#    define GET_THREAD_ID() GetCurrentThreadId()
-#  else
 #    include <pthread.h>
 #    define GET_THREAD_ID() pthread_self()
-#  endif
 #endif
 
 /*
@@ -1553,12 +1528,8 @@ typedef struct conn {
 
 #define START_TLS_OID    "1.3.6.1.4.1.1466.20037"
 
-
-#ifndef _WIN32
 #define SLAPD_POLL_FLAGS	(POLLIN)
-#else
-#define SLAPD_POLL_FLAGS	(PR_POLL_READ)
-#endif
+
 
 /******************************************************************************
  *  * Online tasks interface (to support import, export, etc)
@@ -1836,17 +1807,12 @@ typedef struct daemon_ports_s {
 	int			s_port;
 	PRNetAddr	**n_listenaddr;
 	PRNetAddr	**s_listenaddr;
-#if defined( XP_WIN32 )
-	int		n_socket;
-	int		s_socket_native;
-#else
 	PRFileDesc	**n_socket;
 #if defined(ENABLE_LDAPI)
 	/* ldapi */
 	PRNetAddr       **i_listenaddr;
 	int             i_port; /* used as a flag only */
 	PRFileDesc      **i_socket;
-#endif
 #endif
 	PRFileDesc	**s_socket;
 } daemon_ports_t;
@@ -1949,11 +1915,7 @@ typedef struct _slapdEntryPoints {
     caddr_t	sep_slapd_ssl_init2;
 } slapdEntryPoints;
 
-#if defined( XP_WIN32 )
-#define DLL_IMPORT_DATA _declspec( dllimport )
-#else
 #define DLL_IMPORT_DATA
-#endif
 
 /* Log types */
 #define SLAPD_ACCESS_LOG 0x1
@@ -2397,9 +2359,7 @@ typedef struct _slapdFrontendConfig {
   size_t maxsasliosize;         /* limit incoming SASL IO packet size */
   char *anon_limits_dn;		/* template entry for anonymous resource limits */
   slapi_int_t listen_backlog_size;      /* size of backlog parameter to PR_Listen */
-#ifndef _WIN32
   struct passwd *localuserinfo; /* userinfo of localuser */
-#endif /* _WIN32 */
 #ifdef MEMPOOL_EXPERIMENTAL
   slapi_onoff_t mempool_switch;           /* switch to turn memory pool on/off */
   int mempool_maxfreelist;      /* max free list length per memory pool item */
@@ -2525,7 +2485,6 @@ extern char	*attr_dataversion;
 /* for timing certain operations */
 #ifdef USE_TIMERS
 
-#ifndef _WIN32
 #include <sys/time.h>
 #ifdef LINUX
 #define GTOD(t) gettimeofday(t, NULL)
@@ -2537,15 +2496,6 @@ extern char	*attr_dataversion;
 #define TIMER_STOP(x)   GTOD(&(x##_end))
 #define TIMER_GET_US(x) (unsigned)(((x##_end).tv_sec - (x##_start).tv_sec)  * 100000L + \
                          ((x##_end).tv_usec - (x##_start).tv_usec))
-#else
-#define TIMER_DECL(x)   LARGE_INTEGER x##_freq, x##_start, x##_end
-#define TIMER_START(x)  do { \
-    QueryPerformanceFrequency(&(x##_freq)); \
-    QueryPerformanceCounter(&(x##_start)); \
-} while(0)
-#define TIMER_STOP(x)   QueryPerformanceCounter(&(x##_end))
-#define TIMER_GET_US(x) (unsigned int)((x##_end.QuadPart - x##_start.QuadPart) / x##_freq.QuadPart)
-#endif   /* _WIN32 */
 
 #define TIMER_AVG_DECL(x) \
     TIMER_DECL(x); static unsigned int x##_total, x##_count

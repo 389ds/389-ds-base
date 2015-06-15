@@ -50,10 +50,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef XP_WIN32
-#include <windows.h>
-#include "base/nterr.h"
-#endif
 #include <base/file.h>
 
 #define ERROR_HTML "error.html"
@@ -70,22 +66,9 @@ char *error_headers[MAX_ERROR] =
    "Unexpected Failure",
    "Warning"};
 
-#ifdef XP_UNIX
 #define get_error() errno
 #define verbose_error() system_errmsg()
-#else /* XP_WIN32 */
-int get_error()
-{
-    int error = GetLastError();
-    return(error ? error: WSAGetLastError());
-}
-char *verbose_error()
-{
-    /* Initialize error hash tables */
-    HashNtErrors();
-    return alert_word_wrap(system_errmsg(), WORD_WRAP_WIDTH, "\\n");
-}
-#endif /* XP_WIN32 */
+
 
 void _report_error(int type, char *info, char *details, int shouldexit)
 {
@@ -100,9 +83,6 @@ void _report_error(int type, char *info, char *details, int shouldexit)
     fprintf(stdout, "</SCRIPT>\n");
 
     if(shouldexit)  {
-#ifdef XP_WIN32
-        WSACleanup();
-#endif
         exit(0);
     }
 }

@@ -80,25 +80,12 @@ NSAPI_PUBLIC int INTsystem_tlock(SYS_FILE fd);
 NSAPI_PUBLIC int INTsystem_flock(SYS_FILE fd);
 NSAPI_PUBLIC int INTsystem_ulock(SYS_FILE fd);
 
-#ifdef XP_WIN32
-NSAPI_PUBLIC SYS_DIR INTdir_open(char *path);
-NSAPI_PUBLIC SYS_DIRENT *INTdir_read(SYS_DIR ds);
-NSAPI_PUBLIC void INTdir_close(SYS_DIR ds);
-#endif /* XP_WIN32 */
 
 /* --- OBSOLETE ----------------------------------------------------------
  * The following macros/functions are obsolete and are only maintained for
  * compatibility.  Do not use them. 11-19-96
  * -----------------------------------------------------------------------
  */
-
-#ifdef XP_WIN32
-NSAPI_PUBLIC char *INTsystem_winsockerr(void);
-NSAPI_PUBLIC char *INTsystem_winerr(void);
-NSAPI_PUBLIC int INTsystem_pread(SYS_FILE fd, char *buf, int sz);
-NSAPI_PUBLIC int INTsystem_pwrite(SYS_FILE fd, char *buf, int sz);
-NSAPI_PUBLIC void INTfile_unix2local(char *path, char *p2);
-#endif /* XP_WIN32 */
 
 NSAPI_PUBLIC int INTsystem_nocoredumps(void);
 NSAPI_PUBLIC int INTfile_setinherit(SYS_FILE fd, int value);
@@ -124,20 +111,6 @@ NSPR_END_EXTERN_C
 #define system_tlock INTsystem_tlock
 #define system_flock INTsystem_flock
 #define system_ulock INTsystem_ulock
-#ifdef XP_WIN32
-#define dir_open INTdir_open
-#define dir_read INTdir_read
-#define dir_close INTdir_close
-#endif /* XP_WIN32 */
-
-/* Obsolete */
-#ifdef XP_WIN32
-#define system_winsockerr INTsystem_winsockerr
-#define system_winerr INTsystem_winerr
-#define system_pread INTsystem_pread
-#define system_pwrite INTsystem_pwrite
-#define file_unix2local INTfile_unix2local
-#endif /* XP_WIN32 */
 
 #define system_nocoredumps INTsystem_nocoredumps
 #define file_setinherit INTfile_setinherit

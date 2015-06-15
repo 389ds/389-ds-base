@@ -54,18 +54,4 @@
 
 #include "netsite.h"
 
-
-#if defined(XP_WIN32)
-
-NSPR_BEGIN_EXTERN_C
-
-NSAPI_PUBLIC HANDLE InitializeLogging(char *szEventLogName);
-NSAPI_PUBLIC BOOL TerminateLogging(HANDLE hEventSource);
-NSAPI_PUBLIC BOOL LogErrorEvent(HANDLE hEventSource, WORD fwEventType, WORD fwCategory, DWORD IDEvent, LPTSTR chMsg, LPTSTR lpszMsg);
-
-NSPR_END_EXTERN_C
-
-#endif /* XP_WIN32 */
-
-
 #endif

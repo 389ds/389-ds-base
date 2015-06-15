@@ -507,11 +507,7 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			goto done;
 		}
 
-#ifdef _WIN32
-		if (strcasecmp (currentDir, config.dir) != 0)
-#else /* On Unix, path are case sensitive */
 		if (strcmp (currentDir, config.dir) != 0)
-#endif
 		{
 			if (!cl5DbDirIsEmpty(config.dir))
 			{
@@ -918,9 +914,6 @@ static int _is_absolutepath (char * dir)
 {
 	if (dir[0] == '/')
 		return 1;
-#if defined(_WIN32)
-	if (dir[2] == '/' && dir[1] == ':') 
-		return 1;
-#endif
+
 	return 0;
 }

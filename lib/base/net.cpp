@@ -55,13 +55,11 @@
 
 #include "util.h"
 #include <string.h>
-#ifdef XP_UNIX
 #include <arpa/inet.h>  /* inet_ntoa */
 #include <netdb.h>      /* hostent stuff */
 #ifdef NEED_GHN_PROTO
 extern "C" int gethostname (char *name, size_t namelen);
 #endif
-#endif /* XP_UNIX */
 #ifdef LINUX
 #include <sys/ioctl.h> /* ioctl */
 #endif
@@ -71,11 +69,7 @@ extern "C" int gethostname (char *name, size_t namelen);
 /* ---------------------------- util_hostname ----------------------------- */
 
 
-#ifdef XP_UNIX
 #include <sys/param.h>
-#else /* WIN32 */
-#define MAXHOSTNAMELEN 255
-#endif /* XP_UNIX */
 
 /* Defined in dns.cpp */
 char *net_find_fqdn(PRHostEnt *p);

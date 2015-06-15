@@ -54,17 +54,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#if defined( _WIN32 )
-#include <io.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdarg.h>
-#include <ldap.h>
-#include "ntslapdmessages.h"
-#include "proto-ntutil.h"
-#endif
-
 #ifdef LINUX
 #include <getopt.h>
 #endif

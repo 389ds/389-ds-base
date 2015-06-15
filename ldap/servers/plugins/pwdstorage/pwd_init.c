@@ -63,9 +63,7 @@ static Slapi_PluginDesc sha512_pdesc = { "sha512-password-storage-scheme", VENDO
 
 static Slapi_PluginDesc ssha512_pdesc = { "ssha512-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted Secure Hashing Algorithm (SSHA512)" };
 
-#ifndef _WIN32
 static Slapi_PluginDesc crypt_pdesc = { "crypt-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Unix crypt algorithm (CRYPT)" };
-#endif
 
 static Slapi_PluginDesc clear_pdesc = { "clear-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "No encryption (CLEAR)" };
 

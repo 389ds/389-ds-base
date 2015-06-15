@@ -64,9 +64,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
-#ifndef _WIN32
 #include <sys/param.h>
-#endif /* _WIN32 */
 
 #include "portable.h" /* GGOODREPL - is this cheating? */
 #include "ldaplog.h"

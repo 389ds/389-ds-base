@@ -60,10 +60,7 @@
 #error Need to define portable format macros such as PRIu64
 #endif /* HAVE_INTTYPES_H */
 
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
 
 #define DNA_PLUGIN_SUBSYSTEM "dna-plugin"
 #define DNA_PLUGIN_VERSION 0x00020000
@@ -317,18 +314,6 @@ static int dna_be_txn_mod_pre_op(Slapi_PBlock *pb);
  */
 void dna_dump_config();
 void dna_dump_config_entry(struct configEntry *);
-
-/**
- * set the debug level
- */
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-    module_ldap_debug = level_ptr;
-}
-#endif
 
 /*
  * During the plugin startup we delay the creation of the shared config entries

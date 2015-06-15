@@ -85,9 +85,7 @@ dd/mm/yy | Author	| Comments
 #include <stdlib.h>	/* malloc(), etc... */
 #include <string.h>	/* strcpy(), etc... */
 #include <errno.h>	/* perror(), etc... */
-#ifndef _WIN32
 #include <pthread.h>	/* pthreads(), etc... */
-#endif
 
 #include <lber.h>	/* ldap C-API BER declarations */
 #include <ldap.h>	/* ldap C-API declarations */
@@ -101,16 +99,10 @@ dd/mm/yy | Author	| Comments
 #include "scalab01.h"	/* Scalab01 specific definitions */
 
 
-
-
-
 /*
  * Private data structures.
  */
 scalab01_context	 s1ctx;
-
-
-
 
 
 /* ****************************************************************************
@@ -160,11 +152,6 @@ scalab01_init (void)
    */
   return (0);
 }
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -234,12 +221,6 @@ scalab01Lock (
 }
 
 
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	scalab01Unlock
 	PURPOSE :	Unlock for single user trying to connect.
@@ -290,13 +271,6 @@ scalab01Unlock (
 
   return (0);
 }
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -390,11 +364,6 @@ scalab01_modemDecr (
 
   return (0);
 }
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -515,13 +484,6 @@ done:
 }
 
 
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	scalab01_connectSuperuser
 	PURPOSE :	Purpose of the fct
@@ -557,12 +519,6 @@ scalab01_connectSuperuser (void)
    */
   return (0);
 }
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -671,11 +627,6 @@ readAttrValue (
 }
 
 
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	writeAttrValue
 	PURPOSE :	This function will ldap_modify the given entry to
@@ -727,11 +678,6 @@ writeAttrValue (
 
   return (0);
 }
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -812,12 +758,6 @@ scalab01_unlock (
    */
   return (0);
 }
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -946,11 +886,6 @@ scalab01_control (
    * End of thread
    */
 }
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -1105,10 +1040,3 @@ TBC - this is done in the next loop... - cf connectToServer()
 
   return (0);
 }
-
-
-
-
-
-
-/* End of file */

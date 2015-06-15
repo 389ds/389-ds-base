@@ -66,7 +66,7 @@ static char *build_date = "23-FEBRUARY-2012";
 #include <sys/time.h>
 #endif
 
-#if !defined(_WIN32) && !defined(__VMS)
+#if !defined(__VMS)
 #include <sys/resource.h>
 #include <unistd.h>
 #endif
@@ -80,12 +80,6 @@ static char *build_date = "23-FEBRUARY-2012";
 #endif
 #include <sys/statvfs.h>
 #define IDDS_HAVE_STATVFS
-#endif
-
-#if defined(_WIN32)
-#include <windows.h>
-#define MAXPATHLEN 1024
-extern char *optarg;
 #endif
 
 #if defined(IDDS_SYSV_INCLUDE) || defined(IDDS_BSD_INCLUDE)
@@ -1390,16 +1384,15 @@ static void gen_tests (void)
   aix_check_patches();
 #endif
 
-#if !defined(_WIN32)
-  if (access("/usr/sbin/prtconf",X_OK) == 0) {
+
+if (access("/usr/sbin/prtconf",X_OK) == 0) {
     if (flag_debug) printf("DEBUG  : /usr/sbin/prtconf\n");
-    if (iii_pio_procparse("/usr/sbin/prtconf",
-			  III_PIO_SZ(ptb_prtconf),
+    if (iii_pio_procparse("/usr/sbin/prtconf", III_PIO_SZ(ptb_prtconf),
 			  ptb_prtconf) == -1) {
-      perror("/usr/sbin/prtconf");
+        perror("/usr/sbin/prtconf");
     }
-  }
-#endif
+}
+
 
 #if defined(__osf__)
   phys_mb = (idds_osf_get_memk())/1024;
@@ -1532,12 +1525,10 @@ static void gen_tests (void)
     if (flag_debug) printf("DEBUG  : %d MB swap configured\n", swap_mb);
   }
 
-#ifndef _WIN32  
   uid = getuid();
   if (uid != 0) {
     uid = geteuid();
   }
-#endif
 
 #if defined(__sun)
   if (uid != 0) {
@@ -1565,11 +1556,9 @@ static void gen_tests (void)
   sun_check_etcsystem();
 #endif
 
-#ifndef _WIN32
   if (uid != 0) {
     printf("\n");
   }
-#endif
 
   if (flag_html) printf("</P>\n");
 }
@@ -2814,9 +2803,7 @@ static void check_disk_quota(char mntbuf[MAXPATHLEN])
 
 static void disk_tests(void)
 {
-#ifndef _WIN32
   struct rlimit r;
-#endif
   char mntbuf[MAXPATHLEN];
 
   if (client) return;
@@ -2902,7 +2889,6 @@ static void disk_tests(void)
 /* The function hasn't been used. #if 0 to get rid of compiler warning */
 static int get_disk_usage(char *s)
 {
-#ifndef _WIN32
   char cmd[8192];
   char buf[8192];
   FILE *fp;
@@ -2920,15 +2906,11 @@ static int get_disk_usage(char *s)
   fclose (fp);
   i = atoi(buf);
   return (i / 1024);
-#else
-  return 0;
-#endif
 }
 #endif
 
 static void check_mem_size(int ro,char *rn)
 {
-#ifndef _WIN32
   struct rlimit r;
   int rprev;
   long m_mb;
@@ -2968,13 +2950,10 @@ static void check_mem_size(int ro,char *rn)
 #endif
     printf("\n");
   }
-
-#endif
 }
 
 static void limits_tests(void)
 {
-#ifndef _WIN32
   struct rlimit r;
 
 #if defined(RLIMIT_NOFILE)  
@@ -3055,8 +3034,6 @@ static void limits_tests(void)
 #if defined(RLIMIT_AS)
   check_mem_size(RLIMIT_AS,"RLIMIT_AS");
 #endif
-
-#endif
 }
 
 /*
@@ -3068,12 +3045,6 @@ static void ids_get_platform(char *buf)
 #if defined(IDDS_LINUX_INCLUDE) || defined(__osf__) || defined(_AIX) || defined(__hpux) || defined(IDDS_BSD_INCLUDE)
   	struct utsname u;
 #endif
-#if defined(_WIN32)
-	SYSTEM_INFO sysinfo;
-	OSVERSIONINFO osinfo;
-	char osbuf[128];
-
-#endif
 #if defined(__hpux) || defined(_AIX)
 	char model[128];
 	char procstr[128];
@@ -3084,43 +3055,7 @@ static void ids_get_platform(char *buf)
 	long cpuvers, cputype;
 #endif
 
-#if defined(_WIN32)
-	osinfo.dwOSVersionInfoSize = sizeof(osinfo);
-	GetSystemInfo(&sysinfo);
-	sprintf(osbuf,"win32");
-	if (GetVersionEx(&osinfo) != 0) {
-	  if (osinfo.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-	    sprintf(osbuf,"winnt%d.%d.%d",
-		    osinfo.dwMajorVersion,
-		    osinfo.dwMinorVersion,
-		    osinfo.dwBuildNumber);
-	    if (osinfo.szCSDVersion[0]) {
-	      strcat(osbuf," (");
-	      strcat(osbuf,osinfo.szCSDVersion);
-	      strcat(osbuf,")");
-	    }
-	  }
-	}
-	
-	switch(sysinfo.wProcessorArchitecture) {
-	case PROCESSOR_ARCHITECTURE_INTEL:
-	  sprintf(buf,"i%d86-unknown-%s",sysinfo.wProcessorLevel,osbuf);
-	  break;
-	case PROCESSOR_ARCHITECTURE_ALPHA:
-	  sprintf(buf,"alpha%d-unknown-%s",
-		  sysinfo.wProcessorLevel,osbuf);
-	  break;
-	case PROCESSOR_ARCHITECTURE_MIPS:
-	  sprintf(buf,"mips-unknown-%s",osbuf);
-	  break;
-	case PROCESSOR_ARCHITECTURE_PPC:
-	  sprintf(buf,"ppc-unknown-%s",osbuf);
-	  break;
-	case PROCESSOR_ARCHITECTURE_UNKNOWN:
-	  sprintf(buf,"unknown-unknown-%s",osbuf);
-	  break;
-	}
-#else 
+
 #if defined(IDDS_LINUX_INCLUDE)
 	if (uname(&u) == 0) {
 	  sprintf(buf,"%s-unknown-linux%s",
@@ -3247,7 +3182,6 @@ static void ids_get_platform(char *buf)
 #endif /* AIX */
 #endif /* SUN */	
 #endif /* LINUX */
-#endif /* WIN32 */
 }
 
 static int count_processors(void)
@@ -3304,9 +3238,6 @@ int main(int argc,char *argv[])
 {
   int i;
 
-#ifdef _WIN32
-
-#else  
   while((i = getopt(argc,argv,"DvHqcCi:")) != EOF) {
     switch(i) {
     case 'D':
@@ -3336,7 +3267,6 @@ int main(int argc,char *argv[])
       break;
     }
   }
-#endif
 
 #if defined(_AIX)
   if (1) {

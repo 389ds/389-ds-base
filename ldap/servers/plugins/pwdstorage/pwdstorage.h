@@ -101,11 +101,9 @@ char * sha512_pw_enc( const char *pwd );
 char * salted_sha512_pw_enc( const char *pwd );
 int clear_pw_cmp( const char *userpwd, const char *dbpwd );
 char *clear_pw_enc( const char *pwd );
-#ifndef _WIN32
 void crypt_init();
 int crypt_pw_cmp( const char *userpwd, const char *dbpwd );
 char *crypt_pw_enc( const char *pwd );
-#endif
 int ns_mta_md5_pw_cmp( const char *userpwd, const char *dbpwd );
 int md5_pw_cmp( const char *userpwd, const char *dbpwd );
 char *md5_pw_enc( const char *pwd );

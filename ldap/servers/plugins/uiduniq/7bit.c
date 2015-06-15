@@ -53,12 +53,6 @@
 #include <string.h>
 
 /* DBDB this should be pulled from a common header file */
-#ifdef _WIN32
-#ifndef strcasecmp
-#define strcasecmp(x,y) strcmpi(x,y)
-#endif
-#endif
-
 #if defined( LDAP_DEBUG ) && !defined( DEBUG )
 #define DEBUG
 #endif

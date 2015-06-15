@@ -56,11 +56,7 @@ struct _nametable {
 
 int get_large_random_number()
 {
-#ifdef _WIN32
-	return rand();
-#else
 	return random();
-#endif
 }
 
 
@@ -133,11 +129,11 @@ int nt_push(NameTable *nt, char *s)
     char **ndata;
 
     if (nt->size >= nt->capacity) {
-	/* expando! */
-	nt->capacity += NT_STEP;
-	ndata = (char **)realloc(nt->data, sizeof(char *) * nt->capacity);
-	if (!ndata) return 0;
-	nt->data = ndata;
+        /* expando! */
+        nt->capacity += NT_STEP;
+        ndata = (char **)realloc(nt->data, sizeof(char *) * nt->capacity);
+        if (!ndata) return 0;
+        nt->data = ndata;
     }
     nt->data[nt->size++] = s;
     return nt->size;

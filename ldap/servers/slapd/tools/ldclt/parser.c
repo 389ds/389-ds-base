@@ -80,26 +80,12 @@ dd/mm/yy | Author	| Comments
 #ifdef LDAP_H_FROM_QA_WKA
 #include <proto-ldap.h>	/* ldap C-API prototypes */
 #endif
-#ifndef _WIN32
 #include <unistd.h>	/* close(), etc... */
 #include <pthread.h>	/* pthreads(), etc... */
-#endif
 
 #include "port.h"	/* Portability definitions */
 #include "ldclt.h"	/* This tool's include file */
 #include "utils.h"	/* Utilities functions */
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -126,16 +112,6 @@ decodeHow (
   if (!strcmp (how, "RNDS"))			return (HOW_RND_STRING);
   return (-1);
 }
-
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -358,17 +334,6 @@ parseVariant (
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	parseAttribValue
 	PURPOSE :	Parse the right part of attribname: attribvalue.
@@ -467,16 +432,6 @@ parseAttribValue (
 }
 
 
-
-
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	parseLine
 	PURPOSE :	Parse the given line to find an attribute definition.
@@ -546,14 +501,6 @@ parseLine (
 }
 
 
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	readObject
 	PURPOSE :	This function will read an object description from the
@@ -620,9 +567,3 @@ done:
   return rc;
 }
 
-
-
-
-
-
-/* End of file */

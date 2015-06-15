@@ -47,18 +47,12 @@
  * Rob McCool
  */
 
-#ifdef XP_UNIX
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
 #include "prthread.h"
-#endif /* XP_UNIX */
-
 #include "base/util.h"
-
-#ifdef XP_UNIX
 #include <sys/types.h>
-#endif /* WIN32 */
 
 /* ------------------------------ util_itoa ------------------------------- */
 
@@ -225,12 +219,10 @@ int util_strncasecmp(CASECMPARG_T char *one, CASECMPARG_T char *two, int n)
 static char sccsid[] = "@(#)strftime.c	5.11 (Berkeley) 2/24/91";
 #endif /* LIBC_SCCS and not lint */
 
-#ifdef XP_UNIX
 #include <sys/types.h>
 #include <sys/time.h>
 #include <string.h>
 #include <stdio.h>
-#endif
 
 static const char *afmt[] = {
 	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",

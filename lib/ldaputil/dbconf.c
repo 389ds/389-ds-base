@@ -431,21 +431,17 @@ int dbconf_read_config_file_sub (const char *file,
 
     buf[0] = 0;
 
-#ifdef XP_WIN32
-    if ((fp = fopen(file, "rt")) == NULL)
-#else
     if ((fp = fopen(file, "r")) == NULL)
-#endif
     {
-	return LDAPU_ERR_CANNOT_OPEN_FILE;
+        return LDAPU_ERR_CANNOT_OPEN_FILE;
     }
 
     /* Allocate DBConfInfo_t */
     conf_info = (DBConfInfo_t *)malloc(sizeof(DBConfInfo_t));
 
     if (!conf_info) {
-	fclose(fp);
-	return LDAPU_ERR_OUT_OF_MEMORY;
+        fclose(fp);
+        return LDAPU_ERR_OUT_OF_MEMORY;
     }
 
     memset((void *)conf_info, 0, sizeof(DBConfInfo_t));
@@ -459,11 +455,11 @@ int dbconf_read_config_file_sub (const char *file,
     }
 
     if (rv != LDAPU_SUCCESS) {
-	dbconf_free_confinfo(conf_info);
-	*conf_info_out = 0;
+        dbconf_free_confinfo(conf_info);
+        *conf_info_out = 0;
     }
     else {
-	*conf_info_out = conf_info;
+        *conf_info_out = conf_info;
     }
 
     fclose(fp);
@@ -489,13 +485,9 @@ int dbconf_read_default_dbinfo_sub (const char *file,
 
     buf[0] = 0;
 
-#ifdef XP_WIN32
-    if ((fp = fopen(file, "rt")) == NULL)
-#else
     if ((fp = fopen(file, "r")) == NULL)
-#endif
     {
-	return LDAPU_ERR_CANNOT_OPEN_FILE;
+        return LDAPU_ERR_CANNOT_OPEN_FILE;
     }
 
     /* Read each db info until eof or dbname == default*/
@@ -504,16 +496,16 @@ int dbconf_read_default_dbinfo_sub (const char *file,
     while(!eof &&
 	  ((rv = read_db_info(fp, buf, &db_info, directive, directive_len, &eof)) == LDAPU_SUCCESS))
     {
-	if (!strcmp(db_info->dbname, DBCONF_DEFAULT_DBNAME)) break;
-	dbconf_free_dbinfo(db_info);
-	db_info = NULL;
+        if (!strcmp(db_info->dbname, DBCONF_DEFAULT_DBNAME)) break;
+        dbconf_free_dbinfo(db_info);
+        db_info = NULL;
     }
 
     if (rv != LDAPU_SUCCESS) {
-	*db_info_out = 0;
+        *db_info_out = 0;
     }
     else {
-	*db_info_out = db_info;
+        *db_info_out = db_info;
     }
 
     fclose(fp);
@@ -533,25 +525,11 @@ NSAPI_PUBLIC int dbconf_read_default_dbinfo (const char *file,
  */
 int ldapu_strcasecmp (const char *s1, const char *s2)
 {
-#ifdef XP_WIN32
-    int ls1, ls2;		/* tolower values of chars in s1 & s2 resp. */
-#endif
 
     if (!s1) return !s2 ? 0 : 0-tolower(*s2);
     else if (!s2) return tolower(*s1);
 
-#ifdef XP_WIN32
-    while(*s1 && *s2 && (ls1 = tolower(*s1)) == (ls2 = tolower(*s2))) { s1++; s2++; }
-
-    if (!*s1)
-	return *s2 ? 0-tolower(*s2) : 0;
-    else if (!*s2)
-	return tolower(*s1);
-    else
-	return ls1 - ls2;
-#else
     return strcasecmp(s1, s2);
-#endif
 }
 
 NSAPI_PUBLIC int ldapu_dbinfo_attrval (DBConfDBInfo_t *db_info,

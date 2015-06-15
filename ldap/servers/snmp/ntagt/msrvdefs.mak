@@ -146,7 +146,7 @@ endif
 	OPTIMIZE_FLAGS  =   -O2
 	CFLAGS		=    $(DLL_CFLAGS) -DSVR4 -D__svr4__ -DSOLARIS \
 				-DHAVE_NIS -DHAS_GETSPNAM -DHAS_FGETPWENT \
-				-DXP_UNIX -DSTATOBJS \
+				-DSTATOBJS \
 				-DMSRV_RELEASE=\"$(MSRV_RELEASE)\" \
 				-DOSVERSION=$(OSVERSION) -D_REENTRANT
 	LD_EXTRAS	=   -L/tools/ns/lib -lthread -lsocket -lnsl -lgen -ldl
@@ -177,7 +177,6 @@ endif
 	OPTIMIZE_FLAGS  =   -O -Olimit 4096
 	CFLAGS      =    $(DLL_CFLAGS) -DIRIX -DSTATOBJS \
 				-DHAVE_NIS -DHAS_GETSPNAM -DHAS_FGETPWENT \
-				-DXP_UNIX \
 				-DMSRV_RELEASE=\"$(MSRV_RELEASE)\" \
 				-DOSVERSION=$(OSVERSION)
 
@@ -208,7 +207,7 @@ ifeq ($(ARCH), HPUX)
 	DLL_LDFLAGS =   -b
 	OPTIMIZE_FLAGS  =   -O
 	CFLAGS      =   -DHPUX -DSTATOBJS -DHAVE_NIS \
-				-DXP_UNIX -DHAS_FGETPWENT \
+				-DHAS_FGETPWENT \
 				-DMSRV_RELEASE=\"$(MSRV_RELEASE)\" \
 				-DOSVERSION=$(OSVERSION)
 	LD_EXTRAS   =   -Wl,+b,/usr/lib,+s \
@@ -234,7 +233,7 @@ ifeq ($(ARCH), OSF1)
 	DLL_CXXFLAGS    =
 	DLL_LDFLAGS =
 	OPTIMIZE_FLAGS  =   -O
-	CFLAGS      =   -DOSF1 -DSTATOBJS -DHAVE_NIS -DXP_UNIX \
+	CFLAGS      =   -DOSF1 -DSTATOBJS -DHAVE_NIS \
 				-DHAS_FGETPWENT \
 				-DMSRV_RELEASE=\"$(MSRV_RELEASE)\" \
 				-DOSVERSION=$(OSVERSION)
@@ -272,7 +271,7 @@ ifeq ($(ARCH), AIX)
 	DLL_CXXFLAGS    =
 	OPTIMIZE_FLAGS  =   -O
 	CFLAGS      =   -DAIX -DAIXV3 -DAIXV4 -DSTATOBJS \
-				-DHAVE_NIS -DXP_UNIX -mcpu=common\
+				-DHAVE_NIS -mcpu=common\
 				-DMSRV_RELEASE=\"$(MSRV_RELEASE)\" \
 				-DOSVERSION=$(OSVERSION)
 	LD_EXTRAS   =  -L/gnu/install/lib -L/gnu/install/lib/gcc-lib/powerpc-ibm-aix4.1.4.0/2.7.2.1/common -lstdc++ -ls -lsvld -lgcc -lc_r
@@ -293,7 +292,7 @@ endif
 #   DLL_CXXFLAGS    =
 #   OPTIMIZE_FLAGS  =   -O
 #   CFLAGS      =   -DAIX -DAIXV3 -DSTATOBJS \
-#               -DHAVE_NIS -DXP_UNIX \
+#               -DHAVE_NIS \
 #		-DMSRV_RELEASE=\"$(MSRV_RELEASE)\"
 #   LD_EXTRAS   =   -L/tools/ns/lib -liostream -ls
 #   MSRV_INCLUDES   =   -I/tools/ns/lib/g++-include 

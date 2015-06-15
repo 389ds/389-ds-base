@@ -49,7 +49,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if !defined(_WIN32) && !defined(aix)
+#if !defined(aix)
 #include <sys/fcntl.h>
 #else
 #include <fcntl.h>
@@ -58,10 +58,6 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <stdlib.h>
-#if defined( _WIN32 )
-#include "ntslapdmessages.h"
-#include "proto-ntutil.h"
-#else
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -75,13 +71,10 @@ union semun {
     ushort *array;
 };
 #endif
-#endif
-#if !defined(_WIN32)
 #include <unistd.h> /* dup2 */
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/param.h> /* MAXPATHLEN */
-#endif
 #if defined(__sun)
 #include <sys/utsname.h>
 #include <sys/systeminfo.h>
@@ -98,10 +91,6 @@ union semun {
 
 #ifndef LDAP_DONT_USE_SMARTHEAP
 #include "smrtheap.h"
-#endif
-
-#if defined( XP_WIN32 )
-void dostounixpath(char *szText);
 #endif
 
 /* Forward Declarations */
@@ -129,7 +118,6 @@ static int slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
 static int init_cmd_shutdown_detect()
 {
 
-#ifndef _WIN32
   /* First of all, we must reset the signal mask to get rid of any blockages
    * the process may have inherited from its parent (such as the console), which
    * might result in the process not delivering those blocked signals, and thus,
@@ -145,7 +133,6 @@ static int init_cmd_shutdown_detect()
     LDAPDebug( LDAP_DEBUG_TRACE, " %s \n",
                rc ? "Failed to reset signal mask":"....Done (signal mask reset)!!", 0, 0 );
   }
-#endif
 
 #if defined ( HPUX10 )
     PR_CreateThread ( PR_USER_THREAD,
@@ -164,7 +151,7 @@ static int init_cmd_shutdown_detect()
          * thread a chance to run. */
         DS_Sleep(0);
 #endif
-#ifndef _WIN32
+
         (void) SIGNAL( SIGPIPE, SIG_IGN );
         (void) SIGNAL( SIGCHLD, slapd_wait4child );
 #ifndef LINUX
@@ -177,7 +164,7 @@ static int init_cmd_shutdown_detect()
         (void) SIGNAL( SIGTERM, cmd_set_shutdown );
         (void) SIGNAL( SIGHUP,  cmd_set_shutdown );
         (void) SIGNAL( SIGINT,  cmd_set_shutdown );
-#endif /* _WIN32 */
+
         return 0;
 }
 
@@ -191,21 +178,17 @@ cmd_set_shutdown (int sig)
      */
 
     c_set_shutdown();
-#ifndef _WIN32
 #ifndef LINUX
     /* don't mess with USR1/USR2 on linux, used by libpthread */
     (void) SIGNAL( SIGUSR2, cmd_set_shutdown );
 #endif
     (void) SIGNAL( SIGTERM, cmd_set_shutdown );
     (void) SIGNAL( SIGHUP,  cmd_set_shutdown );
-#endif
 }
 
 #ifdef HPUX10
 extern void collation_init();
 #endif
-
-#ifndef WIN32
 
 /* 
    Four cases:
@@ -311,7 +294,6 @@ fix_ownership()
 		chown_dir_files(slapdFrontendConfig->errorlog, pw, PR_TRUE, PR_TRUE);
 	}
 }
-#endif  
 
 /* Changes identity to the named user 
  * If username == NULL, does nothing.
@@ -319,7 +301,6 @@ fix_ownership()
  */
 static int main_setuid(char *username)
 {
-#ifndef _WIN32
 	if (username != NULL) {
 	    struct passwd *pw;
 	    /* Make sure everything in the log and config directory 
@@ -348,14 +329,13 @@ static int main_setuid(char *username)
 		}
 	    }
 	}
-#endif
 	return 0;
 }
 
 /* set good defaults for front-end config in referral mode */
 static void referral_set_defaults(void)
 {
-#if !defined(_WIN32) && !defined(AIX)
+#if !defined(AIX)
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
     config_set_maxdescriptors( CONFIG_MAXDESCRIPTORS_ATTRIBUTE, "1024", errorbuf, 1);
 #endif
@@ -568,12 +548,9 @@ static void slapd_print_version(int verbose)
 
 	printf( SLAPD_VENDOR_NAME "\n%s B%s\n", versionstring, buildnum);
 
-	/* not here in Win32 */
-#if !defined(_WIN32)
 	if (strcmp(buildnum,BUILD_NUM) != 0) {
 	  printf( "ns-slapd: B%s\n", BUILD_NUM);
 	}
-#endif
 
 	slapi_ch_free( (void **)&versionstring);
 	slapi_ch_free( (void **)&buildnum);
@@ -591,29 +568,6 @@ static void slapd_print_version(int verbose)
 	plugin_print_versions();
 }
 
-#if defined( _WIN32 )
-/* On Windows, we signal the SCM when we're still starting up */
-static int
-write_start_pid_file()
-{
-	if( SlapdIsAService() )
-	{
-		/* Initialization complete and successful. Set service to running */
-		LDAPServerStatus.dwCurrentState	= SERVICE_START_PENDING;
-		LDAPServerStatus.dwCheckPoint = 1;
-		LDAPServerStatus.dwWaitHint = 1000;
-
-		if (!SetServiceStatus(hLDAPServerServiceStatus, &LDAPServerStatus)) {
-			ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_START_FAILED, 1,
-				"Could not set Service status.");
-			exit(1);
-		}
-	}
-
-	ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_STARTED, 0, NULL );
-	return 0;
-}
-#else /* WIN32 */
 /* On UNIX, we create a file with our PID in it */
 static int
 write_start_pid_file()
@@ -635,7 +589,6 @@ write_start_pid_file()
 	}
 	return -1;
 }
-#endif /* WIN32 */
 
 #ifdef MEMPOOL_EXPERIMENTAL
 void _free_wrapper(void *ptr)
@@ -689,23 +642,6 @@ main( int argc, char **argv)
 	PR_Init( PR_USER_THREAD, PR_PRIORITY_NORMAL, 0 );
 	FrontendConfig_init();
 	
-#ifdef _WIN32
-	/* Break into the debugger if DEBUG_BREAK is set in the environment
-	   to "slapd" */
-	{
-		char *s = getenv( "DEBUG_BREAK" );
-		if ( (s != NULL) && !stricmp(s, "slapd") )
-			DebugBreak();
-	}
-
-	/* do module debug level init for slapd, and libslapd */
-	module_ldap_debug = &slapd_ldap_debug;
-	libldap_init_debug_level(&slapd_ldap_debug);
-  
-	dostounixpath( argv[0] );
-	_strlwr( argv[0] );
-
-#else /* _WIN32 */
 	/* Pause for the debugger if DEBUG_SLEEP is set in the environment */
 	{
 		char *s = getenv( "DEBUG_SLEEP" );
@@ -716,26 +652,12 @@ main( int argc, char **argv)
 		}
 	}
 
-
-/* used to set configfile to the default config file name here */
-
-#endif /* _WIN32 */
-
+	/* used to set configfile to the default config file name here */
 	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
 		myname = slapi_ch_strdup( argv[0] );
 	} else {
 		myname = slapi_ch_strdup( myname + 1 );
 	}
-
-#if defined( XP_WIN32 )
-	/* Strip ".exe" if it's there */
-	{
-	char *pdot;
-	if ( (pdot = strrchr( myname, '.' )) != NULL ) {
-		*pdot = '\0';
-	}
-	}
-#endif
 
 	process_command_line(argc,argv,myname,&extraname);
 
@@ -743,7 +665,6 @@ main( int argc, char **argv)
 		usage( myname, extraname );
 		exit( 1 );
 	}
-
 
 	/* display debugging level if it is anything other than the default */
 	if ( 0 != ( slapd_ldap_debug & ~LDAP_DEBUG_ANY )) {
@@ -866,25 +787,6 @@ main( int argc, char **argv)
 	/* Set entry points in libslapd */
 	set_entry_points();
 
-#if defined( XP_WIN32 )
-	if (slapd_exemode == SLAPD_EXEMODE_SLAPD) {
-		/* Register with the NT EventLog */
-		hSlapdEventSource = RegisterEventSource(NULL, pszServerName );
-		if( !hSlapdEventSource  ) {
-			char szMessage[256];
-			PR_snprintf( szMessage, sizeof(szMessage), "Directory Server %s is terminating. Failed "
-						 "to set the EventLog source.", pszServerName);
-			MessageBox(GetDesktopWindow(), szMessage, " ", 
-					   MB_ICONEXCLAMATION | MB_OK);
-			exit( 1 );
-		}
-
-		/* Check to ensure there isn't a copy of this server already running. */
-		if( MultipleInstances() ) 
-			exit( 1 );
-	}
-#endif
-
 	/*
 	 * After we read the config file we should make
 	 * sure that everything we needed to read in has 
@@ -948,15 +850,12 @@ main( int argc, char **argv)
 	}
 
 	/* Now, sockets are open, so we can safely change identity now */
-
-#ifndef _WIN32
 	return_value = main_setuid(slapdFrontendConfig->localuser);
 	if (0 != return_value) {
 		LDAPDebug( LDAP_DEBUG_ANY, "Failed to change user and group identity to that of %s\n",
 				   slapdFrontendConfig->localuser, 0, 0 );
 		exit(1);
 	}
-#endif
 
     /* Do NSS and/or SSL init for those modes other than listening modes */
     if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
@@ -1158,16 +1057,11 @@ main( int argc, char **argv)
 		}
 
 		/* --ugaston: register the start-tls plugin */
-#ifndef _WIN32		
 		if ( slapd_security_library_is_initialized() != 0 ) {
-	
-		
-				 start_tls_register_plugin();
-			 LDAPDebug( LDAP_DEBUG_PLUGIN, 
-					"Start TLS plugin registered.\n",
-					0, 0, 0 );
+			start_tls_register_plugin();
+			LDAPDebug( LDAP_DEBUG_PLUGIN, "Start TLS plugin registered.\n",
+				0, 0, 0 );
 		} 
-#endif
 		passwd_modify_register_plugin();
 		LDAPDebug( LDAP_DEBUG_PLUGIN, 
 					"Password Modify plugin registered.\n", 0, 0, 0 );
@@ -1215,28 +1109,6 @@ main( int argc, char **argv)
 		} else if (i_port) {
 		} else if ( config_get_security()) {
 		} else {
-#ifdef _WIN32	
-			if( SlapdIsAService() )
-			{
-				LDAPServerStatus.dwCurrentState = SERVICE_STOPPED;
-				LDAPServerStatus.dwCheckPoint = 0;
-				LDAPServerStatus.dwWaitHint = 0;
-				LDAPServerStatus.dwWin32ExitCode = 1;
-				LDAPServerStatus.dwServiceSpecificExitCode = 1;
-
-				SetServiceStatus(hLDAPServerServiceStatus, &LDAPServerStatus);
-
-				/* Log this event */
-				ReportSlapdEvent(EVENTLOG_INFORMATION_TYPE, MSG_SERVER_START_FAILED, 1, 
-					"Check server port specification");
-			}
-			else
-			{
-				char szMessage[256];
-				PR_snprintf( szMessage, sizeof(szMessage), "The Directory Server %s is terminating due to an error. Check server port specification", pszServerName);
-				MessageBox(GetDesktopWindow(), szMessage,	" ", MB_ICONEXCLAMATION | MB_OK);
-			}
-#endif
 			LDAPDebug( LDAP_DEBUG_ANY,
                                 "Fatal Error---No ports specified. "
                                 "Exiting now.\n", 0, 0, 0 );
@@ -1276,7 +1148,6 @@ main( int argc, char **argv)
 
 	{
 		time( &starttime );
-
 		slapd_daemon(&ports_info);
 	}
  	LDAPDebug( LDAP_DEBUG_ANY, "slapd stopped.\n", 0, 0, 0 );
@@ -1290,10 +1161,6 @@ cleanup:
 	ndn_cache_destroy();
 	NSS_Shutdown();
 	PR_Cleanup();
-#ifdef _WIN32
-	/* Clean up the mutex used to interlock processes, before we exit */
-	remove_slapd_process();
-#endif
 #if ( defined( hpux ) || defined( irix ) || defined( aix ) || defined( OSF1 ))
 	exit( return_value );
 #else
@@ -1648,20 +1515,11 @@ process_command_line(int argc, char **argv, char *myname,
 			        char *p;
 					/* if LDIF comes through standard input, skip path checking */
 					if ( optarg_ext[0] != '-' || strlen(optarg_ext) != 1) {
-#if defined( XP_WIN32 )
-						if ( optarg_ext[0] != '/' && optarg_ext[0] != '\\'
-						&& (!isalpha( optarg_ext[0] ) || (optarg_ext[1] != ':')) ) {
-							fprintf( stderr, "%s file could not be opened: absolute path "
-							" required.\n", optarg_ext );
-						break;
-						}
-#else
 						if ( optarg_ext[ 0 ] != '/' ) {
 							fprintf( stderr, "%s file could not be opened: absolute path "
 							" required.\n", optarg_ext );
 						break;
 						}
-#endif
 					}
 				p = (char *) slapi_ch_malloc(strlen(optarg_ext) + 1);
 
@@ -2266,9 +2124,7 @@ slapd_exemode_ldif2db()
     pb.pb_ldif_include = db2ldif_include;
     pb.pb_ldif_exclude = db2ldif_exclude;
     pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-#ifndef _WIN32
     main_setuid(slapdFrontendConfig->localuser);
-#endif
     if ( plugin->plg_ldif2db != NULL ) {
         return_value = (*plugin->plg_ldif2db)( &pb );
     } else {
@@ -2339,11 +2195,9 @@ slapd_exemode_db2ldif(int argc, char** argv)
 		}
     }
 
-#ifndef _WIN32
 	/* [622984] db2lidf -r changes database file ownership
 	 * should call setuid before "db2ldif_dump_replica" */
 	main_setuid(slapdFrontendConfig->localuser);
-#endif
 	for (instp = cmd_line_instance_names; instp && *instp; instp++) {
 		int release_me = 0;
 
@@ -2412,13 +2266,8 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	    pb.pb_ldif_file = NULL;
 	    if ( archive_name ) { /* redirect stdout to this file: */
             char *p, *q;
-#if defined( XP_WIN32 )
-			char sep = '\\';
-			if (NULL != strchr(archive_name, '/'))
-				sep = '/';
-#else
 			char sep = '/';
-#endif
+
 			my_ldiffile = archive_name;
 			if (ldif_printkey & EXPORT_APPENDMODE) {
 				if (instp == cmd_line_instance_names) {	/* first export */
@@ -2586,9 +2435,7 @@ static int slapd_exemode_db2index()
     pb.pb_db2index_attrs = db2index_attrs;
     pb.pb_instance_name = cmd_line_instance_name;
     pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-#ifndef _WIN32
     main_setuid(slapdFrontendConfig->localuser);
-#endif
     return_value = (*plugin->plg_db2index)( &pb );
 
     slapi_ch_free( (void**)&myname );
@@ -2645,9 +2492,7 @@ slapd_exemode_db2archive()
 	pb.pb_instance_name = NULL;
 	pb.pb_seq_val = archive_name;
 	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-#ifndef _WIN32
 	main_setuid(slapdFrontendConfig->localuser);
-#endif
 	return_value = (backend_plugin->plg_db2archive)( &pb );
 	return return_value;
 }
@@ -2702,9 +2547,7 @@ slapd_exemode_archive2db()
 	pb.pb_instance_name = cmd_line_instance_name;
 	pb.pb_seq_val = archive_name;
 	pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-#ifndef _WIN32
 	main_setuid(slapdFrontendConfig->localuser);
-#endif
 	return_value = (backend_plugin->plg_archive2db)( &pb );
 	return return_value;
 }	
@@ -2769,9 +2612,7 @@ slapd_exemode_upgradedb()
     pb.pb_ldif_namespaceid = ldif2db_namespaceid;
     pb.pb_ldif2db_noattrindexes = 0;
     pb.pb_removedupvals = 0;
-#ifndef _WIN32
     main_setuid(slapdFrontendConfig->localuser);
-#endif
     if ( backend_plugin->plg_upgradedb != NULL ) {
         return_value = (*backend_plugin->plg_upgradedb)( &pb );
     } else {
@@ -2846,9 +2687,7 @@ slapd_exemode_upgradednformat()
     pb.pb_ldif_namespaceid = ldif2db_namespaceid;
     pb.pb_ldif2db_noattrindexes = 0;
     pb.pb_removedupvals = 0;
-#ifndef _WIN32
     main_setuid(slapdFrontendConfig->localuser);
-#endif
     if ( backend_plugin->plg_upgradednformat != NULL ) {
         rc  = (*backend_plugin->plg_upgradednformat)( &pb );
     } else {

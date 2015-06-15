@@ -79,14 +79,10 @@ dd/mm/yy | Author	| Comments
 #ifdef SOLARIS_LIBLDAP						/*JLS 19-09-00*/
 #include "ldap-private.h"
 #else								/*JLS 19-09-00*/
-#ifndef _WIN32							/*JLS 01-12-00*/
 #include <pthread.h>						/*JLS 01-12-00*/
-#endif								/*JLS 01-12-00*/
 #include "port.h"	/* Portability definitions */		/*JLS 29-11-00*/
 #include "ldclt.h"						/*JLS 19-09-00*/
 #endif								/*JLS 19-09-00*/
-
-
 
 
 /* ****************************************************************************

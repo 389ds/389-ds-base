@@ -47,12 +47,10 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/param.h>
 #include <fcntl.h>
 #include <sys/socket.h>
-#endif
 #include "slap.h"
 #undef DEBUG                    /* disable counters */
 #include <prcountr.h>

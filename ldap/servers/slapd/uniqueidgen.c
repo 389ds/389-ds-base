@@ -43,14 +43,10 @@
 /* uniqueidgen.c  - implementation for uniqueID generator */
 
 #include <string.h>
-
-#ifndef _WIN32			 /* for ntoh* functions */
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
-#endif
-
 #include "nspr.h"
 #include "slap.h"
 #include "uuid.h"

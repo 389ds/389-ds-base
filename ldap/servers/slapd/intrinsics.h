@@ -43,42 +43,6 @@
 
 /* Header file used to declare functions which we beat on heavily as intrinsic */
 
-/* For NT ...*/
-
-#ifdef _WIN32
-__inline static int  strcmpi_fast(const char * dst, const char * src)
-{
-	int f,l;
-	do {
-		if ( ((f = (unsigned char)(*(dst++))) >= 'A') && (f <= 'Z') )
-			f -= ('A' - 'a');
-		if ( ((l = (unsigned char)(*(src++))) >= 'A') && (l <= 'Z') )
-			l -= ('A' - 'a');
-	} while ( f && (f == l) );
-	return(f - l);
-}
-#ifdef strcasecmp
-#undef strcasecmp
-#endif
-#define strcasecmp(x,y) strcmpi_fast(x,y)
-#ifdef strcmpi
-#undef strcmpi
-#endif
-#define strcmpi(x,y) strcmpi_fast(x,y)
-
-__inline static int tolower_fast(int c)
-{
-	if ( (c >= 'A') && (c <= 'Z') )
-		c = c + ('a' - 'A');
-	return c;
-}
-#ifdef tolower
-#undef tolower
-#endif
-#define tolower(x) tolower_fast(x)
-
-#else
-
 #if defined(HPUX)
 #define INLINE_DIRECTIVE __inline
 #elif defined(LINUX)
@@ -145,4 +109,3 @@ INLINE_DIRECTIVE static int strncasecmp_fast(const char * dst, const char * src,
 #undef strncasecmp
 #endif
 #define strncasecmp(x,y,z) strncasecmp_fast(x,y,z)
-#endif /* NT */

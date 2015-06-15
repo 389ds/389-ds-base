@@ -48,19 +48,13 @@
 #define DNS_GUESSING
 
 #include "netsite.h"
-#ifdef XP_UNIX
 #include "systems.h"
-#else /* XP_WIN32 */
-#include "base/systems.h"
-#endif /* XP_WIN32 */
 
 /* Under NT, these are taken care of by net.h including winsock.h */
-#ifdef XP_UNIX
 #include <arpa/inet.h>  /* inet_ntoa */
 #include <netdb.h>  /* struct hostent */
 #ifdef NEED_GHN_PROTO
 extern "C" int gethostname (char *name, size_t namelen);
-#endif
 #endif
 #include <stdio.h>
 #include <nspr.h>

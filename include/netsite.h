@@ -78,37 +78,9 @@
 #define VOID void
 #endif
 
-#ifdef XP_UNIX
-/*
- * Provide some typedefs that are commonly used on windows
- *
- * DO NOT USE THESE!  They will be deleted later!
- *
- */
-#define CONST const
-typedef unsigned long       DWORD;
-typedef int                 BOOL;
-typedef unsigned char       BYTE;
-typedef unsigned short      WORD;
-typedef float               FLOAT;
-typedef FLOAT               *PFLOAT;
-typedef BOOL                *PBOOL;
-typedef BOOL                *LPBOOL;
-typedef BYTE                *PBYTE;
-typedef BYTE                *LPBYTE;
-typedef int                 *PINT;
-typedef int                 *LPINT;
-typedef WORD                *PWORD;
-typedef WORD                *LPWORD;
-typedef long                *LPLONG;
-typedef DWORD               *PDWORD;
-typedef DWORD               *LPDWORD;
-typedef void                *LPVOID;
-
 #ifndef SNI
 #if !defined (boolean) && !defined (__GNUC__)
 typedef int                  boolean;
-#endif
 #endif
 
 #endif

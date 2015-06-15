@@ -86,36 +86,6 @@ extern "C" {
 #  undef LDAPDebug2Args
 #  undef LDAPDebugLevelIsSet
 
-#    ifdef _WIN32
-#      ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG /* see libglobs.c for info */
-       extern __declspec(dllimport) int	slapd_ldap_debug;
-#      endif /* DONT_DECLARE_SLAPD_LDAP_DEBUG */
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#      define LDAPDebug0Args( level, fmt )	\
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt ); \
-	    } \
-       }
-#      define LDAPDebug1Arg( level, fmt, arg )      \
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg ); \
-	    } \
-       }
-#      define LDAPDebug2Args( level, fmt, arg1, arg2 )    \
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2 ); \
-	    } \
-       }
-#      define LDAPDebugLevelIsSet( level ) (0 != (*module_ldap_debug & level))
-#    else /* Not _WIN32 */
        extern int	slapd_ldap_debug;
 #      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
        { \
@@ -142,7 +112,6 @@ extern "C" {
 	    } \
        }
 #      define LDAPDebugLevelIsSet( level ) (0 != (slapd_ldap_debug & level))
-#    endif /* Win32 */
 #endif /* LDAP_DEBUG */
 
 #ifdef __cplusplus

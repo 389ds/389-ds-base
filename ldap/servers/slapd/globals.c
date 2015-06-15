@@ -59,16 +59,11 @@
 #include <time.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#if defined( _WIN32 )
-#include "ntslapdmessages.h"
-#include "proto-ntutil.h"
-#else
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#endif
 #include "slap.h"
 #include "fe.h"
 
@@ -139,13 +134,6 @@ int __delayed_free = 1;
   are: 15, 18, 21, 24, 27. Any other value is likely to actually harm
   performance or even cause a core dump.
 */
-#endif
-
-
-#if defined( _WIN32 )
-/* String constants (no change for international) */
-SERVICE_STATUS LDAPServerStatus;
-SERVICE_STATUS_HANDLE hLDAPServerServiceStatus;
 #endif
 
 Connection_Table *the_connection_table = NULL;

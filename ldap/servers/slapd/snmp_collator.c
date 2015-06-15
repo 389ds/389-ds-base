@@ -44,17 +44,14 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef  _WIN32
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <dirent.h>
 #include <semaphore.h>
-#endif
 #include <time.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-
 #include "agtmmap.h"
 #include "slap.h"
 #include "prthread.h"
@@ -257,7 +254,7 @@ void set_snmp_interaction_row(char *host, int port, int error)
           g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
           g_get_global_snmp_vars()->int_tbl[index].dsFailures	          = 0;
           g_get_global_snmp_vars()->int_tbl[index].dsSuccesses		  = 1;
-      }else{
+      } else {
           g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess	  = 0;
           g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 1;
           g_get_global_snmp_vars()->int_tbl[index].dsFailures		  = 1;
@@ -265,9 +262,9 @@ void set_snmp_interaction_row(char *host, int port, int error)
       }
       strncpy(g_get_global_snmp_vars()->int_tbl[index].dsURL, dsURL,
               sizeof(g_get_global_snmp_vars()->int_tbl[index].dsURL));		         
-  }else{
-    /* just update the appropriate fields */
-       g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	         = time(0);
+  } else {
+      /* just update the appropriate fields */
+      g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastAttempt	         = time(0);
       if(error == 0){
          g_get_global_snmp_vars()->int_tbl[index].dsTimeOfLastSuccess        = time(0);
          g_get_global_snmp_vars()->int_tbl[index].dsFailuresSinceLastSuccess = 0;
@@ -292,9 +289,9 @@ void set_snmp_interaction_row(char *host, int port, int error)
  * 
  *    this should point to root DSE 
 ************************************************************************************/
-static char *make_ds_url(char *host, int port){
-
-  char *url;
+static char *make_ds_url(char *host, int port)
+{
+   char *url;
   
    url = slapi_ch_smprintf("ldap://%s:%d/",host, port);
  
@@ -311,39 +308,37 @@ static char *make_ds_url(char *host, int port){
 
 static int search_interaction_table(char *dsURL, int *isnew)
 {
-  int i;
-  int index = 0;
-  time_t oldestattempt;
-  time_t currentattempt;
+    int i;
+    int index = 0;
+    time_t oldestattempt;
+    time_t currentattempt;
    
-   oldestattempt = g_get_global_snmp_vars()->int_tbl[0].dsTimeOfLastAttempt;
-   *isnew = 1;
+    oldestattempt = g_get_global_snmp_vars()->int_tbl[0].dsTimeOfLastAttempt;
+    *isnew = 1;
    
-   for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++){
-       if(!strcmp(g_get_global_snmp_vars()->int_tbl[i].dsURL, "Not Available"))
-       {
-           /* found it -- this is new, first time for this row */
-	   index = i;
-	   break;
-       }else  if(!strcmp(g_get_global_snmp_vars()->int_tbl[i].dsURL, dsURL)){
-           /* found it  -- it was already there*/
-	   *isnew = 0;
-	   index = i;
-	   break;
-       }else{
-          /* not found so figure out oldest row */ 
-          currentattempt = g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt;
-	 
-          if(currentattempt <= oldestattempt){
-              index=i;
-	      oldestattempt = currentattempt;
-          }
-       }
+    for(i=0; i < NUM_SNMP_INT_TBL_ROWS; i++){
+        if(!strcmp(g_get_global_snmp_vars()->int_tbl[i].dsURL, "Not Available"))
+        {
+            /* found it -- this is new, first time for this row */
+            index = i;
+            break;
+        } else if(!strcmp(g_get_global_snmp_vars()->int_tbl[i].dsURL, dsURL)){
+            /* found it  -- it was already there*/
+            *isnew = 0;
+            index = i;
+            break;
+        } else {
+            /* not found so figure out oldest row */
+            currentattempt = g_get_global_snmp_vars()->int_tbl[i].dsTimeOfLastAttempt;
 
-   }
+            if(currentattempt <= oldestattempt){
+                index=i;
+                oldestattempt = currentattempt;
+            }
+        }
+    }
    
-   return index;
-
+    return index;
 }
 
 #ifdef DEBUG_SNMP_INTERACTION
@@ -366,43 +361,6 @@ static void print_snmp_interaction_table()
   }
 }
 #endif /* DEBUG_SNMP_INTERACTION */
-
-/*-------------------------------------------------------------------------
- *
- * sc_setevent:  Sets the specified event (NT only).  The input event has
- *               to be created by the subagent during its initialization.
- *
- * Returns:  None
- *
- *-----------------------------------------------------------------------*/
-
-#ifdef _WIN32
-void sc_setevent(char *ev)
-{
-  HANDLE hTrapEvent;
-  DWORD err = NO_ERROR;
-  
-  /*
-   * Set the event handle to force NT SNMP service to call the subagent
-   * DLL to generate a trap.  Any error will be ignored as the subagent
-   * may not have been loaded.
-   */
-  if ((hTrapEvent = OpenEvent(EVENT_MODIFY_STATE, FALSE, 
-                              (LPCTSTR) ev)) != NULL)
-  {
-    if (SetEvent(hTrapEvent) == FALSE)
-      err = GetLastError();
-  }
-  else
-    err = GetLastError();
-
-  if (err != NO_ERROR)
-  {
-	  fprintf(stderr, "Failed to set trap (error = %d).\n", err);
-  }
-}
-#endif
-
 
 
 /***********************************************************************************
@@ -494,37 +452,32 @@ int snmp_collator_stop()
 	slapi_eq_cancel(snmp_eq_ctx);
 	snmp_collator_stopped = 1;
 
-   /* acquire the semaphore */
-   snmp_collator_sem_wait();
+	/* acquire the semaphore */
+	snmp_collator_sem_wait();
 
-   /* close the memory map */
-   if ((err = agt_mclose_stats(hdl)) != 0)
-   {
-        fprintf(stderr, "Failed to close stats file (%s) (error = %d).", 
-            AGT_STATS_FILE, err);
-   }
+	/* close the memory map */
+	if ((err = agt_mclose_stats(hdl)) != 0)
+	{
+		fprintf(stderr, "Failed to close stats file (%s) (error = %d).",
+			AGT_STATS_FILE, err);
+	}
 
-   if (remove(tmpstatsfile) != 0)
-   {
-       fprintf(stderr, "Failed to remove (%s) (error =  %d).\n", 
-            tmpstatsfile, errno);
-   }
+	if (remove(tmpstatsfile) != 0)
+	{
+		fprintf(stderr, "Failed to remove (%s) (error =  %d).\n",
+		tmpstatsfile, errno);
+	}
 
-   /* close and delete semaphore */
-   sem_close(stats_sem);
-   sem_unlink(stats_sem_name);
+	/* close and delete semaphore */
+	sem_close(stats_sem);
+	sem_unlink(stats_sem_name);
 
-   /* delete lock */
-   slapi_destroy_mutex(interaction_table_mutex);
+	/* delete lock */
+	slapi_destroy_mutex(interaction_table_mutex);
 
-#ifdef _WIN32
-   /* send the event so server down trap gets set on NT */
-   sc_setevent(MAGT_NSEV_SNMPTRAP);
+	/* stevross: I probably need to free stats too... make sure to add that later */
 
-#endif
-   /* stevross: I probably need to free stats too... make sure to add that later */
-  
-return 0;
+	return 0;
 }
 
 /*

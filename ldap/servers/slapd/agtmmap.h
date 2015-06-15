@@ -59,10 +59,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "nspr.h"
-#ifdef  _WIN32
-#include <windows.h> 
-#define caddr_t PCHAR
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,9 +68,7 @@ extern "C" {
 #define NUM_SNMP_INT_TBL_ROWS 5
 #define SNMP_FIELD_LENGTH 100
 
-#ifndef  _WIN32
 extern int			errno;
-#endif
 
 #if !defined(_MAX_PATH)
 #define _MAX_PATH 256
@@ -87,22 +81,12 @@ extern int			errno;
 
 typedef enum { AGT_MAP_UNINIT = 0, AGT_MAP_READ, AGT_MAP_RDWR } agt_mmap_type;
 
-#ifndef  _WIN32
 typedef struct
 {
         agt_mmap_type   maptype;
         int             fd;
         caddr_t         fp;
 }  agt_mmap_context_t;
-#else
-typedef struct
-{
-        agt_mmap_type   maptype;
-        HANDLE          fd;
-        caddr_t         fp;
-		HANDLE			mfh;
-}  agt_mmap_context_t;
-#endif /* ! _WIN32 */
 
 struct hdr_stats_t{
     /*

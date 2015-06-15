@@ -214,29 +214,11 @@ connection_cleanup(Connection *conn)
 	 * PRLock *c_pdumutex;
 	 * Conn_private *c_private;
 	 */
-
-#ifdef _WIN32
-	if (conn->c_prfd && (conn->c_flags & CONN_FLAG_SSL))
-	{
-		LDAPDebug( LDAP_DEBUG_CONNS,
-		  "conn=%" PRIu64 " fd=%d closed now\n",
-		  conn->c_connid, conn->c_sd,0);
-		PR_Close(conn->c_prfd);
-	}
-	else if (conn->c_sd)
-	{
-		LDAPDebug( LDAP_DEBUG_CONNS,
-		  "conn=%" PRIu64 " fd=%d closed now\n",
-		  conn->c_connid, conn->c_sd,0);
-		closesocket(conn->c_sd);
-	}
-#else
 	if (conn->c_prfd)
 	{
 		PR_Close(conn->c_prfd);
 		enable_listeners = 1; /* re-enable listeners disabled due to no fds */
 	}
-#endif
 
 	conn->c_sd= SLAPD_INVALID_SOCKET;
 	conn->c_ldapversion= 0;
@@ -293,11 +275,11 @@ connection_cleanup(Connection *conn)
 void
 connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is_SSL)
 {
-    char *		pTmp = is_SSL ? "SSL " : "";
-    char		*str_ip = NULL, *str_destip;
-    char		buf_ip[ 256 ], buf_destip[ 256 ];
-    char		*str_unknown = "unknown";
-    int			in_referral_mode = config_check_referral_mode();
+    char *pTmp = is_SSL ? "SSL " : "";
+    char *str_ip = NULL, *str_destip;
+    char buf_ip[ 256 ], buf_destip[ 256 ];
+    char *str_unknown = "unknown";
+    int in_referral_mode = config_check_referral_mode();
 
     LDAPDebug( LDAP_DEBUG_CONNS, "new %sconnection on %d\n", pTmp, conn->c_sd, 0 );
 
@@ -305,8 +287,8 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     conn->c_connid = slapi_counter_increment(num_conns);
 
     if (! in_referral_mode) {
-	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
-	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
+        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnectionSeq);
+        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsConnections);
     }
 
     /* 
@@ -314,74 +296,74 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
      */
     slapi_ch_free( (void**)&conn->cin_addr ); /* just to be conservative */
     if ( from->raw.family == PR_AF_LOCAL ) { /* ldapi */
-	conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
-	PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
-	memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
-	if (!buf_ip[0]) {
-	    PR_GetPeerName( conn->c_prfd, from );
-	    PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
-	    memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
-	}
-	if (!buf_ip[0]) {
-	    /* cannot derive local address */
-	    /* need something for logging */
-	    PL_strncpyz(buf_ip, "local", sizeof(buf_ip));
-	}
-	str_ip = buf_ip;
+        conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
+        PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
+        memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
+        if (!buf_ip[0]) {
+            PR_GetPeerName( conn->c_prfd, from );
+            PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
+            memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
+            if (!buf_ip[0]) {
+                /* Cannot derive local address, need something for logging */
+                PL_strncpyz(buf_ip, "local", sizeof(buf_ip));
+            }
+        }
+        str_ip = buf_ip;
     } else if ( ((from->ipv6.ip.pr_s6_addr32[0] != 0) || /* from contains non zeros */
 	  (from->ipv6.ip.pr_s6_addr32[1] != 0) || 
 	  (from->ipv6.ip.pr_s6_addr32[2] != 0) || 
 	  (from->ipv6.ip.pr_s6_addr32[3] != 0)) || 
-	 ((conn->c_prfd != NULL) && (PR_GetPeerName( conn->c_prfd, from ) == 0)) ) {
-	conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
-	memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
+	 ((conn->c_prfd != NULL) && (PR_GetPeerName( conn->c_prfd, from ) == 0)) )
+    {
+        conn->cin_addr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
+        memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
 		
-	if ( PR_IsNetAddrType( conn->cin_addr, PR_IpAddrV4Mapped ) ) {
-	     PRNetAddr v4addr;
-	     memset( &v4addr, 0, sizeof( v4addr ) );
-	     v4addr.inet.family = PR_AF_INET;
-	     v4addr.inet.ip = conn->cin_addr->ipv6.ip.pr_s6_addr32[3];
-	     PR_NetAddrToString( &v4addr, buf_ip, sizeof( buf_ip ) );
-	} else {
-	     PR_NetAddrToString( conn->cin_addr, buf_ip, sizeof( buf_ip ) );
-	}
-	buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
-	str_ip = buf_ip;		        
+        if ( PR_IsNetAddrType( conn->cin_addr, PR_IpAddrV4Mapped ) ) {
+            PRNetAddr v4addr;
+            memset( &v4addr, 0, sizeof( v4addr ) );
+            v4addr.inet.family = PR_AF_INET;
+            v4addr.inet.ip = conn->cin_addr->ipv6.ip.pr_s6_addr32[3];
+            PR_NetAddrToString( &v4addr, buf_ip, sizeof( buf_ip ) );
+        } else {
+            PR_NetAddrToString( conn->cin_addr, buf_ip, sizeof( buf_ip ) );
+        }
+        buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
+        str_ip = buf_ip;
     } else {
-	/* try syscall since "from" was not given and PR_GetPeerName failed */
-	/* a corner case */
-	struct sockaddr_in addr; /* assuming IPv4 */
+        /* try syscall since "from" was not given and PR_GetPeerName failed */
+        /* a corner case */
+        struct sockaddr_in addr; /* assuming IPv4 */
 #if ( defined( hpux ) )
-	int                addrlen;
+        int addrlen;
 #else
-	socklen_t          addrlen;
+        socklen_t addrlen;
 #endif
 
-	addrlen = sizeof( addr );
-	memset( &addr, 0, addrlen );
+        addrlen = sizeof( addr );
+        memset( &addr, 0, addrlen );
 
-	if ( (conn->c_prfd == NULL) && 
-	     (getpeername( conn->c_sd, (struct sockaddr *)&addr, &addrlen )
-	      == 0) ) {
-	    conn->cin_addr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
-	    memset( conn->cin_addr, 0, sizeof( PRNetAddr ) );
-	    PR_NetAddrFamily( conn->cin_addr ) = AF_INET6;
-	    /* note: IPv4-mapped IPv6 addr does not work on Windows */
-	    PR_ConvertIPv4AddrToIPv6(addr.sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
-	    PRLDAP_SET_PORT(conn->cin_addr, addr.sin_port);
+        if ( (conn->c_prfd == NULL) &&
+	         (getpeername( conn->c_sd, (struct sockaddr *)&addr, &addrlen ) == 0) )
+        {
+            conn->cin_addr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
+            memset( conn->cin_addr, 0, sizeof( PRNetAddr ) );
+            PR_NetAddrFamily( conn->cin_addr ) = AF_INET6;
+            /* note: IPv4-mapped IPv6 addr does not work on Windows */
+            PR_ConvertIPv4AddrToIPv6(addr.sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
+            PRLDAP_SET_PORT(conn->cin_addr, addr.sin_port);
 
-	    /* copy string equivalent of address into a buffer to use for
-	     * logging since each call to inet_ntoa() returns a pointer to a
-	     * single thread-specific buffer (which prevents us from calling
-	     * inet_ntoa() twice in one call to slapi_log_access()).
-	     */
-	    str_ip = inet_ntoa( addr.sin_addr );
-	    strncpy( buf_ip, str_ip, sizeof( buf_ip ) - 1 );
-	    buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
-	    str_ip = buf_ip;
-	} else {
-	    str_ip = str_unknown;
-	}
+            /* copy string equivalent of address into a buffer to use for
+             * logging since each call to inet_ntoa() returns a pointer to a
+             * single thread-specific buffer (which prevents us from calling
+             * inet_ntoa() twice in one call to slapi_log_access()).
+             */
+            str_ip = inet_ntoa( addr.sin_addr );
+            strncpy( buf_ip, str_ip, sizeof( buf_ip ) - 1 );
+            buf_ip[ sizeof( buf_ip ) - 1 ] = '\0';
+            str_ip = buf_ip;
+        } else {
+            str_ip = str_unknown;
+        }
     }
 
     /*
@@ -389,76 +371,73 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
      */
     slapi_ch_free( (void**)&conn->cin_destaddr ); /* just to be conservative */
     if ( conn->c_prfd != NULL ) {
-	conn->cin_destaddr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
-	memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
-	if (PR_GetSockName( conn->c_prfd, conn->cin_destaddr ) == 0) {
-	    if ( conn->cin_destaddr->raw.family == PR_AF_LOCAL ) { /* ldapi */
-		PL_strncpyz(buf_destip, conn->cin_destaddr->local.path,
-			    sizeof(conn->cin_destaddr->local.path));
-		if (!buf_destip[0]) {
-		    PL_strncpyz(buf_destip, "unknown local file", sizeof(buf_destip));
-		}
-	    } else if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
-		PRNetAddr v4destaddr;
-		memset( &v4destaddr, 0, sizeof( v4destaddr ) );
-		v4destaddr.inet.family = PR_AF_INET;
-		v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
-		PR_NetAddrToString( &v4destaddr, buf_destip, sizeof( buf_destip ) );
-	    } else {
-		PR_NetAddrToString( conn->cin_destaddr, buf_destip, sizeof( buf_destip ) );
-	    }
-	    buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
-	    str_destip = buf_destip;		        
-	} else {
-	    str_destip = str_unknown;
-	}
+        conn->cin_destaddr = (PRNetAddr *) slapi_ch_malloc( sizeof( PRNetAddr ) );
+        memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
+        if (PR_GetSockName( conn->c_prfd, conn->cin_destaddr ) == 0) {
+            if ( conn->cin_destaddr->raw.family == PR_AF_LOCAL ) { /* ldapi */
+                PL_strncpyz(buf_destip, conn->cin_destaddr->local.path,
+                    sizeof(conn->cin_destaddr->local.path));
+                if (!buf_destip[0]) {
+                    PL_strncpyz(buf_destip, "unknown local file", sizeof(buf_destip));
+                }
+            } else if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
+                PRNetAddr v4destaddr;
+                memset( &v4destaddr, 0, sizeof( v4destaddr ) );
+                v4destaddr.inet.family = PR_AF_INET;
+                v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
+                PR_NetAddrToString( &v4destaddr, buf_destip, sizeof( buf_destip ) );
+            } else {
+                PR_NetAddrToString( conn->cin_destaddr, buf_destip, sizeof( buf_destip ) );
+            }
+            buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
+            str_destip = buf_destip;
+        } else {
+            str_destip = str_unknown;
+        }
     } else {
-	/* try syscall since c_prfd == NULL */
-	/* a corner case */
-	struct sockaddr_in	destaddr; /* assuming IPv4 */
+        /* try syscall since c_prfd == NULL */
+        /* a corner case */
+        struct sockaddr_in	destaddr; /* assuming IPv4 */
 #if ( defined( hpux ) )
-	int			destaddrlen;
+        int destaddrlen;
 #else
-	socklen_t		destaddrlen;
+        socklen_t destaddrlen;
 #endif
 
-	destaddrlen = sizeof( destaddr );
-	memset( &destaddr, 0, destaddrlen );
-	if ( (getsockname( conn->c_sd, (struct sockaddr *)&destaddr,
-					&destaddrlen ) == 0) ) {
-	    conn->cin_destaddr =
-		    (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
-	    memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
-	    PR_NetAddrFamily( conn->cin_destaddr ) = AF_INET6;
-	    PRLDAP_SET_PORT( conn->cin_destaddr, destaddr.sin_port );
-	    /* note: IPv4-mapped IPv6 addr does not work on Windows */
-	    PR_ConvertIPv4AddrToIPv6(destaddr.sin_addr.s_addr,
-				     &(conn->cin_destaddr->ipv6.ip));
+        destaddrlen = sizeof( destaddr );
+        memset( &destaddr, 0, destaddrlen );
+        if ( (getsockname( conn->c_sd, (struct sockaddr *)&destaddr, &destaddrlen ) == 0) ) {
+            conn->cin_destaddr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
+            memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));
+            PR_NetAddrFamily( conn->cin_destaddr ) = AF_INET6;
+            PRLDAP_SET_PORT( conn->cin_destaddr, destaddr.sin_port );
+            /* note: IPv4-mapped IPv6 addr does not work on Windows */
+            PR_ConvertIPv4AddrToIPv6(destaddr.sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
 
-	    /* copy string equivalent of address into a buffer to use for
-	     * logging since each call to inet_ntoa() returns a pointer to a
-	     * single thread-specific buffer (which prevents us from calling
-	     * inet_ntoa() twice in one call to slapi_log_access()).
-	     */
-	    str_destip = inet_ntoa( destaddr.sin_addr );
-	    strncpy( buf_destip, str_destip, sizeof( buf_destip ) - 1 );
-	    buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
-	    str_destip = buf_destip;
-	} else {
-	    str_destip = str_unknown;
-	}      
+            /* copy string equivalent of address into a buffer to use for
+             * logging since each call to inet_ntoa() returns a pointer to a
+             * single thread-specific buffer (which prevents us from calling
+             * inet_ntoa() twice in one call to slapi_log_access()).
+             */
+            str_destip = inet_ntoa( destaddr.sin_addr );
+            strncpy( buf_destip, str_destip, sizeof( buf_destip ) - 1 );
+            buf_destip[ sizeof( buf_destip ) - 1 ] = '\0';
+            str_destip = buf_destip;
+        } else {
+            str_destip = str_unknown;
+        }
     }
 
 
     if ( !in_referral_mode ) {
-	/* create a sasl connection */
-	ids_sasl_server_new(conn);
+        /* create a sasl connection */
+        ids_sasl_server_new(conn);
     }
 
     /* log useful stuff to our access log */
     slapi_log_access( LDAP_DEBUG_STATS,
-	    "conn=%" NSPRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
-	    conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip );
+        "conn=%" NSPRIu64 " fd=%d slot=%d %sconnection from %s to %s\n",
+        conn->c_connid, conn->c_sd, ns, pTmp, str_ip, str_destip );
 
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
@@ -507,8 +486,8 @@ init_op_threads()
 		                     (VFP) (void *) connection_threadmain, NULL,
 		                     PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 		                     PR_UNJOINABLE_THREAD,
-		                     SLAPD_DEFAULT_THREAD_STACKSIZE
-		) == NULL ) {
+		                     SLAPD_DEFAULT_THREAD_STACKSIZE ) == NULL )
+		{
 			int prerr = PR_GetError();
 			LDAPDebug( LDAP_DEBUG_ANY, "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				prerr, slapd_pr_strerror( prerr ), 0 );
@@ -619,14 +598,15 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	 * we let SEARCH operations through as well.  The search code
 	 * is responsible for checking if the operation is a root DSE
 	 * search. */
-        if ((slapi_sdn_get_dn(&(op->o_sdn)) == NULL ) &&
-            /* anon access off and something other than BIND, EXTOP, UNBIND or ABANDON */
+	if ((slapi_sdn_get_dn(&(op->o_sdn)) == NULL ) &&
+		/* anon access off and something other than BIND, EXTOP, UNBIND or ABANDON */
 	    (((config_get_anon_access_switch() == SLAPD_ANON_ACCESS_OFF) && (op->o_tag != LDAP_REQ_BIND) &&
-             (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) && (op->o_tag != LDAP_REQ_ABANDON)) ||
-            /* root DSE access only and something other than BIND, EXTOP, UNBIND, ABANDON, or SEARCH */
+		 (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) && (op->o_tag != LDAP_REQ_ABANDON)) ||
+		/* root DSE access only and something other than BIND, EXTOP, UNBIND, ABANDON, or SEARCH */
 	    ((config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE) && (op->o_tag != LDAP_REQ_BIND) &&
-	     (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
-	     (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH)))) {
+	    (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
+	    (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH))))
+	{
 		slapi_log_access( LDAP_DEBUG_STATS,
 			"conn=%" NSPRIu64 " op=%d UNPROCESSED OPERATION"
 			" - Anonymous access not allowed\n",
@@ -803,827 +783,6 @@ int connection_is_active_nolock (Connection *conn)
            !(conn->c_flags & CONN_FLAG_CLOSING);
 }
 
-/* returns non-0 if this is an active connection meaning it is in use
-   and not in the closing mode */
-
-#if defined LDAP_IOCP
-/*
- * IO Completion ports are currently only available on NT.
- */
-
-typedef enum  {read_data, write_data, new_connection} work_type;
-static int wait_on_new_work(Connection **ppConn, work_type *type);
-static int issue_new_read(Connection *conn);
-static int finished_chomping(Connection *conn);
-static int read_the_data(Connection *op, int *process_op, int *defer_io, int *defer_pushback);
-static int is_new_operation(Connection *conn);
-static int process_operation(Connection *conn, Operation *op);
-static int connection_operation_new(Connection *conn, Operation **ppOp);
-Operation *get_current_op(Connection *conn);
-static int handle_read_data(Connection *conn,Operation **op,
-	 int * connection_referenced);
-int queue_pushed_back_data(Connection *conn);
-static int add_to_select_set(Connection *conn);
-
-static void inc_op_count(Connection* conn)
-{
-	PR_AtomicIncrement(&conn->c_opscompleted);
-	slapi_counter_increment(ops_completed);
-}
-
-static int connection_increment_reference(Connection *conn)
-{
-	int rc = 0;
-	PR_Lock( conn->c_mutex );
-	rc = connection_acquire_nolock (conn);
-	PR_Unlock( conn->c_mutex );
-	return rc;
-}
-
-static void connection_decrement_reference(Connection *conn)
-{
-	PR_Lock( conn->c_mutex );
-	connection_release_nolock (conn);
-	PR_Unlock( conn->c_mutex );
-}
-
-static void
-connection_threadmain()
-{
-	/*
-	 * OK, so this is the thread main routine for the thread pool.
-	 * This is the general idea : wait on the i/o completion port.
-	 * then get some data. There are three cases here:
-	 * 1) This is the first piece of data read for a new LDAP op.
-	 * 2) This is a subsequent, but not final, piece of data read in the current LDAP op on this connection
-	 * 3) This is the last piece of the current LDAP op on the current connection.
-	 * Note that these cases are NOT exclusive ! In particular, all three can occur for the same read.
-	 * based on detecting these cases, we end up doing one or more of the following things:
-	 * a) Create new structures for a new op.
-	 * b) Read data into the BER buffer for the op.
-	 * c) Press on to service the operation request (note that the results are currently written
-	 * synchronously.
-	 * We always queue a new read on the socket too.
-	 * (Note, we need to make sure we don't issue the new read operation until we've copied
-	 * the data from the existing one. Otherwise we'd open ourselves to getting OOO data.)
-	 *
-	 * The intention is that this code will be clean enough to be used for the UNIX build,
-	 * once we fake up I/O completion ports with select and another thread.
-	 */
-
-	Connection *conn = NULL;
-	Operation *op = NULL;
-	int return_value = -1;
-	int abandon_connection = 0;
-	work_type command = 0;
-	int connection_referenced = 0;
-
-	/* Don't ask me, and I will tell you no lies */
-#if defined( OSF1 ) || defined( hpux ) || defined( LINUX )
-	/* Arrange to ignore SIGPIPE signals. */
-	SIGNAL( SIGPIPE, SIG_IGN );
-#endif
-
-	while (1) {
-
-		abandon_connection = 1; /* we start off assuming that we'll fail somewhere */
-		conn = NULL; /* just make sure we don't step on an old connection by mistake */
-		op = NULL; /* Same goes for the operation */
-
-		return_value = wait_on_new_work(&conn,&command);
-        if( op_shutdown ) 
-            break;
-		if (0 == return_value) {
-			connection_referenced = 0; /* No outstanding ref count on connection if wait for work returned OK */
-			switch (command) {
-				case read_data:
-					return_value = handle_read_data(conn,&op,&connection_referenced);
-					if (0 == return_value)
-					{
-						abandon_connection = 0;
-					}
-					break;
-				case write_data:
-					/* NYI, but we need to go and find the state for the connection, find the operation
-					 * which queued the write, and then get whatever data we need to write, then write it ! */
-					break;
-				case new_connection:
-					/* NYI, but this would consist of the same stuff which is currently in daemon.c.
-					 * On NT, we'd use AcceptEx() */
-					break;
-				default:
-					break;
-			}
-			finished_chomping(conn);
-		} else {
-			PR_SetError(PR_IO_ERROR, return_value);
-			connection_referenced = 1; /* There is an outstanding refcnt on the conn, so we get to close the right one ! */
-		}
-
-		/* If anything went wrong with the connection above, such that we need to
-		 * disconnect it, we'll know here and shoot it in the foot.
-		 */
-		if ( (NULL != conn) && abandon_connection) {
-			disconnect_server(conn, conn->c_connid, op ? op->o_opid : -1, SLAPD_DISCONNECT_ABORT, 0 );
-			if (connection_referenced) {
-				connection_decrement_reference(conn);
-			}
-		}
-	}
-	g_decr_active_threadcnt();
-}
-
-static int handle_read_data(Connection *conn,Operation **op,
-			 int * connection_referenced)
-{
-	int return_value = 0;
-	int return_value2 = 0;
-	int process_op = 0; /* Do we or do we not process a complete operation now ? */
-	int defer_io = 0;
-	int defer_pushback = 0;
-
-	if (is_new_operation(conn)) {
-		return_value = connection_operation_new(conn,op);
-	} else {
-		*op = get_current_op(conn);
-	}
-	
-	/* if connection is closing */
-	if (return_value != 0) {
-	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "handle_read_data returns as conn %" NSPRIu64 " closing, fd=%d\n",
-		      conn->c_connid,conn->c_sd,0);
-	    return return_value;
-	}
-
-	return_value = read_the_data(conn,&process_op, &defer_io, &defer_pushback);
-
-	if (0 == return_value) {
-		int replication_session = conn->c_isreplication_session;
-		if (0 != process_op)
-			return_value = process_operation(conn,*op);
-		/* Post any pending I/O operation _after_ processing any operation */
-		if (replication_session) {
-			/* Initiate any deferred I/O here */
-			if (defer_io) {
-				if (conn->c_flags & CONN_FLAG_SSL) {
-					add_to_select_set(conn);
-					return_value2 = 0;
-				} else {
-					return_value2 = issue_new_read(conn);
-				}
-			}
-			if (defer_pushback) {
-				return_value2 = queue_pushed_back_data(conn);
-			}
-		}
-	}
-	else
-		*connection_referenced = 1;
-
-	if (return_value) {
-		return return_value;
-	} else {
-		return return_value2;
-	}
-}
-
-/* Function which does the work involved in servicing an LDAP operation. */
-static int process_operation(Connection *conn, Operation *op)
-{
-	Slapi_PBlock	*pb = NULL;
-	ber_len_t	len;
-	ber_tag_t	tag;
-	ber_int_t	msgid;
-	int return_value = 0;
-	int destroy_content = 1;
-
-
-	pb = (Slapi_PBlock *) slapi_ch_calloc( 1, sizeof(Slapi_PBlock) );
-	pb->pb_conn = conn;
-	pb->pb_op = op;
-    /* destroy operation content when done */
-    slapi_pblock_set (pb, SLAPI_DESTROY_CONTENT, &destroy_content);
-
-	if (! config_check_referral_mode()) {
-		slapi_counter_increment(ops_initiated);
-		slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
-	}
-
-	if ( (tag = ber_get_int( op->o_ber, &msgid ))
-		!= LDAP_TAG_MSGID ) {
-		/* log, close and send error */
-		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%" NSPRIu64 " unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
-		return_value = -1;
-		goto done;
-	}
-	op->o_msgid = msgid;
-
-	tag = ber_peek_tag( op->o_ber, &len );
-	switch ( tag ) {
-	  case LBER_ERROR:
-	  case LDAP_TAG_LDAPDN: /* optional username, for CLDAP */
-		/* log, close and send error */
-		LDAPDebug( LDAP_DEBUG_ANY,
-			"conn=%" NSPRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, tag, 0 );
-		return_value = -1;
-		goto done;
-	  default:
-		break;
-	}
-	op->o_tag = tag;
-
-	/* are we in referral-only mode? */
-	if (config_check_referral_mode() && tag != LDAP_REQ_UNBIND)
-	{
-	    referral_mode_reply(pb);
-	    goto done;
-	}
-
-	/* check if new password is required */
-	if(connection_need_new_password(conn, op, pb))
-	{
-		goto done;
-	}
-
-        /* if this is a bulk import, only "add" and "import done (extop)" are 
-         * allowed */
-        if (conn->c_flags & CONN_FLAG_IMPORT) {
-            if ((tag != LDAP_REQ_ADD) && (tag != LDAP_REQ_EXTENDED)) {
-                /* no cookie for you. */
-                LDAPDebug(LDAP_DEBUG_ANY, "Attempted operation %d from "
-                          "within bulk import\n", tag, 0, 0);
-                slapi_send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL,
-                                       0, NULL);
-                return_value = -1;
-                goto done;
-            }
-        }
-
-	/*
-	 * Call the do_<operation> function to process this request.
-	 */
-	connection_dispatch_operation(conn, op, pb);
-
-done:
-
-	/* If we're here, it means that we successfully completed an operation , so bump the counts */
-	inc_op_count(conn);
-
-	if ( !( pb->pb_op->o_flags & OP_FLAG_PS )) {
-	    /*
-	     * If not a persistent search, remove the operation
-	     * from this connection's list.
-	     */
-	    PR_Lock( conn->c_mutex );
-	    connection_remove_operation( conn, op );
-	    PR_Unlock( conn->c_mutex );
-
-		/* destroying the pblock will cause destruction of the operation
-		 * so this must happen before releasing the connection
-		 */
-	    slapi_pblock_destroy( pb );
-
-	    PR_Lock( conn->c_mutex );
-        if (connection_release_nolock (conn) != 0)
-	    {
-			return_value = -1;
-		}
-	    PR_Unlock( conn->c_mutex );
-
-	} else { /* ps code acquires ref to conn - we need to release ours here */
-	    PR_Lock( conn->c_mutex );
-        if (connection_release_nolock (conn) != 0)
-	    {
-			return_value = -1;
-		}
-	    PR_Unlock( conn->c_mutex );
-	}
-	return return_value;
-}
-
-/* Helper functions for the code above: */
-
- 
-struct Conn_private {
-	/* First the platform-dependent part */
-#ifdef _WIN32
-	OVERLAPPED c_overlapped;
-	DWORD c_buffer_size;
-	char *c_buffer;
-	DWORD c_number_of_async_bytes_read;
-	DWORD c_buffer_offset;
-	DWORD c_deferred_length;
-#else
-#endif
-	/* Now the platform independent part */
-	Operation *c_current_op;
-	int c_flags;
-};
-
-static void connection_free_private_buffer(Connection *conn)
-{
-#ifdef _WIN32
-	if (NULL != conn->c_private) {
-		slapi_ch_free( (void**)&conn->c_private->c_buffer);
-	}
-#else
-#endif
-}
-
-#define FLAG_CONN_HAD_SOME 1 /* Set when we've read the first piece of data already, means we don't need to allocate a new op */
-#define FLAG_CONN_COMPLETE 2 /* Set when we've read all of an LDAP operation request, means we can proceed to process it */
-
-
-/* Little helper functions */
-
-Operation *get_current_op(Connection *conn)
-{
-	Operation *return_op = conn->c_private->c_current_op;
-	PR_ASSERT(NULL != return_op);
-	return return_op;
-}
-
-static int is_new_operation(Connection *conn)
-{
-	if (0 == conn->c_private->c_flags) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
-
-/* Called when a new operation comes in on a connection */
-static int connection_operation_new(Connection *conn, Operation **ppOp)
-{
-	/* we need to make a new operation structure and chain it onto the connection */
-	Operation *temp_op = NULL;
-	int rc;
-
-	PR_Lock( conn->c_mutex );
-	if (connection_is_active_nolock(conn) == 0) {
-	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "not creating a new operation when conn %" NSPRIu64 " closing\n",
-		      conn->c_connid,0,0);
-	    PR_Unlock( conn->c_mutex );
-	    return -1;
-	}
-	temp_op = operation_new( plugin_build_operation_action_bitmap( 0,
-			plugin_get_server_plg() ));
-	connection_add_operation( conn, temp_op);
-	rc = connection_acquire_nolock (conn); 
-	PR_Unlock( conn->c_mutex );
-	/* Stash the op pointer in the connection structure for later use */
-	PR_ASSERT(NULL == conn->c_private->c_current_op);
-	conn->c_private->c_current_op = temp_op;
-	*ppOp = temp_op;
-	return rc;
-}
-
-/* Call this to tell the select thread to put us back into the read-ready signal set */
-static int add_to_select_set(Connection *conn)
-{
-	conn->c_gettingber = 0;
-	signal_listner();
-	return 0;
-}
-
-static int remove_from_select_set(Connection *conn)
-{
-	conn->c_gettingber = 1;
-	return 0;
-}
-
-/* Helper functions from here on are platform-dependent */
-/* First the NT ones */
-
-#ifdef _WIN32
-
-static HANDLE completion_port = INVALID_HANDLE_VALUE;
-#define COMPKEY_DIE ((DWORD) -1L) /* used to kill off workers */
-
-static void push_back_data(Connection *conn, size_t offset, size_t length);
-static int queue_pushed_back_data(Connection *conn);
-
-/* Called when we've read from the completion queue, so there's data
- * waiting for us to pickup. We're told: the number of bytes read, the
- * address of the buffer, the state of this connection (new op, middle of op).
- */
-static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *defer_pushback)
-{
-	Conn_private *priv = conn->c_private;
-	Operation *op = NULL;
-	DWORD Bytes_Read = 0;
-	char *Buffer = NULL;
-	ber_tag_t tag = 0;
-	int return_value = -1;
-	ber_len_t ber_len = 0;
-	ber_len_t Bytes_Scanned = 0;
-
-	*defer_io = 0;
-	*defer_pushback = 0;
-
-	op = priv->c_current_op;
-	Bytes_Read = priv->c_number_of_async_bytes_read;
-	Buffer = priv->c_buffer + priv->c_buffer_offset;
-
-	PR_ASSERT(NULL != op->o_ber);
-	
-	/* Is this an SSL connection ? */
-	if (0 == (conn->c_flags & CONN_FLAG_SSL)) {
-		/* Not SSL */
-
-		if (! config_check_referral_mode()) {
-		/* Update stats */
-			PR_Lock( op_thread_lock );
-			(*(g_get_global_snmp_vars()->ops_tbl.dsBytesRecv)) += Bytes_Read;	 
-			PR_Unlock( op_thread_lock );
-		}
-
-		/* We need to read the data into the BER buffer */
-		/* This can return a tag pr LBER_DEFAULT, indicating some error condition */
-		tag = ber_get_next_buffer_ext( Buffer, Bytes_Read, &ber_len, op->o_ber, &Bytes_Scanned, conn->c_sb );
-		if (LBER_DEFAULT == tag || LBER_OVERFLOW == tag)
-		{
-			if (0 == Bytes_Scanned)
-			{
-				/* Means we encountered an error---eg the client sent us pure crap---
-				a bunch of bytes which we took to be a tag, length, then we ran off the
-				end of the buffer. The next time we get here, we'll be returned LBER_DEFAULT
-				This means that everything we've seen up till now is useless because it wasn't
-				an LDAP message. 
-				So, we toss it away ! */
-				if (LBER_OVERFLOW == tag) {
-					slapi_log_error( SLAPI_LOG_FATAL, "connection",
-						"conn=%" NSPRIu64 " fd=%d The length of BER Element was too long.\n",
-						conn->c_connid, conn->c_sd );
-				}
-				PR_Lock( conn->c_mutex );
-				connection_remove_operation( conn, op );
-				operation_free(&op, conn);
-				priv->c_current_op = NULL;
-				PR_Unlock( conn->c_mutex );
-				return -1; /* Abandon Connection */
-			}
-		}
-		if (is_ber_too_big(conn,ber_len))
-		{
-			PR_Lock( conn->c_mutex );
-			connection_remove_operation( conn, op );
-			operation_free(&op, conn);
-			priv->c_current_op = NULL;
-			PR_Unlock( conn->c_mutex );
-			return -1; /* Abandon Connection */
-		}
-
-		/* We set the flag to indicate that we'er in the middle of an op */
-		priv->c_flags |= FLAG_CONN_HAD_SOME;
-		
-		/* Then we decide whether this is the last read for the current op */
-		/* and set the flag accordingly */
-		if (LBER_DEFAULT != tag) {	/* we received a complete message */
-			if (LDAP_TAG_MESSAGE == tag) {	/* looks like an LDAP message */
-				/* It's time to process this operation */
-				*process_op = 1;
-				priv->c_current_op = NULL;
-				priv->c_flags = 0;
-			} else {
-				/*
-				 * We received a non-LDAP message.  Log and close connection.
-				 */
-				LDAPDebug( LDAP_DEBUG_ANY,
-					"conn=%" NSPRIu64 " received a non-LDAP message"
-					" (tag 0x%lx, expected 0x%lx)\n",
-					conn->c_connid, tag, LDAP_TAG_MESSAGE );
-				PR_Lock( conn->c_mutex );
-				connection_remove_operation( conn, op );
-	     	    operation_free(&op, conn);
-				priv->c_current_op = NULL;
-				PR_Unlock( conn->c_mutex );
-				return -1; /* Abandon Connection */
-			}
-		}
-
-		/* Finally, mark whether there's the beginning of another operation remaining in the buffer */
-		/* If there is, queue up another I/O completion request on the port to get it handled OK */
-		/* If not, issue a new read on the socket. */
-		if (Bytes_Scanned != Bytes_Read) {
-		        if (connection_increment_reference(conn) == -1) {
-			    LDAPDebug(LDAP_DEBUG_CONNS,
-				      "could not acquire lock in issue_new_read as conn %" NSPRIu64 " closing fd=%d\n",
-				      conn->c_connid,conn->c_sd,0); 
-			    /* XXX how to handle this error? */
-			    /* MAB: 25 Jan 01: let's try like this and pray this won't leak... */
-			    /* GB : this should be OK because an error here 
-			     * means some other thread decided to close the
-		             * connection, which mean a fatal error happened
-			     * in that case just forget about the remaining 
-		 	     * data and return
-			     */
-			    return (0);
-			}
-			push_back_data(conn,priv->c_overlapped.Offset + Bytes_Scanned,Bytes_Read-Bytes_Scanned);
-			if (!conn->c_isreplication_session) {
-				if ((return_value = queue_pushed_back_data(conn)) == -1) {
-		 			/* MAB: 25 jan 01 we need to decrement the conn refcnt before leaving... Otherwise,
-					 * this thread will unbalance the ref_cnt inc and dec for this connection
-					 * and the result is that the connection is never closed and instead is kept 
-					 * forever an never released -> this was causing a fd starvation on NT
-					 */
-					connection_decrement_reference(conn);
-					LDAPDebug(LDAP_DEBUG_CONNS,
-						  "push_back_data failed: closing conn %" NSPRIu64 " fd=%d\n",
-						  conn->c_connid,conn->c_sd,0); 
-				}
-			} else {
-				/* Queue the I/O later to serialize */
-				*defer_pushback = 1;
-				return_value = 0;
-			}
-		} else {
-			priv->c_overlapped.Offset = 0;
-			if (!conn->c_isreplication_session) {
-				return_value = issue_new_read(conn);
-			} else {
-				/* Queue the I/O later to serialize */
-				*defer_io = 1;
-				return_value = 0;
-			}
-		}
-	} else {
-		/* SSL */
-		if ( (tag = ber_get_next( conn->c_sb, &ber_len, op->o_ber ))
-			   != LDAP_TAG_MESSAGE ) {
-			return( -1 );
-		}
-		if(is_ber_too_big(conn,ber_len))
-		{
-		    return( -1 );
-		}
-		/* Put this connection back into the read-ready signal state */
-		/* priv->c_flags |= FLAG_CONN_COMPLETE; Redundant now */
-		/* It's time to process this operation */
-		*process_op = 1;
-		priv->c_current_op = NULL;
-		priv->c_flags = 0;
-		return_value = 0;
-		if (!conn->c_isreplication_session) {
-			add_to_select_set(conn);
-		} else {
-			*defer_io = 1;
-		}
-	}
-
-	return return_value;
-}
- 
-void push_back_data(Connection *conn, size_t offset, size_t length)
-{
-	conn->c_private->c_overlapped.Offset = offset;
-	conn->c_private->c_deferred_length = length;
-}
-
-int queue_pushed_back_data(Connection *conn)
-{
-	/* Use PostQueuedCompletionStatus() to push the data back up the pipe */
-	BOOL return_bool = FALSE;
-
-	return_bool = PostQueuedCompletionStatus(completion_port,conn->c_private->c_deferred_length,(DWORD)conn,&conn->c_private->c_overlapped); 
-
-	if (return_bool) {
-		return 0;
-	} else {
-		return -1;
-	}
-}
-
-/* This function issues a new read operation on the connection.
- * Called once we've finished reading everything from the buffer.
- * VMS crusties will notice the similarity to $QIO.
- */
-int issue_new_read(Connection *conn)
-{
-	BOOL return_bool = FALSE;
-	HANDLE socket = INVALID_HANDLE_VALUE;
-	void **buffer = NULL;
-	DWORD bytes_read = 0;
-	DWORD buffer_size = 0;
-	OVERLAPPED *overlapped = NULL;
-
-	PR_ASSERT(NULL != conn);
-	socket = (HANDLE)conn->c_sd;
-	PR_ASSERT(NULL != socket);
-
-	/* here we make sure that we have a buffer allocated */
-	buffer = &conn->c_private->c_buffer;
-	if (NULL == *buffer) {
-		*buffer = (void*)slapi_ch_malloc(LDAP_SOCKET_IO_BUFFER_SIZE);
-		if (NULL == *buffer) {
-			/* memory allocation failure */
-			return -1;
-		}
-		conn->c_private->c_buffer_size = LDAP_SOCKET_IO_BUFFER_SIZE;
-	}
-
-	buffer_size = conn->c_private->c_buffer_size;
-	overlapped = &conn->c_private->c_overlapped;
-
-	if (connection_increment_reference(conn) == -1) {
-	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "could not acquire lock in issue_new_read as conn %" NSPRIu64 " closing fd=%d\n",
-		      conn->c_connid,conn->c_sd,0); 
-	    /* This means that the connection is closing */
-	    return -1;
-	}
-	return_bool = ReadFile(socket,*buffer,buffer_size,&bytes_read,overlapped);
-	if ( !return_bool && ERROR_IO_PENDING != GetLastError( ) ) {
-		/* This means that the connection is shot for some reason */
-		connection_decrement_reference(conn);
-		return -1;
-    } else {
-		/* Our work is done, i/o read now queued */
-		return 0;
-	}
-}
-
-static int wait_on_new_work(Connection **ppConn, work_type *type)
-{
-	/* Here, we wait on the I/O completion port for new data */
-	/* because we're not sure whether the completion port has been created yet,
-	 * we wait 'till it has been.
-	 */
-	Connection *temp_conn = NULL;
-	DWORD Bytes_Received = 0;
-	OVERLAPPED *pOverlapped = NULL;
-	BOOL return_bool = FALSE;
-
-	*type = read_data;
-
-	while ( (INVALID_HANDLE_VALUE == completion_port) && (!op_shutdown) ) {
-		Sleep(100);
-	}
-	while (1) {
-		if (op_shutdown) {
-			return EINTR;
-		}
-		return_bool = GetQueuedCompletionStatus(completion_port,&Bytes_Received,(DWORD*)&temp_conn,&pOverlapped,INFINITE);
-        if ((unsigned long)temp_conn == COMPKEY_DIE ) {                       
-			 continue;  /* kill this worker */
-        }
-		if (TRUE == return_bool) {
-			/* we successfully completed the I/O operation */
-			/* set the connection pointer the caller gave us to the one from the port */
-			PR_ASSERT(NULL != pOverlapped);
-			PR_ASSERT(NULL != temp_conn);
-			*ppConn = temp_conn;
-			/* store the # bytes read in the connection structure */
-			(*ppConn)->c_private->c_number_of_async_bytes_read = Bytes_Received;
-			(*ppConn)->c_private->c_buffer_offset = (*ppConn)->c_private->c_overlapped.Offset;
-			if( Bytes_Received == 0 )
-			{
-				/* 0 bytes received from a completed overlapped I/O 
-				 operation means the socket's been closed. */
-				break;
-			}
-			(*ppConn)->c_idlesince = current_time();
-			/* If we exit here, everything is OK */
-			connection_decrement_reference(temp_conn);
-			return 0;
-		}
-		if ( (FALSE == return_bool) && (NULL == pOverlapped) ) {
-			/* we timed out */
-            /* slapi_log_error( SLAPI_LOG_FATAL, "connection",
-		                     "GetQueuedCompletionStatus call timed out\n");*/
-			continue;
-		}
-		if ( (FALSE == return_bool) && (NULL != pOverlapped)) {
-			/* signifies some sort of i/o error, most likely an abortive close */
-            /* slapi_log_error( SLAPI_LOG_FATAL, "connection",
-		            "GetQueuedCompletionStatus call failed; error - %ld\n", GetLastError());*/
-			if (NULL != temp_conn) {
-				/* If we were told the connection, return it--otherwise we can't tell which connection to close */
-				*ppConn = temp_conn;
-			}
-			break;
-		}
-	}
-	return EPIPE; /* we failed to read for some reason */
-}
-
-int connection_new_private(Connection *conn)
-{
-	/* first add to the completion port */
-	DWORD threads = 10; /* DBDB hackhack */
-	HANDLE socket = INVALID_HANDLE_VALUE;
-	HANDLE return_port = NULL;
-	Conn_private *priv = NULL;
-	int return_value = -1;
-	
-	PR_ASSERT(NULL != conn);
-
-	socket = (HANDLE) conn->c_sd;
-
-	/* make the private data if it isn't already there */
-
-	if (NULL == conn->c_private) {
-		Conn_private *new_private = (Conn_private *)slapi_ch_malloc(sizeof(Conn_private));
-		if (NULL == new_private) {
-			/* memory allocation failed */
-			return -1;
-		}
-		conn->c_private = new_private;
-		ZeroMemory(conn->c_private,sizeof(Conn_private));
-	}
-	priv = conn->c_private;
-	/* Make sure the private structure is cleared */
-	/* Note: you must modify this code if the contents
-	 * of the structure are changed---we can't simply 
-	 * zero the structure because we want to preserve the
-	 * buffer. IMPORTANT---here we reuse the I/O buffer
-	 * from before. This is deliberate, to avoid mallocing again */
-	ZeroMemory(&(priv->c_overlapped),sizeof(OVERLAPPED));
-	priv->c_number_of_async_bytes_read = 0;
-	priv->c_buffer_offset = 0;
-	priv->c_flags = 0;
-	priv->c_current_op = NULL;
-
-
-	if (INVALID_HANDLE_VALUE == completion_port) {
-		/* completion port not yet setup, we need to make it */
-		completion_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE,NULL,0,0);
-		if (NULL == completion_port) {
-			LDAPDebug(LDAP_DEBUG_ANY,"Failed to create master I/O completion port\n",0,0,0);
-			return -1;
-		}
-	}
-	/* If the connection is SSL, don't do the right thing */
-	if (0 == (conn->c_flags & CONN_FLAG_SSL)) {
-		return_port = CreateIoCompletionPort(socket,completion_port,(DWORD)conn,0);
-		if (NULL == return_port) {
-			LDAPDebug(LDAP_DEBUG_ANY,"Failed to associate socket with I/O completion port, fd=%d,GetLastError = %d\n",socket,GetLastError(),0);
-			return -1;
-		}
-		/* Now queue the initial read on this connection */
-		return_value = issue_new_read(conn);
-	} else {
-		return_value = 0;
-	}
-
-	return return_value;
-}
-
-/* If all is well, this only gets called for SSL connections */
-int connection_activity(Connection *conn)
-{
-	/* First check that this really is an SSL connection */
-	if (0 == (conn->c_flags & CONN_FLAG_SSL)) {
-		return -1;
-	}
-	/* Now, the plan here is to push something up the IOCP pipe */
-	/* We need to fake something up so that the code which pulls 
-	 * it off the queue does the right thing. Here's what we do:
-	 * We just call PostQueuedCompletionStatus like normal.
-	 * The connection is marked as SSL, and it is this that the
-	 * reading code notices. Simple !
-	 */
-	/* Also, we need to participate in the signaling protocol to the select thread */
-	remove_from_select_set(conn);
-	/* We hold the lock already, increment the reference count, which will
-	   be decremented in wait_for_new_work(). */
-	if (connection_acquire_nolock (conn) == -1) {
-	    LDAPDebug(LDAP_DEBUG_CONNS,
-		      "could not acquire lock in connection_activity as conn %" NSPRIu64 " closing fd=%d\n",
-		      conn->c_connid,conn->c_sd,0); 
-	    /* XXX how to handle this error? */
-	    /* MAB: 25 Jan 01: let's return on error and pray this won't leak */
-	    return (-1);
-	}
-	push_back_data(conn, 0, 1);
-	return queue_pushed_back_data(conn);
-}
-
-static int finished_chomping(Connection *conn)
-{
-	/* On NT we don't need to do anything here */
-	return 0;
-}
-
-#else /* WIN32/UNIX */
-
-/*
- * This is where the UNIX Helper functions would be if IO
- * Completion Ports were supported on UNIX.
- */
-
-#endif	/* WIN32/UNIX */
-
-#else /* LDAP_IOCP */
-
-/*
- * IO Completion Ports are not available on this platform.
- */
-
 /* The connection private structure for UNIX turbo mode */
 struct Conn_private
 {
@@ -1681,7 +840,7 @@ openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 		errno = EWOULDBLOCK;
 #elif defined(EAGAIN)
 		errno = EAGAIN;
-#endif			
+#endif
 		PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
 	} else {
 		/* copy buffered data into output buf */
@@ -2789,8 +1948,6 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
 
 	return (wqitem);
 }
-#endif /* LDAP_IOCP */
-
 
 /* Helper functions common to both varieties of connection code: */
 
@@ -2801,12 +1958,6 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
 void
 op_thread_cleanup()
 {
-#ifdef _WIN32
-	int i;
-	PRIntervalTime    interval;
-	int max_threads = config_get_threadnumber();
-	interval = PR_SecondsToInterval(3);
-#endif	
 	LDAPDebug( LDAP_DEBUG_ANY,
 		   "slapd shutting down - signaling operation threads - op stack size %d max work q size %d max work q stack size %d\n",
 		   op_stack_size, work_q_size_max, work_q_stack_size_max);
@@ -2815,17 +1966,6 @@ op_thread_cleanup()
 	PR_Lock( work_q_lock );
 	PR_NotifyAllCondVar ( work_q_cv ); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
 	PR_Unlock( work_q_lock );
-#ifdef _WIN32 
-	LDAPDebug( LDAP_DEBUG_ANY,
-		"slapd shutting down - waiting for %d threads to terminate\n",
-		g_get_active_threadcnt(), 0, 0 );
-	/* kill off each worker waiting on GetQueuedCompletionStatus */
-	for ( i = 0; i < max_threads; ++ i )
-	{
-		PostQueuedCompletionStatus( completion_port, 0, COMPKEY_DIE ,0);
-	}
-	/* don't sleep: there's no reason to do so here DS_Sleep(interval); */ /* sleep 3 seconds */
-#endif
 }
 
 /* do this after all worker threads have terminated */
@@ -3181,7 +2321,7 @@ connection_abandon_operations( Connection *c )
 		 * handle it here until a better solution is found
 		 */	
 		if ( op->o_status != SLAPI_OP_STATUS_RESULT_SENT ||
-			op->o_flags & OP_FLAG_PS ) {
+			(op->o_flags & OP_FLAG_PS) ) {
 			op->o_status = SLAPI_OP_STATUS_ABANDONED;
 		}
 	}

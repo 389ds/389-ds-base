@@ -54,12 +54,9 @@ new_dataversion()
 {
     struct tm t;
     char* dataversion;
-	time_t curtime= current_time();
-#ifdef _WIN32
-    memcpy (&t, gmtime (&curtime), sizeof(t));
-#else
+	time_t curtime = current_time();
+
     gmtime_r (&curtime, &t);
-#endif
     dataversion = slapi_ch_smprintf("0%.4li%.2i%.2i%.2i%.2i%.2i", 1900L + t.tm_year, 1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 	return dataversion;
 }

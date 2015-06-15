@@ -84,30 +84,16 @@
 #include "prio.h"  /* for PR_OpenDir etc */
 #include "prlog.h" /* for PR_ASSERT */
 /* The following cruft is for ldif2db only */
-#ifndef XP_WIN32
 #include <unistd.h>	/* write/close (ldbm2ldif_write) */
-#else
-#include <io.h>	/* write/close (ldbm2ldif_write) */
-#endif
 #include <fcntl.h>
 #include <time.h>
 /* And this cruft is from nextid.c */
-#ifndef _WIN32
 #include <sys/param.h>
-#endif /* ! _WIN32 */
 #include <limits.h> /* Used in search.c (why?) */
 
-
-
-#ifndef _WIN32
 /* for MAXPATHLEN */
 #include <sys/param.h>
 #define MKDIR(path,mode) mkdir((path),(mode))
-#else
-/* for mkdir */
-#include <direct.h>
-#define MKDIR(path,mode) mkdir(path)
-#endif
 
 #ifdef HPUX11
 #define	__BIT_TYPES_DEFINED__

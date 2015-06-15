@@ -287,13 +287,11 @@ dd/mm/yy | Author	| Comments
 #ifdef LDAP_H_FROM_QA_WKA
 #include <proto-ldap.h>		/* ldap C-API prototypes */
 #endif
-#ifndef _WIN32							/*JLS 29-11-00*/
 #include <pthread.h>		/* pthreads(), etc... */
 #include <unistd.h>		/* close(), etc... */
 #include <dlfcn.h>		/* dlopen(), etc... */		/*JLS 07-11-00*/
 #include <sys/resource.h>	/* setrlimit(), etc... */
 #include <sys/time.h>		/* struct rlimit, etc... */
-#endif
 
 #include "nspr.h"
 #include "port.h"		/* Portability definitions */	/*JLS 29-11-00*/
@@ -315,15 +313,6 @@ int 		 masterPort=16000;
 extern char	*ldcltVersion;		/* ldclt version */	/*JLS 18-08-00*/
 
 
-
-
-
-
-
-
-
-
-					/* New function */	/*JLS 18-08-00*/
 /* ****************************************************************************
 	FUNCTION :	ldcltExit
 	PURPOSE :	Print the last data then exit the process.
@@ -372,7 +361,6 @@ ldcltExit (
 }
 
 
-						/* New */	/*JLS 23-03-01*/
 /* ****************************************************************************
 	FUNCTION :	copyVersAttribute
 	PURPOSE :	Copy a versatile object's attribute
@@ -424,13 +412,6 @@ copyVersAttribute (
 }
 
 
-
-
-
-
-
-
-						/* New */	/*JLS 21-03-01*/
 /* ****************************************************************************
 	FUNCTION :	copyVersObject
 	PURPOSE :	Copy a versatile object.
@@ -487,15 +468,6 @@ copyVersObject (
 }
 
 
-
-
-
-
-
-
-
-
-						/* New */	/*JLS 19-03-01*/
 /* ****************************************************************************
 	FUNCTION :	tttctxInit
 	PURPOSE :	Initiates the thread context
@@ -552,10 +524,6 @@ tttctxInit (
 
   return (0);
 }
-
-
-
-
 
 
 /* ****************************************************************************
@@ -664,12 +632,6 @@ runThem (void)
 }
 
 
-
-
-
-
-
-					/* New function */	/*JLS 17-11-00*/
 /* ****************************************************************************
 	FUNCTION :	shutdownThreads
 	PURPOSE :	This function is targeted to shutdown the threads.
@@ -753,11 +715,6 @@ shutdownThreads (void)
 
   return (0);
 }
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -938,14 +895,6 @@ monitorThem (void)
 }
 
 
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	printGlobalStatistics
 	PURPOSE :	This function will print the global statistics numbers.
@@ -1099,12 +1048,6 @@ printGlobalStatistics (void)
 }
 
 
-
-
-
-
-
-#ifndef _WIN32							/*JLS 29-11-00*/
 /* ****************************************************************************
 	FUNCTION :	trapVector
 	PURPOSE :	Interruption vector for SIGINT and SIGQUIT
@@ -1130,10 +1073,6 @@ trapVector (
   }
   return;
 }
-#endif	/* _WIN32 */						/*JLS 29-11-00*/
-
-
-
 
 
 /* ****************************************************************************
@@ -1197,13 +1136,6 @@ initMainThread (void)
 }
 
 
-
-
-
-
-
-
-					/* New function */	/*JLS 21-11-00*/
 /* ****************************************************************************
 	FUNCTION :	parseFilter
 	PURPOSE :	This function parse a string in the form abcXXXdef
@@ -1252,17 +1184,6 @@ parseFilter (
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	basicInit
 	PURPOSE :	This function performs the basic initializations of
@@ -1276,9 +1197,7 @@ parseFilter (
 int 
 basicInit (void)
 {
-#ifndef _WIN32							/*JLS 29-11-00*/
   struct rlimit	 rlp;	/* For setrlimit() */
-#endif	/* _WIN32 */						/*JLS 29-11-00*/
   int		 i;	/* For the loops */			/*JLS 21-11-00*/
   int		 ret;	/* Return value */
   int		 oflags;/* open() flags */			/*JLS 05-04-01*/
@@ -1340,7 +1259,7 @@ basicInit (void)
       oflags = O_APPEND|O_WRONLY|O_CREAT;			/*JLS 05-04-01*/
     else							/*JLS 05-04-01*/
       oflags = O_EXCL|O_WRONLY|O_CREAT;				/*JLS 05-04-01*/
-#if !defined(_WIN32) && !defined(OSF1) && !defined(__LP64__) && !defined(_LP64)				/*JLS 05-04-01*/
+#if !defined(OSF1) && !defined(__LP64__) && !defined(_LP64)				/*JLS 05-04-01*/
     oflags |= O_LARGEFILE;					/*JLS 05-04-01*/
 #endif								/*JLS 03-04-01*/
     mctx.genldifFile = open (mctx.genldifName, oflags, 0666);	/*JLS 05-04-01*/
@@ -1372,8 +1291,7 @@ basicInit (void)
 
   /*
    * Set appropriate number of files...
-   */
-#ifndef _WIN32							/*JLS 29-11-00*/
+   */						/*JLS 29-11-00*/
   if (mctx.nbThreads > 54)
   {
     if (getrlimit (RLIMIT_NOFILE, &rlp) < 0)
@@ -1394,7 +1312,6 @@ basicInit (void)
     if (mctx.mode & VERBOSE)
       printf ("Set file number to %u\n", (unsigned int)rlp.rlim_max);
   }
-#endif	/* _WIN32 */						/*JLS 29-11-00*/
 
   /*
    * Maybe an object to read ?
@@ -1742,12 +1659,6 @@ basicInit (void)
 }
 
 
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	printModeValues
 	PURPOSE :	This function is targeted to print the bits mask of
@@ -1843,12 +1754,6 @@ dumpModeValues (void)
 }
 
 
-
-
-
-
-
-
 /*
  * Scope parameters (-s sub-options)
  */
@@ -1861,6 +1766,7 @@ char *scopeParams[] = {
 	"base",
 	NULL
 };
+
 
 /* ****************************************************************************
 	FUNCTION :	decodeScopeParams
@@ -1900,10 +1806,6 @@ decodeScopeParams (
   }
   return (0);
 }
-
-
-
-
 
 
 /* ****************************************************************************
@@ -2001,10 +1903,6 @@ saslSetParam (
 }
 
 
-
-
-
-					/* New function */	/*JLS 08-03-01*/
 /* ****************************************************************************
 	FUNCTION :	decodeReferralParams
 	PURPOSE :	Decode -e referral params.
@@ -2032,15 +1930,6 @@ decodeReferralParams (
   fprintf (stderr, "Error: illegal arg %s for referral\n", val);
   return (-1);
 }
-
-
-
-
-
-
-
-
-
 
 
 /* ****************************************************************************
@@ -2094,12 +1983,6 @@ addAttrToList (
 }
 
 
-
-
-
-
-
-						/* New */	/*JLS 23-03-01*/
 /* ****************************************************************************
 	FUNCTION :	decodeRdnParam
 	PURPOSE :	Decodes a -e rdn=value parameter.
@@ -2145,18 +2028,6 @@ decodeRdnParam (
 
   return (0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /*
@@ -2616,11 +2487,6 @@ decodeExecParams (
 }
 
 
-
-
-
-
-					/* New function */	/*JLS 23-04-01*/
 /* ****************************************************************************
 	FUNCTION :	buildArgListString
 	PURPOSE :	Saved the arguments of ldclt into a string.
@@ -2667,12 +2533,6 @@ buildArgListString (
 
   return (argvList);
 }
-
-
-
-
-
-
 
 
 /* ****************************************************************************

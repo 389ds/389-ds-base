@@ -55,12 +55,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sechash.h>
-#if defined( _WIN32 )
-#undef DEBUG
-#endif /*  _WIN32 */
-#if defined( _WIN32 )
-#undef LDAPDebug
-#endif	/*  _WIN32 */
 #if defined( USE_MOZLDAP )
 #define LDAP_MOD_OP (0x0007)
 #endif /* USE_MOZLDAP */

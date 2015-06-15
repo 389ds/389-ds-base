@@ -54,15 +54,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <private/pprio.h>
-
-
 #include <prio.h>
 #include <ssl.h>
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"
-
-
 
 
 /* OID of the extended operation handled by this plug-in */
@@ -160,10 +156,6 @@ start_tls( Slapi_PBlock *pb )
 
 	char		*oid;
 	Connection      *conn;
-#ifdef _WIN32
-	PRFileDesc      *oldsocket;
-	int				oldnativesocket;
-#endif
 	int             ldaprc = LDAP_SUCCESS;
 	char            *ldapmsg = NULL;
 
@@ -211,7 +203,6 @@ start_tls( Slapi_PBlock *pb )
 	conn = pb->pb_conn;
 	PR_Lock( conn->c_mutex );
 	/* cannot call slapi_send_ldap_result with mutex locked - will deadlock if ber_flush returns error */
-#ifndef _WIN32
 	if ( conn->c_prfd == (PRFileDesc *) NULL ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
 		                 "Connection socket not available.\n" );
@@ -219,20 +210,8 @@ start_tls( Slapi_PBlock *pb )
 		ldapmsg = "Connection socket not available.";
 		goto unlock_and_return;
 	}
-#else
-	oldnativesocket = conn->c_sd;
-	oldsocket = PR_ImportTCPSocket(oldnativesocket);
-	if ( oldsocket == (PRFileDesc *) NULL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
-		                 "Failed to import NT native socket into NSPR.\n" );
-		ldaprc = LDAP_UNAVAILABLE;
-		ldapmsg = "Failed to import NT native socket into NSPR.";
-		goto unlock_and_return;
-	}
-#endif
 
 	/* Check whether the Start TLS request can be accepted. */
-
 	if ( connection_operations_pending( conn, pb->pb_op,
 				1 /* check for ops where result not yet sent */ )) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
@@ -270,7 +249,6 @@ start_tls( Slapi_PBlock *pb )
 		goto unlock_and_return;
 	}
 
-
 	if ( conn->c_flags & CONN_FLAG_CLOSING ) {
 		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
 				 "Connection being closed at this moment.\n" );
@@ -278,8 +256,6 @@ start_tls( Slapi_PBlock *pb )
 		ldapmsg = "Connection being closed at this moment.";
 		goto unlock_and_return;
 	}	
-
-
 
 	/* At first sight, there doesn't seem to be any major impediment to start TLS.
 	 * So, we may as well try initialising SSL. */
@@ -292,14 +268,13 @@ start_tls( Slapi_PBlock *pb )
 		goto unlock_and_return;
 	}	
 
-
-        /* Enable TLS I/O on the connection */
-        connection_set_io_layer_cb(conn, start_tls_io_enable, NULL, NULL);
+	/* Enable TLS I/O on the connection */
+	connection_set_io_layer_cb(conn, start_tls_io_enable, NULL, NULL);
 
 	/* Since no specific argument for denying the Start TLS request has been found, 
 	 * we send a success response back to the client. */
-        ldapmsg = "Start TLS request accepted.Server willing to negotiate SSL.";
- unlock_and_return:
+	ldapmsg = "Start TLS request accepted.Server willing to negotiate SSL.";
+unlock_and_return:
 	PR_Unlock( conn->c_mutex );
 	slapi_send_ldap_result( pb, ldaprc, NULL, ldapmsg, 0, NULL );
 
@@ -345,7 +320,6 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	/* First thing to do is to finish with whatever operation may be hanging on the
 	 * encrypted session.
 	 */
-
 	while ( connection_operations_pending( c, pblock->pb_op,
 				0 /* wait for all other ops to full complete */ )) {
 	  slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
@@ -361,13 +335,11 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	slapi_send_ldap_result( pblock, LDAP_OPERATIONS_ERROR, NULL, 
 				"SSL_CLOSE_NOTIFY_ALERT", 0, NULL );
 	
-
 	if ( is_initiator ) {
 	  /* if this call belongs to the initiator of the SSL connection closure, it must first
 	   * wait for the peer to send another close_notify alert back.
 	   */
 	}
-
 
 	PR_Lock( c->c_mutex );
 
@@ -388,18 +360,8 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	ssl_fd = PR_PopIOLayer( c->c_prfd, PR_TOP_IO_LAYER );
 	ssl_fd->dtor( ssl_fd );
 
-
-#ifndef _WIN32
 	secure = 0;
 	ns = configure_pr_socket( &(c->c_prfd), secure, 0 /*never local*/ );
-
-#else
-	ns = PR_FileDesc2NativeHandle( c->c_prfd );
-	c->c_prfd = NULL;
-
-	configure_ns_socket( &ns );
-#endif
-
 	c->c_sd = ns;
         c->c_flags &= ~CONN_FLAG_SSL;
         c->c_flags &= ~CONN_FLAG_START_TLS;
@@ -410,8 +372,6 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	bind_credentials_clear( c, PR_FALSE, PR_TRUE );
 
 	PR_Unlock( c->c_mutex );
-
-
 
 	return ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 }    

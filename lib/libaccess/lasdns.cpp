@@ -47,18 +47,11 @@
 
 #include <stdio.h>
 #include <string.h>
-
-#ifdef	XP_WIN32
-/* #include <winsock2.h> */
-#include <winsock.h>
-#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#endif
-
 #include <netsite.h>
 extern "C" {
 #include <prnetdb.h>

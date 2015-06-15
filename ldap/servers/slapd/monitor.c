@@ -56,9 +56,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif
 #include "slap.h"
 #include "fe.h"
 
@@ -107,29 +105,13 @@ monitor_info(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *ret
 	val.bv_val = buf;
 	attrlist_replace( &e->e_attrs, "bytessent", vals );
 
-#ifdef _WIN32
-	{
-	struct tm *pt;
-	pt = gmtime( &curtime );
-	memcpy(&utm, pt, sizeof(struct tm) );
-	}
-#else
 	gmtime_r( &curtime, &utm );
-#endif
 	strftime( buf, sizeof(buf), "%Y%m%d%H%M%SZ", &utm );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attrlist_replace( &e->e_attrs, "currenttime", vals );
 
-#ifdef _WIN32
-	{
-	struct tm *pt;
-	pt = gmtime( &starttime );
-	memcpy(&utm, pt, sizeof(struct tm) );
-	}
-#else
 	gmtime_r( &starttime, &utm );
-#endif
 	strftime( buf, sizeof(buf), "%Y%m%d%H%M%SZ", &utm );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );

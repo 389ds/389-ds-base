@@ -82,14 +82,10 @@
 #endif
 
 /* ldaputil.c   -- LDAP utility functions and wrappers */
-#ifdef _WIN32
-#include <direct.h> /* for getcwd */
-#else
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <unistd.h>
 #include <pwd.h>
-#endif
 #include <libgen.h>
 #include <pk11func.h>
 #include "slap.h"

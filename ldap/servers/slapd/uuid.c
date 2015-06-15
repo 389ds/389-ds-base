@@ -67,18 +67,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pk11func.h>
-
-#ifdef _WIN32
-#include <sys/stat.h> /* for S_IREAD and S_IWRITE */
-#else
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #include <unistd.h>     /* gethostname() */
-#endif
-
-
 #include "slap.h"
 #include "uuid.h"
 #include "sechash.h"

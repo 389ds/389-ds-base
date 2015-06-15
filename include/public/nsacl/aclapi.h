@@ -274,19 +274,8 @@ struct ACLDispatchVector {
     int (*f_ACL_GetDefaultResult)(ACLEvalHandle_t *acleval);
 };
 
-#ifdef XP_WIN32
-
-#ifdef INTNSACL
-NSAPI_PUBLIC extern ACLDispatchVector_t *__nsacl_table;
-#else
-__declspec(dllimport) ACLDispatchVector_t *__nsacl_table;
-#endif /* INTNSACL */
-
-#else /* !XP_WIN32 */
-
 NSAPI_PUBLIC extern ACLDispatchVector_t *__nsacl_table;
 
-#endif /* XP_WIN32 */
 
 #ifndef INTNSACL
 

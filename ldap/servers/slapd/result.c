@@ -45,12 +45,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#endif
 #include <errno.h>
 #include <signal.h>
 #include "slap.h"

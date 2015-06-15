@@ -45,14 +45,8 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <sys/types.h>
-#if defined( _WINDOWS ) || defined( _WIN32 )
-#include <windows.h>
-#include <io.h>
-#include <fcntl.h>
-#else
 #include <unistd.h>		/* for read() */
 #include <sys/socket.h>
-#endif
 #include "ldap.h"
 #include "ldif.h"
 
@@ -114,9 +108,6 @@ int main( int argc, char **argv )
 		char    buf[BUFSIZ];
 		char	*val;
 		int	nread, max, cur;
-#if defined( _WINDOWS ) || defined( _WIN32 )
-		_setmode( _fileno( stdin ), _O_BINARY );
-#endif
 
 		if (( val = (char *) malloc( BUFSIZ )) == NULL ) {
 			perror( "malloc" );

@@ -54,13 +54,9 @@
 #include "vattr_spi.h"
 #include "plhash.h"
 #include "ldif.h"
-
 #include "http_client.h"
-
-/* get file mode flags for unix */
-#ifndef _WIN32
 #include <sys/stat.h>
-#endif
+
 
 /*** from proto-slap.h ***/
 
@@ -81,13 +77,8 @@ extern "C" {
 #define LDAP_DEBUG_PLUGIN	0x10000		/* 65536 */
 
 /* debugging stuff */
-#    ifdef _WIN32
-       extern int	*module_ldap_debug;
-#      define LDAPDebugLevelIsSet( level )	( *module_ldap_debug & level )
-#    else /* _WIN32 */
-       extern int	slapd_ldap_debug;
-#      define LDAPDebugLevelIsSet( level )	( slapd_ldap_debug & level )
-#    endif /* Win32 */
+extern int slapd_ldap_debug;
+#define LDAPDebugLevelIsSet( level )	( slapd_ldap_debug & level )
 
 #define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
        { \
@@ -243,18 +234,6 @@ static void toLowerCase(char* str);
 void printMapTable();
 PRIntn printIdVattrMapTable(PLHashEntry *he, PRIntn i, void *arg);
 PRIntn printIdConfigMapTable(PLHashEntry *he, PRIntn i, void *arg);
-
-/**
- * set the debug level
- */
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /**
  *	

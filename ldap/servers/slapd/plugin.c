@@ -2872,18 +2872,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 			status = -1;
 			goto PLUGIN_CLEANUP;
 		}
-#ifdef _WIN32
-		{
-			set_debug_level_fn_t fn;
-			/* for Win32 only, attempt to get its debug level init function */
-			if ((fn = (set_debug_level_fn_t)sym_load(plugin->plg_libpath,
-						"plugin_init_debug_level", plugin->plg_name,
-						0 /* do not report errors */ )) != NULL) {
-				/* we hooked the function, so call it */
-				(*fn)(module_ldap_debug); 
-			}
-		}
-#endif
 	}
 
 	if (!status && group) /* uses group's config; see plugin_get_config */

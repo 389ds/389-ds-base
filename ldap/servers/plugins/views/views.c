@@ -48,21 +48,14 @@
 #include "slapi-plugin.h"
 #include "statechange.h"
 #include "views.h"
-
+#include <sys/stat.h>
 #include "slapi-plugin-compat4.h"
 #include "slapi-private.h"
-
 
 #define VIEW_OBJECTCLASS "nsView"
 #define VIEW_FILTER_ATTR	"nsViewFilter"
 #define STATECHANGE_VIEWS_ID "Views"
 #define STATECHANGE_VIEWS_CONFG_FILTER "objectclass=" VIEW_OBJECTCLASS
-
-/* get file mode flags for unix */
-#ifndef _WIN32
-#include <sys/stat.h>
-#endif
-
 #define VIEWS_PLUGIN_SUBSYSTEM   "views-plugin"   /* used for logging */
 
 /* cache data structs */
@@ -162,14 +155,6 @@ static void * view_plugin_identity = NULL;
 
 static Slapi_RWLock *g_views_cache_lock;
 
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /*
 ** Plugin identity mgmt

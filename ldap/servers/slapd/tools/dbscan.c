@@ -56,17 +56,9 @@
 #include <errno.h>
 #include "db.h"
 #include "nspr.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock.h>
-extern int getopt();
-extern char *optarg; 
-typedef unsigned char uint8_t;
-#else
 #include <netinet/in.h>
 #include <inttypes.h>
-#endif
+
 
 #if ( defined( hpux ) )
 #ifdef _XOPEN_SOURCE_EXTENDED

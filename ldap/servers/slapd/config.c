@@ -47,14 +47,10 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifdef _WIN32
-#include <direct.h> /* for getcwd */
-#else
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <unistd.h>
 #include <pwd.h>
-#endif
 #include "slap.h"
 #include "pw.h"
 #include <sys/stat.h>
@@ -255,7 +251,7 @@ slapd_bootstrap_config(const char *configdir)
 					continue;
 				}
 				/* increase file descriptors */
-#if !defined(_WIN32) && !defined(AIX)
+#if !defined(AIX)
 				if (!maxdescriptors[0] &&
 					entry_has_attr_and_value(e, CONFIG_MAXDESCRIPTORS_ATTRIBUTE,
 									 maxdescriptors, sizeof(maxdescriptors)))
@@ -269,7 +265,7 @@ slapd_bootstrap_config(const char *configdir)
 								  CONFIG_MAXDESCRIPTORS_ATTRIBUTE, errorbuf);
 					}
 				}
-#endif /* !defined(_WIN32) && !defined(AIX) */
+#endif /* !defined(AIX) */
 
 				/* see if we need to enable error logging */
 				if (!logenabled[0] &&
@@ -287,7 +283,6 @@ slapd_bootstrap_config(const char *configdir)
 					}
 				}
 
-#ifndef _WIN32
 				/* set the local user name; needed to set up error log */
 				if (!_localuser[0] &&
 					entry_has_attr_and_value(e, CONFIG_LOCALUSER_ATTRIBUTE,
@@ -300,7 +295,6 @@ slapd_bootstrap_config(const char *configdir)
 								  CONFIG_LOCALUSER_ATTRIBUTE, errorbuf);
 					}
 				}
-#endif
 				
 				/* set the log file name */
 				workpath[0] = '\0';

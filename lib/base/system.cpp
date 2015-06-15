@@ -50,10 +50,6 @@
 #include "prlog.h"
 #include "base/ereport.h"
 
-#ifdef XP_WIN32
-#include <windows.h>
-#endif
-
 #include "base/systems.h"	/* find out if we have malloc pools */
 
 static int thread_malloc_key = -1;

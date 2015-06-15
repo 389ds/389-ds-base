@@ -67,18 +67,6 @@ int32 PR_SetSysfdTableSize(int table_size);
 #endif
 #include "systems.h"
 
-#ifdef THREAD_WIN32
-#include <process.h>
-
-typedef struct {
-    HANDLE hand;
-    DWORD id;
-} sys_thread_s;
-
-#endif
-
-
-
 #if defined (USE_NSPR)
 
 #if defined(__hpux) && defined(__ia64)
@@ -173,7 +161,6 @@ NSAPI_PUBLIC void systhread_sleep(int milliseconds)
 NSAPI_PUBLIC void systhread_init(char *name)
 {
     PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 256);
-#ifdef XP_UNIX
 #ifdef LINUX
     /*
      * NSPR 4.6 does not export PR_SetSysfdTableSize
@@ -191,7 +178,6 @@ NSAPI_PUBLIC void systhread_init(char *name)
     }
 #else 
     PR_SetSysfdTableSize(PR_GetSysfdTableMax());
-#endif
 #endif
 }
 
@@ -221,84 +207,6 @@ NSAPI_PUBLIC void systhread_setdata(int key, void *data)
 NSAPI_PUBLIC void systhread_dummy(void)
 {
 
-}
-
-#elif defined(THREAD_WIN32)
-
-#include <nspr/prthread.h>
-#define DEFAULT_STACKSIZE 262144
-
-NSPR_BEGIN_EXTERN_C
-
-NSAPI_PUBLIC 
-SYS_THREAD systhread_start(int prio, int stksz, void (*fn)(void *), void *arg)
-{
-    sys_thread_s *ret = (sys_thread_s *) MALLOC(sizeof(sys_thread_s));
-
-    if ((ret->hand = (HANDLE)_beginthreadex(NULL, stksz, (unsigned (__stdcall *)(void *))fn, 
-	                                        arg, 0, &ret->id)) == 0) {
-        FREE(ret);
-        return NULL;
-    }
-    return (void *)ret;
-}
-
-NSPR_END_EXTERN_C
-
-NSAPI_PUBLIC SYS_THREAD systhread_current(void)
-{
-    /* XXXrobm this is busted.... */
-    return GetCurrentThread();
-}
-
-NSAPI_PUBLIC void systhread_timerset(int usec)
-{
-}
-
-NSAPI_PUBLIC SYS_THREAD systhread_attach(void)
-{
-    return NULL;
-}
-
-NSAPI_PUBLIC void systhread_yield(void)
-{
-    systhread_sleep(0);
-}
-
-NSAPI_PUBLIC void systhread_terminate(SYS_THREAD thr)
-{
-    TerminateThread(((sys_thread_s *)thr)->hand, 0);
-}
-
-
-NSAPI_PUBLIC void systhread_sleep(int milliseconds)
-{
-    /* XXXrobm there must be a better way to do this */
-    HANDLE sem = CreateSemaphore(NULL, 1, 4, "sleeper");
-    WaitForSingleObject(sem, INFINITE);
-    WaitForSingleObject(sem, milliseconds);
-    CloseHandle(sem);
-}
-
-NSAPI_PUBLIC void systhread_init(char *name)
-{
-    PR_Init(PR_USER_THREAD, 1, 0);
-}
-
-
-NSAPI_PUBLIC int systhread_newkey()
-{
-    return TlsAlloc();
-}
-
-NSAPI_PUBLIC void *systhread_getdata(int key)
-{
-    return (void *)TlsGetValue(key);
-}
-
-NSAPI_PUBLIC void systhread_setdata(int key, void *data)
-{
-    TlsSetValue(key, data);
 }
 
 #endif

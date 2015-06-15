@@ -46,10 +46,8 @@
 #include <string.h>
 #include <sys/types.h>
 #include <errno.h>
-#ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/param.h>
-#endif
 #include "log.h"
 #include "slap.h"
 #include "pw.h"

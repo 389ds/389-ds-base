@@ -47,11 +47,8 @@
 #include	<time.h>
 #include	<stdlib.h>
 #include        <ldap.h>
-#ifndef _WIN32
-#  define	stricmp	strcasecmp
-#else
-#  include	<io.h>
-#endif
+
+#define	stricmp	strcasecmp
 
 #include <nss.h>
 #include <pk11func.h>
@@ -66,11 +63,6 @@
 
 #ifndef FALSE
 #define FALSE 0
-#endif
-
-#ifdef _WIN32
-int slapd_ldap_debug = 0;
-int *module_ldap_debug;
 #endif
 
 /*
@@ -660,11 +652,6 @@ int mm_init(int argc, char * argv[])
             break;
         }
     }
-
-#ifdef _WIN32
-    module_ldap_debug = &slapd_ldap_debug;
-    libldap_init_debug_level(&slapd_ldap_debug);
-#endif
 
     if (ofn != NULL) {
         ofp = fopen(ofn, "w");

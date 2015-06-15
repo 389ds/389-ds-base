@@ -63,9 +63,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif
 #include "slap.h"
 #include "pratom.h"
 #include "csngen.h"
@@ -879,15 +877,7 @@ add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
 	slapi_entry_attr_replace(e, "modifiersname", bvals);
 
 	curtime = current_time();
-#ifdef _WIN32
-{
-	struct tm *pt;
-	pt = gmtime(&curtime);
-	memcpy(&ltm, pt, sizeof(struct tm));
-}
-#else
 	gmtime_r(&curtime, &ltm);
-#endif
 	strftime(buf, sizeof(buf), "%Y%m%d%H%M%SZ", &ltm);
 
 	bv.bv_val = buf;

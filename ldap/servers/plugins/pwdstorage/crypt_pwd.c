@@ -48,9 +48,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#ifdef _WIN32
-char *crypt(char *key, char *salt);
-#else
 #include <sys/socket.h>
 #if defined( hpux ) || defined ( AIX ) || defined (LINUX) || defined (OSF1)
 #ifndef __USE_XOPEN
@@ -60,7 +57,6 @@ char *crypt(char *key, char *salt);
 #else /* hpux */
 #include <crypt.h>
 #endif /* hpux */
-#endif /* _WIN32 */
 
 #include "pwdstorage.h"
 

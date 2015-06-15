@@ -415,13 +415,11 @@ int config_set_malloc_trim_threshold(const char *attrname, char *value, char *er
 int config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply);
 #endif
 
-#if !defined(_WIN32) && !defined(AIX)
+#if !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
-#endif /* !_WIN_32 && !AIX */
+#endif /* !AIX */
 
-#ifndef _WIN32
 int config_set_localuser( const char *attrname, char *value, char *errorbuf, int apply );
-#endif /* !_WIN32 */
 
 #ifdef MEMPOOL_EXPERIMENTAL
 int config_set_mempool_switch( const char *attrname, char *value, char *errorbuf, int apply );
@@ -1390,12 +1388,6 @@ void counters_as_entry(Slapi_Entry* e);
 void counters_to_errors_log(const char *text);
 
 /*
- * ch_malloc.c
- */
-void slapi_ch_start_recording();
-void slapi_ch_stop_recording();
-
-/*
  * snmpcollator.c
  */
 void snmp_as_entry(Slapi_Entry* e);
@@ -1468,11 +1460,8 @@ void handle_closed_connection(Connection *);
 #ifndef LINUX
 void slapd_do_nothing(int);
 #endif
-#ifndef _WIN32
 void slapd_wait4child (int);
-#else
-void *slapd_service_exit_wait();
-#endif
+
 #ifdef ENABLE_NUNC_STANS
 void ns_handle_pr_read_ready(struct ns_job_t *job);
 #endif

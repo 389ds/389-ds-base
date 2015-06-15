@@ -67,10 +67,7 @@
 #include <prio.h>
 #include <prcountr.h>
 #include "slap.h"
-
-#if	!defined (_WIN32)
 #include <pwd.h>
-#endif  /* _WIN32 */
 
 /* #define SLAPI_DSE_DEBUG */ 	/* define this to force trace log	*/
 								/* messages to always be logged		*/

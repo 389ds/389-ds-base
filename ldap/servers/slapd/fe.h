@@ -49,13 +49,6 @@
 /*
  * Global Variables...
  */
-#ifdef LDAP_DEBUG
-#if defined( _WIN32 )
-#ifndef DONT_DECLARE_SLAPD_LDAP_DEBUG
-extern __declspec(dllimport) int slapd_ldap_debug;
-#endif /* DONT_DECLARE_SLAPD_LDAP_DEBUG */
-#endif
-#endif
 extern Slapi_Counter *ops_initiated;
 extern Slapi_Counter *ops_completed;
 extern Slapi_Counter *max_threads_count;

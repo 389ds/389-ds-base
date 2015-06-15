@@ -1088,13 +1088,8 @@ static void task_export_thread(void *arg)
         } else {
             if (strcmp(ldif_file, "-")) {    /* not '-' */
                 char *p;
-#if defined( _WIN32 )
-                char sep = '\\';
-                if (NULL != strchr(ldif_file, '/'))
-                    sep = '/';
-#else
                 char sep = '/';
-#endif
+
                 this_ldif_file = (char *)slapi_ch_malloc(strlen(ldif_file) +
                                                      strlen(*inp) + 2);
                 p = strrchr(ldif_file, sep);

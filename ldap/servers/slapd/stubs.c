@@ -40,20 +40,11 @@
 #  include <config.h>
 #endif
 
-
-/* Needed because not all functions are currently defined for server3_branch */
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include "slap.h"
 
-#if defined( XP_WIN32 ) /* PK*/
-void *dlsym(void *a, char *b) 
-{
-	return 0;
-}
-#endif
 
 int type_to_ACCESS_bit( char *p )
 {

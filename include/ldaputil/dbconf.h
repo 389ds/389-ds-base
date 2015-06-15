@@ -46,11 +46,7 @@
 #include <stdio.h>
 
 #ifndef NSAPI_PUBLIC
-#ifdef XP_WIN32
-#define NSAPI_PUBLIC __declspec(dllexport)
-#else
 #define NSAPI_PUBLIC 
-#endif
 #endif
 
 typedef struct dbconf_propval {
