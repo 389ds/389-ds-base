@@ -394,38 +394,106 @@ parse_duration(char *value)
     }
     input = slapi_ch_strdup(value);
     endp = input + strlen(input) - 1;
-    while ((' ' == *endp || '\t' == *endp) && endp >= input) {
+    while ((' ' == *endp || '\t' == *endp) && endp > input) {
         endp--;
     }
     if ((endp == input) && !isdigit(*input)) {
         goto bail;
     }
-    if ('d' == *endp || 'D' == *endp) {
-        times = 60 * 60 * 24;
-        *endp = '\0';
-    } else if ('h' == *endp || 'H' == *endp) {
-        times = 60 * 60;
-        *endp = '\0';
-    } else if ('m' == *endp || 'M' == *endp) {
-        times = 60;
-        *endp = '\0';
-    } else if ('s' == *endp || 'S' == *endp) {
+    switch ( *endp ) {
+    case 'w':
+    case 'W':
+      times = 60 * 60 * 24 * 7;
+      *endp = '\0';
+      break;
+    case 'd':
+    case 'D':
+      times = 60 * 60 * 24;
+      *endp = '\0';
+      break;
+    case 'h':
+    case 'H':
+      times = 60 * 60;
+      *endp = '\0';
+      break;
+    case 'm':
+    case 'M':
+      times = 60;
+      *endp = '\0';
+      break;
+    case 's':
+    case 'S':
+      times = 1;
+      *endp = '\0';
+      break;
+    default:
+      if (isdigit(*endp)) {
         times = 1;
-        *endp = '\0';
+        break;
+      } else {
+        goto bail;
+      }
     }
-
     duration = strtol(input, &endp, 10);
     if ( *endp != '\0' || errno == ERANGE ) {
         duration = -1;
         goto bail;
     }
     duration *= times;
-
 bail:
+    if (duration == -1) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "slapi_parse_duration: invalid duration (%s)\n", value?value:"null");
+    }
     slapi_ch_free_string(&input);
     return duration;
 }
 
+time_t
+slapi_parse_duration(const char *value)
+{
+    return (time_t)parse_duration((char *)value);
+}
+
+static int
+is_valid_duration_unit(const char value)
+{
+    int rc = 0;
+    switch (value) {
+    case 'w':
+    case 'W':
+    case 'd':
+    case 'D':
+    case 'h':
+    case 'H':
+    case 'm':
+    case 'M':
+    case 's':
+    case 'S':
+      rc = 1;
+      break;
+    }
+    return rc;
+}
+
+int
+slapi_is_duration_valid(const char *value)
+{
+    int rc = 1; /* valid */
+    const char *p = value;
+    if (p && *p && isdigit(*p)) { /* 1st character must be digit */
+        for (++p; p && *p; p++) {
+            if (!isdigit(*p) && !is_valid_duration_unit(*p)) {
+                rc = 0;
+                goto bail;
+            }
+        }
+    } else {
+        rc = 0;
+    }
+bail:
+    return rc;
+}
+                                       
 /*
  * caller is responsible to free the returned string
  */

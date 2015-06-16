@@ -249,50 +249,6 @@ error:
 	return return_value;
 }
 
-/* convert time from string like 1h (1 hour) to corresponding time in seconds */
-time_t
-age_str2time (const char *age)
-{
-	char *maxage;
-	char unit;
-	time_t ageval;
-
-	if (age == NULL || age[0] == '\0' || strcmp (age, "0") == 0)
-	{
-		return 0; 
-	}
-
-	maxage = slapi_ch_strdup ( age );
-	unit = maxage[ strlen( maxage ) - 1 ];
-	maxage[ strlen( maxage ) - 1 ] = '\0';
-	ageval = strntoul( maxage, strlen( maxage ), 10 );
-	slapi_ch_free_string(&maxage);
-	switch ( unit ) 
-	{
-		case 's':
-			break;
-		case 'm':
-			ageval *= 60;
-			break;
-		case 'h':
-			ageval *= ( 60 * 60 );
-			break;
-		case 'd':
-			ageval *= ( 24 * 60 * 60 );
-			break;
-		case 'w':
-			ageval *= ( 7 * 24 * 60 * 60 );
-			break;
-		default:
-			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
-							"age_str2time: unknown unit \"%c\" "
-							"for maxiumum changelog age\n", unit );
-			ageval = 0;
-	}
-
-	return ageval;
-}
-
 const char*
 changeType2Str (int type)
 {

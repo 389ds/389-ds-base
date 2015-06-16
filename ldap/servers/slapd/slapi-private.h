@@ -1353,6 +1353,17 @@ char *ldaputil_get_saslpath();
  */
 char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
 
+/*
+ * time.c
+ *
+ * Return Value:
+ *    Success: duration in seconds
+ *    Failure: -1
+ */
+time_t slapi_parse_duration(const char *value);
+int slapi_is_duration_valid(const char *value);
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -532,7 +532,7 @@ slapi_value_get_timelong(const Slapi_Value *value)
         p = slapi_ch_malloc(value->bv.bv_len + 1);
         memcpy (p, value->bv.bv_val, value->bv.bv_len);
         p [value->bv.bv_len] = '\0';
-        r = (long)parse_duration(p);
+        r = parse_duration(p);
         slapi_ch_free((void **)&p);
 	}
 	return r;

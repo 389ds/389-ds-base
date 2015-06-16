@@ -1203,7 +1203,7 @@ cl5ConfigTrimming (int maxEntries, const char *maxAge, int compactInterval, int 
 		/* don't ignore this argument */
 		if (strcmp (maxAge, CL5_STR_IGNORE) != 0)
 		{
-			s_cl5Desc.dbTrim.maxAge = age_str2time (maxAge);
+			s_cl5Desc.dbTrim.maxAge = slapi_parse_duration(maxAge);
 		}
 	}
 	else

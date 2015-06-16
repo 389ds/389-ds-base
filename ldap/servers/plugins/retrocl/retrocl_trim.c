@@ -427,69 +427,6 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
     PR_Unlock( ts.ts_s_trim_mutex );
 }
 
-
-/*
- * Function: age_str2time
- *
- * Returns: time_t
- * 
- * Arguments: string representation of age (digits and unit s,m,h,d or w)
- *
- * Description:
- * convert time from string like 1h (1 hour) to corresponding time in seconds
- *
- */
-
-static time_t
-age_str2time (const char *age)
-{
-    char *maxage;
-    char unit;
-    time_t ageval;
-    
-    if (age == NULL || age[0] == '\0' || strcmp (age, "0") == 0) {
-	return 0; 
-    }
-    
-    maxage = slapi_ch_strdup ( age );
-    if (!maxage) {
-        slapi_log_error( SLAPI_LOG_PLUGIN, "retrocl",
-		       "age_str2time: Out of memory\n" );
-        ageval = -1;
-        goto done;
-    }
-
-    unit = maxage[ strlen( maxage ) - 1 ];
-    maxage[ strlen( maxage ) - 1 ] = '\0';
-    ageval = strntoul( maxage, strlen( maxage ), 10 );
-    switch ( unit ) {
-    case 's':
-      break;
-    case 'm':
-      ageval *= 60;
-      break;
-    case 'h':
-      ageval *= ( 60 * 60 );
-      break;
-    case 'd':
-      ageval *= ( 24 * 60 * 60 );
-      break;
-    case 'w':
-      ageval *= ( 7 * 24 * 60 * 60 );
-      break;
-    default:
-      slapi_log_error( SLAPI_LOG_FATAL, "retrocl",
-		       "age_str2time: unknown unit \"%c\" "
-		       "for maxiumum changelog age\n", unit );
-      ageval = 0;
-    }
-done:
-    if ( maxage) {
-        slapi_ch_free ( (void **) &maxage );
-    }
-    return ageval;
-}
-
 /*
  * Function: retrocl_init_trimming
  *
@@ -508,14 +445,19 @@ void retrocl_init_trimming (void)
     const char *cl_trim_interval;
     
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
-    
-    if (cl_maxage == NULL) {
-      LDAPDebug0Args(LDAP_DEBUG_TRACE,"No maxage, not trimming retro changelog.\n");
-      return;
+    if (cl_maxage) {
+        if (slapi_is_duration_valid(cl_maxage)) {
+            ageval = slapi_parse_duration(cl_maxage);
+            slapi_ch_free_string((char **)&cl_maxage);
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, 
+                        "retrocl_init_trimming: ignoring invalid %s value %s; "
+                        "not trimming retro changelog.\n",
+                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
+            return;
+        }
     }
-    ageval = age_str2time (cl_maxage);
-    slapi_ch_free_string((char **)&cl_maxage);
-
+    
     cl_trim_interval = retrocl_get_config_str(CONFIG_CHANGELOG_TRIM_INTERVAL);
     if (cl_trim_interval) {
       trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);

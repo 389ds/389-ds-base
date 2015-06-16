@@ -285,8 +285,8 @@ static int
 changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 						  int *returncode, char *returntext, void *arg)
 {
-    int rc= 0;
-   	LDAPMod **mods;
+	int rc= 0;
+	LDAPMod **mods;
 	int i;
 	changelog5Config config;
 	changelog5Config * originalConfig = NULL;
@@ -392,68 +392,52 @@ changelog5_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					}
                 }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE ) == 0 )
-				{
-					slapi_ch_free_string(&config.maxAge);
-                    config.maxAge = slapi_ch_strdup(config_attr_value);
+                {
+                    if (slapi_is_duration_valid(config_attr_value)) {
+                        slapi_ch_free_string(&config.maxAge);
+                        config.maxAge = slapi_ch_strdup(config_attr_value);
+                    } else {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value?config_attr_value:"null",
+                                        CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
+                                        (long long int)LONG_MAX );
+                        }
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
+                    }
                 }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE ) == 0 )
-				{
-                    char *endp = NULL;
-                    long value;
-
-                    errno = 0;
-
-                    if (config_attr_value && config_attr_value[0] != '\0')
-                    {
-                        value = strtol(config_attr_value, &endp, 10);
-
-                        if (*endp != '\0' || errno == ERANGE || value < 0 ) {
-                            if (returntext)
-                            {
-                                PR_snprintf ( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                              "%s: invalid value \"%s\", %s must range from 0 to %lld",
-                                              CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, config_attr_value,
-                                              CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE,
-                                              (long long int)LONG_MAX );
-                                              *returncode = LDAP_UNWILLING_TO_PERFORM;
-                                goto done;
-                            }
-                            config.compactInterval = value;
+                {
+                    if (slapi_is_duration_valid(config_attr_value)) {
+                        config.compactInterval = (long)slapi_parse_duration(config_attr_value);
+                    } else {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
+                                        CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, config_attr_value,
+                                        CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE,
+                                        (long long int)LONG_MAX);
                         }
-                    }
-                    else
-                    {
-                        config.compactInterval = 0;
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
                     }
                 }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_TRIM_ATTRIBUTE ) == 0 )
                 {
-                    char *endp = NULL;
-                    long value;
-
-                    errno = 0;
-
-                    if (config_attr_value && config_attr_value[0] != '\0')
-                    {
-                        value = strtol(config_attr_value, &endp, 10);
-
-                        if (*endp != '\0' || errno == ERANGE || value < 0 ) {
-                            if (returntext)
-                            {
-                                PR_snprintf ( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                              "%s: invalid value \"%s\", %s must range from 0 to %lld",
-                                              CONFIG_CHANGELOG_TRIM_ATTRIBUTE, config_attr_value,
-                                              CONFIG_CHANGELOG_TRIM_ATTRIBUTE,
-                                              (long long int)LONG_MAX );
-                                *returncode = LDAP_UNWILLING_TO_PERFORM;
-                                goto done;
-                            }
-                            config.trimInterval = value;
+                    if (slapi_is_duration_valid(config_attr_value)) {
+                        config.trimInterval = (long)slapi_parse_duration(config_attr_value);
+                    } else {
+                        if (returntext) {
+                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
+                                        CONFIG_CHANGELOG_TRIM_ATTRIBUTE, config_attr_value,
+                                        CONFIG_CHANGELOG_TRIM_ATTRIBUTE,
+                                        (long long int)LONG_MAX );
                         }
-                    }
-                    else
-                    {
-                        config.trimInterval = CHANGELOGDB_TRIM_INTERVAL;
+                        *returncode = LDAP_UNWILLING_TO_PERFORM;
+                        goto done;
                     }
                 }
                 else if ( strcasecmp ( config_attr, CONFIG_CHANGELOG_SYMMETRIC_KEY ) == 0 )
@@ -795,23 +779,12 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	arg = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
 	if (arg)
 	{
-		char *endp = NULL;
-		long value;
-
-		errno = 0;
-
-		if (arg)
-		{
-			value = strtol(arg, &endp, 10);
-			if (*endp != '\0' || errno == ERANGE || value < 0 ) {
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-					"changelog5_extract_config: %s: invalid value \"%s\", using default value (%d)\n",
-					CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, arg,
-					CHANGELOGDB_COMPACT_INTERVAL );
-				config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
-			} else {
-				config->compactInterval = value;
-			}
+		if (slapi_is_duration_valid(arg)) {
+			config->compactInterval = (long)slapi_parse_duration(arg);
+		} else {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				"changelog5_extract_config: %s: invalid value \"%s\", ignoring the change.\n",
+				CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, arg);
 		}
 		slapi_ch_free_string(&arg);
 	}
@@ -819,26 +792,17 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	{
 		config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
 	}
+
 	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
 	if (arg)
 	{
-		char *endp = NULL;
-		long value;
-
-		errno = 0;
-
-		if (arg)
-		{
-			value = strtol(arg, &endp, 10);
-			if (*endp != '\0' || errno == ERANGE || value < 0 ) {
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
-					"changelog5_extract_config: %s: invalid value \"%s\", using default value (%d)\n",
-					CONFIG_CHANGELOG_TRIM_ATTRIBUTE, arg,
-					CHANGELOGDB_TRIM_INTERVAL );
-				config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
-			} else {
-				config->trimInterval = value;
-			}
+		if (slapi_is_duration_valid(arg)) {
+			config->trimInterval = (long)slapi_parse_duration(arg);
+		} else {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				"changelog5_extract_config: %s: invalid value \"%s\", ignoring the change.\n",
+				CONFIG_CHANGELOG_TRIM_ATTRIBUTE, arg);
+			config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
 		}
 		slapi_ch_free_string(&arg);
 	}
@@ -846,7 +810,21 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 	{
 		config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
 	}
-	config->maxAge = slapi_entry_attr_get_charptr(entry,CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
+
+	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
+	if (arg) {
+		if (slapi_is_duration_valid(arg)) {
+			config->maxAge = arg;
+		} else {
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name_cl,
+				"changelog5_extract_config: %s: invalid value \"%s\", ignoring the change.\n",
+				CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, arg);
+			slapi_ch_free_string(&arg);
+			config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
+		}
+	} else {
+		config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
+	}
 
 	/* 
 	 * Read the Changelog Internal Configuration Parameters for the Changelog DB

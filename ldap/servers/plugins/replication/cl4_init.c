@@ -225,7 +225,7 @@ static void changelog4_init_trimming ()
 {
 	char *cl_maxage = changelog4_get_maxage ();
 	unsigned long cl_maxentries = changelog4_get_maxentries ();
-	time_t ageval = age_str2time (cl_maxage);
+	time_t ageval = slapi_parse_duration(cl_maxage);
 	
 	slapi_ch_free ((void **)&cl_maxage);
 
