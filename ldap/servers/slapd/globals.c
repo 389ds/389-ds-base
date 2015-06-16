@@ -67,13 +67,6 @@
 #include "slap.h"
 #include "fe.h"
 
-/* On UNIX, there's only one copy of slapd_ldap_debug */
-/* On NT, each module keeps its own module_ldap_debug, which */
-/* points to the process' slapd_ldap_debug */
-#ifdef _WIN32
-int		*module_ldap_debug;
-#endif
-
 int		should_detach = 1;
 time_t		starttime;
 PRThread	*listener_tid;
@@ -87,61 +80,12 @@ Slapi_Counter	*ops_completed;
 Slapi_Counter	*num_conns;
 Slapi_Counter	*max_threads_count;
 Slapi_Counter	*conns_in_maxthreads;
-
-/*
-  DEC/COMPAQ has released a patch for 4.0d (e?) which will speed up
-  malloc/free considerably in multithreaded multiprocessor
-  applications (like directory server!), sort of like SmartHeap but
-  not as snazzy.  The last three parameters only take effect if the
-  patch is installed, otherwise they are ignored.  The rest of the
-  parameters are included along with their default values, but they
-  are commented out except:
-  unsigned long __noshrink = 1; old - default is 0; apparently this is ignored for now
-  int __fast_free_max = INT_MAX; old - default is 13; may cause excessive memory consumption
-*/
-#if defined(OSF1) && defined(LDAP_DONT_USE_SMARTHEAP)
-/* From an email from Dave Long at DEC/Compaq:
-
-   The following is an example of how to tune for maximum speed on a
-   system with three or more CPUs and with no concern for memory used:
-   
-   #include <limits.h>
-   #include <sys/types.h>
-*/
-unsigned long __noshrink = 1; /* old - default is 0; apparently this is ignored for now */
-/*
-  size_t __minshrink = 65536;
-  double __minshrinkfactor = 0.001;
-  size_t __mingrow = 65536;
-  double __mingrowfactor = 0.1;
-  unsigned long __madvisor = 0;
-  unsigned long __small_buff = 0;
-*/
-int __fast_free_max = INT_MAX; /* old - default is 13; may cause excessive memory consumption */
-/*
-  unsigned long __sbrk_override = 0;
-  unsigned long __taso_mode = 0;
-*/
-
-/*
-  These are the new parameters
-*/
-int __max_cache = 27;
-int __first_fit = 2;
-int __delayed_free = 1;
-/*
-  Note that the allowed values for the new __max_cache tuning variable
-  are: 15, 18, 21, 24, 27. Any other value is likely to actually harm
-  performance or even cause a core dump.
-*/
-#endif
-
 Connection_Table *the_connection_table = NULL;
 
 char *pid_file = "/dev/null";
 char *start_pid_file = "/dev/null";
 
-char	*attr_dataversion	= ATTR_DATAVERSION;
+char *attr_dataversion = ATTR_DATAVERSION;
 
 extern void set_dll_entry_points( slapdEntryPoints *sep );
 void

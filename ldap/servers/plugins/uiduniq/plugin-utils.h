@@ -71,10 +71,6 @@
 #include "slapi-plugin-compat4.h"
 #include <stdio.h>
 #include <string.h>
-#ifdef _WINDOWS
-#undef strcasecmp
-#define strcasecmp strcmpi
-#endif
 
 #ifdef LDAP_DEBUG
 #ifndef DEBUG

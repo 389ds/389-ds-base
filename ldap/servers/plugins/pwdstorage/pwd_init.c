@@ -271,7 +271,6 @@ ssha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
         return( rc );
 }
 
-#ifndef _WIN32
 int
 crypt_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
@@ -296,7 +295,6 @@ crypt_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
 }
-#endif
 
 int
 clear_pwd_storage_scheme_init( Slapi_PBlock *pb )

@@ -364,12 +364,10 @@ static struct config_get_and_set {
 		log_set_expirationtime, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_exptime,
 		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
-#ifndef _WIN32
 	{CONFIG_LOCALUSER_ATTRIBUTE, config_set_localuser,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.localuser,
 		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
-#endif
 	{CONFIG_ERRORLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_rotationsync_enabled,
@@ -865,12 +863,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.refer_url,
 		CONFIG_STRING, NULL, NULL/* deletion is not allowed */},
-#if !defined(AIX)
 	{CONFIG_MAXDESCRIPTORS_ATTRIBUTE, config_set_maxdescriptors,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxdescriptors,
 		CONFIG_INT, NULL, DEFAULT_MAXDESCRIPTORS},
-#endif
 	{CONFIG_CONNTABLESIZE_ATTRIBUTE, config_set_conntablesize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.conntablesize,
@@ -3667,7 +3663,6 @@ int config_set_storagescheme() {
 
 }
 
-#ifndef _WIN32
 int 
 config_set_localuser( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal =  LDAP_SUCCESS;
@@ -3697,7 +3692,6 @@ config_set_localuser( const char *attrname, char *value, char *errorbuf, int app
   return retVal;
 
 }
-#endif /* _WIN32 */
 
 int
 config_set_workingdir( const char *attrname, char *value, char *errorbuf, int apply ) {
@@ -3809,7 +3803,6 @@ config_set_maxthreadsperconn( const char *attrname, char *value, char *errorbuf,
   return retVal;
 }
 
-#if !defined(_WIN32) && !defined(AIX)
 #include <sys/resource.h>
 int
 config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply ) {
@@ -3852,7 +3845,6 @@ config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, in
   return retVal;
 
 }
-#endif /* !_WIN32 && !AIX */
 
 int
 config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int apply ) {
@@ -3860,25 +3852,19 @@ config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int
   long nValue = 0;
   int maxVal = 65535;
   char *endp = NULL;
-#ifndef _WIN32
   struct rlimit rlp;
-#endif
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
   if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
 	return LDAP_OPERATIONS_ERROR;
   }
 
-#ifndef _WIN32
   if ( 0 == getrlimit( RLIMIT_NOFILE, &rlp ) ) {
           maxVal = (int)rlp.rlim_max;
   }
-#endif
 
   errno = 0;
   nValue = strtol(value, &endp, 0);
-  
-#if !defined(AIX)
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", connection table "
@@ -3891,7 +3877,6 @@ config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int
             retVal = LDAP_OPERATIONS_ERROR;
         }
   }
-#endif
   
   if (apply) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
@@ -3967,15 +3952,6 @@ config_set_ioblocktimeout( const char *attrname, char *value, char *errorbuf, in
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
   }
-
-#if defined(IRIX)
-  /* on IRIX poll can only handle timeouts up to
-	 2147483 without failing, cap it at 30 minutes */
-
-  if ( nValue >  SLAPD_DEFAULT_IOBLOCK_TIMEOUT ) {
-	nValue = SLAPD_DEFAULT_IOBLOCK_TIMEOUT;
-  }
-#endif /* IRIX */
 
   if ( apply ) {
 #ifdef ATOMIC_GETSET_IOBLOCKTIMEOUT
@@ -5345,8 +5321,6 @@ config_get_rootpwstoragescheme() {
   return retVal; 
 }
 
-#ifndef _WIN32
-
 char *
 config_get_localuser() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -5359,7 +5333,6 @@ config_get_localuser() {
   return retVal; 
 }
 
-#endif /* _WIN32 */
 /* alias of encryption key and certificate files is now retrieved through */
 /* calls to psetFullCreate() and psetGetAttrSingleValue(). See ssl.c, */
 /* where this function is still used to set the global variable */
@@ -5401,7 +5374,6 @@ config_get_maxthreadsperconn(){
   return retVal; 
 }
 
-#if !defined(_WIN32) && !defined(AIX)
 int
 config_get_maxdescriptors() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -5412,8 +5384,6 @@ config_get_maxdescriptors() {
   CFG_UNLOCK_READ(slapdFrontendConfig);
   return retVal; 
 }
-
-#endif /* !_WIN32 && !AIX */
 
 int
 config_get_reservedescriptors(){

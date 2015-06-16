@@ -746,7 +746,6 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/modify.c \
 	ldap/servers/slapd/modrdn.c \
 	ldap/servers/slapd/modutil.c \
-	ldap/servers/slapd/ntuserpin.c \
 	ldap/servers/slapd/object.c \
 	ldap/servers/slapd/objset.c \
 	ldap/servers/slapd/operation.c \

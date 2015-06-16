@@ -200,7 +200,7 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 /*
  * call the appropriate signal() function.
  */
-#if ( defined( hpux ) || defined ( irix ))
+#if defined( hpux )
 /* 
  * we should not mix POSIX signal library function (sigaction)
  * with SYSV's (sigset) on IRIX.  nspr uses POSIX internally.
@@ -234,23 +234,13 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define LDAP_UNDEFINED (-1)
 
 #ifndef SLAPD_INVALID_SOCKET
-#ifdef _WIN32
 #define SLAPD_INVALID_SOCKET	0
-#else
-#define SLAPD_INVALID_SOCKET	0
-#endif
 #endif
 
 #define SLAPD_INVALID_SOCKET_INDEX	(-1)
 
-#ifdef _WIN32
-#define SLAPD_DEFAULT_FILE_MODE				S_IREAD | S_IWRITE
-#define SLAPD_DEFAULT_DIR_MODE  			0
-#else /* _WIN32 */
 #define SLAPD_DEFAULT_FILE_MODE				S_IRUSR | S_IWUSR
 #define SLAPD_DEFAULT_DIR_MODE				S_IRWXU
-#endif
-
 #define SLAPD_DEFAULT_ERRORLOG_LEVEL			16384
 #define SLAPD_DEFAULT_IDLE_TIMEOUT			0		/* seconds - 0 == never */
 #define SLAPD_DEFAULT_SIZELIMIT				2000	/* use -1 for no limit */
@@ -2000,9 +1990,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_MINSSF_ATTRIBUTE "nsslapd-minssf"
 #define CONFIG_MINSSF_EXCLUDE_ROOTDSE "nsslapd-minssf-exclude-rootdse"
 #define CONFIG_VALIDATE_CERT_ATTRIBUTE "nsslapd-validate-cert"
-#ifndef _WIN32
 #define CONFIG_LOCALUSER_ATTRIBUTE "nsslapd-localuser"
-#endif /* !_WIN32 */
 #define CONFIG_LOCALHOST_ATTRIBUTE "nsslapd-localhost"
 #define CONFIG_PORT_ATTRIBUTE "nsslapd-port"
 #define CONFIG_WORKINGDIR_ATTRIBUTE "nsslapd-workingdir"
@@ -2027,9 +2015,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_SECURELISTENHOST_ATTRIBUTE "nsslapd-securelistenhost"
 #define CONFIG_THREADNUMBER_ATTRIBUTE "nsslapd-threadnumber"
 #define CONFIG_MAXTHREADSPERCONN_ATTRIBUTE "nsslapd-maxthreadsperconn"
-#if !defined(_WIN32) && !defined(AIX)
 #define CONFIG_MAXDESCRIPTORS_ATTRIBUTE "nsslapd-maxdescriptors"
-#endif /* !_WIN32 && ! AIX */
 #define CONFIG_CONNTABLESIZE_ATTRIBUTE "nsslapd-conntablesize"
 #define CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE "nsslapd-reservedescriptors"
 #define CONFIG_IDLETIMEOUT_ATTRIBUTE "nsslapd-idletimeout"
@@ -2199,9 +2185,7 @@ typedef struct _slapdFrontendConfig {
   int idletimeout;
   slapi_int_t ioblocktimeout;
   slapi_onoff_t lastmod;
-#if !defined(_WIN32) && !defined(AIX) 
   int maxdescriptors;
-#endif /* !_WIN32 && !AIX */
   int conntablesize;
   slapi_int_t maxthreadsperconn;
   int outbound_ldap_io_timeout;
@@ -2235,9 +2219,7 @@ typedef struct _slapdFrontendConfig {
   char *errorlog;
   char *listenhost;
   int snmp_index;
-#ifndef _WIN32
   char *localuser;
-#endif /* _WIN32 */
   char *localhost;
   char *rootdn;
   char *rootpw;
@@ -2459,13 +2441,9 @@ slapdFrontendConfig_t *getFrontendConfig();
 int slapd_bind_local_user(Connection *conn);
 
 /* LP: NO_TIME cannot be -1, it generates wrong GeneralizedTime
- * And causes some errors on AIX also 
+ * And causes some errors on AIX also
  */
-/* #if defined( XP_WIN32 ) */
 #define NO_TIME (time_t)0 /* cannot be -1, NT's localtime( -1 ) returns NULL */
-/* #else */
-/* #define NO_TIME (time_t)-1 / * a value that time() does not return  */
-/* #endif */
 #define NOT_FIRST_TIME (time_t)1 /* not the first logon */
 #define SLAPD_END_TIME (time_t)2147483647  /* (2^31)-1, in 2038 */
 

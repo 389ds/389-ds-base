@@ -58,18 +58,11 @@
 
 #define MAXARGS	1000
 
-
-extern int		should_detach;
+extern int should_detach;
 extern Slapi_PBlock	*repl_pb;
-
-
 extern char*   slapd_SSL3ciphers;
-
-#ifndef _WIN32
 extern char	*localuser;
-#endif
-
-char*		rel2abspath( char * );
+char* rel2abspath( char * );
 
 /*
   See if the given entry has an attribute with the given name and the
@@ -251,7 +244,6 @@ slapd_bootstrap_config(const char *configdir)
 					continue;
 				}
 				/* increase file descriptors */
-#if !defined(AIX)
 				if (!maxdescriptors[0] &&
 					entry_has_attr_and_value(e, CONFIG_MAXDESCRIPTORS_ATTRIBUTE,
 									 maxdescriptors, sizeof(maxdescriptors)))
@@ -265,7 +257,6 @@ slapd_bootstrap_config(const char *configdir)
 								  CONFIG_MAXDESCRIPTORS_ATTRIBUTE, errorbuf);
 					}
 				}
-#endif /* !defined(AIX) */
 
 				/* see if we need to enable error logging */
 				if (!logenabled[0] &&

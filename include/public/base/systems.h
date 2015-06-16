@@ -54,28 +54,7 @@
 
 /* --- Begin native platform configuration definitions --- */
 
-#if defined(AIX)
-
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
-
-#elif defined(BSDI)
-
-#define BSD_FLOCK
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined(HPUX)
+#if defined(HPUX)
 
 #define FILE_UNIX
 #define FILE_UNIX_MMAP
@@ -85,78 +64,6 @@
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
 
-#elif defined (IRIX)
-
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined(NCR)
- 
-#define CASECMPARG_T unsigned
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
-#ifndef S_ISLNK
-#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
-#endif
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined(NEC)
-
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
-#ifndef S_ISLNK
-#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
-#endif
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined(OSF1)
-
-#undef BSD_FLOCK
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined(SCO)
-
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined(SNI)
- 
-#define CASECMPARG_T const
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#if 0
-#define socketpair(a,b,c,d) pipe(d)
-#endif
-#define ZERO(ptr,len) memset(ptr,0,len)
-
 #elif defined(SOLARIS) || defined (SOLARISx86)
 
 #undef	FILE_UNIX	/* avoid redefinition message */
@@ -164,16 +71,6 @@
 #define FILE_UNIX_MMAP
 #define MALLOC_POOLS
 /* The Solaris routines return ENOSPC when too many semaphores are SEM_UNDO. */
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
-#elif defined (SONY)
-
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
 #define SEM_FLOCK
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
@@ -188,21 +85,6 @@
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
 
-#elif defined(UNIXWARE) || defined(UnixWare)
- 
-#define CASECMPARG_T const
-#define FILE_UNIX
-#define FILE_UNIX_MMAP
-#define MALLOC_POOLS
-#define NEED_STRCASECMP
-#define NEED_STRNCASECMP
-#ifndef S_ISLNK
-#define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
-#endif
-#define SEM_FLOCK
-#define SHMEM_UNIX_MMAP
-#define ZERO(ptr,len) memset(ptr,0,len)
-
 #elif defined(Linux)
 
 #define FILE_UNIX
@@ -213,9 +95,7 @@
 #define ZERO(ptr,len) memset(ptr,0,len)
 
 #else
-
 #error "Missing defines in ns/netsite/include/public/base/systems.h"
-
 #endif
 
 #ifndef NSPR_BEGIN_EXTERN_C

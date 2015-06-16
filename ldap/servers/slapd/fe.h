@@ -66,15 +66,6 @@ extern PRLock *time_func_mutex;
 extern PRLock *currenttime_mutex;
 extern time_t starttime;
 extern char	*configfile;
-#if defined( _WIN32 )
-extern LPTSTR pszServerName;
-#endif
-#if defined( _WIN32 )
-/* String constants (no change for international) */
-extern HANDLE hSlapdEventSource;
-extern SERVICE_STATUS LDAPServerStatus;
-extern SERVICE_STATUS_HANDLE hLDAPServerServiceStatus;
-#endif
 
 /*
  * auth.c
@@ -90,15 +81,6 @@ int handle_bad_certificate (void* clientData, PRFileDesc *prfd);
 void op_thread_cleanup();
 /* do this after all worker threads have terminated */
 void connection_post_shutdown_cleanup();
-
-/*
- * ntuserpin.c - Prompts for the key database passphrase.
- */
-#include "svrcore.h"
-typedef struct SVRCORENTUserPinObj SVRCORENTUserPinObj;
-SVRCOREError SVRCORE_CreateNTUserPinObj(SVRCORENTUserPinObj **out);
-void SVRCORE_SetNTUserPinInteractive(SVRCORENTUserPinObj *obj, PRBool interactive);
-void SVRCORE_DestroyNTUserPinObj(SVRCORENTUserPinObj *obj);
 
 /*
  * connection.c
@@ -135,12 +117,10 @@ struct connection_table
 	int n_tcpe;     /* standard socket last ( +1 ) index in fd */
 	int s_tcps;     /* ssl socket start index in fd */
 	int s_tcpe;     /* ssl socket last ( +1 ) in fd */
-#ifndef XP_WIN32
 #if defined(ENABLE_LDAPI)
 	int i_unixs;    /* unix socket start index in fd */
 	int i_unixe;    /* unix socket last ( +1 ) in fd */
 #endif /* ENABLE_LDAPI */
-#endif
 	PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
@@ -159,12 +139,6 @@ Connection* connection_table_get_first_active_connection (Connection_Table *ct);
 Connection* connection_table_get_next_active_connection (Connection_Table *ct, Connection *c);
 typedef int (*Connection_Table_Iterate_Function)(Connection *c, void *arg);
 int connection_table_iterate_active_connections(Connection_Table *ct, void* arg, Connection_Table_Iterate_Function f);
-#if defined( _WIN32 )
-Connection* connection_table_get_connection_from_fd(Connection_Table *ct,PRFileDesc *prfd);
-#endif
-#if 0
-void connection_table_dump(Connection_Table *ct);
-#endif
 
 /*
  * daemon.c

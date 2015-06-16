@@ -46,25 +46,16 @@
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 static char *build_date = "23-FEBRUARY-2012";
 
-#if defined(__FreeBSD__) || defined(__bsdi)
-#define IDDS_BSD_INCLUDE 1
-#define IDDS_BSD_SYSCTL 1
-#endif
-
 #if defined(linux) || defined(__linux) || defined(__linux__)
 #define IDDS_LINUX_INCLUDE 1
 #define IDDS_LINUX_SYSCTL 1
 #endif
 
-#if defined(__sun) || defined(__sun__) || defined(_AIX) || defined(__hpux) || defined(_nec_ews_svr4) || defined(__osf__) || defined(__sgi) || defined(sgi)
+#if defined(__sun) || defined(__sun__)|| defined(__hpux)
 #define IDDS_SYSV_INCLUDE 1
 #endif
 
 #include <sys/types.h>
-
-#if defined(IDDS_BSD_INCLUDE)
-#include <sys/time.h>
-#endif
 
 #if !defined(__VMS)
 #include <sys/resource.h>
@@ -74,7 +65,7 @@ static char *build_date = "23-FEBRUARY-2012";
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#if !defined(_WIN32) && !defined(__VMS) && !defined(IDDS_LINUX_INCLUDE) && !defined(IDDS_BSD_INCLUDE)
+#if !defined(__VMS) && !defined(IDDS_LINUX_INCLUDE)
 #if defined(__hpux) && defined(f_type)
 #undef f_type
 #endif
@@ -88,7 +79,7 @@ static char *build_date = "23-FEBRUARY-2012";
 #include <sys/param.h>
 #endif
 
-#if defined(__sun) || defined(__sun__) || defined(__osf__) || defined(_nec_ews_svr4) || defined(__sgi) || defined(sgi)
+#if defined(__sun) || defined(__sun__)
 /* not available on HP-UX or AIX */
 #include <sys/systeminfo.h>
 #endif
@@ -126,52 +117,6 @@ static char *build_date = "23-FEBRUARY-2012";
 #define IDDS_MNTENT_DIRNAME mnt_dir
 #define IDDS_MNTENT_OPTIONS mnt_opts
 #define IDDS_MNTENT_MNTTAB "/etc/mnttab"
-#endif
-
-#if defined(_AIX)
-#include <pthread.h>
-#include <signal.h>
-#include <sys/inttypes.h>
-#include <odmi.h>
-#include <fstab.h>
-
-struct CuAt {
-  __long32_t _id;
-  __long32_t _reserved;
-  __long32_t _scratch;
-  char name[16];
-  char attribute[16];
-  char value[256];
-  char type[8];
-  char generic[8];
-  char rep[8];
-  short nls_index;
-};
-#define CuAt_Descs 7
-
-struct fix {
-        __long32_t _id;
-        __long32_t _reserved;
-        __long32_t _scratch;
-        char name[16];
-        char abstract[60];
-        char type[2];
-        char *filesets;
-        char *symptom;
-        };
-
-#define fix_Descs 5
-
-struct Class CuAt_CLASS[];
-extern struct Class fix_CLASS[];
-
-static void idds_aix_odm_get_cuat (char *query,char *buf);
-
-#define IDDS_MNTENT fstab
-#define IDDS_MNTENT_DIRNAME fs_file
-/* AIX does not have /etc/mnttab */
-/* #define IDDS_MNTENT_OPTIONS */
-
 #endif
 
 #if defined(__VMS)
@@ -248,11 +193,7 @@ int mem_rec = 1024;
 #define NAME_TCP_KEEPALIVE_INTERVAL	"net.ipv4.tcp_keepalive_time"
 #endif
 
-#if defined(IDDS_BSD_SYSCTL)
-#define NAME_TCP_SMALLEST_ANON_PORT	"net.inet.ip.portrange.hifirst"
-#endif
-
-#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_LINUX_SYSCTL)
 
 long ndd_tcp_conn_req_max_q = 0; 
 long ndd_tcp_conn_req_max_q0 = 0; 
@@ -324,251 +265,6 @@ struct iii_pinfo_hp {
 };
 
 static void hp_check_qpk(void);
-#endif
-
-#if defined(_AIX)
-
-static struct ClassElem CuAt_ClassElem[] = {
-  { "name",ODM_CHAR, 12,16, NULL,NULL,0,NULL ,-1,0},
-  { "attribute",ODM_CHAR, 28,16, NULL,NULL,0,NULL ,-1,0},
-  { "value",ODM_CHAR, 44,256, NULL,NULL,0,NULL ,-1,0},
-  { "type",ODM_CHAR, 300,8, NULL,NULL,0,NULL ,-1,0},
-  { "generic",ODM_CHAR, 308,8, NULL,NULL,0,NULL ,-1,0},
-  { "rep",ODM_CHAR, 316,8, NULL,NULL,0,NULL ,-1,0},
-  { "nls_index",ODM_SHORT, 324, 2, NULL,NULL,0,NULL ,-1,0},
-};
-
-static struct ClassElem fix_ClassElem[] =  {
- { "name",ODM_CHAR, 12,16, NULL,NULL,0,NULL ,-1,0},
- { "abstract",ODM_CHAR, 28,60, NULL,NULL,0,NULL ,-1,0},
- { "type",ODM_CHAR, 88,2, NULL,NULL,0,NULL ,-1,0},
- { "filesets",ODM_VCHAR, 92,64, NULL,NULL,0,NULL ,-1,0},
- { "symptom",ODM_VCHAR, 96,64, NULL,NULL,0,NULL ,-1,0},
- };
-struct StringClxn fix_STRINGS[] = {
- "fix.vc", 0,NULL,NULL,0,0,0
- };
-
-#ifdef   __64BIT__
-struct Class CuAt_CLASS[] = {
- ODMI_MAGIC, "CuAt", 328, CuAt_Descs, CuAt_ClassElem, NULL,FALSE,NULL,NULL,0,0,NULL,0,"", 0,-ODMI_MAGIC
-};
-struct Class fix_CLASS[] = {
- ODMI_MAGIC, "fix", 100, fix_Descs, fix_ClassElem, fix_STRINGS,FALSE,NULL,NULL,0,0,NULL,0,"", 0,-ODMI_MAGIC
- };
-
-#else
-struct Class CuAt_CLASS[] = {
- ODMI_MAGIC, "CuAt", sizeof(struct CuAt), CuAt_Descs, CuAt_ClassElem, NULL,FALSE,NULL,NULL,0,0,NULL,0,"", 0,-ODMI_MAGIC
-};
-struct Class fix_CLASS[] = {
- ODMI_MAGIC, "fix", sizeof(struct fix), fix_Descs, fix_ClassElem, fix_STRINGS,FALSE,NULL,NULL,0,0,NULL,0,"", 0,-ODMI_MAGIC
- };
-
-#endif
-
-void idds_aix_odm_get_cuat (char *query,char *buf)
-{
-  struct CuAt cuat,*cp;
-  
-  cp = odm_get_first(CuAt_CLASS,query,&cuat);
-
-  if (cp == NULL || cp == (struct CuAt *)-1) {
-    if (flag_debug) {
-      printf("DEBUG  : query of %s failed, error %d\n",query,odmerrno);
-    }
-    *buf = '\0';
-    return;
-  } else {
-    if (flag_debug) {
-      printf("DEBUG  : query of %s resulted in %s\n",query,cuat.value);
-    }
-  }
-  strcpy(buf,cuat.value);
-}
-
-int idds_aix_odm_get_fix (char *query)
-{
-  struct fix fix,*cp;
-  
-  cp = odm_get_first(fix_CLASS,query,&fix);
-
-  if (cp == NULL || cp == (struct fix *)-1) {
-    if (flag_debug) {
-      printf("DEBUG  : query of %s failed, error %d\n",query,odmerrno);
-    }
-    return 0;
-  } else {
-    if (flag_debug) {
-      printf("DEBUG  : query of %s resulted in data\n",query);
-    }
-  }
-  return 1;
-}
-
-#define AIX_CHECK_PATCH_CMD "/usr/bin/lslpp -c -L bos.rte.libpthreads bos.rte.libc"
-
-
-/* called once for each patch
- * a is always "bos" 
- * b is "bos.rte.libpthreads:4.3.3.25: : :C:F:libpthreads Library"
- */
-
-/* We assume the patch is in 4.3.3.1 and later.  We don't check for AIX 5.0 */
-/* Since the next major release after 4.3.3 is 5.0, we assume there won't be a 
- * 4.10 or a 4.4.10. 
- */
-
-int aix_check_patch_bos(char *a,char *b)
-{
-  char *c;
-  char *d;
-  char *e;
-  int d3;
-  int d4;
-  
-  c = strchr(b,':');
-  if (c == NULL) return 0;
-  *c = '\0';
-  c++;
-
-  d = strchr(c,':');
-  if (d != NULL) *d = '\0'; 
-  
-  if (c[0] >= '5') {
-    /* AIX 5.x */
-    if (flag_debug) printf("DEBUG  : %s is version 5 or later (%s)\n", 
-			   b,c);
-    return 0;
-  } else if (c[0] != '4') {
-    /* AIX 3.x or earlier */
-    printf("ERROR  : Incorrect version of %s: %s\n\n",
-	   b,c);
-    flag_os_bad = 1;
-    return 0;    
-  } else if (c[2] >= '4') {
-    /* AIX 4.4 and later */
-    if (flag_debug) printf("DEBUG  : %s is version 4.4 or later (%s)\n",
-			   b,c);
-    return 0;
-  } else if (c[2] != '3') {
-    /* AIX 4.2 and earlier */
-    printf("ERROR  : Incorrect version of %s: %s\n\n",
-	   b,c);
-    flag_os_bad = 1;
-    return 0;
-  }
-  
-  /* It's 4.3.x.x */
-  
-  e = strchr(c+4,'.');
-  if (e != NULL) {
-    *e = '\0';
-    e++;
-    d4 = atoi(e);
-  } else {
-    d4 = 0;
-  }
-
-  d3 = atoi(c+4);
-
-  if (d3 > 4) {
-    if (flag_debug) printf("DEBUG  : %s is version 4.3.4 or later (%s)\n", 
-			   b,c);
-    return 0;
-  } else if (d3 < 3) {
-    printf("ERROR  : Incorrect version of %s: %s.%d; must be 4.3.3.1 or later\n\n",
-	   b,c,d4);
-    flag_os_bad = 1;
-    return 0;
-  }
-  if (d4 >= 27) {
-    if (flag_debug) printf("DEBUG  : %s is version 4.3.3.27 or later (%s.%d)\n",
-			   b,c,d4);
-  } else if (d4 > 0) {
-    if (flag_debug) printf("ERROR : Incorrect version of %s: %s.%d; must be 4.3.3.27 or later\n\n",
-			   b,c,d4);
-  } else {  /* d4 = 0 */
-    printf("ERROR  : Incorrect version of %s: %s.%d; must be 4.3.3.1 or later\n\n",
-	   b,c,d4);
-    flag_os_bad = 1;
-  }
-  
-  return 0;
-}
-
-struct iii_pio_parsetab ptb_aixpatch[] = {
-  {"bos", aix_check_patch_bos}
-};
-
-static void aix_check_patches(void)
-{
-  if (flag_debug) printf("DEBUG  : %s\n",AIX_CHECK_PATCH_CMD);
-  
-  if (iii_pio_procparse(AIX_CHECK_PATCH_CMD,
-			III_PIO_SZ(ptb_aixpatch),
-			ptb_aixpatch) == -1) {
-    perror(AIX_CHECK_PATCH_CMD);
-  }
-
-  if (flag_os_bad) {
-    printf("NOTICE : AIX APARs and fixes can be obtained from\n" 
-	   " http://service.software.ibm.com/cgi-bin/support/rs6000.support/downloads or \n");
-    printf(" http://techsupport.services.ibm.com/rs6k/ml.fixes.html\n\n");
-  }
-}
-
-static void idds_aix_pio_get_oslevel(char *osl)
-{
-  FILE *fp;
-  char *rp;
-  char rls[128];
-  int i;
-  int rm = 0;
-
-  osl[0] = '\0';
-
-  fp = popen("/usr/bin/oslevel","r");
-
-  if (fp == NULL) {
-    perror("/usr/bin/oslevel");
-    return;
-  }
-
-  if (fgets(osl,128,fp) == NULL) {
-    pclose(fp);
-    return;
-  }
-  pclose(fp);
-
-  rp = strchr(osl,'\n');
-  if (rp) *rp = '\0';
-
-  i = 0;
-  for (rp = osl;*rp;rp++) {
-    if (*rp != '.') {
-      rls[i] = *rp;
-      i++;
-    }
-  }
-  rls[i] = '\0';
-  /* rls now contains a value such as 4330 */
-  
-  for (i = 1;i<99;i++) {
-    char rmtest[128];
-    char ifout[BUFSIZ];
-
-    sprintf(rmtest,"name=%s-%02d_AIX_ML",rls,i);
-    
-    if (idds_aix_odm_get_fix(rmtest) == 0) break;
-    rm = i;
-  }
-
-  rp = osl + strlen(osl);
-  sprintf(rp,".%02d",rm);
-  
-}
-
 #endif
 
 #if defined(__sun)
@@ -857,35 +553,6 @@ void sun_check_mu(void)
   }
   
   switch(solaris_version) {
-  case 26:
-    if (strcmp(solaris_release_string,"s297s_smccServer_37cshwp") == 0) {
-      printf("NOTICE : This machine appears to be running Solaris 2.6 FCS.  Solaris 2.6\nMaintenance Update 2 has been released subsequent to this.\n\n");
-    } else if (strcmp(solaris_release_string,"s297s_hw2smccDesktop_09") == 0) {
-      printf("NOTICE : This machine appears to be running Solaris 2.6 3/98.  Solaris 2.6\nMaintenance Update 2 has been released subsequent to this.\n\n");
-    } else if (strcmp(solaris_release_string,"s297s_hw3smccDesktop_09") == 0) {
-      if (flag_debug) printf("DEBUG  : Solaris 2.6 5/98\n"); 
-    } else if (strcmp(solaris_release_string,"s297s_smccServer_37cshwp") == 0) {
-      if (flag_debug) printf("DEBUG  : Solaris 2.6 MU2\n"); 
-    } else {
-      if (flag_debug) printf("DEBUG  : Solaris 2.6 Unrecognized\n"); 
-    }
-    break;
-  case 27:
-    if (strcmp(solaris_release_string,"s998s_SunServer_21al2b") == 0) {
-      /* FCS */
-      printf("NOTICE : This machine appears to be running Solaris 7 FCS. Solaris 7 11/99\nhas been released subsequent to this.\n\n"); 
-    } else if (strcmp(solaris_release_string,"s998s_u1SunServer_10") == 0) {
-      printf("NOTICE : This machine appears to be running Solaris 7 3/99. Solaris 7 11/99\nhas been released subsequent to this.\n\n"); 
-    } else if (strcmp(solaris_release_string,"s998s_u2SunServer_09") == 0) {
-      printf("NOTICE : This machine appears to be running Solaris 7 5/99. Solaris 7 11/99\nhas been released subsequent to this.\n\n"); 
-    } else if (strcmp(solaris_release_string,"s998s_u3SunServer_11") == 0) {
-      printf("NOTICE : This machine appears to be running Solaris 7 8/99. Solaris 7 11/99\nhas been released subsequent to this.\n\n"); 
-    } else if (strcmp(solaris_release_string,"s998s_u4SunServer_10") == 0) {
-      if (flag_debug) printf("DEBUG : 11/99\n");
-    } else {
-      if (flag_debug) printf("DEBUG  : Solaris 7 Unrecognized\n");       
-    }
-    break;
   case 28:
     if (strcmp(solaris_release_string,"s28_27b") == 0) {
       printf("ERROR  : This machine appears to be running Solaris 8 Beta.\n\n");
@@ -1163,129 +830,9 @@ done:
 #endif /* IDDS_LINUX_INCLUDE */
 
 
-
-#if defined(__osf__)
-
-#ifndef SLS_BUFSIZ
-#define SLS_BUFSIZ 8192
-#endif
-
-static void ids_get_platform_tru64(char *buf)
-{
-  struct utsname u;
-  int r,start = 0;
-  unsigned long pt;
-  struct cpu_info cpu_info;
-  char platname[SLS_BUFSIZ];
-  char *sp;
-
-  r = getsysinfo(GSI_CPU_INFO,(caddr_t)&cpu_info,sizeof(struct cpu_info),&start,NULL);
-
-  start = 0;
-
-  r = getsysinfo(GSI_PLATFORM_NAME,(caddr_t)&platname[0],SLS_BUFSIZ,&start,NULL);
-
-  start = 0;
-
-  r = getsysinfo(GSI_PROC_TYPE,(caddr_t)&pt,sizeof(long),&start,NULL);
-
-  switch(pt & 0xff) {
-  default:
-    sprintf(buf,"alpha-");
-    break;
-  case EV4_CPU:
-    sprintf(buf,"alpha_ev4_21064_%dMhz-",cpu_info.mhz);
-    break;
-  case EV45_CPU:
-    sprintf(buf,"alpha_ev4.5_21064_%dMhz-",cpu_info.mhz);
-    break;
-  case EV5_CPU:
-    sprintf(buf,"alpha_ev5_21164_%dMHz-",cpu_info.mhz);
-    break;
-  case EV56_CPU:
-    sprintf(buf,"alpha_ev5.6_21164A_%dMHz-",cpu_info.mhz);
-    break;
-  case EV6_CPU:
-    sprintf(buf,"alpha_ev6_21264_%dMHz-",cpu_info.mhz);
-    break;
-  }
-
-  sp = buf+strlen(buf);
-
-  for (r = 0; platname[r] != '\0';r++) {
-    if (platname[r] == ' ' || platname[r] == '-') {
-      *sp = '_';
-      sp++;
-    } else {
-      *sp = platname[r];
-      sp++;
-    }
-  }
-  
-  sprintf(sp,"-tru64_");
-
-  if (uname(&u) == 0) {
-    strcat(buf,u.release);
-    strcat(buf,"_");
-    strcat(buf,u.version);
-  }
-
-  /* XXX GSI_LMF see sys/lmf.h and sys/lmfklic.h */
-}
-
-/* returns number of k in swap area */
-static int idds_osf_get_swapk (void)
-{
-  int src,i;
-  struct swaptable *swtab;
-  int res = 0;
-
-  src = swapctl(SC_GETNSWP,NULL);
-  if (src < 1) {
-    return 0;
-  }
-
-  swtab = calloc(1,sizeof(int) + ((src+1) * sizeof(struct swapent)));
-  swtab->swt_n = src;
-  for (i = 0; i < src; i++) {
-    swtab->swt_ent[i].ste_path = calloc(1024,sizeof(char));
-  }
-
-  if (swapctl(SC_LIST,swtab) < 0) {
-    res = 0;
-  } else {
-    for (i = 0; i< src; i++) {
-      if (swtab->swt_ent[i].ste_flags & ST_INDEL) continue;
-      res += (swtab->swt_ent[i].ste_length / 2);
-    }
-  }
-  
-  for (i = 0; i < src; i++) {
-    free(swtab->swt_ent[i].ste_path);
-  }
-  free(swtab);
-  return res;
-}
-
-
-int idds_osf_get_memk(void)
-{
-  int start = 0, physmem = 0,r;
-  r = getsysinfo(GSI_PHYSMEM,(caddr_t)&physmem,sizeof(physmem),&start,NULL);
-  if (r == -1) {
-    return 0;
-  }
-  return physmem;
-}
-
-#endif
-
 static void gen_tests (void)
 {
-#ifndef _WIN32
   uid_t uid;
-#endif
-
 
   if (flag_html) printf("<P>\n");
 
@@ -1380,10 +927,6 @@ static void gen_tests (void)
   linux_check_release();
 #endif
 
-#if defined(_AIX)
-  aix_check_patches();
-#endif
-
 
 if (access("/usr/sbin/prtconf",X_OK) == 0) {
     if (flag_debug) printf("DEBUG  : /usr/sbin/prtconf\n");
@@ -1394,37 +937,6 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
 }
 
 
-#if defined(__osf__)
-  phys_mb = (idds_osf_get_memk())/1024;
-#else
-#if defined(_AIX)
-  if (1) {
-    char buf[BUFSIZ];
-    unsigned long l;
-
-    idds_aix_odm_get_cuat("attribute=realmem",buf);
-
-    if (buf) {
-      phys_mb = atoi(buf);
-      phys_mb = (phys_mb /1024) * (PAGESIZE / 1024);
-    }
-    
-    l = psdanger(0);
-    swap_mb = PAGESIZE/1024;
-    swap_mb = swap_mb * (l / 1024);
-  }
-#else
-#if defined(_SC_PHYS_PAGES)
-  if (1) {
-    int pk,l;
-
-    pk = sysconf(_SC_PAGESIZE);
-    pk /= 1024;
-    l = sysconf(_SC_PHYS_PAGES);
-    if (l < 0) l = 0;
-    phys_mb = (l * pk) / 1024;
-  }
-#else
 #if defined(__hpux)
   hp_check_qpk();
   if (pstat_getdynamic(&pst_dyn,sizeof(pst_dyn),1,0) == -1 ||
@@ -1460,9 +972,6 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
 	/* swap_mb  from vm.stats.vm.v_page_count * v_page_size / 1048576 */
 #endif
 #endif
-#endif
-#endif  
-#endif
   
   if (flag_html) printf("<P>\n");
 
@@ -1481,7 +990,6 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
 
   if (flag_html) printf("</P>\n");
 
-#if !defined(_WIN32)
   if (access("/usr/sbin/swap",X_OK) == 0) {
     if (flag_debug) printf("DEBUG  : /usr/sbin/swap -s\n");
     if (iii_pio_procparse("/usr/sbin/swap -s",
@@ -1490,11 +998,7 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
       perror("/usr/sbin/swap -s");
     }
   }
-#endif
 
-#if defined(__osf__)
-  swap_mb = (idds_osf_get_swapk()) / 1024;
-#else
 #if defined(IDDS_LINUX_INCLUDE)
   if (1) {
     struct sysinfo linux_si;
@@ -1504,7 +1008,6 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
     }
   }
 #endif
-#endif
 
   if (client == 0 && swap_mb < 0) {
     if (flag_html) printf("<P>\n");
@@ -1513,7 +1016,7 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
     if (flag_html) printf("</P>\n");
     
   } else if (client == 0 && swap_mb && swap_mb < phys_mb) {
-#if defined(_AIX) || defined(__hpux) || defined(__sun)
+#if defined(__hpux) || defined(__sun)
 #else
     if (flag_html) printf("<P>\n");
     printf("%s: There is %dMB of physical memory but only %dMB of swap space.\n\n",
@@ -1565,7 +1068,7 @@ if (access("/usr/sbin/prtconf",X_OK) == 0) {
 
 
 
-#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_LINUX_SYSCTL)
 
 static int ndd_get_tcp (char *a,long *vPtr)
 {
@@ -1577,7 +1080,7 @@ static int ndd_get_tcp (char *a,long *vPtr)
 #if defined(__hpux)
   sprintf(buf,"/usr/bin/ndd /dev/tcp %s",a);
 #else
-#if defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(IDDS_LINUX_SYSCTL)
   sprintf(buf,"/sbin/sysctl -n %s",a);  	
 #else
   sprintf(buf,"ndd /dev/tcp %s",a);
@@ -1617,203 +1120,6 @@ static int patch_get_ver(int n)
   }
   
   return 0;
-}
-#endif
-
-#if defined(__osf__)
-
-int tru64_check_tcbhashsize(char *a,char *b)
-{
-  int i;
-
-  if (strcmp(b,"unknown attribute") == 0) {
-    printf("WARNING: TCP tuning parameters are missing.\n\n");
-    flag_warnings++;
-    return 0;
-  }
-  i = atoi(b);
-
-  if (i < 32) {
-    printf("WARNING: The inet tuning parameter tcbhashsize is set too low (%d),\nand should be raised to between 512 and 1024.\n\n",i);
-    flag_tru64_tuning_needed = 1;
-    flag_warnings++;
-  } else if (i < 512) {
-    printf("NOTICE : The inet tuning parameter tcbhashsize is set too low (%d),\nand should be raised to between 512 and 1024.\n\n",i);
-    flag_tru64_tuning_needed = 1;
-  } else {
-    if (flag_debug) printf("DEBUG  : tcbhashsize %d\n",i);
-  }
-
-  return 0;
-}
-
-int tru64_check_present_smp(char *a,char *b)
-{
-  if (strcmp(b,"unknown attribute") == 0) {
-    printf("WARNING: If this is a multiprocessor system, additional tuning patches need\nto be installed, as sysconfig -q inet tuning parameter %s is missing.\n",
-	   a);
-    printf("NOTICE : If this is a uniprocessor system, the above warning can be ignored.\n\n");
-    flag_warnings++;
-  } else {
-    if (flag_debug) printf("DEBUG  : %s %s\n", a, b);
-  }
-
-  return 0;
-}
-
-int tru64_check_msl(char *a,char *b)
-{
-  int i;
-
-  if (strcmp(b,"unknown attribute") == 0) {
-    printf("WARNING: TCP tuning parameters are missing.\n\n");
-    flag_warnings++;
-    return 0;
-  }
-  i = atoi(b);
-
-  if (i >= 60) {
-    printf("NOTICE : If running in a LAN or private network, the inet tcp_msl value can be\nreduced from %d (%d seconds) to increase performance.\n\n",
-	   i, i/2);
-    flag_tru64_tuning_needed = 1;
-  }
-
-  return 0;
-}
-
-int tru64_check_present_client(char *a,char *b)
-{
-  if (strcmp(b,"unknown attribute") == 0) {
-    printf("ERROR  : This system is lacking necessary tuning patches.  Upgrade to 4.0E\nor later is required.\n\n");
-    flag_os_bad = 1;
-  } else {
-    if (flag_debug) {
-      printf("DEBUG  : %s %s\n",a,b);
-    }
-  }
-
-  return 0;
-}
-
-int tru64_check_conn(char *a,char *b)
-{
-  int i;
-
-  i = atoi(b);
-
-  if (strcmp(a,"somaxconn") == 0 && i && i < 32767) {
-    printf("NOTICE : Increasing the socket tuning parameter somaxconn from %d to 65500\n is recommended.\n\n",i);
-    flag_tru64_tuning_needed = 1;
-  }
-
-  if (flag_debug) printf("DEBUG  : %s %s\n",a,b);
-
-  return 0;
-}
-
-int tru64_check_threads(char *a,char *b)
-{
-  int i;
-
-  i = atoi(b);
-
-  if (i < 512) {
-    printf("WARNING: The proc tuning parameter max-threads-per-user should be raised from\n%d to at least 512.\n\n",i);
-    flag_tru64_tuning_needed = 1;
-    flag_warnings++;
-  } else {
-    if (flag_debug) printf("DEBUG  : %s %s\n",a,b); 
-  }
-  
-  return 0;
-}
-
-struct iii_pio_parsetab ptb_sysconfig_inet[] = {
-  {"tcbhashsize ",tru64_check_tcbhashsize},
-  {"tcbhashnum ",tru64_check_present_smp},
-  {"ipqs ",tru64_check_present_smp},
-  {"tcp_msl ",tru64_check_msl},
-  {"ipport_userreserved_min ",tru64_check_present_client}
-};
-
-struct iii_pio_parsetab ptb_sysconfig_socket[] = {
-  {"sominconn ",tru64_check_conn},
-  {"somaxconn ",tru64_check_conn}
-};
-
-struct iii_pio_parsetab ptb_sysconfig_proc[] = {
-  {"max-threads-per-user ",tru64_check_threads}
-};
-
-static void sysconfig_tests (void)
-{
-  struct utsname u;
-
-  if (uname(&u) == 0) {
-    if ((u.release[0] == 'T' || u.release[0] == 'V') && u.release[1] == '5') {
-      if (flag_debug) printf("DEBUG  : Tru64 UNIX %s %s\n",
-			     u.release,u.version);
-    } else if (strcmp(u.release,"V4.0") == 0) {
-      int iv;
-
-      /* Digital UNIX 4.x */
-      iv = atoi(u.version);
-
-      if (iv < 564) {
-	printf("ERROR  : Digital UNIX versions prior to 4.0D are not supported as they lack\nnecessary kernel tuning parameters. Upgrade to 4.0E or later.\n\n");
-	flag_tru64_40b = 1;
-	flag_os_bad = 1;
-      } else if (iv < 878) {
-	printf("WARNING: Tru64 UNIX versions prior to 4.0D require a patch to provide \noptimal Internet performance.\n\n");	
-	flag_tru64_40b = 1;
-	flag_warnings++;
-      } else {
-	if (flag_debug) printf("DEBUG  : Digital UNIX %s %s\n",
-			       u.release,u.version);
-      }
-
-    } else if (u.release[0] == 'V' && u.release[1] == '3') {
-      printf("ERROR  : Digital UNIX versions prior to 4.0D are not supported as they lack\nnecessary kernel tuning parameters.  Upgrade to 4.0E or later.\n\n");
-      flag_os_bad = 1;
-      
-    } else {
-      printf("%s: Tru64 UNIX release %s is not recognized.\n",
-	     "NOTICE ", u.release);
-    }
-  }
-
-  /* inet subsystem raise tcbhashsize from 32/512 to 1024 */
-  /* inet subsystem raise tcbhashnum to 16 if multiprocessor, also ipqs 
-   *  not on 4.0D  */
-  /* inet subsystem lower tcp_msl from 60 (30 secs) if on LAN */
-  /* client: inet subsystem raise ipport_userreserved_min from 5000 to 65000 
-   *  requires E or later */
-  if (iii_pio_procparse("/sbin/sysconfig -q inet",
-			III_PIO_SZ(ptb_sysconfig_inet),
-			ptb_sysconfig_inet) == -1) {
-    perror("/sbin/sysconfig");
-  }
-
-  /* socket raise sominconn to 65535 */				   
-  /* socket subsystem raise somaxconn from 1024 to 32767 */
-  if (iii_pio_procparse("/sbin/sysconfig -q socket",
-			III_PIO_SZ(ptb_sysconfig_socket),
-			ptb_sysconfig_socket) == -1) {
-    perror("/sbin/sysconfig");
-  }
-				   
-
-  /* proc max-threads-per-user from 256 to 512 or 4096 */
-  if (iii_pio_procparse("/sbin/sysconfig -q proc",
-			III_PIO_SZ(ptb_sysconfig_proc),
-			ptb_sysconfig_proc) == -1) {
-    perror("/sbin/sysconfig");
-  }
-
-  if (1) {
-    printf("NOTICE : More information on tuning is available on the web from Compaq at\nhttp://www.unix.digital.com/internet/tuning.htm\n\n");
-    printf("NOTICE : Additional performance recommendations can be obtained from the\nsys_check kit from Compaq, located at the following web site:\nftp://ftp.digital.com/pub/DEC/IAS/sys_check/sys_check.html\n\n");
-  }
 }
 #endif
 
@@ -2076,7 +1382,7 @@ static void sun_check_network_device(void)
 }
 #endif
 
-#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux)|| defined(IDDS_LINUX_SYSCTL)
 
 static void ndd_tests (void)
 {
@@ -2621,10 +1927,6 @@ static int get_disk_avail(char *dir)
   if (statfs(dir,&sfs) == 0) {
     return ((sfs.f_bfree * (sfs.f_bsize / 1024)) / 1024);
   }
-#else
-#if defined(_WIN32)
-  /* could use GetDiskFreeSpaceEx */
-#endif
 #endif
 #endif
 #endif
@@ -2847,15 +2149,11 @@ static void disk_tests(void)
   }
 
   if (install_dir[0] == '\0') {
-#if defined(_WIN32)
-    /* TBD */
-#else
     if (access("/usr/" VENDOR,X_OK) == 0) {
       sprintf(install_dir,"/usr/" VENDOR);      
     } else {
       sprintf(install_dir,"/opt");
     }
-#endif
   }
   
   if (check_fs_options(install_dir,mntbuf) == 0) {
@@ -3042,10 +2340,10 @@ static void limits_tests(void)
 
 static void ids_get_platform(char *buf)
 {
-#if defined(IDDS_LINUX_INCLUDE) || defined(__osf__) || defined(_AIX) || defined(__hpux) || defined(IDDS_BSD_INCLUDE)
+#if defined(IDDS_LINUX_INCLUDE) || defined(__osf__) || defined(__hpux) || defined(IDDS_BSD_INCLUDE)
   	struct utsname u;
 #endif
-#if defined(__hpux) || defined(_AIX)
+#if defined(__hpux)
 	char model[128];
 	char procstr[128];
 	char oslevel[128];
@@ -3067,42 +2365,11 @@ static void ids_get_platform(char *buf)
 #else
 #if defined(__sun) 
 	ids_get_platform_solaris(buf);
-#else
-#if defined(_AIX)
-
-	if (getenv("ODMPATH") == NULL) {
-	  putenv("ODMPATH=/usr/lib/objrepos:/etc/objrepos");
-	}
-	
-	/* i386, powerpc, rs6000 */
-	idds_aix_odm_get_cuat("name=proc0",procstr);
-	idds_aix_odm_get_cuat("attribute=modelname",model);
-	oslevel[0] = '\0';
-	idds_aix_pio_get_oslevel(oslevel);
-	
-	if (uname(&u) == 0) {
-	  if (oslevel[0]) {
-	    sprintf(buf,"%s-%s-%s%s",
-		    procstr[0] ? procstr : "unknown" , 
-		    model[0] ? model : "ibm",
-		    u.sysname,oslevel);
-	    
-	  } else {
-	    sprintf(buf,"%s-%s-%s%s.%s",
-		    procstr[0] ? procstr : "unknown" , 
-		    model[0] ? model : "ibm",
-		    u.sysname,u.version,u.release);
-	  }
-	} else {
-	  sprintf(buf,"%s-unknown-aix", procstr[0] ? procstr : "unknown");
-	}
-#else
-#if defined(IDDS_BSD_INCLUDE)
+#elif defined(IDDS_BSD_INCLUDE)
 	uname(&u);
 	sprintf(buf,"%s-unknown-%s%s",
 		u.machine,u.sysname,u.release);
-#else
-#if defined(__hpux)
+#elif defined(__hpux)
 	uname(&u);
 	confstr(_CS_MACHINE_MODEL,model,128);
 	cpuvers = sysconf(_SC_CPU_VERSION);
@@ -3179,40 +2446,14 @@ static void ids_get_platform(char *buf)
 #endif /* VMS */
 #endif /* HPUX */
 #endif /* FREEBSD */
-#endif /* AIX */
-#endif /* SUN */	
-#endif /* LINUX */
 }
 
 static int count_processors(void)
 {
   int nproc = 0;
 
-#if defined(_SC_NPROCESSORS_ONLN) && !defined(__osf__)
   nproc = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
 
-#if defined(_WIN32)
-  SYSTEM_INFO sysinfo;
-
-  GetSystemInfo(&sysinfo);
-  nproc = sysinfo.dwNumberOfProcessors;
-#endif
-
-#if defined(IDDS_BSD_SYSCTL) && defined(__FreeBSD__)
-  int fblen = sizeof(int);
-  int tmp;
-  sysctlbyname("hw.ncpu",&nproc,&fblen,NULL,0);
-#endif
-
-#if defined(__osf__)
-  struct cpu_info cpu_info;
-  int start = 0;
-
-  cpu_info.cpus_in_box = 0;
-  getsysinfo(GSI_CPU_INFO,(caddr_t)&cpu_info,sizeof(struct cpu_info),&start,NULL);
-  nproc = cpu_info.cpus_in_box;
-#endif
   return nproc;
 }
 
@@ -3268,15 +2509,6 @@ int main(int argc,char *argv[])
     }
   }
 
-#if defined(_AIX)
-  if (1) {
-    char *s = getenv("ODMPATH");
-    if (s == NULL) {
-      putenv("ODMPATH=/usr/lib/objrepos:/etc/objrepos");
-    }
-  }
-#endif
-
   if (flag_quick == 0) {
     char sysbuf[BUFSIZ];
     int nproc;
@@ -3296,16 +2528,12 @@ int main(int argc,char *argv[])
 
   gen_tests();
 
-#if defined(__sun) || defined(__hpux) || defined(IDDS_BSD_SYSCTL) || defined(IDDS_LINUX_SYSCTL)
+#if defined(__sun) || defined(__hpux) || defined(IDDS_LINUX_SYSCTL)
   ndd_tests();
 #endif
 
 #if defined(__hpux)
   hp_pthreads_tests();
-#endif
-
-#if defined(__osf__)
-  sysconfig_tests();
 #endif
 
   limits_tests();

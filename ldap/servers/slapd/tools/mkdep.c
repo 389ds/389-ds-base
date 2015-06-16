@@ -55,18 +55,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef WINNT
-#include <windows.h>
-#include <winbase.h>
-#include <io.h>
-#else
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#endif
 
 
 char __depname[512] = "\n\t@touch ";
@@ -80,12 +73,7 @@ struct path_struct {
 	char buffer[256-sizeof(int)];
 } path = { 0, "" };
 
-
-#ifdef WINNT
-#define EXISTS(_fn)	_access(_fn, 00)
-#else
 #define EXISTS(_fn)	access(_fn, F_OK)
-#endif
 
 /*
  * Handle an #include line.
@@ -233,65 +221,6 @@ pound_include_dquote:
     }
 }
 
-
-#ifdef WINNT
-
-/*
- * Alternate implementation of do_depend() for NT
- * (NT has its own wacky versions of open/mmap/close)
- */
-void do_depend(const char *filename, const char *command)
-{
-    HANDLE fd, mapfd;
-    BY_HANDLE_FILE_INFORMATION st;
-    char *map;
-
-    fd = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL,
-	OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
-    if (fd == INVALID_HANDLE_VALUE) {
-	fprintf(stderr, "NT error opening '%s'\n", filename);
-	return;
-    }
-    if (! GetFileInformationByHandle(fd, &st)) {
-	fprintf(stderr, "NT error getting stat on '%s'\n", filename);
-	CloseHandle(fd);
-	return;
-    }
-    if (st.nFileSizeLow == 0) {
-	fprintf(stderr, "%s is empty\n", filename);
-	CloseHandle(fd);
-	return;
-    }
-
-    mapfd = CreateFileMapping(fd, NULL, PAGE_READONLY, st.nFileSizeHigh,
-	st.nFileSizeLow, NULL);
-    if (mapfd == NULL) {
-	fprintf(stderr, "NT error creating file mapping of '%s'\n",
-	    filename);
-	CloseHandle(fd);
-	return;
-    }
-    map = MapViewOfFile(mapfd, FILE_MAP_READ, 0, 0, 0);
-    if (map == NULL) {
-	fprintf(stderr, "NT error creating mapped view of '%s'\n",
-	    filename);
-	CloseHandle(mapfd);
-	CloseHandle(fd);
-	return;
-    }
-
-    hasdep = 0;
-    state_machine(map, map+st.nFileSizeLow);
-    if (hasdep)
-	puts(command);
-
-    UnmapViewOfFile(map);
-    CloseHandle(mapfd);
-    CloseHandle(fd);
-}
-
-#else
-
 /*
  * Generate dependencies for one file.
  */
@@ -338,9 +267,6 @@ void do_depend(const char * filename, const char * command)
 	munmap(map, mapsize);
 	close(fd);
 }
-
-#endif
-
 
 /*
  * Generate dependencies for all files.

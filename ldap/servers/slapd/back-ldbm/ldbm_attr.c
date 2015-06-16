@@ -1033,11 +1033,6 @@ static int replace_filter(Slapi_Filter	*f, char *s)
 {
 	Slapi_Filter	*newf = NULL;
 	Slapi_Filter	*temp = NULL;
-/* LP: Fix for defect 515161. Crash on AIX
- * slapi_str2filter is a nasty function that mangle whatever gets passed in.
- * AIX crashes on altering the literal string.
- * So we need to allocate the string and then free it.
- */
 	char *buf = slapi_ch_strdup(s);
 
 	newf = slapi_str2filter(buf);

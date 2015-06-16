@@ -77,16 +77,13 @@ int
 detach( int slapd_exemode, int importexport_encrypt,
         int s_port, daemon_ports_t *ports_info )
 {
-#ifndef _WIN32
 	int		i, sd;
 	char *workingdir = 0;
 	char *errorlog = 0;
 	char *ptr = 0;
 	char errorbuf[BUFSIZ];
 	extern char *config_get_errorlog(void);
-#endif
 
-#ifndef _WIN32
 	if ( should_detach ) {
 		for ( i = 0; i < 5; i++ ) {
 #if defined( sunos5 )
@@ -163,12 +160,9 @@ detach( int slapd_exemode, int importexport_encrypt,
 	}
 
 	(void) SIGNAL( SIGPIPE, SIG_IGN );
-#endif /* _WIN32 */
 	return 0;
 }
 
-
-#ifndef _WIN32
 /*
  * close all open files except stdin/out/err
  */
@@ -187,16 +181,9 @@ close_all_files()
 		close( i );
 	}
 }
-#endif	/* !_WIN32 */
-
-/*
- * There is no need to do anything on some platforms (NT) and not try to
- * raise fds on AIX.
- */
 
 static void raise_process_fd_limits(void)
 {
-#if !defined(_WIN32) && !defined(AIX)
 	struct rlimit	rl, setrl;
 	RLIM_TYPE	curlim;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -247,7 +234,6 @@ static void raise_process_fd_limits(void)
 	(void)getrlimit( RLIMIT_NOFILE, &rl );
 	LDAPDebug( LDAP_DEBUG_TRACE, "descriptor limit changed from %d to %d\n",
 	    curlim, rl.rlim_cur, 0 );
-#endif /* !_WIN32 && !AIX */
 }
 
 /*
@@ -256,7 +242,6 @@ static void raise_process_fd_limits(void)
 void
 raise_process_limits()
 {
-#if !defined(_WIN32) 
 	struct rlimit	rl;
 
 	raise_process_fd_limits();
@@ -286,7 +271,5 @@ raise_process_limits()
 		      errno,0,0);
 	}
 #endif /* RLIMIT_VMEM */
-
-#endif /* !_WIN32 */
 }
 

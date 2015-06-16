@@ -50,9 +50,7 @@
 #if defined(__osf__)
 #include <elf_abi.h>
 #else
-#ifndef _AIX
 #include  <libelf.h>
-#endif
 #endif
 #endif
 #include  <stdlib.h>
@@ -62,7 +60,7 @@
 #if defined(sparc) || defined(__sparc)
 #include <sys/elf_SPARC.h>
 #else
-#if !defined(linux) && !defined(_AIX) && !defined(__osf__)
+#if !defined(linux) && !defined(__osf__)
 #include <sys/elf_386.h>
 #endif
 #endif
@@ -245,7 +243,7 @@ int seek_debug(char *erf,int start, int mx)
   return 0;
 }
 
-#if !defined(_AIX) && !defined(__osf__)
+#if !defined(__osf__)
 void add_segment(Elf32_Phdr *phdr,char *base,int which)
 {
   int i;
@@ -353,7 +351,7 @@ void try_adb(char *pf,char *cf)
 void
 main(int argc, char ** argv)
 {
-#if !defined(_AIX) && !defined(__osf__)
+#if !defined(__osf__)
   Elf32_Ehdr *   ehdr;
   Elf32_Phdr *   phdr;
   Elf *          elf;

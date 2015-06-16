@@ -98,17 +98,8 @@ static int hdl;
 
 /* collator stuff */
 static char *tmpstatsfile = AGT_STATS_FILE;
-#ifdef _WIN32
-static TCHAR szStatsFile[_MAX_PATH];
-static TCHAR szTempDir[_MAX_PATH];
-static HANDLE hParentProcess = NULL;
-static HANDLE hStatSlot = NULL;
-static HANDLE hLogFile = INVALID_HANDLE_VALUE;
-static TCHAR szSpoolRootDir[_MAX_PATH];
-#else
 static char szStatsFile[_MAX_PATH];
 static char stats_sem_name[_MAX_PATH];
-#endif /* _WIN32*/
 static Slapi_Eq_Context snmp_eq_ctx;
 static int snmp_collator_stopped = 0;
 

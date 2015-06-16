@@ -54,49 +54,6 @@
 			server to the attributes memorized for one operation,
 			etc...
 	LOCAL :		None.
-	HISTORY :
----------+--------------+------------------------------------------------------
-dd/mm/yy | Author	| Comments
----------+--------------+------------------------------------------------------
-04/05/99 | JL Schwing	| Creation
----------+--------------+------------------------------------------------------
-05/05/99 | F. Pistolesi	| 1.8 : Add communication with remote host.
-			| Implement operations check.
----------+--------------+------------------------------------------------------
-06/05/99 | JL Schwing	| 1.10: Implements opDecOper().
-			| Add more traces in VERY_VERBOSE
----------+--------------+------------------------------------------------------
-20/05/99 | JL Schwing	| 1.18: Add params (newRdn and newParent) to opAdd()
-			| Decode operations in Cnnn messages.
-			| No more exit on EINTR in accept()
-			| Fix memory leak in thOperFree()
----------+--------------+------------------------------------------------------
-21/05/99 | JL Schwing	| 1.19: Minor fixes in messages.
-			| Purify cleanup - Free memory read in opCheckLoop()
-			| Fix thOperFree() - pb when head of list to delete
-			| Fix memory leak in opNext().
----------+--------------+------------------------------------------------------
-26/05/99 | JL Schwing	| 1.21: Bug fix - return(-1) bad place in opNext().
-			| Minor fixes in messages.
----------+--------------+------------------------------------------------------
-27/05/99 | JL Schwing	| 1.22 : Add statistics to check threads.
----------+--------------+------------------------------------------------------
-27/05/99 | F. Pistolesi	| 1.23 : Fix statistics and other algorythms.
----------+--------------+------------------------------------------------------
-31/05/99 | JL Schwing	| 1.25 : Bug fix - should test opRead() returned pointer
----------+--------------+------------------------------------------------------
-02/06/99 | JL Schwing	| 1.26 : Add flag in main ctx to know if slave was 
-			|   connected or not.
-			| Add counter of operations received in check threads.
----------+--------------+------------------------------------------------------
-06/03/00 | JL Schwing	| 1.27: Test malloc() return value.
----------+--------------+------------------------------------------------------
-18/08/00 | JL Schwing	| 1.28: Print begin and end dates.
----------+--------------+------------------------------------------------------
-17/11/00 | JL Schwing	| 1.29: Implement "-e smoothshutdown".
----------+--------------+------------------------------------------------------
-29/11/00 | JL Schwing	| 1.30: Port on NT 4.
----------+--------------+------------------------------------------------------
 */
 
 #include <pthread.h>		/* Posix threads */
@@ -124,10 +81,6 @@ dd/mm/yy | Author	| Comments
 enum {SINGLE=0,FIRST,MIDDLE,LAST};
 
 
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	opDecOper
 	PURPOSE :	This function decodes an LDAP operation and return a
@@ -150,12 +103,6 @@ opDecOper (
     default:			return ("??unknown??");	break;
   }
 }
-
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	LDAPMod2attributes
@@ -230,14 +177,6 @@ LDAPMod2attributes (
   return (0);
 }
 
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	freeAttributesArray
 	PURPOSE :	This function is targeted to free an array of
@@ -262,14 +201,6 @@ freeAttributesArray (
   }
   return (0);
 }
-
-
-
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	opAdd
@@ -387,12 +318,6 @@ opAdd (
   return (0);
 }
 
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	opNext
 	PURPOSE :	Return the next available operation. May return NULL
@@ -481,14 +406,6 @@ opNext (
   return (0);
 }
 
-
-
-
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	opRead
 	PURPOSE :	Read the n'th operation from the head.
@@ -521,11 +438,6 @@ opRead (
    */
   return (0);
 }
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	thOperAdd
@@ -590,11 +502,6 @@ thOperAdd ( thoper *head, oper *elem, int f)
   return head;
 }
 
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	thOperFree
 	PURPOSE :	This function frees memory for a late operation
@@ -625,11 +532,6 @@ thOperFree (thoper *head, thoper *elem)
   free(elem);
   return head;
 }
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	opCheckLoop
@@ -858,11 +760,6 @@ opCheckLoop ( void* arg)
   pthread_exit(NULL);
 }
 
-
-
-
-
-
 /* ****************************************************************************
 	FUNCTION :	opCheckMain
 	PURPOSE :	This function is the main function of the check
@@ -880,9 +777,6 @@ opCheckMain (
   struct hostent cltaddr; 
 #ifdef LINUX
   struct hostent *stupidlinux=NULL;
-#endif
-#ifdef AIX
-  struct hostent_data stupidaix;
 #endif
   struct linger lopt;
   uint32_t ipaddr;
@@ -923,11 +817,7 @@ opCheckMain (
 	retry = 1;
 	while (retry)
 	{
-#ifdef AIX
-		if ((newfd=accept(sockfd,(struct sockaddr *)&claddr,(unsigned long *)&i))>=0)
-#else
 		if ((newfd=accept(sockfd,(struct sockaddr *)&claddr,&i))>=0)
-#endif
 			retry = 0;
 		else
 			if (errno != EINTR)
@@ -941,10 +831,6 @@ opCheckMain (
 	 */
 	ipaddr=ntohl(claddr.sin_addr.s_addr);
 
-#ifdef AIX
-	gethostbyaddr_r((char*)&ipaddr,sizeof(ipaddr),AF_INET,&cltaddr,
-		&stupidaix);
-#else
 #ifdef LINUX
 	 gethostbyaddr_r((char*)&ipaddr,sizeof(ipaddr),AF_INET,&cltaddr,
 		buffer,128, &stupidlinux, &err); 
@@ -954,7 +840,6 @@ opCheckMain (
 #else
 	 gethostbyaddr_r((char*)&ipaddr,sizeof(ipaddr),AF_INET,&cltaddr,
 		buffer,128,&err); 
-#endif
 #endif
 #endif
 
@@ -1009,9 +894,3 @@ opCheckMain (
   close(sockfd);
 }
 
-
-
-
-
-
-/* End of file */

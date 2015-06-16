@@ -44,7 +44,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
 #include "certmap.h"		/* Public Certmap API */
 #include "plugin.h"		/* must define extern "C" functions */
 
@@ -57,11 +56,7 @@ NSAPI_PUBLIC int plugin_init_fn (void *certmap_info, const char *issuerName,
 
     /* Make sure CertmapDLLInit is initialized only once */
     if (!initialized) {
-#ifdef WIN32
-	CertmapDLLInit(rv, libname);
-	
-	if (rv != LDAPU_SUCCESS) return rv;
-#endif
+
         initialized = 1;
     }
     

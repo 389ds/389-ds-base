@@ -64,10 +64,6 @@
 #define _PATH_RESCONF "/etc/resolv.conf"
 #endif
 
-#if !defined(NO_DOMAINNAME) && defined(_WINDOWS)
-#define NO_DOMAINNAME 1
-#endif
-
 #if defined (__hpux)
 #if (MAXHOSTNAMELEN < 256)
 #   undef MAXHOSTNAMELEN

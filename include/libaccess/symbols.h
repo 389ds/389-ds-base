@@ -117,16 +117,8 @@ NSPR_BEGIN_EXTERN_C
 extern int symTableAddSym(void * table, Symbol_t * newsym, void * symref);
 extern void symTableRemoveSym(void * table, Symbol_t * sym);
 extern void symTableDestroy(void * table, int flags);
-
-/* for ANSI C++ on SCO UDK, otherwise fn name is managled */
-#ifdef UnixWare
-typedef int (*ArgFn_symTableEnum)(Symbol_t * sym, void * parg);
-extern void symTableEnumerate(void * table, void * argp, ArgFn_symTableEnum);
-#else /* UnixWare */
 extern void symTableEnumerate(void * table, void * argp,
                               int (*func)(Symbol_t * sym, void * parg));
-#endif /* UnixWare */
-
 extern int symTableFindSym(void * table, const char * symname,
 			   int symtype, void **psymref);
 extern int symTableNew(void **ptable);

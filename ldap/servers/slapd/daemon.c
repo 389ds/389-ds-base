@@ -58,13 +58,6 @@
 #endif
 #include <time.h>
 #include <signal.h>
-#if defined(IRIX6_2) || defined(IRIX6_3)
-#include <sys/param.h>
-#endif
-#if defined(_AIX)
-#include <sys/select.h>
-#include <sys/param.h>
-#endif
 #include <fcntl.h>
 #define TCPLEN_T	int
 #ifdef NEED_FILIO
@@ -3245,21 +3238,15 @@ catch_signals()
 static int
 get_configured_connection_table_size()
 {
-	int size;
-	size = config_get_conntablesize();
+	int size = config_get_conntablesize();
+	int maxdesc = config_get_maxdescriptors();
 
-/*
- * Cap the table size at nsslapd-maxdescriptors.
- */
-#if !defined(_WIN32) && !defined(AIX)
-	{
-		int maxdesc = config_get_maxdescriptors();
-
-		if ( maxdesc >= 0 && size > maxdesc ) {
-			size = maxdesc;
-		}
+	/*
+	 * Cap the table size at nsslapd-maxdescriptors.
+	 */
+	if ( maxdesc >= 0 && size > maxdesc ) {
+		size = maxdesc;
 	}
-#endif
 
 	return size;
 }

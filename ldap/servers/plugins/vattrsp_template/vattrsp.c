@@ -47,12 +47,10 @@
 #include "slapi-plugin.h"
 #include "slapi-private.h"
 #include "vattr_spi.h"
+#include <sys/stat.h>
 
 /* the global plugin handle */
 static volatile vattr_sp_handle *vattr_handle = NULL;
-
-#include <sys/stat.h>
-
 
 #define VATTRSP_PLUGIN_SUBSYSTEM   "vattrsp-template-plugin"   /* used for logging */
 
@@ -89,21 +87,11 @@ static int vattrsp_vattr_types(
 		int flags
 		);
 
-
 static Slapi_PluginDesc pdesc = { "vattrexamplesp", VENDOR, DS_PACKAGE_VERSION,
 	"vattr service provider example plugin" };
 
 static void * vattrsp_plugin_identity = NULL;
 
-
-#ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif
 
 /*
  * Plugin identity mgmt

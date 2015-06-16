@@ -249,11 +249,7 @@ void symTableRemoveSym(void * table, Symbol_t * sym)
  */
 
 void symTableEnumerate(void * table, void * argp,
-#ifdef UnixWare /* Fix bug in UnixWare compiler for name mangeling - nedh@sco.com */
-		       ArgFn_symTableEnum func)
-#else
 		       int (*func)(Symbol_t * sym, void * parg))
-#endif
 {
     SymTable_t * st = (SymTable_t *)table;
     SymTableEnum_t ste;		/* enumeration arguments */

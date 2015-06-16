@@ -88,23 +88,14 @@ extern "C" {
 #define LDAP_DEBUG_PLUGIN	0x10000		/* 65536 */
 
 /* debugging stuff */
-#    ifdef _WIN32
-       extern int	*module_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( *module_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    else /* _WIN32 */
-       extern int	slapd_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-       { \
-		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
-	    } \
-       }
-#    endif /* Win32 */
+
+extern int	slapd_ldap_debug;
+#define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
+{ \
+  if ( slapd_ldap_debug & level ) { \
+    slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
+  } \
+}
 
 #ifdef __cplusplus
 }

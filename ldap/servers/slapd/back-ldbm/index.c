@@ -44,10 +44,6 @@
 /* index.c - routines for dealing with attribute indexes */
 
 #include "back-ldbm.h"
-#if ( defined ( OSF1 ))
-#undef BUFSIZ
-#define BUFSIZ	1024
-#endif
 
 static const char *errmsg = "database index operation failed";
 

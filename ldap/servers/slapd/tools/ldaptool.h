@@ -44,39 +44,17 @@
 /*           should not cause problems in the future even if */
 /*           we forget to take it out :-) */
 
-#ifdef OSF1V4D
-#ifndef __STDC__
-#  define __STDC__
-#endif /* __STDC__ */
-#endif /* OSF1V4D */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 
-#ifdef AIX
-#include <strings.h>
-#endif
 
-
-#ifdef SCOOS
-#include <sys/types.h>
-#endif
-
-#ifdef _WINDOWS
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-extern int getopt (int argc, char *const *argv, const char *optstring);
-#include <io.h>	/* for _mktemp() */
-#define LDAPTOOL_MKTEMP( p )	_mktemp( p )
-#else
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #define LDAPTOOL_MKTEMP( p )	mktemp( p )
-#endif
 
 #ifdef LINUX
 #include <getopt.h>	/* not always included from unistd.h */
@@ -84,9 +62,7 @@ extern int getopt (int argc, char *const *argv, const char *optstring);
 
 #include <ctype.h>
 
-#ifndef SCOOS
 #include <sys/types.h>
-#endif
 
 #include <sys/stat.h>
 #include <fcntl.h>

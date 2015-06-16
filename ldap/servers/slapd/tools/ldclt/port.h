@@ -51,27 +51,11 @@
         DESCRIPTION :	
 			This file contains the include (interface) definitions 
 			of port.c
- LOCAL :		None.
-        HISTORY :
----------+--------------+------------------------------------------------------
-dd/mm/yy | Author	| Comments
----------+--------------+------------------------------------------------------
-28/11/00 | JL Schwing	| Creation
----------+--------------+------------------------------------------------------
-01/12/00 | JL Schwing	| 1.2 : Port on Linux.
----------+--------------+------------------------------------------------------
-01/12/00 | JL Schwing	| 1.3 : Port on HP-UX.
----------+--------------+------------------------------------------------------
-03/04/01 | JL Schwing	| 1.4 : Linux large file issue...
----------+--------------+------------------------------------------------------
 */
 
 /*
  * Tuning of the code
  */
-#ifdef AIX							/*JLS 01-12-00*/
-#define LDCLT_CAST_SIGACTION	1				/*JLS 01-12-00*/
-#endif								/*JLS 01-12-00*/
 
 #ifdef HPUX							/*JLS 01-12-00*/
 #define LDCLT_CAST_SIGACTION	1				/*JLS 01-12-00*/

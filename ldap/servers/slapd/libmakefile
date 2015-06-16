@@ -80,46 +80,13 @@ LIBSLAPD_OBJS=plugin_role.o getfilelist.o libglobs.o log.o ch_malloc.o entry.o p
 	dse.o errormap.o computed.o match.o fileio.o \
 	generation.o localhost.o ssl.o factory.o auditlog.o \
 	lenstr.o eventq.o uuid.o uniqueid.o uniqueidgen.o \
-	csngen.o utf8compare.o ntuserpin.o entrywsi.o valueset.o \
+	csngen.o utf8compare.o entrywsi.o valueset.o \
 	attrsyntax.o opshared.o add.o modify.o modrdn.o delete.o dl.o\
 	plugin_acl.o counters.o subentry.o object.o objset.o apibroker.o \
 	csn.o csnset.o slapd_plhash.o attrlist.o vattr.o bitset.o rdn.o \
 	mapping_tree.o backend_manager.o task.o resourcelimit.o \
 	bulk_import.o security_wrappers.o index_subsystem.o sasl_map.o
 
-ifeq ($(ARCH), AIX)
-ifeq ($(DEBUG), optimize)
-TEMP_CFLAGS = $(subst -O,,$(CFLAGS))
-$(OBJDEST)/vattr.o: vattr.c
-	$(CC) -o $(OBJDEST)/vattr.o -c $(TEMP_CFLAGS) $(MCC_INCLUDE) vattr.c
-endif
-endif
-ifeq ($(ARCH), WINNT)
-#find out why this isn't needed on UNIX
-DLL_LDFLAGS += $(NSPRLINK) /IMPLIB:$(LIBSLAPD)
-DLL_LDFLAGS += -def:"libslapd.def"
-LIBSLAPD_DEF = $(LDAP_SRC)/servers/slapd/libslapd.def
-SUBSYSTEM=windows
-
-LDAP_COMMON_EXTRALIBSLIST = libsi18n
-LDAP_COMMON_EXTRALIBS = $(addsuffix .$(LIB_SUFFIX), \
-	$(addprefix $(LDAP_LIBDIR)/, $(LDAP_COMMON_EXTRALIBSLIST)))
-LDAP_COMMON_LINK += libbase.$(LIB_SUFFIX)
-
-EXTRA_LIBS_DEP = $(SECURITY_DEP) $(NSPR_DEP) \
-	$(LDAP_COMMON_LIBS_DEP) $(LDAPSDK_DEP) \
-	$(LDAP_SDK_LIBSSLDAP_LIB_DEP) $(LIBLDAPU_DEP) $(_ldap_db_depend) \
-	$(SVRCORE_DEP) \
-	$(LDAP_COMMON_EXTRALIBS)
-
-EXTRA_LIBS += $(LDAPLINK) $(LIBSVRCORE) $(LIBSECURITY) $(LIBNSPR) \
-	$(LDAP_COMMON_LINK) \
-	$(LIBLDAPU) \
-	$(LDAP_COMMON_EXTRALIBS) 
-
-# JCM - Warnings as Errors!
-CFLAGS += /WX
-else
 LDFLAGS	= $(SSLLIBFLAG)
 EXTRA_LIBS_DEP	= $(SECURITY_DEP) \
 	$(NSPR_DEP) $(LDAPSDK_DEP) $(SVRCORE_DEP) \
@@ -129,16 +96,6 @@ EXTRA_LIBS = $(LDAP_LIBLITEKEY) -lavl -lldif \
 	$(SVRCORELINK) $(LDAPLINK) \
 	$(SECURITYLINK) $(NSPRLINK) \
 	$(ALIBS) $(DYNALIBS) $(THREADSLIB)
-endif
-ifeq ($(ARCH), AIX)
-LD=ld
-EXTRA_LIBS = $(LDAPLINK) $(SVRCORELINK) $(SECURITYLINK) $(NSPRLINK) \
-	$(LDAP_COMMON_LINK) \
-	$(LIBLDAPU) \
-	$(DYNALIBS) $(THREADSLIB) \
-	$(DLL_EXTRA_LIBS) \
-	$(LDAP_LIBLITEKEY)
-endif
 
 # Comment for the following comment:
 # Updating LDAP C SDK to V6.0 has introduced a new dependent library
@@ -163,11 +120,6 @@ ifdef NS_USE_NATIVE
 LD=CC
 endif
 endif
-
-#ifeq ($(ARCH), OSF1)
-#DLL_LDFLAGS=-shared -all -error_unresolved -taso -ySVRCORE_RegisterPinObj
-#EXTRA_LIBS += -lc
-#endif
 
 OBJS = $(addprefix $(OBJDEST)/, $(LIBSLAPD_OBJS)) 
 ERRORMAP.O = $(addprefix $(OBJDEST)/, errormap.o) 
@@ -196,15 +148,7 @@ clean:
 $(ERRORMAP.O):	$(DIRVERDIR)/dberrstrs.h
 
 $(DIRVERDIR)/dberrstrs.h:	$(DB_INCLUDE)/db.h
-ifeq ($(ARCH), WINNT)
-	$(PERL) mkDBErrStrs.pl -nt -i $(DB_INCLUDE) -o $(DIRVERDIR)
-else
-	$(PERL) mkDBErrStrs.pl -i $(DB_INCLUDE) -o $(DIRVERDIR)
-endif
-
-ifeq ($(ARCH), WINNT)
-$(OBJS): $(OBJDEST)/%.o : %.c
-endif
+$(PERL) mkDBErrStrs.pl -i $(DB_INCLUDE) -o $(DIRVERDIR)
 
 # Target to push the built binary to an installed server
 LIBSLAPD_PUSH = $(addprefix $(INSTDIR)/, bin/slapd/server/libslapd.dll)

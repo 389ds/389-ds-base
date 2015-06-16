@@ -65,15 +65,8 @@
 
 NSPR_BEGIN_EXTERN_C
 
-#ifdef UnixWare
-typedef void(*ArgFn_systhread_start)(void *);
-NSAPI_PUBLIC
-SYS_THREAD INTsysthread_start( int prio, int stksz, \
-                              ArgFn_systhread_start, void *arg);
-#else
 NSAPI_PUBLIC
 SYS_THREAD INTsysthread_start(int prio, int stksz, void (*fn)(void *), void *arg);
-#endif
 
 NSAPI_PUBLIC SYS_THREAD INTsysthread_current(void);
 

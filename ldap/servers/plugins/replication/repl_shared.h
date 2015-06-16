@@ -51,11 +51,7 @@
 #include "slapi-plugin.h"
 #include "ldif.h" /* GGOODREPL - is this cheating? */
 
-#ifdef _WIN32
-#define FILE_PATHSEP '\\'
-#else
 #define FILE_PATHSEP '/'
-#endif
 
 #define	CHANGELOGDB_TRIM_INTERVAL	300 /* 5 minutes */
 #define	CHANGELOGDB_COMPACT_INTERVAL	2592000 /* 30 days */

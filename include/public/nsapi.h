@@ -54,7 +54,7 @@
 
 #include "base/systems.h"
 
-#if defined(FILE_UNIX_MMAP) || defined(FILE_WIN32_MMAP)
+#if defined(FILE_UNIX_MMAP)
 #define FILE_MMAP
 #endif
 

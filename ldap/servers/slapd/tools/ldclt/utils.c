@@ -57,18 +57,6 @@
 			framework and data structures, and thus to provide a 
 			kind of library suitable for any command.
 	LOCAL :		None.
-	HISTORY :
----------+--------------+------------------------------------------------------
-dd/mm/yy | Author	| Comments
----------+--------------+------------------------------------------------------
-14/11/00 | JL Schwing	| Creation
----------+--------------+------------------------------------------------------
-14/11/00 | JL Schwing	| 1.2 : Port on AIX.
----------+--------------+------------------------------------------------------
-16/11/00 | JL Schwing	| 1.3 : lint cleanup.
----------+--------------+------------------------------------------------------
-11/01/01 | JL Schwing	| 1.4 : Add new function rndlim().
----------+--------------+------------------------------------------------------
 */
 
 #include "utils.h"	/* Basic definitions for this file */
@@ -81,50 +69,8 @@ dd/mm/yy | Author	| Comments
 /*
  * Some global variables...
  */
-#ifdef AIX
-pthread_mutex_t	 ldcltrand48_mutex;	/* ldcltrand48() */	/*JLS 14-11-00*/
-#endif
-
-
-#ifdef AIX					/* New */	/*JLS 14-11-00*/
-/* ****************************************************************************
-	FUNCTION :	ldcltrand48
-	PURPOSE :	Implement a thread-save version of lrand48()
-	INPUT :		None.
-	OUTPUT :	None.
-	RETURN :	A random value.
-	DESCRIPTION :
- *****************************************************************************/
-long int
-ldcltrand48 (void)
-{
-  long int	 val;
-  int		 ret;
-
-  if ((ret = pthread_mutex_lock (&ldcltrand48_mutex)) != 0)
-  {
-    fprintf (stderr, 
-	"Cannot pthread_mutex_lock(ldcltrand48_mutex), error=%d (%s)\n", 
-	ret, strerror (ret));
-    fflush (stderr);
-    ldcltExit (99);
-  }
-  val = lrand48();
-  if ((ret = pthread_mutex_unlock (&ldcltrand48_mutex)) != 0)
-  {
-    fprintf (stderr,
-	"Cannot pthread_mutex_unlock(ldcltrand48_mutex), error=%d (%s)\n",
-	ret, strerror (ret));
-    fflush (stderr);
-    ldcltExit (99);
-  }
-
-  return (val);
-}
-
-#else  /* AIX */
 #define ldcltrand48()	lrand48()
-#endif /* AIX */
+
 
 
 /* ****************************************************************************
@@ -138,35 +84,12 @@ ldcltrand48 (void)
 int
 utilsInit (void)
 {
-#ifdef AIX							/*JLS 14-11-00*/
-  int	 ret;							/*JLS 14-11-00*/
-
-  /*
-   * Initiate the mutex that protect ldcltrand48()
-   */
-  if ((ret = pthread_mutex_init(&ldcltrand48_mutex, NULL)) != 0)/*JLS 14-11-00*/
-  {								/*JLS 14-11-00*/
-    fprintf (stderr, "ldclt: %s\n", strerror (ret));		/*JLS 14-11-00*/
-    fprintf (stderr, 						/*JLS 14-11-00*/
-		"Error: cannot initiate ldcltrand48_mutex\n");	/*JLS 14-11-00*/
-    fflush (stderr);						/*JLS 14-11-00*/
-    return (-1);						/*JLS 14-11-00*/
-  }								/*JLS 14-11-00*/
-#endif								/*JLS 14-11-00*/
 
   /*
    * No error
    */
   return (0);
 }
-
-
-
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	rndlim
@@ -184,14 +107,6 @@ rndlim (
 {
   return (low + ldcltrand48() % (high-low+1));
 }
-
-
-
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	rnd
@@ -216,11 +131,6 @@ rnd (
   sprintf (buf, "%0*d", ndigits,
 			(int)(low + (ldcltrand48() % (high-low+1))));	/*JLS 14-11-00*/
 }
-
-
-
-
-
 
 /* ****************************************************************************
 	FUNCTION :	rndstr
@@ -334,6 +244,3 @@ incr_and_wrap(int val, int min, int max, int incr)
   return (((val + incr) - min) % range) + min;
 }
 
-
-
-/* End of file */

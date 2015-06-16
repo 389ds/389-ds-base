@@ -54,12 +54,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <private/pprio.h>
-
-
 #include <prio.h>
 #include <plbase64.h>
-
 #include <ssl.h>
+#include <pk11pub.h>
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"

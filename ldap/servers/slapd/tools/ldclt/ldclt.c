@@ -57,219 +57,6 @@
 			functionnality aspect of the product, but rather on the 
 			stress and long-term operation.
  	LOCAL :		None.
-	HISTORY :
----------+--------------+------------------------------------------------------
-dd/mm/yy | Author	| Comments
----------+--------------+------------------------------------------------------
-03/12/98 | JL Schwing	| Creation
----------+--------------+------------------------------------------------------
-10/12/98 | JL Schwing	| 1.2 : Add statistics report when exiting.
----------+--------------+------------------------------------------------------
-10/12/98 | JL Schwing	| 1.3 : Trap SIGQUIL to issue statistics without exit.
-			| Bug fix - call ldap_err2string() to decode ldap errs.
----------+--------------+------------------------------------------------------
-11/12/98 | JL Schwing	| 1.4 : Implement max errors threshold.
-			| fflush(stdout) after each printf.
-			| Will exit(0) on SIGINT
----------+--------------+------------------------------------------------------
-14/12/98 | JL Schwing	| 1.5 : Implement "-e close".
-			| Ensure thread not dead prior to issue "no activity" 
-			| Add statts for the number of dead threads.
----------+--------------+------------------------------------------------------
-16/12/98 | JL Schwing	| 1.6 : Implement "-e add" and "-e delete".
-			| Improve printout of options.
----------+--------------+------------------------------------------------------
-24/12/98 | JL Schwing	| 1.7 : Fix memory problem.
----------+--------------+------------------------------------------------------
-28/12/98 | JL Schwing	| 1.8 : Add more statistics.
----------+--------------+------------------------------------------------------
-29/12/98 | JL Schwing	| 1.9 : Implement -Q.
----------+--------------+------------------------------------------------------
-29/12/98 | JL Schwing	| 1.10: Don't print pending stats if not asynchronous.
----------+--------------+------------------------------------------------------
-29/12/98 | JL Schwing	| 1.11: Fix typo.
----------+--------------+------------------------------------------------------
-30/12/98 | JL Schwing	| 1.12: Protect messages "no activity for %d seconds"
-			|   by SUPER_QUIET mode.
----------+--------------+------------------------------------------------------
-11/01/99 | JL Schwing	| 1.13: Implement "-e emailPerson".
----------+--------------+------------------------------------------------------
-13/01/99 | JL Schwing	| 1.14: Implement "-e string".
----------+--------------+------------------------------------------------------
-14/01/99 | JL Schwing	| 1.15: Implement "-s <scope>".
----------+--------------+------------------------------------------------------
-18/01/99 | JL Schwing	| 1.16: Implement "-e randombase".
----------+--------------+------------------------------------------------------
-18/01/99 | JL Schwing	| 1.17: Implement "-e v2".
----------+--------------+------------------------------------------------------
-21/01/99 | JL Schwing	| 1.18: Implement "-e ascii".
----------+--------------+------------------------------------------------------
-26/01/99 | JL Schwing	| 1.19: Implement "-e noloop".
----------+--------------+------------------------------------------------------
-28/01/99 | JL Schwing	| 1.20: Implement "-T <total>".
----------+--------------+------------------------------------------------------
-04/05/99 | JL Schwing	| 1.21: Implement operations list.
----------+--------------+------------------------------------------------------
-06/05/99 | JL Schwing	| 1.25: Add proper shutdwon (wait for check threads).
-			| Implement "-P <master port>".
----------+--------------+------------------------------------------------------
-06/05/99 | JL Schwing	| 1.26: Implement "-e modrdn".
----------+--------------+------------------------------------------------------
-06/05/99 | F. Pistolesi	| 1.27: Some fixes.
----------+--------------+------------------------------------------------------
-07/05/99 | JL Schwing	| 1.28: Some fixes.
----------+--------------+------------------------------------------------------
-19/05/99 | JL Schwing	| 1.30: Implement "-e rename".
-			| Set the threads status to DEAD when nb of opers done.
-			| Lint-cleanup.
----------+--------------+------------------------------------------------------
-21/05/99 | JL Schwing	| 1.31: Fix Unitialized Memory Read for head's mutex.
----------+--------------+------------------------------------------------------
-27/05/99 | JL Schwing	| 1.32 : Add statistics to check threads.
----------+--------------+------------------------------------------------------
-28/05/99 | JL Schwing	| 1.33 : Add new option -W (wait).
----------+--------------+------------------------------------------------------
-02/06/99 | JL Schwing	| 1.34 : Add flag in main ctx to know if slave was 
-			|   connected or not.
-			| Add counter of operations received in check threads.
----------+--------------+------------------------------------------------------
-06/03/00 | JL Schwing	| 1.35: Test malloc() and strdup() return value.
----------+--------------+------------------------------------------------------
-04/08/00 | JL Schwing	| 1.36: Add stats on nb inactivity per thread.
----------+--------------+------------------------------------------------------
-08/08/00 | JL Schwing	| 1.37: Print global statistics every 1000 loops.
----------+--------------+------------------------------------------------------
-18/08/00 | JL Schwing	| 1.38: Print global statistics every 90 loops.
-			| Bug fix in this new feature.
-			| Print ldclt version.
-			| Print date of begin and of end.
-			| Add new function ldcltExit().
----------+--------------+------------------------------------------------------
-25/08/00 | JL Schwing	| 1.39: Implement consistent exit status...
----------+--------------+------------------------------------------------------
-25/08/00 | JL Schwing	| 1.40: Will only load images if -e emailPerson
----------+--------------+------------------------------------------------------
-11/10/00 | B Kolics     | 1.41: Implement "-Z certfile".
----------+--------------+------------------------------------------------------
-26/10/00 | B Kolics     | 1.42: Move SSL client initialization to basicInit()
--------------------------------------------------------------------------------
-07/11/00 | JL Schwing	| 1.43: Add handlers for dynamic load of ssl-related
-			|   functions.
-			| Add new function sslDynLoadInit().
------------------------------------------------------------------------------
-07/11/00 | JL Schwing	| 1.44: Implement "-e inetOrgPerson".
----------+--------------+------------------------------------------------------
-08/11/00 | JL Schwing	| 1.45: Improve error message when initiating ssl.
----------+--------------+------------------------------------------------------
-13/11/00 | JL Schwing	| 1.46: Add new options "-e randombaselow and ...high"
-			| Made use of exit (EXIT_PARAMS) in main().
----------+--------------+------------------------------------------------------
-14/11/00 | JL Schwing	| 1.47: Port on AIX.
----------+--------------+------------------------------------------------------
-16/11/00 | JL Schwing	| 1.48: Implement "-e imagesdir=path".
----------+--------------+------------------------------------------------------
-17/11/00 | JL Schwing	| 1.49: Implement "-e smoothshutdown".
-			| Forget to add mode decoding.
-			| Add new function shutdownThreads().
----------+--------------+------------------------------------------------------
-21/11/00 | JL Schwing	| 1.50: Implement "-e attreplace=name:mask"
-			| Add new function parseFilter().
----------+--------------+------------------------------------------------------
-22/11/00 | JL Schwing	| 1.51: Will now use LD_LIBRARY_PATH to load libssl.
----------+--------------+------------------------------------------------------
-24/11/00 | B Kolics     | 1.52: Added SSL client authentication
----------+--------------+------------------------------------------------------
-29/11/00 | JL Schwing	| 1.53: Port on NT 4.
----------+--------------+------------------------------------------------------
-30/11/00 | JL Schwing	| 1.54: Bug fix - bad error message if -eimagesdir=path
----------+--------------+------------------------------------------------------
-01/12/00 | JL Schwing	| 1.55: Port on Linux.
----------+--------------+------------------------------------------------------
-01/12/00 | JL Schwing	| 1.56: Port on HP-UX.
----------+--------------+------------------------------------------------------
-07/12/00 | JL Schwing	| 1.57: Bug fix - crash SIGBUS in main:1840 if no
-			|   filter is provided to the tool.
-			| Build the argv list before parsing.
----------+--------------+------------------------------------------------------
-15/12/00 | JL Schwing	| 1.58: Implement "-e counteach".
-			| Implement "-e withnewparent".
----------+--------------+------------------------------------------------------
-18/12/00 | JL Schwing	| 1.59: Fix an exit status problem.
----------+--------------+------------------------------------------------------
-18/12/00 | JL Schwing	| 1.60: Minor fix/improvement in -I management.
----------+--------------+------------------------------------------------------
-19/12/00 | JL Schwing	| 1.61: Implement "-e noglobalstats".
----------+--------------+------------------------------------------------------
-19/12/00 | JL Schwing	| 1.62: Add comments.
----------+--------------+------------------------------------------------------
-03/01/01 | JL Schwing	| 1.63: Implement "-e attrsonly=value".
----------+--------------+------------------------------------------------------
-05/01/01 | JL Schwing	| 1.64: Implement "-e randombinddn" and associated
-			|   "-e randombinddnlow/high"
----------+--------------+------------------------------------------------------
-08/01/01 | JL Schwing	| 1.65: Implement "-e scalab01".
-			| Replace all exit() by ldcltExit()
----------+--------------+------------------------------------------------------
-12/01/01 | JL Schwing	| 1.66: Second set of options for -e scalab01
-			| Sanity check in decodeExecParams().
----------+--------------+------------------------------------------------------
-26/02/01 | JL Schwing	| 1.67: Use ldclt_sleep() not sleep() (NT issue).
----------+--------------+------------------------------------------------------
-08/03/01 | JL Schwing	| 1.68: Change referrals handling.
-			| Use a static char[] to store ldclt version.
-			| Add new function decodeReferralParams().
----------+--------------+------------------------------------------------------
-14/03/01 | JL Schwing	| 1.69: Implement "-e commoncounter"
-			| Add a control for referral mode.
----------+--------------+------------------------------------------------------
-14/03/01 | JL Schwing	| 1.70: Implement "-e dontsleeponserverdown".
----------+--------------+------------------------------------------------------
-14/03/01 | JL Schwing	| 1.71: Misc fixes for HP-UX compilation.
----------+--------------+------------------------------------------------------
-15/03/01 | JL Schwing	| 1.72: Implement "-e attrlist=name:name:name"
-			| Implement "-e randomattrlist=name:name:name"
----------+--------------+------------------------------------------------------
-19/03/01 | JL Schwing	| 1.73: Implement "-e object=filename"
-			| Bug fix - understand EXIT_INIT in ldcltExit().
-			| Implement "-e genldif=filename"
-			| Add new function tttctxInit().
----------+--------------+------------------------------------------------------
-21/03/01 | JL Schwing	| 1.74: Implements variables in "-e object=filename"
-			| Add new function copyVersObject().
----------+--------------+------------------------------------------------------
-23/03/01 | JL Schwing	| 1.75: Implements data file list support in variants.
-			| Implements "-e rdn=value".
-			| Add new functions copyVersAttribute() decodeRdnParam()
----------+--------------+------------------------------------------------------
-28/03/01 | JL Schwing	| 1.76: Update options checking for "-e rdn=value".
----------+--------------+------------------------------------------------------
-28/03/01 | JL Schwing	| 1.77: Support -e commoncounter with -e rdn/object
-			| Remove MAX_ATTRLIST - use MAX_ATTRIBS.
-			| Bug fix - forget to initiate some fields in -e rdn=
----------+--------------+------------------------------------------------------
-02/04/01 | JL Schwing	| 1.78: Bug fix : large files support for -e genldif.
----------+--------------+------------------------------------------------------
-03/04/01 | JL Schwing	| 1.79: Port on _WIN32 and OSF1.
----------+--------------+------------------------------------------------------
-05/04/01 | JL Schwing	| 1.80: Bug fix - forget to print genldif file name.
----------+--------------+------------------------------------------------------
-05/04/01 | JL Schwing	| 1.81: Implement -e append.
----------+--------------+------------------------------------------------------
-11/04/01 | JL Schwing	| 1.82: Bug fix in -e append.
----------+--------------+------------------------------------------------------
-23/04/01 | JL Schwing	| 1.83: Improved arguments print at startup.
-			| Add new function buildArgListString().
----------+--------------+------------------------------------------------------
-23/04/01 | JL Schwing	| 1.84: Exit on error 2 if extra arguments provided.
----------+--------------+------------------------------------------------------
-03/05/01 | JL Schwing	| 1.85: Implement -e randombinddnfromfile=filename.
----------+--------------+------------------------------------------------------
-04/05/01 | JL Schwing	| 1.86: Implement -e bindonly.
----------+--------------+------------------------------------------------------
-04/05/01 | JL Schwing	| 1.87: Fix options check.
----------+--------------+------------------------------------------------------
-16/06/01 | JL Schwing	| 1.89: Allow SSL for HP-UX.
----------+--------------+------------------------------------------------------
 */
 
 #include <stdlib.h>		/* exit(), etc... */
@@ -1086,7 +873,6 @@ trapVector (
 int 
 initMainThread (void)
 {
-#ifndef _WIN32							/*JLS 29-11-00*/
   struct sigaction	 act;
 
   /*
@@ -1130,7 +916,6 @@ initMainThread (void)
     fflush (stderr);
     return (-1);
   }
-#endif	/* _WIN32 */						/*JLS 29-11-00*/
 
   return (0);
 }
@@ -1259,7 +1044,7 @@ basicInit (void)
       oflags = O_APPEND|O_WRONLY|O_CREAT;			/*JLS 05-04-01*/
     else							/*JLS 05-04-01*/
       oflags = O_EXCL|O_WRONLY|O_CREAT;				/*JLS 05-04-01*/
-#if !defined(OSF1) && !defined(__LP64__) && !defined(_LP64)				/*JLS 05-04-01*/
+#if !defined(__LP64__) && !defined(_LP64)				/*JLS 05-04-01*/
     oflags |= O_LARGEFILE;					/*JLS 05-04-01*/
 #endif								/*JLS 03-04-01*/
     mctx.genldifFile = open (mctx.genldifName, oflags, 0666);	/*JLS 05-04-01*/

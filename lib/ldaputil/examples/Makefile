@@ -75,11 +75,6 @@ CC_CMD = cc -DSOLARIS -D_REENTRANT
 LD_SHAREDCMD = ld -G
 endif
 
-ifeq ($(ARCH), IRIX)
-CC_CMD = cc
-LD_SHAREDCMD = ld -32 -shared
-endif
-
 ifeq ($(ARCH), HPUX)
   BIN = certmap.sl
 else

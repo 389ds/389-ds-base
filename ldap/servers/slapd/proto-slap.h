@@ -414,11 +414,7 @@ int config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, 
 int config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply);
 #endif
-
-#if !defined(AIX)
 int config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, int apply );
-#endif /* !AIX */
-
 int config_set_localuser( const char *attrname, char *value, char *errorbuf, int apply );
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -490,16 +486,12 @@ int config_get_schema_ignore_trailing_spaces();
 char *config_get_rootdn();
 char *config_get_rootpw();
 char *config_get_rootpwstoragescheme();
-#ifndef _WIN32
 char *config_get_localuser();
-#endif /* _WIN32 */
 char *config_get_workingdir();
 char *config_get_encryptionalias();
 int config_get_threadnumber();
 int config_get_maxthreadsperconn();
-#if !defined(_WIN32) && !defined(AIX)
 int config_get_maxdescriptors();
-#endif /* !_WIN32 && !AIX */
 int config_get_reservedescriptors();
 int config_get_ioblocktimeout();
 int config_get_idletimeout();
@@ -653,9 +645,7 @@ void do_delete( Slapi_PBlock *pb );
  */
 int detach( int slapd_exemode, int importexport_encrypt,
 			int s_port, daemon_ports_t *ports_info );
-#ifndef _WIN32
 void close_all_files( void );
-#endif
 void raise_process_limits( void );
 
 
@@ -830,9 +820,7 @@ void log__delete_rotated_logs();
  */
 void slapd_nasty(char* str, int c, int err);
 int strarray2str( char **a, char *buf, size_t buflen, int include_quotes );
-#ifndef _WIN32
 int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
-#endif
 int slapd_comp_path(char *p0, char *p1);
 
 
@@ -1470,7 +1458,7 @@ void ns_connection_post_io_or_closing(Connection *conn);
 /*
  * main.c
  */
-#if ( defined( hpux ) || defined( irix ))
+#if defined( hpux )
 void signal2sigaction( int s, void *a );
 #endif
 int slapd_do_all_nss_ssl_init(int slapd_exemode, int importexport_encrypt,

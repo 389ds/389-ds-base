@@ -64,66 +64,8 @@
 
 /* --- Begin platform-specific definitions --- */
 
-#if defined(AIX)
 
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#define BSD_RLIMIT
-#undef BSD_SIGNALS
-/* AIX can handle really big shoes */
-#define DAEMON_LISTEN_SIZE 4096
-#define DAEMON_NEEDS_SEMAPHORE
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW|RTLD_GLOBAL
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATFS
-#define HAVE_ATEXIT
-#define HAVE_PW_R /* reent passwd routines */
-#define HAVE_STRERROR_R
-#define HAVE_STRTOK_R
-#define HAVE_TIME_R 2 /* arg count */
-#define HAVE_STRFTIME /* no cftime */
-#define JAVA_STATIC_LINK
-#undef NEED_CRYPT_H
-#define NEED_SETEID_PROTO /* setegid, seteuid */
-#define NEED_STRINGS_H /* for strcasecmp */
-#define NET_SOCKETS
-#define SA_HANDLER_T(x) (void (*)(int))x
-#if OSVERSION < 4210
-#define SA_NOCLDWAIT 0 /* AIX < 4.2 don't got this */
-#endif /* OSVERSION < 4210 */
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-#ifdef HW_THREADS
-#define THREAD_ANY
-#endif
-
-#elif defined(BSDI)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#define BSD_MAIL
-#define BSD_RLIMIT
-#define BSD_SIGNALS
-#define BSD_TIME
-#define DAEMON_UNIX_MOBRULE
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS (MAP_FILE | MAP_SHARED)
-#define HAS_STATFS
-#define HAVE_ATEXIT
-#undef NEED_CRYPT_PROTO
-#define NET_SOCKETS
-#ifndef NO_DOMAINNAME
-#define NO_DOMAINNAME
-#endif
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-#define JAVA_STATIC_LINK
-
-#elif defined(HPUX)
+#if defined(HPUX)
 
 #define ACCELERATOR_CACHE
 #define AUTH_DBM
@@ -149,169 +91,6 @@
 /* warning: mmap doesn't work under 9.04 */
 #define SHMEM_MMAP_FLAGS MAP_FILE | MAP_VARIABLE | MAP_SHARED
 
-#elif defined (IRIX)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#define BSD_RLIMIT
-#undef BSD_SIGNALS
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATVFS
-#define HAVE_ATEXIT
-#define HAVE_STRTOK_R
-#ifdef IRIX
-#define HAVE_TIME_R 2 /* arg count */
-#else
-#define HAVE_TIME_R 3 /* arg count */
-#define NEED_SETEID_PROTO /* setegid, seteuid */
-#endif
-#define JAVA_STATIC_LINK
-#define NEED_CRYPT_H
-#define NET_SOCKETS
-#define SA_HANDLER_T(x) (void (*)(int))x
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-#define THROW_HACK throw()
-
-#elif defined(NCR)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#undef BSD_RLIMIT
-/* #define DAEMON_NEEDS_SEMAPHORE */
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATVFS
-#define HAVE_ATEXIT
-#define HAVE_STRTOK_R
-#define JAVA_STATIC_LINK
-#define NEED_CRYPT_H
-#define NEED_FILIO
-#define NEED_GHN_PROTO
-#define NET_SOCKETS
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-
-#elif defined(NEC)
-
-#define ACCELERATOR_CACHE
-#define DNS_CACHE
-#define AUTH_DBM
-#undef BSD_RLIMIT
-#define DAEMON_NEEDS_SEMAPHORE
-#define DAEMON_UNIX_MOBRULE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DLL_CAPABLE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATVFS
-#define HAVE_ATEXIT
-#define HAVE_STRTOK_R
-#define HAVE_TIME_R 2 /* arg count */
-#define JAVA_STATIC_LINK
-#define NEED_CRYPT_H
-#define NEED_FILIO
-#define NET_SOCKETS
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-
-#elif defined(OSF1)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#define BSD_RLIMIT
-#undef BSD_SIGNALS
-#define BSD_TIME
-#define DAEMON_NEEDS_SEMAPHORE
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAVE_ATEXIT
-#define HAVE_STRFTIME /* no cftime */
-#define HAVE_TIME_R 2 /* ctime_r arg count */
-#define NET_SOCKETS
-#define SA_HANDLER_T(x) (void (*)(int))x
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-
-#elif defined(SCO)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#undef BSD_RLIMIT
-#undef BSD_SIGNALS
-#define DAEMON_NEEDS_SEMAPHORE
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATVFS
-#define HAVE_ATEXIT
-#undef NEED_CRYPT_H
-#undef NEED_FILIO
-#undef NEED_GHN_PROTO
-#undef NEED_SETEID_PROTO /* setegid, seteuid */
-#define NET_SOCKETS
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-#define SA_HANDLER_T(x) (void (*)(int))x
-
-
-#elif defined(SNI)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#undef BSD_RLIMIT
-#define DAEMON_NEEDS_SEMAPHORE
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATVFS
-#define HAVE_ATEXIT
-#define JAVA_STATIC_LINK
-#define NEED_CRYPT_H
-#define NEED_FILIO
-#define NEED_SETEID_PROTO /* setegid, seteuid */
-#define NET_SOCKETS
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-#define USE_PIPE
-/*
- * define this if your C++ platform has separate inline functions for
- * e.g. const char *strchr(const char *, char)
- *  and
- *      char *strchr(char *, char)
- * and your compiler complains about this:
- * func(const char *bla)
- * {
- *     char *fasel = strchr(bla, '.');
- * ....
- * because it says that you cannot initialize a char * with a const char *
- */
-#define HAS_CONSTVALUED_STRFUNCS
-
-/* hack for C++ platforms where bool is a keyword */
-#ifndef boolean
-#define boolean boolean
-#endif
-
 #elif defined(Linux)
 
 #define ACCELERATOR_CACHE
@@ -333,12 +112,12 @@
 #define HAS_STATFS
 #define JAVA_STATIC_LINK
 #define SA_HANDLER_T(x) (void (*)(int))(x)
-
 #undef NEED_CRYPT_PROTO
 #define NET_SOCKETS
 #ifndef NO_DOMAINNAME
 #define NO_DOMAINNAME
 #endif
+
 #elif defined(SOLARIS) || defined(SOLARISx86)
 
 #define ACCELERATOR_CACHE
@@ -369,21 +148,6 @@
 #endif
 #define SHMEM_MMAP_FLAGS MAP_SHARED
 
-#elif defined (SONY)
-
-#define AUTH_DBM
-#undef BSD_RLIMIT
-#define DAEMON_NEEDS_SEMAPHORE
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAVE_ATEXIT
-#define NEED_CRYPT_H
-#define NEED_FILIO
-#define NET_SOCKETS
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-
 #elif defined(SUNOS4)
 
 #define ACCELERATOR_CACHE
@@ -406,37 +170,6 @@
 #define NEED_FILIO
 #define NET_SOCKETS
 #define SHMEM_MMAP_FLAGS MAP_SHARED
-
-#elif defined(UNIXWARE) || defined(UnixWare)
-
-#define ACCELERATOR_CACHE
-#define AUTH_DBM
-#undef BSD_RLIMIT
-#define DAEMON_UNIX_MOBRULE
-#define DLL_CAPABLE
-#define DLL_DLOPEN
-#define DLL_DLOPEN_FLAGS RTLD_NOW
-#define DNS_CACHE
-#define FILE_INHERIT_FCNTL
-#define FILE_MMAP_FLAGS MAP_SHARED
-#define HAS_STATVFS
-#define HAVE_ATEXIT
-#define NEED_CRYPT_H
-#define NEED_FILIO
-#define NEED_GHN_PROTO
-#define NEED_SETEID_PROTO /* setegid, seteuid */
-#define NET_SOCKETS
-#define SHMEM_MMAP_FLAGS MAP_SHARED
-
-#ifndef boolean
-#define boolean boolean
-#endif
-
-#if defined (UnixWare)
-/* UnixWare but not UNIXWARE... */
-#define NEED_STRINGS_H /* for strcasecmp */
-#define SA_HANDLER_T(x) (void (*)(int))x
-#endif
 
 #else
 #error "Missing defines in ns/netsite/include/base/systems.h"
@@ -483,10 +216,6 @@
 #define THREAD_NSPR_USER
 #else
 #define THREAD_NSPR_KERNEL
-#ifdef IRIX 
-#undef SEM_FLOCK
-#define SEM_IRIX
-#endif /* IRIX */
 #endif /* SW_THREADS */
 #define THREAD_ANY
 
@@ -513,43 +242,6 @@ typedef PRFileDesc *SYS_FILE;
 typedef PRFileDesc *SYS_NETFD;
 #define SYS_NETFD_T PRFileDesc *
 #endif /* !SYS_NETFD_T */
-
-#ifdef SEM_WIN32
-
-typedef HANDLE SEMAPHORE;
-#define SEMAPHORE_T HANDLE
-#define SEM_ERROR NULL
-/* That oughta hold them (I hope) */
-#define SEM_MAXVALUE 32767
-
-#elif defined(SEM_IRIX)
-
-#ifndef OS_ULOCKS_H
-#include <ulocks.h>
-#define OS_ULOCKS_H
-#endif /* !OS_ULOCKS_H */
-
-typedef struct {
-    usptr_t *arena;
-    usema_t *sem;
-} semirix_s;
-typedef semirix_s* SEMAPHORE;
-#define SEMAPHORE_T semirix_s *
-#define SEM_ERROR NULL
-
-#elif defined(SEM_FLOCK)
-
-#define SEMAPHORE_T SYS_FILE
-typedef SYS_FILE SEMAPHORE;
-#define SEM_ERROR NULL
-
-#else /* ! SEM_WIN32, !SEM_IRIX */
-
-typedef int SEMAPHORE;
-#define SEMAPHORE_T int
-#define SEM_ERROR -1
-
-#endif /* SEM_WIN32 */
 
 #endif /* !APSTUDIO_READONLY_SYMBOLS */
 

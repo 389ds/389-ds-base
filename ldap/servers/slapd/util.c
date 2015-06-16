@@ -1051,9 +1051,6 @@ Description:
 		In UNIX this is accomplished by using select()
 		which should be supported across all UNIX platforms.
 
-		In WIN32 we simply use the Sleep() function which yields
-		for the number of milliseconds specified.
-
 ************************************************************************/
 void
 DS_Sleep(PRIntervalTime ticks)

@@ -50,12 +50,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <errno.h>
-#ifndef _WIN32
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
-#endif
 #ifdef OS_solaris
 #include <dlfcn.h>	/* needed for dlopen and dlsym */
 #endif /* solaris: dlopen */

@@ -49,17 +49,6 @@
         DESCRIPTION :	
 			This file contains the definitions used by the remote 
 			control module of ldclt.
- LOCAL :		None.
-        HISTORY :
----------+--------------+------------------------------------------------------
-dd/mm/yy | Author	| Comments
----------+--------------+------------------------------------------------------
-04/05/99 | JL Schwing	| Creation
----------+--------------+------------------------------------------------------
-05/05/99 | F. Pistolesi	| 1.3 : Implements communication with remote part.
----------+--------------+------------------------------------------------------
-06/05/99 | JL Schwing	| 1.4 : Port on Solaris 2.5.1
----------+--------------+------------------------------------------------------
 */
 
 /*
@@ -69,14 +58,7 @@ dd/mm/yy | Author	| Comments
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#ifdef OSF1
-#ifndef _UINT32_T
-#define _UINT32_T
-typedef unsigned long	uint32_t;
-#endif /* _UINT32_T */
-#else /* OS_RELEASE */
 #include <inttypes.h>
-#endif /* OS_RELEASE */
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>

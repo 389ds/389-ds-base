@@ -54,19 +54,11 @@ include $(LDAP_SRC)/nsldap.mk
 
 LDFLAGS	+= $(EXLDFLAGS)
 
-ifeq ($(ARCH), WINNT)
-SUBSYSTEM=console
-endif
-
 DEPLIBS=
 
 EXTRA_LIBS_DEP = 
 
 EXTRA_LIBS =
-
-ifeq ($(ARCH), WINNT)
-EXTRA_LIBS += user32.lib
-endif
 
 DNP_SIM = $(addsuffix $(EXE_SUFFIX), \
 	$(addprefix $(BINDIR)/, dnp_sim))

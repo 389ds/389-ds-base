@@ -70,17 +70,7 @@ nsslapd-plugindescription: Multi-Master Replication Plugin
 #include "repl.h"
 #include "repl5.h"
 #include "cl5.h"			 /* changelog interface */
-
 #include "plstr.h"
-
-/* #ifdef _WIN32
-int *module_ldap_debug = 0;
-
-void plugin_init_debug_level(int *level_ptr)
-{
-	module_ldap_debug = level_ptr;
-}
-#endif*/
 
 #define NSDS_REPL_NAME_PREFIX	"Netscape Replication"
 

@@ -78,12 +78,10 @@
 #define VOID void
 #endif
 
-#ifndef SNI
 #if !defined (boolean) && !defined (__GNUC__)
 typedef int                  boolean;
 #endif
 
-#endif
 #define NS_TRUE              1
 #define NS_FALSE             0
 

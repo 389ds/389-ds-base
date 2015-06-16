@@ -718,24 +718,15 @@ typedef struct passwordpolicyarray	Slapi_PWPolicy;
 typedef void (*TaskCallbackFn)(Slapi_Task *task);
 
 /*
- * The default thread stacksize for nspr21 is 64k (except on IRIX!  It's 32k!).
+ * The default thread stacksize for nspr21 is 64k).
  * For OSF, we require a larger stacksize as actual storage allocation is
  * higher i.e pointers are allocated 8 bytes but lower 4 bytes are used.
  * The value 0 means use the default stacksize.
  *
- * larger stacksize (256KB) is needed on IRIX due to its 4KB BUFSIZ.
- * (@ pthread IRIX porting -- 01/11/99)
- *
  * HP-UX on PA-RISC uses 64KB default stack size.  Just set to 256K for all
  * HP-UX.
  */
-#if ( defined( irix ))
-#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
-#elif ( defined ( OSF1 ))
-#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
-#elif ( defined ( AIX ))
-#define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
-#elif ( defined ( hpux ))
+#if ( defined ( hpux ))
 #define SLAPD_DEFAULT_THREAD_STACKSIZE  262144L
 #else
 /* All other platforms use the default stack size */

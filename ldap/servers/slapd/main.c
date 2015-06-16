@@ -49,11 +49,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if !defined(aix)
 #include <sys/fcntl.h>
-#else
-#include <fcntl.h>
-#endif
 #include <time.h>
 #include <stdarg.h>
 #include <signal.h>
@@ -64,7 +60,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pwd.h> /* getpwnam */
-#if !defined(IRIX) && !defined(LINUX)
+#if !defined(LINUX)
 union semun {
     int val;
     struct semid_ds *buf;
@@ -335,10 +331,8 @@ static int main_setuid(char *username)
 /* set good defaults for front-end config in referral mode */
 static void referral_set_defaults(void)
 {
-#if !defined(AIX)
     char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
     config_set_maxdescriptors( CONFIG_MAXDESCRIPTORS_ATTRIBUTE, "1024", errorbuf, 1);
-#endif
 }
 
 static int
@@ -996,7 +990,6 @@ main( int argc, char **argv)
 		goto cleanup;
 	}
 
-
 	/*
 	 * Now it is safe to log our first startup message.  If we were to
 	 * log anything earlier than now it would appear on the admin startup
@@ -1161,7 +1154,7 @@ cleanup:
 	ndn_cache_destroy();
 	NSS_Shutdown();
 	PR_Cleanup();
-#if ( defined( hpux ) || defined( irix ) || defined( aix ) || defined( OSF1 ))
+#if defined( hpux )
 	exit( return_value );
 #else
 	return return_value;
@@ -1169,7 +1162,7 @@ cleanup:
 }
 
 
-#if ( defined( hpux ) || defined( irix ))
+#if defined( hpux )
 void 
 signal2sigaction( int s, void *a )
 {
@@ -1182,7 +1175,7 @@ signal2sigaction( int s, void *a )
     (void)sigaddset( &act.sa_mask, s );
     (void)sigaction( s, &act, NULL );
 }
-#endif /* hpux || irix */
+#endif /* hpux */
 
 static void
 register_objects()
@@ -1481,16 +1474,6 @@ process_command_line(int argc, char **argv, char *myname,
 		case 'D':	/* config dir */
 			configdir = rel2abspath( optarg_ext );
 
-#if defined( XP_WIN32 )
-			pszServerName = slapi_ch_malloc( MAX_SERVICE_NAME );
-			if( !SlapdGetServerNameFromCmdline(pszServerName, configdir, 1) )
-			{
-				MessageBox(GetDesktopWindow(), "Failed to get the Directory"
-					" Server name from the command-line argument.",
-					" ", MB_ICONEXCLAMATION | MB_OK);
-				exit( 1 );
-			}  
-#endif
 			if ( config_set_configdir( "configdir (-D)",
 					configdir, errorbuf, 1) != LDAP_SUCCESS ) {
 				fprintf( stderr, "%s: aborting now\n", errorbuf );

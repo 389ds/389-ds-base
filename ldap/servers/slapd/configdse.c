@@ -74,9 +74,7 @@ static const char *requires_restart[] = {
     "cn=config:nsslapd-changelogmaxentries",
     "cn=config:nsslapd-changelogmaxage",
     "cn=config:nsslapd-db-locks",
-#if !defined(_WIN32) && !defined(AIX)
     "cn=config:nsslapd-maxdescriptors",
-#endif
     "cn=config:" CONFIG_RETURN_EXACT_CASE_ATTRIBUTE,
     "cn=config:" CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
     "cn=config,cn=ldbm:nsslapd-idlistscanlimit",

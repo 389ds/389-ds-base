@@ -44,11 +44,7 @@
 
 #include <stdio.h>
 #include <sys/types.h>
-#ifdef AIX
-#include <time.h>
-#else
 #include <sys/time.h>
-#endif
 
 #include "slap.h"
 #include "fe.h"

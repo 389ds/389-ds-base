@@ -43,11 +43,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <stdlib.h>
-#endif
 #include <signal.h>
 #include "slap.h"
 #include "prcvar.h"
@@ -1523,7 +1521,7 @@ connection_threadmain()
 #ifdef ENABLE_NUNC_STANS
 	enable_nunc_stans = config_get_enable_nunc_stans();
 #endif
-#if defined( OSF1 ) || defined( hpux )
+#if defined( hpux )
 	/* Arrange to ignore SIGPIPE signals. */
 	SIGNAL( SIGPIPE, SIG_IGN );
 #endif

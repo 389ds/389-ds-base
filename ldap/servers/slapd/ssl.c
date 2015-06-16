@@ -1074,16 +1074,13 @@ slapd_nss_init(int init_ssl, int config_available)
 		   is writable */
 		if (PR_SUCCESS != PR_Access(certdir, PR_ACCESS_WRITE_OK)) {
 			char *serveruser = "unknown";
-#ifndef _WIN32
+
 			serveruser = config_get_localuser();
-#endif
 			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
 				"Warning: The key/cert database directory [%s] is not writable by "
 				"the server uid [%s]: initialization likely to fail.\n",
 				certdir, serveruser);
-#ifndef _WIN32
 			slapi_ch_free_string(&serveruser);
-#endif
 		}
 	}
 
@@ -1155,58 +1152,20 @@ svrcore_setup()
 {
     PRErrorCode errorCode;
     int rv = 0;
-#ifndef _WIN32
     SVRCOREStdPinObj *StdPinObj;
-#else
-    SVRCOREFilePinObj *FilePinObj;
-    SVRCOREAltPinObj *AltPinObj;
-    SVRCORENTUserPinObj *NTUserPinObj;
-#endif
-#ifndef _WIN32
+
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     if (StdPinObj) {
-	return 0; /* already registered */
+        return 0; /* already registered */
     }
-    if ( SVRCORE_CreateStdPinObj(&StdPinObj, dongle_file_name, PR_TRUE) !=
-	SVRCORE_Success) {
+    if ( SVRCORE_CreateStdPinObj(&StdPinObj, dongle_file_name, PR_TRUE) != SVRCORE_Success) {
         errorCode = PR_GetError();
         slapd_SSL_warn("Security Initialization: Unable to create PinObj ("
 				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 				errorCode, slapd_pr_strerror(errorCode));
-	return -1;
+        return -1;
     }
     SVRCORE_RegisterPinObj((SVRCOREPinObj *)StdPinObj);
-#else
-    AltPinObj = (SVRCOREAltPinObj *)SVRCORE_GetRegisteredPinObj();
-    if (AltPinObj) {
-	return 0; /* already registered */
-    }
-    if (SVRCORE_CreateFilePinObj(&FilePinObj, dongle_file_name) !=
-	SVRCORE_Success) {
-        errorCode = PR_GetError();
-	slapd_SSL_warn("Security Initialization: Unable to create FilePinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-	return -1;
-    }
-    if (SVRCORE_CreateNTUserPinObj(&NTUserPinObj) != SVRCORE_Success){
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Unable to create NTUserPinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-        return -1;
-    }
-    if (SVRCORE_CreateAltPinObj(&AltPinObj, (SVRCOREPinObj *)FilePinObj,
-	(SVRCOREPinObj *)NTUserPinObj) != SVRCORE_Success) {
-        errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Unable to create AltPinObj ("
-				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-				errorCode, slapd_pr_strerror(errorCode));
-        return -1;
-    }
-    SVRCORE_RegisterPinObj((SVRCOREPinObj *)AltPinObj);
-
-#endif /* _WIN32 */
 
     return rv;
 }
@@ -1562,7 +1521,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     int allowweakcipher = CIPHER_SET_DEFAULTWEAKCIPHER;
 
     /* turn off the PKCS11 pin interactive mode */
-#ifndef _WIN32
     SVRCOREStdPinObj *StdPinObj;
 
     if (svrcore_setup()) {
@@ -1571,8 +1529,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     SVRCORE_SetStdPinInteractive(StdPinObj, PR_FALSE);
-#endif
-
     errorbuf[0] = '\0';
 
     /*

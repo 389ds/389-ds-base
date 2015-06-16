@@ -44,13 +44,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
 #include "certmap.h"		/* Public Certmap API */
 #include "plugin.h"		/* must define extern "C" functions */
 
-#ifdef WIN32
-CertmapDLLInitFnTbl		/* Initialize Certmap Function Table */
-#endif
 
 CertSearchFn_t default_searchfn = 0;
 

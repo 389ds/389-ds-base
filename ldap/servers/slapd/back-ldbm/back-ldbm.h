@@ -45,7 +45,7 @@
 #ifndef _BACK_LDBM_H_
 #define _BACK_LDBM_H_
 
-#if defined(irix) || defined(AIX) || defined(HPUX11) || defined(OS_solaris) || defined(linux)
+#if defined(HPUX11) || defined(OS_solaris) || defined(linux)
 /* built-in 64-bit file I/O support */
 #define DB_USE_64LFS
 #endif
@@ -717,14 +717,6 @@ typedef struct tag_dblayer_handle dblayer_handle;
 /* This structure was moved here from perfctrs.c so the ldbm_instance structure
  * could use it. */
 struct _perfctrs_private {
-#if defined(_WIN32)
-	/* Handle to the shared memory object */
-	HANDLE hMemory;
-	/* Handle to the update event */
-	HANDLE hEvent;
-#else
-	/* Nothing yet */
-#endif
 	/* Pointer to the shared memory */
 	void *memory;
 };

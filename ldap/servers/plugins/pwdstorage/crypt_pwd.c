@@ -49,7 +49,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#if defined( hpux ) || defined ( AIX ) || defined (LINUX) || defined (OSF1)
+#if defined( hpux ) || defined (LINUX)
 #ifndef __USE_XOPEN
 #define __USE_XOPEN     /* linux */
 #endif /* __USE_XOPEN */

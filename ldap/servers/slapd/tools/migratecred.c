@@ -150,15 +150,7 @@ main( int argc, char **argv)
 	shared_lib = ".sl";
 #endif
 #else
-#ifdef AIX
-#if OSVERSION >= 4200
 	shared_lib = ".so";
-#else
-	shared_lib = "_shr.a";
-#endif
-#else
-	shared_lib = ".so";
-#endif
 #endif
 
 	if (!pluginpath) {

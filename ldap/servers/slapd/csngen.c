@@ -742,18 +742,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
  * test code
  * **************************************************************************
  */
-
-/* 
- * The defult thread stacksize for nspr21 is 64k. For OSF, we require
- * a larger stacksize as actual storage allocation is higher i.e
- * pointers are allocated 8 bytes but lower 4 bytes are used.
- * The value 0 means use the default stacksize.
- */
-#if defined (OSF1) || defined(__LP64__) || defined (_LP64) /* 64-bit architectures need large stacks */
-#define DEFAULT_THREAD_STACKSIZE 	131072L
-#else
 #define DEFAULT_THREAD_STACKSIZE 	0
-#endif
 
 #define GEN_TREAD_COUNT	20
 int s_thread_count;

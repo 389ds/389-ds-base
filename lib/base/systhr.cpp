@@ -86,13 +86,9 @@ void systhread_set_default_stacksize(unsigned long size)
 NSPR_BEGIN_EXTERN_C
 
 NSAPI_PUBLIC SYS_THREAD
-#ifdef UnixWare /* for ANSI C++ standard, see base/systrh.h */
-systhread_start(int prio, int stksz, ArgFn_systhread_start fn, void *arg)
-#else
 systhread_start(int prio, int stksz, void (*fn)(void *), void *arg)
-#endif
 {
-#if (defined(Linux) || defined(SNI) || defined(UnixWare)) && !defined(USE_PTHREADS)
+#if defined(Linux) && !defined(USE_PTHREADS)
     prio /= 8; /* quick and dirty fix for user thread priority scale problem */
     if (prio > 3) prio = 3;
 #endif

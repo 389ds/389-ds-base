@@ -140,12 +140,7 @@ NSAPI_PUBLIC int system_nocoredumps(void)
     rl.rlim_max = 0;
     return setrlimit(RLIMIT_CORE, &rl);
 #else
-#if defined(SNI)
-/* C++ compiler seems to find more that one overloaded instance of exit() ?! */
-#define EXITFUNC ::exit
-#else
 #define EXITFUNC exit
-#endif
     signal(SIGQUIT, EXITFUNC);
     signal(SIGILL, EXITFUNC);
     signal(SIGTRAP, EXITFUNC);
@@ -248,9 +243,9 @@ NSAPI_PUBLIC int file_notfound(void)
     return (errno == ENOENT);
 }
 
-#if !defined(SNI) && !defined(LINUX)
+#if !defined(LINUX)
 extern char *sys_errlist[];
-#endif /* SNI */
+#endif
 
 #define ERRMSG_SIZE 35
 #ifdef THREAD_ANY
@@ -303,14 +298,6 @@ NSAPI_PUBLIC int system_errmsg_fn(char **buff, size_t maxlen)
             lmsg = static_error;
         }
     } else {
-/* replaced
-#if defined(SNI) || defined(LINUX)
-	/ C++ platform has no definition for sys_errlist /
-	lmsg = strerror(errno);
-#else
-	lmsg = sys_errlist[errno];
-#endif
-with lmsg =strerror(errno);*/
         lmsg=strerror(errno);
         errno = 0;
     }
