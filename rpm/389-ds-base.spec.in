@@ -11,6 +11,12 @@
 %global use_db4 0
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
 %global use_Socket6 0
+# To build without nunc-stans, set 0 to use_nunc_stans.
+%global use_nunc_stans 1
+
+%if %{use_nunc_stans}
+%global nunc_stans_ver 0.1.3
+%endif
 
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
@@ -115,6 +121,9 @@ Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
+%if %{use_nunc_stans}
+Source3:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
+%endif
 
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
@@ -164,19 +173,36 @@ Development Libraries and headers for the 389 Directory Server base package.
 
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
+%if %{use_nunc_stans}
+%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
+%endif
 cp %{SOURCE2} README.devel
 
 %build
+%if %{use_nunc_stans}
+pushd ../nunc-stans-%{nunc_stans_ver}
+%configure --with-fhs --libdir=%{_libdir}/%{pkgname}
+make %{?_smp_mflags}
+mkdir lib
+ln -s .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
+mkdir nunc-stans
+ln -s nunc-stans.h nunc-stans/nunc-stans.h
+popd
+%endif
+
 %if %{use_openldap}
 OPENLDAP_FLAG="--with-openldap"
 %endif
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
 # hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529
 NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
+%if %{use_nunc_stans}
+NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_stans_ver}" 
+%endif
 %configure --enable-autobind --with-selinux $OPENLDAP_FLAG $TMPFILES_FLAG \
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
-           --with-systemdgroupname=%{groupname} $NSSARGS
+           --with-systemdgroupname=%{groupname} $NSSARGS $NUNC_STANS_FLAGS
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS
@@ -190,6 +216,14 @@ make %{?_smp_mflags}
 
 %install
 rm -rf $RPM_BUILD_ROOT 
+
+%if %{use_nunc_stans}
+pushd ../nunc-stans-%{nunc_stans_ver}
+make DESTDIR="$RPM_BUILD_ROOT" install
+rm -rf $RPM_BUILD_ROOT%{_includedir} $RPM_BUILD_ROOT%{_datadir} \
+    $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/pkgconfig
+popd
+%endif
 
 make DESTDIR="$RPM_BUILD_ROOT" install
 
@@ -323,6 +357,9 @@ fi
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd.so*
+%if %{use_nunc_stans}
+%{_libdir}/%{pkgname}/libnunc-stans.so*
+%endif
 
 %changelog
 * Wed Feb 25 2015 Noriko Hosoi <nhosoi@redhat.com> - 1.3.3.8-2
