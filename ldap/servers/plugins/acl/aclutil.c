@@ -61,6 +61,7 @@ static PLHashNumber acl_ht_hash( const void *key);
 static PRIntn	acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg);
 #endif
 
+int acl_match_substr_prefix( char *macro_prefix, const char *ndn, int *exact_match);
 /***************************************************************************/
 /*	UTILITY FUNCTIONS						   */
 /***************************************************************************/
@@ -991,9 +992,9 @@ acl_match_substr_prefix( char *macro_prefix, const char *ndn, int *exact_match) 
 	tmp_str = slapi_ch_strdup(macro_prefix);
 	any = acl_strstr(tmp_str, "*");
 	tmp_str[any] = '\0';
-	initial = acl_strstr(ndn, tmp_str);
+	initial = acl_strstr((char *)ndn, tmp_str);
         if (initial >= 0) {
-		final = acl_strstr(&ndn[initial+strlen(tmp_str)],&tmp_str[any+1]);
+		final = acl_strstr((char *)&ndn[initial+strlen(tmp_str)],&tmp_str[any+1]);
 		if (final > 0) ret_code = initial + strlen(tmp_str) +final + strlen(&tmp_str[any+1]);
 	}
 	slapi_ch_free_string(&tmp_str);
