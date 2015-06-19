@@ -17935,22 +17935,14 @@ fi
 
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for FHS..." >&5
@@ -18753,23 +18745,15 @@ fi
 
 # Check for library dependencies
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for NSPR..." >&5
@@ -18923,23 +18907,15 @@ $as_echo "using system dirsec NSPR" >&6; }
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for NSS..." >&5
@@ -19093,23 +19069,15 @@ $as_echo "using system dirsec NSS" >&6; }
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
 # Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for OpenLDAP..." >&5
@@ -19500,23 +19468,15 @@ $as_echo "#define USE_OPENLDAP 1" >>confdefs.h
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Mozilla LDAPSDK..." >&5
@@ -19761,23 +19721,15 @@ $as_echo "#define HAVE_LDAP_URL_PARSE_NO_DEFAULTS 1" >>confdefs.h
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for db..." >&5
@@ -19965,23 +19917,15 @@ else
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 # -*- tab-width: 4; -*-
 # Configure paths for SASL
@@ -20092,23 +20036,15 @@ $as_echo "no" >&6; }
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 #
 # Configure paths for SVRCORE
@@ -20319,22 +20255,14 @@ fi
 
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBICU..." >&5
@@ -20502,22 +20430,14 @@ fi
 
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Net-SNMP..." >&5
@@ -20675,23 +20595,15 @@ else
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
 # Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 # -*- tab-width: 4; -*-
 # Configure paths for Kerberos
@@ -21081,23 +20993,15 @@ fi
 
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
 # Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for PCRE..." >&5
@@ -21227,23 +21131,15 @@ $as_echo "no" >&6; }
 fi
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
 # Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SELinux..." >&5
@@ -21273,23 +21169,15 @@ fi
 
 
 # BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2006 Red Hat, Inc.
+# Copyright (C) 2007 Red Hat, Inc.
+# Copyright (C) 2008 Red Hat, Inc.
+# Copyright (C) 2009 Red Hat, Inc.
 # Copyright (C) 2015 Red Hat, Inc.
 # All rights reserved.
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
 # END COPYRIGHT BLOCK
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nunc-stans..." >&5
