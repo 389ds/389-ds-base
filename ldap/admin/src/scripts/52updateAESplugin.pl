@@ -6,6 +6,8 @@ use File::Basename;
 use File::Copy;
 use DSUtil qw(debug serverIsRunning);
 
+no warnings 'experimental::smartmatch';
+
 #
 # Check if there is a DES plugin and make sure the AES plugin contains the same attributes
 #
@@ -53,7 +55,7 @@ sub runinst {
         if($val eq ""){
             last;
         }
-        if(!($val ~~ @attrs) ){
+        if(!($val ~~ @attrs) ){  # smartmatch
             $attrs_to_add[$des_count] = $val;
             $des_count++;
         }

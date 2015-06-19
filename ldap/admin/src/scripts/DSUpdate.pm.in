@@ -270,16 +270,35 @@ sub updateDS {
     }
 
     # update each instance
-    for my $inst ($setup->getDirServers()) {
+    my @instances = $setup->getDirServers();
+    my $inst_count = @instances;
+    my @failed_instances = ();
+    my $failed_count = 0;
+    for my $inst (@instances) {
+        debug(0, "Updating instance ($inst)...\n");
         my @localerrs = updateDSInstance($inst, $inf, $setup->{configdir}, \@updates, $force);
         if (@localerrs) {
             # push array here because localerrs will likely be an array of
             # array refs already
-            push @errs, @localerrs;
-            if (!$force) {
+            $failed_count++;
+            if (!$force || $inst_count == 1) {
+                push @errs, @localerrs;
                 return @errs;
             }
+            push @failed_instances, $inst;
+            debug(0, "Failed to update instance ($inst):\n---> @localerrs\n");
+        } else {
+            debug(0, "Successfully updated instance ($inst).\n");
         }
+    }
+    if($failed_count && $failed_count == $inst_count){
+        push @errs, ('error_update_all');
+        return @errs;
+    }
+    if (@failed_instances){
+        # list all the instances that were not updated
+        debug(0, "The following instances were not updated: (@failed_instances).  "); 
+        debug(0, "After fixing the problems you will need to rerun the setup script\n");
     }
 
     # run post-update hooks
@@ -344,7 +363,7 @@ sub updateDSInstance {
         $conn = new Mozilla::LDAP::Conn({ host => $host, port => $port, bind => $binddn,
                                           pswd => $bindpw, cert => $certdir, starttls => 1 });
         if (!$conn) {
-            debug(0, "Could not open TLS connection to $host:$port - trying regular connection\n");
+            debug(1, "Could not open TLS connection to $host:$port - trying regular connection\n");
             $conn = new Mozilla::LDAP::Conn({ host => $host, port => $port, bind => $binddn,
                                               pswd => $bindpw });
         }
