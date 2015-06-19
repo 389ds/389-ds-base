@@ -318,7 +318,7 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%doc LICENSE EXCEPTION LICENSE.GPLv2
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl
 %dir %{_sysconfdir}/%{pkgname}
 %dir %{_sysconfdir}/%{pkgname}/schema
 %config(noreplace)%{_sysconfdir}/%{pkgname}/schema/*.ldif
@@ -346,14 +346,14 @@ fi
 
 %files devel
 %defattr(-,root,root,-)
-%doc LICENSE EXCEPTION LICENSE.GPLv2 README.devel
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_includedir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so
 %{_libdir}/pkgconfig/*
 
 %files libs
 %defattr(-,root,root,-)
-%doc LICENSE EXCEPTION LICENSE.GPLv2 README.devel
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd.so*
