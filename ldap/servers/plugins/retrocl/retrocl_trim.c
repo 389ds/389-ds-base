@@ -412,7 +412,7 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 void retrocl_init_trimming (void)
 {
     const char *cl_maxage;
-    time_t ageval;
+    time_t ageval = 0; /* Don't trim, by default */
     const char *cl_trim_interval;
     
     cl_maxage = retrocl_get_config_str(CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
@@ -425,6 +425,7 @@ void retrocl_init_trimming (void)
                         "retrocl_init_trimming: ignoring invalid %s value %s; "
                         "not trimming retro changelog.\n",
                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
+            slapi_ch_free_string((char **)&cl_maxage);
             return;
         }
     }

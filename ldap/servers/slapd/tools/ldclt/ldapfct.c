@@ -949,7 +949,7 @@ connectToServer (
       fprintf (stderr, "ldclt[%d]: T%03d: cannot ldap_unbind(), error=%d (%s)\n",
 			mctx.pid, tttctx->thrdNum, ret,strerror (ret));
       fflush (stderr);
-      addErrorStat(ret);
+      (void)addErrorStat(ret);
       return (-1);
     }
     tttctx->ldapCtx = NULL;
@@ -1942,7 +1942,7 @@ createMissingNodes (
     printf ("ldclt[%d]: T%03d: Cannot add (%s), error=%d (%s)\n",
 	mctx.pid, tttctx->thrdNum, nodeDN, ret, my_ldap_err2string (ret));
     fflush (stdout);
-    addErrorStat(ret);
+    (void)addErrorStat(ret);
     return (-1);
   }
 
