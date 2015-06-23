@@ -1398,10 +1398,10 @@ valueset_update_csn_for_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slap
 		int del_index = -1, del_count = 0;
 		for (i=0;valuestoupdate[i]!=NULL;++i)
 		{
-			int index= valuearray_find(a, vs->va, valuestoupdate[i]);
-			if(index!=-1)
+			Slapi_Value *v = slapi_valueset_find(a, vs, valuestoupdate[i]);
+			if(v)
 			{
-				value_update_csn(vs->va[index],t,csn);
+				value_update_csn(v,t,csn);
 				valuearrayfast_add_value_passin(&vaf_valuesupdated,valuestoupdate[i]);
 				valuestoupdate[i]= NULL;
 				del_count++;
