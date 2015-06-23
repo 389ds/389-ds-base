@@ -1026,7 +1026,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	int threads;
 	int in_referral_mode = config_check_referral_mode();
 #ifdef ENABLE_NUNC_STANS
-	ns_thrpool_t *tp;
+	ns_thrpool_t *tp = NULL;
 	struct ns_thrpool_config tp_config;
 #endif
 	int connection_table_size = get_configured_connection_table_size();
