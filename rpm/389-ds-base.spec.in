@@ -11,11 +11,16 @@
 %global use_db4 0
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
 %global use_Socket6 0
+# nunc-stans only builds on x86_64 for now
+%ifarch x86_64
 # To build without nunc-stans, set 0 to use_nunc_stans.
 %global use_nunc_stans 1
+%else
+%global use_nunc_stans 0
+%endif 
 
 %if %{use_nunc_stans}
-%global nunc_stans_ver 0.1.3
+%global nunc_stans_ver 0.1.5
 %endif
 
 # fedora 15 and later uses tmpfiles.d
@@ -148,6 +153,11 @@ BuildRequires:    libdb-devel
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    libicu-devel
 BuildRequires:    pcre-devel
+%if %{use_nunc_stans}
+BuildRequires:    libtalloc-devel
+BuildRequires:    libevent-devel
+BuildRequires:    libtevent-devel
+%endif
 
 %description      libs
 Core libraries for the 389 Directory Server base package.  These libraries
@@ -167,6 +177,11 @@ Requires:         openldap-devel
 %else
 Requires:         mozldap-devel
 %endif
+%if %{use_nunc_stans}
+Requires:         libtalloc
+Requires:         libevent
+Requires:         libtevent
+%endif
 
 %description      devel
 Development Libraries and headers for the 389 Directory Server base package.
@@ -184,9 +199,9 @@ pushd ../nunc-stans-%{nunc_stans_ver}
 %configure --with-fhs --libdir=%{_libdir}/%{pkgname}
 make %{?_smp_mflags}
 mkdir lib
-ln -s .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
-mkdir nunc-stans
-ln -s nunc-stans.h nunc-stans/nunc-stans.h
+cp .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
+mkdir -p include/nunc-stans
+cp nunc-stans.h include/nunc-stans/nunc-stans.h
 popd
 %endif
 
@@ -349,6 +364,9 @@ fi
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_includedir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so
+%if %{use_nunc_stans}
+%{_libdir}/%{pkgname}/libnunc-stans.so
+%endif
 %{_libdir}/pkgconfig/*
 
 %files libs
@@ -362,6 +380,12 @@ fi
 %endif
 
 %changelog
+* Tue Jun 23 2015 Noriko Hosoi <nhosoi@redhat.com> - 1.3.4.1-1
+- Release 1.3.4.1-1
+
+* Fri Jun 19 2015 Noriko Hosoi <nhosoi@redhat.com> - 1.3.4.0-1
+- Release 1.3.4.0-1 (rebase)
+
 * Wed Feb 25 2015 Noriko Hosoi <nhosoi@redhat.com> - 1.3.3.8-2
 - Ticket 48030 - DNS errors after IPA upgrade due to broken ReplSync
                  Fixes spec file to make sure all the server instances are stopped before upgrade
