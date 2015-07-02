@@ -821,7 +821,7 @@ static struct config_get_and_set {
 	{CONFIG_MAXBERSIZE_ATTRIBUTE, config_set_maxbersize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxbersize,
-		CONFIG_INT, NULL, DEFAULT_MAX_BERSIZE},
+		CONFIG_INT, NULL, STRINGIFYDEFINE(DEFAULT_MAXBERSIZE)},
 	{CONFIG_MAXSASLIOSIZE_ATTRIBUTE, config_set_maxsasliosize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxsasliosize,
@@ -1540,6 +1540,7 @@ FrontendConfig_init () {
   init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
   init_global_backend_local = LDAP_OFF;
   cfg->maxsimplepaged_per_conn = DEFAULT_MAXSIMPLEPAGED_PER_CONN;
+  cfg->maxbersize = DEFAULT_MAXBERSIZE;
 #ifdef ENABLE_NUNC_STANS
   init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
 #endif
@@ -5713,6 +5714,9 @@ config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int ap
 	return retVal;
   }
 
+  if (size == 0) {
+    size = DEFAULT_MAXBERSIZE;
+  }
   CFG_LOCK_WRITE(slapdFrontendConfig);
 
   slapdFrontendConfig->maxbersize = size;
@@ -5728,8 +5732,9 @@ config_get_maxbersize()
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     maxbersize = slapdFrontendConfig->maxbersize;
-    if(maxbersize==0)
+    if (maxbersize == 0) {
         maxbersize = DEFAULT_MAXBERSIZE;
+    }
 
     return maxbersize;
 }
