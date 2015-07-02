@@ -156,7 +156,16 @@ ainfo_dup(
   attrinfo_delete_idlistinfo(&a->ai_idlistinfo);
   a->ai_idlistinfo = b->ai_idlistinfo;
   b->ai_idlistinfo = NULL;
-  
+
+  /* copy cmp functions and substr lengths */
+  a->ai_key_cmp_fn = b->ai_key_cmp_fn;
+  a->ai_dup_cmp_fn = b->ai_dup_cmp_fn;
+  if (b->ai_substr_lens) {
+    size_t substrlen = sizeof(int) * INDEX_SUBSTRLEN;
+    a->ai_substr_lens = (int *)slapi_ch_calloc(1, substrlen);
+    memcpy(a->ai_substr_lens, b->ai_substr_lens, substrlen);
+  }
+
   return( 1 );
 }
 
