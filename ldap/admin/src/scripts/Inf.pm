@@ -12,6 +12,7 @@
 
 package Inf;
 
+use DSUtil;
 use File::Temp qw(tempfile tempdir);
 
 #require    Exporter;
@@ -59,7 +60,7 @@ sub read {
         $inffh = \*STDIN;
     } else {
         if (!open(INF, $filename)) {
-            print STDERR "Error: could not open inf file $filename: $!\n";
+            debug(0, "Error: could not open inf file $filename: $!\n");
             return;
         }
         $inffh = \*INF;
@@ -124,7 +125,7 @@ sub section {
     my $key = shift;
 
     if (!exists($self->{$key})) {
-        print "Error: unknown inf section $key\n";
+        debug(0, "Error: unknown inf section $key\n");
         return undef;
     }
 
@@ -187,7 +188,7 @@ sub write {
     my $savemask = umask(0077);
     if (!$fh) {
         if (!open(INF, ">$filename")) {
-            print STDERR "Error: could not write inf file $filename: $!\n";
+            debug(0, "Error: could not write inf file $filename: $!\n");
             umask($savemask);
             return;
         }
@@ -232,7 +233,7 @@ sub updateFromArgs {
                 $argsinf->{$sec}->{$parm} = $val;
             }
         } else { # error
-            print STDERR "Error: unknown command line option $arg\n";
+            debug(0, "Error: unknown command line option $arg\n");
             return;
         }
     }
