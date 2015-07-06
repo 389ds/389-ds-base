@@ -702,12 +702,20 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
        */
       pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, pr_idx);
       if (pr_search_result) {
-        slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
-        rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
+        if (pagedresults_is_abandoned_or_notavailable(pb->pb_conn, pr_idx)) {
+          pagedresults_unlock(pb->pb_conn, pr_idx);
+          /* Previous operation was abandoned and the simplepaged object is not in use. */
+          send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
+          rc = LDAP_SUCCESS;
+          goto free_and_return;
+        } else {
+          slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
+          rc = send_results_ext (pb, 1, &pnentries, pagesize, &pr_stat);
 
-        /* search result could be reset in the backend/dse */
-        slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-        pagedresults_set_search_result(pb->pb_conn, operation, sr, 0, pr_idx);
+          /* search result could be reset in the backend/dse */
+          slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
+          pagedresults_set_search_result(pb->pb_conn, operation, sr, 0, pr_idx);
+        }
       } else {
         pr_stat = PAGEDRESULTS_SEARCH_END;
       }
@@ -737,7 +745,9 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         pagedresults_lock(pb->pb_conn, pr_idx);
         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
-        pagedresults_free_one(pb->pb_conn, operation, pr_idx);
+        if (!pagedresults_is_abandoned_or_notavailable(pb->pb_conn, pr_idx)) {
+          pagedresults_free_one(pb->pb_conn, operation, pr_idx);
+        }
         pagedresults_unlock(pb->pb_conn, pr_idx);
         if (next_be) {
           /* no more entries, but at least another backend */
