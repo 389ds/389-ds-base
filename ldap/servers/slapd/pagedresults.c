@@ -877,6 +877,8 @@ pagedresults_reset_processing(Connection *conn, int index)
  * If there are multiple slots, the connection may be a permanent one.
  * Do not return timed out here.  But let the next request take care the
  * timedout slot(s).
+ *
+ * must be called within conn->c_mutex 
  */
 int
 pagedresults_is_timedout_nolock(Connection *conn)
@@ -905,7 +907,10 @@ pagedresults_is_timedout_nolock(Connection *conn)
     return 0;
 }
 
-/* reset all timeout */
+/* 
+ * reset all timeout
+ * must be called within conn->c_mutex 
+ */
 int
 pagedresults_reset_timedout_nolock(Connection *conn)
 {
@@ -968,7 +973,9 @@ pagedresults_lock( Connection *conn, int index )
     if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
         return;
     }
+    PR_Lock(conn->c_mutex);
     prp = conn->c_pagedresults.prl_list + index;
+    PR_Unlock(conn->c_mutex);
     if (prp->pr_mutex) {
         PR_Lock(prp->pr_mutex);
     }
@@ -982,9 +989,24 @@ pagedresults_unlock( Connection *conn, int index )
     if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
         return;
     }
+    PR_Lock(conn->c_mutex);
     prp = conn->c_pagedresults.prl_list + index;
+    PR_Unlock(conn->c_mutex);
     if (prp->pr_mutex) {
         PR_Unlock(prp->pr_mutex);
     }
     return;
+}
+
+int
+pagedresults_is_abandoned_or_notavailable( Connection *conn, int index )
+{
+    PagedResults *prp;
+    if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
+        return 1; /* not abandoned, but do not want to proceed paged results op. */
+    }
+    PR_Lock(conn->c_mutex);
+    prp = conn->c_pagedresults.prl_list + index;
+    PR_Unlock(conn->c_mutex);
+    return prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
 }
