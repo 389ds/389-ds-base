@@ -147,7 +147,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 				c->c_mutex = NULL;
 				c->c_pdumutex = NULL;
 				LDAPDebug( LDAP_DEBUG_ANY,"PR_NewLock failed\n",0, 0, 0 );
-				c= NULL;
+				exit(1);
 			}
 		}
 		/* Let's make sure there's no cruft left on there from the last time this connection was used. */
