@@ -1,4 +1,5 @@
 import re
+import sys
 import os, os.path
 
 # regex that matches a BIND request line
@@ -91,12 +92,15 @@ def pre(plgargs):
     global logf
     logfile = plgargs.get('logfile', None)
     if not logfile:
-        print "Error: missing required argument failedbinds.logfile"
+        print("Error: missing required argument failedbinds.logfile")
         return False
     needchmod = False
     if not os.path.isfile(logfile): needchmod = True
-    logf = open(logfile, 'a', 0) # 0 for unbuffered output
-    if needchmod: os.chmod(logfile, 0600)
+    if sys.version_info < (3, 0):
+        logf = open(logfile, 'a', 0) # 0 for unbuffered output
+    else:
+        logf = open(logfile, 'a')
+    if needchmod: os.chmod(logfile, 0o600)
     return True
 
 def post():
@@ -153,6 +157,7 @@ def plugin(line):
         logmsg = conn.addreq(timestamp, opnum, dn, method, mech)
         if logmsg:
             logf.write(logmsg + "\n")
+            logf.flush()
         return True
 
     # is this a RESULT line?
@@ -164,6 +169,7 @@ def plugin(line):
         logmsg = conn.addres(timestamp, opnum, errnum)
         if logmsg:
             logf.write(logmsg + "\n")
+            logf.flush()
         return True
 
     return True # no match

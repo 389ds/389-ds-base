@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import sys
 import os, os.path
 import errno
@@ -11,7 +13,7 @@ import fcntl
 import pwd
 
 maxlines = 1000 # set on command line
-S_IFIFO = 0010000
+S_IFIFO = 0o010000
 
 buffer = [] # default circular buffer used by default plugin
 totallines = 0
@@ -29,8 +31,8 @@ def defaultplugin(line):
 
 def printbuffer():
     sys.stdout.writelines(buffer)
-    print "Read %d total lines" % totallines
-    print logfname, "=" * 60
+    print("Read %d total lines" % totallines)
+    print(logfname, "=" * 60)
     sys.stdout.flush()
 
 def defaultpost(): printbuffer()
@@ -51,7 +53,7 @@ def sighandler(signum, frame):
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
         if signum == signal.SIGALRM and debug:
-            print "script timed out waiting to open pipe"
+            print("script timed out waiting to open pipe")
         finish()
     else: printbuffer()
 
@@ -126,7 +128,7 @@ def parse_plugins(parser, options, args):
                 newargs.append(arg)
         if prefunc:
             if debug:
-                print 'Calling "pre" function in', plgfile
+                print('Calling "pre" function in', plgfile)
             if not prefunc(bvals):
                 parser.error('the "pre" function in %s returned an error' % plgfile)
         args = newargs
@@ -140,27 +142,27 @@ def open_pipe(logfname):
         try:
             logf = open(logfname, 'r') # blocks until there is some input
             opencompleted = True
-        except IOError, e:
+        except IOError as e:
             if e.errno == errno.EINTR:
                 continue # open was interrupted, try again
             else: # hard error
-                raise Exception, "%s [%d]" % (e.strerror, e.errno)
+                raise Exception("%s [%d]" % (e.strerror, e.errno))
     return logf
 
 def is_proc_alive(procpid):
     retval = False
     try:
         retval = os.path.exists("/proc/%d" % procpid)
-    except IOError, e:
+    except IOError as e:
         if e.errno != errno.ENOENT: # may not exist yet - that's ok
             # otherwise, probably permissions or other badness
-            raise Exception, "could not open file %s - %s [%d]" % (procfile, e.strerror, e.errno)
+            raise Exception("could not open file %s - %s [%d]" % (procfile, e.strerror, e.errno))
     # using /proc/pid failed, try kill
     if not retval:
         try:
             os.kill(procpid, 0) # sig 0 is a "ping"
             retval = True # if we got here, proc exists
-        except OSError, e:
+        except OSError as e:
             pass # no such process, or EPERM/EACCES
     return retval
 
@@ -172,10 +174,10 @@ def get_pid_from_file(pidfile):
             pfd = open(pidfile, 'r')
             line = pfd.readline()
             pfd.close()
-        except IOError, e:
+        except IOError as e:
             if e.errno != errno.ENOENT: # may not exist yet - that's ok
                 # otherwise, probably permissions or other badness
-                raise Exception, "Could not read pid from file %s - %s [%d]" % (pidfile, e.strerror, e.errno)
+                raise Exception("Could not read pid from file %s - %s [%d]" % (pidfile, e.strerror, e.errno))
         if line:
             procpid = int(line)
     return procpid
@@ -185,8 +187,8 @@ def write_pid_file(pidfile):
         pfd = open(pidfile, 'w')
         pfd.write("%d\n" % os.getpid())
         pfd.close()
-    except IOError, e:
-        raise Exception, "Could not write pid to file %s - %s [%d]" % (pidfile, e.strerror, e.errno)
+    except IOError as e:
+        raise Exception("Could not write pid to file %s - %s [%d]" % (pidfile, e.strerror, e.errno))
 
 def handle_script_pidfile(scriptpidfile):
     scriptpid = get_pid_from_file(scriptpidfile)
@@ -194,7 +196,7 @@ def handle_script_pidfile(scriptpidfile):
     if scriptpid and is_proc_alive(scriptpid):
         # already running
         if debug:
-            print "Script is already running: process id %d" % scriptpid
+            print("Script is already running: process id %d" % scriptpid)
         return False
     else:
         # either process is not running or no file
@@ -210,15 +212,15 @@ def read_and_process_line(logf, plgfuncs):
         try:
             line = logf.readline()
             readcompleted = True # read completed
-        except IOError, e:
+        except IOError as e:
             if e.errno == errno.EINTR:
                 continue # read was interrupted, try again
             else: # hard error
-                raise Exception, "%s [%d]" % (e.strerror, e.errno)
+                raise Exception("%s [%d]" % (e.strerror, e.errno))
     if line: # read something
         for plgfunc in plgfuncs:
             if not plgfunc(line):
-                print "Aborting processing due to function %s.%s" % (plgfunc.__module__, plgfunc.__name__)
+                print("Aborting processing due to function %s.%s" % (plgfunc.__module__, plgfunc.__name__))
                 finish() # this will exit the process
                 done = True
                 break
@@ -281,28 +283,28 @@ if options.scriptpidfile:
 serverpid = options.serverpid
 if serverpid:
     if not is_proc_alive(serverpid):
-        print "Server pid [%d] is not alive - exiting" % serverpid
+        print("Server pid [%d] is not alive - exiting" % serverpid)
         sys.exit(1)
 
 try:
     if os.stat(logfname).st_mode & S_IFIFO:
         if debug:
-            print "Using existing log pipe", logfname
+            print("Using existing log pipe", logfname)
     else:
-        print "Error:", logfname, "exists and is not a log pipe"
-        print "use a filename other than", logfname
+        print("Error:", logfname, "exists and is not a log pipe")
+        print("use a filename other than", logfname)
         sys.exit(1)
-except OSError, e:
+except OSError as e:
     if e.errno == errno.ENOENT:
         if debug:
-            print "Creating log pipe", logfname
+            print("Creating log pipe", logfname)
         os.mkfifo(logfname)
-        os.chmod(logfname, 0600)
+        os.chmod(logfname, 0o600)
     else:
-        raise Exception, "%s [%d]" % (e.strerror, e.errno)
+        raise Exception("%s [%d]" % (e.strerror, e.errno))
 
 if debug:
-    print "Listening to log pipe", logfname, "number of lines", maxlines
+    print("Listening to log pipe", logfname, "number of lines", maxlines)
 
 # set up our signal handlers
 signal.signal(signal.SIGHUP, sighandler)
@@ -333,14 +335,14 @@ while not done:
     logf = open_pipe(logfname)
     # if we get here, logf is not None
     if debug:
-        print "opened pipe", logf
+        print("opened pipe", logf)
 
     if timerisset:
         # cancel the timer - the open succeeded
         timerisset = False
         signal.setitimer(signal.ITIMER_REAL, 0)
         if debug:
-            print "cancelled startup timer"
+            print("cancelled startup timer")
 
     lines = 0
     # read and process the next line in the pipe
@@ -352,11 +354,11 @@ while not done:
 
     # the other end of the pipe closed - we close our end too
     if debug:
-        print "read", lines, "lines"
+        print("read", lines, "lines")
     logf.close()
     logf = None
     if debug:
-        print "closed log pipe", logfname
+        print("closed log pipe", logfname)
 
     if not serverpid and options.serverpidfile:
         # see if the server has written its server pid file yet
@@ -368,7 +370,7 @@ while not done:
     if serverpid and not is_proc_alive(serverpid):
         done = True
         if debug:
-            print "server pid", serverpid, "exited - script exiting"
+            print("server pid", serverpid, "exited - script exiting")
 
     if neverdone:
         done = False
@@ -387,12 +389,12 @@ while not done:
             signal.setitimer(signal.ITIMER_REAL, 0.25)
             timerisset = True
             if debug:
-                print "set startup timer - see if server is really shut down"
+                print("set startup timer - see if server is really shut down")
         else: # we read something
             # pipe closed - usually when server shuts down
             done = True
             
     if not done and debug:
-        print "log pipe", logfname, "closed - reopening - read", totallines, "total lines"
+        print("log pipe", logfname, "closed - reopening - read", totallines, "total lines")
 
 finish()

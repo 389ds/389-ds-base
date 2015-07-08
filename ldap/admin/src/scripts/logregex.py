@@ -10,7 +10,7 @@ def pre(plgargs):
     global regex_regex_ary
     regexary = plgargs.get('regex', None)
     if not regexary:
-        print "Error: missing required argument logregex.regex"
+        print("Error: missing required argument logregex.regex")
         return False
     if isinstance(regexary,list):
         regex_regex_ary = [re.compile(xx) for xx in regexary]
