@@ -1382,6 +1382,10 @@ printErrorFromLdap (
   printf ("ldclt[%d]: T%03d: %s, error=%d (%s",
 		mctx.pid, tttctx->thrdNum, errmsg,
 		errcode, my_ldap_err2string (errcode));
+  if (!res) {
+    printf (") -- NULL result\n");
+    return -1;
+  }
 
   /*
    * See if there is an additional error message...

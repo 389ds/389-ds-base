@@ -430,14 +430,26 @@ addErrorStat (
   /*
    * Update the counters
    */
+#if defined(USE_OPENLDAP)
+  if ((err <= NEGATIVE_MAX_ERROR_NB) || (err >= MAX_ERROR_NB))
+#else
   if ((err <= 0) || (err >= MAX_ERROR_NB))
+#endif
   {
     fprintf (stderr, "ldclt[%d]: Illegal error number %d\n", mctx.pid, err);
     fflush (stderr);
     mctx.errorsBad++;
   }
+#if defined(USE_OPENLDAP)
+  else if (err < 0)
+  {
+    mctx.negativeErrors[abs(err)]++;
+  }
+#endif
   else
+  {
     mctx.errors[err]++;
+  }
 
   /*
    * Release the mutex
@@ -460,26 +472,28 @@ addErrorStat (
      * Ok, we should not ignore this error...
      * Maybe the limit is reached ?
      */
+#if defined(USE_OPENLDAP)
+    if ((err <= NEGATIVE_MAX_ERROR_NB) || (err >= MAX_ERROR_NB))
+#else
     if ((err <= 0) || (err >= MAX_ERROR_NB))
-    {
-      if (mctx.errorsBad > mctx.maxErrors)
-      {
-	printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
-	(void) printGlobalStatistics();				/*JLS 25-08-00*/
-	fflush (stdout);
-	ldclt_sleep (5);
-	ldcltExit (EXIT_MAX_ERRORS);				/*JLS 25-08-00*/
+#endif
+	{
+      if (mctx.errorsBad > mctx.maxErrors) {
+        printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
+        (void) printGlobalStatistics();				/*JLS 25-08-00*/
+        fflush (stdout);
+        ldclt_sleep (5);
+        ldcltExit (EXIT_MAX_ERRORS);				/*JLS 25-08-00*/
+      }
+    } else {
+      if (mctx.errors[err] + mctx.negativeErrors[abs(err)] > mctx.maxErrors) {
+        printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
+        (void) printGlobalStatistics();				/*JLS 25-08-00*/
+        fflush (stdout);
+        ldclt_sleep (5);
+        ldcltExit (EXIT_MAX_ERRORS);				/*JLS 25-08-00*/
       }
     }
-    else
-      if (mctx.errors[err] > mctx.maxErrors)
-      {
-	printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
-	(void) printGlobalStatistics();				/*JLS 25-08-00*/
-	fflush (stdout);
-	ldclt_sleep (5);
-	ldcltExit (EXIT_MAX_ERRORS);				/*JLS 25-08-00*/
-      }
   }
 
   /*

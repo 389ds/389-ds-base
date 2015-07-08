@@ -716,19 +716,35 @@ printGlobalStatistics (void)
    * Note:	Maybe implement a way to stop the running threads ?
    */
   found = 0;
-  for (i=0 ; i<MAX_ERROR_NB ; i++)
-    if (mctx.errors[i] > 0)
-    {
+  for (i = 0; i < MAX_ERROR_NB; i++) {
+    if (mctx.errors[i] > 0) {
       found = 1;
       sprintf (buf, "(%s)", my_ldap_err2string (i));
       printf ("ldclt[%d]: Global error %2d %s occurs %5d times\n",
           mctx.pid, i, buf, mctx.errors[i]);
     }
+  }
+#if defined(USE_OPENLDAP)
+  for (i = 0; i < ABS(NEGATIVE_MAX_ERROR_NB); i++) {
+    if (mctx.negativeErrors[i] > 0) {
+      found = 1;
+      sprintf (buf, "(%s)", my_ldap_err2string (-i));
+      printf ("ldclt[%d]: Global error %2d %s occurs %5d times\n",
+          mctx.pid, -i, buf, mctx.negativeErrors[i]);
+    }
+  }
+#endif
   if (mctx.errorsBad > 0)
   {
     found = 1;
-    printf ("ldclt[%d]: Global illegal errors (codes not in [0, %d]) occurs %5d times\n",
-	mctx.pid, MAX_ERROR_NB-1, mctx.errorsBad);
+    printf("ldclt[%d]: Global illegal errors (codes not in [%d, %d]) occurs %5d times\n",
+            mctx.pid, 
+#if defined(USE_OPENLDAP)
+			NEGATIVE_MAX_ERROR_NB, 
+#else
+			0,
+#endif
+			MAX_ERROR_NB-1, mctx.errorsBad);
   }
   if (!found)
     printf ("ldclt[%d]: Global no error occurs during this session.\n", mctx.pid);
@@ -1293,9 +1309,14 @@ basicInit (void)
   mctx.totNbOpers   = 0;
   mctx.totNbSamples = 0;
   mctx.errorsBad    = 0;
-  for (i=0 ; i<MAX_ERROR_NB ; i++)
+  for (i = 0; i < MAX_ERROR_NB; i++) {
     mctx.errors[i] = 0;
-
+  }
+#if defined(USE_OPENLDAP)
+  for (i = 0; i < ABS(NEGATIVE_MAX_ERROR_NB); i++) {
+    mctx.negativeErrors[i] = 0;
+  }
+#endif
   /*
    * Initiate the mutex that protect the errors statistics
    */
