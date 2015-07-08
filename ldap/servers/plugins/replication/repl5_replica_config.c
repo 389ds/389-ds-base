@@ -1216,6 +1216,11 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not
 	 */
 	cl5CleanRUV(rid);
 
+	/*
+	 * Now purge the changelog
+	 */
+	trigger_cl_purging(rid);
+
 	if (rc != RUV_SUCCESS){
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanruv_task: task failed(%d)\n",rc);
 		return LDAP_OPERATIONS_ERROR;
@@ -1603,7 +1608,7 @@ replica_cleanallruv_thread(void *arg)
             /* no agmts, just clean this replica */
             break;
         }
-        while (agmt_obj){
+        while (agmt_obj && !slapi_is_shutting_down()){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
@@ -1685,13 +1690,15 @@ replica_cleanallruv_thread(void *arg)
             break;
         }
         /*
-         *  need to sleep between passes
+         * Need to sleep between passes unless we are shutting down
          */
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Replicas have not been cleaned yet, "
-            "retrying in %d seconds", interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
+        if (!slapi_is_shutting_down()){
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Replicas have not been cleaned yet, "
+                "retrying in %d seconds", interval);
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
 
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
@@ -1702,10 +1709,9 @@ replica_cleanallruv_thread(void *arg)
 
 done:
     /*
-     *  If the replicas are cleaned, release the rid, and trim the changelog
+     *  If the replicas are cleaned, release the rid
      */
     if(!aborted){
-        trigger_cl_trimming(data->rid);
         delete_cleaned_rid_config(data);
         /* make sure all the replicas have been "pre_cleaned" before finishing */
         check_replicas_are_done_cleaning(data);
@@ -1715,7 +1721,7 @@ done:
         /*
          *  Shutdown or abort
          */
-        if(!is_task_aborted(data->rid)){
+        if(!is_task_aborted(data->rid) || slapi_is_shutting_down()){
             cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Server shutting down.  Process will resume at server startup");
         } else {
             cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Task aborted for rid(%d).",data->rid);
@@ -1918,7 +1924,7 @@ check_agmts_are_caught_up(cleanruv_data *data, char *maxcsn)
             not_all_caughtup = 0;
             break;
         }
-        while (agmt_obj){
+        while (agmt_obj && !slapi_is_shutting_down()){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
@@ -1976,7 +1982,7 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
             not_all_alive = 0;
             break;
         }
-        while (agmt_obj){
+        while (agmt_obj && !slapi_is_shutting_down()){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (replica, agmt_obj);
@@ -2746,12 +2752,14 @@ replica_abort_task_thread(void *arg)
             break;
         }
         /*
-         *  need to sleep between passes
+         *  Need to sleep between passes. unless we are shutting down
          */
-        cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID,"Retrying in %d seconds",interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
+        if (!slapi_is_shutting_down()){
+            cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID,"Retrying in %d seconds",interval);
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
 
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
@@ -2769,7 +2777,7 @@ done:
          *  Wait for this server to stop its cleanallruv task(which removes the rid from the cleaned list)
          */
         cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Waiting for CleanAllRUV task to abort...");
-        while(is_cleaned_rid(data->rid)){
+        while(is_cleaned_rid(data->rid) && !slapi_is_shutting_down()){
             DS_Sleep(PR_SecondsToInterval(1));
             count++;
             if(count == 60){ /* it should not take this long */
