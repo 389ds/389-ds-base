@@ -113,9 +113,10 @@ int sync_srch_refresh_pre_search(Slapi_PBlock *pb)
 			 * 	-- return e-syncRefreshRequired if the data referenced in the cookie are no
 			 * 		longer in the history
 			*/
-			if (cookie && 
-				( client_cookie = sync_cookie_parse (cookie))) {
-				if (sync_cookie_isvalid(client_cookie, session_cookie)) {
+			if (cookie) {
+				if ((client_cookie = sync_cookie_parse (cookie)) &&
+				    sync_cookie_isvalid(client_cookie, session_cookie))
+				{
 					rc = sync_refresh_update_content(pb, client_cookie, session_cookie);
 					if (rc == 0) 
 						entries_sent = 1;
