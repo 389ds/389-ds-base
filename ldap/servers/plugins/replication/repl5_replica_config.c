@@ -1738,7 +1738,9 @@ replica_cleanallruv_thread(void *arg)
     }
     if (data->task) {
         slapi_task_inc_refcount(data->task);
-        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_cleanallruv_thread --> refcount incremented.\n");
+        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name,
+            "replica_cleanallruv_thread --> refcount incremented (%d).\n",
+            data->task->task_refcount);
     }
     /*
      *  Initialize our settings
@@ -1871,10 +1873,11 @@ replica_cleanallruv_thread(void *arg)
          */
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Not all replicas have received the "
             "cleanallruv extended op, retrying in %d seconds",interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
-
+        if(!slapi_is_shutting_down()){
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
         } else {
@@ -1974,6 +1977,7 @@ done:
     if(data->repl_obj && free_obj){
         object_release(data->repl_obj);
     }
+
     csn_free(&data->maxcsn);
     slapi_sdn_free(&data->sdn);
     slapi_ch_free_string(&data->repl_root);
@@ -1987,6 +1991,7 @@ replica_cleanall_ruv_destructor(Slapi_Task *task)
 {
 	slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name,
 		"replica_cleanall_ruv_destructor -->\n" );
+	stop_ruv_cleaning();
 	if (task) {
 		while (slapi_task_get_refcount(task) > 0) {
 			/* Yield to wait for the fixup task finishes. */
@@ -2002,6 +2007,7 @@ replica_cleanall_ruv_abort_destructor(Slapi_Task *task)
 {
 	slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name,
 		"replica_cleanall_ruv_abort_destructor -->\n" );
+	stop_ruv_cleaning();
 	if (task) {
 		while (slapi_task_get_refcount(task) > 0) {
 			/* Yield to wait for the fixup task finishes. */
@@ -2055,9 +2061,11 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
             break;
         }
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Not all replicas finished cleaning, retrying in %d seconds",interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
+        if(!slapi_is_shutting_down()){
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
         } else {
@@ -2158,9 +2166,11 @@ check_replicas_are_done_aborting(cleanruv_data *data )
             break;
         }
         cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, "Not all replicas finished aborting, retrying in %d seconds",interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
+        if(!slapi_is_shutting_down()){
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
         } else {
@@ -2212,10 +2222,11 @@ check_agmts_are_caught_up(cleanruv_data *data, char *maxcsn)
         }
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,
                 "Not all replicas caught up, retrying in %d seconds",interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
-
+        if(!slapi_is_shutting_down()){
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
         } else {
@@ -2271,10 +2282,12 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
         }
         cleanruv_log(task, rid, CLEANALLRUV_ID, "Not all replicas online, retrying in %d seconds...",
                 interval);
-        PR_Lock( notify_lock );
-        PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
-        PR_Unlock( notify_lock );
 
+        if(!slapi_is_shutting_down()){
+            PR_Lock( notify_lock );
+            PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
+            PR_Unlock( notify_lock );
+        }
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
         } else {
