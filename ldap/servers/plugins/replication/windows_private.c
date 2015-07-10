@@ -885,7 +885,7 @@ windows_private_get_subtreepairs(const Repl_Agmt *ra)
 	return dp->subtree_pairs;
 }
 
-/* parray is NOT passed in */
+/* parray is NOT passed in; caller frees it. */
 void
 windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
 {
@@ -930,6 +930,12 @@ create_subtree_pairs(char **pairs)
 	for (ptr = pairs; ptr && *ptr; ptr++) {
 		p0 = ldap_utf8strtok_r(*ptr, ":", &saveptr);
 		p1 = ldap_utf8strtok_r(NULL, ":", &saveptr);
+		if ((NULL == p0) || (NULL == p1)) {
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+			              "create_subtree_pairs: "
+			              "Ignoring invalid subtree pairs \"%s\".\n", *ptr);
+			continue;
+		}
 		spp->DSsubtree = slapi_sdn_new_dn_byval(p0);
 		if (NULL == spp->DSsubtree) {
 			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
@@ -960,7 +966,11 @@ free_subtree_pairs(subtreePair **pairs)
 	if (NULL == pairs) {
 		return;
 	}
-	for (p = *pairs; p; p++) {
+	/*
+	 * If exists, the subtree pair is both non-NULL or NULL.
+	 * Both NULL is the condition to stop the loop.
+	 */
+	for (p = *pairs; p && p->ADsubtree && p->DSsubtree; p++) {
 		slapi_sdn_free(&(p->ADsubtree));
 		slapi_sdn_free(&(p->DSsubtree));
 	}
