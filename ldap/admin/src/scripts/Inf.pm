@@ -31,7 +31,9 @@ sub new {
     $self = bless $self, $type;
 
     if ($self->{filename}) {
-        $self->read();
+        if($self->read() != 0){
+            undef $self;
+        }
     }
 
     return $self;
@@ -61,7 +63,7 @@ sub read {
     } else {
         if (!open(INF, $filename)) {
             debug(0, "Error: could not open inf file $filename: $!\n");
-            return;
+            return -1;
         }
         $inffh = \*INF;
     }
@@ -118,6 +120,8 @@ sub read {
     if ($inffh ne \*STDIN) {
         close $inffh;
     }
+
+    return 0;
 }
 
 sub section {

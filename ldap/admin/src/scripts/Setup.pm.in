@@ -117,6 +117,9 @@ sub init {
     # if user supplied inf file, use that to initialize
     if (defined($inffile)) {
         $self->{inf} = new Inf($inffile);
+        if(!$self->{inf}){
+            $self->doExit(1);
+        }
     } else {
         $self->{inf} = new Inf;
     }
