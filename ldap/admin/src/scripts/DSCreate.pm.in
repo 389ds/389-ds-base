@@ -797,8 +797,9 @@ sub setDefaults {
     if (!$inf->{General}->{SuiteSpotUserID}) {
         if ($> != 0) { # if not root, use the user's uid
             $inf->{General}->{SuiteSpotUserID} = getLogin;
+        } else {
+            return('error_missing_userid');
         }
-        # otherwise, the uid must be specified
     }
 
     if (!$inf->{General}->{SuiteSpotGroup}) {
