@@ -118,6 +118,7 @@ error_enabling_feature = Could not enable the directory server feature '%s'.  Er
 error_importing_ldif = Could not import LDIF file '%s'.  Error: %s.  Output: %s\n
 error_starting_server = Could not start the directory server using command '%s'.  The last line from the error log was '%s'.  Error: %s\n
 error_stopping_server = Could not stop the directory server '%s'.  Error: %s\n
+error_missing_userid = The SuiteSpotUserID is missing.  This must be set to valid user\n
 error_missing_port_and_ldapi = Either ServerPort or ldapifilepath must be specified.  The server must listen to something.\n
 error_missing_port = No ServerPort specified.  The server must have a port number to listen to (default 389).\n
 error_server_already_exists = Error: the server already exists at '%s'\
