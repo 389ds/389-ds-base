@@ -6,7 +6,7 @@ use File::Basename;
 use File::Copy;
 use DSUtil qw(debug serverIsRunning);
 
-no warnings 'experimental::smartmatch';
+# no warnings 'experimental::smartmatch';   warning supression available in perl 5.18
 
 #
 # Check if there is a DES plugin and make sure the AES plugin contains the same attributes
