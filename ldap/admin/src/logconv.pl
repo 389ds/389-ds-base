@@ -398,12 +398,24 @@ my $totalLineCount = 0;
 
 sub isTarArchive {
 	local $_ = shift;
+	if (/\.txz$/ || /\.tar.xz$/) {
+		use IO::Uncompress::UnXz;
+	}
 	return /\.tar$/ || /\.tar\.bz2$/ || /\.tar.gz$/ || /\.tar.xz$/ || /\.tgz$/ || /\.tbz$/ || /\.txz$/;
 }
 
 sub isCompressed {
 	local $_ = shift;
+	if (/\.xz$/) {
+		use IO::Uncompress::UnXz;
+	}
 	return /\.gz$/ || /\.bz2$/ || /\.xz$/;
+}
+
+# Tar::Archive can't grok xz, so have to uncompress first
+sub tarNeedsUncompress {
+	local $_ = shift;
+	return /\.tar.xz$/ || /\.txz$/;
 }
 
 sub convertTimeToSeconds {
@@ -503,7 +515,13 @@ for (my $count=0; $count < $file_count; $count++){
 	my $comp = 0;
 	if (isTarArchive($logname)) {
 		$tar = Archive::Tar->new();
-		$tariter = Archive::Tar->iter($logname);
+		if (tarNeedsUncompress($logname)) {
+			my $TARFH = new IO::Uncompress::AnyUncompress $logname or
+				do { openFailed($AnyUncompressError, $logname); next };
+			$tariter = Archive::Tar->iter($TARFH);
+		} else {
+			$tariter = Archive::Tar->iter($logname);
+		}
 		if (!$tariter) {
 			print "$logname is not a valid tar archive, or compression is unrecognized: $!\n";
 			next;
