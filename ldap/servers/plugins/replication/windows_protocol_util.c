@@ -3226,7 +3226,7 @@ windows_get_remote_entry (Private_Repl_Protocol *prp, const Slapi_DN* remote_dn,
 	const char *searchbase = NULL;
 	Slapi_Entry *found_entry = NULL;
 
-	searchbase = slapi_sdn_get_dn(remote_dn);
+	searchbase = slapi_sdn_get_udn(remote_dn);
 	cres = windows_search_entry_ext(prp->conn, (char*)searchbase, filter, &found_entry, NULL, LDAP_SCOPE_BASE);
 	if (cres)
 	{
@@ -5886,13 +5886,16 @@ retry:
 						remote_entry = NULL;
 					} else 
 					{
-						slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to fetch inbound entry.\n",agmt_get_long_name(prp->agmt));
+						slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+						                "%s: windows_process_dirsync_entry: failed to fetch inbound entry %s.\n",
+						                agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
 					}
 					slapi_entry_free(local_entry);
 					if (rc) {
 						/* Something bad happened */
-						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: failed to update inbound entry for %s.\n",agmt_get_long_name(prp->agmt),
-							slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						                "%s: windows_process_dirsync_entry: failed to update inbound entry for %s.\n",
+						                agmt_get_long_name(prp->agmt), slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
 					}
 				} else 
 				{
