@@ -116,6 +116,9 @@ Requires:         perl-Socket6
 Requires:         perl-Socket
 %endif
 Requires:         perl-NetAddr-IP
+# for logconv compressed file support
+Requires:         perl-IO-Compress
+Requires:         perl-IO-Compress-Lzma
 
 Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
