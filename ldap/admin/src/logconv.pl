@@ -24,6 +24,7 @@ use DB_File;
 use sigtrap qw(die normal-signals);
 use Archive::Tar;
 use IO::Uncompress::AnyUncompress qw($AnyUncompressError);
+use Scalar::Util qw(looks_like_number);
 
 Getopt::Long::Configure ("bundling");
 Getopt::Long::Configure ("permute");
@@ -341,18 +342,18 @@ $connmsg{"P2"} = "Poll";
 $connmsg{"U1"} = "Cleanly Closed Connections";
 
 my %monthname = (
-	"Jan" => 0,
-	"Feb" => 1,
-	"Mar" => 2,
-	"Apr" => 3,
-	"May" => 4,
-	"Jun" => 5,
-	"Jul" => 6,
-	"Aug" => 7,
-	"Sep" => 8,
-	"Oct" => 9,
-	"Nov" => 10,
-	"Dec" => 11,
+	"jan" => 0,
+	"feb" => 1,
+	"mar" => 2,
+	"apr" => 3,
+	"may" => 4,
+	"jun" => 5,
+	"jul" => 6,
+	"aug" => 7,
+	"sep" => 8,
+	"oct" => 9,
+	"nov" => 10,
+	"dec" => 11,
 
 );
 
@@ -411,11 +412,27 @@ sub convertTimeToSeconds {
 	my $logDate;
 	my @dateComps;
 	my ($timeMonth, $timeDay, $timeYear, $dateTotal);
+	$dateTotal = 0;
 	if ($log_line =~ / *([0-9A-Z\/]+)/i ){
 		$logDate = $1;
 		@dateComps = split /\//, $logDate;
-
-		$timeMonth = 1 + $monthname{$dateComps[1]};
+		if ($#dateComps < 2) {
+			print "The date string ($log_line) is invalid, exiting...\n";
+			exit(1);
+		}
+		if (!looks_like_number($dateComps[0]) || length $dateComps[0] != 2) {
+			print "The date string ($log_line) has invalid day ($dateComps[0]), exiting...\n";
+			exit(1);
+		}
+		if ($monthname{lc $dateComps[1]} eq "") {
+			print "The date string ($log_line) has invalid month ($dateComps[1]), exiting...\n";
+			exit(1);
+		}
+		if (!looks_like_number($dateComps[2]) || length $dateComps[2] != 4 ) {
+			print "The date string ($log_line) has invalid year ($dateComps[2]), exiting...\n";
+			exit(1);
+		}
+		$timeMonth = 1 + $monthname{lc $dateComps[1]};
 		$timeMonth = $timeMonth * 3600 * 24 * 30;
 		$timeDay= $dateComps[0] * 3600 * 24;
 		$timeYear = $dateComps[2] * 365 * 3600 * 24;
@@ -425,10 +442,26 @@ sub convertTimeToSeconds {
 	my $logTime;
 	my @timeComps;
 	my ($timeHour, $timeMinute, $timeSecond, $timeTotal);
+	$timeTotal = 0;
 	if ($log_line =~ / *(:[0-9:]+)/i ){
 		$logTime = $1;
 		@timeComps = split /:/, $logTime;
-
+		if ($#timeComps < 3) {
+			print "The time string ($log_line) is invalid, exiting...\n";
+			exit(1);
+		}
+		if (!looks_like_number($timeComps[1]) || length $timeComps[1] != 2){
+			print "The time string ($log_line) has invalid hour ($timeComps[1]), exiting...\n";
+			exit(1);
+		}
+		if (!looks_like_number($timeComps[2]) || length $timeComps[2] != 2){
+			print "The time string ($log_line) has invalid minute ($timeComps[2]), exiting...\n";
+			exit(1);
+		}
+		if (!looks_like_number($timeComps[3]) || length $timeComps[3] != 2){
+			print "The time string ($log_line) has invalid second ($timeComps[3]), exiting...\n";
+			exit(1);
+		}
 		$timeHour = $timeComps[1] * 3600;
 		$timeMinute = $timeComps[2] * 60;
 		$timeSecond = $timeComps[3];
@@ -1796,7 +1829,7 @@ sub parseLineNormal
 		}
 		my ($date, $hr, $min, $sec) = split (':', $time);
 		my ($day, $mon, $yr) = split ('/', $date);
-		my $newmin = timegm(0, $min, $hr, $day, $monthname{$mon}, $yr) - $tzoff;
+		my $newmin = timegm(0, $min, $hr, $day, $monthname{lc $mon}, $yr) - $tzoff;
 		$gmtime = $newmin + $sec;
 		print_stats_block( $s_stats );
 		reset_stats_block( $s_stats, $gmtime, $time.' '.$tzone );
