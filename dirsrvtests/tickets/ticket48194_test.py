@@ -295,7 +295,7 @@ def test_ticket48194_run_4(topology):
     Default ciphers are enabled.
     default allowWeakCipher
     """
-    _header(topology, 'Test Case 5 - Check no nsSSL3Ciphers (default setting) with default allowWeakCipher')
+    _header(topology, 'Test Case 5 - Check no nsSSL3Ciphers (-all) with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'nsSSL3Ciphers', '-all')])
@@ -326,7 +326,7 @@ def test_ticket48194_run_5(topology):
     os.system('touch %s' % (topology.standalone.errlog))
     topology.standalone.start(timeout=120)
 
-    connectWithOpenssl(topology, 'RC4-SHA', True)
+    connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
 def test_ticket48194_run_6(topology):
@@ -338,7 +338,7 @@ def test_ticket48194_run_6(topology):
     _header(topology, 'Test Case 7 - Check nsSSL3Ciphers: +all,-TLS_RSA_WITH_AES_256_CBC_SHA256  with default allowWeakCipher')
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all,-TLS_RSA_WITH_AES_256_CBC_SHA256 ')])
+    topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3Ciphers', '+all,-TLS_RSA_WITH_AES_256_CBC_SHA256')])
 
     log.info("\n######################### Restarting the server ######################\n")
     topology.standalone.stop(timeout=10)
