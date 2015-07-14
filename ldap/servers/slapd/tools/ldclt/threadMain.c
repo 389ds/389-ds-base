@@ -477,7 +477,7 @@ addErrorStat (
 #else
     if ((err <= 0) || (err >= MAX_ERROR_NB))
 #endif
-	{
+    {
       if (mctx.errorsBad > mctx.maxErrors) {
         printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
         (void) printGlobalStatistics();				/*JLS 25-08-00*/
@@ -485,8 +485,22 @@ addErrorStat (
         ldclt_sleep (5);
         ldcltExit (EXIT_MAX_ERRORS);				/*JLS 25-08-00*/
       }
-    } else {
-      if (mctx.errors[err] + mctx.negativeErrors[abs(err)] > mctx.maxErrors) {
+    }
+#if defined(USE_OPENLDAP)
+    else if (err < 0)
+    {
+      if (mctx.negativeErrors[abs(err)] > mctx.maxErrors) {
+        printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
+        (void) printGlobalStatistics();				/*JLS 25-08-00*/
+        fflush (stdout);
+        ldclt_sleep (5);
+        ldcltExit (EXIT_MAX_ERRORS);				/*JLS 25-08-00*/
+      }
+    }
+#endif
+    else
+    {
+      if (mctx.errors[err] > mctx.maxErrors) {
         printf ("ldclt[%d]: Max error limit reached - exiting.\n", mctx.pid);
         (void) printGlobalStatistics();				/*JLS 25-08-00*/
         fflush (stdout);
