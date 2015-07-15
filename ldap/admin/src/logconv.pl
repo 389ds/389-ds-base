@@ -424,17 +424,11 @@ my $totalLineCount = 0;
 
 sub isTarArchive {
 	local $_ = shift;
-	if (/\.txz$/ || /\.tar.xz$/) {
-		use IO::Uncompress::UnXz;
-	}
 	return /\.tar$/ || /\.tar\.bz2$/ || /\.tar.gz$/ || /\.tar.xz$/ || /\.tgz$/ || /\.tbz$/ || /\.txz$/;
 }
 
 sub isCompressed {
 	local $_ = shift;
-	if (/\.xz$/) {
-		use IO::Uncompress::UnXz;
-	}
 	return /\.gz$/ || /\.bz2$/ || /\.xz$/;
 }
 
@@ -444,11 +438,52 @@ sub tarNeedsUncompress {
 	return /\.tar.xz$/ || /\.txz$/;
 }
 
+# rhel7 can't grok xz
+sub doUncompress {
+	local $_ = shift;
+	my $data = shift;
+	my $TARFH;
+	# some platforms don't have xz support in IO::Uncompress::AnyUncompress
+	if (/\.tar.xz$/ || /\.txz$/ || /\.xz$/) {
+		if ($data) {
+			openFailed("Cannot read from compressed xz file in tar archive.\nPlease un-tar the tar file first, then pass individual .xz files to this program.\n", $_);
+		}
+		# so use the xz command directly
+		# NOTE: This doesn't work if the argument is a file handle e.g. from
+		# Archive::Tar
+		$! = 0; # clear
+		if (!open($TARFH, "xz -dc $_ |") or $!) {
+			openFailed($!, $_);
+			return;
+		}
+	} else {
+		my $uncompressthing;
+		if ($data) {
+			# make a filehandle object from data
+			open($uncompressthing, "<", \$data) or openFailed($!, $_);
+		} else {
+			# just read from the file
+			$uncompressthing = $_;
+		}
+		$TARFH = new IO::Uncompress::AnyUncompress $uncompressthing or
+			do { openFailed($AnyUncompressError, $_); return; };
+		if (*$TARFH->{Plain}) {
+			openFailed("Unknown compression", $_);
+			return;
+		}
+	}
+	return $TARFH;
+}
+
 $Archive::Tar::WARN = 0; # so new will shut up when reading a regular file
 for (my $count=0; $count < $file_count; $count++){
 	my $logname = $files[$count];
 	# we moved access to the end of the list, so if its the first file skip it
 	if($logCount > 1 && $count == 0 && $skipFirstFile == 1){
+		next;
+	}
+	if (! -r $logname) {
+		print "File not found: $logname\n";
 		next;
 	}
 	$linesProcessed = 0; $lineBlockCount = 0;
@@ -467,11 +502,12 @@ for (my $count=0; $count < $file_count; $count++){
 	my $tariter = 0;
 	my $tarfile = 0;
 	my $comp = 0;
+	$LOGFH = undef;
 	if (isTarArchive($logname)) {
 		$tar = Archive::Tar->new();
 		if (tarNeedsUncompress($logname)) {
-			my $TARFH = new IO::Uncompress::AnyUncompress $logname or
-				do { openFailed($AnyUncompressError, $logname); next };
+			my $TARFH = doUncompress($logname);
+			next if (!$TARFH);
 			$tariter = Archive::Tar->iter($TARFH);
 		} else {
 			$tariter = Archive::Tar->iter($logname);
@@ -494,24 +530,21 @@ for (my $count=0; $count < $file_count; $count++){
 				next;
 			}
 			if (isCompressed($tarfile->name)) {
-				$LOGFH = new IO::Uncompress::AnyUncompress \$tarfile->name or
-					do { openFailed($AnyUncompressError, $logname); next };
+				$LOGFH = doUncompress($tarfile->name, $tarfile->get_content);
+				next if (!$LOGFH);
 				# no way in general to know how big the uncompressed file is - so
 				# assume a factor of 10 inflation - only used for progress reporting
 				$cursize *= 10;
 			} else {
-				open(LOG,"<",\$tarfile->data) or do { openFailed($!, $tarfile->name) ; next };
-				$LOGFH = \*LOG;
+				open($LOGFH,"<",\$tarfile->data) or do { openFailed($!, $tarfile->name) ; next };
 			}
 		} elsif ($comp) {
-			$LOGFH = new IO::Uncompress::AnyUncompress $logname or
-				do { openFailed($AnyUncompressError, $logname); next };
+			$LOGFH = doUncompress($logname);
 			# no way in general to know how big the uncompressed file is - so
 			# assume a factor of 10 inflation - only used for progress reporting
 			$cursize *= 10;
 		} else {
-			open(LOG,$logname) or do { openFailed($!, $logname); next };
-			$LOGFH = \*LOG;
+			open($LOGFH,$logname) or do { openFailed($!, $logname); next };
 		}
 		my $firstline = "yes";
 		while(<$LOGFH>){
@@ -541,6 +574,14 @@ for (my $count=0; $count < $file_count; $count++){
 			print_stats_block( $m_stats );
 		}
 		last if (!$tariter);
+	}
+	if ($tar) {
+		if ($tar->error()) {
+			openFailed($tar->error(), $logname);
+		}
+		if ($Archive::Tar::error) {
+			openFailed($Archive::Tar::error, $logname);
+		}
 	}
 }
 
