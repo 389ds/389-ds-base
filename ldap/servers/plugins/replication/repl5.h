@@ -380,7 +380,6 @@ PRUint64 agmt_get_protocol_timeout(Repl_Agmt *agmt);
 void agmt_set_protocol_timeout(Repl_Agmt *agmt, PRUint64 timeout);
 void agmt_update_maxcsn(Replica *r, Slapi_DN *sdn, int op, LDAPMod **mods, CSN *csn);
 void add_agmt_maxcsns(Slapi_Entry *e, Replica *r);
-void agmt_set_maxcsn(Repl_Agmt *ra);
 void agmt_remove_maxcsn(Repl_Agmt *ra);
 int agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod);
 int agmt_set_WaitForAsyncResults(Repl_Agmt *ra, const Slapi_Entry *e);
