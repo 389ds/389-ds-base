@@ -668,43 +668,127 @@ int
 agmt_start(Repl_Agmt *ra)
 {
     Repl_Protocol *prot = NULL;
+    Slapi_PBlock *pb = NULL;
+    Slapi_Entry **entries = NULL;
+    Slapi_DN *repl_sdn = NULL;
+    char *attrs[2];
+    int protocol_state;
+    int found_ruv = 0;
+    int rc = 0;
 
-	int protocol_state;
-
-	/*	To Allow Consumer Initialisation when adding an agreement: */	
-	if (ra->auto_initialize == STATE_PERFORMING_TOTAL_UPDATE)
-	{
-		protocol_state = STATE_PERFORMING_TOTAL_UPDATE;
-	}
-	else
-	{
-		protocol_state = STATE_PERFORMING_INCREMENTAL_UPDATE;
-	}
+    /*	To Allow Consumer Initialisation when adding an agreement: */
+    if (ra->auto_initialize == STATE_PERFORMING_TOTAL_UPDATE){
+        protocol_state = STATE_PERFORMING_TOTAL_UPDATE;
+    } else {
+        protocol_state = STATE_PERFORMING_INCREMENTAL_UPDATE;
+    }
 
     /* First, create a new protocol object */
     if ((prot = prot_new(ra, protocol_state)) == NULL) {
         return -1;
     }
 
-    /* Now it is safe to own the agreement lock */
+    /*
+     * Set the agmt maxcsn
+     *
+     * We need to get the replica ruv before we take the
+     * agmt lock to avoid potential deadlocks on the nsuniqueid
+     * index.
+     */
+    repl_sdn = agmt_get_replarea(ra);
+
+    pb = slapi_pblock_new();
+    attrs[0] = (char*)type_agmtMaxCSN;
+    attrs[1] = NULL;
+    slapi_search_internal_set_pb_ext(
+        pb,
+        repl_sdn,
+        LDAP_SCOPE_BASE,
+        "objectclass=*",
+        attrs,
+        0,
+        NULL,
+        RUV_STORAGE_ENTRY_UNIQUEID,
+        repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
+        OP_FLAG_REPLICATED);
+    slapi_search_internal_pb (pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_SUCCESS){
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (NULL == entries || NULL == entries[0]){
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                "agmt_start: replica ruv tombstone entry for "
+                "replica %s not found\n",
+            slapi_sdn_get_dn(ra->replarea));
+        } else {
+            found_ruv = 1;
+        }
+    }
+
+    /*
+     * Now it is safe to own the agreement lock
+     */
     PR_Lock(ra->lock);
 
     /* Check that replication is not already started */
     if (ra->protocol != NULL) {
         slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
-        PR_Unlock(ra->lock);
         prot_free(&prot);
-        return 0;
+        goto done;
     }
 
+    /* Set and start the protocol */
     ra->protocol = prot;
-
-    /* Start the protocol thread */
     prot_start(ra->protocol);
 
-    agmt_set_maxcsn(ra);
+    /*
+     * If we found the repl ruv, set the agmt maxcsn...
+     */
+    if (found_ruv){
+        Replica *r;
+        Object *repl_obj;
+        char **maxcsns = NULL;
+        int i;
 
+        maxcsns = slapi_entry_attr_get_charray(entries[0], type_agmtMaxCSN);
+        repl_obj = prot_get_replica_object(ra->protocol);
+        if(repl_obj && maxcsns){
+            r = (Replica *)object_get_data(repl_obj);
+            if(r){
+                /*
+                 * Loop over all the agmt maxcsns and find ours...
+                 */
+                for(i = 0; maxcsns[i]; i++){
+                    char buf[BUFSIZ];
+                    char unavail_buf[BUFSIZ];
+
+                    PR_snprintf(buf,BUFSIZ,"%s;%s;%s;%d;",slapi_sdn_get_dn(repl_sdn),
+                                slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
+                                ra->hostname, ra->port);
+                    PR_snprintf(unavail_buf, BUFSIZ,"%s;%s;%s;%d;unavailable", slapi_sdn_get_dn(repl_sdn),
+                                slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
+                                ra->hostname, ra->port);
+                    if(strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)){
+                    	/* Set the maxcsn */
+                        slapi_ch_free_string(&ra->maxcsn);
+                        ra->maxcsn = slapi_ch_strdup(maxcsns[i]);
+                        ra->consumerRID = agmt_maxcsn_get_rid(maxcsns[i]);
+                        ra->tmpConsumerRID = 1;
+                        break;
+                    }
+                }
+            }
+        }
+        slapi_ch_array_free(maxcsns);
+    }
+
+done:
     PR_Unlock(ra->lock);
+    slapi_free_search_results_internal(pb);
+    slapi_pblock_destroy (pb);
+    slapi_sdn_free(&repl_sdn);
+
     return 0;
 }
 
@@ -3049,99 +3133,6 @@ agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod)
         agmt_obj = agmtlist_get_next_agreement_for_replica (r, agmt_obj);
     }
     return rc;
-}
-
-/*
- *  Called when we start a repl agmt
- */
-void
-agmt_set_maxcsn(Repl_Agmt *ra)
-{
-    Slapi_PBlock *pb = NULL;
-    Slapi_Entry **entries = NULL;
-    Replica *r = NULL;
-    Object *repl_obj;
-    const Slapi_DN *tombstone_sdn = NULL;
-    char *attrs[2];
-    int rc;
-
-    /* read ruv state from the ruv tombstone entry */
-    pb = slapi_pblock_new();
-    if (!pb) {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
-        goto done;
-    }
-    repl_obj = prot_get_replica_object(ra->protocol);
-    if(repl_obj){
-        r = (Replica *)object_get_data(repl_obj);
-        tombstone_sdn = replica_get_root(r);
-    }
-    ra->maxcsn = NULL;
-    attrs[0] = (char*)type_agmtMaxCSN;
-    attrs[1] = NULL;
-    slapi_search_internal_set_pb_ext(
-        pb,
-        (Slapi_DN *)tombstone_sdn,
-        LDAP_SCOPE_BASE,
-        "objectclass=*",
-        attrs,
-        0, /* attrsonly */
-        NULL, /* controls */
-        RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION),
-        OP_FLAG_REPLICATED);  /* flags */
-    slapi_search_internal_pb (pb);
-
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-    if (rc == LDAP_SUCCESS){
-        Replica *r;
-        Object *repl_obj;
-        char **maxcsns;
-        int i;
-
-        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-        if (NULL == entries || NULL == entries[0]){
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-                "agmt_set_maxcsn: replica ruv tombstone entry for "
-                "replica %s not found\n",
-            slapi_sdn_get_dn(ra->replarea));
-            goto done;
-        }
-        maxcsns = slapi_entry_attr_get_charray(entries[0], type_agmtMaxCSN);
-        repl_obj = prot_get_replica_object(ra->protocol);
-        if(repl_obj && maxcsns){
-            r = (Replica *)object_get_data(repl_obj);
-            if(r){
-                /*
-                 * Loop over all the agmt maxcsns and find ours
-                 */
-                for(i = 0; maxcsns[i]; i++){
-                    char buf[BUFSIZ];
-                    char unavail_buf[BUFSIZ];
-
-                    PR_snprintf(buf,BUFSIZ,"%s;%s;%s;%d;",slapi_sdn_get_dn(ra->replarea),
-                    		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
-                    		ra->hostname, ra->port);
-                    PR_snprintf(unavail_buf, BUFSIZ,"%s;%s;%s;%d;unavailable", slapi_sdn_get_dn(ra->replarea),
-                    		slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
-                    		ra->hostname, ra->port);
-                    if(strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)){
-                        slapi_ch_free_string(&ra->maxcsn);
-                        ra->maxcsn = slapi_ch_strdup(maxcsns[i]);
-                        ra->consumerRID = agmt_maxcsn_get_rid(maxcsns[i]);
-                        ra->tmpConsumerRID = 1;
-                        break;
-                    }
-                }
-            }
-        }
-        slapi_ch_array_free(maxcsns);
-    }
-done:
-    if (NULL != pb){
-        slapi_free_search_results_internal(pb);
-        slapi_pblock_destroy (pb);
-    }
 }
 
 /*
