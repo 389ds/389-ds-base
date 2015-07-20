@@ -1141,13 +1141,24 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				CACHE_RETURN(&inst->inst_cache, &e);
 			}
 		}
-		if (cache_is_in_cache(&inst->inst_cache, e)) {
-			ep_id = e->ep_id;
-			CACHE_REMOVE(&inst->inst_cache, e);
+
+		/*
+		 * e could have been replaced by cache_find_id(), recheck if it's NULL
+		 * before trying to unlock it, etc.
+		 */
+		if (e) {
+			if (cache_is_in_cache(&inst->inst_cache, e)) {
+				ep_id = e->ep_id; /* Otherwise, e might have been freed. */
+				CACHE_REMOVE(&inst->inst_cache, e);
+			}
+			cache_unlock_entry(&inst->inst_cache, e);
+			CACHE_RETURN(&inst->inst_cache, &e);
+			/*
+			 * e is unlocked and no longer in cache.
+			 * It could be freed at any moment.
+			 */
+			e = NULL;
 		}
-		cache_unlock_entry(&inst->inst_cache, e);
-		CACHE_RETURN(&inst->inst_cache, &e);
-		e = NULL;
 
 		if (entryrdn_get_switch() && ep_id) { /* subtree-rename: on */
 			/* since the op was successful, delete the tombstone dn from the dn cache */
