@@ -148,14 +148,13 @@ while($arg_count <= $#ARGV){
 }
 
 if($file_count == 0){
-	if($reportStatsSecFile or $reportStatsMinFile){
-		print "Usage error for option -m or -M, either the output file or access log is missing!\n\n";
-	} else {
-		print "There are no access logs specified!\n\n";
-	}
+	print "There are no access logs specified, or the tool options have not been used correctly!\n";
 	exit 1;
 }
 
+#
+# Initialize the statistic blocks
+#
 if ($reportStatsSecFile) {
 	$s_stats = new_stats_block($reportStatsSecFile);
 	$reportStats = "-m";
@@ -356,6 +355,19 @@ my %monthname = (
 	"dec" => 11,
 
 );
+
+#
+# Validate start/end times (if specified)
+#
+if ($startTime and $endTime){
+	# Make sure the end time is not earlier than the start time
+	my $testStart = convertTimeToSeconds($startTime);
+	my $testEnd = convertTimeToSeconds($endTime);
+	if ($testStart > $testEnd){
+		print "Start time ($startTime) is greater than end time ($endTime)!\n";
+		exit 1;
+	}
+}
 
 my $linesProcessed;
 my $lineBlockCount;
