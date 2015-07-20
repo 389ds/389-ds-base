@@ -437,9 +437,9 @@ sub doUncompress {
 		# so use the xz command directly
 		# NOTE: This doesn't work if the argument is a file handle e.g. from
 		# Archive::Tar
-		$! = 0; # clear
-		if (!open($TARFH, "xz -dc $_ |") or $!) {
-			openFailed($!, $_);
+		$? = 0; # clear
+		if (!open($TARFH, "xz -dc $_ |") or $?) {
+			openFailed($?, $_);
 			return;
 		}
 	} else {
