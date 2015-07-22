@@ -821,7 +821,6 @@ send_dirsync_search(Repl_Connection *conn)
 		const char *old_dn = slapi_sdn_get_ndn( windows_private_get_windows_subtree(conn->agmt) );
 		/* LDAP_SERVER_DIRSYNC_OID requires the search base Naming Context */
 		char *dn = slapi_ch_strdup(strstr(old_dn, "dc="));
-		char **exattrs = NULL;
 
 		if (conn->supports_dirsync == 0)
 		{
@@ -847,10 +846,6 @@ send_dirsync_search(Repl_Connection *conn)
 
 		winsync_plugin_call_dirsync_search_params_cb(conn->agmt, old_dn, &dn, &scope, &filter,
 		                                             &attrs, &server_controls);
-		exattrs = windows_private_get_range_attrs(conn->agmt);
-		charray_merge(&attrs, exattrs, 0 /* pass in */);
-		slapi_ch_free((void **)&exattrs); /* strings are passed in */
-
 		LDAPDebug( LDAP_DEBUG_REPL, "Sending dirsync search request\n", 0, 0, 0 );
 
 		rc = ldap_search_ext( conn->ld, dn, scope, filter, attrs, PR_FALSE, server_controls,
@@ -1010,20 +1005,14 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 			{
 				if (( dn = ldap_get_dn( conn->ld, res )) != NULL ) 
 				{
-					char **exattrs = NULL;
 					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
 					lm = ldap_first_entry( conn->ld, res );
-					e = windows_private_get_curr_entry(conn->agmt); /* if range search, e != NULL */
-					e = windows_LDAPMessage2Entry(e, conn, lm, 0, &exattrs);
+					/* 
+					 * we don't have to retrieve all the members here.
+					 * here, we have to make sure to get the entry once.
+					 */
+					e = windows_LDAPMessage2Entry(e, conn, lm, 0, NULL);
 					ldap_memfree(dn);
-					if (exattrs) {
-						/* some attribute returned "<attr>;range=low-high" */
-						windows_private_set_curr_entry(conn->agmt, e);
-						windows_private_set_range_attrs(conn->agmt, exattrs);
-					} else {
-						windows_private_set_curr_entry(conn->agmt, NULL);
-						windows_private_set_range_attrs(conn->agmt, NULL);
-					}
 				}
 			}
 			break;

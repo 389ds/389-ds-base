@@ -66,11 +66,6 @@ void windows_private_set_one_way(const Repl_Agmt *ra, PRBool value);
 int windows_private_get_move_action(const Repl_Agmt *ra);
 void windows_private_set_move_action(const Repl_Agmt *ra, int value);
 
-Slapi_Entry *windows_private_get_curr_entry(const Repl_Agmt *ra);
-void windows_private_set_curr_entry(const Repl_Agmt *ra, Slapi_Entry *e);
-char **windows_private_get_range_attrs(const Repl_Agmt *ra);
-void windows_private_set_range_attrs(const Repl_Agmt *ra, char **attrs);
-
 void windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter);
 void windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter);
 const char* windows_private_get_directory_userfilter(const Repl_Agmt *ra);
