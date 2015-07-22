@@ -5847,6 +5847,9 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp,Slapi_Entry *e, int is_
 		/* Is this entry one we should be interested in ? */
 		if (is_subject_of_agreement_remote(e,prp->agmt)) 
 		{
+			ConnResult cres = 0;
+			const char *searchbase = slapi_entry_get_dn_const(e);
+			char *filter = "(objectclass=*)";
 retry:
 			/* First make its local DN */
 			rc = map_entry_dn_inbound(e, &local_sdn, prp->agmt);
@@ -5902,7 +5905,19 @@ retry:
 					/* If it doesn't exist, try to make it */
 					if (add_local_entry_allowed(prp,e))
 					{
-						windows_create_local_entry(prp,e,local_sdn);
+						found_entry = NULL;
+						/* 
+						 * BZ 1172037: Search with DirSync Control does not return the range subtype.
+						 * Re-search the entry to get all the attribute values over hard limit MaxValRange
+						 * on 2008R2.  Note: 2012R2 does not have the hard limit.
+						 * If we stop supporting 2008R2, this windows_search_entry_ext call can be removed.
+						 */
+						cres = windows_search_entry_ext(prp->conn, (char*)searchbase, 
+						                                filter, &found_entry, NULL, LDAP_SCOPE_BASE);
+						if (found_entry) {
+							e = found_entry;
+						}
+						windows_create_local_entry(prp, e, local_sdn);
 					} else
 					{
 						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"%s: windows_process_dirsync_entry: not allowed to add entry %s.\n",agmt_get_long_name(prp->agmt)
@@ -5918,10 +5933,6 @@ retry:
 			 	 * We search Windows with the dn and retry using the found 
 				 * entry.
 			 	 */
-				ConnResult cres = 0;
-				const char *searchbase = slapi_entry_get_dn_const(e);
-				char *filter = "(objectclass=*)";
-
 				retried = 1;
 				cres = windows_search_entry_ext(prp->conn, (char*)searchbase, 
 												filter, &found_entry, NULL, LDAP_SCOPE_BASE);
