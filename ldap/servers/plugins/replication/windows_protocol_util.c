@@ -194,8 +194,8 @@ static windows_attribute_map user_attribute_map[] =
 {
 	{ "homeDirectory", "ntUserHomeDir", bidirectional, always, normal},
 	{ "scriptPath", "ntUserScriptPath", bidirectional, always, normal},
-	{ "lastLogon", "ntUserLastLogon", fromwindowsonly, always, normal},
-	{ "lastLogoff", "ntUserLastLogoff", fromwindowsonly, always, normal},
+	{ "lastLogonTimestamp", "ntUserLastLogon", fromwindowsonly, always, normal},
+	{ "lastLogoffTimestamp", "ntUserLastLogoff", fromwindowsonly, always, normal},
 	{ "accountExpires", "ntUserAcctExpires", bidirectional, always, normal},
 	{ "codePage", "ntUserCodePage", bidirectional, always, normal},
 	{ "logonHours", "ntUserLogonHours", bidirectional, always, normal},
