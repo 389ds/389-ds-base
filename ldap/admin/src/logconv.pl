@@ -2025,8 +2025,8 @@ sub parseLineNormal
 			if($1 eq $rootDN){
 				$rootDNBindCount++;
 			}
+			$tmpp = $1;
 			if($usage =~ /f/ || $usage =~ /u/ || $usage =~ /U/ || $usage =~ /b/ || $verb eq "yes"){
-				$tmpp = $1;
 				$tmpp =~ tr/A-Z/a-z/;
 				$hashes->{bindlist}->{$tmpp}++;
 			}
