@@ -67,6 +67,8 @@ typedef struct _cnumRet {
 /* was originally changelogmaximumage */
 #define CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE     "nsslapd-changelogmaxage"
 #define CONFIG_CHANGELOG_DIRECTORY_ATTRIBUTE  "nsslapd-changelogdir"
+#define CONFIG_CHANGELOG_INCLUDE_SUFFIX       "nsslapd-include-suffix"
+#define CONFIG_CHANGELOG_EXCLUDE_SUFFIX       "nsslapd-exclude-suffix"
 
 #define RETROCL_CHANGELOG_DN "cn=changelog"
 #define RETROCL_MAPPINGTREE_DN "cn=\"cn=changelog\",cn=mapping tree,cn=config"
@@ -139,5 +141,7 @@ extern time_t       retrocl_getchangetime( int type, int *err );
 extern void retrocl_init_trimming(void);
 extern void retrocl_stop_trimming(void);
 extern char *retrocl_get_config_str(const char *attrt);
+
+int retrocl_entry_in_scope(Slapi_Entry *e);
 
 #endif /* _H_RETROCL */
