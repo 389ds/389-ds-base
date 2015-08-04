@@ -140,6 +140,7 @@ write_replog_db(
     int			flag,
     time_t		curtime,
     Slapi_Entry         *log_e,
+	Slapi_Entry         *post_entry,
     const char          *newrdn,
     LDAPMod		**modrdn_mods,
     const char          *newsuperior
@@ -156,10 +157,25 @@ write_replog_db(
     int	err = 0;
     int ret = LDAP_SUCCESS;
     int	i;
+    int mark = 0;
 
     if (!dn) {
         slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
         return ret;
+    }
+    mark = (post_entry && retrocl_entry_in_scope(post_entry));
+    slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "post in scope (%d)\n",mark);
+
+    if (post_entry){
+        if(!retrocl_entry_in_scope(log_e) && !retrocl_entry_in_scope(post_entry)){
+            /* modrdn: entry not in scope, just return... */
+            return ret;
+        }
+    } else {
+        if(!retrocl_entry_in_scope(log_e)){
+            /* entry not in scope, just return... */
+            return ret;
+        }
     }
 
     PR_Lock(retrocl_internal_lock);
@@ -319,7 +335,7 @@ write_replog_db(
         break;
 
     case OP_DELETE:
-        if (log_e) {
+        if (retrocl_log_deleted) {
             /* we have to log the full entry */
             if ( entry2reple( e, log_e, OP_DELETE ) != 0 ) {
                 err = SLAPI_PLUGIN_FAILURE;
@@ -559,7 +575,8 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
     char		*dn;
     LDAPMod		**log_m = NULL;
     int			flag = 0;
-    Slapi_Entry		*te = NULL;
+    Slapi_Entry		*entry = NULL;
+    Slapi_Entry		*post_entry = NULL;
     Slapi_Operation     *op = NULL;
     LDAPMod		**modrdn_mods = NULL;
     char *newrdn = NULL;
@@ -624,7 +641,12 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
         LDAPDebug0Args(LDAP_DEBUG_TRACE,"not applying change for nsTombstone entries\n");
         return SLAPI_PLUGIN_SUCCESS;
     }
-	
+    /*
+     * Start by grabbing the preop entry, ADD will replace it as needed.  Getting the entry
+     * allows up to perform scoping in write_replog_db() for all op types.
+     */
+    (void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &entry);
+
     switch ( optype ) {
     case OP_MODIFY:
         (void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &log_m );
@@ -634,14 +656,14 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
          * For adds, we want the unnormalized dn, so we can preserve
          * spacing, case, when replicating it.
          */
-        (void)slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &te );
-        if ( NULL != te ) {
-            dn = slapi_entry_get_dn( te );
+        (void)slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &entry );
+        if ( NULL != entry ) {
+            dn = slapi_entry_get_dn( entry );
         }
         break;
     case OP_DELETE:
         if (retrocl_log_deleted)
-            (void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &te);
+            (void)slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &entry);
         break;
     case OP_MODRDN:
         /* newrdn is used just for logging; no need to be normalized */
@@ -649,13 +671,14 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
         (void)slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
         (void)slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &modrdn_mods );
         (void)slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior );
+        (void)slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &post_entry);
         break;
     }
 
     /* check if we should log change to retro changelog, and
      * if so, do it here */
-    if((rc = write_replog_db( pb, optype, dn, log_m, flag, curtime, te,
-        newrdn, modrdn_mods, slapi_sdn_get_dn(newsuperior) )))
+    if((rc = write_replog_db( pb, optype, dn, log_m, flag, curtime, entry,
+        post_entry, newrdn, modrdn_mods, slapi_sdn_get_dn(newsuperior) )))
     {
         slapi_log_error(SLAPI_LOG_FATAL, "retrocl-plugin",
                         "retrocl_postob: operation failure [%d]\n", rc);
