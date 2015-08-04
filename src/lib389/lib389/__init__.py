@@ -67,6 +67,11 @@ from lib389.tools import DirSrvTools
 # mixin
 #from lib389.tools import DirSrvTools
 
+MAJOR, MINOR, _, _, _ = sys.version_info
+
+if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
+    from ldap.controls.simple import GetEffectiveRightsControl
+
 RE_DBMONATTR = re.compile(r'^([a-zA-Z]+)-([1-9][0-9]*)$')
 RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 
@@ -2267,3 +2272,49 @@ class DirSrv(SimpleLDAPObject):
 
     def detectDisorderlyShutdown(self):
         return DirSrvTools.searchFile(self.errlog, DISORDERLY_SHUTDOWN)
+
+    def get_effective_rights(self, sourcedn, base=DEFAULT_SUFFIX, scope=ldap.SCOPE_SUBTREE, *args, **kwargs):
+        """
+        Conduct a search on effective rights for some object (sourcedn) against a filter.
+        For arguments to this function, please see LDAPObject.search_s. For example:
+
+        LDAPObject.search_s(base, scope[, filterstr='(objectClass=*)'[, attrlist=None[, attrsonly=0]]]) -> list|None
+
+         The sourcedn is the object that is having it's rights checked against all objects matched by filterstr
+         If sourcedn is '', anonymous is checked.
+         If you set targetattrs to "*" you will see ALL possible attributes for all possible objectclasses on the object.
+         If you set targetattrs to "+" you will see operation attributes only.
+         If you set targetattrs to "*@objectclass" you will only see the attributes from that class.
+        You will want to look at entryLevelRights and attributeLevelRights in the result.
+         entryLevelRights:
+          * a - add
+          * d - delete
+          * n - rename
+          * v - view
+         attributeLevelRights
+          * r - read
+          * s - search
+          * w - write to the attribute (add / replace)
+          * o - obliterate (Delete the attribute)
+          * c - Compare the attributes directory side
+          * W - self write the attribute
+          * O - self obliterate
+          See: https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Viewing_the_ACIs_for_an_Entry-Get_Effective_Rights_Control.html
+        """
+        #Is there a better way to do this check?
+        if not (MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7)):
+            raise Exception("UNSUPPORTED EXTENDED OPERATION ON THIS VERSION OF PYTHON")
+        ldap_result = None
+        # This may not be thread safe. Is there a better way to do this?
+        try:
+            gerc = GetEffectiveRightsControl(True, authzId='dn:' + sourcedn.encode('UTF-8'))
+            sctrl = [gerc]
+            self.set_option(ldap.OPT_SERVER_CONTROLS, sctrl)
+            #ldap_result = self.search_s(base, scope, *args, **kwargs)
+            res = self.search(base, scope, *args, **kwargs)
+            restype, ldap_result = self.result(res)
+        finally:
+            self.set_option(ldap.OPT_SERVER_CONTROLS, [])
+        return ldap_result
+
+
