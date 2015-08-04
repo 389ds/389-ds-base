@@ -82,6 +82,9 @@ char **retrocl_attributes = NULL;
 char **retrocl_aliases = NULL;
 int retrocl_log_deleted = 0;
 
+static Slapi_DN **retrocl_includes = NULL;
+static Slapi_DN **retrocl_excludes = NULL;
+
 /* ----------------------------- Retrocl Plugin */
 
 static Slapi_PluginDesc retrocldesc = {"retrocl", VENDOR, DS_PACKAGE_VERSION, "Retrocl Plugin"};
@@ -386,6 +389,8 @@ static int retrocl_start (Slapi_PBlock *pb)
     int rc = 0;
     Slapi_Entry *e = NULL;
     char **values = NULL;
+    int num_vals = 0;
+    int i = 0;
 
     retrocl_rootdse_init(pb);
 
@@ -404,6 +409,87 @@ static int retrocl_start (Slapi_PBlock *pb)
     if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "Missing config entry.\n");
         return -1;
+    }
+
+    /* Get the exclude suffixes */
+    values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_EXCLUDE_SUFFIX, &num_vals);
+    if(values){
+        /* Validate the syntax before we create our DN array */
+        for (i = 0;i < num_vals; i++){
+            if(slapi_dn_syntax_check(pb, values[i], 1)){
+                /* invalid dn syntax */
+                slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                        "Invalid DN (%s) for exclude suffix.\n", values[i] );
+                slapi_ch_array_free(values);
+                return -1;
+            }
+        }
+        /* Now create our SDN array */
+        retrocl_excludes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),num_vals+1);
+        for (i = 0;i < num_vals; i++){
+            retrocl_excludes[i] = slapi_sdn_new_dn_byval(values[i]);
+        }
+        slapi_ch_array_free(values);
+    }
+    /* Get the include suffixes */
+    values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_INCLUDE_SUFFIX, &num_vals);
+    if(values){
+        for (i = 0;i < num_vals; i++){
+            /* Validate the syntax before we create our DN array */
+            if(slapi_dn_syntax_check(pb, values[i], 1)){
+                /* invalid dn syntax */
+                slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                        "Invalid DN (%s) for include suffix.\n", values[i] );
+                slapi_ch_array_free(values);
+                return -1;
+            }
+        }
+        /* Now create our SDN array */
+        retrocl_includes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),num_vals+1);
+        for (i = 0;i < num_vals; i++){
+            retrocl_includes[i] = slapi_sdn_new_dn_byval(values[i]);
+        }
+        slapi_ch_array_free(values);
+    }
+    if(retrocl_includes && retrocl_excludes){
+        /*
+         * Make sure we haven't mixed the same suffix, and there are no
+         * conflicts between the includes and excludes
+         */
+        int i = 0;
+
+        while(retrocl_includes[i]){
+            int x = 0;
+            while(retrocl_excludes[x]){
+               if(slapi_sdn_compare(retrocl_includes[i], retrocl_excludes[x] ) == 0){
+                   /* we have a conflict */
+                   slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                           "include suffix (%s) is also listed in exclude suffix list\n",
+		                   slapi_sdn_get_dn(retrocl_includes[i]));
+                   return -1;
+               }
+               x++;
+            }
+            i++;
+        }
+
+        /* Check for parent/child conflicts */
+        i = 0;
+        while(retrocl_includes[i]){
+            int x = 0;
+            while(retrocl_excludes[x]){
+               if(slapi_sdn_issuffix(retrocl_includes[i], retrocl_excludes[x])){
+                   /* we have a conflict */
+                   slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                           "include suffix (%s) is a child of the exclude suffix(%s)\n",
+                           slapi_sdn_get_dn(retrocl_includes[i]),
+                           slapi_sdn_get_dn(retrocl_excludes[i]));
+                   return -1;
+               }
+               x++;
+            }
+            i++;
+        }
     }
 
     values = slapi_entry_attr_get_charray(e, "nsslapd-attribute");
@@ -471,6 +557,49 @@ static int retrocl_start (Slapi_PBlock *pb)
 }
 
 /*
+ * Check if an entry is in the configured scope.
+ * Return 1 if entry is in the scope, or 0 otherwise.
+ * For MODRDN the caller should check both the preop
+ * and postop entries.  If we are moving out of, or
+ * into scope, we should record it.
+ */
+int
+retrocl_entry_in_scope(Slapi_Entry *e)
+{
+    Slapi_DN *sdn = slapi_entry_get_sdn(e);
+
+    if (e == NULL){
+        return 1;
+    }
+
+    if (retrocl_excludes){
+        int i = 0;
+
+        /* check the excludes */
+        while(retrocl_excludes[i]){
+            if (slapi_sdn_issuffix(sdn, retrocl_excludes[i])){
+                return 0;
+            }
+            i++;
+        }
+    }
+    if (retrocl_includes){
+        int i = 0;
+
+        /* check the excludes */
+        while(retrocl_includes[i]){
+            if (slapi_sdn_issuffix(sdn, retrocl_includes[i])){
+                return 1;
+            }
+            i++;
+        }
+        return 0;
+    }
+
+    return 1;
+}
+
+/*
  * Function: retrocl_stop
  *
  * Returns: 0
@@ -483,26 +612,40 @@ static int retrocl_start (Slapi_PBlock *pb)
 
 static int retrocl_stop (Slapi_PBlock *pb)
 {
-  int rc = 0;
+    int rc = 0;
+    int i = 0;
 
-  slapi_ch_array_free(retrocl_attributes);
-  retrocl_attributes = NULL;
-  slapi_ch_array_free(retrocl_aliases);
-  retrocl_aliases = NULL;
+    slapi_ch_array_free(retrocl_attributes);
+    retrocl_attributes = NULL;
+    slapi_ch_array_free(retrocl_aliases);
+    retrocl_aliases = NULL;
 
-  retrocl_stop_trimming();  
-  retrocl_be_changelog = NULL;
-  retrocl_forget_changenumbers();
-  PR_DestroyLock(retrocl_internal_lock);
-  retrocl_internal_lock = NULL;
-  slapi_destroy_rwlock(retrocl_cn_lock);
-  retrocl_cn_lock = NULL;
-  legacy_initialised = 0;
+    while(retrocl_excludes && retrocl_excludes[i]){
+        slapi_sdn_free(&retrocl_excludes[i]);
+        i++;
+    }
+    slapi_ch_free((void**)&retrocl_excludes);
+    i = 0;
 
-  slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, "",
-          LDAP_SCOPE_BASE,"(objectclass=*)", retrocl_rootdse_search);
+    while(retrocl_includes && retrocl_includes[i]){
+        slapi_sdn_free(&retrocl_includes[i]);
+        i++;
+    }
+    slapi_ch_free((void**)&retrocl_includes);
 
-  return rc;
+    retrocl_stop_trimming();
+    retrocl_be_changelog = NULL;
+    retrocl_forget_changenumbers();
+    PR_DestroyLock(retrocl_internal_lock);
+    retrocl_internal_lock = NULL;
+    slapi_destroy_rwlock(retrocl_cn_lock);
+    retrocl_cn_lock = NULL;
+    legacy_initialised = 0;
+
+    slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, "",
+            LDAP_SCOPE_BASE,"(objectclass=*)", retrocl_rootdse_search);
+
+    return rc;
 }
 
 /*
