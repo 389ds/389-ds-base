@@ -2405,6 +2405,7 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 	struct slapi_entry *post_e = NULL;
 	Slapi_Attr *pre_attr = 0;
 	Slapi_Attr *post_attr = 0;
+	int rc = 0;
 	int i = 0;
 
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &pre_e );
@@ -2481,14 +2482,14 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 				in pre, not in post, delete from entry
 				not in pre, in post, add to entry
 			*/
-			while(pre_index < pre_total || post_index < post_total)
+			while(rc == 0 && (pre_index < pre_total || post_index < post_total))
 			{
 				if(pre_index == pre_total)
 				{
 					/* add the rest of post */
 					slapi_sdn_set_normdn_byref(sdn,
 					            slapi_value_get_string(post_array[post_index]));
-					memberof_add_one(pb, config, group_sdn, sdn);
+					rc = memberof_add_one(pb, config, group_sdn, sdn);
 
 					post_index++;
 				}
@@ -2497,7 +2498,7 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 					/* delete the rest of pre */
 					slapi_sdn_set_normdn_byref(sdn,
 					            slapi_value_get_string(pre_array[pre_index]));
-					memberof_del_one(pb, config, group_sdn, sdn);
+					rc = memberof_del_one(pb, config, group_sdn, sdn);
 
 					pre_index++;
 				}
@@ -2514,7 +2515,7 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 						/* delete pre array */
 						slapi_sdn_set_normdn_byref(sdn,
 					            slapi_value_get_string(pre_array[pre_index]));
-						memberof_del_one(pb, config, group_sdn, sdn);
+						rc = memberof_del_one(pb, config, group_sdn, sdn);
 
 						pre_index++;
 					}
@@ -2523,7 +2524,7 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 						/* add post array */
 						slapi_sdn_set_normdn_byref(sdn,
 					            slapi_value_get_string(post_array[post_index]));
-						memberof_add_one(pb, config, group_sdn, sdn);
+						rc = memberof_add_one(pb, config, group_sdn, sdn);
 
 						post_index++;
 					}
@@ -2541,7 +2542,7 @@ memberof_replace_list(Slapi_PBlock *pb, MemberOfConfig *config,
 		}
 	}
 	
-	return 0;
+	return rc;
 }
 
 /* memberof_load_array()
