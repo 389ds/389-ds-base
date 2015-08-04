@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -174,6 +174,67 @@ def test_betxn_attr_uniqueness(topology):
     log.info('test_betxn_attr_uniqueness: PASSED')
 
 
+def test_betxn_memberof(topology):
+    ENTRY1_DN = 'cn=group1,' + DEFAULT_SUFFIX
+    ENTRY2_DN = 'cn=group2,' + DEFAULT_SUFFIX
+    PLUGIN_DN = 'cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config'
+
+    # Enable and configure memberOf plugin
+    topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+    try:
+        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member')])
+    except ldap.LDAPError, e:
+        log.fatal('test_betxn_memberof: Failed to update config(member): error ' + e.message['desc'])
+        assert False
+
+    # Add our test entries
+    try:
+        topology.standalone.add_s(Entry((ENTRY1_DN, {'objectclass': "top groupofnames".split(),
+                                     'cn': 'group1'})))
+    except ldap.LDAPError, e:
+        log.error('test_betxn_memberof: Failed to add group1:' +
+                  ENTRY1_DN + ', error ' + e.message['desc'])
+        assert False
+
+    try:
+        topology.standalone.add_s(Entry((ENTRY2_DN, {'objectclass': "top groupofnames".split(),
+                                     'cn': 'group1'})))
+    except ldap.LDAPError, e:
+        log.error('test_betxn_memberof: Failed to add group2:' +
+                  ENTRY2_DN + ', error ' + e.message['desc'])
+        assert False
+
+    #
+    # Test mod replace
+    #
+
+    # Add group2 to group1 - it should fail with objectclass violation
+    try:
+        topology.standalone.modify_s(ENTRY1_DN, [(ldap.MOD_REPLACE, 'member', ENTRY2_DN)])
+        log.fatal('test_betxn_memberof: Group2 was incorrectly allowed to be added to group1')
+        assert False
+    except ldap.LDAPError, e:
+        log.info('test_betxn_memberof: Group2 was correctly rejected (mod replace): error ' + e.message['desc'])
+
+    #
+    # Test mod add
+    #
+
+    # Add group2 to group1 - it should fail with objectclass violation
+    try:
+        topology.standalone.modify_s(ENTRY1_DN, [(ldap.MOD_ADD, 'member', ENTRY2_DN)])
+        log.fatal('test_betxn_memberof: Group2 was incorrectly allowed to be added to group1')
+        assert False
+    except ldap.LDAPError, e:
+        log.info('test_betxn_memberof: Group2 was correctly rejected (mod add): error ' + e.message['desc'])
+
+    #
+    # Done
+    #
+
+    log.info('test_betxn_memberof: PASSED')
+
+
 def test_betxn_final(topology):
     topology.standalone.delete()
     log.info('betxn test suite PASSED')
@@ -187,6 +248,7 @@ def run_isolated():
     test_betxn_init(topo)
     test_betxt_7bit(topo)
     test_betxn_attr_uniqueness(topo)
+    test_betxn_memberof(topo)
     test_betxn_final(topo)
 
 
