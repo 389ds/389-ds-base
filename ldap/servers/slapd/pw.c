@@ -609,7 +609,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 
 	/* update passwordHistory */
 	if ( old_pw != NULL && pwpolicy->pw_history == 1 ) {
-		update_pw_history(pb, sdn, old_pw);
+		(void)update_pw_history(pb, sdn, old_pw);
 		slapi_ch_free ( (void**)&old_pw );
 	}
 
@@ -648,7 +648,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw) {
 	 * for this special case to ensure we reset the expiration date properly. */
 	if ((internal_op && pwpolicy->pw_must_change && (!pb->pb_conn || slapi_dn_isroot(pb->pb_conn->c_dn))) ||
 	    (!internal_op && pwpolicy->pw_must_change &&
-	    ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy)))){
+	     ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy)))) {
 		pw_exp_date = NO_TIME;
 	} else if ( pwpolicy->pw_exp == 1 ) {
 		Slapi_Entry *pse = NULL;
@@ -994,6 +994,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 	/* get the entry and check for the password history if this is called by a modify operation */
 	if ( mod_op ) {
+retry:
 		/* retrieve the entry */
 		e = get_entry ( pb, dn );
 		if ( e == NULL ) {
@@ -1003,19 +1004,21 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 		/* check for password history */
 		if ( pwpolicy->pw_history == 1 ) {
+			Slapi_Value **va = NULL;
 			attr = attrlist_find(e->e_attrs, "passwordHistory");
-			if (attr && 
-				!valueset_isempty(&attr->a_present_values))
-			{
-				Slapi_Value **va= attr_get_present_values(attr);
+			if (attr && !valueset_isempty(&attr->a_present_values)) {
+				/* Resetting password history array if necessary. */
+				if (0 == update_pw_history(pb, sdn, NULL)) {
+					/* There was an update in the password history.  Retry... */
+					slapi_entry_free(e); 
+					goto retry;
+				}
+				va = attr_get_present_values(attr);
 				if ( pw_in_history( va, vals[0] ) == 0 ) {
 					if ( pwresponse_req == 1 ) {
-						slapi_pwpolicy_make_response_control ( pb, -1, -1,
-							LDAP_PWPOLICY_PWDINHISTORY );
+						slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDINHISTORY);
 					}
-					pw_send_ldap_result ( pb, 
-						LDAP_CONSTRAINT_VIOLATION, NULL,
-						"password in history", 0, NULL );
+					pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
 					slapi_entry_free( e ); 
 					delete_passwdPolicy(&pwpolicy);
 					return ( 1 );
@@ -1024,27 +1027,18 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 			/* get current password. check it and remember it  */
 			attr = attrlist_find(e->e_attrs, "userpassword");
-			if (attr && !valueset_isempty(&attr->a_present_values))
-			{
-				Slapi_Value **va= valueset_get_valuearray(&attr->a_present_values);
-				if (slapi_is_encoded((char*)slapi_value_get_string(vals[0]))) 
-				{
-					if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[0])) == 0 )
-					{
-						pw_send_ldap_result ( pb, 
-										   LDAP_CONSTRAINT_VIOLATION ,NULL,
-										   "password in history", 0, NULL);
+			if (attr && !valueset_isempty(&attr->a_present_values)) {
+				va = valueset_get_valuearray(&attr->a_present_values);
+				if (slapi_is_encoded((char*)slapi_value_get_string(vals[0]))) {
+					if (slapi_attr_value_find(attr, (struct berval *)slapi_value_get_berval(vals[0])) == 0 ) {
+						pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
 						slapi_entry_free( e ); 
 						delete_passwdPolicy(&pwpolicy);
 						return ( 1 );
 					}
-				} else 
-				{
-					if ( slapi_pw_find_sv ( va, vals[0] ) == 0 )
-					{
-						pw_send_ldap_result ( pb, 
-										   LDAP_CONSTRAINT_VIOLATION ,NULL,
-										   "password in history", 0, NULL);
+				} else {
+					if ( slapi_pw_find_sv ( va, vals[0] ) == 0 ) {
+						pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "password in history", 0, NULL);
 						slapi_entry_free( e ); 
 						delete_passwdPolicy(&pwpolicy);
 						return ( 1 );
@@ -1090,22 +1084,56 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 }
 
+/*
+ * Basically, h0 and h1 must be longer than GENERALIZED_TIME_LENGTH.
+ */
+static int
+pw_history_cmp(const void *h0, const void *h1)
+{
+	size_t h0sz = 0;
+	size_t h1sz = 0;
+	if (!h0) {
+		if (!h1) {
+			return 0;
+		} else {
+			return -1;
+		}
+	} else {
+		if (!h1) {
+			return 1;
+		} else {
+			size_t delta;
+			h0sz = strlen(h0);
+			h1sz = strlen(h1);
+			delta = h0sz - h1sz;
+			if (!delta) {
+				return delta;
+			}
+			if (h0sz < GENERALIZED_TIME_LENGTH) {
+				/* too short for the history str. */
+				return 0;
+			}
+		}
+	}
+	return PL_strncmp(h0, h1, GENERALIZED_TIME_LENGTH);
+}
+
+
 static int
 update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 {
-	time_t 		t, old_t, cur_time;
-	int 		i = 0, oldest = 0;
-	int res;
-	Slapi_Entry		*e;
-	Slapi_Attr 	*attr;
+	time_t cur_time;
+	int res = 1; /* no update, by default */
+	Slapi_Entry *e = NULL;
 	LDAPMod 	attribute;
-	char 		*values_replace[25]; /* 2-24 passwords in history */
 	LDAPMod 	*list_of_mods[2];
 	Slapi_PBlock 	mod_pb;
-	char		*history_str;
-	char		*str;
+	char		*str = NULL;
 	passwdPolicy *pwpolicy = NULL;
 	const char *dn = slapi_sdn_get_dn(sdn);
+	char **values_replace = NULL;
+	int vacnt = 0;
+	int vacnt_todelete = 0;
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 
@@ -1113,46 +1141,56 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	e = get_entry ( pb, dn );
 	if ( e == NULL ) {
 		delete_passwdPolicy(&pwpolicy);
-		return ( 1 );
+		return res;
 	}
 
-	history_str = (char *)slapi_ch_malloc(GENERALIZED_TIME_LENGTH + strlen(old_pw) + 1);
-	/* get password history, and find the oldest password in history */
-	cur_time = current_time ();
-	old_t = cur_time;
-	str = format_genTime ( cur_time );
-	attr = attrlist_find(e->e_attrs, "passwordHistory");
-	if (attr && !valueset_isempty(&attr->a_present_values))
-	{
-		Slapi_Value **va= valueset_get_valuearray(&attr->a_present_values);
-		for ( i = oldest = 0 ; 
-			  (va[i] != NULL) && (slapi_value_get_length(va[i]) > 0) ;
-			  i++ ) {
-
-			values_replace[i] = (char*)slapi_value_get_string(va[i]);
-			strncpy( history_str, values_replace[i], GENERALIZED_TIME_LENGTH);
-			history_str[GENERALIZED_TIME_LENGTH] = '\0';
-			if (history_str[GENERALIZED_TIME_LENGTH - 1] != 'Z'){
-				/* The time is not a generalized Time. Probably a password history from 4.x */
-				history_str[GENERALIZED_TIME_LENGTH - 1] = '\0';
-			}
-			t = parse_genTime ( history_str ); 
-			if ( difftime ( t, old_t ) < 0 ) {
-				oldest = i;
-				old_t = t;
-			}
+	/* get password history */
+	values_replace = slapi_entry_attr_get_charray_ext(e, "passwordHistory", &vacnt);
+	if (old_pw) {
+		/* we have a password to replace with the oldest one in the history. */
+		if (!values_replace || !vacnt) { /* This is the first one to store */
+			values_replace = (char **)slapi_ch_calloc(2, sizeof(char *));
 		}
-	}
-	strcpy ( history_str, str );
-	strcat ( history_str, old_pw );
-	if ( i >= pwpolicy->pw_inhistory ) {
-		/* replace the oldest password in history */
-		values_replace[oldest] = history_str;
-		values_replace[pwpolicy->pw_inhistory] = NULL;
 	} else {
-		/* add old_pw at the end of password history */
-		values_replace[i] =  history_str;
-		values_replace[++i]=NULL;
+		/* we are checking the history size if it stores more than the current inhistory count. */
+		if (!values_replace || !vacnt) { /* nothing to revise */
+			res = 1;
+			goto bail;
+		}
+		/* 
+		 * If revising the passwords in the passwordHistory values
+		 * and the password count in the value array is less than the inhistory,
+		 * we have nothing to do.
+		 */
+		if (vacnt <= pwpolicy->pw_inhistory) {
+			res = 1;
+			goto bail;
+		}
+		vacnt_todelete = vacnt - pwpolicy->pw_inhistory;
+	}
+
+	cur_time = current_time();
+	str = format_genTime(cur_time);
+	/* values_replace is sorted. */
+	if (old_pw) {
+		if ( vacnt >= pwpolicy->pw_inhistory ) {
+			slapi_ch_free_string(&values_replace[0]);
+			values_replace[0] = slapi_ch_smprintf("%s%s", str, old_pw);
+		} else {
+			/* add old_pw at the end of password history */
+			values_replace = (char **)slapi_ch_realloc((char *)values_replace, sizeof(char *) * (vacnt + 2));
+			values_replace[vacnt] = slapi_ch_smprintf("%s%s", str, old_pw);
+			values_replace[vacnt+1] = NULL;
+		}
+		qsort((void *)values_replace, vacnt, (size_t)sizeof(char *), pw_history_cmp);
+	} else {
+		int i;
+		/* vacnt > pwpolicy->pw_inhistory */
+		for (i = 0; i < vacnt_todelete; i++) {
+			slapi_ch_free_string(&values_replace[i]);
+		}
+		memmove(values_replace, values_replace + vacnt_todelete, sizeof(char *) * pwpolicy->pw_inhistory);
+		values_replace[pwpolicy->pw_inhistory] = NULL;
 	}
 
 	/* modify the attribute */
@@ -1164,22 +1202,20 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	list_of_mods[1] = NULL;
 
 	pblock_init(&mod_pb);
-	slapi_modify_internal_set_pb_ext(&mod_pb, sdn, list_of_mods, NULL, NULL, 
-								 pw_get_componentID(), 0);
+	slapi_modify_internal_set_pb_ext(&mod_pb, sdn, list_of_mods, NULL, NULL, pw_get_componentID(), 0);
 	slapi_modify_internal_pb(&mod_pb);
 	slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res != LDAP_SUCCESS){
 		LDAPDebug2Args(LDAP_DEBUG_ANY,
 		    "WARNING: passwordPolicy modify error %d on entry '%s'\n", res, dn);
 	}
-
 	pblock_done(&mod_pb);
-
-	slapi_ch_free((void **) &str );
-	slapi_ch_free((void **) &history_str );
+	slapi_ch_free_string(&str);
+bail:
+	slapi_ch_array_free(values_replace);
 	slapi_entry_free( e );
 	delete_passwdPolicy(&pwpolicy);
-	return 0;
+	return res;
 }
 
 static
