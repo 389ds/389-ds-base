@@ -238,6 +238,12 @@ class DirSrv(SimpleLDAPObject):
                                            self.errlog).group(1)
                 if not instdir:
                     instdir = self.confdir
+
+                # parse the lib dir, and so set the plugin dir
+                self.instdir = instdir
+                self.libdir = self.instdir.replace('slapd-%s' % self.inst, '')
+                self.plugindir = self.libdir + 'plugins'
+
                 if self.verbose:
                     log.debug("instdir=%r" % instdir)
                     log.debug("Entry: %r" % ent)
