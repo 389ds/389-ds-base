@@ -48,7 +48,7 @@ static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_En
 /* This is the main configuration which is updated from dse.ldif.  The
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
-static MemberOfConfig theConfig = {NULL, NULL,0, NULL, NULL, NULL, NULL};
+static MemberOfConfig theConfig = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
@@ -58,6 +58,19 @@ static int dont_allow_that(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
 {
 	*returncode = LDAP_UNWILLING_TO_PERFORM;
 	return SLAPI_DSE_CALLBACK_ERROR;
+}
+
+static void
+memberof_free_scope(Slapi_DN **scopes, int *count)
+{
+	int i = 0;
+
+	while(scopes && scopes[i]){
+		slapi_sdn_free(&scopes[i]);
+		i++;
+	}
+	slapi_ch_free((void**)&scopes);
+	*count = 0;
 }
 
 /*
@@ -155,17 +168,22 @@ memberof_release_config()
  *
  * Validate the pending changes in the e entry.
  */
-static int 
+int
 memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 	int *returncode, char *returntext, void *arg)
 {
 	Slapi_Attr *memberof_attr = NULL;
 	Slapi_Attr *group_attr = NULL;
 	Slapi_DN *config_sdn = NULL;
+	Slapi_DN **include_dn = NULL;
+	Slapi_DN **exclude_dn = NULL;
 	char *syntaxoid = NULL;
 	char *config_dn = NULL;
 	char *skip_nested = NULL;
+	char **entry_scopes = NULL;
+	char **entry_exclude_scopes = NULL;
 	int not_dn_syntax = 0;
+	int num_vals = 0;
 
 	*returncode = LDAP_UNWILLING_TO_PERFORM; /* be pessimistic */
 
@@ -283,8 +301,112 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 			*returncode = LDAP_UNWILLING_TO_PERFORM;
 		}
 	}
+	/*
+	 * Check the entry scopes
+	 */
+	entry_scopes = slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_ATTR, &num_vals);
+	if(entry_scopes){
+		int i = 0;
+
+		/* Validate the syntax before we create our DN array */
+		for (i = 0;i < num_vals; i++){
+			if(slapi_dn_syntax_check(pb, entry_scopes[i], 1)){
+				/* invalid dn syntax */
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					"%s: Invalid DN (%s) for include suffix.",
+					MEMBEROF_PLUGIN_SUBSYSTEM, entry_scopes[i]);
+				slapi_ch_array_free(entry_scopes);
+				theConfig.entryScopeCount = 0;
+				*returncode = LDAP_UNWILLING_TO_PERFORM;
+				goto done;
+			}
+		}
+		/* Now create our SDN array for conflict checking */
+		include_dn = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals+1);
+		for (i = 0;i < num_vals; i++){
+			include_dn[i] = slapi_sdn_new_dn_passin(entry_scopes[i]);
+		}
+	}
+	/*
+	 * Check and process the entry exclude scopes
+	 */
+	entry_exclude_scopes =
+		slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE, &num_vals);
+	if(entry_exclude_scopes){
+		int i = 0;
+
+		/* Validate the syntax before we create our DN array */
+		for (i = 0;i < num_vals; i++){
+			if(slapi_dn_syntax_check(pb, entry_exclude_scopes[i], 1)){
+				/* invalid dn syntax */
+				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+					"%s: Invalid DN (%s) for exclude suffix.",
+					MEMBEROF_PLUGIN_SUBSYSTEM, entry_scopes[i]);
+				slapi_ch_array_free(entry_exclude_scopes);
+				*returncode = LDAP_UNWILLING_TO_PERFORM;
+				goto done;
+			}
+		}
+		/* Now create our SDN array for conflict checking */
+		exclude_dn = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),num_vals+1);
+		for (i = 0;i < num_vals; i++){
+			exclude_dn[i] = slapi_sdn_new_dn_passin(entry_exclude_scopes[i]);
+		}
+	}
+	/*
+	 * Need to do conflict checking
+	 */
+	if(include_dn && exclude_dn){
+		/*
+		 * Make sure we haven't mixed the same suffix, and there are no
+		 * conflicts between the includes and excludes
+		 */
+		int i = 0;
+
+		while(include_dn[i]){
+			int x = 0;
+			while(exclude_dn[x]){
+				if(slapi_sdn_compare(include_dn[i], exclude_dn[x] ) == 0)
+				{
+					/* we have a conflict */
+					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+						"%s: include suffix (%s) is also listed as an exclude suffix list",
+						MEMBEROF_PLUGIN_SUBSYSTEM, slapi_sdn_get_dn(include_dn[i]));
+					*returncode = LDAP_UNWILLING_TO_PERFORM;
+					goto done;
+			   }
+			   x++;
+			}
+			i++;
+		}
+
+		/* Check for parent/child conflicts */
+		i = 0;
+		while(include_dn[i]){
+			int x = 0;
+			while(exclude_dn[x]){
+				if(slapi_sdn_issuffix(include_dn[i], exclude_dn[x]))
+				{
+					/* we have a conflict */
+					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+						"%s: include suffix (%s) is a child of the exclude suffix(%s)",
+						MEMBEROF_PLUGIN_SUBSYSTEM,
+						slapi_sdn_get_dn(include_dn[i]),
+						slapi_sdn_get_dn(exclude_dn[i]));
+					*returncode = LDAP_UNWILLING_TO_PERFORM;
+					goto done;
+			   }
+			   x++;
+			}
+			i++;
+		}
+	}
 
 done:
+	memberof_free_scope(exclude_dn, &num_vals);
+	memberof_free_scope(include_dn,	&num_vals);
+	slapi_ch_free((void**)&entry_scopes);
+	slapi_ch_free((void**)&entry_exclude_scopes);
 	slapi_sdn_free(&config_sdn);
 	slapi_ch_free_string(&config_dn);
 	slapi_ch_free_string(&skip_nested);
@@ -298,7 +420,6 @@ done:
 		return SLAPI_DSE_CALLBACK_OK;
 	}
 }
-
 
 /*
  * memberof_apply_config()
@@ -318,10 +439,11 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	int num_groupattrs = 0;
 	int groupattr_name_len = 0;
 	char *allBackends = NULL;
-	char *entryScope = NULL;
-	char *entryScopeExcludeSubtree = NULL;
+	char **entryScopes = NULL;
+	char **entryScopeExcludeSubtrees = NULL;
 	char *sharedcfg = NULL;
 	char *skip_nested = NULL;
+	int num_vals = 0;
 
 	*returncode = LDAP_SUCCESS;
 
@@ -353,8 +475,6 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	groupattrs = slapi_entry_attr_get_charray(e, MEMBEROF_GROUP_ATTR);
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
-	entryScope = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_ATTR);
-	entryScopeExcludeSubtree = slapi_entry_attr_get_charptr(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE);
 	skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR);
 
 	/*
@@ -480,49 +600,39 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		theConfig.allBackends = 0;
 	}
 
-	slapi_sdn_free(&theConfig.entryScope);
-	if (entryScope)
-	{
-        	if (slapi_dn_syntax_check(NULL, entryScope, 1) == 1) {
-            		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-                		"Error: Ignoring invalid DN used as plugin entry scope: [%s]\n",
-                		entryScope);
-			theConfig.entryScope = NULL;
-			slapi_ch_free_string(&entryScope);
-		} else {
-			theConfig.entryScope = slapi_sdn_new_dn_passin(entryScope);
+	/*
+	 * Check and process the entry scopes
+	 */
+	memberof_free_scope(theConfig.entryScopes, &theConfig.entryScopeCount);
+	entryScopes = slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_ATTR, &num_vals);
+	if(entryScopes){
+		int i = 0;
+
+		/* Validation has already been performed in preop, just build the DN's */
+		theConfig.entryScopes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals+1);
+		for (i = 0;i < num_vals; i++){
+			theConfig.entryScopes[i] = slapi_sdn_new_dn_passin(entryScopes[i]);
 		}
-	} else {
-		theConfig.entryScope = NULL;
+		theConfig.entryScopeCount = num_vals; /* shortcut for config copy */
 	}
-        
-        slapi_sdn_free(&theConfig.entryScopeExcludeSubtree);
-        if (entryScopeExcludeSubtree)
-	{
-        	if (theConfig.entryScope == NULL) {
-                        slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-                		"Error: Ignoring ExcludeSubtree (%s) because entryScope is not define\n",
-                		entryScopeExcludeSubtree);
-			theConfig.entryScopeExcludeSubtree = NULL;
-			slapi_ch_free_string(&entryScopeExcludeSubtree);
-                } else if (slapi_dn_syntax_check(NULL, entryScopeExcludeSubtree, 1) == 1) {
-            		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-                		"Error: Ignoring invalid DN used as plugin entry exclude subtree: [%s]\n",
-                		entryScopeExcludeSubtree);
-			theConfig.entryScopeExcludeSubtree = NULL;
-			slapi_ch_free_string(&entryScopeExcludeSubtree);
-		} else {
-			theConfig.entryScopeExcludeSubtree = slapi_sdn_new_dn_passin(entryScopeExcludeSubtree);
+	/*
+	 * Check and process the entry exclude scopes
+	 */
+	memberof_free_scope(theConfig.entryScopeExcludeSubtrees,
+	                    &theConfig.entryExcludeScopeCount);
+	entryScopeExcludeSubtrees =
+	    slapi_entry_attr_get_charray_ext(e, MEMBEROF_ENTRY_SCOPE_EXCLUDE_SUBTREE, &num_vals);
+	if(entryScopeExcludeSubtrees){
+		int i = 0;
+
+		/* Validation has already been performed in preop, just build the DN's */
+		theConfig.entryScopeExcludeSubtrees =
+				(Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),num_vals+1);
+		for (i = 0;i < num_vals; i++){
+			theConfig.entryScopeExcludeSubtrees[i] =
+				slapi_sdn_new_dn_passin(entryScopeExcludeSubtrees[i]);
 		}
-	} else {
-		theConfig.entryScopeExcludeSubtree = NULL;
-	}
-        if (theConfig.entryScopeExcludeSubtree && theConfig.entryScope && !slapi_sdn_issuffix(theConfig.entryScopeExcludeSubtree, theConfig.entryScope)) {
-                slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
-                        "Error: Ignoring ExcludeSubtree (%s) that is out of the scope (%s)\n",
-                        slapi_sdn_get_dn(theConfig.entryScopeExcludeSubtree),
-                        slapi_sdn_get_dn(theConfig.entryScope));
-                slapi_sdn_free(&theConfig.entryScopeExcludeSubtree);
+		theConfig.entryExcludeScopeCount = num_vals; /* shortcut for config copy */
 	}
 
 	/* release the lock */
@@ -536,6 +646,8 @@ done:
 	slapi_ch_free_string(&memberof_attr);
 	slapi_ch_free_string(&allBackends);
 	slapi_ch_free_string(&skip_nested);
+	slapi_ch_free((void **)&entryScopes);
+	slapi_ch_free((void **)&entryScopeExcludeSubtrees);
 
 	if (*returncode != LDAP_SUCCESS)
 	{
@@ -616,6 +728,23 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 		{
 			dest->allBackends = src->allBackends;
 		}
+
+		if(src->entryScopes){
+			int num_vals = 0;
+
+			dest->entryScopes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),src->entryScopeCount+1);
+			for(num_vals = 0; src->entryScopes[num_vals]; num_vals++){
+				dest->entryScopes[num_vals] = slapi_sdn_dup(src->entryScopes[num_vals]);
+			}
+		}
+		if(src->entryScopeExcludeSubtrees){
+			int num_vals = 0;
+
+			dest->entryScopeExcludeSubtrees = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),src->entryExcludeScopeCount+1);
+			for(num_vals = 0; src->entryScopes[num_vals]; num_vals++){
+				dest->entryScopeExcludeSubtrees[num_vals] = slapi_sdn_dup(src->entryScopeExcludeSubtrees[num_vals]);
+			}
+		}
 	}
 }
 
@@ -641,6 +770,8 @@ memberof_free_config(MemberOfConfig *config)
 		slapi_ch_free((void **)&config->group_slapiattrs);
 
 		slapi_ch_free_string(&config->memberof_attr);
+		memberof_free_scope(config->entryScopes, &config->entryScopeCount);
+		memberof_free_scope(config->entryScopeExcludeSubtrees, &config->entryExcludeScopeCount);
 	}
 }
 
@@ -704,30 +835,6 @@ memberof_config_get_all_backends()
 	slapi_rwlock_unlock(memberof_config_lock);
 
 	return all_backends;
-}
-
-Slapi_DN *
-memberof_config_get_entry_scope()
-{
-	Slapi_DN *entry_scope;
-
-	slapi_rwlock_rdlock(memberof_config_lock);
-	entry_scope = theConfig.entryScope;
-	slapi_rwlock_unlock(memberof_config_lock);
-
-	return entry_scope;
-}
-
-Slapi_DN *
-memberof_config_get_entry_scope_exclude_subtree()
-{
-	Slapi_DN *entry_exclude_subtree;
-
-	slapi_rwlock_rdlock(memberof_config_lock);
-	entry_exclude_subtree = theConfig.entryScopeExcludeSubtree;
-	slapi_rwlock_unlock(memberof_config_lock);
-
-	return entry_exclude_subtree;
 }
 
 /*
