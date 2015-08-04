@@ -141,12 +141,12 @@ def wrapper(f, name):
                     return objtype, Entry(data)
                 elif isinstance(data, list):
                     # AD sends back these search references
-#                     if objtype == ldap.RES_SEARCH_RESULT and \
-#                        isinstance(data[-1],tuple) and \
-#                        not data[-1][0]:
-#                         print "Received search reference: "
-#                         pprint.pprint(data[-1][1])
-#                         data.pop() # remove the last non-entry element
+                    # if objtype == ldap.RES_SEARCH_RESULT and \
+                    #    isinstance(data[-1],tuple) and \
+                    #    not data[-1][0]:
+                    #     print "Received search reference: "
+                    #     pprint.pprint(data[-1][1])
+                    #     data.pop() # remove the last non-entry element
 
                     return objtype, [Entry(x) for x in data]
                 else:
@@ -344,6 +344,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.plugins     import Plugins
         from lib389.tasks       import Tasks
         from lib389.index       import Index
+        from lib389.aci         import Aci
 
         self.agreement   = Agreement(self)
         self.replica     = Replica(self)
@@ -356,6 +357,7 @@ class DirSrv(SimpleLDAPObject):
         self.schema      = Schema(self)
         self.plugins     = Plugins(self)
         self.tasks       = Tasks(self)
+        self.aci         = Aci(self)
 
     def __init__(self, verbose=False, timeout=10):
         """

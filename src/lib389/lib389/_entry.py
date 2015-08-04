@@ -212,3 +212,215 @@ class Entry(object):
         except MissingEntryError:
             log.exception("This entry should exist!")
             raise
+
+    def getAcis(self):
+        if not self.hasAttr('aci'):
+            # There should be a better way to do this? Perhaps
+            # self search for the aci attr?  
+            return []
+        self.acis = map(lambda a: EntryAci(self, a), self.getValues('aci'))
+        return self.acis
+
+class EntryAci(object):
+
+    # See https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Managing_Access_Control-Bind_Rules.html
+    # https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Managing_Access_Control-Creating_ACIs_Manually.html
+    # We seperate the keys into 3 groups, and one group that has overlap.
+    #  This is so we can not only split the aci, but rebuild it from the dictionary
+    #  at a later point in time.
+    # These are top level aci comoponent keys
+    _keys = [
+             'targetscope',
+             'targetattrfilters',
+             'targattrfilters',
+             'targetfilter',
+             'targetattr',
+             'target',
+             'version 3.0;',
+           ]
+    # These are the keys which are seperated by ; in the version 3.0 stanza.
+    _v3keys = [
+             'allow',
+             'acl',
+             'deny',
+            ]
+    # These are the keys which are used on the inside of a v3 allow statement
+    # We have them defined, but don't currently use them.
+    _v3innerkeys = [
+             'roledn',
+             'userattr',
+             'ip',
+             'dns',
+             'dayofweek',
+             'timeofday',
+             'authmethod',
+             'userdn',
+             'groupdn',
+            ]
+    # These keys values are prefixed with ldap:///, so we need to know to re-prefix
+    #  ldap:/// onto the value when we rebuild the aci
+    _urlkeys = ['target',
+                'userdn',
+                'groupdn',
+                'roledn',
+              ]
+
+    def __init__(self, entry, rawaci):
+        """
+        Breaks down an aci attribute string from 389, into a dictionary
+        of terms and values. These values can then be manipulated, and
+        subsequently rebuilt into an aci string.
+        """
+        self.entry = entry
+        self._rawaci = rawaci
+        self.acidata = self._parse_aci(self._rawaci)
+
+    def _format_term(self, key, value_dict):
+        rawaci = ''
+        if value_dict['equal']:
+            rawaci += '="'
+        else:
+            rawaci += '!="'
+        if key in self._urlkeys:
+            values = map(lambda x: 'ldap:///%s' % x, value_dict['values'])
+        else:
+            values = value_dict['values']
+        for value in values[:-1]:
+            rawaci += "%s || " % value
+        rawaci += values[-1]
+        rawaci += '"'
+        return rawaci
+
+    def getRawAci(self):
+        """
+        This method will rebuild an aci from the contents of the acidata
+        dict found on the object.
+
+        returns an aci attribute string.
+
+        """
+        # Rebuild the aci from the .acidata.
+        rawaci = ''
+        # For each key in the outer segment
+        ## Add a (key = val);. Depending on key format val:
+        for key in self._keys:
+            for value_dict in self.acidata[key]:
+                rawaci += '(%s %s)' % (key, self._format_term(key, value_dict))
+        # Now create the v3.0 aci part
+        rawaci += "(version 3.0; "
+        # This could be neater ...
+        rawaci += 'acl "%s";' % self.acidata['acl'][0]['values'][0]
+        for key in ['allow', 'deny']:
+            if len(self.acidata[key]) > 0:
+                rawaci += '%s (' % key
+                for value in self.acidata[key][0]['values'][:-1]:
+                    rawaci += '%s, ' % value
+                rawaci += '%s)' % self.acidata[key][0]['values'][-1]
+                rawaci += '(%s);' % self.acidata["%s_raw_bindrules" % key][0]['values'][-1]
+        rawaci += ")"
+        return rawaci
+
+    def _find_terms(self, aci):
+        lbr_list = []
+        rbr_list = []
+        depth = 0
+        for i, char in enumerate(aci):
+            if char == '(' and depth == 0:
+                lbr_list.append(i)
+            if char == '(':
+                depth += 1
+            if char == ')' and depth == 1:
+                rbr_list.append(i)
+            if char == ')':
+                depth -= 1
+        # Now build a set of terms.
+        terms = []
+        for lb, rb in zip(lbr_list, rbr_list):
+            terms.append(aci[lb + 1:rb])
+        return terms
+
+    def _parse_term(self, key, term):
+        wdict = { 'values': [] , 'equal': True}
+        # Nearly all terms are = seperated
+        ## We make a dict that holds "equal" and an array of values
+        pre, val = term.split('=', 1)
+        val = val.replace('"', '')
+        if pre.strip() == '!':
+            wdict['equal'] = False
+        else:
+            wdict['equal'] = True
+        wdict['values'] = val.split('||')
+        if key in self._urlkeys:
+            ### / We could replace ldap:/// in some attrs?
+            wdict['values'] = map(lambda x: x.replace('ldap:///',''), wdict['values'])
+        wdict['values'] = map(lambda x: x.strip(), wdict['values'])
+        return wdict
+
+    def _parse_bind_rules(self, subterm):
+
+        # First, determine if there are extraneous braces wrapping the term.
+        subterm = subterm.strip()
+        if subterm[0] == '(' and subterm[-1] == ')':
+            subterm = subterm[1:-1]
+        terms = subterm.split('and')
+        # We could parse everything into nice structures, and then work with them.
+        #  or we can just leave the bind rule alone, as a string. Let the human do it.
+        # it comes down to cost versus reward.
+
+        return [subterm]
+
+    def _parse_version_3_0(self, rawacipart, data):
+        # We have to do this because it's not the same as other term formats.
+        terms = []
+        bindrules = []
+        interms = rawacipart.split(';')
+        interms = map(lambda x: x.strip(), interms)
+        for iwork in interms:
+            for j in self._v3keys + self._v3innerkeys:
+                if iwork.startswith(j) and j == 'acl':
+                    t = iwork.split(' ', 1)[1]
+                    t = t.replace('"', '')
+                    data[j].append({ 'values' : [t]})
+                if iwork.startswith(j) and (j == 'allow' or j == 'deny'):
+                    first = iwork.index('(') + 1
+                    second = iwork.index(')', first)
+                    # This could likely be neater ...
+                    data[j].append({
+                        'values' : map( lambda x: x.strip(),
+                            iwork[first:second].split(',')
+                            )
+                        })
+                    subterm = iwork[second + 1:]
+                    data["%s_raw_bindrules" % j].append({
+                        'values' : self._parse_bind_rules(subterm)
+                    })
+
+        return terms
+
+    def _parse_aci(self, rawaci):
+        aci = rawaci
+        depth = 0
+        data = {
+            'rawaci': rawaci,
+            'allow_raw_bindrules' : [],
+            'deny_raw_bindrules' : [],
+            }
+        for k in self._keys + self._v3keys:
+            data[k] = []
+        # We need to get a list of all the depth 0 ( and )
+        terms = self._find_terms(aci)
+
+        while len(terms) > 0:
+            work = terms.pop()
+            for k in self._keys + self._v3keys + self._v3innerkeys:
+                if work.startswith(k):
+                    aci = work.replace(k, '', 1)
+                    if k == 'version 3.0;':
+                        #We pop more inner terms out, but we don't need to parse them "now"
+                        # they get added to the queue
+                        terms += self._parse_version_3_0(aci, data)
+                        continue
+                    data[k].append(self._parse_term(k, aci))
+                    break
+        return data
+
