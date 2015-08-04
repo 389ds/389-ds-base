@@ -3,6 +3,7 @@
    DirSrv.schema.methodName()
 """
 import ldap
+from ldap.schema.models import AttributeType, ObjectClass
 import os
 import re
 import time
@@ -83,3 +84,66 @@ class Schema(object):
         ents = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE, "objectclass=*", ['nsSchemaCSN'])
         ent = ents[0]
         return ent.getValue('nsSchemaCSN')
+
+    def get_objectclasses(self):
+        """Returns a list of ldap.schema.models.ObjectClass objectsfor all objectClasses supported by this instance.
+        """
+        attrs = ['objectClasses']
+        results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE, 'objectclass=*', attrs)[0]
+        objectclasses = map(lambda oc: ObjectClass(oc), results.getValues('objectClasses'))
+        return objectclasses
+
+    def get_attributetypes(self):
+        """Returns a list of ldap.schema.models.AttributeType objects for all attributeTypes supported by this instance.
+        """
+        attrs = ['attributeTypes']
+        results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE, 'objectclass=*', attrs)[0]
+        attributetypes = map(lambda at: AttributeType(at), results.getValues('attributeTypes'))
+        return attributetypes
+
+    def query_objectclass(self, objectclassname):
+        """Returns a single ObjectClass instance that matches objectclassname. Returns None if the objectClass doesn't exist.
+
+        @param objectclassname - The name of the objectClass you want to query.
+
+        return ObjectClass or None
+
+        ex. query_objectclass('account')
+        <ldap.schema.models.ObjectClass instance>
+        """
+        objectclasses = self.get_objectclasses()
+        objectclass = filter(lambda oc: objectclassname in oc.names, objectclasses)
+        if len(objectclass) != 1:
+            #This is an error.
+            return None
+        objectclass = objectclass[0]
+        return objectclass
+
+    def query_attributetype(self, attributetypename):
+        """Returns a tuple of the AttributeType, and what objectclasses may or must take this attributeType. Returns None if attributetype doesn't exist.
+
+        @param attributetypename - The name of the attributeType you want to query
+
+        return (AttributeType, Must, May) or None
+
+        ex. query_attributetype('uid')
+        ( <ldap.schema.models.AttributeType instance>, [<ldap.schema.models.ObjectClass instance>, ...], [<ldap.schema.models.ObjectClass instance>, ...] )
+        """
+        # First, get the attribute that matches name. We need to consider alternate names.
+        # There is no way to search this, so we have to filter our set of all attribute types.
+        objectclasses = self.get_objectclasses()
+        attributetypes = self.get_attributetypes()
+        attributetypename = attributetypename.lower()
+
+        attributetype = filter(lambda at: attributetypename in at.names, attributetypes)
+        if len(attributetype) != 1:
+            #This is an error.
+            return None
+        attributetype = attributetype[0]
+        # Get the primary name of this attribute
+        attributetypename = attributetype.names[0]
+        # Build a set if they have may.
+        may = filter(lambda oc: attributetypename in oc.may, objectclasses)
+        # Build a set if they have must.
+        must = filter(lambda oc: attributetypename in oc.must, objectclasses)
+        return (attributetype, must, may)
