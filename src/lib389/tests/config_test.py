@@ -51,7 +51,7 @@ def setup():
 def teardown():
     global conn
     conn.config.loglevel([lib389.LOG_CACHE])
-    conn.config.loglevel([256], level='access')
+    conn.config.loglevel([256], service='access')
     
     """
     drop_added_entries(conn)
@@ -79,5 +79,5 @@ def loglevel_update_test():
 
 def access_loglevel_test():
     vals = [lib389.LOG_CACHE, lib389.LOG_REPLICA, lib389.LOG_CONNECT]
-    assert conn.config.loglevel(vals, level='access') == sum(vals)
+    assert conn.config.loglevel(vals, service='access') == sum(vals)
 

@@ -22,7 +22,7 @@ added_backends = None
 
 def harn_nolog():
     conn.config.loglevel([lib389.LOG_DEFAULT])
-    conn.config.loglevel([lib389.LOG_DEFAULT], level='access')
+    conn.config.loglevel([lib389.LOG_DEFAULT], service='access')
 
 
 def setup():

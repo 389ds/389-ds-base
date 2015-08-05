@@ -53,29 +53,54 @@ class Config(object):
         """Get an attribute under cn=config"""
         return self.conn.getEntry(DN_CONFIG).__getattr__(key)
 
-    def loglevel(self, vals=(LOG_DEFAULT,), level='error', update=False):
+    def _alter_log_enabled(self, service, state):
+        if service not in ('access', 'error', 'audit'):
+            self.log.error('Attempted to enable invalid log service "%s"' % service)
+        service = 'nsslapd-%slog-logging-enabled' % service
+        self.log.debug('Setting log %s to %s' % (service, state))
+        self.set(service, state)
+
+    def enable_log(self, service):
+        """Enable a logging service in the 389ds instance.
+        @param service - The logging service to enable. Can be one of 'access', 'error' or 'audit'.
+
+        ex. enable_log('audit')
+        """
+        self._alter_log_enabled(service, 'on')
+
+    def disable_log(self, service):
+        """Disable a logging service in the 389ds instance.
+        @param service - The logging service to Disable. Can be one of 'access', 'error' or 'audit'.
+
+        ex. disable_log('audit')
+        """
+        self._alter_log_enabled(service, 'off')
+
+    def loglevel(self, vals=(LOG_DEFAULT,), service='error', update=False):
         """Set the access or error log level.
         @param vals - a list of log level codes (eg. lib389.LOG_*) 
                       defaults to LOG_DEFAULT
-        @param level   -   'access' or 'error'
+        @param service -   'access' or 'error'. There is no 'audit' log level. use enable_log or disable_log.
         @param update  - False for replace (default), True for update
-        
+
         ex. loglevel([lib389.LOG_DEFAULT, lib389.LOG_ENTRY_PARSER])
         """
-        level = 'nsslapd-%slog-level' % level
+        if service not in ('access', 'error'):
+            self.log.error('Attempted to set level on invalid log service "%s"' % service)
+        service = 'nsslapd-%slog-level' % service
         assert len(vals) > 0, "set at least one log level"
         tot = 0
         for v in vals:
             tot |= v
 
         if update:
-            old = int(self.get(level))
+            old = int(self.get(service))
             tot |= old
-            self.log.debug("Update %s value: %r -> %r" % (level, old, tot))
+            self.log.debug("Update %s value: %r -> %r" % (service, old, tot))
         else:
-            self.log.debug("Replace %s with value: %r" % (level, tot))
+            self.log.debug("Replace %s with value: %r" % (service, tot))
 
-        self.set(level, str(tot))
+        self.set(service, str(tot))
         return tot
 
     def enable_ssl(self, secport=636, secargs=None):

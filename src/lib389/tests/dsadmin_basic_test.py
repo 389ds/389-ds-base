@@ -34,7 +34,7 @@ def tearDown():
 
     # reduce log level
     conn.config.loglevel([lib389.LOG_CACHE])
-    conn.config.loglevel([256], level='access')
+    conn.config.loglevel([256], service='access')
 
     for e in conn.added_entries:
         try:
