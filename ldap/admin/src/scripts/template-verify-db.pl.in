@@ -38,6 +38,8 @@
 # END COPYRIGHT BLOCK
 #
 
+my $customer_dbdir = 0;
+
 sub usage
 {
   print "Usage: $0 [ -a <fullpath_to_db_dir> ]\n";
@@ -164,6 +166,8 @@ print("*****************************************************************\n");
 
 if ( "$startpoint" eq "" ) {
   $startpoint = "{{DB-DIR}}";
+} else {
+  $custom_dbdir = 1;
 }
 # get dirs having DBVERSION
 my $dbdirs = getDbDir($startpoint);
@@ -215,7 +219,11 @@ for (my $i = 0; "$$dbdirs[$i]" ne ""; $i++)
 
 # Check db files by db_verify
 print "Verify db files ... ";
-open(DBVERIFY, "dbverify $thisdb 2>&1 1> $NULL |");
+if ($custom_dbdir){
+  open(DBVERIFY, "dbverify $thisdb -a $startpoint 2>&1 1> $NULL |");
+} else {
+  open(DBVERIFY, "dbverify $thisdb 2>&1 1> $NULL |");
+}
 sleep 1;
 my $bad_index = 0;
 my $bad_id2entry = 0;
