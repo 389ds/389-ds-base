@@ -28,8 +28,12 @@ do
         args=$args" "$1
     elif [ "$1" = "-V" ]; then
         args=$args" "$1
+    elif [ "$1" = "-a" ]; then
+        args=$args" "$1
+        shift
+        args=$args" "$1
     else
-        echo "Usage: dbverify [-n backend_instance] [-V]"
+        echo "Usage: dbverify [-n backend_instance] [-a db_file_directory] [-V]"
         echo "Note : if \"-n backend_instance\" is not passed, verify all DBs."
         echo "  -V : verbose"
         exit 1

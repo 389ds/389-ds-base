@@ -6889,6 +6889,9 @@ typedef struct slapi_plugindesc {
 /* Simple paged results index */
 #define SLAPI_PAGED_RESULTS_INDEX   1945
 
+/* dbverify */
+#define SLAPI_DBVERIFY_DBDIR		1947
+
 /* convenience macros for checking modify operation types */
 #define SLAPI_IS_MOD_ADD(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
 #define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
