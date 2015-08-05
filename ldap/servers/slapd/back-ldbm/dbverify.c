@@ -214,13 +214,16 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
     int rval              = 1;
     int rval_main         = 0;
     char **instance_names = NULL;
+    char *dbdir           = NULL;
 
     slapi_log_error(SLAPI_LOG_TRACE, "verify DB", "Verifying db files...\n");
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &verbose);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    slapi_pblock_get(pb, SLAPI_DBVERIFY_DBDIR, &dbdir);
     ldbm_config_load_dse_info(li);
     ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
+
     /* no write needed; choose EXPORT MODE */
     if (0 != dblayer_start(li, DBLAYER_EXPORT_MODE))
     {
@@ -239,6 +242,11 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
             inst = ldbm_instance_find_by_name(li, *inp);
             if (inst)
             {
+                if (dbdir){
+                    /* verifying backup */
+                    slapi_ch_free_string(&inst->inst_parent_dir_name);
+                    inst->inst_parent_dir_name = slapi_ch_strdup(dbdir);
+                }
                 rval_main |= dbverify_ext(inst, verbose);
             }
             else
@@ -262,6 +270,11 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
                             "another task and cannot be disturbed.\n",
                             inst->inst_name);
                 continue; /* skip this instance and go to the next*/
+            }
+            if (dbdir){
+                /* verifying backup */
+                slapi_ch_free_string(&inst->inst_parent_dir_name);
+                inst->inst_parent_dir_name = slapi_ch_strdup(dbdir);
             }
             rval_main |= dbverify_ext(inst, verbose);
         }
