@@ -1600,6 +1600,8 @@ typedef struct slapi_pblock {
 	int             pb_seq_type;
 	char            *pb_seq_attrname;
 	char            *pb_seq_val;
+	/* dbverify argument */
+	char *pb_dbverify_dbdir;
 	/* ldif2db arguments */
 	char		*pb_ldif_file;
 	int		pb_removedupvals;

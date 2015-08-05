@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
- * See LICENSE for details. 
+ * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
 #ifdef HAVE_CONFIG_H
@@ -1675,6 +1675,11 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_TXN_RUV_MODS_FN:
 		(*(IFP*)value) = pblock->pb_txn_ruv_mods_fn;
+		break;
+
+	/* dbverify */
+	case SLAPI_DBVERIFY_DBDIR:
+		(*(char **)value) = pblock->pb_dbverify_dbdir;
 		break;
 
 	/* Search results set */
@@ -3518,6 +3523,11 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	/* ACI Target Check */
 	case SLAPI_ACI_TARGET_CHECK:
 		pblock->pb_aci_target_check = *((int *) value);
+		break;
+
+	/* dbverify */
+	case SLAPI_DBVERIFY_DBDIR:
+		pblock->pb_dbverify_dbdir = (char *) value;
 		break;
 
 	default:
