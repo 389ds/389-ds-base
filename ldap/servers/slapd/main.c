@@ -435,13 +435,15 @@ static int ldif_printkey = EXPORT_PRINTKEY|EXPORT_APPENDMODE;
 static char *archive_name = NULL;
 static int db2ldif_dump_replica = 0;
 static int db2ldif_dump_uniqueid = 1;
-static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;	
-static int dbverify_verbose = 0;
+static int ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
 static char *ldif2db_namespaceid = NULL;
 int importexport_encrypt = 0;
 static int upgradedb_flags = 0;
 static int upgradednformat_dryrun = 0;
 static int is_quiet = 0;
+/* dbverify options */
+static int dbverify_verbose = 0;
+static char *dbverify_dbdir = NULL;
 
 /* taken from idsktune */
 #if defined(__sun)
@@ -1301,13 +1303,14 @@ process_command_line(int argc, char **argv, char *myname,
 		{"dryrun",ArgNone,'N'},
 		{0,0,0}};
 
-	char *opts_dbverify = "vVfd:n:D:"; 
+	char *opts_dbverify = "vVfd:n:D:a:";
 	struct opt_ext long_options_dbverify[] = {
 		{"version",ArgNone,'v'},
 		{"debug",ArgRequired,'d'},
 		{"backend",ArgRequired,'n'},
 		{"configDir",ArgRequired,'D'},
 		{"verbose",ArgNone,'V'},
+		{"dbdir",ArgRequired,'a'},
 		{0,0,0}};
 
 	char *opts_referral = "vd:p:r:SD:"; 
@@ -1674,7 +1677,11 @@ process_command_line(int argc, char **argv, char *myname,
 			break;
 
 		case 'a':	/* archive pathname for db */
-			archive_name = optarg_ext;
+			if ( slapd_exemode == SLAPD_EXEMODE_DBVERIFY ) {
+				dbverify_dbdir = optarg_ext;
+			} else {
+				archive_name = optarg_ext;
+			}
 			break;
 
 		case 'Z':
@@ -2688,7 +2695,8 @@ slapd_exemode_dbverify()
     pb.pb_plugin = backend_plugin;
     pb.pb_instance_name = (char *)cmd_line_instance_names;
     pb.pb_task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
-    
+    pb.pb_dbverify_dbdir = dbverify_dbdir;
+
     if ( backend_plugin->plg_dbverify != NULL ) {
         return_value = (*backend_plugin->plg_dbverify)( &pb );
     } else {

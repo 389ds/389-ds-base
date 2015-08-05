@@ -7289,6 +7289,9 @@ typedef struct slapi_plugindesc {
 /* ACI Target Check */
 #define SLAPI_ACI_TARGET_CHECK      1946
 
+/* dbverify */
+#define SLAPI_DBVERIFY_DBDIR		1947
+
 /* convenience macros for checking modify operation types */
 #define SLAPI_IS_MOD_ADD(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_ADD)
 #define SLAPI_IS_MOD_DELETE(x) (((x) & ~LDAP_MOD_BVALUES) == LDAP_MOD_DELETE)
