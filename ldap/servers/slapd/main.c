@@ -453,7 +453,7 @@ usage( char *name, char *extraname )
 	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-N] -n backend-instance-name -a fullpath-backend-instance-dir-full\n";
 	break;
     case SLAPD_EXEMODE_DBVERIFY:
-	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-n backend-instance-name]\n";
+	usagestr = "usage: %s %s%s-D configdir [-d debuglevel] [-n backend-instance-name] [-a db-directory]\n";
 	break;
 
     default:	/* SLAPD_EXEMODE_SLAPD */
