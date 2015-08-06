@@ -14,15 +14,16 @@ PATH=$PATH:/bin
 
 usage()
 {
-    echo "Usage: dbverify [-Z serverID] [-n backend_instance] [-V] [-v] [-d debuglevel] [-h]"
+    echo "Usage: dbverify [-Z serverID] [-n backend_instance] [-a db_directory ] [-V] [-v] [-d debuglevel] [-h]"
     echo "Note if \"-n backend\" is not passed, verify all DBs."
     echo "Options:"
-    echo "        -Z             - Server instance identifier"
-    echo "        -n backend     - Backend database name.  Example: userRoot"
-    echo "        -V             - Verbose output"
-    echo "        -d debuglevel  - Debugging level"
-    echo "        -v             - Display version"
-    echo "        -h             - Display usage"
+    echo "        -Z              - Server instance identifier"
+    echo "        -n backend      - Backend database name.  Example: userRoot"
+    echo "        -a db_directory - Database directory"
+    echo "        -V              - Verbose output"
+    echo "        -d debuglevel   - Debugging level"
+    echo "        -v              - Display version"
+    echo "        -h              - Display usage"
 }
 
 display_version="no"
