@@ -374,7 +374,7 @@ class DirSrv(SimpleLDAPObject):
         self.timeout = timeout
 
         # Reset the args (py.test reuses the args_instance for each test case)
-        args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', None)
+        args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', '/')
         args_instance[SER_BACKUP_INST_DIR] = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
         args_instance[SER_ROOT_DN] = DN_DM
         args_instance[SER_ROOT_PW] = PW_DM
@@ -385,6 +385,12 @@ class DirSrv(SimpleLDAPObject):
         args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
         args_instance[SER_USER_ID] = None
         args_instance[SER_GROUP_ID] = None
+
+        # We allocate a "default" prefix here which allows an un-allocate or un-instantiated DirSrv
+        # instance to be able to do an an instance discovery. For example:
+        #  ds = lib389.DirSrv()
+        #  ds.list(all=True)
+        self.prefix = args_instance[SER_DEPLOYED_DIR]
 
         self.__wrapmethods()
         self.__add_brookers__()
@@ -440,7 +446,7 @@ class DirSrv(SimpleLDAPObject):
         self.serverid  = args.get(SER_SERVERID_PROP, None)
         self.groupid   = args.get(SER_GROUP_ID, self.userid)
         self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
-        self.prefix    = args.get(SER_DEPLOYED_DIR) or '/'
+        self.prefix    = args.get(SER_DEPLOYED_DIR)
 
         # Those variables needs to be revisited (sroot for 64 bits)
         #self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
@@ -600,7 +606,8 @@ class DirSrv(SimpleLDAPObject):
         #    inst: <prefix>/etc/dirsrv/slapd-<serverid>  (conf)
         #
 
-        prefix = self.prefix or '/'
+        # Don't need a default value now since it's set in init.
+        prefix = self.prefix
 
         # first identify the directories we will scan
         confdir = os.getenv('INITCONFIGDIR')
