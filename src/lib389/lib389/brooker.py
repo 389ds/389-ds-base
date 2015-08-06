@@ -37,18 +37,18 @@ class Config(object):
         """@param conn - a DirSrv instance """
         self.conn = conn
         self.log = conn.log
-        
+
     def set(self, key, value):
         """Set a parameter under cn=config
             @param key - the attribute name
             @param value - attribute value as string
-            
+
             eg. set('passwordExp', 'on')
         """
         self.log.debug("set(%r, %r)" % (key, value))
         return self.conn.modify_s(DN_CONFIG,
             [(ldap.MOD_REPLACE, key, value)])
-            
+
     def get(self, key):
         """Get an attribute under cn=config"""
         return self.conn.getEntry(DN_CONFIG).__getattr__(key)
@@ -78,7 +78,7 @@ class Config(object):
 
     def loglevel(self, vals=(LOG_DEFAULT,), service='error', update=False):
         """Set the access or error log level.
-        @param vals - a list of log level codes (eg. lib389.LOG_*) 
+        @param vals - a list of log level codes (eg. lib389.LOG_*)
                       defaults to LOG_DEFAULT
         @param service -   'access' or 'error'. There is no 'audit' log level. use enable_log or disable_log.
         @param update  - False for replace (default), True for update
@@ -102,6 +102,14 @@ class Config(object):
 
         self.set(service, str(tot))
         return tot
+
+    def logbuffering(self, state=True):
+        if state:
+            value = 'on'
+        else:
+            value = 'off'
+
+        self.set('nsslapd-accesslog-logbuffering', value)
 
     def enable_ssl(self, secport=636, secargs=None):
         """Configure SSL support into cn=encryption,cn=config.

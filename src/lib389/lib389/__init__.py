@@ -1989,6 +1989,10 @@ class DirSrv(SimpleLDAPObject):
         """Set nsslapd-accesslog-level and return its value."""
         return self.config.loglevel(vals, service='access')
 
+    def setAccessLogBuffering(self, state):
+        """Set nsslapd-accesslog-logbuffering - state is True or False"""
+        return self.config.logbuffering(state)
+
     def configSSL(self, secport=636, secargs=None):
         """Configure SSL support into cn=encryption,cn=config.
 
