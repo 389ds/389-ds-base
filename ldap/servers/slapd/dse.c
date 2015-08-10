@@ -2607,18 +2607,21 @@ dse_call_callback(struct dse* pdse, Slapi_PBlock *pb, int operation, int flags, 
 
     if (pdse->dse_callback != NULL) {
         struct dse_callback *p = pdse->dse_callback;
+        struct dse_callback *next = NULL;
         int result = SLAPI_DSE_CALLBACK_OK;
 
         while (p != NULL) {
+            next = p->next;
             if ((p->operation & operation) && (p->flags & flags)) {
                 if(slapi_sdn_scope_test(slapi_entry_get_sdn_const(entryBefore), p->base, p->scope)){
                     if(NULL == p->slapifilter || slapi_vattr_filter_test(pb, entryBefore, p->slapifilter, 0) == 0){
+                        struct slapdplugin *plugin = p->plugin;
                         int plugin_started = 1;
 
-                        if(p->plugin){
+                        if(plugin){
                             /* this is a plugin callback, update the operation counter */
-                            slapi_plugin_op_started(p->plugin);
-                            if(!p->plugin->plg_started){
+                            slapi_plugin_op_started(plugin);
+                            if(!plugin->plg_started){
                                 /* must be a task function being called */
                                 result = SLAPI_DSE_CALLBACK_ERROR;
                                 PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -2633,11 +2636,11 @@ dse_call_callback(struct dse* pdse, Slapi_PBlock *pb, int operation, int flags, 
                         if(result < rc){
                             rc = result;
                         }
-                        slapi_plugin_op_finished(p->plugin);
+                        slapi_plugin_op_finished(plugin);
                     }
                 }
             }
-            p = p->next;
+            p = next;
         }
     }
     return rc;
