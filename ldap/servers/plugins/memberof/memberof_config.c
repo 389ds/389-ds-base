@@ -335,6 +335,7 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 					"%s: Invalid DN (%s) for include suffix.",
 					MEMBEROF_PLUGIN_SUBSYSTEM, entry_scopes[i]);
 				slapi_ch_array_free(entry_scopes);
+				entry_scopes = NULL;
 				theConfig.entryScopeCount = 0;
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
 				goto done;
@@ -360,8 +361,9 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				/* invalid dn syntax */
 				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"%s: Invalid DN (%s) for exclude suffix.",
-					MEMBEROF_PLUGIN_SUBSYSTEM, entry_scopes[i]);
+					MEMBEROF_PLUGIN_SUBSYSTEM, entry_exclude_scopes[i]);
 				slapi_ch_array_free(entry_exclude_scopes);
+				entry_exclude_scopes = NULL;
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
 				goto done;
 			}
@@ -747,7 +749,7 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 			int num_vals = 0;
 
 			dest->entryScopeExcludeSubtrees = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),src->entryExcludeScopeCount+1);
-			for(num_vals = 0; src->entryScopes[num_vals]; num_vals++){
+			for(num_vals = 0; src->entryScopeExcludeSubtrees[num_vals]; num_vals++){
 				dest->entryScopeExcludeSubtrees[num_vals] = slapi_sdn_dup(src->entryScopeExcludeSubtrees[num_vals]);
 			}
 		}
