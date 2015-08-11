@@ -43,43 +43,104 @@ def topology(request):
     standalone.create()
     standalone.open()
 
+    # Delete each instance in the end
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
+
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
     return TopologyStandalone(standalone)
 
 
-def test_acl_init(topology):
-    '''
-    Write any test suite initialization here(if needed)
-    '''
+def add_attr(topology, attr_name):
+    """Adds attribute to the schema"""
 
-    return
+    ATTR_VALUE = """(NAME '%s' \
+                    DESC 'Attribute filteri-Multi-Valued' \
+                    SYNTAX 1.3.6.1.4.1.1466.115.121.1.27)""" % attr_name
+    mod = [(ldap.MOD_ADD, 'attributeTypes', ATTR_VALUE)]
 
-
-def test_acl_(topology):
-    '''
-    Write a single test here...
-    '''
-
-    return
-
-
-def test_acl_final(topology):
-    topology.standalone.delete()
-    log.info('acl test suite PASSED')
+    try:
+        topology.standalone.modify_s(DN_SCHEMA, mod)
+    except ldap.LDAPError, e:
+        log.fatal('Failed to add attr (%s): error (%s)' % (attr_name,
+                                                           e.message['desc']))
+        assert False
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
+@pytest.fixture(params=["lang-ja", "binary", "phonetic"])
+def aci_with_attr_subtype(request, topology):
+    """Adds and deletes an ACI in the DEFAULT_SUFFIX"""
 
-    topo = topology(True)
-    test_acl_init(topo)
-    test_acl_(topo)
-    test_acl_final(topo)
+    TARGET_ATTR = 'protectedOperation'
+    USER_ATTR = 'allowedToPerform'
+    SUBTYPE = request.param
+
+    log.info("========Executing test with '%s' subtype========" % SUBTYPE)
+    log.info("        Add a target attribute")
+    add_attr(topology, TARGET_ATTR)
+
+    log.info("        Add a user attribute")
+    add_attr(topology, USER_ATTR)
+
+    ACI_TARGET = '(targetattr=%s;%s)' % (TARGET_ATTR, SUBTYPE)
+    ACI_ALLOW = '(version 3.0; acl "test aci for subtypes"; allow (read) '
+    ACI_SUBJECT = 'userattr = "%s;%s#GROUPDN";)' % (USER_ATTR, SUBTYPE)
+    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+
+    log.info("        Add an ACI with attribute subtype")
+    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    try:
+        topology.standalone.modify_s(DEFAULT_SUFFIX, mod)
+    except ldap.LDAPError, e:
+        log.fatal('Failed to add ACI: error (%s)' % (e.message['desc']))
+        assert False
+
+    def fin():
+        log.info("        Finally, delete an ACI with the '%s' subtype" %
+                                                       SUBTYPE)
+        mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
+        try:
+            topology.standalone.modify_s(DEFAULT_SUFFIX, mod)
+        except ldap.LDAPError, e:
+            log.fatal('Failed to delete ACI: error (%s)' % (e.message['desc']))
+            assert False
+    request.addfinalizer(fin)
+
+    return ACI_BODY
+
+
+def test_aci_attr_subtype_targetattr(topology, aci_with_attr_subtype):
+    """Checks, that ACIs allow attribute subtypes in the targetattr keyword
+
+    Test description:
+    1. Define two attributes in the schema
+        - first will be a targetattr
+        - second will be a userattr
+    2. Add an ACI with an attribute subtype
+        - or language subtype
+        - or binary subtype
+        - or pronunciation subtype
+    """
+
+    log.info("        Search for the added attribute")
+    try:
+        entries = topology.standalone.search_s(DEFAULT_SUFFIX,
+                                               ldap.SCOPE_BASE,
+                                               '(objectclass=*)', ['aci'])
+        entry = str(entries[0])
+        assert aci_with_attr_subtype in entry
+        log.info("        The added attribute was found")
+
+    except ldap.LDAPError, e:
+        log.fatal('Search failed, error: ' + e.message['desc'])
+        assert False
 
 
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
