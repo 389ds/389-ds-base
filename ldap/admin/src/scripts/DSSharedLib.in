@@ -98,13 +98,13 @@ get_init_file()
     do
         inst_count=`expr $inst_count + 1`
         id=`normalize_server_id $configfile`
-        if [ -n "$servid" -a "$id" = "$servid" ]
+        if [ -n "$servid" ] && [ "$id" = "$servid" ]
         then
             # found it
             echo $configfile
             exit 0
         fi
-        if  [ $first == "yes" ]
+        if  [ $first = "yes" ]
         then
             instances=$id
             first="no"
@@ -114,7 +114,7 @@ get_init_file()
     done
 
     # server id not provided, check if there is only one instance
-    if [ -z "$servid" -a $inst_count -eq 1 ]
+    if [ -z "$servid" ] && [ $inst_count -eq 1 ]
     then
         # return the file
         echo $configfile
@@ -135,48 +135,44 @@ process_dse ()
     configdir=$1
     pid=$2
     file="$configdir/dse.ldif"
-    shopt -s nocasematch
-    OLD_IFC=$IFC
+    OLD_IFS=$IFS
     IFS=""
     while read -r LINE
     do
-        if [[ $LINE !=  \ * ]] && [ "$output" != "" ]
+        case $LINE in
+            ' '*)
+                ;;
+            *)
+                if [ -n "$output" ]
+                then
+                    echo "$output" >> /tmp/DSSharedLib.$pid
+                    output=""
+                fi
+                ;;
+        esac
+        if [ -n "$output" ]
         then
-            echo "$output" >> /tmp/DSSharedLib.$pid
-            output=""
-        fi
-        if [ "$output" != "" ] && [[ $LINE == \ * ]]
-        then
-            # continuation line, strip the space and append it
-            LINE=`echo "$LINE" | sed -e 's/^ //'`
-            output=$output$LINE
-        elif [[ $LINE == nsslapd-port* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-localhost* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-securePort* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-security* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-ldapilisten* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-ldapifilepath* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-rootdn* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-ldapiautobind* ]]
-        then
-            output=$LINE;
-        elif [[ $LINE == nsslapd-certdir* ]]
-        then
-            output=$LINE;
+            case $LINE in
+                ' '*)
+                    # continuation line, strip the space and append it
+                    LINE=`echo "$LINE" | sed -e 's/^ //'`
+                    output=$output$LINE
+                    ;;
+            esac
+        else
+            case $LINE in
+                nsslapd-certdir*|\
+                nsslapd-ldapiautobind*|\
+                nsslapd-ldapilisten*|\
+                nsslapd-ldapifilepath*|\
+                nsslapd-localhost*|\
+                nsslapd-port*|\
+                nsslapd-rootdn*|\
+                nsslapd-securePort*|\
+                nsslapd-security*)
+                    output=$LINE
+                    ;;
+            esac
         fi
     
     done < $file
@@ -194,19 +190,19 @@ check_protocol ()
     ldapi=$3
     openldap=$4
        
-    if [ "$protocol" == "LDAPI" ] && [ "$openldap" != "yes" ]; then
+    if [ "$protocol" = "LDAPI" ] && [ "$openldap" != "yes" ]; then
         echo ""
         exit
-    elif [ "$protocol" == "LDAPI" ] && [ "$ldapi" == "off" ]; then
+    elif [ "$protocol" = "LDAPI" ] && [ "$ldapi" = "off" ]; then
         echo ""
         exit
-    elif [ "$protocol" == "STARTTLS" ]; then
-        if [ "$security" == "" ] || [ "$security" == "off" ]; then
+    elif [ "$protocol" = "STARTTLS" ]; then
+        if [ -z "$security" ] || [ "$security" = "off" ]; then
             echo ""
             exit
         fi
-    elif [ "$protocol" == "LDAPS" ]; then
-        if [ "$security" == "" ] || [ "$security" == "off" ]; then
+    elif [ "$protocol" = "LDAPS" ]; then
+        if [ -z "$security" ] || [ "$security" = "off" ]; then
             echo ""
             exit
         fi
