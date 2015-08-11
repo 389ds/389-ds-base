@@ -34,8 +34,9 @@ Getopt::Long::Configure(qw(bundling)); # bundling allows -ddddd
 my $res = new Resource("@propertydir@/setup-ds.res");
 
 sub usage {
-        print(STDERR "Usage: $0 [-f] [-d -d ... -d] -i instance\n\n");
-        print(STDERR " Opts: -f            - force removal\n");
+        print(STDERR "Usage: $0 [-a] [-f] [-d -d ... -d] -i instance\n\n");
+        print(STDERR " Opts: -a            - remove all\n");
+        print(STDERR "       -f            - force removal\n");
         print(STDERR "       -i instance   - instance name to remove (e.g. - slapd-example)\n");
         print(STDERR "       -d            - turn on debugging output\n");
 }

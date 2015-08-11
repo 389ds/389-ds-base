@@ -19,7 +19,7 @@
 remove\-ds.pl \- Remove an instance of Directory Server
 .SH SYNOPSIS
 .B remove-ds.pl
-[\-f] [\-d \-d ... \-d] \-i \fIinstance\fR
+[\-a] [\-f] [\-d \-d ... \-d] \-i \fIinstance\fR
 .SH DESCRIPTION
 Removes a Directory Server instance from the system.  The instance
 will be shutdown and the files will be removed.  The certificate
@@ -32,6 +32,9 @@ will contain the retained certificate database files.
 .\" respectively.
 .SH OPTIONS
 A summary of options is included below:
+.TP
+.B \fB\-a\fR
+Removes all files and directories belonging to the instance
 .TP
 .B \fB\-f\fR
 Force removal
