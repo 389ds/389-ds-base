@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source @datadir@/@package_name@/data/DSSharedLib
+. @datadir@/@package_name@/data/DSSharedLib
 
 libpath_add "@libdir@/@package_name@/"
 libpath_add "@libdir@"
@@ -39,7 +39,7 @@ do
 done
 
 initfile=$(get_init_file "@initconfigdir@" $servid)
-if [ $? == 1 ]
+if [ $? -eq 1 ]
 then
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
     echo "Available instances: $initfile"
