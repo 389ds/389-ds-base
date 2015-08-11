@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source @datadir@/@package_name@/data/DSSharedLib
+. @datadir@/@package_name@/data/DSSharedLib
 
 libpath_add "@libdir@/@package_name@/"
 libpath_add "@nss_libdir@"
@@ -26,15 +26,18 @@ if [ $# -lt 1 ] || [ $# -gt 7 ]
 then
     usage
     exit 1
-elif [[ $1 == -* ]]
-then
-    usage
-    exit 1
-else
-    archivedir=$1
-    shift
 fi
-    
+case $1 in
+    -*)
+        usage
+        exit 1
+        ;;
+    *)
+        archivedir=$1
+        shift
+        ;;
+esac
+
 while getopts "hn:Z:qd:vi:a:SD:" flag
 do
     case $flag in
@@ -55,7 +58,7 @@ do
 done
 
 initfile=$(get_init_file "@initconfigdir@" $servid)
-if [ $? == 1 ]
+if [ $? -eq 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
