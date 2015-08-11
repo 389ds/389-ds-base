@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 DATE=`date +%Y%m%d`
 # use a real tag name here
