@@ -1,16 +1,23 @@
 #!/usr/bin/python
+#
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 import sys
 import optparse
 
-'''
-    This script generates a template test script that handles the
-    non-interesting parts of a test script:
-        topology,
-        test (to be completed by the user),
-        final,
-        and run-isolated functions
-'''
+"""This script generates a template test script that handles the
+non-interesting parts of a test script:
+- topology,
+- test (to be completed by the user),
+- final,
+- and run-isolated function
+"""
 
 
 def displayUsage():
@@ -24,6 +31,34 @@ def displayUsage():
            'However, you can not mix "-i" with the replication options(-m, -h , -c).  ' +
            'There is a maximum of 10 masters, 10 hubs, and 10 consumers.')
     exit(1)
+
+
+def writeFinalizer():
+    """Write the finalizer function - delete each instance"""
+
+    TEST.write('    # Delete each instance in the end\n')
+    TEST.write('    def fin():\n')
+    if repl_deployment:
+        for idx in range(masters):
+            idx += 1
+            TEST.write('        master' + str(idx) + '.delete()\n')
+        for idx in range(hubs):
+            idx += 1
+            TEST.write('        hub' + str(idx) + '.delete()\n')
+        for idx in range(consumers):
+            idx += 1
+            TEST.write('        consumer' + str(idx) + '.delete()\n')
+    else:
+        for idx in range(instances):
+            idx += 1
+            if idx == 1:
+                idx = ''
+            else:
+                idx = str(idx)
+            TEST.write('        standalone' + idx + '.delete()\n')
+    TEST.write('    request.addfinalizer(fin)')
+    TEST.write('\n\n')
+
 
 desc = 'Script to generate an initial lib389 test script.  ' + \
        'This generates the topology, test, final, and run-isolated functions.'
@@ -427,6 +462,8 @@ if len(sys.argv) > 0:
             TEST.write('        assert False\n')
             TEST.write('\n')
 
+        writeFinalizer()
+
         #
         # Write the finals steps for replication
         #
@@ -475,9 +512,12 @@ if len(sys.argv) > 0:
             TEST.write('    standalone' + idx + '.create()\n')
             TEST.write('    standalone' + idx + '.open()\n\n')
 
+        writeFinalizer()
+
         TEST.write('    # Clear out the tmp dir\n')
         TEST.write('    standalone.clearTmpDir(__file__)\n')
         TEST.write('\n')
+
         TEST.write('    return TopologyStandalone(standalone')
         for idx in range(instances):
             idx += 1
@@ -493,82 +533,35 @@ if len(sys.argv) > 0:
     #
     if ticket:
         TEST.write('def test_ticket' + ticket + '(topology):\n')
-        TEST.write("    '''\n")
         if repl_deployment:
-            TEST.write('    Write your replication testcase here.\n\n')
+            TEST.write('    """Write your replication testcase here.\n\n')
             TEST.write('    To access each DirSrv instance use:  topology.master1, topology.master2,\n' +
-                       '        ..., topology.hub1, ..., topology.consumer1, ...\n')
+                       '        ..., topology.hub1, ..., topology.consumer1, ...\n\n')
+            TEST.write('    Also, if you need any testcase initialization,\n')
+            TEST.write('    please, write additional fixture for that(include finalizer).\n')
         else:
-            TEST.write('    Write your testcase here...\n')
-        TEST.write("    '''\n\n")
+            TEST.write('    """Write your testcase here...\n\n')
+            TEST.write('    Also, if you need any testcase initialization,\n')
+            TEST.write('    please, write additional fixture for that(include finalizer).\n')
+        TEST.write('    """\n\n')
         TEST.write("    log.info('Test complete')\n")
-        TEST.write("\n\n")
+        TEST.write('\n\n')
     else:
-        # For suite we start with an init function
-        TEST.write('def test_' + suite + '_init(topology):\n')
-        TEST.write("    '''\n")
-        TEST.write('    Write any test suite initialization here(if needed)\n')
-        TEST.write("    '''\n\n    return\n\n\n")
-
         # Write the first initial empty test function
         TEST.write('def test_' + suite + '_#####(topology):\n')
-        TEST.write("    '''\n")
-        TEST.write('    Write a single test here...\n')
-        TEST.write("    '''\n\n    return\n\n\n")
-
-    #
-    # Write the final function here - delete each instance
-    #
-    if ticket:
-        TEST.write('def test_ticket' + ticket + '_final(topology):\n')
-    else:
-        # suite
-        TEST.write('def test_' + suite + '_final(topology):\n')
-    if repl_deployment:
-        for idx in range(masters):
-            idx += 1
-            TEST.write('    topology.master' + str(idx) + '.delete()\n')
-        for idx in range(hubs):
-            idx += 1
-            TEST.write('    topology.hub' + str(idx) + '.delete()\n')
-        for idx in range(consumers):
-            idx += 1
-            TEST.write('    topology.consumer' + str(idx) + '.delete()\n')
-    else:
-        for idx in range(instances):
-            idx += 1
-            if idx == 1:
-                idx = ''
-            else:
-                idx = str(idx)
-            TEST.write('    topology.standalone' + idx + '.delete()\n')
-
-    if ticket:
-        TEST.write("    log.info('Testcase PASSED')\n")
-    else:
-        # suite
-        TEST.write("    log.info('" + suite + " test suite PASSED')\n")
-    TEST.write('\n\n')
+        TEST.write('    """Write a single test here...\n\n')
+        TEST.write('    Also, if you need any test suite initialization,\n')
+        TEST.write('    please, write additional fixture for that(include finalizer).\n')
+        TEST.write('    """\n\n    return\n\n\n')
 
     #
     # Write the main function
     #
-    TEST.write('def run_isolated():\n')
-    TEST.write('    global installation1_prefix\n')
-    TEST.write('    installation1_prefix = None\n\n')
-    TEST.write('    topo = topology(True)\n')
-    if ticket:
-        TEST.write('    test_ticket' + ticket + '(topo)\n')
-        TEST.write('    test_ticket' + ticket + '_final(topo)\n')
-    else:
-        # suite
-        TEST.write('    test_' + suite + '_init(topo)\n')
-        TEST.write('    test_' + suite + '_#####(topo)\n')
-        TEST.write('    test_' + suite + '_final(topo)\n')
-    TEST.write('\n\n')
-
     TEST.write("if __name__ == '__main__':\n")
-    TEST.write('    run_isolated()\n\n')
+    TEST.write('    # Run isolated\n')
+    TEST.write('    # -s for DEBUG mode\n')
+    TEST.write('    CURRENT_FILE = os.path.realpath(__file__)\n')
+    TEST.write('    pytest.main("-s %s" % CURRENT_FILE)')
 
     #
     # Done, close things up
