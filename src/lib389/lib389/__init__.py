@@ -21,6 +21,7 @@ import sys
 import os
 import stat
 import pwd
+import grp
 import os.path
 import base64
 import urllib
@@ -2334,4 +2335,24 @@ class DirSrv(SimpleLDAPObject):
             self.set_option(ldap.OPT_SERVER_CONTROLS, [])
         return ldap_result
 
+    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com'):
+        """Generate a simple ldif file using the dbgen.pl script, and set the
+           ownership and permissions to match the user that the server runs as.
 
+           @param num - number of entries to create
+           @param ldif_file - ldif file name(including the path)
+           @suffix - DN of the parent entry in the ldif file
+           @return - nothing
+           @raise - OSError
+        """
+        try:
+            os.system('dbgen.pl -s %s -n %d -o %s' % (suffix, num, ldif_file))
+            os.chmod(ldif_file, 0o644)
+            if os.getuid() == 0:
+                # root user - chown the ldif to the server user
+                uid = pwd.getpwnam(self.userid).pw_uid
+                gid = grp.getgrnam(self.userid).gr_gid
+                os.chown(ldif_file, uid, gid)
+        except OSError as e:
+            log.exception('Failed to create ldif file (%s): error %d - %s' % (ldif_file, e.errno, e.strerror))
+            raise e
