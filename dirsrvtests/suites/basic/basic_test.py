@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -225,8 +225,8 @@ def test_basic_import_export(topology):
     # Generate a test ldif (50k entries)
     import_ldif = tmp_dir + '/basic_import.ldif'
     try:
-        os.system('dbgen.pl -n 50000 -o ' + import_ldif)
-    except OSError, e:
+        topology.standalone.buildLDIF(50000, import_ldif)
+    except OSError as e:
         log.fatal('test_basic_import_export: failed to create test ldif, error: %s - %s' % (e.errno, e.strerror))
         assert False
 
