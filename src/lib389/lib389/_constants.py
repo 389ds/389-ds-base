@@ -157,15 +157,16 @@ PLUGIN_WHOAMI             = 'whoami'
 #
 # Constants
 #
-DEFAULT_USER = "nobody"
+DEFAULT_USER = "dirsrv"
 DEFAULT_USERHOME = "/tmp/lib389_home"
+DEFAULT_USER_COMMENT = "lib389 DS user"
 DATA_DIR = "data"
 TMP_DIR = "tmp"
 VALGRIND_WRAPPER = "ns-slapd.valgrind"
 DISORDERLY_SHUTDOWN = 'Detected Disorderly Shutdown last time Directory Server was running, recovering database'
 
 #
-# LOG: see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/9.0/html/Administration_Guide/Configuring_Logs.html
+# LOG: see https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Configuring_Logs.html
 # The default log level is 16384
 #
 (

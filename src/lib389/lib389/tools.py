@@ -848,7 +848,7 @@ class DirSrvTools(object):
         except KeyError:
             print "Adding user %s" % user
             cmd = [USERADD, '-g', group,
-                   '-c', "lib389 DS user",
+                   '-c', DEFAULT_USER_COMMENT,
                     '-r',
                     '-d', home,
                     '-s', NOLOGIN,
@@ -858,6 +858,7 @@ class DirSrvTools(object):
     @staticmethod
     def lib389User(user=DEFAULT_USER):
         DirSrvTools.makeGroup(group=user)
+        time.sleep(1) # Need a little time for the group to get fully created
         DirSrvTools.makeUser(user=user, group=user, home=DEFAULT_USERHOME)
 
     @staticmethod

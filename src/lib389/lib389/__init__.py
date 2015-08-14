@@ -39,6 +39,7 @@ import logging
 import decimal
 import glob
 import tarfile
+import subprocess
 
 from ldap.ldapobject import SimpleLDAPObject
 from ldapurl import LDAPUrl
@@ -193,6 +194,8 @@ class DirSrv(SimpleLDAPObject):
                 self.inst            -> equivalent to self.serverid
                 self.sroot/self.inst -> nsslapd-instancedir
                 self.dbdir           -> dirname(nsslapd-directory)
+                self.bakdir          -> nsslapd-bakdir
+                self.ldifdir         -> nsslapd-ldifdir
 
             @param - self
 
@@ -211,12 +214,16 @@ class DirSrv(SimpleLDAPObject):
                     'nsslapd-accesslog',
                     'nsslapd-auditlog',
                     'nsslapd-certdir',
-                    'nsslapd-schemadir'])
+                    'nsslapd-schemadir',
+                    'nsslapd-bakdir',
+                    'nsslapd-ldifdir'])
                 self.errlog    = ent.getValue('nsslapd-errorlog')
                 self.accesslog = ent.getValue('nsslapd-accesslog')
                 self.auditlog  = ent.getValue('nsslapd-auditlog')
                 self.confdir   = ent.getValue('nsslapd-certdir')
                 self.schemadir = ent.getValue('nsslapd-schemadir')
+                self.bakdir    = ent.getValue('nsslapd-bakdir')
+                self.ldifdir   = ent.getValue('nsslapd-ldifdir')
 
                 if self.isLocal:
                     if not self.confdir or not os.access(self.confdir + '/dse.ldif', os.R_OK):
@@ -606,8 +613,8 @@ class DirSrv(SimpleLDAPObject):
             for instance in glob.glob(pattern):
                 serverid = os.path.basename(instance)[len(DEFAULT_ENV_HEAD):]
 
-                # skip removed instance
-                if '.removed' in serverid:
+                # skip removed instance and admin server entry
+                if '.removed' in serverid or 'dirsrv-admin' in instance:
                     continue
 
                 # it is found, store its properties in the list
@@ -804,6 +811,10 @@ class DirSrv(SimpleLDAPObject):
 
             @raise None
         '''
+
+        # Grab all the instances now, before we potentially remove the last one
+        insts = self.list(all=True)
+
         if self.state == DIRSRV_STATE_ONLINE:
             self.close()
 
@@ -823,6 +834,21 @@ class DirSrv(SimpleLDAPObject):
             os.system(cmd)
         except:
             log.exception("error executing %r" % cmd)
+
+        # If this was the last instance being deleted, remove the DEFAULT_USER
+        # if lib389 created the default user
+        if os.getuid() == 0:
+            # Only the root user could of added the entry
+            if len(insts) == 1:
+                # No more instances (this was the last one)
+                if pwd.getpwnam(DEFAULT_USER).pw_gecos == DEFAULT_USER_COMMENT:
+                    # We created this user, so we will delete it
+                    cmd = ['/usr/sbin/userdel', DEFAULT_USER]
+                    try:
+                        subprocess.call(cmd)
+                    except subprocess.CalledProcessError as e:
+                        log.exception('Failed to delete default user (%s): error %s' %
+                                      (DEFAULT_USER, e.output))
 
         self.state = DIRSRV_STATE_ALLOCATED
 
