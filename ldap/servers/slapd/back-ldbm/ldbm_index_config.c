@@ -128,7 +128,7 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_
 
 /*
  * Config DSE callback for index deletes.
- */	
+ */
 int 
 ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg) 
 { 
@@ -138,15 +138,19 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
   const struct berval *attrValue;
   int rc = SLAPI_DSE_CALLBACK_OK;
   struct attrinfo *ainfo = NULL;
+  Slapi_Backend *be = NULL;
   
   returntext[0] = '\0';
   *returncode = LDAP_SUCCESS;
 
-  if (slapi_counter_get_value(inst->inst_ref_count) > 0) {
+  if ((slapi_counter_get_value(inst->inst_ref_count) > 0) ||
+      /* check if the backend is ON or not. 
+       * If offline or being deleted, non SUCCESS is returned. */
+      (slapi_mapping_tree_select(pb, &be, NULL, returntext) != LDAP_SUCCESS)) {
     *returncode = LDAP_UNAVAILABLE;
     rc = SLAPI_DSE_CALLBACK_ERROR;
+    goto bail;
   }
-
   *returncode = LDAP_SUCCESS;
   
   slapi_entry_attr_find(e, "cn", &attr);
@@ -165,6 +169,7 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
       rc = SLAPI_DSE_CALLBACK_ERROR;
     }
   }
+bail:
   return rc;
 }
 
