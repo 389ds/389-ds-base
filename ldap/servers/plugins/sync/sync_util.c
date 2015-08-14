@@ -107,7 +107,8 @@ sync_nsuniqueid2uuid(const char *nsuniqueid)
 
 	u[16] = '\0';
 
-	uuid = slapi_ch_smprintf("%s",(char *)u);
+	uuid = slapi_ch_malloc(sizeof(u));
+	memcpy(uuid, u, sizeof(u));
 
 	return(uuid);
 }
