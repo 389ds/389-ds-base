@@ -1,0 +1,31 @@
+#!/usr/bin/python
+
+from clitools import CliTool, clitools_parser
+from lib389._constants import *
+import ldap
+from argparse import ArgumentParser
+
+class SchemaTool(CliTool):
+    def schema_attributetype_query(self):
+        try:
+            self.populate_instance_dict(self.args.instance)
+            self.connect()
+            attributetype, must, may = self.ds.schema.query_attributetype(self.args.attributetype)
+            print(attributetype)
+            print('MUST')
+            for objectclass in must:
+                print(objectclass)
+            print('MAY')
+            for objectclass in may:
+                print(objectclass)
+        finally:
+            self.disconnect()
+
+if __name__ == '__main__':
+    # Do some arg parse stuff
+    ## You can always add a child parser here too ...
+    parser = ArgumentParser(parents=[clitools_parser])
+    parser.add_argument('--attributetype', '-a', help='The name of the attribute type to query', required=True)
+    args = parser.parse_args()
+    schematool = SchemaTool(args)
+    schematool.schema_attributetype_query()

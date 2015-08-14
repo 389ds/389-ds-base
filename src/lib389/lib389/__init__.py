@@ -478,7 +478,7 @@ class DirSrv(SimpleLDAPObject):
 
         return server
 
-    def list(self, all=False):
+    def list(self, all=False, serverid=None):
         """
             Returns a list dictionary. For a created instance that is on the local file system
             (e.g. <prefix>/etc/dirsrv/slapd-*), it exists a file describing its properties
@@ -496,6 +496,8 @@ class DirSrv(SimpleLDAPObject):
 
             @param all - True or False . default is [False]
 
+            @param instance - The name of the instance to retrieve or None for the current instance
+
             @return list of dictionaries, each of them containing instance properities
 
             @raise IOError - if the file containing the properties is not foundable or readable
@@ -510,7 +512,7 @@ class DirSrv(SimpleLDAPObject):
                 return 1
             return 0
 
-        def _parse_configfile(filename=None):
+        def _parse_configfile(filename=None, serverid=None):
             '''
                 This method read 'filename' and build a dictionary with
                 CONF_* properties
@@ -522,6 +524,9 @@ class DirSrv(SimpleLDAPObject):
                 raise IOError('invalid file name or rights: %s' % filename)
 
             prop = {}
+            prop[CONF_SERVER_ID] = serverid
+            prop[SER_SERVERID_PROP] = serverid
+            prop[SER_DEPLOYED_DIR] = self.prefix
             myfile = open(filename, 'r')
             for line in myfile:
                 # retrieve the value in line:: <PROPNAME>=<string> [';' export <PROPNAME>]
@@ -552,6 +557,31 @@ class DirSrv(SimpleLDAPObject):
                     if test_and_set(prop, property, variable, value):
                         break
 
+            # Now, we have passed the sysconfig environment file.
+            #  read in and parse the dse.ldif to determine our SER_* values.
+            # probably should use path join?
+            dsefile = '%s/dse.ldif' % prop[CONF_CONFIG_DIR]
+            if os.path.exists(dsefile):
+                ldifconn = LDIFConn(dsefile)
+                configentry = ldifconn.get(DN_CONFIG)
+                for key in args_dse_keys:
+                    prop[key] = configentry.getValue(args_dse_keys[key])
+                #SER_HOST            (host) nsslapd-localhost
+                #SER_PORT            (port) nsslapd-port
+                #SER_SECURE_PORT     (sslport) nsslapd-secureport
+                #SER_ROOT_DN         (binddn) nsslapd-rootdn
+                #SER_ROOT_PW         (bindpw) We can't do this
+                #SER_CREATION_SUFFIX (creation_suffix) nsslapd-defaultnamingcontext
+                #SER_USER_ID         (userid) nsslapd-localuser
+                #SER_SERVERID_PROP   (serverid) Already have this
+                #SER_GROUP_ID        (groupid) ???
+                #SER_DEPLOYED_DIR    (prefix) Already provided to do the discovery
+                #SER_BACKUP_INST_DIR (backupdir) nsslapd-bakdir <<-- maybe?
+                # We need to convert these two to int
+                #  because other routines get confused if we don't
+                for intkey in [SER_PORT, SER_SECURE_PORT]:
+                    if prop[intkey] is not None:
+                        prop[intkey] = int(prop[intkey])
             return prop
 
         def search_dir(instances, pattern, stop_value=None):
@@ -572,6 +602,7 @@ class DirSrv(SimpleLDAPObject):
                                         not find it.
             '''
             added = False
+            print(pattern)
             for instance in glob.glob(pattern):
                 serverid = os.path.basename(instance)[len(DEFAULT_ENV_HEAD):]
 
@@ -582,7 +613,7 @@ class DirSrv(SimpleLDAPObject):
                 # it is found, store its properties in the list
                 if stop_value:
                     if stop_value == serverid:
-                        instances.append(_parse_configfile(instance))
+                        instances.append(_parse_configfile(instance, serverid))
                         added = True
                         break
                     else:
@@ -590,7 +621,7 @@ class DirSrv(SimpleLDAPObject):
                         continue
                 else:
                     # we are not looking for a specific value, just add it
-                    instances.append(_parse_configfile(instance))
+                    instances.append(_parse_configfile(instance, serverid))
 
             return added
 
@@ -609,6 +640,8 @@ class DirSrv(SimpleLDAPObject):
 
         # Don't need a default value now since it's set in init.
         prefix = self.prefix
+        if serverid is None and hasattr(self, 'serverid'):
+            serverid = self.serverid
 
         # first identify the directories we will scan
         confdir = os.getenv('INITCONFIGDIR')
@@ -640,7 +673,7 @@ class DirSrv(SimpleLDAPObject):
             # first check the private repository
             if privconfig_head:
                 pattern = "%s*" % os.path.join(privconfig_head, DEFAULT_ENV_HEAD)
-                found = search_dir(instances, pattern, self.serverid)
+                found = search_dir(instances, pattern, serverid)
                 if len(instances) > 0:
                     self.log.info("List from %s" % privconfig_head)
                     for instance in instances:
@@ -655,7 +688,7 @@ class DirSrv(SimpleLDAPObject):
             # second, if not already found, search the system repository
             if not found:
                 pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
-                search_dir(instances, pattern, self.serverid)
+                search_dir(instances, pattern, serverid)
                 if len(instances) > 0:
                     self.log.info("List from %s" % privconfig_head)
                     for instance in instances:
@@ -2295,6 +2328,13 @@ class DirSrv(SimpleLDAPObject):
         """
         Conduct a search on effective rights for some object (sourcedn) against a filter.
         For arguments to this function, please see LDAPObject.search_s. For example:
+
+        @param sourcedn - DN of entry to check
+        @param base - Base DN of the suffix to check
+        @param scope - search scope
+        @param args -
+        @param kwargs -
+        @return - ldap result
 
         LDAPObject.search_s(base, scope[, filterstr='(objectClass=*)'[, attrlist=None[, attrsonly=0]]]) -> list|None
 

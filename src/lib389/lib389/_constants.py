@@ -78,6 +78,7 @@ ENV_SYSCONFIG_DIR = '/etc/sysconfig'
 ENV_LOCAL_DIR = '.dirsrv'
 
 # CONFIG file (<prefix>/etc/sysconfig/dirsrv-* or $HOME/.dirsrv/dirsrv-*) keywords
+CONF_SERVER_ID     = 'SERVER_ID'
 CONF_SERVER_DIR    = 'SERVER_DIR'
 CONF_SERVERBIN_DIR = 'SERVERBIN_DIR'
 CONF_CONFIG_DIR    = 'CONFIG_DIR'
@@ -428,3 +429,17 @@ args_instance = {
                    SER_SERVERID_PROP: "template",
                    SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
 
+# Helper for linking dse.ldif values to the parse_config function
+args_dse_keys = {
+                SER_HOST: 'nsslapd-localhost',
+                SER_PORT: 'nsslapd-port',
+                SER_SECURE_PORT: 'nsslapd-secureport',
+                SER_ROOT_DN: 'nsslapd-rootdn',
+                #SER_ROOT_PW         (bindpw) We can't do this
+                SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
+                SER_USER_ID: 'nsslapd-localuser',
+                #SER_SERVERID_PROP   (serverid) Already have this set in other areas.
+                #SER_GROUP_ID        (groupid) ???
+                #SER_DEPLOYED_DIR    (prefix) Already provided to do the discovery
+                #SER_BACKUP_INST_DIR (backupdir) nsslapd-bakdir <<-- maybe?
+}
