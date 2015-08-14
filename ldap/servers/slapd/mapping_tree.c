@@ -2171,7 +2171,9 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
     } 
 
     be[0] = NULL;
-    referral[0] = NULL;
+    if (referral) {
+        referral[0] = NULL;
+    }
 
     mtn_lock();
 
@@ -2658,7 +2660,9 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
          ((SLAPI_OPERATION_SEARCH == op_type)||(SLAPI_OPERATION_BIND == op_type) || 
          (SLAPI_OPERATION_UNBIND == op_type) || (SLAPI_OPERATION_COMPARE == op_type))) ||
         override_referral) {
-        *referral = NULL;
+        if (referral) {
+            *referral = NULL;
+        }
         if ((target_node == mapping_tree_root) ){
             /* If we got here, then we couldn't find a matching node 
              * for the target. We'll use the default backend.  Once
@@ -2679,22 +2683,25 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                     /* there is only one backend no choice possible */
                     *index = 0;
                 } else {
-                    *index = mtn_get_be_distributed(pb, target_node,
-                         target_sdn, &flag_stop);
-			if (*index == SLAPI_BE_NO_BACKEND) 
-				result = LDAP_UNWILLING_TO_PERFORM;
-            	}
-           }
-	   if (*index == SLAPI_BE_REMOTE_BACKEND) {
-           	*be = NULL;
-               	*referral = (target_node->mtn_referral_entry ?
-                       		slapi_entry_dup(target_node->mtn_referral_entry) :
-                       		NULL);
+                    *index = mtn_get_be_distributed(pb, target_node, target_sdn, &flag_stop);
+                    if (*index == SLAPI_BE_NO_BACKEND) {
+                        result = LDAP_UNWILLING_TO_PERFORM;
+                    }
+                }
+            }
+            if (*index == SLAPI_BE_REMOTE_BACKEND) {
+                *be = NULL;
+                if (referral) {
+                    *referral = (target_node->mtn_referral_entry ?
+                                slapi_entry_dup(target_node->mtn_referral_entry) : NULL);
+                }
                 (*index)++;
             }else if ((*index == SLAPI_BE_NO_BACKEND) || (*index >= target_node->mtn_be_count)) {
-        	/* we have already returned all backends -> return NULL */
+                /* we have already returned all backends -> return NULL */
                 *be = NULL;
-                *referral = NULL;
+                if (referral) {
+                    *referral = NULL;
+                }
             } else {
                 /* return next backend, increment index */
                 *be = target_node->mtn_be[*index];
@@ -2749,7 +2756,9 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
              * send back NULL to jump to next node 
              */
             *be = NULL;
-            *referral = NULL;
+            if (referral) {
+                *referral = NULL;
+            }
             result = LDAP_SUCCESS;
         } else {
             /* first time we hit this referral -> return it
@@ -2758,11 +2767,12 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
              * returned this referral
              */
             *be = NULL;
-            *referral = (target_node->mtn_referral_entry ?
-                         slapi_entry_dup(target_node->mtn_referral_entry) :
-                         NULL);
+            if (referral) {
+                *referral = (target_node->mtn_referral_entry ?
+                             slapi_entry_dup(target_node->mtn_referral_entry) : NULL);
+            }
             (*index)++;
-            if (NULL == *referral) {
+            if (NULL == target_node->mtn_referral_entry) {
                 if (errorbuf) {
                     PR_snprintf(errorbuf, BUFSIZ,
                     "Mapping tree node for %s is set to return a referral,"
@@ -2782,7 +2792,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                 "mapping tree selected backend : %s\n",
                 slapi_be_get_name(*be));
             slapi_be_Rlock(*be);
-        } else if (*referral) {
+        } else if (referral && *referral) {
             slapi_log_error(SLAPI_LOG_ARGS, NULL,
                 "mapping tree selected referral at node : %s\n",
                 slapi_sdn_get_dn(target_node->mtn_subtree));
