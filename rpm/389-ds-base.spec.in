@@ -248,6 +248,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 output=/dev/null
+output2=/dev/null
 %systemd_post %{pkgname}-snmp.service
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >$output 2>&1 || :
@@ -260,12 +261,17 @@ instances="" # instances that require a restart after upgrade
 ninst=0 # number of instances found in total
 if [ -n "$DEBUGPOSTTRANS" ] ; then
    output=$DEBUGPOSTTRANS
+   output2=${DEBUGPOSTTRANS}.upgrade
 fi
-echo looking for services in %{_sysconfdir}/systemd/system/%{groupname}.wants/* >> $output 2>&1 || :
-for service in %{_sysconfdir}/systemd/system/%{groupname}.wants/* ; do
-    if [ ! -f "$service" ] ; then continue ; fi # in case nothing matches
-    inst=`echo $service | sed -e 's,%{_sysconfdir}/systemd/system/%{groupname}.wants/,,'`
-    echo found instance $inst - getting status >> $output 2>&1 || :
+echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
+instbase="%{_sysconfdir}/%{pkgname}"
+for dir in $instbase/slapd-* ; do
+    echo dir = $dir >> $output 2>&1 || :
+    if [ ! -d "$dir" ] ; then continue ; fi
+    case "$dir" in *.removed) continue ;; esac
+    basename=`basename $dir`
+    inst="%{pkgname}@`echo $basename | sed -e 's/slapd-//g'`"
+    echo found instance $inst - getting status  >> $output 2>&1 || :
     if /bin/systemctl -q is-active $inst ; then
        echo instance $inst is running >> $output 2>&1 || :
        instances="$instances $inst"
@@ -290,9 +296,9 @@ echo remove pid files . . . >> $output 2>&1 || :
 echo upgrading instances . . . >> $output 2>&1 || :
 DEBUGPOSTSETUPOPT=`/usr/bin/echo $DEBUGPOSTSETUP | /usr/bin/sed -e "s/[^d]//g"`
 if [ -n "$DEBUGPOSTSETUPOPT" ] ; then
-    %{_sbindir}/setup-ds.pl -l $output -$DEBUGPOSTSETUPOPT -u -s General.UpdateMode=offline >> $output 2>&1 || :
+    %{_sbindir}/setup-ds.pl -l $output2 -$DEBUGPOSTSETUPOPT -u -s General.UpdateMode=offline >> $output 2>&1 || :
 else
-    %{_sbindir}/setup-ds.pl -l $output -u -s General.UpdateMode=offline >> $output 2>&1 || :
+    %{_sbindir}/setup-ds.pl -l $output2 -u -s General.UpdateMode=offline >> $output 2>&1 || :
 fi
 
 # restart instances that require it
