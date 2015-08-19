@@ -157,14 +157,11 @@ write_replog_db(
     int	err = 0;
     int ret = LDAP_SUCCESS;
     int	i;
-    int mark = 0;
 
     if (!dn) {
         slapi_log_error( SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
         return ret;
     }
-    mark = (post_entry && retrocl_entry_in_scope(post_entry));
-    slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "post in scope (%d)\n",mark);
 
     if (post_entry){
         if(!retrocl_entry_in_scope(log_e) && !retrocl_entry_in_scope(post_entry)){
