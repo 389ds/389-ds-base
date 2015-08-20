@@ -556,8 +556,8 @@ class DirSrvTools(object):
                 print "timed out waiting to read from", cmd
         child_stdout.close()
         exitCode = pipe.wait()
-        if verbose:
-            print "%s returned exit code %s" % (prog, exitCode)
+        #if verbose:
+        log.debug("%s returned exit code %s" % (prog, exitCode))
         return exitCode
 
     @staticmethod

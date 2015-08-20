@@ -455,7 +455,8 @@ class DirSrv(SimpleLDAPObject):
         self.serverid  = args.get(SER_SERVERID_PROP, None)
         self.groupid   = args.get(SER_GROUP_ID, self.userid)
         self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
-        self.prefix    = args.get(SER_DEPLOYED_DIR)
+        # Allocate from the args, or use our env, or use /
+        self.prefix    = args.get(SER_DEPLOYED_DIR, self.prefix )
 
         # Those variables needs to be revisited (sroot for 64 bits)
         #self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
@@ -764,7 +765,9 @@ class DirSrv(SimpleLDAPObject):
                 SER_DEPLOYED_DIR:    self.prefix,
                 SER_BACKUP_INST_DIR: self.backupdir}
         content = formatInfData(args)
-        DirSrvTools.runInfProg(prog, content, verbose, prefix=self.prefix)
+        result = DirSrvTools.runInfProg(prog, content, verbose, prefix=self.prefix)
+        if result != 0:
+            raise Exception('Failed to run setup-ds.pl')
 
     def create(self):
         """
