@@ -39,13 +39,13 @@ do
            benameopt="set";;
         s) args=$args" -s $OPTARG"
            includeSuffix="set";;
-        t) args=$args" -t $OPTARG";;
-        T) args=$args=" -T $OPTARG";;
-        d) args=$args=" -d $OPTARG";;
-        a) args=$args=" -a $OPTARG";;
-        x) args=$args=" -x $OPTARG";;
-        v) args=$args=" -v";;
-        S) args=$args=" -S";;
+        t) args=$args" -t "\"$OPTARG\";;
+        T) args=$args" -T "\"$OPTARG\";;
+        d) args=$args" -d $OPTARG";;
+        a) args=$args" -a $OPTARG";;
+        x) args=$args" -x $OPTARG";;
+        v) args=$args" -v";;
+        S) args=$args" -S";;
         D) args=$args" -D $OPTARG";;
         ?) usage
            exit 1;;
@@ -79,5 +79,5 @@ then
     usage
     exit 1
 else
-    @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args
+    eval @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args
 fi
