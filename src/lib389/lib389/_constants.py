@@ -109,6 +109,7 @@ DB2LDIF =  '/db2ldif'
 BAK2DB =   '/bak2db'
 DB2BAK =   '/db2bak'
 DB2INDEX = '/db2index'
+DBSCAN = '/dbscan'
 
 RDN_REPLICA     = "cn=replica"
 

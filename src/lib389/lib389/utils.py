@@ -120,6 +120,15 @@ def get_sbin_dir(sroot=None, prefix=None):
     return "/usr/sbin"
 
 
+def get_bin_dir(sroot=None, prefix=None):
+    """Return the sbin directory (default /usr/bin)."""
+    if sroot:
+        return "%s/bin/slapd/admin/bin" % sroot
+    elif prefix and prefix != '/':
+        return "%s/bin" % prefix
+    return "/usr/bin"
+
+
 def get_data_dir(prefix=None):
     """Return the shared data directory (default /usr/share/dirsrv/data)."""
     if prefix and prefix != '/':

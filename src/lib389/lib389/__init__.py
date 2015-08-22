@@ -61,7 +61,8 @@ from lib389.utils import (
     escapeDNValue,
     update_newhost_with_fqdn,
     formatInfData,
-    get_sbin_dir
+    get_sbin_dir,
+    get_bin_dir
     )
 from lib389.properties import *
 from lib389.tools import DirSrvTools
@@ -2337,6 +2338,58 @@ class DirSrv(SimpleLDAPObject):
         self.start(timeout=10)
 
         return result
+
+    def dbscan(self, bename=None, index=None, key=None):
+        """
+        @param bename - The backend name to scan
+        @param index - index name (e.g., cn or cn.db) to scan
+        @param key - index key to dump
+        @param id - entry id to dump
+        @return - dumped string
+        """
+        DirSrvTools.lib389User(user=DEFAULT_USER)
+        prog = get_bin_dir(None, self.prefix) + DBSCAN
+
+        if not bename:
+            log.error("dbscan: missing required backend name")
+            return False
+
+        if not index:
+            log.error("dbscan: missing required index name")
+            return False
+        elif '.db' in index:
+            indexfile = "%s/db/%s/%s" % (self.dbdir, bename, index)
+        else:
+            indexfile = "%s/db/%s/%s.db" % (self.dbdir, bename, index)
+
+        option = ''
+        if 'id2entry' in index:
+            if key and key.isdigit():
+                option = ' -K %s' % key
+        else:
+            if key:
+                option = ' -k %s' % key
+
+        cmd = '%s -f %s' % (prog, indexfile)
+
+        if len(option) > 0:
+            cmd = cmd + option
+
+        self.stop(timeout=10)
+        log.info('Running script: %s' % cmd)
+        result = True
+        proc = Popen(cmd.split(), stdout=PIPE)
+        outs = ''
+        try:
+            outs = proc.communicate()
+        except OSError as e:
+            log.exception('dbscan: error executing (%s): error %d - %s' % (cmd, e.errno, e.strerror))
+            raise e
+        self.start(timeout=10)
+
+        log.info('Output from ' + cmd)
+        log.info(outs)
+        return outs
 
     def searchAccessLog(self, pattern):
         return DirSrvTools.searchFile(self.accesslog, pattern)
