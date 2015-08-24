@@ -20,6 +20,9 @@
 #ifndef DN_SYNTAX_OID
 #define DN_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.12"
 #endif
+#ifndef NAME_AND_OPTIONAL_UID_SYNTAX_OID
+#define NAME_AND_OPTIONAL_UID_SYNTAX_OID "1.3.6.1.4.1.1466.115.121.1.34"
+#endif
 
 /*
  * Plug-in globals
@@ -290,7 +293,7 @@ deref_check_for_dn_syntax(const char *derefattr)
 
         slapi_attr_init(attr, derefattr);
         slapi_attr_get_syntax_oid_copy(attr, &oid);
-        ret = oid && !strcmp(oid, DN_SYNTAX_OID);
+        ret = oid && (!strcmp(oid, DN_SYNTAX_OID) || !strcmp(oid, NAME_AND_OPTIONAL_UID_SYNTAX_OID));
         slapi_ch_free_string(&oid);
         slapi_attr_free(&attr);
     }
