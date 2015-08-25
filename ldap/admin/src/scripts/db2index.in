@@ -35,15 +35,15 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;; 
-        n) args=$args" -n $OPTARG"
+        n) args=$args" -n \"$OPTARG\""
            benameopt="set";;
-        s) args=$args" -s $OPTARG"
+        s) args=$args" -s \"$OPTARG\""
            includeSuffix="set";;
         t) args=$args" -t "\"$OPTARG\";;
         T) args=$args" -T "\"$OPTARG\";;
-        d) args=$args" -d $OPTARG";;
-        a) args=$args" -a $OPTARG";;
-        x) args=$args" -x $OPTARG";;
+        d) args=$args" -d \"$OPTARG\"";;
+        a) args=$args" -a \"$OPTARG\"";;
+        x) args=$args" -x \"$OPTARG\"";;
         v) args=$args" -v";;
         S) args=$args" -S";;
         D) args=$args" -D $OPTARG";;
