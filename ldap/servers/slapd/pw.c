@@ -1085,8 +1085,6 @@ retry:
 static int
 pw_history_cmp(const void *h0, const void *h1)
 {
-	size_t h0sz = 0;
-	size_t h1sz = 0;
 	if (!h0) {
 		if (!h1) {
 			return 0;
@@ -1097,22 +1095,19 @@ pw_history_cmp(const void *h0, const void *h1)
 		if (!h1) {
 			return 1;
 		} else {
-			size_t delta;
-			h0sz = strlen(h0);
-			h1sz = strlen(h1);
-			delta = h0sz - h1sz;
-			if (!delta) {
-				return delta;
-			}
-			if (h0sz < GENERALIZED_TIME_LENGTH) {
+			char *h0str = *(char **)h0;
+			char *h1str = *(char **)h1;
+			size_t h0sz = strlen(h0str);
+			size_t h1sz = strlen(h1str);
+			if ((h0sz < GENERALIZED_TIME_LENGTH) ||
+			    (h1sz < GENERALIZED_TIME_LENGTH)) {
 				/* too short for the history str. */
-				return 0;
+				return h0sz - h1sz;
 			}
+			return PL_strncmp(h0str, h1str, GENERALIZED_TIME_LENGTH);
 		}
 	}
-	return PL_strncmp(h0, h1, GENERALIZED_TIME_LENGTH);
 }
-
 
 static int
 update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
