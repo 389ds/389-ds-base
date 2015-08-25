@@ -106,12 +106,12 @@ do
         Z) servid=$OPTARG;; 
         n) benameopt="-n $OPTARG"
            required_param="yes";;
-        s) includeSuffix="-s $OPTARG"
+        s) includeSuffix="-s \"$OPTARG\""
            required_param="yes";;
-        x) excludeSuffix="-x $OPTARG";;
-        a) outputFile="-a $OPTARG";;
-        d) args=$args" -d $OPTARG";;
-        D) args=$args" -D $OPTARG";;
+        x) excludeSuffix="-x \"$OPTARG\"";;
+        a) outputFile="-a \"$OPTARG\"";;
+        d) args=$args" -d \"$OPTARG\"";;
+        D) args=$args" -D \"$OPTARG\"";;
         N) args=$args" -N";;
         E) args=$args" -E";;
         S) args=$args" -S";;
@@ -154,7 +154,7 @@ rn=$?
 echo "Exported ldif file: $ldif_file"
 if [ $rn -eq 1 ]
 then
-    @sbindir@/ns-slapd db2ldif -D $CONFIG_DIR $benameopt $includeSuffix $excludeSuffix $outputFile $args
+    eval @sbindir@/ns-slapd db2ldif -D $CONFIG_DIR $benameopt $includeSuffix $excludeSuffix $outputFile $args
 else
-    @sbindir@/ns-slapd db2ldif -D $CONFIG_DIR $benameopt $includeSuffix $excludeSuffix $args -a $ldif_file
+    eval @sbindir@/ns-slapd db2ldif -D $CONFIG_DIR $benameopt $includeSuffix $excludeSuffix $args -a $ldif_file
 fi
