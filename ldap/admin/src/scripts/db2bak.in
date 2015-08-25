@@ -43,10 +43,10 @@ do
         q) args=$args" -q";;
         v) args=$args" -v";;
         S) args=$args" -S";;
-        D) args=$args" -D $OPTARG";;
-        i) args=$args" -i $OPTARG";;
+        D) args=$args" -D \"$OPTARG\"";;
+        i) args=$args" -i \"$OPTARG\"";;
         a) $bakdir=$OPTARG;;
-        d) args=$args" -d $OPTARG";;
+        d) args=$args" -d \"$OPTARG\"";;
         Z) servid=$OPTARG;;
         ?) usage
            exit 1;;
@@ -72,4 +72,4 @@ then
 fi
 
 echo "Back up directory: $bak_dir"
-@sbindir@/ns-slapd db2archive -D $CONFIG_DIR -a $bak_dir $args
+eval @sbindir@/ns-slapd db2archive -D $CONFIG_DIR -a $bak_dir $args
