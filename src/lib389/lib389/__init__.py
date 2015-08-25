@@ -74,6 +74,7 @@ MAJOR, MINOR, _, _, _ = sys.version_info
 
 if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
     from ldap.controls.simple import GetEffectiveRightsControl
+    from lib389._controls import DereferenceControl
 
 RE_DBMONATTR = re.compile(r'^([a-zA-Z]+)-([1-9][0-9]*)$')
 RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
@@ -2458,6 +2459,46 @@ class DirSrv(SimpleLDAPObject):
         finally:
             self.set_option(ldap.OPT_SERVER_CONTROLS, [])
         return ldap_result
+
+    # Is there a better name for this function?
+    def dereference(self, deref, base=DEFAULT_SUFFIX, scope=ldap.SCOPE_SUBTREE, *args, **kwargs):
+        """
+        Perform a search which dereferences values from attributes such as member
+        or unique member.
+        For arguments to this function, please see LDAPObject.search_s. For example:
+
+        @param deref - Dereference query
+        @param base - Base DN of the suffix to check
+        @param scope - search scope
+        @param args -
+        @param kwargs -
+        @return - ldap result
+
+        LDAPObject.search_s(base, scope[, filterstr='(objectClass=*)'[, attrlist=None[, attrsonly=0]]]) -> list|None
+
+        A deref query is of the format:
+
+        "<attribute to derference>:<deref attr1>,<deref attr2>..."
+
+        "uniqueMember:dn,objectClass"
+
+        This will return the dn's and objectClasses of the dereferenced members of the group.
+        """
+        if not (MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7)):
+            raise Exception("UNSUPPORTED EXTENDED OPERATION ON THIS VERSION OF PYTHON")
+        ldap_result = None
+        # This may not be thread safe. Is there a better way to do this?
+        try:
+            drc = DereferenceControl(True, deref=deref.encode('UTF-8'))
+            sctrl = [drc]
+            self.set_option(ldap.OPT_SERVER_CONTROLS, sctrl)
+
+            #ldap_result = self.search_s(base, scope, *args, **kwargs)
+            res = self.search(base, scope, *args, **kwargs)
+            resp_type, resp_data, resp_msgid, decoded_resp_ctrls, _, _ = self.result4(res, add_ctrls=1, resp_ctrl_classes={CONTROL_DEREF: DereferenceControl})
+        finally:
+            self.set_option(ldap.OPT_SERVER_CONTROLS, [])
+        return resp_data, decoded_resp_ctrls
 
     def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com'):
         """Generate a simple ldif file using the dbgen.pl script, and set the
