@@ -27,12 +27,12 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;;
-        d) arg=$arg" -d $OPTARG";;
-        a) arg=$arg" -a $OPTARG"
+        d) arg=$arg" -d \"$OPTARG\"";;
+        a) arg=$arg" -a \"$OPTARG\""
            archive="provided";;
         v) arg=$arg" -v";;
         f) arg=$arg" -f";;
-        D) arg=$arg" -D $OPTARG";;
+        D) arg=$arg" -D \"$OPTARG\"";;
         ?) usage
            exit 1;;
     esac
@@ -55,4 +55,4 @@ if [ "$archive" != "provided" ]; then
     args=$args"-a $bak_dir"
 fi
 
-@sbindir@/ns-slapd upgradedb -D $CONFIG_DIR -r $args
+eval @sbindir@/ns-slapd upgradedb -D $CONFIG_DIR -r $args
