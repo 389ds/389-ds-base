@@ -1708,6 +1708,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     back_txn         txn;
     ID               suffixid = NOID; /* holds the id of the suffix entry */
     Slapi_Value      **nstombstone_vals = NULL;
+    int              istombstone = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_ldbm2index\n", 0, 0, 0 );
     if ( g_get_shutdown() || c_get_shutdown() ) {
@@ -2192,8 +2193,11 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             const CSN *tombstone_csn = entry_get_deletion_csn(ep->ep_entry);
             char deletion_csn_str[CSN_STRSIZE];
 
-            nstombstone_vals = (Slapi_Value **) slapi_ch_calloc(2, sizeof(Slapi_Value *));
-            *nstombstone_vals = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+            istombstone = 1;
+            if (!nstombstone_vals) {
+                nstombstone_vals = (Slapi_Value **) slapi_ch_calloc(2, sizeof(Slapi_Value *));
+                *nstombstone_vals = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+            }
             if (tombstone_csn) {
                 if (!run_from_cmdline) {
                     rc = dblayer_txn_begin(be, NULL, &txn);
@@ -2248,15 +2252,18 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     }
                 }
             }
+        } else {
+            istombstone = 0;
         }
 
         /*
          * Update the attribute indexes
          */
         if (indexAttrs) {
-            if (nstombstone_vals && !(index_ext & (DB2INDEX_ENTRYRDN|DB2INDEX_OBJECTCLASS))) {
+            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN|DB2INDEX_OBJECTCLASS))) {
                 /* if it is a tombstone entry, just entryrdn or "objectclass: nstombstone"
                  * need to be reindexed.  the to-be-indexed list does not contain them. */
+                backentry_free( &ep );
                 continue;
             }
             for (i = slapi_entry_first_attr(ep->ep_entry, &attr); i == 0;
@@ -2270,7 +2277,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         goto err_out;
                     }
                     if (slapi_attr_type_cmp(indexAttrs[j], type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
-                        if (nstombstone_vals) {
+                        if (istombstone) {
                             if (!slapi_attr_type_cmp(indexAttrs[j], SLAPI_ATTR_OBJECTCLASS, SLAPI_TYPE_CMP_SUBTYPE)) {
                                 is_tombstone_obj = 1; /* is tombstone && is objectclass. need to index "nstombstone"*/
                             } else if (slapi_attr_type_cmp(indexAttrs[j], LDBM_ENTRYRDN_STR, SLAPI_TYPE_CMP_SUBTYPE)) {
@@ -2354,7 +2361,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         /*
          * If it is NOT a tombstone entry, update the Virtual List View indexes.
          */
-        for (vlvidx = 0; !nstombstone_vals && (vlvidx < numvlv); vlvidx++) {
+        for (vlvidx = 0; !istombstone && (vlvidx < numvlv); vlvidx++) {
             char *ai = "Unknown index";
 
             if ( g_get_shutdown() || c_get_shutdown() ) {
@@ -2579,6 +2586,7 @@ err_min:
         }
     }
 
+    valuearray_free(&nstombstone_vals);
     if (indexAttrs) {
         slapi_ch_free((void **)&indexAttrs);
     }
