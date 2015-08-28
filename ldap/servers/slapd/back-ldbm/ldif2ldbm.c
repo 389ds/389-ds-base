@@ -54,9 +54,12 @@
 
 static char *sourcefile = "ldif2ldbm.c";
 
-#define DB2INDEX_ANCESTORID 0x1    /* index ancestorid */
-#define DB2INDEX_ENTRYRDN   0x2    /* index entryrdn */
-#define DB2LDIF_ENTRYRDN    0x4    /* export entryrdn */
+#define DB2INDEX_ANCESTORID  0x1    /* index ancestorid */
+#define DB2INDEX_ENTRYRDN    0x2    /* index entryrdn */
+#define DB2LDIF_ENTRYRDN     0x4    /* export entryrdn */
+#define DB2INDEX_OBJECTCLASS 0x10   /* for reindexing "objectclass: nstombstone" */
+
+#define LDIF2LDBM_EXTBITS(x) ((x) & 0xf)
 
 typedef struct _export_args {
     struct backentry *ep;
@@ -1679,6 +1682,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     struct vlvIndex  *vlvip = NULL;
     back_txn         txn;
     ID               suffixid = NOID; /* holds the id of the suffix entry */
+    Slapi_Value      **nstombstone_vals = NULL;
+    int              istombstone = 0;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_ldbm2index\n", 0, 0, 0 );
     if ( g_get_shutdown() || c_get_shutdown() ) {
@@ -1799,7 +1804,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (strcasecmp(attrs[i]+1, LDBM_ANCESTORID_STR) == 0) {
                     if (task) {
                         slapi_task_log_notice(task, "%s: Indexing %s",
-                                            inst->inst_name, LDBM_ENTRYRDN_STR);
+                                              inst->inst_name, LDBM_ANCESTORID_STR);
                     }
                     LDAPDebug2Args(LDAP_DEBUG_ANY, "%s: Indexing %s\n",
                                    inst->inst_name, LDBM_ANCESTORID_STR);
@@ -1852,6 +1857,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                        inst->inst_name, attrs[i] + 1);
                     }
                 } else {
+                    if (strcasecmp(attrs[i]+1, SLAPI_ATTR_OBJECTCLASS) == 0) {
+                        index_ext |= DB2INDEX_OBJECTCLASS;
+                    }
                     charray_add(&indexAttrs, attrs[i]+1);
                     ai->ai_indexmask |= INDEX_OFFLINE;
                     if (task) {
@@ -1897,7 +1905,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
      * idl composed from the ancestorid list, instead of traversing the
      * entire database.
      */
-    if (!indexAttrs && !index_ext && pvlv) {
+    if (!indexAttrs && !LDIF2LDBM_EXTBITS(index_ext) && pvlv) {
         int err;
         char **suffix_list = NULL;
 
@@ -2154,20 +2162,46 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         }
 
         /*
+         * If this entry is a tombstone, set nstombstone_vals for reindexing "objectclass: nstombstone"
+         */
+        if (ep->ep_entry->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
+            istombstone = 1;
+            if (!nstombstone_vals) {
+                nstombstone_vals = (Slapi_Value **) slapi_ch_calloc(2, sizeof(Slapi_Value *)); 
+                *nstombstone_vals = slapi_value_new_string(SLAPI_ATTR_VALUE_TOMBSTONE);
+            }
+        } else {
+            istombstone = 0;
+        }
+        /*
          * Update the attribute indexes
          */
-        if (indexAttrs != NULL) {
+        if (indexAttrs) {
+            if (istombstone && !(index_ext & (DB2INDEX_ENTRYRDN|DB2INDEX_OBJECTCLASS))) {
+                /* if it is a tombstone entry, just entryrdn or "objectclass: nstombstone"
+                 * need to be reindexed.  the to-be-indexed list does not contain them. */
+                backentry_free( &ep );
+                continue;
+            }
             for (i = slapi_entry_first_attr(ep->ep_entry, &attr); i == 0;
                  i = slapi_entry_next_attr(ep->ep_entry, attr, &attr)) {
                 Slapi_Value **svals;
 
                 slapi_attr_get_type( attr, &type );
                 for ( j = 0; indexAttrs[j] != NULL; j++ ) {
+                    int is_tombstone_obj = 0;
                     if ( g_get_shutdown() || c_get_shutdown() ) {
                         goto err_out;
                     }
-                    if (slapi_attr_type_cmp(indexAttrs[j], type,
-                                            SLAPI_TYPE_CMP_SUBTYPE) == 0 ) {
+                    if (slapi_attr_type_cmp(indexAttrs[j], type, SLAPI_TYPE_CMP_SUBTYPE) == 0) {
+                        if (istombstone) {
+                            if (!slapi_attr_type_cmp(indexAttrs[j], SLAPI_ATTR_OBJECTCLASS, SLAPI_TYPE_CMP_SUBTYPE)) {
+                                is_tombstone_obj = 1; /* is tombstone && is objectclass. need to index "nstombstone"*/
+                            } else if (slapi_attr_type_cmp(indexAttrs[j], LDBM_ENTRYRDN_STR, SLAPI_TYPE_CMP_SUBTYPE)) {
+                                /* Entry is a tombstone && this index is not an entryrdn. */
+                                continue;
+                            }
+                        }
                         svals = attr_get_present_values(attr);
 
                         if (!run_from_cmdline) {
@@ -2191,10 +2225,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                 goto err_out;
                             }
                         }
-                        rc = index_addordel_values_sv(
-                            be, indexAttrs[j], svals,
-                            NULL, ep->ep_id, BE_INDEX_ADD, &txn);
-                        if (rc != 0) {
+                        if (is_tombstone_obj) {
+                            rc = index_addordel_values_sv(be, indexAttrs[j], nstombstone_vals, NULL, ep->ep_id, BE_INDEX_ADD, &txn);
+                        } else {
+                            rc = index_addordel_values_sv(be, indexAttrs[j], svals, NULL, ep->ep_id, BE_INDEX_ADD, &txn);
+                        }
+                        if (rc) {
                             LDAPDebug(LDAP_DEBUG_ANY,
                                 "%s: ERROR: failed to update index '%s'\n",
                                 inst->inst_name, indexAttrs[j], 0);
@@ -2240,18 +2276,16 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         }
 
         /*
-         * Update the Virtual List View indexes
+         * If it is NOT a tombstone entry, update the Virtual List View indexes.
          */
-        for ( vlvidx = 0; vlvidx < numvlv; vlvidx++ ) {
+        for (vlvidx = 0; !istombstone && (vlvidx < numvlv); vlvidx++) {
             char *ai = "Unknown index";
 
             if ( g_get_shutdown() || c_get_shutdown() ) {
                 goto err_out;
             }
-            if(indexAttrs){
-                  if(indexAttrs[vlvidx]){
-                      ai = indexAttrs[vlvidx];
-                  }
+            if (indexAttrs && indexAttrs[vlvidx]) {
+                ai = indexAttrs[vlvidx];
             }
             if (!run_from_cmdline) {
                 rc = dblayer_txn_begin(li, NULL, &txn);
@@ -2305,7 +2339,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         /*
          * Update the ancestorid and entryrdn index
          */
-        if (!entryrdn_get_noancestorid() && index_ext & DB2INDEX_ANCESTORID) {
+        if (!entryrdn_get_noancestorid() && (index_ext & DB2INDEX_ANCESTORID)) {
             rc = ldbm_ancestorid_index_entry(be, ep, BE_INDEX_ADD, NULL);
             if (rc != 0) {
                 LDAPDebug(LDAP_DEBUG_ANY,
@@ -2469,6 +2503,7 @@ err_min:
         }
     }
 
+    valuearray_free(&nstombstone_vals);
     if (indexAttrs) {
         slapi_ch_free((void **)&indexAttrs);
     }
