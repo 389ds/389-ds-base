@@ -31,6 +31,13 @@ USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
 USER3_DN = 'uid=user3,' + DEFAULT_SUFFIX
 
+ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
+                         'supportedLDAPVersion',
+                         'supportedControl',
+                         'supportedExtension',
+                         'supportedSASLMechanisms',
+                         'vendorName',
+                         'vendorVersion')
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -95,6 +102,38 @@ def import_example_ldif(topology):
     except ValueError:
         log.error('Online import failed')
         assert False
+
+
+@pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
+def rootdse_attr(topology, request):
+    """Adds an attr from the list
+    as the default attr to the rootDSE
+    """
+
+    RETURN_DEFAULT_OPATTR = "nsslapd-return-default-opattr"
+    rootdse_attr_name = request.param
+
+    log.info("        Add the %s: %s to rootdse" % (RETURN_DEFAULT_OPATTR,
+                                                    rootdse_attr_name))
+    mod = [(ldap.MOD_ADD, RETURN_DEFAULT_OPATTR, rootdse_attr_name)]
+    try:
+        topology.standalone.modify_s("", mod)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add attr: error (%s)' % (e.message['desc']))
+        assert False
+
+    def fin():
+        log.info("        Delete the %s: %s from rootdse" % (RETURN_DEFAULT_OPATTR,
+                                                             rootdse_attr_name))
+        mod = [(ldap.MOD_DELETE, RETURN_DEFAULT_OPATTR, rootdse_attr_name)]
+        try:
+            topology.standalone.modify_s("", mod)
+        except ldap.LDAPError as e:
+            log.fatal('Failed to delete attr: error (%s)' % (e.message['desc']))
+            assert False
+    request.addfinalizer(fin)
+
+    return rootdse_attr_name
 
 
 def test_basic_ops(topology, import_example_ldif):
@@ -693,6 +732,39 @@ def test_basic_dse(topology, import_example_ldif):
     log.info('dse.ldif was not corrupted, and the server was restarted')
 
     log.info('test_basic_dse: PASSED')
+
+
+@pytest.mark.parametrize("rootdse_attr_name", ROOTDSE_DEF_ATTR_LIST)
+def test_def_rootdse_attr(topology, import_example_ldif, rootdse_attr_name):
+    """Tests that operational attributes
+    are not returned by default in rootDSE searches
+    """
+
+    log.info("        Assert rootdse search hasn't %s attr" % rootdse_attr_name)
+    try:
+        entries = topology.standalone.search_s("", ldap.SCOPE_BASE)
+        entry = str(entries[0])
+        assert rootdse_attr_name not in entry
+
+    except ldap.LDAPError as e:
+        log.fatal('Search failed, error: ' + e.message['desc'])
+        assert False
+
+
+def test_mod_def_rootdse_attr(topology, import_example_ldif, rootdse_attr):
+    """Tests that operational attributes are returned
+    by default in rootDSE searches after config modification
+    """
+
+    log.info("        Assert rootdse search has %s attr" % rootdse_attr)
+    try:
+        entries = topology.standalone.search_s("", ldap.SCOPE_BASE)
+        entry = str(entries[0])
+        assert rootdse_attr in entry
+
+    except ldap.LDAPError as e:
+        log.fatal('Search failed, error: ' + e.message['desc'])
+        assert False
 
 
 if __name__ == '__main__':
