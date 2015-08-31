@@ -89,6 +89,7 @@
 
 /* Replication types */
 #define DNA_REPL_BIND_DN     "nsds5ReplicaBindDN"
+#define DNA_REPL_BIND_DNGROUP "nsds5ReplicaBindDNGroup"
 #define DNA_REPL_CREDS       "nsds5ReplicaCredentials"
 #define DNA_REPL_BIND_METHOD "nsds5ReplicaBindMethod"
 #define DNA_REPL_TRANSPORT   "nsds5ReplicaTransportInfo"
@@ -2776,7 +2777,7 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
     Slapi_DN *replica_sdn = NULL;
     Slapi_DN *range_sdn = NULL;
     Slapi_Entry *e = NULL;
-    char *attrs[2];
+    char *attrs[3];
     Slapi_Backend *be = NULL;
     const char *be_suffix = NULL;
     int ret = 0;
@@ -2789,7 +2790,7 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
 
     /* Fetch the "cn=replica" entry for the backend that stores
      * the shared config.  We need to see what the configured
-     * replica bind DN is. */
+     * replica bind DN is or if a bind DN group is defined. */
     if (be_suffix) {
         /* This function converts the old DN style to the new one. */
         replica_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", be_suffix);
@@ -2803,7 +2804,8 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
         replica_sdn = slapi_sdn_new_normdn_passin(replica_dn);
 
         attrs[0] = DNA_REPL_BIND_DN;
-        attrs[1] = 0;
+        attrs[1] = DNA_REPL_BIND_DNGROUP;
+        attrs[2] = 0;
 
         /* Find cn=replica entry via search */
         slapi_search_internal_get_entry(replica_sdn, attrs, &e, getPluginID());
@@ -2812,6 +2814,34 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
             /* Check if the passed in bind dn matches any of the replica bind dns. */
             Slapi_Value *bind_dn_sv = slapi_value_new_string(bind_dn);
             ret = slapi_entry_attr_has_syntax_value(e, DNA_REPL_BIND_DN, bind_dn_sv);
+            if (ret == 0) {
+                /* check if binddn is member of binddn group */
+                int i = 0;
+                Slapi_DN *bind_group_sdn = NULL;
+                Slapi_Entry *bind_group_entry = NULL;
+                char **bind_group_dn = slapi_entry_attr_get_charray(e, DNA_REPL_BIND_DNGROUP);
+                attrs[0] = "member";
+                attrs[1] = "uniquemember";
+                attrs[2] = 0;
+                for (i=0; bind_group_dn != NULL && bind_group_dn[i] != NULL; i++) {
+                    if (ret) {
+                        /* already found a member, just free group */
+                        slapi_ch_free_string(&bind_group_dn[i]);
+                        continue;
+                    }
+                    bind_group_sdn = slapi_sdn_new_normdn_passin(bind_group_dn[i]);
+                    slapi_search_internal_get_entry(bind_group_sdn, attrs, &bind_group_entry, getPluginID());
+                    if (bind_group_entry) {
+                        ret = slapi_entry_attr_has_syntax_value(bind_group_entry, "member", bind_dn_sv);
+                        if (ret == 0) {
+                            ret = slapi_entry_attr_has_syntax_value(bind_group_entry, "uniquemember", bind_dn_sv);
+                        }
+                    }
+                    slapi_entry_free(bind_group_entry);
+                    slapi_sdn_free(&bind_group_sdn);
+                }
+                slapi_ch_free((void **) &bind_group_dn);
+            }
             slapi_value_free(&bind_dn_sv);
         } else {
             slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
