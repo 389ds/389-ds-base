@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -32,6 +32,7 @@ TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
 COMPACTDBINTERVAL = 'nsslapd-changelogcompactdb-interval'
 
 FILTER = '(cn=*)'
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -77,6 +78,7 @@ def topology(request):
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
 
+
 def test_ticket47669_init(topo):
     """
     Add cn=changelog5,cn=config
@@ -93,18 +95,19 @@ def test_ticket47669_init(topo):
         topo.standalone.add_s(Entry((CHANGELOG,
                                      {'objectclass': 'top extensibleObject'.split(),
                                       'nsslapd-changelogdir': changelogdir})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ' + CHANGELOG + ': error ' + e.message['desc'])
         assert False
 
     try:
         topo.standalone.modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to enable ' + RETROCHANGELOG + ': error ' + e.message['desc'])
         assert False
 
     # restart the server
     topo.standalone.restart(timeout=10)
+
 
 def add_and_check(topo, plugin, attr, val, isvalid):
     """
@@ -114,7 +117,7 @@ def add_and_check(topo, plugin, attr, val, isvalid):
         log.info('Test %s: %s -- valid' % (attr, val))
         try:
             topo.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error ' + e.message['desc'])
             assert False
     else:
@@ -122,12 +125,12 @@ def add_and_check(topo, plugin, attr, val, isvalid):
         if plugin == CHANGELOG:
             try:
                 topo.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
-            except ldap.LDAPError, e:
+            except ldap.LDAPError as e:
                 log.error('Expectedly failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error ' + e.message['desc'])
         else:
             try:
                 topo.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
-            except ldap.LDAPError, e:
+            except ldap.LDAPError as e:
                 log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error ' + e.message['desc'])
 
     try:
@@ -145,7 +148,7 @@ def add_and_check(topo, plugin, attr, val, isvalid):
                 if not entries[0].hasValue(attr, val):
                     log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
                     assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (plugin, e.message['desc']))
         assert False
 
@@ -169,6 +172,7 @@ def test_ticket47669_changelog_maxage(topo):
     add_and_check(topo, CHANGELOG, MAXAGE, '-123', False)
     add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
 
+
 def test_ticket47669_changelog_triminterval(topo):
     """
     Test nsslapd-changelogtrim-interval in cn=changelog5,cn=config
@@ -188,6 +192,7 @@ def test_ticket47669_changelog_triminterval(topo):
     add_and_check(topo, CHANGELOG, TRIMINTERVAL, '-123', False)
     add_and_check(topo, CHANGELOG, TRIMINTERVAL, 'xyz', False)
 
+
 def test_ticket47669_changelog_compactdbinterval(topo):
     """
     Test nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config
@@ -206,6 +211,7 @@ def test_ticket47669_changelog_compactdbinterval(topo):
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '4w', True)
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '-123', False)
     add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, 'xyz', False)
+
 
 def test_ticket47669_retrochangelog_maxage(topo):
     """
@@ -228,9 +234,11 @@ def test_ticket47669_retrochangelog_maxage(topo):
 
     topo.standalone.log.info("ticket47669 was successfully verified.")
 
+
 def test_ticket47669_final(topology):
     topology.standalone.delete()
     log.info('Testcase PASSED')
+
 
 def run_isolated():
     """

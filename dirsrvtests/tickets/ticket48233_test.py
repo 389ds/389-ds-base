@@ -83,7 +83,7 @@ def test_ticket48233(topology):
         if not entries:
             log.fatal('Failed return an entries from search')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 

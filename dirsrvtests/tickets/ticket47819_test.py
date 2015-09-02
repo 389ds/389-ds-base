@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -97,13 +97,13 @@ def test_ticket47819(topology):
                                   'objectclass': 'top person'.split(),
                                   'sn': 'user',
                                   'cn': 'entry1'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add entry: ' + e.message['desc'])
         assert False
 
     try:
         topology.standalone.delete_s('cn=entry1,dc=example,dc=com')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete entry: ' + e.message['desc'])
         assert False
 
@@ -114,7 +114,7 @@ def test_ticket47819(topology):
         if not entries:
             log.fatal('Search failed to the new tombstone(nsTombstoneCSN is probably missing).')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 
@@ -169,7 +169,7 @@ def test_ticket47819(topology):
         if not entries:
             log.fatal('Search failed to fine the new tombstone(nsTombstoneCSN is probably missing).')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 
@@ -198,7 +198,7 @@ def test_ticket47819(topology):
         if entries:
             log.fatal('Search found tombstones with nsTombstoneCSN')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 
@@ -218,7 +218,7 @@ def test_ticket47819(topology):
         if not entries:
             log.fatal('Search did not find any fixed-up tombstones')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 
@@ -249,7 +249,7 @@ def test_ticket47819(topology):
                                   'objectclass': 'top person'.split(),
                                   'sn': 'user',
                                   'cn': 'entry1'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add entry: ' + e.message['desc'])
         assert False
 
@@ -265,7 +265,7 @@ def test_ticket47819(topology):
         if entries:
             log.fatal('Search unexpectedly found tombstones')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 

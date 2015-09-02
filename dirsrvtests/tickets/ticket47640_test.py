@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -66,13 +66,13 @@ def test_ticket47640(topology):
     # Enable Dynamic plugins, and the linked Attrs plugin
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     try:
         topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
-    except ValueError, e:
+    except ValueError as e:
         ldap.fatal('Failed to enable linked attributes plugin!' + e.message['desc'])
         assert False
 
@@ -84,7 +84,7 @@ def test_ticket47640(topology):
                           'linkType': 'seeAlso',
                           'managedType': 'seeAlso'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add linked attr config entry: error ' + e.message['desc'])
         assert False
 
@@ -100,7 +100,7 @@ def test_ticket47640(topology):
         # Success
         log.info('Add operation correctly rejected.')
         OP_REJECTED = True
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Add operation incorrectly rejected: error %s - ' +
                   'expected "unwilling to perform"' % e.message['desc'])
         assert False

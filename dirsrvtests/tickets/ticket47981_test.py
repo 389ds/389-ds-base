@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -89,7 +89,7 @@ def addSubtreePwPolicy(inst):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for ou=people: error ' + e.message['desc'])
         assert False
 
@@ -105,7 +105,7 @@ def addSubtreePwPolicy(inst):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy: error ' + e.message['desc'])
         assert False
 
@@ -118,7 +118,7 @@ def addSubtreePwPolicy(inst):
                           'cn': 'cn=nsPwTemplateEntry,ou=people,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template: error ' + e.message['desc'])
         assert False
 
@@ -130,7 +130,7 @@ def addSubtreePwPolicy(inst):
                           'costemplatedn': BRANCH_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def: error ' + e.message['desc'])
         assert False
     time.sleep(0.5)
@@ -139,25 +139,25 @@ def addSubtreePwPolicy(inst):
 def delSubtreePwPolicy(inst):
     try:
         inst.delete_s(BRANCH_COS_DEF)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete COS def: error ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BRANCH_COS_TMPL)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete COS template: error ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BRANCH_PWP)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete COS password policy: error ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BRANCH_CONTAINER)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete COS container: error ' + e.message['desc'])
         assert False
     time.sleep(0.5)
@@ -185,7 +185,7 @@ def test_ticket47981(topology):
                           'o': BE_NAME})))
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to create suffix entry: error ' + e.message['desc'])
         assert False
 
@@ -201,7 +201,7 @@ def test_ticket47981(topology):
                           })))
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ou=people: error ' + e.message['desc'])
         assert False
 
@@ -213,7 +213,7 @@ def test_ticket47981(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -222,7 +222,7 @@ def test_ticket47981(topology):
     #
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
 
@@ -239,7 +239,7 @@ def test_ticket47981(topology):
         if not entries[0].hasAttr('pwdpolicysubentry'):
             log.fatal('User does not have expected pwdpolicysubentry!')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER_DN, e.message['desc']))
         assert False
 
@@ -252,7 +252,7 @@ def test_ticket47981(topology):
         if entries[0].hasAttr('pwdpolicysubentry'):
             log.fatal('User unexpectedly does have the pwdpolicysubentry!')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER_DN, e.message['desc']))
         assert False
 
@@ -265,7 +265,7 @@ def test_ticket47981(topology):
         if not entries[0].hasAttr('pwdpolicysubentry'):
             log.fatal('User does not have expected pwdpolicysubentry!')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER_DN, e.message['desc']))
         assert False
 

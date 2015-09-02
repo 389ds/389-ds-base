@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import sys
@@ -155,14 +155,14 @@ def test_ticket47462(topology):
     try:
         topology.master1.modify_s(DES_PLUGIN,
                       [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
             log.fatal('Failed to enable DES plugin, error: ' + e.message['desc'])
             assert False
 
     try:
         topology.master1.modify_s(DES_PLUGIN,
                       [(ldap.MOD_ADD, 'nsslapd-pluginarg2', 'description')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
             log.fatal('Failed to reset DES plugin, error: ' + e.message['desc'])
             assert False
 
@@ -172,7 +172,7 @@ def test_ticket47462(topology):
 
     except ldap.NO_SUCH_ATTRIBUTE:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
             log.fatal('Failed to reset MMR plugin, error: ' + e.message['desc'])
             assert False
 
@@ -183,7 +183,7 @@ def test_ticket47462(topology):
         topology.master1.delete_s(AES_PLUGIN)
     except ldap.NO_SUCH_OBJECT:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
             log.fatal('Failed to delete AES plugin, error: ' + e.message['desc'])
             assert False
 
@@ -201,7 +201,7 @@ def test_ticket47462(topology):
         else:
             log.fatal('No replication agreements!')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to search for replica credentials: ' + e.message['desc'])
         assert False
 
@@ -235,7 +235,7 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('Replication test passed')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add test user: ' + e.message['desc'])
         assert False
 
@@ -261,7 +261,7 @@ def test_ticket47462(topology):
         else:
             log.fatal('Failed to find any entries with nsDS5ReplicaCredentials ')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to search for replica credentials: ' + e.message['desc'])
         assert False
 
@@ -278,7 +278,7 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('The AES plugin was correctly setup')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to find AES plugin: ' + e.message['desc'])
         assert False
 
@@ -292,7 +292,7 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('The MMR plugin was correctly updated')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to find AES plugin: ' + e.message['desc'])
         assert False
 
@@ -306,7 +306,7 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('The DES plugin was correctly updated')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to find AES plugin: ' + e.message['desc'])
         assert False
 
@@ -332,7 +332,7 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('Replication test passed')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add test user: ' + e.message['desc'])
         assert False
 

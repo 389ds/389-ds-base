@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -86,14 +86,14 @@ def test_ticket47970(topology):
     try:
         topology.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'passwordLockout', 'on')])
         log.info('account lockout enabled.')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to enable account lockout: ' + e.message['desc'])
         assert False
 
     try:
         topology.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'passwordMaxFailure', '5')])
         log.info('passwordMaxFailure set.')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to to set passwordMaxFailure: ' + e.message['desc'])
         assert False
 
@@ -106,7 +106,7 @@ def test_ticket47970(topology):
         pw = "secret"
         auth_tokens = ldap.sasl.digest_md5(user_name, pw)
         topology.standalone.sasl_interactive_bind_s("", auth_tokens)
-    except ldap.INVALID_CREDENTIALS, e:
+    except ldap.INVALID_CREDENTIALS as e:
         log.info("SASL Bind failed as expected")
         failed_as_expected = True
 
@@ -121,7 +121,7 @@ def test_ticket47970(topology):
         entry = topology.standalone.search_s("", ldap.SCOPE_BASE,
                                              "passwordRetryCount=*",
                                              ['passwordRetryCount'])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to search Root DSE entry: ' + e.message['desc'])
         assert False
 

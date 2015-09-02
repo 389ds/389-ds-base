@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 '''
@@ -115,14 +115,14 @@ def test_dynamic_plugins(topology):
     # First enable dynamic plugins
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     # Test that critical plugins can be updated even though the change might not be applied
     try:
         topology.standalone.modify_s(DN_LDBM, [(ldap.MOD_REPLACE, 'description', 'test')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         ldap.fatal('Failed to apply change to critical plugin' + e.message['desc'])
         assert False
 
@@ -380,7 +380,7 @@ def test_dynamic_plugins(topology):
             log.error('Failed to find maxcsn on master')
             repl_fail(replica_inst)
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search masterfor db tombstone: ' + e.message['desc'])
         repl_fail(replica_inst)
 
@@ -404,7 +404,7 @@ def test_dynamic_plugins(topology):
             if replica_maxcsn == 0:
                 log.error('Failed to find maxcsn on consumer')
                 repl_fail(replica_inst)
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('Unable to search for db tombstone on consumer: ' + e.message['desc'])
             repl_fail(replica_inst)
 
@@ -433,7 +433,7 @@ def test_dynamic_plugins(topology):
         if len(entries) > 0:
             log.error('Master database has incorrect data set!\n')
             repl_fail(replica_inst)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search db on master: ' + e.message['desc'])
         repl_fail(replica_inst)
 
@@ -445,7 +445,7 @@ def test_dynamic_plugins(topology):
         if len(entries) > 0:
             log.error('Consumer database in not consistent with master database')
             repl_fail(replica_inst)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search db on consumer: ' + e.message['desc'])
         repl_fail(replica_inst)
 

@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -79,27 +79,28 @@ def test_config_listen_backport_size(topology):
         if not default_val:
             log.fatal('test_config_listen_backport_size: Failed to get nsslapd-listen-backlog-size from config')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_config_listen_backport_size: Failed to search config, error: ' + e.message('desc'))
         assert False
 
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-listen-backlog-size', '256')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_config_listen_backport_size: Failed to modify config, error: ' + e.message('desc'))
         assert False
 
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-listen-backlog-size', '-1')])
-    except ldap.LDAPError, e:
-        log.fatal('test_config_listen_backport_size: Failed to modify config(negative value), error: ' + e.message('desc'))
+    except ldap.LDAPError as e:
+        log.fatal('test_config_listen_backport_size: Failed to modify config(negative value), error: ' +
+                  e.message('desc'))
         assert False
 
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-listen-backlog-size', 'ZZ')])
         log.fatal('test_config_listen_backport_size: Invalid value was successfully added')
         assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         pass
 
     #
@@ -107,7 +108,7 @@ def test_config_listen_backport_size(topology):
     #
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-listen-backlog-size', default_val)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_config_listen_backport_size: Failed to reset config, error: ' + e.message('desc'))
         assert False
 
@@ -136,7 +137,7 @@ def test_config_deadlock_policy(topology):
             log.fatal('test_config_deadlock_policy: The wrong derfualt value was present:  (%s) but expected (%s)' %
                       (val, default_val))
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_config_deadlock_policy: Failed to search config, error: ' + e.message('desc'))
         assert False
 
@@ -144,7 +145,7 @@ def test_config_deadlock_policy(topology):
     for val in ('0', '5', '9'):
         try:
             topology.standalone.modify_s(LDBM_DN, [(ldap.MOD_REPLACE, 'nsslapd-db-deadlock-policy', val)])
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_config_deadlock_policy: Failed to modify config: nsslapd-db-deadlock-policy to (%s), error: %s' %
                       (val, e.message('desc')))
             assert False
@@ -155,14 +156,14 @@ def test_config_deadlock_policy(topology):
             topology.standalone.modify_s(LDBM_DN, [(ldap.MOD_REPLACE, 'nsslapd-db-deadlock-policy', val)])
             log.fatal('test_config_deadlock_policy: Able to add invalid value to nsslapd-db-deadlock-policy(%s)' % (val))
             assert False
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             pass
     #
     # Cleanup - undo what we've done
     #
     try:
         topology.standalone.modify_s(LDBM_DN, [(ldap.MOD_REPLACE, 'nsslapd-db-deadlock-policy', default_val)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_config_deadlock_policy: Failed to reset nsslapd-db-deadlock-policy to the default value(%s), error: %s' %
                   (default_val, e.message('desc')))
 

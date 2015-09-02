@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -85,7 +85,7 @@ def test_ticket47950(topology):
     try:
         topology.standalone.modify_s("cn=config", [(ldap.MOD_REPLACE, 'nsslapd-plugin-binddn-tracking', 'on')])
         log.info('nsslapd-plugin-binddn-tracking enabled.')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to enable bind dn tracking: ' + e.message['desc'])
         assert False
 
@@ -99,7 +99,7 @@ def test_ticket47950(topology):
                                         'sn': "1",
                                         'cn': "user 1"})))
         log.info('Added test user %s' % USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add %s: %s' % (USER1_DN, e.message['desc']))
         assert False
 
@@ -109,7 +109,7 @@ def test_ticket47950(topology):
                                         'sn': "2",
                                         'cn': "user 2"})))
         log.info('Added test user %s' % USER2_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user1: ' + e.message['desc'])
         assert False
 
@@ -122,7 +122,7 @@ def test_ticket47950(topology):
 
         topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', acival)])
         log.info('Added aci')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add aci: ' + e.message['desc'])
         assert False
 
@@ -132,14 +132,14 @@ def test_ticket47950(topology):
     try:
         topology.standalone.simple_bind_s(USER1_DN, "password")
         log.info('Bind as user %s successful' % USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to bind as user1: ' + e.message['desc'])
         assert False
 
     try:
         topology.standalone.modify_s(USER2_DN, [(ldap.MOD_REPLACE, 'cn', 'new value')])
         log.info('%s successfully modified user %s' % (USER1_DN, USER2_DN))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to update user2: ' + e.message['desc'])
         assert False
 
@@ -149,7 +149,7 @@ def test_ticket47950(topology):
     try:
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         log.info('Bind as %s successful' % DN_DM)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to bind as rootDN: ' + e.message['desc'])
         assert False
 
@@ -171,7 +171,7 @@ def test_ticket47950(topology):
         repl_agreement = topology.standalone.agreement.create(suffix=DEFAULT_SUFFIX, host="127.0.0.1",
                                                           port="7777", properties=properties)
         log.info('Successfully created replication agreement')
-    except InvalidArgumentError, e:
+    except InvalidArgumentError as e:
         log.error('Failed to create replication agreement: ' + e.message['desc'])
         assert False
 
@@ -182,7 +182,7 @@ def test_ticket47950(topology):
         properties = {REPLICA_ID: "7"}
         topology.standalone.replica.setProperties(DEFAULT_SUFFIX, None, None, properties)
         log.info('Successfully modified replica')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to update replica config: ' + e.message['desc'])
         assert False
 

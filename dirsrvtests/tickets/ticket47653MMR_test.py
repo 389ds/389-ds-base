@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 '''
@@ -300,7 +300,7 @@ def test_ticket47653_add(topology):
     topology.master1.log.info("Try to add Add  %s should be successful" % ENTRY_DN)
     try:
         topology.master1.add_s(entry_with_member)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         topology.master1.log.info("Failed to add entry,  error: " + e.message['desc'])
         assert False
 

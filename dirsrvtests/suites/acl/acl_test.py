@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -72,7 +72,7 @@ def add_attr(topology, attr_name):
 
     try:
         topology.standalone.modify_s(DN_SCHEMA, mod)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add attr (%s): error (%s)' % (attr_name,
                                                            e.message['desc']))
         assert False
@@ -102,7 +102,7 @@ def aci_with_attr_subtype(request, topology):
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     try:
         topology.standalone.modify_s(DEFAULT_SUFFIX, mod)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add ACI: error (%s)' % (e.message['desc']))
         assert False
 
@@ -112,7 +112,7 @@ def aci_with_attr_subtype(request, topology):
         mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
         try:
             topology.standalone.modify_s(DEFAULT_SUFFIX, mod)
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('Failed to delete ACI: error (%s)' % (e.message['desc']))
             assert False
     request.addfinalizer(fin)
@@ -142,7 +142,7 @@ def test_aci_attr_subtype_targetattr(topology, aci_with_attr_subtype):
         assert aci_with_attr_subtype in entry
         log.info("        The added attribute was found")
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed, error: ' + e.message['desc'])
         assert False
 

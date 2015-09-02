@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -72,13 +72,13 @@ def test_ticket47384(topology):
     # Copy the library to our tmp directory
     try:
         shutil.copy('%s/libwhoami-plugin.so' % plugin_dir, tmp_dir)
-    except IOError, e:
+    except IOError as e:
         log.fatal('Failed to copy libwhoami-plugin.so to the tmp directory, error: '
                   + e.strerror)
         assert False
     try:
         shutil.copy('%s/libwhoami-plugin.la' % plugin_dir, tmp_dir)
-    except IOError, e:
+    except IOError as e:
         log.fatal('Failed to copy libwhoami-plugin.la to the tmp directory, error: '
                   + e.strerror)
         assert False
@@ -90,7 +90,7 @@ def test_ticket47384(topology):
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
                                      'nsslapd-pluginPath', '%s/libwhoami-plugin' % plugin_dir)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set valid plugin path (%s): error (%s)' %
                   ('%s/libwhoami-plugin' % plugin_dir, e.message['desc']))
         assert False
@@ -99,7 +99,7 @@ def test_ticket47384(topology):
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
                                      'nsslapd-pluginPath', '%s/libwhoami-plugin' % tmp_dir)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set valid plugin path (%s): error (%s)' %
                   ('%s/libwhoami-plugin' % tmp_dir, e.message['desc']))
         assert False
@@ -108,7 +108,7 @@ def test_ticket47384(topology):
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
                                      'nsslapd-pluginPath', 'libwhoami-plugin')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set valid relative plugin path (%s): error (%s)' %
                   ('libwhoami-plugin' % tmp_dir, e.message['desc']))
         assert False
@@ -125,7 +125,7 @@ def test_ticket47384(topology):
     except ldap.UNWILLING_TO_PERFORM:
         # Correct, operation should be rejected
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set invalid plugin path (%s): error (%s)' %
                   ('/bin/libwhoami-plugin', e.message['desc']))
 
@@ -141,7 +141,7 @@ def test_ticket47384(topology):
     except ldap.UNWILLING_TO_PERFORM:
         # Correct, operation should be rejected
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set invalid plugin path (%s): error (%s)' %
                   ('../libwhoami-plugin', e.message['desc']))
 

@@ -12,6 +12,7 @@ import time
 import ldap
 import logging
 import pytest
+import six
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
@@ -60,7 +61,7 @@ def test_betxn_init(topology):
     # First enable dynamic plugins - makes plugin testing much easier
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         ldap.error('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
@@ -73,7 +74,7 @@ def test_betxt_7bit(topology):
     log.info('Running test_betxt_7bit...')
 
     USER_DN = 'uid=test_entry,' + DEFAULT_SUFFIX
-    eight_bit_rdn = u'uid=Fu\u00c4\u00e8'
+    eight_bit_rdn = six.u('uid=Fu\u00c4\u00e8')
     BAD_RDN = eight_bit_rdn.encode('utf-8')
 
     # This plugin should on by default, but just in case...
@@ -86,7 +87,7 @@ def test_betxt_7bit(topology):
                                  'cn': 'test 1',
                                  'uid': 'test_entry',
                                  'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add test user' + USER_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -95,7 +96,7 @@ def test_betxt_7bit(topology):
         topology.standalone.rename_s(USER_DN, BAD_RDN, delold=0)
         log.fatal('test_betxt_7bit: Modrdn operation incorrectly succeeded')
         assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.info('Modrdn failed as expected: error ' + e.message['desc'])
 
     # Make sure the operation did not succeed, attempt to search for the new RDN
@@ -104,7 +105,7 @@ def test_betxt_7bit(topology):
         if entries:
             log.fatal('test_betxt_7bit: Incorrectly found the entry using the invalid RDN')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Error whiles earching for test entry: ' + e.message['desc'])
         assert False
 
@@ -113,7 +114,7 @@ def test_betxt_7bit(topology):
     #
     try:
         topology.standalone.delete_s(USER_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to delete test entry: ' + e.message['desc'])
         assert False
 
@@ -140,7 +141,7 @@ def test_betxn_attr_uniqueness(topology):
                                      'cn': 'test 1',
                                      'uid': 'test_entry1',
                                      'userpassword': 'password1'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_betxn_attr_uniqueness: Failed to add test user: ' +
                   USER1_DN + ', error ' + e.message['desc'])
         assert False
@@ -155,7 +156,7 @@ def test_betxn_attr_uniqueness(topology):
                                      'userpassword': 'password2'})))
         log.fatal('test_betxn_attr_uniqueness: The second entry was incorrectly added.')
         assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_betxn_attr_uniqueness: Failed to add test user as expected: ' +
                   USER1_DN + ', error ' + e.message['desc'])
 
@@ -166,7 +167,7 @@ def test_betxn_attr_uniqueness(topology):
 
     try:
         topology.standalone.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_betxn_attr_uniqueness: Failed to delete test entry1: ' +
                   e.message['desc'])
         assert False
@@ -183,7 +184,7 @@ def test_betxn_memberof(topology):
     topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_betxn_memberof: Failed to update config(member): error ' + e.message['desc'])
         assert False
 
@@ -191,7 +192,7 @@ def test_betxn_memberof(topology):
     try:
         topology.standalone.add_s(Entry((ENTRY1_DN, {'objectclass': "top groupofnames".split(),
                                      'cn': 'group1'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_betxn_memberof: Failed to add group1:' +
                   ENTRY1_DN + ', error ' + e.message['desc'])
         assert False
@@ -199,7 +200,7 @@ def test_betxn_memberof(topology):
     try:
         topology.standalone.add_s(Entry((ENTRY2_DN, {'objectclass': "top groupofnames".split(),
                                      'cn': 'group1'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_betxn_memberof: Failed to add group2:' +
                   ENTRY2_DN + ', error ' + e.message['desc'])
         assert False
@@ -213,7 +214,7 @@ def test_betxn_memberof(topology):
         topology.standalone.modify_s(ENTRY1_DN, [(ldap.MOD_REPLACE, 'member', ENTRY2_DN)])
         log.fatal('test_betxn_memberof: Group2 was incorrectly allowed to be added to group1')
         assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.info('test_betxn_memberof: Group2 was correctly rejected (mod replace): error ' + e.message['desc'])
 
     #
@@ -225,7 +226,7 @@ def test_betxn_memberof(topology):
         topology.standalone.modify_s(ENTRY1_DN, [(ldap.MOD_ADD, 'member', ENTRY2_DN)])
         log.fatal('test_betxn_memberof: Group2 was incorrectly allowed to be added to group1')
         assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.info('test_betxn_memberof: Group2 was correctly rejected (mod add): error ' + e.message['desc'])
 
     #

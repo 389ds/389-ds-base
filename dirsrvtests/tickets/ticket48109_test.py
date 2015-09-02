@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -74,14 +74,14 @@ def test_ticket48109_0(topology):
                                       (ldap.MOD_ADD, 'nsIndexType', 'sub'),
                                       (ldap.MOD_ADD, 'nsSubStrBegin', '2'),
                                       (ldap.MOD_ADD, 'nsSubStrEnd', '2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add substr lengths: error ' + e.message['desc'])
         assert False
 
     # restart the server to apply the indexing
     topology.standalone.restart(timeout=10)
 
-    # add a test user 
+    # add a test user
     UID = 'auser0'
     USER_DN = 'uid=%s,%s' % (UID, SUFFIX)
     try:
@@ -91,7 +91,7 @@ def test_ticket48109_0(topology):
                                          'sn': 'user0',
                                          'givenname': 'a',
                                          'mail': UID})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ' + USER_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -143,7 +143,7 @@ def test_ticket48109_0(topology):
                                       (ldap.MOD_DELETE, 'nsIndexType', 'sub'),
                                       (ldap.MOD_DELETE, 'nsSubStrBegin', '2'),
                                       (ldap.MOD_DELETE, 'nsSubStrEnd', '2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete substr lengths: error ' + e.message['desc'])
         assert False
 
@@ -162,14 +162,14 @@ def test_ticket48109_1(topology):
                                      [(ldap.MOD_ADD, 'nsIndexType', 'sub'),
                                       (ldap.MOD_ADD, 'nsMatchingRule', 'nssubstrbegin=2'),
                                       (ldap.MOD_ADD, 'nsMatchingRule', 'nssubstrend=2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add substr lengths: error ' + e.message['desc'])
         assert False
 
     # restart the server to apply the indexing
     topology.standalone.restart(timeout=10)
 
-    # add a test user 
+    # add a test user
     UID = 'buser1'
     USER_DN = 'uid=%s,%s' % (UID, SUFFIX)
     try:
@@ -179,7 +179,7 @@ def test_ticket48109_1(topology):
                                          'sn': 'user1',
                                          'givenname': 'b',
                                          'mail': UID})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ' + USER_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -230,7 +230,7 @@ def test_ticket48109_1(topology):
                                      [(ldap.MOD_DELETE, 'nsIndexType', 'sub'),
                                       (ldap.MOD_DELETE, 'nsMatchingRule', 'nssubstrbegin=2'),
                                       (ldap.MOD_DELETE, 'nsMatchingRule', 'nssubstrend=2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete substr lengths: error ' + e.message['desc'])
         assert False
 
@@ -257,14 +257,14 @@ def test_ticket48109_2(topology):
                                       (ldap.MOD_ADD, 'objectClass', 'extensibleObject'),
                                       (ldap.MOD_ADD, 'nsSubStrBegin', '2'),
                                       (ldap.MOD_ADD, 'nsSubStrEnd', '2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add substr lengths: error ' + e.message['desc'])
         assert False
 
     # restart the server to apply the indexing
     topology.standalone.restart(timeout=10)
 
-    # add a test user 
+    # add a test user
     UID = 'cuser2'
     USER_DN = 'uid=%s,%s' % (UID, SUFFIX)
     try:
@@ -274,7 +274,7 @@ def test_ticket48109_2(topology):
                                          'sn': 'user2',
                                          'givenname': 'c',
                                          'mail': UID})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ' + USER_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -366,7 +366,7 @@ def test_ticket48109_2(topology):
                                       (ldap.MOD_DELETE, 'objectClass', 'extensibleObject'),
                                       (ldap.MOD_DELETE, 'nsSubStrBegin', '2'),
                                       (ldap.MOD_DELETE, 'nsSubStrEnd', '2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete substr lengths: error ' + e.message['desc'])
         assert False
 

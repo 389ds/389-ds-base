@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 '''
@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import ldap
+import six
 from ldap.cidict import cidict
 from ldap.schema import SubSchema
 import logging
@@ -107,7 +108,7 @@ def mycmp(v1, v2):
     if not len(v1ary) == len(v2ary):
         return False
     for v1, v2 in zip(v1ary, v2ary):
-        if isinstance(v1, basestring):
+        if isinstance(v1, six.string_types):
             if not len(v1) == len(v2):
                 return False
         if not v1 == v2:

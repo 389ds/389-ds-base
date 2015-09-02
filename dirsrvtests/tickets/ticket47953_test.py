@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -98,7 +98,7 @@ def test_ticket47953(topology):
     try:
         topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', acival)])
         log.info('Removed invalid aci.')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to remove invalid aci: ' + e.message['desc'])
         assert False
 

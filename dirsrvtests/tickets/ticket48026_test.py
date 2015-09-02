@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -75,7 +75,7 @@ def test_ticket48026(topology):
                        (ldap.MOD_ADD, 'uniqueness-attribute-name',
                         'mailAlternateAddress'),
                       ])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_ticket48026: Failed to configure plugin for "mail": error ' + e.message['desc'])
         assert False
 
@@ -90,7 +90,7 @@ def test_ticket48026(topology):
                                      'mail': 'user1@example.com',
                                      'mailAlternateAddress' : 'user1@alt.example.com',
                                      'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_ticket48026: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
         assert False
 
