@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -139,7 +139,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'ou': 'level1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add level1: error ' + e.message['desc'])
         assert False
 
@@ -148,7 +148,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'ou': 'level2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add level2: error ' + e.message['desc'])
         assert False
 
@@ -157,7 +157,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'level3'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add level3: error ' + e.message['desc'])
         assert False
 
@@ -169,7 +169,7 @@ def test_ticket47980(topology):
                           })))
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add level4: error ' + e.message['desc'])
         assert False
 
@@ -178,7 +178,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'ou': 'level5'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add level5: error ' + e.message['desc'])
         assert False
 
@@ -187,7 +187,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'level6'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add level6: error ' + e.message['desc'])
         assert False
 
@@ -197,7 +197,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -206,7 +206,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user2: error ' + e.message['desc'])
         assert False
 
@@ -215,7 +215,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user3'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user3: error ' + e.message['desc'])
         assert False
 
@@ -224,7 +224,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user4'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user4: error ' + e.message['desc'])
         assert False
 
@@ -233,7 +233,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user5'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user5: error ' + e.message['desc'])
         assert False
 
@@ -242,14 +242,14 @@ def test_ticket47980(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user6'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user6: error ' + e.message['desc'])
         assert False
 
     # Enable password policy
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
 
@@ -262,7 +262,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for level1: error ' + e.message['desc'])
         assert False
 
@@ -278,7 +278,7 @@ def test_ticket47980(topology):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy for level1: error ' + e.message['desc'])
         assert False
 
@@ -291,7 +291,7 @@ def test_ticket47980(topology):
                           'cn': 'cn=nsPwTemplateEntry,ou=level1,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH1_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template for level1: error ' + e.message['desc'])
         assert False
 
@@ -303,7 +303,7 @@ def test_ticket47980(topology):
                           'costemplatedn': BRANCH1_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def for level1: error ' + e.message['desc'])
         assert False
 
@@ -316,7 +316,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for level2: error ' + e.message['desc'])
         assert False
 
@@ -332,7 +332,7 @@ def test_ticket47980(topology):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy for level2: error ' + e.message['desc'])
         assert False
 
@@ -345,7 +345,7 @@ def test_ticket47980(topology):
                           'cn': 'cn=nsPwTemplateEntry,ou=level2,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH2_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template for level2: error ' + e.message['desc'])
         assert False
 
@@ -357,7 +357,7 @@ def test_ticket47980(topology):
                           'costemplatedn': BRANCH2_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def for level2: error ' + e.message['desc'])
         assert False
 
@@ -370,7 +370,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for level3: error ' + e.message['desc'])
         assert False
 
@@ -386,7 +386,7 @@ def test_ticket47980(topology):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy for level3: error ' + e.message['desc'])
         assert False
 
@@ -399,7 +399,7 @@ def test_ticket47980(topology):
                           'cn': 'cn=nsPwTemplateEntry,ou=level3,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH3_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template for level3: error ' + e.message['desc'])
         assert False
 
@@ -411,7 +411,7 @@ def test_ticket47980(topology):
                           'costemplatedn': BRANCH3_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def for level3: error ' + e.message['desc'])
         assert False
 
@@ -424,7 +424,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for level3: error ' + e.message['desc'])
         assert False
 
@@ -440,7 +440,7 @@ def test_ticket47980(topology):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy for branch4: error ' + e.message['desc'])
         assert False
 
@@ -453,7 +453,7 @@ def test_ticket47980(topology):
                           'cn': 'cn=nsPwTemplateEntry,ou=people,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH4_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template for level3: error ' + e.message['desc'])
         assert False
 
@@ -465,7 +465,7 @@ def test_ticket47980(topology):
                           'costemplatedn': BRANCH4_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def for branch4: error ' + e.message['desc'])
         assert False
 
@@ -478,7 +478,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for branch5: error ' + e.message['desc'])
         assert False
 
@@ -494,7 +494,7 @@ def test_ticket47980(topology):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy for branch5: error ' + e.message['desc'])
         assert False
 
@@ -507,7 +507,7 @@ def test_ticket47980(topology):
                           'cn': 'cn=nsPwTemplateEntry,ou=lower,ou=people,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH5_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template for branch5: error ' + e.message['desc'])
         assert False
 
@@ -519,7 +519,7 @@ def test_ticket47980(topology):
                           'costemplatedn': BRANCH5_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def for level3: error ' + e.message['desc'])
         assert False
 
@@ -532,7 +532,7 @@ def test_ticket47980(topology):
                           'objectclass': 'top nsContainer'.split(),
                           'cn': 'nsPwPolicyContainer'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container for branch6: error ' + e.message['desc'])
         assert False
 
@@ -548,7 +548,7 @@ def test_ticket47980(topology):
                           'passwordChange': 'off',
                           'passwordStorageScheme': 'ssha'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy for branch6: error ' + e.message['desc'])
         assert False
 
@@ -561,7 +561,7 @@ def test_ticket47980(topology):
                           'cn': 'cn=nsPwTemplateEntry,ou=lower,ou=lower,ou=people,dc=example,dc=com',
                           'pwdpolicysubentry': BRANCH6_PWP
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template for branch6: error ' + e.message['desc'])
         assert False
 
@@ -573,7 +573,7 @@ def test_ticket47980(topology):
                           'costemplatedn': BRANCH6_COS_TMPL,
                           'cosAttribute': 'pwdpolicysubentry default operational-default'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def for branch6: error ' + e.message['desc'])
         assert False
 
@@ -587,7 +587,7 @@ def test_ticket47980(topology):
         if not entries[0].hasValue('pwdpolicysubentry', BRANCH1_PWP):
             log.fatal('User %s does not have expected pwdpolicysubentry!')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER1_DN, e.message['desc']))
         assert False
 
@@ -596,7 +596,7 @@ def test_ticket47980(topology):
         if not entries[0].hasValue('pwdpolicysubentry', BRANCH2_PWP):
             log.fatal('User %s does not have expected pwdpolicysubentry!' % USER2_DN)
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER2_DN, e.message['desc']))
         assert False
 
@@ -605,7 +605,7 @@ def test_ticket47980(topology):
         if not entries[0].hasValue('pwdpolicysubentry', BRANCH3_PWP):
             log.fatal('User %s does not have expected pwdpolicysubentry!' % USER3_DN)
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER3_DN, e.message['desc']))
         assert False
 
@@ -614,7 +614,7 @@ def test_ticket47980(topology):
         if not entries[0].hasValue('pwdpolicysubentry', BRANCH4_PWP):
             log.fatal('User %s does not have expected pwdpolicysubentry!' % USER4_DN)
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER4_DN, e.message['desc']))
         assert False
 
@@ -623,7 +623,7 @@ def test_ticket47980(topology):
         if not entries[0].hasValue('pwdpolicysubentry', BRANCH5_PWP):
             log.fatal('User %s does not have expected pwdpolicysubentry!' % USER5_DN)
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER5_DN, e.message['desc']))
         assert False
 
@@ -632,7 +632,7 @@ def test_ticket47980(topology):
         if not entries[0].hasValue('pwdpolicysubentry', BRANCH6_PWP):
             log.fatal('User %s does not have expected pwdpolicysubentry!' % USER6_DN)
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (USER6_DN, e.message['desc']))
         assert False
 

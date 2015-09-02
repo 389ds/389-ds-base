@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -81,7 +81,7 @@ def test_ticket47937(topology):
 
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ou=people org unit: error ' + e.message['desc'])
         assert False
 
@@ -92,7 +92,7 @@ def test_ticket47937(topology):
                                          'ou': 'ranges'
                                          })))
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add ou=ranges org unit: error ' + e.message['desc'])
         assert False
 
@@ -103,7 +103,7 @@ def test_ticket47937(topology):
                                          'cn': 'entry'
                                          })))
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add test entry: error ' + e.message['desc'])
         assert False
 
@@ -117,7 +117,7 @@ def test_ticket47937(topology):
                                          'dnaRemainingValues': '9501'
                                          })))
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add shared config entry: error ' + e.message['desc'])
         assert False
 
@@ -134,7 +134,7 @@ def test_ticket47937(topology):
                                          'dnaSharedCfgDN': 'ou=ranges,%s' % SUFFIX
                                          })))
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add DNA config entry: error ' + e.message['desc'])
         assert False
 
@@ -156,7 +156,7 @@ def test_ticket47937(topology):
     try:
         topology.standalone.modify_s('cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config',
                                      [(ldap.MOD_REPLACE, 'dnaType', 'foo')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.info('Operation failed as expected (error: %s)' % e.message['desc'])
     else:
         log.error('Operation incorectly succeeded!  Test Failed!')

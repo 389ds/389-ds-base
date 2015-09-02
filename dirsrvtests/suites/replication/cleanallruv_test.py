@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -56,7 +56,7 @@ class AddUsers(threading.Thread):
             except ldap.UNWILLING_TO_PERFORM:
                 # One of the masters was probably put into read only mode - just break out
                 break
-            except ldap.LDAPError, e:
+            except ldap.LDAPError as e:
                 log.error('AddUsers: failed to add (' + USER_DN + ') error: ' + e.message['desc'])
                 assert False
             idx += 1
@@ -544,19 +544,19 @@ def test_cleanallruv_clean(topology):
     log.info('test_cleanallruv_clean: remove all the agreements to master 4...')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -566,7 +566,7 @@ def test_cleanallruv_clean(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX, replicaid='4',
                                            args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_clean: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -592,7 +592,7 @@ def test_cleanallruv_clean(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean: Master 1 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean: Unable to search master 1 for db tombstone: ' + e.message['desc'])
 
         # Check master 2
@@ -609,7 +609,7 @@ def test_cleanallruv_clean(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean: Master 2 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('Unable to search master 2 for db tombstone: ' + e.message['desc'])
 
         # Check master 3
@@ -626,7 +626,7 @@ def test_cleanallruv_clean(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean: Master 3 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean: Unable to search master 3 for db tombstone: ' + e.message['desc'])
 
         # Sleep a bit and give it chance to clean up...
@@ -668,19 +668,19 @@ def test_cleanallruv_clean_restart(topology):
     log.info('test_cleanallruv_clean: remove all the agreements to master 4...')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean_restart: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean_restart: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean_restart: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -693,7 +693,7 @@ def test_cleanallruv_clean_restart(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX, replicaid='4',
                                            args={TASK_WAIT: False})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_clean_restart: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -737,7 +737,7 @@ def test_cleanallruv_clean_restart(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean_restart: Master 1 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean_restart: Unable to search master 1 for db tombstone: ' +
                       e.message['desc'])
 
@@ -755,7 +755,7 @@ def test_cleanallruv_clean_restart(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean_restart: Master 2 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean_restart: Unable to search master 2 for db tombstone: ' +
                       e.message['desc'])
 
@@ -773,7 +773,7 @@ def test_cleanallruv_clean_restart(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean_restart: Master 3 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean_restart: Unable to search master 3 for db tombstone: ' +
                       e.message['desc'])
 
@@ -827,19 +827,19 @@ def test_cleanallruv_clean_force(topology):
     log.info('test_cleanallruv_clean_force: remove all the agreements to master 4...')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean_force: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean_force: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_clean_force: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -850,7 +850,7 @@ def test_cleanallruv_clean_force(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX, replicaid='4',
                                            force=True, args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_clean_force: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -876,7 +876,7 @@ def test_cleanallruv_clean_force(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean_force: Master 1 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean_force: Unable to search master 1 for db tombstone: ' +
                       e.message['desc'])
 
@@ -894,7 +894,7 @@ def test_cleanallruv_clean_force(topology):
                     clean = False
             if clean:
                 log.info('Master 2 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean_force: Unable to search master 2 for db tombstone: ' +
                       e.message['desc'])
 
@@ -912,7 +912,7 @@ def test_cleanallruv_clean_force(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_clean_force: Master 3 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_clean_force: Unable to search master 3 for db tombstone: ' +
                       e.message['desc'])
 
@@ -961,19 +961,19 @@ def test_cleanallruv_abort(topology):
     log.info('test_cleanallruv_abort: remove all the agreements to master 4...)')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -987,7 +987,7 @@ def test_cleanallruv_abort(topology):
     try:
         (clean_task_dn, rc) = topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', args={TASK_WAIT: False})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1000,7 +1000,7 @@ def test_cleanallruv_abort(topology):
     try:
         topology.master1.tasks.abortCleanAllRUV(suffix=DEFAULT_SUFFIX, replicaid='4',
                                                 args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort: Problem running abortCleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1033,7 +1033,7 @@ def test_cleanallruv_abort(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort: Problem running cleanAllRuv task: ' + e.message('desc'))
         assert False
 
@@ -1064,19 +1064,19 @@ def test_cleanallruv_abort_restart(topology):
     log.info('test_cleanallruv_abort_restart: remove all the agreements to master 4...)')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort_restart: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort_restart: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort_restart: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -1090,7 +1090,7 @@ def test_cleanallruv_abort_restart(topology):
     try:
         (clean_task_dn, rc) = topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', args={TASK_WAIT: False})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort_restart: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1103,7 +1103,7 @@ def test_cleanallruv_abort_restart(topology):
     try:
         topology.master1.tasks.abortCleanAllRUV(suffix=DEFAULT_SUFFIX, replicaid='4',
                                                 certify=True, args={TASK_WAIT: False})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort_restart: Problem running test_cleanallruv_abort_restart task: ' +
                   e.message('desc'))
         assert False
@@ -1149,7 +1149,7 @@ def test_cleanallruv_abort_restart(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort_restart: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1188,19 +1188,19 @@ def test_cleanallruv_abort_certify(topology):
     log.info('test_cleanallruv_abort_certify: remove all the agreements to master 4...)')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort_certify: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort_certify: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_abort_certify: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -1214,7 +1214,7 @@ def test_cleanallruv_abort_certify(topology):
     try:
         (clean_task_dn, rc) = topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', args={TASK_WAIT: False})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort_certify: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1224,7 +1224,7 @@ def test_cleanallruv_abort_certify(topology):
     try:
         (abort_task_dn, rc) = topology.master1.tasks.abortCleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', certify=True, args={TASK_WAIT: False})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort_certify: Problem running abortCleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1286,7 +1286,7 @@ def test_cleanallruv_abort_certify(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX,
                                   replicaid='4', args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_abort_certify: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1324,7 +1324,7 @@ def test_cleanallruv_stress_clean(topology):
     log.info('test_cleanallruv_stress_clean: put master 4 into read-only mode...')
     try:
         topology.master4.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-readonly', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_stress_clean: Failed to put master 4 into read-only mode: error ' +
                   e.message['desc'])
         assert False
@@ -1345,19 +1345,19 @@ def test_cleanallruv_stress_clean(topology):
     log.info('test_cleanallruv_stress_clean: remove all the agreements to master 4...')
     try:
         topology.master1.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_stress_clean: Failed to delete agmt(m1 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master2.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_stress_clean: Failed to delete agmt(m2 -> m4), error: ' +
                   e.message['desc'])
         assert False
     try:
         topology.master3.agreement.delete(DEFAULT_SUFFIX, topology.master4)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_stress_clean: Failed to delete agmt(m3 -> m4), error: ' +
                   e.message['desc'])
         assert False
@@ -1367,7 +1367,7 @@ def test_cleanallruv_stress_clean(topology):
     try:
         topology.master1.tasks.cleanAllRUV(suffix=DEFAULT_SUFFIX, replicaid='4',
                                            args={TASK_WAIT: True})
-    except ValueError, e:
+    except ValueError as e:
         log.fatal('test_cleanallruv_stress_clean: Problem running cleanAllRuv task: ' +
                   e.message('desc'))
         assert False
@@ -1400,7 +1400,7 @@ def test_cleanallruv_stress_clean(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_stress_clean: Master 1 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_stress_clean: Unable to search master 1 for db tombstone: ' +
                       e.message['desc'])
 
@@ -1418,7 +1418,7 @@ def test_cleanallruv_stress_clean(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_stress_clean: Master 2 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_stress_clean: Unable to search master 2 for db tombstone: ' +
                       e.message['desc'])
 
@@ -1436,7 +1436,7 @@ def test_cleanallruv_stress_clean(topology):
                     clean = False
             if clean:
                 log.info('test_cleanallruv_stress_clean: Master 3 is cleaned.')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_cleanallruv_stress_clean: Unable to search master 3 for db tombstone: ' +
                       e.message['desc'])
 
@@ -1457,7 +1457,7 @@ def test_cleanallruv_stress_clean(topology):
     # Turn off readonly mode
     try:
         topology.master4.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-readonly', 'off')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_cleanallruv_stress_clean: Failed to put master 4 into read-only mode: error ' +
                   e.message['desc'])
         assert False

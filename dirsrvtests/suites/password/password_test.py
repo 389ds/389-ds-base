@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -82,7 +82,7 @@ def test_password_delete_specific_password(topology):
                                  'cn': 'user 1',
                                  'uid': 'user1',
                                  'userpassword': PASSWORD})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_password_delete_specific_password: Failed to add test user ' +
                   USER_DN + ': error ' + e.message['desc'])
         assert False
@@ -92,7 +92,7 @@ def test_password_delete_specific_password(topology):
     #
     try:
         topology.standalone.modify_s(USER_DN, [(ldap.MOD_DELETE, 'userpassword', PASSWORD)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_password_delete_specific_password: Failed to delete userpassword: error ' +
                   e.message['desc'])
         assert False
@@ -105,7 +105,7 @@ def test_password_delete_specific_password(topology):
         if entry[0].hasAttr('userpassword'):
             log.fatal('test_password_delete_specific_password: Entry incorrectly still have the userpassword attribute')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_password_delete_specific_password: Failed to search for user(%s), error: %s' %
                   (USER_DN, e.message('desc')))
         assert False
@@ -115,7 +115,7 @@ def test_password_delete_specific_password(topology):
     #
     try:
         topology.standalone.delete_s(USER_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_password_delete_specific_password: Failed to delete user(%s), error: %s' %
                   (USER_DN, e.message('desc')))
         assert False

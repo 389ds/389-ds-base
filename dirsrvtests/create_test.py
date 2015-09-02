@@ -82,38 +82,38 @@ if len(sys.argv) > 0:
         displayUsage()
 
     if args.ticket is None and args.suite is None:
-        print 'Missing required ticket number/suite name'
+        print('Missing required ticket number/suite name')
         displayUsage()
 
     if args.ticket and args.suite:
-        print 'You must choose either "-t|--ticket" or "-s|--suite", but not both.'
+        print('You must choose either "-t|--ticket" or "-s|--suite", but not both.')
         displayUsage()
 
     if int(args.masters) == 0:
         if int(args.hubs) > 0 or int(args.consumers) > 0:
-            print 'You must use "-m|--masters" if you want to have hubs and/or consumers'
+            print('You must use "-m|--masters" if you want to have hubs and/or consumers')
             displayUsage()
 
     if not args.masters.isdigit() or int(args.masters) > 10 or int(args.masters) < 0:
-        print 'Invalid value for "--masters", it must be a number and it can not be greater than 10'
+        print('Invalid value for "--masters", it must be a number and it can not be greater than 10')
         displayUsage()
 
     if not args.hubs.isdigit() or int(args.hubs) > 10 or int(args.hubs) < 0:
-        print 'Invalid value for "--hubs", it must be a number and it can not be greater than 10'
+        print('Invalid value for "--hubs", it must be a number and it can not be greater than 10')
         displayUsage()
 
     if not args.consumers.isdigit() or int(args.consumers) > 10 or int(args.consumers) < 0:
-        print 'Invalid value for "--consumers", it must be a number and it can not be greater than 10'
+        print('Invalid value for "--consumers", it must be a number and it can not be greater than 10')
         displayUsage()
 
     if args.inst:
         if not args.inst.isdigit() or int(args.inst) > 10 or int(args.inst) < 1:
-            print ('Invalid value for "--instances", it must be a number greater than 0 ' +
+            print('Invalid value for "--instances", it must be a number greater than 0 ' +
                    'and not greater than 10')
             displayUsage()
         if int(args.inst) > 0:
             if int(args.masters) > 0 or int(args.hubs) > 0 or int(args.consumers) > 0:
-                print 'You can not mix "--instances" with replication.'
+                print('You can not mix "--instances" with replication.')
                 displayUsage()
 
     # Extract usable values
@@ -141,7 +141,7 @@ if len(sys.argv) > 0:
     try:
         TEST = open(filename, "w")
     except IOError:
-        print "Can\'t open file:", filename
+        print("Can\'t open file:", filename)
         exit(1)
 
     #

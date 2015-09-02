@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -63,7 +63,7 @@ def test_attr_uniqueness_init(topology):
     '''
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
@@ -78,7 +78,7 @@ def test_attr_uniqueness(topology):
         topology.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
                       [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'uid')])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attr_uniqueness: Failed to configure plugin for "uid": error ' + e.message['desc'])
         assert False
 
@@ -91,7 +91,7 @@ def test_attr_uniqueness(topology):
                                      'mail': 'user1@example.com',
                                      'mailAlternateAddress': 'user1@alt.example.com',
                                      'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attr_uniqueness: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -116,7 +116,7 @@ def test_attr_uniqueness(topology):
         topology.standalone.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
                       [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail')])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attr_uniqueness: Failed to configure plugin for "mail": error ' + e.message['desc'])
         assert False
 
@@ -144,7 +144,7 @@ def test_attr_uniqueness(topology):
                       [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'),
                        (ldap.MOD_ADD, 'uniqueness-attribute-name',
                         'mailAlternateAddress')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_attr_uniqueness: Failed to reconfigure plugin for "mail mailAlternateAddress": error ' +
                   e.message['desc'])
         assert False
@@ -218,7 +218,7 @@ def test_attr_uniqueness(topology):
     #
     try:
         topology.standalone.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attr_uniqueness: Failed to delete test entry: ' + e.message['desc'])
         assert False
 

@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -79,7 +79,7 @@ def test_filter_escaped(topology):
                                  'cn': 'test * me',
                                  'uid': 'test_entry',
                                  'userpassword': PASSWORD})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to add test user ' + USER1_DN + ': error ' +
                   e.message['desc'])
         assert False
@@ -90,7 +90,7 @@ def test_filter_escaped(topology):
                                  'cn': 'test me',
                                  'uid': 'test_entry2',
                                  'userpassword': PASSWORD})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to add test user ' + USER2_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -99,7 +99,7 @@ def test_filter_escaped(topology):
         if not entry or len(entry) > 1:
             log.fatal('test_filter_escaped: Entry was not found using "cn=*\**"')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to search for user(%s), error: %s' %
         (USER1_DN, e.message('desc')))
         assert False
@@ -121,7 +121,7 @@ def test_filter_search_original_attrs(topology):
         if entry[0].hasAttr('objectclass-EXTRA'):
             log.fatal('test_filter_search_original_attrs: Entry does not have the original attribute')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_filter_search_original_attrs: Failed to search suffix(%s), error: %s' %
                   (DEFAULT_SUFFIX, e.message('desc')))
         assert False

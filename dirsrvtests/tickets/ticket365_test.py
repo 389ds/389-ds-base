@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -80,7 +80,7 @@ def test_ticket365(topology):
                           'uid': 'test_entry',
                           'userpassword': 'password'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add test user: error ' + e.message['desc'])
         assert False
 
@@ -89,7 +89,7 @@ def test_ticket365(topology):
     #
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to enable audit log, error: ' + e.message['desc'])
         assert False
     '''
@@ -107,7 +107,7 @@ def test_ticket365(topology):
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
                                      'nsslapd-auditlog-logging-hide-unhashed-pw', 'off')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to enable writing unhashed password to audit log, error: ' + e.message['desc'])
         assert False
 
@@ -116,7 +116,7 @@ def test_ticket365(topology):
     #
     try:
         topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'userpassword', 'mypassword')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to enable writing unhashed password to audit log, error: ' + e.message['desc'])
         assert False
 
@@ -130,7 +130,7 @@ def test_ticket365(topology):
     #
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-hide-unhashed-pw', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to deny writing unhashed password to audit log, error: ' + e.message['desc'])
         assert False
     log.info('Test complete')
@@ -140,7 +140,7 @@ def test_ticket365(topology):
     #
     try:
         topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'userpassword', 'hidepassword')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to enable writing unhashed password to audit log, error: ' + e.message['desc'])
         assert False
 

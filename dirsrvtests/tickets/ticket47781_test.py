@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -103,7 +103,7 @@ def test_ticket47781(topology):
                                   'objectclass': 'top person'.split(),
                                   'sn': 'user',
                                   'cn': 'entry1'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add entry 1: ' + e.message['desc'])
         assert False
 
@@ -112,7 +112,7 @@ def test_ticket47781(topology):
                                   'objectclass': 'top person'.split(),
                                   'sn': 'user',
                                   'cn': 'entry2'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add entry 2: ' + e.message['desc'])
         assert False
 
@@ -158,7 +158,7 @@ def test_ticket47781(topology):
         if not entries:
             log.fatal('Search failed to find any entries.')
             assert PR_False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search failed: ' + e.message['desc'])
         assert PR_False
 

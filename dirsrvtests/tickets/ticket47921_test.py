@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -73,7 +73,7 @@ def test_ticket47921(topology):
              'cosIndirectSpecifier': 'manager',
              'cosAttribute': 'roomnumber'
             })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add cos defintion, error: ' + e.message['desc'])
         assert False
 
@@ -84,7 +84,7 @@ def test_ticket47921(topology):
              'uid': 'my manager',
              'roomnumber': '1'
             })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add manager entry, error: ' + e.message['desc'])
         assert False
 
@@ -98,7 +98,7 @@ def test_ticket47921(topology):
              'uid': 'user',
              'manager': MANAGER_DN
             })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add manager entry, error: ' + e.message['desc'])
         assert False
 
@@ -114,14 +114,14 @@ def test_ticket47921(topology):
         else:
             log.fatal('Failed to find user entry')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to search for user entry: ' + e.message['desc'])
         assert False
 
     # Modify manager entry
     try:
         topology.standalone.modify_s(MANAGER_DN, [(ldap.MOD_REPLACE, 'roomnumber', '2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to modify manager entry: ' + e.message['desc'])
         assert False
 
@@ -137,7 +137,7 @@ def test_ticket47921(topology):
         else:
             log.fatal('Failed to find user entry')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to search for user entry: ' + e.message['desc'])
         assert False
 

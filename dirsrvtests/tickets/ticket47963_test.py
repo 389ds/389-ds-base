@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -75,7 +75,7 @@ def test_ticket47963(topology):
     topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofskipnested', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_automember: Failed to modify config entry: error ' + e.message['desc'])
         assert False
 
@@ -89,7 +89,7 @@ def test_ticket47963(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'test_user'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add teset user: error ' + e.message['desc'])
         assert False
 
@@ -99,7 +99,7 @@ def test_ticket47963(topology):
                           'cn': 'group1',
                           'member': USER_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add group1: error ' + e.message['desc'])
         assert False
 
@@ -109,7 +109,7 @@ def test_ticket47963(topology):
                           'cn': 'group2',
                           'member': USER_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add group2: error ' + e.message['desc'])
         assert False
 
@@ -119,7 +119,7 @@ def test_ticket47963(topology):
                           'objectclass': 'top groupOfNames groupOfUniqueNames extensibleObject'.split(),
                           'cn': 'group'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add group3: error ' + e.message['desc'])
         assert False
     time.sleep(1)
@@ -133,14 +133,14 @@ def test_ticket47963(topology):
         if not entries:
             log.fatal('User is missing expected memberOf attrs')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Add the user to the group
     try:
         topology.standalone.modify_s(GROUP_DN3, [(ldap.MOD_ADD, 'member', USER_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to member to group: error ' + e.message['desc'])
         assert False
     time.sleep(1)
@@ -153,7 +153,7 @@ def test_ticket47963(topology):
         if not entries:
             log.fatal('User is missing expected memberOf attrs')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -162,7 +162,7 @@ def test_ticket47963(topology):
     #
     try:
         topology.standalone.delete_s(GROUP_DN2)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to delete test group2: ' + e.message['desc'])
         assert False
     time.sleep(1)
@@ -173,7 +173,7 @@ def test_ticket47963(topology):
         if not entries:
             log.fatal('User incorrect memberOf attrs')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Search for user1 failed: ' + e.message['desc'])
         assert False
 

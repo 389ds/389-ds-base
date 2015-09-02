@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -135,7 +135,7 @@ def test_ticket47714_run_0(topology):
     log.info("\n######################### Bind as %s ######################\n" % TEST_USER_DN)
     try:
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
-    except ldap.CONSTRAINT_VIOLATION, e:
+    except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -148,7 +148,7 @@ def test_ticket47714_run_0(topology):
     log.info("\n######################### Bind as %s again ######################\n" % TEST_USER_DN)
     try:
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
-    except ldap.CONSTRAINT_VIOLATION, e:
+    except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -170,7 +170,7 @@ def test_ticket47714_run_0(topology):
     log.info("\n######################### Bind as %s again to fail ######################\n" % TEST_USER_DN)
     try:
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
-    except ldap.CONSTRAINT_VIOLATION, e:
+    except ldap.CONSTRAINT_VIOLATION as e:
         log.info('CONSTRAINT VIOLATION ' + e.message['desc'])
         log.info("%s was successfully inactivated." % TEST_USER_DN)
         pass
@@ -206,7 +206,7 @@ def test_ticket47714_run_1(topology):
     log.info("\n######################### Bind as %s ######################\n" % TEST_USER_DN)
     try:
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
-    except ldap.CONSTRAINT_VIOLATION, e:
+    except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -219,7 +219,7 @@ def test_ticket47714_run_1(topology):
     log.info("\n######################### Bind as %s again ######################\n" % TEST_USER_DN)
     try:
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
-    except ldap.CONSTRAINT_VIOLATION, e:
+    except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)

@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -100,7 +100,7 @@ def test_range_search(topology):
         try:
             topology.standalone.add_s(Entry((USER_DN, {'objectclass': "top extensibleObject".split(),
                                  'uid': 'user' + idx})))
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_range_search: Failed to add test user ' + USER_DN + ': error ' + e.message['desc'])
             success = False
     time.sleep(1)
@@ -110,7 +110,7 @@ def test_range_search(topology):
         try:
             topology.standalone.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE,
                                          '(&(changenumber>=74)(changenumber<=84))')
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_range_search: Failed to search retro changelog(%s), error: %s' %
                       (RETROCL_SUFFIX, e.message('desc')))
             test_range_search_final(topology)  # With valgrind we always need to cleanup

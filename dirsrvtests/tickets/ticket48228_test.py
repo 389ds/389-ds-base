@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -32,6 +32,7 @@ SUBTREE_COS_DEF = 'cn=nsPwPolicy_CoS,' + DEFAULT_SUFFIX
 
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -77,20 +78,21 @@ def topology(request):
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
 
+
 def set_global_pwpolicy(topology, inhistory):
     log.info("	+++++ Enable global password policy +++++\n")
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     # Enable password policy
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-pwpolicy-local', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
 
     log.info("		Set global password history on\n")
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordHistory', 'on')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set passwordHistory: error ' + e.message['desc'])
         assert False
 
@@ -98,9 +100,10 @@ def set_global_pwpolicy(topology, inhistory):
     try:
         count = "%d" % inhistory
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'passwordInHistory', count)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set passwordInHistory: error ' + e.message['desc'])
         assert False
+
 
 def set_subtree_pwpolicy(topology):
     log.info("	+++++ Enable subtree level password policy +++++\n")
@@ -109,7 +112,7 @@ def set_subtree_pwpolicy(topology):
     try:
         topology.standalone.add_s(Entry((SUBTREE_CONTAINER, {'objectclass': 'top nsContainer'.split(),
                                                              'cn': 'nsPwPolicyContainer'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add subtree container: error ' + e.message['desc'])
         assert False
 
@@ -124,7 +127,7 @@ def set_subtree_pwpolicy(topology):
                                                        'passwordMinAge': '0',
                                                        'passwordChange': 'on',
                                                        'passwordStorageScheme': 'clear'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add passwordpolicy: error ' + e.message['desc'])
         assert False
 
@@ -135,7 +138,7 @@ def set_subtree_pwpolicy(topology):
                                                             'cosPriority': '1',
                                                             'cn': SUBTREE_COS_TMPLDN,
                                                             'pwdpolicysubentry': SUBTREE_PWP})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS template: error ' + e.message['desc'])
         assert False
 
@@ -145,9 +148,10 @@ def set_subtree_pwpolicy(topology):
                                                            'cn': SUBTREE_PWPDN,
                                                            'costemplatedn': SUBTREE_COS_TMPL,
                                                            'cosAttribute': 'pwdpolicysubentry default operational-default'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add COS def: error ' + e.message['desc'])
         assert False
+
 
 def check_passwd_inhistory(topology, user, cpw, passwd):
     inhistory = 0
@@ -155,10 +159,11 @@ def check_passwd_inhistory(topology, user, cpw, passwd):
     topology.standalone.simple_bind_s(user, cpw)
     try:
         topology.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', passwd)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.info('		The password ' + passwd + ' of user' + USER1_DN + ' in history: error ' + e.message['desc'])
         inhistory = 1
     return inhistory
+
 
 def update_passwd(topology, user, passwd, times):
     cpw = passwd
@@ -169,7 +174,7 @@ def update_passwd(topology, user, passwd, times):
         cpw = 'password%d' % loop
         try:
             topology.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', cpw)])
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_ticket48228: Failed to update the password ' + cpw + ' of user ' + user + ': error ' + e.message['desc'])
             assert False
         loop += 1
@@ -177,6 +182,7 @@ def update_passwd(topology, user, passwd, times):
     # checking the first password, which is supposed to be in history
     inhistory = check_passwd_inhistory(topology, user, cpw, passwd)
     assert inhistory == 1
+
 
 def test_ticket48228_test_global_policy(topology):
     """
@@ -199,7 +205,7 @@ def test_ticket48228_test_global_policy(topology):
                                      'givenname': 'user',
                                      'mail': 'user1@example.com',
                                      'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_ticket48228: Failed to add user' + USER1_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -235,6 +241,7 @@ def test_ticket48228_test_global_policy(topology):
 
     log.info("Global policy was successfully verified.")
 
+
 def test_ticket48228_test_subtree_policy(topology):
     """
     Check subtree level password policy
@@ -256,7 +263,7 @@ def test_ticket48228_test_subtree_policy(topology):
                                      'givenname': 'user',
                                      'mail': 'user2@example.com',
                                      'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_ticket48228: Failed to add user' + USER2_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -267,7 +274,7 @@ def test_ticket48228_test_subtree_policy(topology):
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
         topology.standalone.modify_s(SUBTREE_PWP, [(ldap.MOD_REPLACE, 'passwordInHistory', '4')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to set pwpolicy-local: error ' + e.message['desc'])
         assert False
 
@@ -297,9 +304,11 @@ def test_ticket48228_test_subtree_policy(topology):
 
     log.info("Subtree level policy was successfully verified.")
 
+
 def test_ticket48228_final(topology):
     topology.standalone.delete()
     log.info('Testcase PASSED')
+
 
 def run_isolated():
     '''

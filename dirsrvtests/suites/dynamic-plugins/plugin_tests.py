@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 '''
@@ -64,7 +64,7 @@ def test_dependency(inst, plugin):
         inst.modify_s('cn=' + PLUGIN_ACCT_USABILITY + ',cn=plugins,cn=config',
                       [(ldap.MOD_REPLACE, 'nsslapd-plugin-depends-on-named', plugin)])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dependency: Failed to modify ' + PLUGIN_ACCT_USABILITY + ': error ' + e.message['desc'])
         assert False
 
@@ -84,7 +84,7 @@ def test_dependency(inst, plugin):
     try:
         inst.modify_s('cn=' + PLUGIN_ACCT_USABILITY + ',cn=plugins,cn=config',
                       [(ldap.MOD_DELETE, 'nsslapd-plugin-depends-on-named', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dependency: Failed to reset ' + plugin + ': error ' + e.message['desc'])
         assert False
 
@@ -107,7 +107,7 @@ def wait_for_task(conn, task_dn):
                 # task is done
                 finished = True
                 break
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('wait_for_task: Search failed: ' + e.message['desc'])
             assert False
 
@@ -152,10 +152,10 @@ def test_acctpolicy(inst, args=None):
             inst.modify_s(CONFIG_DN,
                       [(ldap.MOD_REPLACE, 'alwaysrecordlogin', 'yes'),
                        (ldap.MOD_REPLACE, 'stateattrname', 'lastLoginTime')])
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_acctpolicy: Failed to modify config entry: error ' + e.message['desc'])
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to add config entry: error ' + e.message['desc'])
         assert False
 
@@ -171,14 +171,14 @@ def test_acctpolicy(inst, args=None):
                                  'cn': 'user 1',
                                  'uid': 'user1',
                                  'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
         assert False
 
     # bind as user
     try:
         inst.simple_bind_s(USER1_DN, "password")
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to bind as user1: ' + e.message['desc'])
         assert False
 
@@ -186,7 +186,7 @@ def test_acctpolicy(inst, args=None):
     time.sleep(1)
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to bind as rootDN: ' + e.message['desc'])
         assert False
 
@@ -196,7 +196,7 @@ def test_acctpolicy(inst, args=None):
         if not entries:
             log.fatal('test_acctpolicy: Search failed to find an entry with lastLoginTime.')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Search failed: ' + e.message['desc'])
         assert False
 
@@ -207,7 +207,7 @@ def test_acctpolicy(inst, args=None):
     try:
         inst.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'stateattrname', 'testLastLoginTime')])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to modify config entry: error ' + e.message['desc'])
         assert False
 
@@ -219,7 +219,7 @@ def test_acctpolicy(inst, args=None):
     # login as user
     try:
         inst.simple_bind_s(USER1_DN, "password")
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to bind(2nd) as user1: ' + e.message['desc'])
         assert False
 
@@ -227,7 +227,7 @@ def test_acctpolicy(inst, args=None):
     # Bind as Root DN
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to bind as rootDN: ' + e.message['desc'])
         assert False
 
@@ -237,7 +237,7 @@ def test_acctpolicy(inst, args=None):
         if not entries:
             log.fatal('test_acctpolicy: Search failed to find an entry with testLastLoginTime.')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Search failed: ' + e.message['desc'])
         assert False
 
@@ -253,7 +253,7 @@ def test_acctpolicy(inst, args=None):
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_acctpolicy: Failed to delete test entry: ' + e.message['desc'])
         assert False
 
@@ -289,7 +289,7 @@ def test_attruniq(inst, args=None):
         inst.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
                       [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'uid')])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attruniq: Failed to configure plugin for "uid": error ' + e.message['desc'])
         assert False
 
@@ -306,7 +306,7 @@ def test_attruniq(inst, args=None):
                                      'mail': 'user1@example.com',
                                      'mailAlternateAddress' : 'user1@alt.example.com',
                                      'userpassword': 'password'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attruniq: Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
         assert False
 
@@ -333,7 +333,7 @@ def test_attruniq(inst, args=None):
         inst.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
                       [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail')])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attruniq: Failed to configure plugin for "mail": error ' + e.message['desc'])
         assert False
 
@@ -360,11 +360,11 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.modify_s('cn=' + PLUGIN_ATTR_UNIQUENESS + ',cn=plugins,cn=config',
-                      [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'), 
+                      [(ldap.MOD_REPLACE, 'uniqueness-attribute-name', 'mail'),
                        (ldap.MOD_ADD, 'uniqueness-attribute-name',
                         'mailAlternateAddress')])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_attruniq: Failed to reconfigure plugin for "mail mailAlternateAddress": error ' + e.message['desc'])
         assert False
 
@@ -448,7 +448,7 @@ def test_attruniq(inst, args=None):
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_attruniq: Failed to delete test entry: ' + e.message['desc'])
         assert False
 
@@ -487,7 +487,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'cn': 'group'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add group: error ' + e.message['desc'])
         assert False
 
@@ -497,7 +497,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'ou': 'branch1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add branch1: error ' + e.message['desc'])
         assert False
 
@@ -507,7 +507,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'ou': 'branch2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add branch2: error ' + e.message['desc'])
         assert False
 
@@ -521,7 +521,7 @@ def test_automember(inst, args=None):
                           'autoMemberDefaultGroup': 'cn=group,' + DEFAULT_SUFFIX,
                           'autoMemberGroupingAttr': 'member:dn'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add config entry: error ' + e.message['desc'])
         assert False
 
@@ -535,7 +535,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add user: error ' + e.message['desc'])
         assert False
 
@@ -546,7 +546,7 @@ def test_automember(inst, args=None):
         if not entries:
             log.fatal('test_automember: Search failed to find member user1')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Search failed: ' + e.message['desc'])
         assert False
 
@@ -559,7 +559,7 @@ def test_automember(inst, args=None):
                       [(ldap.MOD_REPLACE, 'autoMemberGroupingAttr', 'uniquemember:dn'),
                        (ldap.MOD_REPLACE, 'autoMemberScope', 'ou=branch2,' + DEFAULT_SUFFIX)])
 
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to modify config entry: error ' + e.message['desc'])
         assert False
 
@@ -573,7 +573,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to user to branch2: error ' + e.message['desc'])
         assert False
 
@@ -584,7 +584,7 @@ def test_automember(inst, args=None):
         if not entries:
             log.fatal('test_automember: Search failed to find uniquemember user2')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Search failed: ' + e.message['desc'])
         assert False
 
@@ -601,7 +601,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user3'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to user3 to branch2: error ' + e.message['desc'])
         assert False
 
@@ -612,7 +612,7 @@ def test_automember(inst, args=None):
         if entries:
             log.fatal('test_automember: user3 was incorrectly added to the group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Search failed: ' + e.message['desc'])
         assert False
 
@@ -626,7 +626,7 @@ def test_automember(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'basedn': 'ou=branch2,' + DEFAULT_SUFFIX,
                           'filter': 'objectclass=top'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to add task: error ' + e.message['desc'])
         assert False
 
@@ -639,7 +639,7 @@ def test_automember(inst, args=None):
         if not entries:
             log.fatal('test_automember: user3 was not added to the group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Search failed: ' + e.message['desc'])
         assert False
 
@@ -655,43 +655,43 @@ def test_automember(inst, args=None):
 
     try:
         inst.delete_s(BUSER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete test entry1: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BUSER2_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete test entry2: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BUSER3_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete test entry3: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BRANCH1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete branch1: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(BRANCH2_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete test branch2: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(GROUP_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete test group: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(CONFIG_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_automember: Failed to delete plugin config entry: ' + e.message['desc'])
         assert False
 
@@ -739,10 +739,10 @@ def test_dna(inst, args=None):
         try:
             inst.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaNextValue', '1'),
                                       (ldap.MOD_REPLACE, 'dnaMagicRegen', '-1')])
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.fatal('test_dna: Failed to set the DNA plugin: error ' + e.message['desc'])
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to add config entry: error ' + e.message['desc'])
         assert False
 
@@ -755,7 +755,7 @@ def test_dna(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to user1: error ' + e.message['desc'])
         assert False
 
@@ -765,14 +765,14 @@ def test_dna(inst, args=None):
         if not entries:
             log.fatal('test_dna: user1 was not updated - (looking for uidNumber: 1)')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Test the magic regen value
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'uidNumber', '-1')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to set the magic reg value: error ' + e.message['desc'])
         assert False
 
@@ -782,7 +782,7 @@ def test_dna(inst, args=None):
         if not entries:
             log.fatal('test_dna: user1 was not updated (looking for uidNumber: 2)')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -792,7 +792,7 @@ def test_dna(inst, args=None):
 
     try:
         inst.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'dnaMagicRegen', '-2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to set the magic reg value to -2: error ' + e.message['desc'])
         assert False
 
@@ -803,7 +803,7 @@ def test_dna(inst, args=None):
     # Test the magic regen value
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'uidNumber', '-2')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to set the magic reg value: error ' + e.message['desc'])
         assert False
 
@@ -813,7 +813,7 @@ def test_dna(inst, args=None):
         if not entries:
             log.fatal('test_dna: user1 was not updated (looking for uidNumber: 3)')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -829,7 +829,7 @@ def test_dna(inst, args=None):
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_dna: Failed to delete test entry1: ' + e.message['desc'])
         assert False
 
@@ -871,7 +871,7 @@ def test_linkedattrs(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to user1: error ' + e.message['desc'])
         assert False
 
@@ -880,7 +880,7 @@ def test_linkedattrs(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to user1: error ' + e.message['desc'])
         assert False
 
@@ -892,7 +892,7 @@ def test_linkedattrs(inst, args=None):
                           'linkType': 'directReport',
                           'managedType': 'manager'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add config entry: error ' + e.message['desc'])
         assert False
 
@@ -903,7 +903,7 @@ def test_linkedattrs(inst, args=None):
     # Set "directReport" should add "manager" to the other entry
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'directReport', USER2_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add "directReport" to user1: error ' + e.message['desc'])
         assert False
 
@@ -913,14 +913,14 @@ def test_linkedattrs(inst, args=None):
         if not entries:
             log.fatal('test_linkedattrs: user2 missing "manager" attribute')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Remove "directReport" should remove "manager" to the other entry
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_DELETE, 'directReport', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to delete directReport: error ' + e.message['desc'])
         assert False
 
@@ -930,7 +930,7 @@ def test_linkedattrs(inst, args=None):
         if entries:
             log.fatal('test_linkedattrs: user2 "manager" attribute not removed')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -940,7 +940,7 @@ def test_linkedattrs(inst, args=None):
 
     try:
         inst.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'linkType', 'indirectReport')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('test_linkedattrs: Failed to set linkTypee: error ' + e.message['desc'])
         assert False
 
@@ -951,7 +951,7 @@ def test_linkedattrs(inst, args=None):
     # Make sure the old linkType(directManager) is not working
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'directReport', USER2_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add "directReport" to user1: error ' + e.message['desc'])
         assert False
 
@@ -961,14 +961,14 @@ def test_linkedattrs(inst, args=None):
         if entries:
             log.fatal('test_linkedattrs: user2 had "manager" added unexpectedly')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user2 failed: ' + e.message['desc'])
         assert False
 
     # Now, set the new linkType "indirectReport", which should add "manager" to the other entry
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'indirectReport', USER2_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add "indirectReport" to user1: error ' + e.message['desc'])
         assert False
 
@@ -978,14 +978,14 @@ def test_linkedattrs(inst, args=None):
         if not entries:
             log.fatal('test_linkedattrs: user2 missing "manager"')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user2 failed: ' + e.message['desc'])
         assert False
 
     # Remove "indirectReport" should remove "manager" to the other entry
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_DELETE, 'indirectReport', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to delete directReport: error ' + e.message['desc'])
         assert False
 
@@ -995,7 +995,7 @@ def test_linkedattrs(inst, args=None):
         if entries:
             log.fatal('test_linkedattrs: user2 "manager" attribute not removed')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1008,7 +1008,7 @@ def test_linkedattrs(inst, args=None):
 
     try:
         inst.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'indirectReport', USER2_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add "indirectReport" to user1: error ' + e.message['desc'])
         assert False
 
@@ -1018,7 +1018,7 @@ def test_linkedattrs(inst, args=None):
         if entries:
             log.fatal('test_linkedattrs: user2 incorrectly has a "manager" attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1032,7 +1032,7 @@ def test_linkedattrs(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'basedn': DEFAULT_SUFFIX,
                           'filter': 'objectclass=top'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to add task: error ' + e.message['desc'])
         assert False
 
@@ -1044,7 +1044,7 @@ def test_linkedattrs(inst, args=None):
         if not entries:
             log.fatal('test_linkedattrs: task failed: user2 missing "manager" attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1060,19 +1060,19 @@ def test_linkedattrs(inst, args=None):
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to delete test entry1: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(USER2_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to delete test entry2: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(CONFIG_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_linkedattrs: Failed to delete plugin config entry: ' + e.message['desc'])
         assert False
 
@@ -1108,7 +1108,7 @@ def test_memberof(inst, args=None):
 
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to update config(member): error ' + e.message['desc'])
         assert False
 
@@ -1122,7 +1122,7 @@ def test_memberof(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -1132,7 +1132,7 @@ def test_memberof(inst, args=None):
                           'cn': 'group',
                           'member': USER1_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add group: error ' + e.message['desc'])
         assert False
 
@@ -1142,7 +1142,7 @@ def test_memberof(inst, args=None):
                           'memberofgroupattr': 'member',
                           'memberofattr': 'memberof'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to shared config entry: error ' + e.message['desc'])
         assert False
 
@@ -1152,14 +1152,14 @@ def test_memberof(inst, args=None):
         if not entries:
             log.fatal('test_memberof: user1 missing memberOf')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Remove "member" should remove "memberOf" from the entry
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'member', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete member: error ' + e.message['desc'])
         assert False
 
@@ -1169,7 +1169,7 @@ def test_memberof(inst, args=None):
         if entries:
             log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1179,7 +1179,7 @@ def test_memberof(inst, args=None):
 
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to update config(uniquemember): error ' + e.message['desc'])
         assert False
 
@@ -1189,7 +1189,7 @@ def test_memberof(inst, args=None):
 
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'uniquemember', USER1_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
@@ -1199,14 +1199,14 @@ def test_memberof(inst, args=None):
         if not entries:
             log.fatal('test_memberof: user1 missing memberOf')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Remove "uniquemember" should remove "memberOf" from the entry
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'uniquemember', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete member: error ' + e.message['desc'])
         assert False
 
@@ -1216,7 +1216,7 @@ def test_memberof(inst, args=None):
         if entries:
             log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1227,20 +1227,20 @@ def test_memberof(inst, args=None):
     # The shared config entry uses "member" - the above test uses "uniquemember"
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, CONFIG_AREA, SHARED_CONFIG_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to set plugin area: error ' + e.message['desc'])
         assert False
 
     # Delete the test entries then readd them to start with a clean slate
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete test entry1: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(GROUP_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete test group: ' + e.message['desc'])
         assert False
 
@@ -1249,7 +1249,7 @@ def test_memberof(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -1259,7 +1259,7 @@ def test_memberof(inst, args=None):
                           'cn': 'group',
                           'member': USER1_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add group: error ' + e.message['desc'])
         assert False
 
@@ -1270,14 +1270,14 @@ def test_memberof(inst, args=None):
         if not entries:
             log.fatal('test_memberof: user1 missing memberOf')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Remove "member" should remove "memberOf" from the entry
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'member', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete member: error ' + e.message['desc'])
         assert False
 
@@ -1287,7 +1287,7 @@ def test_memberof(inst, args=None):
         if entries:
             log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1297,14 +1297,14 @@ def test_memberof(inst, args=None):
 
     try:
         inst.modify_s(SHARED_CONFIG_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to set shared plugin entry(uniquemember): error '
             + e.message['desc'])
         assert False
 
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'uniquemember', USER1_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
@@ -1314,14 +1314,14 @@ def test_memberof(inst, args=None):
         if not entries:
             log.fatal('test_memberof: user1 missing memberOf')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Remove "uniquemember" should remove "memberOf" from the entry
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'uniquemember', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete member: error ' + e.message['desc'])
         assert False
 
@@ -1331,7 +1331,7 @@ def test_memberof(inst, args=None):
         if entries:
             log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1342,20 +1342,20 @@ def test_memberof(inst, args=None):
     # First change the plugin to use member before we move the shared config that uses uniquemember
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'member')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to update config(uniquemember): error ' + e.message['desc'])
         assert False
 
     # Remove shared config from plugin
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, CONFIG_AREA, None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'member', USER1_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
@@ -1365,14 +1365,14 @@ def test_memberof(inst, args=None):
         if not entries:
             log.fatal('test_memberof: user1 missing memberOf')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
     # Remove "uniquemember" should remove "memberOf" from the entry
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_DELETE, 'member', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete member: error ' + e.message['desc'])
         assert False
 
@@ -1382,7 +1382,7 @@ def test_memberof(inst, args=None):
         if entries:
             log.fatal('test_memberof: user1 incorrectly has memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1395,14 +1395,14 @@ def test_memberof(inst, args=None):
     # First change the plugin to use uniquemember
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberofgroupattr', 'uniquemember')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to update config(uniquemember): error ' + e.message['desc'])
         assert False
 
     # Add uniquemember, should not update USER1
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'uniquemember', USER1_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
@@ -1412,7 +1412,7 @@ def test_memberof(inst, args=None):
         if entries:
             log.fatal('test_memberof: user1 incorrect has memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1425,7 +1425,7 @@ def test_memberof(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'basedn': DEFAULT_SUFFIX,
                           'filter': 'objectclass=top'})))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to add task: error ' + e.message['desc'])
         assert False
 
@@ -1437,7 +1437,7 @@ def test_memberof(inst, args=None):
         if not entries:
             log.fatal('test_memberof: user1 missing memberOf attr')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Search for user1 failed: ' + e.message['desc'])
         assert False
 
@@ -1453,19 +1453,19 @@ def test_memberof(inst, args=None):
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete test entry1: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(GROUP_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete test group: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(SHARED_CONFIG_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_memberof: Failed to delete shared config entry: ' + e.message['desc'])
         assert False
 
@@ -1512,7 +1512,7 @@ def test_mep(inst, args=None):
                    'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add people org unit: error ' + e.message['desc'])
         assert False
 
@@ -1522,7 +1522,7 @@ def test_mep(inst, args=None):
                    'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add people org unit: error ' + e.message['desc'])
         assert False
 
@@ -1535,7 +1535,7 @@ def test_mep(inst, args=None):
                    'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
                    'mepMappedAttr': 'cn: $cn|uid: $cn|gidNumber: $uidNumber'.split('|')
                    })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add template entry: error ' + e.message['desc'])
         assert False
 
@@ -1549,7 +1549,7 @@ def test_mep(inst, args=None):
                           'managedBase': GROUP_OU,
                           'managedTemplate': TEMPLATE_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add config entry: error ' + e.message['desc'])
         assert False
 
@@ -1567,14 +1567,14 @@ def test_mep(inst, args=None):
                           'gidNumber': '1',
                           'homeDirectory': '/home/user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to user1: error ' + e.message['desc'])
         assert False
 
     # Check if a managed group entry was created
     try:
         inst.search_s(MEP_USER_DN, ldap.SCOPE_BASE, '(objectclass=top)')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Unable to find MEP entry: ' + e.message['desc'])
         assert False
 
@@ -1591,14 +1591,14 @@ def test_mep(inst, args=None):
                    'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
                    'mepMappedAttr': 'cn: $uid|uid: $cn|gidNumber: $gidNumber'.split('|')
                    })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to add template entry2: error ' + e.message['desc'])
         assert False
 
     # Set the new template dn
     try:
         inst.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'managedTemplate', TEMPLATE_DN2)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to set mep plugin config: error ' + e.message['desc'])
         assert False
 
@@ -1616,14 +1616,14 @@ def test_mep(inst, args=None):
                           'gidNumber': '1',
                           'homeDirectory': '/home/user2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to user2: error ' + e.message['desc'])
         assert False
 
     # Check if a managed group entry was created
     try:
         inst.search_s(MEP_USER_DN2, ldap.SCOPE_BASE, '(objectclass=top)')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Unable to find MEP entry2: ' + e.message['desc'])
         assert False
 
@@ -1639,19 +1639,19 @@ def test_mep(inst, args=None):
 
     try:
         inst.delete_s(USER_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to delete test user1: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(USER_DN2)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to delete test user 2: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(TEMPLATE_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to delete template1: ' + e.message['desc'])
         assert False
 
@@ -1659,13 +1659,13 @@ def test_mep(inst, args=None):
 
     try:
         inst.delete_s(TEMPLATE_DN2)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to delete template2: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(CONFIG_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_mep: Failed to delete config: ' + e.message['desc'])
         assert False
 
@@ -1727,7 +1727,7 @@ def test_passthru(inst, args=None):
                           'dc': 'pass2'})))
     except ldap.ALREADY_EXISTS:
         pass
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to create suffix entry: error ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1739,7 +1739,7 @@ def test_passthru(inst, args=None):
                           'uid': 'admin',
                           'userpassword': 'password'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to admin1: error ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1751,7 +1751,7 @@ def test_passthru(inst, args=None):
                           'uid': 'admin2',
                           'userpassword': 'password'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to admin2 : error ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1763,7 +1763,7 @@ def test_passthru(inst, args=None):
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginenabled', 'on'),
                                   (ldap.MOD_REPLACE, 'nsslapd-pluginarg0', 'ldap://127.0.0.1:33333/dc=pass,dc=thru')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to set mep plugin config: error ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1775,7 +1775,7 @@ def test_passthru(inst, args=None):
     # login as user
     try:
         inst.simple_bind_s(PASSTHRU_DN, "password")
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: pass through bind failed: ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1787,14 +1787,14 @@ def test_passthru(inst, args=None):
     # login as root DN
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: pass through bind failed: ' + e.message['desc'])
         passthru_inst.delete()
         assert False
 
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', 'ldap://127.0.0.1:33333/dc=pass2,dc=thru')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: Failed to set mep plugin config: error ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1806,7 +1806,7 @@ def test_passthru(inst, args=None):
     # login as user
     try:
         inst.simple_bind_s(PASSTHRU_DN2, "password")
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: pass through bind failed: ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1814,7 +1814,7 @@ def test_passthru(inst, args=None):
     # login as root DN
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_passthru: pass through bind failed: ' + e.message['desc'])
         passthru_inst.delete()
         assert False
@@ -1864,7 +1864,7 @@ def test_referint(inst, args=None):
 
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'member')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to configure RI plugin: error ' + e.message['desc'])
         assert False
 
@@ -1878,7 +1878,7 @@ def test_referint(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -1887,7 +1887,7 @@ def test_referint(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user2: error ' + e.message['desc'])
         assert False
 
@@ -1898,7 +1898,7 @@ def test_referint(inst, args=None):
                           'member': USER1_DN,
                           'uniquemember': USER2_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add group: error ' + e.message['desc'])
         assert False
 
@@ -1907,7 +1907,7 @@ def test_referint(inst, args=None):
     try:
         entries = inst.search_s(PLUGIN_DN, ldap.SCOPE_BASE, '(objectclass=top)')
         REFERINT_LOGFILE = entries[0].getValue('referint-logfile')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Unable to search plugin entry: ' + e.message['desc'])
         assert False
 
@@ -1920,14 +1920,14 @@ def test_referint(inst, args=None):
                           'referint-logfile': REFERINT_LOGFILE,
                           'referint-logchanges': '0'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to shared config entry: error ' + e.message['desc'])
         assert False
 
     # Delete a user
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete user1: ' + e.message['desc'])
         assert False
 
@@ -1937,7 +1937,7 @@ def test_referint(inst, args=None):
         if entry:
             log.fatal('test_referint: user1 was not removed from group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
         assert False
 
@@ -1947,7 +1947,7 @@ def test_referint(inst, args=None):
 
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'uniquemember')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to configure RI plugin: error ' + e.message['desc'])
         assert False
 
@@ -1958,7 +1958,7 @@ def test_referint(inst, args=None):
     # Delete a user
     try:
         inst.delete_s(USER2_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete user1: ' + e.message['desc'])
         assert False
 
@@ -1968,7 +1968,7 @@ def test_referint(inst, args=None):
         if entry:
             log.fatal('test_referint: user2 was not removed from group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
         assert False
 
@@ -1979,14 +1979,14 @@ def test_referint(inst, args=None):
     # The shared config entry uses "member" - the above test used "uniquemember"
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, CONFIG_AREA, SHARED_CONFIG_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to set plugin area: error ' + e.message['desc'])
         assert False
 
     # Delete the group, and readd everything
     try:
         inst.delete_s(GROUP_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete group: ' + e.message['desc'])
         assert False
 
@@ -1995,7 +1995,7 @@ def test_referint(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -2004,7 +2004,7 @@ def test_referint(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user2'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user2: error ' + e.message['desc'])
         assert False
 
@@ -2015,14 +2015,14 @@ def test_referint(inst, args=None):
                           'member': USER1_DN,
                           'uniquemember': USER2_DN
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add group: error ' + e.message['desc'])
         assert False
 
     # Delete a user
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete user1: ' + e.message['desc'])
         assert False
 
@@ -2032,7 +2032,7 @@ def test_referint(inst, args=None):
         if entry:
             log.fatal('test_referint: user1 was not removed from group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
         assert False
 
@@ -2042,7 +2042,7 @@ def test_referint(inst, args=None):
 
     try:
         inst.modify_s(SHARED_CONFIG_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'uniquemember')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to set shared plugin entry(uniquemember): error '
             + e.message['desc'])
         assert False
@@ -2050,7 +2050,7 @@ def test_referint(inst, args=None):
     # Delete a user
     try:
         inst.delete_s(USER2_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete user1: ' + e.message['desc'])
         assert False
 
@@ -2060,7 +2060,7 @@ def test_referint(inst, args=None):
         if entry:
             log.fatal('test_referint: user2 was not removed from group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
         assert False
 
@@ -2071,14 +2071,14 @@ def test_referint(inst, args=None):
     # First change the plugin to use member before we move the shared config that uses uniquemember
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'referint-membership-attr', 'member')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to update config(uniquemember): error ' + e.message['desc'])
         assert False
 
     # Remove shared config from plugin
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, CONFIG_AREA, None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
@@ -2088,21 +2088,21 @@ def test_referint(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add user1: error ' + e.message['desc'])
         assert False
 
     # Add user to group
     try:
         inst.modify_s(GROUP_DN, [(ldap.MOD_REPLACE, 'member', USER1_DN)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to add uniquemember: error ' + e.message['desc'])
         assert False
 
     # Delete a user
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete user1: ' + e.message['desc'])
         assert False
 
@@ -2112,7 +2112,7 @@ def test_referint(inst, args=None):
         if entry:
             log.fatal('test_referint: user1 was not removed from group')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Unable to search group: ' + e.message['desc'])
         assert False
 
@@ -2128,13 +2128,13 @@ def test_referint(inst, args=None):
 
     try:
         inst.delete_s(GROUP_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete group: ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(SHARED_CONFIG_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_referint: Failed to delete shared config entry: ' + e.message['desc'])
         assert False
 
@@ -2169,7 +2169,7 @@ def test_retrocl(inst, args=None):
     # Gather the current change count (it's not 1 once we start the stabilty tests)
     try:
         entry = inst.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE, '(changenumber=*)')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_retrocl: Failed to get the count: error ' + e.message['desc'])
         assert False
 
@@ -2185,7 +2185,7 @@ def test_retrocl(inst, args=None):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_retrocl: Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -2195,7 +2195,7 @@ def test_retrocl(inst, args=None):
         if not entry or len(entry) == entry_count:
             log.fatal('test_retrocl: changelog not updated')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_retrocl: Unable to search group: ' + e.message['desc'])
         assert False
 
@@ -2213,7 +2213,7 @@ def test_retrocl(inst, args=None):
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_retrocl: Failed to delete user1: ' + e.message['desc'])
         assert False
 
@@ -2224,7 +2224,7 @@ def test_retrocl(inst, args=None):
             log.fatal('test_retrocl: changelog incorrectly updated - change count: '
                 + str(len(entry)) + ' - expected 1')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_retrocl: Unable to search retro changelog: ' + e.message['desc'])
         assert False
 
@@ -2278,7 +2278,7 @@ def test_rootdn(inst, args=None):
                           'uid': 'user1',
                           'userpassword': 'password'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -2287,14 +2287,14 @@ def test_rootdn(inst, args=None):
            '"all access";allow (all)(userdn="ldap:///anyone");)')
     try:
         inst.modify_s(DN_CONFIG, [(ldap.MOD_ADD, 'aci', ACI)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to add aci to config: error ' + e.message['desc'])
         assert False
 
     # Set allowed IP to an unknown host - blocks root dn
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-ip', '10.10.10.10')])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to set rootDN plugin config: error ' + e.message['desc'])
         assert False
 
@@ -2306,7 +2306,7 @@ def test_rootdn(inst, args=None):
     failed = False
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         failed = True
 
     if not failed:
@@ -2320,7 +2320,7 @@ def test_rootdn(inst, args=None):
     # Bind as the user who can make updates to the config
     try:
         inst.simple_bind_s(USER1_DN, 'password')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: failed to bind as user1')
         assert False
 
@@ -2342,7 +2342,7 @@ def test_rootdn(inst, args=None):
     # Remove the restriction
     try:
         inst.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-allow-ip', None)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to set rootDN plugin config: error ' + e.message['desc'])
         assert False
 
@@ -2354,7 +2354,7 @@ def test_rootdn(inst, args=None):
     failed = False
     try:
         inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         failed = True
 
     if failed:
@@ -2373,13 +2373,13 @@ def test_rootdn(inst, args=None):
 
     try:
         inst.modify_s(DN_CONFIG, [(ldap.MOD_DELETE, 'aci', ACI)])
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to add aci to config: error ' + e.message['desc'])
         assert False
 
     try:
         inst.delete_s(USER1_DN)
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('test_rootdn: Failed to delete user1: ' + e.message['desc'])
         assert False
 

@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -142,6 +142,7 @@ def test_ticket48191_setup(topology):
 
     topology.standalone.log.info('%d entries are successfully imported.' % dnnum)
 
+
 def test_ticket48191_run_0(topology):
     topology.standalone.log.info("\n\n######################### SEARCH WITH SIMPLE PAGED RESULTS CONTROL (no nsslapd-maxsimplepaged-per-conn) ######################\n")
 
@@ -198,6 +199,7 @@ def test_ticket48191_run_0(topology):
     assert dnnum == len(entries)
     assert pages == (dnnum / page_size)
 
+
 def test_ticket48191_run_1(topology):
     topology.standalone.log.info("\n\n######################### SEARCH WITH SIMPLE PAGED RESULTS CONTROL (nsslapd-maxsimplepaged-per-conn: 0) ######################\n")
 
@@ -220,15 +222,16 @@ def test_ticket48191_run_1(topology):
     topology.standalone.log.fatal('Unexpected success')
     try:
         rtype, rdata, rmsgid, responcectrls = topology.standalone.result3(msgid, resp_ctrl_classes=known_ldap_resp_ctrls)
-    except ldap.UNWILLING_TO_PERFORM, e:
+    except ldap.UNWILLING_TO_PERFORM as e:
         topology.standalone.log.info('Returned the expected RC UNWILLING_TO_PERFORM')
         return
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         topology.standalone.log.fatal('Unexpected error: ' + e.message['desc'])
         assert False
     topology.standalone.log.info("Type %d" % rtype)
     topology.standalone.log.info("%d results" % len(rdata))
     assert False
+
 
 def test_ticket48191_run_2(topology):
     topology.standalone.log.info("\n\n######################### SEARCH WITH SIMPLE PAGED RESULTS CONTROL (nsslapd-maxsimplepaged-per-conn: 1000) ######################\n")

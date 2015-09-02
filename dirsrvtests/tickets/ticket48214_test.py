@@ -111,7 +111,7 @@ def checkMaxBerSize(topology):
         else:
             topology.standalone.log.fatal('ERROR: cn=config is not found?')
             assert False
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         topology.standalone.log.error('ERROR: Failed to search for user entry: ' + e.message['desc'])
         assert False
 

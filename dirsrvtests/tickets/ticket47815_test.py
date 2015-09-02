@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -131,7 +131,7 @@ def test_ticket47815(topology):
     except ldap.UNWILLING_TO_PERFORM:
         log.debug('Adding invalid entry failed as expected')
         result = 53
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Unexpected result ' + e.message['desc'])
         assert False
     if result == 0:
@@ -147,7 +147,7 @@ def test_ticket47815(topology):
     except ldap.UNWILLING_TO_PERFORM:
         log.debug('2nd add of invalid entry failed as expected')
         result2 = 53
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Unexpected result ' + e.message['desc'])
         assert False
     if result2 == 0:

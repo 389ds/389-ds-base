@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -161,7 +161,7 @@ def test_ticket47920_mod_readentry_ctrl(topology):
     assert resp_ctrls[0].dn == ACTIVE_USER_DN
     assert 'description' in resp_ctrls[0].entry
     assert 'cn' in resp_ctrls[0].entry
-    print resp_ctrls[0].entry['description']
+    print(resp_ctrls[0].entry['description'])
 
     ent = topology.standalone.getEntry(ACTIVE_USER_DN, ldap.SCOPE_BASE, "(objectclass=*)", ['description'])
     assert ent.hasAttr('description')

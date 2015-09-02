@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -83,7 +83,7 @@ def task_complete(conn, task_dn):
         if task_entry[0].hasAttr('nstaskexitcode'):
             # task is done
             finished = True
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('wait_for_task: Search failed: ' + e.message['desc'])
         assert False
 
@@ -106,7 +106,7 @@ def test_ticket47973(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'uid': 'user1'
                           })))
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.error('Failed to add user1: error ' + e.message['desc'])
         assert False
 
@@ -126,7 +126,7 @@ def test_ticket47973(topology):
                           'objectclass': 'top extensibleObject'.split(),
                           'cn': 'task-' + str(task_count)
                           })))
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.error('Failed to add task entry: error ' + e.message['desc'])
             assert False
 
@@ -145,7 +145,7 @@ def test_ticket47973(topology):
                 if not entries or not entries[0]:
                     log.fatal('User was not returned from search!')
                     assert False
-            except ldap.LDAPError, e:
+            except ldap.LDAPError as e:
                 log.fatal('Unable to search for entry %s: error %s' % (USER_DN, e.message['desc']))
                 assert False
 
