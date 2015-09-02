@@ -145,6 +145,8 @@ static void memberof_fixup_task_thread(void *arg);
 static int memberof_fix_memberof(MemberOfConfig *config, char *dn, char *filter_str);
 static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn);
+static int memberof_add_objectclass(char *auto_add_oc, const char *dn);
+static int memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc);
 
 /*** implementation ***/
 
@@ -490,7 +492,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	MemberOfConfig *mainConfig = NULL;
-	MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	Slapi_DN *sdn;
 	void *caller_id = NULL;
 
@@ -818,7 +820,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 	if(memberof_oktodo(pb))
 	{
 		MemberOfConfig *mainConfig = 0;
-		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 		struct slapi_entry *pre_e = NULL;
 		struct slapi_entry *post_e = NULL;
 		Slapi_DN *pre_sdn = 0;
@@ -937,6 +939,7 @@ typedef struct _replace_dn_data
 	char *pre_dn;
 	char *post_dn;
 	char *type;
+	char *add_oc;
 } replace_dn_data;
 
 
@@ -957,7 +960,9 @@ memberof_replace_dn_from_groups(Slapi_PBlock *pb, MemberOfConfig *config,
 	{
 		replace_dn_data data = {(char *)slapi_sdn_get_dn(pre_sdn),
 		                        (char *)slapi_sdn_get_dn(post_sdn),
-		                        config->groupattrs[i]};
+		                        config->groupattrs[i],
+		                        config->auto_add_oc
+		};
 
 		groupattrs[0] = config->groupattrs[i];
 
@@ -981,9 +986,9 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 	LDAPMod *mods[3];
 	char *delval[2];
 	char *addval[2];
-	Slapi_PBlock *mod_pb = 0;
+	char *dn = NULL;
 
-	mod_pb = slapi_pblock_new();
+	dn = slapi_entry_get_dn(e);
 
 	mods[0] = &delmod;
 	mods[1] = &addmod;
@@ -1003,18 +1008,8 @@ int memberof_replace_dn_type_callback(Slapi_Entry *e, void *callback_data)
 	addmod.mod_type = ((replace_dn_data *)callback_data)->type;
 	addmod.mod_values = addval;
 
-	slapi_modify_internal_set_pb_ext(
-		mod_pb, slapi_entry_get_sdn(e),
-		mods, 0, 0,
-		memberof_get_plugin_id(), 0);
-
-	slapi_modify_internal_pb(mod_pb);
-
-	slapi_pblock_get(mod_pb,
-		SLAPI_PLUGIN_INTOP_RESULT,
-		&rc);
-
-	slapi_pblock_destroy(mod_pb);
+	rc = memberof_add_memberof_attr(mods, dn,
+		((replace_dn_data *)callback_data)->add_oc);
 
 	return rc;
 }
@@ -1083,7 +1078,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 	{
 		int config_copied = 0;
 		MemberOfConfig *mainConfig = 0;
-		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 		/* get the mod set */
 		slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -1261,7 +1256,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
 	{
 		struct slapi_entry *e = NULL;
-		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 		MemberOfConfig *mainConfig;
 		slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &e );
 
@@ -1455,7 +1450,6 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	LDAPMod *mods[3];
 	char *val[2];
 	char *replace_val[2];
-	Slapi_PBlock *mod_pb = 0;
 	Slapi_Entry *e = 0; 
 	memberofstringll *ll = 0;
 	char *op_str = 0;
@@ -1696,8 +1690,6 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			rc = memberof_fix_memberof_callback(e, config);
 		} else {
 			/* single entry - do mod */
-			mod_pb = slapi_pblock_new();
-
 			mods[0] = &mod;
 			if(LDAP_MOD_REPLACE == mod_op)
 			{
@@ -1724,19 +1716,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 				replace_mod.mod_type = config->memberof_attr;
 				replace_mod.mod_values = replace_val;
 			}
-
-			slapi_modify_internal_set_pb(
-				mod_pb, op_to,
-				mods, 0, 0,
-				memberof_get_plugin_id(), 0);
-
-			slapi_modify_internal_pb(mod_pb);
-
-			slapi_pblock_get(mod_pb,
-				SLAPI_PLUGIN_INTOP_RESULT,
-				&rc);
-
-			slapi_pblock_destroy(mod_pb);
+			rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
 		}
 	}
 
@@ -2899,7 +2879,6 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	 * with the found values.  */
 	if (groups && slapi_valueset_count(groups))
 	{
-		Slapi_PBlock *mod_pb = slapi_pblock_new();
 		Slapi_Value *val = 0;
 		Slapi_Mod *smod;
 		LDAPMod **mods = (LDAPMod **) slapi_ch_malloc(2 * sizeof(LDAPMod *));
@@ -2922,17 +2901,10 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 		mods[0] = slapi_mod_get_ldapmod_passout(smod);
 		mods[1] = 0;
 
-		slapi_modify_internal_set_pb_ext(
-			mod_pb, sdn, mods, 0, 0,
-			memberof_get_plugin_id(), 0);
-
-		slapi_modify_internal_pb(mod_pb);
-
-		slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+		rc = memberof_add_memberof_attr(mods, slapi_sdn_get_dn(sdn), config->auto_add_oc);
 
 		ldap_mods_free(mods, 1);
 		slapi_mod_free(&smod);
-		slapi_pblock_destroy(mod_pb);
 	} else { 
 		/* No groups were found, so remove the memberOf attribute
 		 * from this entry. */
@@ -2941,5 +2913,90 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 
 	slapi_valueset_free(groups);
 bail:
+	return rc;
+}
+
+/*
+ * Add the "memberof" attribute to the entry.  If we get an objectclass violation,
+ * check if we are auto adding an objectclass.  IF so, add the oc, and try the
+ * operation one more time.
+ */
+static int
+memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc)
+{
+	Slapi_PBlock *mod_pb = NULL;
+	int added_oc = 0;
+	int rc = 0;
+
+	while(1){
+		mod_pb = slapi_pblock_new();
+		slapi_modify_internal_set_pb(
+			mod_pb, dn, mods, 0, 0,
+			memberof_get_plugin_id(), 0);
+		slapi_modify_internal_pb(mod_pb);
+
+		slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+		if (rc == LDAP_OBJECT_CLASS_VIOLATION){
+			if (!add_oc || added_oc){
+				/*
+				 * We aren't auto adding an objectclass, or we already
+				 * added the objectclass, and we are still failing.
+				 */
+				break;
+			}
+			if(memberof_add_objectclass(add_oc, dn)){
+				/* Failed to add objectclass */
+				break;
+			}
+			added_oc = 1;
+			slapi_pblock_destroy(mod_pb);
+		} else if (rc){
+			/* Some other fatal error */
+			break;
+		} else {
+			/* success */
+			break;
+		}
+	}
+	slapi_pblock_destroy(mod_pb);
+
+	return rc;
+}
+
+/*
+ * Add the "auto add" objectclass to an entry
+ */
+static int
+memberof_add_objectclass(char *auto_add_oc, const char *dn)
+{
+	Slapi_PBlock *mod_pb = NULL;
+	LDAPMod mod;
+	LDAPMod *mods[2];
+	char *val[2];
+	int rc = 0;
+
+	mod_pb = slapi_pblock_new();
+	mods[0] = &mod;
+	mods[1] = 0;
+	val[0] = auto_add_oc;
+	val[1] = 0;
+
+	mod.mod_op = LDAP_MOD_ADD;
+	mod.mod_type = "objectclass";
+	mod.mod_values = val;
+
+	slapi_modify_internal_set_pb(
+		mod_pb, dn, mods, 0, 0,
+		memberof_get_plugin_id(), 0);
+	slapi_modify_internal_pb(mod_pb);
+
+	slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+	if (rc){
+		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			"Failed to add objectclass (%s) to entry (%s)\n",
+			auto_add_oc, dn);
+	}
+	slapi_pblock_destroy(mod_pb);
+
 	return rc;
 }

@@ -180,6 +180,7 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	char *syntaxoid = NULL;
 	char *config_dn = NULL;
 	char *skip_nested = NULL;
+	char *auto_add_oc = NULL;
 	char **entry_scopes = NULL;
 	char **entry_exclude_scopes = NULL;
 	int not_dn_syntax = 0;
@@ -269,6 +270,22 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 				"\"on\" or \"off\".  (illegal value: %s)",
 				MEMBEROF_SKIP_NESTED_ATTR, skip_nested);
 			goto done;
+		}
+	}
+
+	if ((auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC))){
+		char *sup = NULL;
+
+		/* Check if the objectclass exists by looking for its superior oc */
+		if((sup = slapi_schema_get_superior_name(auto_add_oc)) == NULL){
+			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+				"The %s configuration attribute must be set to "
+				"to an existing objectclass  (unknown: %s)",
+				MEMBEROF_AUTO_ADD_OC, auto_add_oc);
+			*returncode = LDAP_UNWILLING_TO_PERFORM;
+			goto done;
+		} else {
+			slapi_ch_free_string(&sup);
 		}
 	}
 
@@ -412,6 +429,7 @@ done:
 	slapi_sdn_free(&config_sdn);
 	slapi_ch_free_string(&config_dn);
 	slapi_ch_free_string(&skip_nested);
+	slapi_ch_free_string(&auto_add_oc);
 
 	if (*returncode != LDAP_SUCCESS)
 	{
@@ -445,6 +463,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	char **entryScopeExcludeSubtrees = NULL;
 	char *sharedcfg = NULL;
 	char *skip_nested = NULL;
+	char *auto_add_oc = NULL;
 	int num_vals = 0;
 
 	*returncode = LDAP_SUCCESS;
@@ -478,6 +497,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
 	skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR);
+	auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
 
 	/*
 	 * We want to be sure we don't change the config in the middle of
@@ -601,6 +621,8 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	} else {
 		theConfig.allBackends = 0;
 	}
+
+	theConfig.auto_add_oc = auto_add_oc;
 
 	/*
 	 * Check and process the entry scopes
@@ -731,6 +753,9 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 			dest->allBackends = src->allBackends;
 		}
 
+		slapi_ch_free_string(&dest->auto_add_oc);
+		dest->auto_add_oc = slapi_ch_strdup(src->auto_add_oc);
+
 		if(src->entryScopes){
 			int num_vals = 0;
 
@@ -770,7 +795,7 @@ memberof_free_config(MemberOfConfig *config)
 			slapi_attr_free(&config->group_slapiattrs[i]);
 		}
 		slapi_ch_free((void **)&config->group_slapiattrs);
-
+		slapi_ch_free_string(&config->auto_add_oc);
 		slapi_ch_free_string(&config->memberof_attr);
 		memberof_free_scope(config->entryScopes, &config->entryScopeCount);
 		memberof_free_scope(config->entryScopeExcludeSubtrees, &config->entryExcludeScopeCount);
