@@ -3,9 +3,10 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+
 import os
 import sys
 import time
@@ -21,8 +22,12 @@ from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
 installation1_prefix = None
+
+MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
+USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
+USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
+GROUP_DN = 'cn=group,' + DEFAULT_SUFFIX
 
 
 class TopologyStandalone(object):
@@ -51,43 +56,121 @@ def topology(request):
     standalone.create()
     standalone.open()
 
+    # Delete each instance in the end
+    def fin():
+        standalone.delete()
+        #pass
+    request.addfinalizer(fin)
+
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
     return TopologyStandalone(standalone)
 
 
-def test_memberof_init(topology):
-    '''
-    Write any test suite initialization here(if needed)
-    '''
+def test_memberof_auto_add_oc(topology):
+    """
+    Test the auto add objectclass feature.  The plugin should add a predefined
+    objectclass that will allow memberOf to be added to an entry.
+    """
 
-    return
+    # enable dynamic plugins
+    try:
+        topology.standalone.modify_s(DN_CONFIG,
+                                     [(ldap.MOD_REPLACE,
+                                       'nsslapd-dynamic-plugins',
+                                       'on')])
+    except ldap.LDAPError as e:
+        ldap.error('Failed to enable dynamic plugins! ' + e.message['desc'])
+        assert False
 
+    # Enable the plugin
+    topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
 
-def test_memberof_(topology):
-    '''
-    Write a single test here...
-    '''
+    # First test invalid value (config validation)
+    topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+    try:
+        topology.standalone.modify_s(MEMBEROF_PLUGIN_DN,
+                                     [(ldap.MOD_REPLACE,
+                                       'memberofAutoAddOC',
+                                       'invalid123')])
+        log.fatal('Incorrectly added invalid objectclass!')
+        assert False
+    except ldap.UNWILLING_TO_PERFORM:
+        log.info('Correctly rejected invalid objectclass')
+    except ldap.LDAPError as e:
+        ldap.error('Unexpected error adding invalid objectclass - error: ' + e.message['desc'])
+        assert False
 
-    return
+    # Add valid objectclass
+    topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+    try:
+        topology.standalone.modify_s(MEMBEROF_PLUGIN_DN,
+                                     [(ldap.MOD_REPLACE,
+                                       'memberofAutoAddOC',
+                                       'inetuser')])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to configure memberOf plugin: error ' + e.message['desc'])
+        assert False
 
+    # Add two users
+    try:
+        topology.standalone.add_s(Entry((USER1_DN,
+                                         {'objectclass': 'top',
+                                          'objectclass': 'person',
+                                          'objectclass': 'organizationalPerson',
+                                          'objectclass': 'inetorgperson',
+                                          'sn': 'last',
+                                          'cn': 'full',
+                                          'givenname': 'user1',
+                                          'uid': 'user1'
+                                         })))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add user1 entry, error: ' + e.message['desc'])
+        assert False
 
-def test_memberof_final(topology):
-    topology.standalone.delete()
-    log.info('memberof test suite PASSED')
+    try:
+        topology.standalone.add_s(Entry((USER2_DN,
+                                         {'objectclass': 'top',
+                                          'objectclass': 'person',
+                                          'objectclass': 'organizationalPerson',
+                                          'objectclass': 'inetorgperson',
+                                          'sn': 'last',
+                                          'cn': 'full',
+                                          'givenname': 'user2',
+                                          'uid': 'user2'
+                                         })))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add user2 entry, error: ' + e.message['desc'])
+        assert False
 
+    # Add a group(that already includes one user
+    try:
+        topology.standalone.add_s(Entry((GROUP_DN,
+                                         {'objectclass': 'top',
+                                          'objectclass': 'groupOfNames',
+                                          'cn': 'group',
+                                          'member': USER1_DN
+                                         })))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add group entry, error: ' + e.message['desc'])
+        assert False
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
+    # Add a user to the group
+    try:
+        topology.standalone.modify_s(GROUP_DN,
+                                     [(ldap.MOD_ADD,
+                                       'member',
+                                       USER2_DN)])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add user2 to group: error ' + e.message['desc'])
+        assert False
 
-    topo = topology(True)
-    test_memberof_init(topo)
-    test_memberof_(topo)
-    test_memberof_final(topo)
+    log.info('Test complete.')
 
 
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
