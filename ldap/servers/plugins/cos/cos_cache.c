@@ -676,7 +676,6 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 									{
 										*vattr_cacheable = -1;
 										cos_def_available = 1;
-										break;
 									}
 								}
 								valIndex++;
