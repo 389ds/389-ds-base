@@ -21,8 +21,6 @@ Hewlett-Packard Development Company, L.P.
 #include <limits.h> /* ULONG_MAX */
 #include "nspr.h"
 
-#define SLAPI_OP_FLAG_BYPASS_REFERRALS  0x40000
-
 #define CFG_LASTLOGIN_STATE_ATTR "stateAttrName"
 #define CFG_ALT_LASTLOGIN_STATE_ATTR "altStateAttrName"
 #define CFG_SPEC_ATTR "specAttrName"
