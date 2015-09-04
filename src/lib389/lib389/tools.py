@@ -14,8 +14,9 @@ import sys
 import os
 import os.path
 import base64
-import urllib
-import urllib2
+import six.moves.urllib.request
+import six.moves.urllib.parse
+import six.moves.urllib.error
 import ldap
 import operator
 import select
@@ -64,7 +65,7 @@ class DirSrvTools(object):
     @staticmethod
     def cgiFake(sroot, verbose, prog, args):
         """Run the local program prog as a CGI using the POST method."""
-        content = urllib.urlencode(args)
+        content = urllib.parse.urlencode(args)
         length = len(content)
         # setup CGI environment
         env = os.environ.copy()
@@ -94,8 +95,8 @@ class DirSrvTools(object):
         child_stdout.close()
         if HASPOPEN:
             osCode = pipe.wait()
-            print "%s returned NMC code %s and OS code %s" % (
-                prog, exitCode, osCode)
+            print("%s returned NMC code %s and OS code %s" %
+                (prog, exitCode, osCode))
         return exitCode
 
     @staticmethod
@@ -120,24 +121,24 @@ class DirSrvTools(object):
         savedbinsize = base64.MAXBINSIZE
         base64.MAXBINSIZE = 256
         # create the password manager - we don't care about the realm
-        passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        passman = urllib.request.HTTPPasswordMgrWithDefaultRealm()
         # add our password
         passman.add_password(None, hostport, username, password)
         # create the auth handler
-        authhandler = urllib2.HTTPBasicAuthHandler(passman)
+        authhandler = urllib.request.HTTPBasicAuthHandler(passman)
         # create our url opener that handles basic auth
-        opener = urllib2.build_opener(authhandler)
+        opener = urllib.request.build_opener(authhandler)
         # make admin server think we are the console
         opener.addheaders = [('User-Agent', 'Fedora-Console/1.0')]
         if verbose:
-            print "requesting url", url
+            print("requesting url", url)
             sys.stdout.flush()
         exitCode = 1
         try:
-            req = opener.open(url, urllib.urlencode(args))
+            req = opener.open(url, urllib.parse.urlencode(args))
             for line in req:
                 if verbose:
-                    print line
+                    print (line)
                 ary = line.split(":")
                 if len(ary) > 1 and ary[0] == 'NMC_Status':
                     exitCode = ary[1].strip()
@@ -513,10 +514,10 @@ class DirSrvTools(object):
                 try:
                     log.info("Copying security files: %s to %s" % (srcf, destf))
                     mode = os.stat(destf).st_mode
-                    newmode = mode | 0600
+                    newmode = mode | 0o600
                     os.chmod(destf, newmode)
-                except Exception, e:
-                    print e
+                except Exception as e:
+                    print(e)
                     pass  # oh well
                 # copy2 will copy the mode too
                 shutil.copy2(srcf, destf)
@@ -553,7 +554,7 @@ class DirSrvTools(object):
                 if verbose:
                     sys.stdout.write(line)
             elif verbose:
-                print "timed out waiting to read from", cmd
+                print("timed out waiting to read from", cmd)
         child_stdout.close()
         exitCode = pipe.wait()
         #if verbose:
@@ -744,8 +745,8 @@ class DirSrvTools(object):
                 newconn.asport = asport
                 newconn.cfgdsuser = args['cfgdsuser']
                 newconn.cfgdspwd = args['cfgdspwd']
-            print "Warning: server at %s:%s already exists, returning connection to it" % \
-                  (args['newhost'], args['newport'])
+            print("Warning: server at %s:%s already exists, returning connection to it" %
+                  (args['newhost'], args['newport']))
             return newconn
         except ldap.SERVER_DOWN:
             pass  # not running - create new one
@@ -753,10 +754,10 @@ class DirSrvTools(object):
         if not isLocal or 'cfgdshost' in args:
             for param in ('cfgdshost', 'cfgdsport', 'cfgdsuser', 'cfgdspwd', 'admin_domain'):
                 if param not in args:
-                    print "missing required argument", param
+                    print("missing required argument", param)
                     missing = True
         if not isLocal and not asport:
-            print "missing required argument admin server port"
+            print("missing required argument admin server port")
             missing = True
         if missing:
             raise InvalidArgumentError("missing required arguments")
@@ -824,7 +825,7 @@ class DirSrvTools(object):
         # the second is a dict suitable for replicaSetupAll - see replicaSetupAll
         conn = DirSrvTools.createInstance(createArgs)
         if not conn:
-            print "Error: could not create server", createArgs
+            print("Error: could not create server", createArgs)
             return 0
 
         conn.replicaSetupAll(repArgs)
@@ -834,9 +835,9 @@ class DirSrvTools(object):
     def makeGroup(group=DEFAULT_USER):
         try:
             grp.getgrnam(group)
-            print "OK group %s exists" % group
+            print("OK group %s exists" % group)
         except KeyError:
-            print "Adding group %s" % group
+            print("Adding group %s" % group)
             cmd = [GROUPADD, '-r', group]
             subprocess.Popen(cmd)
 
@@ -844,9 +845,9 @@ class DirSrvTools(object):
     def makeUser(user=DEFAULT_USER, group=DEFAULT_USER, home=DEFAULT_USERHOME):
         try:
             pwd.getpwnam(user)
-            print "OK user %s exists" % user
+            print("OK user %s exists" % user)
         except KeyError:
-            print "Adding user %s" % user
+            print("Adding user %s" % user)
             cmd = [USERADD, '-g', group,
                    '-c', DEFAULT_USER_COMMENT,
                     '-r',
@@ -858,7 +859,7 @@ class DirSrvTools(object):
     @staticmethod
     def lib389User(user=DEFAULT_USER):
         DirSrvTools.makeGroup(group=user)
-        time.sleep(1) # Need a little time for the group to get fully created
+        time.sleep(1)  # Need a little time for the group to get fully created
         DirSrvTools.makeUser(user=user, group=user, home=DEFAULT_USERHOME)
 
     @staticmethod
@@ -909,7 +910,10 @@ class DirSrvTools(object):
                     assert False
         else:
             # Standard prefix lib location
-            libdir = '/lib/dirsrv/'
+            if os.path.isdir('/usr/lib64/dirsrv'):
+                libdir = '/usr/lib64/dirsrv/'
+            else:
+                libdir = '/lib/dirsrv/'
 
         # Gather all the instances so we can adjust the permissions, otherwise
         servers = []

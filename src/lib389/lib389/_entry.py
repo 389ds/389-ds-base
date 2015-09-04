@@ -1,7 +1,7 @@
 import ldif
 import re
 from ldap.cidict import cidict
-import cStringIO
+import six
 
 import logging
 import ldap
@@ -10,12 +10,13 @@ from lib389.properties import *
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
+
 class FormatDict(cidict):
     def __getitem__(self, name):
         if name in self:
             return ' '.join(cidict.__getitem__(self, name))
         return None
-            
+
 
 class Entry(object):
     """This class represents an LDAP Entry object.
@@ -56,10 +57,10 @@ class Entry(object):
                 else:
                     self.dn = entrydata[0]
                     self.data = cidict(entrydata[1])
-            elif isinstance(entrydata, basestring):
+            elif isinstance(entrydata, six.string_types):
                 if not '=' in entrydata:
                     raise ValueError('Entry dn must contain "="')
-                    
+
                 self.dn = entrydata
                 self.data = cidict()
         else:
@@ -67,7 +68,7 @@ class Entry(object):
             self.dn = ''
             self.data = cidict()
 
-    def __nonzero__(self):
+    def __bool__(self):
         """This allows us to do tests like if entry: returns false if there is no data,
         true otherwise"""
         return self.data is not None and len(self.data) > 0
@@ -98,7 +99,7 @@ class Entry(object):
 
     def hasValue(self, name, val=None):
         """True if the given attribute is present and has the given value
-        
+
             TODO: list comparison preserves order: should I use a set?
         """
         if not self.hasAttr(name):
@@ -136,13 +137,13 @@ class Entry(object):
     def getAttrs(self):
         if not self.data:
             return []
-        return self.data.keys()
+        return list(self.data.keys())
 
     def iterAttrs(self, attrsOnly=False):
         if attrsOnly:
-            return self.data.iterkeys()
+            return six.iterkeys(self.data)
         else:
-            return self.data.iteritems()
+            return six.iteritems(self.data)
 
     setValues = setValue
 
@@ -150,7 +151,7 @@ class Entry(object):
         """Convert the attrs and values to a list of 2-tuples.  The first element
         of the tuple is the attribute name.  The second element is either a
         single value or a list of values."""
-        return self.data.items()
+        return list(self.data.items())
 
     def getref(self):
         return self.ref
@@ -162,7 +163,7 @@ class Entry(object):
     def update(self, dct):
         """Update passthru to the data attribute."""
         log.debug("update dn: %r with %r" % (self.dn, dct))
-        for k, v in dct.items():
+        for k, v in list(dct.items()):
             if hasattr(v, '__iter__'):
                 self.data[k] = v
             else:
@@ -170,7 +171,7 @@ class Entry(object):
 
     def __repr__(self):
         """Convert the Entry to its LDIF representation"""
-        sio = cStringIO.StringIO()
+        sio = six.StringIO()
         # what's all this then?  the unparse method will currently only accept
         # a list or a dict, not a class derived from them.  self.data is a
         # cidict, so unparse barfs on it.  I've filed a bug against python-ldap,
@@ -181,7 +182,7 @@ class Entry(object):
         ldif.LDIFWriter(
             sio, Entry.base64_attrs, 1000).unparse(self.dn, newdata)
         return sio.getvalue()
-    
+
     def create(self, type=ENTRY_TYPE_PERSON, entry_dn=None, properties=None):
         """ Return - eventually creating - a person entry with the given dn and pwd.
 
@@ -189,7 +190,7 @@ class Entry(object):
         """
         if not entry_dn:
             raise ValueError("entry_dn is mandatory")
-        
+
         if not type:
             raise ValueError("type is mandatory")
 
@@ -200,7 +201,7 @@ class Entry(object):
         ent.setValues(ENTRY_CN,           properties.get(ENTRY_CN, "bind dn pseudo user"))
         if type == ENTRY_TYPE_INETPERSON:
             ent.setValues(ENTRY_UID,      properties.get(ENTRY_UID, "bind dn pseudo user"))
-            
+
         try:
             self.add_s(ent)
         except ldap.ALREADY_EXISTS:
@@ -216,10 +217,12 @@ class Entry(object):
     def getAcis(self):
         if not self.hasAttr('aci'):
             # There should be a better way to do this? Perhaps
-            # self search for the aci attr?  
+            # self search for the aci attr?
             return []
-        self.acis = map(lambda a: EntryAci(self, a), self.getValues('aci'))
+        self.acis = [EntryAci(self, a) for a in self.getValues('aci')]
+
         return self.acis
+
 
 class EntryAci(object):
 
@@ -282,7 +285,7 @@ class EntryAci(object):
         else:
             rawaci += '!="'
         if key in self._urlkeys:
-            values = map(lambda x: 'ldap:///%s' % x, value_dict['values'])
+            values = ['ldap:///%s' % x for x in value_dict['values']]
         else:
             values = value_dict['values']
         for value in values[:-1]:
@@ -340,7 +343,7 @@ class EntryAci(object):
         return terms
 
     def _parse_term(self, key, term):
-        wdict = { 'values': [] , 'equal': True}
+        wdict = {'values': [], 'equal': True}
         # Nearly all terms are = seperated
         ## We make a dict that holds "equal" and an array of values
         pre, val = term.split('=', 1)
@@ -352,8 +355,9 @@ class EntryAci(object):
         wdict['values'] = val.split('||')
         if key in self._urlkeys:
             ### / We could replace ldap:/// in some attrs?
-            wdict['values'] = map(lambda x: x.replace('ldap:///',''), wdict['values'])
-        wdict['values'] = map(lambda x: x.strip(), wdict['values'])
+            wdict['values'] = [x.replace('ldap:///', '') for x in wdict['values']]
+        wdict['values'] = [x.strip() for x in wdict['values']]
+
         return wdict
 
     def _parse_bind_rules(self, subterm):
@@ -374,25 +378,23 @@ class EntryAci(object):
         terms = []
         bindrules = []
         interms = rawacipart.split(';')
-        interms = map(lambda x: x.strip(), interms)
+        interms = [x.strip() for x in interms]
         for iwork in interms:
             for j in self._v3keys + self._v3innerkeys:
                 if iwork.startswith(j) and j == 'acl':
                     t = iwork.split(' ', 1)[1]
                     t = t.replace('"', '')
-                    data[j].append({ 'values' : [t]})
+                    data[j].append({'values': [t]})
                 if iwork.startswith(j) and (j == 'allow' or j == 'deny'):
                     first = iwork.index('(') + 1
                     second = iwork.index(')', first)
                     # This could likely be neater ...
                     data[j].append({
-                        'values' : map( lambda x: x.strip(),
-                            iwork[first:second].split(',')
-                            )
+                        'values': [x.strip() for x in iwork[first:second].split(',')]
                         })
                     subterm = iwork[second + 1:]
                     data["%s_raw_bindrules" % j].append({
-                        'values' : self._parse_bind_rules(subterm)
+                        'values': self._parse_bind_rules(subterm)
                     })
 
         return terms

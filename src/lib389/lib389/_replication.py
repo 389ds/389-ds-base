@@ -1,5 +1,10 @@
 import time
 import datetime
+import logging
+import re
+
+log = logging.getLogger(__name__)
+
 
 class CSN(object):
     """CSN is Change Sequence Number
@@ -7,8 +12,7 @@ class CSN(object):
         csn.seq is the sequence number (max 65535)
         csn.rid is the replica ID of the originating master
         csn.subseq is not currently used"""
-    import re
-    import time
+
     csnpat = r'(.{8})(.{4})(.{4})(.{4})'
     csnre = re.compile(csnpat)
 
@@ -75,9 +79,6 @@ class CSN(object):
         return self.__repr__()
 
 
-
-
-
 class RUV(object):
     """RUV is Replica Update Vector
         ruv.gen is the generation CSN
@@ -93,8 +94,7 @@ class RUV(object):
         if the tryrepl flag is true, if getting the ruv from the suffix fails, try getting
         the ruv from the cn=replica entry
     """
-    import re
-    import time
+
     pre_gen = r'\{replicageneration\}\s+(\w+)'
     re_gen = re.compile(pre_gen)
     pre_ruv = r'\{replica\s+(\d+)\s+(.+?)\}\s*(\w*)\s*(\w*)'
@@ -134,7 +134,7 @@ class RUV(object):
         diff = cmp(self.gen, oth.gen)
         if diff:
             return diff
-        for rid in self.rid.keys():
+        for rid in list(self.rid.keys()):
             for item in ('max', 'min'):
                 csn = self.rid[rid][item]
                 csnoth = oth.rid[rid][item]
@@ -148,7 +148,7 @@ class RUV(object):
 
     def __str__(self):
         ret = 'generation: %s\n' % self.gen
-        for rid in self.rid.keys():
+        for rid in list(self.rid.keys()):
             ret = ret + 'rid: %s url: %s min: [%s] max: [%s]\n' % \
                 (rid, self.rid[rid]['url'], self.rid[rid].get('min', ''), self. rid[rid].get('max', ''))
         return ret
@@ -165,9 +165,10 @@ class RUV(object):
             return (1, "\tsecond RUV is empty")
         diff = cmp(self.gen, oth.gen)
         if diff:
-            return (diff, "\tgeneration [" + str(self.gen) + "] not equal to [" + str(oth.gen) + "]: likely not yet initialized")
+            return (diff, "\tgeneration [" + str(self.gen) + "] not equal to [" +
+                str(oth.gen) + "]: likely not yet initialized")
         retstr = ''
-        for rid in self.rid.keys():
+        for rid in list(self.rid.keys()):
             for item in ('max', 'min'):
                 csn = self.rid[rid][item]
                 csnoth = oth.rid[rid][item]

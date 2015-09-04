@@ -1,9 +1,9 @@
 from nose import *
 from nose.tools import *
 
-import config
-from config import log
-from config import *
+from . import config
+from .config import log
+from .config import *
 
 import ldap
 import time
@@ -33,7 +33,7 @@ def setup():
     conn.added_backends = set(['o=mockbe2'])
     conn.added_replicas = []
     harn_nolog()
-    
+
 def setup_backend():
     global conn
     suffix = 'o=addressbook6'
@@ -48,8 +48,8 @@ def teardown():
     global conn
     conn.rebind()
     drop_added_entries(conn)
-    
-def drop_added_entries(conn):    
+
+def drop_added_entries(conn):
     while conn.added_entries:
         try:
             e = conn.added_entries.pop()
@@ -76,10 +76,10 @@ def drop_added_entries(conn):
 def drop_backend(conn, suffix, bename=None, maxnum=50):
     if not bename:
         bename = [x.dn for x in conn.getBackendsForSuffix(suffix)]
-    
+
     if not bename:
         return None
-        
+
     assert bename, "Missing bename for %r" % suffix
     if not hasattr(bename, '__iter__'):
         bename = [','.join(['cn=%s' % bename, lib389.DN_LDBM])]
@@ -126,7 +126,7 @@ def addbackend_harn(conn, name, beattrs=None):
 
     conn.add(e)
     conn.added_entries.append(e.dn)
-    
+
     return ret
 
 
@@ -168,13 +168,13 @@ def addreplica_write_test():
         'id': 124
     }
     replica.update(user)
-    
+
     #create backend and suffix
     backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
     suffixEntry = conn.backend.setup_mt(suffix, backend)
 
     ret = conn.replicaSetupAll(replica)
-    
+
     assert ret != -1, "Error in setup replica: %s" % ret
 
 

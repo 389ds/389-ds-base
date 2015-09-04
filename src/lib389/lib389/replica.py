@@ -355,11 +355,11 @@ class Replica(object):
             for agmt in agmts:
                 try:
                     self.conn.delete_s(agmt.dn)
-                except ldap.LDAPError, e:
+                except ldap.LDAPError as e:
                     self.log.fatal('Failed to delete replica agreement (%s), error: %s' %
                         (admt.dn, e.message('desc')))
                     raise ldap.LDAPError
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             self.log.fatal('Failed to search for replication agreements under (%s), error: %s' %
                 (dn_replica, e.message('desc')))
             raise ldap.LDAPError
@@ -393,21 +393,21 @@ class Replica(object):
         # Delete the agreements
         try:
             self.deleteAgreements(nsuffix)
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             self.log.fatal('Failed to delete replica agreements!')
             raise ldap.LDAPError
 
         # Delete the replica
         try:
             self.conn.delete_s(dn_replica)
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             self.log.fatal('Failed to delete replica configuration (%s), error: %s' % (dn_replica, e.message('desc')))
             raise ldap.LDAPError
 
         # Delete the changelog
         try:
             self.conn.changelog.delete()
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             self.log.error('Failed to delete changelog: ' + e.message['desc'])
             raise ldap.LDAPError
 
@@ -503,22 +503,22 @@ class Replica(object):
             status = entry.nsds5ReplicaLastInitStatus
             if not refresh:  # done - check status
                 if not status:
-                    print "No status yet"
+                    print("No status yet")
                 elif status.find("replica busy") > -1:
-                    print "Update failed - replica busy - status", status
+                    print("Update failed - replica busy - status", status)
                     done = True
                     hasError = 2
                 elif status.find("Total update succeeded") > -1:
-                    print "Update succeeded: status ", status
+                    print("Update succeeded: status ", status)
                     done = True
                 elif inprogress.lower() == 'true':
-                    print "Update in progress yet not in progress: status ", status
+                    print("Update in progress yet not in progress: status ", status)
                 else:
-                    print "Update failed: status", status
+                    print("Update failed: status", status)
                     hasError = 1
                     done = True
             elif self.verbose:
-                print "Update in progress: status", status
+                print("Update in progress: status", status)
 
         return done, hasError
 

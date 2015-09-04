@@ -57,10 +57,10 @@ def default_test():
 #        filename = "%s/slapd-%s/ldif/Example.ldif" % (m1.sroot, m1.inst)
 #        m1.importLDIF(filename, "dc=example,dc=com", None, True)
 #        m1.exportLDIF('/tmp/ldif', "dc=example,dc=com", False, True)
-    print m1.sroot, m1.inst, m1.errlog
+    print (m1.sroot, m1.inst, m1.errlog)
     ent = m1.getEntry(basedn, scope, filt, None)
     if ent:
-        print ent.passwordmaxage
+        print (ent.passwordmaxage)
     instance_config.update({
                            'newinstance': instance_name[1],
                            'newport': port + 10,
@@ -75,15 +75,15 @@ def default_test():
     backendEntry, dummy = m1.backend.add(suffix, bename)
     suffixEntry = m1.backend.setup_mt(suffix, bename)
     cn = backendEntry.getValue('cn')
-    print cn
+    print (cn)
     entry = m1.getEntry(DN_CONFIG, ldap.SCOPE_SUBTREE, "(cn=" + cn + ")")
-    print "new backend entry is:"
-    print entry
-    print entry.getValues('objectclass')
-    print entry.OBJECTCLASS
+    print ("new backend entry is:")
+    print (entry)
+    print (entry.getValues('objectclass'))
+    print (entry.OBJECTCLASS)
     results = m1.search_s("cn=monitor", ldap.SCOPE_SUBTREE)
-    print results
+    print (results)
     results = m1.getBackendsForSuffix("dc=example,dc=com")
-    print results
+    print (results)
 
-    print "done"
+    print ("done")

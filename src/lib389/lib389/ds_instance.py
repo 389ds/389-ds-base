@@ -1,10 +1,14 @@
-import os, re, sys
+import os
+import re
+import sys
+import collections
+
 
 class DSDecorator(object):
     """ Implements decorator that can be instantiated during runtime.
 
         Accepts function and instance of DSInstance. When called,
-        it will call passed function with instance of DSInstance 
+        it will call passed function with instance of DSInstance
         passed as the first argument.
     """
     def __init__(self, fun, ds_instance):
@@ -21,14 +25,15 @@ class DSDecorator(object):
         else:
             return self.fun(self.ds_instance, *args, **kwargs)
 
+
 class DSModuleProxy(object):
     """ Proxy with DS-decorated functions from modules in directory.
 
         DSModuleProxy object acts as a proxy to functions defined in modules
-        stored in directory. Proxy itself can have other proxies as 
-        attributes, so returned object follows the structure of passed 
-        directory. All funcions from all modules are decorated with 
-        DSDecorator - DSInstance object will be passed to them as first 
+        stored in directory. Proxy itself can have other proxies as
+        attributes, so returned object follows the structure of passed
+        directory. All funcions from all modules are decorated with
+        DSDecorator - DSInstance object will be passed to them as first
         argument.
 
         Kudos to Milan Falesnik <mfalesni@redhat.com>
@@ -56,10 +61,10 @@ class DSModuleProxy(object):
             # case when item is python module
             elif (os.path.isfile(directory + "/" + item) and
                     re.match(r'(.*\/)?[^_/].*[^_/]\.py$', item)):
-            
+
                 # get the module object corresponding to processed file
                 item = item.replace('.py', '')
-                to_import = (directory + "/" + item).replace('/','.')
+                to_import = (directory + "/" + item).replace('/', '.')
                 __import__(to_import)
                 module = sys.modules[to_import]
                 proxy = cls(item)
@@ -67,7 +72,7 @@ class DSModuleProxy(object):
                 # for each function from module create decorated one and keep it
                 for attr in dir(module):
                     fun = getattr(module, attr)
-                    if callable(fun):
+                    if isinstance(fun, collections.Callable):
                         decorated = DSDecorator(fun, ds)
                         setattr(proxy, attr, decorated)
                 setattr(obj, item, proxy)
@@ -75,6 +80,7 @@ class DSModuleProxy(object):
             else:
                 # skip anything that is not directory or python module
                 pass
+
 
 class DSInstance(object):
 

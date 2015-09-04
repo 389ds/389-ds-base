@@ -7,6 +7,7 @@ Created on Dec 5, 2013
 import ldap
 import re
 import time
+import six
 
 from lib389._constants import *
 from lib389._entry import FormatDict
@@ -207,7 +208,7 @@ class Agreement(object):
             # Build the result from the returned attributes
             for attr in entry.getAttrs():
                 # given an attribute name retrieve the property name
-                props = [k for k, v in RA_PROPNAME_TO_ATTRNAME.iteritems() if v.lower() == attr.lower()]
+                props = [k for k, v in six.iteritems(RA_PROPNAME_TO_ATTRNAME) if v.lower() == attr.lower()]
 
                 # If this attribute is present in the RA properties, adds it to result
                 if len(props) > 0:
@@ -547,7 +548,7 @@ class Agreement(object):
                 # delete the agreement
                 try:
                     self.conn.delete_s(agmts[0].dn)
-                except ldap.LDAPError, e:
+                except ldap.LDAPError as e:
                     self.log.error('Failed to delete agreement (%s), error: %s' %
                         (agmts[0].dn, e.message['desc']))
                     raise ldap.LDAPError

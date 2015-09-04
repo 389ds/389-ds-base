@@ -8,18 +8,17 @@
    DirSrv.backend.methodName()
 """
 
-
-import config
-from config import log
-from config import *
+from . import config
+from .config import log
+from .config import *
 
 import lib389
 from lib389 import DirSrv, Entry
 import time
 
 # Test harnesses
-from dsadmin_test import drop_backend, addbackend_harn
-from dsadmin_test import drop_added_entries
+from .dsadmin_test import drop_backend, addbackend_harn
+from .dsadmin_test import drop_added_entries
 
 conn = None
 added_entries = None
@@ -27,6 +26,7 @@ added_backends = None
 
 MOCK_REPLICA_ID = '12'
 MOCK_TESTREPLICA_DN = "cn=testReplica,cn=ldbm database,cn=plugins,cn=config"
+
 
 def setup():
     # uses an existing 389 instance
@@ -40,7 +40,7 @@ def setup():
     conn.added_entries = []
     conn.added_backends = set(['o=mockbe1'])
     conn.added_replicas = []
-    """  
+    """
     # add a backend for testing ruv and agreements
     addbackend_harn(conn, 'testReplica')
 
@@ -48,32 +48,34 @@ def setup():
     addbackend_harn(conn, 'testReplicaCreation')
     """
 
+
 def teardown():
     global conn
     conn.config.loglevel([lib389.LOG_CACHE])
     conn.config.loglevel([256], service='access')
-    
+
     """
     drop_added_entries(conn)
     conn.delete_s(','.join(['cn="o=testreplica"', DN_MAPPING_TREE]))
     drop_backend(conn, 'o=testreplica')
     #conn.delete_s('o=testreplica')
     """
-    
+
+
 def loglevel_test():
     vals = [lib389.LOG_CACHE, lib389.LOG_REPLICA, lib389.LOG_CONNECT]
     expected = sum(vals)
     assert conn.config.loglevel(vals) == expected
-    ret = conn.config.get('nsslapd-errorlog-level') 
+    ret = conn.config.get('nsslapd-errorlog-level')
     assert ret == str(expected), "expected: %r got: %r" % (expected, ret)
-    
+
 
 def loglevel_update_test():
     vals = [lib389.LOG_CACHE, lib389.LOG_CONNECT]
     e = sum(vals)
     assert conn.config.loglevel(vals) == e
     vals = [lib389.LOG_REPLICA]
-    ret = conn.config.loglevel(vals, update=True) 
+    ret = conn.config.loglevel(vals, update=True)
     assert ret == (e + sum(vals)), "expected %s got %s" % (e + sum(vals), ret)
 
 

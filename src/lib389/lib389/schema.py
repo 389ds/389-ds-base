@@ -8,19 +8,20 @@ import os
 import re
 import time
 import glob
-
+import six
 
 from lib389._constants import *
 from lib389 import Entry
 from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
 
+
 class Schema(object):
-    
+
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
         self.conn = conn
         self.log = conn.log
-    
+
     def get_entry(self):
         """get the schema as an LDAP entry"""
         attrs = ['attributeTypes', 'objectClasses']
@@ -38,9 +39,12 @@ class Schema(object):
         """convert the given schema file name to its python-ldap format
         suitable for passing to ldap.schema.SubSchema()
         @param filename - the full path and filename of a schema file in ldif format"""
-        import urllib,ldif
-        ldif_file = urllib.urlopen(filename)
-        ldif_parser = ldif.LDIFRecordList(ldif_file,max_entries=1)
+        import six.moves.urllib.request
+        import six.moves.urllib.parse
+        import ldif
+
+        ldif_file = six.moves.urllib.request.urlopen('file://' + filename)
+        ldif_parser = ldif.LDIFRecordList(ldif_file, max_entries=1)
         if not ldif_parser:
             return None
         ldif_parser.parse()
@@ -62,7 +66,7 @@ class Schema(object):
         @param attr the attribute type to use e.g. attributeTypes or objectClasses
         @param val the schema element definition to add"""
         self.conn.modify_s(DN_SCHEMA, [(ldap.MOD_ADD, attr, val)])
-        
+
     def del_schema(self, attr, val):
         """Delete a schema element from the schema.
         @param attr the attribute type to use e.g. attributeTypes or objectClasses
@@ -78,7 +82,7 @@ class Schema(object):
         """Add an object class definition to the schema.
         @param objectclasses a single or list of object class defintions to add"""
         return self.add_schema('objectClasses', objectclasses)
-    
+
     def get_schema_csn(self):
         """return the schema nsSchemaCSN attribute"""
         ents = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE, "objectclass=*", ['nsSchemaCSN'])
@@ -90,7 +94,7 @@ class Schema(object):
         """
         attrs = ['objectClasses']
         results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE, 'objectclass=*', attrs)[0]
-        objectclasses = map(lambda oc: ObjectClass(oc), results.getValues('objectClasses'))
+        objectclasses = [ObjectClass(oc) for oc in results.getValues('objectClasses')]
         return objectclasses
 
     def get_attributetypes(self):
@@ -98,7 +102,7 @@ class Schema(object):
         """
         attrs = ['attributeTypes']
         results = self.conn.search_s(DN_SCHEMA, ldap.SCOPE_BASE, 'objectclass=*', attrs)[0]
-        attributetypes = map(lambda at: AttributeType(at), results.getValues('attributeTypes'))
+        attributetypes = [AttributeType(at) for at in results.getValues('attributeTypes')]
         return attributetypes
 
     def query_objectclass(self, objectclassname):
@@ -112,7 +116,7 @@ class Schema(object):
         <ldap.schema.models.ObjectClass instance>
         """
         objectclasses = self.get_objectclasses()
-        objectclass = filter(lambda oc: objectclassname in oc.names, objectclasses)
+        objectclass = [oc for oc in objectclasses if objectclassname in oc.names]
         if len(objectclass) != 1:
             #This is an error.
             return None
@@ -135,7 +139,7 @@ class Schema(object):
         attributetypes = self.get_attributetypes()
         attributetypename = attributetypename.lower()
 
-        attributetype = filter(lambda at: attributetypename in at.names, attributetypes)
+        attributetype = [at for at in attributetypes if attributetypename in at.names]
         if len(attributetype) != 1:
             #This is an error.
             return None
@@ -143,7 +147,7 @@ class Schema(object):
         # Get the primary name of this attribute
         attributetypename = attributetype.names[0]
         # Build a set if they have may.
-        may = filter(lambda oc: attributetypename in oc.may, objectclasses)
+        may = [oc for oc in objectclasses if attributetypename in oc.may]
         # Build a set if they have must.
-        must = filter(lambda oc: attributetypename in oc.must, objectclasses)
+        must = [oc for oc in objectclasses if attributetypename in oc.must]
         return (attributetype, must, may)

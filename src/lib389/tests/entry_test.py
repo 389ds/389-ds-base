@@ -82,6 +82,6 @@ class TestEntry(object):
             'nsds5replicabinddn': binddnlist,
             'nsds5replicalegacyconsumer': legacy
         })
-        uentry_s, entry_s = map(str, (uentry, entry))
+        uentry_s, entry_s = list(map(str, (uentry, entry)))
         assert uentry_s == entry_s, "Mismatching entries [%r] vs [%r]" % (
             uentry, entry)

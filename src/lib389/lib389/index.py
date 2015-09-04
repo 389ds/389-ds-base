@@ -11,38 +11,36 @@ from lib389 import Entry
 
 
 class Index(object):
-    
+
     def __init__(self, conn):
         """@param conn - a DirSrv instance"""
         self.conn = conn
         self.log = conn.log
-    
+
     def delete_all(self, benamebase):
         dn = "cn=index,cn=" + benamebase + "," + DN_LDBM
-        
+
         # delete each defined index
         ents = self.conn.search_s(dn, ldap.SCOPE_ONELEVEL)
         for ent in ents:
             self.log.debug("Delete index entry %s" % (ent.dn))
             self.conn.delete_s(ent.dn)
-            
+
         # Then delete the top index entry
         self.log.debug("Delete head index entry %s" % (dn))
         self.conn.delete_s(dn)
-    
+
     def create(self, suffix=None, attr=None, args=None):
         if not suffix:
             raise ValueError("suffix is mandatory parameter")
-        
+
         if not attr:
             raise ValueError("attr is mandatory parameter")
-        
+
         indexTypes = args.get(INDEX_TYPE, None)
         matchingRules = args.get(INDEX_MATCHING_RULE, None)
-        
+
         self.addIndex(suffix, attr, indexTypes=indexTypes, matchingRules=matchingRules)
-        
-        
 
     def addIndex(self, suffix, attr, indexTypes, matchingRules):
         """Specify the suffix (should contain 1 local database backend),
@@ -62,8 +60,7 @@ class Index(object):
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
-            print "Index for attr %s for backend %s already exists" % (
-                attr, dn)
+            print("Index for attr %s for backend %s already exists" % (attr, dn))
 
     def modIndex(self, suffix, attr, mod):
         """just a wrapper around a plain old ldap modify, but will

@@ -17,6 +17,7 @@ except ImportError:
     import popen2
     HASPOPEN = False
 
+import io
 import sys
 import os
 import stat
@@ -24,13 +25,13 @@ import pwd
 import grp
 import os.path
 import base64
-import urllib
-import urllib2
+import six.moves.urllib.request
+import six.moves.urllib.parse
+import six.moves.urllib.error
 import socket
 import ldif
 import re
 import ldap
-import cStringIO
 import time
 import operator
 import shutil
@@ -40,14 +41,14 @@ import decimal
 import glob
 import tarfile
 import subprocess
+import collections
+import six
 
 from ldap.ldapobject import SimpleLDAPObject
 from ldapurl import LDAPUrl
 from ldap.cidict import cidict
 from ldap import LDAPError
 # file in this package
-
-
 
 from lib389._constants import *
 from lib389._entry import Entry
@@ -183,7 +184,7 @@ class DirSrv(SimpleLDAPObject):
             if cnconfig:
                 return cnconfig.getValue(attrname)
             return None
-        except IOError, err:  # except..as.. doedn't work on python 2.4
+        except IOError as err:
             log.error("could not read dse config file")
             raise err
 
@@ -274,9 +275,9 @@ class DirSrv(SimpleLDAPObject):
                 self.dbdir = os.path.dirname(ent.getValue('nsslapd-directory'))
             except (ldap.INSUFFICIENT_ACCESS, ldap.CONNECT_ERROR, NoSuchEntryError):
                 log.exception("Skipping exception during initialization")
-            except ldap.OPERATIONS_ERROR, e:
+            except ldap.OPERATIONS_ERROR as e:
                 log.exception("Skipping exception: Probably Active Directory")
-            except ldap.LDAPError, e:
+            except ldap.LDAPError as e:
                 log.exception("Error during initialization, error: " + e.message['desc'])
                 raise
 
@@ -314,7 +315,7 @@ class DirSrv(SimpleLDAPObject):
                     self.start_tls_s()
                 try:
                     self.simple_bind_s(self.binddn, self.bindpw)
-                except ldap.SERVER_DOWN, e:
+                except ldap.SERVER_DOWN as e:
                     # TODO add server info in exception
                     log.debug("Cannot connect to %r" % uri)
                     raise e
@@ -897,7 +898,7 @@ class DirSrv(SimpleLDAPObject):
                     self.start_tls_s()
                 try:
                     self.simple_bind_s(self.binddn, self.bindpw)
-                except ldap.SERVER_DOWN, e:
+                except ldap.SERVER_DOWN as e:
                     # TODO add server info in exception
                     log.debug("Cannot connect to %r" % uri)
                     raise e
@@ -1305,7 +1306,7 @@ class DirSrv(SimpleLDAPObject):
         in an Entry class that provides some useful methods"""
         for name in dir(self.__class__.__bases__[0]):
             attr = getattr(self, name)
-            if callable(attr):
+            if isinstance(attr, collections.Callable):
                 setattr(self, name, wrapper(attr, name))
 
     def addLDIF(self, input_file, cont=False):
@@ -1314,14 +1315,14 @@ class DirSrv(SimpleLDAPObject):
                          ignored_attr_types=None, max_entries=0, process_url_schemes=None
                          ):
                 myfile = input_file
-                if isinstance(input_file, basestring):
+                if isinstance(input_file, six.string_types):
                     myfile = open(input_file, "r")
                 self.conn = conn
                 self.cont = cont
                 ldif.LDIFParser.__init__(self, myfile, ignored_attr_types,
                                          max_entries, process_url_schemes)
                 self.parse()
-                if isinstance(input_file, basestring):
+                if isinstance(input_file, six.string_types):
                     myfile.close()
 
             def handle(self, dn, entry):
@@ -1330,7 +1331,7 @@ class DirSrv(SimpleLDAPObject):
                 newentry = Entry((dn, entry))
                 try:
                     self.conn.add_s(newentry)
-                except ldap.LDAPError, e:
+                except ldap.LDAPError as e:
                     if not self.cont:
                         raise e
                     log.exception("Error: could not add entry %s" % dn)
@@ -1472,11 +1473,11 @@ class DirSrv(SimpleLDAPObject):
             for attr in dbattrs:
                 fmtstr += ' %%(%s)%ds' % (attr, cols[attr][0])
                 ret += ' %*s' % tuple(cols[attr])
-            for dbf in dbrec.itervalues():
+            for dbf in six.itervalues(dbrec):
                 ret += "\n" + (fmtstr % dbf)
             return ret
-        except Exception, e:
-            print "caught exception", str(e)
+        except Exception as e:
+            print ("caught exception", str(e))
         return ''
 
     def waitForEntry(self, dn, timeout=7200, attr='', quiet=True):
@@ -1503,8 +1504,8 @@ class DirSrv(SimpleLDAPObject):
                 pass  # found entry, but no attr
             except ldap.NO_SUCH_OBJECT:
                 pass  # no entry yet
-            except ldap.LDAPError, e:  # badness
-                print "\nError reading entry", dn, e
+            except ldap.LDAPError as e:  # badness
+                print("\nError reading entry", dn, e)
                 break
             if not entry:
                 if not quiet:
@@ -1513,12 +1514,12 @@ class DirSrv(SimpleLDAPObject):
                 time.sleep(1)
 
         if not entry and int(time.time()) > timeout:
-            print "\nwaitForEntry timeout for %s for %s" % (self, dn)
+            print("\nwaitForEntry timeout for %s for %s" % (self, dn))
         elif entry:
             if not quiet:
-                print "\nThe waited for entry is:", entry
+                print("\nThe waited for entry is:", entry)
         else:
-            print "\nError: could not read entry %s from %s" % (dn, self)
+            print("\nError: could not read entry %s from %s" % (dn, self))
 
         return entry
 
@@ -1579,7 +1580,7 @@ class DirSrv(SimpleLDAPObject):
         try:
             self.modify_s(dn, mod)
         except ldap.TYPE_OR_VALUE_EXISTS:
-            print "chainOnUpdate already enabled for %s" % suffix
+            print("chainOnUpdate already enabled for %s" % suffix)
 
     def setupConsumerChainOnUpdate(self, suffix, isIntermediate, binddn, bindpw, urls, beargs=None):
         beargs = beargs or {}
@@ -1882,7 +1883,7 @@ class DirSrv(SimpleLDAPObject):
                     if entry.hasValue('description', test_value):
                         replicated = True
                         break
-                except ldap.LDAPError, e:
+                except ldap.LDAPError as e:
                     log.fatal('testReplication() failed to modify (%s), error (%d)'
                               % (suffix, e.message['desc']))
                     return False
@@ -1997,9 +1998,9 @@ class DirSrv(SimpleLDAPObject):
             try:
                 self.add_s(ent)
                 if verbose:
-                    print "created subtree pwpolicy entry", ent.dn
+                    print("created subtree pwpolicy entry", ent.dn)
             except ldap.ALREADY_EXISTS:
-                print "subtree pwpolicy entry", ent.dn, "already exists - skipping"
+                print("subtree pwpolicy entry", ent.dn, "already exists - skipping")
         self.setPwdPolicy({'nsslapd-pwpolicy-local': 'on'})
         self.setDNPwdPolicy(poldn, pwdpolicy, **pwdargs)
 
@@ -2018,9 +2019,9 @@ class DirSrv(SimpleLDAPObject):
             try:
                 self.add_s(ent)
                 if verbose:
-                    print "created user pwpolicy entry", ent.dn
+                    print("created user pwpolicy entry", ent.dn)
             except ldap.ALREADY_EXISTS:
-                print "user pwpolicy entry", ent.dn, "already exists - skipping"
+                print("user pwpolicy entry", ent.dn, "already exists - skipping")
         mod = [(ldap.MOD_REPLACE, 'pwdpolicysubentry', poldn)]
         self.modify_s(user, mod)
         self.setPwdPolicy({'nsslapd-pwpolicy-local': 'on'})
@@ -2032,10 +2033,10 @@ class DirSrv(SimpleLDAPObject):
     def setDNPwdPolicy(self, dn, pwdpolicy, **pwdargs):
         """input is dict of attr/vals"""
         mods = []
-        for (attr, val) in pwdpolicy.iteritems():
+        for (attr, val) in six.iteritems(pwdpolicy):
             mods.append((ldap.MOD_REPLACE, attr, str(val)))
         if pwdargs:
-            for (attr, val) in pwdargs.iteritems():
+            for (attr, val) in six.iteritems(pwdargs):
                 mods.append((ldap.MOD_REPLACE, attr, str(val)))
         self.modify_s(dn, mods)
 

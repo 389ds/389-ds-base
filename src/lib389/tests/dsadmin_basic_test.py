@@ -11,8 +11,8 @@ from ldap import *
 from nose import SkipTest
 from nose.tools import *
 
-import config
-from config import *
+from . import config
+from .config import *
 
 conn = None
 added_entries = None
@@ -24,7 +24,7 @@ def setup():
         conn = DirSrv(**config.auth)
         conn.verbose = True
         conn.added_entries = []
-    except SERVER_DOWN, e:
+    except SERVER_DOWN as e:
         log.error("To run tests you need a working 389 instance %s" % config.auth)
         raise e
 
@@ -44,7 +44,7 @@ def tearDown():
 
 
 def bind_test():
-    print "conn: %s" % conn
+    print ("conn: %s" % conn)
 
 
 def setupBindDN_UID_test():
@@ -109,9 +109,9 @@ def getMTEntry_present_test():
     bename = 'addressbookd16db'
     backendEntry, dummy = conn.backend.add(suffix, benamebase=bename)
     suffixEntry = conn.backend.setup_mt(suffix, bename)
-    
+
     e = conn.getMTEntry(suffix)
-    
+
     conn.backend.delete(bename)
     conn.delete_s(suffixEntry.dn)
     assert e, "Entry should be present %s" % suffix
