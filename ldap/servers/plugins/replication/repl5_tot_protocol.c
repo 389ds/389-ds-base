@@ -306,7 +306,9 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
  *   total update protocol OID and supplier's ruv.
  * - Send a series of extended operations containing entries.
  * - send an EndReplicationRequest extended operation 
- */ 
+ */
+#define INIT_RETRY_MAX 5
+#define INIT_RETRY_INT 1
 static void
 repl5_tot_run(Private_Repl_Protocol *prp)
 {
@@ -318,6 +320,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	int portnum = 0;
 	Slapi_DN *area_sdn = NULL;
 	CSN *remote_schema_csn = NULL;
+        int init_retry = 0;
 	
 	PR_ASSERT(NULL != prp);
 
@@ -331,17 +334,32 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 
     /* acquire remote replica */
 	agmt_set_last_init_start(prp->agmt, current_time());
+retry:
     rc = acquire_replica (prp, REPL_NSDS50_TOTAL_PROTOCOL_OID, NULL /* ruv */);
     /* We never retry total protocol, even in case a transient error.
        This is because if somebody already updated the replica we don't
        want to do it again */
+    /* But there are scenarios where a total update request could completely
+     * be lostif the initial acquire fails: do a few retries for transient
+     * errors.
+     */
     if (rc != ACQUIRE_SUCCESS)
     {
-		int optype, ldaprc;
+		int optype, ldaprc, wait_retry;
 		conn_get_error(prp->conn, &optype, &ldaprc);
-		agmt_set_last_init_status(prp->agmt, ldaprc,
+		if (rc == ACQUIRE_TRANSIENT_ERROR && INIT_RETRY_MAX > init_retry++) {
+			wait_retry = init_retry * INIT_RETRY_INT;
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+						"acquire replica for total update, error: %d,"
+                                                " retrying in %d seconds.\n",
+						 ldaprc, wait_retry);
+			DS_Sleep(PR_SecondsToInterval(wait_retry));
+			goto retry;
+		} else {
+			agmt_set_last_init_status(prp->agmt, ldaprc,
 				  prp->last_acquire_response_code, 0, NULL);
-        goto done;
+			goto done;
+                }
     }
 	else if (prp->terminate)
     {
