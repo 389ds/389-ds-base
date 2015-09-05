@@ -459,7 +459,8 @@ class DirSrv(SimpleLDAPObject):
         self.groupid   = args.get(SER_GROUP_ID, self.userid)
         self.backupdir = args.get(SER_BACKUP_INST_DIR, DEFAULT_BACKUPDIR)
         # Allocate from the args, or use our env, or use /
-        self.prefix    = args.get(SER_DEPLOYED_DIR, self.prefix )
+        if args.get(SER_DEPLOYED_DIR, self.prefix ) is not None:
+            self.prefix    = args.get(SER_DEPLOYED_DIR, self.prefix )
 
         # Those variables needs to be revisited (sroot for 64 bits)
         #self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
