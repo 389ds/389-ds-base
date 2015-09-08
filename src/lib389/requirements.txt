@@ -1,3 +1,5 @@
 python-ldap
 wheel
 nose
+pyasn1
+pyasn1-modules
