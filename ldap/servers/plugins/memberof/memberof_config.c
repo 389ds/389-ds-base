@@ -77,7 +77,7 @@ static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_En
 /* This is the main configuration which is updated from dse.ldif.  The
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
-static MemberOfConfig theConfig = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static MemberOfConfig theConfig = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 
@@ -208,7 +208,6 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 	Slapi_DN **exclude_dn = NULL;
 	char *syntaxoid = NULL;
 	char *config_dn = NULL;
-	char *skip_nested = NULL;
 	char **entry_scopes = NULL;
 	char **entry_exclude_scopes = NULL;
 	int not_dn_syntax = 0;
@@ -462,7 +461,6 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	char **entryScopes = NULL;
 	char **entryScopeExcludeSubtrees = NULL;
 	char *sharedcfg = NULL;
-	char *skip_nested = NULL;
 	int num_vals = 0;
 
 	*returncode = LDAP_SUCCESS;
@@ -495,7 +493,6 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	groupattrs = slapi_entry_attr_get_charray(e, MEMBEROF_GROUP_ATTR);
 	memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
 	allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
-	skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR);
 
 	/*
 	 * We want to be sure we don't change the config in the middle of
@@ -657,7 +654,6 @@ done:
 	slapi_ch_free_string(&sharedcfg);
 	slapi_ch_free_string(&memberof_attr);
 	slapi_ch_free_string(&allBackends);
-	slapi_ch_free_string(&skip_nested);
 	slapi_ch_free((void **)&entryScopes);
 	slapi_ch_free((void **)&entryScopeExcludeSubtrees);
 

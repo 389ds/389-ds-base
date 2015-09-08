@@ -522,7 +522,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	MemberOfConfig *mainConfig = NULL;
-	MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+	MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 	Slapi_DN *sdn;
 	void *caller_id = NULL;
 
@@ -850,7 +850,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 	if(memberof_oktodo(pb))
 	{
 		MemberOfConfig *mainConfig = 0;
-		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 		struct slapi_entry *pre_e = NULL;
 		struct slapi_entry *post_e = NULL;
 		Slapi_DN *pre_sdn = 0;
@@ -1115,7 +1115,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 	{
 		int config_copied = 0;
 		MemberOfConfig *mainConfig = 0;
-		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 		/* get the mod set */
 		slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -1293,7 +1293,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 	if(memberof_oktodo(pb) && (sdn = memberof_getsdn(pb)))
 	{
 		struct slapi_entry *e = NULL;
-		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 		MemberOfConfig *mainConfig;
 		slapi_pblock_get( pb, SLAPI_ENTRY_POST_OP, &e );
 
@@ -2178,11 +2178,9 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 			slapi_valueset_add_value_ext(groupvals, group_dn_val, SLAPI_VALUE_FLAG_PASSIN);
 			slapi_valueset_add_value_ext(group_norm_vals, group_ndn_val, SLAPI_VALUE_FLAG_PASSIN);
 	}
-	if(!config->skip_nested || config->fixup_task){
-		/* now recurse to find parent groups of e */
-		memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
-			group_sdn, callback_data);
-	}
+	/* now recurse to find parent groups of e */
+	memberof_get_groups_r(((memberof_get_groups_data*)callback_data)->config,
+		group_sdn, callback_data);
 
 bail:
 	return rc;
