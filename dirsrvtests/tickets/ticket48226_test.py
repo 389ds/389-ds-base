@@ -205,6 +205,13 @@ def test_ticket11111_1(topology):
     else:
         log.info('test_csnset_dup: No leak is present!')
     
+    topology.master2.start(10)
+
+    # Disnable valgrind
+    valgrind_disable(sbin_dir)
+
+    topology.master1.start(10)
+    
     if valgrind_check_leak(topology.master2, 'Invalid'):
         log.info('Valgrind reported invalid!')
     else:
@@ -213,11 +220,6 @@ def test_ticket11111_1(topology):
     #log.info("You can attach yourself")
     #time.sleep(60)
     
-    # Enable valgrind
-    valgrind_disable(sbin_dir)
-
-    topology.master1.start(10)
-
     
 def test_ticket11111_final(topology):
     topology.master1.delete()
