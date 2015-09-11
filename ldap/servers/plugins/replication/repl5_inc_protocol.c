@@ -1688,6 +1688,11 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		int finished = 0;
 		ConnResult replay_crc;
 		char csn_str[CSN_STRSIZE];
+		PRBool subentry_update_sent = PR_FALSE;
+		PRBool subentry_update_needed = PR_FALSE;
+		int skipped_updates = 0;
+		int fractional_repl;
+#define FRACTIONAL_SKIPPED_THRESHOLD 100
 
 		/* Start the results reading thread */
 		rd = repl5_inc_rd_new(prp);
@@ -1704,6 +1709,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 
 		memset ( (void*)&op, 0, sizeof (op) );
 		entry.op = &op;
+		fractional_repl = agmt_is_fractional(prp->agmt);
 		do {
 			cl5_operation_parameters_done ( entry.op );
 			memset ( (void*)entry.op, 0, sizeof (op) );
@@ -1799,6 +1805,15 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					csn_as_string(entry.op->csn, PR_FALSE, csn_str);
 					replica_id = csn_get_replicaid(entry.op->csn);
 					uniqueid = entry.op->target_address.uniqueid;
+                    
+					if (fractional_repl && message_id) 
+					{
+						/* This update was sent no need to update the subentry
+						 * and restart counting the skipped updates
+						 */
+						subentry_update_needed = PR_FALSE;
+						skipped_updates = 0;
+					}
 
 					if (prp->repl50consumer && message_id) 
 					{
@@ -1829,6 +1844,16 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str);
 						agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
+						if (fractional_repl) 
+						{
+							skipped_updates++;
+							if (skipped_updates > FRACTIONAL_SKIPPED_THRESHOLD) {
+								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+										"%s: skipped updates is too high (%d) if no other update is sent we will update the subentry\n",
+										agmt_get_long_name(prp->agmt), skipped_updates);
+								subentry_update_needed = PR_TRUE;
+							}
+						}
 					}
 				}
 				break;
@@ -1894,6 +1919,20 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			PR_Unlock(rd->lock);
 		} while (!finished);
 
+		if (fractional_repl && subentry_update_needed)
+		{
+			Replica *replica;
+			ReplicaId rid = -1; /* Used to create the replica keep alive subentry */
+			replica = (Replica*) object_get_data(prp->replica_object);
+			if (replica)
+			{
+				rid = replica_get_rid(replica);
+			}
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"%s: skipped updates was definitely too high (%d) update the subentry now\n",
+					agmt_get_long_name(prp->agmt), skipped_updates);
+			replica_subentry_update(agmt_get_replarea(prp->agmt), rid);
+		}
 		/* Terminate the results reading thread */
 		if (!prp->repl50consumer) 
 		{
