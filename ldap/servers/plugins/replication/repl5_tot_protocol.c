@@ -347,6 +347,9 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	int portnum = 0;
 	Slapi_DN *area_sdn = NULL;
 	CSN *remote_schema_csn = NULL;
+	int init_retry = 0;
+	Replica *replica;
+	ReplicaId rid = 0; /* Used to create the replica keep alive subentry */
 	
 	PR_ASSERT(NULL != prp);
 
@@ -424,7 +427,15 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     ctrls = (LDAPControl **)slapi_ch_calloc (3, sizeof (LDAPControl *));
     ctrls[0] = create_managedsait_control ();
     ctrls[1] = create_backend_control(area_sdn);
-	
+
+	/* Time to make sure it exists a keep alive subentry for that replica */
+	replica = (Replica*) object_get_data(prp->replica_object);
+	if (replica)
+	{
+		rid = replica_get_rid(replica);
+	}
+	replica_subentry_check(area_sdn, rid);
+
     slapi_search_internal_set_pb (pb, slapi_sdn_get_dn (area_sdn), 
                                   LDAP_SCOPE_SUBTREE, "(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))", NULL, 0, ctrls, NULL, 
                                   repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0);

@@ -443,6 +443,161 @@ replica_destroy(void **arg)
 	slapi_ch_free((void **)arg);
 }
 
+#define KEEP_ALIVE_ATTR "keepalivetimestamp"
+#define KEEP_ALIVE_ENTRY "repl keep alive"
+#define KEEP_ALIVE_DN_FORMAT "cn=%s %d,%s"
+
+
+static int
+replica_subentry_create(Slapi_DN *repl_root, ReplicaId rid) 
+{
+    char *entry_string = NULL;
+    Slapi_Entry *e = NULL;
+    Slapi_PBlock *pb = NULL;
+    int return_value;
+    int rc = 0;
+
+    entry_string = slapi_ch_smprintf("dn: cn=%s %d,%s\nobjectclass: top\nobjectclass: ldapsubentry\nobjectclass: extensibleObject\ncn: %s %d",
+            KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root), KEEP_ALIVE_ENTRY, rid);
+    if (entry_string == NULL) {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            "replica_subentry_create add failed in slapi_ch_smprintf\n");
+        rc = -1;
+        goto done;
+    }
+
+    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "add %s\n", entry_string);
+    e = slapi_str2entry(entry_string, 0);
+
+    /* create the entry */
+    pb = slapi_pblock_new();
+
+
+    slapi_add_entry_internal_set_pb(pb, e, NULL, /* controls */
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+    slapi_add_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
+    if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) 
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+                "create replication keep alive entry %s: %s\n", slapi_entry_get_dn_const(e),
+                ldap_err2string(return_value));
+        rc = -1;
+        slapi_entry_free(e); /* The entry was not consumed */
+        goto done;
+    }
+
+done:
+
+    slapi_pblock_destroy(pb);
+    slapi_ch_free_string(&entry_string);
+    return rc;
+
+}
+
+int
+replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
+{
+    Slapi_PBlock *pb;
+    char *filter = NULL;
+    Slapi_Entry **entries = NULL;
+    int res;
+    int rc = 0;
+
+    pb = slapi_pblock_new();
+    filter = slapi_ch_smprintf("(&(objectclass=ldapsubentry)(cn=%s %d))", KEEP_ALIVE_ENTRY, rid);
+    slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(repl_root), LDAP_SCOPE_ONELEVEL,
+            filter, NULL, 0, NULL, NULL,
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_search_internal_pb(pb);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    if (res == LDAP_SUCCESS)
+    {
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries && (entries[0] == NULL))
+        {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                    "Need to create replication keep alive entry <cn=%s %d,%s>\n", KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
+            rc = replica_subentry_create(repl_root, rid);
+        } else {
+            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                    "replication keep alive entry <cn=%s %d,%s> already exists\n", KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
+            rc = 0;
+        }
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                "Error accessing replication keep alive entry <cn=%s %d,%s> res=%d\n",
+                KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root), res);
+        /* The status of the entry is not clear, do not attempt to create it */
+        rc = 1;
+    }
+    slapi_free_search_results_internal(pb);
+
+    slapi_pblock_destroy(pb);
+    slapi_ch_free_string(&filter);
+    return rc;
+}
+
+int
+replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid) 
+{
+    int ldrc;
+    int rc = LDAP_SUCCESS; /* Optimistic default */
+    LDAPMod * mods[2];
+    LDAPMod mod;
+    struct berval * vals[2];
+    char buf[20];
+    time_t curtime;
+    struct tm ltm;
+    struct berval val;
+    Slapi_PBlock *modpb = NULL;
+    char *dn;
+
+    replica_subentry_check(repl_root, rid);
+    curtime = current_time();
+    gmtime_r(&curtime, &ltm);
+    strftime(buf, sizeof (buf), "%Y%m%d%H%M%SZ", &ltm);
+
+    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "subentry_update called at %s\n", buf);
+
+
+    val.bv_val = buf;
+    val.bv_len = strlen(val.bv_val);
+
+    vals [0] = &val;
+    vals [1] = NULL;
+
+    mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+    mod.mod_type = KEEP_ALIVE_ATTR;
+    mod.mod_bvalues = vals;
+
+    mods[0] = &mod;
+    mods[1] = NULL;
+
+    modpb = slapi_pblock_new();
+    dn = slapi_ch_smprintf(KEEP_ALIVE_DN_FORMAT, KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
+
+    slapi_modify_internal_set_pb(modpb, dn, mods, NULL, NULL,
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_modify_internal_pb(modpb);
+
+    slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &ldrc);
+
+    if (ldrc != LDAP_SUCCESS)
+    {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                "Failure (%d) to update replication keep alive entry \"%s: %s\"\n", ldrc, KEEP_ALIVE_ATTR, buf);
+        rc = ldrc;
+    } else {
+        slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name,
+                "Successful update of replication keep alive entry \"%s: %s\"\n", KEEP_ALIVE_ATTR, buf);
+    }
+
+    slapi_pblock_destroy(modpb);
+    slapi_ch_free_string(&dn);
+    return rc;
+
+}
 /*
  * Attempt to obtain exclusive access to replica (advisory only)
  *
@@ -3845,6 +4000,7 @@ replica_enable_replication (Replica *r)
         /* What to do ? */
     }
 
+    replica_subentry_check(r->repl_root, replica_get_rid(r));
     /* Replica came back online, Check if the total update was terminated.
        If flag is still set, it was not terminated, therefore the data is
        very likely to be incorrect, and we should not restart Replication threads...

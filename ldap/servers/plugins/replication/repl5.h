@@ -556,6 +556,8 @@ Replica *windows_replica_new(const Slapi_DN *root);
    during addition of the replica over LDAP */
 Replica *replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation);
 void replica_destroy(void **arg);
+int replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid);
+int replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid);
 PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid,
 									const char *locking_purl,
 									char **current_purl);
