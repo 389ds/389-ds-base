@@ -59,16 +59,16 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;;
-        n) args=$args" -n \"$OPTARG\"";;
-        i) args=$args" -i \"$OPTARG\"";;
-        s) args=$args" -s \"$OPTARG\"";;
-        x) args=$args" -x \"$OPTARG\"";;
-        c) args=$args" -c \"$OPTARG\"";;
-        d) args=$args" -d \"$OPTARG\"";;
-        g) args=$args" -g \"$OPTARG\"";;
-        G) args=$args" -G \"$OPTARG\"";;
-        t) args=$args" -t \"$OPTARG\"";;
-        D) args=$args" -D \"$OPTARG\"";;
+        n) args=$args" -n $OPTARG";;
+        i) args=$args" -i $OPTARG";;
+        s) args=$args" -s $OPTARG";;
+        x) args=$args" -x $OPTARG";;
+        c) args=$args" -c $OPTARG";;
+        d) args=$args" -d $OPTARG";;
+        g) args=$args" -g $OPTARG";;
+        G) args=$args" -G $OPTARG";;
+        t) args=$args" -t $OPTARG";;
+        D) args=$args" -D $OPTARG";;
         E) args=$args" -E";;
         v) args=$args" -v";;
         N) args=$args" -N";;
@@ -104,6 +104,6 @@ if [ $quiet -eq 0 ]; then
     echo importing data ...
 fi
 
-eval @sbindir@/ns-slapd ldif2db -D $CONFIG_DIR $args 2>&1
+@sbindir@/ns-slapd ldif2db -D $CONFIG_DIR $args 2>&1
 
 exit $?

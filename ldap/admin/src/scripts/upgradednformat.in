@@ -36,14 +36,14 @@ do
         Z) servid=$OPTARG;;
         v) args=$args" -v";;
         N) args=$args" -N";;
-        d) args=$args" -d \"$OPTARG\"";;
-        a) args=$args" -a \"$OPTARG\""
+        d) args=$args" -d $OPTARG";;
+        a) args=$args" -a $OPTARG"
            dir="set";;
-        n) args=$args" -n \"$OPTARG\""
+        n) args=$args" -n $OPTARG"
            be="set";;
         h) usage
            exit 0;;
-        D) args=$args" -D \"$OPTARG\"";;
+        D) args=$args" -D $OPTARG";;
         ?) usage
            exit 1;;
     esac
@@ -65,7 +65,7 @@ fi
 
 . $initfile
 
-eval @sbindir@/ns-slapd upgradednformat -D $CONFIG_DIR $args
+@sbindir@/ns-slapd upgradednformat -D $CONFIG_DIR $args
 rc=$?
 
 exit $rc

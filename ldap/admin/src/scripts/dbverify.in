@@ -33,14 +33,14 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;;
-        n) args=$args" -n \"$OPTARG\"";;
-        d) args=$args" -d \"$OPTARG\"";;
+        n) args=$args" -n $OPTARG";;
+        d) args=$args" -d $OPTARG";;
         V) args=$args" -V";;
         v) args=$args" -v"
            display_version="yes";;
         f) args=$args" -f";;
-        D) args=$args" -D \"$OPTARG\"";;
-        a) args=$args" -a \"$OPTARG\"";;
+        D) args=$args" -D $OPTARG";;
+        a) args=$args" -a $OPTARG";;
         ?) usage
            exit 1;;
     esac
@@ -57,7 +57,7 @@ fi
 
 . $initfile
 
-eval @sbindir@/ns-slapd dbverify -D $CONFIG_DIR $args
+@sbindir@/ns-slapd dbverify -D $CONFIG_DIR $args
 if [ $display_version = "yes" ]; then
     exit 0
 fi

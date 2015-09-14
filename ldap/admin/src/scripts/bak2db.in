@@ -44,12 +44,12 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;; 
-        n) args=$args" -n \"$OPTARG\"";;
+        n) args=$args" -n $OPTARG";;
         q) args=$args" -q";;
-        d) args=$args" -d \"$OPTARG\"";;
+        d) args=$args" -d $OPTARG";;
         v) args=$args" -v";;
-        D) args=$args" -D \"$OPTARG\"";;
-        i) args=$args" -i \"$OPTARG\"";;
+        D) args=$args" -D $OPTARG";;
+        i) args=$args" -i $OPTARG";;
         a) archivedir=$OPTARG;;
         S) args=$args" -S";;
         ?) usage
@@ -76,4 +76,4 @@ else
     archivedir=`pwd`/$archivedir
 fi
 
-eval @sbindir@/ns-slapd archive2db -D $CONFIG_DIR -a $archivedir $args
+@sbindir@/ns-slapd archive2db -D $CONFIG_DIR -a $archivedir $args

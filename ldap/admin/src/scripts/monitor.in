@@ -73,8 +73,8 @@ fi
 rm $file
 
 if [ -n "$passwd" ]; then
-    dn="-D \"$rootdn\""
-    passwd="-w \"$passwd\""
+    dn="-D $rootdn"
+    passwd="-w$passwd"
 fi
 if [ -n "$ldapiURL" ]
 then
@@ -109,9 +109,9 @@ if [ "$security" = "on" ]; then
             echo "Using the next most secure protocol(STARTTLS)"
         fi
         if [ "$openldap" = "yes" ]; then
-            eval ldapsearch -x -LLL -ZZ -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
+            ldapsearch -x -LLL -ZZ -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
         else
-            eval ldapsearch -ZZZ -P $certdir  -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
+            ldapsearch -ZZZ -P $certdir  -h $host -p $port -b "$MDN" -s base $dn $passwd "objectClass=*"
         fi
         exit $?
     fi

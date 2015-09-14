@@ -29,10 +29,10 @@ do
         v) args=$args" -v";;
         f) args=$args" -f";;
         r) args=$args" -r";;
-        d) args=$args" -d \"$OPTARG\"";;
-        a) args=$args" -a \"$OPTARG\""
+        d) args=$args" -d $OPTARG";;
+        a) args=$args" -a $OPTARG"
            archive_provided="yes";;
-        D) args=$args" -D \"$OPTARG\"";;
+        D) args=$args" -D $OPTARG";;
         h) usage
            exit 0;;
     esac
@@ -56,4 +56,4 @@ then
 fi
 
 echo upgrade index files ...
-eval @sbindir@/ns-slapd upgradedb -D $CONFIG_DIR $args
+@sbindir@/ns-slapd upgradedb -D $CONFIG_DIR $args
