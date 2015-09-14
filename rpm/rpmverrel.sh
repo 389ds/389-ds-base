@@ -6,7 +6,7 @@ srcdir=`pwd`
 
 # Source VERSION.sh to set the version
 # and release environment variables.
-. ./VERSION.sh
+source ./VERSION.sh
 
 if [ "$1" = "version" ]; then
   echo $RPM_VERSION

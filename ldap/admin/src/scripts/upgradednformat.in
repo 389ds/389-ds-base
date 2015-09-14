@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. @datadir@/@package_name@/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
 # upgradednformat -- upgrade DN format to the new style (RFC 4514)
 # Usgae: upgradednformat [-N] -n backend_instance -a db_instance_directory
@@ -49,13 +49,13 @@ do
     esac
 done
 
-if [ -z "$be" ] || [ -z "$dir" ]; then
+if [ "$be" = "" ] || [ "$dir" = "" ]; then
     usage
     exit 1
 fi
 
 initfile=$(get_init_file "@initconfigdir@" $servid)
-if [ $? -eq 1 ]
+if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"

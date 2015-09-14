@@ -7,7 +7,7 @@
 #       2: Server started successfully (was not running)
 #       3: Server could not be stopped
 
-. @datadir@/@package_name@/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
 restart_instance() {
     SERV_ID=$1

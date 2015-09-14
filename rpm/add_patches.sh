@@ -1,6 +1,6 @@
 #!/bin/sh
 
-usage()
+function usage()
 {
     echo "Adds patches to a specfile"
     echo ""
@@ -51,5 +51,5 @@ for p in $patches; do
     sed -i -e "/${prefix}/a Patch${i}: ${p}" -e "/$prepprefix/a %patch${i} -p1" $specfile
     prefix="Patch${i}:"
     prepprefix="%patch${i}"
-    i=`expr $i + 1`
+    i=$(($i+1))
 done
