@@ -342,11 +342,14 @@ reslimit_update_from_dn( Slapi_Connection *conn, Slapi_DN *dn )
 int
 reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 {
-	char					*fnname = "reslimit_update_from_entry()";
-	char					*actual_type_name, *get_ext_logname;
-	int						i, rc, type_name_disposition, free_flags;
-	SLAPIResLimitConnData	*rlcdp;
-	Slapi_ValueSet			*vs;
+	SLAPIResLimitConnData *rlcdp = NULL;
+	Slapi_ValueSet *vs = NULL;
+	char *fnname = "reslimit_update_from_entry()";
+	char *actual_type_name = NULL;
+	char *get_ext_logname = NULL;
+	int type_name_disposition = 0;
+	int free_flags = 0;
+	int rc, i;
 
 	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "=> %s conn=0x%x, entry=0x%x\n",
 			fnname, conn, e );
