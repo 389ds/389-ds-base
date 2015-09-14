@@ -24,7 +24,7 @@ while getopts "Z:s:h" flag
 do
     case $flag in
         Z) servid=$OPTARG;;
-        s) args=$args" -s \"$OPTARG\"";;
+        s) args=$args" -s $OPTARG";;
         h) usage
            exit 0;;
         ?) usage
@@ -55,4 +55,4 @@ then
     exit 1
 fi
 
-eval @sbindir@/ns-slapd suffix2instance -D $CONFIG_DIR $args 2>&1
+@sbindir@/ns-slapd suffix2instance -D $CONFIG_DIR $args 2>&1

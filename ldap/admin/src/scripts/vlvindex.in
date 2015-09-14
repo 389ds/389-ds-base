@@ -29,14 +29,14 @@ do
     case $flag in
         Z) servid=$OPTARG;;
         v) args=$args" -v";;
-        s) args=$args" -s \"$OPTARG\"";;
-        d) args=$args" -d \"$OPTARG\"";;
-        a) args=$args" -a \"$OPTARG\"";;
-        T) args=$args" -T \"$OPTARG\"";;
+        s) args=$args" -s $OPTARG";;
+        d) args=$args" -d $OPTARG";;
+        a) args=$args" -a $OPTARG";;
+        T) args=$args" -T $OPTARG";;
         S) args=$args" -S";;
-        n) args=$args" -n \"$OPTARG\"";;
-        x) args=$args" -x \"$OPTARG\"";;
-        D) args=$args" -D \"$OPTARG\"";;
+        n) args=$args" -n $OPTARG";;
+        x) args=$args" -x $OPTARG";;
+        D) args=$args" -D $OPTARG";;
         h) usage
            exit 0;;
         ?) usage
@@ -61,4 +61,4 @@ then
     exit 1
 fi
 
-eval @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args
+@sbindir@/ns-slapd db2index -D $CONFIG_DIR $args
