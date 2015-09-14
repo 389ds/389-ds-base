@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. @datadir@/@package_name@/data/DSSharedLib
+source @datadir@/@package_name@/data/DSSharedLib
 
 libpath_add "@libdir@/@package_name@/"
 libpath_add "@nss_libdir@"
@@ -26,6 +26,7 @@ then
     usage
     exit 1
 fi
+
 if [ "$#" -gt 0 ]
 then
     if [[ $1 != -* ]]
@@ -55,7 +56,7 @@ done
 
 
 initfile=$(get_init_file "@initconfigdir@" $servid)
-if [ $? -eq 1 ]
+if [ $? == 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
@@ -66,7 +67,7 @@ fi
 servid=`normalize_server_id $initfile`
 . $initfile
 
-if [ -z "$bak_dir" ]
+if [ -z $bak_dir ]
 then
     bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/$servid-`date +%Y_%m_%d_%H_%M_%S`
 fi
