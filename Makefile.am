@@ -17,6 +17,9 @@ DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand
 if enable_nunc_stans
 NUNC_STANS_INCLUDES = $(nunc_stans_inc)
 NUNC_STANS_LINK = $(nunc_stans_lib) -lnunc-stans
+NUNC_STANS_ON = 1
+else
+NUNC_STANS_ON = 0
 endif
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I. $(NUNC_STANS_INCLUDES)
 
@@ -1940,3 +1943,30 @@ git-archive:
 	fi ; \
 	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2
 
+
+# RPM-related tasks
+
+RPMBUILD ?= $(PWD)/rpmbuild
+
+rpmroot:
+	$(MKDIR_P) $(RPMBUILD)/BUILD
+	$(MKDIR_P) $(RPMBUILD)/RPMS
+	$(MKDIR_P) $(RPMBUILD)/SOURCES
+	$(MKDIR_P) $(RPMBUILD)/SPECS
+	$(MKDIR_P) $(RPMBUILD)/SRPMS
+
+rpmbrprep: dist-bzip2 rpmroot
+	cp $(distdir).tar.bz2 $(RPMBUILD)/SOURCES
+	cp $(builddir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
+	cp $(builddir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
+	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" < $(builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
+
+
+rpms: rpmbrprep
+	cd $(RPMBUILD); \
+	rpmbuild --define "_topdir $(RPMBUILD)" -ba SPECS/389-ds-base.spec
+
+srpm: rpmbrprep
+	cd $(RPMBUILD); \
+	rpmbuild --define "_topdir $(RPMBUILD)" \
+	         -bs SPECS/389-ds-base.spec

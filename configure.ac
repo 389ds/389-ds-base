@@ -11,12 +11,14 @@ AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$PACKAGE_VERSION", [package version])
 AC_DEFINE_UNQUOTED([DS_PACKAGE_TARNAME], "$PACKAGE_TARNAME", [package tarball name])
 AC_DEFINE_UNQUOTED([DS_PACKAGE_BUGREPORT], "$PACKAGE_BUGREPORT", [package bug report url])
 AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_STRING", [package string])
-AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define])
+AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define tar-pax])
 # define these for automake distdir
 VERSION=$PACKAGE_VERSION
 PACKAGE=$PACKAGE_TARNAME
 AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
 AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE", [package tar name])
+AC_SUBST([RPM_VERSION])
+AC_SUBST([RPM_RELEASE])
 AC_SUBST([CONSOLE_VERSION])
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
@@ -778,6 +780,6 @@ if test "$GCC" != yes ; then
    rm -f libtool.tmp
 fi
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec])
 
 AC_OUTPUT

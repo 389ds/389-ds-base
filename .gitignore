@@ -5,3 +5,6 @@ autom4te.cache
 .cproject
 .project
 .settings
+.deps
+rpmbuild
+rpm/389-ds-base.spec

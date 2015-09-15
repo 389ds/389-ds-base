@@ -12,12 +12,8 @@
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
 %global use_Socket6 0
 # nunc-stans only builds on x86_64 for now
-%ifarch x86_64
 # To build without nunc-stans, set 0 to use_nunc_stans.
-%global use_nunc_stans 1
-%else
-%global use_nunc_stans 0
-%endif 
+%global use_nunc_stans __NUNC_STANS_ON__
 
 %if %{use_nunc_stans}
 %global nunc_stans_ver 0.1.5
