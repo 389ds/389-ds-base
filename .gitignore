@@ -14,6 +14,16 @@ autom4te.cache
 .deps
 rpmbuild
 rpm/389-ds-base.spec
+Makefile.in
+aclocal.m4
+compile
+config.guess
+config.h.in
+config.sub
+configure
+depcomp
+install-sh
+missing
 Makefile
 config.h
 config.log
