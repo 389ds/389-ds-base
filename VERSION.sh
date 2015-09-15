@@ -11,25 +11,19 @@ vendor="389 Project"
 VERSION_MAJOR=1
 VERSION_MINOR=3
 VERSION_MAINT=5
-# if this is a PRERELEASE, set VERSION_PREREL
-# otherwise, comment it out
-# be sure to include the dot prefix in the prerel
-VERSION_PREREL=.a1
-# NOTES on VERSION_PREREL
-# use aN for an alpha release e.g. a1, a2, etc.
-# use rcN for a release candidate e.g. rc1, rc2, etc.
-# for extra clarification, the date can be appended to the prerel e.g.
-# RC1.`date +%Y%m%d`
-# a git commit may also be used
+# NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
+VERSION_PREREL=
+VERSION_DATE=`date -u +%Y%m%d%H%M%S`
+GIT_CHECKOUT=`git log -1 >/dev/null 2>&1`
 
 # Set the version and release numbers for local developer RPM builds. We
 # set these here because we do not want the git commit hash in the RPM
 # version since it can make RPM upgrades difficult.  If we have a git
 # commit hash, we add it into the release number below.
-RPM_RELEASE=`date -u +%Y%m%d%H%M%S`
-RPM_VERSION=$VERSION_MAJOR.$VERSION_MINOR.${VERSION_MAINT}$VERSION_PREREL
+RPM_RELEASE=${VERSION_DATE}
+RPM_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MAINT}
 
-if test -n "$VERSION_PREREL"; then
+if test -n "$GIT_CHECKOUT"; then
 # if the source is from a git repo, put the last commit
 # in the version
 # if this is not a git repo, git log will say
@@ -38,8 +32,8 @@ if test -n "$VERSION_PREREL"; then
 # this tells git to print the short commit hash from the last commit
     COMMIT=`cd $srcdir ; git log -1 --pretty=format:%h 2> /dev/null`
     if test -n "$COMMIT" ; then
-        VERSION_PREREL=$VERSION_PREREL.git$COMMIT
-        RPM_RELEASE=$RPM_RELEASE.git$COMMIT
+        VERSION_PREREL=.${VERSION_DATE}-git$COMMIT
+        RPM_RELEASE=$RPM_RELEASE-git$COMMIT
     fi
 fi
 
@@ -50,7 +44,7 @@ fi
 # DS_PACKAGE_VERSION DS_PACKAGE_TARNAME DS_PACKAGE_BUGREPORT
 # for use in C code - other code (perl scripts, shell scripts, Makefiles)
 # can use PACKAGE_VERSION et. al.
-PACKAGE_VERSION=$VERSION_MAJOR.$VERSION_MINOR.${VERSION_MAINT}$VERSION_PREREL
+PACKAGE_VERSION=$VERSION_MAJOR.$VERSION_MINOR.${VERSION_MAINT}${VERSION_PREREL}
 # the name of the source tarball - see make dist
 PACKAGE_TARNAME=${brand}-ds-base
 # url for bug reports
