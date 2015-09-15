@@ -162,13 +162,15 @@ def get_plugin_dir(prefix=None):
 def valgrind_enable(sbin_dir, wrapper=None):
     '''
     Copy the valgrind ns-slapd wrapper into the /sbin directory
-    (making a backup of the original ns-slapd binary).  The server instance(s)
-    should be stopped prior to calling this function.
+    (making a backup of the original ns-slapd binary).
 
+    The server instance(s) should be stopped prior to calling this function.
     Then after calling valgrind_enable():
     - Start the server instance(s) with a timeout of 60 (valgrind takes a while to startup)
     - Run the tests
-    - Run valgrind_check_leak(instance, "leak test") - this also stops the instance
+    - Stop the server
+    - Get the results file
+    - Run valgrind_check_file(result_file, "pattern", "pattern", ...)
     - Run valgrind_disable()
 
     @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
@@ -242,44 +244,66 @@ def valgrind_disable(sbin_dir):
     log.info('Valgrind is now disabled.')
 
 
-def valgrind_check_leak(dirsrv_inst, pattern):
-    '''
-    Check the valgrind results file for the "leak_str"
-    @param dirsrv_inst - DirSrv object for the instance we want the result file from
-    @param pattern - A plain text or regex pattern string that should be searched for
-    @return True/False - Return true of "leak_str" is in the valgrind output file
-    @raise IOError
-    '''
+def valgrind_get_results_file(dirsrv_inst):
+    """
+    Return the valgrind results file for the dirsrv instance.
+    """
 
-    cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
-           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
-
-    '''
+    """
     The "ps -ef | grep valgrind" looks like:
 
         nobody 26239 1 10 14:33 ? 00:00:06 valgrind -q --tool=memcheck --leak-check=yes
         --leak-resolution=high --num-callers=50 --log-file=/var/tmp/slapd.vg.26179
         /usr/sbin/ns-slapd.orig -D /etc/dirsrv/slapd-localhost
         -i /var/run/dirsrv/slapd-localhost.pid -w /var/run/dirsrv/slapd-localhost.startpid
-    '''
+
+    We need to extract the "--log-file" value
+    """
+    cmd = ("ps -ef | grep valgrind | grep 'slapd-" + dirsrv_inst.serverid +
+           " ' | awk '{ print $14 }' | sed -e 's/\-\-log\-file=//'")
 
     # Run the command and grab the output
     p = os.popen(cmd)
-    result_file = p.readline()
+    results_file = p.readline()
     p.close()
 
-    # We need to stop the server next
-    dirsrv_inst.stop(timeout=30)
-    time.sleep(1)
+    return results_file
+
+
+def valgrind_check_file(results_file, *patterns):
+    '''
+    Check the valgrind results file for the all the patterns
+    @param result_file - valgrind results file (must be read after server is stopped)
+    @param patterns - A plain text or regex pattern string args that should be searched for
+    @return True/False - Return true if one if the patterns match a stack trace
+    @raise IOError
+    '''
+
+    # Verify results file
+    if not results_file:
+        assert False
 
     # Check the result file fo the leak text
-    result_file = result_file.replace('\n', '')
+    results_file = results_file.replace('\n', '')
     found = False
-    vlog = open(result_file)
+    pattern_count = len(patterns)
+    matched_count = 0
+
+    vlog = open(results_file)
     for line in vlog:
-        if re.search(pattern, line):
-            found = True
-            break
+        for match_txt in patterns:
+            if re.search(match_txt, line):
+                matched_count += 1
+                break
+
+        if len(line.split()) == 1:
+            # Check if this stack stack matched all the patterns
+            if pattern_count == matched_count:
+                found = True
+                print('valgrind: match found in results file: %s' % (results_file))
+                break
+            else:
+                matched_count = 0
     vlog.close()
 
     return found

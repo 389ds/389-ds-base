@@ -170,6 +170,8 @@ DEFAULT_USER_COMMENT = "lib389 DS user"
 DATA_DIR = "data"
 TMP_DIR = "tmp"
 VALGRIND_WRAPPER = "ns-slapd.valgrind"
+VALGRIND_LEAK_STR = " blocks are definitely lost in loss record "
+VALGRIND_INVALID_STR = " Invalid (free|read|write)"
 DISORDERLY_SHUTDOWN = 'Detected Disorderly Shutdown last time Directory Server was running, recovering database'
 
 #
