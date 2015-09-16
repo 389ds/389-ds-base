@@ -1416,6 +1416,7 @@ valueset_update_csn_for_valuearray_ext(Slapi_ValueSet *vs, const Slapi_Attr *a, 
 			{
 				value_update_csn(v,t,csn);
 				if (csnref_updated) {
+					csnset_free(&valuestoupdate[i]->v_csnset);
 					valuestoupdate[i]->v_csnset = csnset_dup(value_get_csnset(v));
 				}
 				valuearrayfast_add_value_passin(&vaf_valuesupdated,valuestoupdate[i]);
