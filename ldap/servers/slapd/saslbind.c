@@ -35,19 +35,27 @@ void *nssasl_mutex_alloc(void)
 
 int nssasl_mutex_lock(void *mutex)
 {
-    PR_Lock(mutex);
+    if (mutex) {
+        PR_Lock(mutex);
+    }
     return SASL_OK;
 }
 
 int nssasl_mutex_unlock(void *mutex)
 {
-    if (PR_Unlock(mutex) == PR_SUCCESS) return SASL_OK;
-    return SASL_FAIL;
+    if (mutex) {
+        if (PR_Unlock(mutex) == PR_SUCCESS) return SASL_OK;
+        return SASL_FAIL;
+    } else {
+        return SASL_OK;
+    }
 }
 
 void nssasl_mutex_free(void *mutex)
 {
-    PR_DestroyLock(mutex);
+    if (mutex) {
+        PR_DestroyLock(mutex);
+    }
 }
 
 void nssasl_free(void *ptr)
