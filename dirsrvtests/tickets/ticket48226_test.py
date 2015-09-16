@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -120,9 +120,17 @@ def topology(request):
     # Clear out the tmp dir
     master1.clearTmpDir(__file__)
 
+    def fin():
+        master1.delete()
+        master2.delete()
+        sbin_dir = get_sbin_dir(prefix=master2.prefix)
+        valgrind_disable(sbin_dir)
+    request.addfinalizer(fin)
+
     return TopologyReplication(master1, master2)
 
-def test_ticket11111_set_purgedelay(topology):
+
+def test_ticket48226_set_purgedelay(topology):
     args = {REPLICA_PURGE_DELAY: '5',
             REPLICA_PURGE_INTERVAL: '5'}
     try:
@@ -139,21 +147,20 @@ def test_ticket11111_set_purgedelay(topology):
     topology.master2.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
     topology.master1.restart(10)
     topology.master2.restart(10)
-    
 
-def test_ticket11111_1(topology):
+
+def test_ticket48226_1(topology):
     name = 'test_entry'
     dn = "cn=%s,%s" % (name, SUFFIX)
-    
-    topology.master1.add_s(Entry((dn , {
-                                            'objectclass': "top person".split(),
-                                            'sn': name,
-                                            'cn': name})))
-                                            
+
+    topology.master1.add_s(Entry((dn, {'objectclass': "top person".split(),
+                                        'sn': name,
+                                        'cn': name})))
+
     # First do an update that is replicated
     mods = [(ldap.MOD_ADD, 'description', '5')]
     topology.master1.modify_s(dn, mods)
-    
+
     nbtry = 0
     while (nbtry <= 10):
         try:
@@ -165,17 +172,17 @@ def test_ticket11111_1(topology):
         nbtry = nbtry + 1
         time.sleep(1)
     assert nbtry <= 10
-    
+
     # Stop M2 so that it will not receive the next update
     topology.master2.stop(10)
-    
+
     # ADD a new value that is not replicated
     mods = [(ldap.MOD_DELETE, 'description', '5')]
     topology.master1.modify_s(dn, mods)
-    
+
     # Stop M1 so that it will keep del '5' that is unknown from master2
     topology.master1.stop(10)
-    
+
     # Get the sbin directory so we know where to replace 'ns-slapd'
     sbin_dir = get_sbin_dir(prefix=topology.master2.prefix)
 
@@ -183,59 +190,60 @@ def test_ticket11111_1(topology):
     valgrind_enable(sbin_dir)
 
     # start M2 to do the next updates
-    topology.master2.start(10)
-    
-    # ADD 'description' by '5' 
+    topology.master2.start(60)
+
+    # ADD 'description' by '5'
     mods = [(ldap.MOD_DELETE, 'description', '5')]
     topology.master2.modify_s(dn, mods)
-    
+
     # DEL 'description' by '5'
     mods = [(ldap.MOD_ADD, 'description', '5')]
     topology.master2.modify_s(dn, mods)
-    
+
     # sleep of purgedelay so that the next update will purge the CSN_7
     time.sleep(6)
-    
-    # ADD 'description' by '8' that purge the state info
+
+    # ADD 'description' by '6' that purge the state info
     mods = [(ldap.MOD_ADD, 'description', '6')]
     topology.master2.modify_s(dn, mods)
 
-    if valgrind_check_leak(topology.master2, 'csnset_dup'):
-        log.error('test_csnset_dup: Memory leak is present!')
-    else:
-        log.info('test_csnset_dup: No leak is present!')
-    
-    topology.master2.start(10)
-
-    # Disnable valgrind
-    valgrind_disable(sbin_dir)
-
+    # Restart master1
     topology.master1.start(10)
-    
-    if valgrind_check_leak(topology.master2, 'Invalid'):
-        log.info('Valgrind reported invalid!')
+
+    # Get the results file
+    results_file = valgrind_get_results_file(topology.master2)
+
+    # Stop master2
+    topology.master2.stop(10)
+
+    # Check for leak
+    if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
+        log.info('Valgrind reported leak in csnset_dup!')
+        assert False
     else:
         log.info('Valgrind is happy!')
-    
-    #log.info("You can attach yourself")
-    #time.sleep(60)
-    
-    
-def test_ticket11111_final(topology):
-    topology.master1.delete()
-    topology.master2.delete()
+
+    # Check for invalid read/write
+    if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_dup'):
+        log.info('Valgrind reported invalid!')
+        assert False
+    else:
+        log.info('Valgrind is happy!')
+
+    # Check for invalid read/write
+    if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_free'):
+        log.info('Valgrind reported invalid!')
+        assert False
+    else:
+        log.info('Valgrind is happy!')
+
+    topology.master1.start(10)
     log.info('Testcase PASSED')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket11111_set_purgedelay(topo)
-    test_ticket11111_1(topo)
-    
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 
