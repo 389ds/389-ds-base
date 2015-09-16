@@ -46,6 +46,12 @@ def topology(request):
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
+    def fin():
+        topology.standalone.delete()
+        sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
+        valgrind_disable(sbin_dir)
+    request.addfinalizer(fin)
+
     return TopologyStandalone(standalone)
 
 
@@ -81,8 +87,6 @@ def test_range_search(topology):
 
     log.info('Running test_range_search...')
 
-    sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
-
     success = True
 
     # Add 100 test entries
@@ -105,41 +109,22 @@ def test_range_search(topology):
         except ldap.LDAPError, e:
             log.fatal('test_range_search: Failed to search retro changelog(%s), error: %s' %
                       (RETROCL_SUFFIX, e.message('desc')))
-            test_range_search_final(topology)  # With valgrind we always need to cleanup
             success = False
 
     if success:
-        # Check valgrind(this stops the server)
-        if valgrind_check_leak(topology.standalone, 'range_candidates'):
+        # Get the results file, stop the server, and check for the leak
+        results_file = valgrind_get_results_file(topology.standalone)
+        topology.standalone.stop(timeout=30)
+        if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'range_candidates'):
             log.fatal('test_range_search: Memory leak is still present!')
-            test_range_search_final(topology)  # With valgrind we always need to cleanup
-            success = False
+            assert False
 
-    # Disable valgrind
-    sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
-    valgrind_disable(sbin_dir)
-
-    if success:
         log.info('test_range_search: PASSED')
-    else:
-        log.fatal('test_range_search: FAILED')
-
-
-def test_range_search_final(topology):
-    # Remove the instance
-    topology.standalone.delete()
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_range_search_init(topo)
-    test_range_search(topo)
-    test_range_search_final(topo)
 
 
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 
