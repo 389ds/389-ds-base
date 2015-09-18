@@ -6338,6 +6338,7 @@ Slapi_Backend *slapi_be_new( const char *type, const char *name,
 	int isprivate, int logchanges );
 void slapi_be_free(Slapi_Backend **be);
 Slapi_Backend *slapi_be_select( const Slapi_DN *sdn );
+Slapi_Backend *slapi_be_select_exact(const Slapi_DN *sdn);
 Slapi_Backend *slapi_be_select_by_instance_name( const char *name );
 int slapi_be_exist(const Slapi_DN *sdn);
 void slapi_be_delete_onexit(Slapi_Backend *be);
