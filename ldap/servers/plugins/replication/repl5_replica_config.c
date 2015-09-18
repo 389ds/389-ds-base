@@ -1948,7 +1948,7 @@ done:
     /*
      *  If the replicas are cleaned, release the rid
      */
-    if(!aborted){
+    if(!aborted && !slapi_is_shutting_down()){
         delete_cleaned_rid_config(data);
         /* make sure all the replicas have been "pre_cleaned" before finishing */
         check_replicas_are_done_cleaning(data);
@@ -3005,7 +3005,7 @@ replica_abort_task_thread(void *arg)
     }
 
     /*
-     *  Now send the cleanruv extended op to all the agreements
+     *  Now send the abort cleanruv extended op to all the agreements
      */
     while(agmt_not_notified && !slapi_is_shutting_down()){
         agmt_obj = agmtlist_get_first_agreement_for_replica (data->replica);
@@ -3013,7 +3013,7 @@ replica_abort_task_thread(void *arg)
         	agmt_not_notified = 0;
         	break;
         }
-        while (agmt_obj){
+        while (agmt_obj && !slapi_is_shutting_down()){
             agmt = (Repl_Agmt*)object_get_data (agmt_obj);
             if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
                 agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
@@ -3058,7 +3058,7 @@ replica_abort_task_thread(void *arg)
     } /* while */
 
 done:
-    if(agmt_not_notified){
+    if(agmt_not_notified || slapi_is_shutting_down()){
         /* failure */
         cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID,"Abort task failed, will resume the task at the next server startup.");
     } else {
