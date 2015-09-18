@@ -107,6 +107,7 @@ do_bind( Slapi_PBlock *pb )
     int auto_bind = 0;
     int minssf = 0;
     int minssf_exclude_rootdse = 0;
+    Slapi_DN *original_sdn = NULL;
 
     LDAPDebug( LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
@@ -660,10 +661,9 @@ do_bind( Slapi_PBlock *pb )
         goto free_and_return;
     }
 
-    if (referral)
-    {
-		send_referrals_from_entry(pb,referral);
-		slapi_entry_free(referral);
+    if (referral) {
+        send_referrals_from_entry(pb,referral);
+        slapi_entry_free(referral);
         goto free_and_return;
     }
 
@@ -671,29 +671,50 @@ do_bind( Slapi_PBlock *pb )
 
     /* not root dn - pass to the backend */
     if ( be->be_bind != NULL ) {
-
+        original_sdn = slapi_sdn_dup(sdn);
         /*
          * call the pre-bind plugins. if they succeed, call
          * the backend bind function. then call the post-bind
          * plugins.
          */
         if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0 )  {
+            int sdn_updated = 0;
             rc = 0;
 
             /* Check if a pre_bind plugin mapped the DN to another backend */
             Slapi_DN *pb_sdn;
             slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
-            if (pb_sdn != sdn) {
+            if (!pb_sdn) {
+                PR_snprintf(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set NULL dn\n");
+                send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
+                goto free_and_return;
+            } else if ((pb_sdn != sdn) || (sdn_updated = slapi_sdn_compare(original_sdn, pb_sdn))) {
                 /*
                  * Slapi_DN set in pblock was changed by a pre bind plug-in.
                  * It is a plug-in's responsibility to free the original Slapi_DN.
                  */
                 sdn = pb_sdn;
                 dn = slapi_sdn_get_dn(sdn);
-
-                slapi_be_Unlock(be);
-                be = slapi_be_select(sdn);
-                slapi_be_Rlock(be);
+                if (!dn) {
+                    PR_snprintf(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set corrupted dn\n");
+                    send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
+                    goto free_and_return;
+                }
+                if (!sdn_updated) { /* pb_sdn != sdn; need to compare the dn's. */
+                    sdn_updated = slapi_sdn_compare(original_sdn, sdn);
+                }
+                if (sdn_updated) { /* call slapi_be_select only when the DN is updated. */
+                    slapi_be_Unlock(be);
+                    be = slapi_be_select_exact(sdn);
+                    if (be) {
+                        slapi_be_Rlock(be);
+                        slapi_pblock_set( pb, SLAPI_BACKEND, be );
+                    } else {
+                        PR_snprintf(errorbuf, sizeof(errorbuf), "No matching backend for %s\n", dn);
+                        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
+                        goto free_and_return;
+                    }
+                }
             }
 
             /*
@@ -845,10 +866,12 @@ account_locked:
     }
 
 free_and_return:;
-    if (be)
+    slapi_sdn_free(&original_sdn);
+    if (be) {
         slapi_be_Unlock(be);
+    }
     if (bind_sdn_in_pb) {
-	    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
+        slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
     }
     slapi_sdn_free(&sdn);
     slapi_ch_free_string( &saslmech );
