@@ -3095,6 +3095,25 @@ slapi_be_select( const Slapi_DN *sdn ) /* JCM - The name of this should change??
     return be;
 }
 
+Slapi_Backend *
+slapi_be_select_exact(const Slapi_DN *sdn)
+{
+    Slapi_Backend *be = NULL;
+    mapping_tree_node *node = NULL;
+
+    if (!sdn) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "slapi_be_select_exact: Empty Slapi_DN is given.\n");
+        return NULL;
+    }
+    node = slapi_get_mapping_tree_node_by_dn(sdn);
+
+    if (node && node->mtn_be) {
+        be = node->mtn_be[0];
+    }
+
+    return be;
+}
+
 /* Check if the dn targets an internal reserved backends */
 int
 slapi_on_internal_backends(const Slapi_DN *sdn)
