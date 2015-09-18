@@ -1672,7 +1672,6 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		int finished = 0;
 		ConnResult replay_crc;
 		char csn_str[CSN_STRSIZE];
-		PRBool subentry_update_sent = PR_FALSE;
 		PRBool subentry_update_needed = PR_FALSE;
 		int skipped_updates = 0;
 		int fractional_repl;
