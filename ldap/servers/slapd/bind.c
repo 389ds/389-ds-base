@@ -669,7 +669,7 @@ do_bind( Slapi_PBlock *pb )
 
     slapi_pblock_set( pb, SLAPI_BACKEND, be );
 
-	/* not root dn - pass to the backend */
+    /* not root dn - pass to the backend */
     if ( be->be_bind != NULL ) {
 
         /*
@@ -677,9 +677,24 @@ do_bind( Slapi_PBlock *pb )
          * the backend bind function. then call the post-bind
          * plugins.
          */
-        if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN )
-             == 0 )  {
+        if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0 )  {
             rc = 0;
+
+            /* Check if a pre_bind plugin mapped the DN to another backend */
+            Slapi_DN *pb_sdn;
+            slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
+            if (pb_sdn != sdn) {
+                /*
+                 * Slapi_DN set in pblock was changed by a pre bind plug-in.
+                 * It is a plug-in's responsibility to free the original Slapi_DN.
+                 */
+                sdn = pb_sdn;
+                dn = slapi_sdn_get_dn(sdn);
+
+                slapi_be_Unlock(be);
+                be = slapi_be_select(sdn);
+                slapi_be_Rlock(be);
+            }
 
             /*
              * Is this account locked ?
