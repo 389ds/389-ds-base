@@ -318,7 +318,6 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 	int portnum = 0;
 	Slapi_DN *area_sdn = NULL;
 	CSN *remote_schema_csn = NULL;
-	int init_retry = 0;
 	Replica *replica;
 	ReplicaId rid = 0; /* Used to create the replica keep alive subentry */
 	
