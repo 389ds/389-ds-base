@@ -316,6 +316,12 @@ int slapi_add_internal_pb (Slapi_PBlock *pb)
 
 	if (!allow_operation (pb))
 	{
+		/* free the entry as it's expected to be consumed */
+		Slapi_Entry *e;
+		slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
+		slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+		slapi_entry_free(e);
+
 		slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 						 "This plugin is not configured to access operation target data", 0, NULL );
 		return 0;
@@ -727,8 +733,8 @@ static void op_shared_add (Slapi_PBlock *pb)
 				slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &pse);
 				do_ps_service(pse, NULL, LDAP_CHANGETYPE_ADD, 0);
 				/* 
-				 * If be_add succeeded, then e is consumed except the resurect case.
-				 * If it is resurect, the corresponding tombstone entry is resurected
+				 * If be_add succeeded, then e is consumed except the resurrect case.
+				 * If it is resurrect, the corresponding tombstone entry is resurrected
 				 * and put into the cache.
 				 * Otherwise, we set e to NULL to prevent freeing it ourselves.
 				 */
