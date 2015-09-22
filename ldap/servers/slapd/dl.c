@@ -219,7 +219,7 @@ void *dl_delete (DataList *dl, const void *element, CMPFN cmpfn, FREEFN freefn)
 
 			if (i != dl->element_count - 1)
 			{
-				memcpy (&dl->elements[i], &dl->elements[i+1], (dl->element_count - i - 1) * sizeof (void*));
+				memmove (&dl->elements[i], &dl->elements[i+1], (dl->element_count - i - 1) * sizeof (void*));
 			}
 		
 			dl->element_count --;
