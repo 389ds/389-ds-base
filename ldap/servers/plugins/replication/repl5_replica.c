@@ -477,7 +477,9 @@ replica_subentry_create(Slapi_DN *repl_root, ReplicaId rid)
             repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
     slapi_add_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
-    if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) 
+    if (return_value != LDAP_SUCCESS &&
+        return_value != LDAP_ALREADY_EXISTS &&
+        return_value != LDAP_REFERRAL /* CONSUMER */)
     {
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
                 "create replication keep alive entry %s: %s\n", slapi_entry_get_dn_const(e),
