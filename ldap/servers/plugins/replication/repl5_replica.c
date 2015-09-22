@@ -451,7 +451,6 @@ replica_subentry_create(Slapi_DN *repl_root, ReplicaId rid)
                 "create replication keep alive entry %s: %s\n", slapi_entry_get_dn_const(e),
                 ldap_err2string(return_value));
         rc = -1;
-        slapi_entry_free(e); /* The entry was not consumed */
         goto done;
     }
 
