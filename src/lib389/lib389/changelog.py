@@ -27,7 +27,7 @@ class Changelog(object):
         if not changelogdn:
             raise InvalidArgumentError("changelog DN is missing")
 
-        base  = changelogdn
+        base = changelogdn
         filtr = "(objectclass=extensibleobject)"
 
         # now do the effective search
@@ -47,7 +47,7 @@ class Changelog(object):
         entry.update({
             'objectclass': ("top", "extensibleobject"),
             CHANGELOG_PROPNAME_TO_ATTRNAME[CHANGELOG_NAME]: changelog_name,
-            CHANGELOG_PROPNAME_TO_ATTRNAME[CHANGELOG_DIR]:  dirpath
+            CHANGELOG_PROPNAME_TO_ATTRNAME[CHANGELOG_DIR]: dirpath
         })
         self.log.debug("adding changelog entry: %r" % entry)
         self.changelogdir = dirpath
@@ -72,7 +72,7 @@ class Changelog(object):
         if not changelogdn:
             raise InvalidArgumentError("changelog DN is missing")
 
-        ents = self.changelog.list(changelogdn=changelogdn)
+        ents = self.conn.changelog.list(changelogdn=changelogdn)
         if len(ents) != 1:
             raise ValueError("Changelog entry not found: %s" % changelogdn)
 
@@ -94,11 +94,10 @@ class Changelog(object):
             else:
                 op = ldap.MOD_REPLACE
 
-            mods.append((op, REPLICA_PROPNAME_TO_ATTRNAME[val], properties[prop]))
+            mods.append((op, CHANGELOG_PROPNAME_TO_ATTRNAME[val], properties[prop]))
 
         # that is fine now to apply the MOD
         self.conn.modify_s(ents[0].dn, mods)
-
 
     def getProperties(self, changelogdn=None, properties=None):
         raise NotImplemented
