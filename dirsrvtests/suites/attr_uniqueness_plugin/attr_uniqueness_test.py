@@ -21,7 +21,8 @@ from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
+USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
+USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
 installation1_prefix = None
 
 
@@ -66,6 +67,8 @@ def test_attr_uniqueness_init(topology):
     except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
+
+    topology.standalone.plugins.enable(name=PLUGIN_ATTR_UNIQUENESS)
 
 
 def test_attr_uniqueness(topology):

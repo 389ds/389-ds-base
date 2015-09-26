@@ -209,12 +209,11 @@ def test_ticket47714_run_1(topology):
     except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
+    time.sleep(1)
+
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     entry = topology.standalone.search_s(TEST_USER_DN, ldap.SCOPE_BASE, SEARCHFILTER, ['lastLoginTime'])
-
     lastLoginTime0 = entry[0].lastLoginTime
-
-    time.sleep(2)
 
     log.info("\n######################### Bind as %s again ######################\n" % TEST_USER_DN)
     try:
@@ -222,9 +221,10 @@ def test_ticket47714_run_1(topology):
     except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
+    time.sleep(1)
+
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     entry = topology.standalone.search_s(TEST_USER_DN, ldap.SCOPE_BASE, SEARCHFILTER, ['lastLoginTime'])
-
     lastLoginTime1 = entry[0].lastLoginTime
 
     log.info("First lastLoginTime: %s, Second lastLoginTime: %s" % (lastLoginTime0, lastLoginTime1))

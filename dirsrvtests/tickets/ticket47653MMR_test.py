@@ -104,9 +104,8 @@ def topology(request):
     master2.allocate(args_master)
 
     # Get the status of the instance and restart it if it exists
-    instance_master1   = master1.exists()
+    instance_master1 = master1.exists()
     instance_master2 = master2.exists()
-
 
     # Remove all the instances
     if instance_master1:
