@@ -79,7 +79,7 @@ def topology(request):
     return TopologyStandalone(standalone)
 
 
-def test_ticket47669_init(topo):
+def test_ticket47669_init(topology):
     """
     Add cn=changelog5,cn=config
     Enable cn=Retro Changelog Plugin,cn=plugins,cn=config
@@ -87,12 +87,12 @@ def test_ticket47669_init(topo):
     log.info('Testing Ticket 47669 - Test duration syntax in the changelogs')
 
     # bind as directory manager
-    topo.standalone.log.info("Bind as %s" % DN_DM)
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.log.info("Bind as %s" % DN_DM)
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     try:
-        changelogdir = "%s/changelog" % topo.standalone.dbdir
-        topo.standalone.add_s(Entry((CHANGELOG,
+        changelogdir = "%s/changelog" % topology.standalone.dbdir
+        topology.standalone.add_s(Entry((CHANGELOG,
                                      {'objectclass': 'top extensibleObject'.split(),
                                       'nsslapd-changelogdir': changelogdir})))
     except ldap.LDAPError as e:
@@ -100,23 +100,23 @@ def test_ticket47669_init(topo):
         assert False
 
     try:
-        topo.standalone.modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
+        topology.standalone.modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
     except ldap.LDAPError as e:
         log.error('Failed to enable ' + RETROCHANGELOG + ': error ' + e.message['desc'])
         assert False
 
     # restart the server
-    topo.standalone.restart(timeout=10)
+    topology.standalone.restart(timeout=10)
 
 
-def add_and_check(topo, plugin, attr, val, isvalid):
+def add_and_check(topology, plugin, attr, val, isvalid):
     """
     Helper function to add/replace attr: val and check the added value
     """
     if isvalid:
         log.info('Test %s: %s -- valid' % (attr, val))
         try:
-            topo.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
+            topology.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
         except ldap.LDAPError as e:
             log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error ' + e.message['desc'])
             assert False
@@ -124,17 +124,18 @@ def add_and_check(topo, plugin, attr, val, isvalid):
         log.info('Test %s: %s -- invalid' % (attr, val))
         if plugin == CHANGELOG:
             try:
-                topo.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
+                topology.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
             except ldap.LDAPError as e:
-                log.error('Expectedly failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error ' + e.message['desc'])
+                log.error('Expectedly failed to add ' + attr + ': ' + val +
+                          ' to ' + plugin + ': error ' + e.message['desc'])
         else:
             try:
-                topo.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
+                topology.standalone.modify_s(plugin, [(ldap.MOD_REPLACE, attr, val)])
             except ldap.LDAPError as e:
                 log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error ' + e.message['desc'])
 
     try:
-        entries = topo.standalone.search_s(plugin, ldap.SCOPE_BASE, FILTER, [attr])
+        entries = topology.standalone.search_s(plugin, ldap.SCOPE_BASE, FILTER, [attr])
         if isvalid:
             if not entries[0].hasValue(attr, val):
                 log.fatal('%s does not have expected (%s: %s)' % (plugin, attr, val))
@@ -153,86 +154,86 @@ def add_and_check(topo, plugin, attr, val, isvalid):
         assert False
 
 
-def test_ticket47669_changelog_maxage(topo):
+def test_ticket47669_changelog_maxage(topology):
     """
     Test nsslapd-changelogmaxage in cn=changelog5,cn=config
     """
     log.info('1. Test nsslapd-changelogmaxage in cn=changelog5,cn=config')
 
     # bind as directory manager
-    topo.standalone.log.info("Bind as %s" % DN_DM)
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.log.info("Bind as %s" % DN_DM)
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, CHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '10s', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '30M', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '12h', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '2D', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '4w', True)
-    add_and_check(topo, CHANGELOG, MAXAGE, '-123', False)
-    add_and_check(topo, CHANGELOG, MAXAGE, 'xyz', False)
+    add_and_check(topology, CHANGELOG, MAXAGE, '12345', True)
+    add_and_check(topology, CHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topology, CHANGELOG, MAXAGE, '30M', True)
+    add_and_check(topology, CHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topology, CHANGELOG, MAXAGE, '2D', True)
+    add_and_check(topology, CHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topology, CHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topology, CHANGELOG, MAXAGE, 'xyz', False)
 
 
-def test_ticket47669_changelog_triminterval(topo):
+def test_ticket47669_changelog_triminterval(topology):
     """
     Test nsslapd-changelogtrim-interval in cn=changelog5,cn=config
     """
     log.info('2. Test nsslapd-changelogtrim-interval in cn=changelog5,cn=config')
 
     # bind as directory manager
-    topo.standalone.log.info("Bind as %s" % DN_DM)
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.log.info("Bind as %s" % DN_DM)
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '12345', True)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '10s', True)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '30M', True)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '12h', True)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '2D', True)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '4w', True)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, '-123', False)
-    add_and_check(topo, CHANGELOG, TRIMINTERVAL, 'xyz', False)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '12345', True)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '10s', True)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '30M', True)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '12h', True)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '2D', True)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '4w', True)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, '-123', False)
+    add_and_check(topology, CHANGELOG, TRIMINTERVAL, 'xyz', False)
 
 
-def test_ticket47669_changelog_compactdbinterval(topo):
+def test_ticket47669_changelog_compactdbinterval(topology):
     """
     Test nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config
     """
     log.info('3. Test nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config')
 
     # bind as directory manager
-    topo.standalone.log.info("Bind as %s" % DN_DM)
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.log.info("Bind as %s" % DN_DM)
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '12345', True)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '10s', True)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '30M', True)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '12h', True)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '2D', True)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '4w', True)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, '-123', False)
-    add_and_check(topo, CHANGELOG, COMPACTDBINTERVAL, 'xyz', False)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '12345', True)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '10s', True)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '30M', True)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '12h', True)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '2D', True)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '4w', True)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, '-123', False)
+    add_and_check(topology, CHANGELOG, COMPACTDBINTERVAL, 'xyz', False)
 
 
-def test_ticket47669_retrochangelog_maxage(topo):
+def test_ticket47669_retrochangelog_maxage(topology):
     """
     Test nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config
     """
     log.info('4. Test nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config')
 
     # bind as directory manager
-    topo.standalone.log.info("Bind as %s" % DN_DM)
-    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    topology.standalone.log.info("Bind as %s" % DN_DM)
+    topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12345', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '10s', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '30M', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '12h', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '2D', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '4w', True)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, '-123', False)
-    add_and_check(topo, RETROCHANGELOG, MAXAGE, 'xyz', False)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '12345', True)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '10s', True)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '30M', True)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '12h', True)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '2D', True)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '4w', True)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, '-123', False)
+    add_and_check(topology, RETROCHANGELOG, MAXAGE, 'xyz', False)
 
-    topo.standalone.log.info("ticket47669 was successfully verified.")
+    topology.standalone.log.info("ticket47669 was successfully verified.")
 
 
 def test_ticket47669_final(topology):

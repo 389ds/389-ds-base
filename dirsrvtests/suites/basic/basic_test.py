@@ -661,15 +661,16 @@ def test_basic_systemctl(topology, import_example_ldif):
         log.fatal('test_basic_systemctl: The server incorrectly started')
         assert False
     log.info('Server failed to start as expected')
+    time.sleep(5)
 
     #
     # Fix the dse.ldif, and make sure the server starts up,
     # and systemctl correctly identifies the successful start
     #
     shutil.copy(tmp_dir + 'dse.ldif', config_dir)
-    log.info('Starting the server...')
+    log.info('Starting the server with good dse.ldif...')
     rc = os.system(start_ds)
-    time.sleep(10)
+    time.sleep(5)
     log.info('Check the status...')
     if rc != 0 or os.system(is_running) != 0:
         log.fatal('test_basic_systemctl: Failed to start the server')
