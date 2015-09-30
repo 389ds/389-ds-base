@@ -1488,6 +1488,7 @@ void op_set_pagedresults(Operation *op);
 void pagedresults_lock(Connection *conn, int index);
 void pagedresults_unlock(Connection *conn, int index);
 int pagedresults_is_abandoned_or_notavailable(Connection *conn, int index);
+int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked);
 
 /*
  * sort.c
