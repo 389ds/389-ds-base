@@ -185,7 +185,6 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     }
     /* reset sizelimit */
     op->o_pagedresults_sizelimit = -1;
-    slapi_ch_free((void **)&cookie.bv_val);
 
     if ((*index > -1) && (*index < conn->c_pagedresults.prl_maxlen)) {
         if (conn->c_pagedresults.prl_list[*index].pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED) {
@@ -202,6 +201,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         LDAPDebug1Arg(LDAP_DEBUG_ANY, "pagedresults_parse_control_value: invalid cookie: %d\n", *index);
     }
 bail:
+    slapi_ch_free((void **)&cookie.bv_val);
     /* cleaning up the rest of the timedout or abandoned if any */
     prp = conn->c_pagedresults.prl_list;
     for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++, prp++) {
@@ -1022,4 +1022,35 @@ pagedresults_is_abandoned_or_notavailable( Connection *conn, int index )
     prp = conn->c_pagedresults.prl_list + index;
     PR_Unlock(conn->c_mutex);
     return prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
+}
+
+int
+pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked)
+{
+    int rc = -1;
+    Connection *conn = NULL;
+    Operation *op = NULL;
+    int index = -1;
+    if (!pb) {
+        return 0;
+    }
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (!op_is_pagedresults(op)) {
+        return 0; /* noop */
+    }
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+    slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &index);
+    LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                   "--> pagedresults_set_search_result_pb: idx=%d, sr=%p\n", index, sr);
+    if (conn && (index > -1)) {
+        if (!locked) PR_Lock(conn->c_mutex);
+        if (index < conn->c_pagedresults.prl_maxlen) {
+            conn->c_pagedresults.prl_list[index].pr_search_result_set = sr;
+            rc = 0;
+        }
+        if (!locked) PR_Unlock(conn->c_mutex);
+    }
+    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+                  "<-- pagedresults_set_search_result_pb: %d\n", rc);
+    return rc;
 }

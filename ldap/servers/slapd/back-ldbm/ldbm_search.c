@@ -1919,6 +1919,7 @@ delete_search_result_set( Slapi_PBlock *pb, back_search_result_set **sr )
             /* If the op is pagedresults, let the module clean up sr. */
             return;
         }
+        pagedresults_set_search_result_pb(pb, NULL, 0);
         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
     }
     if ( NULL != (*sr)->sr_candidates )

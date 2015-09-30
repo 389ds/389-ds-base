@@ -2859,6 +2859,7 @@ dse_next_search_entry (Slapi_PBlock *pb)
 	/* we reached the end of the list */
 	if (e == NULL)
 	{
+		pagedresults_set_search_result_pb(pb, NULL, 0);
 		dse_search_set_delete (ss);
 		slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
 	}
