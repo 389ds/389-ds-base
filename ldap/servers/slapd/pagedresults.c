@@ -337,7 +337,7 @@ pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (conn->c_pagedresults.prl_list[i].pr_msgid == msgid) {
                     PagedResults *prp = conn->c_pagedresults.prl_list + i;
-                    if (prp && prp->pr_current_be &&
+                    if (prp->pr_current_be &&
                         prp->pr_current_be->be_search_results_release &&
                         prp->pr_search_result_set) {
                         prp->pr_current_be->be_search_results_release(&(prp->pr_search_result_set));
@@ -429,7 +429,11 @@ pagedresults_set_search_result(Connection *conn, Operation *op, void *sr,
     if (conn && (index > -1)) {
         if (!locked) PR_Lock(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
-            conn->c_pagedresults.prl_list[index].pr_search_result_set = sr;
+            PagedResults *prp = conn->c_pagedresults.prl_list + index;
+            if (!(prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED) || !sr) {
+                /* If abandoned, don't set the search result unless it is NULL */
+                prp->pr_search_result_set = sr;
+            }
             rc = 0;
         }
         if (!locked) PR_Unlock(conn->c_mutex);
