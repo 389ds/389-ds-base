@@ -109,6 +109,24 @@ agmtlist_release_agmt(Repl_Agmt *ra)
 	}
 }
 
+int
+agmtlist_agmt_exists(const Repl_Agmt *ra)
+{
+	Object *ro;
+	int exists = 0;
+
+	PR_ASSERT(NULL != agmt_set);
+	if (!ra) {
+		return exists;
+	}
+	ro = objset_find(agmt_set, agmt_ptr_cmp, (const void *)ra);
+	if (ro) {
+		exists = 1;
+		object_release(ro);
+	}
+	return exists;
+}
+
 
 /*
  * Note: when we add the new object, we have a reference to it. We hold
@@ -135,6 +153,9 @@ add_new_agreement(Slapi_Entry *e)
 
     /* get the replica for this agreement */
     replarea_sdn = agmt_get_replarea(ra);
+    if (!replarea_sdn) {
+        return 1;
+    }
     repl_obj = replica_get_replica_from_dn(replarea_sdn);
     slapi_sdn_free(&replarea_sdn);
     if (repl_obj) {
@@ -841,13 +862,16 @@ Object* agmtlist_get_next_agreement_for_replica (Replica *r, Object *prev)
     else
         obj = objset_first_obj(agmt_set);
         
-    while (obj)
-    {
+    for ( ; obj; obj = objset_next_obj(agmt_set, obj)) {
         agmt = (Repl_Agmt*)object_get_data (obj);
-        PR_ASSERT (agmt);
+        if (!agmt) {
+            continue;
+        }
 
         agmt_root = agmt_get_replarea(agmt);
-        PR_ASSERT (agmt_root);
+        if (!agmt_root) {
+            continue;
+        }
 
         if (slapi_sdn_compare (replica_root, agmt_root) == 0)
         {
@@ -856,7 +880,7 @@ Object* agmtlist_get_next_agreement_for_replica (Replica *r, Object *prev)
         }
 
         slapi_sdn_free (&agmt_root);
-        obj = objset_next_obj(agmt_set, obj);
+
     }
 
     return NULL;

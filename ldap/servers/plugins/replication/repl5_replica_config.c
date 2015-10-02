@@ -2368,13 +2368,17 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, cleanruv_data *clean_data)
         conn_delete_internal_ext(conn);
         return;
     }
-    val.bv_len = PR_snprintf(data, sizeof(data), "CLEANRUV%d", clean_data->rid);
     sdn = agmt_get_replarea(agmt);
+    if (!sdn) {
+        conn_delete_internal_ext(conn);
+        return;
+    }
     mod.mod_op  = LDAP_MOD_ADD|LDAP_MOD_BVALUES;
     mod.mod_type = "nsds5task";
     mod.mod_bvalues = vals;
     vals [0] = &val;
     vals [1] = NULL;
+    val.bv_len = PR_snprintf(data, sizeof(data), "CLEANRUV%d", clean_data->rid);
     val.bv_val = data;
     mods[0] = &mod;
     mods[1] = NULL;

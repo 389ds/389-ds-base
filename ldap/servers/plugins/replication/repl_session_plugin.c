@@ -48,6 +48,10 @@ repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra)
     }
     if (initfunc) {
         replarea = agmt_get_replarea(ra);
+        if (!replarea) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "repl_session_plugin_call_agmt_init_cb -- Aborted -- No replication area\n");
+            return;
+        }
         cookie = (*initfunc)(replarea);
         slapi_sdn_free(&replarea);
     }
@@ -73,8 +77,11 @@ repl_session_plugin_call_pre_acquire_cb(const Repl_Agmt *ra, int is_total,
 
     if (thefunc) {
         replarea = agmt_get_replarea(ra);
-        rc = (*thefunc)(agmt_get_priv(ra), replarea, is_total,
-                data_guid, data);
+        if (!replarea) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "repl_session_plugin_call_pre_acquire_cb -- Aborted -- No replication area\n");
+            return 1;
+        }
+        rc = (*thefunc)(agmt_get_priv(ra), replarea, is_total, data_guid, data);
         slapi_sdn_free(&replarea);
     }
 
@@ -95,8 +102,11 @@ repl_session_plugin_call_post_acquire_cb(const Repl_Agmt *ra, int is_total,
 
     if (thefunc) {
         replarea = agmt_get_replarea(ra);
-        rc = (*thefunc)(agmt_get_priv(ra), replarea,
-		is_total, data_guid, data);
+        if (!replarea) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "repl_session_plugin_call_post_acquire_cb -- Aborted -- No replication area\n");
+            return 1;
+        }
+        rc = (*thefunc)(agmt_get_priv(ra), replarea, is_total, data_guid, data);
         slapi_sdn_free(&replarea);
     }
 
@@ -151,6 +161,10 @@ repl_session_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra)
 
     if (thefunc) {
         replarea = agmt_get_replarea(ra);
+        if (!replarea) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "repl_session_plugin_call_destroy_agmt_cb -- Aborted -- No replication area\n");
+            return;
+        }
         (*thefunc)(agmt_get_priv(ra), replarea);
         slapi_sdn_free(&replarea);
     }
