@@ -5319,6 +5319,13 @@ windows_update_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		 * in the groups caused by moving member entries.
 		 * We need to update the local groups manually... */
 		local_subtree = agmt_get_replarea(prp->agmt); 
+		if (!local_subtree) {
+			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			                "failed to get local subtree from agreement\n");
+			local_entry = orig_local_entry;
+			orig_local_entry = NULL;
+			goto bail;
+		}
 		local_subtree_sdn = local_subtree;
 		orig_local_sdn = slapi_entry_get_sdn_const(orig_local_entry);
 		escaped_filter_val = slapi_escape_filter_value((char *)slapi_sdn_get_ndn(orig_local_sdn),
@@ -5651,6 +5658,11 @@ windows_search_local_entry_by_uniqueid(Private_Repl_Protocol *prp,
 	*ret_entry = NULL;
 	if (is_global) { /* Search from the suffix (rename case) */
 		local_subtree = agmt_get_replarea(prp->agmt); 
+		if (!local_subtree) {
+			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			                "failed to get local subtree from agreement\n");
+			return LDAP_PARAM_ERROR;
+		}
 		local_subtree_sdn = local_subtree;
 	} else {
 		local_subtree_sdn = windows_private_get_directory_treetop(prp->agmt);

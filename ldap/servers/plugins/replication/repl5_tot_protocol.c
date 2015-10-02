@@ -329,6 +329,13 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 		goto done;
 	}
 
+	area_sdn = agmt_get_replarea(prp->agmt);
+	if (!area_sdn) {
+		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+		                "get repl area.  Please check agreement.\n");
+		goto done;
+	}
+
 	conn_set_timeout(prp->conn, agmt_get_timeout(prp->agmt));
 
     /* acquire remote replica */
@@ -387,11 +394,10 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Beginning total update of replica "
 		"\"%s\".\n", agmt_get_long_name(prp->agmt));
 
+    /* RMREPL - need to send schema here */
+
     pb = slapi_pblock_new ();
 
-	/* RMREPL - need to send schema here */
-
-	area_sdn = agmt_get_replarea(prp->agmt);
     /* we need to provide managedsait control so that referral entries can
        be replicated */
     ctrls = (LDAPControl **)slapi_ch_calloc (3, sizeof (LDAPControl *));

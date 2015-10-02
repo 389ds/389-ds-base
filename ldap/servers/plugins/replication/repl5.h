@@ -390,6 +390,7 @@ void agmtlist_shutdown();
 void agmtlist_notify_all(Slapi_PBlock *pb);
 Object* agmtlist_get_first_agreement_for_replica (Replica *r);
 Object* agmtlist_get_next_agreement_for_replica (Replica *r, Object *prev);
+int agmtlist_agmt_exists(const Repl_Agmt *ra);
 
 /* In repl5_backoff.c */
 typedef struct backoff_timer Backoff_Timer;

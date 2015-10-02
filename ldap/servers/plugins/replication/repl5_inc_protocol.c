@@ -1906,6 +1906,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		{
 			Replica *replica;
 			ReplicaId rid = -1; /* Used to create the replica keep alive subentry */
+			Slapi_DN *replarea_sdn = NULL;
 			replica = (Replica*) object_get_data(prp->replica_object);
 			if (replica)
 			{
@@ -1914,7 +1915,14 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"%s: skipped updates was definitely too high (%d) update the subentry now\n",
 					agmt_get_long_name(prp->agmt), skipped_updates);
-			replica_subentry_update(agmt_get_replarea(prp->agmt), rid);
+			replarea_sdn = agmt_get_replarea(prp->agmt);
+			if (!replarea_sdn) {
+				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				                "send_updates: Unknown replication area due to agreement not found.");
+				return_value = UPDATE_FATAL_ERROR;
+			} else {
+				replica_subentry_update(replarea_sdn, rid);
+			}
 		}
 		/* Terminate the results reading thread */
 		if (!prp->repl50consumer) 
