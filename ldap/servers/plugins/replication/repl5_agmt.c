@@ -696,6 +696,12 @@ agmt_start(Repl_Agmt *ra)
      * index.
      */
     repl_sdn = agmt_get_replarea(ra);
+    if (!repl_sdn) {
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                        "agmt_start: failed to get repl area.  Please check agreement.\n");
+        prot_free(&prot);
+        return -1;
+    }
 
     pb = slapi_pblock_new();
     attrs[0] = (char*)type_agmtMaxCSN;
@@ -770,7 +776,7 @@ agmt_start(Repl_Agmt *ra)
                                 slapi_rdn_get_value_by_ref(slapi_rdn_get_rdn(ra->rdn)),
                                 ra->hostname, ra->port);
                     if(strstr(maxcsns[i], buf) || strstr(maxcsns[i], unavail_buf)){
-                    	/* Set the maxcsn */
+                        /* Set the maxcsn */
                         slapi_ch_free_string(&ra->maxcsn);
                         ra->maxcsn = slapi_ch_strdup(maxcsns[i]);
                         ra->consumerRID = agmt_maxcsn_get_rid(maxcsns[i]);
@@ -976,8 +982,11 @@ agmt_get_bindmethod(const Repl_Agmt *ra)
 Slapi_DN *
 agmt_get_replarea(const Repl_Agmt *ra)
 {
-	Slapi_DN *return_value;
+	Slapi_DN *return_value = NULL;
 	PR_ASSERT(NULL != ra);
+	if (!agmtlist_agmt_exists(ra)) {
+		return return_value;
+	}
 	PR_Lock(ra->lock);
 	return_value = slapi_sdn_new();
 	slapi_sdn_copy(ra->replarea, return_value);
@@ -2690,6 +2699,9 @@ get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 		Object *repl_obj = NULL;
 
 		replarea_sdn = agmt_get_replarea(ra);
+		if (!replarea_sdn) {
+			goto bail;
+		}
 		repl_obj = replica_get_replica_from_dn(replarea_sdn);
 		slapi_sdn_free(&replarea_sdn);
 		if (repl_obj) {
@@ -2748,6 +2760,7 @@ get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 			slapi_entry_add_string(e, "nsds5replicaLastInitStatus", ra->last_init_status);
 		}
 	}
+bail:
 	return SLAPI_DSE_CALLBACK_OK;
 }
 
