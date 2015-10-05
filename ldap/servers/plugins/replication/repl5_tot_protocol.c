@@ -613,6 +613,7 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
 	prp->repl50consumer = 0;
 	prp->repl71consumer = 0;
 	prp->repl90consumer = 0;
+	prp->replica_object = prot_get_replica_object(rp);
 	return prp;
 loser:
 	repl5_tot_delete(&prp);
