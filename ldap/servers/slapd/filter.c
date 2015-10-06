@@ -1309,6 +1309,10 @@ slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t
 		operator = "~=";
 		break;
 
+	case LDAP_FILTER_EXTENDED:
+		operator = ":=";
+		break;
+
 	default: break;
 	}
 
@@ -1412,6 +1416,18 @@ slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, size_t
 				sprintf( buf, ")" );
 				(*bufsize)--;
 			}
+		}
+		break;
+
+	case LDAP_FILTER_EXTENDED:
+		size = strlen(f->f_mr_type) + f->f_mr_value.bv_len + strlen(operator) +
+		       (f->f_mr_dnAttrs ? sizeof(":dn") - 1 : 0) +
+		       (f->f_mr_oid ? strlen(f->f_mr_oid) + 1 /* : */ : 0) + 3;
+		if(size < *bufsize) {
+			sprintf(buf, "(%s%s%s%s%s%.*s)", f->f_mr_type, f->f_mr_dnAttrs ? ":dn" : "",
+			        f->f_mr_oid ? ":" : "", f->f_mr_oid ? f->f_mr_oid : "",
+			        operator, (int)f->f_mr_value.bv_len, f->f_mr_value.bv_val);
+			*bufsize -= size;
 		}
 		break;
 
