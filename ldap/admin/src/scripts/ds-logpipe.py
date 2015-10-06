@@ -256,7 +256,7 @@ def parse_options():
     if len(args) < 1:
         parser.error("You must specify the name of the pipe to use")
     if len(args) > 1:
-        parser.error("error - unhandled command line arguments: %s" % args.join(' '))
+        parser.error("error - unhandled command line arguments: %s" % ' '.join(args))
 
     return options, args[0]
 
