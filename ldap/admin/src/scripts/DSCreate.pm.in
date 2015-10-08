@@ -969,9 +969,11 @@ sub setDefaults {
 
 sub updateSelinuxPolicy {
     my $inf = shift;
+    my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
 
     # if selinux is not available, do nothing
-    if ("@with_selinux@") {
+    if ("@with_selinux@" and
+        -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
         my $localstatedir = $inf->{slapd}->{localstatedir};
 
         # run restorecon on all of the parent directories we
@@ -1375,7 +1377,9 @@ sub removeDSInstance {
     }
 
     # remove the selinux label from the ports if needed
-    if ("@with_selinux@") {
+    my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
+    if ("@with_selinux@" and
+        -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
         foreach my $port (@{$entry->{"nsslapd-port"}}) 
         {
             my $semanage_err = `semanage port -d -t ldap_port_t -p tcp $port 2>&1`;
