@@ -2465,15 +2465,25 @@ log__delete_access_logfile()
                 loginfo.log_access_fdes = NULL;
 		PR_snprintf (buffer, sizeof(buffer), "%s", loginfo.log_access_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s\n", loginfo.log_access_file,0,0);
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+			} else {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				                loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
+			}
 		}
 
 		/* Delete the rotation file also. */
 		PR_snprintf (buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_access_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s.rotationinfo\n", loginfo.log_access_file,0,0);
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+			} else {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
+				                loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
+			}
 		}
 		return 0;
 	}
@@ -2575,15 +2585,15 @@ delete_logfile:
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
 	if (PR_Delete(buffer) != PR_SUCCESS) {
-		LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s.%s\n",
-				   loginfo.log_access_file,tbuf,0);
-
+		PRErrorCode prerr = PR_GetError();
+		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+		} else {
+			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			                loginfo.log_access_file, tbuf, prerr, slapd_pr_strerror(prerr));
+		}
 	} else {
-		LDAPDebug(LDAP_DEBUG_TRACE, 
-			   "LOGINFO:Removed file:%s.%s because of (%s)\n",
-					loginfo.log_access_file, tbuf,
-					logstr);
+		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_access_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_access_logs--;
@@ -3245,7 +3255,6 @@ log__delete_error_logfile(int locked)
 	char               buffer[BUFSIZ];
 	char               tbuf[TBUFSIZE];
 
-
 	/* If we have only one log, then  will delete this one */
 	if (loginfo.log_error_maxnumlogs == 1) {
 		LOG_CLOSE(loginfo.log_error_fdes);
@@ -3253,10 +3262,14 @@ log__delete_error_logfile(int locked)
 		PR_snprintf (buffer, sizeof(buffer), "%s", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			if (!locked) {
-				/* if locked, we should not call LDAPDebug, 
-				   which tries to get a lock internally. */
-				LDAPDebug(LDAP_DEBUG_TRACE, 
-					"LOGINFO:Unable to remove file:%s\n", loginfo.log_error_file,0,0);
+				/* If locked, we should not call LDAPDebug, which tries to get a lock internally. */
+				PRErrorCode prerr = PR_GetError();
+				if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
+				} else {
+					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+					                loginfo.log_error_file, prerr, slapd_pr_strerror(prerr));
+				}
 			}
 		}
 
@@ -3264,11 +3277,14 @@ log__delete_error_logfile(int locked)
 		PR_snprintf (buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			if (!locked) {
-				/* if locked, we should not call LDAPDebug, 
-				   which tries to get a lock internally. */
-				LDAPDebug(LDAP_DEBUG_TRACE, 
-					"LOGINFO:Unable to remove file:%s.rotationinfo\n", 
-					loginfo.log_error_file,0,0);
+				/* If locked, we should not call LDAPDebug, which tries to get a lock internally. */
+				PRErrorCode prerr = PR_GetError();
+				if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
+				} else {
+					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
+					                loginfo.log_error_file, prerr, slapd_pr_strerror(prerr));
+				}
 			}
 		}
 		return 0;
@@ -3380,10 +3396,11 @@ delete_logfile:
 	PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_error_file, tbuf);
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
-		PR_snprintf(buffer, sizeof(buffer),
-				"LOGINFO:Unable to remove file:%s.%s error %d (%s)\n",
-				loginfo.log_error_file, tbuf, prerr, slapd_pr_strerror(prerr));
-		log__error_emergency(buffer, 0, locked);
+		if (PR_FILE_NOT_FOUND_ERROR != prerr) {
+			PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Unable to remove file:%s.%s error %d (%s)\n",
+			            loginfo.log_error_file, tbuf, prerr, slapd_pr_strerror(prerr));
+			log__error_emergency(buffer, 0, locked);
+		}
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_error_logs--;
@@ -3423,15 +3440,25 @@ log__delete_audit_logfile()
                 loginfo.log_audit_fdes = NULL;
 		PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_audit_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s\n", loginfo.log_audit_file,0,0);
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+			} else {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				                loginfo.log_audit_file, prerr, slapd_pr_strerror(prerr));
+			}
 		}
 
 		/* Delete the rotation file also. */
 		PR_snprintf(buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_audit_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s.rotationinfo\n", loginfo.log_audit_file,0,0);
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+			} else {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
+				                loginfo.log_audit_file, prerr, slapd_pr_strerror(prerr));
+			}
 		}
 		return 0;
 	}
@@ -3532,15 +3559,15 @@ delete_logfile:
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_audit_file, tbuf );
 	if (PR_Delete(buffer) != PR_SUCCESS) {
-		LDAPDebug(LDAP_DEBUG_TRACE, 
-				"LOGINFO:Unable to remove file:%s.%s\n",
-				   loginfo.log_audit_file, tbuf,0);
-
+		PRErrorCode prerr = PR_GetError();
+		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+		} else {
+			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			                loginfo.log_audit_file, tbuf, prerr, slapd_pr_strerror(prerr));
+		}
 	} else {
-		LDAPDebug(LDAP_DEBUG_TRACE, 
-			   "LOGINFO:Removed file:%s.%s because of (%s)\n",
-					loginfo.log_audit_file, tbuf,
-					logstr);
+		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_audit_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_audit_logs--;
@@ -3822,10 +3849,8 @@ log__open_errorlogfile(int logfile_state, int locked)
 				   Even if PR_Rename fails with the error, we continue logging.
 				 */
 				if (PR_FILE_EXISTS_ERROR != prerr) {
-					PR_snprintf(buffer, sizeof(buffer),
-						"Failed to rename errors log file, " 
-						SLAPI_COMPONENT_NAME_NSPR " error %d (%s). Exiting...", 
-						prerr, slapd_pr_strerror(prerr));
+					PR_snprintf(buffer, sizeof(buffer), "Failed to rename errors log file, " 
+						SLAPI_COMPONENT_NAME_NSPR " error %d (%s). Exiting...\n", prerr, slapd_pr_strerror(prerr));
 					log__error_emergency(buffer, 1, 1);
 					slapi_ch_free((void **)&log);
 					if (!locked) LOG_ERROR_UNLOCK_WRITE();
