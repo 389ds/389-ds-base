@@ -108,7 +108,6 @@ ldbm_back_add( Slapi_PBlock *pb )
 	Slapi_DN parentsdn;
 	Slapi_Operation *operation;
 	int dblock_acquired= 0;
-	int is_remove_from_cache= 0;
 	int is_replicated_operation= 0;
 	int is_resurect_operation= 0;
 	int is_tombstone_operation= 0;
@@ -1174,7 +1173,20 @@ diskfull_return:
 				}
 				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 			}
-
+			if ( addingentry ) {
+				if (inst && cache_is_in_cache(&inst->inst_cache, addingentry)) {
+					CACHE_REMOVE(&inst->inst_cache, addingentry);
+					/* tell frontend not to free this entry */
+					slapi_pblock_set(pb, SLAPI_ADD_ENTRY, NULL);
+				}
+				else if (!cache_has_otherref(&inst->inst_cache, addingentry))
+				{
+					if (!is_resurect_operation) { /* if resurect, tombstoneentry is dupped. */
+						backentry_clear_entry(addingentry); /* e is released in the frontend */
+					}
+				}
+				CACHE_RETURN( &inst->inst_cache, &addingentry );
+			}
 			if (!noabort) {
 				dblayer_txn_abort(li,&txn); /* abort crashes in case disk full */
 			}
@@ -1225,9 +1237,6 @@ common_return:
 						}
 					}
 				}
-			}
-			if (is_remove_from_cache) {
-				CACHE_REMOVE(&inst->inst_cache, addingentry);
 			}
 			CACHE_RETURN( &inst->inst_cache, &addingentry );
 		}
