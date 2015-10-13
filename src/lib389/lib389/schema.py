@@ -2,17 +2,17 @@
    You will access this from:
    DirSrv.schema.methodName()
 """
-import ldap
-from ldap.schema.models import AttributeType, ObjectClass
 import os
 import re
 import time
 import glob
 import six
+import ldap
+from ldap.schema.models import AttributeType, ObjectClass
 
 from lib389._constants import *
-from lib389 import Entry
 from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
+from lib389 import Entry
 
 
 class Schema(object):

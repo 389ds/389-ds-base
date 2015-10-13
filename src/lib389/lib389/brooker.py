@@ -7,23 +7,18 @@
    You will access this from:
    DirSrv.backend.methodName()
 """
-import ldap
 import os
 import re
 import time
 import glob
-
+import ldap
 
 from lib389._constants import *
-from lib389 import Entry, DirSrv, InvalidArgumentError
-from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
-from lib389 import (
-    NoSuchEntryError
-)
-
-
 from lib389._replication import RUV
 from lib389._entry import FormatDict
+from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
+from lib389 import Entry, DirSrv
+from lib389 import NoSuchEntryError, InvalidArgumentError
 
 
 class Config(object):

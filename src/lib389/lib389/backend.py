@@ -5,15 +5,13 @@ Created on Dec 13, 2013
 '''
 
 import ldap
-from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
-from lib389._constants import *
-from lib389.utils import (
-    normalizeDN,
-    suffixfilt
-    )
 from compiler.ast import Not
+
+from lib389._constants import *
 from lib389.properties import *
-from .__init__ import UnwillingToPerformError
+from lib389.utils import normalizeDN, suffixfilt
+from lib389 import DirSrv, Entry
+from lib389 import NoSuchEntryError, InvalidArgumentError, UnwillingToPerformError
 
 
 class Backend(object):

@@ -25,9 +25,6 @@ import pwd
 import grp
 import os.path
 import base64
-import six.moves.urllib.request
-import six.moves.urllib.parse
-import six.moves.urllib.error
 import socket
 import ldif
 import re
@@ -42,18 +39,22 @@ import glob
 import tarfile
 import subprocess
 import collections
+import six.moves.urllib.request
+import six.moves.urllib.parse
+import six.moves.urllib.error
 import six
-
-from ldap.ldapobject import SimpleLDAPObject
 from ldapurl import LDAPUrl
+from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
 from ldap import LDAPError
 # file in this package
 
 from lib389._constants import *
+from lib389.properties import *
 from lib389._entry import Entry
 from lib389._replication import CSN, RUV
 from lib389._ldifconn import LDIFConn
+from lib389.tools import DirSrvTools
 from lib389.utils import (
     isLocalHost,
     is_a_dn,
@@ -63,10 +64,7 @@ from lib389.utils import (
     update_newhost_with_fqdn,
     formatInfData,
     get_sbin_dir,
-    get_bin_dir
-    )
-from lib389.properties import *
-from lib389.tools import DirSrvTools
+    get_bin_dir)
 
 # mixin
 #from lib389.tools import DirSrvTools

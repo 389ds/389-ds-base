@@ -3,12 +3,13 @@ Created on Feb 10, 2014
 
 @author: tbordaz
 '''
-from lib389 import DirSrv, Entry
-from lib389._constants import *
-from lib389.properties import *
-import ldap
 import time
 import os.path
+import ldap
+
+from lib389._constants import *
+from lib389.properties import *
+from lib389 import DirSrv, Entry
 
 
 class Tasks(object):

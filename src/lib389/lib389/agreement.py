@@ -10,10 +10,10 @@ import time
 import six
 
 from lib389._constants import *
+from lib389.properties import *
 from lib389._entry import FormatDict
 from lib389.utils import normalizeDN
 from lib389 import Entry, DirSrv, NoSuchEntryError, InvalidArgumentError
-from lib389.properties import *
 
 
 class Agreement(object):

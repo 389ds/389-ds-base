@@ -4,11 +4,12 @@ Created on Jan 6, 2014
 @author: tbordaz
 '''
 
-import ldap
 import os
-from lib389 import DirSrv, Entry, InvalidArgumentError
+import ldap
+
 from lib389._constants import *
 from lib389.properties import *
+from lib389 import DirSrv, Entry, InvalidArgumentError
 
 
 class Changelog(object):

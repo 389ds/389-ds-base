@@ -1,12 +1,13 @@
-import ldif
 import re
-from ldap.cidict import cidict
 import six
-
 import logging
+import ldif
 import ldap
-from lib389 import *
+from ldap.cidict import cidict
+
+from lib389._constants import *
 from lib389.properties import *
+
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 

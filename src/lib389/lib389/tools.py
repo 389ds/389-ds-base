@@ -14,10 +14,6 @@ import sys
 import os
 import os.path
 import base64
-import six.moves.urllib.request
-import six.moves.urllib.parse
-import six.moves.urllib.error
-import ldap
 import operator
 import select
 import time
@@ -28,24 +24,31 @@ import re
 import glob
 import pwd
 import grp
+import logging
+import six.moves.urllib.request
+import six.moves.urllib.parse
+import six.moves.urllib.error
+import ldap
 
-import lib389
-from lib389 import *
+from lib389._constants import *
+from lib389._ldifconn import LDIFConn
 from lib389.properties import *
-
 from lib389.utils import (
     getcfgdsuserdn,
     getcfgdsinfo,
     getcfgdsuserdn,
     update_newhost_with_fqdn,
-    get_sbin_dir, get_server_user, getdomainname,
-    isLocalHost, formatInfData, getserverroot,
-    update_admin_domain, getadminport, getdefaultsuffix,
-    )
-from lib389._ldifconn import LDIFConn
-from lib389._constants import DN_DM
+    get_sbin_dir,
+    get_server_user,
+    getdomainname,
+    isLocalHost,
+    formatInfData,
+    getserverroot,
+    update_admin_domain,
+    getadminport,
+    getdefaultsuffix)
 
-import logging
+
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 

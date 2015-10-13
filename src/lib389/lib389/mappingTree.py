@@ -7,13 +7,11 @@ Created on Dec 13, 2013
 import ldap
 import six
 
-from lib389 import DirSrv, Entry, NoSuchEntryError, UnwillingToPerformError, InvalidArgumentError
 from lib389._constants import *
-from lib389.utils import (
-    suffixfilt,
-    normalizeDN
-    )
 from lib389.properties import *
+from lib389.utils import suffixfilt, normalizeDN
+from lib389 import DirSrv, Entry
+from lib389 import NoSuchEntryError, UnwillingToPerformError, InvalidArgumentError
 
 
 class MappingTree(object):

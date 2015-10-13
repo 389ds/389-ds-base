@@ -4,15 +4,12 @@ Lib389 python ldap request controls.
 These should be upstreamed into python ldap when possible.
 """
 
-from lib389._constants import *
-
 from ldap.controls import LDAPControl
-
-from pyasn1.type import namedtype,univ
-from pyasn1.codec.ber import encoder,decoder
-from pyasn1.type import tag
-from pyasn1_modules.rfc2251 import AttributeDescription, LDAPDN, AttributeValue
+from pyasn1.type import namedtype, univ, tag
+from pyasn1.codec.ber import encoder, decoder
 from pyasn1 import debug
+from pyasn1_modules.rfc2251 import AttributeDescription, LDAPDN, AttributeValue
+from lib389._constants import *
 
 # Could use AttributeDescriptionList
 

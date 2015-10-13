@@ -2,8 +2,6 @@
 
     TODO put them in a module!
 """
-from lib389.properties import SER_PORT, SER_ROOT_PW, SER_SERVERID_PROP,\
-    SER_ROOT_DN
 try:
     from subprocess import Popen as my_popen, PIPE
 except ImportError:
@@ -19,23 +17,20 @@ except ImportError:
 
 import re
 import os
-import socket
 import logging
 import shutil
 import time
-logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger(__name__)
-
+import ldap
 import socket
 from socket import getfqdn
-
 from ldapurl import LDAPUrl
-import ldap
-import lib389
-from lib389 import DN_CONFIG
+
 from lib389._constants import *
 from lib389.properties import *
 
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
 #
 # Decorator
 #
@@ -614,7 +609,7 @@ def formatInfData(args):
 
     """
     args = args.copy()
-    args['CFGSUFFIX'] = lib389.CFGSUFFIX
+    args['CFGSUFFIX'] = CFGSUFFIX
 
     content  = ("[General]" "\n")
     content += ("FullMachineName= %s\n" % args[SER_HOST])
