@@ -74,6 +74,39 @@ class Entry(object):
         true otherwise"""
         return self.data is not None and len(self.data) > 0
 
+    def __eq__(self, other):
+        """
+        Compare if two Entry objects are the same.
+
+        This is good for fast comparison of the data we have, but it relies on a few things.
+
+        Each Entry must have been searched and retrieved with the same filter and attribute requirements.
+        If that isn't the case, this will immediately fail.
+        """
+        #We could make this "strict" by forcing this to pull back all the attributes of the DN, and the nsUniqueID.
+        # Guard from accidents
+        if not isinstance(other, Entry):
+            return False
+        # Check that our DN is the same.
+        if self.dn != other.dn:
+            return False
+        # Bail fast if the keys don't match
+        if set(self.getAttrs()) != set(other.getAttrs()):
+            return False
+        # Check the values of each key
+        for key in self.getAttrs():
+            if set(self.getValues(key)) != set(other.getValues(key)):
+                return False
+        return True
+
+    def __ne__(self, other):
+        """
+        Compare if two Entry objects are the same.
+
+        See __eq__ for a description of limitations.
+        """
+        return not self.__eq__(other)
+
     def hasAttr(self, name):
         """Return True if this entry has an attribute named name, False otherwise"""
         return self.data and name in self.data
