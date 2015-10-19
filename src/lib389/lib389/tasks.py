@@ -19,6 +19,8 @@ class Tasks(object):
         """@param conn - a DirSrv instance"""
         self.conn = conn
         self.log = conn.log
+        self.dn = None  # DN of the last task attempted
+        self.entry = None
 
     def __getattr__(self, name):
         if name in Tasks.proxied_methods:
@@ -68,6 +70,7 @@ class Tasks(object):
         @raise ValueError
 
         '''
+
         # Checking the parameters
         if not benamebase and not suffix:
             raise ValueError("Specify either bename or suffix")
@@ -107,6 +110,8 @@ class Tasks(object):
         else:
             self.log.info("Import task %s for file %s completed successfully" % (
                     cn, input_file))
+        self.dn = dn
+        self.entry = entry
         return exitCode
 
     def exportLDIF(self, suffix=None, benamebase=None, output_file=None, args=None):
@@ -169,6 +174,10 @@ class Tasks(object):
         else:
             self.log.info("Export task %s for file %s completed successfully" % (
                     cn, output_file))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def db2bak(self, backup_dir=None, args=None):
@@ -214,6 +223,10 @@ class Tasks(object):
             self.log.error("Error: backup task %s exited with %d" % (cn, exitCode))
         else:
             self.log.info("Backup task %s completed successfully" % (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def bak2db(self, bename=None, backup_dir=None, args=None):
@@ -270,6 +283,10 @@ class Tasks(object):
             self.log.error("Error: restore task %s exited with %d" % (cn, exitCode))
         else:
             self.log.info("Restore task %s completed successfully" % (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def reindex(self, suffix=None, benamebase=None, attrname=None, args=None):
@@ -330,11 +347,13 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: index task %s exited with %d" % (
-                    cn, exitCode))
+            self.log.error("Error: index task %s exited with %d" % (cn, exitCode))
         else:
-            self.log.info("Index task %s completed successfully" % (
-                    cn))
+            self.log.info("Index task %s completed successfully" % (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def fixupMemberOf(self, suffix=None, benamebase=None, filt=None, args=None):
@@ -397,6 +416,10 @@ class Tasks(object):
             self.log.error("Error: fixupMemberOf task %s for basedn %s exited with %d" % (cn, suffix, exitCode))
         else:
             self.log.info("fixupMemberOf task %s for basedn %s completed successfully" % (cn, suffix))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def fixupTombstones(self, bename=None, args=None):
@@ -442,9 +465,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: tombstone fixup task %s for backend %s exited with %d" % (cn, bename, exitCode))
+            self.log.error("Error: tombstone fixup task %s for backend %s exited with %d" %
+                           (cn, bename, exitCode))
         else:
-            self.log.info("tombstone fixup task %s for backend %s completed successfully" % (cn, bename))
+            self.log.info("tombstone fixup task %s for backend %s completed successfully" %
+                          (cn, bename))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def automemberRebuild(self, suffix=DEFAULT_SUFFIX, scope='sub', filterstr='objectclass=top', args=None):
@@ -479,9 +508,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Automember Rebuild Membership task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Automember Rebuild Membership task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Automember Rebuild Membership task (%s) completed successfully" % (cn))
+            self.log.info("Automember Rebuild Membership task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def automemberExport(self, suffix=DEFAULT_SUFFIX, scope='sub', fstr='objectclass=top',
@@ -522,9 +557,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Automember Export Updates task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Automember Export Updates task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Automember Export Updates task (%s) completed successfully" % (cn))
+            self.log.info("Automember Export Updates task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def automemberMap(self, ldif_in=None, ldif_out=None, args=None):
@@ -561,9 +602,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Automember Map Updates task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Automember Map Updates task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Automember Map Updates task (%s) completed successfully" % (cn))
+            self.log.info("Automember Map Updates task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def fixupLinkedAttrs(self, linkdn=None, args=None):
@@ -594,9 +641,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Fixup Linked Attributes task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Fixup Linked Attributes task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Fixup Linked Attributes task (%s) completed successfully" % (cn))
+            self.log.info("Fixup Linked Attributes task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def schemaReload(self, schemadir=None, args=None):
@@ -627,9 +680,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Schema Reload task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Schema Reload task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Schema Reload task (%s) completed successfully" % (cn))
+            self.log.info("Schema Reload task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def fixupWinsyncMembers(self, suffix=DEFAULT_SUFFIX, fstr='objectclass=top', args=None):
@@ -661,9 +720,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: fixupWinsyncMembers 'memberuid task' (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: fixupWinsyncMembers 'memberuid task' (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("fixupWinsyncMembers 'memberuid task' (%s) completed successfully" % (cn))
+            self.log.info("fixupWinsyncMembers 'memberuid task' (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def syntaxValidate(self, suffix=DEFAULT_SUFFIX, fstr='objectclass=top', args=None):
@@ -695,9 +760,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Syntax Validate (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Syntax Validate (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Syntax Validate task (%s) completed successfully" % (cn))
+            self.log.info("Syntax Validate task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def usnTombstoneCleanup(self, suffix=DEFAULT_SUFFIX, bename=None, maxusn_to_delete=None, args=None):
@@ -734,9 +805,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: USN tombstone cleanup task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: USN tombstone cleanup task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("USN tombstone cleanup task (%s) completed successfully" % (cn))
+            self.log.info("USN tombstone cleanup task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def sysconfigReload(self, configfile=None, logchanges=None, args=None):
@@ -772,9 +849,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Sysconfig Reload task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Sysconfig Reload task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Sysconfig Reload task (%s) completed successfully" % (cn))
+            self.log.info("Sysconfig Reload task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode
 
     def cleanAllRUV(self, suffix=None, replicaid=None, force=None, args=None):
@@ -814,9 +897,14 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: cleanAllRUV task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: cleanAllRUV task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
             self.log.info("cleanAllRUV task (%s) completed successfully" % (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return (dn, exitCode)
 
     def abortCleanAllRUV(self, suffix=None, replicaid=None, certify=None, args=None):
@@ -858,9 +946,15 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Abort cleanAllRUV task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: Abort cleanAllRUV task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
-            self.log.info("Abort cleanAllRUV task (%s) completed successfully" % (cn))
+            self.log.info("Abort cleanAllRUV task (%s) completed successfully" %
+                          (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return (dn, exitCode)
 
     def upgradeDB(self, nsArchiveDir=None, nsDatabaseType=None, nsForceToReindex=None, args=None):
@@ -900,7 +994,12 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: upgradedb task (%s) exited with %d" % (cn, exitCode))
+            self.log.error("Error: upgradedb task (%s) exited with %d" %
+                           (cn, exitCode))
         else:
             self.log.info("Upgradedb task (%s) completed successfully" % (cn))
+
+        self.dn = dn
+        self.entry = entry
+
         return exitCode

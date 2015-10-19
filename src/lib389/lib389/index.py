@@ -5,6 +5,7 @@ Created on Feb 11, 2014
 '''
 
 import ldap
+from ldap.controls.readentry import PostReadControl
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import Entry
@@ -30,9 +31,9 @@ class Index(object):
         self.log.debug("Delete head index entry %s" % (dn))
         self.conn.delete_s(dn)
 
-    def create(self, suffix=None, attr=None, args=None):
-        if not suffix:
-            raise ValueError("suffix is mandatory parameter")
+    def create(self, suffix=None, be_name=None, attr=None, args=None):
+        if not suffix and not be_name:
+            raise ValueError("suffix/backend name is mandatory parameter")
 
         if not attr:
             raise ValueError("attr is mandatory parameter")
@@ -40,27 +41,51 @@ class Index(object):
         indexTypes = args.get(INDEX_TYPE, None)
         matchingRules = args.get(INDEX_MATCHING_RULE, None)
 
-        self.addIndex(suffix, attr, indexTypes=indexTypes, matchingRules=matchingRules)
+        return self.addIndex(suffix, be_name, attr, indexTypes=indexTypes, matchingRules=matchingRules)
 
-    def addIndex(self, suffix, attr, indexTypes, matchingRules):
+    def addIndex(self, suffix, be_name, attr, indexTypes, matchingRules, postReadCtrl=None):
         """Specify the suffix (should contain 1 local database backend),
             the name of the attribute to index, and the types of indexes
             to create e.g. "pres", "eq", "sub"
         """
-        entries_backend = self.conn.backend.list(suffix=suffix)
-        # assume 1 local backend
-        dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
-        entry = Entry(dn)
-        entry.setValues('objectclass', 'top', 'nsIndex')
-        entry.setValues('cn', attr)
-        entry.setValues('nsSystemIndex', "false")
-        entry.setValues('nsIndexType', indexTypes)
-        if matchingRules:
-            entry.setValues('nsMatchingRule', matchingRules)
+        msg_id = None
+        if be_name:
+            dn = ('cn=%s,cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config' %
+                 (attr, be_name))
+        else:
+            entries_backend = self.conn.backend.list(suffix=suffix)
+            # assume 1 local backend
+            dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
+
+        if postReadCtrl:
+            add_record = [
+                          ('nsSystemIndex', ['false']),
+                          ('cn', [attr]),
+                          ('objectclass', ['top', 'nsindex']),
+                          ('nsIndexType', indexTypes)
+                         ]
+            if matchingRules:
+                add_record.append(('nsMatchingRule', matchingRules))
+
+        else:
+            entry = Entry(dn)
+            entry.setValues('objectclass', 'top', 'nsIndex')
+            entry.setValues('cn', attr)
+            entry.setValues('nsSystemIndex', "false")
+            entry.setValues('nsIndexType', indexTypes)
+            if matchingRules:
+                entry.setValues('nsMatchingRule', matchingRules)
+
         try:
-            self.conn.add_s(entry)
-        except ldap.ALREADY_EXISTS:
-            print("Index for attr %s for backend %s already exists" % (attr, dn))
+            if postReadCtrl:
+                pr = PostReadControl(criticality=True, attrList=['*'])
+                msg_id = self.conn.add_ext(dn, add_record, serverctrls=[pr])
+            else:
+                self.conn.add_s(entry)
+        except ldap.LDAPError as e:
+            raise e
+
+        return msg_id
 
     def modIndex(self, suffix, attr, mod):
         """just a wrapper around a plain old ldap modify, but will

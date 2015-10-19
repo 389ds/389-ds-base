@@ -153,7 +153,7 @@ class Backend(object):
         found_bename = be_ent.getValue(BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME])
         if not bename:
             bename = found_bename
-        elif bename != found_bename:
+        elif bename.lower() != found_bename.lower():
             raise UnwillingToPerformError("Backend name specified (%s) differs from the retrieved one (%s)" % (bename, found_bename))
 
         self.conn.index.delete_all(bename)

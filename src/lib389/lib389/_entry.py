@@ -217,6 +217,41 @@ class Entry(object):
             sio, Entry.base64_attrs, 1000).unparse(self.dn, newdata)
         return sio.getvalue()
 
+    def getJSONEntry(self):
+        """
+        Return a JSON dictionary representation of the entry:
+
+            dn - Entry DN
+            attrs - entry's attributes
+
+            {
+                "dn": "uid=user,dc=example,dc=com",
+                "attrs": {
+                    "objectClass": [
+                        "top",
+                        "person",
+                        "organizationalPerson",
+                        "inetorgperson",
+                        "inetuser"
+                    ],
+                    "givenName": [
+                        "user"
+                    ],
+                    "uid": [
+                        "user"
+                    ],
+                    "sn": [
+                        "user lastname"
+                    ],
+                    "cn": [
+                        "user name"
+                    ]
+                }
+            }
+        """
+        entry = {'dn': self.dn, 'attrs': dict(self.data)}
+        return entry
+
     def create(self, type=ENTRY_TYPE_PERSON, entry_dn=None, properties=None):
         """ Return - eventually creating - a person entry with the given dn and pwd.
 

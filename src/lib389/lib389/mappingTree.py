@@ -138,7 +138,7 @@ class MappingTree(object):
             raise ldap.LDAPError("Error adding suffix entry " + dn, e)
 
         ret = self.conn._test_entry(dn, ldap.SCOPE_BASE)
-        return ret.dn
+        return ret
 
     def delete(self, suffix=None, bename=None, name=None):
         '''
