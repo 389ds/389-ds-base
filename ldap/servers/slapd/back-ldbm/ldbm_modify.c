@@ -387,6 +387,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int repl_op;
 	int opreturn = 0;
 	int mod_count = 0;
+	int ec_locked = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -745,6 +746,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 
 	/* lock new entry in cache to prevent usage until we are complete */
 	cache_lock_entry( &inst->inst_cache, ec );
+	ec_locked = 1;
 
 	postentry = slapi_entry_dup( ec->ep_entry );
 	slapi_pblock_set( pb, SLAPI_ENTRY_POST_OP, postentry );
@@ -861,7 +863,7 @@ common_return:
 	slapi_mods_done(&smods);
 	
 	if(inst){
-		if (cache_is_in_cache( &inst->inst_cache, ec))
+		if (ec_locked || cache_is_in_cache( &inst->inst_cache, ec))
 		{
 			cache_unlock_entry( &inst->inst_cache, ec);
 		} else if (e) {
