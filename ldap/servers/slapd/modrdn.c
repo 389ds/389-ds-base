@@ -338,20 +338,26 @@ slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
 
 static int rename_internal_pb (Slapi_PBlock *pb)
 {
-	LDAPControl		**controls;
-    Operation       *op;
-    int             opresult = 0;
+	LDAPControl **controls;
+	Operation *op;
+	int opresult = 0;
 
 	PR_ASSERT (pb != NULL);
 
 	slapi_pblock_get(pb, SLAPI_CONTROLS_ARG, &controls);
-
-	slapi_pblock_get(pb, SLAPI_OPERATION, &op); 
-    op->o_handler_data   = &opresult;
-    op->o_result_handler = internal_getresult_callback;
+	slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+	if (!op) {
+		opresult = 1;
+		slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
+		slapi_log_error(SLAPI_LOG_FATAL, "rename_internal_pb",
+			"Internal error: pblock was not properly initialized\n");
+		return -1;
+	}
+	op->o_handler_data   = &opresult;
+	op->o_result_handler = internal_getresult_callback;
 
 	slapi_pblock_set(pb, SLAPI_REQCONTROLS, controls);
-    
+
 	/* set parameters common for all internal operations */
 	set_common_params (pb);
 
@@ -359,7 +365,7 @@ static int rename_internal_pb (Slapi_PBlock *pb)
 	set_config_params (pb);
 
 	op_shared_rename (pb, 0 /* not passing ownership of args */ );
-    
+
 	slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 
 	return 0;
