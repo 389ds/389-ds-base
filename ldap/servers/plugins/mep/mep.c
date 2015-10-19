@@ -1309,19 +1309,29 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
         goto done;
     } else {
         /* Build the DN and set it in the entry. */
-        char *dn = NULL;
+        char **rdn_vals = NULL;
         char *rdn_val = NULL;
+        char *dn = NULL;
 
         /* If an origin entry was supplied, the RDN value will be
          * the mapped value.  If no origin entry was supplied, the
          * value will be the mapping rule from the template. */
-        rdn_val = slapi_entry_attr_get_charptr(managed_entry, rdn_type);
+        if (origin){
+            const char *origin_dn = slapi_entry_get_dn(origin);
+            rdn_vals = slapi_ldap_explode_dn(origin_dn, 1);
+            rdn_val = rdn_vals[0];
+        } else {
+            rdn_val = slapi_entry_attr_get_charptr(managed_entry, rdn_type);
+        }
 
         /* Create the DN using the mapped RDN value
          * and the base specified in the config. */
         dn = slapi_ch_smprintf("%s=%s,%s", rdn_type, rdn_val, config->managed_base);
-
-        slapi_ch_free_string(&rdn_val);
+        if(origin){
+            slapi_ldap_value_free(rdn_vals);
+        } else {
+            slapi_ch_free_string(&rdn_val);
+        }
 
         if (dn != NULL) {
             slapi_sdn_set_dn_passin(slapi_entry_get_sdn(managed_entry), dn);
