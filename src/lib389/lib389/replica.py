@@ -404,13 +404,6 @@ class Replica(object):
             self.log.fatal('Failed to delete replica configuration (%s), error: %s' % (dn_replica, e.message('desc')))
             raise ldap.LDAPError
 
-        # Delete the changelog
-        try:
-            self.conn.changelog.delete()
-        except ldap.LDAPError as e:
-            self.log.error('Failed to delete changelog: ' + e.message['desc'])
-            raise ldap.LDAPError
-
     def enableReplication(self, suffix=None, role=None, replicaId=CONSUMER_REPLICAID, binddn=None):
         if not suffix:
             self.log.fatal("enableReplication: suffix not specified")
