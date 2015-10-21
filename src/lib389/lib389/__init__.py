@@ -276,7 +276,7 @@ class DirSrv(SimpleLDAPObject):
             except ldap.OPERATIONS_ERROR as e:
                 log.exception("Skipping exception: Probably Active Directory")
             except ldap.LDAPError as e:
-                log.exception("Error during initialization, error: " + e.message['desc'])
+                log.exception("Error during initialization, error: " + str(e))
                 raise
 
     def __localinit__(self):
@@ -1883,7 +1883,7 @@ class DirSrv(SimpleLDAPObject):
                         break
                 except ldap.LDAPError as e:
                     log.fatal('testReplication() failed to modify (%s), error (%d)'
-                              % (suffix, e.message['desc']))
+                              % (suffix, str(e)))
                     return False
                 loop += 1
                 time.sleep(2)

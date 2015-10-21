@@ -550,8 +550,8 @@ class Agreement(object):
                     self.conn.delete_s(agmts[0].dn)
                 except ldap.LDAPError as e:
                     self.log.error('Failed to delete agreement (%s), error: %s' %
-                        (agmts[0].dn, e.message['desc']))
-                    raise ldap.LDAPError
+                        (agmts[0].dn, str(e)))
+                    raise
         else:
             # No agreements, error?
             self.log.error('No agreements found')

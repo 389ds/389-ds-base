@@ -357,12 +357,12 @@ class Replica(object):
                     self.conn.delete_s(agmt.dn)
                 except ldap.LDAPError as e:
                     self.log.fatal('Failed to delete replica agreement (%s), error: %s' %
-                        (admt.dn, e.message('desc')))
-                    raise ldap.LDAPError
+                        (admt.dn, str(e)))
+                    raise
         except ldap.LDAPError as e:
             self.log.fatal('Failed to search for replication agreements under (%s), error: %s' %
-                (dn_replica, e.message('desc')))
-            raise ldap.LDAPError
+                (dn_replica, str(e)))
+            raise
 
     def disableReplication(self, suffix=None):
         '''
@@ -395,14 +395,14 @@ class Replica(object):
             self.deleteAgreements(nsuffix)
         except ldap.LDAPError as e:
             self.log.fatal('Failed to delete replica agreements!')
-            raise ldap.LDAPError
+            raise
 
         # Delete the replica
         try:
             self.conn.delete_s(dn_replica)
         except ldap.LDAPError as e:
-            self.log.fatal('Failed to delete replica configuration (%s), error: %s' % (dn_replica, e.message('desc')))
-            raise ldap.LDAPError
+            self.log.fatal('Failed to delete replica configuration (%s), error: %s' % (dn_replica, str(e)))
+            raise
 
     def enableReplication(self, suffix=None, role=None, replicaId=CONSUMER_REPLICAID, binddn=None):
         if not suffix:

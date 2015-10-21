@@ -66,8 +66,8 @@ class Changelog(object):
         try:
             self.conn.delete_s(DN_CHANGELOG)
         except ldap.LDAPError as e:
-            self.log.error('Failed to delete the changelog: ' + e.message['desc'])
-            raise ldap.LDAPError
+            self.log.error('Failed to delete the changelog: ' + str(e))
+            raise
 
     def setProperties(self, changelogdn=None, properties=None):
         if not changelogdn:
