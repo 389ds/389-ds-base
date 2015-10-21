@@ -274,6 +274,27 @@ if [ -n "$DEBUGPOSTTRANS" ] ; then
    output=$DEBUGPOSTTRANS
    output2=${DEBUGPOSTTRANS}.upgrade
 fi
+
+has_dirsrv=`/usr/bin/egrep -i "^dirsrv\>" /etc/passwd` || :
+if [ "$has_dirsrv" = "" ]; then
+  dirsrv_uid=389
+    while [ "`getent passwd | awk -F: '{print $3}' | grep $dirsrv_uid`" != "" ]; do
+    dirsrv_uid=`expr $dirsrv_uid + 1`
+  done
+    echo "User dirsrv does not exist, create it with uid %dirsrv_uid." >> $output 2>&1 || :
+  /usr/sbin/useradd -c "389-ds-base" -u $dirsrv_uid \
+      -s /sbin/nologin -r -d /usr/share/dirsrv dirsrv 2> /dev/null || :
+  fi
+  has_dirsrv=`/usr/bin/egrep -i "^dirsrv\>" /etc/group` || :
+  if [ "$has_dirsrv" = "" ]; then
+    dirsrv_gid=389
+  while [ "`getent group | grep $dirsrv_gid`" != "" ]; do
+      dirsrv_gid=`expr $dirsrv_gid + 1`
+    done
+  echo "Group dirsrv does not exist, create it with uid %dirsrv_gid." >> $output 2>&1 || :
+    /usr/sbin/groupadd -g $dirsrv_gid -r dirsrv 2> /dev/null || :
+fi
+
 echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
 instbase="%{_sysconfdir}/%{pkgname}"
 for dir in $instbase/slapd-* ; do

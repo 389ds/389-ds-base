@@ -328,8 +328,8 @@ configdir=/$PACKAGE_NAME/config
 schemadir=/$PACKAGE_NAME/schema
 
 # default user, group
-defaultuser=nobody
-defaultgroup=nobody
+defaultuser=dirsrv
+defaultgroup=dirsrv
 
 if test -z "$with_tmpfiles_d" ; then
    if test -d $sysconfdir/tmpfiles.d ; then
