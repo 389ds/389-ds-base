@@ -1225,6 +1225,11 @@ parseFilter (
 {
   int	 i, j;
 
+  if (!src) {
+    printf ("Error: NULL source string is passed.\n");
+    return (-1);
+  }
+
   for (i=0 ; (i<strlen(src)) && (src[i]!='X') ; i++);
   *head = (char *)malloc(i+1);
   if (*head == NULL)
