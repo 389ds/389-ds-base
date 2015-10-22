@@ -306,6 +306,7 @@ class Tasks(object):
         @return None
 
         @raise ValueError if invalid missing benamebase and suffix or invalid benamebase
+        @raise LDAPError if unable to search for index names
 
         '''
         if not benamebase and not suffix:
@@ -324,16 +325,36 @@ class Tasks(object):
             suffix = ents[0].getValue(attr_suffix)
 
         entries_backend = self.conn.backend.list(suffix=suffix)
-        cn = "index_%s_%s" % (attrname, time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+        backend = entries_backend[0].cn  # assume 1 local backend
+        attrs = []
+
+        if not attrname:
+            #
+            # Reindex all attributes - gather them first...
+            #
+            cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            dn = ('cn=%s,cn=ldbm database,cn=plugins,cn=config' % backend)
+            try:
+                indexes = self.conn.search_s(dn, ldap.SCOPE_SUBTREE, '(objectclass=nsIndex)')
+                for index in indexes:
+                    attrs.append(index.getValue('cn'))
+            except ldap.LDAPError:
+                raise
+        else:
+            #
+            # Reindex specific attribute
+            #
+            cn = "index_%s_%s" % (attrname, time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            attrs.append(attrname)
+
         dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
         entry = Entry(dn)
         entry.update({
             'objectclass': ['top', 'extensibleObject'],
             'cn': cn,
-            'nsIndexAttribute': attrname,
-            'nsInstance': entries_backend[0].cn
+            'nsIndexAttribute': attrs,
+            'nsInstance': backend
         })
-        # assume 1 local backend
 
         # start the task and possibly wait for task completion
         try:
