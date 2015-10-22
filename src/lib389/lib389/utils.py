@@ -56,11 +56,22 @@ searches = {
 # Utilities
 #
 
-
-def is_a_dn(dn):
+def is_a_dn(dn, allow_anon=True):
     """Returns True if the given string is a DN, False otherwise."""
-    return (dn.find("=") > 0)
-
+    try:
+        if dn == "" and allow_anon is True:
+            # The empty string is anonymous.
+            return True
+        if len(ldap.dn.str2dn(dn)) > 0:
+            # We have valid components in the dn.
+            return True
+    except ldap.DECODING_ERROR:
+        # An invalid dn was given.
+        pass
+    except TypeError:
+        # An invalid type was passed to be checked
+        pass
+    return false
 
 def normalizeDN(dn, usespace=False):
     # not great, but will do until we use a newer version of python-ldap
