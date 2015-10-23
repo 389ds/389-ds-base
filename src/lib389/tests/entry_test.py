@@ -1,7 +1,15 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
+import os
 from lib389 import Entry
 import lib389
-from nose import SkipTest
-from nose.tools import raises
+import pytest
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -21,10 +29,10 @@ class TestEntry(object):
         e = Entry('o=pippo')
         assert e.dn == 'o=pippo'
 
-    @raises(ValueError)
     def test_init_badstr(self):
         # This should not be allowed
-        e = Entry('no equal sign here')
+        with pytest.raises(ValueError):
+            e = Entry('no equal sign here')
 
     def test_init_with_tuple(self):
         expected = 'pippo'
@@ -49,7 +57,6 @@ class TestEntry(object):
         e.update(given)
         assert e.cn == expected, "Bad cn: %s, expected: %s" % (e.cn, expected)
 
-    #@SkipTest
     def test_update_complex(self):
         # compare two entries created with different methods
         nsuffix, replid, replicatype = "dc=example,dc=com", 5, lib389.REPLICA_RDWR_TYPE
@@ -85,3 +92,8 @@ class TestEntry(object):
         uentry_s, entry_s = list(map(str, (uentry, entry)))
         assert uentry_s == entry_s, "Mismatching entries [%r] vs [%r]" % (
             uentry, entry)
+
+
+if __name__ == "__main__":
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s -v %s" % CURRENT_FILE)

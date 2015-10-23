@@ -1,233 +1,224 @@
-'''
-Created on Dec 9, 2013
-
-@author: tbordaz
-'''
-
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import os
 import pwd
 import ldap
+import logging
+import pytest
 from random import randint
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import DirSrv,Entry
 
-TEST_REPL_DN = "uid=test,%s" % DEFAULT_SUFFIX
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
+
+TEST_DN = "uid=test,%s" % DEFAULT_SUFFIX
 INSTANCE_PORT     = 54321
 INSTANCE_SERVERID = 'dirsrv'
-#INSTANCE_PREFIX   = os.environ.get('PREFIX', None)
-INSTANCE_PREFIX   = None
+INSTANCE_PREFIX   = '/'
 INSTANCE_BACKUP   = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 
-class Test_dirsrv():
-    def _add_user(self, success=True):
-        try:
-            self.instance.add_s(Entry((TEST_REPL_DN, {'objectclass': "top person organizationalPerson inetOrgPerson".split(),
-                                                      'uid': 'test',
-                                                      'sn': 'test',
-                                                      'cn': 'test'})))
-        except Exception as e:
-            if success:
-                raise
-            else:
-                self.instance.log.info('Fail to add (expected): %s' % e.args)
-                return
-            
-        self.instance.log.info('%s added' % TEST_REPL_DN)
 
-    def _mod_user(self, success=True):
-        try:
-            replace = [(ldap.MOD_REPLACE, 'description', str(randint(1, 100)))]
-            self.instance.modify_s(TEST_REPL_DN, replace)
-        except Exception as e:
-            if success:
-                raise
-            else:
-                self.instance.log.info('Fail to modify (expected): %s' % e.args)
-                return
-            
-        self.instance.log.info('%s modified' % TEST_REPL_DN)
-
-    def setUp(self):
-        pass
-
-
-    def tearDown(self):
-        pass
-
-
-    def test_allocate(self, verbose=False):
-        instance = DirSrv(verbose=verbose)
-        instance.log.debug("Instance allocated")
-        assert instance.state == DIRSRV_STATE_INIT
-
-        # Allocate the instance
-        args = {SER_HOST:         LOCALHOST,
-                SER_PORT:         INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
-                SER_SERVERID_PROP: INSTANCE_SERVERID
-                }
-        instance.allocate(args)
-        
-        userid = pwd.getpwuid( os.getuid() )[ 0 ]
-
-        
-        # Now verify the settings 
-        assert instance.state     == DIRSRV_STATE_ALLOCATED
-        assert instance.host      == LOCALHOST
-        assert instance.port      == INSTANCE_PORT
-        assert instance.sslport   == None
-        assert instance.binddn    == DN_DM
-        assert instance.bindpw    == PW_DM
-        assert instance.creation_suffix == DEFAULT_SUFFIX
-        assert instance.userid    == userid
-        assert instance.serverid  == INSTANCE_SERVERID
-        assert instance.groupid   == instance.userid
-        assert instance.prefix    == INSTANCE_PREFIX
-        assert instance.backupdir == INSTANCE_BACKUP
-        
-        # Now check we can change the settings of an allocated DirSrv
-        args = {SER_SERVERID_PROP:INSTANCE_SERVERID,
-                SER_HOST:         LOCALHOST,
-                SER_PORT:         INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
-                SER_ROOT_DN: "uid=foo"}
-        instance.allocate(args)
-        assert instance.state     == DIRSRV_STATE_ALLOCATED
-        assert instance.host      == LOCALHOST
-        assert instance.port      == INSTANCE_PORT
-        assert instance.sslport   == None
-        assert instance.binddn    == "uid=foo"
-        assert instance.bindpw    == PW_DM
-        assert instance.creation_suffix == DEFAULT_SUFFIX
-        assert instance.userid    == userid
-        assert instance.serverid  == INSTANCE_SERVERID
-        assert instance.groupid   == instance.userid
-        assert instance.prefix    == INSTANCE_PREFIX
-        assert instance.backupdir == INSTANCE_BACKUP
-        
-        # OK restore back the valid parameters
-        args = {SER_SERVERID_PROP:INSTANCE_SERVERID,
-                SER_HOST:         LOCALHOST,
-                SER_PORT:         INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX}
-        instance.allocate(args)
-        assert instance.state     == DIRSRV_STATE_ALLOCATED
-        assert instance.host      == LOCALHOST
-        assert instance.port      == INSTANCE_PORT
-        assert instance.sslport   == None
-        assert instance.binddn    == DN_DM
-        assert instance.bindpw    == PW_DM
-        assert instance.creation_suffix == DEFAULT_SUFFIX
-        assert instance.userid    == userid
-        assert instance.serverid  == INSTANCE_SERVERID
-        assert instance.groupid   == instance.userid
-        assert instance.prefix    == INSTANCE_PREFIX
-        assert instance.backupdir == INSTANCE_BACKUP
-        
+class TopologyInstance(object):
+    def __init__(self, instance):
         self.instance = instance
-        
-    def test_list_init(self):
-        '''
-            Lists the instances on the file system
-        '''
-        for properties in self.instance.list():
-            self.instance.log.info("properties: %r" % properties)
-            
-        for properties in self.instance.list(all=True):
-            self.instance.log.info("properties (all): %r" % properties)
-        
-    def test_allocated_to_offline(self):
-        self.instance.create()
 
-        
-    def test_offline_to_online(self):
-        self.instance.open()
-        
-    def test_online_to_offline(self):
-        self.instance.close()
-        
-    def test_offline_to_allocated(self):
-        self.instance.delete()
-    
-    def test_allocated_to_online(self, verbose):
-        # Here the instance was already create, check we can connect to it
-        # without creating it (especially without serverid value)
-        # Allocate the instance
-        args = {SER_HOST:         LOCALHOST,
-                SER_PORT:         INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
-                SER_SERVERID_PROP: INSTANCE_SERVERID
-                }
-        self.instance.log.info("test_allocated_to_online: Create an instance")
-        self.instance = DirSrv(verbose=verbose)
-        assert not hasattr(self, 'serverid')
-        self.instance.allocate(args)
-        self.instance.create()
-        self.instance.open()
-        assert self.instance.serverid != None
-        
-        # The instance is create, allocate a new DirSrv
-        self.instance.log.info("test_allocated_to_online: instance New")
-        self.instance = DirSrv(verbose=verbose)
-        assert not hasattr(self, 'serverid')
-        assert self.instance.state == DIRSRV_STATE_INIT
-        
-        args = {SER_HOST:         LOCALHOST,
-                SER_PORT:         INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
-                }
-        self.instance.allocate(args)
-        self.instance.log.info("test_allocated_to_online: instance Allocated")
-        assert self.instance.serverid == None
-        assert self.instance.state == DIRSRV_STATE_ALLOCATED
-        
-        self.instance.open()
-        self.instance.log.info("test_allocated_to_online: instance online")
-        assert self.instance.serverid != None
-        assert self.instance.serverid == self.instance.inst
-        assert self.instance.state == DIRSRV_STATE_ONLINE
-        
+
+@pytest.fixture(scope='module')
+def topology(request):
+    instance = DirSrv(verbose=False)
+
+    if instance.exists():
+        instance.delete()
+
+    def fin():
+        if instance.exists():
+            instance.delete()
+    request.addfinalizer(fin)
+
+    return TopologyInstance(instance)
+
+
+def _add_user(topology):
+    """Add a user to the instance"""
+
+    topology.instance.add_s(Entry((TEST_DN, {'objectclass': "top person".split(),
+                                             'objectclass': "organizationalPerson",
+                                             'objectclass': "inetOrgPerson",
+                                             'uid': 'test',
+                                             'sn': 'test',
+                                             'cn': 'test'})))
+    log.info('User %s was added' % TEST_DN)
+
+
+def test_allocate(topology):
+    """Test instance.allocate() function
+    for correct state and arguments
+    """
+
+    log.info('Check instance state is initial')
+    assert topology.instance.state == DIRSRV_STATE_INIT
+
+    log.info('Allocate the instance')
+    args = {SER_HOST:         LOCALHOST,
+            SER_PORT:         INSTANCE_PORT,
+            SER_SERVERID_PROP: INSTANCE_SERVERID}
+    topology.instance.allocate(args)
+
+    log.info('Check instance state is allocated')
+    assert topology.instance.state == DIRSRV_STATE_ALLOCATED
+
+    log.info('Try to add user. Failure is excpected')
+    with pytest.raises(Exception):
+        _add_user(topology)
+
+    if os.getuid() == 0:
+        userid = DEFAULT_USER
+    else:
+        userid = pwd.getpwuid(os.getuid())[0]
+
+    log.info('Verify the settings')
+    assert topology.instance.host      == LOCALHOST
+    assert topology.instance.port      == INSTANCE_PORT
+    assert topology.instance.sslport   == None
+    assert topology.instance.binddn    == DN_DM
+    assert topology.instance.bindpw    == PW_DM
+    assert topology.instance.creation_suffix == DEFAULT_SUFFIX
+    assert topology.instance.userid    == userid
+    assert topology.instance.serverid  == INSTANCE_SERVERID
+    assert topology.instance.groupid   == topology.instance.userid
+    assert topology.instance.prefix    == INSTANCE_PREFIX
+    assert topology.instance.backupdir == INSTANCE_BACKUP
+
+    log.info('Now check, that we can change the settings of an allocated DirSrv')
+    args = {SER_SERVERID_PROP:INSTANCE_SERVERID,
+            SER_HOST:         LOCALHOST,
+            SER_PORT:         INSTANCE_PORT,
+            SER_ROOT_DN: "uid=foo"}
+    topology.instance.allocate(args)
+
+    log.info('Check instance state is allocated')
+    assert topology.instance.state == DIRSRV_STATE_ALLOCATED
+
+    log.info('Verify the settings')
+    assert topology.instance.host      == LOCALHOST
+    assert topology.instance.port      == INSTANCE_PORT
+    assert topology.instance.sslport   == None
+    assert topology.instance.binddn    == "uid=foo"
+    assert topology.instance.bindpw    == PW_DM
+    assert topology.instance.creation_suffix == DEFAULT_SUFFIX
+    assert topology.instance.userid    == userid
+    assert topology.instance.serverid  == INSTANCE_SERVERID
+    assert topology.instance.groupid   == topology.instance.userid
+    assert topology.instance.prefix    == INSTANCE_PREFIX
+    assert topology.instance.backupdir == INSTANCE_BACKUP
+
+    log.info('Restore back the valid parameters and check')
+    args = {SER_SERVERID_PROP:INSTANCE_SERVERID,
+            SER_HOST:         LOCALHOST,
+            SER_PORT:         INSTANCE_PORT}
+    topology.instance.allocate(args)
+
+    log.info('Check instance state is allocated')
+    assert topology.instance.state == DIRSRV_STATE_ALLOCATED
+
+    log.info('Verify the settings')
+    assert topology.instance.host      == LOCALHOST
+    assert topology.instance.port      == INSTANCE_PORT
+    assert topology.instance.sslport   == None
+    assert topology.instance.binddn    == DN_DM
+    assert topology.instance.bindpw    == PW_DM
+    assert topology.instance.creation_suffix == DEFAULT_SUFFIX
+    assert topology.instance.userid    == userid
+    assert topology.instance.serverid  == INSTANCE_SERVERID
+    assert topology.instance.groupid   == topology.instance.userid
+    assert topology.instance.prefix    == INSTANCE_PREFIX
+    assert topology.instance.backupdir == INSTANCE_BACKUP
+
+
+def test_create(topology):
+    """Test instance creation
+    Check status before and after
+    Try to add a user
+    """
+
+    log.info('Check instance state is allocated')
+    assert topology.instance.state == DIRSRV_STATE_ALLOCATED
+
+    topology.instance.create()
+
+    log.info('Check instance state is offline')
+    assert topology.instance.state == DIRSRV_STATE_OFFLINE
+
+    log.info('Try to add user. Failure is excpected')
+    with pytest.raises(Exception):
+        _add_user(topology)
+
+
+def test_open(topology):
+    """Test instance opening
+    Check status before and after
+    Try to add a user
+    """
+
+    log.info('Check instance state is offline')
+    assert topology.instance.state == DIRSRV_STATE_OFFLINE
+
+    topology.instance.open()
+
+    log.info('Check instance state is online')
+    assert topology.instance.state == DIRSRV_STATE_ONLINE
+
+    log.info('Try to add user. Success is excpected')
+    _add_user(topology)
+
+
+def test_close(topology):
+    """Test instance closing
+    Check status before and after
+    Try to add a user
+    """
+
+    log.info('Check instance state is online')
+    assert topology.instance.state == DIRSRV_STATE_ONLINE
+
+    topology.instance.close()
+
+    log.info('Check instance state is offline')
+    assert topology.instance.state == DIRSRV_STATE_OFFLINE
+
+    log.info('Try to add user. Failure is excpected')
+    with pytest.raises(Exception):
+        _add_user(topology)
+
+
+def test_delete(topology):
+    """Test instance deletion
+    Check status before and after
+    Try to add a user
+    """
+
+    log.info('Check instance state is offline')
+    assert topology.instance.state == DIRSRV_STATE_OFFLINE
+
+    topology.instance.delete()
+
+    log.info('Check instance state is allocated')
+    assert topology.instance.state == DIRSRV_STATE_ALLOCATED
+
+    log.info('Try to add user. Failure is excpected')
+    with pytest.raises(Exception):
+        _add_user(topology)
+
+
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    test = Test_dirsrv()
-    test.setUp()
-    
-    # Allocated the instance, except preparing the instance 
-    test.test_allocate(False)
-    
-    
-    if test.instance.exists():
-        # force a cleanup before starting
-        test.instance.state = DIRSRV_STATE_OFFLINE
-        test.test_offline_to_allocated()
-        
-
-    # Do a listing of the instances
-    test.test_list_init()
-    test._add_user(success=False)
-    
-    # Create the instance
-    test.test_allocated_to_offline()
-    test._add_user(success=False)
-    
-    # bind to the instance
-    test.test_offline_to_online()
-    test._add_user(success=True)
-    
-    test._mod_user(success=True)
-    
-    #Unbind to the instance
-    test.test_online_to_offline()
-    test._mod_user(success=False)
-    
-    test.test_list_init()
-    
-    test.test_offline_to_allocated()
-    
-    test.test_allocated_to_online(verbose=False)
-    
-    test.tearDown()
-
-
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main('-s -v %s' % CURRENT_FILE)

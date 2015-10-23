@@ -1,10 +1,16 @@
-
-from nose import *
-import lib389
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
+import pytest
 from lib389.utils import *
 
 
-def normalizeDN_test():
+def test_normalizeDN():
     test = [
         (r'dc=example,dc=com', r'dc=example,dc=com'),
         (r'dc=example, dc=com', r'dc=example,dc=com'),
@@ -16,14 +22,14 @@ def normalizeDN_test():
         assert r == v, "Mismatch %r vs %r" % (r, v)
 
 
-def escapeDNValue_test():
+def test_escapeDNValue():
     test = [(r'"dc=example, dc=com"', r'\"dc\=example\,\ dc\=com\"')]
     for k, v in test:
         r = escapeDNValue(k)
         assert r == v, "Mismatch %r vs %r" % (r, v)
 
 
-def escapeDNFiltValue_test():
+def test_escapeDNFiltValue():
     test = [(r'"dc=example, dc=com"',
              '\\22dc\\3dexample\\2c\\20dc\\3dcom\\22')]
     for k, v in test:
@@ -36,7 +42,7 @@ def escapeDNFiltValue_test():
 import socket
 
 
-def isLocalHost_test():
+def test_isLocalHost():
     test = [
         ('localhost', True),
         ('localhost.localdomain', True),
@@ -47,10 +53,10 @@ def isLocalHost_test():
         assert r == v, "Mismatch %r vs %r on %r" % (r, v, k)
 
 
-def update_newhost_with_fqdn_test():
+def test_update_jewhost_with_fqdn():
     test = [
-        ({'newhost':'localhost'}, ('localhost.localdomain', True)),
-        ({'newhost': 'remote'}, ('remote', False)),
+        ({'hostname':'localhost'}, ('localhost.localdomain', True)),
+        ({'hostname': 'remote'}, ('remote', False)),
     ]
     for k, v in test:
         old = k.copy()
@@ -58,33 +64,34 @@ def update_newhost_with_fqdn_test():
         r = update_newhost_with_fqdn(k)
         assert expected_r == r, "Mismatch %r vs %r for %r" % (
             r, expected_r, old)
-        assert expected_host == k['newhost'], "Mismatch %r vs %r for %r" % (
-            k['newhost'], expected_host, old)
+        assert expected_host == k['hostname'], "Mismatch %r vs %r for %r" % (
+            k['hostname'], expected_host, old)
 
 
-def formatInfData_test():
+def test_formatInfData():
     ret = formatInfData({
-        'newhost': 'localhost.localdomain',
-        'newuserid': 'dirsrv',
-        'newport' : 12345,
-        'newrootdn': 'cn=directory manager',
-        'newrootpw': 'password',
-        'newsuffix': 'o=base1',
-        'newinstance': 'rpolli1'
+        'hostname': 'localhost.localdomain',
+        'user-id': 'dirsrv',
+        'group-id': 'dirsrv',
+        'ldap-port' : 12345,
+        'root-dn': 'cn=directory manager',
+        'root-pw': 'password',
+        'server-id': 'dirsrv',
+        'suffix': 'o=base1',
     })
     log.info("content: %r" % ret)
-    
 
-def formatInfData_withadmin_test():
+
+def test_formatInfData_withadmin():
     instance_params = {
-        'newhost': 'localhost.localdomain',
-        'newuserid': 'dirsrv',
-        'newport' : 12346,
-        'newrootdn': 'cn=directory manager',
-        'newrootpw': 'password',
-        'newsuffix': 'o=base1',
-        'newinstance': 'rpolli2',
-    }
+        'hostname': 'localhost.localdomain',
+        'user-id': 'dirsrv',
+        'group-id': 'dirsrv',
+        'ldap-port' : 12346,
+        'root-dn': 'cn=directory manager',
+        'root-pw': 'password',
+        'server-id': 'dirsrv',
+        'suffix': 'o=base1'}
     admin_params = {
         'have_admin': True,
         'create_admin': True,
@@ -92,33 +99,34 @@ def formatInfData_withadmin_test():
         'cfgdshost': 'localhost',
         'cfgdsport': 12346,
         'cfgdsuser': 'admin',
-        'cfgdspwd': 'admin',
-
-    }
+        'cfgdspwd': 'admin'}
     instance_params.update(admin_params)
     ret = formatInfData(instance_params)
     log.info("content: %r" % ret)
 
-def formatInfData_withconfigserver_test():
+
+def test_formatInfData_withconfigserver():
     instance_params = {
-        'newhost': 'localhost.localdomain',
-        'newuserid': 'dirsrv',
-        'newport' : 12346,
-        'newrootdn': 'cn=directory manager',
-        'newrootpw': 'password',
-        'newsuffix': 'o=base1',
-        'newinstance': 'rpolli2',
-    }
+        'hostname': 'localhost.localdomain',
+        'user-id': 'dirsrv',
+        'group-id': 'dirsrv',
+        'ldap-port' : 12346,
+        'root-dn': 'cn=directory manager',
+        'root-pw': 'password',
+        'server-id': 'dirsrv',
+        'suffix': 'o=base1'}
     admin_params = {
         'have_admin': True,
         'cfgdshost': 'localhost',
         'cfgdsport': 12346,
         'cfgdsuser': 'admin',
         'cfgdspwd': 'admin',
-        'admin_domain': 'example.com',
-
-    }
+        'admin_domain': 'example.com'}
     instance_params.update(admin_params)
     ret = formatInfData(instance_params)
     log.info("content: %r" % ret)
 
+
+if __name__ == "__main__":
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s -v %s" % CURRENT_FILE)

@@ -1,63 +1,91 @@
-'''
-Created on Aug 1, 2015
-
-@author: William Brown
-'''
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 from lib389._constants import *
 from lib389 import DirSrv,Entry
+import pytest
+import logging
+
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
 
 INSTANCE_PORT     = 54321
 INSTANCE_SERVERID = 'effectiverightsds'
-INSTANCE_PREFIX   = None
+TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
+TEST_GROUP = 'cn=testgroup,%s' % DEFAULT_SUFFIX
 
-class Test_effective_rights():
-    def setUp(self):
-        instance = DirSrv(verbose=False)
-        instance.log.debug("Instance allocated")
-        args = {SER_HOST:          LOCALHOST,
-                SER_PORT:          INSTANCE_PORT,
-                SER_DEPLOYED_DIR:  INSTANCE_PREFIX,
-                SER_SERVERID_PROP: INSTANCE_SERVERID
-                }
-        instance.allocate(args)
-        if instance.exists():
-            instance.delete()
-        instance.create()
+
+class TopologyInstance(object):
+    def __init__(self, instance):
         instance.open()
         self.instance = instance
 
-    def tearDown(self):
-        if self.instance.exists():
-            self.instance.delete()
 
-    def add_user(self):
-        # Create a user entry
-        uentry = Entry('uid=test,%s' % DEFAULT_SUFFIX)
-        uentry.setValues('objectclass', 'top', 'extensibleobject')
-        uentry.setValues('uid', 'test')
-        self.instance.add_s(uentry)
-        #self.instance.log.debug("Created user entry as:" ,uentry.dn)
+@pytest.fixture(scope="module")
+def topology(request):
+    instance = DirSrv(verbose=False)
+    instance.log.debug("Instance allocated")
+    args = {SER_HOST:          LOCALHOST,
+            SER_PORT:          INSTANCE_PORT,
+            SER_SERVERID_PROP: INSTANCE_SERVERID}
+    instance.allocate(args)
+    if instance.exists():
+        instance.delete()
+    instance.create()
+    instance.open()
 
-    def add_group(self):
-        # Create a group for the user to have some rights to
-        gentry = Entry('cn=testgroup,%s' % DEFAULT_SUFFIX)
-        gentry.setValues('objectclass', 'top', 'extensibleobject')
-        gentry.setValues('cn', 'testgroup')
-        self.instance.add_s(gentry)
+    def fin():
+        if instance.exists():
+            instance.delete()
+    request.addfinalizer(fin)
 
-    def test_effective_rights(self):
-        # Run an effective rights search
-        result = self.instance.get_effective_rights('uid=test,%s' % DEFAULT_SUFFIX, filterstr='(cn=testgroup)', attrlist=['cn'])
+    return TopologyInstance(instance)
 
-        rights = result[0]
-        assert rights.getValue('attributeLevelRights') == 'cn:rsc'
-        assert rights.getValue('entryLevelRights') == 'v'
+
+@pytest.fixture(scope="module")
+def add_user(topology):
+    """Create a user entry"""
+
+    log.info('Create a user entry: %s' % TEST_USER)
+    uentry = Entry(TEST_USER)
+    uentry.setValues('objectclass', 'top', 'extensibleobject')
+    uentry.setValues('uid', 'test')
+    topology.instance.add_s(uentry)
+    #topology.instance.log.debug("Created user entry as:" ,uentry.dn)
+
+
+@pytest.fixture(scope="module")
+def add_group(topology):
+    """Create a group for the user to have some rights to"""
+
+    log.info('Create a group entry: %s' % TEST_GROUP)
+    gentry = Entry(TEST_GROUP)
+    gentry.setValues('objectclass', 'top', 'extensibleobject')
+    gentry.setValues('cn', 'testgroup')
+    topology.instance.add_s(gentry)
+
+
+def test_effective_rights(topology, add_user, add_group):
+    """Run an effective rights search
+    and compare actual results with expected
+    """
+
+    log.info('Search for effective rights with get_effective_rights() function')
+    result = topology.instance.get_effective_rights(TEST_USER,
+                                                    filterstr='(cn=testgroup)',
+                                                    attrlist=['cn'])
+
+    rights = result[0]
+    log.info('Assert that "attributeLevelRights: cn:rsc" and "entryLevelRights: v"')
+    assert rights.getValue('attributeLevelRights') == 'cn:rsc'
+    assert rights.getValue('entryLevelRights') == 'v'
+
 
 if __name__ == "__main__":
-    test = Test_effective_rights()
-    test.setUp()
-    test.add_user()
-    test.add_group()
-    test.test_effective_rights()
-    test.tearDown()
-
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s -v %s" % CURRENT_FILE)
