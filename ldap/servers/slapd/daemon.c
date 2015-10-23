@@ -1836,7 +1836,11 @@ ns_handle_closure(struct ns_job_t *job)
 	int do_yield = 0;
 
 	/* this function must be called from the event loop thread */
+#ifdef DEBUG
 	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
+#else
+	NS_JOB_IS_THREAD(ns_job_get_type(job));
+#endif
 	PR_Lock(c->c_mutex);
 	connection_release_nolock_ext(c, 1); /* release ref acquired for event framework */
 	PR_ASSERT(c->c_ns_close_jobs == 1); /* should be exactly 1 active close job - this one */
@@ -1889,7 +1893,11 @@ ns_connection_post_io_or_closing(Connection *conn)
 		/* process event normally - wait for I/O until idletimeout */
 		tv.tv_sec = conn->c_idletimeout;
 		tv.tv_usec = 0;
-		PR_ASSERT(0 == connection_acquire_nolock(conn)); /* event framework now has a reference */
+#ifdef DEBUG
+		PR_ASSERT(0 == connection_acquire_nolock(conn));
+#else
+		connection_acquire_nolock(conn); /* event framework now has a reference */
+#endif
 		ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
 				      NS_JOB_READ|NS_JOB_PRESERVE_FD,
 				      ns_handle_pr_read_ready, conn, NULL);
@@ -1911,7 +1919,11 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 	Connection *c = (Connection *)ns_job_get_data(job);
 
 	/* this function must be called from the event loop thread */
+#ifdef DEBUG
 	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
+#else
+	NS_JOB_IS_THREAD(ns_job_get_type(job));
+#endif
 
 	PR_Lock(c->c_mutex);
 	LDAPDebug2Args(LDAP_DEBUG_CONNS, "activity on conn %" NSPRIu64 " for fd=%d\n",
