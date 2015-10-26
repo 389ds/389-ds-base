@@ -71,7 +71,7 @@ def is_a_dn(dn, allow_anon=True):
     except TypeError:
         # An invalid type was passed to be checked
         pass
-    return false
+    return False
 
 def normalizeDN(dn, usespace=False):
     # not great, but will do until we use a newer version of python-ldap
