@@ -27,11 +27,10 @@ int
 need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 {
 	time_t 		cur_time, pw_exp_date;
- 	LDAPMod 	*mod;
 	Slapi_Mods smods;
 	double		diff_t = 0;
 	char 		*cur_time_str = NULL;
-	char *passwordExpirationTime;
+	char *passwordExpirationTime = NULL;
 	char *timestring;
 	char *dn;
 	const Slapi_DN *sdn;
@@ -67,13 +66,12 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 		 * This is ok for data that has been loaded via ldif2ldbm
 		 * Set expiration time if needed,
 		 * don't do further checking and return 0 */
-		if ( pwpolicy->pw_exp == 1) {
-			pw_exp_date = time_plus_sec ( cur_time, 
-				pwpolicy->pw_maxage );
+		if (pwpolicy->pw_exp == 1) {
+			pw_exp_date = time_plus_sec(cur_time, pwpolicy->pw_maxage);
 
 			timestring = format_genTime (pw_exp_date);
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpirationTime", timestring);
-			slapi_ch_free((void **)&timestring);
+			slapi_ch_free_string(&timestring);
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "0");
 			
 			pw_apply_mods(sdn, &smods);
@@ -86,7 +84,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 
 	pw_exp_date = parse_genTime(passwordExpirationTime);
 
-	slapi_ch_free((void**)&passwordExpirationTime);
+	slapi_ch_free_string(&passwordExpirationTime);
 
 	/* Check if password has been reset */
 	if ( pw_exp_date == NO_TIME ) {
@@ -110,7 +108,7 @@ need_new_pw( Slapi_PBlock *pb, long *t, Slapi_Entry *e, int pwresponse_req )
 		pw_exp_date = NOT_FIRST_TIME;
 		timestring = format_genTime(pw_exp_date);
 		slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpirationTime", timestring);
-		slapi_ch_free((void **)&timestring);
+		slapi_ch_free_string(&timestring);
 	}
 
 skip:
@@ -130,11 +128,8 @@ skip:
 
 	/* check if password expired.  If so, abort bind. */
 	cur_time_str = format_genTime ( cur_time );
-	if ( pw_exp_date != NO_TIME  && 
-		 pw_exp_date != NOT_FIRST_TIME && 
-		 (diff_t = difftime ( pw_exp_date, 
-			parse_genTime ( cur_time_str ))) <= 0 ) {
-	
+	if ((pw_exp_date != NO_TIME) && (pw_exp_date != NOT_FIRST_TIME) &&
+	    (diff_t = difftime(pw_exp_date, parse_genTime(cur_time_str))) <= 0) {
 		slapi_ch_free_string(&cur_time_str); /* only need this above */
 		/* password has expired. Check the value of 
 		 * passwordGraceUserTime and compare it
@@ -144,7 +139,7 @@ skip:
 			pwdGraceUserTime++;
 			sprintf ( graceUserTime, "%d", pwdGraceUserTime );
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE,
-				"passwordGraceUserTime", graceUserTime);	
+				"passwordGraceUserTime", graceUserTime);
 			pw_apply_mods(sdn, &smods);
 			slapi_mods_done(&smods);
 			if (pwresponse_req) {
@@ -190,40 +185,30 @@ skip:
 		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
 		return (-1);
-	} 
+	}
 	slapi_ch_free((void **) &cur_time_str );
 
 	/* check if password is going to expire within "passwordWarning" */
 	/* Note that if pw_exp_date is NO_TIME or NOT_FIRST_TIME,
 	 * we must send warning first and this changes the expiration time.
 	 * This is done just below since diff_t is 0 
-  	 */
+	 */
 	if ( diff_t <= pwpolicy->pw_warning ) {
 		int pw_exp_warned = 0;
 		
-		pw_exp_warned= slapi_entry_attr_get_int( e, "passwordExpWarned");
+		pw_exp_warned = slapi_entry_attr_get_int( e, "passwordExpWarned");
 		if ( !pw_exp_warned ){
 			/* first time send out a warning */
 			/* reset the expiration time to current + warning time 
 			 * and set passwordExpWarned to true
 			 */
 			if (pb->pb_conn->c_needpw != 1) {
-				pw_exp_date = time_plus_sec ( cur_time, 
-					pwpolicy->pw_warning );
+				pw_exp_date = time_plus_sec(cur_time, pwpolicy->pw_warning);
 			}
 			
 			timestring = format_genTime(pw_exp_date);
-			/* At this time passwordExpirationTime may already be
-			 * in the list of mods: Remove it */
-			for (mod = slapi_mods_get_first_mod(&smods); mod != NULL; 
-				 mod = slapi_mods_get_next_mod(&smods))
-			{
-				if (!strcmp(mod->mod_type, "passwordExpirationTime"))
-					slapi_mods_remove(&smods);
-			}
-
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpirationTime", timestring);
-			slapi_ch_free((void **)&timestring);
+			slapi_ch_free_string(&timestring);
 
 			slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "1");
 			
@@ -232,7 +217,7 @@ skip:
 		} else {
 			*t = (long)diff_t; /* jcm: had to cast double to long */
 		}
-			
+
 		pw_apply_mods(sdn, &smods);
 		slapi_mods_done(&smods);
 		if (pwresponse_req) {

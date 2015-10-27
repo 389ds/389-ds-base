@@ -2507,4 +2507,6 @@ extern char	*attr_dataversion;
 /* copied from replication/repl5.h */
 #define RUV_STORAGE_ENTRY_UNIQUEID "ffffffff-ffffffff-ffffffff-ffffffff"
 
+#define _SEC_PER_DAY 86400
+
 #endif /* _slap_h_ */

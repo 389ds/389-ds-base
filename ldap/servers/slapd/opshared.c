@@ -1439,6 +1439,8 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 done = 1;
                 continue;
             }
+            /* Adding shadow password attrs. */
+            add_shadow_ext_password_attrs(pb, e);
             if (process_entry(pb, e, send_result)) 
             {
                 /* shouldn't  send this entry */

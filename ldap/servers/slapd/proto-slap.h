@@ -917,6 +917,7 @@ void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );
 void mod_allowchange_aci(char *val);
 void pw_mod_allowchange_aci(int pw_prohibit_change);
 void pw_add_allowchange_aci(Slapi_Entry *e, int pw_prohibit_change);
+void add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry *e);
 
 /*
  * pw_retry.c

@@ -200,7 +200,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_access_rotationsyncclock = -1;
 	loginfo.log_access_rotationtime = 1;                  /* default: 1 */
 	loginfo.log_access_rotationunit = LOG_UNIT_DAYS;      /* default: day */
-	loginfo.log_access_rotationtime_secs = 86400;         /* default: 1 day */
+	loginfo.log_access_rotationtime_secs = _SEC_PER_DAY;  /* default: 1 day */
 	loginfo.log_access_maxdiskspace =  -1;
 	loginfo.log_access_minfreespace =  -1;
 	loginfo.log_access_exptime =  -1;                     /* default: -1 */

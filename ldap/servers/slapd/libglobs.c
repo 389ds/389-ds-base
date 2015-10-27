@@ -1447,7 +1447,7 @@ FrontendConfig_init () {
   cfg->pw_policy.pw_mintokenlength = 3;
   cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
   cfg->pw_policy.pw_minage = 0;
-  cfg->pw_policy.pw_warning = 86400; /* 1 day        */
+  cfg->pw_policy.pw_warning = _SEC_PER_DAY; /* 1 day */
   init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
   cfg->pw_policy.pw_inhistory = 6;
   init_pw_lockout = cfg->pw_policy.pw_lockout = LDAP_OFF;

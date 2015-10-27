@@ -611,6 +611,13 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	cur_time = current_time();
 	slapi_mods_init(&smods, 0);
 	
+	if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS, "shadowAccount")) {
+		time_t ctime = cur_time / _SEC_PER_DAY;
+		timestr = slapi_ch_smprintf("%ld", ctime);
+		slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "shadowLastChange", timestr);
+		slapi_ch_free_string(&timestr);
+	}
+
 	/* update passwordHistory */
 	if ( old_pw != NULL && pwpolicy->pw_history == 1 ) {
 		(void)update_pw_history(pb, sdn, old_pw);
@@ -699,7 +706,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 
 	timestr = format_genTime ( pw_exp_date );
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpirationTime", timestr);
-	slapi_ch_free((void **)&timestr);
+	slapi_ch_free_string(&timestr);
 	
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordExpWarned", "0");
 
@@ -722,8 +729,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
 
-	if ( !pb->pb_op->o_isroot && 
-		pwpolicy->pw_minage != 0 ) {
+	if (!pb->pb_op->o_isroot && !pwpolicy->pw_minage) {
 
 		Slapi_Entry     *e;
 		char *passwordAllowChangeTime;
@@ -753,9 +759,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 							LDAP_PWPOLICY_PWDTOOYOUNG );
 				}
-				pw_send_ldap_result ( pb,
-                        LDAP_CONSTRAINT_VIOLATION, NULL,
-                        "within password minimum age", 0, NULL );
+				pw_send_ldap_result(pb, LDAP_CONSTRAINT_VIOLATION, NULL, "within password minimum age", 0, NULL);
 				slapi_entry_free( e );
 				slapi_ch_free((void **) &cur_time_str );
 				return ( 1 );
@@ -1379,17 +1383,23 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 	const char *dn = slapi_entry_get_ndn(e);
 	int has_allowchangetime = 0, has_expirationtime = 0;
 	time_t existing_exptime = 0;
+	time_t exptime = 0;
+	int isShadowAccount = 0;
+	int has_shadowLastChange = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "add_password_attrs\n", 0, 0, 0 );
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "add_password_attrs\n");
 
 	bvals[0] = &bv;
 	bvals[1] = NULL;
-		
+
+	if (slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS, "shadowAccount")) {
+		isShadowAccount = 1;
+	}
+
 	/* If passwordexpirationtime is specified by the user, don't 
 	   try to assign the initial value */
-	for ( a = &e->e_attrs; *a != NULL; a = next ) {
-		if ( strcasecmp( (*a)->a_type, 
-			"passwordexpirationtime" ) == 0) {
+	for (a = &e->e_attrs; a && *a; a = next) {
+		if (!strcasecmp((*a)->a_type, "passwordexpirationtime")) {
 			Slapi_Value *sval;
 			if (slapi_attr_first_value(*a, &sval) == 0) {
 				const struct berval *bv = slapi_value_get_berval(sval);
@@ -1397,31 +1407,43 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 			}
 			has_expirationtime = 1;
 			
-		} else if ( strcasecmp( (*a)->a_type,
-			"passwordallowchangetime" ) == 0) {
+		} else if (!strcasecmp((*a)->a_type, "passwordallowchangetime")) {
 			has_allowchangetime = 1;
+		} else if (isShadowAccount && !strcasecmp((*a)->a_type, "shadowlastchange")) {
+			has_shadowLastChange = 1;
 		}
 		next = &(*a)->a_next;
 	}
 
-	if ( has_allowchangetime && has_expirationtime ) {
+	if (has_allowchangetime && has_expirationtime && has_shadowLastChange) {
 		return;
 	}
 
 	pwpolicy = new_passwdPolicy(pb, dn);
 
-	if ( !has_expirationtime && 
-		( pwpolicy->pw_exp || pwpolicy->pw_must_change ) ) {
-		if ( pwpolicy->pw_must_change) {
+	if (!has_expirationtime && (pwpolicy->pw_exp || pwpolicy->pw_must_change)) {
+		if (pwpolicy->pw_must_change) {
 			/* must change password when first time logon */
 			bv.bv_val = format_genTime ( NO_TIME );
 		} else if ( pwpolicy->pw_exp ) {
-			bv.bv_val = format_genTime ( time_plus_sec ( current_time (),
-       	                 pwpolicy->pw_maxage ) );
+			exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
+			bv.bv_val = format_genTime(exptime);
 		}
 		bv.bv_len = strlen( bv.bv_val );
 		slapi_entry_attr_merge( e, "passwordexpirationtime", bvals );
 		slapi_ch_free_string( &bv.bv_val );
+	}
+	if (isShadowAccount && !has_shadowLastChange) {
+		if (pwpolicy->pw_must_change) {
+			/* must change password when first time logon */
+			bv.bv_val = slapi_ch_smprintf("0");
+		} else {
+			exptime = current_time() / _SEC_PER_DAY;
+			bv.bv_val = slapi_ch_smprintf("%ld", exptime);
+		}
+		bv.bv_len = strlen(bv.bv_val);
+		slapi_entry_attr_merge(e, "shadowLastChange", bvals);
+		slapi_ch_free_string(&bv.bv_val);
 	}
 
 	/* 
@@ -1434,12 +1456,11 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 	 */
 	if ( !has_allowchangetime && pwpolicy->pw_minage != 0 && 
 		(has_expirationtime && existing_exptime > current_time()) ) {
-		bv.bv_val = format_genTime ( time_plus_sec ( current_time (),
-                        pwpolicy->pw_minage ) );
+		bv.bv_val = format_genTime ( time_plus_sec ( current_time (), pwpolicy->pw_minage ) );
 		bv.bv_len = strlen( bv.bv_val );
-	
+
 		slapi_entry_attr_merge( e, "passwordallowchangetime", bvals );
-		slapi_ch_free((void **) &bv.bv_val );
+		slapi_ch_free_string( &bv.bv_val );
 	}
 }
 
@@ -2799,4 +2820,104 @@ pw_get_ext_size(Slapi_Entry *entry, size_t *size)
         }
     }
     return LDAP_SUCCESS;
+}
+
+void
+add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
+{
+    const char *dn = NULL;
+    passwdPolicy *pwpolicy = NULL;
+    time_t shadowval = 0;
+    time_t exptime = 0;
+    struct berval bv;
+    struct berval *bvals[2];
+
+    if (!e) {
+        return;
+    }
+    dn = slapi_entry_get_ndn(e);
+    if (!dn) {
+        return;
+    }
+    if (!slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS, "shadowAccount")) {
+        /* Not a shadowAccount; nothing to do. */
+        return;
+    }
+    if (operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL)) {
+        /* external only */
+        return;
+    }
+    pwpolicy = new_passwdPolicy(pb, dn);
+    if (!pwpolicy) {
+        return;
+    }
+
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> add_shadow_password_attrs\n");
+
+    bvals[0] = &bv;
+    bvals[1] = NULL;
+
+    /* shadowMin - the minimum number of days required between password changes. */
+    if (pwpolicy->pw_minage > 0) {
+        shadowval = pwpolicy->pw_minage / _SEC_PER_DAY;
+    } else {
+        shadowval = 0;
+    }
+    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "shadowMin", bvals);
+    slapi_ch_free_string(&bv.bv_val);
+
+    /* shadowMax - the maximum number of days for which the user password remains valid. */
+    if (pwpolicy->pw_maxage > 0) {
+        shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
+        exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
+    } else {
+        shadowval = 99999;
+    }
+    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "shadowMax", bvals);
+    slapi_ch_free_string(&bv.bv_val);
+
+    /* shadowWarning - the number of days of advance warning given to the user before the user password expires. */
+    if (pwpolicy->pw_warning > 0) {
+        shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
+    } else {
+        shadowval = 0;
+    }
+    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "shadowWarning", bvals);
+    slapi_ch_free_string(&bv.bv_val);
+
+    /* shadowExpire - the date on which the user login will be disabled. */
+    if (exptime) {
+        exptime /= _SEC_PER_DAY;
+        bv.bv_val = slapi_ch_smprintf("%ld", exptime);
+        bv.bv_len = strlen(bv.bv_val);
+        slapi_entry_attr_replace(e, "shadowExpire", bvals);
+        slapi_ch_free_string(&bv.bv_val);
+    }
+
+#if 0 /* These 2 attributes are no need (or not able) to auto-fill. */
+    /* 
+     * shadowInactive - the number of days of inactivity allowed for the user.
+     * Password Policy does not have the corresponding parameter.
+     */
+    shadowval = 0;
+    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "shadowInactive", bvals);
+    slapi_ch_free_string(&bv.bv_val);
+
+    /* shadowFlag - not currently in use. */
+    bv.bv_val = slapi_ch_smprintf("%d", 0);
+    bv.bv_len = strlen(bv.bv_val);
+    slapi_entry_attr_replace(e, "shadowFlag", bvals);
+    slapi_ch_free_string(&bv.bv_val);
+#endif
+
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- add_shadow_password_attrs\n");
+    return;
 }
