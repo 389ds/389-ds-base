@@ -531,6 +531,14 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 	/* Copy the Connection DN and SSF into the operation struct */
 	op_copy_identity( conn, op );
 
+#if defined(USE_OPENLDAP)
+	if (slapi_operation_is_flag_set(op, OP_FLAG_REPLICATED)) {
+		/* If it is replicated op, ignore the maxbersize. */
+		ber_len_t maxbersize = 0;
+		ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
+	}
+#endif
+
 	/* If the minimum SSF requirements are not met, only allow
 	 * bind and extended operations through.  The bind and extop
 	 * code will ensure that only SASL binds and startTLS are
