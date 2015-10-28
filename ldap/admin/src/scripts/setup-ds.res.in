@@ -116,6 +116,7 @@ error_creating_file = Could not create file '%s'.  Error: %s\n
 error_copying_file = Could not copy file '%s' to '%s'.  Error: %s\n
 error_enabling_feature = Could not enable the directory server feature '%s'.  Error: %s\n
 error_importing_ldif = Could not import LDIF file '%s'.  Error: %s.  Output: %s\n
+error_invalid_boolean = Could not convert value '%s' to boolean. Valid values are true or false.\n
 error_starting_server = Could not start the directory server using command '%s'.  The last line from the error log was '%s'.  Error: %s\n
 error_stopping_server = Could not stop the directory server '%s'.  Error: %s\n
 error_missing_userid = The SuiteSpotUserID is missing.  This must be set to valid user\n

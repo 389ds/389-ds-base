@@ -226,10 +226,10 @@ sub updateDS {
     for my $upd (@updates) {
         my @localerrs;
         if ($upd->{$PRE_STAGE}) {
-            debug(1, "Running stage $PRE_STAGE update ", $upd->{path}, "\n");
+            debug(1, "Running updateDS stage $PRE_STAGE update ", $upd->{path}, "\n");
             @localerrs = &{$upd->{$PRE_STAGE}}($inf, $setup->{configdir});
         } elsif ($upd->{file}) {
-            debug(1, "Running stage $PRE_STAGE update ", $upd->{path}, "\n");
+            debug(1, "Running updateDS stage $PRE_STAGE update ", $upd->{path}, "\n");
             @localerrs = processUpdate($upd, $inf, $setup->{configdir}, $PRE_STAGE);
         }
         if (@localerrs) {
@@ -276,10 +276,10 @@ sub updateDS {
     for my $upd (@updates) {
         my @localerrs;
         if ($upd->{$POST_STAGE}) {
-            debug(1, "Running stage $POST_STAGE update ", $upd->{path}, "\n");
+            debug(1, "Running updateDS stage $POST_STAGE update ", $upd->{path}, "\n");
             @localerrs = &{$upd->{$POST_STAGE}}($inf, $setup->{configdir});
         } elsif ($upd->{file}) {
-            debug(1, "Running stage $POST_STAGE update ", $upd->{path}, "\n");
+            debug(1, "Running updateDS stage $POST_STAGE update ", $upd->{path}, "\n");
             @localerrs = processUpdate($upd, $inf, $setup->{configdir}, $POST_STAGE);
         }
         if (@localerrs) {
@@ -385,10 +385,10 @@ sub updateDSInstance {
         for my $upd (@{$updates}) {
             my @localerrs;
             if ($upd->{$stage}) {
-                debug(1, "Running stage $stage update ", $upd->{path}, "\n");
+                debug(1, "Running updateDSInstance stage $stage update ", $upd->{path}, "\n");
                 @localerrs = &{$upd->{$stage}}($inf, $inst, $dseldif, $conn);
             } elsif ($upd->{file}) {
-                debug(1, "Running stage $stage update ", $upd->{path}, "\n");
+                debug(1, "Running updateDSInstance stage $stage update ", $upd->{path}, "\n");
                 @localerrs = processUpdate($upd, $inf, $configdir, $stage,
                                            $inst, $dseldif, $conn);
             }
