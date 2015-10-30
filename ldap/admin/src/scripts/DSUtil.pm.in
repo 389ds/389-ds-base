@@ -241,6 +241,12 @@ sub checkHostname {
                 }
             }
         }
+        if (!$found) {
+            system("@bindir@/host -t CNAME $hn 2>&1 1> /dev/null");
+            if ($? == 0){
+                $found = 1;
+            }
+        }
     } elsif (eval {require Socket6; 1}) {
         debug(1, "Socket6\n");
         my @aires = getaddrinfo($hn, "ldap", AF_UNSPEC, SOCK_STREAM);
