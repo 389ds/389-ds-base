@@ -8,7 +8,7 @@ import time
 import glob
 import six
 import ldap
-from ldap.schema.models import AttributeType, ObjectClass
+from ldap.schema.models import AttributeType, ObjectClass, MatchingRule
 
 from lib389._constants import *
 from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
@@ -98,7 +98,7 @@ class Schema(object):
         return ent.getValue('nsSchemaCSN')
 
     def get_objectclasses(self):
-        """Returns a list of ldap.schema.models.ObjectClass objectsfor all
+        """Returns a list of ldap.schema.models.ObjectClass objects for all
         objectClasses supported by this instance.
         """
         attrs = ['objectClasses']
@@ -140,7 +140,8 @@ class Schema(object):
         """
         matchingRules = self.get_matchingrules()
         matchingRule = [mr for mr in matchingRules
-                        if matchingRules in mr.names]
+                        if mr_name.lower() in
+                            list(map(str.lower, mr.names))]
         if len(matchingRule) != 1:
             # This is an error.
             return None
@@ -159,8 +160,10 @@ class Schema(object):
         <ldap.schema.models.ObjectClass instance>
         """
         objectclasses = self.get_objectclasses()
+
         objectclass = [oc for oc in objectclasses
-                       if objectclassname in oc.names]
+                       if objectclassname.lower() in
+                           list(map(str.lower, oc.names))]
         if len(objectclass) != 1:
             # This is an error.
             return None
@@ -190,7 +193,8 @@ class Schema(object):
         attributetypename = attributetypename.lower()
 
         attributetype = [at for at in attributetypes
-                         if attributetypename in at.names]
+                         if attributetypename.lower() in
+                             list(map(str.lower, at.names))]
         if len(attributetype) != 1:
             # This is an error.
             return None
@@ -198,7 +202,9 @@ class Schema(object):
         # Get the primary name of this attribute
         attributetypename = attributetype.names[0]
         # Build a set if they have may.
-        may = [oc for oc in objectclasses if attributetypename in oc.may]
+        may = [oc for oc in objectclasses if attributetypename.lower() in
+               list(map(str.lower, oc.may))]
         # Build a set if they have must.
-        must = [oc for oc in objectclasses if attributetypename in oc.must]
+        must = [oc for oc in objectclasses if attributetypename.lower() in
+                list(map(str.lower, oc.must))]
         return (attributetype, must, may)
