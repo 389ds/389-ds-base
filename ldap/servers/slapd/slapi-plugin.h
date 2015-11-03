@@ -6146,7 +6146,7 @@ int slapi_rwlock_unlock( Slapi_RWLock *rwlock );
  *
  * \return the size of Slapi_RWLock
  */
-int slapi_rwlock_get_size();
+int slapi_rwlock_get_size( void );
 
 /*
  * thread-safe LDAP connections

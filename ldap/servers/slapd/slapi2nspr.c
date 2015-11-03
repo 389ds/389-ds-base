@@ -261,7 +261,7 @@ slapi_rwlock_unlock( Slapi_RWLock *rwlock )
 }
 
 int
-slapi_rwlock_get_size()
+slapi_rwlock_get_size( void )
 {
 #ifdef USE_POSIX_RWLOCKS
     return sizeof(pthread_rwlock_t);
