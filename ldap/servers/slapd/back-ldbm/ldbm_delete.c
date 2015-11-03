@@ -477,7 +477,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					 * the parent.  If we fail to lock the entry, just try again.
 					 */
 					while(1){
-						parent = id2entry(be, pid ,NULL, &retval);
+						parent = id2entry(be, pid ,&txn, &retval);
 						if (parent && (cache_retry = cache_lock_entry(&inst->inst_cache, parent))) {
 							/* Failed to obtain parent entry's entry lock */
 							if(cache_retry == RETRY_CACHE_LOCK &&
