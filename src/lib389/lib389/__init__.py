@@ -357,6 +357,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.tasks import Tasks
         from lib389.index import Index
         from lib389.aci import Aci
+        from lib389.monitor import Monitor
 
         self.agreement = Agreement(self)
         self.replica = Replica(self)
@@ -370,6 +371,7 @@ class DirSrv(SimpleLDAPObject):
         self.plugins = Plugins(self)
         self.tasks = Tasks(self)
         self.aci = Aci(self)
+        self.monitor = Monitor(self)
 
     def __init__(self, verbose=False, timeout=10):
         """
