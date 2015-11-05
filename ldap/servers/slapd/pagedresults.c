@@ -395,20 +395,25 @@ pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int 
 }
 
 void *
-pagedresults_get_search_result(Connection *conn, Operation *op, int index)
+pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int index)
 {
     void *sr = NULL;
     if (!op_is_pagedresults(op)) {
         return sr; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_search_result: idx=%d\n", index);
+    LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                   "--> pagedresults_get_search_result(%s): idx=%d\n",
+                   locked?"locked":"not locked", index);
     if (conn && (index > -1)) {
-        PR_Lock(conn->c_mutex);
+        if (!locked) {
+            PR_Lock(conn->c_mutex);
+        }
         if (index < conn->c_pagedresults.prl_maxlen) {
             sr = conn->c_pagedresults.prl_list[index].pr_search_result_set;
         }
-        PR_Unlock(conn->c_mutex);
+        if (!locked) {
+            PR_Unlock(conn->c_mutex);
+        }
     }
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
                   "<-- pagedresults_get_search_result: %p\n", sr);
@@ -416,8 +421,7 @@ pagedresults_get_search_result(Connection *conn, Operation *op, int index)
 }
 
 int
-pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, 
-                               int locked, int index)
+pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int locked, int index)
 {
     int rc = -1;
     if (!op_is_pagedresults(op)) {
@@ -1003,15 +1007,19 @@ pagedresults_unlock( Connection *conn, int index )
 }
 
 int
-pagedresults_is_abandoned_or_notavailable( Connection *conn, int index )
+pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int index)
 {
     PagedResults *prp;
     if (!conn || (index < 0) || (index >= conn->c_pagedresults.prl_maxlen)) {
         return 1; /* not abandoned, but do not want to proceed paged results op. */
     }
-    PR_Lock(conn->c_mutex);
+    if (!locked) {
+        PR_Lock(conn->c_mutex);
+    }
     prp = conn->c_pagedresults.prl_list + index;
-    PR_Unlock(conn->c_mutex);
+    if (!locked) {
+        PR_Unlock(conn->c_mutex);
+    }
     return prp->pr_flags & CONN_FLAG_PAGEDRESULTS_ABANDONED;
 }
 

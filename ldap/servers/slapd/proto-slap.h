@@ -1445,8 +1445,7 @@ void pagedresults_set_response_control(Slapi_PBlock *pb, int iscritical,
                                        int curr_search_count, int index);
 Slapi_Backend *pagedresults_get_current_be(Connection *conn, int index);
 int pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock);
-void *pagedresults_get_search_result(Connection *conn, Operation *op,
-                                     int index);
+void *pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int index);
 int pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, 
                                    int locked, int index);
 int pagedresults_get_search_result_count(Connection *conn, Operation *op,
@@ -1487,7 +1486,7 @@ int pagedresults_cleanup_all(Connection *conn, int needlock);
 void op_set_pagedresults(Operation *op);
 void pagedresults_lock(Connection *conn, int index);
 void pagedresults_unlock(Connection *conn, int index);
-int pagedresults_is_abandoned_or_notavailable(Connection *conn, int index);
+int pagedresults_is_abandoned_or_notavailable(Connection *conn, int locked, int index);
 int pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked);
 
 /*
