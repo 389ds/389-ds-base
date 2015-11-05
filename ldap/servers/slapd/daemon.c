@@ -1199,10 +1199,7 @@ void slapd_daemon( daemon_ports_t *ports )
 #ifdef ENABLE_NUNC_STANS
 	if (enable_nunc_stans && !g_get_shutdown()) {
 		int ii;
-		PRInt32 maxthreads = 3;
-		if (getenv("MAX_THREADS")) {
-			maxthreads = atoi(getenv("MAX_THREADS"));
-		}
+		PRInt32 maxthreads = (PRInt32)config_get_threadnumber();
 		/* Set the nunc-stans thread pool config */
 		ns_thrpool_config_init(&tp_config);
 
