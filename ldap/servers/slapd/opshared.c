@@ -537,7 +537,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
                       be = be_list[index];
                   }
               }
-              pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, pr_idx);
+              pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, 0/*not locked*/, pr_idx);
               estimate = pagedresults_get_search_result_set_size_estimate(pb->pb_conn, operation, pr_idx);
               if (pagedresults_get_unindexed(pb->pb_conn, operation, pr_idx)) {
                   opnote |= SLAPI_OP_NOTE_UNINDEXED;
@@ -707,13 +707,15 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
        * In async paged result case, the search result might be released
        * by other theads.  We need to double check it in the locked region.
        */
-      pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, pr_idx);
+      PR_Lock(pb->pb_conn->c_mutex);
+      pr_search_result = pagedresults_get_search_result(pb->pb_conn, operation, 1/*locked*/, pr_idx);
       if (pr_search_result) {
-        if (pagedresults_is_abandoned_or_notavailable(pb->pb_conn, pr_idx)) {
+        if (pagedresults_is_abandoned_or_notavailable(pb->pb_conn, 1/*locked*/, pr_idx)) {
           pagedresults_unlock(pb->pb_conn, pr_idx);
           /* Previous operation was abandoned and the simplepaged object is not in use. */
           send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
           rc = LDAP_SUCCESS;
+          PR_Unlock(pb->pb_conn->c_mutex);
           goto free_and_return;
         } else {
           slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET, pr_search_result );
@@ -721,7 +723,8 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
 
           /* search result could be reset in the backend/dse */
           slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-          pagedresults_set_search_result(pb->pb_conn, operation, sr, 0, pr_idx);
+          pagedresults_set_search_result(pb->pb_conn, operation, sr, 1/*locked*/, pr_idx);
+          PR_Unlock(pb->pb_conn->c_mutex);
         }
       } else {
         pr_stat = PAGEDRESULTS_SEARCH_END;
@@ -752,7 +755,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       if (PAGEDRESULTS_SEARCH_END == pr_stat) {
         pagedresults_lock(pb->pb_conn, pr_idx);
         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
-        if (!pagedresults_is_abandoned_or_notavailable(pb->pb_conn, pr_idx)) {
+        if (!pagedresults_is_abandoned_or_notavailable(pb->pb_conn, 0/*not locked*/, pr_idx)) {
           pagedresults_free_one(pb->pb_conn, operation, pr_idx);
         }
         pagedresults_unlock(pb->pb_conn, pr_idx);
