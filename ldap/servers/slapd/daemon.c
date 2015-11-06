@@ -1836,7 +1836,12 @@ ns_handle_closure(struct ns_job_t *job)
 #ifdef DEBUG
 	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
 #else
-	NS_JOB_IS_THREAD(ns_job_get_type(job));
+    /* This doesn't actually confirm it's in the event loop thread, but it's a start */
+	if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
+		LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_handle_closure: Attempt to close outside of event loop thread %" NSPRIu64 " for fd=%d\n",
+			c->c_connid, c->c_sd);
+		return;
+	}
 #endif
 	PR_Lock(c->c_mutex);
 	connection_release_nolock_ext(c, 1); /* release ref acquired for event framework */
@@ -1893,7 +1898,14 @@ ns_connection_post_io_or_closing(Connection *conn)
 #ifdef DEBUG
 		PR_ASSERT(0 == connection_acquire_nolock(conn));
 #else
-		connection_acquire_nolock(conn); /* event framework now has a reference */
+		if (connection_acquire_nolock(conn) != 0) { /* event framework now has a reference */
+			/* 
+			 * This has already been logged as an error in ./ldap/servers/slapd/connection.c
+			 * The error occurs when we get a connection in a closing state.
+			 * For now we return, but there is probably a better way to handle the error case.
+			 */
+			return;
+		}
 #endif
 		ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
 				      NS_JOB_READ|NS_JOB_PRESERVE_FD,
@@ -1919,7 +1931,12 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 #ifdef DEBUG
 	PR_ASSERT(0 == NS_JOB_IS_THREAD(ns_job_get_type(job)));
 #else
-	NS_JOB_IS_THREAD(ns_job_get_type(job));
+    /* This doesn't actually confirm it's in the event loop thread, but it's a start */
+	if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
+		LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_handle_pr_read_ready: Attempt to handle read ready outside of event loop thread %" NSPRIu64 " for fd=%d\n",
+			c->c_connid, c->c_sd);
+		return;
+	}
 #endif
 
 	PR_Lock(c->c_mutex);
