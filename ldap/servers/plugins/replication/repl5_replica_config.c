@@ -983,6 +983,7 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
                 csngen_rewrite_rid(gen, rid);
                 if(purl && type == REPLICA_TYPE_UPDATABLE){
                     ruv_add_replica(ruv, rid, purl);
+                    ruv_move_local_supplier_to_first(ruv, rid);
                     replica_reset_csn_pl(r);
                 }
                 ruv_delete_replica(ruv, oldrid);
