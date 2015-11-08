@@ -172,7 +172,8 @@ class DirSrvTools(object):
                 assert len(props) == 1
                 self.sroot = props[0][CONF_SERVER_DIR]
 
-        instanceDir = os.path.join(self.sroot, "slapd-" + self.inst)
+        #instanceDir = os.path.join(self.sroot, "slapd-" + self.inst)
+        sbinDir = os.path.join(self.prefix + '/sbin')
 
         if hasattr(self, 'errlog'):
             errLog = self.errlog
@@ -182,10 +183,13 @@ class DirSrvTools(object):
         started = True
         lastLine = ""
         cmd = cmd.lower()
-        fullCmd = instanceDir + "/" + cmd + "-slapd"
+        #fullCmd = instanceDir + "/" + cmd + "-slapd"
+        fullCmd = None
         if cmd == 'start':
+            fullCmd = os.path.join(sbinDir, 'start-dirsrv')
             cmdPat = 'slapd started.'
         else:
+            fullCmd = os.path.join(sbinDir, 'stop-dirsrv')
             cmdPat = 'slapd stopped.'
 
         if "USE_GDB" in os.environ or "USE_VALGRIND" in os.environ:
@@ -205,7 +209,7 @@ class DirSrvTools(object):
         pos = logfp.tell()  # get current position
         logfp.seek(pos, os.SEEK_SET)  # reset the EOF flag
 
-        log.warn("Running command: %r" % fullCmd)
+        log.warn("Running command: %r %s" % (fullCmd, self.serverid ))
         rc = os.system(fullCmd)
         while not done and int(time.time()) < timeout:
             line = logfp.readline()
@@ -219,12 +223,12 @@ class DirSrvTools(object):
                         done = True
                 elif line.find("Initialization Failed") >= 0:
                     # sometimes the server fails to start - try again
-                    rc = os.system(fullCmd)
+                    rc = os.system("%s %s" % (fullCmd, self.serverid))
                     pos = logfp.tell()
                     break
                 elif line.find("exiting.") >= 0:
                     # possible transient condition - try again
-                    rc = os.system(fullCmd)
+                    rc = os.system("%s %s" % (fullCmd, self.serverid))
                     pos = logfp.tell()
                     break
                 pos = logfp.tell()
