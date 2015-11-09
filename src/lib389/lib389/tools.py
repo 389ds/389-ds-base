@@ -884,7 +884,8 @@ class DirSrvTools(object):
                 line = hostfp.readline()
                 if line.find(loopbackIpPattern) >= 0:
                     words = line.split()
-                    assert(words[1] == expectedHost)
+                    # We just want to make sure it's in there somewhere.
+                    assert(expectedHost in words)
                     done = True
         except AssertionError:
             raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" %

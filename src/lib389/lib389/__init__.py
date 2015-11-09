@@ -11,30 +11,25 @@
         naming: filterstr, attrlist
 """
 try:
-    from subprocess import Popen, PIPE, STDOUT
+    from subprocess import Popen, PIPE
     HASPOPEN = True
 except ImportError:
     import popen2
     HASPOPEN = False
 
-import io
 import sys
 import os
 import stat
 import pwd
 import grp
 import os.path
-import base64
-import socket
 import ldif
 import re
 import ldap
+import ldap.sasl
 import time
-import operator
 import shutil
-import datetime
 import logging
-import decimal
 import glob
 import tarfile
 import subprocess
@@ -43,16 +38,12 @@ import six.moves.urllib.request
 import six.moves.urllib.parse
 import six.moves.urllib.error
 import six
-from ldapurl import LDAPUrl
 from ldap.ldapobject import SimpleLDAPObject
-from ldap.cidict import cidict
-from ldap import LDAPError
 # file in this package
 
 from lib389._constants import *
 from lib389.properties import *
 from lib389._entry import Entry
-from lib389._replication import CSN, RUV
 from lib389._ldifconn import LDIFConn
 from lib389.tools import DirSrvTools
 from lib389.utils import (
@@ -494,7 +485,7 @@ class DirSrv(SimpleLDAPObject):
                                                   (self.sslport or
                                                    self.port)))
 
-    def openConnection(self):
+    def openConnection(self, saslmethod=None, certdir=None):
         # Open a new connection to our LDAP server
         server = DirSrv(verbose=False)
         args_instance[SER_HOST] = self.host
@@ -502,7 +493,7 @@ class DirSrv(SimpleLDAPObject):
         args_instance[SER_SERVERID_PROP] = self.serverid
         args_standalone = args_instance.copy()
         server.allocate(args_standalone)
-        server.open()
+        server.open(saslmethod, certdir)
 
         return server
 
@@ -900,7 +891,7 @@ class DirSrv(SimpleLDAPObject):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self):
+    def open(self, saslmethod=None, certdir=None):
         '''
             It opens a ldap bound connection to dirsrv so that online
             administrative tasks are possible.  It binds with the binddn
@@ -910,44 +901,65 @@ class DirSrv(SimpleLDAPObject):
             The state changes  -> DIRSRV_STATE_ONLINE
 
             @param self
-
+            @param saslmethod - None, or GSSAPI
+            @param certdir - Certificate directory for TLS
             @return None
 
-            @raise ValueError - if can not find the binddn to bind
+            @raise LDAPError
         '''
 
         uri = self.toLDAPURL()
-
         SimpleLDAPObject.__init__(self, uri)
 
-        # see if binddn is a dn or a uid that we need to lookup
-        if self.binddn and not is_a_dn(self.binddn):
-            self.simple_bind_s("", "")  # anon
-            ent = self.getEntry(CFGSUFFIX, ldap.SCOPE_SUBTREE,
-                                "(uid=%s)" % self.binddn,
-                                ['uid'])
-            if ent:
-                self.binddn = ent.dn
-            else:
-                raise ValueError("Error: could not find %s under %s" % (
-                    self.binddn, CFGSUFFIX))
-
-        needtls = False
-        while True:
+        if certdir:
+            """
+            We have a certificate directory, so lets start up TLS negotiations
+            """
             try:
-                if needtls:
-                    self.start_tls_s()
-                try:
-                    self.simple_bind_s(self.binddn, self.bindpw)
-                except ldap.SERVER_DOWN as e:
-                    # TODO add server info in exception
-                    log.debug("Cannot connect to %r" % uri)
-                    raise e
-                break
-            except ldap.CONFIDENTIALITY_REQUIRED:
-                needtls = True
-        self.__initPart2()
+                self.set_option(ldap.OPT_X_TLS_CACERTFILE, certdir)
+                self.start_tls_s()
+            except ldap.LDAPError as e:
+                log.fatal('TLS negotiation failed: %s' % str(e))
+                raise e
 
+        if saslmethod and saslmethod.lower() == 'gssapi':
+            """
+            Perform kerberos/gssapi authentication
+            """
+            try:
+                sasl_auth = ldap.sasl.gssapi("")
+                self.sasl_interactive_bind_s("", sasl_auth)
+            except ldap.LOCAL_ERROR as e:
+                # No Ticket - ultimately invalid credentials
+                log.debug("Error: No Ticket (%s)" % str(e))
+                raise ldap.INVALID_CREDENTIALS
+            except ldap.LDAPError as e:
+                log.debug("SASL/GSSAPI Bind Failed: %s" % str(e))
+                raise e
+
+        elif saslmethod:
+            # Unknown or unsupported method
+            log.debug('Unsupported SASL method: %s' % saslmethod)
+            raise ldap.UNWILLING_TO_PERFORM
+
+        else:
+            """
+            Do a simple bind
+            """
+            try:
+                self.simple_bind_s(self.binddn, self.bindpw)
+            except ldap.SERVER_DOWN as e:
+                # TODO add server info in exception
+                log.debug("Cannot connect to %r" % uri)
+                raise e
+            except ldap.LDAPError as e:
+                log.debug("Error: Failed to authenticate: %s", str(e))
+                raise e
+
+        """
+        Authenticated, now finish the initialization
+        """
+        self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
 
     def close(self):
