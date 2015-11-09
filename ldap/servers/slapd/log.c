@@ -77,13 +77,16 @@ static int slapi_log_map[] = {
 static int	log__open_accesslogfile(int logfile_type, int locked);
 static int	log__open_errorlogfile(int logfile_type, int locked);
 static int	log__open_auditlogfile(int logfile_type, int locked);
+static int	log__open_auditfaillogfile(int logfile_type, int locked);
 static int	log__needrotation(LOGFD fp, int logtype);
 static int	log__delete_access_logfile();
 static int	log__delete_error_logfile(int locked);
 static int	log__delete_audit_logfile();
+static int	log__delete_auditfail_logfile();
 static int 	log__access_rotationinfof(char *pathname);
 static int 	log__error_rotationinfof(char *pathname);
 static int 	log__audit_rotationinfof(char *pathname);
+static int 	log__auditfail_rotationinfof(char *pathname);
 static int 	log__extract_logheader (FILE *fp, long  *f_ctime, PRInt64 *f_size);
 static int	log__check_prevlogs (FILE *fp, char *filename);
 static PRInt64 	log__getfilesize(LOGFD fp);
@@ -273,6 +276,33 @@ void g_log_init(int log_enabled)
 	if ((loginfo.log_audit_rwlock =slapi_new_rwlock())== NULL ) {
 		exit (-1);
 	}
+
+	/* AUDIT LOG */
+	loginfo.log_auditfail_state = 0;
+	loginfo.log_auditfail_mode = SLAPD_DEFAULT_FILE_MODE;
+	loginfo.log_auditfail_maxnumlogs = 1;
+	loginfo.log_auditfail_maxlogsize = -1;
+	loginfo.log_auditfail_rotationsync_enabled = 0;
+	loginfo.log_auditfail_rotationsynchour = -1;
+	loginfo.log_auditfail_rotationsyncmin = -1;
+	loginfo.log_auditfail_rotationsyncclock = -1;
+	loginfo.log_auditfail_rotationtime = 1;                   /* default: 1 */
+	loginfo.log_auditfail_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
+	loginfo.log_auditfail_rotationtime_secs = 604800;         /* default: 1 week */
+	loginfo.log_auditfail_maxdiskspace =  -1;
+	loginfo.log_auditfail_minfreespace =  -1;
+	loginfo.log_auditfail_exptime =  -1;                      /* default: -1 */
+	loginfo.log_auditfail_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
+	loginfo.log_auditfail_exptime_secs = -1;                  /* default: -1 */
+	loginfo.log_auditfail_ctime = 0L;
+	loginfo.log_auditfail_file = NULL;
+	loginfo.log_auditfailinfo_file = NULL;
+	loginfo.log_numof_auditfail_logs = 1;
+	loginfo.log_auditfail_fdes = NULL;
+	loginfo.log_auditfail_logchain = NULL;
+	if ((loginfo.log_auditfail_rwlock =slapi_new_rwlock())== NULL ) {
+		exit (-1);
+	}
 }
 
 /******************************************************************************
@@ -341,6 +371,17 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
 		  loginfo.log_audit_state &= ~LOGGING_ENABLED;
 		}
 		LOG_AUDIT_UNLOCK_WRITE();
+		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		LOG_AUDITFAIL_LOCK_WRITE( );
+		fe_cfg->auditfaillog_logging_enabled = v;
+		if (v) {
+		  loginfo.log_auditfail_state |= LOGGING_ENABLED;
+		}
+		else {
+		  loginfo.log_auditfail_state &= ~LOGGING_ENABLED;
+		}
+		LOG_AUDITFAIL_UNLOCK_WRITE();
 		break;
 	}
 	
@@ -580,6 +621,84 @@ log_update_auditlogdir(char *pathname, int apply)
 	return rv;
 }
 
+/******************************************************************************
+* Tell me  the audit fail log file name inc path
+******************************************************************************/ 
+char *
+g_get_auditfail_log() {
+    char    *logfile = NULL;
+
+    LOG_AUDITFAIL_LOCK_READ();
+    if ( loginfo.log_auditfail_file) {
+        logfile = slapi_ch_strdup (loginfo.log_auditfail_file);
+    }
+    LOG_AUDITFAIL_UNLOCK_READ();
+    
+    return logfile;
+}
+/******************************************************************************
+* Point to a new auditfail logdir
+*
+* Returns:
+*	LDAP_SUCCESS -- success
+*	LDAP_UNWILLING_TO_PERFORM -- when trying to open a invalid log file
+*	LDAP_LOCAL_ERRO  -- some error
+******************************************************************************/ 
+int
+log_update_auditfaillogdir(char *pathname, int apply)
+{
+    int     rv = LDAP_SUCCESS;
+    LOGFD       fp;
+
+    /* try to open the file, we may have a incorrect path */
+    if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_auditfail_mode)) {
+        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+                "errno %d (%s)\n",
+                pathname, errno, slapd_system_strerror(errno));
+        /* stay with the current log file */
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+    LOG_CLOSE(fp);
+
+    /* skip the rest if we aren't doing this for real */
+    if ( !apply ) {
+      return LDAP_SUCCESS;
+    }
+
+    /* 
+    ** The user has changed the audit log directory. That means we
+    ** need to start fresh.
+    */
+    LOG_AUDITFAIL_LOCK_WRITE ();
+    if (loginfo.log_auditfail_fdes) {
+        LogFileInfo *logp, *d_logp;
+        LDAPDebug(LDAP_DEBUG_TRACE,
+            "LOGINFO:Closing the auditfail log file. "
+            "Moving to a new auditfail file (%s)\n", pathname,0,0);
+
+        LOG_CLOSE(loginfo.log_auditfail_fdes);
+        loginfo.log_auditfail_fdes = 0;
+        loginfo.log_auditfail_ctime = 0;
+        logp = loginfo.log_auditfail_logchain;
+        while (logp) {
+            d_logp = logp;
+            logp = logp->l_next;
+            slapi_ch_free((void**)&d_logp);
+        }
+        loginfo.log_auditfail_logchain = NULL;
+        slapi_ch_free((void**)&loginfo.log_auditfail_file);
+        loginfo.log_auditfail_file = NULL;
+        loginfo.log_numof_auditfail_logs = 1;
+    }
+
+    /* Now open the new auditlog */
+    if ( auditfail_log_openf (pathname, 1 /* locked */)) {
+        rv = LDAP_LOCAL_ERROR; /* error: Unable to use the new dir */
+    }
+    LOG_AUDITFAIL_UNLOCK_WRITE();
+    return rv;
+}
+
 int
 log_set_mode (const char *attrname, char *value, int logtype, char *errorbuf, int apply)
 {
@@ -667,7 +786,8 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
   
   if ( logtype != SLAPD_ACCESS_LOG &&
 	   logtype != SLAPD_ERROR_LOG &&
-	   logtype != SLAPD_AUDIT_LOG ) {
+	   logtype != SLAPD_AUDIT_LOG &&
+	   logtype != SLAPD_AUDITFAIL_LOG ) {
 	rv = LDAP_OPERATIONS_ERROR;
 	PR_snprintf( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 			"%s: invalid log type %d", attrname, logtype );
@@ -697,6 +817,12 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
 	  loginfo.log_audit_maxnumlogs = numlogs;
 	  fe_cfg->auditlog_maxnumlogs = numlogs;
 	  LOG_AUDIT_UNLOCK_WRITE();
+	  break;
+	case SLAPD_AUDITFAIL_LOG:
+	  LOG_AUDITFAIL_LOCK_WRITE( );
+	  loginfo.log_auditfail_maxnumlogs = numlogs;
+	  fe_cfg->auditfaillog_maxnumlogs = numlogs;
+	  LOG_AUDITFAIL_UNLOCK_WRITE();
 	  break;
 	default:
 	  rv = LDAP_OPERATIONS_ERROR;
@@ -749,6 +875,10 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 		LOG_AUDIT_LOCK_WRITE( );
 		mdiskspace = loginfo.log_audit_maxdiskspace;
 		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		LOG_AUDITFAIL_LOCK_WRITE( );
+		mdiskspace = loginfo.log_auditfail_maxdiskspace;
+		break;
 	   default:
 		 PR_snprintf( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 				"%s: invalid logtype %d", attrname, logtype );
@@ -779,6 +909,13 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 		  fe_cfg->auditlog_maxlogsize = logsize;
 		}
 		LOG_AUDIT_UNLOCK_WRITE();
+		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		if (!rv && apply) {
+		  loginfo.log_auditfail_maxlogsize = max_logsize;
+		  fe_cfg->auditfaillog_maxlogsize = logsize;
+		}
+		LOG_AUDITFAIL_UNLOCK_WRITE();
 		break;
 	   default:
 		rv = 1;
@@ -868,6 +1005,12 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
 			loginfo.log_audit_rotationsync_enabled = v;
 			LOG_AUDIT_UNLOCK_WRITE();
 			break;
+		case SLAPD_AUDITFAIL_LOG:
+			LOG_AUDITFAIL_LOCK_WRITE( );
+			fe_cfg->auditfaillog_rotationsync_enabled = v;
+			loginfo.log_auditfail_rotationsync_enabled = v;
+			LOG_AUDITFAIL_UNLOCK_WRITE();
+			break;
 	}
 	return LDAP_SUCCESS;
 }
@@ -881,7 +1024,8 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
 	
 	if ( logtype != SLAPD_ACCESS_LOG &&
 		 logtype != SLAPD_ERROR_LOG &&
-		 logtype != SLAPD_AUDIT_LOG ) {
+		 logtype != SLAPD_AUDIT_LOG &&
+		 logtype != SLAPD_AUDITFAIL_LOG ) {
 	  PR_snprintf( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 				"%s: invalid log type: %d", attrname, logtype );
 	  return LDAP_OPERATIONS_ERROR;
@@ -919,6 +1063,13 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
 			fe_cfg->auditlog_rotationsynchour = rhour;
 			LOG_AUDIT_UNLOCK_WRITE();
 			break;
+		case SLAPD_AUDITFAIL_LOG:
+			LOG_AUDITFAIL_LOCK_WRITE( );
+			loginfo.log_auditfail_rotationsynchour = rhour;
+			loginfo.log_auditfail_rotationsyncclock = log_get_rotationsyncclock( rhour, loginfo.log_auditfail_rotationsyncmin );
+			fe_cfg->auditfaillog_rotationsynchour = rhour;
+			LOG_AUDITFAIL_UNLOCK_WRITE();
+			break;
 	}
 
 	return rv;
@@ -933,7 +1084,8 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
 	
 	if ( logtype != SLAPD_ACCESS_LOG &&
 		 logtype != SLAPD_ERROR_LOG &&
-		 logtype != SLAPD_AUDIT_LOG ) {
+		 logtype != SLAPD_AUDIT_LOG &&
+		 logtype != SLAPD_AUDITFAIL_LOG ) {
 	  PR_snprintf( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 				"%s: invalid log type: %d", attrname, logtype );
 	  return LDAP_OPERATIONS_ERROR;
@@ -971,6 +1123,13 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
 		loginfo.log_audit_rotationsyncclock = log_get_rotationsyncclock( loginfo.log_audit_rotationsynchour, rmin );
 		LOG_AUDIT_UNLOCK_WRITE();
 		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		LOG_AUDITFAIL_LOCK_WRITE( );
+		loginfo.log_auditfail_rotationsyncmin = rmin;
+		fe_cfg->auditfaillog_rotationsyncmin = rmin;
+		loginfo.log_auditfail_rotationsyncclock = log_get_rotationsyncclock( loginfo.log_auditfail_rotationsynchour, rmin );
+		LOG_AUDITFAIL_UNLOCK_WRITE();
+		break;
 	}
 
 	return rv;
@@ -993,7 +1152,8 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 	
 	if ( logtype != SLAPD_ACCESS_LOG &&
 		 logtype != SLAPD_ERROR_LOG &&
-		 logtype != SLAPD_AUDIT_LOG ) {
+		 logtype != SLAPD_AUDIT_LOG &&
+		 logtype != SLAPD_AUDITFAIL_LOG ) {
 	  PR_snprintf( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 				"%s: invalid log type: %d", attrname, logtype );
 	  return LDAP_OPERATIONS_ERROR;
@@ -1025,6 +1185,11 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 		LOG_AUDIT_LOCK_WRITE( );
 		loginfo.log_audit_rotationtime = rtime;
 		runit = loginfo.log_audit_rotationunit;
+		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		LOG_AUDITFAIL_LOCK_WRITE( );
+		loginfo.log_auditfail_rotationtime = rtime;
+		runit = loginfo.log_auditfail_rotationunit;
 		break;
 	}
 
@@ -1064,6 +1229,11 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 		 loginfo.log_audit_rotationtime_secs = value;
 		 LOG_AUDIT_UNLOCK_WRITE();
 		 break;
+	   case SLAPD_AUDITFAIL_LOG:
+		 fe_cfg->auditfaillog_rotationtime = rtime;
+		 loginfo.log_auditfail_rotationtime_secs = value;
+		 LOG_AUDITFAIL_UNLOCK_WRITE();
+		 break;
 	}
 	return rv;
 }
@@ -1082,92 +1252,104 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
   slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
   
   if ( logtype != SLAPD_ACCESS_LOG &&
-	   logtype != SLAPD_ERROR_LOG &&
-	   logtype != SLAPD_AUDIT_LOG ) {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			"%s: invalid log type: %d", attrname, logtype );
-	return LDAP_OPERATIONS_ERROR;
+       logtype != SLAPD_ERROR_LOG &&
+       logtype != SLAPD_AUDIT_LOG &&
+       logtype != SLAPD_AUDITFAIL_LOG ) {
+    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: invalid log type: %d", attrname, logtype );
+    return LDAP_OPERATIONS_ERROR;
   }
   
   if ( (strcasecmp(runit, "month") == 0) ||
-  	(strcasecmp(runit, "week") == 0) ||
-  	(strcasecmp(runit, "day") == 0) ||
-  	(strcasecmp(runit, "hour") == 0) || 
-  	(strcasecmp(runit, "minute") == 0)) {
-	/* all good values */
+    (strcasecmp(runit, "week") == 0) ||
+    (strcasecmp(runit, "day") == 0) ||
+    (strcasecmp(runit, "hour") == 0) || 
+    (strcasecmp(runit, "minute") == 0)) {
+    /* all good values */
   } else  {
-	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			"%s: unknown unit \"%s\"", attrname, runit );
-	rv = LDAP_OPERATIONS_ERROR;
+    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: unknown unit \"%s\"", attrname, runit );
+    rv = LDAP_OPERATIONS_ERROR;
   }
   
   /* return if we aren't doing this for real */
   if ( !apply ) {
-	return rv;
+    return rv;
   }
   
   switch (logtype) {
   case SLAPD_ACCESS_LOG:
-	LOG_ACCESS_LOCK_WRITE( );
-	origvalue = loginfo.log_access_rotationtime;
-	break;
+    LOG_ACCESS_LOCK_WRITE( );
+    origvalue = loginfo.log_access_rotationtime;
+    break;
   case SLAPD_ERROR_LOG:
-	LOG_ERROR_LOCK_WRITE( );
-	origvalue = loginfo.log_error_rotationtime;
-	break;
+    LOG_ERROR_LOCK_WRITE( );
+    origvalue = loginfo.log_error_rotationtime;
+    break;
   case SLAPD_AUDIT_LOG:
-	LOG_AUDIT_LOCK_WRITE( );
-	origvalue = loginfo.log_audit_rotationtime;
-	break;
+    LOG_AUDIT_LOCK_WRITE( );
+    origvalue = loginfo.log_audit_rotationtime;
+    break;
+  case SLAPD_AUDITFAIL_LOG:
+    LOG_AUDITFAIL_LOCK_WRITE( );
+    origvalue = loginfo.log_auditfail_rotationtime;
+    break;
   }
   
   if (strcasecmp(runit, "month") == 0) {
-	runitType = LOG_UNIT_MONTHS;
-	value = origvalue * 31 * 24 * 60 * 60;
+    runitType = LOG_UNIT_MONTHS;
+    value = origvalue * 31 * 24 * 60 * 60;
   } else if (strcasecmp(runit, "week") == 0) {
-	runitType = LOG_UNIT_WEEKS;
-	value = origvalue * 7 * 24 * 60 * 60;
+    runitType = LOG_UNIT_WEEKS;
+    value = origvalue * 7 * 24 * 60 * 60;
   } else if (strcasecmp(runit, "day") == 0) {
-	runitType = LOG_UNIT_DAYS;
-	value = origvalue * 24 * 60 * 60;
+    runitType = LOG_UNIT_DAYS;
+    value = origvalue * 24 * 60 * 60;
   } else if (strcasecmp(runit, "hour") == 0) { 
-	runitType = LOG_UNIT_HOURS;
-	value = origvalue * 3600;
+    runitType = LOG_UNIT_HOURS;
+    value = origvalue * 3600;
   } else if (strcasecmp(runit, "minute") == 0) {
-	runitType = LOG_UNIT_MINS;
-	value = origvalue * 60;
+    runitType = LOG_UNIT_MINS;
+    value = origvalue * 60;
   } else  {
-	/* In this case we don't rotate */
-	runitType = LOG_UNIT_UNKNOWN;
-	value = -1;
+    /* In this case we don't rotate */
+    runitType = LOG_UNIT_UNKNOWN;
+    value = -1;
   }
 
   if (origvalue > 0 && value < 0) {
-    value = PR_INT32_MAX;	/* overflown */
+    value = PR_INT32_MAX;   /* overflown */
   }
   
   switch (logtype) {
   case SLAPD_ACCESS_LOG:
-	loginfo.log_access_rotationtime_secs = value;
-	loginfo.log_access_rotationunit = runitType;
-	slapi_ch_free ( (void **) &fe_cfg->accesslog_rotationunit);
-	fe_cfg->accesslog_rotationunit = slapi_ch_strdup ( runit );
-	LOG_ACCESS_UNLOCK_WRITE();
-	break;
+    loginfo.log_access_rotationtime_secs = value;
+    loginfo.log_access_rotationunit = runitType;
+    slapi_ch_free ( (void **) &fe_cfg->accesslog_rotationunit);
+    fe_cfg->accesslog_rotationunit = slapi_ch_strdup ( runit );
+    LOG_ACCESS_UNLOCK_WRITE();
+    break;
   case SLAPD_ERROR_LOG:
-	loginfo.log_error_rotationtime_secs = value;
-	loginfo.log_error_rotationunit = runitType;
-	slapi_ch_free ( (void **) &fe_cfg->errorlog_rotationunit) ;
-	fe_cfg->errorlog_rotationunit = slapi_ch_strdup ( runit );
-	LOG_ERROR_UNLOCK_WRITE();
-	break;
+    loginfo.log_error_rotationtime_secs = value;
+    loginfo.log_error_rotationunit = runitType;
+    slapi_ch_free ( (void **) &fe_cfg->errorlog_rotationunit) ;
+    fe_cfg->errorlog_rotationunit = slapi_ch_strdup ( runit );
+    LOG_ERROR_UNLOCK_WRITE();
+    break;
   case SLAPD_AUDIT_LOG:
-	loginfo.log_audit_rotationtime_secs = value;
-	loginfo.log_audit_rotationunit = runitType;
-	slapi_ch_free ( (void **) &fe_cfg->auditlog_rotationunit);
-	fe_cfg->auditlog_rotationunit = slapi_ch_strdup ( runit );
-	LOG_AUDIT_UNLOCK_WRITE();
-	break;
+    loginfo.log_audit_rotationtime_secs = value;
+    loginfo.log_audit_rotationunit = runitType;
+    slapi_ch_free ( (void **) &fe_cfg->auditlog_rotationunit);
+    fe_cfg->auditlog_rotationunit = slapi_ch_strdup ( runit );
+    LOG_AUDIT_UNLOCK_WRITE();
+    break;
+  case SLAPD_AUDITFAIL_LOG:
+    loginfo.log_auditfail_rotationtime_secs = value;
+    loginfo.log_auditfail_rotationunit = runitType;
+    slapi_ch_free ( (void **) &fe_cfg->auditfaillog_rotationunit);
+    fe_cfg->auditfaillog_rotationunit = slapi_ch_strdup ( runit );
+    LOG_AUDITFAIL_UNLOCK_WRITE();
+    break;
   }
   return rv;
 }
@@ -1183,75 +1365,87 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
 int
 log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, char *errorbuf, int apply)
 {
-	int	rv = 0;
-  	PRInt64	mlogsize = 0;	  /* in bytes */
-	PRInt64 maxdiskspace; /* in bytes */
-	int	s_maxdiskspace;   /* in megabytes */
+    int rv = 0;
+    PRInt64 mlogsize = 0;     /* in bytes */
+    PRInt64 maxdiskspace; /* in bytes */
+    int s_maxdiskspace;   /* in megabytes */
   
-  	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
-	
-	if ( logtype != SLAPD_ACCESS_LOG &&
-	   	logtype != SLAPD_ERROR_LOG &&
-	   	logtype != SLAPD_AUDIT_LOG ) {
-	   	PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-				"%s: invalid log type: %d", attrname, logtype );
-		return LDAP_OPERATIONS_ERROR;
-  	}
+    slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
+    
+    if ( logtype != SLAPD_ACCESS_LOG &&
+        logtype != SLAPD_ERROR_LOG &&
+        logtype != SLAPD_AUDIT_LOG &&
+        logtype != SLAPD_AUDITFAIL_LOG ) {
+        PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "%s: invalid log type: %d", attrname, logtype );
+        return LDAP_OPERATIONS_ERROR;
+    }
 
-	if (!apply || !maxdiskspace_str || !*maxdiskspace_str)
-		return rv;
+    if (!apply || !maxdiskspace_str || !*maxdiskspace_str)
+        return rv;
 
-	s_maxdiskspace = atoi(maxdiskspace_str);
+    s_maxdiskspace = atoi(maxdiskspace_str);
 
-	/* Disk space are in MB  but store in bytes */
-	switch (logtype) {
-	   case SLAPD_ACCESS_LOG:
-		LOG_ACCESS_LOCK_WRITE( );
-		mlogsize = loginfo.log_access_maxlogsize;
-		break;
-	   case SLAPD_ERROR_LOG:
-		LOG_ERROR_LOCK_WRITE( );
-		mlogsize = loginfo.log_error_maxlogsize;
-		break;
-	   case SLAPD_AUDIT_LOG:
-		LOG_AUDIT_LOCK_WRITE( );
-		mlogsize = loginfo.log_audit_maxlogsize;
-		break;
-	}
-	maxdiskspace = (PRInt64)s_maxdiskspace * LOG_MB_IN_BYTES;
-	if (maxdiskspace < 0) {
-		maxdiskspace = -1;
-	} else if (maxdiskspace < mlogsize) {
-		rv = LDAP_OPERATIONS_ERROR;
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			"%s: \"%d (MB)\" is less than max log size \"%d (MB)\"",
-			attrname, s_maxdiskspace, (int)(mlogsize/LOG_MB_IN_BYTES) );
-	}
+    /* Disk space are in MB  but store in bytes */
+    switch (logtype) {
+       case SLAPD_ACCESS_LOG:
+        LOG_ACCESS_LOCK_WRITE( );
+        mlogsize = loginfo.log_access_maxlogsize;
+        break;
+       case SLAPD_ERROR_LOG:
+        LOG_ERROR_LOCK_WRITE( );
+        mlogsize = loginfo.log_error_maxlogsize;
+        break;
+       case SLAPD_AUDIT_LOG:
+        LOG_AUDIT_LOCK_WRITE( );
+        mlogsize = loginfo.log_audit_maxlogsize;
+        break;
+       case SLAPD_AUDITFAIL_LOG:
+        LOG_AUDITFAIL_LOCK_WRITE( );
+        mlogsize = loginfo.log_auditfail_maxlogsize;
+        break;
+    }
+    maxdiskspace = (PRInt64)s_maxdiskspace * LOG_MB_IN_BYTES;
+    if (maxdiskspace < 0) {
+        maxdiskspace = -1;
+    } else if (maxdiskspace < mlogsize) {
+        rv = LDAP_OPERATIONS_ERROR;
+        PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+            "%s: \"%d (MB)\" is less than max log size \"%d (MB)\"",
+            attrname, s_maxdiskspace, (int)(mlogsize/LOG_MB_IN_BYTES) );
+    }
 
-	switch (logtype) {
-	   case SLAPD_ACCESS_LOG:
-		if (rv== 0 && apply) {
-		  loginfo.log_access_maxdiskspace = maxdiskspace;  /* in bytes */
-		  fe_cfg->accesslog_maxdiskspace = s_maxdiskspace; /* in megabytes */
-		}
-		LOG_ACCESS_UNLOCK_WRITE();
-		break;
-	   case SLAPD_ERROR_LOG:
-		if (rv== 0 && apply) {
-		  loginfo.log_error_maxdiskspace = maxdiskspace;  /* in bytes */
-		  fe_cfg->errorlog_maxdiskspace = s_maxdiskspace; /* in megabytes */
-		}
-		LOG_ERROR_UNLOCK_WRITE();
-		break;
-	   case SLAPD_AUDIT_LOG:
-		if (rv== 0 && apply) {
-		  loginfo.log_audit_maxdiskspace = maxdiskspace;  /* in bytes */
-		  fe_cfg->auditlog_maxdiskspace = s_maxdiskspace; /* in megabytes */
-		}
-		LOG_AUDIT_UNLOCK_WRITE();
-		break;
-	}
-	return rv;
+    switch (logtype) {
+       case SLAPD_ACCESS_LOG:
+        if (rv== 0 && apply) {
+          loginfo.log_access_maxdiskspace = maxdiskspace;  /* in bytes */
+          fe_cfg->accesslog_maxdiskspace = s_maxdiskspace; /* in megabytes */
+        }
+        LOG_ACCESS_UNLOCK_WRITE();
+        break;
+       case SLAPD_ERROR_LOG:
+        if (rv== 0 && apply) {
+          loginfo.log_error_maxdiskspace = maxdiskspace;  /* in bytes */
+          fe_cfg->errorlog_maxdiskspace = s_maxdiskspace; /* in megabytes */
+        }
+        LOG_ERROR_UNLOCK_WRITE();
+        break;
+       case SLAPD_AUDIT_LOG:
+        if (rv== 0 && apply) {
+          loginfo.log_audit_maxdiskspace = maxdiskspace;  /* in bytes */
+          fe_cfg->auditlog_maxdiskspace = s_maxdiskspace; /* in megabytes */
+        }
+        LOG_AUDIT_UNLOCK_WRITE();
+        break;
+       case SLAPD_AUDITFAIL_LOG:
+        if (rv== 0 && apply) {
+          loginfo.log_auditfail_maxdiskspace = maxdiskspace;  /* in bytes */
+          fe_cfg->auditfaillog_maxdiskspace = s_maxdiskspace; /* in megabytes */
+        }
+        LOG_AUDITFAIL_UNLOCK_WRITE();
+        break;
+    }
+    return rv;
 
 }
 /******************************************************************************
@@ -1271,7 +1465,8 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
 	
 	if ( logtype != SLAPD_ACCESS_LOG &&
 		 logtype != SLAPD_ERROR_LOG &&
-		 logtype != SLAPD_AUDIT_LOG ) {
+		 logtype != SLAPD_AUDIT_LOG &&
+		 logtype != SLAPD_AUDITFAIL_LOG ) {
 	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 				"%s: invalid log type: %d", attrname, logtype );
 	  rv = LDAP_OPERATIONS_ERROR;
@@ -1306,7 +1501,14 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
 			fe_cfg->auditlog_minfreespace = minfreespace;
 			LOG_AUDIT_UNLOCK_WRITE();
 			break;
+		   case SLAPD_AUDITFAIL_LOG:
+			LOG_AUDITFAIL_LOCK_WRITE( );
+			loginfo.log_auditfail_minfreespace = minfreespaceB;
+			fe_cfg->auditfaillog_minfreespace = minfreespace;
+			LOG_AUDITFAIL_UNLOCK_WRITE();
+			break;
 		   default:
+			/* This is unreachable ... */
 			rv = 1;
 		}
 	}
@@ -1329,7 +1531,8 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 	
 	if ( logtype != SLAPD_ACCESS_LOG &&
 		 logtype != SLAPD_ERROR_LOG &&
-		 logtype != SLAPD_AUDIT_LOG ) {
+		 logtype != SLAPD_AUDIT_LOG &&
+		 logtype != SLAPD_AUDITFAIL_LOG ) {
 	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 			"%s: invalid log type: %d", attrname, logtype );
 	  rv = LDAP_OPERATIONS_ERROR;
@@ -1361,7 +1564,14 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 		eunit = loginfo.log_audit_exptimeunit;
 		rsec = loginfo.log_audit_rotationtime_secs;
 		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		LOG_AUDITFAIL_LOCK_WRITE( );
+		loginfo.log_auditfail_exptime = exptime;
+		eunit = loginfo.log_auditfail_exptimeunit;
+		rsec = loginfo.log_auditfail_rotationtime_secs;
+		break;
 	   default:
+		/* This is unreachable */
 		rv = 1;
 		eunit = -1;
 	}
@@ -1400,6 +1610,11 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 		fe_cfg->auditlog_exptime = exptime;
 		LOG_AUDIT_UNLOCK_WRITE();
 		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		loginfo.log_auditfail_exptime_secs = value;
+		fe_cfg->auditfaillog_exptime = exptime;
+		LOG_AUDITFAIL_UNLOCK_WRITE();
+		break;
 	   default:
 		rv = 1;
 	}
@@ -1423,7 +1638,8 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 
 	if ( logtype != SLAPD_ACCESS_LOG &&
 	   logtype != SLAPD_ERROR_LOG &&
-	   logtype != SLAPD_AUDIT_LOG ) {
+	   logtype != SLAPD_AUDIT_LOG &&
+	   logtype != SLAPD_AUDITFAIL_LOG ) {
 	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
 				"%s: invalid log type: %d", attrname, logtype );
 	  return LDAP_OPERATIONS_ERROR;
@@ -1468,6 +1684,12 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 		exptime = loginfo.log_audit_exptime;
 		rsecs = loginfo.log_audit_rotationtime_secs;
 		exptimeunitp = &(loginfo.log_audit_exptimeunit);
+		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		LOG_AUDITFAIL_LOCK_WRITE( );
+		exptime = loginfo.log_auditfail_exptime;
+		rsecs = loginfo.log_auditfail_rotationtime_secs;
+		exptimeunitp = &(loginfo.log_auditfail_exptimeunit);
 		break;
 	}
 
@@ -1517,6 +1739,12 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 		slapi_ch_free ( (void **) &(fe_cfg->auditlog_exptimeunit) );
 		fe_cfg->auditlog_exptimeunit = slapi_ch_strdup ( expunit );
 		LOG_AUDIT_UNLOCK_WRITE();
+		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		loginfo.log_auditfail_exptime_secs = value;
+		slapi_ch_free ( (void **) &(fe_cfg->auditfaillog_exptimeunit) );
+		fe_cfg->auditfaillog_exptimeunit = slapi_ch_strdup ( expunit );
+		LOG_AUDITFAIL_UNLOCK_WRITE();
 		break;
 	}
 
@@ -1630,6 +1858,45 @@ audit_log_openf( char *pathname, int locked)
 
 	return rv;
 }
+
+/******************************************************************************
+*  init function for the auditfail log
+*  Returns:
+*	0	- success
+*	1	- fail
+******************************************************************************/ 
+int 
+auditfail_log_openf( char *pathname, int locked)
+{
+	
+	int	rv=0;
+	int	logfile_type = 0;
+
+	if (!locked) LOG_AUDITFAIL_LOCK_WRITE( );
+
+	/* store the path name */
+	slapi_ch_free_string(&loginfo.log_auditfail_file);
+	loginfo.log_auditfail_file = slapi_ch_strdup ( pathname );
+
+	/* store the rotation info file path name */
+	slapi_ch_free_string(&loginfo.log_auditfailinfo_file);
+	loginfo.log_auditfailinfo_file = slapi_ch_smprintf("%s.rotationinfo", pathname);
+
+	/*
+	** Check if we have a log file already. If we have it then
+	** we need to parse the header info and update the loginfo
+	** struct.
+	*/
+	logfile_type = log__auditfail_rotationinfof(loginfo.log_auditfailinfo_file);
+
+	if (log__open_auditfaillogfile(logfile_type, 1/* got lock*/) != LOG_SUCCESS) {
+		rv = 1;
+	}
+
+	if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
+
+	return rv;
+}
 /******************************************************************************
 * write in the audit log
 ******************************************************************************/ 
@@ -1662,6 +1929,39 @@ slapd_log_audit_proc (
 	    return 0;
 	}
 	return 0;
+}
+/******************************************************************************
+* write in the audit fail log
+******************************************************************************/ 
+int
+slapd_log_auditfail_proc (
+    char    *buffer,
+    int buf_len)
+{
+    if ( (loginfo.log_auditfail_state & LOGGING_ENABLED) && (loginfo.log_auditfail_file != NULL) ){
+        LOG_AUDITFAIL_LOCK_WRITE( );
+        if (log__needrotation(loginfo.log_auditfail_fdes,
+                    SLAPD_AUDITFAIL_LOG) == LOG_ROTATE) {
+            if (log__open_auditfaillogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
+                LDAPDebug(LDAP_DEBUG_ANY,
+                          "LOGINFO: Unable to open auditfail file:%s\n",
+                          loginfo.log_auditfail_file,0,0);
+                LOG_AUDITFAIL_UNLOCK_WRITE();
+                return 0;
+            }
+            while (loginfo.log_auditfail_rotationsyncclock <= loginfo.log_auditfail_ctime) {
+                loginfo.log_auditfail_rotationsyncclock += PR_ABS(loginfo.log_auditfail_rotationtime_secs);
+            }
+        }
+        if (loginfo.log_auditfail_state & LOGGING_NEED_TITLE) {
+            log_write_title( loginfo.log_auditfail_fdes);
+            loginfo.log_auditfail_state &= ~LOGGING_NEED_TITLE;
+        }
+        LOG_WRITE_NOW_NO_ERR(loginfo.log_auditfail_fdes, buffer, buf_len, 0);
+        LOG_AUDITFAIL_UNLOCK_WRITE();
+        return 0;
+    }
+    return 0;
 }
 /******************************************************************************
 * write in the error log
@@ -2232,6 +2532,15 @@ log__needrotation(LOGFD fp, int logtype)
 		timeunit = loginfo.log_audit_rotationunit;
 		rotationtime_secs = loginfo.log_audit_rotationtime_secs;
 		log_createtime = loginfo.log_audit_ctime;
+		break;
+	   case SLAPD_AUDITFAIL_LOG:
+		nlogs = loginfo.log_auditfail_maxnumlogs;
+		maxlogsize = loginfo.log_auditfail_maxlogsize;
+		sync_enabled = loginfo.log_auditfail_rotationsync_enabled;
+		syncclock = loginfo.log_auditfail_rotationsyncclock;
+		timeunit = loginfo.log_auditfail_rotationunit;
+		rotationtime_secs = loginfo.log_auditfail_rotationtime_secs;
+		log_createtime = loginfo.log_auditfail_ctime;
 		break;
 	   default: /* error */
 		maxlogsize = -1;
@@ -3398,6 +3707,173 @@ delete_logfile:
 }
 
 /******************************************************************************
+* log__delete_auditfail_logfile
+*
+*	Do we need to delete  a logfile. Find out if we need to delete the log
+*	file based on expiration time, max diskspace, and minfreespace. 
+*	Delete the file if we need to.
+*
+*	Assumption: A WRITE lock has been acquired for the auditfail log
+******************************************************************************/ 
+
+static int
+log__delete_auditfail_logfile()
+{
+	struct logfileinfo *logp = NULL;
+	struct logfileinfo *delete_logp = NULL;
+	struct logfileinfo *p_delete_logp = NULL;
+	struct logfileinfo *prev_logp = NULL;
+	PRInt64     total_size=0;
+	time_t      cur_time;
+	PRInt64     f_size;
+	int         numoflogs=loginfo.log_numof_auditfail_logs;
+	int         rv = 0;
+	char        *logstr;
+	char        buffer[BUFSIZ];
+	char        tbuf[TBUFSIZE];
+
+	/* If we have only one log, then  will delete this one */
+	if (loginfo.log_auditfail_maxnumlogs == 1) {
+		LOG_CLOSE(loginfo.log_auditfail_fdes);
+                loginfo.log_auditfail_fdes = NULL;
+		PR_snprintf(buffer, sizeof(buffer), "%s", loginfo.log_auditfail_file);
+		if (PR_Delete(buffer) != PR_SUCCESS) {
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+			} else {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				                loginfo.log_auditfail_file, prerr, slapd_pr_strerror(prerr));
+			}
+		}
+
+		/* Delete the rotation file also. */
+		PR_snprintf(buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_auditfail_file);
+		if (PR_Delete(buffer) != PR_SUCCESS) {
+			PRErrorCode prerr = PR_GetError();
+			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+			} else {
+				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
+				                loginfo.log_auditfail_file, prerr, slapd_pr_strerror(prerr));
+			}
+		}
+		return 0;
+	}
+
+	/* If we have already the maximum number of log files, we
+	** have to delete one any how.
+	*/
+	if (++numoflogs > loginfo.log_auditfail_maxnumlogs) {
+		logstr = "Delete Error Log File: Exceeded max number of logs allowed";
+		goto delete_logfile;
+	}
+
+	/* Now check based on the maxdiskspace */
+	if (loginfo.log_auditfail_maxdiskspace > 0) {
+		logp = loginfo.log_auditfail_logchain;
+		while (logp) {
+			total_size += logp->l_size;
+			logp = logp->l_next;
+		}
+		if ((f_size = log__getfilesize(loginfo.log_auditfail_fdes)) == -1) {
+			/* then just assume the max size */
+			total_size += loginfo.log_auditfail_maxlogsize;
+		} else {
+			total_size += f_size;
+		}
+
+		/* If we have exceeded the max disk space or we have less than the
+  		** minimum, then we have to delete a file.
+		*/
+		if (total_size >= loginfo.log_auditfail_maxdiskspace)  {
+			logstr = "exceeded maximum log disk space";
+			goto delete_logfile;
+		}
+	}
+	
+	/* Now check based on the free space */
+	if ( loginfo.log_auditfail_minfreespace > 0) {
+		rv = log__enough_freespace(loginfo.log_auditfail_file);
+		if ( rv == 0) {
+			/* Not enough free space */
+			logstr = "Not enough free disk space";
+			goto delete_logfile;
+		}
+	}
+
+	/* Now check based on the expiration time */
+	if ( loginfo.log_auditfail_exptime_secs > 0 ) {
+		/* is the file old enough */
+		time (&cur_time);
+		prev_logp = logp = loginfo.log_auditfail_logchain;
+		while (logp) {
+			if ((cur_time - logp->l_ctime) > loginfo.log_auditfail_exptime_secs) {
+				delete_logp = logp;
+				p_delete_logp = prev_logp;
+				logstr = "The file is older than the log expiration time";
+				goto delete_logfile;
+			}
+			prev_logp = logp;
+			logp = logp->l_next;
+		}
+	}
+
+	/* No log files to delete */	
+	return 0;
+
+delete_logfile:
+	if (delete_logp == NULL) {
+		time_t	oldest;
+
+		time(&oldest);
+		
+		prev_logp = logp = loginfo.log_auditfail_logchain;
+		while (logp) {
+			if (logp->l_ctime <= oldest) {
+				oldest = logp->l_ctime;
+				delete_logp = logp;
+				p_delete_logp = prev_logp;
+			}
+			prev_logp = logp;
+			logp = logp->l_next;
+		}
+		/* We might face this case if we have only one log file and
+		** trying to delete it because of deletion requirement.
+		*/
+		if (!delete_logp) {
+			return 0;
+		}
+	} 
+
+	if (p_delete_logp == delete_logp) {
+		/* then we are deleteing the first one */
+		loginfo.log_auditfail_logchain = delete_logp->l_next;
+	} else {
+		p_delete_logp->l_next = delete_logp->l_next;
+	}
+
+	/* Delete the audit file */
+	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
+	PR_snprintf(buffer, sizeof(buffer), "%s.%s", loginfo.log_auditfail_file, tbuf );
+	if (PR_Delete(buffer) != PR_SUCCESS) {
+		PRErrorCode prerr = PR_GetError();
+		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
+			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+		} else {
+			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			                loginfo.log_auditfail_file, tbuf, prerr, slapd_pr_strerror(prerr));
+		}
+	} else {
+		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
+	}
+	slapi_ch_free((void**)&delete_logp);
+	loginfo.log_numof_auditfail_logs--;
+	
+	return 1;
+}
+
+/******************************************************************************
 * log__error_rotationinfof
 *
 *	Try to open the log file. If we have one already, then try to read the
@@ -3569,6 +4045,101 @@ log__audit_rotationinfof( char *pathname)
 	}
 
 	return logfile_type;
+}
+
+/******************************************************************************
+* log__auditfail_rotationinfof
+*
+*	Try to open the log file. If we have one already, then try to read the
+*	header and update the information.
+*
+*	Assumption: Lock has been acquired already
+******************************************************************************/ 
+static int
+log__auditfail_rotationinfof( char *pathname)
+{
+    long    f_ctime;
+    PRInt64 f_size;
+    int     main_log = 1;
+    time_t  now;
+    FILE    *fp;
+    int     rval, logfile_type = LOGFILE_REOPENED;
+    
+    /*
+    ** Okay -- I confess, we want to use NSPR calls but I want to
+    ** use fgets and not use PR_Read() and implement a complicated
+    ** parsing module. Since this will be called only during the startup
+    ** and never aftre that, we can live by it.
+    */
+    
+    if ((fp = fopen (pathname, "r")) == NULL) {
+        return LOGFILE_NEW;
+    }
+
+    loginfo.log_numof_auditfail_logs = 0;
+
+    /* 
+    ** We have reopened the log audit file. Now we need to read the
+    ** log file info and update the values.
+    */
+    while ((rval = log__extract_logheader(fp, &f_ctime, &f_size)) == LOG_CONTINUE) {
+        /* first we would get the main log info */
+        if (f_ctime == 0 && f_size == 0) {
+            continue;
+        }
+        time (&now);
+        if (main_log) {
+            if (f_ctime > 0L) {
+                loginfo.log_auditfail_ctime = f_ctime;
+            }
+            else {
+                loginfo.log_auditfail_ctime = now;
+            }
+            main_log = 0;
+        } else {
+            struct  logfileinfo *logp;
+
+            logp = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
+            if (f_ctime > 0L) {
+                logp->l_ctime = f_ctime;
+            }
+            else {
+                logp->l_ctime = now;
+            }
+            if (f_size > 0) {
+                logp->l_size = f_size;
+            }
+            else  {
+                /* make it the max log size */
+                logp->l_size = loginfo.log_auditfail_maxlogsize;
+            }
+
+            logp->l_next = loginfo.log_auditfail_logchain;
+            loginfo.log_auditfail_logchain = logp;
+        }
+        loginfo.log_numof_auditfail_logs++;
+    }
+    if (LOG_DONE == rval) {
+        rval = log__check_prevlogs(fp, pathname);
+    }
+    fclose (fp);
+
+    if (LOG_ERROR == rval) {
+        if (LOG_SUCCESS == log__fix_rotationinfof(pathname)) {
+            logfile_type = LOGFILE_NEW;
+        }
+    }
+
+    /* Check if there is a rotation overdue */
+    if (loginfo.log_auditfail_rotationsync_enabled &&
+        loginfo.log_auditfail_rotationunit != LOG_UNIT_HOURS &&
+        loginfo.log_auditfail_rotationunit != LOG_UNIT_MINS &&
+        loginfo.log_auditfail_ctime < loginfo.log_auditfail_rotationsyncclock - PR_ABS(loginfo.log_auditfail_rotationtime_secs)) 
+    {
+        loginfo.log_auditfail_rotationsyncclock -= PR_ABS(loginfo.log_auditfail_rotationtime_secs);
+    }
+
+    return logfile_type;
 }
 
 static void
@@ -3888,6 +4459,132 @@ log__open_auditlogfile(int logfile_state, int locked)
 
 	if (!locked) LOG_AUDIT_UNLOCK_WRITE( );
 	return LOG_SUCCESS;
+}
+/******************************************************************************
+* log__open_auditfaillogfile
+*
+*   Open a new log file. If we have run out of the max logs we can have
+*   then delete the oldest file.
+******************************************************************************/ 
+static int
+log__open_auditfaillogfile(int logfile_state, int locked)
+{
+
+    time_t          now;
+    LOGFD           fp;
+    LOGFD           fpinfo = NULL;
+    char            tbuf[TBUFSIZE];
+    struct logfileinfo  *logp;
+    char            buffer[BUFSIZ];
+
+    if (!locked) LOG_AUDITFAIL_LOCK_WRITE( );
+
+    /* 
+    ** Here we are trying to create a new log file.
+    ** If we alredy have one, then we need to rename it as
+    ** "filename.time",  close it and update it's information
+    ** in the array stack.
+    */
+    if (loginfo.log_auditfail_fdes != NULL) {
+        struct  logfileinfo *log;
+        char                newfile[BUFSIZ];
+        PRInt64             f_size;
+
+
+        /* get rid of the old one */
+        if ((f_size = log__getfilesize(loginfo.log_auditfail_fdes)) == -1) {
+            /* Then assume that we have the max size */
+            f_size = loginfo.log_auditfail_maxlogsize;
+        }
+
+        /* Check if I have to delete any old file, delete it if it is required. */
+        while (log__delete_auditfail_logfile());
+
+        /* close the file */
+        LOG_CLOSE(loginfo.log_auditfail_fdes);
+        loginfo.log_auditfail_fdes = NULL;
+
+        if ( loginfo.log_auditfail_maxnumlogs > 1 ) {
+            log = (struct logfileinfo *) slapi_ch_malloc (sizeof (struct logfileinfo));
+            log->l_ctime = loginfo.log_auditfail_ctime;
+            log->l_size = f_size;
+
+            log_convert_time (log->l_ctime, tbuf, 1 /*short */);
+            PR_snprintf(newfile, sizeof(newfile), "%s.%s", loginfo.log_auditfail_file, tbuf);
+            if (PR_Rename (loginfo.log_auditfail_file, newfile) != PR_SUCCESS) {
+                PRErrorCode prerr = PR_GetError();
+                /* Make "FILE EXISTS" error an exception.
+                   Even if PR_Rename fails with the error, we continue logging.
+                 */
+                if (PR_FILE_EXISTS_ERROR != prerr) {
+                    if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
+                    slapi_ch_free((void**)&log);
+                    return LOG_UNABLE_TO_OPENFILE;
+                }
+            }
+
+            /* add the log to the chain */
+            log->l_next = loginfo.log_auditfail_logchain;
+            loginfo.log_auditfail_logchain = log;
+            loginfo.log_numof_auditfail_logs++;
+        }
+    } 
+
+    /* open a new log file */
+    if (! LOG_OPEN_APPEND(fp, loginfo.log_auditfail_file, loginfo.log_auditfail_mode)) {
+        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+                  "errno %d (%s)\n",
+                  loginfo.log_auditfail_file, errno, slapd_system_strerror(errno));
+        if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
+        /*if I have an old log file -- I should log a message
+        ** that I can't open the  new file. Let the caller worry
+        ** about logging message. 
+        */
+        return LOG_UNABLE_TO_OPENFILE;
+    }
+
+    loginfo.log_auditfail_fdes = fp;
+    if (logfile_state == LOGFILE_REOPENED) {
+        /* we have all the information */
+        if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
+        return LOG_SUCCESS;
+    }
+
+    loginfo.log_auditfail_state |= LOGGING_NEED_TITLE;
+
+    if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_auditfailinfo_file, loginfo.log_auditfail_mode)) {
+        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+                  "errno %d (%s)\n",
+                  loginfo.log_auditfailinfo_file, errno, slapd_system_strerror(errno));
+        if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
+        return LOG_UNABLE_TO_OPENFILE;
+    }
+
+    /* write the header in the log */
+    now = current_time();
+    log_convert_time (now, tbuf, 2 /*long */);  
+    PR_snprintf(buffer, sizeof(buffer), "LOGINFO:Log file created at: %s (%lu)\n", tbuf, now);
+    LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+
+    logp = loginfo.log_auditfail_logchain;
+    while ( logp) {
+        log_convert_time (logp->l_ctime, tbuf, 1 /*short */);   
+        PR_snprintf(buffer, sizeof(buffer), "LOGINFO:%s%s.%s (%lu) (%"
+            NSPRI64 "d)\n", PREVLOGFILE, loginfo.log_auditfail_file, tbuf, 
+            logp->l_ctime, logp->l_size);
+        LOG_WRITE(fpinfo, buffer, strlen(buffer), 0);
+        logp = logp->l_next;
+    }
+    /* Close the info file. We need only when we need to rotate to the
+    ** next log file.
+    */
+    if (fpinfo)  LOG_CLOSE(fpinfo);
+
+    /* This is now the current audit log */
+    loginfo.log_auditfail_ctime = now;
+
+    if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE( );
+    return LOG_SUCCESS;
 }
 
 /* 

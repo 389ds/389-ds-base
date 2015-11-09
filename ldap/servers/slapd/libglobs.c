@@ -152,12 +152,15 @@ static int invalid_sasl_mech(char *str);
 #define INIT_ACCESSLOG_MODE "600"
 #define INIT_ERRORLOG_MODE "600"
 #define INIT_AUDITLOG_MODE "600"
+#define INIT_AUDITFAILLOG_MODE "600"
 #define INIT_ACCESSLOG_ROTATIONUNIT "day"
 #define INIT_ERRORLOG_ROTATIONUNIT "week"
 #define INIT_AUDITLOG_ROTATIONUNIT "week"
+#define INIT_AUDITFAILLOG_ROTATIONUNIT "week"
 #define INIT_ACCESSLOG_EXPTIMEUNIT "month"
 #define INIT_ERRORLOG_EXPTIMEUNIT "month"
 #define INIT_AUDITLOG_EXPTIMEUNIT "month"
+#define INIT_AUDITFAILLOG_EXPTIMEUNIT "month"
 #define DEFAULT_DIRECTORY_MANAGER "cn=Directory Manager"
 #define DEFAULT_UIDNUM_TYPE "uidNumber"
 #define DEFAULT_GIDNUM_TYPE "gidNumber"
@@ -171,11 +174,14 @@ static int invalid_sasl_mech(char *str);
 slapi_onoff_t init_accesslog_rotationsync_enabled;
 slapi_onoff_t init_errorlog_rotationsync_enabled;
 slapi_onoff_t init_auditlog_rotationsync_enabled;
+slapi_onoff_t init_auditfaillog_rotationsync_enabled;
 slapi_onoff_t init_accesslog_logging_enabled;
 slapi_onoff_t init_accesslogbuffering;
 slapi_onoff_t init_errorlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_hide_unhashed_pw;
+slapi_onoff_t init_auditfaillog_logging_enabled;
+slapi_onoff_t init_auditfaillog_logging_hide_unhashed_pw;
 slapi_onoff_t init_csnlogging;
 slapi_onoff_t init_pw_unlock;
 slapi_onoff_t init_pw_must_change;
@@ -1105,8 +1111,73 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.mempool_maxfreelist,
 		CONFIG_INT, (ConfigGetFunc)config_get_mempool_maxfreelist,
-		DEFAULT_MEMPOOL_MAXFREELIST}
+		DEFAULT_MEMPOOL_MAXFREELIST},
 #endif /* MEMPOOL_EXPERIMENTAL */
+    /* Audit fail log configuration */
+	{CONFIG_AUDITFAILLOG_MODE_ATTRIBUTE, NULL,
+		log_set_mode, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_mode,
+		CONFIG_STRING, NULL, INIT_AUDITFAILLOG_MODE},
+	{CONFIG_AUDITFAILLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
+		log_set_rotationsync_enabled, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_rotationsync_enabled,
+		CONFIG_ON_OFF, NULL, &init_auditfaillog_rotationsync_enabled},
+	{CONFIG_AUDITFAILLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
+		log_set_rotationsynchour, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_rotationsynchour,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
+	{CONFIG_AUDITFAILLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
+		log_set_rotationsyncmin, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_rotationsyncmin,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
+	{CONFIG_AUDITFAILLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
+		log_set_rotationtime, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_rotationtime,
+		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
+	{CONFIG_AUDITFAILLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
+		log_set_maxdiskspace, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_maxdiskspace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXDISKSPACE},
+	{CONFIG_AUDITFAILLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
+		log_set_logsize, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_maxlogsize,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
+	{CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
+		log_set_expirationtime, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_exptime,
+		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
+	{CONFIG_AUDITFAILLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
+		log_set_numlogsperdir, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_maxnumlogs,
+		CONFIG_INT, NULL, DEFAULT_LOG_MAXNUMLOGS},
+	{CONFIG_AUDITFAILLOG_LIST_ATTRIBUTE, NULL,
+		NULL, 0, NULL,
+		CONFIG_CHARRAY, (ConfigGetFunc)config_get_auditfaillog_list, NULL},
+	{CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
+		log_set_logging, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_logging_enabled,
+		CONFIG_ON_OFF, NULL, &init_auditfaillog_logging_enabled},
+	{CONFIG_AUDITFAILLOG_LOGGING_HIDE_UNHASHED_PW, config_set_auditfaillog_unhashed_pw,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.auditfaillog_logging_hide_unhashed_pw,
+		CONFIG_ON_OFF, NULL, &init_auditfaillog_logging_hide_unhashed_pw},
+	{CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
+		log_set_expirationtimeunit, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_exptimeunit,
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITFAILLOG_EXPTIMEUNIT},
+	{CONFIG_AUDITFAILLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
+		log_set_mindiskspace, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_minfreespace,
+		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
+	{CONFIG_AUDITFAILLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
+		log_set_rotationtimeunit, SLAPD_AUDITFAIL_LOG,
+		(void**)&global_slapdFrontendConfig.auditfaillog_rotationunit,
+		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITFAILLOG_ROTATIONUNIT},
+	{CONFIG_AUDITFAILFILE_ATTRIBUTE, config_set_auditfaillog,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.auditfaillog,
+		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */}
+    /* End audit fail log configuration */
 };
 
 /*
@@ -1513,6 +1584,23 @@ FrontendConfig_init () {
   init_auditlog_logging_hide_unhashed_pw = 
     cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
 
+  init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
+  cfg->auditfaillog_mode = slapi_ch_strdup(INIT_AUDITFAILLOG_MODE);
+  cfg->auditfaillog_maxnumlogs = 1;
+  cfg->auditfaillog_maxlogsize = 100;
+  cfg->auditfaillog_rotationtime = 1;
+  cfg->auditfaillog_rotationunit = slapi_ch_strdup(INIT_AUDITFAILLOG_ROTATIONUNIT);
+  init_auditfaillog_rotationsync_enabled =
+    cfg->auditfaillog_rotationsync_enabled = LDAP_OFF;
+  cfg->auditfaillog_rotationsynchour = 0;
+  cfg->auditfaillog_rotationsyncmin = 0;
+  cfg->auditfaillog_maxdiskspace = 100;
+  cfg->auditfaillog_minfreespace = 5;
+  cfg->auditfaillog_exptime = 1;
+  cfg->auditfaillog_exptimeunit = slapi_ch_strdup(INIT_AUDITFAILLOG_EXPTIMEUNIT);
+  init_auditfaillog_logging_hide_unhashed_pw = 
+    cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
+
   init_entryusn_global = cfg->entryusn_global = LDAP_OFF; 
   cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT); 
   cfg->allowed_to_delete_attrs = slapi_ch_strdup("passwordadmindn nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
@@ -1630,17 +1718,33 @@ get_entry_point( int ep_name, caddr_t *ep_addr )
 int
 config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply)
 {
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
 
-	retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->auditlog_logging_hide_unhashed_pw),
-								errorbuf, apply);
-	if(strcasecmp(value,"on") == 0){
-		auditlog_hide_unhashed_pw();
-	} else {
-		auditlog_expose_unhashed_pw();
-	}
-	return retVal;
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->auditlog_logging_hide_unhashed_pw),
+                                errorbuf, apply);
+    if(strcasecmp(value,"on") == 0){
+        auditlog_hide_unhashed_pw();
+    } else {
+        auditlog_expose_unhashed_pw();
+    }
+    return retVal;
+}
+
+int
+config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->auditfaillog_logging_hide_unhashed_pw),
+                                errorbuf, apply);
+    if(strcasecmp(value,"on") == 0){
+        auditfaillog_hide_unhashed_pw();
+    } else {
+        auditfaillog_expose_unhashed_pw();
+    }
+    return retVal;
 }
 
 /*
@@ -4157,6 +4261,31 @@ config_set_errorlog( const char *attrname, char *value, char *errorbuf, int appl
 
 int
 config_set_auditlog( const char *attrname, char *value, char *errorbuf, int apply ) {
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    retVal = log_update_auditlogdir ( value, apply );
+
+    if ( retVal != LDAP_SUCCESS ) {
+        PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
+                      "Cannot open auditlog directory \"%s\"", value );
+    }
+
+    if ( apply ) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free ( (void **) &(slapdFrontendConfig->auditlog) );
+        slapdFrontendConfig->auditlog = slapi_ch_strdup ( value );
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+int
+config_set_auditfaillog( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -4164,17 +4293,17 @@ config_set_auditlog( const char *attrname, char *value, char *errorbuf, int appl
 	return LDAP_OPERATIONS_ERROR;
   }
   
-  retVal = log_update_auditlogdir ( value, apply );
+  retVal = log_update_auditfaillogdir ( value, apply );
   
   if ( retVal != LDAP_SUCCESS ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-			"Cannot open auditlog directory \"%s\"", value );
+			"Cannot open auditfaillog directory \"%s\"", value );
   }
   
   if ( apply ) {
 	CFG_LOCK_WRITE(slapdFrontendConfig);
-	slapi_ch_free ( (void **) &(slapdFrontendConfig->auditlog) );
-	slapdFrontendConfig->auditlog = slapi_ch_strdup ( value );
+	slapi_ch_free ( (void **) &(slapdFrontendConfig->auditfaillog) );
+	slapdFrontendConfig->auditfaillog = slapi_ch_strdup ( value );
 	CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
@@ -5514,6 +5643,18 @@ config_get_auditlog(  ){
   return retVal; 
 }
 
+char *
+config_get_auditfaillog(  ){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char *retVal;
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = config_copy_strval(slapdFrontendConfig->auditfaillog);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
 long
 config_get_pw_maxage() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -5586,6 +5727,16 @@ config_get_auditlog_logging_enabled(){
   retVal = (int)slapdFrontendConfig->auditlog_logging_enabled;
 
   return retVal;
+}
+
+int
+config_get_auditfaillog_logging_enabled(){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal;
+
+    retVal = (int)slapdFrontendConfig->auditfaillog_logging_enabled;
+
+    return retVal;
 }
 
 int
@@ -6426,6 +6577,12 @@ char **
 config_get_auditlog_list()
 {
 	return log_get_loglist(SLAPD_AUDIT_LOG);
+}
+
+char **
+config_get_auditfaillog_list()
+{
+    return log_get_loglist(SLAPD_AUDITFAIL_LOG);
 }
 
 int
@@ -7767,6 +7924,21 @@ config_set_auditlog_enabled(int value){
         log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
     } else {
         log_set_logging(CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_AUDIT_LOG, errorbuf, CONFIG_APPLY);
+    }
+    CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
+}
+
+void
+config_set_auditfaillog_enabled(int value){
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    char errorbuf[BUFSIZ];
+
+    CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
+    slapdFrontendConfig->auditfaillog_logging_enabled = (int)value;
+    if(value){
+        log_set_logging(CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE, "on", SLAPD_AUDITFAIL_LOG, errorbuf, CONFIG_APPLY);
+    } else {
+        log_set_logging(CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE, "off", SLAPD_AUDITFAIL_LOG, errorbuf, CONFIG_APPLY);
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 }

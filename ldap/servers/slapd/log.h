@@ -176,6 +176,32 @@ struct logging_opts {
 	char		*log_auditinfo_file;	/* audit log rotation info file */
 	Slapi_RWLock		*log_audit_rwlock;	/* lock on audit*/
 
+    /* These are auditfail log specific */
+    int             log_auditfail_state;
+    int             log_auditfail_mode;         /* access mode */
+    int             log_auditfail_maxnumlogs;   /* Number of logs */
+    PRInt64         log_auditfail_maxlogsize;   /* max log size in bytes*/
+    int             log_auditfail_rotationtime; /* time in units. */
+    int             log_auditfail_rotationunit; /* time in units. */
+    int             log_auditfail_rotationtime_secs;    /* time in seconds */
+    int             log_auditfail_rotationsync_enabled;/* 0 or 1*/
+    int             log_auditfail_rotationsynchour; /* 0-23 */
+    int             log_auditfail_rotationsyncmin;  /* 0-59 */
+    time_t          log_auditfail_rotationsyncclock;    /* clock in seconds */
+    PRInt64         log_auditfail_maxdiskspace; /* space in bytes */
+    PRInt64         log_auditfail_minfreespace; /* free space in bytes */
+    int             log_auditfail_exptime;  /* time */
+    int             log_auditfail_exptimeunit;  /* unit time */
+    int             log_auditfail_exptime_secs; /* time in secs */
+
+    char            *log_auditfail_file;    /* auditfail log name */
+    LOGFD           log_auditfail_fdes;     /* auditfail log  fdes */
+    unsigned int    log_numof_auditfail_logs;   /* number of logs */
+    time_t          log_auditfail_ctime;    /* log creation time */
+    LogFileInfo     *log_auditfail_logchain;    /* all the logs info */
+    char            *log_auditfailinfo_file;    /* auditfail log rotation info file */
+    Slapi_RWLock    *log_auditfail_rwlock;  /* lock on auditfail */
+
 };
 
 /* For log_state */
@@ -196,4 +222,9 @@ struct logging_opts {
 #define LOG_AUDIT_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_audit_rwlock)
 #define LOG_AUDIT_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_audit_rwlock)
 #define LOG_AUDIT_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_audit_rwlock)
+
+#define LOG_AUDITFAIL_LOCK_READ()    slapi_rwlock_rdlock(loginfo.log_auditfail_rwlock)
+#define LOG_AUDITFAIL_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
+#define LOG_AUDITFAIL_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_auditfail_rwlock)
+#define LOG_AUDITFAIL_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
 

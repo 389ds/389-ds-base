@@ -1883,6 +1883,7 @@ typedef struct _slapdEntryPoints {
 #define SLAPD_ACCESS_LOG 0x1
 #define SLAPD_ERROR_LOG  0x2
 #define SLAPD_AUDIT_LOG  0x4
+#define SLAPD_AUDITFAIL_LOG  0x8
 
 #define CONFIG_DATABASE_ATTRIBUTE       "nsslapd-database"
 #define CONFIG_PLUGIN_ATTRIBUTE         "nsslapd-plugin"
@@ -1907,48 +1908,63 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ACCESSLOG_MODE_ATTRIBUTE	"nsslapd-accesslog-mode"
 #define CONFIG_ERRORLOG_MODE_ATTRIBUTE	"nsslapd-errorlog-mode"
 #define CONFIG_AUDITLOG_MODE_ATTRIBUTE	"nsslapd-auditlog-mode"
+#define CONFIG_AUDITFAILLOG_MODE_ATTRIBUTE	"nsslapd-auditfaillog-mode"
 #define CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE "nsslapd-accesslog-maxlogsperdir"
 #define CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE  "nsslapd-errorlog-maxlogsperdir"
 #define CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE  "nsslapd-auditlog-maxlogsperdir"
+#define CONFIG_AUDITFAILLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE  "nsslapd-auditfaillog-maxlogsperdir"
 #define CONFIG_ACCESSLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-accesslog-maxlogsize"
 #define CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-errorlog-maxlogsize"
 #define CONFIG_AUDITLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditlog-maxlogsize"
+#define CONFIG_AUDITFAILLOG_MAXLOGSIZE_ATTRIBUTE "nsslapd-auditfaillog-maxlogsize"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-accesslog-logrotationsync-enabled"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-errorlog-logrotationsync-enabled"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-auditlog-logrotationsync-enabled"
+#define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE "nsslapd-auditfaillog-logrotationsync-enabled"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-accesslog-logrotationsynchour"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-errorlog-logrotationsynchour"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-auditlog-logrotationsynchour"
+#define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE "nsslapd-auditfaillog-logrotationsynchour"
 #define CONFIG_ACCESSLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-accesslog-logrotationsyncmin"
 #define CONFIG_ERRORLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-errorlog-logrotationsyncmin"
 #define CONFIG_AUDITLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-auditlog-logrotationsyncmin"
+#define CONFIG_AUDITFAILLOG_LOGROTATIONSYNCMIN_ATTRIBUTE "nsslapd-auditfaillog-logrotationsyncmin"
 #define CONFIG_ACCESSLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-accesslog-logrotationtime"
 #define CONFIG_ERRORLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-errorlog-logrotationtime"
 #define CONFIG_AUDITLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditlog-logrotationtime"
+#define CONFIG_AUDITFAILLOG_LOGROTATIONTIME_ATTRIBUTE "nsslapd-auditfaillog-logrotationtime"
 #define CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logrotationtimeunit"
 #define CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logrotationtimeunit"
 #define CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logrotationtimeunit"
+#define CONFIG_AUDITFAILLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logrotationtimeunit"
 #define CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logmaxdiskspace"
 #define CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logmaxdiskspace"
 #define CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logmaxdiskspace"
+#define CONFIG_AUDITFAILLOG_MAXLOGDISKSPACE_ATTRIBUTE "nsslapd-auditfaillog-logmaxdiskspace"
 #define CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-accesslog-logminfreediskspace"
 #define CONFIG_ERRORLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-errorlog-logminfreediskspace"
 #define CONFIG_AUDITLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditlog-logminfreediskspace"
+#define CONFIG_AUDITFAILLOG_MINFREEDISKSPACE_ATTRIBUTE "nsslapd-auditfaillog-logminfreediskspace"
 #define CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-accesslog-logexpirationtime"
 #define CONFIG_ERRORLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-errorlog-logexpirationtime"
 #define CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditlog-logexpirationtime"
+#define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIME_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtime"
 #define CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-accesslog-logexpirationtimeunit"
 #define CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-errorlog-logexpirationtimeunit"
 #define CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditlog-logexpirationtimeunit"
+#define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtimeunit"
 #define CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-accesslog-logging-enabled"
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
+#define CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
+#define CONFIG_AUDITFAILLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditfaillog-logging-hide-unhashed-pw"
 #define CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE "nsslapd-unhashed-pw-switch"
 #define CONFIG_ROOTDN_ATTRIBUTE "nsslapd-rootdn"
 #define CONFIG_ROOTPW_ATTRIBUTE "nsslapd-rootpw"
 #define CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE "nsslapd-rootpwstoragescheme"
 #define CONFIG_AUDITFILE_ATTRIBUTE "nsslapd-auditlog"
+#define CONFIG_AUDITFAILFILE_ATTRIBUTE "nsslapd-auditfaillog"
 #define CONFIG_LASTMOD_ATTRIBUTE   "nsslapd-lastmod"
 #define CONFIG_INCLUDE_ATTRIBUTE   "nsslapd-include"
 #define CONFIG_DYNAMICCONF_ATTRIBUTE "nsslapd-dynamicconf"
@@ -2042,6 +2058,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_ACCESSLOG_LIST_ATTRIBUTE "nsslapd-accesslog-list"
 #define CONFIG_ERRORLOG_LIST_ATTRIBUTE "nsslapd-errorlog-list"
 #define CONFIG_AUDITLOG_LIST_ATTRIBUTE "nsslapd-auditlog-list"
+#define CONFIG_AUDITFAILLOG_LIST_ATTRIBUTE "nsslapd-auditfaillog-list"
 #define CONFIG_REWRITE_RFC1274_ATTRIBUTE "nsslapd-rewrite-rfc1274"
 #define CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE "nsslapd-plugin-binddn-tracking"
 #define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
@@ -2264,6 +2281,24 @@ typedef struct _slapdFrontendConfig {
   int  auditlog_exptime;
   char *auditlog_exptimeunit;
   slapi_onoff_t auditlog_logging_hide_unhashed_pw;
+
+  /* AUDIT FAIL LOG */
+  char *auditfaillog;
+  int  auditfailloglevel;
+  slapi_onoff_t auditfaillog_logging_enabled;
+  char *auditfaillog_mode;
+  int  auditfaillog_maxnumlogs;
+  int  auditfaillog_maxlogsize;
+  slapi_onoff_t auditfaillog_rotationsync_enabled;
+  int  auditfaillog_rotationsynchour;
+  int  auditfaillog_rotationsyncmin;
+  int  auditfaillog_rotationtime;
+  char *auditfaillog_rotationunit;
+  int  auditfaillog_maxdiskspace;
+  int  auditfaillog_minfreespace;
+  int  auditfaillog_exptime;
+  char *auditfaillog_exptimeunit;
+  slapi_onoff_t auditfaillog_logging_hide_unhashed_pw;
 
   slapi_onoff_t return_exact_case;	/* Return attribute names with the same case
                                        as they appear in at.conf */

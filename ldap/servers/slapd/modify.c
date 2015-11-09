@@ -1079,6 +1079,11 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 					operation_out_of_disk_space();
 					goto free_and_return;
 				}
+				/* If the disk is full we don't want to make it worse ... */
+				if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_AUDIT))
+				{ 
+					write_auditfail_log_entry(pb); /* Record the operation in the audit log */
+				}
 			}
 		}
 		else

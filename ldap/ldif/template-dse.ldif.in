@@ -52,6 +52,11 @@ nsslapd-auditlog-mode: 600
 nsslapd-auditlog-maxlogsize: 100
 nsslapd-auditlog-logrotationtime: 1
 nsslapd-auditlog-logrotationtimeunit: day
+nsslapd-auditfaillog: %log_dir%/auditfail
+nsslapd-auditfaillog-mode: 600
+nsslapd-auditfaillog-maxlogsize: 100
+nsslapd-auditfaillog-logrotationtime: 1
+nsslapd-auditfaillog-logrotationtimeunit: day
 nsslapd-rootdn: %rootdn%
 nsslapd-rootpw: %ds_passwd%
 nsslapd-maxdescriptors: 1024

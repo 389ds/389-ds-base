@@ -357,6 +357,7 @@ disk_mon_get_dirs(char ***list, int logs_critical){
     disk_mon_add_dir(list, config->accesslog);
     disk_mon_add_dir(list, config->errorlog);
     disk_mon_add_dir(list, config->auditlog);
+    disk_mon_add_dir(list, config->auditfaillog);
     CFG_UNLOCK_READ(config);
 
     be = slapi_get_first_backend (&cookie);
@@ -456,6 +457,7 @@ disk_monitoring_thread(void *nothing)
     int verbose_logging = 0;
     int using_accesslog = 0;
     int using_auditlog = 0;
+    int using_auditfaillog = 0;
     int logs_disabled = 0;
     int grace_period = 0;
     int first_pass = 1;
@@ -488,6 +490,9 @@ disk_monitoring_thread(void *nothing)
         if(config_get_auditlog_logging_enabled()){
             using_auditlog = 1;
         }
+        if(config_get_auditfaillog_logging_enabled()){
+            using_auditfaillog = 1;
+        }
         if(config_get_accesslog_logging_enabled()){
             using_accesslog = 1;
         }
@@ -512,6 +517,9 @@ disk_monitoring_thread(void *nothing)
                     }
                     if(using_auditlog){
                         config_set_auditlog_enabled(LOGGING_ON);
+                    }
+                    if(using_auditfaillog){
+                        config_set_auditfaillog_enabled(LOGGING_ON);
                     }
                 } else {
                 	LDAPDebug(LDAP_DEBUG_ANY, "Disk space is now within acceptable levels.\n",0,0,0);
@@ -557,6 +565,7 @@ disk_monitoring_thread(void *nothing)
                 "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
             config_set_accesslog_enabled(LOGGING_OFF);
             config_set_auditlog_enabled(LOGGING_OFF);
+            config_set_auditfaillog_enabled(LOGGING_OFF);
             logs_disabled = 1;
             continue;
         }
@@ -616,6 +625,9 @@ disk_monitoring_thread(void *nothing)
                     }
                     if(logs_disabled && using_auditlog){
                         config_set_auditlog_enabled(LOGGING_ON);
+                    }
+                    if(logs_disabled && using_auditfaillog){
+                        config_set_auditfaillog_enabled(LOGGING_ON);
                     }
                     deleted_rotated_logs = 0;
                     passed_threshold = 0;

@@ -293,6 +293,7 @@ int config_set_timelimit(const char *attrname, char *value, char *errorbuf, int 
 int config_set_errorlog_level(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_accesslog_level(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_auditlog(const char *attrname,  char *value, char *errorbuf, int apply );
+int config_set_auditfaillog(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_userat(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_accesslog(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_errorlog(const char *attrname, char *value, char *errorbuf, int apply );
@@ -372,6 +373,7 @@ int config_set_disk_threshold( const char *attrname, char *value, char *errorbuf
 int config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_disk_logging_critical( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_unhashed_pw_switch(const char *attrname, char *value, char *errorbuf, int apply); 
@@ -476,12 +478,14 @@ char* config_get_useroc();
 char *config_get_accesslog();
 char *config_get_errorlog();
 char *config_get_auditlog();
+char *config_get_auditfaillog();
 long config_get_pw_maxage();
 long config_get_pw_minage();
 long config_get_pw_warning();
 int config_get_errorlog_level();
 int config_get_accesslog_level();
 int config_get_auditlog_logging_enabled();
+int config_get_auditfaillog_logging_enabled();
 char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);
@@ -503,6 +507,7 @@ char *config_get_saslpath();
 char **config_get_errorlog_list();
 char **config_get_accesslog_list();
 char **config_get_auditlog_list();
+char **config_get_auditfaillog_list();
 int config_get_attrname_exceptions();
 int config_get_hash_filters();
 int config_get_rewrite_rfc1274();
@@ -529,6 +534,7 @@ char *config_get_default_naming_context(void);
 int config_allowed_to_delete_attrs(const char *attr_type);
 void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
+void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled();
 int config_get_disk_monitoring();
 PRInt64 config_get_disk_threshold();
@@ -743,18 +749,21 @@ int slapi_log_access( int level, char *fmt, ... )
         ;
 #endif
 int slapd_log_audit_proc(char *buffer, int buf_len);
+int slapd_log_auditfail_proc(char *buffer, int buf_len);
 void log_access_flush();
 
 
 int access_log_openf( char *pathname, int locked);
 int error_log_openf( char *pathname, int locked);
 int audit_log_openf( char *pathname, int locked);
+int auditfail_log_openf( char *pathname, int locked);
 
 void g_set_detached(int);
 void g_log_init(int log_enabled);
 char *g_get_access_log();
 char *g_get_error_log();
 char *g_get_audit_log();
+char *g_get_auditfail_log();
 void g_set_accesslog_level(int val);
 
 int log_set_mode(const char *attrname, char *mode_str, int logtype, char *errorbuf, int apply);
@@ -773,6 +782,7 @@ char **log_get_loglist(int logtype);
 int  log_update_accesslogdir(char *pathname, int apply);
 int  log_update_errorlogdir(char *pathname, int apply);
 int  log_update_auditlogdir(char *pathname, int apply);
+int  log_update_auditfaillogdir(char *pathname, int apply);
 int  log_set_logging (const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 int check_log_max_size(
                     char *maxdiskspace_str,
@@ -1244,6 +1254,10 @@ void factory_destroy_extension(int type,void *object,void *parent,void **extensi
 void write_audit_log_entry( Slapi_PBlock *pb);
 void auditlog_hide_unhashed_pw();
 void auditlog_expose_unhashed_pw();
+
+void write_auditfail_log_entry( Slapi_PBlock *pb);
+void auditfaillog_hide_unhashed_pw();
+void auditfaillog_expose_unhashed_pw();
 
 /*
  * eventq.c

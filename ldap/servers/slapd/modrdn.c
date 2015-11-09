@@ -641,6 +641,12 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 				slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &ecopy);
 				/* GGOODREPL persistent search system needs the changenumber, oops. */
 				do_ps_service(pse, ecopy, LDAP_CHANGETYPE_MODDN, 0);
+			} else {
+				/* Should we also be doing a disk space check here? */
+				if (operation_is_flag_set(operation,OP_FLAG_ACTION_LOG_AUDIT))
+				{ 
+					write_auditfail_log_entry(pb); /* Record the operation in the audit log */
+				}
 			}
 		}
 		else
