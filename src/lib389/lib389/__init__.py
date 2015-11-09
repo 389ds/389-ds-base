@@ -34,10 +34,15 @@ import glob
 import tarfile
 import subprocess
 import collections
-import six.moves.urllib.request
-import six.moves.urllib.parse
-import six.moves.urllib.error
-import six
+try:
+    # There are too many issues with this on EL7
+    # Out of the box, it's just outright broken ...
+    import six.moves.urllib.request
+    import six.moves.urllib.parse
+    import six.moves.urllib.error
+    import six
+except ImportError:
+    pass
 from ldap.ldapobject import SimpleLDAPObject
 # file in this package
 
@@ -46,6 +51,7 @@ from lib389.properties import *
 from lib389._entry import Entry
 from lib389._ldifconn import LDIFConn
 from lib389.tools import DirSrvTools
+from lib389.mit_krb5 import MitKrb5
 from lib389.utils import (
     isLocalHost,
     is_a_dn,
@@ -395,6 +401,7 @@ class DirSrv(SimpleLDAPObject):
         args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
         args_instance[SER_USER_ID] = None
         args_instance[SER_GROUP_ID] = None
+        args_instance[SER_REALM] = None
 
         # We allocate a "default" prefix here which allows an un-allocate or
         # un-instantiated DirSrv
@@ -465,6 +472,9 @@ class DirSrv(SimpleLDAPObject):
         # Allocate from the args, or use our env, or use /
         if args.get(SER_DEPLOYED_DIR, self.prefix) is not None:
             self.prefix = args.get(SER_DEPLOYED_DIR, self.prefix)
+        self.realm = args.get(SER_REALM, None)
+        if self.realm is not None:
+            self.krb5_realm = MitKrb5(realm=self.realm, debug=self.verbose)
 
         # Those variables needs to be revisited (sroot for 64 bits)
         # self.sroot     = os.path.join(self.prefix, "lib/dirsrv")
@@ -766,6 +776,7 @@ class DirSrv(SimpleLDAPObject):
             SER_GROUP_ID        (groupid)
             SER_DEPLOYED_DIR    (prefix)
             SER_BACKUP_INST_DIR (backupdir)
+            SER_REALM           (krb5_realm)
 
         @return None
 
@@ -781,6 +792,7 @@ class DirSrv(SimpleLDAPObject):
             log.error("Can't find file: %r, removing extension" % prog)
             prog = prog[:-3]
 
+        # Create and extract a service keytab
         args = {SER_HOST: self.host,
                 SER_PORT: self.port,
                 SER_SECURE_PORT: self.sslport,
@@ -797,6 +809,17 @@ class DirSrv(SimpleLDAPObject):
                                         prefix=self.prefix)
         if result != 0:
             raise Exception('Failed to run setup-ds.pl')
+        if self.realm is not None:
+            # This may conflict in some tests, we may need to use /etc/host aliases
+            # or we may need to use server id
+            self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
+            self.krb5_realm.create_keytab(principal='ldap/%s' % self.host,
+                keytab='%s/etc/dirsrv/slapd-%s/ldap.keytab' % (self.prefix, self.serverid))
+            with open('%s/etc/sysconfig/dirsrv-%s' % (self.prefix, self.serverid), 'a') as sfile:
+                sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/ldap.keytab\nexport KRB5_KTNAME\n" % (self.prefix, self.serverid))
+            self.restart()
+
+            # Restart the instance
 
     def create(self):
         """
@@ -1031,7 +1054,7 @@ class DirSrv(SimpleLDAPObject):
         # whatever the initial state, the instance is now Offline
         self.state = DIRSRV_STATE_OFFLINE
 
-    def restart(self, timeout):
+    def restart(self, timeout=120):
         '''
             It restarts an instance and rebind it. Its final state after rebind
             (open) is DIRSRV_STATE_ONLINE.

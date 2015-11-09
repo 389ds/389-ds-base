@@ -353,7 +353,9 @@ def getdomainname(name=''):
     if index >= 0:
         return fqdn[index + 1:]
     else:
-        return fqdn
+        # This isn't correct. There is no domain name, so return empty.str
+        # return fqdn
+        return ""
 
 
 def getdefaultsuffix(name=''):

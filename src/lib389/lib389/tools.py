@@ -25,9 +25,15 @@ import glob
 import pwd
 import grp
 import logging
-import six.moves.urllib.request
-import six.moves.urllib.parse
-import six.moves.urllib.error
+try:
+    # There are too many issues with this on EL7
+    # Out of the box, it's just outright broken ...
+    import six.moves.urllib.request
+    import six.moves.urllib.parse
+    import six.moves.urllib.error
+    import six
+except ImportError:
+    pass
 import ldap
 
 from lib389._constants import *
@@ -870,30 +876,42 @@ class DirSrvTools(object):
         DirSrvTools.makeUser(user=user, group=user, home=DEFAULT_USERHOME)
 
     @staticmethod
+    def searchHostsFile(expectedHost, ipPattern=None):
+        hostFile = '/etc/hosts'
+
+        with open(hostFile, 'r') as hostfp:
+            # The with statement will automatically close the file after use
+
+            # We are already at the start of the file
+            # hostfp.seek(0, os.SEEK_CUR)
+
+            try:
+                for line in hostfp.readlines():
+                    if ipPattern is None:
+                        words = line.split()
+                        assert(words[1] == expectedHost)
+                        return True
+                    else:
+                        if line.find(ipPattern) >= 0:
+                            words = line.split()
+                            # We just want to make sure it's in there somewhere.
+                            assert(expectedHost in words)
+                            return True
+            except AssertionError:
+                raise AssertionError("Error: /etc/hosts should contain '%s' as first host for %s" %
+                                     (expectedHost ,ipPattern))
+            raise AssertionError("Error: /etc/hosts does not contain '%s' as first host for %s" %
+                                     (expectedHost ,ipPattern))
+
+    @staticmethod
     def testLocalhost():
         '''
         Checks that the 127.0.0.1 is resolved as localhost.localdomain
         This is required by DSUtil.pm:checkHostname else setup-ds.pl fails
         '''
-        hostFile = '/etc/hosts'
         loopbackIpPattern = '127.0.0.1'
         expectedHost = 'localhost.localdomain'
-
-        hostfp = open(hostFile, 'r')
-        hostfp.seek(0, os.SEEK_CUR)
-
-        done = False
-        try:
-            while not done:
-                line = hostfp.readline()
-                if line.find(loopbackIpPattern) >= 0:
-                    words = line.split()
-                    # We just want to make sure it's in there somewhere.
-                    assert(expectedHost in words)
-                    done = True
-        except AssertionError:
-            raise AssertionError("Error: /etc/hosts should contains 'localhost.localdomain' as first host for %s" %
-                                 (loopbackIpPattern))
+        DirSrvTools.searchHostsFile(expectedHost, loopbackIpPattern)
 
     @staticmethod
     def runUpgrade(prefix, online=True):

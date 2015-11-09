@@ -437,6 +437,7 @@ args_instance = {
                    SER_HOST: LOCALHOST,
                    SER_PORT: DEFAULT_PORT,
                    SER_SERVERID_PROP: "template",
+                   SER_REALM: None,
                    SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
 
 # Helper for linking dse.ldif values to the parse_config function
