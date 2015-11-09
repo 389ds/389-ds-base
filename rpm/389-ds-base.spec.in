@@ -16,7 +16,7 @@
 %global use_nunc_stans __NUNC_STANS_ON__
 
 %if %{use_nunc_stans}
-%global nunc_stans_ver 0.1.5
+%global nunc_stans_ver 0.1.6
 %endif
 
 # fedora 15 and later uses tmpfiles.d
