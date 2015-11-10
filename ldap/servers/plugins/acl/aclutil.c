@@ -935,7 +935,7 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 
 					matched_val_len = ndn_len-macro_suffix_len-
 										ndn_prefix_end;
-					if (ndn[ndn_len - macro_suffix_len] == ',')
+					if (ndn[ndn_len - macro_suffix_len - 1] == ',')
 						matched_val_len -= 1;
 					
 					matched_val = (char *)slapi_ch_malloc(matched_val_len + 1);
