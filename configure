@@ -763,6 +763,10 @@ enable_pam_passthru_FALSE
 enable_pam_passthru_TRUE
 BUNDLE_FALSE
 BUNDLE_TRUE
+gccsec_defs
+RPM_HARDEND_CC_FALSE
+RPM_HARDEND_CC_TRUE
+asan_defs
 debug_defs
 LIBOBJS
 CXXCPP
@@ -909,6 +913,8 @@ with_gnu_ld
 with_sysroot
 enable_libtool_lock
 enable_debug
+enable_asan
+enable_gcc_security
 enable_bundle
 enable_pam_passthru
 enable_dna
@@ -1619,6 +1625,8 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --enable-debug          Enable debug features (default: no)
+  --enable-asan           Enable gcc address sanitizer options (default: no)
+  --enable-gcc-security   Enable gcc secure compilation options (default: no)
   --enable-bundle         Enable bundled dependencies (default: no)
   --enable-pam-passthru   enable the PAM passthrough auth plugin (default:
                           yes)
@@ -17677,13 +17685,64 @@ if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-  debug_defs="-DDEBUG -DMCC_DEBUG"
+  debug_defs="-g3 -DDEBUG -DMCC_DEBUG"
 
 else
 
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
   debug_defs=""
+
+fi
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-asan" >&5
+$as_echo_n "checking for --enable-asan... " >&6; }
+# Check whether --enable-asan was given.
+if test "${enable_asan+set}" = set; then :
+  enableval=$enable_asan;
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  asan_defs="-fsanitize=address -fno-omit-frame-pointer"
+
+else
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  asan_defs=""
+
+fi
+
+
+
+ if test -f /usr/lib/rpm/redhat/redhat-hardened-cc1; then
+  RPM_HARDEND_CC_TRUE=
+  RPM_HARDEND_CC_FALSE='#'
+else
+  RPM_HARDEND_CC_TRUE='#'
+  RPM_HARDEND_CC_FALSE=
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-gcc-security" >&5
+$as_echo_n "checking for --enable-gcc-security... " >&6; }
+# Check whether --enable-gcc-security was given.
+if test "${enable_gcc_security+set}" = set; then :
+  enableval=$enable_gcc_security;
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  if test -z "$RPM_HARDEND_CC_TRUE"; then :
+   gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 "
+else
+   gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches"
+
+fi
+
+else
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  gccsec_defs=""
 
 fi
 
@@ -21558,6 +21617,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCCAS_TRUE}" && test -z "${am__fastdepCCAS_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCCAS\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${RPM_HARDEND_CC_TRUE}" && test -z "${RPM_HARDEND_CC_FALSE}"; then
+  as_fn_error $? "conditional \"RPM_HARDEND_CC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUNDLE_TRUE}" && test -z "${BUNDLE_FALSE}"; then

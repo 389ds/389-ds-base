@@ -11,6 +11,8 @@ QUOTE := $(NULLSTRING)"# a double quote"
 BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
+GCCSEC_DEFINES = @gccsec_defs@
+ASAN_DEFINES = @asan_defs@
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
@@ -38,13 +40,14 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
 	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
 
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
 # We need to make sure that libpthread is linked before libc on HP-UX.
 if HPUX
 AM_LDFLAGS = -lpthread
-#else
+else
 #AM_LDFLAGS = -Wl,-z,defs
+AM_LDFLAGS = $(ASAN_DEFINES)
 endif
 
 #------------------------

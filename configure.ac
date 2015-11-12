@@ -69,13 +69,41 @@ AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  debug_defs="-DDEBUG -DMCC_DEBUG"
+  debug_defs="-g3 -DDEBUG -DMCC_DEBUG"
 ],
 [
   AC_MSG_RESULT(no)
   debug_defs=""
 ])
 AC_SUBST([debug_defs])
+
+AC_MSG_CHECKING(for --enable-asan)
+AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitizer options (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  asan_defs="-fsanitize=address -fno-omit-frame-pointer"
+],
+[
+  AC_MSG_RESULT(no)
+  asan_defs=""
+])
+AC_SUBST([asan_defs])
+
+AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
+AC_MSG_CHECKING(for --enable-gcc-security)
+AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc secure compilation options (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  AM_COND_IF([RPM_HARDEND_CC],
+  [ gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 " ],
+  [ gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches" ]
+  )
+],
+[
+  AC_MSG_RESULT(no)
+  gccsec_defs=""
+])
+AC_SUBST([gccsec_defs])
 
 # Used for legacy style packaging where we bundle all of the dependencies.
 AC_MSG_CHECKING(for --enable-bundle)
