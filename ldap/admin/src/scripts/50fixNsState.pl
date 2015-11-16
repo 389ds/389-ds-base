@@ -4,7 +4,7 @@ use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(:constant ldap_url_parse ldap_explode_dn);
 use DSUtil qw(debug);
 use Config;
-use bigint;
+use Math::BigInt;
 
 # # Determine the endianness of your system
 my $packfmt32 = "VVA6vCx3"; # must be 20 bytes
