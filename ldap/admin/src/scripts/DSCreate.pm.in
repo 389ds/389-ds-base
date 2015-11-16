@@ -18,6 +18,7 @@ package DSCreate;
 use DSUtil;
 use Inf;
 use FileConn;
+use Config;
 
 use Sys::Hostname;
 # tempfiles
@@ -836,7 +837,7 @@ sub setDefaults {
     }
 
     if (!defined($inf->{slapd}->{sasl_path})) {
-        if ($ ne "linux") {
+        if ($Config{'osname'} ne "linux") {
             $inf->{slapd}->{sasl_path} = "$inf->{General}->{prefix}@libdir@/sasl2";
         }
     }
