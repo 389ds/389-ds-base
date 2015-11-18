@@ -34,6 +34,8 @@ plus_all_dcount = 0
 plus_all_ecount_noweak = 0
 plus_all_dcount_noweak = 0
 
+nss_version = ''
+NSS320 = '3.20.0'
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -88,12 +90,16 @@ def _header(topology, label):
     topology.standalone.log.info("###############################################")
 
 
-def test_ticket47838_init(topology):
+def _47838_init(topology):
     """
     Generate self signed cert and import it to the DS cert db.
     Enable SSL
     """
     _header(topology, 'Testing Ticket 47838 - harden the list of ciphers available by default')
+
+    onss_version = os.popen("rpm -q nss | awk -F'-' '{print $2}'", "r")
+    global nss_version
+    nss_version = onss_version.readline()
 
     conf_dir = topology.standalone.confdir
 
@@ -188,7 +194,7 @@ def comp_nsSSLEnableCipherCount(topology, ecount):
     assert ecount == enabledciphercnt
 
 
-def test_ticket47838_run_0(topology):
+def _47838_run_0(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -209,8 +215,13 @@ def test_ticket47838_run_0(topology):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    assert ecount >= 60
-    assert dcount <= 7
+    if nss_version >= NSS320:
+       assert ecount >= 53
+       assert dcount <= 17
+    else:
+       assert ecount >= 60
+       assert dcount <= 7
+
     global plus_all_ecount
     global plus_all_dcount
     plus_all_ecount = ecount
@@ -223,7 +234,7 @@ def test_ticket47838_run_0(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_1(topology):
+def _47838_run_1(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -265,7 +276,7 @@ def test_ticket47838_run_1(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_2(topology):
+def _47838_run_2(topology):
     """
     Check nsSSL3Ciphers: +rsa_aes_128_sha,+rsa_aes_256_sha
     rsa_aes_128_sha, tls_rsa_aes_128_sha, rsa_aes_256_sha, tls_rsa_aes_256_sha are enabled.
@@ -297,7 +308,7 @@ def test_ticket47838_run_2(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_3(topology):
+def _47838_run_3(topology):
     """
     Check nsSSL3Ciphers: -all
     All ciphers are disabled.
@@ -328,7 +339,7 @@ def test_ticket47838_run_3(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_4(topology):
+def _47838_run_4(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -354,7 +365,7 @@ def test_ticket47838_run_4(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 12
+    assert ecount == 20
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -364,7 +375,7 @@ def test_ticket47838_run_4(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_5(topology):
+def _47838_run_5(topology):
     """
     Check nsSSL3Ciphers: default
     Default ciphers are enabled.
@@ -390,7 +401,10 @@ def test_ticket47838_run_5(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 12
+    if nss_version >= NSS320:
+        assert ecount == 20
+    else:
+        assert ecount == 12
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -400,7 +414,7 @@ def test_ticket47838_run_5(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_6(topology):
+def _47838_run_6(topology):
     """
     Check nsSSL3Ciphers: +all,-rsa_rc4_128_md5
     All ciphers are disabled.
@@ -434,7 +448,7 @@ def test_ticket47838_run_6(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_7(topology):
+def _47838_run_7(topology):
     """
     Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5
     All ciphers are disabled.
@@ -466,7 +480,7 @@ def test_ticket47838_run_7(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_8(topology):
+def _47838_run_8(topology):
     """
     Check nsSSL3Ciphers: default + allowWeakCipher: off
     Strong Default ciphers are enabled.
@@ -492,7 +506,10 @@ def test_ticket47838_run_8(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 12
+    if nss_version >= NSS320:
+       assert ecount == 20
+    else:
+       assert ecount == 12
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -502,7 +519,7 @@ def test_ticket47838_run_8(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_9(topology):
+def _47838_run_9(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -529,17 +546,23 @@ def test_ticket47838_run_9(topology):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    assert ecount == 23
+    if nss_version >= NSS320:
+        assert ecount == 27
+    else:
+        assert ecount == 23
     assert dcount == 0
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
     log.info("Weak ciphers in the default setting: %d" % wcount)
-    assert wcount == 11
+    if nss_version >= NSS320:
+        assert wcount == 7
+    else:
+        assert wcount == 11
 
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_10(topology):
+def _47838_run_10(topology):
     """
     Check nsSSL3Ciphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
         +TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
@@ -573,7 +596,10 @@ def test_ticket47838_run_10(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 9
+    if nss_version >= NSS320:
+        assert ecount == 5
+    else:
+        assert ecount == 9
     assert dcount == 0
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -584,7 +610,7 @@ def test_ticket47838_run_10(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def test_ticket47838_run_11(topology):
+def _47838_run_11(topology):
     """
     Check nsSSL3Ciphers: +fortezza
     SSL_GetImplementedCiphers does not return this as a secuire cipher suite
@@ -611,7 +637,7 @@ def test_ticket47838_run_11(topology):
     comp_nsSSLEnableCipherCount(topology, 0)
 
 
-def test_ticket47928_run_0(topology):
+def _47928_run_0(topology):
     """
     No SSL version config parameters.
     Check SSL3 (TLS1.0) is off.
@@ -645,7 +671,7 @@ def test_ticket47928_run_0(topology):
         assert False
 
 
-def test_ticket47928_run_1(topology):
+def _47928_run_1(topology):
     """
     No nsSSL3, nsTLS1; sslVersionMin > sslVersionMax
     Check sslVersionMax is ignored.
@@ -679,7 +705,7 @@ def test_ticket47928_run_1(topology):
         assert False
 
 
-def test_ticket47928_run_2(topology):
+def _47928_run_2(topology):
     """
     nsSSL3: on; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2
     Conflict between nsSSL3 and range; nsSSL3 is disabled
@@ -722,7 +748,7 @@ def test_ticket47928_run_2(topology):
         assert False
 
 
-def test_ticket47928_run_3(topology):
+def _47928_run_3(topology):
     """
     nsSSL3: on; nsTLS1: off; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2
     Conflict between nsSSL3/nsTLS1 and range; nsSSL3 is disabled; nsTLS1 is enabled.
@@ -766,7 +792,7 @@ def test_ticket47928_run_3(topology):
         assert False
 
 
-def test_ticket47838_run_last(topology):
+def _47838_run_last(topology):
     """
     Check nsSSL3Ciphers: all <== invalid value
     All ciphers are disabled.
@@ -796,12 +822,12 @@ def test_ticket47838_run_last(topology):
     topology.standalone.log.info("ticket47838, 47880, 47908, 47928 were successfully verified.")
 
 
-def test_ticket47838_final(topology):
+def _47838_final(topology):
     topology.standalone.delete()
     log.info('Testcase PASSED')
 
 
-def run_isolated():
+def test_ticket47838(topology):
     '''
         run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
         To run isolated without py.test, you need to
@@ -812,30 +838,32 @@ def run_isolated():
     global installation_prefix
     installation_prefix = None
 
-    topo = topology(True)
-    test_ticket47838_init(topo)
+    _47838_init(topology)
 
-    test_ticket47838_run_0(topo)
-    test_ticket47838_run_1(topo)
-    test_ticket47838_run_2(topo)
-    test_ticket47838_run_3(topo)
-    test_ticket47838_run_4(topo)
-    test_ticket47838_run_5(topo)
-    test_ticket47838_run_6(topo)
-    test_ticket47838_run_7(topo)
-    test_ticket47838_run_8(topo)
-    test_ticket47838_run_9(topo)
-    test_ticket47838_run_10(topo)
-    test_ticket47838_run_11(topo)
-    test_ticket47928_run_0(topo)
-    test_ticket47928_run_1(topo)
-    test_ticket47928_run_2(topo)
-    test_ticket47928_run_3(topo)
+    _47838_run_0(topology)
+    _47838_run_1(topology)
+    _47838_run_2(topology)
+    _47838_run_3(topology)
+    _47838_run_4(topology)
+    _47838_run_5(topology)
+    _47838_run_6(topology)
+    _47838_run_7(topology)
+    _47838_run_8(topology)
+    _47838_run_9(topology)
+    _47838_run_10(topology)
+    _47838_run_11(topology)
+    _47928_run_0(topology)
+    _47928_run_1(topology)
+    _47928_run_2(topology)
+    _47928_run_3(topology)
 
-    test_ticket47838_run_last(topo)
+    _47838_run_last(topology)
 
-    test_ticket47838_final(topo)
-
+    _47838_final(topology)
 
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
