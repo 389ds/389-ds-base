@@ -256,6 +256,10 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
     PR_ASSERT(url);
     PR_ASSERT(ludpp);
     int rc;
+    /* This blocks NULL getting to strlen via url_to_use later in the function. */
+    if (url == NULL) {
+        return LDAP_PARAM_ERROR;
+    }
     const char *url_to_use = url;
 #if defined(USE_OPENLDAP)
     char *urlescaped = NULL;
@@ -339,7 +343,13 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
            as the DN (adding a trailing / first if needed) and try to parse
            again
         */
-        char *urlcopy = slapi_ch_smprintf("%s%s%s", url_to_use, (url_to_use[len-1] == '/' ? "" : "/"), "");
+        char *urlcopy;
+        if (len > 0) {
+            urlcopy = slapi_ch_smprintf("%s%s%s", url_to_use, (url_to_use[len-1] == '/' ? "" : "/"), "");
+        } else {
+            /* When len == 0, this is effectively what we create ... */
+            urlcopy = slapi_ch_smprintf("/");
+        }
         if (*ludpp) {
             ldap_free_urldesc(*ludpp); /* free the old one, if any */
         }
