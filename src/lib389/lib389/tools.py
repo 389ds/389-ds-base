@@ -192,10 +192,10 @@ class DirSrvTools(object):
         #fullCmd = instanceDir + "/" + cmd + "-slapd"
         fullCmd = None
         if cmd == 'start':
-            fullCmd = os.path.join(sbinDir, 'start-dirsrv')
+            fullCmd = os.path.join(sbinDir, 'start-dirsrv %s' % self.serverid)
             cmdPat = 'slapd started.'
         else:
-            fullCmd = os.path.join(sbinDir, 'stop-dirsrv')
+            fullCmd = os.path.join(sbinDir, 'stop-dirsrv %s' % self.serverid)
             cmdPat = 'slapd stopped.'
 
         if "USE_GDB" in os.environ or "USE_VALGRIND" in os.environ:
@@ -215,8 +215,8 @@ class DirSrvTools(object):
         pos = logfp.tell()  # get current position
         logfp.seek(pos, os.SEEK_SET)  # reset the EOF flag
 
-        log.warn("Running command: %r %s" % (fullCmd, self.serverid ))
-        rc = os.system(fullCmd)
+        log.warn("Running command: %r" % (fullCmd))
+        rc = os.system("%s" % (fullCmd))
         while not done and int(time.time()) < timeout:
             line = logfp.readline()
             while not done and line:
@@ -229,12 +229,12 @@ class DirSrvTools(object):
                         done = True
                 elif line.find("Initialization Failed") >= 0:
                     # sometimes the server fails to start - try again
-                    rc = os.system("%s %s" % (fullCmd, self.serverid))
+                    rc = os.system("%s %s" % (fullCmd))
                     pos = logfp.tell()
                     break
                 elif line.find("exiting.") >= 0:
                     # possible transient condition - try again
-                    rc = os.system("%s %s" % (fullCmd, self.serverid))
+                    rc = os.system("%s %s" % (fullCmd))
                     pos = logfp.tell()
                     break
                 pos = logfp.tell()
