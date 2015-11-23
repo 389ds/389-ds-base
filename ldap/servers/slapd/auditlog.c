@@ -78,7 +78,7 @@ write_audit_log_entry( Slapi_PBlock *pb )
     curtime = current_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
-    write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, 0);
+    write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS);
 }
 
 void
@@ -129,8 +129,13 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
     curtime = current_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
-    /* If we are combined */
-    write_audit_file(SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc);
+    if (config_get_auditfaillog() == NULL || strlen(config_get_auditfaillog()) == 0) {
+        /* If no auditfail log write to audit log */
+        write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc);
+    } else {
+        /* If we have our own auditfail log path */
+        write_audit_file(SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc);
+    }
 }
 
 
