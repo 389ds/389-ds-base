@@ -10,12 +10,14 @@ Created on Dec 5, 2013
 #
 ####################################
 
+from lib389._constants import *
+
 #
 # Those WITH related attribute name
 #
 SER_HOST       ='hostname'
 SER_PORT       ='ldap-port'
-SER_SECURE_PORT='ldap-secureport'
+SER_SECURE_PORT ='ldap-secureport'
 SER_ROOT_DN    ='root-dn'
 SER_ROOT_PW    ='root-pw'
 SER_USER_ID    ='user-id'
@@ -117,49 +119,140 @@ BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX:        'nsslapd-suffix',
 #
 ####################################
 
-REPLICA_SUFFIX           = 'suffix'
-REPLICA_ID               = 'rid'
-REPLICA_TYPE             = 'type'
-REPLICA_LEGACY_CONS      = 'legacy'
-REPLICA_BINDDN           = 'binddn'
-REPLICA_PURGE_INTERVAL   = 'purge-interval'
-REPLICA_PURGE_DELAY      = 'purge-delay'
-REPLICA_PRECISE_PURGING  = 'precise-purging'
-REPLICA_REFERRAL         = 'referral'
-REPLICA_FLAGS            = 'flags'
 
-REPLICA_OBJECTCLASS_VALUE = 'nsds5Replica'
+#
+# General attributes (for both replica and agmt)
+#
+REPL_RUV = 'nsds50ruv'
+REPL_ROOT = 'nsDS5ReplicaRoot'
+REPL_PROTOCOL_TIMEOUT = 'nsds5ReplicaProtocolTimeout'
+REPL_BINDDN = 'nsDS5ReplicaBindDN'
+REPL_REAP_ACTIVE = 'nsds5ReplicaReapActive'
+
+#
+# Replica Entry Attributes
+#
+REPL_PURGE_DELAY = 'nsds5ReplicaPurgeDelay'
+REPL_RETRY_MIN = 'nsds5ReplicaBackoffMin'
+REPL_RETRY_MAX = 'nsds5ReplicaBackoffMax'
+REPL_TYPE = 'nsDS5ReplicaType'
+REPL_FLAGS = 'nsDS5Flags'
+REPL_ID = 'nsDS5ReplicaId'
+REPL_STATE = 'nsState'
+REPL_NAME = 'nsDS5ReplicaName'
+REPL_BIND_GROUP = 'nsds5replicabinddngroup'
+REPL_BIND_GROUP_INTERVAL = 'nsds5replicabinddngroupcheckinterval'
+REPL_REF = 'nsds5ReplicaReferral'
+REPL_TOMBSTONE_PURGE_INTERVAL = 'nsds5ReplicaTombstonePurgeInterval'
+REPL_LEGACY_CONS = 'nsds5ReplicaLegacyConsumer'
+REPL_CLEAN_RUV = 'nsds5ReplicaCleanRUV'
+REPL_ABORT_RUV = 'nsds5ReplicaAbortCleanRUV'
+REPL_COUNT_COUNT = 'nsds5ReplicaChangeCount'
+REPL_PRECISE_PURGE = 'nsds5ReplicaPreciseTombstonePurging'
+
+# The values are from the REST API
+REPLICA_SUFFIX = 'suffix'
+REPLICA_LEGACY_CONS = 'ReplicaLegacyConsumer'
+REPLICA_PURGE_DELAY = 'ReplicaPurgeDelay'
+REPLICA_ROOT = 'ReplicaRoot'
+REPLICA_PROTOCOL_TIMEOUT = 'ReplicaProtocolTimeout'
+REPLICA_BINDDN = 'ReplicaBindDN'
+REPLICA_REAP_ACTIVE = 'ReplicaReapActive'
+REPLICA_RETRY_MIN = 'ReplicaBackoffMin'
+REPLICA_RETRY_MAX = 'ReplicaBackoffMax'
+REPLICA_TYPE = 'ReplicaType'
+REPLICA_FLAGS = 'ReplicaFlags'
+REPLICA_ID = 'Replicaid'
+REPLICA_STATE = 'ReplicaState'
+REPLICA_NAME = 'ReplicaName'
+REPLICA_BIND_GROUP = 'ReplicaBindDNGroup'
+REPLICA_BIND_GROUP_INTERVAL = 'ReplicaBindDNGroupCheckInterval'
+REPLICA_REFERRAL = 'ReplicaReferral'
+REPLICA_TOMBSTONE_PURGE_INTERVAL = 'ReplicaTombstonePurgeInterval'
+REPLICA_PURGE_INTERVAL = REPLICA_TOMBSTONE_PURGE_INTERVAL
+REPLICA_CLEAN_RUV = 'ReplicaCleanRUV'
+REPLICA_ABORT_RUV = 'ReplicaAbortCleanRUV'
+REPLICA_COUNT_COUNT = 'ReplicaChangeCount'
+REPLICA_PRECISE_PURGING = 'ReplicaPreciseTombstonePurging'
 
 REPLICA_PROPNAME_TO_ATTRNAME = {
-                                REPLICA_SUFFIX:           'nsds5replicaroot',
-                                REPLICA_ID:               'nsds5replicaid',
-                                REPLICA_TYPE:             'nsds5replicatype',
-                                REPLICA_LEGACY_CONS:      'nsds5replicalegacyconsumer',
-                                REPLICA_BINDDN:           'nsds5replicabinddn',
-                                REPLICA_PURGE_INTERVAL:   'nsds5replicatombstonepurgeinterval',
-                                REPLICA_PURGE_DELAY:      'nsds5ReplicaPurgeDelay',
-                                REPLICA_PRECISE_PURGING:  'nsds5ReplicaPreciseTombstonePurging',
-                                REPLICA_REFERRAL:         'nsds5ReplicaReferral',
-                                REPLICA_FLAGS:            'nsds5flags'}
+                                REPLICA_SUFFIX: REPL_ROOT,
+                                REPLICA_ROOT: REPL_ROOT,
+                                REPLICA_ID: REPL_ID,
+                                REPLICA_TYPE: REPL_TYPE,
+                                REPLICA_LEGACY_CONS: REPL_LEGACY_CONS,
+                                REPLICA_PURGE_INTERVAL:
+                                    REPL_TOMBSTONE_PURGE_INTERVAL,
+                                REPLICA_PURGE_DELAY: REPL_PURGE_DELAY,
+                                REPLICA_REFERRAL: REPL_REF,
+                                REPLICA_PROTOCOL_TIMEOUT:
+                                    REPL_PROTOCOL_TIMEOUT,
+                                REPLICA_BINDDN: REPL_BINDDN,
+                                REPLICA_REAP_ACTIVE: REPL_REAP_ACTIVE,
+                                REPLICA_RETRY_MIN: REPL_RETRY_MIN,
+                                REPLICA_RETRY_MAX: REPL_RETRY_MAX,
+                                REPLICA_FLAGS: REPL_FLAGS,
+                                REPLICA_STATE: REPL_STATE,
+                                REPLICA_NAME: REPL_NAME,
+                                REPLICA_BIND_GROUP: REPL_BIND_GROUP,
+                                REPLICA_BIND_GROUP_INTERVAL:
+                                    REPL_BIND_GROUP_INTERVAL,
+                                REPLICA_TOMBSTONE_PURGE_INTERVAL:
+                                    REPL_TOMBSTONE_PURGE_INTERVAL,
+                                REPLICA_CLEAN_RUV: REPL_CLEAN_RUV,
+                                REPLICA_ABORT_RUV: REPL_ABORT_RUV,
+                                REPLICA_COUNT_COUNT: REPL_COUNT_COUNT,
+                                REPLICA_PRECISE_PURGING: REPL_PRECISE_PURGE}
 
 ####################################
 #
 # Properties of a changelog
 #
 ####################################
-CHANGELOG_NAME          = 'cl-name'
-CHANGELOG_DIR           = 'cl-dir'
-CHANGELOG_MAXAGE        = 'cl-maxage'
-CHANGELOG_MAXENTRIES    = 'cl-maxentries'
-CHANGELOG_TRIM_INTERVAL = 'cl-trim-interval'
-CHANGELOG_COMPACT_INTV  = 'cl-compact-interval'
 
-CHANGELOG_PROPNAME_TO_ATTRNAME = {CHANGELOG_NAME:          'cn',
-                                  CHANGELOG_DIR:           'nsslapd-changelogdir',
-                                  CHANGELOG_MAXAGE:        'nsslapd-changelogmaxage',
-                                  CHANGELOG_MAXENTRIES:    'nsslapd-changelogmaxentries',
-                                  CHANGELOG_TRIM_INTERVAL: 'nsslapd-changelogtrim-interval',
-                                  CHANGELOG_COMPACT_INTV:  'nsslapd-changelogcompactdb-interval',}
+
+#
+# Changelog Attributes
+#
+CL_DIR = 'nsslapd-changelogdir'
+CL_MAX_ENTRIES = 'nsslapd-changelogmaxentries'
+CL_MAXAGE = 'nsslapd-changelogmaxage'
+CL_COMPACT_INTERVAL = 'nsslapd-changelogcompactdb-interval'
+CL_TRIM_INTERVAL = 'nsslapd-changelogtrim-interval'
+CL_CONCURRENT_WRITES = 'nsslapd-changelogmaxconcurrentwrites'
+CL_ENCRYPT_ALG = 'nsslapd-encryptionalgorithm'
+CL_SYM_KEY = 'nsSymmetricKey'
+
+# REST names
+CHANGELOG_NAME = 'cl-name'
+CHANGELOG_DIR = 'ChangelogDir'
+CHANGELOG_MAXAGE = 'ChangelogMaxAge'
+CHANGELOG_MAXENTRIES = 'ChangelogMaxEntries'
+CHANGELOG_TRIM_INTERVAL = 'ChangelogTrimInterval'
+CHANGELOG_COMPACT_INTV = 'ChangelogCompactDBInterval'
+CHANGELOG_CONCURRENT_WRITES = 'ChangelogMaxConcurrentWrites'
+CHANGELOG_ENCRYPT_ALG = 'ChangelogEncryptionAlgorithm'
+CHANGELOG_SYM_KEY = 'ChangelogSymmetricKey'
+
+CL_DIR = 'nsslapd-changelogdir'
+CL_MAX_ENTRIES = 'nsslapd-changelogmaxentries'
+CL_MAXAGE = 'nsslapd-changelogmaxage'
+CL_COMPACT_INTERVAL = 'nsslapd-changelogcompactdb-interval'
+CL_TRIM_INTERVAL = 'nsslapd-changelogtrim-interval'
+CL_CONCURRENT_WRITES = 'nsslapd-changelogmaxconcurrentwrites'
+CL_ENCRYPT_ALG = 'nsslapd-encryptionalgorithm'
+CL_SYM_KEY = 'nsSymmetricKey'
+
+CHANGELOG_PROPNAME_TO_ATTRNAME = {CHANGELOG_NAME: 'cn',
+                                  CHANGELOG_DIR: CL_DIR,
+                                  CHANGELOG_MAXAGE: CL_MAXAGE,
+                                  CHANGELOG_MAXENTRIES: CL_MAX_ENTRIES,
+                                  CHANGELOG_TRIM_INTERVAL: CL_TRIM_INTERVAL,
+                                  CHANGELOG_COMPACT_INTV: CL_COMPACT_INTERVAL,
+                                  CHANGELOG_CONCURRENT_WRITES:
+                                      CL_CONCURRENT_WRITES,
+                                  CHANGELOG_ENCRYPT_ALG: CL_ENCRYPT_ALG,
+                                  CHANGELOG_SYM_KEY: CL_SYM_KEY}
 
 ####################################
 #
@@ -175,8 +268,11 @@ ENTRY_TYPE_GROUP      = 'group'
 ENTRY_USERPASSWORD    = 'userpassword'
 ENTRY_UID             = 'uid'
 
-ENTRY_TYPE_TO_OBJECTCLASS = {ENTRY_TYPE_PERSON:     ["top", "person"],
-                             ENTRY_TYPE_INETPERSON: ["top", "person", "inetOrgPerson"]}
+ENTRY_TYPE_TO_OBJECTCLASS = {ENTRY_TYPE_PERSON: ["top",
+                                                 "person"],
+                             ENTRY_TYPE_INETPERSON: ["top",
+                                                     "person",
+                                                     "inetOrgPerson"]}
 
 ####################################
 #
@@ -184,42 +280,117 @@ ENTRY_TYPE_TO_OBJECTCLASS = {ENTRY_TYPE_PERSON:     ["top", "person"],
 #
 ####################################
 
-RA_NAME                 = 'name'
-RA_SUFFIX               = 'suffix'
-RA_BINDDN               = 'binddn'
-RA_BINDPW               = 'bindpw'
-RA_METHOD               = 'method'
-RA_DESCRIPTION          = 'description'
-RA_SCHEDULE             = 'schedule'
-RA_TRANSPORT_PROT       = 'transport-prot'
-RA_FRAC_EXCLUDE         = 'fractional-exclude-attrs-inc'
-RA_FRAC_EXCLUDE_TOTAL_UPDATE ='fractional-exclude-attrs-total'
-RA_FRAC_STRIP           = 'fractional-strip-attrs'
-RA_CONSUMER_PORT        = 'consumer-port'
-RA_CONSUMER_HOST        = 'consumer-host'
-RA_CONSUMER_TOTAL_INIT  = 'consumer-total-init'
-RA_TIMEOUT              = 'timeout'
-RA_CHANGES              = 'changes'
+#
+# Repl Agreement Attributes
+#
+AGMT_BIND_METHOD = 'nsDS5ReplicaBindMethod'
+AGMT_HOST = 'nsDS5ReplicaHost'
+AGMT_PORT = 'nsDS5ReplicaPort'
+AGMT_TRANSPORT_INFO = 'nsDS5ReplicaTransportInfo'
+AGMT_ATTR_LIST = 'nsDS5ReplicatedAttributeList'
+AGMT_ATTR_LIST_TOTAL = 'nsDS5ReplicatedAttributeListTotal'
+AGMT_TIMEOUT = 'nsds5replicaTimeout'
+AGMT_CRED = 'nsDS5ReplicaCredentials'
+AGMT_REFRESH = 'nsds5BeginReplicaRefresh'
+AGMT_SCHEDULE = 'nsds5ReplicaUpdateSchedule'
+AGMT_BUSY_WAIT_TIME = 'nsds5ReplicaBusyWaitTime'
+AGMT_SESSION_PAUSE_TIME = 'nsds5ReplicaSessionPauseTime'
+AGMT_ENABLED = 'nsds5ReplicaEnabled'
+AGMT_STRIP_ATTRS = 'nsds5ReplicaStripAttrs'
+AGMT_FLOW_WINDOW = 'nsds5ReplicaFlowControlWindow'
+AGMT_FLOW_PAUSE = 'nsds5ReplicaFlowControlPause'
+AGMT_MAXCSN = 'nsds5AgmtMaxCSN'
+AGMT_UPDATE_START = 'nsds5replicaLastUpdateStart'
+AGMT_UPDATE_END = 'nsds5replicaLastUpdateEnd'
+AGMT_CHANGES_SINCE_STARTUP = 'nsds5replicaChangesSentSinceStartup'  # base64
+AGMT_UPDATE_STATUS = 'nsds5replicaLastUpdateStatus'
+AGMT_UPDATE_IN_PROGRESS = 'nsds5replicaUpdateInProgress'
+AGMT_INIT_START = 'nsds5replicaLastInitStart'
+AGMT_INIT_END = 'nsds5replicaLastInitEnd'
+AGMT_INIT_STATUS = 'nsds5replicaLastInitStatus'
 
+#
+# WinSync Agreement Attributes
+#
+AGMT_WINSYNC_SUBTREE = 'nsds7WindowsReplicaSubtree'
+AGMT_WINSYNC_REPLICA_SUBTREE = 'nsds7DirectoryReplicaSubtree'
+AGMT_WINSYNC_NEW_USERSYNC = 'nsds7NewWinUserSyncEnabled'
+AGMT_WINSYNC_NEW_GROUP_SYNC = 'nsds7NewWinGroupSyncEnabled'
+AGMT_WINSYNC_DOMAIN = 'nsds7WindowsDomain'
+AGMT_WINSYNC_COOKIE = 'nsds7DirsyncCookie'
+AGMT_WINSYNC_INTERVAL = 'winSyncInterval'
+AGMT_WINSYNC_ONE_WAY_SYNC = 'oneWaySync'
+AGMT_WINSYNC_MOVE_ACTION = 'winSyncMoveAction'
+AGMT_WINSYNC_WIN_FILTER = 'winSyncWindowsFilter'
+AGMT_WINSYNC_DIR_FILTER = 'winSyncDirectoryFilter'
+AGMT_WINSYNC_SUBTREE_PAIR = 'winSyncSubtreePair'
+
+RA_NAME = 'ReplicaName'
+RA_SUFFIX = 'ReplicaRoot'
+RA_BINDDN = 'ReplicaBindDN'
+RA_BINDPW = 'ReplicaBindCredentials'
+RA_METHOD = 'ReplicaBindMethod'
+RA_DESCRIPTION = 'description'
+RA_SCHEDULE = 'ReplicaSchedule'
+RA_TRANSPORT_PROT = 'ReplicaTransportInfo'
+RA_FRAC_EXCLUDE = 'ReplicatedAttributeList'
+RA_FRAC_EXCLUDE_TOTAL_UPDATE = 'ReplicatedAttributeListTotal'
+RA_FRAC_STRIP = 'ReplicaStripAttrs'
+RA_CONSUMER_PORT = 'ReplicaPort'
+RA_CONSUMER_HOST = 'ReplicaHost'
+RA_CONSUMER_TOTAL_INIT = 'ReplicaBeginRefresh'
+RA_TIMEOUT = 'ReplicaConnTimeout'
+RA_CHANGES = 'ReplicaChangesSentSinceStartup'
+RA_BUSY_WAIT = 'ReplicaBusyWaitTime'
+RA_PAUSE_TIME = 'ReplicaSessionPauseTime'
+RA_ENABLED = 'ReplicaEnabled'
+RA_FLOW_WINDOW = 'ReplicaFlowControlWindow'
+RA_FLOW_PAUSE = 'ReplicaFlowControlPause'
+RA_RUV = 'ReplicaRUV'
+RA_MAXCSN = 'ReplicaMaxCSN'
+RA_LAST_UPDATE_START = 'ReplicaLastUpdateStart'
+RA_LAST_UPDATE_END = 'ReplicaLastUpdateEnd'
+RA_LAST_UPDATE_STATUS = 'ReplicaLastUpdateStatus'
+RA_UPDATE_IN_PROGRESS = 'ReplicaUpdateInProgress'
+RA_LAST_INIT_START = 'ReplicaLastInitStart'
+RA_LAST_INIT_END = 'ReplicaLastInitEnd'
+RA_LAST_INIT_STATUS = 'ReplicaLastInitStatus'
+
+REPLICA_OBJECTCLASS_VALUE = 'nsds5Replica'
 RA_OBJECTCLASS_VALUE = "nsds5replicationagreement"
 RA_WINDOWS_OBJECTCLASS_VALUE = "nsDSWindowsReplicationAgreement"
 
-RA_PROPNAME_TO_ATTRNAME = {RA_NAME:                 'cn',
-                           RA_SUFFIX:               'nsds5replicaroot',
-                           RA_BINDDN:               'nsds5replicabinddn',
-                           RA_BINDPW:               'nsds5replicacredentials',
-                           RA_METHOD:               'nsds5replicabindmethod',
-                           RA_DESCRIPTION:          'description',
-                           RA_SCHEDULE:             'nsds5replicaupdateschedule',
-                           RA_TRANSPORT_PROT:       'nsds5replicatransportinfo',
-                           RA_FRAC_EXCLUDE:         'nsDS5ReplicatedAttributeList',
-                           RA_FRAC_EXCLUDE_TOTAL_UPDATE:'nsDS5ReplicatedAttributeListTotal',
-                           RA_FRAC_STRIP:           'nsds5ReplicaStripAttrs',
-                           RA_CONSUMER_PORT:        'nsds5replicaport',
-                           RA_CONSUMER_HOST:        'nsds5ReplicaHost',
-                           RA_CONSUMER_TOTAL_INIT:  'nsds5BeginReplicaRefresh',
-                           RA_TIMEOUT:              'nsds5replicatimeout',
-                           RA_CHANGES:              'nsds5replicaChangesSentSinceStartup'}
+RA_PROPNAME_TO_ATTRNAME = {RA_NAME: 'cn',
+                           RA_SUFFIX: REPL_ROOT,
+                           RA_BINDDN: REPL_BINDDN,
+                           RA_BINDPW: AGMT_CRED,
+                           RA_METHOD: AGMT_BIND_METHOD,
+                           RA_DESCRIPTION: 'description',
+                           RA_SCHEDULE: AGMT_SCHEDULE,
+                           RA_TRANSPORT_PROT: AGMT_TRANSPORT_INFO,
+                           RA_FRAC_EXCLUDE: AGMT_ATTR_LIST,
+                           RA_FRAC_EXCLUDE_TOTAL_UPDATE: AGMT_ATTR_LIST_TOTAL,
+                           RA_FRAC_STRIP: AGMT_STRIP_ATTRS,
+                           RA_CONSUMER_PORT: AGMT_PORT,
+                           RA_CONSUMER_HOST: AGMT_HOST,
+                           RA_CONSUMER_TOTAL_INIT: AGMT_REFRESH,
+                           RA_TIMEOUT: AGMT_TIMEOUT,
+                           RA_CHANGES: AGMT_CHANGES_SINCE_STARTUP,
+                           RA_BUSY_WAIT: AGMT_BUSY_WAIT_TIME,
+                           RA_PAUSE_TIME: AGMT_SESSION_PAUSE_TIME,
+                           RA_ENABLED: AGMT_ENABLED,
+                           RA_FLOW_WINDOW: AGMT_FLOW_WINDOW,
+                           RA_FLOW_PAUSE: AGMT_FLOW_PAUSE,
+                           RA_RUV: REPL_RUV,
+                           RA_MAXCSN: AGMT_MAXCSN,
+                           RA_LAST_UPDATE_START: AGMT_UPDATE_START,
+                           RA_LAST_UPDATE_END: AGMT_UPDATE_END,
+                           RA_LAST_UPDATE_STATUS: AGMT_UPDATE_STATUS,
+                           RA_UPDATE_IN_PROGRESS: AGMT_UPDATE_IN_PROGRESS,
+                           RA_LAST_INIT_START: AGMT_INIT_START,
+                           RA_LAST_INIT_END: AGMT_INIT_END,
+                           RA_LAST_INIT_STATUS: AGMT_INIT_STATUS,
+                           REPLICA_REAP_ACTIVE: REPL_REAP_ACTIVE}
 
 ####################################
 #
@@ -281,8 +452,8 @@ def rawProperty(prop):
 def inProperties(prop, properties):
     '''
         Return True if 'prop' is in the 'properties' dictionary
-        Properties in 'properties' does NOT contain a heading '+'/'-', but 'prop'
-        may contain heading '+'/'-'
+        Properties in 'properties' does NOT contain a heading '+'/'-',
+         but 'prop' may contain heading '+'/'-'
         @param prop - string of a property name
         @param properties - dictionary of properties.
 

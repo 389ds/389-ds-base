@@ -93,7 +93,7 @@ def test_create(topology):
     """
 
     topology.master.log.info("\n\n#########################\n### CREATE\n#########################\n")
-    properties = {RA_NAME: r'meTo_$host:$port',
+    properties = {RA_NAME: ('meTo_%s:%d' % (topology.consumer.host, topology.consumer.port)),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
@@ -124,7 +124,7 @@ def test_create(topology):
 
     # Check that with an invalid suffix it raises NoSuchEntryError
     with pytest.raises(NoSuchEntryError):
-        properties = {RA_NAME: r'meAgainTo_$host:$port'}
+        properties = {RA_NAME: r'meAgainTo_%s:%d' % (topology.consumer.host, topology.consumer.port)}
         topology.master.agreement.create(suffix="ou=dummy",
                                          host=topology.consumer.host,
                                          port=topology.consumer.port,
@@ -147,7 +147,7 @@ def test_list(topology):
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == str(topology.consumer.port)
 
     # Create a second RA to check .list returns 2 RA
-    properties = {RA_NAME: r'meTo_$host:$port',
+    properties = {RA_NAME: r'meTo_%s:%d' % (topology.consumer.host, 12345),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],

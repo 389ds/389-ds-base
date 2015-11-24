@@ -13,20 +13,28 @@ REPLICAROLE_MASTER    = "master"
 REPLICAROLE_HUB       = "hub"
 REPLICAROLE_CONSUMER  = "consumer"
 
+REPLICA_FLAGS_CON = 0
+
 CONSUMER_REPLICAID = 65535
 
 REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
 REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
 REPLICA_RDWR_TYPE   = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
 
+REPLICA_FLAGS_RDONLY = '0'
+REPLICA_FLAGS_WRITE = '1'
+
+REPLICA_TYPE_MASTER = '3'
+REPLICA_TYPE_HUBCON = '2'
+
 REPLICA_RUV_UUID        = "ffffffff-ffffffff-ffffffff-ffffffff"
 REPLICA_RUV_FILTER      = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
 REPLICA_OC_TOMBSTONE    = "nsTombstone"
-REPLICATION_BIND_DN     = 'replication_bind_dn'
-REPLICATION_BIND_PW     = 'replication_bind_pw'
-REPLICATION_BIND_METHOD = 'replication_bind_method'
-REPLICATION_TRANSPORT   = 'replication_transport'
-REPLICATION_TIMEOUT     = 'replication_timeout'
+REPLICATION_BIND_DN     = RA_BINDDN
+REPLICATION_BIND_PW     = RA_BINDPW
+REPLICATION_BIND_METHOD = RA_METHOD
+REPLICATION_TRANSPORT   = RA_TRANSPORT_PROT
+REPLICATION_TIMEOUT     = RA_TIMEOUT
 
 TRANS_STARTTLS  = "starttls"
 TRANS_SECURE    = "secure"
@@ -437,7 +445,6 @@ args_instance = {
                    SER_HOST: LOCALHOST,
                    SER_PORT: DEFAULT_PORT,
                    SER_SERVERID_PROP: "template",
-                   SER_REALM: None,
                    SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
 
 # Helper for linking dse.ldif values to the parse_config function

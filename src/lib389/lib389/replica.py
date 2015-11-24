@@ -14,6 +14,9 @@ from lib389._replication import RUV
 from lib389.properties import *
 from lib389.utils import normalizeDN, escapeDNValue
 
+ROLE_ORDER = {'master': 3, 'hub': 2, 'consumer': 1}
+ROLE_TO_NAME = {3: 'master', 2: 'hub', 1: 'consumer'}
+
 
 class Replica(object):
     proxied_methods = 'search_s getEntry'.split()
@@ -172,7 +175,6 @@ class Replica(object):
                 REPLICA_TYPE
                 REPLICA_LEGACY_CONS
                 REPLICA_BINDDN
-                REPLICA_PURGE_INTERVAL
                 REPLICA_PURGE_DELAY
                 REPLICA_PRECISE_PURGING
                 REPLICA_REFERRAL
@@ -184,7 +186,6 @@ class Replica(object):
                     ValueError: if invalid replica_entry
                     ValueError: if replica_dn or suffix are not associated to
                                 a replica
-                    InvalidArgumentError: If missing mandatory parameter
 
         '''
 
@@ -265,14 +266,13 @@ class Replica(object):
                             REPLICAROLE_CONSUMER), rid value is not used.  This
                             parameter is mandatory for supplier.
 
-            @param args   - dictionnary of initial replica's properties
+            @param args   - dictionary of initial replica's properties
                 Supported properties are:
                     REPLICA_SUFFIX
                     REPLICA_ID
                     REPLICA_TYPE
                     REPLICA_LEGACY_CONS ['off']
                     REPLICA_BINDDN [defaultProperties[REPLICATION_BIND_DN]]
-                    REPLICA_PURGE_INTERVAL
                     REPLICA_PURGE_DELAY
                     REPLICA_PRECISE_PURGING
                     REPLICA_REFERRAL
@@ -282,6 +282,7 @@ class Replica(object):
 
             @raise InvalidArgumentError - if missing mandatory arguments
                    ValueError - argument with invalid value
+                   LDAPError - failed to add replica entry
 
         """
         # Check validity of role
@@ -338,7 +339,9 @@ class Replica(object):
         if role != REPLICAROLE_CONSUMER:
             properties[REPLICA_FLAGS] = "1"
 
-        # create replica entry in mapping-tree
+        #
+        # Check if replica entry is already in the mapping-tree
+        #
         mtents = self.conn.mappingtree.list(suffix=nsuffix)
         mtent = mtents[0]
         dn_replica = ','.join((RDN_REPLICA, mtent.dn))
@@ -356,16 +359,13 @@ class Replica(object):
         # Now create the replica entry
         #
         entry = Entry(dn_replica)
-        entry.setValues("objectclass", "top", REPLICA_OBJECTCLASS_VALUE,
+        entry.setValues("objectclass", "top", "nsDS5Replica",
                         "extensibleobject")
         self.conn.replica.setProperties(replica_entry=entry,
                                         properties=properties)
         self.conn.add_s(entry)
-
-        # check if the entry exists TODO better to raise!
-        self.conn._test_entry(dn_replica, ldap.SCOPE_BASE)
-
         self.conn.suffixes[nsuffix] = {'dn': dn_replica, 'type': rtype}
+
         return dn_replica
 
     def deleteAgreements(self, suffix=None):
@@ -443,7 +443,8 @@ class Replica(object):
             raise
 
     def enableReplication(self, suffix=None, role=None,
-                          replicaId=CONSUMER_REPLICAID, binddn=None):
+                          replicaId=CONSUMER_REPLICAID,
+                          properties=None):
         if not suffix:
             self.log.fatal("enableReplication: suffix not specified")
             raise ValueError("suffix missing")
@@ -470,16 +471,16 @@ class Replica(object):
             if not decimal.Decimal(replicaId) or \
                (replicaId <= 0) or \
                (replicaId >= CONSUMER_REPLICAID):
-                self.log.fatal("enableReplication: invalid replicaId (%s) " +
+                self.log.fatal("enableReplication: invalid replicaId (%s) "
                                "for a RW replica" % replicaId)
-                raise ValueError("invalid replicaId %d (expected [1.." +
-                                 "CONSUMER_REPLICAID[" % replicaId)
+                raise ValueError("invalid replicaId %d (expected [1.."
+                                 "CONSUMER_REPLICAID]" % replicaId)
         elif replicaId != CONSUMER_REPLICAID:
             # check the replicaId is CONSUMER_REPLICAID
-            self.log.fatal("enableReplication: invalid replicaId (%s) for a " +
+            self.log.fatal("enableReplication: invalid replicaId (%s) for a "
                            "Read replica (expected %d)" %
                            (replicaId, CONSUMER_REPLICAID))
-            raise ValueError("invalid replicaId: %d for HUB/CONSUMER " +
+            raise ValueError("invalid replicaId: %d for HUB/CONSUMER "
                              "replicaId is CONSUMER_REPLICAID" % replicaId)
 
         # Now check we have a suffix
@@ -491,15 +492,19 @@ class Replica(object):
 
         ent = entries_backend[0]
         if normalizeDN(suffix) != normalizeDN(ent.getValue('nsslapd-suffix')):
-            self.log.warning("enableReplication: suffix (%s) and backend " +
+            self.log.warning("enableReplication: suffix (%s) and backend "
                              "suffix (%s) differs" %
                              (suffix, entries_backend[0].nsslapd - suffix))
             pass
 
         # Now prepare the bindDN property
-        if not binddn:
-            binddn = defaultProperties.get(REPLICATION_BIND_DN, None)
-            if not binddn:
+        if properties is None:
+            properties = {REPLICA_BINDDN:
+                          defaultProperties.get(REPLICATION_BIND_DN, None)}
+        elif REPLICA_BINDDN not in properties:
+            properties[REPLICA_BINDDN] = \
+                defaultProperties.get(REPLICATION_BIND_DN, None)
+            if not properties[REPLICA_BINDDN]:
                 # weird, internal error we do not retrieve the default
                 # replication bind DN this replica will not be updatable
                 # through replication until the binddn property will be set
@@ -507,7 +512,6 @@ class Replica(object):
                                  " default value unavailable")
                 pass
 
-        # Now do the effectif job
         # First add the changelog if master/hub
         if (role == REPLICAROLE_MASTER) or (role == REPLICAROLE_HUB):
             self.conn.changelog.create()
@@ -516,9 +520,7 @@ class Replica(object):
         # it should not be called from here but for the moment I am unsure when
         # to create it elsewhere
         self.conn.replica.create_repl_manager()
-
         # then enable replication
-        properties = {REPLICA_BINDDN: [binddn]}
         ret = self.conn.replica.create(suffix=suffix, role=role, rid=replicaId,
                                        args=properties)
 
@@ -633,3 +635,160 @@ class Replica(object):
             return RUV(ent)
 
         raise NoSuchEntryError("RUV not found: suffix: %r" % suffix)
+
+    def promote(self, suffix, newrole, rid=None, binddn=None):
+        """
+        Promote the replica
+
+        @raise ValueError
+        """
+
+        if newrole != REPLICAROLE_MASTER and newrole != REPLICAROLE_HUB:
+            raise ValueError('Can only prompt replica to "master" or "hub"')
+
+        if not binddn:
+            raise ValueError('"binddn" required for promotion')
+
+        if newrole == REPLICAROLE_MASTER:
+            if not rid:
+                raise ValueError('"rid" required for promotion')
+        else:
+            # Must be a hub - set the rid
+            rid = CONSUMER_REPLICAID
+
+        #
+        # Get the replica entry
+        #
+        filter_str = ('(&(objectclass=nsDS5Replica)(nsDS5ReplicaRoot=%s))' %
+                      suffix)
+        try:
+            replica_entry = self.conn.search_s('cn=config', ldap.SCOPE_SUBTREE,
+                                               filter_str)
+            if replica_entry:
+                repltype = replica_entry[0].getValue(REPL_TYPE)
+                replflags = replica_entry[0].getValue(REPL_FLAGS)
+
+                if repltype == REPLICA_TYPE_MASTER and \
+                   replflags == REPLICA_FLAGS_WRITE:
+                    replicarole = 3
+                elif (repltype == REPLICA_TYPE_HUBCON and
+                      replflags == REPLICA_TYPE_MASTER):
+                    replicarole = 2
+                else:
+                    replicarole = 1
+
+                if ROLE_ORDER[newrole] < replicarole:
+                    raise ValueError('Can not promote replica to lower role:' +
+                                     ' %s -> %s' % (ROLE_TO_NAME[replicarole],
+                                                    newrole))
+            else:
+                raise ValueError('Failed to find replica')
+
+        except ldap.LDAPError as e:
+            raise ValueError('Failed to get replica entry: %s' % str(e))
+
+        #
+        # Create the changelog
+        #
+        try:
+            self.conn.changelog.create()
+        except ldap.LDAPError as e:
+            raise ValueError('Failed to create changelog: %s' % str(e))
+
+        #
+        # Check that a RID was provided, and its a valid number
+        #
+        if newrole == REPLICAROLE_MASTER:
+            try:
+                rid = int(rid)
+            except:
+                # Not a number
+                raise ValueError('"rid" value (%s) is not a number' % str(rid))
+
+            if rid < 1 and rid > 65534:
+                raise ValueError('"rid" value (%d) is not in range ' +
+                                 ' 1 - 65534' % rid)
+
+        #
+        # Set bind dn
+        #
+        try:
+            self.conn.modify_s(replica_entry[0].dn, [(ldap.MOD_REPLACE,
+                               REPL_BINDDN, binddn)])
+        except ldap.LDAPError as e:
+            raise ValueError('Failed to update replica: ' + str(e))
+
+        #
+        # Set the replica type and flags
+        #
+        if newrole == REPLICAROLE_HUB:
+            try:
+                self.conn.modify_s(replica_entry[0].dn,
+                                   [(ldap.MOD_REPLACE, REPL_TYPE, '2'),
+                                    (ldap.MOD_REPLACE, REPL_FLAGS, '1')])
+            except ldap.LDAPError as e:
+                raise ValueError('Failed to update replica: ' + str(e))
+        else:  # master
+            try:
+                self.conn.modify_s(replica_entry[0].dn,
+                                   [(ldap.MOD_REPLACE, REPL_TYPE, '3'),
+                                    (ldap.MOD_REPLACE, REPL_FLAGS, '1'),
+                                    (ldap.MOD_REPLACE, REPL_ID, str(rid))])
+            except ldap.LDAPError as e:
+                raise ValueError('Failed to update replica: ' + str(e))
+
+    def demote(self, suffix, newrole):
+        """
+        Demote a replica to a hub or consumer
+
+        @raise ValueError
+        """
+        if newrole != REPLICAROLE_CONSUMER and newrole != REPLICAROLE_HUB:
+            raise ValueError('Can only demote replica to "hub" or "consumer"')
+
+        #
+        # Get the replica entry, and check the role type
+        #
+        filter_str = ('(&(objectclass=nsDS5Replica)(nsDS5ReplicaRoot=%s))' %
+                      suffix)
+        try:
+            replica_entry = self.conn.search_s('cn=config', ldap.SCOPE_SUBTREE,
+                                               filter_str)
+            if replica_entry:
+                repltype = replica_entry[0].getValue(REPL_TYPE)
+                replflags = replica_entry[0].getValue(REPL_FLAGS)
+
+                if repltype == REPLICA_TYPE_MASTER and \
+                   replflags == REPLICA_FLAGS_WRITE:
+                    replicarole = 3
+                elif (repltype == REPLICA_TYPE_HUBCON and
+                      replflags == REPLICA_FLAGS_WRITE):
+                    replicarole = 2
+                else:
+                    replicarole = 1
+
+                if ROLE_ORDER[newrole] > replicarole:
+                    raise ValueError('Can not demote replica to lower role:' +
+                                     ' %s -> %s' % (ROLE_TO_NAME[replicarole],
+                                                    newrole))
+            else:
+                raise ValueError('Failed to find replica entry')
+
+        except ldap.LDAPError as e:
+            raise ValueError('Failed to get replica entry: %s' % str(e))
+
+        #
+        # Demote it - set the replica type and flags
+        #
+        if newrole == 'hub':
+            flag = '1'
+        else:
+            flag = '0'
+        try:
+            self.conn.modify_s(replica_entry[0].dn,
+                               [(ldap.MOD_REPLACE, REPL_TYPE, '2'),
+                                (ldap.MOD_REPLACE, REPL_FLAGS, flag),
+                                (ldap.MOD_REPLACE, REPL_ID,
+                                 str(CONSUMER_REPLICAID))])
+        except ldap.LDAPError as e:
+            raise ValueError('Failed to update replica: ' + str(e))

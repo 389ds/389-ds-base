@@ -59,13 +59,12 @@ class Entry(object):
                     self.dn = entrydata[0]
                     self.data = cidict(entrydata[1])
             elif isinstance(entrydata, six.string_types):
-                if not '=' in entrydata:
+                if '=' not in entrydata:
                     raise ValueError('Entry dn must contain "="')
 
                 self.dn = entrydata
                 self.data = cidict()
         else:
-            #
             self.dn = ''
             self.data = cidict()
 

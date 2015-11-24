@@ -11,25 +11,30 @@
         naming: filterstr, attrlist
 """
 try:
-    from subprocess import Popen, PIPE
+    from subprocess import Popen, PIPE, STDOUT
     HASPOPEN = True
 except ImportError:
     import popen2
     HASPOPEN = False
 
+import io
 import sys
 import os
 import stat
 import pwd
 import grp
 import os.path
+import base64
+import socket
 import ldif
 import re
 import ldap
-import ldap.sasl
 import time
+import operator
 import shutil
+import datetime
 import logging
+import decimal
 import glob
 import tarfile
 import subprocess
@@ -44,11 +49,14 @@ try:
 except ImportError:
     pass
 from ldap.ldapobject import SimpleLDAPObject
+from ldap.cidict import cidict
+from ldap import LDAPError
 # file in this package
 
 from lib389._constants import *
 from lib389.properties import *
 from lib389._entry import Entry
+from lib389._replication import CSN, RUV
 from lib389._ldifconn import LDIFConn
 from lib389.tools import DirSrvTools
 from lib389.mit_krb5 import MitKrb5
@@ -397,7 +405,7 @@ class DirSrv(SimpleLDAPObject):
         args_instance[SER_HOST] = LOCALHOST
         args_instance[SER_PORT] = DEFAULT_PORT
         args_instance[SER_SECURE_PORT] = None
-        args_instance[SER_SERVERID_PROP] = "template"
+        args_instance[SER_SERVERID_PROP] = None  # "template"
         args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
         args_instance[SER_USER_ID] = None
         args_instance[SER_GROUP_ID] = None
@@ -810,13 +818,18 @@ class DirSrv(SimpleLDAPObject):
         if result != 0:
             raise Exception('Failed to run setup-ds.pl')
         if self.realm is not None:
-            # This may conflict in some tests, we may need to use /etc/host aliases
-            # or we may need to use server id
+            # This may conflict in some tests, we may need to use /etc/host
+            # aliases or we may need to use server id
             self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
+            ktab = '%s/etc/dirsrv/slapd-%s/ldap.keytab' % (self.prefix,
+                                                           self.serverid)
             self.krb5_realm.create_keytab(principal='ldap/%s' % self.host,
-                keytab='%s/etc/dirsrv/slapd-%s/ldap.keytab' % (self.prefix, self.serverid))
-            with open('%s/etc/sysconfig/dirsrv-%s' % (self.prefix, self.serverid), 'a') as sfile:
-                sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/ldap.keytab\nexport KRB5_KTNAME\n" % (self.prefix, self.serverid))
+                                          keytab=ktab)
+            with open('%s/etc/sysconfig/dirsrv-%s' %
+                      (self.prefix, self.serverid), 'a') as sfile:
+                sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/"
+                            "ldap.keytab\nexport KRB5_KTNAME\n" %
+                            (self.prefix, self.serverid))
             self.restart()
 
             # Restart the instance
@@ -995,17 +1008,14 @@ class DirSrv(SimpleLDAPObject):
             @param self
 
             @return None
-
             @raise ValueError - if the instance has not the right state
         '''
-
         # check that DirSrv was in DIRSRV_STATE_ONLINE state
         if self.state != DIRSRV_STATE_ONLINE:
             raise ValueError("invalid state for calling close: %s" %
                              self.state)
 
         SimpleLDAPObject.unbind(self)
-
         self.state = DIRSRV_STATE_OFFLINE
 
     def start(self, timeout):
@@ -2688,3 +2698,124 @@ class DirSrv(SimpleLDAPObject):
             log.exception('Failed to create ldif file (%s): error %d - %s' %
                           (ldif_file, e.errno, e.strerror))
             raise e
+
+    def getConsumerMaxCSN(self, replica_entry):
+        """
+        Attempt to get the consumer's maxcsn from its database
+        """
+        host = replica_entry.getValue(AGMT_HOST)
+        port = replica_entry.getValue(AGMT_PORT)
+        suffix = replica_entry.getValue(REPL_ROOT)
+        error_msg = "Unavailable"
+
+        # Open a connection to the consumer
+        consumer = DirSrv(verbose=False)
+        args_instance[SER_HOST] = host
+        args_instance[SER_PORT] = int(port)
+        args_instance[SER_ROOT_DN] = self.binddn
+        args_instance[SER_ROOT_PW] = self.bindpw
+        args_standalone = args_instance.copy()
+        consumer.allocate(args_standalone)
+        try:
+            consumer.open()
+        except ldap.LDAPError as e:
+            self.log.debug('Connection to consumer (%s:%s) failed, error: %s' %
+                           (host, port, str(e)))
+            return error_msg
+
+        # Get the replica id from supplier to compare to the consumer's rid
+        try:
+            replica_entries = self.replica.list(suffix)
+            if not replica_entries:
+                # Error
+                consumer.close()
+                return None
+            rid = replica_entries[0].getValue(REPL_ID)
+        except:
+            # Error
+            consumer.close()
+            return None
+
+        # Search for the tombstone RUV entry
+        try:
+            entry = consumer.search_s(suffix, ldap.SCOPE_SUBTREE,
+                                      REPLICA_RUV_FILTER, ['nsds50ruv'])
+            consumer.close()
+            if not entry:
+                # Error out?
+                return error_msg
+            elements = entry[0].getValues('nsds50ruv')
+            for ruv in elements:
+                if ('replica %s ' % rid) in ruv:
+                    ruv_parts = ruv.split()
+                    if len(ruv_parts) == 5:
+                        return ruv_parts[4]
+                    else:
+                        return error_msg
+            return error_msg
+        except:
+            # Search failed, but return 0
+            consumer.close()
+            return error_msg
+
+    def getReplAgmtStatus(self, agmt_entry):
+        '''
+        Return the status message, if consumer is not in synch raise an
+        exception
+        '''
+        agmt_maxcsn = None
+        suffix = agmt_entry.getValue(REPL_ROOT)
+        agmt_name = agmt_entry.getValue('cn')
+        status = "Unknown"
+        rc = -1
+        try:
+            entry = self.search_s(suffix, ldap.SCOPE_SUBTREE,
+                                  REPLICA_RUV_FILTER, [AGMT_MAXCSN])
+        except:
+            return status
+
+        '''
+        There could be many agmts maxcsn attributes, find ours
+
+        agmtMaxcsn: <suffix>;<agmt name>;<host>;<port>;<consumer rid>;<maxcsn>
+
+            dc=example,dc=com;test_agmt;localhost;389:4;56536858000100010000
+
+        or if the consumer is not reachable:
+
+            dc=example,dc=com;test_agmt;localhost;389;unavailable
+
+        '''
+        maxcsns = entry[0].getValues(AGMT_MAXCSN)
+        for csn in maxcsns:
+            comps = csn.split(';')
+            if agmt_name == comps[1]:
+                # same replica, get maxcsn
+                if len(comps) < 6:
+                    return "Consumer unavailable"
+                else:
+                    agmt_maxcsn = comps[5]
+
+        if agmt_maxcsn:
+            con_maxcsn = self.getConsumerMaxCSN(agmt_entry)
+            if con_maxcsn:
+                if agmt_maxcsn == con_maxcsn:
+                    status = "In Synchronization"
+                    rc = 0
+                else:
+                    # Not in sync - attmpt to discover the cause
+                    repl_msg = "Unknown"
+                    if agmt_entry.getValue(AGMT_UPDATE_IN_PROGRESS) == 'TRUE':
+                        # Replication is on going - this is normal
+                        repl_msg = "Replication still in progress"
+                    elif "Can't Contact LDAP" in \
+                         agmt_entry.getValue(AGMT_UPDATE_STATUS):
+                        # Consumer is down
+                        repl_msg = "Consumer can not be contacted"
+
+                    status = ("Not in Synchronization: supplier " +
+                              "(%s) consumer (%s)  Reason(%s)" %
+                              (agmt_maxcsn, con_maxcsn, repl_msg))
+        if rc != 0:
+            raise ValueError(status)
+        return status

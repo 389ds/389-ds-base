@@ -31,15 +31,17 @@ class Agreement(object):
         if name in Agreement.proxied_methods:
             return DirSrv.__getattr__(self.conn, name)
 
-    def status(self, agreement_dn):
+    def status(self, agreement_dn, just_status=False):
         """Return a formatted string with the replica status. Looking like:
-            Status for meTo_localhost.localdomain:50389 agmt localhost.localdomain:50389
+            Status for meTo_localhost.localdomain:50389 agmt
+                localhost.localdomain:50389
             Update in progress: TRUE
             Last Update Start: 20131121132756Z
             Last Update End: 0
             Num. Changes Sent: 1:10/0
             Num. changes Skipped: None
-            Last update Status: 0 Replica acquired successfully: Incremental update started
+            Last update Status: 0 Replica acquired successfully:
+                Incremental update started
             Init in progress: None
             Last Init Start: 0
             Last Init End: 0
@@ -52,13 +54,16 @@ class Agreement(object):
             @raise NoSuchEntryError - if agreement_dn is an unknown entry
         """
 
-        attrlist = ['cn', 'nsds5BeginReplicaRefresh', 'nsds5replicaUpdateInProgress',
+        attrlist = ['cn', 'nsds5BeginReplicaRefresh', 'nsds5ReplicaRoot',
+                    'nsds5replicaUpdateInProgress',
                     'nsds5ReplicaLastInitStatus', 'nsds5ReplicaLastInitStart',
                     'nsds5ReplicaLastInitEnd', 'nsds5replicaReapActive',
                     'nsds5replicaLastUpdateStart', 'nsds5replicaLastUpdateEnd',
-                    'nsds5replicaChangesSentSinceStartup', 'nsds5replicaLastUpdateStatus',
-                    'nsds5replicaChangesSkippedSinceStartup', 'nsds5ReplicaHost',
-                    'nsds5ReplicaPort']
+                    'nsds5replicaChangesSentSinceStartup',
+                    'nsds5replicaLastUpdateStatus',
+                    'nsds5replicaChangesSkippedSinceStartup',
+                    'nsds5ReplicaHost', 'nsds5ReplicaPort',
+                    'nsds5ReplicaEnabled', 'nsds5AgmtMaxCSN']
         try:
             ent = self.conn.getEntry(
                 agreement_dn, ldap.SCOPE_BASE, "(objectclass=*)", attrlist)
@@ -66,13 +71,22 @@ class Agreement(object):
             raise NoSuchEntryError(
                 "Error reading status from agreement", agreement_dn)
         else:
+            status = self.conn.getReplAgmtStatus(ent)
+            if just_status:
+                return status
+
             retstr = (
-                "Status for %(cn)s agmt %(nsDS5ReplicaHost)s:%(nsDS5ReplicaPort)s" "\n"
+                "Status for %(cn)s agmt %(nsDS5ReplicaHost)s:"
+                "%(nsDS5ReplicaPort)s" "\n"
+                "Replica Enabled: %(nsds5ReplicaEnabled)s" "\n"
+                "Agreement maxCSN: %(nsds5AgmtMaxCSN)s" "\n"
                 "Update in progress: %(nsds5replicaUpdateInProgress)s" "\n"
                 "Last Update Start: %(nsds5replicaLastUpdateStart)s" "\n"
                 "Last Update End: %(nsds5replicaLastUpdateEnd)s" "\n"
-                "Num. Changes Sent: %(nsds5replicaChangesSentSinceStartup)s" "\n"
-                "Num. changes Skipped: %(nsds5replicaChangesSkippedSinceStartup)s" "\n"
+                "Num. Changes Sent: %(nsds5replicaChangesSentSinceStartup)s"
+                "\n"
+                "Num. changes Skipped: %(nsds5replicaChangesSkippedSince"
+                "Startup)s" "\n"
                 "Last update Status: %(nsds5replicaLastUpdateStatus)s" "\n"
                 "Init in progress: %(nsds5BeginReplicaRefresh)s" "\n"
                 "Last Init Start: %(nsds5ReplicaLastInitStart)s" "\n"
@@ -81,6 +95,8 @@ class Agreement(object):
                 "Reap Active: %(nsds5ReplicaReapActive)s" "\n"
             )
             # FormatDict manages missing fields in string formatting
+            result = retstr % FormatDict(ent.data)
+            result += "Replication Status: %s\n" % status
             return retstr % FormatDict(ent.data)
 
     def _check_interval(self, interval):
@@ -90,13 +106,15 @@ class Agreement(object):
             MM [0..59]
             DAYS [0-6]{1,7}
 
-            @param interval - interval in the format 'HHMM-HHMM D+' (D is day number [0-6])
+            @param interval - interval in the format 'HHMM-HHMM D+'
+                              (D is day number [0-6])
 
             @return None
 
             @raise ValueError - if the inteval is illegal
         '''
-        c = re.compile(re.compile('^([0-9][0-9])([0-9][0-9])-([0-9][0-9])([0-9][0-9]) ([0-6]{1,7})$'))
+        c = re.compile(re.compile('^([0-9][0-9])([0-9][0-9])-([0-9][0-9])' +
+                                  '([0-9][0-9]) ([0-6]{1,7})$'))
         if not c.match(interval):
             raise ValueError("Bad schedule format %r" % interval)
         schedule = c.split(interval, c.groups)
@@ -104,21 +122,26 @@ class Agreement(object):
         # check the hours
         hour = int(schedule[1])
         if ((hour < 0) or (hour > 23)):
-            raise ValueError("Bad schedule format %r: illegal hour %d" % (interval, hour))
+            raise ValueError("Bad schedule format %r: illegal hour %d" %
+                             (interval, hour))
         hour = int(schedule[3])
         if ((hour < 0) or (hour > 23)):
-            raise ValueError("Bad schedule format %r: illegal hour %d" % (interval, hour))
+            raise ValueError("Bad schedule format %r: illegal hour %d" %
+                             (interval, hour))
         if int(schedule[1]) > int(schedule[3]):
-            raise ValueError("Bad schedule (start HOUR larger than end HOUR) %r: illegal hour %d" %
-                (interval, int(schedule[1])))
+            raise ValueError("Bad schedule (start HOUR larger than end HOUR)" +
+                             " %r: illegal hour %d" %
+                             (interval, int(schedule[1])))
 
         # check the minutes
         minute = int(schedule[2])
         if ((minute < 0) or (minute > 59)):
-            raise ValueError("Bad schedule format %r: illegal minute %d" % (interval, minute))
+            raise ValueError("Bad schedule format %r: illegal minute %d" %
+                             (interval, minute))
         minute = int(schedule[4])
         if ((minute < 0) or (minute > 59)):
-            raise ValueError("Bad schedule format %r: illegal minute %d" % (interval, minute))
+            raise ValueError("Bad schedule format %r: illegal minute %d" %
+                             (interval, minute))
 
     def schedule(self, agmtdn=None, interval=ALWAYS):
         """Schedule the replication agreement
@@ -154,8 +177,8 @@ class Agreement(object):
 
     def getProperties(self, agmnt_dn=None, properties=None):
         '''
-            returns a dictionary of the requested properties. If properties is missing,
-            it returns all the properties.
+            returns a dictionary of the requested properties.
+            If properties is missing, it returns all the properties.
             @param agmtdn - is the replica agreement DN
             @param properties - is the list of properties name
             Supported properties are
@@ -208,9 +231,11 @@ class Agreement(object):
             # Build the result from the returned attributes
             for attr in entry.getAttrs():
                 # given an attribute name retrieve the property name
-                props = [k for k, v in six.iteritems(RA_PROPNAME_TO_ATTRNAME) if v.lower() == attr.lower()]
+                props = [k for k, v in six.iteritems(RA_PROPNAME_TO_ATTRNAME)
+                         if v.lower() == attr.lower()]
 
-                # If this attribute is present in the RA properties, adds it to result
+                # If this attribute is present in the RA properties, adds it to
+                # result
                 if len(props) > 0:
                     result[props[0]] = entry.getValues(attr)
 
@@ -219,11 +244,13 @@ class Agreement(object):
 
         return result
 
-    def setProperties(self, suffix=None, agmnt_dn=None, agmnt_entry=None, properties=None):
+    def setProperties(self, suffix=None, agmnt_dn=None, agmnt_entry=None,
+                      properties=None):
         '''
-            Set the properties of the agreement. If an 'agmnt_entry' (Entry) is provided, it updates the entry, else
-            it updates the entry on the server. If the 'agmnt_dn' is provided it retrieves the entry using it, else
-            it retrieve the agreement using the 'suffix'.
+            Set the properties of the agreement. If an 'agmnt_entry' (Entry)
+            is provided, it updates the entry, else it updates the entry on
+            the server. If the 'agmnt_dn' is provided it retrieves the entry
+            using it, else it retrieve the agreement using the 'suffix'.
 
             @param suffix : suffix stored in that agreement (online update)
             @param agmnt_dn: DN of the agreement (online update)
@@ -252,7 +279,8 @@ class Agreement(object):
 
             @raise ValueError: if unknown properties
                     ValueError: if invalid agreement_entry
-                    ValueError: if agmnt_dn or suffix are not associated to a replica
+                    ValueError: if agmnt_dn or suffix are not associated to a
+                                replica
                     InvalidArgumentError: If missing mandatory parameter
 
 
@@ -267,17 +295,19 @@ class Agreement(object):
             if not inProperties(prop, RA_PROPNAME_TO_ATTRNAME):
                 raise ValueError("unknown property: %s" % prop)
             else:
-                self.log.debug("setProperties: %s:%s" % (prop, properties[prop]))
+                self.log.debug("setProperties: %s:%s" %
+                               (prop, properties[prop]))
 
         # At least we need to have suffix/agmnt_dn/agmnt_entry
         if not suffix and not agmnt_dn and not agmnt_entry:
-            raise InvalidArgumentError("suffix and agmnt_dn and agmnt_entry are missing")
+            raise InvalidArgumentError("suffix and agmnt_dn and agmnt_entry " +
+                                       "are missing")
 
         # TODO
         if suffix:
             raise NotImplemented
 
-                # the caller provides a set of properties to set into a replica entry
+        # The caller provides a set of properties to set into a replica entry
         if agmnt_entry:
             if not isinstance(agmnt_entry, Entry):
                 raise ValueError("invalid instance of the agmnt_entry")
@@ -287,7 +317,8 @@ class Agreement(object):
                 val = rawProperty(prop)
 
                 # for Entry update it is a replace
-                agmnt_entry.update({RA_PROPNAME_TO_ATTRNAME[val]: properties[prop]})
+                agmnt_entry.update({RA_PROPNAME_TO_ATTRNAME[val]:
+                                   properties[prop]})
 
             return
 
@@ -320,18 +351,23 @@ class Agreement(object):
         # Now time to run the effective modify
         self.conn.modify_s(agmnt_dn, mod)
 
-    def list(self, suffix=None, consumer_host=None, consumer_port=None, agmtdn=None):
+    def list(self, suffix=None, consumer_host=None, consumer_port=None,
+             agmtdn=None):
         '''
-            Returns the search result of the replica agreement(s) under the replica (replicaRoot is 'suffix').
+            Returns the search result of the replica agreement(s) under the
+            replica (replicaRoot is 'suffix').
 
             Either 'suffix' or 'agmtdn' need to be specfied.
-            'consumer_host' and 'consumer_port' are either not specified or specified both.
+            'consumer_host' and 'consumer_port' are either not specified or
+            specified both.
 
-            If 'agmtdn' is specified, it returns the search result entry of that replication agreement.
-            else if consumer host/port are specified it returns the replica agreements toward
-            that consumer host:port.
-            Finally if neither 'agmtdn' nor 'consumser host/port' are specifies it returns
-            all the replica agreements under the replica (replicaRoot is 'suffix').
+            If 'agmtdn' is specified, it returns the search result entry of
+            that replication agreement.
+            else if consumer host/port are specified it returns the replica
+            agreements toward that consumer host:port.
+            Finally if neither 'agmtdn' nor 'consumser host/port' are
+            specifies it returns all the replica agreements under the replica
+            (replicaRoot is 'suffix').
 
             @param - suffix is the suffix targeted by the total update
             @param - consumer_host hostname of the consumer
@@ -340,15 +376,18 @@ class Agreement(object):
 
             @return - search result of the replica agreements
 
-            @raise - InvalidArgument: if missing mandatory argument (agmtdn or suffix, then host and port)
+            @raise - InvalidArgument: if missing mandatory argument
+                                      (agmtdn or suffix, then host and port)
                    - ValueError - if some properties are not valid
                    - NoSuchEntryError - If no replica defined for the suffix
         '''
         if not suffix and not agmtdn:
             raise InvalidArgumentError("suffix or agmtdn are required")
 
-        if (consumer_host and not consumer_port) or (not consumer_host and consumer_port):
-            raise InvalidArgumentError("consumer host/port are required together")
+        if (consumer_host and not consumer_port) or (not consumer_host and
+                                                     consumer_port):
+            raise InvalidArgumentError(
+                "consumer host/port are required together")
 
         if agmtdn:
             # easy case, just return the RA
@@ -358,120 +397,102 @@ class Agreement(object):
             # Retrieve the replica
             replica_entries = self.conn.replica.list(suffix)
             if not replica_entries:
-                raise NoSuchEntryError("Error: no replica set up for suffix " + suffix)
+                raise NoSuchEntryError("Error: no replica set up for suffix "
+                                       "(%s)" % suffix)
             replica_entry = replica_entries[0]
 
-            # Now returns the replica agreement for that suffix that replicates to
-            # consumer host/port
+            # Now returns the replica agreement for that suffix that replicates
+            # to consumer host/port
             if consumer_host and consumer_port:
-                filt = "(&(|(objectclass=%s)(objectclass=%s))(%s=%s)(%s=%d))" % (RA_OBJECTCLASS_VALUE,
-                                                              RA_WINDOWS_OBJECTCLASS_VALUE,
-                                                              RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST], consumer_host,
-                                                              RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT], consumer_port)
+                '''
+                Currently python does not like long continuous lines when it
+                comes to string formatting, so we need to separate each line
+                like this.
+                '''
+                filt = "(&(|(objectclass=%s)" % RA_OBJECTCLASS_VALUE
+                filt += "(objectclass=%s))" % RA_WINDOWS_OBJECTCLASS_VALUE
+                filt += "(%s=%s)" % (RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST],
+                                     consumer_host)
+                filt += "(%s=%d))" % (
+                    RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT], consumer_port)
             else:
-                filt = "(|(objectclass=%s)(objectclass=%s))" % (RA_OBJECTCLASS_VALUE, RA_WINDOWS_OBJECTCLASS_VALUE)
-            return self.conn.search_s(replica_entry.dn, ldap.SCOPE_ONELEVEL, filt)
+                filt = ("(|(objectclass=%s)(objectclass=%s))" %
+                        (RA_OBJECTCLASS_VALUE, RA_WINDOWS_OBJECTCLASS_VALUE))
 
-    def create(self, suffix=None, host=None, port=None, properties=None):
+            return self.conn.search_s(replica_entry.dn, ldap.SCOPE_ONELEVEL,
+                                      filt)
+
+    def create(self, suffix=None, host=None, port=None, properties=None,
+               winsync=False):
         """Create (and return) a replication agreement from self to consumer.
             - self is the supplier,
 
-            @param consumer: one of the following (consumer can be a master)
-                    * a DirSrv object if chaining
-                    * an object with attributes: host, port, sslport, __str__
-            @param suffix    - eg. 'dc=babel,dc=it'
-            @param properties      - further properties dict.
-            Support properties
-                RA_NAME
-                RA_SUFFIX
-                RA_BINDDN
-                RA_BINDPW
-                RA_METHOD
-                RA_DESCRIPTION
-                RA_SCHEDULE
-                RA_TRANSPORT_PROT
-                RA_FRAC_EXCLUDE
-                RA_FRAC_EXCLUDE_TOTAL_UPDATE
-                RA_FRAC_STRIP
-                RA_CONSUMER_PORT
-                RA_CONSUMER_HOST
-                RA_CONSUMER_TOTAL_INIT
-                RA_TIMEOUT
-                RA_CHANGES
-
-
+            @param suffix - Replication Root
+            @param host - Consumer host
+            @param port - Consumer port
+            @param winsync - Identifies the agree as a WinSync agreement
+            @param properties - Agreement properties
             @return dn_agreement - DN of the created agreement
-
             @raise InvalidArgumentError - If the suffix is missing
-            @raise NosuchEntryError     - if a replica doesn't exist for that suffix
-            @raise UNWILLING_TO_PERFORM if the database was previously
-                    in read-only state. To create new agreements you
-                    need to *restart* the directory server
+            @raise NoSuchEntryError - if a replica doesn't exist for that
+                                      suffix
+            @raise ldap.LDAPError - ldap error
 
         """
-        import string
 
         # Check we have a suffix [ mandatory ]
         if not suffix:
             self.log.warning("create: suffix is missing")
             raise InvalidArgumentError('suffix is mandatory')
 
-        if properties:
-            binddn      = properties.get(RA_BINDDN)         or defaultProperties[REPLICATION_BIND_DN]
-            bindpw      = properties.get(RA_BINDPW)         or defaultProperties[REPLICATION_BIND_PW]
-            bindmethod  = properties.get(RA_METHOD)         or defaultProperties[REPLICATION_BIND_METHOD]
-            format      = properties.get(RA_NAME)           or r'meTo_$host:$port'
-            description = properties.get(RA_DESCRIPTION)    or format
-            transport   = properties.get(RA_TRANSPORT_PROT) or defaultProperties[REPLICATION_TRANSPORT]
-            timeout     = properties.get(RA_TIMEOUT)        or defaultProperties[REPLICATION_TIMEOUT]
-        else:
-            binddn      = defaultProperties[REPLICATION_BIND_DN]
-            bindpw      = defaultProperties[REPLICATION_BIND_PW]
-            bindmethod  = defaultProperties[REPLICATION_BIND_METHOD]
-            format      = r'meTo_$host:$port'
-            description = format
-            transport   = defaultProperties[REPLICATION_TRANSPORT]
-            timeout     = defaultProperties[REPLICATION_TIMEOUT]
-
         # Compute the normalized suffix to be set in RA entry
-        nsuffix = normalizeDN(suffix)
+        properties[RA_SUFFIX] = normalizeDN(suffix)
 
-        # adding agreement under the replica entry
+        # Adding agreement under the replica entry
         replica_entries = self.conn.replica.list(suffix)
         if not replica_entries:
             raise NoSuchEntryError(
-                "Error: no replica set up for suffix " + suffix)
+                "Error: no replica set up for suffix: %s" % suffix)
         replica = replica_entries[0]
 
-        # define agreement entry
-        cn = string.Template(format).substitute({'host': host, 'port': port})
-        dn_agreement = ','.join(["cn=%s" % cn, replica.dn])
+        # Define agreement entry
+        if RA_NAME not in properties:
+            properties[RA_NAME] = 'meTo_%s:%s' % (host, port)
+        dn_agreement = ','.join(["cn=%s" % properties[RA_NAME], replica.dn])
+
+        # Set the required properties(if not already set)
+        if RA_BINDDN not in properties:
+            properties[RA_BINDDN] = defaultProperties[REPLICATION_BIND_DN]
+        if RA_BINDPW not in properties:
+            properties[RA_BINDPW] = defaultProperties[REPLICATION_BIND_PW]
+        if RA_METHOD not in properties:
+            properties[RA_METHOD] = defaultProperties[REPLICATION_BIND_METHOD]
+        if RA_TRANSPORT_PROT not in properties:
+            properties[RA_TRANSPORT_PROT] = \
+                defaultProperties[REPLICATION_TRANSPORT]
+        if RA_TIMEOUT not in properties:
+            properties[RA_TIMEOUT] = defaultProperties[REPLICATION_TIMEOUT]
+        if RA_DESCRIPTION not in properties:
+            properties[RA_DESCRIPTION] = properties[RA_NAME]
+        if RA_CONSUMER_HOST not in properties:
+            properties[RA_CONSUMER_HOST] = host
+        if RA_CONSUMER_PORT not in properties:
+            properties[RA_CONSUMER_PORT] = str(port)
 
         # This is probably unnecessary because
         # we can just raise ALREADY_EXISTS
         try:
-
             entry = self.conn.getEntry(dn_agreement, ldap.SCOPE_BASE)
             self.log.warn("Agreement already exists: %r" % dn_agreement)
             return dn_agreement
         except ldap.NO_SUCH_OBJECT:
             entry = None
 
-        # In a separate function in this scope?
+        # Iterate over the properties, adding them to the entry
         entry = Entry(dn_agreement)
-        entry.update({
-            'objectclass': ["top", RA_OBJECTCLASS_VALUE],
-            RA_PROPNAME_TO_ATTRNAME[RA_NAME]:           cn,
-            RA_PROPNAME_TO_ATTRNAME[RA_SUFFIX]:         nsuffix,
-            RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]:  host,
-            RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]:  str(port),
-            RA_PROPNAME_TO_ATTRNAME[RA_TRANSPORT_PROT]: transport,
-            RA_PROPNAME_TO_ATTRNAME[RA_TIMEOUT]:        str(timeout),
-            RA_PROPNAME_TO_ATTRNAME[RA_BINDDN]:         binddn,
-            RA_PROPNAME_TO_ATTRNAME[RA_BINDPW]:         bindpw,
-            RA_PROPNAME_TO_ATTRNAME[RA_METHOD]:         bindmethod,
-            RA_PROPNAME_TO_ATTRNAME[RA_DESCRIPTION]:    string.Template(description).substitute({'host': host, 'port': port})
-        })
+        entry.update({'objectclass': ["top", RA_OBJECTCLASS_VALUE]})
+        for prop in properties:
+            entry.update({RA_PROPNAME_TO_ATTRNAME[prop]: properties[prop]})
 
         # we make a copy here because we cannot change
         # the passed in properties dict
@@ -480,16 +501,16 @@ class Agreement(object):
             import copy
             propertiescopy = copy.deepcopy(properties)
 
-        # further arguments
-        if 'winsync' in propertiescopy:  # state it clearly!
+        # Check if this a Winsync Agreement
+        if winsync:
             self.conn.setupWinSyncAgmt(propertiescopy, entry)
 
         try:
             self.log.debug("Adding replica agreement: [%r]" % entry)
             self.conn.add_s(entry)
-        except:
-            #  FIXME check please!
-            raise
+        except ldap.LDAPError as e:
+            self.log.fatal('Failed to add replication agreement: %s' % str(e))
+            raise e
 
         entry = self.conn.waitForEntry(dn_agreement)
         if entry:
@@ -528,17 +549,19 @@ class Agreement(object):
             Delete a replication agreement
 
             @param suffix - the suffix that the agreement is configured for
-            @replica - a DirSrv object of the server that the agreement points to
+            @replica - DirSrv object of the server that the agreement points to
             @raise ldap.LDAPError - for ldap operation failures
         '''
 
         if replica.sslport:
-            # We assume that if you are using SSL, you are using it with replication
+            # We assume that if you are using SSL, you are using it with
+            # replication
             port = replica.sslport
         else:
             port = replica.port
 
-        agmts = self.list(suffix=suffix, consumer_host=replica.host, consumer_port=port)
+        agmts = self.list(suffix=suffix, consumer_host=replica.host,
+                          consumer_port=port)
         if agmts:
             if len(agmts) > 1:
                 # Found too many agreements
@@ -549,8 +572,8 @@ class Agreement(object):
                 try:
                     self.conn.delete_s(agmts[0].dn)
                 except ldap.LDAPError as e:
-                    self.log.error('Failed to delete agreement (%s), error: %s' %
-                        (agmts[0].dn, str(e)))
+                    self.log.error('Failed to delete agreement (%s), ' +
+                                   'error: %s' % (agmts[0].dn, str(e)))
                     raise
         else:
             # No agreements, error?
@@ -561,11 +584,13 @@ class Agreement(object):
             - self is the supplier,
             - consumer is a DirSrv object (consumer can be a master)
             - cn_format - use this string to format the agreement name
-            @param - suffix is the suffix targeted by the total update [mandatory]
+            @param - suffix is the suffix targeted by the total update
+                     [mandatory]
             @param - consumer_host hostname of the consumer [mandatory]
             @param - consumer_port port of the consumer [mandatory]
 
-            @raise InvalidArgument: if missing mandatory argurment (suffix/host/port)
+            @raise InvalidArgument: if missing mandatory argurment
+                                    (suffix/host/port)
         """
         #
         # check the required parameters are set
@@ -589,17 +614,28 @@ class Agreement(object):
         replica_entries = self.conn.replica.list(suffix)
         if not replica_entries:
             raise NoSuchEntryError(
-                    "Error: no replica set up for suffix " + suffix)
+                "Error: no replica set up for suffix " + suffix)
         replica_entry = replica_entries[0]
-        self.log.debug("initAgreement: looking for replica agreements under %s" % replica_entry.dn)
+        self.log.debug("initAgreement: looking for replica agreements " +
+                       "under %s" % replica_entry.dn)
         try:
-            filt = ("(&(objectclass=nsds5replicationagreement)(nsds5replicahost=" +
-                    "%s)(nsds5replicaport=%d)(nsds5replicaroot=%s))"
-                    % (consumer_host, consumer_port, nsuffix))
-            entry = self.conn.getEntry(replica_entry.dn, ldap.SCOPE_ONELEVEL, filt)
+            '''
+            Currently python does not like long continuous lines when it
+            comes to string formatting, so we need to separate each line
+            like this.
+            '''
+            filt = "(&(objectclass=nsds5replicationagreement)"
+            filt += "(nsds5replicahost=%s)" % consumer_host
+            filt += "(nsds5replicaport=%d)" % consumer_port
+            filt += "(nsds5replicaroot=%s))" % nsuffix
+
+            entry = self.conn.getEntry(replica_entry.dn, ldap.SCOPE_ONELEVEL,
+                                       filt)
         except ldap.NO_SUCH_OBJECT:
-            self.log.fatal("initAgreement: No replica agreement to %s:%d for suffix %s" %
-                           (consumer_host, consumer_port, nsuffix))
+            msg = ('initAgreement: No replica agreement to ' +
+                   '{host}:{port} for suffix {suffix}'.format(
+                       host=consumer_host, port=consumer_port, suffix=nsuffix))
+            self.log.fatal(msg)
             raise
 
         #
@@ -611,9 +647,10 @@ class Agreement(object):
 
     def pause(self, agmtdn, interval=NEVER):
         """Pause this replication agreement.  This replication agreement
-          will send no more changes.  Use the resume() method to "unpause".
-          It tries to disable the replica agreement. If it fails (not implemented in all version),
-          it uses the schedule() with interval '2358-2359 0'
+           will send no more changes.  Use the resume() method to "unpause".
+           It tries to disable the replica agreement. If it fails (not
+           implemented in all version),
+           It uses the schedule() with interval '2358-2359 0'
             @param agmtdn - agreement dn
             @param interval - (default NEVER) replication schedule to use
 
@@ -635,8 +672,10 @@ class Agreement(object):
         time.sleep(5)
 
     def resume(self, agmtdn, interval=ALWAYS):
-        """Resume a paused replication agreement, paused with the "pause" method.
-           It tries to enabled the replica agreement. If it fails (not implemented in all version),
+        """Resume a paused replication agreement, paused with the "pause"
+           method.
+           It tries to enabled the replica agreement. If it fails
+           (not implemented in all versions),
            it uses the schedule() with interval '0000-2359 0123456'
             @param agmtdn  - agreement dn
             @param interval - (default ALWAYS) replication schedule to use
@@ -663,8 +702,9 @@ class Agreement(object):
         """Return a list of changes sent by this agreement."""
         retval = 0
         try:
-            ent = self.conn.getEntry(
-                agmnt_dn, ldap.SCOPE_BASE, "(objectclass=*)", [RA_PROPNAME_TO_ATTRNAME[RA_CHANGES]])
+            ent = self.conn.getEntry(agmnt_dn, ldap.SCOPE_BASE,
+                                     "(objectclass=*)",
+                                     [RA_PROPNAME_TO_ATTRNAME[RA_CHANGES]])
         except:
             raise NoSuchEntryError(
                 "Error reading status from agreement", agmnt_dn)
