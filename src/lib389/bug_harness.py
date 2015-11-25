@@ -1,5 +1,12 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 from bug_harness import DSAdminHarness as DSAdmin
-from dsadmin import Entry
 from dsadmin.tools import DSAdminTools
 from lib389.properties import *
 """
@@ -57,7 +64,8 @@ class DSAdminHarness(DSAdmin, DSAdminTools):
     def setupReplBindDN(self, binddn=REPLBINDDN, bindpw=REPLBINDPW):
         return self.setupBindDN(binddn, bindpw)
 
-    def setupBackend(self, suffix, binddn=None, bindpw=None, urls=None, attrvals=None, benamebase=None, verbose=False):
+    def setupBackend(self, suffix, binddn=None, bindpw=None, urls=None,
+                     attrvals=None, benamebase=None, verbose=False):
         """Create a backends using the first available cn."""
         # if benamebase is set, try creating without appending
         if benamebase:
@@ -92,10 +100,8 @@ class DSAdminHarness(DSAdmin, DSAdminTools):
 
         return cn
 
-
     def createInstance(args):
         # eventually set prefix
         args.setdefault(SER_DEPLOYED_DIR, os.environ.get('PREFIX', None))
         args.setdefault('sroot', os.environ.get('SERVER_ROOT', None))
         DSAdminTools.createInstance(args)
-

@@ -7,14 +7,14 @@
 # --- END COPYRIGHT BLOCK ---
 #
 from lib389._constants import *
-from lib389 import DirSrv,Entry
+from lib389 import DirSrv, Entry
 import pytest
 import logging
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-INSTANCE_PORT     = 54321
+INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'effectiverightsds'
 TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
 TEST_GROUP = 'cn=testgroup,%s' % DEFAULT_SUFFIX
@@ -30,8 +30,8 @@ class TopologyInstance(object):
 def topology(request):
     instance = DirSrv(verbose=False)
     instance.log.debug("Instance allocated")
-    args = {SER_HOST:          LOCALHOST,
-            SER_PORT:          INSTANCE_PORT,
+    args = {SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
             SER_SERVERID_PROP: INSTANCE_SERVERID}
     instance.allocate(args)
     if instance.exists():
@@ -56,7 +56,7 @@ def add_user(topology):
     uentry.setValues('objectclass', 'top', 'extensibleobject')
     uentry.setValues('uid', 'test')
     topology.instance.add_s(uentry)
-    #topology.instance.log.debug("Created user entry as:" ,uentry.dn)
+    # topology.instance.log.debug("Created user entry as:" ,uentry.dn)
 
 
 @pytest.fixture(scope="module")
@@ -75,13 +75,15 @@ def test_effective_rights(topology, add_user, add_group):
     and compare actual results with expected
     """
 
-    log.info('Search for effective rights with get_effective_rights() function')
+    log.info('Search for effective rights with get_effective_rights() '
+             'function')
     result = topology.instance.get_effective_rights(TEST_USER,
                                                     filterstr='(cn=testgroup)',
                                                     attrlist=['cn'])
 
     rights = result[0]
-    log.info('Assert that "attributeLevelRights: cn:rsc" and "entryLevelRights: v"')
+    log.info('Assert that "attributeLevelRights: cn:rsc" and '
+             '"entryLevelRights: v"')
     assert rights.getValue('attributeLevelRights') == 'cn:rsc'
     assert rights.getValue('entryLevelRights') == 'v'
 

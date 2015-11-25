@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import os
 import re
 import sys
@@ -48,7 +56,8 @@ class DSModuleProxy(object):
             Returns a proxy with decorated functions from modules in directory.
         """
         if not os.path.isdir(directory):
-            raise RuntimeError("Last argument %s was not directory" % directory)
+            raise RuntimeError("Last argument %s was not directory" %
+                               directory)
         for item in os.listdir(directory):
 
             # case when item is directory
@@ -69,7 +78,7 @@ class DSModuleProxy(object):
                 module = sys.modules[to_import]
                 proxy = cls(item)
 
-                # for each function from module create decorated one and keep it
+                # for each function from module create decorated one
                 for attr in dir(module):
                     fun = getattr(module, attr)
                     if isinstance(fun, collections.Callable):

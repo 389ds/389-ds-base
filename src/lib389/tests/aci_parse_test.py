@@ -7,14 +7,13 @@
 # --- END COPYRIGHT BLOCK ---
 #
 from lib389._constants import *
-from lib389.aci import Aci
 from lib389 import DirSrv, Entry
-import ldap
 import pytest
 
-INSTANCE_PORT     = 54321
+INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'aciparseds'
-#INSTANCE_PREFIX   = None
+# INSTANCE_PREFIX   = None
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -26,9 +25,9 @@ class TopologyStandalone(object):
 def topology(request):
     standalone = DirSrv(verbose=False)
     standalone.log.debug("Instance allocated")
-    args = {SER_HOST:          LOCALHOST,
-            SER_PORT:          INSTANCE_PORT,
-            #SER_DEPLOYED_DIR:  INSTANCE_PREFIX,
+    args = {SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
+            # SER_DEPLOYED_DIR:  INSTANCE_PREFIX,
             SER_SERVERID_PROP: INSTANCE_SERVERID}
     standalone.allocate(args)
     if standalone.exists():
@@ -45,13 +44,15 @@ def topology(request):
 
 @pytest.fixture(scope="module")
 def complex_aci(topology):
-    ACI_TARGET = '(targetfilter ="(ou=groups)")(targetattr ="uniqueMember || member")'
-    ACI_ALLOW = '(version 3.0; acl "Allow test aci";allow (read, search, write)'
-    ACI_SUBJECT = (
-         '(userdn="ldap:///dc=example,dc=com??sub?(ou=engineering)" and'
-         ' userdn="ldap:///dc=example,dc=com??sub?(manager=uid=wbrown,ou=managers,dc=example,dc=com)'
-         ' || ldap:///dc=example,dc=com??sub?(manager=uid=tbrown,ou=managers,dc=example,dc=com)" );)'
-          )
+    ACI_TARGET = ('(targetfilter ="(ou=groups)")(targetattr ="uniqueMember '
+                  '|| member")')
+    ACI_ALLOW = ('(version 3.0; acl "Allow test aci";allow (read, search, '
+                 'write)')
+    ACI_SUBJECT = ('(userdn="ldap:///dc=example,dc=com??sub?(ou=engineering)" '
+                   'and userdn="ldap:///dc=example,dc=com??sub?(manager=uid='
+                   'wbrown,ou=managers,dc=example,dc=com) || ldap:///dc=examp'
+                   'le,dc=com??sub?(manager=uid=tbrown,ou=managers,dc=exampl'
+                   'e,dc=com)" );)')
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
 
     gentry = Entry('cn=testgroup,%s' % DEFAULT_SUFFIX)
@@ -72,7 +73,8 @@ def test_aci(topology, complex_aci):
     aci = acis[0]
     assert aci.acidata == {
         'allow': [{'values': ['read', 'search', 'write']}],
-        'target': [], 'targetattr': [{'values': ['uniqueMember', 'member'], 'equal': True}],
+        'target': [], 'targetattr': [{'values': ['uniqueMember', 'member'],
+                                      'equal': True}],
         'targattrfilters': [],
         'deny': [],
         'acl': [{'values': ['Allow test aci']}],
@@ -80,9 +82,9 @@ def test_aci(topology, complex_aci):
         'targetattrfilters': [],
         'allow_raw_bindrules': [{'values': [(
             'userdn="ldap:///dc=example,dc=com??sub?(ou=engineering)" and'
-            ' userdn="ldap:///dc=example,dc=com??sub?(manager=uid=wbrown,ou=managers,dc=example,dc=com)'
-            ' || ldap:///dc=example,dc=com??sub?(manager=uid=tbrown,ou=managers,dc=example,dc=com)" '
-             )]}],
+            ' userdn="ldap:///dc=example,dc=com??sub?(manager=uid=wbrown,'
+            'ou=managers,dc=example,dc=com) || ldap:///dc=example,dc=com'
+            '??sub?(manager=uid=tbrown,ou=managers,dc=example,dc=com)" ')]}],
         'targetfilter': [{'values': ['(ou=groups)'], 'equal': True}],
         'targetscope': [],
         'version 3.0;': [],

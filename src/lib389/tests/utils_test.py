@@ -55,7 +55,7 @@ def test_isLocalHost():
 
 def test_update_jewhost_with_fqdn():
     test = [
-        ({'hostname':'localhost'}, ('localhost.localdomain', True)),
+        ({'hostname': 'localhost'}, ('localhost.localdomain', True)),
         ({'hostname': 'remote'}, ('remote', False)),
     ]
     for k, v in test:
@@ -73,7 +73,7 @@ def test_formatInfData():
         'hostname': 'localhost.localdomain',
         'user-id': 'dirsrv',
         'group-id': 'dirsrv',
-        'ldap-port' : 12345,
+        'ldap-port': 12345,
         'root-dn': 'cn=directory manager',
         'root-pw': 'password',
         'server-id': 'dirsrv',
@@ -87,7 +87,7 @@ def test_formatInfData_withadmin():
         'hostname': 'localhost.localdomain',
         'user-id': 'dirsrv',
         'group-id': 'dirsrv',
-        'ldap-port' : 12346,
+        'ldap-port': 12346,
         'root-dn': 'cn=directory manager',
         'root-pw': 'password',
         'server-id': 'dirsrv',
@@ -110,7 +110,7 @@ def test_formatInfData_withconfigserver():
         'hostname': 'localhost.localdomain',
         'user-id': 'dirsrv',
         'group-id': 'dirsrv',
-        'ldap-port' : 12346,
+        'ldap-port': 12346,
         'root-dn': 'cn=directory manager',
         'root-pw': 'password',
         'server-id': 'dirsrv',

@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 from nose import *
 from nose.tools import *
 
@@ -7,10 +15,8 @@ from .config import *
 
 import ldap
 import time
-import sys
 import lib389
 from lib389 import DirSrv, Entry
-from lib389 import NoSuchEntryError
 from lib389 import utils
 from lib389.tools import DirSrvTools
 from subprocess import Popen
@@ -19,6 +25,7 @@ from subprocess import Popen
 conn = None
 added_entries = None
 added_backends = None
+
 
 def harn_nolog():
     conn.config.loglevel([lib389.LOG_DEFAULT])
@@ -34,12 +41,13 @@ def setup():
     conn.added_replicas = []
     harn_nolog()
 
+
 def setup_backend():
     global conn
     suffix = 'o=addressbook6'
     backend = 'addressbook6db'
 
-    #create backend and suffix
+    # create backend and suffix
     backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
     suffixEntry = conn.backend.setup_mt(suffix, backend)
 
@@ -48,6 +56,7 @@ def teardown():
     global conn
     conn.rebind()
     drop_added_entries(conn)
+
 
 def drop_added_entries(conn):
     while conn.added_entries:
@@ -133,7 +142,8 @@ def addbackend_harn(conn, name, beattrs=None):
 def setupBackend_ok_test():
     "setupBackend_ok calls brooker.Backend.add"
     try:
-        backendEntry, dummy = conn.backend.add('o=mockbe5', benamebase='mockbe5')
+        backendEntry, dummy = conn.backend.add('o=mockbe5',
+                                               benamebase='mockbe5')
         assert backendEntry
     except ldap.ALREADY_EXISTS:
         raise
@@ -150,8 +160,8 @@ def setupBackend_double_test():
 
 def addsuffix_test():
     # identical to getMTEntry_present_test in dsadmin_basic_test
-    #addbackend_harn(conn, 'addressbook16')
-    #conn.added_backends.add('o=addressbook16')
+    # addbackend_harn(conn, 'addressbook16')
+    # conn.added_backends.add('o=addressbook16')
     pass
 
 
@@ -169,7 +179,7 @@ def addreplica_write_test():
     }
     replica.update(user)
 
-    #create backend and suffix
+    # create backend and suffix
     backendEntry, dummy = conn.backend.add(suffix, benamebase=backend)
     suffixEntry = conn.backend.setup_mt(suffix, backend)
 
@@ -198,7 +208,7 @@ def setupAgreement_test():
     consumer = MockDirSrv()
     args = {
         'suffix': "o=addressbook6",
-        #'bename': "userRoot",
+        # 'bename': "userRoot",
         'binddn': "uid=rmanager,cn=config",
         'bindpw': "password",
         'rtype': lib389.MASTER_TYPE,
@@ -244,7 +254,8 @@ def setupSSL_test():
     Popen(cmd_initialize.split(), stderr=fd_null)
 
     log.info("Creating a self-signed cert for the server in %r" % cert_dir)
-    cmd_mkcert = 'certutil -d %s -S -n localhost  -t CTu,Cu,Cu  -s cn=localhost -x' % cert_dir
+    cmd_mkcert = ('certutil -d %s -S -n localhost  -t CTu,Cu,Cu  '
+                  '-s cn=localhost -x' % cert_dir)
     Popen(cmd_mkcert.split(), stdin=open("/dev/urandom"), stderr=fd_null)
 
     log.info("Testing ssl configuration")

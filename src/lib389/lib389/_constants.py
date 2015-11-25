@@ -1,6 +1,10 @@
-# replicatype @see https://access.redhat.com/knowledge/docs/en-US/Red_Hat_Directory_Server/8.1/html/Administration_Guide/Managing_Replication-Configuring-Replication-cmd.html
-# 2 for consumers and hubs (read-only replicas)
-# 3 for both single and multi-master suppliers (read-write replicas)
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 import os
 from lib389.properties import *
@@ -9,9 +13,9 @@ from lib389.properties import *
  HUB_TYPE,
  LEAF_TYPE) = list(range(3))
 
-REPLICAROLE_MASTER    = "master"
-REPLICAROLE_HUB       = "hub"
-REPLICAROLE_CONSUMER  = "consumer"
+REPLICAROLE_MASTER = "master"
+REPLICAROLE_HUB = "hub"
+REPLICAROLE_CONSUMER = "consumer"
 
 REPLICA_FLAGS_CON = 0
 
@@ -19,7 +23,7 @@ CONSUMER_REPLICAID = 65535
 
 REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
 REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
-REPLICA_RDWR_TYPE   = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
+REPLICA_RDWR_TYPE = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
 
 REPLICA_FLAGS_RDONLY = '0'
 REPLICA_FLAGS_WRITE = '1'
@@ -27,28 +31,29 @@ REPLICA_FLAGS_WRITE = '1'
 REPLICA_TYPE_MASTER = '3'
 REPLICA_TYPE_HUBCON = '2'
 
-REPLICA_RUV_UUID        = "ffffffff-ffffffff-ffffffff-ffffffff"
-REPLICA_RUV_FILTER      = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
-REPLICA_OC_TOMBSTONE    = "nsTombstone"
-REPLICATION_BIND_DN     = RA_BINDDN
-REPLICATION_BIND_PW     = RA_BINDPW
+REPLICA_RUV_UUID = "ffffffff-ffffffff-ffffffff-ffffffff"
+REPLICA_RUV_FILTER = ('(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)'
+                      '(objectclass=nstombstone))')
+REPLICA_OC_TOMBSTONE = "nsTombstone"
+REPLICATION_BIND_DN = RA_BINDDN
+REPLICATION_BIND_PW = RA_BINDPW
 REPLICATION_BIND_METHOD = RA_METHOD
-REPLICATION_TRANSPORT   = RA_TRANSPORT_PROT
-REPLICATION_TIMEOUT     = RA_TIMEOUT
+REPLICATION_TRANSPORT = RA_TRANSPORT_PROT
+REPLICATION_TIMEOUT = RA_TIMEOUT
 
-TRANS_STARTTLS  = "starttls"
-TRANS_SECURE    = "secure"
-TRANS_NORMAL    = "normal"
+TRANS_STARTTLS = "starttls"
+TRANS_SECURE = "secure"
+TRANS_NORMAL = "normal"
 REPL_TRANS_VALUE = {TRANS_STARTTLS: 'TLS',
-                    TRANS_SECURE:   'SSL',
-                    TRANS_NORMAL:   'LDAP'}
+                    TRANS_SECURE: 'SSL',
+                    TRANS_NORMAL: 'LDAP'}
 
 defaultProperties = {
-    REPLICATION_BIND_DN:        "cn=replrepl,cn=config",
-    REPLICATION_BIND_PW:        "password",
-    REPLICATION_BIND_METHOD:    "simple",
-    REPLICATION_TRANSPORT:      REPL_TRANS_VALUE[TRANS_NORMAL],
-    REPLICATION_TIMEOUT:        str(120)
+    REPLICATION_BIND_DN: "cn=replrepl,cn=config",
+    REPLICATION_BIND_PW: "password",
+    REPLICATION_BIND_METHOD: "simple",
+    REPLICATION_TRANSPORT: REPL_TRANS_VALUE[TRANS_NORMAL],
+    REPLICATION_TIMEOUT: str(120)
 }
 
 
@@ -72,102 +77,103 @@ DIRSRV_STATE_OFFLINE = 'offline'
 DIRSRV_STATE_ONLINE = 'online'
 
 LOCALHOST = "localhost.localdomain"
-DEFAULT_PORT        = 389
+DEFAULT_PORT = 389
 DEFAULT_SECURE_PORT = 636
-DEFAULT_SUFFIX      = 'dc=example,dc=com'
-DEFAULT_BENAME      = 'userRoot'    # warning it is case sensitive
-DEFAULT_BACKUPDIR   = '/tmp'
-DEFAULT_INST_HEAD   = 'slapd-'
-DEFAULT_ENV_HEAD    = 'dirsrv-'
+DEFAULT_SUFFIX = 'dc=example,dc=com'
+DEFAULT_BENAME = 'userRoot'  # warning it is case sensitive
+DEFAULT_BACKUPDIR = '/tmp'
+DEFAULT_INST_HEAD = 'slapd-'
+DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
-DEFAULT_CHANGELOG_DB   = 'changelogdb'
+DEFAULT_CHANGELOG_DB = 'changelogdb'
 
 CONF_DIR = 'etc/dirsrv'
 ENV_SYSCONFIG_DIR = '/etc/sysconfig'
 ENV_LOCAL_DIR = '.dirsrv'
 
-# CONFIG file (<prefix>/etc/sysconfig/dirsrv-* or $HOME/.dirsrv/dirsrv-*) keywords
-CONF_SERVER_ID     = 'SERVER_ID'
-CONF_SERVER_DIR    = 'SERVER_DIR'
+# CONFIG file (<prefix>/etc/sysconfig/dirsrv-* or
+# $HOME/.dirsrv/dirsrv-*) keywords
+CONF_SERVER_ID = 'SERVER_ID'
+CONF_SERVER_DIR = 'SERVER_DIR'
 CONF_SERVERBIN_DIR = 'SERVERBIN_DIR'
-CONF_CONFIG_DIR    = 'CONFIG_DIR'
-CONF_INST_DIR      = 'INST_DIR'
-CONF_RUN_DIR       = 'RUN_DIR'
-CONF_DS_ROOT       = 'DS_ROOT'
-CONF_PRODUCT_NAME  = 'PRODUCT_NAME'
+CONF_CONFIG_DIR = 'CONFIG_DIR'
+CONF_INST_DIR = 'INST_DIR'
+CONF_RUN_DIR = 'RUN_DIR'
+CONF_DS_ROOT = 'DS_ROOT'
+CONF_PRODUCT_NAME = 'PRODUCT_NAME'
 
-DN_CONFIG       = "cn=config"
-DN_PLUGIN       = "cn=plugins,%s"       % DN_CONFIG
-DN_MAPPING_TREE = "cn=mapping tree,%s"  % DN_CONFIG
-DN_CHANGELOG    = "cn=changelog5,%s"    % DN_CONFIG
-DN_LDBM         = "cn=ldbm database,%s" % DN_PLUGIN
-DN_CHAIN        = "cn=chaining database,%s" % DN_PLUGIN
+DN_CONFIG = "cn=config"
+DN_PLUGIN = "cn=plugins,%s" % DN_CONFIG
+DN_MAPPING_TREE = "cn=mapping tree,%s" % DN_CONFIG
+DN_CHANGELOG = "cn=changelog5,%s" % DN_CONFIG
+DN_LDBM = "cn=ldbm database,%s" % DN_PLUGIN
+DN_CHAIN = "cn=chaining database,%s" % DN_PLUGIN
 
-DN_TASKS           = "cn=tasks,%s"            % DN_CONFIG
-DN_INDEX_TASK      = "cn=index,%s"            % DN_TASKS
-DN_EXPORT_TASK     = "cn=export,%s"           % DN_TASKS
-DN_IMPORT_TASK     = "cn=import,%s"           % DN_TASKS
-DN_BACKUP_TASK     = "cn=backup,%s"           % DN_TASKS
-DN_RESTORE_TASK    = "cn=restore,%s"          % DN_TASKS
-DN_MBO_TASK        = "cn=memberOf task,%s"    % DN_TASKS
+DN_TASKS = "cn=tasks,%s" % DN_CONFIG
+DN_INDEX_TASK = "cn=index,%s" % DN_TASKS
+DN_EXPORT_TASK = "cn=export,%s" % DN_TASKS
+DN_IMPORT_TASK = "cn=import,%s" % DN_TASKS
+DN_BACKUP_TASK = "cn=backup,%s" % DN_TASKS
+DN_RESTORE_TASK = "cn=restore,%s" % DN_TASKS
+DN_MBO_TASK = "cn=memberOf task,%s" % DN_TASKS
 DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 
 # Script Constants
-LDIF2DB =  '/ldif2db'
-DB2LDIF =  '/db2ldif'
-BAK2DB =   '/bak2db'
-DB2BAK =   '/db2bak'
+LDIF2DB = '/ldif2db'
+DB2LDIF = '/db2ldif'
+BAK2DB = '/bak2db'
+DB2BAK = '/db2bak'
 DB2INDEX = '/db2index'
 DBSCAN = '/dbscan'
 
-RDN_REPLICA     = "cn=replica"
+RDN_REPLICA = "cn=replica"
 
 RETROCL_SUFFIX = "cn=changelog"
 
 ##################################
-###
-### Request Control OIDS
-###
+#
+# Request Control OIDS
+#
 ##################################
 CONTROL_DEREF = '1.3.6.1.4.1.4203.666.5.16'
 
 ##################################
-###
-### Plugins
-###
+#
+# Plugins
+#
 ##################################
 
-PLUGIN_7_BIT_CHECK        = '7-bit check'
-PLUGIN_ACCT_POLICY        = 'Account Policy Plugin'
-PLUGIN_ACCT_USABILITY     = 'Account Usability Plugin'
-PLUGIN_ACL                = 'ACL Plugin'
-PLUGIN_ACL_PREOP          = 'ACL preoperation'
-PLUGIN_ATTR_UNIQUENESS    = 'attribute uniqueness'
-PLUGIN_AUTOMEMBER         = 'Auto Membership Plugin'
-PLUGIN_CHAININGDB         = 'chaining database'
-PLUGIN_COLLATION          = 'Internationalization Plugin'
-PLUGIN_COS                = 'Class of Service'
-PLUGIN_DEREF              = 'deref'
-PLUGIN_DNA                = 'Distributed Numeric Assignment Plugin'
-PLUGIN_HTTP               = 'HTTP Client'
-PLUGIN_LINKED_ATTRS       = 'Linked Attributes'
-PLUGIN_MANAGED_ENTRY      = 'Managed Entries'
-PLUGIN_MEMBER_OF          = 'MemberOf Plugin'
-PLUGIN_PAM_PASSTHRU       = 'PAM Pass Through Auth'
-PLUGIN_PASSTHRU           = 'Pass Through Authentication'
-PLUGIN_POSIX_WINSYNC      = 'Posix Winsync API'
-PLUGIN_REFER_INTEGRITY    = 'referential integrity postoperation'
-PLUGIN_REPL_SYNC          = 'Content Synchronization'
+PLUGIN_7_BIT_CHECK = '7-bit check'
+PLUGIN_ACCT_POLICY = 'Account Policy Plugin'
+PLUGIN_ACCT_USABILITY = 'Account Usability Plugin'
+PLUGIN_ACL = 'ACL Plugin'
+PLUGIN_ACL_PREOP = 'ACL preoperation'
+PLUGIN_ATTR_UNIQUENESS = 'attribute uniqueness'
+PLUGIN_AUTOMEMBER = 'Auto Membership Plugin'
+PLUGIN_CHAININGDB = 'chaining database'
+PLUGIN_COLLATION = 'Internationalization Plugin'
+PLUGIN_COS = 'Class of Service'
+PLUGIN_DEREF = 'deref'
+PLUGIN_DNA = 'Distributed Numeric Assignment Plugin'
+PLUGIN_HTTP = 'HTTP Client'
+PLUGIN_LINKED_ATTRS = 'Linked Attributes'
+PLUGIN_MANAGED_ENTRY = 'Managed Entries'
+PLUGIN_MEMBER_OF = 'MemberOf Plugin'
+PLUGIN_PAM_PASSTHRU = 'PAM Pass Through Auth'
+PLUGIN_PASSTHRU = 'Pass Through Authentication'
+PLUGIN_POSIX_WINSYNC = 'Posix Winsync API'
+PLUGIN_REFER_INTEGRITY = 'referential integrity postoperation'
+PLUGIN_REPL_SYNC = 'Content Synchronization'
 PLUGIN_REPLICATION_LEGACY = 'Legacy Replication Plugin'
-PLUGIN_REPLICATION        = 'Multimaster Replication Plugin'
-PLUGIN_RETRO_CHANGELOG    = 'Retro Changelog Plugin'
-PLUGIN_ROLES              = 'Roles Plugin'
-PLUGIN_ROOTDN_ACCESS      = 'RootDN Access Control'
-PLUGIN_SCHEMA_RELOAD      = 'Schema Reload'
-PLUGIN_STATECHANGE        = 'State Change Plugin'
-PLUGIN_USN                = 'USN'
-PLUGIN_VIEWS              = 'Views'
-PLUGIN_WHOAMI             = 'whoami'
+PLUGIN_REPLICATION = 'Multimaster Replication Plugin'
+PLUGIN_RETRO_CHANGELOG = 'Retro Changelog Plugin'
+PLUGIN_ROLES = 'Roles Plugin'
+PLUGIN_ROOTDN_ACCESS = 'RootDN Access Control'
+PLUGIN_SCHEMA_RELOAD = 'Schema Reload'
+PLUGIN_STATECHANGE = 'State Change Plugin'
+PLUGIN_USN = 'USN'
+PLUGIN_VIEWS = 'Views'
+PLUGIN_WHOAMI = 'whoami'
 
 
 #
@@ -181,29 +187,30 @@ TMP_DIR = "tmp"
 VALGRIND_WRAPPER = "ns-slapd.valgrind"
 VALGRIND_LEAK_STR = " blocks are definitely lost in loss record "
 VALGRIND_INVALID_STR = " Invalid (free|read|write)"
-DISORDERLY_SHUTDOWN = 'Detected Disorderly Shutdown last time Directory Server was running, recovering database'
+DISORDERLY_SHUTDOWN = ('Detected Disorderly Shutdown last time Directory '
+                       'Server was running, recovering database')
 
 #
-# LOG: see https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Configuring_Logs.html
+# LOG: see https://access.redhat.com/documentation/en-US/Red_Hat_Directory
+# _Server/10/html/Administration_Guide/Configuring_Logs.html
 # The default log level is 16384
 #
-(
-LOG_TRACE,
-LOG_TRACE_PACKETS,
-LOG_TRACE_HEAVY,
-LOG_CONNECT,
-LOG_PACKET,
-LOG_SEARCH_FILTER,
-LOG_CONFIG_PARSER,
-LOG_ACL,
-LOG_ENTRY_PARSER,
-LOG_HOUSEKEEPING,
-LOG_REPLICA,
-LOG_DEFAULT,
-LOG_CACHE,
-LOG_PLUGIN,
-LOG_MICROSECONDS,
-LOG_ACL_SUMMARY) = [1 << x for x in (list(range(8)) + list(range(11, 19)))]
+(LOG_TRACE,
+ LOG_TRACE_PACKETS,
+ LOG_TRACE_HEAVY,
+ LOG_CONNECT,
+ LOG_PACKET,
+ LOG_SEARCH_FILTER,
+ LOG_CONFIG_PARSER,
+ LOG_ACL,
+ LOG_ENTRY_PARSER,
+ LOG_HOUSEKEEPING,
+ LOG_REPLICA,
+ LOG_DEFAULT,
+ LOG_CACHE,
+ LOG_PLUGIN,
+ LOG_MICROSECONDS,
+ LOG_ACL_SUMMARY) = [1 << x for x in (list(range(8)) + list(range(11, 19)))]
 
 
 #
@@ -395,70 +402,102 @@ PORT_CONSUMER_10 = 60389
 SERVERID_CONSUMER_10 = 'consumer_10'
 
 # Each defined instance above must be added in that list
-ALL_INSTANCES = [{SER_HOST: HOST_STANDALONE, SER_PORT: PORT_STANDALONE, SER_SERVERID_PROP: SERVERID_STANDALONE},
-                 {SER_HOST: HOST_STANDALONE2, SER_PORT: PORT_STANDALONE2, SER_SERVERID_PROP: SERVERID_STANDALONE2},
-                 {SER_HOST: HOST_STANDALONE3, SER_PORT: PORT_STANDALONE3, SER_SERVERID_PROP: SERVERID_STANDALONE3},
-                 {SER_HOST: HOST_STANDALONE4, SER_PORT: PORT_STANDALONE4, SER_SERVERID_PROP: SERVERID_STANDALONE4},
-                 {SER_HOST: HOST_STANDALONE5, SER_PORT: PORT_STANDALONE5, SER_SERVERID_PROP: SERVERID_STANDALONE5},
-                 {SER_HOST: HOST_STANDALONE6, SER_PORT: PORT_STANDALONE6, SER_SERVERID_PROP: SERVERID_STANDALONE6},
-                 {SER_HOST: HOST_STANDALONE7, SER_PORT: PORT_STANDALONE7, SER_SERVERID_PROP: SERVERID_STANDALONE7},
-                 {SER_HOST: HOST_STANDALONE8, SER_PORT: PORT_STANDALONE8, SER_SERVERID_PROP: SERVERID_STANDALONE8},
-                 {SER_HOST: HOST_STANDALONE9, SER_PORT: PORT_STANDALONE9, SER_SERVERID_PROP: SERVERID_STANDALONE9},
-                 {SER_HOST: HOST_STANDALONE10, SER_PORT: PORT_STANDALONE10, SER_SERVERID_PROP: SERVERID_STANDALONE10},
-                 {SER_HOST: HOST_MASTER_1, SER_PORT: PORT_MASTER_1, SER_SERVERID_PROP: SERVERID_MASTER_1},
-                 {SER_HOST: HOST_MASTER_2, SER_PORT: PORT_MASTER_2, SER_SERVERID_PROP: SERVERID_MASTER_2},
-                 {SER_HOST: HOST_MASTER_3, SER_PORT: PORT_MASTER_3, SER_SERVERID_PROP: SERVERID_MASTER_3},
-                 {SER_HOST: HOST_MASTER_4, SER_PORT: PORT_MASTER_4, SER_SERVERID_PROP: SERVERID_MASTER_4},
-                 {SER_HOST: HOST_MASTER_5, SER_PORT: PORT_MASTER_5, SER_SERVERID_PROP: SERVERID_MASTER_5},
-                 {SER_HOST: HOST_MASTER_6, SER_PORT: PORT_MASTER_6, SER_SERVERID_PROP: SERVERID_MASTER_6},
-                 {SER_HOST: HOST_MASTER_7, SER_PORT: PORT_MASTER_7, SER_SERVERID_PROP: SERVERID_MASTER_7},
-                 {SER_HOST: HOST_MASTER_8, SER_PORT: PORT_MASTER_8, SER_SERVERID_PROP: SERVERID_MASTER_8},
-                 {SER_HOST: HOST_MASTER_9, SER_PORT: PORT_MASTER_9, SER_SERVERID_PROP: SERVERID_MASTER_9},
-                 {SER_HOST: HOST_MASTER_10, SER_PORT: PORT_MASTER_10, SER_SERVERID_PROP: SERVERID_MASTER_10},
-                 {SER_HOST: HOST_HUB_1, SER_PORT: PORT_HUB_1, SER_SERVERID_PROP: SERVERID_HUB_1},
-                 {SER_HOST: HOST_HUB_2, SER_PORT: PORT_HUB_2, SER_SERVERID_PROP: SERVERID_HUB_2},
-                 {SER_HOST: HOST_HUB_3, SER_PORT: PORT_HUB_3, SER_SERVERID_PROP: SERVERID_HUB_3},
-                 {SER_HOST: HOST_HUB_4, SER_PORT: PORT_HUB_4, SER_SERVERID_PROP: SERVERID_HUB_4},
-                 {SER_HOST: HOST_HUB_5, SER_PORT: PORT_HUB_5, SER_SERVERID_PROP: SERVERID_HUB_5},
-                 {SER_HOST: HOST_HUB_6, SER_PORT: PORT_HUB_6, SER_SERVERID_PROP: SERVERID_HUB_6},
-                 {SER_HOST: HOST_HUB_7, SER_PORT: PORT_HUB_7, SER_SERVERID_PROP: SERVERID_HUB_7},
-                 {SER_HOST: HOST_HUB_8, SER_PORT: PORT_HUB_8, SER_SERVERID_PROP: SERVERID_HUB_8},
-                 {SER_HOST: HOST_HUB_9, SER_PORT: PORT_HUB_9, SER_SERVERID_PROP: SERVERID_HUB_9},
-                 {SER_HOST: HOST_HUB_10, SER_PORT: PORT_HUB_10, SER_SERVERID_PROP: SERVERID_HUB_10},
-                 {SER_HOST: HOST_CONSUMER_1, SER_PORT: PORT_CONSUMER_1, SER_SERVERID_PROP: SERVERID_CONSUMER_1},
-                 {SER_HOST: HOST_CONSUMER_2, SER_PORT: PORT_CONSUMER_2, SER_SERVERID_PROP: SERVERID_CONSUMER_2},
-                 {SER_HOST: HOST_CONSUMER_3, SER_PORT: PORT_CONSUMER_3, SER_SERVERID_PROP: SERVERID_CONSUMER_3},
-                 {SER_HOST: HOST_CONSUMER_4, SER_PORT: PORT_CONSUMER_4, SER_SERVERID_PROP: SERVERID_CONSUMER_4},
-                 {SER_HOST: HOST_CONSUMER_5, SER_PORT: PORT_CONSUMER_5, SER_SERVERID_PROP: SERVERID_CONSUMER_5},
-                 {SER_HOST: HOST_CONSUMER_6, SER_PORT: PORT_CONSUMER_6, SER_SERVERID_PROP: SERVERID_CONSUMER_6},
-                 {SER_HOST: HOST_CONSUMER_7, SER_PORT: PORT_CONSUMER_7, SER_SERVERID_PROP: SERVERID_CONSUMER_7},
-                 {SER_HOST: HOST_CONSUMER_8, SER_PORT: PORT_CONSUMER_8, SER_SERVERID_PROP: SERVERID_CONSUMER_8},
-                 {SER_HOST: HOST_CONSUMER_9, SER_PORT: PORT_CONSUMER_9, SER_SERVERID_PROP: SERVERID_CONSUMER_9},
-                 {SER_HOST: HOST_CONSUMER_10, SER_PORT: PORT_CONSUMER_10, SER_SERVERID_PROP: SERVERID_CONSUMER_10},
-                ]
+ALL_INSTANCES = [{SER_HOST: HOST_STANDALONE, SER_PORT: PORT_STANDALONE,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE},
+                 {SER_HOST: HOST_STANDALONE2, SER_PORT: PORT_STANDALONE2,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE2},
+                 {SER_HOST: HOST_STANDALONE3, SER_PORT: PORT_STANDALONE3,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE3},
+                 {SER_HOST: HOST_STANDALONE4, SER_PORT: PORT_STANDALONE4,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE4},
+                 {SER_HOST: HOST_STANDALONE5, SER_PORT: PORT_STANDALONE5,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE5},
+                 {SER_HOST: HOST_STANDALONE6, SER_PORT: PORT_STANDALONE6,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE6},
+                 {SER_HOST: HOST_STANDALONE7, SER_PORT: PORT_STANDALONE7,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE7},
+                 {SER_HOST: HOST_STANDALONE8, SER_PORT: PORT_STANDALONE8,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE8},
+                 {SER_HOST: HOST_STANDALONE9, SER_PORT: PORT_STANDALONE9,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE9},
+                 {SER_HOST: HOST_STANDALONE10, SER_PORT: PORT_STANDALONE10,
+                  SER_SERVERID_PROP: SERVERID_STANDALONE10},
+                 {SER_HOST: HOST_MASTER_1, SER_PORT: PORT_MASTER_1,
+                  SER_SERVERID_PROP: SERVERID_MASTER_1},
+                 {SER_HOST: HOST_MASTER_2, SER_PORT: PORT_MASTER_2,
+                  SER_SERVERID_PROP: SERVERID_MASTER_2},
+                 {SER_HOST: HOST_MASTER_3, SER_PORT: PORT_MASTER_3,
+                  SER_SERVERID_PROP: SERVERID_MASTER_3},
+                 {SER_HOST: HOST_MASTER_4, SER_PORT: PORT_MASTER_4,
+                  SER_SERVERID_PROP: SERVERID_MASTER_4},
+                 {SER_HOST: HOST_MASTER_5, SER_PORT: PORT_MASTER_5,
+                  SER_SERVERID_PROP: SERVERID_MASTER_5},
+                 {SER_HOST: HOST_MASTER_6, SER_PORT: PORT_MASTER_6,
+                  SER_SERVERID_PROP: SERVERID_MASTER_6},
+                 {SER_HOST: HOST_MASTER_7, SER_PORT: PORT_MASTER_7,
+                  SER_SERVERID_PROP: SERVERID_MASTER_7},
+                 {SER_HOST: HOST_MASTER_8, SER_PORT: PORT_MASTER_8,
+                  SER_SERVERID_PROP: SERVERID_MASTER_8},
+                 {SER_HOST: HOST_MASTER_9, SER_PORT: PORT_MASTER_9,
+                  SER_SERVERID_PROP: SERVERID_MASTER_9},
+                 {SER_HOST: HOST_MASTER_10, SER_PORT: PORT_MASTER_10,
+                  SER_SERVERID_PROP: SERVERID_MASTER_10},
+                 {SER_HOST: HOST_HUB_1, SER_PORT: PORT_HUB_1,
+                  SER_SERVERID_PROP: SERVERID_HUB_1},
+                 {SER_HOST: HOST_HUB_2, SER_PORT: PORT_HUB_2,
+                  SER_SERVERID_PROP: SERVERID_HUB_2},
+                 {SER_HOST: HOST_HUB_3, SER_PORT: PORT_HUB_3,
+                  SER_SERVERID_PROP: SERVERID_HUB_3},
+                 {SER_HOST: HOST_HUB_4, SER_PORT: PORT_HUB_4,
+                  SER_SERVERID_PROP: SERVERID_HUB_4},
+                 {SER_HOST: HOST_HUB_5, SER_PORT: PORT_HUB_5,
+                  SER_SERVERID_PROP: SERVERID_HUB_5},
+                 {SER_HOST: HOST_HUB_6, SER_PORT: PORT_HUB_6,
+                  SER_SERVERID_PROP: SERVERID_HUB_6},
+                 {SER_HOST: HOST_HUB_7, SER_PORT: PORT_HUB_7,
+                  SER_SERVERID_PROP: SERVERID_HUB_7},
+                 {SER_HOST: HOST_HUB_8, SER_PORT: PORT_HUB_8,
+                  SER_SERVERID_PROP: SERVERID_HUB_8},
+                 {SER_HOST: HOST_HUB_9, SER_PORT: PORT_HUB_9,
+                  SER_SERVERID_PROP: SERVERID_HUB_9},
+                 {SER_HOST: HOST_HUB_10, SER_PORT: PORT_HUB_10,
+                  SER_SERVERID_PROP: SERVERID_HUB_10},
+                 {SER_HOST: HOST_CONSUMER_1, SER_PORT: PORT_CONSUMER_1,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_1},
+                 {SER_HOST: HOST_CONSUMER_2, SER_PORT: PORT_CONSUMER_2,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_2},
+                 {SER_HOST: HOST_CONSUMER_3, SER_PORT: PORT_CONSUMER_3,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_3},
+                 {SER_HOST: HOST_CONSUMER_4, SER_PORT: PORT_CONSUMER_4,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_4},
+                 {SER_HOST: HOST_CONSUMER_5, SER_PORT: PORT_CONSUMER_5,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_5},
+                 {SER_HOST: HOST_CONSUMER_6, SER_PORT: PORT_CONSUMER_6,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_6},
+                 {SER_HOST: HOST_CONSUMER_7, SER_PORT: PORT_CONSUMER_7,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_7},
+                 {SER_HOST: HOST_CONSUMER_8, SER_PORT: PORT_CONSUMER_8,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_8},
+                 {SER_HOST: HOST_CONSUMER_9, SER_PORT: PORT_CONSUMER_9,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_9},
+                 {SER_HOST: HOST_CONSUMER_10, SER_PORT: PORT_CONSUMER_10,
+                  SER_SERVERID_PROP: SERVERID_CONSUMER_10}]
 
 # This is a template
-args_instance = {
-                   SER_DEPLOYED_DIR: os.environ.get('PREFIX', None),
-                   SER_BACKUP_INST_DIR: os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR),
-                   SER_ROOT_DN: DN_DM,
-                   SER_ROOT_PW: PW_DM,
-                   SER_HOST: LOCALHOST,
-                   SER_PORT: DEFAULT_PORT,
-                   SER_SERVERID_PROP: "template",
-                   SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
+args_instance = {SER_DEPLOYED_DIR: os.environ.get('PREFIX', None),
+                 SER_BACKUP_INST_DIR: os.environ.get('BACKUPDIR',
+                                                     DEFAULT_BACKUPDIR),
+                 SER_ROOT_DN: DN_DM,
+                 SER_ROOT_PW: PW_DM,
+                 SER_HOST: LOCALHOST,
+                 SER_PORT: DEFAULT_PORT,
+                 SER_SERVERID_PROP: "template",
+                 SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
 
 # Helper for linking dse.ldif values to the parse_config function
-args_dse_keys = {
-                SER_HOST: 'nsslapd-localhost',
-                SER_PORT: 'nsslapd-port',
-                SER_SECURE_PORT: 'nsslapd-secureport',
-                SER_ROOT_DN: 'nsslapd-rootdn',
-                #SER_ROOT_PW         (bindpw) We can't do this
-                SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
-                SER_USER_ID: 'nsslapd-localuser',
-                #SER_SERVERID_PROP   (serverid) Already have this set in other areas.
-                #SER_GROUP_ID        (groupid) ???
-                #SER_DEPLOYED_DIR    (prefix) Already provided to do the discovery
-                #SER_BACKUP_INST_DIR (backupdir) nsslapd-bakdir <<-- maybe?
-}
+args_dse_keys = {SER_HOST: 'nsslapd-localhost',
+                 SER_PORT: 'nsslapd-port',
+                 SER_SECURE_PORT: 'nsslapd-secureport',
+                 SER_ROOT_DN: 'nsslapd-rootdn',
+                 SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
+                 SER_USER_ID: 'nsslapd-localuser'}

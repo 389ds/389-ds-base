@@ -1,3 +1,10 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 import string
 import os
@@ -6,11 +13,13 @@ import pytest
 from tempfile import mkdtemp
 from shutil import rmtree
 
+
 def ldrop(numchar, inputstr):
     """
         Drop numchar characters from the beginning of each line in inputstring.
     """
     return "\n".join([x[numchar:] for x in string.split(inputstr, "\n")])
+
 
 @pytest.fixture
 def fake_ds_class():
@@ -23,6 +32,7 @@ def fake_ds_class():
 
     return FakeDSInstance
 
+
 @pytest.fixture(scope="module")
 def fake_ds_modules(request):
     """
@@ -33,7 +43,7 @@ def fake_ds_modules(request):
     module_dir = mkdtemp()
     old_cwd = os.getcwd()
 
-    # when fixture is destroyed, we change back to old cwd 
+    # when fixture is destroyed, we change back to old cwd
     # and delete fake module dir
     def fin():
         os.chdir(old_cwd)

@@ -25,7 +25,9 @@ class MockDirSrv(object):
 
 def expect(entry, name, value):
     assert entry, "Bad entry %r " % entry
-    assert entry.getValue(name) == value, "Bad value for entry %s. Expected %r vs %r" % (entry, entry.getValue(name), value)
+    assert entry.getValue(name) == value, \
+        ("Bad value for entry %s. Expected %r vs %r" %
+         (entry, entry.getValue(name), value))
 
 
 def entry_equals(e1, e2):

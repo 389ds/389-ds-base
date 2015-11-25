@@ -59,7 +59,8 @@ class TestEntry(object):
 
     def test_update_complex(self):
         # compare two entries created with different methods
-        nsuffix, replid, replicatype = "dc=example,dc=com", 5, lib389.REPLICA_RDWR_TYPE
+        nsuffix, replid, replicatype = ("dc=example,dc=com", 5,
+                                        lib389.REPLICA_RDWR_TYPE)
         binddnlist, legacy = ['uid=pippo, cn=config'], 'off'
         dn = "dc=example,dc=com"
         entry = Entry(dn)
@@ -74,10 +75,8 @@ class TestEntry(object):
         entry.setValues('nsds5replicalegacyconsumer', legacy)
 
         uentry = Entry((
-            dn, {
-            'objectclass': ["top", "nsds5replica", "extensibleobject"],
-            'cn': ["replica"],
-            })
+            dn, {'objectclass': ["top", "nsds5replica", "extensibleobject"],
+                 'cn': ["replica"]})
         )
         log.debug("Entry created with dict:", uentry)
         # Entry.update *replaces*, so be careful with multi-valued attrs

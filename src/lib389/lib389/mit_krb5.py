@@ -1,10 +1,18 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """Mit_krb5 kdc setup routine.
 
 Not ideal for use for a PRD krb system, used internally for testing GSSAPI
 integration with 389ds.
 
 """
-## In the future we might add support for an ldap-backed krb realm
+# In the future we might add support for an ldap-backed krb realm
 from subprocess import Popen, PIPE
 import krbV
 import os
@@ -14,6 +22,7 @@ from lib389._constants import *
 from socket import getfqdn
 from lib389.utils import getdomainname
 from lib389.tools import DirSrvTools
+
 
 class MitKrb5(object):
     # Get the realm information
@@ -28,8 +37,10 @@ class MitKrb5(object):
         self.krb5kdc = "%s/usr/sbin/krb5kdc" % self.krb_prefix
         self.kdcconf = "%s/var/kerberos/krb5kdc/kdc.conf" % self.krb_prefix
         self.kdcpid = "%s/var/run/krb5kdc.pid" % self.krb_prefix
-        self.krb5conf = "%s/etc/krb5.conf" % (self.krb_prefix )
-        self.krb5confrealm = "%s/etc/krb5.conf.d/%s" % (self.krb_prefix, self.realm.lower().replace('.', '-') )
+        self.krb5conf = "%s/etc/krb5.conf" % (self.krb_prefix)
+        self.krb5confrealm = ("%s/etc/krb5.conf.d/%s" %
+                              (self.krb_prefix,
+                               self.realm.lower().replace('.', '-')))
 
         # THIS IS NOT SECURE
         # We should probably randomise this per install
@@ -39,7 +50,6 @@ class MitKrb5(object):
         self.krb_env = {}
         if debug is True:
             self.krb_env['KRB5_TRACE'] = '/tmp/krb_lib389.trace'
-
 
     # Validate our hostname is in /etc/hosts, and is fqdn
     def validate_hostname(self):
@@ -51,7 +61,8 @@ class MitKrb5(object):
     # Check if a realm exists or not.
     # Should we check globally? Or just on this local host.
     def check_realm(self):
-        p = Popen([self.kadmin, '-r', self.realm, '-q', 'list_principals'], env=self.krb_env, stdout=PIPE, stderr=PIPE)
+        p = Popen([self.kadmin, '-r', self.realm, '-q', 'list_principals'],
+                  env=self.krb_env, stdout=PIPE, stderr=PIPE)
         returncode = p.wait()
         if returncode == 0:
             return True
@@ -69,7 +80,7 @@ class MitKrb5(object):
         # Raise a scary warning about eating your krb settings
         if self.warnings:
             print("This will alter / erase your krb5 and kdc settings.")
-            print("THIS IS NOT A SECURE KRB5 INSTALL, DO NOT USE IN PRODUCTION")
+            print("THIS IS NOT A SECURE KRB5 INSTALL, DON'T USE IN PRODUCTION")
             raw_input("Ctrl-C to exit, or press ENTER to continue.")
 
         # If we don't have the directories for this, create them.
@@ -80,14 +91,20 @@ class MitKrb5(object):
         include = True
         with open(self.krb5conf, 'r') as kfile:
             for line in kfile.readlines():
-                if 'includedir %s/' % os.path.dirname(self.krb5confrealm) in line:
+                if 'includedir %s/' % os.path.dirname(self.krb5confrealm) \
+                   in line:
                     include = False
         if include is True:
             with open(self.krb5conf, 'a') as kfile:
-                kfile.write('\nincludedir %s/\n' % os.path.dirname(self.krb5confrealm))
+                kfile.write('\nincludedir %s/\n' %
+                            os.path.dirname(self.krb5confrealm))
 
         # Write to  /etc/krb5.conf.d/example.com
         with open(self.krb5confrealm, 'w') as cfile:
+            domainname = getdomainname()
+            fqdn = getfqdn()
+            realm = self.realm
+            lrealm = self.realm.lower()
             cfile.write("""
 [realms]
 {REALM} = {{
@@ -100,12 +117,8 @@ class MitKrb5(object):
 {LREALM} = {REALM}
 .{DOMAIN} = {REALM}
 {DOMAIN} = {REALM}
-""".format(
-            HOST=getfqdn(),
-            REALM=self.realm,
-            LREALM=self.realm.lower(),
-            DOMAIN=getdomainname(),
-            ))
+""".format(HOST=fqdn, REALM=realm, LREALM=lrealm, DOMAIN=domainname))
+
         # Do we need to edit /var/kerberos/krb5kdc/kdc.conf ?
         with open(self.kdcconf, 'w') as kfile:
             kfile.write("""
@@ -123,16 +136,15 @@ class MitKrb5(object):
   supported_enctypes = aes256-cts:normal aes128-cts:normal
  }}
 
-""".format(
-            REALM=self.realm,
-            PREFIX=self.krb_prefix,
-            ))
+""".format(REALM=self.realm, PREFIX=self.krb_prefix))
         # Invoke kdb5_util
         # Can this use -P
-        p = Popen([self.kdb5_util, 'create', '-r', self.realm, '-s', '-P', self.krb_master_password]  , env=self.krb_env)
+        p = Popen([self.kdb5_util, 'create', '-r', self.realm, '-s', '-P',
+                   self.krb_master_password], env=self.krb_env)
         assert(p.wait() == 0)
         # Start the kdc
-        p = Popen([self.krb5kdc, '-P', self.kdcpid, '-r', self.realm], env=self.krb_env)
+        p = Popen([self.krb5kdc, '-P', self.kdcpid, '-r', self.realm],
+                  env=self.krb_env)
         assert(p.wait() == 0)
         # ???
         # PROFIT
@@ -154,7 +166,8 @@ class MitKrb5(object):
                     pass
             os.remove(self.kdcpid)
 
-        p = Popen([self.kdb5_util, 'destroy', '-r', self.realm]  , env=self.krb_env, stdin=PIPE)
+        p = Popen([self.kdb5_util, 'destroy', '-r', self.realm],
+                  env=self.krb_env, stdin=PIPE)
         p.communicate("yes\n")
         p.wait()
         assert(p.returncode == 0)
@@ -165,7 +178,8 @@ class MitKrb5(object):
 
     def list_principals(self):
         assert(self.check_realm())
-        p = Popen([self.kadmin, '-r', self.realm, '-q', 'list_principals'], env=self.krb_env)
+        p = Popen([self.kadmin, '-r', self.realm, '-q', 'list_principals'],
+                  env=self.krb_env)
         p.wait()
 
     # Create princs for services
@@ -173,9 +187,15 @@ class MitKrb5(object):
         assert(self.check_realm())
         p = None
         if password:
-            p = Popen([self.kadmin, '-r', self.realm, '-q', 'add_principal -pw \'%s\' %s@%s' % (password, principal, self.realm)], env=self.krb_env)
+            p = Popen([self.kadmin, '-r', self.realm, '-q',
+                       'add_principal -pw \'%s\' %s@%s' % (password, principal,
+                                                           self.realm)],
+                      env=self.krb_env)
         else:
-            p = Popen([self.kadmin, '-r', self.realm, '-q', 'add_principal -randkey %s@%s' % (principal, self.realm)], env=self.krb_env)
+            p = Popen([self.kadmin, '-r', self.realm, '-q',
+                       'add_principal -randkey %s@%s' % (principal,
+                                                         self.realm)],
+                      env=self.krb_env)
         assert(p.wait() == 0)
         self.list_principals()
 
@@ -187,7 +207,8 @@ class MitKrb5(object):
             os.remove(keytab)
         except:
             pass
-        p = Popen([self.kadmin, '-r', self.realm, '-q', 'ktadd -k %s %s@%s' % (keytab, principal, self.realm)])
+        p = Popen([self.kadmin, '-r', self.realm, '-q', 'ktadd -k %s %s@%s' %
+                  (keytab, principal, self.realm)])
         assert(p.wait() == 0)
 
 
@@ -197,12 +218,15 @@ class KrbClient(object):
         self.principal = principal
         self.keytab = keytab
         self._keytab = krbV.Keytab(name=self.keytab, context=self.context)
-        self._principal = krbV.Principal(name=self.principal, context=self.context)
+        self._principal = krbV.Principal(name=self.principal,
+                                         context=self.context)
         if cache_file:
-            self.ccache = krbV.CCache(name="FILE:"+cache_file, context=self.context,
+            self.ccache = krbV.CCache(name="FILE:" + cache_file,
+                                      context=self.context,
                                       primary_principal=self._principal)
         else:
-            self.ccache = self.context.default_ccache(primary_principal=self._principal)
+            self.ccache = self.context.default_ccache(
+                primary_principal=self._principal)
         if self._keytab:
             self.reinit()
 
@@ -210,8 +234,5 @@ class KrbClient(object):
         assert self._keytab
         assert self._principal
         self.ccache.init(self._principal)
-        self.ccache.init_creds_keytab(keytab=self._keytab, principal=self._principal)
-
-
-
-
+        self.ccache.init_creds_keytab(keytab=self._keytab,
+                                      principal=self._principal)

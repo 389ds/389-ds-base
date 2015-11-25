@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """
 Lib389 python ldap request controls.
 
@@ -7,7 +15,6 @@ These should be upstreamed into python ldap when possible.
 from ldap.controls import LDAPControl
 from pyasn1.type import namedtype, univ, tag
 from pyasn1.codec.ber import encoder, decoder
-from pyasn1 import debug
 from pyasn1_modules.rfc2251 import AttributeDescription, LDAPDN, AttributeValue
 from lib389._constants import *
 
@@ -24,14 +31,18 @@ from lib389._constants import *
 
  Needs to be matched by ber_scanf(ber, "{a{v}}", ... )
 """
+
+
 class AttributeList(univ.SequenceOf):
     componentType = AttributeDescription()
+
 
 class DerefSpec(univ.Sequence):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('derefAttr', AttributeDescription()),
         namedtype.NamedType('attributes', AttributeList()),
     )
+
 
 class DerefControlValue(univ.SequenceOf):
     componentType = DerefSpec()
@@ -48,8 +59,10 @@ class DerefControlValue(univ.SequenceOf):
                 partialAttribute PartialAttribute
 """
 
+
 class Vals(univ.SetOf):
     componentType = AttributeValue()
+
 
 class PartialAttribute(univ.Sequence):
     componentType = namedtype.NamedTypes(
@@ -57,9 +70,12 @@ class PartialAttribute(univ.Sequence):
         namedtype.NamedType('vals', Vals()),
     )
 
+
 class PartialAttributeList(univ.SequenceOf):
     componentType = PartialAttribute()
-    tagSet = univ.Sequence.tagSet.tagImplicitly(tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))
+    tagSet = univ.Sequence.tagSet.tagImplicitly(tag.Tag(tag.tagClassContext,
+                                                tag.tagFormatConstructed, 0))
+
 
 class DerefRes(univ.Sequence):
     componentType = namedtype.NamedTypes(
@@ -68,8 +84,10 @@ class DerefRes(univ.Sequence):
         namedtype.OptionalNamedType('attrVals', PartialAttributeList()),
     )
 
+
 class DerefResultControlValue(univ.SequenceOf):
     componentType = DerefRes()
+
 
 class DereferenceControl(LDAPControl):
     """
@@ -98,10 +116,11 @@ class DereferenceControl(LDAPControl):
             cvi += 1
         return encoder.encode(cv)
 
-    def decodeControlValue(self,encodedControlValue):
+    def decodeControlValue(self, encodedControlValue):
         self.entry = []
-        #debug.setLogger(debug.flagAll)
-        decodedValue,_ = decoder.decode(encodedControlValue,asn1Spec=DerefResultControlValue())
+        # debug.setLogger(debug.flagAll)
+        decodedValue, _ = decoder.decode(encodedControlValue,
+                                         asn1Spec=DerefResultControlValue())
 
         for derefres in decodedValue:
             result = {}
@@ -116,4 +135,3 @@ class DereferenceControl(LDAPControl):
                     av['vals'].append(str(val))
                 result['attrVals'].append(av)
             self.entry.append(result)
-

@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import time
 import datetime
 import logging
@@ -35,7 +43,10 @@ class CSN(object):
             log.info("%r is not a valid CSN" % csnstr)
 
     def csndiff(self, oth):
-        return (oth.ts - self.ts, oth.seq - self.seq, oth.rid - self.rid, oth.subseq - self.subseq)
+        return (oth.ts - self.ts,
+                oth.seq - self.seq,
+                oth.rid - self.rid,
+                oth.subseq - self.subseq)
 
     def __cmp__(self, oth):
         if self is oth:
@@ -73,7 +84,10 @@ class CSN(object):
         return retstr
 
     def __repr__(self):
-        return time.strftime("%x %X", time.localtime(self.ts)) + " seq: " + str(self.seq) + " rid: " + str(self.rid)
+        return time.strftime("%x %X",
+                             (time.localtime(self.ts)) +
+                             " seq: " + str(self.seq) + " rid: " +
+                             str(self.rid))
 
     def __str__(self):
         return self.__repr__()
@@ -82,17 +96,20 @@ class CSN(object):
 class RUV(object):
     """RUV is Replica Update Vector
         ruv.gen is the generation CSN
-        ruv.rid[1] through ruv.rid[N] are dicts - the number (1-N) is the replica ID
+        ruv.rid[1] through ruv.rid[N] are dicts - the number (1-N)
+        is the replica ID
           ruv.rid[N][url] is the purl
           ruv.rid[N][min] is the min csn
           ruv.rid[N][max] is the max csn
           ruv.rid[N][lastmod] is the last modified timestamp
         example ruv attr:
         nsds50ruv: {replicageneration} 3b0ebc7f000000010000
-        nsds50ruv: {replica 1 ldap://myhost:51010} 3b0ebc9f000000010000 3b0ebef7000000010000
-        nsre_ruvplicaLastModified: {replica 1 ldap://myhost:51010} 292398402093
-        if the tryrepl flag is true, if getting the ruv from the suffix fails, try getting
-        the ruv from the cn=replica entry
+        nsds50ruv: {replica 1 ldap://myhost:51010}
+                    3b0ebc9f000000010000 3b0ebef7000000010000
+        nsre_ruvplicaLastModified: {replica 1 ldap://myhost:51010}
+                                               292398402093
+        if the try repl flag is true, if getting the ruv from the
+        suffix fails, try getting the ruv from the cn=replica entry
     """
 
     pre_gen = r'\{replicageneration\}\s+(\w+)'
@@ -150,7 +167,8 @@ class RUV(object):
         ret = 'generation: %s\n' % self.gen
         for rid in list(self.rid.keys()):
             ret = ret + 'rid: %s url: %s min: [%s] max: [%s]\n' % \
-                (rid, self.rid[rid]['url'], self.rid[rid].get('min', ''), self. rid[rid].get('max', ''))
+                (rid, self.rid[rid]['url'], self.rid[rid].get('min', ''),
+                 self. rid[rid].get('max', ''))
         return ret
 
     def getdiffs(self, oth):
@@ -165,8 +183,9 @@ class RUV(object):
             return (1, "\tsecond RUV is empty")
         diff = cmp(self.gen, oth.gen)
         if diff:
-            return (diff, "\tgeneration [" + str(self.gen) + "] not equal to [" +
-                str(oth.gen) + "]: likely not yet initialized")
+            return (diff, "\tgeneration [" + str(self.gen) +
+                    "] not equal to [" + str(oth.gen) +
+                    "]: likely not yet initialized")
         retstr = ''
         for rid in list(self.rid.keys()):
             for item in ('max', 'min'):
@@ -176,8 +195,8 @@ class RUV(object):
                 if csndiff:
                     if len(retstr):
                         retstr += "\n"
-                    retstr += "\trid %d %scsn %s\n\t[%s] vs [%s]" % (rid, item, csn.diff2str(csnoth),
-                                                                     csn, csnoth)
+                    retstr += ("\trid %d %scsn %s\n\t[%s] vs [%s]" %
+                               (rid, item, csn.diff2str(csnoth), csn, csnoth))
                     if not diff:
                         diff = csndiff
         if not diff:

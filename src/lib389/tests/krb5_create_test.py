@@ -9,7 +9,7 @@
 #
 from lib389._constants import *
 from lib389.mit_krb5 import MitKrb5, KrbClient
-from lib389 import DirSrv,Entry
+from lib389 import DirSrv, Entry
 import pytest
 import logging
 
@@ -19,10 +19,11 @@ import ldap.sasl
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-INSTANCE_PORT     = 54321
+INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'gssapi'
 REALM = "EXAMPLE.COM"
 TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
+
 
 class TopologyInstance(object):
     def __init__(self, instance):
@@ -36,9 +37,9 @@ def topology(request):
     krb = MitKrb5(realm=REALM)
     instance = DirSrv(verbose=False)
     instance.log.debug("Instance allocated")
-    args = {SER_HOST:          LOCALHOST,
-            SER_PORT:          INSTANCE_PORT,
-            SER_REALM:         REALM,
+    args = {SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
+            SER_REALM: REALM,
             SER_SERVERID_PROP: INSTANCE_SERVERID}
     instance.allocate(args)
     if instance.exists():
@@ -60,9 +61,12 @@ def topology(request):
 
     return TopologyInstance(instance)
 
+
 @pytest.fixture(scope="module")
 def add_user(topology):
-    """Create a user entry"""
+    """
+    Create a user entry
+    """
 
     log.info('Create a user entry: %s' % TEST_USER)
     uentry = Entry(TEST_USER)
@@ -75,9 +79,11 @@ def add_user(topology):
     # We extract the kt so we can kinit from it
     krb.create_keytab("test", "/tmp/test.keytab")
 
+
 def test_gssapi(topology, add_user):
-    """Check that our bind completese with ldapwhoami correctly mapped from
-the principal to our test user object.
+    """
+    Check that our bind completese with ldapwhoami correctly mapped from
+    the principal to our test user object.
     """
     # Init our local ccache
     kclient = KrbClient("test@%s" % REALM, "/tmp/test.keytab")
@@ -86,7 +92,7 @@ the principal to our test user object.
     sasl = ldap.sasl.gssapi()
     conn.sasl_interactive_bind_s('', sasl)
     assert(conn.whoami_s() == "dn: uid=test,dc=example,dc=com")
-    
+
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

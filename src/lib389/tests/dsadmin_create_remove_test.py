@@ -1,4 +1,13 @@
-""" Test creation and deletion of instances
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+"""
+Test creation and deletion of instances
 """
 import ldap
 import os
@@ -6,7 +15,6 @@ import socket
 from lib389 import DirSrv, DN_CONFIG
 from lib389.tools import DirSrvTools
 from nose import *
-import logging
 
 added_instances = []
 

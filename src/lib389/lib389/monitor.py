@@ -1,12 +1,19 @@
-"""Monitor class to display current server performance details
-"""
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
+"""
+Monitor class to display current server performance details
+"""
 
 import ldap
 from ldap import filter as ldap_filter
-
 from lib389._constants import *
-from lib389 import Entry
+
 
 class Monitor(object):
     def __init__(self, conn):
@@ -20,7 +27,9 @@ class Monitor(object):
         """
         # Should this be an amalgomation of cn=snmp and cn=monitor?
         # In the future it would make sense perhaps to do this
-        status = self.conn.search_s(DN_MONITOR, ldap.SCOPE_SUBTREE, '(objectClass=*)')
+
+        status = self.conn.search_s(DN_MONITOR, ldap.SCOPE_SUBTREE,
+                                    '(objectClass=*)')
         return status
 
     def backend(self, backend):
@@ -37,5 +46,3 @@ class Monitor(object):
         if len(status) == 0:
             raise ldap.NO_SUCH_OBJECT
         return status
-
-

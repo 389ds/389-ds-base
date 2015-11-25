@@ -1,11 +1,14 @@
-'''
-Created on Dec 17, 2013
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
-@author: tbordaz
-'''
-
-from lib389 import DirSrv, Entry, NotImplementedError, InvalidArgumentError
+from lib389 import DirSrv, InvalidArgumentError
 from lib389.properties import *
+
 
 class Suffix(object):
     proxied_methods = 'search_s getEntry'.split()
@@ -21,7 +24,8 @@ class Suffix(object):
 
     def list(self):
         '''
-            Returns the list of suffixes DN for which it exists a mapping tree entry
+            Returns the list of suffixes DN for which it exists a mapping tree
+            entry
 
             @param None
 
@@ -54,7 +58,8 @@ class Suffix(object):
 
     def getParent(self, suffix=None):
         '''
-            Returns the DN of a suffix that is the parent of the provided 'suffix'.
+            Returns the DN of a suffix that is the parent of the provided
+            'suffix'.
             If 'suffix' has no parent, it returns None
 
             @param suffix - suffix DN of the backend
@@ -62,7 +67,8 @@ class Suffix(object):
             @return parent suffix DN
 
             @return ValueError - if suffix is not provided
-                    InvalidArgumentError - if suffix is not implemented on the server
+                    InvalidArgumentError - if suffix is not implemented on the
+                                           server
 
         '''
         if not suffix:
@@ -70,11 +76,13 @@ class Suffix(object):
 
         ents = self.conn.mappingtree.list(suffix=suffix)
         if len(ents) == 0:
-            raise InvalidArgumentError("suffix %s is not implemented on that server" % suffix)
+            raise InvalidArgumentError(
+                "suffix %s is not implemented on that server" % suffix)
 
         mapping_tree = ents[0]
         if mapping_tree.hasValue(MT_PROPNAME_TO_ATTRNAME[MT_PARENT_SUFFIX]):
-            return mapping_tree.getValue(MT_PROPNAME_TO_ATTRNAME[MT_PARENT_SUFFIX])
+            return mapping_tree.getValue(
+                MT_PROPNAME_TO_ATTRNAME[MT_PARENT_SUFFIX])
         else:
             return None
 
@@ -88,4 +96,3 @@ class Suffix(object):
 
         if not suffix:
             raise ValueError("suffix is mandatory")
-

@@ -1,8 +1,10 @@
-'''
-Created on Dec 5, 2013
-
-@author: tbordaz
-'''
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 ####################################
 #
@@ -15,28 +17,28 @@ from lib389._constants import *
 #
 # Those WITH related attribute name
 #
-SER_HOST       ='hostname'
-SER_PORT       ='ldap-port'
-SER_SECURE_PORT ='ldap-secureport'
-SER_ROOT_DN    ='root-dn'
-SER_ROOT_PW    ='root-pw'
-SER_USER_ID    ='user-id'
+SER_HOST = 'hostname'
+SER_PORT = 'ldap-port'
+SER_SECURE_PORT = 'ldap-secureport'
+SER_ROOT_DN = 'root-dn'
+SER_ROOT_PW = 'root-pw'
+SER_USER_ID = 'user-id'
 
-SER_PROPNAME_TO_ATTRNAME= {SER_HOST:'nsslapd-localhost',
-                           SER_PORT:'nsslapd-port',
-                           SER_SECURE_PORT:'nsslapd-securePort',
-                           SER_ROOT_DN:'nsslapd-rootdn',
-                           SER_ROOT_PW:'nsslapd-rootpw',
-                           SER_USER_ID:'nsslapd-localuser'}
+SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
+                            SER_PORT: 'nsslapd-port',
+                            SER_SECURE_PORT: 'nsslapd-securePort',
+                            SER_ROOT_DN: 'nsslapd-rootdn',
+                            SER_ROOT_PW: 'nsslapd-rootpw',
+                            SER_USER_ID: 'nsslapd-localuser'}
 #
 # Those WITHOUT related attribute name
 #
-SER_SERVERID_PROP   ='server-id'
-SER_GROUP_ID        ='group-id'
-SER_DEPLOYED_DIR    ='deployed-dir'
-SER_BACKUP_INST_DIR ='inst-backupdir'
-SER_CREATION_SUFFIX ='suffix'
 SER_REALM = 'krb5_realm'
+SER_SERVERID_PROP = 'server-id'
+SER_GROUP_ID = 'group-id'
+SER_DEPLOYED_DIR = 'deployed-dir'
+SER_BACKUP_INST_DIR = 'inst-backupdir'
+SER_CREATION_SUFFIX = 'suffix'
 
 ####################################
 #
@@ -45,38 +47,38 @@ SER_REALM = 'krb5_realm'
 ####################################
 
 # Properties name
-MT_STATE        = 'state'
-MT_BACKEND      = 'backend-name'
-MT_SUFFIX       = 'suffix'
-MT_REFERRAL     = 'referral'
-MT_CHAIN_PATH   = 'chain-plugin-path'
-MT_CHAIN_FCT    = 'chain-plugin-fct'
+MT_STATE = 'state'
+MT_BACKEND = 'backend-name'
+MT_SUFFIX = 'suffix'
+MT_REFERRAL = 'referral'
+MT_CHAIN_PATH = 'chain-plugin-path'
+MT_CHAIN_FCT = 'chain-plugin-fct'
 MT_CHAIN_UPDATE = 'chain-update-policy'
-MT_PARENT_SUFFIX= 'parent-suffix'
+MT_PARENT_SUFFIX = 'parent-suffix'
 
 # Properties values
-MT_STATE_VAL_DISABLED  = 'disabled'
-MT_STATE_VAL_BACKEND   = 'backend'
-MT_STATE_VAL_REFERRAL  = 'referral'
-MT_STATE_VAL_REFERRAL_ON_UPDATE='referral-on-update'
-MT_STATE_VAL_CONTAINER ='container'
-MT_STATE_TO_VALUES={MT_STATE_VAL_DISABLED:  0,
-                    MT_STATE_VAL_BACKEND:   1,
-                    MT_STATE_VAL_REFERRAL:  2,
-                    MT_STATE_VAL_REFERRAL_ON_UPDATE: 3,
-                    MT_STATE_VAL_CONTAINER: 4}
+MT_STATE_VAL_DISABLED = 'disabled'
+MT_STATE_VAL_BACKEND = 'backend'
+MT_STATE_VAL_REFERRAL = 'referral'
+MT_STATE_VAL_REFERRAL_ON_UPDATE = 'referral-on-update'
+MT_STATE_VAL_CONTAINER = 'container'
+MT_STATE_TO_VALUES = {MT_STATE_VAL_DISABLED: 0,
+                      MT_STATE_VAL_BACKEND: 1,
+                      MT_STATE_VAL_REFERRAL: 2,
+                      MT_STATE_VAL_REFERRAL_ON_UPDATE: 3,
+                      MT_STATE_VAL_CONTAINER: 4}
 
-MT_CHAIN_UPDATE_VAL_ON_UPDATE   = 'repl_chain_on_update'
-MT_OBJECTCLASS_VALUE   = 'nsMappingTree'
+MT_CHAIN_UPDATE_VAL_ON_UPDATE = 'repl_chain_on_update'
+MT_OBJECTCLASS_VALUE = 'nsMappingTree'
 
-MT_PROPNAME_TO_VALUES = {MT_STATE:MT_STATE_TO_VALUES}
-MT_PROPNAME_TO_ATTRNAME = {MT_STATE:        'nsslapd-state',
-                           MT_BACKEND:      'nsslapd-backend',
-                           MT_SUFFIX:       'cn',
-                           MT_PARENT_SUFFIX:'nsslapd-parent-suffix',
-                           MT_REFERRAL:     'nsslapd-referral',
-                           MT_CHAIN_PATH:   'nsslapd-distribution-plugin',
-                           MT_CHAIN_FCT :   'nsslapd-distribution-funct',
+MT_PROPNAME_TO_VALUES = {MT_STATE: MT_STATE_TO_VALUES}
+MT_PROPNAME_TO_ATTRNAME = {MT_STATE: 'nsslapd-state',
+                           MT_BACKEND: 'nsslapd-backend',
+                           MT_SUFFIX: 'cn',
+                           MT_PARENT_SUFFIX: 'nsslapd-parent-suffix',
+                           MT_REFERRAL: 'nsslapd-referral',
+                           MT_CHAIN_PATH: 'nsslapd-distribution-plugin',
+                           MT_CHAIN_FCT: 'nsslapd-distribution-funct',
                            MT_CHAIN_UPDATE: 'nsslapd-distribution-root-update'}
 
 ####################################
@@ -84,34 +86,36 @@ MT_PROPNAME_TO_ATTRNAME = {MT_STATE:        'nsslapd-state',
 # Properties supported by the backend
 #
 ####################################
-BACKEND_SUFFIX        = 'suffix'
-BACKEND_NAME          = 'name'
-BACKEND_READONLY      = 'read-only'
-BACKEND_REQ_INDEX     = 'require-index'
+BACKEND_SUFFIX = 'suffix'
+BACKEND_NAME = 'name'
+BACKEND_READONLY = 'read-only'
+BACKEND_REQ_INDEX = 'require-index'
 BACKEND_CACHE_ENTRIES = 'entry-cache-number'
-BACKEND_CACHE_SIZE    = 'entry-cache-size'
-BACKEND_DNCACHE_SIZE  = 'dn-cache-size'
-BACKEND_DIRECTORY     = 'directory'
-BACKEND_DB_DEADLOCK   = 'db-deadlock'
+BACKEND_CACHE_SIZE = 'entry-cache-size'
+BACKEND_DNCACHE_SIZE = 'dn-cache-size'
+BACKEND_DIRECTORY = 'directory'
+BACKEND_DB_DEADLOCK = 'db-deadlock'
 BACKEND_CHAIN_BIND_DN = 'chain-bind-dn'
 BACKEND_CHAIN_BIND_PW = 'chain-bind-pw'
-BACKEND_CHAIN_URLS    = 'chain-urls'
-BACKEND_STATS         = 'stats'
+BACKEND_CHAIN_URLS = 'chain-urls'
+BACKEND_STATS = 'stats'
 
 BACKEND_OBJECTCLASS_VALUE = 'nsBackendInstance'
 
-BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX:        'nsslapd-suffix',
-                                BACKEND_NAME:          'cn',
-                                BACKEND_READONLY:      'nsslapd-readonly',
-                                BACKEND_REQ_INDEX:     'nsslapd-require-index',
+BACKEND_PROPNAME_TO_ATTRNAME = {BACKEND_SUFFIX: 'nsslapd-suffix',
+                                BACKEND_NAME: 'cn',
+                                BACKEND_READONLY: 'nsslapd-readonly',
+                                BACKEND_REQ_INDEX: 'nsslapd-require-index',
                                 BACKEND_CACHE_ENTRIES: 'nsslapd-cachesize',
-                                BACKEND_CACHE_SIZE:    'nsslapd-cachememsize',
-                                BACKEND_DNCACHE_SIZE:  'nsslapd-dncachememsize',
-                                BACKEND_DIRECTORY:     'nsslapd-directory',
-                                BACKEND_DB_DEADLOCK:   'nsslapd-db-deadlock-policy',
+                                BACKEND_CACHE_SIZE: 'nsslapd-cachememsize',
+                                BACKEND_DNCACHE_SIZE: 'nsslapd-dncachememsize',
+                                BACKEND_DIRECTORY: 'nsslapd-directory',
+                                BACKEND_DB_DEADLOCK:
+                                    'nsslapd-db-deadlock-policy',
                                 BACKEND_CHAIN_BIND_DN: 'nsmultiplexorbinddn',
-                                BACKEND_CHAIN_BIND_PW: 'nsmultiplexorcredentials',
-                                BACKEND_CHAIN_URLS:    'nsfarmserverurl'}
+                                BACKEND_CHAIN_BIND_PW:
+                                    'nsmultiplexorcredentials',
+                                BACKEND_CHAIN_URLS: 'nsfarmserverurl'}
 
 ####################################
 #
@@ -175,8 +179,7 @@ REPLICA_ABORT_RUV = 'ReplicaAbortCleanRUV'
 REPLICA_COUNT_COUNT = 'ReplicaChangeCount'
 REPLICA_PRECISE_PURGING = 'ReplicaPreciseTombstonePurging'
 
-REPLICA_PROPNAME_TO_ATTRNAME = {
-                                REPLICA_SUFFIX: REPL_ROOT,
+REPLICA_PROPNAME_TO_ATTRNAME = {REPLICA_SUFFIX: REPL_ROOT,
                                 REPLICA_ROOT: REPL_ROOT,
                                 REPLICA_ID: REPL_ID,
                                 REPLICA_TYPE: REPL_TYPE,
@@ -259,14 +262,14 @@ CHANGELOG_PROPNAME_TO_ATTRNAME = {CHANGELOG_NAME: 'cn',
 # Properties of an entry
 #
 ####################################
-ENTRY_OBJECTCLASS     = 'objectclass'
-ENTRY_SN              = 'sn'
-ENTRY_CN              = 'cn'
-ENTRY_TYPE_PERSON     = 'person'
+ENTRY_OBJECTCLASS = 'objectclass'
+ENTRY_SN = 'sn'
+ENTRY_CN = 'cn'
+ENTRY_TYPE_PERSON = 'person'
 ENTRY_TYPE_INETPERSON = 'inetperson'
-ENTRY_TYPE_GROUP      = 'group'
-ENTRY_USERPASSWORD    = 'userpassword'
-ENTRY_UID             = 'uid'
+ENTRY_TYPE_GROUP = 'group'
+ENTRY_USERPASSWORD = 'userpassword'
+ENTRY_UID = 'uid'
 
 ENTRY_TYPE_TO_OBJECTCLASS = {ENTRY_TYPE_PERSON: ["top",
                                                  "person"],
@@ -398,25 +401,25 @@ RA_PROPNAME_TO_ATTRNAME = {RA_NAME: 'cn',
 #
 ####################################
 
-PLUGIN_NAME     = "name"
-PLUGIN_PATH     = "path"
-PLUGIN_ENABLE   = 'enable'
+PLUGIN_NAME = "name"
+PLUGIN_PATH = "path"
+PLUGIN_ENABLE = 'enable'
 
 PLUGINS_OBJECTCLASS_VALUE = "nsSlapdPlugin"
-PLUGINS_ENABLE_ON_VALUE   = "on"
-PLUGINS_ENABLE_OFF_VALUE  = "off"
+PLUGINS_ENABLE_ON_VALUE = "on"
+PLUGINS_ENABLE_OFF_VALUE = "off"
 
-PLUGIN_PROPNAME_TO_ATTRNAME = {PLUGIN_NAME:     'cn',
-                               PLUGIN_PATH:     'nsslapd-pluginPath',
-                               PLUGIN_ENABLE:   'nsslapd-pluginEnabled'}
+PLUGIN_PROPNAME_TO_ATTRNAME = {PLUGIN_NAME: 'cn',
+                               PLUGIN_PATH: 'nsslapd-pluginPath',
+                               PLUGIN_ENABLE: 'nsslapd-pluginEnabled'}
 
 ####################################
 #
 # Properties supported by the index
 #
 ####################################
-INDEX_TYPE     = "type"
-INDEX_SYSTEM   = "system"
+INDEX_TYPE = "type"
+INDEX_SYSTEM = "system"
 INDEX_MATCHING_RULE = "matching-rule"
 
 INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
@@ -429,8 +432,8 @@ INDEX_PROPNAME_TO_ATTRNAME = {INDEX_TYPE: 'nsIndexType',
 #
 ####################################
 
-TASK_WAIT        = "wait"
-TASK_TOMB_STRIP  = "strip-csn"
+TASK_WAIT = "wait"
+TASK_TOMB_STRIP = "strip-csn"
 EXPORT_REPL_INFO = "repl-info"
 
 

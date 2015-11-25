@@ -1,8 +1,10 @@
-'''
-Created on Jan 6, 2014
-
-@author: tbordaz
-'''
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 import os
 import ldap
@@ -95,7 +97,8 @@ class Changelog(object):
             else:
                 op = ldap.MOD_REPLACE
 
-            mods.append((op, CHANGELOG_PROPNAME_TO_ATTRNAME[val], properties[prop]))
+            mods.append((op, CHANGELOG_PROPNAME_TO_ATTRNAME[val],
+                         properties[prop]))
 
         # that is fine now to apply the MOD
         self.conn.modify_s(ents[0].dn, mods)

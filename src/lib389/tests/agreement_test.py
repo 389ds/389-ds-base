@@ -8,11 +8,10 @@
 #
 import ldap
 import time
-import sys
 import os
 import pytest
 
-from lib389 import InvalidArgumentError, NoSuchEntryError
+from lib389 import NoSuchEntryError
 from lib389.agreement import Agreement
 from lib389._constants import *
 from lib389.properties import *
@@ -76,7 +75,8 @@ def topology(request):
     consumer.open()
 
     # Enable replication
-    consumer.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_CONSUMER)
+    consumer.replica.enableReplication(suffix=SUFFIX,
+                                       role=REPLICAROLE_CONSUMER)
 
     # Delete each instance in the end
     def fin():
@@ -92,22 +92,23 @@ def test_create(topology):
     Test on a unknown suffix
     """
 
-    topology.master.log.info("\n\n#########################\n### CREATE\n#########################\n")
-    properties = {RA_NAME: ('meTo_%s:%d' % (topology.consumer.host, topology.consumer.port)),
+    topology.master.log.info("\n\n##############\n## CREATE\n##############\n")
+    properties = {RA_NAME: ('meTo_%s:%d' % (topology.consumer.host,
+                                            topology.consumer.port)),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    repl_agreement = topology.master.agreement.create(suffix=SUFFIX,
-                                                      host=topology.consumer.host,
-                                                      port=topology.consumer.port,
-                                                      properties=properties)
+    repl_agreement = topology.master.agreement.create(
+        suffix=SUFFIX, host=topology.consumer.host,
+        port=topology.consumer.port, properties=properties)
     topology.master.log.debug("%s created" % repl_agreement)
     topology.master.agreement.init(SUFFIX, HOST_CONSUMER, PORT_CONSUMER)
     topology.master.waitForReplInit(repl_agreement)
 
     # Add a test entry
-    topology.master.add_s(Entry((ENTRY_DN, {'objectclass': "top person".split(),
+    topology.master.add_s(Entry((ENTRY_DN, {'objectclass':
+                                            "top person".split(),
                                             'sn': 'test_entry',
                                             'cn': 'test_entry'})))
 
@@ -115,7 +116,8 @@ def test_create(topology):
     loop = 0
     while loop <= 10:
         try:
-            ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+            ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE,
+                                             "(objectclass=*)")
             break
         except ldap.NO_SUCH_OBJECT:
             time.sleep(1)
@@ -124,7 +126,8 @@ def test_create(topology):
 
     # Check that with an invalid suffix it raises NoSuchEntryError
     with pytest.raises(NoSuchEntryError):
-        properties = {RA_NAME: r'meAgainTo_%s:%d' % (topology.consumer.host, topology.consumer.port)}
+        properties = {RA_NAME: r'meAgainTo_%s:%d' %
+                      (topology.consumer.host, topology.consumer.port)}
         topology.master.agreement.create(suffix="ou=dummy",
                                          host=topology.consumer.host,
                                          port=topology.consumer.port,
@@ -140,11 +143,13 @@ def test_list(topology):
     PREREQUISITE: it exists a replica for SUFFIX and a replica agreement
     """
 
-    topology.master.log.info("\n\n#########################\n### LIST\n#########################\n")
+    topology.master.log.info("\n\n###########\n## LIST\n#############\n")
     ents = topology.master.agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]) == topology.consumer.host
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == str(topology.consumer.port)
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]) == \
+        topology.consumer.host
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == \
+        str(topology.consumer.port)
 
     # Create a second RA to check .list returns 2 RA
     properties = {RA_NAME: r'meTo_%s:%d' % (topology.consumer.host, 12345),
@@ -164,14 +169,16 @@ def test_list(topology):
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]) == topology.consumer.host
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == str(topology.consumer.port)
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_HOST]) == \
+        topology.consumer.host
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == \
+        str(topology.consumer.port)
 
 
 def test_status(topology):
     """Test that status is returned from agreement"""
 
-    topology.master.log.info("\n\n#########################\n### STATUS\n#########################")
+    topology.master.log.info("\n\n###########\n## STATUS\n##########")
     ents = topology.master.agreement.list(suffix=SUFFIX)
     for ent in ents:
         ra_status = topology.master.agreement.status(ent.dn)
@@ -182,7 +189,7 @@ def test_status(topology):
 def test_schedule(topology):
     """Test the schedule behaviour with valid and invalid values"""
 
-    topology.master.log.info("\n\n#########################\n### SCHEDULE\n#########################")
+    topology.master.log.info("\n\n###########\n## SCHEDULE\n#########")
     ents = topology.master.agreement.list(suffix=SUFFIX,
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
@@ -193,31 +200,34 @@ def test_schedule(topology):
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == Agreement.ALWAYS
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == \
+        Agreement.ALWAYS
 
     topology.master.agreement.schedule(ents[0].dn, Agreement.NEVER)
     ents = topology.master.agreement.list(suffix=SUFFIX,
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == Agreement.NEVER
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == \
+        Agreement.NEVER
 
-    CUSTOM_SCHEDULE="0000-1234 6420"
+    CUSTOM_SCHEDULE = "0000-1234 6420"
     topology.master.agreement.schedule(ents[0].dn, CUSTOM_SCHEDULE)
     ents = topology.master.agreement.list(suffix=SUFFIX,
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
-    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == CUSTOM_SCHEDULE
+    assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_SCHEDULE]) == \
+        CUSTOM_SCHEDULE
 
-    CUSTOM_SCHEDULES = ("2500-1234 6420", # Invalid HOUR schedule
-                        "0000-2534 6420", # ^^
-                        "1300-1234 6420", # Starting HOUR after ending HOUR
-                        "0062-1234 6420", # Invalid MIN schedule
-                        "0000-1362 6420", # ^^
-                        "0000-1234 6-420", # Invalid DAYS schedule
-                        "0000-1362 64209", # ^^
-                        "0000-1362 01234560") # ^^
+    CUSTOM_SCHEDULES = ("2500-1234 6420",  # Invalid HOUR schedule
+                        "0000-2534 6420",  # ^^
+                        "1300-1234 6420",  # Starting HOUR after ending HOUR
+                        "0062-1234 6420",  # Invalid MIN schedule
+                        "0000-1362 6420",  # ^^
+                        "0000-1234 6-420",  # Invalid DAYS schedule
+                        "0000-1362 64209",  # ^^
+                        "0000-1362 01234560")  # ^^
 
     for CUSTOM_SCHEDULE in CUSTOM_SCHEDULES:
         with pytest.raises(ValueError):
@@ -227,42 +237,41 @@ def test_schedule(topology):
 def test_getProperties(topology):
     """Check the correct behaviour of getProperties function"""
 
-    topology.master.log.info("\n\n#########################\n### GETPROPERTIES\n#########################")
+    topology.master.log.info("\n\n###########\n## GETPROPERTIES\n############")
     ents = topology.master.agreement.list(suffix=SUFFIX,
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
     properties = topology.master.agreement.getProperties(agmnt_dn=ents[0].dn)
     for prop in properties:
-        topology.master.log.info("RA %s : %s -> %s" % (prop,
-                                                       RA_PROPNAME_TO_ATTRNAME[prop],
-                                                       properties[prop]))
+        topology.master.log.info("RA %s : %s -> %s" %
+                                 (prop, RA_PROPNAME_TO_ATTRNAME[prop],
+                                  properties[prop]))
 
-    properties = topology.master.agreement.getProperties(agmnt_dn=ents[0].dn,
-                                                         properties=[RA_BINDDN])
+    properties = topology.master.agreement.getProperties(
+        agmnt_dn=ents[0].dn, properties=[RA_BINDDN])
     assert len(properties) == 1
     for prop in properties:
-        topology.master.log.info("RA %s : %s -> %s" % (prop,
-                                                       RA_PROPNAME_TO_ATTRNAME[prop],
-                                                       properties[prop]))
+        topology.master.log.info("RA %s : %s -> %s" %
+                                 (prop, RA_PROPNAME_TO_ATTRNAME[prop],
+                                  properties[prop]))
 
 
 def test_setProperties(topology):
     """Set properties to the agreement and check, if it was successful"""
 
-    topology.master.log.info("\n\n#########################\n### SETPROPERTIES\n#########################")
+    topology.master.log.info("\n\n###########\n### SETPROPERTIES\n##########")
     ents = topology.master.agreement.list(suffix=SUFFIX,
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
     assert len(ents) == 1
     test_schedule = "1234-2345 12345"
     test_desc = "test_desc"
-    topology.master.agreement.setProperties(agmnt_dn=ents[0].dn,
-                                            properties={RA_SCHEDULE: test_schedule,
-                                                        RA_DESCRIPTION: test_desc})
-    properties = topology.master.agreement.getProperties(agmnt_dn=ents[0].dn,
-                                                         properties=[RA_SCHEDULE,
-                                                                     RA_DESCRIPTION])
+    topology.master.agreement.setProperties(
+        agmnt_dn=ents[0].dn, properties={RA_SCHEDULE: test_schedule,
+                                         RA_DESCRIPTION: test_desc})
+    properties = topology.master.agreement.getProperties(
+        agmnt_dn=ents[0].dn, properties=[RA_SCHEDULE, RA_DESCRIPTION])
     assert len(properties) == 2
     assert properties[RA_SCHEDULE][0] == test_schedule
     assert properties[RA_DESCRIPTION][0] == test_desc
@@ -273,7 +282,7 @@ def test_changes(topology):
     to the replicated suffix
     """
 
-    topology.master.log.info("\n\n#########################\n### CHANGES\n#########################")
+    topology.master.log.info("\n\n##########\n### CHANGES\n##########")
     ents = topology.master.agreement.list(suffix=SUFFIX,
                                           consumer_host=topology.consumer.host,
                                           consumer_port=topology.consumer.port)
@@ -287,12 +296,14 @@ def test_changes(topology):
     mod = [(ldap.MOD_REPLACE, 'description', [TEST_STRING])]
     topology.master.modify_s(ENTRY_DN, mod)
 
-    ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE,
+                                     "(objectclass=*)")
 
     # The update has been replicated
     loop = 0
     while loop <= 10:
-        ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+        ent = topology.consumer.getEntry(ENTRY_DN, ldap.SCOPE_BASE,
+                                         "(objectclass=*)")
         if ent and ent.hasValue('description'):
             if ent.getValue('description') == TEST_STRING:
                 break

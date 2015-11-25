@@ -7,8 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import ldap
-import time
-import sys
 import os
 import pytest
 import logging
@@ -32,24 +30,24 @@ PORT_CONSUMER = 50389
 SERVERID_CONSUMER = 'consumer'
 
 TEST_REPL_DN = "uid=test,%s" % DEFAULT_SUFFIX
-INSTANCE_PORT     = 54321
+INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'dirsrv'
 INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
-NEW_SUFFIX_1    = 'ou=test_master'
-NEW_BACKEND_1   = 'test_masterdb'
-NEW_RM_1        = "cn=replrepl,%s" % NEW_SUFFIX_1
+NEW_SUFFIX_1 = 'ou=test_master'
+NEW_BACKEND_1 = 'test_masterdb'
+NEW_RM_1 = "cn=replrepl,%s" % NEW_SUFFIX_1
 
-NEW_SUFFIX_2    = 'ou=test_consumer'
-NEW_BACKEND_2   = 'test_consumerdb'
+NEW_SUFFIX_2 = 'ou=test_consumer'
+NEW_BACKEND_2 = 'test_consumerdb'
 
-NEW_SUFFIX_3    = 'ou=test_enablereplication_1'
-NEW_BACKEND_3   = 'test_enablereplicationdb_1'
+NEW_SUFFIX_3 = 'ou=test_enablereplication_1'
+NEW_BACKEND_3 = 'test_enablereplicationdb_1'
 
-NEW_SUFFIX_4    = 'ou=test_enablereplication_2'
-NEW_BACKEND_4   = 'test_enablereplicationdb_2'
+NEW_SUFFIX_4 = 'ou=test_enablereplication_2'
+NEW_BACKEND_4 = 'test_enablereplicationdb_2'
 
-NEW_SUFFIX_5    = 'ou=test_enablereplication_3'
-NEW_BACKEND_5   = 'test_enablereplicationdb_3'
+NEW_SUFFIX_5 = 'ou=test_enablereplication_3'
+NEW_BACKEND_5 = 'test_enablereplicationdb_3'
 
 
 class TopologyReplication(object):
@@ -103,14 +101,14 @@ def test_create(topology):
          - replica NEW_SUFFIX_2 as CONSUMER : Master
     """
 
-    log.info("\n\n#########################\n### CREATE\n#########################")
+    log.info("\n\n##########\n### CREATE\n############")
     #
     # MASTER (suffix/backend)
     #
-    backendEntry = topology.master.backend.create(suffix=NEW_SUFFIX_1,
-                                                  properties={BACKEND_NAME: NEW_BACKEND_1})
-    backendEntry = topology.master.backend.create(suffix=NEW_SUFFIX_2,
-                                                  properties={BACKEND_NAME: NEW_BACKEND_2})
+    backendEntry = topology.master.backend.create(
+        suffix=NEW_SUFFIX_1, properties={BACKEND_NAME: NEW_BACKEND_1})
+    backendEntry = topology.master.backend.create(
+        suffix=NEW_SUFFIX_2, properties={BACKEND_NAME: NEW_BACKEND_2})
 
     ents = topology.master.mappingtree.list()
     master_nb_mappingtree = len(ents)
@@ -119,24 +117,26 @@ def test_create(topology):
     topology.master.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
     ents = topology.master.mappingtree.list()
     assert len(ents) == (master_nb_mappingtree + 1)
-    topology.master.add_s(Entry((NEW_SUFFIX_1, {'objectclass': "top organizationalunit".split(),
-                                                'ou': NEW_SUFFIX_1.split('=',1)[1]})))
+    topology.master.add_s(Entry((NEW_SUFFIX_1,
+                          {'objectclass': "top organizationalunit".split(),
+                           'ou': NEW_SUFFIX_1.split('=', 1)[1]})))
 
     # create a second additional mapping tree
     topology.master.mappingtree.create(NEW_SUFFIX_2, bename=NEW_BACKEND_2)
     ents = topology.master.mappingtree.list()
     assert len(ents) == (master_nb_mappingtree + 2)
-    topology.master.add_s(Entry((NEW_SUFFIX_2, {'objectclass': "top organizationalunit".split(),
-                                                'ou': NEW_SUFFIX_2.split('=',1)[1]})))
+    topology.master.add_s(Entry((NEW_SUFFIX_2,
+                          {'objectclass': "top organizationalunit".split(),
+                           'ou': NEW_SUFFIX_2.split('=', 1)[1]})))
     log.info('Master it exists now %d suffix(es)' % len(ents))
 
     #
     # CONSUMER (suffix/backend)
     #
-    backendEntry = topology.consumer.backend.create(suffix=NEW_SUFFIX_1,
-                                                    properties={BACKEND_NAME: NEW_BACKEND_1})
-    backendEntry = topology.consumer.backend.create(suffix=NEW_SUFFIX_2,
-                                                    properties={BACKEND_NAME: NEW_BACKEND_2})
+    backendEntry = topology.consumer.backend.create(
+        suffix=NEW_SUFFIX_1, properties={BACKEND_NAME: NEW_BACKEND_1})
+    backendEntry = topology.consumer.backend.create(
+        suffix=NEW_SUFFIX_2, properties={BACKEND_NAME: NEW_BACKEND_2})
 
     ents = topology.consumer.mappingtree.list()
     consumer_nb_mappingtree = len(ents)
@@ -145,15 +145,17 @@ def test_create(topology):
     topology.consumer.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
     ents = topology.consumer.mappingtree.list()
     assert len(ents) == (consumer_nb_mappingtree + 1)
-    topology.consumer.add_s(Entry((NEW_SUFFIX_1, {'objectclass': "top organizationalunit".split(),
-                                                  'ou': NEW_SUFFIX_1.split('=',1)[1]})))
+    topology.consumer.add_s(Entry((NEW_SUFFIX_1,
+                            {'objectclass': "top organizationalunit".split(),
+                             'ou': NEW_SUFFIX_1.split('=', 1)[1]})))
 
     # create a second additional mapping tree
     topology.consumer.mappingtree.create(NEW_SUFFIX_2, bename=NEW_BACKEND_2)
     ents = topology.consumer.mappingtree.list()
     assert len(ents) == (consumer_nb_mappingtree + 2)
-    topology.consumer.add_s(Entry((NEW_SUFFIX_2, {'objectclass': "top organizationalunit".split(),
-                                                  'ou': NEW_SUFFIX_2.split('=',1)[1]})))
+    topology.consumer.add_s(Entry((NEW_SUFFIX_2,
+                            {'objectclass': "top organizationalunit".split(),
+                             'ou': NEW_SUFFIX_2.split('=', 1)[1]})))
     log.info('Consumer it exists now %d suffix(es)' % len(ents))
 
     #
@@ -163,13 +165,16 @@ def test_create(topology):
     topology.master.changelog.create()
 
     # create a master
-    topology.master.replica.create(suffix=NEW_SUFFIX_1, role=REPLICAROLE_MASTER, rid=1)
+    topology.master.replica.create(suffix=NEW_SUFFIX_1,
+                                   role=REPLICAROLE_MASTER,
+                                   rid=1)
     ents = topology.master.replica.list()
     assert len(ents) == 1
     log.info('Master replica %s' % ents[0].dn)
 
     # create a consumer
-    topology.master.replica.create(suffix=NEW_SUFFIX_2, role=REPLICAROLE_CONSUMER)
+    topology.master.replica.create(suffix=NEW_SUFFIX_2,
+                                   role=REPLICAROLE_CONSUMER)
     ents = topology.master.replica.list()
     assert len(ents) == 2
     ents = topology.master.replica.list(suffix=NEW_SUFFIX_2)
@@ -179,13 +184,15 @@ def test_create(topology):
     # Now create REPLICAS on consumer
     #
     # create a master
-    topology.consumer.replica.create(suffix=NEW_SUFFIX_1, role=REPLICAROLE_CONSUMER)
+    topology.consumer.replica.create(suffix=NEW_SUFFIX_1,
+                                     role=REPLICAROLE_CONSUMER)
     ents = topology.consumer.replica.list()
     assert len(ents) == 1
     log.info('Consumer replica %s' % ents[0].dn)
 
     # create a consumer
-    topology.consumer.replica.create(suffix=NEW_SUFFIX_2, role=REPLICAROLE_CONSUMER)
+    topology.consumer.replica.create(suffix=NEW_SUFFIX_2,
+                                     role=REPLICAROLE_CONSUMER)
     ents = topology.consumer.replica.list()
     assert len(ents) == 2
     ents = topology.consumer.replica.list(suffix=NEW_SUFFIX_2)
@@ -202,7 +209,7 @@ def test_list(topology):
          created by test_create()
     """
 
-    log.info("\n\n#########################\n### LIST\n#########################")
+    log.info("\n\n############\n### LIST\n############")
     ents = topology.master.replica.list()
     assert len(ents) == 2
 
@@ -222,12 +229,14 @@ def test_list(topology):
     assert replica_dn_1 == ents[0].dn
 
     # Check we can retrieve a replica if we provide DN and suffix
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2, replica_dn=replica_dn_2)
+    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2,
+                                        replica_dn=replica_dn_2)
     assert len(ents) == 1
     assert replica_dn_2 == ents[0].dn
 
     # Check DN is used before suffix name
-    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2, replica_dn=replica_dn_1)
+    ents = topology.master.replica.list(suffix=NEW_SUFFIX_2,
+                                        replica_dn=replica_dn_1)
     assert len(ents) == 1
     assert replica_dn_1 == ents[0].dn
 
@@ -247,7 +256,7 @@ def test_create_repl_manager(topology):
          - Check we can bind successfully
     """
 
-    log.info("\n\n#########################\n### CREATE_REPL_MANAGER\n#########################")
+    log.info("\n\n###########\n### CREATE_REPL_MANAGER\n###########")
     # First create the default replication manager
     topology.consumer.replica.create_repl_manager()
     ents = topology.consumer.search_s(defaultProperties[REPLICATION_BIND_DN],
@@ -263,19 +272,23 @@ def test_create_repl_manager(topology):
     assert ents[0].dn == rm_dn
 
     # Check we can bind
-    topology.consumer.simple_bind_s(rm_dn, defaultProperties[REPLICATION_BIND_PW])
+    topology.consumer.simple_bind_s(rm_dn,
+                                    defaultProperties[REPLICATION_BIND_PW])
 
     # Check we fail to bind
     with pytest.raises(ldap.INVALID_CREDENTIALS) as excinfo:
         topology.consumer.simple_bind_s(rm_dn, "dummy")
     log.info("Exception: %s" % str(excinfo.value))
 
-    #now rebind
-    topology.consumer.simple_bind_s(topology.consumer.binddn, topology.consumer.bindpw)
+    # now rebind
+    topology.consumer.simple_bind_s(topology.consumer.binddn,
+                                    topology.consumer.bindpw)
 
-    # Create a custom replication manager under NEW_SUFFIX_1 with a specified password
+    # Create a custom replication manager under NEW_SUFFIX_1
+    # with a specified password
     rm_dn = NEW_RM_1
-    topology.consumer.replica.create_repl_manager(repl_manager_dn=rm_dn, repl_manager_pw="Secret123")
+    topology.consumer.replica.create_repl_manager(repl_manager_dn=rm_dn,
+                                                  repl_manager_pw="Secret123")
     ents = topology.consumer.search_s(rm_dn, ldap.SCOPE_BASE, "objectclass=*")
     assert len(ents) == 1
     assert ents[0].dn == rm_dn
@@ -287,7 +300,8 @@ def test_create_repl_manager(topology):
     with pytest.raises(ldap.INVALID_CREDENTIALS) as excinfo:
         topology.consumer.simple_bind_s(rm_dn, "dummy")
     log.info("Exception: %s" % str(excinfo.value))
-    topology.consumer.simple_bind_s(topology.consumer.binddn, topology.consumer.bindpw)
+    topology.consumer.simple_bind_s(topology.consumer.binddn,
+                                    topology.consumer.bindpw)
 
 
 def test_enableReplication(topology):
@@ -298,12 +312,13 @@ def test_enableReplication(topology):
          - Failure to enable replication with wrong replicaID on consumer
     """
 
-    log.info("\n\n#########################\n### ENABLEREPLICATION\n#########################")
+    log.info("\n\n############\n### ENABLEREPLICATION\n##########")
     #
     # MASTER (suffix/backend)
     #
     backendEntry = topology.master.backend.create(suffix=NEW_SUFFIX_3,
-                                                  properties={BACKEND_NAME: NEW_BACKEND_3})
+                                                  properties={BACKEND_NAME:
+                                                              NEW_BACKEND_3})
 
     ents = topology.master.mappingtree.list()
     master_nb_mappingtree = len(ents)
@@ -312,8 +327,9 @@ def test_enableReplication(topology):
     topology.master.mappingtree.create(NEW_SUFFIX_3, bename=NEW_BACKEND_3)
     ents = topology.master.mappingtree.list()
     assert len(ents) == (master_nb_mappingtree + 1)
-    topology.master.add_s(Entry((NEW_SUFFIX_3, {'objectclass': "top organizationalunit".split(),
-                                                'ou': NEW_SUFFIX_3.split('=',1)[1]})))
+    topology.master.add_s(Entry((NEW_SUFFIX_3,
+                          {'objectclass': "top organizationalunit".split(),
+                           'ou': NEW_SUFFIX_3.split('=', 1)[1]})))
 
     # a supplier should have replicaId in [1..CONSUMER_REPLICAID[
     with pytest.raises(ValueError) as excinfo:
@@ -329,7 +345,8 @@ def test_enableReplication(topology):
     # MASTER (suffix/backend)
     #
     backendEntry = topology.master.backend.create(suffix=NEW_SUFFIX_4,
-                                                  properties={BACKEND_NAME: NEW_BACKEND_4})
+                                                  properties={BACKEND_NAME:
+                                                              NEW_BACKEND_4})
 
     ents = topology.master.mappingtree.list()
     master_nb_mappingtree = len(ents)
@@ -338,8 +355,9 @@ def test_enableReplication(topology):
     topology.master.mappingtree.create(NEW_SUFFIX_4, bename=NEW_BACKEND_4)
     ents = topology.master.mappingtree.list()
     assert len(ents) == (master_nb_mappingtree + 1)
-    topology.master.add_s(Entry((NEW_SUFFIX_4, {'objectclass': "top organizationalunit".split(),
-                                                'ou': NEW_SUFFIX_4.split('=',1)[1]})))
+    topology.master.add_s(Entry((NEW_SUFFIX_4,
+                          {'objectclass': "top organizationalunit".split(),
+                           'ou': NEW_SUFFIX_4.split('=', 1)[1]})))
 
     # A consumer should have CONSUMER_REPLICAID not '1'
     with pytest.raises(ValueError) as excinfo:
@@ -347,7 +365,8 @@ def test_enableReplication(topology):
                                                   role=REPLICAROLE_CONSUMER,
                                                   replicaId=1)
     log.info("Exception (expected): %s" % str(excinfo.value))
-    topology.master.replica.enableReplication(suffix=NEW_SUFFIX_4, role=REPLICAROLE_CONSUMER)
+    topology.master.replica.enableReplication(suffix=NEW_SUFFIX_4,
+                                              role=REPLICAROLE_CONSUMER)
 
 
 def test_disableReplication(topology):
@@ -358,7 +377,7 @@ def test_disableReplication(topology):
          - Failure to disable replication with wrong suffix on consumer
     """
 
-    log.info("\n\n#########################\n### DISABLEREPLICATION\n#########################")
+    log.info("\n\n############\n### DISABLEREPLICATION\n##########")
     topology.master.replica.disableReplication(suffix=NEW_SUFFIX_3)
     with pytest.raises(ldap.LDAPError) as excinfo:
         topology.master.replica.disableReplication(suffix=NEW_SUFFIX_3)
@@ -378,14 +397,15 @@ def test_setProperties(topology):
     PRE-REQUISITE: it exists a replica for NEW_SUFFIX_1
     """
 
-    log.info("\n\n#########################\n### SETPROPERTIES\n#########################")
+    log.info("\n\n##########\n### SETPROPERTIES\n############")
     # set valid values to SUFFIX_1
-    properties = {REPLICA_LEGACY_CONS:      'off',
-                    REPLICA_BINDDN:           NEW_RM_1,
-                    REPLICA_PURGE_INTERVAL:   str(3600),
-                    REPLICA_PURGE_DELAY:      str(5*24*3600),
-                    REPLICA_REFERRAL:         "ldap://%s:1234/" % LOCALHOST}
-    topology.master.replica.setProperties(suffix=NEW_SUFFIX_1, properties=properties)
+    properties = {REPLICA_LEGACY_CONS: 'off',
+                  REPLICA_BINDDN: NEW_RM_1,
+                  REPLICA_PURGE_INTERVAL: str(3600),
+                  REPLICA_PURGE_DELAY: str(5 * 24 * 3600),
+                  REPLICA_REFERRAL: "ldap://%s:1234/" % LOCALHOST}
+    topology.master.replica.setProperties(suffix=NEW_SUFFIX_1,
+                                          properties=properties)
 
     # Check the values have been written
     replicas = topology.master.replica.list(suffix=NEW_SUFFIX_1)
@@ -399,34 +419,37 @@ def test_setProperties(topology):
     # Check invalid properties raise exception
     with pytest.raises(ValueError) as excinfo:
         properties = {"dummy": 'dummy'}
-        topology.master.replica.setProperties(suffix=NEW_SUFFIX_1, properties=properties)
+        topology.master.replica.setProperties(suffix=NEW_SUFFIX_1,
+                                              properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
 
     # check call without suffix/dn/entry raise InvalidArgumentError
     with pytest.raises(InvalidArgumentError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS:      'off'}
+        properties = {REPLICA_LEGACY_CONS: 'off'}
         topology.master.replica.setProperties(properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
 
     # check that if we do not provide a valid entry it raises ValueError
     with pytest.raises(ValueError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS:      'off'}
-        topology.master.replica.setProperties(replica_entry="dummy", properties=properties)
+        properties = {REPLICA_LEGACY_CONS: 'off'}
+        topology.master.replica.setProperties(replica_entry="dummy",
+                                              properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
 
     # check that with an invalid suffix or replica_dn it raise ValueError
     with pytest.raises(ValueError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS:      'off'}
-        topology.master.replica.setProperties(suffix="dummy", properties=properties)
+        properties = {REPLICA_LEGACY_CONS: 'off'}
+        topology.master.replica.setProperties(suffix="dummy",
+                                              properties=properties)
     log.info("Exception (expected): %s" % str(excinfo.value))
 
 
 def test_getProperties(topology):
     """Currently not implemented"""
 
-    log.info("\n\n#########################\n### GETPROPERTIES\n#########################")
+    log.info("\n\n############\n### GETPROPERTIES\n###########")
     with pytest.raises(NotImplementedError) as excinfo:
-        properties = {REPLICA_LEGACY_CONS:      'off'}
+        properties = {REPLICA_LEGACY_CONS: 'off'}
         topology.master.replica.getProperties(suffix=NEW_SUFFIX_1)
     log.info("Exception (expected): %s" % str(excinfo.value))
 

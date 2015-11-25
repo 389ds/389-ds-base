@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 #
 # A setup.py file
 #
@@ -18,7 +27,7 @@ with open(path.join(here, 'README'), 'r') as f:
 setup(
     name='lib389',
     version=version,
-    description='A library for testing 389 directory server',
+    description='A library for accessing 389 directory server',
     long_description=long_description,
 
     url='http://port389.org/wiki/Upstream_test_framework',
@@ -26,24 +35,19 @@ setup(
     author='Red Hat Inc.',
     author_email='389-devel@lists.fedoraproject.org',
 
-        classifiers = [
-        'Development Status :: 3 - Alpha',
-        'Intended Audience :: Developers',
-
-        'Operating System :: POSIX :: Linux',
-
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-
-        'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Quality Assurance',
-        'Topic :: Software Development :: Testing'
-        ],
+        classifiers=[
+            'Development Status :: 3 - Alpha',
+            'Intended Audience :: Developers',
+            'Operating System :: POSIX :: Linux',
+            'Programming Language :: Python :: 2',
+            'Programming Language :: Python :: 2.6',
+            'Programming Language :: Python :: 2.7',
+            'Topic :: Software Development :: Libraries',
+            'Topic :: Software Development :: Quality Assurance',
+            'Topic :: Software Development :: Testing'],
 
     keywords='389 directory server test',
     packages=find_packages(exclude=['tests*']),
 
     install_requires=['python-ldap', 'pytest', 'python-krbV'],
 )
-

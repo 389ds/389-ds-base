@@ -8,23 +8,20 @@
 #
 import os
 import pwd
-import ldap
 import logging
 import pytest
-from random import randint
-from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from lib389 import DirSrv,Entry
+from lib389 import DirSrv, Entry
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 TEST_DN = "uid=test,%s" % DEFAULT_SUFFIX
-INSTANCE_PORT     = 54321
+INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'dirsrv'
-INSTANCE_PREFIX   = '/'
-INSTANCE_BACKUP   = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
+INSTANCE_PREFIX = '/'
+INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 
 
 class TopologyInstance(object):
@@ -50,8 +47,10 @@ def topology(request):
 def _add_user(topology):
     """Add a user to the instance"""
 
-    topology.instance.add_s(Entry((TEST_DN, {'objectclass': "top person".split(),
-                                             'objectclass': "organizationalPerson",
+    topology.instance.add_s(Entry((TEST_DN, {'objectclass':
+                                             "top person".split(),
+                                             'objectclass':
+                                             "organizationalPerson",
                                              'objectclass': "inetOrgPerson",
                                              'uid': 'test',
                                              'sn': 'test',
@@ -68,8 +67,8 @@ def test_allocate(topology):
     assert topology.instance.state == DIRSRV_STATE_INIT
 
     log.info('Allocate the instance')
-    args = {SER_HOST:         LOCALHOST,
-            SER_PORT:         INSTANCE_PORT,
+    args = {SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
             SER_SERVERID_PROP: INSTANCE_SERVERID}
     topology.instance.allocate(args)
 
@@ -86,22 +85,22 @@ def test_allocate(topology):
         userid = pwd.getpwuid(os.getuid())[0]
 
     log.info('Verify the settings')
-    assert topology.instance.host      == LOCALHOST
-    assert topology.instance.port      == INSTANCE_PORT
-    assert topology.instance.sslport   == None
-    assert topology.instance.binddn    == DN_DM
-    assert topology.instance.bindpw    == PW_DM
+    assert topology.instance.host == LOCALHOST
+    assert topology.instance.port == INSTANCE_PORT
+    assert topology.instance.sslport is None
+    assert topology.instance.binddn == DN_DM
+    assert topology.instance.bindpw == PW_DM
     assert topology.instance.creation_suffix == DEFAULT_SUFFIX
-    assert topology.instance.userid    == userid
-    assert topology.instance.serverid  == INSTANCE_SERVERID
-    assert topology.instance.groupid   == topology.instance.userid
-    assert topology.instance.prefix    == INSTANCE_PREFIX
+    assert topology.instance.userid == userid
+    assert topology.instance.serverid == INSTANCE_SERVERID
+    assert topology.instance.groupid == topology.instance.userid
+    assert topology.instance.prefix == INSTANCE_PREFIX
     assert topology.instance.backupdir == INSTANCE_BACKUP
 
-    log.info('Now check, that we can change the settings of an allocated DirSrv')
-    args = {SER_SERVERID_PROP:INSTANCE_SERVERID,
-            SER_HOST:         LOCALHOST,
-            SER_PORT:         INSTANCE_PORT,
+    log.info('Check that we can change the settings of an allocated DirSrv')
+    args = {SER_SERVERID_PROP: INSTANCE_SERVERID,
+            SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
             SER_ROOT_DN: "uid=foo"}
     topology.instance.allocate(args)
 
@@ -109,38 +108,38 @@ def test_allocate(topology):
     assert topology.instance.state == DIRSRV_STATE_ALLOCATED
 
     log.info('Verify the settings')
-    assert topology.instance.host      == LOCALHOST
-    assert topology.instance.port      == INSTANCE_PORT
-    assert topology.instance.sslport   == None
-    assert topology.instance.binddn    == "uid=foo"
-    assert topology.instance.bindpw    == PW_DM
+    assert topology.instance.host == LOCALHOST
+    assert topology.instance.port == INSTANCE_PORT
+    assert topology.instance.sslport is None
+    assert topology.instance.binddn == "uid=foo"
+    assert topology.instance.bindpw == PW_DM
     assert topology.instance.creation_suffix == DEFAULT_SUFFIX
-    assert topology.instance.userid    == userid
-    assert topology.instance.serverid  == INSTANCE_SERVERID
-    assert topology.instance.groupid   == topology.instance.userid
-    assert topology.instance.prefix    == INSTANCE_PREFIX
+    assert topology.instance.userid == userid
+    assert topology.instance.serverid == INSTANCE_SERVERID
+    assert topology.instance.groupid == topology.instance.userid
+    assert topology.instance.prefix == INSTANCE_PREFIX
     assert topology.instance.backupdir == INSTANCE_BACKUP
 
     log.info('Restore back the valid parameters and check')
-    args = {SER_SERVERID_PROP:INSTANCE_SERVERID,
-            SER_HOST:         LOCALHOST,
-            SER_PORT:         INSTANCE_PORT}
+    args = {SER_SERVERID_PROP: INSTANCE_SERVERID,
+            SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT}
     topology.instance.allocate(args)
 
     log.info('Check instance state is allocated')
     assert topology.instance.state == DIRSRV_STATE_ALLOCATED
 
     log.info('Verify the settings')
-    assert topology.instance.host      == LOCALHOST
-    assert topology.instance.port      == INSTANCE_PORT
-    assert topology.instance.sslport   == None
-    assert topology.instance.binddn    == DN_DM
-    assert topology.instance.bindpw    == PW_DM
+    assert topology.instance.host == LOCALHOST
+    assert topology.instance.port == INSTANCE_PORT
+    assert topology.instance.sslport is None
+    assert topology.instance.binddn == DN_DM
+    assert topology.instance.bindpw == PW_DM
     assert topology.instance.creation_suffix == DEFAULT_SUFFIX
-    assert topology.instance.userid    == userid
-    assert topology.instance.serverid  == INSTANCE_SERVERID
-    assert topology.instance.groupid   == topology.instance.userid
-    assert topology.instance.prefix    == INSTANCE_PREFIX
+    assert topology.instance.userid == userid
+    assert topology.instance.serverid == INSTANCE_SERVERID
+    assert topology.instance.groupid == topology.instance.userid
+    assert topology.instance.prefix == INSTANCE_PREFIX
     assert topology.instance.backupdir == INSTANCE_BACKUP
 
 

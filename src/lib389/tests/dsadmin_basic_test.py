@@ -1,16 +1,21 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """ Testing basic functionalities of DirSrv
 
 
 """
-import lib389
-from lib389 import DirSrv, Entry
-from lib389 import NoSuchEntryError
 import ldap
+import lib389
+from lib389 import DirSrv
+from lib389 import NoSuchEntryError
 from ldap import *
-
-from nose import SkipTest
 from nose.tools import *
-
 from . import config
 from .config import *
 
@@ -25,7 +30,8 @@ def setup():
         conn.verbose = True
         conn.added_entries = []
     except SERVER_DOWN as e:
-        log.error("To run tests you need a working 389 instance %s" % config.auth)
+        log.error("To run tests you need a working 389 instance %s" %
+                  config.auth)
         raise e
 
 
@@ -78,7 +84,8 @@ def setupChangelog_default_test():
     e = conn.replica.changelog()
     conn.added_entries.append(e.dn)
     assert e.dn, "Bad changelog entry: %r " % e
-    assert e.getValue('nsslapd-changelogdir').endswith("changelogdb"), "Mismatching entry %r " % e.data.get('nsslapd-changelogdir')
+    assert e.getValue('nsslapd-changelogdir').endswith("changelogdb"), \
+        "Mismatching entry %r " % e.data.get('nsslapd-changelogdir')
     conn.delete_s("cn=changelog5,cn=config")
 
 
@@ -86,7 +93,8 @@ def setupChangelog_test():
     e = conn.replica.changelog(dbname="mockChangelogDb")
     conn.added_entries.append(e.dn)
     assert e.dn, "Bad changelog entry: %r " % e
-    assert e.getValue('nsslapd-changelogdir').endswith("mockChangelogDb"), "Mismatching entry %r " % e.data.get('nsslapd-changelogdir')
+    assert e.getValue('nsslapd-changelogdir').endswith("mockChangelogDb"), \
+        "Mismatching entry %r " % e.data.get('nsslapd-changelogdir')
     conn.delete_s("cn=changelog5,cn=config")
 
 
@@ -102,6 +110,7 @@ def setupChangelog_full_test():
 @raises(NoSuchEntryError)
 def getMTEntry_missing_test():
     e = conn.getMTEntry('o=MISSING')
+    return e
 
 
 def getMTEntry_present_test():
@@ -115,4 +124,3 @@ def getMTEntry_present_test():
     conn.backend.delete(bename)
     conn.delete_s(suffixEntry.dn)
     assert e, "Entry should be present %s" % suffix
-

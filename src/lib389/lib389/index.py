@@ -1,8 +1,10 @@
-'''
-Created on Feb 11, 2014
-
-@author: tbordaz
-'''
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 import ldap
 from ldap.controls.readentry import PostReadControl
@@ -41,29 +43,29 @@ class Index(object):
         indexTypes = args.get(INDEX_TYPE, None)
         matchingRules = args.get(INDEX_MATCHING_RULE, None)
 
-        return self.addIndex(suffix, be_name, attr, indexTypes=indexTypes, matchingRules=matchingRules)
+        return self.addIndex(suffix, be_name, attr, indexTypes=indexTypes,
+                             matchingRules=matchingRules)
 
-    def addIndex(self, suffix, be_name, attr, indexTypes, matchingRules, postReadCtrl=None):
+    def addIndex(self, suffix, be_name, attr, indexTypes, matchingRules,
+                 postReadCtrl=None):
         """Specify the suffix (should contain 1 local database backend),
             the name of the attribute to index, and the types of indexes
             to create e.g. "pres", "eq", "sub"
         """
         msg_id = None
         if be_name:
-            dn = ('cn=%s,cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config' %
-                 (attr, be_name))
+            dn = ('cn=%s,cn=index,cn=%s,cn=ldbm database,cn=plugins,cn=config'
+                  % (attr, be_name))
         else:
             entries_backend = self.conn.backend.list(suffix=suffix)
             # assume 1 local backend
             dn = "cn=%s,cn=index,%s" % (attr, entries_backend[0].dn)
 
         if postReadCtrl:
-            add_record = [
-                          ('nsSystemIndex', ['false']),
+            add_record = [('nsSystemIndex', ['false']),
                           ('cn', [attr]),
                           ('objectclass', ['top', 'nsindex']),
-                          ('nsIndexType', indexTypes)
-                         ]
+                          ('nsIndexType', indexTypes)]
             if matchingRules:
                 add_record.append(('nsMatchingRule', matchingRules))
 

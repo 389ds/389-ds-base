@@ -1,18 +1,19 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """
    You will access this from:
    DirSrv.schema.methodName()
 """
-import os
-import re
-import time
 import glob
-import six
 import ldap
 from ldap.schema.models import AttributeType, ObjectClass, MatchingRule
-
 from lib389._constants import *
-from lib389.utils import normalizeDN, escapeDNValue, suffixfilt
-from lib389 import Entry
 
 
 class Schema(object):
@@ -139,9 +140,8 @@ class Schema(object):
         <ldap.schema.models.MatchingRule instance>
         """
         matchingRules = self.get_matchingrules()
-        matchingRule = [mr for mr in matchingRules
-                        if mr_name.lower() in
-                            list(map(str.lower, mr.names))]
+        matchingRule = [mr for mr in matchingRules if mr_name.lower() in
+                        list(map(str.lower, mr.names))]
         if len(matchingRule) != 1:
             # This is an error.
             return None
@@ -161,9 +161,8 @@ class Schema(object):
         """
         objectclasses = self.get_objectclasses()
 
-        objectclass = [oc for oc in objectclasses
-                       if objectclassname.lower() in
-                           list(map(str.lower, oc.names))]
+        objectclass = [oc for oc in objectclasses if objectclassname.lower() in
+                       list(map(str.lower, oc.names))]
         if len(objectclass) != 1:
             # This is an error.
             return None
@@ -194,7 +193,7 @@ class Schema(object):
 
         attributetype = [at for at in attributetypes
                          if attributetypename.lower() in
-                             list(map(str.lower, at.names))]
+                         list(map(str.lower, at.names))]
         if len(attributetype) != 1:
             # This is an error.
             return None

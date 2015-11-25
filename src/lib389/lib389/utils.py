@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """Utilities for DirSrv.
 
     TODO put them in a module!
@@ -19,7 +27,6 @@ import re
 import os
 import logging
 import shutil
-import time
 import ldap
 import socket
 from socket import getfqdn
@@ -48,13 +55,16 @@ def static_var(varname, value):
 #   eg getEntry(*searches['NAMINGCONTEXTS'])
 #
 searches = {
-    'NAMINGCONTEXTS': ('', ldap.SCOPE_BASE, '(objectclass=*)', ['namingcontexts']),
-    'ZOMBIE'        : ('', ldap.SCOPE_SUBTREE, '(&(objectclass=glue)(objectclass=extensibleobject))', ['dn'])
+    'NAMINGCONTEXTS': ('', ldap.SCOPE_BASE, '(objectclass=*)',
+                       ['namingcontexts']),
+    'ZOMBIE': ('', ldap.SCOPE_SUBTREE,
+               '(&(objectclass=glue)(objectclass=extensibleobject))', ['dn'])
 }
 
 #
 # Utilities
 #
+
 
 def is_a_dn(dn, allow_anon=True):
     """Returns True if the given string is a DN, False otherwise."""
@@ -72,6 +82,7 @@ def is_a_dn(dn, allow_anon=True):
         # An invalid type was passed to be checked
         pass
     return False
+
 
 def normalizeDN(dn, usespace=False):
     # not great, but will do until we use a newer version of python-ldap
@@ -110,7 +121,8 @@ def suffixfilt(suffix):
     spacesuffix = normalizeDN(nsuffix, True)
     escapesuffix = escapeDNFiltValue(nsuffix)
     filt = ('(|(cn=%s)(cn=%s)(cn=%s)(cn="%s")(cn="%s")(cn=%s)(cn="%s"))' %
-           (escapesuffix, nsuffix, spacesuffix, nsuffix, spacesuffix, suffix, suffix))
+            (escapesuffix, nsuffix, spacesuffix, nsuffix, spacesuffix, suffix,
+             suffix))
     return filt
 
 
@@ -172,7 +184,8 @@ def valgrind_enable(sbin_dir, wrapper=None):
 
     The server instance(s) should be stopped prior to calling this function.
     Then after calling valgrind_enable():
-    - Start the server instance(s) with a timeout of 60 (valgrind takes a while to startup)
+    - Start the server instance(s) with a timeout of 60 (valgrind takes a
+      while to startup)
     - Run the tests
     - Stop the server
     - Get the results file
@@ -180,52 +193,61 @@ def valgrind_enable(sbin_dir, wrapper=None):
     - Run valgrind_disable()
 
     @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
-    @param wrapper - The valgrind wrapper script for ns-slapd (if not set, a default wrapper is used)
+    @param wrapper - The valgrind wrapper script for ns-slapd (if not set,
+                     a default wrapper is used)
     @raise IOError
     '''
 
     if not wrapper:
         # use the default ns-slapd wrapper
-        wrapper = '%s/%s' % (os.path.dirname(os.path.abspath(__file__)), VALGRIND_WRAPPER)
+        wrapper = '%s/%s' % (os.path.dirname(os.path.abspath(__file__)),
+                             VALGRIND_WRAPPER)
 
     nsslapd_orig = '%s/ns-slapd' % sbin_dir
     nsslapd_backup = '%s/ns-slapd.original' % sbin_dir
 
     if os.path.isfile(nsslapd_backup):
-        # There is a backup which means we never cleaned up from a previous run(failed test?)
-        # We do not want to copy ns-slapd to ns-slapd.original because ns-slapd is currently
-        # the wrapper.  Basically everything is already enabled and ready to go.
+        # There is a backup which means we never cleaned up from a previous
+        # run(failed test?)
+        # We do not want to copy ns-slapd to ns-slapd.original because ns-slapd
+        # is currently the wrapper.  Basically everything is already enabled
+        # and ready to go.
         log.info('Valgrind is already enabled.')
         return
 
     # Check both nsslapd's exist
     if not os.path.isfile(wrapper):
-        raise IOError('The valgrind wrapper (%s) does not exist or is not accessible. file=%s' % (wrapper, __file__))
+        raise IOError('The valgrind wrapper (%s) does not exist. file=%s' %
+                      (wrapper, __file__))
 
     if not os.path.isfile(nsslapd_orig):
-        raise IOError('The binary (%s) does not exist or is not accessible.' % nsslapd_orig)
+        raise IOError('The binary (%s) does not exist or is not accessible.' %
+                      nsslapd_orig)
 
     # Make a backup of the original ns-slapd and copy the wrapper into place
     try:
         shutil.copy2(nsslapd_orig, nsslapd_backup)
     except IOError as e:
-        log.fatal('valgrind_enable(): failed to backup ns-slapd, error: %s' % e.strerror)
+        log.fatal('valgrind_enable(): failed to backup ns-slapd, error: %s' %
+                  e.strerror)
         raise IOError('failed to backup ns-slapd, error: ' % e.strerror)
 
     # Copy the valgrind wrapper into place
     try:
         shutil.copy2(wrapper, nsslapd_orig)
     except IOError as e:
-        log.fatal('valgrind_enable(): failed to copy valgrind wrapper to ns-slapd, error: %s' % e.strerror)
-        raise IOError('failed to copy valgrind wrapper to ns-slapd, error: ' % e.strerror)
+        log.fatal('valgrind_enable(): failed to copy valgrind wrapper '
+                  'to ns-slapd, error: %s' % e.strerror)
+        raise IOError('failed to copy valgrind wrapper to ns-slapd, error: ' %
+                      e.strerror)
 
     log.info('Valgrind is now enabled.')
 
 
 def valgrind_disable(sbin_dir):
     '''
-    Restore the ns-slapd binary to its original state - the server instances are
-    expected to be stopped.
+    Restore the ns-slapd binary to its original state - the server instances
+    are expected to be stopped.
     @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
     @raise ValueError
     '''
@@ -237,15 +259,18 @@ def valgrind_disable(sbin_dir):
     try:
         shutil.copyfile(nsslapd_backup, nsslapd_orig)
     except IOError as e:
-        log.fatal('valgrind_disable: failed to restore ns-slapd, error: %s' % e.strerror)
+        log.fatal('valgrind_disable: failed to restore ns-slapd, error: %s' %
+                  e.strerror)
         raise ValueError('failed to restore ns-slapd, error: ' % e.strerror)
 
     # Delete the backup now
     try:
         os.remove(nsslapd_backup)
     except OSError as e:
-        log.fatal('valgrind_disable: failed to delete backup ns-slapd, error: %s' % e.strerror)
-        raise ValueError('Failed to delete backup ns-slapd, error: ' % e.strerror)
+        log.fatal('valgrind_disable: failed to delete backup ns-slapd, error:'
+                  ' %s' % e.strerror)
+        raise ValueError('Failed to delete backup ns-slapd, error: ' %
+                         e.strerror)
 
     log.info('Valgrind is now disabled.')
 
@@ -258,10 +283,11 @@ def valgrind_get_results_file(dirsrv_inst):
     """
     The "ps -ef | grep valgrind" looks like:
 
-        nobody 26239 1 10 14:33 ? 00:00:06 valgrind -q --tool=memcheck --leak-check=yes
-        --leak-resolution=high --num-callers=50 --log-file=/var/tmp/slapd.vg.26179
-        /usr/sbin/ns-slapd.orig -D /etc/dirsrv/slapd-localhost
-        -i /var/run/dirsrv/slapd-localhost.pid -w /var/run/dirsrv/slapd-localhost.startpid
+        nobody 26239 1 10 14:33 ? 00:00:06 valgrind -q --tool=memcheck
+        --leak-check=yes --leak-resolution=high --num-callers=50
+        --log-file=/var/tmp/slapd.vg.26179 /usr/sbin/ns-slapd.orig
+        -D /etc/dirsrv/slapd-localhost -i /var/run/dirsrv/slapd-localhost.pid
+        -w /var/run/dirsrv/slapd-localhost.startpid
 
     We need to extract the "--log-file" value
     """
@@ -279,9 +305,12 @@ def valgrind_get_results_file(dirsrv_inst):
 def valgrind_check_file(results_file, *patterns):
     '''
     Check the valgrind results file for the all the patterns
-    @param result_file - valgrind results file (must be read after server is stopped)
-    @param patterns - A plain text or regex pattern string args that should be searched for
-    @return True/False - Return true if one if the patterns match a stack trace
+    @param result_file - valgrind results file (must be read after server is
+                         stopped)
+    @param patterns - A plain text or regex pattern string args that should
+                      be searched for
+    @return True/False - Return true if one if the patterns match a stack
+                         trace
     @raise IOError
     '''
 
@@ -306,7 +335,8 @@ def valgrind_check_file(results_file, *patterns):
             # Check if this stack stack matched all the patterns
             if pattern_count == matched_count:
                 found = True
-                print('valgrind: match found in results file: %s' % (results_file))
+                print('valgrind: match found in results file: %s' %
+                      (results_file))
                 break
             else:
                 matched_count = 0
@@ -324,7 +354,9 @@ def isLocalHost(host_name):
         Uses gethostbyname()
     """
     # first see if this is a "well known" local hostname
-    if host_name == 'localhost' or host_name == 'localhost.localdomain' or host_name == socket.gethostname():
+    if host_name == 'localhost' or \
+       host_name == 'localhost.localdomain' or \
+       host_name == socket.gethostname():
         return True
 
     # first lookup ip addr
@@ -367,7 +399,8 @@ def getdefaultsuffix(name=''):
 
 
 def get_server_user(args):
-    """Return the unix username used from the server inspecting the following keys in args.
+    """Return the unix username used from the server inspecting the following
+       keys in args.
 
         'newuserid', 'admconf', 'sroot' -> ssusers.conf
 
@@ -391,10 +424,11 @@ def get_server_user(args):
 def update_newhost_with_fqdn(args):
     """Replace args[SER_HOST] with its fqdn and returns True if local.
 
-    One of the arguments to createInstance is newhost.  If this is specified, we need
-    to convert it to the fqdn.  If not given, we need to figure out what the fqdn of the
-    local host is.  This method sets newhost in args to the appropriate value and
-    returns True if newhost is the localhost, False otherwise"""
+    One of the arguments to createInstance is newhost.  If this is specified,
+    we need to convert it to the fqdn.  If not given, we need to figure out
+    what the fqdn of the local host is.  This method sets newhost in args to
+    the appropriate value and returns True if newhost is the localhost, False
+    otherwise"""
     if SER_HOST in args:
         args[SER_HOST] = getfqdn(args[SER_HOST])
         isLocal = isLocalHost(args[SER_HOST])
@@ -438,8 +472,9 @@ def getcfgdsuserdn(cfgdn, args):
         elif 'admconf' in args:
             args['cfgdsuser'] = args['admconf'].userdn
         elif 'cfgdsuser' in args:
-            args['cfgdsuser'] = "uid=%s,ou=Administrators,ou=TopologyManagement,%s" % \
-                (args['cfgdsuser'], cfgdn)
+            dsuser = ("uid=%s,ou=Administrators,ou=TopologyManagement,%s" %
+                      (args['cfgdsuser'], cfgdn))
+            args['cfgdsuser'] = dsuser
         conn.unbind()
         conn = lib389.DirSrv(
             args['cfgdshost'], args['cfgdsport'], args['cfgdsuser'],
@@ -489,7 +524,8 @@ def getnewcfgdsinfo(new_instance_arguments):
     try:
         url = LDAPUrl(new_instance_arguments['admconf'].ldapurl)
     except AttributeError:
-        log.error("missing ldapurl attribute in new_instance_arguments: %r" % new_instance_arguments)
+        log.error("missing ldapurl attribute in new_instance_arguments: %r" %
+                  new_instance_arguments)
         raise
 
     ary = url.hostport.split(":")
@@ -512,10 +548,13 @@ def getcfgdsinfo(new_instance_arguments):
     We need the host and port of the configuration directory server in order
     to create an instance.  If this was not given, read the dbswitch.conf file
     to get the information.  This method will raise an exception if the file
-    was not found or could not be open.  This assumes new_instance_arguments contains the sroot
-    parameter for the server root path.  If successful, """
+    was not found or could not be open.  This assumes new_instance_arguments
+    contains the sroot parameter for the server root path.
+    """
     try:
-        return new_instance_arguments['cfgdshost'], int(new_instance_arguments['cfgdsport']), lib389.CFGSUFFIX
+        return (new_instance_arguments['cfgdshost'],
+                int(new_instance_arguments['cfgdsport']),
+                lib389.CFGSUFFIX)
     except KeyError:  # if keys are missing...
         if new_instance_arguments['new_style']:
             return getnewcfgdsinfo(new_instance_arguments)
@@ -537,11 +576,13 @@ def getserverroot(cfgconn, isLocal, args):
 
 @staticmethod
 def getadminport(cfgconn, cfgdn, args):
-    """Return a 2-tuple (asport, True) if the admin server is using SSL, False otherwise.
+    """Return a 2-tuple (asport, True) if the admin server is using SSL,
+    False otherwise.
 
     Get the admin server port so we can contact it via http.  We get this from
-    the configuration entry using the CFGSUFFIX and cfgconn.  Also get any other
-    information we may need from that entry.  The ."""
+    the configuration entry using the CFGSUFFIX and cfgconn.  Also get any
+    other information we may need from that entry.
+    """
     asport = 0
     secure = False
     if cfgconn:
@@ -564,7 +605,9 @@ def getadminport(cfgconn, cfgdn, args):
                 args['admin_domain'] = ary[-2]
             dn = "cn=configuration, " + ent.dn
             ent = cfgconn.getEntry(dn, ldap.SCOPE_BASE, '(objectclass=*)',
-                                   ['nsServerPort', 'nsSuiteSpotUser', 'nsServerSecurity'])
+                                   ['nsServerPort',
+                                    'nsSuiteSpotUser',
+                                    'nsServerSecurity'])
             if ent:
                 asport = ent.nsServerPort
                 secure = (ent.nsServerSecurity and (
@@ -586,13 +629,16 @@ def formatInfData(args):
             # in the admin server
             have_admin, cfgdshost, cfgdsport, cfgdsuser,cfgdspwd, admin_domain
 
-            InstallLdifFile, AddOrgEntries, ConfigFile, SchemaFile, ldapifilepath
+            InstallLdifFile, AddOrgEntries, ConfigFile, SchemaFile,
+            ldapifilepath
 
             # Setup the o=NetscapeRoot namingContext
             setup_admin,
         }
 
-        @see https://access.redhat.com/site/documentation/en-US/Red_Hat_Directory_Server/8.2/html/Installation_Guide/Installation_Guide-Advanced_Configuration-Silent.html
+        @see https://access.redhat.com/site/documentation/en-US/
+             Red_Hat_Directory_Server/8.2/html/Installation_Guide/
+             Installation_Guide-Advanced_Configuration-Silent.html
         [General]
         FullMachineName= dir.example.com
         SuiteSpotUserID= nobody
@@ -624,34 +670,29 @@ def formatInfData(args):
     args = args.copy()
     args['CFGSUFFIX'] = CFGSUFFIX
 
-    content  = ("[General]" "\n")
+    content = ("[General]" "\n")
     content += ("FullMachineName= %s\n" % args[SER_HOST])
     content += ("SuiteSpotUserID= %s\n" % args[SER_USER_ID])
     content += ("nSuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
 
     if args.get('have_admin'):
-        content += (
-        "AdminDomain= %(admin_domain)s" "\n"
-        "ConfigDirectoryLdapURL= ldap://%(cfgdshost)s:%(cfgdsport)d/%(CFGSUFFIX)s" "\n"
-        "ConfigDirectoryAdminID= %(cfgdsuser)s" "\n"
-        "ConfigDirectoryAdminPwd= %(cfgdspwd)s" "\n"
-        ) % args
+        content += ("AdminDomain= %(admin_domain)s" "\n"
+                    "ConfigDirectoryLdapURL= ldap://%(cfgdshost)s:%"
+                    "(cfgdsport)d/%(CFGSUFFIX)s" "\n"
+                    "ConfigDirectoryAdminID= %(cfgdsuser)s" "\n"
+                    "ConfigDirectoryAdminPwd= %(cfgdspwd)s" "\n") % args
 
     content += ("\n" "\n" "[slapd]" "\n")
     content += ("ServerPort= %s\n" % args[SER_PORT])
-    content += ("RootDN= %s\n"     % args[SER_ROOT_DN])
-    content += ("RootDNPwd= %s\n"  % args[SER_ROOT_PW])
+    content += ("RootDN= %s\n" % args[SER_ROOT_DN])
+    content += ("RootDNPwd= %s\n" % args[SER_ROOT_PW])
     content += ("ServerIdentifier= %s\n" % args[SER_SERVERID_PROP])
-    content += ("Suffix= %s\n"     % args[SER_CREATION_SUFFIX])
+    content += ("Suffix= %s\n" % args[SER_CREATION_SUFFIX])
 
     # Create admin?
     if args.get('setup_admin'):
-        content += (
-        "SlapdConfigForMC= Yes" "\n"
-        "UseExistingMC= 0 " "\n"
-        )
-
-
+        content += ("SlapdConfigForMC= Yes" "\n"
+                    "UseExistingMC= 0 " "\n")
 
     if 'InstallLdifFile' in args:
         content += """\nInstallLdifFile= %s\n""" % args['InstallLdifFile']
@@ -666,6 +707,5 @@ def formatInfData(args):
 
     if 'ldapifilepath' in args:
         content += "\nldapifilepath=%s\n" % args['ldapifilepath']
-
 
     return content

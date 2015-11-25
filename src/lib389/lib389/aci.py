@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """Aci class to help parse and create ACIs.
 
 You will access this via the Entry Class.
@@ -6,11 +14,9 @@ You will access this via the Entry Class.
 import ldap
 
 from lib389._constants import *
-from lib389 import Entry, InvalidArgumentError
+
 
 class Aci(object):
-
-
     def __init__(self, conn):
         """
         """
@@ -19,7 +25,8 @@ class Aci(object):
 
     def list(self, basedn, scope=ldap.SCOPE_SUBTREE):
         """
-        List all acis in the directory server below the basedn confined by scope.
+        List all acis in the directory server below the basedn confined by
+        scope.
 
         A set of EntryAcis is returned.
         """
@@ -28,5 +35,3 @@ class Aci(object):
         for rawacientry in rawacientries:
             acis += rawacientry.getAcis()
         return acis
-
-

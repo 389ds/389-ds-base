@@ -1,8 +1,11 @@
-'''
-Created on Feb 10, 2014
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
-@author: tbordaz
-'''
 import time
 import os.path
 import ldap
@@ -27,10 +30,10 @@ class Tasks(object):
             return DirSrv.__getattr__(self.conn, name)
 
     def checkTask(self, entry, dowait=False):
-        '''check task status - task is complete when the nsTaskExitCode attr is set
-        return a 2 tuple (true/false,code) first is false if task is running, true if
-        done - if true, second is the exit code - if dowait is True, this function
-        will block until the task is complete'''
+        '''check task status - task is complete when the nsTaskExitCode attr
+        is set return a 2 tuple (true/false,code) first is false if task is
+        running, true if done - if true, second is the exit code - if dowait
+        is True, this function will block until the task is complete'''
         attrlist = ['nsTaskLog', 'nsTaskStatus', 'nsTaskExitCode',
                     'nsTaskCurrentItem', 'nsTaskTotalItems']
         done = False
@@ -49,21 +52,25 @@ class Tasks(object):
                 break
         return (done, exitCode)
 
-    def importLDIF(self, suffix=None, benamebase=None, input_file=None, args=None):
+    def importLDIF(self, suffix=None, benamebase=None, input_file=None,
+                   args=None):
         '''
-        Import from a LDIF format a given 'suffix' (or 'benamebase' that stores that suffix).
-        It uses an internal task to acheive this request.
+        Import from a LDIF format a given 'suffix' (or 'benamebase' that stores
+        that suffix).  It uses an internal task to acheive this request.
 
-        If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first else 'suffix'.
+        If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first
+        else 'suffix'.
         If both 'suffix' and 'benamebase' are missing it raise ValueError
 
         'input_file' is the ldif input file
 
         @param suffix - suffix of the backend
         @param benamebase - 'commonname'/'cn' of the backend (e.g. 'userRoot')
-        @param ldif_input - file that will contain the entries in LDIF format, to import
+        @param ldif_input - file that will contain the entries in LDIF format
+                            to import
         @param args - is a dictionary that contains modifier of the import task
-                wait: True/[False] - If True, 'export' waits for the completion of the task before to return
+                wait: True/[False] - If True, 'export' waits for the completion
+                                     of the task before to return
 
         @return None
 
@@ -105,32 +112,37 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: import task %s for file %s exited with %d" % (
-                    cn, input_file, exitCode))
+            self.log.error("Error: import task %s for file %s exited with %d" %
+                           (cn, input_file, exitCode))
         else:
-            self.log.info("Import task %s for file %s completed successfully" % (
-                    cn, input_file))
+            self.log.info("Import task %s for file %s completed successfully" %
+                          (cn, input_file))
         self.dn = dn
         self.entry = entry
         return exitCode
 
-    def exportLDIF(self, suffix=None, benamebase=None, output_file=None, args=None):
+    def exportLDIF(self, suffix=None, benamebase=None, output_file=None,
+                   args=None):
         '''
-        Export in a LDIF format a given 'suffix' (or 'benamebase' that stores that suffix).
-        It uses an internal task to acheive this request.
+        Export in a LDIF format a given 'suffix' (or 'benamebase' that stores
+        that suffix).  It uses an internal task to acheive this request.
 
-        If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first else 'suffix'.
+        If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first
+        else 'suffix'.
         If both 'suffix' and 'benamebase' are missing it raises ValueError
 
         'output_file' is the output file of the export
 
         @param suffix - suffix of the backend
         @param benamebase - 'commonname'/'cn' of the backend (e.g. 'userRoot')
-        @param output_file - file that will contain the exported suffix in LDIF format
+        @param output_file - file that will contain the exported suffix in LDIF
+                             format
         @param args - is a dictionary that contains modifier of the export task
-                wait: True/[False] - If True, 'export' waits for the completion of the task before to return
-                repl-info: True/[False] - If True, it adds the replication meta data (state information,
-                                          tombstones and RUV) in the exported file
+                wait: True/[False] - If True, 'export' waits for the completion
+                                     of the task before to return
+                repl-info: True/[False] - If True, it adds the replication meta
+                                          data (state information, tombstones
+                                          and RUV) in the exported file
 
         @return None
 
@@ -169,11 +181,11 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: export task %s for file %s exited with %d" % (
-                    cn, output_file, exitCode))
+            self.log.error("Error: export task %s for file %s exited with %d" %
+                           (cn, output_file, exitCode))
         else:
-            self.log.info("Export task %s for file %s completed successfully" % (
-                    cn, output_file))
+            self.log.info("Export task %s for file %s completed successfully" %
+                          (cn, output_file))
 
         self.dn = dn
         self.entry = entry
@@ -186,7 +198,8 @@ class Tasks(object):
 
         @param backup_dir - backup directory
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
 
         @return exit code
 
@@ -220,7 +233,8 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: backup task %s exited with %d" % (cn, exitCode))
+            self.log.error("Error: backup task %s exited with %d" %
+                           (cn, exitCode))
         else:
             self.log.info("Backup task %s completed successfully" % (cn))
 
@@ -236,7 +250,8 @@ class Tasks(object):
         @param bename - 'commonname'/'cn' of the backend (e.g. 'userRoot')
         @param backup_dir - backup directory
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
 
         @return exit code
 
@@ -280,7 +295,8 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: restore task %s exited with %d" % (cn, exitCode))
+            self.log.error("Error: restore task %s exited with %d" %
+                           (cn, exitCode))
         else:
             self.log.info("Restore task %s completed successfully" % (cn))
 
@@ -291,21 +307,25 @@ class Tasks(object):
 
     def reindex(self, suffix=None, benamebase=None, attrname=None, args=None):
         '''
-        Reindex a 'suffix' (or 'benamebase' that stores that suffix) for a given 'attrname'.
-        It uses an internal task to acheive this request.
+        Reindex a 'suffix' (or 'benamebase' that stores that suffix) for a
+        given 'attrname'.  It uses an internal task to acheive this request.
 
-        If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first else 'suffix'.
+        If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first
+        else 'suffix'.
         If both 'suffix' and 'benamebase' are missing it raise ValueError
 
         @param suffix - suffix of the backend
         @param benamebase - 'commonname'/'cn' of the backend (e.g. 'userRoot')
         @param attrname - attribute name
-        @param args - is a dictionary that contains modifier of the reindex task
-                wait: True/[False] - If True, 'index' waits for the completion of the task before to return
+        @param args - is a dictionary that contains modifier of the reindex
+                      task
+                wait: True/[False] - If True, 'index' waits for the completion
+                                     of the task before to return
 
         @return None
 
-        @raise ValueError if invalid missing benamebase and suffix or invalid benamebase
+        @raise ValueError - if invalid missing benamebase and suffix or invalid
+                            benamebase
         @raise LDAPError if unable to search for index names
 
         '''
@@ -320,7 +340,9 @@ class Tasks(object):
 
             attr_suffix = MT_PROPNAME_TO_ATTRNAME[MT_SUFFIX]
             if not ents[0].hasAttr(attr_suffix):
-                raise ValueError("invalid backend name: %s, or entry without %s" % (benamebase, attr_suffix))
+                raise ValueError(
+                    "invalid backend name: %s, or entry without %s" %
+                    (benamebase, attr_suffix))
 
             suffix = ents[0].getValue(attr_suffix)
 
@@ -332,10 +354,13 @@ class Tasks(object):
             #
             # Reindex all attributes - gather them first...
             #
-            cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S",
+                                                 time.localtime()))
             dn = ('cn=%s,cn=ldbm database,cn=plugins,cn=config' % backend)
             try:
-                indexes = self.conn.search_s(dn, ldap.SCOPE_SUBTREE, '(objectclass=nsIndex)')
+                indexes = self.conn.search_s(dn,
+                                             ldap.SCOPE_SUBTREE,
+                                             '(objectclass=nsIndex)')
                 for index in indexes:
                     attrs.append(index.getValue('cn'))
             except ldap.LDAPError:
@@ -344,7 +369,8 @@ class Tasks(object):
             #
             # Reindex specific attribute
             #
-            cn = "index_%s_%s" % (attrname, time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            cn = "index_%s_%s" % (attrname, time.strftime("%m%d%Y_%H%M%S",
+                                                          time.localtime()))
             attrs.append(attrname)
 
         dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
@@ -368,7 +394,8 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: index task %s exited with %d" % (cn, exitCode))
+            self.log.error("Error: index task %s exited with %d" %
+                           (cn, exitCode))
         else:
             self.log.info("Index task %s completed successfully" % (cn))
 
@@ -377,26 +404,34 @@ class Tasks(object):
 
         return exitCode
 
-    def fixupMemberOf(self, suffix=None, benamebase=None, filt=None, args=None):
+    def fixupMemberOf(self, suffix=None, benamebase=None, filt=None,
+                      args=None):
         '''
-            Trigger a fixup task on 'suffix' (or 'benamebase' that stores that suffix) related to the
-            entries 'memberof' of groups. It uses an internal task to acheive this request.
+            Trigger a fixup task on 'suffix' (or 'benamebase' that stores that
+            suffix) related to the entries 'memberof' of groups. It uses an
+            internal task to acheive this request.
 
-            If 'suffix' and 'benamebase' are specified, it uses 'benamebase' first else 'suffix'.
+            If 'suffix' and 'benamebase' are specified, it uses 'benamebase'
+            first else 'suffix'.
             If both 'suffix' and 'benamebase' are missing it raise ValueError
 
-            'filt' is a filter that will select all the entries (under 'suffix') that we need to evaluate/fix.
-            If missing, the default value is "(|(objectclass=inetuser)(objectclass=inetadmin))"
+            'filt' is a filter that will select all the entries (under
+            'suffix') that we need to evaluate/fix.  If missing, the default
+            value is "(|(objectclass=inetuser)(objectclass=inetadmin))"
 
             @param suffix - suffix of the backend
-            @param benamebase - 'commonname'/'cn' of the backend (e.g. 'userRoot')
-            @param args - is a dictionary that contains modifier of the fixupMemberOf task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+            @param benamebase - 'commonname'/'cn' of the backend
+                                (e.g. 'userRoot')
+            @param args - is a dictionary that contains modifier of the
+                          fixupMemberOf task
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
 
             @return exit code
 
-            @raise ValueError: if benamebase and suffix are specified, or can not retrieve the suffix from the
-                            mapping tree entry
+            @raise ValueError: if benamebase and suffix are specified, or can
+                               not retrieve the suffix from the mapping tree
+                               entry
         '''
         if not benamebase and not suffix:
             raise ValueError("Specify either bename or suffix")
@@ -409,11 +444,14 @@ class Tasks(object):
 
             attr = MT_PROPNAME_TO_ATTRNAME[MT_SUFFIX]
             if not ents[0].hasAttr(attr):
-                raise ValueError("invalid backend name: %s, or entry without %s" % (benamebase, attr))
+                raise ValueError(
+                    "invalid backend name: %s, or entry without %s" %
+                    (benamebase, attr))
 
             suffix = ents[0].getValue(attr)
 
-        cn = "fixupmemberof_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "fixupmemberof_" + time.strftime("%m%d%Y_%H%M%S",
+                                              time.localtime())
         dn = "cn=%s,%s" % (cn, DN_MBO_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -434,9 +472,13 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: fixupMemberOf task %s for basedn %s exited with %d" % (cn, suffix, exitCode))
+            self.log.error(
+                "Error: fixupMemberOf task %s for basedn %s exited with %d" %
+                (cn, suffix, exitCode))
         else:
-            self.log.info("fixupMemberOf task %s for basedn %s completed successfully" % (cn, suffix))
+            self.log.info(
+                "fixupMemberOf task %s for basedn %s completed successfully" %
+                (cn, suffix))
 
         self.dn = dn
         self.entry = entry
@@ -447,9 +489,11 @@ class Tasks(object):
         '''
             Trigger a tombstone fixup task on the specified backend
 
-            @param bename - 'commonname'/'cn' of the backend (e.g. 'userRoot').  Optional.
+            @param bename - 'commonname'/'cn' of the backend (e.g. 'userRoot').
+                            Optional.
             @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
 
             @return exit code
 
@@ -465,7 +509,8 @@ class Tasks(object):
             if len(ents) != 1:
                 raise ValueError("invalid backend name: %s" % bename)
 
-        cn = "fixupTombstone_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
+        cn = "fixupTombstone_" + time.strftime("%m%d%Y_%H%M%S",
+                                               time.localtime())
         dn = "cn=%s,%s" % (cn, DN_TOMB_FIXUP_TASK)
         entry = Entry(dn)
         entry.setValues('objectclass', 'top', 'extensibleObject')
@@ -486,24 +531,29 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: tombstone fixup task %s for backend %s exited with %d" %
-                           (cn, bename, exitCode))
+            self.log.error(
+                "Error: tombstone fixup task %s for backend %s exited with %d"
+                % (cn, bename, exitCode))
         else:
-            self.log.info("tombstone fixup task %s for backend %s completed successfully" %
-                          (cn, bename))
+            self.log.info(
+                "tombstone fixup task %s for backend %s completed successfully"
+                % (cn, bename))
 
         self.dn = dn
         self.entry = entry
 
         return exitCode
 
-    def automemberRebuild(self, suffix=DEFAULT_SUFFIX, scope='sub', filterstr='objectclass=top', args=None):
+    def automemberRebuild(self, suffix=DEFAULT_SUFFIX, scope='sub',
+                          filterstr='objectclass=top', args=None):
         '''
-        @param suffix - The suffix the task should examine - defualt is "dc=example,dc=com"
+        @param suffix - The suffix the task should examine - defualt is
+                        "dc=example,dc=com"
         @param scope - The scope of the search to find entries
         @param fitlerstr - THe search filter to find entries
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
         @return exit code
         '''
 
@@ -529,26 +579,30 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Automember Rebuild Membership task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "Error: Automember Rebuild Membership task (%s) exited with %d"
+                % (cn, exitCode))
         else:
-            self.log.info("Automember Rebuild Membership task (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "Automember Rebuild Membership task(%s) completed successfully"
+                % (cn))
 
         self.dn = dn
         self.entry = entry
 
         return exitCode
 
-    def automemberExport(self, suffix=DEFAULT_SUFFIX, scope='sub', fstr='objectclass=top',
-                          ldif_out=None, args=None):
+    def automemberExport(self, suffix=DEFAULT_SUFFIX, scope='sub',
+                         fstr='objectclass=top', ldif_out=None, args=None):
         '''
-        @param suffix - The suffix the task should examine - default is "dc=example,dc=com"
+        @param suffix - The suffix the task should examine - default is
+                        "dc=example,dc=com"
         @param scope - The scope of the search to find entries
         @param fstr - The search filter to find entries
         @param ldif_out - The name for the output LDIF file
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
         @return exit code
         @raise ValueError: if ldif_out is not provided
         '''
@@ -578,11 +632,13 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Automember Export Updates task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "Error: Automember Export Updates task (%s) exited with %d" %
+                (cn, exitCode))
         else:
-            self.log.info("Automember Export Updates task (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "Automember Export Updates task (%s) completed successfully" %
+                (cn))
 
         self.dn = dn
         self.entry = entry
@@ -594,7 +650,8 @@ class Tasks(object):
         @param ldif_in - Entries to pass into the task for processing
         @param ldif_out - The resulting LDIF of changes from ldif_in
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion
+                                     of the task before to return
         @return exit code
         @raise ValueError: if ldif_out/ldif_in is not provided
         '''
@@ -623,11 +680,13 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Automember Map Updates task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "Error: Automember Map Updates task (%s) exited with %d" %
+                (cn, exitCode))
         else:
-            self.log.info("Automember Map Updates task (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "Automember Map Updates task (%s) completed successfully" %
+                (cn))
 
         self.dn = dn
         self.entry = entry
@@ -636,9 +695,11 @@ class Tasks(object):
 
     def fixupLinkedAttrs(self, linkdn=None, args=None):
         '''
-        @param linkdn - The DN of linked attr config entry (if None all possible configurations are checked)
+        @param linkdn - The DN of linked attr config entry (if None all
+                         possible configurations are checked)
         @param args - Is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion
+                                     of the task before to return
         @return exit code
         '''
 
@@ -662,11 +723,13 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Fixup Linked Attributes task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "Error: Fixup Linked Attributes task (%s) exited with %d" %
+                (cn, exitCode))
         else:
-            self.log.info("Fixup Linked Attributes task (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "Fixup Linked Attributes task (%s) completed successfully" %
+                (cn))
 
         self.dn = dn
         self.entry = entry
@@ -677,7 +740,8 @@ class Tasks(object):
         '''
         @param schemadir - The directory to look for schema files(optional)
         @param args - Is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
         @return exit code
         '''
 
@@ -712,12 +776,15 @@ class Tasks(object):
 
         return exitCode
 
-    def fixupWinsyncMembers(self, suffix=DEFAULT_SUFFIX, fstr='objectclass=top', args=None):
+    def fixupWinsyncMembers(self, suffix=DEFAULT_SUFFIX,
+                            fstr='objectclass=top', args=None):
         '''
-        @param suffix - The suffix the task should rebuild - default is "dc=example,dc=com"
+        @param suffix - The suffix the task should rebuild -
+                        default is "dc=example,dc=com"
         @param fstr - The search filter to find entries
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
         @return exit code
         '''
 
@@ -741,23 +808,27 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: fixupWinsyncMembers 'memberuid task' (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "fixupWinsyncMembers 'memberuid task' (%s) exited with %d" %
+                (cn, exitCode))
         else:
-            self.log.info("fixupWinsyncMembers 'memberuid task' (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "'memberuid task' (%s) completed successfully" % (cn))
 
         self.dn = dn
         self.entry = entry
 
         return exitCode
 
-    def syntaxValidate(self, suffix=DEFAULT_SUFFIX, fstr='objectclass=top', args=None):
+    def syntaxValidate(self, suffix=DEFAULT_SUFFIX, fstr='objectclass=top',
+                       args=None):
         '''
-        @param suffix - The suffix the task should validate - default is "dc=example,dc=com"
+        @param suffix - The suffix the task should validate -
+                        default is "dc=example,dc=com"
         @param fstr - The search filter to find entries
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
         @return exit code
         '''
 
@@ -792,13 +863,16 @@ class Tasks(object):
 
         return exitCode
 
-    def usnTombstoneCleanup(self, suffix=DEFAULT_SUFFIX, bename=None, maxusn_to_delete=None, args=None):
+    def usnTombstoneCleanup(self, suffix=DEFAULT_SUFFIX, bename=None,
+                            maxusn_to_delete=None, args=None):
         '''
-        @param suffix - The suffix the task should cleanup - default is "dc=example,dc=com"
+        @param suffix - The suffix the task should cleanup - default is
+                        "dc=example,dc=com"
         @param backend - The 'backend' the task should cleanup
         @param maxusn_to_delete - Maximum number of usn's to delete
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
         @return exit code
         '''
 
@@ -826,11 +900,13 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: USN tombstone cleanup task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "Error: USN tombstone cleanup task (%s) exited with %d" %
+                (cn, exitCode))
         else:
-            self.log.info("USN tombstone cleanup task (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "USN tombstone cleanup task (%s) completed successfully" %
+                (cn))
 
         self.dn = dn
         self.entry = entry
@@ -839,10 +915,13 @@ class Tasks(object):
 
     def sysconfigReload(self, configfile=None, logchanges=None, args=None):
         '''
-        @param configfile - The sysconfig file:  /etc/sysconfig/dirsrv-localhost
-        @param logchanges - True/False - Tell the server to log the changes made by the task
+        @param configfile - The sysconfig file:
+                            /etc/sysconfig/dirsrv-localhost
+        @param logchanges - True/False - Tell the server to log the changes
+                                         made by the task
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
         @return exit code
         @raise ValueError: If sysconfig file not provided
         '''
@@ -886,7 +965,8 @@ class Tasks(object):
         @param replicaid - The replica ID to remove/clean
         @param force - True/False - Clean all the replicas, even if one is down
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
         @return tuple (task dn, and the exit code)
         @raise ValueError: If missing replicaid
         '''
@@ -921,19 +1001,23 @@ class Tasks(object):
             self.log.error("Error: cleanAllRUV task (%s) exited with %d" %
                            (cn, exitCode))
         else:
-            self.log.info("cleanAllRUV task (%s) completed successfully" % (cn))
+            self.log.info("cleanAllRUV task (%s) completed successfully" %
+                          (cn))
 
         self.dn = dn
         self.entry = entry
 
         return (dn, exitCode)
 
-    def abortCleanAllRUV(self, suffix=None, replicaid=None, certify=None, args=None):
+    def abortCleanAllRUV(self, suffix=None, replicaid=None, certify=None,
+                         args=None):
         '''
         @param replicaid - The replica ID to remove/clean
-        @param certify - True/False - Certify the task was aborted on all the replicas
+        @param certify - True/False - Certify the task was aborted on all
+                                      the replicas
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of
+                                     the task before to return
         @return tuple (task dn, and the exit code)
         @raise ValueError: If missing replicaid
         '''
@@ -967,24 +1051,28 @@ class Tasks(object):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
-            self.log.error("Error: Abort cleanAllRUV task (%s) exited with %d" %
-                           (cn, exitCode))
+            self.log.error(
+                "Error: Abort cleanAllRUV task (%s) exited with %d" %
+                (cn, exitCode))
         else:
-            self.log.info("Abort cleanAllRUV task (%s) completed successfully" %
-                          (cn))
+            self.log.info(
+                "Abort cleanAllRUV task (%s) completed successfully" %
+                (cn))
 
         self.dn = dn
         self.entry = entry
 
         return (dn, exitCode)
 
-    def upgradeDB(self, nsArchiveDir=None, nsDatabaseType=None, nsForceToReindex=None, args=None):
+    def upgradeDB(self, nsArchiveDir=None, nsDatabaseType=None,
+                  nsForceToReindex=None, args=None):
         '''
         @param nsArchiveDir - The archive directory
         @param nsDatabaseType - The database type - default is "ldbm database"
         @param nsForceToReindex - True/False - force reindexing to occur
         @param args - is a dictionary that contains modifier of the task
-                wait: True/[False] - If True,  waits for the completion of the task before to return
+                wait: True/[False] - If True,  waits for the completion of the
+                                     task before to return
         @return exit code
         @raise ValueError: If missing nsArchiveDir
         '''

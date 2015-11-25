@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 __all__ = ['LDIFConn']
 import ldif
 import six
@@ -42,4 +50,3 @@ class LDIFConn(ldif.LDIFParser):
     def get(self, dn):
         ndn = normalizeDN(dn)
         return self.dndict.get(ndn, Entry(None))
-

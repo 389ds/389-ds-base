@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import re
 import six
 import logging
@@ -36,8 +44,8 @@ class Entry(object):
           dn - string - the string DN of the entry
           data - cidict - case insensitive dict of the attributes and values
     """
-    # the ldif class base64 encodes some attrs which I would rather see in raw form - to
-    # encode specific attrs as base64, add them to the list below
+    # the ldif class base64 encodes some attrs which I would rather see in raw
+    # form - to encode specific attrs as base64, add them to the list below
     ldif.safe_string_re = re.compile('^$')
     base64_attrs = ['nsstate']
 
@@ -69,20 +77,25 @@ class Entry(object):
             self.data = cidict()
 
     def __bool__(self):
-        """This allows us to do tests like if entry: returns false if there is no data,
-        true otherwise"""
+        """
+        This allows us to do tests like if entry: returns false if there
+        is no data, true otherwise
+        """
         return self.data is not None and len(self.data) > 0
 
     def __eq__(self, other):
         """
         Compare if two Entry objects are the same.
 
-        This is good for fast comparison of the data we have, but it relies on a few things.
+        This is good for fast comparison of the data we have,
+        but it relies on a few things.
 
-        Each Entry must have been searched and retrieved with the same filter and attribute requirements.
+        Each Entry must have been searched and retrieved with the
+        same filter and attribute requirements.
         If that isn't the case, this will immediately fail.
         """
-        #We could make this "strict" by forcing this to pull back all the attributes of the DN, and the nsUniqueID.
+        # We could make this "strict" by forcing this to pull back all
+        # the attributes of the DN, and the nsUniqueID.
         # Guard from accidents
         if not isinstance(other, Entry):
             return False
@@ -107,17 +120,22 @@ class Entry(object):
         return not self.__eq__(other)
 
     def hasAttr(self, name):
-        """Return True if this entry has an attribute named name, False otherwise"""
+        """
+        Return True if this entry has an attribute named name, False otherwise
+        """
         return self.data and name in self.data
 
     def __getattr__(self, name):
-        """If name is the name of an LDAP attribute, return the first value for that
-        attribute - equivalent to getValue - this allows the use of
+        """
+        If name is the name of an LDAP attribute, return the first
+        value for that attribute - equivalent to getValue - this allows
+        the use of
             entry.cn
         instead of
             entry.getValue('cn')
-        This also allows us to return None if an attribute is not found rather than
-        throwing an exception"""
+        This also allows us to return None if an attribute is not found
+        rather than throwing an exception
+        """
         if name == 'dn' or name == 'data':
             return self.__dict__.get(name, None)
         return self.getValue(name)
@@ -146,21 +164,25 @@ class Entry(object):
         return val in self.data.get(name)
 
     def hasValueCase(self, name, val):
-        """True if the given attribute is present and has the given value - case insensitive value match"""
+        """
+        True if the given attribute is present and has the given value -
+        ase insensitive value match
+        """
         if not self.hasAttr(name):
             return False
         return val.lower() in [x.lower() for x in self.data.get(name)]
 
     def setValue(self, name, *value):
         """
-        Value passed in may be a single value, several values, or a single sequence.
+        Value passed in may be a single value, several values,
+         or a single sequence.
         For example:
            ent.setValue('name', 'value')
            ent.setValue('name', 'value1', 'value2', ..., 'valueN')
            ent.setValue('name', ['value1', 'value2', ..., 'valueN'])
            ent.setValue('name', ('value1', 'value2', ..., 'valueN'))
-        Since *value is a tuple, we may have to extract a list or tuple from that
-        tuple as in the last two examples above
+        Since *value is a tuple, we may have to extract a list or tuple
+        from that tuple as in the last two examples above
         """
         if isinstance(value[0], list) or isinstance(value[0], tuple):
             self.data[name] = value[0]
@@ -181,16 +203,20 @@ class Entry(object):
     setValues = setValue
 
     def toTupleList(self):
-        """Convert the attrs and values to a list of 2-tuples.  The first element
-        of the tuple is the attribute name.  The second element is either a
-        single value or a list of values."""
+        """
+        Convert the attrs and values to a list of 2-tuples.  The first
+        element of the tuple is the attribute name.  The second element
+        is either a single value or a list of values.
+        """
         return list(self.data.items())
 
     def getref(self):
         return self.ref
 
     def __str__(self):
-        """Convert the Entry to its LDIF representation"""
+        """
+        Convert the Entry to its LDIF representation
+        """
         return self.__repr__()
 
     def update(self, dct):
@@ -205,11 +231,15 @@ class Entry(object):
     def __repr__(self):
         """Convert the Entry to its LDIF representation"""
         sio = six.StringIO()
-        # what's all this then?  the unparse method will currently only accept
-        # a list or a dict, not a class derived from them.  self.data is a
-        # cidict, so unparse barfs on it.  I've filed a bug against python-ldap,
-        # but in the meantime, we have to convert to a plain old dict for printing
-        # I also don't want to see wrapping, so set the line width really high (1000)
+        """
+        what's all this then?  the unparse method will currently only accept
+        a list or a dict, not a class derived from them.  self.data is a
+        cidict, so unparse barfs on it.  I've filed a bug against
+        python-ldap, but in the meantime, we have to convert to a plain old
+        dict for printing.
+        I also don't want to see wrapping, so set the line width really high
+        (1000)
+        """
         newdata = {}
         newdata.update(self.data)
         ldif.LDIFWriter(
@@ -252,9 +282,9 @@ class Entry(object):
         return entry
 
     def create(self, type=ENTRY_TYPE_PERSON, entry_dn=None, properties=None):
-        """ Return - eventually creating - a person entry with the given dn and pwd.
-
-            binddn can be a lib389.Entry
+        """
+        Return - eventually creating a person entry with the given dn and
+                 pwd. binddn can be a lib389.Entry
         """
         if not entry_dn:
             raise ValueError("entry_dn is mandatory")
@@ -263,12 +293,16 @@ class Entry(object):
             raise ValueError("type is mandatory")
 
         ent = Entry(entry_dn)
-        ent.setValues(ENTRY_OBJECTCLASS,  ENTRY_TYPE_TO_OBJECTCLASS[type])
-        ent.setValues(ENTRY_USERPASSWORD, properties.get(ENTRY_USERPASSWORD, ""))
-        ent.setValues(ENTRY_SN,           properties.get(ENTRY_SN, "bind dn pseudo user"))
-        ent.setValues(ENTRY_CN,           properties.get(ENTRY_CN, "bind dn pseudo user"))
+        ent.setValues(ENTRY_OBJECTCLASS, ENTRY_TYPE_TO_OBJECTCLASS[type])
+        ent.setValues(ENTRY_USERPASSWORD, properties.get(ENTRY_USERPASSWORD,
+                                                         ""))
+        ent.setValues(ENTRY_SN, properties.get(ENTRY_SN,
+                                               "bind dn pseudo user"))
+        ent.setValues(ENTRY_CN, properties.get(ENTRY_CN,
+                                               "bind dn pseudo user"))
         if type == ENTRY_TYPE_INETPERSON:
-            ent.setValues(ENTRY_UID,      properties.get(ENTRY_UID, "bind dn pseudo user"))
+            ent.setValues(ENTRY_UID, properties.get(ENTRY_UID,
+                                                    "bind dn pseudo user"))
 
         try:
             self.add_s(ent)
@@ -293,48 +327,46 @@ class Entry(object):
 
 
 class EntryAci(object):
-
-    # See https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Managing_Access_Control-Bind_Rules.html
-    # https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server/10/html/Administration_Guide/Managing_Access_Control-Creating_ACIs_Manually.html
-    # We seperate the keys into 3 groups, and one group that has overlap.
-    #  This is so we can not only split the aci, but rebuild it from the dictionary
-    #  at a later point in time.
+    """
+    See https://access.redhat.com/documentation/en-US/Red_Hat_Directory_
+    Server/10/html/Administration_Guide/Managing_Access_Control-Bind_Rules.
+    html
+    https://access.redhat.com/documentation/en-US/Red_Hat_Directory_Server
+     /10/html/Administration_Guide/Managing_Access_Control-Creating_ACIs_
+     Manually.html
+    We seperate the keys into 3 groups, and one group that has overlap.
+    This is so we can not only split the aci, but rebuild it from the
+    dictionary at a later point in time.
+    """
     # These are top level aci comoponent keys
-    _keys = [
-             'targetscope',
+    _keys = ['targetscope',
              'targetattrfilters',
              'targattrfilters',
              'targetfilter',
              'targetattr',
              'target',
-             'version 3.0;',
-           ]
+             'version 3.0;']
     # These are the keys which are seperated by ; in the version 3.0 stanza.
-    _v3keys = [
-             'allow',
-             'acl',
-             'deny',
-            ]
+    _v3keys = ['allow',
+               'acl',
+               'deny']
     # These are the keys which are used on the inside of a v3 allow statement
     # We have them defined, but don't currently use them.
-    _v3innerkeys = [
-             'roledn',
-             'userattr',
-             'ip',
-             'dns',
-             'dayofweek',
-             'timeofday',
-             'authmethod',
-             'userdn',
-             'groupdn',
-            ]
-    # These keys values are prefixed with ldap:///, so we need to know to re-prefix
-    #  ldap:/// onto the value when we rebuild the aci
+    _v3innerkeys = ['roledn',
+                    'userattr',
+                    'ip',
+                    'dns',
+                    'dayofweek',
+                    'timeofday',
+                    'authmethod',
+                    'userdn',
+                    'groupdn']
+    # These keys values are prefixed with ldap:///, so we need to know to
+    # re-prefix ldap:/// onto the value when we rebuild the aci
     _urlkeys = ['target',
                 'userdn',
                 'groupdn',
-                'roledn',
-              ]
+                'roledn']
 
     def __init__(self, entry, rawaci):
         """
@@ -373,7 +405,7 @@ class EntryAci(object):
         # Rebuild the aci from the .acidata.
         rawaci = ''
         # For each key in the outer segment
-        ## Add a (key = val);. Depending on key format val:
+        # Add a (key = val);. Depending on key format val:
         for key in self._keys:
             for value_dict in self.acidata[key]:
                 rawaci += '(%s %s)' % (key, self._format_term(key, value_dict))
@@ -387,7 +419,8 @@ class EntryAci(object):
                 for value in self.acidata[key][0]['values'][:-1]:
                     rawaci += '%s, ' % value
                 rawaci += '%s)' % self.acidata[key][0]['values'][-1]
-                rawaci += '(%s);' % self.acidata["%s_raw_bindrules" % key][0]['values'][-1]
+                rawaci += ('(%s);' % self.acidata["%s_raw_bindrules" %
+                                                  key][0]['values'][-1])
         rawaci += ")"
         return rawaci
 
@@ -413,7 +446,7 @@ class EntryAci(object):
     def _parse_term(self, key, term):
         wdict = {'values': [], 'equal': True}
         # Nearly all terms are = seperated
-        ## We make a dict that holds "equal" and an array of values
+        # We make a dict that holds "equal" and an array of values
         pre, val = term.split('=', 1)
         val = val.replace('"', '')
         if pre.strip() == '!':
@@ -422,8 +455,9 @@ class EntryAci(object):
             wdict['equal'] = True
         wdict['values'] = val.split('||')
         if key in self._urlkeys:
-            ### / We could replace ldap:/// in some attrs?
-            wdict['values'] = [x.replace('ldap:///', '') for x in wdict['values']]
+            # We could replace ldap:/// in some attrs?
+            wdict['values'] = ([x.replace('ldap:///', '')
+                               for x in wdict['values']])
         wdict['values'] = [x.strip() for x in wdict['values']]
 
         return wdict
@@ -435,9 +469,11 @@ class EntryAci(object):
         if subterm[0] == '(' and subterm[-1] == ')':
             subterm = subterm[1:-1]
         terms = subterm.split('and')
-        # We could parse everything into nice structures, and then work with them.
-        #  or we can just leave the bind rule alone, as a string. Let the human do it.
-        # it comes down to cost versus reward.
+        """
+        We could parse everything into nice structures, and then work with
+        them.  Or we can just leave the bind rule alone, as a string. Let
+        the human do it.  It comes down to cost versus reward.
+        """
 
         return [subterm]
 
@@ -457,9 +493,9 @@ class EntryAci(object):
                     first = iwork.index('(') + 1
                     second = iwork.index(')', first)
                     # This could likely be neater ...
-                    data[j].append({
-                        'values': [x.strip() for x in iwork[first:second].split(',')]
-                        })
+                    data[j].append(
+                        {'values': [x.strip()
+                         for x in iwork[first:second].split(',')]})
                     subterm = iwork[second + 1:]
                     data["%s_raw_bindrules" % j].append({
                         'values': self._parse_bind_rules(subterm)
@@ -472,8 +508,8 @@ class EntryAci(object):
         depth = 0
         data = {
             'rawaci': rawaci,
-            'allow_raw_bindrules' : [],
-            'deny_raw_bindrules' : [],
+            'allow_raw_bindrules': [],
+            'deny_raw_bindrules': [],
             }
         for k in self._keys + self._v3keys:
             data[k] = []
@@ -486,11 +522,12 @@ class EntryAci(object):
                 if work.startswith(k):
                     aci = work.replace(k, '', 1)
                     if k == 'version 3.0;':
-                        #We pop more inner terms out, but we don't need to parse them "now"
-                        # they get added to the queue
+                        """
+                        We pop more inner terms out, but we don't need to
+                        parse them "now" they get added to the queue
+                        """
                         terms += self._parse_version_3_0(aci, data)
                         continue
                     data[k].append(self._parse_term(k, aci))
                     break
         return data
-

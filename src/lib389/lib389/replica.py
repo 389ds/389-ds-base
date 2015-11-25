@@ -1,8 +1,10 @@
-'''
-Created on Dec 19, 2013
-
-@author: tbordaz
-'''
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
 
 import ldap
 import os

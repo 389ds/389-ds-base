@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 """Brooker classes to organize ldap methods.
    Stuff is split in classes, like:
    * Replica
@@ -9,16 +17,11 @@
 """
 
 from . import config
-from .config import log
 from .config import *
 
 import lib389
-from lib389 import DirSrv, Entry
-import time
+from lib389 import DirSrv
 
-# Test harnesses
-from .dsadmin_test import drop_backend, addbackend_harn
-from .dsadmin_test import drop_added_entries
 
 conn = None
 added_entries = None
@@ -82,4 +85,3 @@ def loglevel_update_test():
 def access_loglevel_test():
     vals = [lib389.LOG_CACHE, lib389.LOG_REPLICA, lib389.LOG_CONNECT]
     assert conn.config.loglevel(vals, service='access') == sum(vals)
-
