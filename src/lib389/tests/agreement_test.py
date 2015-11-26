@@ -29,6 +29,7 @@ SERVERID_CONSUMER = 'consumer'
 
 SUFFIX = DEFAULT_SUFFIX
 ENTRY_DN = "cn=test_entry, %s" % SUFFIX
+SECOND_AGMT_TEST_PORT = 12345
 
 
 class TopologyReplication(object):
@@ -152,14 +153,15 @@ def test_list(topology):
         str(topology.consumer.port)
 
     # Create a second RA to check .list returns 2 RA
-    properties = {RA_NAME: r'meTo_%s:%d' % (topology.consumer.host, 12345),
+    properties = {RA_NAME: r'meTo_%s:%d' % (topology.consumer.host,
+                                            SECOND_AGMT_TEST_PORT),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     topology.master.agreement.create(suffix=SUFFIX,
                                      host=topology.consumer.host,
-                                     port=12345,
+                                     port=SECOND_AGMT_TEST_PORT,
                                      properties=properties)
     ents = topology.master.agreement.list(suffix=SUFFIX)
     assert len(ents) == 2
@@ -173,6 +175,39 @@ def test_list(topology):
         topology.consumer.host
     assert ents[0].getValue(RA_PROPNAME_TO_ATTRNAME[RA_CONSUMER_PORT]) == \
         str(topology.consumer.port)
+
+
+def test_delete(topology):
+    """Delete previously created the replica agreement
+
+    PREREQUISITE: it exists a replica for SUFFIX and a replica agreement
+    with a SECOND_AGMT_TEST_PORT specified
+    """
+
+    # TODO: add a few test cases for different sets of arguments
+    #       using fixtures and parameters.
+    topology.master.log.info("\n\n##############\n### DELETE\n##############\n")
+    ents = topology.master.agreement.list(suffix=SUFFIX,
+                                          consumer_host=topology.consumer.host,
+                                          consumer_port=SECOND_AGMT_TEST_PORT)
+    assert len(ents) == 1
+
+    # Find DN of the second agreement
+    replica_entries = topology.master.replica.list(SUFFIX)
+    replica = replica_entries[0]
+    agreement_cn = r'meTo_%s:%d' % (topology.consumer.host,
+                                    SECOND_AGMT_TEST_PORT)
+    agreement_dn = ','.join(["cn=%s" % agreement_cn, replica.dn])
+
+    topology.master.agreement.delete(suffix=SUFFIX,
+                                     consumer_host=topology.consumer.host,
+                                     consumer_port=SECOND_AGMT_TEST_PORT,
+                                     agmtdn=agreement_dn)
+
+    ents = topology.master.agreement.list(suffix=SUFFIX,
+                                          consumer_host=topology.consumer.host,
+                                          consumer_port=SECOND_AGMT_TEST_PORT)
+    assert not ents
 
 
 def test_status(topology):
@@ -310,6 +345,9 @@ def test_changes(topology):
         time.sleep(1)
         loop += 1
     assert loop <= 10
+
+    # Give a little time to update a change number on master
+    time.sleep(2)
 
     # Check change number
     newvalue = topology.master.agreement.changes(agmnt_dn=ents[0].dn)

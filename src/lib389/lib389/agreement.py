@@ -546,40 +546,42 @@ class Agreement(object):
 
         return dn_agreement
 
-    def delete(self, suffix, replica):
-        '''
-            Delete a replication agreement
+    def delete(self, suffix=None, consumer_host=None, consumer_port=None,
+               agmtdn=None):
+        """Delete a replication agreement
 
             @param suffix - the suffix that the agreement is configured for
-            @replica - DirSrv object of the server that the agreement points to
+            @param consumer_host - of the server that the agreement points to
+            @param consumer_port - of the server that the agreement points to
+            @param agmtdn - DN of the replica agreement
+
             @raise ldap.LDAPError - for ldap operation failures
-        '''
+            @raise TypeError - if too many agreements were found
+            @raise NoSuchEntryError - if no agreements were found
+        """
 
-        if replica.sslport:
-            # We assume that if you are using SSL, you are using it with
-            # replication
-            port = replica.sslport
-        else:
-            port = replica.port
+        if not (suffix and consumer_host and consumer_port) and not agmtdn:
+            raise InvalidArgumentError("Suffix with consumer_host and consumer_port" +
+                                       " or agmtdn are required")
 
-        agmts = self.list(suffix=suffix, consumer_host=replica.host,
-                          consumer_port=port)
+        agmts = self.list(suffix, consumer_host, consumer_port, agmtdn)
+
         if agmts:
             if len(agmts) > 1:
-                # Found too many agreements
-                self.log.error('Too many agreements found')
-                raise
+                raise TypeError('Too many agreements were found')
             else:
-                # delete the agreement
+                # Delete the agreement
                 try:
-                    self.conn.delete_s(agmts[0].dn)
+                    agmt_dn = agmts[0].dn
+                    self.conn.delete_s(agmt_dn)
+                    self.log.info('Agreement (%s) was successfully removed' %
+                                       agmt_dn)
                 except ldap.LDAPError as e:
                     self.log.error('Failed to delete agreement (%s), ' +
-                                   'error: %s' % (agmts[0].dn, str(e)))
+                                   'error: %s' % (agmt_dn, str(e)))
                     raise
         else:
-            # No agreements, error?
-            self.log.error('No agreements found')
+            raise NoSuchEntryError('No agreements were found')
 
     def init(self, suffix=None, consumer_host=None, consumer_port=None):
         """Trigger a total update of the consumer replica
