@@ -126,9 +126,18 @@ sub sanityCheckParams {
         debug(0, "WARNING: The root password is less than 8 characters long.  You should choose a longer one.\n");
     }
 
-    if (@errs = checkHostname($inf->{General}->{FullMachineName}, 0)) {
-        debug(1, @errs);
-        return @errs;
+    $inf->{General}->{StrictHostCheck} = lc $inf->{General}->{StrictHostCheck};
+
+    if ("true" ne $inf->{General}->{StrictHostCheck} && "false" ne $inf->{General}->{StrictHostCheck}) {
+        debug(1, "StrictHostCheck is not a valid boolean");
+        return ('error_invalid_boolean', $inf->{General}->{StrictHostCheck});
+    }
+
+    if ($inf->{General}->{StrictHostCheck} eq "true" ) {
+        if (@errs = checkHostname($inf->{General}->{FullMachineName}, 0)) {
+            debug(1, @errs);
+            return @errs;
+        }
     }
 
     return ();
@@ -875,6 +884,10 @@ sub setDefaults {
     $inf->{slapd}->{datadir} = set_path_attribute($inf->{slapd}->{datadir},
                                                   "@datadir@",
                                                   $inf->{General}->{prefix});
+
+    if (!defined($inf->{General}->{StrictHostCheck})) {
+        $inf->{General}->{StrictHostCheck} = "true";
+    }
 
     if (!defined($inf->{slapd}->{inst_dir})) {
         $inf->{slapd}->{inst_dir} = "$inf->{General}->{ServerRoot}/slapd-$servid";
