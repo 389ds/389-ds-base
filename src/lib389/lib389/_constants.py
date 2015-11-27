@@ -66,6 +66,7 @@ DN_CONFIG = "cn=config"
 DN_LDBM = "cn=ldbm database,cn=plugins,cn=config"
 DN_SCHEMA = "cn=schema"
 DN_MONITOR = "cn=monitor"
+DN_MONITOR_SNMP = "cn=snmp,cn=monitor"
 
 CMD_PATH_SETUP_DS = "/setup-ds.pl"
 CMD_PATH_REMOVE_DS = "/remove-ds.pl"

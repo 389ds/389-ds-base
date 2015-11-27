@@ -25,11 +25,30 @@ class Monitor(object):
         """
         Show current monitoring information from the server
         """
+        monitor_keys = [
+            'connection',
+            'currentconnections',
+            'opscompleted',
+            'opsinitiated',
+            'threads',
+            'totalconnections',
+            'version',
+        ]
+        status = {}
         # Should this be an amalgomation of cn=snmp and cn=monitor?
         # In the future it would make sense perhaps to do this
-
-        status = self.conn.search_s(DN_MONITOR, ldap.SCOPE_SUBTREE,
-                                    '(objectClass=*)')
+        monitor_status = self.conn.search_s(DN_MONITOR,
+                                            ldap.SCOPE_BASE, '(objectClass=*)')
+        # We aren't using this yet, so leave it here for when we expand this 
+        # again.
+        #snmp_status = self.conn.search_s(DN_MONITOR_SNMP,
+        #                                 ldap.SCOPE_BASE, '(objectClass=*)')
+        if len(monitor_status) > 0:
+            for k in monitor_keys:
+                if monitor_status[0].hasAttr(k):
+                    status[k] = monitor_status[0].getValues(k)
+                else:
+                    status[k] = None
         return status
 
     def backend(self, backend):
