@@ -1630,7 +1630,10 @@ static int dna_fix_maxval(struct configEntry *config_entry,
              * values, or we hit the end of the list. */
             server = PR_LIST_HEAD(servers);
             while (server != servers) {
-                if (dna_request_range(config_entry, (struct dnaServer *)server,
+                if (((struct dnaServer *)server)->remaining == 0) {
+                    /* This server has no values left, no need to ping it */
+                    server = PR_NEXT_LINK(server);
+                } else if (dna_request_range(config_entry, (struct dnaServer *)server,
                                       &lower, &upper) != 0) {
                     server = PR_NEXT_LINK(server);
                 } else {
@@ -1783,7 +1786,7 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                                                                         DNA_REMOTE_CONN_PROT);
 
                 /* validate the entry */
-                if (!server->host || (server->port == 0 && server->secureport == 0) || server->remaining == 0)
+                if (!server->host || (server->port == 0 && server->secureport == 0))
                 {
                     /* free and skip this one */
                     slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
