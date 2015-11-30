@@ -174,8 +174,8 @@ class Backend(object):
             bename = found_bename
         elif bename.lower() != found_bename.lower():
             raise ldap.UNWILLING_TO_PERFORM(
-                "Backend name specified (%s) differs from the retrieved " +
-                "one (%s)" % (bename, found_bename))
+                "Backend name specified (%s) differs from the retrieved "
+                "one (%s)" % (bename,found_bename))
 
         self.conn.index.delete_all(bename)
 

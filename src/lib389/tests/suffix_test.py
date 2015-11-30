@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
+import pytest
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import DirSrv
@@ -28,75 +29,78 @@ NEW_CHILDSUFFIX_2 = 'o=child2,o=test_bis_create'
 NEW_CHILDBACKEND_2 = 'test_bis_createchilddb'
 
 
-class Test_suffix():
-    def setUp(self):
-        instance = DirSrv(verbose=False)
-        instance.log.debug("Instance allocated")
-        args = {SER_HOST: LOCALHOST,
-                SER_PORT: INSTANCE_PORT,
-                SER_DEPLOYED_DIR: INSTANCE_PREFIX,
-                SER_SERVERID_PROP: INSTANCE_SERVERID
-                }
-        instance.allocate(args)
-        if instance.exists():
-            instance.delete()
-        instance.create()
+class TopologyStandalone(object):
+    def __init__(self, instance):
         instance.open()
         self.instance = instance
 
-    def tearDown(self):
-        if self.instance.exists():
-            self.instance.delete()
 
-    def test_list(self):
-        # before creating mapping trees, the backends must exists
-        backendEntry = self.instance.backend.create(
-            NEW_SUFFIX_1, {BACKEND_NAME: NEW_BACKEND_1})
+@pytest.fixture(scope="module")
+def topology(request):
+    instance = DirSrv(verbose=False)
+    instance.log.debug("Instance allocated")
+    args = {SER_HOST: LOCALHOST,
+            SER_PORT: INSTANCE_PORT,
+            SER_DEPLOYED_DIR: INSTANCE_PREFIX,
+            SER_SERVERID_PROP: INSTANCE_SERVERID}
+    instance.allocate(args)
+    if instance.exists():
+        instance.delete()
+    instance.create()
+    instance.open()
 
-        ents = self.instance.mappingtree.list()
-        nb_mappingtree = len(ents)
+    def fin():
+        instance.delete()
+    request.addfinalizer(fin)
 
-        # create a first additional mapping tree
-        self.instance.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
-        ents = self.instance.mappingtree.list()
-        assert len(ents) == (nb_mappingtree + 1)
+    return TopologyStandalone(instance)
 
-        suffixes = self.instance.suffix.list()
-        assert len(suffixes) == 2
-        for suffix in suffixes:
-            self.instance.log.info("suffix is %s" % suffix)
 
-    def test_toBackend(self):
-        backends = self.instance.suffix.toBackend(suffix=NEW_SUFFIX_1)
-        assert len(backends) == 1
-        backend = backends[0]
-        self.instance.log.info("backend entry is %r" % backend)
-        assert backend.getValue(
-            BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_SUFFIX]) == NEW_SUFFIX_1
-        assert backend.getValue(
-            BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME]) == NEW_BACKEND_1
+def test_list(topology):
+    # before creating mapping trees, the backends must exists
+    backendEntry = topology.instance.backend.create(
+        NEW_SUFFIX_1, {BACKEND_NAME: NEW_BACKEND_1})
 
-    def test_getParent(self):
-        parent = self.instance.suffix.getParent(suffix=NEW_SUFFIX_1)
-        assert parent is None
+    ents = topology.instance.mappingtree.list()
+    nb_mappingtree = len(ents)
 
-        backendEntry = self.instance.backend.create(
-            NEW_CHILDSUFFIX_1, {BACKEND_NAME: NEW_CHILDBACKEND_1})
-        # create a third additional mapping tree, that is child of NEW_SUFFIX_1
-        self.instance.mappingtree.create(
-            NEW_CHILDSUFFIX_1, bename=NEW_CHILDBACKEND_1, parent=NEW_SUFFIX_1)
-        parent = self.instance.suffix.getParent(suffix=NEW_CHILDSUFFIX_1)
-        self.instance.log.info("Retrieved parent of %s:  %s" %
-                               (NEW_CHILDSUFFIX_1, parent))
-        assert parent == NEW_SUFFIX_1
+    # create a first additional mapping tree
+    topology.instance.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
+    ents = topology.instance.mappingtree.list()
+    assert len(ents) == (nb_mappingtree + 1)
+
+    suffixes = topology.instance.suffix.list()
+    assert len(suffixes) == 2
+    for suffix in suffixes:
+        topology.instance.log.info("suffix is %s" % suffix)
+
+
+def test_toBackend(topology):
+    backends = topology.instance.suffix.toBackend(suffix=NEW_SUFFIX_1)
+    assert len(backends) == 1
+    backend = backends[0]
+    topology.instance.log.info("backend entry is %r" % backend)
+    assert backend.getValue(
+        BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_SUFFIX]) == NEW_SUFFIX_1
+    assert backend.getValue(
+        BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME]) == NEW_BACKEND_1
+
+
+def test_getParent(topology):
+    parent = topology.instance.suffix.getParent(suffix=NEW_SUFFIX_1)
+    assert parent is None
+
+    backendEntry = topology.instance.backend.create(
+        NEW_CHILDSUFFIX_1, {BACKEND_NAME: NEW_CHILDBACKEND_1})
+    # create a third additional mapping tree, that is child of NEW_SUFFIX_1
+    topology.instance.mappingtree.create(
+        NEW_CHILDSUFFIX_1, bename=NEW_CHILDBACKEND_1, parent=NEW_SUFFIX_1)
+    parent = topology.instance.suffix.getParent(suffix=NEW_CHILDSUFFIX_1)
+    topology.instance.log.info("Retrieved parent of %s:  %s" %
+                            (NEW_CHILDSUFFIX_1, parent))
+    assert parent == NEW_SUFFIX_1
 
 
 if __name__ == "__main__":
-    test = Test_suffix()
-    test.setUp()
-
-    test.test_list()
-    test.test_toBackend()
-    test.test_getParent()
-
-    test.tearDown()
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s -vv %s" % CURRENT_FILE)

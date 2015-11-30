@@ -9,6 +9,7 @@
 import os
 import pytest
 import logging
+import ldap
 
 from lib389._constants import *
 from lib389.properties import *
@@ -147,22 +148,21 @@ def test_create(topology):
                                                    NEW_BACKEND_1})
 
     log.info("Check behaviour with missing suffix")
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
         topology.standalone.backend.create()
-    assert 'suffix is mandatory' in str(excinfo.value)
+    assert 'Missing Suffix' in str(excinfo.value)
 
     log.info("Check behaviour with already existing backend for that suffix")
-    with pytest.raises(InvalidArgumentError) as excinfo:
+    with pytest.raises(ldap.ALREADY_EXISTS):
         topology.standalone.backend.create(suffix=NEW_SUFFIX_1)
-    assert 'It already exists backend(s)' in str(excinfo.value)
 
     log.info("Check behaviour with already existing backend DN, "
              "but new suffix")
-    with pytest.raises(InvalidArgumentError) as excinfo:
+    with pytest.raises(ldap.ALREADY_EXISTS) as excinfo:
         topology.standalone.backend.create(suffix=NEW_SUFFIX_2,
                                            properties={BACKEND_NAME:
                                                        NEW_BACKEND_1})
-    assert 'It already exists a backend with that DN' in str(excinfo.value)
+    assert 'Backend already exists' in str(excinfo.value)
 
     log.info("Create a backend without properties")
     topology.standalone.backend.create(suffix=NEW_SUFFIX_2)
@@ -224,26 +224,26 @@ def test_delete_invalid(topology):
                                                    NEW_BACKEND_1})
     topology.standalone.mappingtree.create(NEW_SUFFIX_1, bename=NEW_BACKEND_1)
 
-    log.info("First no argument -> InvalidArgumentError")
-    with pytest.raises(InvalidArgumentError) as excinfo:
+    log.info("First no argument -> UNWILLING_TO_PERFORM")
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
         topology.standalone.backend.delete()
     assert 'suffix and backend DN and backend name are missing' in \
         str(excinfo.value)
 
-    log.info("Second invalid suffix -> InvalidArgumentError")
-    with pytest.raises(InvalidArgumentError) as excinfo:
+    log.info("Second invalid suffix -> UNWILLING_TO_PERFORM")
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
         topology.standalone.backend.delete(suffix=NEW_SUFFIX_2)
     assert 'Unable to retrieve the backend' in str(excinfo.value)
 
-    log.info("Existing a mapping tree -> UnwillingToPerformError")
-    with pytest.raises(UnwillingToPerformError) as excinfo:
+    log.info("Existing a mapping tree -> UNWILLING_TO_PERFORM")
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
         topology.standalone.backend.delete(suffix=NEW_SUFFIX_1)
     assert 'It still exists a mapping tree' in str(excinfo.value)
     topology.standalone.mappingtree.delete(suffix=NEW_SUFFIX_1,
                                            bename=NEW_BACKEND_1)
 
-    log.info("Backend name differs -> UnwillingToPerformError")
-    with pytest.raises(UnwillingToPerformError) as excinfo:
+    log.info("Backend name differs -> UNWILLING_TO_PERFORM")
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
         topology.standalone.backend.delete(suffix=NEW_SUFFIX_1,
                                            bename='dummydb')
     assert 'Backend name specified (dummydb) differs from' in \
