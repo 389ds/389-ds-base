@@ -9,10 +9,9 @@ Summary: A library for accessing, testing, and configuring the 389 Directory Ser
 Name: %{name}
 Version: %{version}
 Release: %{release}%{?dist}
-Source0: %{name}-%{version}.tar.bz2
+Source0: http://port389.org/binaries/%{name}-%{version}.tar.bz2
 License: GPLv3+
 Group: Development/Libraries
-#BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
@@ -58,7 +57,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-%doc
+%doc python2/LICENSE
 %{python2_sitelib}/*
 
 %changelog
