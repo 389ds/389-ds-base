@@ -10,6 +10,8 @@ autom4te.cache
 *.la
 *.lo
 *.o
+*.pyc
+__pycache__
 .libs
 .deps
 rpmbuild
