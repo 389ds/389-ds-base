@@ -3,13 +3,13 @@
 
 %define name lib389
 %define version 1.0.1
-%define release 1
+%define prerel 1
 
 Summary: A library for accessing, testing, and configuring the 389 Directory Server
 Name: %{name}
 Version: %{version}
-Release: %{release}%{?dist}
-Source0: http://port389.org/binaries/%{name}-%{version}.tar.bz2
+Release: %{prerel}%{?dist}
+Source0: http://port389.org/binaries/%{name}-%{version}-%{prerel}.tar.bz2
 License: GPLv3+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -28,7 +28,7 @@ configuring the 389 Directory Server.
 
 %prep
 %setup -qc
-mv %{name}-%{version} python2
+mv %{name}-%{version}-%{prerel} python2
 
 %build
 pushd python2
