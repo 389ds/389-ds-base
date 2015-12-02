@@ -42,6 +42,11 @@ rm -rf $RPM_BUILD_ROOT
 pushd python2
 %{__python2} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
 popd
+for file in $RPM_BUILD_ROOT%{python2_sitelib}/lib389/clitools/*.py; do
+    if [ "$file" != "__init__.py" ]; then
+        chmod a+x $file
+    fi
+done
 
 %check
 pushd python2
