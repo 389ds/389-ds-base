@@ -1551,6 +1551,7 @@ typedef struct passwordpolicyarray {
   int pw_mincategories;
   int pw_mintokenlength;
   slapi_onoff_t pw_exp;
+  slapi_onoff_t pw_send_expiring;
   long pw_maxage;
   long pw_minage;
   long pw_warning;
@@ -2043,6 +2044,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_PW_IS_LEGACY "passwordLegacyPolicy"
 #define CONFIG_PW_TRACK_LAST_UPDATE_TIME "passwordTrackUpdateTime"
 #define CONFIG_PW_ADMIN_DN_ATTRIBUTE "passwordAdminDN"
+#define CONFIG_PW_SEND_EXPIRING "passwordSendExpiringTime"
 #define CONFIG_ACCESSLOG_BUFFERING_ATTRIBUTE "nsslapd-accesslog-logbuffering"
 #define CONFIG_CSNLOGGING_ATTRIBUTE "nsslapd-csnlogging"
 #define CONFIG_RETURN_EXACT_CASE_ATTRIBUTE "nsslapd-return-exact-case"

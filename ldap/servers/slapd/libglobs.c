@@ -193,6 +193,7 @@ slapi_onoff_t init_pw_is_legacy;
 slapi_onoff_t init_pw_track_update_time;
 slapi_onoff_t init_pw_change;
 slapi_onoff_t init_pw_exp;
+slapi_onoff_t init_pw_send_expiring;
 slapi_onoff_t init_allow_hashed_pw;
 slapi_onoff_t init_pw_syntax;
 slapi_onoff_t init_schemacheck;
@@ -661,6 +662,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_exp,
 		CONFIG_ON_OFF, NULL, &init_pw_exp},
+	{CONFIG_PW_SEND_EXPIRING, config_set_pw_send_expiring,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pw_policy.pw_send_expiring,
+		CONFIG_ON_OFF, NULL, &init_pw_send_expiring},
 	{CONFIG_ACCESSCONTROL_ATTRIBUTE, config_set_accesscontrol,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.accesscontrol,
@@ -1506,6 +1511,7 @@ FrontendConfig_init () {
   init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
   init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
   init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
+  init_pw_send_expiring = cfg->pw_policy.pw_send_expiring = LDAP_OFF;
   cfg->pw_policy.pw_minlength = 8;
   cfg->pw_policy.pw_mindigits = 0;
   cfg->pw_policy.pw_minalphas = 0;
@@ -3188,12 +3194,26 @@ config_set_pw_exp( const char *attrname, char *value, char *errorbuf, int apply 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
   retVal = config_set_onoff ( attrname,
-							  value, 
-							  &(slapdFrontendConfig->pw_policy.pw_exp),
-							  errorbuf,
-							  apply);
+                              value,
+                              &(slapdFrontendConfig->pw_policy.pw_exp),
+                              errorbuf,
+                              apply);
   
   return retVal;
+}
+
+int
+config_set_pw_send_expiring( const char *attrname, char *value, char *errorbuf, int apply ) {
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff ( attrname,
+                                value,
+                                &(slapdFrontendConfig->pw_policy.pw_send_expiring),
+                                errorbuf,
+                                apply);
+
+    return retVal;
 }
 
 int

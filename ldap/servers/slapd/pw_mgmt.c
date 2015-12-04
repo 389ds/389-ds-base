@@ -235,6 +235,11 @@ skip:
 			slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
 		}
 		return (2);
+	} else {
+		if (pwresponse_req && pwpolicy->pw_send_expiring) {
+			slapi_pwpolicy_make_response_control( pb, diff_t, -1, -1);
+			slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, diff_t);
+		}
 	}
 
 	pw_apply_mods(sdn, &smods);

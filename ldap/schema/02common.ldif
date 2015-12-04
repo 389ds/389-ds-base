@@ -67,6 +67,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2082 NAME ( 'passwordMinCategories' 'pwd
 attributeTypes: ( 2.16.840.1.113730.3.1.2083 NAME ( 'passwordMinTokenLength' 'pwdMinTokenLength' ) DESC 'Netscape defined password policy attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2153 NAME ( 'passwordAdminDN' 'pwdAdminDN' ) DESC 'Netscape defined password policy attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2140 NAME ( 'passwordTrackUpdateTime' ) DESC 'Netscape defined password policy attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2329 NAME ( 'passwordSendExpiringTime' 'pwdSendExpiringTime' ) DESC 'Netscape defined password policy attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.198 NAME 'memberURL' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.199 NAME 'memberCertificateDescription' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.207 NAME 'vlvBase' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'Netscape Directory Server' )
