@@ -760,30 +760,23 @@ index_add_mods(
                     flags = BE_INDEX_DEL|BE_INDEX_PRESENCE|BE_INDEX_EQUALITY;
                 } else {
                     flags = BE_INDEX_DEL;
-
-                    /* If the same value doesn't exist in a subtype, set
-                     * BE_INDEX_EQUALITY flag so the equality index is
-                     * removed.
-                     */
                     curr_attr = NULL;
                     slapi_entry_attr_find(olde->ep_entry,
-                                          mods[i]->mod_type, &curr_attr);
+                                          mods[i]->mod_type,
+                                          &curr_attr);
                     if (curr_attr) {
-                        int found = 0;
                         for (j = 0; mods_valueArray[j] != NULL; j++ ) {
-                    	    if ( slapi_valueset_find(curr_attr, all_vals, mods_valueArray[j])) {
-                                /* The same value found in evals. 
-                                 * We don't touch the equality index. */
-                                found = 1;
+                            if ( !slapi_valueset_find(curr_attr, all_vals, mods_valueArray[j]) ) {
+                                /*
+                                 * If the mod del value is not found in all_vals
+                                 * we need to update the equality index as the
+                                 * final value(s) have changed
+                                 */
+                                if (!(flags & BE_INDEX_EQUALITY)) {
+                                    flags |= BE_INDEX_EQUALITY;
+                                }
                                 break;
                             }
-                        }
-                        /* 
-                         * to-be-deleted curr_attr does not exist in the 
-                         * new value set evals.  So, we can remove it.
-                         */
-                        if (!found && !(flags & BE_INDEX_EQUALITY)) {
-                            flags |= BE_INDEX_EQUALITY;
                         }
                     } 
                 }
