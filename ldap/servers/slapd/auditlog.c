@@ -309,10 +309,10 @@ write_audit_file(
     switch (logtype)
     {
     case SLAPD_AUDIT_LOG:
-        slapd_log_audit_proc (l->ls_buf, l->ls_len);
+        slapd_log_audit (l->ls_buf, l->ls_len);
         break;
     case SLAPD_AUDITFAIL_LOG:
-        slapd_log_auditfail_proc (l->ls_buf, l->ls_len);
+        slapd_log_auditfail (l->ls_buf, l->ls_len);
         break;
     default:
         /* Unsupported log type, we should make some noise */

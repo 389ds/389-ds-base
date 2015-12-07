@@ -201,6 +201,7 @@ struct logging_opts {
     LogFileInfo     *log_auditfail_logchain;    /* all the logs info */
     char            *log_auditfailinfo_file;    /* auditfail log rotation info file */
     Slapi_RWLock    *log_auditfail_rwlock;  /* lock on auditfail */
+    int             log_backend;
 
 };
 

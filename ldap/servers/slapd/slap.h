@@ -125,6 +125,11 @@ typedef struct symbol_t {
 #include <nunc-stans/nunc-stans.h>
 #endif
 
+#ifdef WITH_SYSTEMD
+#include <systemd/sd-journal.h>
+#include <systemd/sd-daemon.h>
+#endif
+
 #if defined(OS_solaris)
 #  include <thread.h>
 #  define GET_THREAD_ID() thr_self()
@@ -1886,6 +1891,12 @@ typedef struct _slapdEntryPoints {
 #define SLAPD_AUDIT_LOG  0x4
 #define SLAPD_AUDITFAIL_LOG  0x8
 
+#define LOGGING_BACKEND_INTERNAL 0x1
+#define LOGGING_BACKEND_SYSLOG 0x2
+#ifdef WITH_SYSTEMD
+#define LOGGING_BACKEND_JOURNALD 0x4
+#endif
+
 #define CONFIG_DATABASE_ATTRIBUTE       "nsslapd-database"
 #define CONFIG_PLUGIN_ATTRIBUTE         "nsslapd-plugin"
 #define CONFIG_SIZELIMIT_ATTRIBUTE      "nsslapd-sizelimit"
@@ -2110,6 +2121,7 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_CN_USES_DN_SYNTAX_IN_DNS "nsslapd-cn-uses-dn-syntax-in-dns"
 
 #define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
+#define CONFIG_LOGGING_BACKEND "nsslapd-logging-backend"
 
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
@@ -2304,6 +2316,8 @@ typedef struct _slapdFrontendConfig {
   int  auditfaillog_exptime;
   char *auditfaillog_exptimeunit;
   slapi_onoff_t auditfaillog_logging_hide_unhashed_pw;
+
+  char *logging_backend;
 
   slapi_onoff_t return_exact_case;	/* Return attribute names with the same case
                                        as they appear in at.conf */

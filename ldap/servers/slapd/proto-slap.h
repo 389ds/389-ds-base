@@ -399,6 +399,8 @@ int config_set_mempool_maxfreelist( const char *attrname, char *value, char *err
 
 int config_set_maxsimplepaged_per_conn( const char *attrname, char *value, char *errorbuf, int apply );
 
+int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
+
 int config_get_SSLclientAuth();
 int config_get_ssl_check_hostname();
 char *config_get_SSL3ciphers();
@@ -751,8 +753,10 @@ int slapi_log_access( int level, char *fmt, ... )
 #else
         ;
 #endif
-int slapd_log_audit_proc(char *buffer, int buf_len);
-int slapd_log_auditfail_proc(char *buffer, int buf_len);
+int slapd_log_audit(char *buffer, int buf_len);
+int slapd_log_audit_internal(char *buffer, int buf_len);
+int slapd_log_auditfail(char *buffer, int buf_len);
+int slapd_log_auditfail_internal(char *buffer, int buf_len);
 void log_access_flush();
 
 

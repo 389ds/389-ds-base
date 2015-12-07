@@ -13,6 +13,7 @@ NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 GCCSEC_DEFINES = @gccsec_defs@
 ASAN_DEFINES = @asan_defs@
+SYSTEMD_DEFINES = @systemd_defs@
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
@@ -40,8 +41,8 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
 	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
 
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
-PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES)
+PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@ @systemd_inc@
 # We need to make sure that libpthread is linked before libc on HP-UX.
 if HPUX
 AM_LDFLAGS = -lpthread
@@ -77,6 +78,8 @@ NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
 DLOPEN_LINK = -ldl
+SYSTEMD_LINK = @systemd_lib@
+
 
 LIBSOCKET=@LIBSOCKET@
 LIBNSL=@LIBNSL@
@@ -1028,7 +1031,7 @@ libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @ker
 if SPARC
 libslapd_la_SOURCES += ldap/servers/slapd/slapi_counter_sunos_sparcv9.S
 endif
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NUNC_STANS_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NUNC_STANS_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK)
 
 
 #////////////////////////////////////////////////////////////////
@@ -1706,9 +1709,9 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ \
-	@nspr_inc@ @svrcore_inc@
+	@nspr_inc@ @svrcore_inc@ @systemd_inc@
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(DLOPEN_LINK) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB)
+	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK)
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
 if HPUX

@@ -169,6 +169,7 @@ static int invalid_sasl_mech(char *str);
 #define ENTRYUSN_IMPORT_INIT "0"
 #define DEFAULT_ALLOWED_TO_DELETE_ATTRS "nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext nsslapd-snmp-index"
 #define SALTED_SHA1_SCHEME_NAME "SSHA"
+#define INIT_LOGGING_BACKEND_INTERNAL "dirsrv-log"
 
 /* CONFIG_ON_OFF */
 slapi_onoff_t init_accesslog_rotationsync_enabled;
@@ -1186,8 +1187,13 @@ static struct config_get_and_set {
 	{CONFIG_AUDITFAILFILE_ATTRIBUTE, config_set_auditfaillog,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.auditfaillog,
-		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */}
+		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */},
     /* End audit fail log configuration */
+    /* warning: initialization makes pointer from integer without a cast [enabled by default]. Why do we get this? */
+    {CONFIG_LOGGING_BACKEND, NULL,
+        log_set_backend, 0,
+        (void**)&global_slapdFrontendConfig.logging_backend,
+        CONFIG_STRING_OR_EMPTY, NULL, INIT_LOGGING_BACKEND_INTERNAL}
 };
 
 /*
@@ -8259,7 +8265,9 @@ remove_commas(char *str)
 static int
 invalid_sasl_mech(char *str)
 {
-    char *mech = NULL, *token = NULL, *next = NULL;
+    char *mech = NULL;
+    char *token = NULL;
+    char *next = NULL;
     int i;
 
     if(str == NULL){

@@ -110,7 +110,7 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
 	$(top_srcdir)/m4/icu.m4 $(top_srcdir)/m4/netsnmp.m4 \
 	$(top_srcdir)/m4/kerberos.m4 $(top_srcdir)/m4/pcre.m4 \
 	$(top_srcdir)/m4/selinux.m4 $(top_srcdir)/m4/nunc-stans.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/systemd.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -713,7 +713,7 @@ libslapd_la_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am__libslapd_la_SOURCES_DIST = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/agtmmap.c ldap/servers/slapd/apibroker.c \
 	ldap/servers/slapd/attr.c ldap/servers/slapd/attrlist.c \
@@ -1003,7 +1003,8 @@ am_migratecred_bin_OBJECTS = ldap/servers/slapd/tools/migratecred_bin-migratecre
 migratecred_bin_OBJECTS = $(am_migratecred_bin_OBJECTS)
 migratecred_bin_DEPENDENCIES = libslapd.la $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_mmldif_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/mmldif_bin-mmldif.$(OBJEXT)
 mmldif_bin_OBJECTS = $(am_mmldif_bin_OBJECTS)
@@ -1066,7 +1067,7 @@ ns_slapd_DEPENDENCIES = libslapd.la libldaputil.a \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_pwdhash_bin_OBJECTS =  \
 	ldap/servers/slapd/tools/pwdhash_bin-pwenc.$(OBJEXT)
 pwdhash_bin_OBJECTS = $(am_pwdhash_bin_OBJECTS)
@@ -1482,6 +1483,9 @@ sttyexec = @sttyexec@
 svrcore_inc = @svrcore_inc@
 svrcore_lib = @svrcore_lib@
 sysconfdir = @sysconfdir@
+systemd_defs = @systemd_defs@
+systemd_inc = @systemd_inc@
+systemd_lib = @systemd_lib@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
@@ -1510,6 +1514,7 @@ NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 GCCSEC_DEFINES = @gccsec_defs@
 ASAN_DEFINES = @asan_defs@
+SYSTEMD_DEFINES = @systemd_defs@
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
@@ -1535,8 +1540,8 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
 	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
 
-AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES)
-PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
+AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES)
+PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@ @systemd_inc@
 #AM_LDFLAGS = -Wl,-z,defs
 @HPUX_FALSE@AM_LDFLAGS = $(ASAN_DEFINES)
 # We need to make sure that libpthread is linked before libc on HP-UX.
@@ -1566,6 +1571,7 @@ NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
 DLOPEN_LINK = -ldl
+SYSTEMD_LINK = @systemd_lib@
 
 #------------------------
 # Generated Sources
@@ -2387,7 +2393,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/value.c ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c $(libavl_a_SOURCES) $(am__append_1)
 libslapd_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @sasl_inc@ @db_inc@ @svrcore_inc@ @kerberos_inc@ @pcre_inc@
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NUNC_STANS_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NUNC_STANS_LINK) $(SVRCORE_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK)
 
 #////////////////////////////////////////////////////////////////
 #
@@ -2982,7 +2988,7 @@ ldif_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
 #------------------------
 migratecred_bin_SOURCES = ldap/servers/slapd/tools/migratecred.c
 migratecred_bin_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@
-migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
+migratecred_bin_LDADD = libslapd.la $(NSPR_LINK) $(NSS_LINK) $(SVRCORE_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(SYSTEMD_LINK)
 
 #------------------------
 # mmldif
@@ -3032,10 +3038,10 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ \
-	@nspr_inc@ @svrcore_inc@
+	@nspr_inc@ @svrcore_inc@ @systemd_inc@
 
 ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(DLOPEN_LINK) \
-	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB)
+	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK)
 
 @HPUX_FALSE@ns_slapd_LINK = $(LINK)
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load

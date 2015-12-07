@@ -300,6 +300,7 @@ void g_log_init(int log_enabled)
 	loginfo.log_numof_auditfail_logs = 1;
 	loginfo.log_auditfail_fdes = NULL;
 	loginfo.log_auditfail_logchain = NULL;
+    loginfo.log_backend = LOGGING_BACKEND_INTERNAL;
 	if ((loginfo.log_auditfail_rwlock =slapi_new_rwlock())== NULL ) {
 		exit (-1);
 	}
@@ -387,6 +388,68 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
 	
 	return LDAP_SUCCESS;
 
+}
+
+int
+log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply) {
+
+    int retval = LDAP_SUCCESS;
+    int backend = 0;
+    char *backendstr = NULL; /* The backend we are looking at */
+    char *token = NULL; /* String to tokenise, need to dup value */
+    char *next = NULL; /* The next value */
+
+
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    /* We don't need to bother checking log type ... */
+    if ( !apply || !value || !*value ) {
+        return retval;
+    }
+
+
+    /* We have a comma seperated list. So split it up */
+    token = slapi_ch_strdup(value);
+    for (backendstr = ldap_utf8strtok_r(token, ",", &next);
+         backendstr != NULL;
+         backendstr = ldap_utf8strtok_r(NULL, ",", &next))
+    {
+        if(strlen(backendstr) == 0) {
+            /* Probably means someone did ",,"*/
+            continue;
+        } else if (slapi_utf8ncasecmp(backendstr, "dirsrv-log", 10) ) {
+            backend |= LOGGING_BACKEND_INTERNAL;
+        } else if (slapi_utf8ncasecmp(backendstr, "syslog", 6) ) {
+            backend |= LOGGING_BACKEND_SYSLOG;
+#ifdef WITH_SYSTEMD
+        } else if (slapi_utf8ncasecmp(backendstr, "journald", 8) ) {
+            backend |= LOGGING_BACKEND_JOURNALD;
+#endif
+        }
+    }
+    slapi_ch_free_string(&token);
+
+    if ( !( backend & LOGGING_BACKEND_INTERNAL)
+         && ! (backend & LOGGING_BACKEND_SYSLOG)
+#ifdef WITH_SYSTEMD
+         && ! (backend & LOGGING_BACKEND_JOURNALD)
+#endif
+       ) {
+        /* There is probably a better error here .... */
+        retval = LDAP_OPERATIONS_ERROR;
+    } else {
+        /* We have a valid backend, set it */
+        /*
+         * We just need to use any lock here, doesn't matter which. 
+         */
+		LOG_ACCESS_LOCK_WRITE( );
+        loginfo.log_backend = backend;
+        slapi_ch_free_string(&(slapdFrontendConfig->logging_backend));
+        slapdFrontendConfig->logging_backend = slapi_ch_strdup(value);
+		LOG_ACCESS_UNLOCK_WRITE( );
+    }
+
+    return retval;
 }
 /******************************************************************************
 * Tell me  the access log file name inc path
@@ -1900,8 +1963,36 @@ auditfail_log_openf( char *pathname, int locked)
 /******************************************************************************
 * write in the audit log
 ******************************************************************************/ 
+
 int
-slapd_log_audit_proc (
+slapd_log_audit (
+	char	*buffer,
+	int	buf_len)
+{
+    /* We use this to route audit log entries to where they need to go */
+    int retval = LDAP_SUCCESS;
+    int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
+    if (lbackend & LOGGING_BACKEND_INTERNAL) {
+        retval = slapd_log_audit_internal(buffer, buf_len);
+    }
+
+    if (retval != LDAP_SUCCESS) {
+        return retval;
+    }
+    if (lbackend & LOGGING_BACKEND_SYSLOG) {
+        /* This returns void, so we hope it worked */
+        syslog(LOG_NOTICE, buffer);
+    }
+#ifdef WITH_SYSTEMD
+    if (lbackend & LOGGING_BACKEND_JOURNALD) {
+        retval = sd_journal_print(LOG_NOTICE, buffer);
+    }
+#endif
+    return retval;
+}
+
+int
+slapd_log_audit_internal (
 	char	*buffer,
 	int	buf_len)
 {
@@ -1934,7 +2025,33 @@ slapd_log_audit_proc (
 * write in the audit fail log
 ******************************************************************************/ 
 int
-slapd_log_auditfail_proc (
+slapd_log_auditfail (
+	char	*buffer,
+	int	buf_len)
+{
+    /* We use this to route audit log entries to where they need to go */
+    int retval = LDAP_SUCCESS;
+    int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
+    if (lbackend & LOGGING_BACKEND_INTERNAL) {
+        retval = slapd_log_auditfail_internal(buffer, buf_len);
+    }
+    if (retval != LDAP_SUCCESS) {
+        return retval;
+    }
+    if (lbackend & LOGGING_BACKEND_SYSLOG) {
+        /* This returns void, so we hope it worked */
+        syslog(LOG_NOTICE, buffer);
+    }
+#ifdef WITH_SYSTEMD
+    if (lbackend & LOGGING_BACKEND_JOURNALD) {
+        retval = sd_journal_print(LOG_NOTICE, buffer);
+    }
+#endif
+    return retval;
+}
+
+int
+slapd_log_auditfail_internal (
     char    *buffer,
     int buf_len)
 {
@@ -1972,14 +2089,41 @@ slapd_log_error_proc(
     char	*fmt,
     ... )
 {
-	va_list ap_err;
-	va_list ap_file;
-	va_start( ap_err, fmt );
-	va_start( ap_file, fmt );
-	slapd_log_error_proc_internal(subsystem, fmt, ap_err, ap_file);
-	va_end(ap_err);
-	va_end(ap_file);
-	return 0;
+    int rc = LDAP_SUCCESS;
+    va_list ap_err;
+    va_list ap_file;
+
+    if (loginfo.log_backend & LOGGING_BACKEND_INTERNAL) {
+        va_start( ap_err, fmt );
+        va_start( ap_file, fmt );
+        rc = slapd_log_error_proc_internal( subsystem, fmt, ap_err, ap_file );
+        va_end(ap_file);
+        va_end(ap_err);
+    }
+    if (rc != LDAP_SUCCESS) {
+        return(rc);
+    }
+    if (loginfo.log_backend & LOGGING_BACKEND_SYSLOG) {
+        va_start( ap_err, fmt );
+        /* va_start( ap_file, fmt ); */
+        /* This returns void, so we hope it worked */
+        vsyslog(LOG_ERROR, fmt, ap_err);
+        /* vsyslog(LOG_ERROR, fmt, ap_file); */
+        /* va_end(ap_file); */
+        va_end(ap_err);
+    }
+#ifdef WITH_SYSTEMD
+    if (loginfo.log_backend & LOGGING_BACKEND_JOURNALD) {
+        va_start( ap_err, fmt );
+        /* va_start( ap_file, fmt ); */
+        /* This isn't handling RC nicely ... */
+        rc = sd_journal_printv(LOG_ERROR, fmt, ap_err);
+        /* rc = sd_journal_printv(LOG_ERROR, fmt, ap_file); */
+        /* va_end(ap_file); */
+        va_end(ap_err);
+    }
+#endif
+    return rc;
 }
 
 static int
@@ -1989,7 +2133,7 @@ slapd_log_error_proc_internal(
     va_list ap_err,
     va_list ap_file)
 {
-	int	rc = 0;
+	int	rc = LDAP_SUCCESS;
 
 	if ( (loginfo.log_error_state & LOGGING_ENABLED) && (loginfo.log_error_file != NULL) ) {
 		LOG_ERROR_LOCK_WRITE( );
@@ -2163,9 +2307,10 @@ vslapd_log_error(
 int
 slapi_log_error( int severity, char *subsystem, char *fmt, ... )
 {
-    va_list ap1;
-    va_list ap2;
-    int     rc;
+    va_list ap_err;
+    va_list ap_file;
+    int     rc = LDAP_SUCCESS;
+    int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
     if ( severity < SLAPI_LOG_MIN || severity > SLAPI_LOG_MAX ) {
         (void)slapd_log_error_proc( subsystem,
@@ -2175,13 +2320,38 @@ slapi_log_error( int severity, char *subsystem, char *fmt, ... )
     }
 
     if ( slapd_ldap_debug & slapi_log_map[ severity ] ) {
-        va_start( ap1, fmt );
-        va_start( ap2, fmt );
-        rc = slapd_log_error_proc_internal( subsystem, fmt, ap1, ap2 );
-        va_end( ap1 );
-        va_end( ap2 );
+        if (lbackend & LOGGING_BACKEND_INTERNAL) {
+            va_start( ap_err, fmt );
+            va_start( ap_file, fmt );
+            rc = slapd_log_error_proc_internal( subsystem, fmt, ap_err, ap_file );
+            va_end(ap_file);
+            va_end(ap_err);
+        }
+        if (rc != LDAP_SUCCESS) {
+            return(rc);
+        }
+        if (lbackend & LOGGING_BACKEND_SYSLOG) {
+            va_start( ap_err, fmt );
+            /* va_start( ap_file, fmt ); */
+            /* This returns void, so we hope it worked */
+            vsyslog(LOG_ERROR, fmt, ap_err);
+            /* vsyslog(LOG_ERROR, fmt, ap_file); */
+            /* va_end(ap_file); */
+            va_end(ap_err);
+        }
+#ifdef WITH_SYSTEMD
+        if (lbackend & LOGGING_BACKEND_JOURNALD) {
+            va_start( ap_err, fmt );
+            /* va_start( ap_file, fmt ); */
+            /* This isn't handling RC nicely ... */
+            rc = sd_journal_printv(LOG_ERROR, fmt, ap_err);
+            /* rc = sd_journal_printv(LOG_ERROR, fmt, ap_file); */
+            /* va_end(ap_file); */
+            va_end(ap_err);
+        }
+#endif
     } else {
-        rc = 0;        /* nothing to be logged --> always return success */
+        rc = LDAP_SUCCESS;        /* nothing to be logged --> always return success */
     }
 
     return( rc );
@@ -2226,7 +2396,8 @@ static int vslapd_log_access(char *fmt, va_list ap)
     char	sign;
     char	buffer[SLAPI_LOG_BUFSIZ];
     char	vbuf[SLAPI_LOG_BUFSIZ];
-    int		blen, vlen;
+    int     blen;
+    int     vlen;
     /* info needed to keep us from calling localtime/strftime so often: */
     static time_t	old_time = 0;
     static char		old_tbuf[SLAPI_LOG_BUFSIZ];
@@ -2278,7 +2449,7 @@ static int vslapd_log_access(char *fmt, va_list ap)
 
     log_append_buffer2(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);    
 
-    return( 0 );
+    return( LDAP_SUCCESS );
 }
 
 int
@@ -2288,16 +2459,43 @@ slapi_log_access( int level,
 {
 	va_list	ap;
 	int	rc=0;
+    int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
 	if (!(loginfo.log_access_state & LOGGING_ENABLED)) {
 		return 0;
 	}
-	va_start( ap, fmt );
-	if (( level & loginfo.log_access_level ) && 
-			( loginfo.log_access_fdes != NULL ) && (loginfo.log_access_file != NULL) ) { 
-   	    rc = vslapd_log_access(fmt, ap);
-	} 
-	va_end( ap );
+
+    if (( level & loginfo.log_access_level ) &&
+        ( loginfo.log_access_fdes != NULL ) && (loginfo.log_access_file != NULL) ) {
+        /* How do we handle the RC? 
+         *
+         * What we do is we log to the "best" backend first going down.
+         * "best" meaning most reliable.
+         * As we descend, if we encounter an issue, we bail before the "lesser"
+         * backends.
+         */
+        if (lbackend & LOGGING_BACKEND_INTERNAL) {
+            va_start( ap, fmt );
+            rc = vslapd_log_access(fmt, ap);
+            va_end( ap );
+        }
+        if (rc != LDAP_SUCCESS) {
+            return rc;
+        }
+        if (lbackend & LOGGING_BACKEND_SYSLOG) {
+            va_start( ap, fmt );
+            /* This returns void, so we hope it worked */
+            vsyslog(LOG_INFO, fmt, ap);
+            va_end( ap );
+        }
+#ifdef WITH_SYSTEMD
+        if (lbackend & LOGGING_BACKEND_JOURNALD) {
+            va_start (ap, fmt );
+            rc = sd_journal_printv(LOG_INFO, fmt, ap);
+            va_end( ap );
+        }
+#endif
+    }
 	return( rc );
 }
 
@@ -4868,6 +5066,8 @@ check_log_max_size( char *maxdiskspace_str,
  
     return rc;
 }
+
+
 
 /************************************************************************************/
 /*				E	N	D				    */
