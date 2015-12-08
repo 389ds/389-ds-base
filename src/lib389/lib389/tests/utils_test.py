@@ -78,6 +78,7 @@ def test_formatInfData():
         'root-pw': 'password',
         'server-id': 'dirsrv',
         'suffix': 'o=base1',
+        'strict_hostname_checking': True,
     })
     log.info("content: %r" % ret)
 
@@ -91,7 +92,9 @@ def test_formatInfData_withadmin():
         'root-dn': 'cn=directory manager',
         'root-pw': 'password',
         'server-id': 'dirsrv',
-        'suffix': 'o=base1'}
+        'suffix': 'o=base1',
+        'strict_hostname_checking': True,
+        }
     admin_params = {
         'have_admin': True,
         'create_admin': True,
@@ -114,7 +117,9 @@ def test_formatInfData_withconfigserver():
         'root-dn': 'cn=directory manager',
         'root-pw': 'password',
         'server-id': 'dirsrv',
-        'suffix': 'o=base1'}
+        'suffix': 'o=base1',
+        'strict_hostname_checking': True,
+        }
     admin_params = {
         'have_admin': True,
         'cfgdshost': 'localhost',

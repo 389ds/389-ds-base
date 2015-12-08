@@ -932,9 +932,6 @@ class DirSrvTools(object):
         with open(hostFile, 'r') as hostfp:
             # The with statement will automatically close the file after use
 
-            # We are already at the start of the file
-            # hostfp.seek(0, os.SEEK_CUR)
-
             try:
                 for line in hostfp.readlines():
                     if ipPattern is None:
@@ -961,9 +958,10 @@ class DirSrvTools(object):
         Checks that the 127.0.0.1 is resolved as localhost.localdomain
         This is required by DSUtil.pm:checkHostname else setup-ds.pl fails
         '''
+        # One day I'll make this ::1. Ipv6 is the future. The future is now.
         loopbackIpPattern = '127.0.0.1'
-        expectedHost = 'localhost.localdomain'
-        DirSrvTools.searchHostsFile(expectedHost, loopbackIpPattern)
+        DirSrvTools.searchHostsFile(LOCALHOST, loopbackIpPattern)
+        DirSrvTools.searchHostsFile(LOCALHOST_SHORT, loopbackIpPattern)
 
     @staticmethod
     def runUpgrade(prefix, online=True):

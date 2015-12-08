@@ -78,6 +78,7 @@ DIRSRV_STATE_OFFLINE = 'offline'
 DIRSRV_STATE_ONLINE = 'online'
 
 LOCALHOST = "localhost.localdomain"
+LOCALHOST_SHORT = "localhost"
 DEFAULT_PORT = 389
 DEFAULT_SECURE_PORT = 636
 DEFAULT_SUFFIX = 'dc=example,dc=com'

@@ -459,7 +459,6 @@ class DirSrv(SimpleLDAPObject):
            @raise ValueError - if missing mandatory properties or invalid
                                state of DirSrv
         '''
-        DirSrvTools.testLocalhost()
         if self.state != DIRSRV_STATE_INIT and \
            self.state != DIRSRV_STATE_ALLOCATED:
             raise ValueError("invalid state for calling allocate: %s" %
@@ -469,7 +468,17 @@ class DirSrv(SimpleLDAPObject):
             self.log.info('SER_SERVERID_PROP not provided')
 
         # Settings from args of server attributes
-        self.host = args.get(SER_HOST, LOCALHOST)
+        self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
+        self.host = None
+        if self.strict_hostname is True:
+            self.host = args.get(SER_HOST, LOCALHOST)
+            if self.host == LOCALHOST:
+                DirSrvTools.testLocalhost()
+            else:
+                # Make sure our name is in hosts
+                DirSrvTools.searchHostsFile(self.host, None)
+        else:
+            self.host = args.get(SER_HOST, LOCALHOST_SHORT)
         self.port = args.get(SER_PORT, DEFAULT_PORT)
         self.sslport = args.get(SER_SECURE_PORT)
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
@@ -821,7 +830,8 @@ class DirSrv(SimpleLDAPObject):
                 SER_SERVERID_PROP: self.serverid,
                 SER_GROUP_ID: self.groupid,
                 SER_DEPLOYED_DIR: self.prefix,
-                SER_BACKUP_INST_DIR: self.backupdir}
+                SER_BACKUP_INST_DIR: self.backupdir,
+                SER_STRICT_HOSTNAME_CHECKING: self.strict_hostname}
         content = formatInfData(args)
         result = DirSrvTools.runInfProg(prog, content, verbose,
                                         prefix=self.prefix)

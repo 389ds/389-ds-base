@@ -674,6 +674,7 @@ def formatInfData(args):
     content += ("FullMachineName= %s\n" % args[SER_HOST])
     content += ("SuiteSpotUserID= %s\n" % args[SER_USER_ID])
     content += ("nSuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
+    content += ("StrictHostCheck= %s\n" % args[SER_STRICT_HOSTNAME_CHECKING])
 
     if args.get('have_admin'):
         content += ("AdminDomain= %(admin_domain)s" "\n"
@@ -688,6 +689,7 @@ def formatInfData(args):
     content += ("RootDNPwd= %s\n" % args[SER_ROOT_PW])
     content += ("ServerIdentifier= %s\n" % args[SER_SERVERID_PROP])
     content += ("Suffix= %s\n" % args[SER_CREATION_SUFFIX])
+
 
     # Create admin?
     if args.get('setup_admin'):
