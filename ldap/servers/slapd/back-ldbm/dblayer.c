@@ -5191,8 +5191,8 @@ static int read_metadata(struct ldbminfo *li)
     PRFileInfo64 prfinfo;
     int return_value = 0;
     PRInt32 byte_count = 0;
-    char attribute[512];
-    char value[128], delimiter;
+    char attribute[513];
+    char value[129], delimiter;
     int number = 0;
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
