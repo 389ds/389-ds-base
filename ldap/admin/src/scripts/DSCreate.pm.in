@@ -261,7 +261,7 @@ sub createInstanceScripts {
     my $skip = shift;
     my $perlexec = "@perlexec@" || "/usr/bin/env perl";
     my $myperl = "!$perlexec";
-    my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
+    my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
 
     # determine initconfig_dir
     my $initconfig_dir = $inf->{slapd}->{initconfig_dir} || get_initconfigdir($inf->{General}->{prefix});
@@ -957,7 +957,7 @@ sub setDefaults {
 
 sub updateSelinuxPolicy {
     my $inf = shift;
-    my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
+    my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
 
     # if selinux is not available, do nothing
     if ((getLogin() eq 'root') and "@with_selinux@" and
@@ -1407,7 +1407,7 @@ sub removeDSInstance {
     }
 
     # remove the selinux label from the ports if needed
-    my $mydevnull = (-f "/dev/null" ? " /dev/null " : " NUL ");
+    my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
     if ((getLogin() eq 'root') and "@with_selinux@" and
         -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
         foreach my $port (@{$entry->{"nsslapd-port"}}) 
