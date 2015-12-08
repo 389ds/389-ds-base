@@ -48,5 +48,5 @@ setup(
 
     keywords='389 directory server test configure',
     packages=find_packages(exclude=['tests*']),
-    install_requires=['python-ldap', 'pytest', 'python-krbV'],
+    install_requires=['python-ldap'],
 )
