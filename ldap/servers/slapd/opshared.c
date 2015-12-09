@@ -846,15 +846,26 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
              * wait the end of the loop to send back this error 
              */
             flag_no_such_object = 1;
-            break;
+        } else {
+            /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will
+             * have sent the result -
+             * Set a flag here so we don't return another result. */
+            sent_result = 1;
         }
-        /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will
-         * have sent the result -
-         * Set a flag here so we don't return another result. */
-        sent_result = 1;
         /* fall through */
   
       case -1:    /* an error occurred */            
+        /* PAGED RESULTS */
+        if (op_is_pagedresults(operation)) {
+            /* cleanup the slot */
+            PR_Lock(pb->pb_conn->c_mutex);
+            pagedresults_set_search_result(pb->pb_conn, operation, NULL, 1, pr_idx);
+            rc = pagedresults_set_current_be(pb->pb_conn, NULL, pr_idx, 1);
+            PR_Unlock(pb->pb_conn->c_mutex);
+        }
+        if (1 == flag_no_such_object) {
+            break;
+        }
         slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
         if (err == LDAP_NO_SUCH_OBJECT)
         {
