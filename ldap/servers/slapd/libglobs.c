@@ -186,6 +186,7 @@ slapi_onoff_t init_csnlogging;
 slapi_onoff_t init_pw_unlock;
 slapi_onoff_t init_pw_must_change;
 slapi_onoff_t init_pwpolicy_local;
+slapi_onoff_t init_pwpolicy_inherit_global;
 slapi_onoff_t init_pw_lockout;
 slapi_onoff_t init_pw_history;
 slapi_onoff_t init_pw_is_global_policy;
@@ -406,6 +407,10 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pwpolicy_local,
 		CONFIG_ON_OFF, NULL, &init_pwpolicy_local},
+	{CONFIG_PWPOLICY_INHERIT_GLOBAL_ATTRIBUTE, config_set_pwpolicy_inherit_global,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.pwpolicy_inherit_global,
+		CONFIG_ON_OFF, NULL, &init_pwpolicy_inherit_global},
 	{CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_maxdiskspace,
@@ -1506,6 +1511,7 @@ FrontendConfig_init () {
 
   init_readonly = cfg->readonly = LDAP_OFF;
   init_pwpolicy_local = cfg->pwpolicy_local = LDAP_OFF;
+  init_pwpolicy_inherit_global = cfg->pwpolicy_inherit_global = LDAP_OFF;
   init_pw_change = cfg->pw_policy.pw_change = LDAP_ON;
   init_pw_must_change = cfg->pw_policy.pw_must_change = LDAP_OFF;
   init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
@@ -2581,7 +2587,6 @@ config_set_pw_history( const char *attrname, char *value, char *errorbuf, int ap
 }
 
 
-
 int
 config_set_pw_must_change( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
@@ -2617,6 +2622,23 @@ config_set_pwpolicy_local( const char *attrname, char *value, char *errorbuf, in
   
   return retVal;
 }
+
+
+int
+config_set_pwpolicy_inherit_global(const char *attrname, char *value, char *errorbuf, int apply)
+{
+  int retVal = LDAP_SUCCESS;
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+  retVal = config_set_onoff (attrname,
+                             value,
+                             &(slapdFrontendConfig->pwpolicy_inherit_global),
+                             errorbuf,
+                             apply);
+
+  return retVal;
+}
+
 
 int
 config_set_allow_hashed_pw( const char *attrname, char *value, char *errorbuf, int apply ) {
@@ -5708,6 +5730,16 @@ config_get_pw_warning() {
   retVal = slapdFrontendConfig->pw_policy.pw_warning;
   CFG_UNLOCK_READ(slapdFrontendConfig);
 
+  return retVal;
+}
+
+int
+config_get_pwpolicy_inherit_global()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->pwpolicy_inherit_global;
   return retVal;
 }
 

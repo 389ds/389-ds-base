@@ -853,7 +853,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 		}
 	}
 
-	if ( pwpolicy->pw_syntax == 1 ) {
+	if ( pwpolicy->pw_syntax == LDAP_ON ) {
 		for ( i = 0; vals[ i ] != NULL; ++i ) {
 			int syntax_violation = 0;
 			int num_digits = 0;
@@ -1057,7 +1057,7 @@ retry:
 	}
 
 	/* check for trivial words if syntax checking is enabled */
-	if ( pwpolicy->pw_syntax == 1 ) {
+	if ( pwpolicy->pw_syntax == LDAP_ON ) {
 		/* e is null if this is an add operation*/
 		if ( check_trivial_words ( pb, e, vals, "uid", pwpolicy->pw_mintokenlength, smods ) == 1 ||
 			check_trivial_words ( pb, e, vals, "cn", pwpolicy->pw_mintokenlength, smods ) == 1 ||
@@ -1999,7 +1999,28 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 			if (pw_entry) {
 				slapi_entry_free(pw_entry);
 			}
-			if(pb){
+			if (LDAP_ON != pwdpolicy->pw_syntax) {
+				passwdPolicy *g_pwdpolicy = &(slapdFrontendConfig->pw_policy);
+				/* 
+				 * When the fine-grained password policy does not set the
+				 * password syntax, get the syntax from the global
+				 * policy if nsslapd-pwpolicy-inherit-global is on.
+				 */
+				if ((LDAP_ON == g_pwdpolicy->pw_syntax) && config_get_pwpolicy_inherit_global()) {
+					pwdpolicy->pw_minlength = g_pwdpolicy->pw_minlength;
+					pwdpolicy->pw_mindigits = g_pwdpolicy->pw_mindigits;
+					pwdpolicy->pw_minalphas = g_pwdpolicy->pw_minalphas;
+					pwdpolicy->pw_minuppers = g_pwdpolicy->pw_minuppers;
+					pwdpolicy->pw_minlowers = g_pwdpolicy->pw_minlowers;
+					pwdpolicy->pw_minspecials = g_pwdpolicy->pw_minspecials;
+					pwdpolicy->pw_min8bit = g_pwdpolicy->pw_min8bit;
+					pwdpolicy->pw_maxrepeats = g_pwdpolicy->pw_maxrepeats;
+					pwdpolicy->pw_mincategories = g_pwdpolicy->pw_mincategories;
+					pwdpolicy->pw_mintokenlength = g_pwdpolicy->pw_mintokenlength;
+					pwdpolicy->pw_syntax = LDAP_ON; /* Need to enable it to apply the default values */
+				}
+			}
+			if (pb) {
 				pb->pwdpolicy = pwdpolicy;
 			}
 			return pwdpolicy;

@@ -2329,7 +2329,7 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 		/* now for the tests */
 
 		/* would we be allowed to supply this attribute if we had one? */
-		if(entry_has_value && pAttr->attr_override == 0 && pAttr->attr_operational == 0)
+		if (entry_has_value && !pAttr->attr_override && !pAttr->attr_operational && !pAttr->attr_operational_default)
 		{
 			/* answer: no, move on to the next attribute */
 			attr_index++;

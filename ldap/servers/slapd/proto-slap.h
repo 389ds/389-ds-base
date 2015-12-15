@@ -301,6 +301,7 @@ int config_set_pw_change(const char *attrname,  char *value, char *errorbuf, int
 int config_set_pw_must_change(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pwpolicy_local(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_allow_hashed_pw( const char *attrname, char *value, char *errorbuf, int apply );
+int config_set_pwpolicy_inherit_global(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_syntax(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_minlength(const char *attrname,  char *value, char *errorbuf, int apply );
 int config_set_pw_mindigits(const char *attrname,  char *value, char *errorbuf, int apply );
@@ -444,6 +445,7 @@ int config_get_pw_exp();
 int config_get_pw_unlock();
 int config_get_pw_lockout();
 int config_get_pw_gracelimit();
+int config_get_pwpolicy_inherit_global();
 int config_get_lastmod();
 int config_get_nagle();
 int config_get_accesscontrol();
