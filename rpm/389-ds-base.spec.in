@@ -12,11 +12,17 @@
 # If perl-Socket-2.000 or newer is available, set 0 to use_Socket6.
 %global use_Socket6 0
 # nunc-stans only builds on x86_64 for now
-# To build without nunc-stans, set 0 to use_nunc_stans.
+# To build without nunc-stans, set use_nunc_stans to 0.
 %global use_nunc_stans __NUNC_STANS_ON__
-
 %if %{use_nunc_stans}
 %global nunc_stans_ver 0.1.7
+%endif
+
+# Are we bundling jemalloc?
+%global bundle_jemalloc __BUNDLE_JEMALLOC__
+%if %{bundle_jemalloc}
+# The version used in the source tarball
+%global jemalloc_ver 3.6.0
 %endif
 
 # fedora 15 and later uses tmpfiles.d
@@ -32,7 +38,6 @@
 Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          __VERSION__
-#Release:          %{?relprefix}1%{?prerel}%{?dist}
 Release:          __RELEASE__%{?dist}
 License:          GPLv2 with exceptions
 URL:              http://port389.org/
@@ -122,8 +127,12 @@ Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
+
+%if %{bundle_jemalloc}
+Source3:          http://www.port389.org/binaries/jemalloc-%{jemalloc_ver}.tar.bz2
+%endif
 %if %{use_nunc_stans}
-Source3:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
+Source4:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
 %endif
 
 %description
@@ -153,6 +162,12 @@ BuildRequires:    pcre-devel
 BuildRequires:    libtalloc-devel
 BuildRequires:    libevent-devel
 BuildRequires:    libtevent-devel
+%endif
+%if %{bundle_jemalloc}
+BuildRequires:    /usr/bin/xsltproc
+%ifnarch s390
+BuildRequires:    valgrind-devel
+%endif
 %endif
 
 %description      libs
@@ -184,8 +199,12 @@ Development Libraries and headers for the 389 Directory Server base package.
 
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
-%if %{use_nunc_stans}
+
+%if %{bundle_jemalloc}
 %setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
+%endif
+%if %{use_nunc_stans}
+%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 4
 %endif
 cp %{SOURCE2} README.devel
 
@@ -198,6 +217,13 @@ mkdir lib
 cp .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
 mkdir -p include/nunc-stans
 cp nunc-stans.h include/nunc-stans/nunc-stans.h
+popd
+%endif
+
+%if %{bundle_jemalloc}
+pushd ../jemalloc-%{jemalloc_ver}
+%configure CFLAGS='%{optflags} -msse2' --libdir=%{_libdir}/%{pkgname}
+make %{?_smp_mflags}
 popd
 %endif
 
@@ -233,6 +259,12 @@ pushd ../nunc-stans-%{nunc_stans_ver}
 make DESTDIR="$RPM_BUILD_ROOT" install
 rm -rf $RPM_BUILD_ROOT%{_includedir} $RPM_BUILD_ROOT%{_datadir} \
     $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/pkgconfig
+popd
+%endif
+
+%if %{bundle_jemalloc}
+pushd ../jemalloc-%{jemalloc_ver}
+cp --preserve=links lib/libjemalloc.so* $RPM_BUILD_ROOT%{_libdir}/%{pkgname}
 popd
 %endif
 
@@ -390,6 +422,9 @@ fi
 %if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %endif
+%if %{bundle_jemalloc}
+%{_libdir}/%{pkgname}/libjemalloc.so
+%endif
 %{_libdir}/pkgconfig/*
 
 %files libs
@@ -401,8 +436,14 @@ fi
 %if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so*
 %endif
+%if %{bundle_jemalloc}
+%{_libdir}/%{pkgname}/libjemalloc.so*
+%endif
 
 %changelog
+* Mon Dec 14 2015 Mark Reynolds <mreynolds@redhat.com> - 1.3.4.1-2
+- Ticket 48377 - Include the jemalloc library
+
 * Tue Jun 23 2015 Noriko Hosoi <nhosoi@redhat.com> - 1.3.4.1-1
 - Release 1.3.4.1-1
 

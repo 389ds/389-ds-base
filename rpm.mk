@@ -4,8 +4,12 @@ RPM_RELEASE ?= $(shell $(PWD)/rpm/rpmverrel.sh release)
 PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)
 TARBALL = $(RPM_NAME_VERSION).tar.bz2
-NUNC_STANS_URL ?= $(shell rpmspec -P -D 'use_nunc_stans 1' $(PWD)/rpm/389-ds-base.spec.in | awk '/^Source3:/ {print $$2}')
+NUNC_STANS_URL ?= $(shell rpmspec -P -D 'use_nunc_stans 1' $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source4:/ {print $$2}')
 NUNC_STANS_TARBALL ?= $(shell basename "$(NUNC_STANS_URL)")
+JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
+JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
+NUNC_STANS_ON = 1
+BUNDLE_JEMALLOC = 1
 
 clean:
 	rm -rf dist
@@ -19,7 +23,13 @@ tarballs: local-archive
 	-mkdir -p dist/sources
 	cd dist; tar cfj sources/$(TARBALL) $(RPM_NAME_VERSION)
 	rm -rf dist/$(RPM_NAME_VERSION)
-	cd dist/sources; wget $(NUNC_STANS_URL)
+	cd dist/sources ; \
+	if [ $(NUNC_STANS_ON) -eq 1 ]; then \
+	    wget $(NUNC_STANS_URL) ; \
+	fi ; \
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+	    wget $(JEMALLOC_URL) ; \
+	fi
 
 rpmroot:
 	rm -rf $(RPMBUILD)
@@ -28,6 +38,10 @@ rpmroot:
 	mkdir -p $(RPMBUILD)/SOURCES
 	mkdir -p $(RPMBUILD)/SPECS
 	mkdir -p $(RPMBUILD)/SRPMS
+	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
+	-e s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/ \
+	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
+	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
 
 rpmdistdir:
 	mkdir -p dist/rpms
@@ -37,10 +51,14 @@ srpmdistdir:
 
 rpmbuildprep:
 	cp dist/sources/$(TARBALL) $(RPMBUILD)/SOURCES/
-	cp dist/sources/$(NUNC_STANS_TARBALL) $(RPMBUILD)/SOURCES/
+	if [ $(NUNC_STANS_ON) -eq 1 ]; then \
+		cp dist/sources/$(NUNC_STANS_TARBALL) $(RPMBUILD)/SOURCES/ ; \
+	fi
+	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
+		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
+	fi
 	cp rpm/$(PACKAGE)-* $(RPMBUILD)/SOURCES/
-	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
-		rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
+
 
 srpms: rpmroot srpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec

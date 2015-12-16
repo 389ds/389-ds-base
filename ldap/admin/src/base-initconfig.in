@@ -42,3 +42,9 @@
 # up before we assume there is a problem and fail to start
 # if using systemd, omit the "; export VARNAME" at the end
 #PID_TIME=600 ; export PID_TIME
+
+# jemalloc is a general purpose malloc implementation that emphasizes
+# fragmentation avoidance and scalable concurrency support.  jemalloc
+# has been shown to have a significant positive impact on the Directory
+# Server's process size/growth.
+#LD_PRELOAD=@libdir@/@package_name@/libjemalloc.so.1 ; export LD_PRELOAD
