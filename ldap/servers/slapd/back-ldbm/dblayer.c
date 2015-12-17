@@ -1661,8 +1661,19 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                       priv->dblayer_previous_ncache, priv->dblayer_ncache, 0);
         }
         if (priv->dblayer_lock_config != priv->dblayer_previous_lock_config) {
-            LDAPDebug(LDAP_DEBUG_ANY, "resizing max db lock count: %d -> %d\n",
+            /* 
+             * The default value of nsslapd-db-locks is 10000.
+             * We don't allow lower value than that.
+             */
+            if (priv->dblayer_lock_config <= 10000) {
+                LDAPDebug0Args(LDAP_DEBUG_ANY, "New max db lock count is too small.  "
+                               "Resetting it to the default value 10000.\n");
+                priv->dblayer_lock_config = 10000;
+            }
+            if (priv->dblayer_lock_config != priv->dblayer_previous_lock_config) {
+                LDAPDebug(LDAP_DEBUG_ANY, "resizing max db lock count: %d -> %d\n",
                       priv->dblayer_previous_lock_config, priv->dblayer_lock_config, 0);
+            }
         }
         dblayer_reset_env(li);
         /*
