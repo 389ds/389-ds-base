@@ -3413,14 +3413,18 @@ static int cos_cache_backwards_stricmp_and_clip(char*s1,char*s2)
 	int s1len = 0;
 	int s2len = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_backwards_stricmp_and_clip\n",0,0,0);
-
 	s1len = strlen(s1);
 	s2len = strlen(s2);
 
+	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_backwards_stricmp_and_clip s1 %d s2 %d\n",s1len,s2len,0);
+
 	if(s1len > s2len && s2len > 0)
 	{
-		while(s1len > -1 && s2len > -1)
+		/* In some cases this can go below 0 causing invalid reads
+		 * We make the check for > 0, because if we are at 1 -> 0 is next
+		 * If the check is > -1, we can easily get to 0, then -1, creating invalid read.
+		 */
+		while(s1len > 0 && s2len > 0)
 		{
 			s1len--;
 			s2len--;
