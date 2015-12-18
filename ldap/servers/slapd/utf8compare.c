@@ -2115,15 +2115,15 @@ slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
 
     d0 = d1 = NULL;
     if (s0 == NULL || *s0 == '\0') {
-	if (s1 == NULL || *s1 == '\0') {
-	    rval = 0;
-	} else {
-	    rval = -1;	/* regardless s1, s0 < s1 */
-	}
-	goto end;
+        if (s1 == NULL || *s1 == '\0') {
+            rval = 0;
+        } else {
+            rval = -1;	/* regardless s1, s0 < s1 */
+        }
+        goto end;
     } else if (s1 == NULL || *s1 == '\0') {
-	rval = 1;	/* regardless s0, s0 > s1 */
-	goto end;
+        rval = 1;	/* regardless s0, s0 > s1 */
+        goto end;
     }
 
     has8_s0 = slapi_has8thBit(s0);
@@ -2141,9 +2141,9 @@ slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
     d0 = slapi_utf8StrToLower(s0);
     d1 = slapi_utf8StrToLower(s1);
     if (d0 == NULL || d1 == NULL || /* either is not a UTF-8 string */
-	(d0 && *d0 == '\0') || (d1 && *d1 == '\0')) {	
-	rval = strcasecmp((char *)s0, (char *)s1);
-	goto end;
+        (d0 && *d0 == '\0') || (d1 && *d1 == '\0')) {
+        rval = strcasecmp((char *)s0, (char *)s1);
+        goto end;
     }
 
     p0 = d0;
@@ -2157,25 +2157,25 @@ slapi_utf8casecmp(unsigned char *s0, unsigned char *s1)
         n0 = (unsigned char *)ldap_utf8next((char *)p0);
         n1 = (unsigned char *)ldap_utf8next((char *)p1);
         if (n0 > t0 || n1 > t1) {
-	    break;
-	}
+            break;
+        }
 
         i0 = n0 - p0;
         i1 = n1 - p1;
-	rval = i0 - i1;
+        rval = i0 - i1;
         if (rval) {         /* length is different */
             goto end;
-	}
+        }
 
         /* i0 == i1: same length */
         for (x0 = p0, x1 = p1; x0 < n0; x0++, x1++) {
             rval = *x0 - *x1;
             if (rval) {
                 goto end;
-	    }
+            }
         }
 
-	p0 = n0; p1 = n1;	/* goto next */
+        p0 = n0; p1 = n1; /* goto next */
     }
     /* finished scanning the shared part and check the leftover */
     l0 = t0 - n0;

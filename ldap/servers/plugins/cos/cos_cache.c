@@ -3034,7 +3034,8 @@ static int cos_cache_attr_compare(const void *e1, const void *e2)
 	cosTemplates *pTemplate1 = (cosTemplates*)pAttr1->pParent;
         
 	/* Now compare the names of the attributes */
-	com_Result = slapi_utf8casecmp((unsigned char*)(*(cosAttributes**)e1)->pAttrName,(unsigned char*)(*(cosAttributes**)e2)->pAttrName);
+	com_Result = slapi_utf8casecmp((unsigned char*)(*(cosAttributes**)e1)->pAttrName,
+	                               (unsigned char*)(*(cosAttributes**)e2)->pAttrName);
 	if(0 == com_Result){
 		/* Now compare the cosPriorities */
 		com_Result = pTemplate->cosPriority - pTemplate1->cosPriority;
@@ -3047,6 +3048,13 @@ static int cos_cache_attr_compare(const void *e1, const void *e2)
 
 static int cos_cache_string_compare(const void *e1, const void *e2)
 {
+	if (!e1 && e2) {
+		return 1;
+	} else if (e1 && !e2) {
+		return -1;
+	} else if (!e1 && !e2) {
+		return 0;
+	}
 	return slapi_utf8casecmp((*(unsigned char**)e1),(*(unsigned char**)e2));
 }
 
@@ -3054,6 +3062,13 @@ static int cos_cache_template_index_compare(const void *e1, const void *e2)
 {
 	int ret = 0;
 
+	if (!e1 && e2) {
+		return 1;
+	} else if (e1 && !e2) {
+		return -1;
+	} else if (!e1 && !e2) {
+		return 0;
+	}
 	if(0 == slapi_dn_issuffix((const char*)e1,*(const char**)e2))
 		ret = slapi_utf8casecmp(*(unsigned char**)e2,(unsigned char*)e1);
 	else
