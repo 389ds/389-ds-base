@@ -865,11 +865,14 @@ int plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 int plugin_call_exop_plugins( Slapi_PBlock *pb, char *oid );
 const char *plugin_extended_op_oid2string( const char *oid );
 void plugin_closeall(int close_backends, int close_globals);
-void plugin_startall(int argc,char **argv,int start_backends, int start_global);
+void plugin_startall(int argc, char **argv, char **plugin_list);
+void plugin_get_plugin_dependencies(char *plugin_name, char ***names);
 struct slapdplugin *get_plugin_list(int plugin_list_index);
-PRBool plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBlock *pb, Slapi_DN *target_spec);
+PRBool plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation,
+                                 Slapi_PBlock *pb, Slapi_DN *target_spec);
 struct slapdplugin *plugin_get_by_name(char *name);
-struct slapdplugin *plugin_get_pwd_storage_scheme(char *name, int len, int index);
+struct slapdplugin *plugin_get_pwd_storage_scheme(char *name, int len,
+                                                  int index);
 char *plugin_get_pwd_storage_scheme_list(int index);
 int plugin_add_descriptive_attributes( Slapi_Entry *e,
 		struct slapdplugin *plugin );

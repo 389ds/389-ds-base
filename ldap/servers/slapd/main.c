@@ -1051,7 +1051,7 @@ main( int argc, char **argv)
 		pw_exp_init ();
 
 		plugin_print_lists();
-		plugin_startall(argc, argv, 1 /* Start Backends */, 1 /* Start Globals */);
+		plugin_startall(argc, argv, NULL /* specific plugin list */);
                 compute_plugins_started();
 		if (housekeeping_start((time_t)0, NULL) == NULL) {
 			return_value = 1;
@@ -2216,13 +2216,24 @@ slapd_exemode_db2ldif(int argc, char** argv)
 		else
 			pb.pb_server_running = 0;
 	
-	    if (db2ldif_dump_replica) {
-			eq_init();					/* must be done before plugins started */
-	        ps_init_psearch_system();   /* must come before plugin_startall() */
-	        plugin_startall(argc, argv, 1 /* Start Backends */,
-								  1 /* Start Globals */); 
-			eq_start();					/* must be done after plugins started */
-	    }
+		if (db2ldif_dump_replica) {
+			char **plugin_list = NULL;
+			char *repl_plg_name = "Multimaster Replication Plugin";
+
+			/*
+			 * Only start the necessary plugins for "db2ldif -r"
+			 *
+			 * We need replication, but replication has its own
+			 * dependencies
+			 */
+			plugin_get_plugin_dependencies(repl_plg_name, &plugin_list);
+
+			eq_init(); /* must be done before plugins started */
+			ps_init_psearch_system(); /* must come before plugin_startall() */
+			plugin_startall(argc, argv, plugin_list);
+			eq_start(); /* must be done after plugins started */
+			charray_free(plugin_list);
+		}
 	  
 	    pb.pb_ldif_file = NULL;
 	    if ( archive_name ) { /* redirect stdout to this file: */

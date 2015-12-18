@@ -1390,6 +1390,47 @@ plugin_free_plugin_dep_config(plugin_dep_config **cfg)
 	}
 }
 
+/*
+ * Take a given plugin and recursively set all the plugin dependency names
+ */
+void
+plugin_get_plugin_dependencies(char *plugin_name, char ***names)
+{
+    entry_and_plugin_t *ep = dep_plugin_entries;
+    char **depends = NULL;
+    char *dep_attr = "nsslapd-plugin-depends-on-named";
+    int i;
+
+    /* Add the original plugin name to the list */
+    if (!charray_inlist(*names, plugin_name)){
+        charray_add(names, slapi_ch_strdup(plugin_name));
+    }
+
+    /* Find the plugin and grab its dependencies */
+    while(ep)
+    {
+        if (ep->plugin){
+            if(strcasecmp(ep->plugin->plg_name, plugin_name) == 0){
+                /* We found our plugin, now grab its dependencies */
+                depends = slapi_entry_attr_get_charray(ep->e, dep_attr);
+                break;
+            }
+        }
+        ep = ep->next;
+    }
+
+    if (depends){
+        /* Add the plugin's dependencies */
+        charray_merge_nodup(names, depends, 1);
+
+        /* Add each dependency's dependencies */
+        for (i = 0; depends[i]; i++){
+            /* recurse */
+            plugin_get_plugin_dependencies(depends[i], names);
+        }
+        slapi_ch_array_free(depends);
+    }
+}
 
 /*
  * plugin_dependency_startall()
@@ -1407,7 +1448,7 @@ plugin_free_plugin_dep_config(plugin_dep_config **cfg)
  */
 
 static int 
-plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
+plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, char** plugin_list)
 {
 	int ret = 0;
 	Slapi_PBlock pb;
@@ -1419,7 +1460,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 	int i = 0;  /* general index iterator */
 	plugin_dep_type the_plugin_type;
 	int index = 0;
-	char * value;
+	char *value = NULL;
 	int plugins_started;
 	int num_plg_started;
 	struct slapdplugin *plugin;
@@ -1435,25 +1476,50 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation)
 	global_plugin_callbacks_enabled = 0;
 
 	/* Count the plugins so we can allocate memory for the config array */
-    while(ep)
+	while(ep)
 	{
 		total_plugins++;
-
 		ep = ep->next;
 	}
 
 	/* allocate the config array */
 	config = (plugin_dep_config*)slapi_ch_calloc(total_plugins + 1, sizeof(plugin_dep_config));
-
 	ep = dep_plugin_entries;
+	if (plugin_list){
+		/* We have a plugin list, so we need to reset the plugin count */
+		total_plugins = 0;
+	}
 
 	/* Collect relevant config */
-    while(ep)
+	while(ep)
 	{
 		plugin = ep->plugin;
 
-		if(plugin == 0)
+		if(plugin == 0){
+			ep = ep->next;
 			continue;
+		}
+
+		if (plugin_list){
+			/*
+			 * We have a specific list of plugins to start, skip the others...
+			 */
+			int found = 0;
+			for (i = 0; plugin_list[i]; i++){
+				if (strcasecmp(plugin->plg_name, plugin_list[i]) == 0){
+					found = 1;
+					break;
+				}
+			}
+
+			if (!found){
+				/* Skip this plugin, it's not in the list */
+				ep = ep->next;
+				continue;
+			} else {
+				total_plugins++;
+			}
+		}
 
 		pblock_init(&pb);
 		slapi_pblock_set( &pb, SLAPI_ARGC, &argc);
@@ -1824,12 +1890,13 @@ plugin_dependency_closeall()
  *              stuff is done with. So this function goes through and starts all plugins
  */
 void
-plugin_startall(int argc, char** argv, int start_backends, int start_global)
+plugin_startall(int argc, char** argv, char **plugin_list)
 {
 	/* initialize special plugin structures */
 	default_plugin_init ();
 
-	plugin_dependency_startall(argc, argv, "plugin startup failed\n", SLAPI_PLUGIN_START_FN);
+	plugin_dependency_startall(argc, argv, "plugin startup failed\n",
+	                           SLAPI_PLUGIN_START_FN, plugin_list);
 }
 
 /*
