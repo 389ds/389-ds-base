@@ -1463,7 +1463,15 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
                                              linked_attrs_get_plugin_id(), 0);
             slapi_modify_internal_pb(mod_pb);
             slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-            if(rc != LDAP_SUCCESS){
+            if (((LDAP_MOD_DELETE == modop) && (LDAP_NO_SUCH_OBJECT == rc)) ||
+                ((LDAP_MOD_ADD == modop) && (LDAP_TYPE_OR_VALUE_EXISTS == rc))) {
+                /*
+                 * We should ignore LDAP_NO_SUCH_OBJECT and LDAP_TYPE_OR_VALUE_EXISTS
+                 * to support the case:
+                 *   target entry was renamed and the linktype value is being adjusted.
+                 */
+                rc = LDAP_SUCCESS;
+            } else if (rc != LDAP_SUCCESS) {
                 char *err_msg = NULL;
 
                 err_msg = PR_smprintf("Linked Attrs Plugin: Failed to update "
