@@ -1,0 +1,28 @@
+389-ds-base-tests README
+=================================================
+
+Prerequisites:  
+-------------------------------------------------
+Install the python-lib389 packages, or
+download the source(git clone ssh://git.fedorahosted.org/git/389/lib389.git) and set your PYTHONPATH accordingly
+
+
+Description:
+-------------------------------------------------
+This package includes python-lib389 based python scripts for testing the Directory Server.  The following describes the various types of tests available:
+
+tickets - These scripts test individual bug fixes
+suites - These test functinoal areas of the server
+stress - These tests perform "stress" tests on the server
+
+There is also a "create_test.py" script available to construct a template test script for creating new tests.
+
+
+Documentation:
+-------------------------------------------------
+See http://www.port389.org for the latest information
+
+http://www.port389.org/docs/389ds/FAQ/upstream-test-framework.html
+http://www.port389.org/docs/389ds/howto/howto-write-lib389.html
+http://www.port389.org/docs/389ds/howto/howto-run-lib389-jenkins.html
+

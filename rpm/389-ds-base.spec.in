@@ -197,6 +197,14 @@ Requires:         libtevent
 %description      devel
 Development Libraries and headers for the 389 Directory Server base package.
 
+%package          tests
+Summary:          The lib389 Continuous Integration Tests
+Group:            Development/Libraries
+Requires:         python-lib389
+
+%description      tests
+The lib389 CI tests that can be run against the Directory Server.
+
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
 
@@ -285,6 +293,13 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.la
 
 # make sure perl scripts have a proper shebang 
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
+
+pushd ../%{name}-%{version}%{?prerel}
+cp -r dirsrvtests $RPM_BUILD_ROOT/%{_sysconfdir}/%{pkgname}
+find $RPM_BUILD_ROOT/%{_sysconfdir}/%{pkgname}/dirsrvtests -type f -name '*.pyc' -delete
+find $RPM_BUILD_ROOT/%{_sysconfdir}/%{pkgname}/dirsrvtests -type f -name '*.pyo' -delete
+find $RPM_BUILD_ROOT/%{_sysconfdir}/%{pkgname}/dirsrvtests -type d -name '__pycache__' -delete
+popd
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -440,7 +455,15 @@ fi
 %{_libdir}/%{pkgname}/libjemalloc.so*
 %endif
 
+%files tests
+%defattr(-,root,root,-)
+%doc LICENSE LICENSE.GPLv3+
+%{_sysconfdir}/%{pkgname}/dirsrvtests
+
 %changelog
+* Mon Dec 21 2015 Mark Reynolds <mreynolds@redhat.com> - 1.3.4.1-3
+- Ticket 48376 - Create subpackage for lib389 CI tests
+
 * Mon Dec 14 2015 Mark Reynolds <mreynolds@redhat.com> - 1.3.4.1-2
 - Ticket 48377 - Include the jemalloc library
 
