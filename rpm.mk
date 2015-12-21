@@ -9,7 +9,7 @@ NUNC_STANS_TARBALL ?= $(shell basename "$(NUNC_STANS_URL)")
 JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
 JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
 NUNC_STANS_ON = 1
-BUNDLE_JEMALLOC = 1
+BUNDLE_JEMALLOC = 0
 
 clean:
 	rm -rf dist
