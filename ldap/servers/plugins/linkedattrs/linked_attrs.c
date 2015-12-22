@@ -1474,6 +1474,9 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
             } else if (rc != LDAP_SUCCESS) {
                 char *err_msg = NULL;
 
+                slapi_log_error(SLAPI_LOG_FATAL, LINK_PLUGIN_SUBSYSTEM,
+                                "Linked Attrs Plugin: Failed to update link to target entry (%s) error %d",
+                                targetdn, rc);
                 err_msg = PR_smprintf("Linked Attrs Plugin: Failed to update "
                                       "link to target entry (%s) error %d",
                                       targetdn, rc);
@@ -1481,6 +1484,23 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type,
                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, err_msg);
                 PR_smprintf_free(err_msg);
                 slapi_sdn_free(&targetsdn);
+                if (i > 0) {
+                    int j;
+                    Slapi_ValueSet *undoVals = slapi_valueset_new();
+                    /* undo 0..i-1 */
+                    j = slapi_valueset_first_value(targetvals, &targetval);
+                    do {
+                        slapi_valueset_add_value(undoVals, targetval);
+                        j = slapi_valueset_next_value(targetvals, j, &targetval);
+                    } while (j < i);
+                    if (LDAP_MOD_DELETE == modop) {
+                        modop = LDAP_MOD_ADD;
+                    } else {
+                        modop = LDAP_MOD_DELETE;
+                    }
+                    rc = linked_attrs_mod_backpointers(pb, linkdn, type, scope, modop, undoVals);
+                    slapi_valueset_free(undoVals);
+                }
                 rc = LDAP_UNWILLING_TO_PERFORM;
                 break;
             }
