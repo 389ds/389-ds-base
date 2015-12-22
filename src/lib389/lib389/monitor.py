@@ -33,22 +33,44 @@ class Monitor(object):
             'threads',
             'totalconnections',
             'version',
+            'currenttime',
+        ]
+        backend_keys = [
+            'dbcachehits',
+            'dbcachetries',
+            'dbcachehitratio',
+            'dbcachepagein',
+            'dbcachepageout',
+            'dbcacheroevict',
+            'dbcacherwevict',
         ]
         status = {}
         # Should this be an amalgomation of cn=snmp and cn=monitor?
         # In the future it would make sense perhaps to do this
         monitor_status = self.conn.search_s(DN_MONITOR,
-                                            ldap.SCOPE_BASE, '(objectClass=*)')
+                                            ldap.SCOPE_BASE, '(objectClass=*)',
+                                            monitor_keys)
         # We aren't using this yet, so leave it here for when we expand this 
         # again.
         #snmp_status = self.conn.search_s(DN_MONITOR_SNMP,
         #                                 ldap.SCOPE_BASE, '(objectClass=*)')
-        if len(monitor_status) > 0:
+        backend_status = self.conn.search_s(DN_MONITOR_LDBM,
+                                          ldap.SCOPE_BASE, '(objectClass=*)',
+                                            backend_keys)
+        # There is likely a smarter way to do this on the entry
+        if len(monitor_status) == 1:
             for k in monitor_keys:
-                if monitor_status[0].hasAttr(k):
-                    status[k] = monitor_status[0].getValues(k)
-                else:
-                    status[k] = None
+                status[k] = monitor_status[0].getValues(k)
+        else:
+            # Error case?
+            pass
+
+        if len(backend_status) == 1:
+            for k in backend_keys:
+                status[k] = backend_status[0].getValues(k)
+        else:
+            # Error case?
+            pass
         return status
 
     def backend(self, backend):
@@ -57,11 +79,56 @@ class Monitor(object):
 
         Show monitoring status for the named backend.
         """
+
+        backend_keys = [
+            'readonly',
+            'entrycachehits',
+            'entrycachetries',
+            'entrycachehitratio',
+            'currententrycachesize',
+            'maxentrycachesize',
+            'currententrycachecount',
+            'maxentrycachecount',
+            'dncachehits',
+            'dncachetries',
+            'dncachehitratio',
+            'currentdncachesize',
+            'maxdncachesize',
+            'currentdncachecount',
+            'maxdncachecount',
+            'normalizeddncachetries',
+            'normalizeddncachehits',
+            'normalizeddncachemisses',
+            'normalizeddncachehitratio',
+            'currentnormalizeddncachesize',
+            'maxnormalizeddncachesize',
+            'currentnormalizeddncachecount',
+        ]
+
         backend = ldap_filter.escape_filter_chars(backend)
         dn = "cn=%s,%s" % (backend, DN_LDBM)
 
         # How do we handle errors?
-        status = self.conn.search_s(dn, ldap.SCOPE_SUBTREE, '(cn=monitor)')
-        if len(status) == 0:
-            raise ldap.NO_SUCH_OBJECT
+        backend_status = self.conn.search_s(dn, ldap.SCOPE_SUBTREE,
+                                            '(cn=monitor)', backend_keys)
+        status = {}
+        if len(backend_status) == 1:
+            for k in backend_keys:
+                status[k] = backend_status[0].getValues(k)
+        else:
+            # Error case?
+            pass
         return status
+
+    def backends(self):
+        """
+        Show monitoring status for all backends on the server.
+        """
+        # List all backends
+        status = {}
+        backends = self.conn.backend.list()
+        for backend in backends:
+            status[backend.cn] = self.backend(backend.cn)
+        return status
+
+
