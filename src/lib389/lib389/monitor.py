@@ -47,16 +47,26 @@ class Monitor(object):
         status = {}
         # Should this be an amalgomation of cn=snmp and cn=monitor?
         # In the future it would make sense perhaps to do this
-        monitor_status = self.conn.search_s(DN_MONITOR,
-                                            ldap.SCOPE_BASE, '(objectClass=*)',
-                                            monitor_keys)
-        # We aren't using this yet, so leave it here for when we expand this 
-        # again.
-        #snmp_status = self.conn.search_s(DN_MONITOR_SNMP,
-        #                                 ldap.SCOPE_BASE, '(objectClass=*)')
-        backend_status = self.conn.search_s(DN_MONITOR_LDBM,
-                                          ldap.SCOPE_BASE, '(objectClass=*)',
-                                            backend_keys)
+        try:
+            monitor_status = self.conn.search_s(DN_MONITOR,
+                                                ldap.SCOPE_BASE,
+                                                '(objectClass=*)',
+                                                monitor_keys)
+
+            # We aren't using this yet, so leave it here for now
+            # again.
+            # snmp_status = self.conn.search_s(DN_MONITOR_SNMP,
+            #                                  ldap.SCOPE_BASE,
+            #                                  '(objectClass=*)')
+            backend_status = self.conn.search_s(DN_MONITOR_LDBM,
+                                                ldap.SCOPE_BASE,
+                                                '(objectClass=*)',
+                                                backend_keys)
+        except ldap.LDAPError as e:
+            return "Unable to retrieve monitor information: error %s" + str(e)
+
+        status['dn'] = 'cn=monitor'  # Generic DN, but we need a DN
+
         # There is likely a smarter way to do this on the entry
         if len(monitor_status) == 1:
             for k in monitor_keys:
@@ -109,10 +119,18 @@ class Monitor(object):
         dn = "cn=%s,%s" % (backend, DN_LDBM)
 
         # How do we handle errors?
-        backend_status = self.conn.search_s(dn, ldap.SCOPE_SUBTREE,
-                                            '(cn=monitor)', backend_keys)
+        try:
+            backend_status = self.conn.search_s(dn,
+                                                ldap.SCOPE_SUBTREE,
+                                                '(cn=monitor)',
+                                                backend_keys)
+        except ldap.LDAPError as e:
+            return ('Unable to retrieve backend monitor information: ' +
+                    'error %s' + str(e))
+
         status = {}
         if len(backend_status) == 1:
+            status['dn'] = backend_status[0].dn
             for k in backend_keys:
                 status[k] = backend_status[0].getValues(k)
         else:
@@ -130,5 +148,3 @@ class Monitor(object):
         for backend in backends:
             status[backend.cn] = self.backend(backend.cn)
         return status
-
-
