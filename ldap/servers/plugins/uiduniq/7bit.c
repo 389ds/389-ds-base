@@ -650,16 +650,19 @@ preop_modrdn(Slapi_PBlock *pb)
         }
       }
       /* don't have to go on if there is a value not 7-bit clean */
-      if (result) break;
+      if (result) {
+        /* WB we need to issue the error before we free slapi_entry, else we
+         * are triggering a use after free because we free violated.
+         */
+        issue_error(pb, result, "MODRDN", violated);
+        break;
+      }
+
     }
   END
 
   /* Clean-up */
   if (e) slapi_entry_free(e);
-
-  if (result) {
-    issue_error(pb, result, "MODRDN", violated);
-  }
 
   return (result==LDAP_SUCCESS)?0:-1;
 }
