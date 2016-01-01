@@ -474,6 +474,7 @@ dist_noinst_DATA = \
 	$(srcdir)/VERSION.sh \
 	$(srcdir)/wrappers/*.in \
 	$(srcdir)/wrappers/systemd.template.sysconfig \
+	$(srcdir)/dirsrvtests \
 	$(NULL)
 
 #------------------------
@@ -1960,9 +1961,9 @@ rpmroot:
 
 rpmbrprep: dist-bzip2 rpmroot
 	cp $(distdir).tar.bz2 $(RPMBUILD)/SOURCES
-	cp $(builddir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
-	cp $(builddir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
-	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" < $(builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
+	cp $(srcdir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
+	cp $(srcdir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
+	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
 
 rpms: rpmbrprep

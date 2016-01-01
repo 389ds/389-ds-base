@@ -14,13 +14,13 @@
 # nunc-stans only builds on x86_64 for now
 # To build without nunc-stans, set use_nunc_stans to 0.
 %global use_nunc_stans __NUNC_STANS_ON__
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 %global nunc_stans_ver 0.1.7
 %endif
 
 # Are we bundling jemalloc?
 %global bundle_jemalloc __BUNDLE_JEMALLOC__
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 # The version used in the source tarball
 %global jemalloc_ver 3.6.0
 %endif
@@ -128,10 +128,10 @@ Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
 
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 Source3:          http://www.port389.org/binaries/jemalloc-%{jemalloc_ver}.tar.bz2
 %endif
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 Source4:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
 %endif
 
@@ -158,12 +158,12 @@ BuildRequires:    libdb-devel
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    libicu-devel
 BuildRequires:    pcre-devel
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 BuildRequires:    libtalloc-devel
 BuildRequires:    libevent-devel
 BuildRequires:    libtevent-devel
 %endif
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 BuildRequires:    /usr/bin/xsltproc
 %ifnarch s390
 BuildRequires:    valgrind-devel
@@ -208,16 +208,16 @@ The lib389 CI tests that can be run against the Directory Server.
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
 
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 %setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
 %endif
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 %setup -q -n %{name}-%{version}%{?prerel} -T -D -b 4
 %endif
 cp %{SOURCE2} README.devel
 
 %build
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 pushd ../nunc-stans-%{nunc_stans_ver}
 %configure --with-fhs --libdir=%{_libdir}/%{pkgname}
 make %{?_smp_mflags}
@@ -228,7 +228,7 @@ cp nunc-stans.h include/nunc-stans/nunc-stans.h
 popd
 %endif
 
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 pushd ../jemalloc-%{jemalloc_ver}
 %configure CFLAGS='%{optflags} -msse2' --libdir=%{_libdir}/%{pkgname}
 make %{?_smp_mflags}
@@ -262,7 +262,7 @@ make %{?_smp_mflags}
 %install
 rm -rf $RPM_BUILD_ROOT 
 
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 pushd ../nunc-stans-%{nunc_stans_ver}
 make DESTDIR="$RPM_BUILD_ROOT" install
 rm -rf $RPM_BUILD_ROOT%{_includedir} $RPM_BUILD_ROOT%{_datadir} \
@@ -270,7 +270,7 @@ rm -rf $RPM_BUILD_ROOT%{_includedir} $RPM_BUILD_ROOT%{_datadir} \
 popd
 %endif
 
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 pushd ../jemalloc-%{jemalloc_ver}
 cp --preserve=links lib/libjemalloc.so* $RPM_BUILD_ROOT%{_libdir}/%{pkgname}
 popd
@@ -294,6 +294,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.la
 # make sure perl scripts have a proper shebang 
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
 
+# Why are we not making this a proper python package?
 pushd ../%{name}-%{version}%{?prerel}
 cp -r dirsrvtests $RPM_BUILD_ROOT/%{_sysconfdir}/%{pkgname}
 find $RPM_BUILD_ROOT/%{_sysconfdir}/%{pkgname}/dirsrvtests -type f -name '*.pyc' -delete
@@ -434,10 +435,10 @@ fi
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_includedir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %endif
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 %{_libdir}/%{pkgname}/libjemalloc.so
 %endif
 %{_libdir}/pkgconfig/*
@@ -448,10 +449,10 @@ fi
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd.so*
-%if %{use_nunc_stans}
+%if 0%{?use_nunc_stans:1}
 %{_libdir}/%{pkgname}/libnunc-stans.so*
 %endif
-%if %{bundle_jemalloc}
+%if 0%{?bundle_jemalloc:1}
 %{_libdir}/%{pkgname}/libjemalloc.so*
 %endif
 
