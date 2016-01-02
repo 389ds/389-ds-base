@@ -1950,7 +1950,7 @@ git-archive:
 
 # RPM-related tasks
 
-RPMBUILD ?= $(PWD)/rpmbuild
+RPMBUILD ?= $(abs_builddir)/rpmbuild
 
 rpmroot:
 	$(MKDIR_P) $(RPMBUILD)/BUILD
@@ -1965,6 +1965,9 @@ rpmbrprep: dist-bzip2 rpmroot
 	cp $(srcdir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
 	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
+# Requires rpmdevtools. Consider making this a dependancy of rpms.
+rpmsources: rpmbrprep
+	spectool -g -S -C $(RPMBUILD)/SOURCES $(RPMBUILD)/SPECS/389-ds-base.spec
 
 rpms: rpmbrprep
 	cd $(RPMBUILD); \
