@@ -890,78 +890,78 @@ threadMain (
 	}
       }
     }								/*JLS 23-03-01*/
+  }								/*JLS 05-03-01*/
 
-    /*
-     * Variable base DN ?
-     */
-    tttctx->bufBaseDN = (char *) malloc (strlen (mctx.baseDN) + 1);
-    if (tttctx->bufBaseDN == NULL)				/*JLS 06-03-00*/
-    {								/*JLS 06-03-00*/
+  /*
+   * Variable base DN ?
+   */
+  tttctx->bufBaseDN = (char *) malloc (strlen (mctx.baseDN) + 1);
+  if (tttctx->bufBaseDN == NULL)				/*JLS 06-03-00*/
+  {								/*JLS 06-03-00*/
       printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufBaseDN), error=%d (%s)\n",
 		mctx.pid, tttctx->thrdNum, errno, strerror (errno));
       ldcltExit (EXIT_INIT);					/*JLS 18-12-00*/
-    }								/*JLS 06-03-00*/
-    if (!(mctx.mode & RANDOM_BASE))
+  }								/*JLS 06-03-00*/
+  if (!(mctx.mode & RANDOM_BASE))
       strcpy (tttctx->bufBaseDN, mctx.baseDN);
-    else
-    {
+  else
+  {
       tttctx->startBaseDN = strlen (mctx.baseDNHead);
       strcpy (tttctx->bufBaseDN, mctx.baseDNHead);
       strcpy (&(tttctx->bufBaseDN[tttctx->startBaseDN+mctx.baseDNNbDigit]),
 			mctx.baseDNTail);
-    }
+  }
 
-    /*
-     * Variable bind DN ?
-     * Do not forget the random bind password below that is activated
-     * at the same time as the random bind DN.
-     */
-    if (mctx.bindDN != NULL)					/*JLS 05-03-01*/
-    {								/*JLS 05-03-01*/
+  /*
+   * Variable bind DN ?
+   * Do not forget the random bind password below that is activated
+   * at the same time as the random bind DN.
+   */
+  if (mctx.bindDN != NULL)					/*JLS 05-03-01*/
+  {								/*JLS 05-03-01*/
       tttctx->bufBindDN = (char *) malloc (strlen (mctx.bindDN) + 1);
       if (tttctx->bufBindDN == NULL)
       {
-	printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufBindDN), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, errno, strerror (errno));
-	ldcltExit (EXIT_INIT);
+           printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufBindDN), error=%d (%s)\n",
+               mctx.pid, tttctx->thrdNum, errno, strerror (errno));
+           ldcltExit (EXIT_INIT);
       }
       if (!(mctx.mode & RANDOM_BINDDN))
-	strcpy (tttctx->bufBindDN, mctx.bindDN);
+          strcpy (tttctx->bufBindDN, mctx.bindDN);
       else
       {
-	tttctx->startBindDN = strlen (mctx.bindDNHead);
-	strcpy (tttctx->bufBindDN, mctx.bindDNHead);
-	strcpy (&(tttctx->bufBindDN[tttctx->startBindDN+mctx.bindDNNbDigit]),
-			mctx.bindDNTail);
+          tttctx->startBindDN = strlen (mctx.bindDNHead);
+          strcpy (tttctx->bufBindDN, mctx.bindDNHead);
+          strcpy (&(tttctx->bufBindDN[tttctx->startBindDN+mctx.bindDNNbDigit]),
+                  mctx.bindDNTail);
       }
-    }								/*JLS 05-03-01*/
+  }								/*JLS 05-03-01*/
 
-    /*
-     * Variable bind password ?
-     * Remember that the random bind password feature is activated
-     * by the same option as the random bind DN, but has here its own
-     * code section for the ease of coding.
-     */
-    if (mctx.passwd != NULL)					/*JLS 05-03-01*/
-    {								/*JLS 05-03-01*/
+  /*
+   * Variable bind password ?
+   * Remember that the random bind password feature is activated
+   * by the same option as the random bind DN, but has here its own
+   * code section for the ease of coding.
+   */
+  if (mctx.passwd != NULL)					/*JLS 05-03-01*/
+  {								/*JLS 05-03-01*/
       tttctx->bufPasswd = (char *) malloc (strlen (mctx.passwd) + 1);
       if (tttctx->bufPasswd == NULL)
       {
-	printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufPasswd), error=%d (%s)\n",
-		mctx.pid, tttctx->thrdNum, errno, strerror (errno));
-	ldcltExit (EXIT_INIT);
+          printf ("ldclt[%d]: T%03d: cannot malloc(tttctx->bufPasswd), error=%d (%s)\n",
+                  mctx.pid, tttctx->thrdNum, errno, strerror (errno));
+          ldcltExit (EXIT_INIT);
       }
       if (!(mctx.mode & RANDOM_BINDDN))
-	strcpy (tttctx->bufPasswd, mctx.passwd);
+          strcpy (tttctx->bufPasswd, mctx.passwd);
       else
       {
-	tttctx->startPasswd = strlen (mctx.passwdHead);
-	strcpy (tttctx->bufPasswd, mctx.passwdHead);
-	strcpy (&(tttctx->bufPasswd[tttctx->startPasswd+mctx.passwdNbDigit]),
-			mctx.passwdTail);
+          tttctx->startPasswd = strlen (mctx.passwdHead);
+          strcpy (tttctx->bufPasswd, mctx.passwdHead);
+          strcpy (&(tttctx->bufPasswd[tttctx->startPasswd+mctx.passwdNbDigit]),
+                  mctx.passwdTail);
       }
-    }
-  }								/*JLS 05-03-01*/
+  }
 
   /*
    * Bind DN from a file ?
