@@ -11,7 +11,6 @@ import six
 import logging
 import ldif
 import ldap
-import collections
 from ldap.cidict import cidict
 
 from lib389._constants import *
@@ -125,9 +124,12 @@ class Entry(object):
         """
         Return True if this entry has an attribute named name, False otherwise
         """
-        if self.data is None or not isinstance(self.data, collections.Mapping):
+        if self.data is None:
             # Perhaps this should be an exception?
-            return False
+            raise Exception('Invalid data state in Entry')
+        # We can't actually enforce this because cidict doesn't inherit Mapping
+        #if not isinstance(self.data, collections.Mapping):
+        #    raise Exception('Invalid data type for Entry')
         return name in self.data
 
     def __getattr__(self, name):
