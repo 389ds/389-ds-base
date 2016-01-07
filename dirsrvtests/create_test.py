@@ -174,7 +174,9 @@ if len(sys.argv) > 0:
     #
     TEST.write('logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
     TEST.write('log = logging.getLogger(__name__)\n\n')
-    TEST.write('installation1_prefix = None\n\n\n')
+
+    # We don't need the prefix anymore, it's worked out in lib389
+    # TEST.write('installation1_prefix = None\n\n\n')
 
     #
     # Write the replication or standalone classes
@@ -240,10 +242,10 @@ if len(sys.argv) > 0:
     #
     TEST.write('@pytest.fixture(scope="module")\n')
     TEST.write('def topology(request):\n')
-    TEST.write('    global installation1_prefix\n')
-    TEST.write('    if installation1_prefix:\n')
-    TEST.write('        args_instance[SER_DEPLOYED_DIR] = ' +
-               'installation1_prefix\n\n')
+    #TEST.write('    global installation1_prefix\n')
+    #TEST.write('    if installation1_prefix:\n')
+    #TEST.write('        args_instance[SER_DEPLOYED_DIR] = ' +
+    #           'installation1_prefix\n\n')
 
     if repl_deployment:
         #

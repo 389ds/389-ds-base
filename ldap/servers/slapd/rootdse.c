@@ -25,6 +25,7 @@ static char *readonly_attributes[] = {
     "supportedldapversion",
     "supportedcontrol",
     "supportedextension",
+    "supportedfeatures",
     "supportedsaslmechanisms",
     "dataversion",
     "ref",
@@ -186,6 +187,18 @@ read_root_dse( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *r
 		val.bv_val = strs[i];
 		val.bv_len = strlen( strs[i] );
 		attrlist_merge( &e->e_attrs, "supportedControl", vals );
+	    }
+	    charray_free(strs);
+	}
+
+	/* supported features */
+	attrlist_delete( &e->e_attrs, "supportedFeatures");
+	if ( slapi_get_supported_features_copy( &strs ) == 0
+		&& strs != NULL ) {
+	    for ( i = 0; strs[i] != NULL; ++i ) {
+		val.bv_val = strs[i];
+		val.bv_len = strlen( strs[i] );
+		attrlist_merge( &e->e_attrs, "supportedFeatures", vals );
 	    }
 	    charray_free(strs);
 	}

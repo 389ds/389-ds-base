@@ -1119,7 +1119,7 @@ static const char *idds_map_attrt_v3(
 
 /* Helper functions */
 
-static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PBlock *pb,BerElement *ber,int attrsonly,int ldapversion, int real_attrs_only, int some_named_attrs)
+static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_PBlock *pb,BerElement *ber,int attrsonly,int ldapversion, int real_attrs_only, int some_named_attrs, int alloperationalattrs, int alluserattrs )
 {
 	int i = 0;
 	int rc = 0;
@@ -1142,7 +1142,7 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 			vattr_flags |= SLAPI_VIRTUALATTRS_ONLY;
 	}
 
-	if (some_named_attrs) {
+	if (some_named_attrs || alloperationalattrs) {
 		/*
 		 * If the client listed some attribute types by name, one or
 		 * more of the requested types MAY be operational.  Inform the
@@ -1189,11 +1189,11 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 
 		name_to_return = current_type_name;
 		/* We only return operational attributes if the client is LDAPv2 and the attribute is one of a special set,
-		   OR if the client also requested the attribute by name. If it did, we use the specified name rather than
-		   the base name.
+		   OR if all operational attrs are requested, OR if the client also requested the attribute by name.
+		   If it did, we use the specified name rather than the base name.
 		 */
 		if ( current_type_flags & SLAPI_ATTR_FLAG_OPATTR ) {
-			if ( LDAP_VERSION2 == ldapversion && LASTMODATTR( current_type_name) ) {
+			if ( (LDAP_VERSION2 == ldapversion && LASTMODATTR( current_type_name)) || alloperationalattrs ) {
 				sendit = 1;
 			} else {
 				for ( i = 0; attrs != NULL && attrs[i] != NULL; i++ ) {
@@ -1215,7 +1215,7 @@ static int send_all_attrs(Slapi_Entry *e,char **attrs,Slapi_Operation *op,Slapi_
 		/*
 		 * it's a user attribute. send it.
 		 */
-		} else {
+		} else if ( alluserattrs ) {
 			sendit = 1;
 		}
 		/* Now send to the client */
@@ -1474,7 +1474,10 @@ send_ldap_search_entry_ext(
 	Operation	*op = pb->pb_op;
 	BerElement	*ber = NULL;
 	int		i, rc = 0, logit = 0;
-	int		alluserattrs, noattrs, some_named_attrs;
+	int		alluserattrs;
+	int 	noattrs;
+	int 	some_named_attrs;
+	int 	alloperationalattrs;
 	Slapi_Operation *operation;
 	int real_attrs_only = 0;
 	LDAPControl		**ctrlp = 0;
@@ -1557,15 +1560,17 @@ send_ldap_search_entry_ext(
 
 	/*
 	 * in ldapv3, the special attribute "*" means all user attributes,
-	 * NULL means all user attributes, and "1.1" means no attributes.
+	 * NULL means all user attributes, "1.1" means no attributes, and
+	 * "+" means all operational attributes (rfc3673)
 	 * operational attributes are only retrieved if they are named
-	 * specifically.
+	 * specifically or when "+" is specified.
 	 */
 
 	/* figure out if we want all user attributes or no attributes at all */
 	alluserattrs = 0;
 	noattrs = 0;
 	some_named_attrs = 0;
+	alloperationalattrs = 0;
 	if ( attrs == NULL ) {
 		alluserattrs = 1;
 	} else {
@@ -1574,6 +1579,8 @@ send_ldap_search_entry_ext(
 				alluserattrs = 1;
 			} else if ( strcmp( LDAP_NO_ATTRS, attrs[i] ) == 0 ) {
 				noattrs = 1;
+			} else if ( strcmp( LDAP_ALL_OPERATIONAL_ATTRS, attrs[i] ) == 0 ) {
+				alloperationalattrs = 1;
 			} else {
 				some_named_attrs = 1;
 			}
@@ -1611,9 +1618,9 @@ send_ldap_search_entry_ext(
 	}
 
 	/* look through each attribute in the entry */
-	if ( alluserattrs ) {
+	if ( alluserattrs || alloperationalattrs ) {
 		rc = send_all_attrs(e, attrs, op, pb, ber, attrsonly, conn->c_ldapversion,
-		                    real_attrs_only, some_named_attrs);
+		                    real_attrs_only, some_named_attrs, alloperationalattrs, alluserattrs);
 	}
 	
 	/* if the client explicitly specified a list of attributes look through each attribute requested */
@@ -2213,7 +2220,7 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
     /* Send all the attributes */
     if ( alluserattrs ) {
         rc = send_all_attrs(e, attrs, op, pb, ber, 0, conn->c_ldapversion,
-                            real_attrs_only, attr_count);
+                            real_attrs_only, attr_count, 0, 1);
         if(rc){
             goto cleanup;
         }

@@ -966,6 +966,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/errormap.c \
 	ldap/servers/slapd/eventq.c \
 	ldap/servers/slapd/factory.c \
+	ldap/servers/slapd/features.c \
 	ldap/servers/slapd/fileio.c \
 	ldap/servers/slapd/filter.c \
 	ldap/servers/slapd/filtercmp.c \

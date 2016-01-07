@@ -702,6 +702,11 @@ main( int argc, char **argv)
 		init_controls();
 
 		/*
+		 * Register the server features that we support.
+		 */
+		init_features();
+
+		/*
 		 * Initialize the global plugin list lock
 		 */
 		global_plugin_init();

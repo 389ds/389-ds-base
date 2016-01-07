@@ -5585,11 +5585,11 @@ LDAPControl * slapi_dup_control( LDAPControl *ctrl );
 #define SLAPI_OPERATION_ANY		0xFFFFFFFFUL
 #define SLAPI_OPERATION_NONE		0x00000000UL
 int slapi_get_supported_controls_copy( char ***ctrloidsp,
-	unsigned long **ctrlopsp );
+    unsigned long **ctrlopsp );
 int slapi_build_control( char *oid, BerElement *ber,
-        char iscritical, LDAPControl **ctrlp );
+    char iscritical, LDAPControl **ctrlp );
 int slapi_build_control_from_berval( char *oid, struct berval *bvp,
-        char iscritical, LDAPControl **ctrlp );
+    char iscritical, LDAPControl **ctrlp );
 
 /* Given an array of controls e.g. LDAPControl **ctrls, add the given
    control to the end of the array, growing the array with realloc
@@ -5615,6 +5615,15 @@ void slapi_add_controls( LDAPControl ***ctrlsp, LDAPControl **newctrls, int copy
  */
 char **slapi_get_supported_extended_ops_copy( void );
 
+/*
+ * routines for dealing with supported features
+ */
+
+#ifndef LDAP_FEATURE_ALL_OP_ATTRS
+#define LDAP_FEATURE_ALL_OP_ATTRS "1.3.6.1.4.1.4203.1.5.1"
+#endif
+
+int slapi_get_supported_features_copy( char ***ftroidsp );
 
 /*
  * bind, including SASL 
@@ -7449,6 +7458,12 @@ char **slapi_str2charray_ext( char *str, char *brkstr, int allow_dups );
 #define LDAP_ALL_USER_ATTRS "*"
 #endif
 #endif
+
+/*
+ * As per rfc3673
+ */
+
+#define LDAP_ALL_OPERATIONAL_ATTRS "+"
 
 #ifndef LDAP_SASL_EXTERNAL
 #define LDAP_SASL_EXTERNAL      "EXTERNAL"      /* TLS/SSL extension */

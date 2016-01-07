@@ -650,6 +650,11 @@ void *sym_load( char *libpath, char *symbol, char *plugin, int report_errors );
  */
 void *sym_load_with_flags( char *libpath, char *symbol, char *plugin, int report_errors, PRBool load_now, PRBool load_global );
 
+/*
+ * features.c
+ */
+
+void init_features( void );
 
 /*
  * filter.c
