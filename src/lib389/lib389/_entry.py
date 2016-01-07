@@ -11,6 +11,7 @@ import six
 import logging
 import ldif
 import ldap
+import collections
 from ldap.cidict import cidict
 
 from lib389._constants import *
@@ -59,6 +60,7 @@ class Entry(object):
         If creating a new empty entry, data is the string DN.
         """
         self.ref = None
+        self.data = None
         if entrydata:
             if isinstance(entrydata, tuple):
                 if entrydata[0] is None:
@@ -123,7 +125,10 @@ class Entry(object):
         """
         Return True if this entry has an attribute named name, False otherwise
         """
-        return self.data and name in self.data
+        if self.data is None or not isinstance(self.data, collections.Mapping):
+            # Perhaps this should be an exception?
+            return False
+        return name in self.data
 
     def __getattr__(self, name):
         """
