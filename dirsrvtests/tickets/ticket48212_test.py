@@ -9,11 +9,12 @@ from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
+from lib389.utils import *
 from ldap.controls import SimplePagedResultsControl
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
+installation1_prefix = None
 
 MYSUFFIX = 'dc=example,dc=com'
 MYSUFFIXBE = 'userRoot'
@@ -25,48 +26,40 @@ class TopologyStandalone(object):
         standalone.open()
         self.standalone = standalone
 
-
 @pytest.fixture(scope="module")
 def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    global installation_prefix
+    global installation1_prefix
+    if installation1_prefix:
+        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
 
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
+    # Creating standalone instance ...
     standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
+    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
     args_standalone = args_instance.copy()
     standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
     instance_standalone = standalone.exists()
-
-    # Remove the instance
     if instance_standalone:
         standalone.delete()
-
-    # Create the instance
     standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
+    # Delete each instance in the end
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
+
+    # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
-    # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
 
 def runDbVerify(topology):
     topology.standalone.log.info("\n\n	+++++ dbverify +++++\n")
-    dbverifyCMD = topology.standalone.sroot + "/slapd-" + topology.standalone.inst + "/dbverify -V"
+    sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
+    dbverifyCMD = sbin_dir + "/dbverify -Z " + topology.standalone.inst + " -V"
     dbverifyOUT = os.popen(dbverifyCMD, "r")
     topology.standalone.log.info("Running %s" % dbverifyCMD)
     running = True
@@ -92,7 +85,8 @@ def runDbVerify(topology):
         
 def reindexUidNumber(topology):
     topology.standalone.log.info("\n\n	+++++ reindex uidnumber +++++\n")
-    indexCMD = topology.standalone.sroot + "/slapd-" + topology.standalone.inst + "/db2index.pl -D \"" + DN_DM + "\" -w \"" + PASSWORD + "\" -n " + MYSUFFIXBE + " -t uidnumber"
+    sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
+    indexCMD = sbin_dir + "/db2index.pl -Z " + topology.standalone.inst + " -D \"" + DN_DM + "\" -w \"" + PASSWORD + "\" -n " + MYSUFFIXBE + " -t uidnumber"
 
     indexOUT = os.popen(indexCMD, "r")
     topology.standalone.log.info("Running %s" % indexCMD)
@@ -118,7 +112,7 @@ def reindexUidNumber(topology):
         topology.standalone.log.fatal("%s did not finish" % indexCMD)
         assert False
         
-def test_ticket48212_run(topology):
+def test_ticket48212(topology):
     """
     Import posixAccount entries.
     Index uidNumber
@@ -180,31 +174,11 @@ def test_ticket48212_run(topology):
 
     runDbVerify(topology)
 
-    topology.standalone.log.info("ticket48212 was successfully verified.")
-
-
-def test_ticket48212_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    topo = topology(True)
-    test_ticket48212_run(topo)
-
-    test_ticket48212_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 
