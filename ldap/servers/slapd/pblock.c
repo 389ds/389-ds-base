@@ -252,12 +252,14 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 			memset( value, 0, sizeof( PRNetAddr ));
 			break;
 		}
-		/* For fields with atomic access, remove the PR_Lock(c_mutex) */
+		PR_Lock( pblock->pb_conn->c_mutex );
 		if ( pblock->pb_conn->cin_addr == NULL ) {
 			memset( value, 0, sizeof( PRNetAddr ));
 		} else {
-			(*(PRNetAddr *)value) = *(pblock->pb_conn->cin_addr);
+			(*(PRNetAddr *)value) =
+			    *(pblock->pb_conn->cin_addr);
 		}
+		PR_Unlock( pblock->pb_conn->c_mutex );
 		break;
 	case SLAPI_CONN_SERVERNETADDR:
 		if (pblock->pb_conn == NULL)
