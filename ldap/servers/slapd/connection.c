@@ -111,7 +111,7 @@ connection_done(Connection *conn)
 	}
 	if (NULL != conn->c_mutex)
 	{
-		PR_DestroyLock(conn->c_mutex);
+		PR_DestroyMonitor(conn->c_mutex);
 	}
 	if (NULL != conn->c_pdumutex)
 	{
@@ -703,10 +703,10 @@ int connection_is_free (Connection *conn)
 {
     int rc;
 
-    PR_Lock(conn->c_mutex);
+    PR_EnterMonitor(conn->c_mutex);
     rc = conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_refcnt == 0 &&
          !(conn->c_flags & CONN_FLAG_CLOSING);
-    PR_Unlock(conn->c_mutex);
+    PR_ExitMonitor(conn->c_mutex);
 
     return rc;
 }
@@ -748,17 +748,17 @@ static void inc_op_count(Connection* conn)
 static int connection_increment_reference(Connection *conn)
 {
 	int rc = 0;
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	rc = connection_acquire_nolock (conn);
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	return rc;
 }
 
 static void connection_decrement_reference(Connection *conn)
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	connection_release_nolock (conn);
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 }
 
 static void
@@ -990,29 +990,29 @@ done:
 	     * If not a persistent search, remove the operation
 	     * from this connection's list.
 	     */
-	    PR_Lock( conn->c_mutex );
+	    PR_EnterMonitor(conn->c_mutex);
 	    connection_remove_operation( conn, op );
-	    PR_Unlock( conn->c_mutex );
+	    PR_ExitMonitor(conn->c_mutex);
 
 		/* destroying the pblock will cause destruction of the operation
 		 * so this must happen before releasing the connection
 		 */
 	    slapi_pblock_destroy( pb );
 
-	    PR_Lock( conn->c_mutex );
+	    PR_EnterMonitor(conn->c_mutex);
         if (connection_release_nolock (conn) != 0)
 	    {
 			return_value = -1;
 		}
-	    PR_Unlock( conn->c_mutex );
+	    PR_ExitMonitor(conn->c_mutex);
 
 	} else { /* ps code acquires ref to conn - we need to release ours here */
-	    PR_Lock( conn->c_mutex );
+	    PR_EnterMonitor(conn->c_mutex);
         if (connection_release_nolock (conn) != 0)
 	    {
 			return_value = -1;
 		}
-	    PR_Unlock( conn->c_mutex );
+	    PR_ExitMonitor(conn->c_mutex);
 	}
 	return return_value;
 }
@@ -1075,19 +1075,19 @@ static int connection_operation_new(Connection *conn, Operation **ppOp)
 	Operation *temp_op = NULL;
 	int rc;
 
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	if (connection_is_active_nolock(conn) == 0) {
 	    LDAPDebug(LDAP_DEBUG_CONNS,
 		      "not creating a new operation when conn %" NSPRIu64 " closing\n",
 		      conn->c_connid,0,0);
-	    PR_Unlock( conn->c_mutex );
+	    PR_ExitMonitor(conn->c_mutex);
 	    return -1;
 	}
 	temp_op = operation_new( plugin_build_operation_action_bitmap( 0,
 			plugin_get_server_plg() ));
 	connection_add_operation( conn, temp_op);
 	rc = connection_acquire_nolock (conn); 
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	/* Stash the op pointer in the connection structure for later use */
 	PR_ASSERT(NULL == conn->c_private->c_current_op);
 	conn->c_private->c_current_op = temp_op;
@@ -1173,21 +1173,21 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 						"conn=%" NSPRIu64 " fd=%d The length of BER Element was too long.\n",
 						conn->c_connid, conn->c_sd );
 				}
-				PR_Lock( conn->c_mutex );
+				PR_EnterMonitor(conn->c_mutex);
 				connection_remove_operation( conn, op );
 				operation_free(&op, conn);
 				priv->c_current_op = NULL;
-				PR_Unlock( conn->c_mutex );
+				PR_ExitMonitor(conn->c_mutex);
 				return -1; /* Abandon Connection */
 			}
 		}
 		if (is_ber_too_big(conn,ber_len))
 		{
-			PR_Lock( conn->c_mutex );
+			PR_EnterMonitor(conn->c_mutex);
 			connection_remove_operation( conn, op );
 			operation_free(&op, conn);
 			priv->c_current_op = NULL;
-			PR_Unlock( conn->c_mutex );
+			PR_ExitMonitor(conn->c_mutex);
 			return -1; /* Abandon Connection */
 		}
 
@@ -1210,11 +1210,11 @@ static int read_the_data(Connection *conn, int *process_op, int *defer_io, int *
 					"conn=%" NSPRIu64 " received a non-LDAP message"
 					" (tag 0x%lx, expected 0x%lx)\n",
 					conn->c_connid, tag, LDAP_TAG_MESSAGE );
-				PR_Lock( conn->c_mutex );
+				PR_EnterMonitor(conn->c_mutex);
 				connection_remove_operation( conn, op );
 	     	    operation_free(&op, conn);
 				priv->c_current_op = NULL;
-				PR_Unlock( conn->c_mutex );
+				PR_ExitMonitor(conn->c_mutex);
 				return -1; /* Abandon Connection */
 			}
 		}
@@ -1891,10 +1891,10 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		if (ret <= 0) {
 			if (0 == ret) {
 				/* Connection is closed */
-				PR_Lock( conn->c_mutex );
+				PR_EnterMonitor(conn->c_mutex);
 				disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, 0 );
 				conn->c_gettingber = 0;
-				PR_Unlock( conn->c_mutex );
+				PR_ExitMonitor(conn->c_mutex);
 				signal_listner();
 				return CONN_DONE;
 			}
@@ -2024,9 +2024,9 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 
 void connection_make_readable(Connection *conn)
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	conn->c_gettingber = 0;
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	signal_listner();
 }
 
@@ -2037,7 +2037,7 @@ void connection_check_activity_level(Connection *conn)
 {
 	int current_count = 0;
 	int delta_count = 0;
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	/* get the current op count */
 	current_count = conn->c_opscompleted;
 	/* compare to the previous op count */
@@ -2048,7 +2048,7 @@ void connection_check_activity_level(Connection *conn)
 	conn->c_private->previous_op_count = current_count;
 	/* update the last checked time */
 	conn->c_private->previous_count_check_time = current_time();
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " activity level = %d\n",conn->c_connid,delta_count,0); 
 }
 
@@ -2092,7 +2092,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	int connection_count = 0;
 	int our_rank = 0;
 	int threshold_rank = 0;
-	PR_Lock(conn->c_mutex);
+	PR_EnterMonitor(conn->c_mutex);
 	/* We can already be in turbo mode, or not */
 	current_mode = current_turbo_flag;
 	if (pagedresults_in_use_nolock(conn)) {
@@ -2148,7 +2148,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 		}
 	  }
 	}
-	PR_Unlock(conn->c_mutex);
+	PR_ExitMonitor(conn->c_mutex);
 	if (current_mode != new_mode) {
 		if (current_mode) {
 			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode\n",conn->c_connid,0,0); 
@@ -2244,13 +2244,13 @@ connection_threadmain()
 			*/
 			PR_Sleep(PR_INTERVAL_NO_WAIT);
 
-			PR_Lock(conn->c_mutex);
+			PR_EnterMonitor(conn->c_mutex);
 			/* Make our own pb in turbo mode */
 			connection_make_new_pb(&pb,conn);
 			if (connection_call_io_layer_callbacks(conn)) {
 				LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
 			}
-			PR_Unlock(conn->c_mutex);
+			PR_ExitMonitor(conn->c_mutex);
 			if (! config_check_referral_mode()) {
 			  slapi_counter_increment(ops_initiated);
 			  slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
@@ -2374,7 +2374,7 @@ done:
 		/* If this op isn't a persistent search, remove it */
 		if ( !( pb->pb_op->o_flags & OP_FLAG_PS )) {
 		    /* delete from connection operation queue & decr refcnt */
-		    PR_Lock( conn->c_mutex );
+		    PR_EnterMonitor(conn->c_mutex);
 		    connection_remove_operation( conn, op );
 			/* destroying the pblock will cause destruction of the operation
 			 * so this must happend before releasing the connection
@@ -2386,11 +2386,11 @@ done:
 		    if (!thread_turbo_flag && !more_data) {
 				connection_release_nolock (conn);
 			}
-		    PR_Unlock( conn->c_mutex );
+		    PR_ExitMonitor(conn->c_mutex);
 		} else { /* the ps code acquires a ref to the conn - we need to release ours here */
-		    PR_Lock( conn->c_mutex );
+		    PR_EnterMonitor(conn->c_mutex);
 			connection_release_nolock (conn);
-		    PR_Unlock( conn->c_mutex );
+		    PR_ExitMonitor(conn->c_mutex);
 		}
 		/* Since we didn't do so earlier, we need to make a replication connection readable again here */
 		if ( ((1 == is_timedout) || (replication_connection && !thread_turbo_flag)) && !more_data)
@@ -2401,7 +2401,7 @@ done:
 		}
 
 		if (!thread_turbo_flag && !more_data) { /* Don't do this in turbo mode */
-			PR_Lock( conn->c_mutex );
+			PR_EnterMonitor(conn->c_mutex);
 			/* if the threadnumber of now below the maximum, wakeup
 			 * the listener thread so that we start polling on this 
 			 * connection again
@@ -2412,7 +2412,7 @@ done:
 			else
 				need_wakeup = 0;
 			conn->c_threadnumber--;
-			PR_Unlock( conn->c_mutex );
+			PR_ExitMonitor(conn->c_mutex);
 	
 			if (need_wakeup)
 				signal_listner();
@@ -2647,7 +2647,7 @@ op_copy_identity(Connection *conn, Operation *op)
     size_t dnlen;
     size_t typelen;
 
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	dnlen= conn->c_dn ? strlen (conn->c_dn) : 0;
 	typelen= conn->c_authtype ? strlen (conn->c_authtype) : 0;
 
@@ -2679,14 +2679,14 @@ op_copy_identity(Connection *conn, Operation *op)
         op->o_ssf = conn->c_local_ssf;
     }
 
-    PR_Unlock( conn->c_mutex );
+    PR_ExitMonitor(conn->c_mutex);
 }
 
 /* Sets the SSL SSF in the connection struct. */
 static void
 connection_set_ssl_ssf(Connection *conn)
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 
 	if (conn->c_flags & CONN_FLAG_SSL) {
 		SSL_SecurityStatus(conn->c_prfd, NULL, NULL, NULL, &(conn->c_ssl_ssf), NULL, NULL);
@@ -2694,7 +2694,7 @@ connection_set_ssl_ssf(Connection *conn)
 		conn->c_ssl_ssf = 0;
 	}
 
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 }
 
 static int
@@ -2741,9 +2741,9 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 void
 disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	disconnect_server_nomutex( conn, opconnid, opid, reason, error );
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 }
 
 static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;

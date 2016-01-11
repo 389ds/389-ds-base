@@ -290,7 +290,7 @@ do_bind( Slapi_PBlock *pb )
         slapi_pblock_get (pb, SLAPI_PWPOLICY, &pw_response_requested);
     }
 
-    PR_Lock( pb->pb_conn->c_mutex );
+    PR_EnterMonitor(pb->pb_conn->c_mutex);
 
     bind_credentials_clear( pb->pb_conn, PR_FALSE, /* do not lock conn */
                             PR_FALSE /* do not clear external creds. */ );
@@ -323,7 +323,7 @@ do_bind( Slapi_PBlock *pb )
      * bound user can work properly
      */
     pb->pb_conn->c_needpw = 0;
-    PR_Unlock( pb->pb_conn->c_mutex );
+    PR_ExitMonitor(pb->pb_conn->c_mutex);
 
     log_bind_access(pb, dn?dn:"empty", method, version, saslmech, NULL);
 
