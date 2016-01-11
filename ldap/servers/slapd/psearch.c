@@ -306,9 +306,9 @@ ps_send_results( void *arg )
 
     /* need to acquire a reference to this connection so that it will not
        be released or cleaned up out from under us */
-    PR_Lock( ps->ps_pblock->pb_conn->c_mutex );
+    PR_EnterMonitor(ps->ps_pblock->pb_conn->c_mutex);
     conn_acq_flag = connection_acquire_nolock(ps->ps_pblock->pb_conn);    
-    PR_Unlock( ps->ps_pblock->pb_conn->c_mutex );
+    PR_ExitMonitor(ps->ps_pblock->pb_conn->c_mutex);
 
 	if (conn_acq_flag) {
 		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
@@ -426,7 +426,7 @@ ps_send_results( void *arg )
 
     conn = ps->ps_pblock->pb_conn; /* save to release later - connection_remove_operation_ext will NULL the pb_conn */
     /* Clean up the connection structure */
-    PR_Lock( conn->c_mutex );
+    PR_EnterMonitor(conn->c_mutex);
 
 	slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
 					"conn=%" NSPRIu64 " op=%d Releasing the connection and operation\n",
@@ -436,9 +436,9 @@ ps_send_results( void *arg )
 
     /* Decrement the connection refcnt */
     if (conn_acq_flag == 0) { /* we acquired it, so release it */
-	connection_release_nolock (conn);
+        connection_release_nolock (conn);
     }
-    PR_Unlock( conn->c_mutex );
+    PR_ExitMonitor(conn->c_mutex);
     conn = NULL;
 
     PR_DestroyLock ( ps->ps_lock );

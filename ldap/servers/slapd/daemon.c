@@ -1929,7 +1929,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		}
 		else
 		{
-			PR_Lock( c->c_mutex );
+			PR_EnterMonitor(c->c_mutex);
 			if (c->c_flags & CONN_FLAG_CLOSING)
 			{
 				/* A worker thread has marked that this connection
@@ -1978,7 +1978,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 					c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
 				}
 			}
-			PR_Unlock( c->c_mutex );
+			PR_ExitMonitor(c->c_mutex);
 		}
 		c = next;
 	}
@@ -1997,7 +1997,7 @@ handle_timeout( void )
 	time_t curtime = current_time();
 
 	if (0 == prevtime) {
-		prevtime = time (&housekeeping_fire_time);		
+		prevtime = time (&housekeeping_fire_time);
 	}
 
 	if ( difftime(curtime, prevtime) >= 
@@ -2185,7 +2185,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 	{
 		if ( c->c_mutex != NULL )
 		{
-			PR_Lock( c->c_mutex );
+			PR_EnterMonitor(c->c_mutex);
 			if ( connection_is_active_nolock (c) && c->c_gettingber == 0 )
 			{
 			    PRInt16 out_flags;
@@ -2242,7 +2242,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 								   SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN );
 				}
 			}
-			PR_Unlock( c->c_mutex );
+			PR_ExitMonitor(c->c_mutex);
 		}
 	}
 #endif
@@ -2819,7 +2819,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		PR_Close(pr_acceptfd);
 		return -1;
 	}
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 
 	/*
 	 * Set the default idletimeout and the handle.  We'll update c_idletimeout
@@ -2932,7 +2932,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 		connection_table_move_connection_on_to_active_list(the_connection_table,conn);
 	}
 
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 
 	g_increment_current_conn_count();
 

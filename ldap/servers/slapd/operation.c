@@ -601,7 +601,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
 {
     int rc;
 
-    PR_Lock(conn->c_mutex);
+    PR_EnterMonitor(conn->c_mutex);
     /* rc = connection_acquire_nolock(conn); */
     /* connection in the closing state can't be acquired */
     if (conn->c_flags & CONN_FLAG_CLOSING)
@@ -617,7 +617,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
         conn->c_refcnt++;
         rc = 0;
     }
-    PR_Unlock(conn->c_mutex);
+    PR_ExitMonitor(conn->c_mutex);
     return(rc);
 }
 
@@ -627,7 +627,7 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 	int rc = 0;
 	Slapi_Operation **olist= &conn->c_ops;
 	Slapi_Operation **tmp;
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	/* connection_remove_operation_ext(pb, conn,op); */
 	for ( tmp = olist; *tmp != NULL && *tmp != op; tmp = &(*tmp)->o_next )
 		;	/* NULL */
@@ -645,15 +645,15 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 	if (release) {
 		/* connection_release_nolock(conn); */
 		if (conn->c_refcnt <= 0) {
-        		slapi_log_error(SLAPI_LOG_FATAL, "connection",
-		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
-		                conn->c_connid, conn->c_sd);
-        		rc = -1;
+			slapi_log_error(SLAPI_LOG_FATAL, "connection",
+			                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
+			                conn->c_connid, conn->c_sd);
+			rc = -1;
 		} else {
-        		conn->c_refcnt--;
+			conn->c_refcnt--;
 			rc = 0;
 		}
 	}
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	return (rc);
 }

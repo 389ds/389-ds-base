@@ -104,9 +104,9 @@ do_unbind( Slapi_PBlock *pb )
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
-	PR_Lock( pb->pb_conn->c_mutex );
+	PR_EnterMonitor(pb->pb_conn->c_mutex);
 	operation_set_target_spec_str (operation, pb->pb_conn->c_dn);
-	PR_Unlock( pb->pb_conn->c_mutex );
+	PR_ExitMonitor(pb->pb_conn->c_mutex);
 
 	/* ONREPL - plugins should be called and passed bind dn and, possibly, other data */
 

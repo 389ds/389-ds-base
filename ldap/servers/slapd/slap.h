@@ -1472,7 +1472,7 @@ typedef struct conn {
 	PRInt32			c_opscompleted;	/* # ops completed		  */
 	PRInt32			c_threadnumber; /* # threads used in this conn    */
 	int				c_refcnt;	/* # ops refering to this conn    */
-	PRLock			*c_mutex;	/* protect each conn structure    */
+	PRMonitor		*c_mutex;	/* protect each conn structure; need to be re-entrant */ 
 	PRLock			*c_pdumutex;	/* only write one pdu at a time   */
 	time_t			c_idlesince;	/* last time of activity on conn  */
 	int			c_idletimeout;	/* local copy of idletimeout */
