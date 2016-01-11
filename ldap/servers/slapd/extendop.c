@@ -61,7 +61,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         return;
     }
-	suffix = slapi_sdn_get_dn(sdn);
+    suffix = slapi_sdn_get_dn(sdn);
     /*    be = slapi_be_select(sdn); */
     be = slapi_mapping_tree_find_backend_for_sdn(sdn);
     if (be == NULL || be == defbackend_get_backend()) {
@@ -135,10 +135,10 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
     /* okay, the import is starting now -- save the backend in the
      * connection block & mark this connection as belonging to a bulk import
      */
-    PR_Lock(pb->pb_conn->c_mutex);
+    PR_EnterMonitor(pb->pb_conn->c_mutex);
     pb->pb_conn->c_flags |= CONN_FLAG_IMPORT;
     pb->pb_conn->c_bi_backend = be;
-    PR_Unlock(pb->pb_conn->c_mutex);
+    PR_ExitMonitor(pb->pb_conn->c_mutex);
 
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, EXTOP_BULK_IMPORT_START_OID);
     bv.bv_val = NULL;
@@ -160,11 +160,11 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
     struct berval bv;
     int ret;
 
-    PR_Lock(pb->pb_conn->c_mutex);
+    PR_EnterMonitor(pb->pb_conn->c_mutex);
     pb->pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
     be = pb->pb_conn->c_bi_backend;
     pb->pb_conn->c_bi_backend = NULL;
-    PR_Unlock(pb->pb_conn->c_mutex);
+    PR_ExitMonitor(pb->pb_conn->c_mutex);
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */

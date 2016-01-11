@@ -85,11 +85,11 @@ connection_table_abandon_all_operations(Connection_Table *ct)
 	int	i;
 	for ( i = 0; i < ct->size; i++ )
 	{
-		if ( ct->c[i].c_mutex != NULL )
+		if ( ct->c[i].c_mutex )
 		{
-			PR_Lock( ct->c[i].c_mutex );
+			PR_EnterMonitor(ct->c[i].c_mutex);
 			connection_abandon_operations( &ct->c[i] );
-			PR_Unlock( ct->c[i].c_mutex );
+			PR_ExitMonitor(ct->c[i].c_mutex);
 		}
 	}
 }
@@ -139,7 +139,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 		if ( c->c_mutex == NULL )
 		{
 			PR_Lock( ct->table_mutex );
-			c->c_mutex = PR_NewLock();
+			c->c_mutex = PR_NewMonitor();
 			c->c_pdumutex = PR_NewLock();
 			PR_Unlock( ct->table_mutex );
 			if ( c->c_mutex == NULL || c->c_pdumutex == NULL )
@@ -360,7 +360,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 		/* Can't take c_mutex if holding table_mutex; temporarily unlock */ 
 		PR_Unlock( ct->table_mutex );
 
-		PR_Lock( ct->c[i].c_mutex );
+		PR_EnterMonitor(ct->c[i].c_mutex);
 		if ( ct->c[i].c_sd != SLAPD_INVALID_SOCKET )
 		{
 			char buf2[20];
@@ -420,7 +420,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 			attrlist_merge( &e->e_attrs, "connection", vals );
 			slapi_ch_free_string(&newbuf);
 		}
-		PR_Unlock( ct->c[i].c_mutex );
+		PR_ExitMonitor(ct->c[i].c_mutex);
 	}
 
 	PR_snprintf( buf, sizeof(buf), "%d", nconns );
@@ -458,14 +458,15 @@ void
 connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 {
 	int i;
+
 	for ( i = 0; i < ct->size; i++ )
 	{
 		Connection *c= &(ct->c[i]);
-		if ( c->c_mutex != NULL )
+		if ( c->c_mutex )
 		{
 			/* Find the connection we are referring to */
 			int j= c->c_fdi;
-			PR_Lock( c->c_mutex );
+			PR_EnterMonitor(c->c_mutex);
 			if ( (c->c_sd != SLAPD_INVALID_SOCKET) && 
 			     (j >= 0) && (c->c_prfd == ct->fd[j].fd) )
 			{
@@ -475,7 +476,7 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 					LDAPDebug( LDAP_DEBUG_CONNS,"activity on %d%s\n", i, r ? "r" : "",0 );
 				}
 			}
-			PR_Unlock( c->c_mutex );
+			PR_ExitMonitor(c->c_mutex);
 		}
 	}
 }
