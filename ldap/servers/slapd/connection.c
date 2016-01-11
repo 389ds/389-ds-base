@@ -147,7 +147,7 @@ connection_done(Connection *conn)
 	}
 	if (NULL != conn->c_mutex)
 	{
-		PR_DestroyLock(conn->c_mutex);
+		PR_DestroyMonitor(conn->c_mutex);
 	}
 	if (NULL != conn->c_pdumutex)
 	{
@@ -746,10 +746,10 @@ int connection_is_free (Connection *conn)
 {
     int rc;
 
-    PR_Lock(conn->c_mutex);
+    PR_EnterMonitor(conn->c_mutex);
     rc = conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_refcnt == 0 &&
          !(conn->c_flags & CONN_FLAG_CLOSING);
-    PR_Unlock(conn->c_mutex);
+    PR_ExitMonitor(conn->c_mutex);
 
     return rc;
 }
@@ -1136,7 +1136,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	PRInt32 syserr = 0;
 	size_t buffer_data_avail;
 
-	PR_Lock(conn->c_mutex);
+	PR_EnterMonitor(conn->c_mutex);
 	/*
 	 * if the socket is still valid, get the ber element
 	 * waiting for us on this connection. timeout is handled
@@ -1325,15 +1325,15 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	}
 	op->o_tag = *tag;
 done:
-	PR_Unlock(conn->c_mutex);
+	PR_ExitMonitor(conn->c_mutex);
 	return ret;
 }
 
 void connection_make_readable(Connection *conn)
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	conn->c_gettingber = 0;
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	signal_listner();
 }
 
@@ -1355,7 +1355,7 @@ void connection_check_activity_level(Connection *conn)
 {
 	int current_count = 0;
 	int delta_count = 0;
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	/* get the current op count */
 	current_count = conn->c_opscompleted;
 	/* compare to the previous op count */
@@ -1366,7 +1366,7 @@ void connection_check_activity_level(Connection *conn)
 	conn->c_private->previous_op_count = current_count;
 	/* update the last checked time */
 	conn->c_private->previous_count_check_time = current_time();
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 	LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " activity level = %d\n",conn->c_connid,delta_count,0); 
 }
 
@@ -1410,7 +1410,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	int connection_count = 0;
 	int our_rank = 0;
 	int threshold_rank = 0;
-	PR_Lock(conn->c_mutex);
+	PR_EnterMonitor(conn->c_mutex);
 	/* We can already be in turbo mode, or not */
 	current_mode = current_turbo_flag;
 	if (pagedresults_in_use_nolock(conn)) {
@@ -1466,7 +1466,7 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 		}
 	  }
 	}
-	PR_Unlock(conn->c_mutex);
+	PR_ExitMonitor(conn->c_mutex);
 	if (current_mode != new_mode) {
 		if (current_mode) {
 			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode\n",conn->c_connid,0,0); 
@@ -1572,13 +1572,13 @@ connection_threadmain()
 			*/
 			PR_Sleep(PR_INTERVAL_NO_WAIT);
 
-			PR_Lock(conn->c_mutex);
+			PR_EnterMonitor(conn->c_mutex);
 			/* Make our own pb in turbo mode */
 			connection_make_new_pb(pb,conn);
 			if (connection_call_io_layer_callbacks(conn)) {
 				LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
 			}
-			PR_Unlock(conn->c_mutex);
+			PR_ExitMonitor(conn->c_mutex);
 			if (! config_check_referral_mode()) {
 			  slapi_counter_increment(ops_initiated);
 			  slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsInOps); 
@@ -1693,7 +1693,7 @@ connection_threadmain()
  */
 			} else if (!enable_nunc_stans) { /* more data in conn - just put back on work_q - bypass poll */
 				bypasspollcnt++;
-				PR_Lock(conn->c_mutex);
+				PR_EnterMonitor(conn->c_mutex);
 				/* don't do this if it would put us over the max threads per conn */
 				if (conn->c_threadnumber < maxthreads) {
 					/* for turbo, c_idlesince is set above - for !turbo and
@@ -1708,7 +1708,7 @@ connection_threadmain()
 					/* keep count of how many times maxthreads has blocked an operation */
 					conn->c_maxthreadsblocked++;
 				}
-				PR_Unlock(conn->c_mutex);
+				PR_ExitMonitor(conn->c_mutex);
 			}
 		}
 
@@ -1744,14 +1744,14 @@ connection_threadmain()
 
 done:	
 		if (doshutdown) {
-			PR_Lock(conn->c_mutex);
+			PR_EnterMonitor(conn->c_mutex);
 			connection_remove_operation_ext(pb, conn, op);
 			connection_make_readable_nolock(conn);
 			conn->c_threadnumber--;
 			slapi_counter_decrement(conns_in_maxthreads);
 			slapi_counter_decrement(g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads);
 			connection_release_nolock(conn);
-			PR_Unlock(conn->c_mutex);
+			PR_ExitMonitor(conn->c_mutex);
 			signal_listner();
 			return;
 		}
@@ -1768,9 +1768,9 @@ done:
 		slapi_counter_increment(ops_completed);
 		/* If this op isn't a persistent search, remove it */
 		if ( pb->pb_op->o_flags & OP_FLAG_PS ) {
-			    PR_Lock( conn->c_mutex );
+			    PR_EnterMonitor(conn->c_mutex);
 			    connection_release_nolock (conn); /* psearch acquires ref to conn - release this one now */
-			    PR_Unlock( conn->c_mutex );
+			    PR_ExitMonitor(conn->c_mutex);
 			    /* ps_add makes a shallow copy of the pb - so we
 			     * can't free it or init it here - just memset it to 0
 			     * ps_send_results will call connection_remove_operation_ext to free it
@@ -1778,7 +1778,7 @@ done:
 			    memset(pb, 0, sizeof(*pb));
 		} else {
 			/* delete from connection operation queue & decr refcnt */
-			PR_Lock( conn->c_mutex );
+			PR_EnterMonitor(conn->c_mutex);
 			connection_remove_operation_ext( pb, conn, op );
 
 			/* If we're in turbo mode, we keep our reference to the connection alive */
@@ -1819,7 +1819,7 @@ done:
 					signal_listner();
 				}
 			}
-			PR_Unlock( conn->c_mutex );
+			PR_ExitMonitor(conn->c_mutex);
 		}
 	} /* while (1) */
 }
@@ -2079,16 +2079,16 @@ op_copy_identity(Connection *conn, Operation *op)
     size_t dnlen;
     size_t typelen;
 
-	PR_Lock( conn->c_mutex );
-	dnlen= conn->c_dn ? strlen (conn->c_dn) : 0;
-	typelen= conn->c_authtype ? strlen (conn->c_authtype) : 0;
+    PR_EnterMonitor(conn->c_mutex);
+    dnlen= conn->c_dn ? strlen (conn->c_dn) : 0;
+    typelen= conn->c_authtype ? strlen (conn->c_authtype) : 0;
 
-	slapi_sdn_done(&op->o_sdn);
-	slapi_ch_free_string(&(op->o_authtype));
+    slapi_sdn_done(&op->o_sdn);
+    slapi_ch_free_string(&(op->o_authtype));
     if (dnlen <= 0 && typelen <= 0) {
         op->o_authtype = NULL;
     } else {
-	    slapi_sdn_set_dn_byval(&op->o_sdn,conn->c_dn);
+        slapi_sdn_set_dn_byval(&op->o_sdn,conn->c_dn);
         op->o_authtype = slapi_ch_strdup(conn->c_authtype);
         /* set the thread data bind dn index */
         slapi_td_set_dn(slapi_ch_strdup(conn->c_dn));
@@ -2111,14 +2111,14 @@ op_copy_identity(Connection *conn, Operation *op)
         op->o_ssf = conn->c_local_ssf;
     }
 
-    PR_Unlock( conn->c_mutex );
+    PR_ExitMonitor(conn->c_mutex);
 }
 
 /* Sets the SSL SSF in the connection struct. */
 static void
 connection_set_ssl_ssf(Connection *conn)
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 
 	if (conn->c_flags & CONN_FLAG_SSL) {
 		SSL_SecurityStatus(conn->c_prfd, NULL, NULL, NULL, &(conn->c_ssl_ssf), NULL, NULL);
@@ -2126,7 +2126,7 @@ connection_set_ssl_ssf(Connection *conn)
 		conn->c_ssl_ssf = 0;
 	}
 
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 }
 
 static int
@@ -2173,9 +2173,9 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 void
 disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error )
 {
-	PR_Lock( conn->c_mutex );
+	PR_EnterMonitor(conn->c_mutex);
 	disconnect_server_nomutex( conn, opconnid, opid, reason, error );
-	PR_Unlock( conn->c_mutex );
+	PR_ExitMonitor(conn->c_mutex);
 }
 
 static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
