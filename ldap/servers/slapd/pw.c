@@ -2879,41 +2879,47 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
     bvals[1] = NULL;
 
     /* shadowMin - the minimum number of days required between password changes. */
-    if (pwpolicy->pw_minage > 0) {
-        shadowval = pwpolicy->pw_minage / _SEC_PER_DAY;
-    } else {
-        shadowval = 0;
+    if (!slapi_entry_attr_exists(e, "shadowMin")) {
+        if (pwpolicy->pw_minage > 0) {
+            shadowval = pwpolicy->pw_minage / _SEC_PER_DAY;
+        } else {
+            shadowval = 0;
+        }
+        bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+        bv.bv_len = strlen(bv.bv_val);
+        slapi_entry_attr_merge(e, "shadowMin", bvals);
+        slapi_ch_free_string(&bv.bv_val);
     }
-    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-    bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "shadowMin", bvals);
-    slapi_ch_free_string(&bv.bv_val);
 
     /* shadowMax - the maximum number of days for which the user password remains valid. */
-    if (pwpolicy->pw_maxage > 0) {
-        shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
-        exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
-    } else {
-        shadowval = 99999;
+    if (!slapi_entry_attr_exists(e, "shadowMax")) {
+        if (pwpolicy->pw_maxage > 0) {
+            shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
+            exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
+        } else {
+            shadowval = 99999;
+        }
+        bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+        bv.bv_len = strlen(bv.bv_val);
+        slapi_entry_attr_replace(e, "shadowMax", bvals);
+        slapi_ch_free_string(&bv.bv_val);
     }
-    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-    bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "shadowMax", bvals);
-    slapi_ch_free_string(&bv.bv_val);
 
     /* shadowWarning - the number of days of advance warning given to the user before the user password expires. */
-    if (pwpolicy->pw_warning > 0) {
-        shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
-    } else {
-        shadowval = 0;
+    if (!slapi_entry_attr_exists(e, "shadowWarning")) {
+        if (pwpolicy->pw_warning > 0) {
+            shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
+        } else {
+            shadowval = 0;
+        }
+        bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
+        bv.bv_len = strlen(bv.bv_val);
+        slapi_entry_attr_replace(e, "shadowWarning", bvals);
+        slapi_ch_free_string(&bv.bv_val);
     }
-    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-    bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "shadowWarning", bvals);
-    slapi_ch_free_string(&bv.bv_val);
 
     /* shadowExpire - the date on which the user login will be disabled. */
-    if (exptime) {
+    if (exptime && !slapi_entry_attr_exists(e, "shadowExpire")) {
         exptime /= _SEC_PER_DAY;
         bv.bv_val = slapi_ch_smprintf("%ld", exptime);
         bv.bv_len = strlen(bv.bv_val);
