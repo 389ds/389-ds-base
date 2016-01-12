@@ -84,6 +84,7 @@ LOCALHOST_SHORT = "localhost"
 DEFAULT_PORT = 389
 DEFAULT_SECURE_PORT = 636
 DEFAULT_SUFFIX = 'dc=example,dc=com'
+DEFAULT_SUFFIX_ESCAPED = 'dc\3Dexample\2Cdc\3Dcom'
 DEFAULT_BENAME = 'userRoot'  # warning it is case sensitive
 DEFAULT_BACKUPDIR = '/tmp'
 DEFAULT_INST_HEAD = 'slapd-'
