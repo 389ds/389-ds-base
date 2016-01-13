@@ -68,7 +68,6 @@
 #include <prclist.h>
 #include <sys/types.h>
 #include <sys/statvfs.h>
-#include <sys/resource.h>
 
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4100
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)    \
@@ -869,190 +868,6 @@ static void dblayer_init_dbenv(DB_ENV *pEnv, dblayer_private *priv)
 #endif
 }
 
-/* returns system pagesize (in bytes) and the number of pages of physical
- * RAM this machine has.
- * as a bonus, if 'procpages' is non-NULL, it will be filled in with the
- * approximate number of pages this process is using!
- * on platforms that we haven't figured out how to do this yet, both fields
- * are filled with zero and you're on your own.
- *
- * platforms supported so far:
- * Solaris, Linux, Windows
- */
-#ifdef OS_solaris
-#include <sys/procfs.h>
-#endif
-#ifdef LINUX
-#include <linux/kernel.h>
-#include <sys/sysinfo.h>    /* undocumented (?) */
-#endif
-#if defined ( hpux )
-#include <sys/pstat.h>
-#endif
-
-static size_t dblayer_getvirtualmemsize()
-{
-    struct rlimit rl;
-
-    /* the maximum size of a process's total available memory, in bytes */
-    getrlimit(RLIMIT_AS, &rl);
-    return rl.rlim_cur;
-}
-
-/* pages = number of pages of physical ram on the machine (corrected for 32-bit build on 64-bit machine).
- * procpages = pages currently used by this process (or working set size, sometimes)
- * availpages = some notion of the number of pages 'free'. Typically this number is not useful.
- */
-void dblayer_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages)
-{
-    *pagesize = *pages = *availpages = 0;
-    if (procpages)
-        *procpages = 0;
-
-#ifdef OS_solaris
-    *pagesize = (int)sysconf(_SC_PAGESIZE);
-    *pages = (int)sysconf(_SC_PHYS_PAGES);
-    *availpages = dblayer_getvirtualmemsize() / *pagesize;
-    /* solaris has THE most annoying way to get this info */
-    if (procpages) {
-        struct prpsinfo psi;
-        char fn[40];
-        int fd;
-
-        sprintf(fn, "/proc/%d", getpid());
-        fd = open(fn, O_RDONLY);
-        if (fd >= 0) {
-                memset(&psi, 0, sizeof(psi));
-            if (ioctl(fd, PIOCPSINFO, (void *)&psi) == 0)
-                *procpages = psi.pr_size;
-            close(fd);
-        }
-    }
-#endif
-
-#ifdef LINUX
-    {
-        struct sysinfo si;
-        size_t pages_per_mem_unit = 0;
-        size_t mem_units_per_page = 0; /* We don't know if these units are really pages */
-
-        sysinfo(&si);
-        *pagesize = getpagesize();
-        if (si.mem_unit > *pagesize) {
-            pages_per_mem_unit = si.mem_unit / *pagesize;
-            *pages = si.totalram * pages_per_mem_unit;
-        } else {
-            mem_units_per_page = *pagesize / si.mem_unit;
-            *pages = si.totalram / mem_units_per_page;
-        }
-        *availpages = dblayer_getvirtualmemsize() / *pagesize;
-        /* okay i take that back, linux's method is more retarded here.
-         * hopefully linux doesn't have the FILE* problem that solaris does
-         * (where you can't use FILE if you have more than 256 fd's open)
-         */
-        if (procpages) {
-            FILE *f;
-            char fn[40], s[80];
-
-            sprintf(fn, "/proc/%d/status", getpid());
-            f = fopen(fn, "r");
-            if (!f)    /* fopen failed */
-                return;
-            while (! feof(f)) {
-                fgets(s, 79, f);
-                if (feof(f))
-                    break;
-                if (strncmp(s, "VmSize:", 7) == 0) {
-                    sscanf(s+7, "%lu", (long unsigned int *)procpages);
-                    break;
-                }
-            }
-            fclose(f);
-            /* procpages is now in 1k chunks, not pages... */
-            *procpages /= (*pagesize / 1024);
-        }
-    }
-#endif
-
-#if defined ( hpux )
-    {
-        struct pst_static pst;
-        int rval = pstat_getstatic(&pst, sizeof(pst), (size_t)1, 0);
-        if (rval < 0)    /* pstat_getstatic failed */
-            return;
-        *pagesize = pst.page_size;
-        *pages = pst.physical_memory;
-        *availpages = dblayer_getvirtualmemsize() / *pagesize;
-        if (procpages)
-        {
-#define BURST (size_t)32        /* get BURST proc info at one time... */
-            struct pst_status psts[BURST];
-            int i, count;
-            int idx = 0; /* index within the context */
-            int mypid = getpid();
-
-            *procpages = 0;
-            /* loop until count == 0, will occur all have been returned */
-            while ((count = pstat_getproc(psts, sizeof(psts[0]), BURST, idx)) > 0) {
-                /* got count (max of BURST) this time.  process them */
-                for (i = 0; i < count; i++) {
-                    if (psts[i].pst_pid == mypid)
-                    {
-                        *procpages = (size_t)(psts[i].pst_dsize + psts[i].pst_tsize + psts[i].pst_ssize);
-                        break;
-                    }
-                }
-                if (i < count)
-                    break;
-
-                /*
-                 * now go back and do it again, using the next index after
-                 * the current 'burst'
-                 */
-                idx = psts[count-1].pst_idx + 1;
-            }
-        }
-    }
-#endif
-    /* If this is a 32-bit build, it might be running on a 64-bit machine,
-     * in which case, if the box has tons of ram, we can end up telling 
-     * the auto cache code to use more memory than the process can address.
-     * so we cap the number returned here.
-     */
-#if defined(__LP64__) || defined (_LP64)
-#else
-    {    
-        size_t one_gig_pages = GIGABYTE / *pagesize;
-        if (*pages > (2 * one_gig_pages) ) {
-            LDAPDebug(LDAP_DEBUG_TRACE,"More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
-                0, 0, 0);
-            *pages = (2 * one_gig_pages);
-        }
-    }
-#endif
-}
-
-
-int dblayer_is_cachesize_sane(size_t *cachesize)
-{
-    size_t pages = 0, pagesize = 0, procpages = 0, availpages = 0;
-    int issane = 1;
-
-    dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
-    if (!pagesize || !pages)
-        return 1;    /* do nothing when we can't get the avail mem */
-    /* If the requested cache size is larger than the remaining pysical memory
-     * after the current working set size for this process has been subtracted,
-     * then we say that's insane and try to correct.
-     */
-    issane = (int)((*cachesize / pagesize) <= (pages - procpages));
-    if (!issane) {
-        *cachesize = (size_t)((pages - procpages) * pagesize);
-    }
-    
-    return issane;
-}
-
 
 static void dblayer_dump_config_tracing(dblayer_private *priv)
 {
@@ -1567,7 +1382,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
 
     /* Sanity check on cache size on platforms which allow us to figure out
      * the available phys mem */
-    if (!dblayer_is_cachesize_sane(&(priv->dblayer_cachesize))) {
+    if (!util_is_cachesize_sane(&(priv->dblayer_cachesize))) {
         /* Oops---looks like the admin misconfigured, let's warn them */
         LDAPDebug(LDAP_DEBUG_ANY,"WARNING---Likely CONFIGURATION ERROR---"
                   "dbcachesize is configured to use more than the available "
@@ -1887,8 +1702,7 @@ check_and_set_import_cache(struct ldbminfo *li)
     size_t page_delta = 0;
     char s[64];   /* big enough to hold %ld */
 
-    dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
-    if (0 == pagesize || 0 == pages) {
+    if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0 || 0 == pagesize || 0 == pages) {
         LDAPDebug2Args(LDAP_DEBUG_ANY, "check_and_set_import_cache: "
                        "Failed to get pagesize: %ld or pages: %ld\n",
                        pagesize, pages);
@@ -1928,7 +1742,12 @@ check_and_set_import_cache(struct ldbminfo *li)
     } else {
         /* autosizing importCache */
         /* ./125 instead of ./100 is for adjusting the BDB overhead. */
+#ifdef LINUX
+        /* On linux, availpages is correct so we should use it! */
+        import_pages = (li->li_import_cache_autosize * availpages) / 125;
+#else
         import_pages = (li->li_import_cache_autosize * pages) / 125;
+#endif
     }
 
     page_delta = pages - import_pages;

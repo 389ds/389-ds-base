@@ -1334,6 +1334,27 @@ char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
 time_t slapi_parse_duration(const char *value);
 int slapi_is_duration_valid(const char *value);
 
+/**
+ * Populate the pointers with the system memory information.
+ * At this time, Linux is the only "reliable" system for returning these values
+ *
+ * \param pagesize Will return the system page size in bytes.
+ * \param pages The total number of memory pages on the system. May include swap pages depending on OS.
+ * \param procpages Number of memory pages our current process is consuming. May not be accurate on all platforms as this could be the VMSize rather than the actual number of consumed pages.
+ * \param availpages Number of available pages of memory on the system. Not all operating systems set this correctly.
+ *
+ * \return 0 on success, non-zero on failure to determine memory sizings.
+ */
+int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages);
+
+/**
+ * Determine if the requested cachesize will exceed the system memory limits causing an out of memory condition
+ *
+ * \param cachesize. The requested allocation. If this value is greater than the memory available, this value will be REDUCED to be valid.
+ *
+ * \return 0 if the size is "sane". 1 if the value will cause OOM and has been REDUCED
+ */
+int util_is_cachesize_sane(size_t *cachesize);
 
 #ifdef __cplusplus
 }

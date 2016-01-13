@@ -25,6 +25,7 @@
 #include "prinrval.h"
 #include "snmp_collator.h"
 #include <sys/time.h>
+#include <sys/resource.h>
 
 #define UTIL_ESCAPE_NONE      0
 #define UTIL_ESCAPE_HEX       1
@@ -38,6 +39,24 @@
 #define ATTRSIZE 256   /* size allowed for an attr name */
 #define FILTER_BUF 128 /* initial buffer size for attr value */
 #define BUF_INCR 16    /* the amount to increase the FILTER_BUF once it fills up */
+
+/* Used by our util_info_sys_pages function
+ *
+ * platforms supported so far:
+ * Solaris, Linux, Windows
+ */
+#ifdef OS_solaris
+#include <sys/procfs.h>
+#endif
+#ifdef LINUX
+#include <linux/kernel.h>
+#endif
+#if defined ( hpux )
+#include <sys/pstat.h>
+#endif
+
+
+
 
 static int special_np(unsigned char c)
 {
@@ -1432,3 +1451,349 @@ slapi_uniqueIDRdnSize()
 	}
 	return util_uniqueidlen;
 }
+
+
+/**
+ * Get the virtual memory size as defined by system rlimits.
+ *
+ * \return size_t bytes available
+ */
+static size_t util_getvirtualmemsize()
+{
+    struct rlimit rl;
+    /* the maximum size of a process's total available memory, in bytes */
+    if (getrlimit(RLIMIT_AS, &rl) != 0) {
+        /* We received an error condition. There are a number of possible 
+         * reasons we have have gotten here, but most likely is EINVAL, where
+         * rlim->rlim_cur was greater than rlim->rlim_max.
+         * As a result, we should return a 0, to tell the system we can't alloc
+         * memory.
+         */
+        int errsrv = errno;
+        slapi_log_error(SLAPI_LOG_FATAL,"util_getvirtualmemsize", "ERROR: getrlimit returned non-zero. errno=%u\n", errsrv);
+        return 0;
+    }
+    return rl.rlim_cur;
+}
+
+/* pages = number of pages of physical ram on the machine (corrected for 32-bit build on 64-bit machine).
+ * procpages = pages currently used by this process (or working set size, sometimes)
+ * availpages = some notion of the number of pages 'free'. Typically this number is not useful.
+ */
+int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages)
+{
+    *pagesize = 0;
+    *pages = 0;
+    *availpages = 0;
+    if (procpages)
+        *procpages = 0;
+
+#ifdef OS_solaris
+    *pagesize = (int)sysconf(_SC_PAGESIZE);
+    *pages = (int)sysconf(_SC_PHYS_PAGES);
+    *availpages = util_getvirtualmemsize() / *pagesize;
+    /* solaris has THE most annoying way to get this info */
+    if (procpages) {
+        struct prpsinfo psi;
+        char fn[40];
+        int fd;
+
+        sprintf(fn, "/proc/%d", getpid());
+        fd = open(fn, O_RDONLY);
+        if (fd >= 0) {
+                memset(&psi, 0, sizeof(psi));
+            if (ioctl(fd, PIOCPSINFO, (void *)&psi) == 0)
+                *procpages = psi.pr_size;
+            close(fd);
+        }
+    }
+#endif
+
+#ifdef LINUX
+    {
+        /*
+         * On linux because of the way that the virtual memory system works, we
+         * don't really need to think about other processes, or fighting them.
+         * But that's not without quirks.
+         *
+         * We are given a virtual memory space, represented by vsize (man 5 proc)
+         * This space is a "funny number". It's a best effort based system
+         * where linux instead of telling us how much memory *actually* exists
+         * for us to use, gives us a virtual memory allocation which is the
+         * value of ram + swap.
+         *
+         * But none of these pages even exist or belong to us on the real system
+         * until will malloc them AND write a non-zero to them.
+         *
+         * The biggest issue with this is that vsize does NOT consider the
+         * effect other processes have on the system. So a process can malloc
+         * 2 Gig from the host, and our vsize doesn't reflect that until we
+         * suddenly can't malloc anything.
+         *
+         * We can see exactly what we are using inside of the vmm by
+         * looking at rss (man 5 proc). This shows us the current actual
+         * allocation of memory we are using. This is a good thing.
+         *
+         * We obviously don't want to have any pages in swap, but sometimes we
+         * can't help that: And there is also no guarantee that while we have
+         * X bytes in vsize, that we can even allocate any of them. Plus, we
+         * don't know if we are about to allocate to swap or not .... or get us
+         * killed in a blaze of oom glory.
+         *
+         * So there are now two strategies avaliable in this function.
+         * The first is to blindly accept what the VMM tells us about vsize
+         * while we hope and pray that we don't get nailed because we used
+         * too much.
+         *
+         * The other is a more conservative approach: We check vsize from
+         * proc/pid/status, and we check /proc/meminfo for freemem
+         * Which ever value is "lower" is the upper bound on pages we could
+         * potentially allocate: generally, this will be MemAvailable.
+         */
+
+        size_t vmsize = 0;
+        size_t freesize = 0;
+
+        *pagesize = getpagesize();
+
+        /* Get the amount of freeram, rss, and the vmsize */
+
+        FILE *f;
+        char fn[40], s[80];
+
+        sprintf(fn, "/proc/%d/status", getpid());
+        f = fopen(fn, "r");
+        if (!f) {    /* fopen failed */
+            /* We should probably make noise here! */
+            int errsrv = errno;
+            slapi_log_error(SLAPI_LOG_FATAL,"util_info_sys_pages", "ERROR: Unable to open file /proc/%d/status. errno=%u\n", getpid(), errsrv);
+            return 1;
+        }
+        while (! feof(f)) {
+            fgets(s, 79, f);
+            if (feof(f)) {
+                break;
+            }
+            /* VmRSS shows us what we are ACTUALLY using for proc pages
+             * Rather than "funny" pages.
+             */
+            if (strncmp(s, "VmSize:", 7) == 0) {
+                sscanf(s+7, "%lu", (long unsigned int *)&vmsize);
+            }
+            if (strncmp(s, "VmRSS:", 6) == 0) {
+                sscanf(s+6, "%lu", (long unsigned int *)procpages);
+            }
+        }
+        fclose(f);
+
+        FILE *fm;
+        char *fmn = "/proc/meminfo";
+        fm = fopen(fmn, "r");
+        if (!fm) {
+            int errsrv = errno;
+            slapi_log_error(SLAPI_LOG_FATAL,"util_info_sys_pages", "ERROR: Unable to open file /proc/meminfo. errno=%u\n", errsrv);
+            return 1;
+        }
+        while (! feof(fm)) {
+            fgets(s, 79, fm);
+            /* Is this really needed? */
+            if (feof(fm)) {
+                break;
+            }
+            if (strncmp(s, "MemTotal:", 9) == 0) {
+                sscanf(s+9, "%lu", (long unsigned int *)pages);
+            }
+            if (strncmp(s, "MemAvailable:", 13) == 0) {
+                sscanf(s+13, "%lu", (long unsigned int *)&freesize);
+            }
+        }
+        fclose(fm);
+
+
+        *pages /= (*pagesize / 1024);
+        freesize /= (*pagesize / 1024);
+        /* procpages is now in kb not pages... */
+        *procpages /= (*pagesize / 1024);
+        /* This is in bytes, make it pages  */
+        *availpages = util_getvirtualmemsize() / *pagesize;
+        /* Now we have vmsize, the availpages from getrlimit, our freesize */
+        vmsize /= (*pagesize / 1024);
+
+        /* Pages is the total ram on the system. We should smaller of:
+         * - vmsize
+         * - pages
+         */
+        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, vmsize=%lu, \n", 
+            (unsigned long) *pages, (unsigned long) vmsize,0);
+        if (vmsize < *pages) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using vmsize for pages \n",0,0,0);
+            *pages = vmsize;
+        } else {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for pages \n",0,0,0);
+        }
+
+        /* Availpages is how much we *could* alloc. We should take the smallest:
+         * - pages
+         * - getrlimit (availpages)
+         * - freesize
+         */
+        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, getrlim=%lu, freesize=%lu\n",
+            (unsigned long)*pages, (unsigned long)*availpages, (unsigned long)freesize);
+        if (*pages < *availpages && *pages < freesize) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for availpages \n",0,0,0);
+            *availpages = *pages;
+        } else if ( freesize < *pages && freesize < *availpages ) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using freesize for availpages \n",0,0,0);
+            *availpages = freesize;
+        } else {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using getrlim for availpages \n",0,0,0);
+        }
+
+
+    }
+#endif /* linux */
+
+
+
+#if defined ( hpux )
+    {
+        struct pst_static pst;
+        int rval = pstat_getstatic(&pst, sizeof(pst), (size_t)1, 0);
+        if (rval < 0) {   /* pstat_getstatic failed */
+            return 1;
+        }
+        *pagesize = pst.page_size;
+        *pages = pst.physical_memory;
+        *availpages = util_getvirtualmemsize() / *pagesize;
+        if (procpages)
+        {
+#define BURST (size_t)32        /* get BURST proc info at one time... */
+            struct pst_status psts[BURST];
+            int i, count;
+            int idx = 0; /* index within the context */
+            int mypid = getpid();
+
+            *procpages = 0;
+            /* loop until count == 0, will occur all have been returned */
+            while ((count = pstat_getproc(psts, sizeof(psts[0]), BURST, idx)) > 0) {
+                /* got count (max of BURST) this time.  process them */
+                for (i = 0; i < count; i++) {
+                    if (psts[i].pst_pid == mypid)
+                    {
+                        *procpages = (size_t)(psts[i].pst_dsize + psts[i].pst_tsize + psts[i].pst_ssize);
+                        break;
+                    }
+                }
+                if (i < count)
+                    break;
+
+                /*
+                 * now go back and do it again, using the next index after
+                 * the current 'burst'
+                 */
+                idx = psts[count-1].pst_idx + 1;
+            }
+        }
+    }
+#endif
+    /* If this is a 32-bit build, it might be running on a 64-bit machine,
+     * in which case, if the box has tons of ram, we can end up telling 
+     * the auto cache code to use more memory than the process can address.
+     * so we cap the number returned here.
+     */
+#if defined(__LP64__) || defined (_LP64)
+#else
+    {    
+        size_t one_gig_pages = GIGABYTE / *pagesize;
+        if (*pages > (2 * one_gig_pages) ) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
+                0, 0, 0);
+            *pages = (2 * one_gig_pages);
+        }
+    }
+#endif
+
+    /* This is stupid. If you set %u to %zu to print a size_t, you get literal %zu in your logs 
+     * So do the filthy cast instead.
+     */
+    slapi_log_error(SLAPI_LOG_FATAL,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
+        (unsigned long)*pages, (unsigned long)*procpages, (unsigned long)*availpages);
+    return 0;
+
+}
+
+int util_is_cachesize_sane(size_t *cachesize)
+{
+    size_t pages = 0;
+    size_t pagesize = 0;
+    size_t procpages = 0;
+    size_t availpages = 0;
+
+    size_t cachepages = 0;
+
+    int issane = 1;
+
+    if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0) {
+        goto out;
+    }
+#ifdef LINUX
+    /* Linux we calculate availpages correctly, so USE IT */
+    if (!pagesize || !availpages) {
+        goto out;
+    }
+#else
+    if (!pagesize || !pages) {
+        goto out;
+    }
+#endif
+    /* do nothing when we can't get the avail mem */
+
+
+    /* If the requested cache size is larger than the remaining physical memory
+     * after the current working set size for this process has been subtracted,
+     * then we say that's insane and try to correct.
+     */
+
+    cachepages = *cachesize / pagesize;
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane cachesize=%lu / pagesize=%lu \n",
+        (unsigned long)*cachesize,(unsigned long)pagesize,0);
+
+#ifdef LINUX
+    /* Linux we calculate availpages correctly, so USE IT */
+    issane = (int)(cachepages <= availpages);
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane cachepages=%lu <= availpages=%lu\n",
+        (unsigned long)cachepages,(unsigned long)availpages,0);
+
+    if (!issane) {
+        /* Since we are ask for more than what's available, we give half of
+         * the remaining system mem to the cachesize instead, and log a warning
+         */
+        *cachesize = (size_t)((availpages / 2) * pagesize);
+        slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
+    }
+#else
+    size_t freepages = 0;
+    freepages = pages - procpages;
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane pages=%lu - procpages=%lu\n",
+        (unsigned long)pages,(unsigned long)procpages,0);
+
+    issane = (int)(cachepages <= freepages);
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane cachepages=%lu <= freepages=%lu\n",
+        (unsigned long)cachepages,(unsigned long)freepages,0);
+
+    if (!issane) {
+        *cachesize = (size_t)((pages - procpages) * pagesize);
+        slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "util_is_cachesize_sane WARNING adjusted cachesize to %lu\n",
+            (unsigned long )*cachesize);
+    }
+#endif
+out:
+    if (!issane) {
+        slapi_log_error(SLAPI_LOG_FATAL,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
+    }
+
+    return issane;
+}
+
+
+

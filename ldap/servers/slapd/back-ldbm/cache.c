@@ -678,7 +678,10 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
        cache_make_hashes(cache, CACHE_TYPE_ENTRY);
     }
     cache_unlock(cache);
-    if (! dblayer_is_cachesize_sane(&bytes)) {
+    /* This may already have been called by one of the functions in
+     * ldbm_instance_config
+     */
+    if (! util_is_cachesize_sane(&bytes)) {
        LDAPDebug(LDAP_DEBUG_ANY,
                 "WARNING -- Possible CONFIGURATION ERROR -- cachesize "
                 "(%lu) may be configured to use more than the available "
@@ -1613,7 +1616,10 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
        cache_make_hashes(cache, CACHE_TYPE_DN);
     }
     cache_unlock(cache);
-    if (! dblayer_is_cachesize_sane(&bytes)) {
+    /* This may already have been called by one of the functions in
+     * ldbm_instance_config
+     */
+    if (! util_is_cachesize_sane(&bytes)) {
        LDAPDebug1Arg(LDAP_DEBUG_ANY,
                 "WARNING -- Possible CONFIGURATION ERROR -- cachesize "
                 "(%lu) may be configured to use more than the available "

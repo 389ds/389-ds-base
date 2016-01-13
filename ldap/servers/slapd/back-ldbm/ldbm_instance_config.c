@@ -92,17 +92,29 @@ ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, in
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) value;
-    size_t chkval = val;
+    size_t delta = 0;
 
     /* Do whatever we can to make sure the data is ok. */
+    /* There is an error here. We check the new val against our current mem-alloc 
+     * Issue is that we already are using system pages, so while our value *might*
+     * be valid, we may reject it here due to the current procs page usage.
+     * 
+     * So how do we solve this? If we are setting a SMALLER value than we
+     * currently have ALLOW it, because we already passed the cache sanity.
+     * If we are setting a LARGER value, we check the delta of the two, and make
+     * sure that it is sane.
+     */
 
     if (apply) {
-        if (!dblayer_is_cachesize_sane(&chkval)){
-            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: cachememsize value is too large.");
-            LDAPDebug( LDAP_DEBUG_ANY,"Error: cachememsize value is too large.\n",
-                    0, 0, 0);
-            return LDAP_UNWILLING_TO_PERFORM;
+        if (val > inst->inst_cache.c_maxsize) {
+            delta = val - inst->inst_cache.c_maxsize;
+            if (!util_is_cachesize_sane(&delta)){
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: cachememsize value is too large.");
+                LDAPDebug( LDAP_DEBUG_ANY,"Error: cachememsize value is too large.\n",
+                        0, 0, 0);
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
         }
         cache_set_max_size(&(inst->inst_cache), val, CACHE_TYPE_ENTRY);
     }
@@ -124,17 +136,29 @@ ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, 
     ldbm_instance *inst = (ldbm_instance *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t)value;
-    size_t chkval = val;
+    size_t delta = 0;
 
     /* Do whatever we can to make sure the data is ok. */
+    /* There is an error here. We check the new val against our current mem-alloc 
+     * Issue is that we already are using system pages, so while our value *might*
+     * be valid, we may reject it here due to the current procs page usage.
+     * 
+     * So how do we solve this? If we are setting a SMALLER value than we
+     * currently have ALLOW it, because we already passed the cache sanity.
+     * If we are setting a LARGER value, we check the delta of the two, and make
+     * sure that it is sane.
+     */
 
     if (apply) {
-        if (!dblayer_is_cachesize_sane(&chkval)){
-            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: dncachememsize value is too large.");
-            LDAPDebug( LDAP_DEBUG_ANY,"Error: dncachememsize value is too large.\n",
-                    0, 0, 0);
-            return LDAP_UNWILLING_TO_PERFORM;
+        if (val > inst->inst_dncache.c_maxsize) {
+            delta = val - inst->inst_dncache.c_maxsize;
+            if (!util_is_cachesize_sane(&delta)){
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: dncachememsize value is too large.");
+                LDAPDebug( LDAP_DEBUG_ANY,"Error: dncachememsize value is too large.\n",
+                        0, 0, 0);
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
         }
         cache_set_max_size(&(inst->inst_dncache), val, CACHE_TYPE_DN);
     }

@@ -402,6 +402,17 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t)value;
+    size_t delta = (size_t)value;
+
+    /* There is an error here. We check the new val against our current mem-alloc 
+     * Issue is that we already are using system pages, so while our value *might*
+     * be valid, we may reject it here due to the current procs page usage.
+     * 
+     * So how do we solve this? If we are setting a SMALLER value than we
+     * currently have ALLOW it, because we already passed the cache sanity.
+     * If we are setting a LARGER value, we check the delta of the two, and make
+     * sure that it is sane.
+     */
 
     if (apply) {
         /* Stop the user configuring a stupidly small cache */
@@ -411,12 +422,15 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
             LDAPDebug( LDAP_DEBUG_ANY,"WARNING: cache too small, increasing to %dK bytes\n",
                     DBDEFMINSIZ/1000, 0, 0);
             val = DBDEFMINSIZ;
-        } else if (!dblayer_is_cachesize_sane(&val)){
-            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: dbcachememsize value is too large.");
-            LDAPDebug( LDAP_DEBUG_ANY,"Error: dbcachememsize value is too large.\n",
-                    0, 0, 0);
-            return LDAP_UNWILLING_TO_PERFORM;
+        } else if (val > li->li_dbcachesize) {
+            delta = val - li->li_dbcachesize;
+            if (!util_is_cachesize_sane(&delta)){
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: dbcachememsize value is too large.");
+                LDAPDebug( LDAP_DEBUG_ANY,"Error: dbcachememsize value is too large.\n",
+                        0, 0, 0);
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
         }
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbcachesize = val;
@@ -469,14 +483,28 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) ((uintptr_t)value);
+    size_t delta = 0;
+
+    /* There is an error here. We check the new val against our current mem-alloc 
+     * Issue is that we already are using system pages, so while our value *might*
+     * be valid, we may reject it here due to the current procs page usage.
+     * 
+     * So how do we solve this? If we are setting a SMALLER value than we
+     * currently have ALLOW it, because we already passed the cache sanity.
+     * If we are setting a LARGER value, we check the delta of the two, and make
+     * sure that it is sane.
+     */
     
     if (apply) {
-        if (!dblayer_is_cachesize_sane(&val)){
-            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: dbncache size value is too large.");
-            LDAPDebug( LDAP_DEBUG_ANY,"Error: dbncache size value is too large.\n",
-                    val, 0, 0);
-            return LDAP_UNWILLING_TO_PERFORM;
+        if (val > li->li_dbncache) {
+            delta = val - li->li_dbncache;
+            if (!util_is_cachesize_sane(&delta)){
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: dbncache size value is too large.");
+                LDAPDebug( LDAP_DEBUG_ANY,"Error: dbncache size value is too large.\n",
+                        val, 0, 0);
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
         }
         
         if (CONFIG_PHASE_RUNNING == phase) {
@@ -1037,14 +1065,28 @@ static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int 
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) ((uintptr_t)value);
+    size_t delta = 0;
+
+    /* There is an error here. We check the new val against our current mem-alloc 
+     * Issue is that we already are using system pages, so while our value *might*
+     * be valid, we may reject it here due to the current procs page usage.
+     * 
+     * So how do we solve this? If we are setting a SMALLER value than we
+     * currently have ALLOW it, because we already passed the cache sanity.
+     * If we are setting a LARGER value, we check the delta of the two, and make
+     * sure that it is sane.
+     */
     
     if (apply) {
-        if (!dblayer_is_cachesize_sane(&val)){
-            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: db cachesize value is too large");
-            LDAPDebug( LDAP_DEBUG_ANY,"Error: db cachesize value is too large.\n",
-                    val, 0, 0);
-            return LDAP_UNWILLING_TO_PERFORM;
+        if (val > li->li_dblayer_private->dblayer_cache_config) {
+            delta = val - li->li_dblayer_private->dblayer_cache_config;
+            if (!util_is_cachesize_sane(&delta)){
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: db cachesize value is too large");
+                LDAPDebug( LDAP_DEBUG_ANY,"Error: db cachesize value is too large.\n",
+                        val, 0, 0);
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
         }
         li->li_dblayer_private->dblayer_cache_config = val;
     }
@@ -1158,13 +1200,26 @@ static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorb
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     size_t val = (size_t)value;
+    size_t delta = (size_t)value;
+    /* There is an error here. We check the new val against our current mem-alloc 
+     * Issue is that we already are using system pages, so while our value *might*
+     * be valid, we may reject it here due to the current procs page usage.
+     * 
+     * So how do we solve this? If we are setting a SMALLER value than we
+     * currently have ALLOW it, because we already passed the cache sanity.
+     * If we are setting a LARGER value, we check the delta of the two, and make
+     * sure that it is sane.
+     */
     if (apply){
-        if (!dblayer_is_cachesize_sane(&val)){
-            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Error: import cachesize value is too large.");
-            LDAPDebug( LDAP_DEBUG_ANY,"Error: import cachesize value is too large.\n",
-                    0, 0, 0);
-            return LDAP_UNWILLING_TO_PERFORM;
+        if (val > li->li_import_cachesize) {
+            delta = val - li->li_import_cachesize;
+            if (!util_is_cachesize_sane(&delta)){
+                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                        "Error: import cachesize value is too large.");
+                LDAPDebug( LDAP_DEBUG_ANY,"Error: import cachesize value is too large.\n",
+                        0, 0, 0);
+                return LDAP_UNWILLING_TO_PERFORM;
+            }
         }
         li->li_import_cachesize = val;
     }

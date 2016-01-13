@@ -118,7 +118,11 @@ ldbm_back_start( Slapi_PBlock *pb )
   } else {
       size_t pagesize, pages, procpages, availpages;
 
-      dblayer_sys_pages(&pagesize, &pages, &procpages, &availpages);
+      if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0) {
+          LDAPDebug( LDAP_DEBUG_ANY, "start: Unable to determine system page limits\n",
+                0, 0, 0 );
+          return SLAPI_FAIL_GENERAL;
+      }
       if (pagesize) {
           char s[32];    /* big enough to hold %ld */
           unsigned long cache_size_to_configure = 0;
