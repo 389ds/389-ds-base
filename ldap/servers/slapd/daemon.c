@@ -1752,6 +1752,9 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 	{
 		if ( c->c_mutex != NULL )
 		{
+			/* this check can be done without acquiring the mutex */
+			if (c->c_gettingber) continue;
+
 			PR_EnterMonitor(c->c_mutex);
 			if ( connection_is_active_nolock (c) && c->c_gettingber == 0 )
 			{
