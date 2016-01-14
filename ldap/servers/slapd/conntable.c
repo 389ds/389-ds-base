@@ -352,7 +352,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
 	for ( i = 0; i < (ct!=NULL?ct->size:0); i++ )
 	{
 		PR_Lock( ct->table_mutex );
-		if ( (ct->c[i].c_mutex == NULL) || (ct->c[i].c_mutex == (PRLock*)-1) )
+		if ( (ct->c[i].c_mutex == NULL) || (ct->c[i].c_mutex == (PRMonitor*)-1) )
 		{
 			PR_Unlock( ct->table_mutex );
 			continue;
