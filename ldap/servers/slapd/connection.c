@@ -1102,9 +1102,16 @@ connection_read_ldap_data(Connection *conn, PRInt32 *err)
 }
 
 static size_t
-conn_buffered_data_avail_nolock(Connection *conn)
+conn_buffered_data_avail_nolock(Connection *conn, int *conn_closed)
 {
-	return conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset;
+	if ( (conn->c_sd == SLAPD_INVALID_SOCKET) || (conn->c_flags & CONN_FLAG_CLOSING) ) {
+		/* connection is closed - ignore the buffer */
+		*conn_closed = 1;
+		return 0;
+	} else {
+		*conn_closed = 0;
+		return conn->c_private->c_buffer_bytes - conn->c_private->c_buffer_offset;
+	}
 }
 
 /* Upon returning from this function, we have either: 
@@ -1127,6 +1134,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	PRErrorCode err = 0;
 	PRInt32 syserr = 0;
 	size_t buffer_data_avail;
+	int conn_closed = 0;
 
 	PR_EnterMonitor(conn->c_mutex);
 	/*
@@ -1142,7 +1150,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	
 	*tag = LBER_DEFAULT;
 	/* First check to see if we have buffered data from "before" */
-	if ((buffer_data_avail = conn_buffered_data_avail_nolock(conn))) {
+	if ((buffer_data_avail = conn_buffered_data_avail_nolock(conn, &conn_closed))) {
 		/* If so, use that data first */
 		if ( 0 != get_next_from_buffer( buffer
 				+ conn->c_private->c_buffer_offset,
@@ -1157,7 +1165,7 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	while (*tag == LBER_DEFAULT) {
 		int ioblocktimeout_waits = config_get_ioblocktimeout() / CONN_TURBO_TIMEOUT_INTERVAL;
 		/* We should never get here with data remaining in the buffer */
-		PR_ASSERT( !new_operation || 0 == conn_buffered_data_avail_nolock(conn) );
+		PR_ASSERT( !new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
 		/* We make a non-blocking read call */
 		if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
 			ret = connection_read_ldap_data(conn,&err);
@@ -1269,8 +1277,12 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		}
 	}
 	/* If there is remaining buffered data, set the flag to tell the caller */
-	if (conn_buffered_data_avail_nolock(conn)) {
+	if (conn_buffered_data_avail_nolock(conn, &conn_closed)) {
 		*remaining_data = 1;
+	} else if (conn_closed){
+		/* connection closed */
+		ret = CONN_DONE;
+		goto done;
 	}
 
 	if ( *tag != LDAP_TAG_MESSAGE ) {
@@ -1521,7 +1533,7 @@ connection_threadmain()
 					continue;
 				case CONN_SHUTDOWN:
 					LDAPDebug( LDAP_DEBUG_TRACE, 
-					"op_thread received shutdown signal\n", 					0,  0, 0 );
+					"op_thread received shutdown signal\n", 0, 0, 0 );
 					g_decr_active_threadcnt();
 					return;
 				case CONN_FOUND_WORK_TO_DO:
@@ -1542,8 +1554,9 @@ connection_threadmain()
 							Slapi_DN *anon_sdn = slapi_sdn_new_normdn_byref( anon_dn );
 							reslimit_update_from_dn( pb->pb_conn, anon_sdn );
 							slapi_sdn_free( &anon_sdn );
-							if (slapi_reslimit_get_integer_limit(pb->pb_conn, pb->pb_conn->c_idletimeout_handle,
-									&idletimeout)
+							if (slapi_reslimit_get_integer_limit(pb->pb_conn,
+							                                     pb->pb_conn->c_idletimeout_handle,
+							                                     &idletimeout)
 								== SLAPI_RESLIMIT_STATUS_SUCCESS)
 							{
 								pb->pb_conn->c_idletimeout = idletimeout;
@@ -1581,7 +1594,7 @@ connection_threadmain()
 		op = pb->pb_op;
 		maxthreads = config_get_maxthreadsperconn();
 		more_data = 0;
-		ret = connection_read_operation(conn,op,&tag,&more_data);
+		ret = connection_read_operation(conn, op, &tag, &more_data);
 		if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
 			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
 					"conn %" NSPRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
@@ -1614,7 +1627,8 @@ connection_threadmain()
 		/* turn off turbo mode immediately if any pb waiting in global queue */
 		if (thread_turbo_flag && !WORK_Q_EMPTY) {
 			thread_turbo_flag = 0;
-			LDAPDebug2Args(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",conn->c_connid,work_q_size);
+			LDAPDebug2Args(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",
+			               conn->c_connid,work_q_size);
 		}
 #endif
 		
@@ -1639,7 +1653,8 @@ connection_threadmain()
 				 * should call connection_make_readable after the op is removed
 				 * connection_make_readable(conn);
 				 */
-				LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode due to %d\n",conn->c_connid,ret,0);
+				LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode due to %d\n",
+				          conn->c_connid,ret,0);
 				goto done;
 			case CONN_SHUTDOWN:
 				LDAPDebug( LDAP_DEBUG_TRACE, 
@@ -1695,7 +1710,8 @@ connection_threadmain()
 					 */
 					conn->c_idlesince = curtime;
 					connection_activity(conn, maxthreads);
-					LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " queued because more_data\n",conn->c_connid,0,0);
+					LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " queued because more_data\n",
+					          conn->c_connid,0,0);
 				} else {
 					/* keep count of how many times maxthreads has blocked an operation */
 					conn->c_maxthreadsblocked++;
@@ -1770,13 +1786,15 @@ done:
 			    memset(pb, 0, sizeof(*pb));
 		} else {
 			/* delete from connection operation queue & decr refcnt */
+			int conn_closed = 0;
 			PR_EnterMonitor(conn->c_mutex);
 			connection_remove_operation_ext( pb, conn, op );
 
 			/* If we're in turbo mode, we keep our reference to the connection alive */
 			/* can't use the more_data var because connection could have changed in another thread */
-			more_data = conn_buffered_data_avail_nolock(conn) ? 1 : 0;
-			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " check more_data %d thread_turbo_flag %d\n",conn->c_connid,more_data,thread_turbo_flag);
+			more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
+			LDAPDebug(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " check more_data %d thread_turbo_flag %d\n",
+			          conn->c_connid,more_data,thread_turbo_flag);
 			if (!more_data) {
 				if (!thread_turbo_flag) {
 					/*
