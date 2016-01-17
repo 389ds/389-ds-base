@@ -509,17 +509,17 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 					conn->last_ldap_error = rc;
 					close_connection_internal(conn); /* we already have the lock */
 					return_value = CONN_NOT_CONNECTED;
+					goto done;
 				}
 				else if (IS_DISCONNECT_ERROR(err))
 				{
 					conn->last_ldap_error = err;
 					close_connection_internal(conn); /* we already have the lock */
 					return_value = CONN_NOT_CONNECTED;
+					goto done;
 				}
 				/* Got a result */
-				if ((rc == LDAP_SUCCESS) && (err == LDAP_BUSY))
-				    	return_value = CONN_BUSY;
-				else if (retoidp)
+				if (retoidp /* total update */)
 				{
 					if (!((rc == LDAP_SUCCESS) && (err == LDAP_BUSY)))
 					{
@@ -548,16 +548,11 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 					}
 					return_value = LDAP_SUCCESS == conn->last_ldap_error ? CONN_OPERATION_SUCCESS : CONN_OPERATION_FAILED;
 				}
-				/*
-				 * XXXggood do I need to free matched, referrals,
-				 * anything else? Or can I pass NULL for the args
-				 * I'm not interested in?
-				 */
-				/* Good question! Meanwhile, as RTM aproaches, let's free them... */
-				slapi_ch_free((void **) &errmsg);
-				slapi_ch_free((void **) &matched);
-				charray_free(referrals);
 				conn->status = STATUS_CONNECTED;
+done:
+				slapi_ch_free_string(&errmsg);
+				slapi_ch_free_string(&matched);
+				charray_free(referrals);
 			}
 			if (res) ldap_msgfree(res);
 			PR_Unlock(conn->lock); /* release the conn lock */
