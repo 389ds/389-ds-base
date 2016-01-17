@@ -122,7 +122,7 @@ urp_add_operation( Slapi_PBlock *pb )
 		slapi_log_error(slapi_log_urp, sessionid,
 		          "urp_add (%s): an entry with this uniqueid already exists.\n",
 		          slapi_entry_get_dn_const(existing_uniqueid_entry));
-		op_result= LDAP_UNWILLING_TO_PERFORM;
+		op_result= LDAP_ALREADY_EXISTS;
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
 		rc = SLAPI_PLUGIN_NOOP; /* Ignore this Operation */
 		PROFILE_POINT; /* Add Conflict; UniqueID Exists;  Ignore */
