@@ -617,6 +617,7 @@ PRUint64 replica_get_backoff_min(Replica *r);
 PRUint64 replica_get_backoff_max(Replica *r);
 void replica_set_backoff_min(Replica *r, PRUint64 min);
 void replica_set_backoff_max(Replica *r, PRUint64 max);
+PRBool ignore_error_and_keep_going(int error);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */
