@@ -1161,12 +1161,13 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 static int
 process_postop (Slapi_PBlock *pb)
 {
-    int rc = LDAP_SUCCESS;
-    Slapi_Operation *op;
+	Slapi_Operation *op;
 	Slapi_Backend *be;
-    int is_replicated_operation = 0;
+	int is_replicated_operation = 0;
 	CSN *opcsn = NULL;
 	char sessionid[REPL_SESSION_ID_SIZE];
+	int retval = LDAP_SUCCESS;
+	int rc = 0;
 
     /* we just let fixup operations through */
     slapi_pblock_get( pb, SLAPI_OPERATION, &op );
@@ -1190,8 +1191,8 @@ process_postop (Slapi_PBlock *pb)
 
 	get_repl_session_id (pb, sessionid, &opcsn);
 
-    slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
-	if (rc == LDAP_SUCCESS)
+	slapi_pblock_get(pb, SLAPI_RESULT_CODE, &retval);
+	if (retval == LDAP_SUCCESS)
 	{
         agmtlist_notify_all(pb);
 	}
@@ -1231,6 +1232,55 @@ process_postop (Slapi_PBlock *pb)
 		if (optype == SLAPI_OPERATION_MODRDN) {
 			slapi_pblock_get( pb, SLAPI_OPERATION_PARAMETERS, &op_params );
 			slapi_ch_free((void **) &op_params->p.p_modrdn.modrdn_newsuperior_address.uniqueid);
+		}
+	}
+	if (!ignore_error_and_keep_going(retval)){
+		/*
+		 * We have an error we can't ignore.  Release the replica and close
+		 * the connection to stop the replication session.
+		 */
+		consumer_connection_extension *connext = NULL;
+		Slapi_Connection *conn = NULL;
+		char csn_str[CSN_STRSIZE] = {'\0'};
+		PRUint64 connid = 0;
+		int opid = 0;
+
+		slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+		slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
+		slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
+		if (conn)
+		{
+			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				"process_postop: Failed to apply update (%s) error (%d).  "
+				"Aborting replication session(conn=%" NSPRIu64 " op=%d)\n",
+				csn_as_string(opcsn, PR_FALSE, csn_str), retval,
+				(long long unsigned int)connid, opid);
+			/*
+			 * Release this replica so new sessions can begin
+			 */
+			connext = consumer_connection_extension_acquire_exclusive_access(conn, connid, opid);
+			if (connext && connext->replica_acquired)
+			{
+				int zero = 0;
+				Replica *r = (Replica*)object_get_data ((Object*)connext->replica_acquired);
+
+				replica_relinquish_exclusive_access(r, connid, opid);
+				object_release ((Object*)connext->replica_acquired);
+				connext->replica_acquired = NULL;
+				connext->isreplicationsession = 0;
+				slapi_pblock_set( pb, SLAPI_CONN_IS_REPLICATION_SESSION, &zero );
+			}
+			if (connext){
+				consumer_connection_extension_relinquish_exclusive_access(conn, connid, opid, PR_FALSE);
+			}
+
+			/*
+			 * Close the connection to end the current session with the
+			 * supplier.  This prevents new updates from coming in and
+			 * updating the consumer RUV - which would cause this failed
+			 * update to be never be replayed.
+			 */
+			slapi_disconnect_server(conn);
 		}
 	}
 	if (NULL == opcsn)
