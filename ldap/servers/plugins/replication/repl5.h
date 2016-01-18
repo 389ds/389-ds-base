@@ -589,6 +589,7 @@ void replica_set_ruv_dirty (Replica *r);
 int replica_write_ruv (Replica *r);
 char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
+PRBool ignore_error_and_keep_going(int error);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */
