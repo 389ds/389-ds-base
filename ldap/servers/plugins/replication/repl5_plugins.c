@@ -1337,7 +1337,7 @@ process_postop (Slapi_PBlock *pb)
 				"process_postop: Failed to apply update (%s) error (%d).  "
 				"Aborting replication session(conn=%" NSPRIu64 " op=%d)\n",
 				csn_as_string(opcsn, PR_FALSE, csn_str), retval,
-				connid, opid);
+				(long long unsigned int)connid, opid);
 			/*
 			 * Release this replica so new sessions can begin
 			 */
