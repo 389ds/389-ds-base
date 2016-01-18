@@ -417,12 +417,12 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
         if(strlen(backendstr) == 0) {
             /* Probably means someone did ",,"*/
             continue;
-        } else if (slapi_utf8ncasecmp(backendstr, "dirsrv-log", 10) ) {
+        } else if (slapi_UTF8NCASECMP(backendstr, "dirsrv-log", 10) ) {
             backend |= LOGGING_BACKEND_INTERNAL;
-        } else if (slapi_utf8ncasecmp(backendstr, "syslog", 6) ) {
+        } else if (slapi_UTF8NCASECMP(backendstr, "syslog", 6) ) {
             backend |= LOGGING_BACKEND_SYSLOG;
 #ifdef WITH_SYSTEMD
-        } else if (slapi_utf8ncasecmp(backendstr, "journald", 8) ) {
+        } else if (slapi_UTF8NCASECMP(backendstr, "journald", 8) ) {
             backend |= LOGGING_BACKEND_JOURNALD;
 #endif
         }
