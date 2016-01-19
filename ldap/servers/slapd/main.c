@@ -619,6 +619,27 @@ main( int argc, char **argv)
 		}
 	}
 
+#ifdef WITH_SYSTEMD
+	/*
+	 * HUGE WARNING: Systemd has some undocumented magic. with Type=notify, this
+	 * acts as type=simple, but waits for ns-slapd to tell systemd it's good to go.
+	 * If ns-slapd daemonises, systemd will KILL IT because simple==no forking.
+	 *
+	 * So instead, we need to work out if we have the NOTIFY_SOCKET env variable
+	 * and if we do, we need to prevent forking so systemd doesn't nail us to
+	 * the wall.
+	 *
+	 * Of course, systemd makes NO GUARANTEE that it will be called notify_socket
+	 * in the next version, nor that it won't give the variable to a service type
+	 * which isn't of the type notify ..... This could all go very wrong :)
+	 */
+	char *notify = getenv( "NOTIFY_SOCKET");
+	if (notify) {
+		should_detach = 0;
+	}
+#endif
+
+
 	/* used to set configfile to the default config file name here */
 	if ( (myname = strrchr( argv[0], '/' )) == NULL ) {
 		myname = slapi_ch_strdup( argv[0] );

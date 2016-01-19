@@ -247,7 +247,8 @@ NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_sta
 %configure --enable-autobind --with-selinux $OPENLDAP_FLAG $TMPFILES_FLAG \
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
-           --with-systemdgroupname=%{groupname} $NSSARGS $NUNC_STANS_FLAGS
+           --with-systemdgroupname=%{groupname} $NSSARGS $NUNC_STANS_FLAGS \
+           --with-systemd
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS

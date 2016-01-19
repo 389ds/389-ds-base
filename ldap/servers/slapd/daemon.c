@@ -1247,6 +1247,14 @@ void slapd_daemon( daemon_ports_t *ports )
 	/* The server is ready and listening for connections. Logging "slapd started" message. */
 	unfurl_banners(the_connection_table,ports,n_tcps,s_tcps,i_unix);
 
+#ifdef WITH_SYSTEMD
+	sd_notifyf(0, "READY=1\n"
+		"STATUS=slapd started: Ready to process requests\n"
+		"MAINPID=%lu",
+		(unsigned long) getpid()
+	);
+#endif
+
 #ifdef ENABLE_NUNC_STANS
 	if (enable_nunc_stans && ns_thrpool_wait(tp)) {
 		LDAPDebug( LDAP_DEBUG_ANY,
@@ -1283,6 +1291,10 @@ void slapd_daemon( daemon_ports_t *ports )
 	}
 	/* We get here when the server is shutting down */
 	/* Do what we have to do before death */
+
+#ifdef WITH_SYSTEMD
+	sd_notify(0, "STOPPING=1");
+#endif
 
 	connection_table_abandon_all_operations(the_connection_table);	/* abandon all operations in progress */
 	

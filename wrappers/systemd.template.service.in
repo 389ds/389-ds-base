@@ -18,7 +18,7 @@ PartOf=@systemdgroupname@
 After=chronyd.service
 
 [Service]
-Type=forking
+Type=notify
 EnvironmentFile=@initconfigdir@/@package_name@
 EnvironmentFile=@initconfigdir@/@package_name@-%i
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid -w @localstatedir@/run/@package_name@/slapd-%i.startpid
