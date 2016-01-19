@@ -1981,7 +1981,7 @@ slapd_log_audit (
     }
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
         /* This returns void, so we hope it worked */
-        syslog(LOG_NOTICE, buffer);
+        syslog(LOG_NOTICE, "%s", buffer);
     }
 #ifdef WITH_SYSTEMD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
@@ -2040,7 +2040,7 @@ slapd_log_auditfail (
     }
     if (lbackend & LOGGING_BACKEND_SYSLOG) {
         /* This returns void, so we hope it worked */
-        syslog(LOG_NOTICE, buffer);
+        syslog(LOG_NOTICE, "%s", buffer);
     }
 #ifdef WITH_SYSTEMD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {

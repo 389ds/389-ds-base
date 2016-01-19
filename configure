@@ -17737,9 +17737,9 @@ if test "${enable_gcc_security+set}" = set; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
   if test -z "$RPM_HARDEND_CC_TRUE"; then :
-   gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 "
+   gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 "
 else
-   gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches"
+   gccsec_defs="-Wall -Wp,-D_FORITY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security"
 
 fi
 
