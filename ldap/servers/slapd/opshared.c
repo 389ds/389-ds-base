@@ -1454,10 +1454,12 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 continue;
             }
             /* Adding shadow password attrs. */
-            add_shadow_ext_password_attrs(pb, e);
+            add_shadow_ext_password_attrs(pb, &e);
             if (process_entry(pb, e, send_result)) 
             {
                 /* shouldn't  send this entry */
+                slapi_entry_free(pb->pb_pw_entry);
+                pb->pb_pw_entry = NULL;
                 continue;
             }
 
@@ -1483,6 +1485,8 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                     pb->pb_op->o_status = SLAPI_OP_STATUS_ABANDONED;
                     break;
             }
+            slapi_entry_free(pb->pb_pw_entry);
+            pb->pb_pw_entry = NULL;
             if (pagesize == *pnentries)
             { 
                 /* PAGED RESULTS: reached the pagesize */

@@ -238,7 +238,7 @@ int send_ldap_intermediate( Slapi_PBlock *pb,  LDAPControl **ectrls,
 		rc = ber_put_seq( ber );
 	}
 	if ( rc == LBER_ERROR ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 0\n", 0, 0, 0 );
 		ber_free( ber, 1 /* freebuf */ );
 		goto log_and_return;
 	}
@@ -595,7 +595,7 @@ send_ldap_result_ext(
 	}
 
 	if ( rc == LBER_ERROR ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 1\n", 0, 0, 0 );
                 if (flush_ber_element == 1) {
                     /* we alloced the ber */
                     ber_free( ber, 1 /* freebuf */ );
@@ -857,13 +857,13 @@ send_ldapv3_referral(
 		rc = ber_printf( ber, "s", urls[i]->bv_val );
 	}
 	if ( rc == LBER_ERROR ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 2\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf", 0, NULL );
 		return( -1 );
 	}
 	if ( ber_printf( ber, "}}" ) == LBER_ERROR ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 3\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf", 0, NULL );
 		return( -1 );
@@ -980,7 +980,7 @@ encode_attr_2(
 #endif
 
 	if (ber_printf(ber, "{s[", returned_type?returned_type:attribute_type) == -1) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 4\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
 		                 "ber_printf type", 0, NULL);
@@ -994,7 +994,7 @@ encode_attr_2(
 			if ( ber_printf( ber, "o", v->bv.bv_val,v->bv.bv_len ) == -1 )
 			{
 				LDAPDebug( LDAP_DEBUG_ANY,
-				    "ber_printf failed\n", 0, 0, 0 );
+				    "ber_printf failed 5\n", 0, 0, 0 );
 				ber_free( ber, 1 );
 				send_ldap_result( pb, LDAP_OPERATIONS_ERROR,
 				    NULL, "ber_printf value", 0, NULL );
@@ -1005,7 +1005,7 @@ encode_attr_2(
 	}
 
 	if ( ber_printf( ber, "]}" ) == -1 ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 6\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf type end", 0, NULL );
@@ -1549,7 +1549,7 @@ send_ldap_search_entry_ext(
 	    LDAP_RES_SEARCH_ENTRY, slapi_entry_get_dn_const(e) );
 
 	if ( rc == -1 ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 7\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf dn", 0, NULL );
 		goto cleanup;
@@ -1663,7 +1663,7 @@ send_ldap_search_entry_ext(
 	}
 
 	if ( rc == -1 ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
+		LDAPDebug( LDAP_DEBUG_ANY, "ber_printf failed 8\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf entry end", 0, NULL );
 		goto cleanup;

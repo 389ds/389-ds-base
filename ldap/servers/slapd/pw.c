@@ -2843,108 +2843,156 @@ pw_get_ext_size(Slapi_Entry *entry, size_t *size)
     return LDAP_SUCCESS;
 }
 
-void
-add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
+int
+add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
 {
     const char *dn = NULL;
     passwdPolicy *pwpolicy = NULL;
     time_t shadowval = 0;
     time_t exptime = 0;
-    struct berval bv;
-    struct berval *bvals[2];
+    Slapi_Mods *smods = NULL;
+    LDAPMod **mods;
+    long sval;
+    int mod_num = 0;
+    char *shmin = NULL;
+    char *shmax = NULL;
+    char *shwarn = NULL;
+    char *shexp = NULL;
+    int rc = 0;
 
-    if (!e) {
-        return;
+    if (!e && !*e) {
+        return rc;
     }
-    dn = slapi_entry_get_ndn(e);
+    dn = slapi_entry_get_ndn(*e);
     if (!dn) {
-        return;
+        return rc;
     }
-    if (!slapi_entry_attr_hasvalue(e, SLAPI_ATTR_OBJECTCLASS, "shadowAccount")) {
+    if (!slapi_entry_attr_hasvalue(*e, SLAPI_ATTR_OBJECTCLASS, "shadowAccount")) {
         /* Not a shadowAccount; nothing to do. */
-        return;
+        return rc;
     }
     if (operation_is_flag_set(pb->pb_op, OP_FLAG_INTERNAL)) {
         /* external only */
-        return;
+        return rc;
     }
     pwpolicy = new_passwdPolicy(pb, dn);
     if (!pwpolicy) {
-        return;
+        return rc;
     }
 
     LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> add_shadow_password_attrs\n");
 
-    bvals[0] = &bv;
-    bvals[1] = NULL;
-
     /* shadowMin - the minimum number of days required between password changes. */
-    if (!slapi_entry_attr_exists(e, "shadowMin")) {
-        if (pwpolicy->pw_minage > 0) {
-            shadowval = pwpolicy->pw_minage / _SEC_PER_DAY;
-        } else {
-            shadowval = 0;
+    if (pwpolicy->pw_minage > 0) {
+        shadowval = pwpolicy->pw_minage / _SEC_PER_DAY;
+    } else {
+        shadowval = 0;
+    }
+    shmin = slapi_entry_attr_get_charptr(*e, "shadowMin");
+    if (shmin) {
+        sval = strtol(shmin, NULL, 0);
+        if (sval != shadowval) {
+            slapi_ch_free_string(&shmin);
+            shmin = slapi_ch_smprintf("%ld", shadowval);
+            mod_num++;
         }
-        bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-        bv.bv_len = strlen(bv.bv_val);
-        slapi_entry_attr_merge(e, "shadowMin", bvals);
-        slapi_ch_free_string(&bv.bv_val);
+    } else {
+        mod_num++;
+        shmin = slapi_ch_smprintf("%ld", shadowval);
     }
 
     /* shadowMax - the maximum number of days for which the user password remains valid. */
-    if (!slapi_entry_attr_exists(e, "shadowMax")) {
-        if (pwpolicy->pw_maxage > 0) {
-            shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
-            exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
-        } else {
-            shadowval = 99999;
+    if (pwpolicy->pw_maxage > 0) {
+        shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
+        exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
+    } else {
+        shadowval = 99999;
+    }
+    shmax = slapi_entry_attr_get_charptr(*e, "shadowMax");
+    if (shmax) {
+        sval = strtol(shmax, NULL, 0);
+        if (sval != shadowval) {
+            slapi_ch_free_string(&shmax);
+            shmax = slapi_ch_smprintf("%ld", shadowval);
+            mod_num++;
         }
-        bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-        bv.bv_len = strlen(bv.bv_val);
-        slapi_entry_attr_replace(e, "shadowMax", bvals);
-        slapi_ch_free_string(&bv.bv_val);
+    } else {
+        mod_num++;
+        shmax = slapi_ch_smprintf("%ld", shadowval);
     }
 
     /* shadowWarning - the number of days of advance warning given to the user before the user password expires. */
-    if (!slapi_entry_attr_exists(e, "shadowWarning")) {
-        if (pwpolicy->pw_warning > 0) {
-            shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
-        } else {
-            shadowval = 0;
+    if (pwpolicy->pw_warning > 0) {
+        shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
+    } else {
+        shadowval = 0;
+    }
+    shwarn = slapi_entry_attr_get_charptr(*e, "shadowWarning");
+    if (shwarn) {
+        sval = strtol(shwarn, NULL, 0);
+        if (sval != shadowval) {
+            slapi_ch_free_string(&shwarn);
+            shwarn = slapi_ch_smprintf("%ld", shadowval);
+            mod_num++;
         }
-        bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-        bv.bv_len = strlen(bv.bv_val);
-        slapi_entry_attr_replace(e, "shadowWarning", bvals);
-        slapi_ch_free_string(&bv.bv_val);
+    } else {
+        mod_num++;
+        shwarn = slapi_ch_smprintf("%ld", shadowval);
     }
 
     /* shadowExpire - the date on which the user login will be disabled. */
-    if (exptime && !slapi_entry_attr_exists(e, "shadowExpire")) {
+    if (exptime) {
+        shexp = slapi_entry_attr_get_charptr(*e, "shadowExpire");
         exptime /= _SEC_PER_DAY;
-        bv.bv_val = slapi_ch_smprintf("%ld", exptime);
-        bv.bv_len = strlen(bv.bv_val);
-        slapi_entry_attr_replace(e, "shadowExpire", bvals);
-        slapi_ch_free_string(&bv.bv_val);
+        if (shexp) {
+            sval = strtol(shexp, NULL, 0);
+            if (sval != exptime) {
+                slapi_ch_free_string(&shexp);
+                shexp = slapi_ch_smprintf("%ld", shadowval);
+                mod_num++;
+            }
+        } else {
+            mod_num++;
+            shexp = slapi_ch_smprintf("%ld", exptime);
+        }
     }
+    smods = slapi_mods_new();
+    slapi_mods_init(smods, mod_num);
+    if (shmin) {
+        slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowMin", strlen(shmin), shmin);
+        slapi_ch_free_string(&shmin);
+    }
+    if (shmax) {
+        slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowMax", strlen(shmax), shmax);
+        slapi_ch_free_string(&shmax);
+    }
+    if (shwarn) {
+        slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowWarning", strlen(shwarn), shwarn);
+        slapi_ch_free_string(&shwarn);
+    }
+    if (shexp) {
+        slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowExpire", strlen(shexp), shexp);
+        slapi_ch_free_string(&shexp);
+    }
+    /* Apply the  mods to create the resulting entry. */
+    mods = slapi_mods_get_ldapmods_byref(smods);
+    if (mods) {
+        Slapi_Entry *sentry = slapi_entry_dup(*e);
+        rc = slapi_entry_apply_mods(sentry, mods);
+        pb->pb_pw_entry = sentry;
+        *e = sentry;
+    }
+    slapi_mods_free(&smods);
 
 #if 0 /* These 2 attributes are no need (or not able) to auto-fill. */
     /* 
      * shadowInactive - the number of days of inactivity allowed for the user.
      * Password Policy does not have the corresponding parameter.
+     * 
+     * shadowFlag - not currently in use.
      */
-    shadowval = 0;
-    bv.bv_val = slapi_ch_smprintf("%ld", shadowval);
-    bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "shadowInactive", bvals);
-    slapi_ch_free_string(&bv.bv_val);
-
-    /* shadowFlag - not currently in use. */
-    bv.bv_val = slapi_ch_smprintf("%d", 0);
-    bv.bv_len = strlen(bv.bv_val);
-    slapi_entry_attr_replace(e, "shadowFlag", bvals);
-    slapi_ch_free_string(&bv.bv_val);
 #endif
 
     LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- add_shadow_password_attrs\n");
-    return;
+    return rc;
 }

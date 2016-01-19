@@ -1735,6 +1735,7 @@ typedef struct slapi_pblock {
 	/* For ACI Target Check */
 	int pb_aci_target_check; /* this flag prevents duplicate checking of ACI's target existence */
 
+    struct slapi_entry *pb_pw_entry; /* stash dup'ed entry that shadow info is added/replaced */
 } slapi_pblock;
 
 /* index if substrlens */
