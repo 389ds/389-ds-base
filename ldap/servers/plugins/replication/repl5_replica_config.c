@@ -67,7 +67,7 @@ static int replica_cleanallruv_send_extop(Repl_Agmt *ra, cleanruv_data *data, in
 static int replica_cleanallruv_send_abort_extop(Repl_Agmt *ra, Slapi_Task *task, struct berval *payload);
 static int replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *basedn, char *rid_text, char *maxcsn, Slapi_Task *task);
 static int replica_cleanallruv_replica_alive(Repl_Agmt *agmt);
-static int replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *ra, char *rid_text, Slapi_Task *task);
+static int replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *ra, char *rid_text, Slapi_Task *task, char *force);
 static int get_cleanruv_task_count();
 static int get_abort_cleanruv_task_count();
 static int replica_cleanup_task (Object *r, const char *task_name, char *returntext, int apply_mods);
@@ -1801,7 +1801,10 @@ replica_cleanallruv_thread(void *arg)
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data (ruv_obj);
     while(data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()){
-        if(csn_get_replicaid(data->maxcsn) == 0 || ruv_covers_csn_cleanallruv(ruv,data->maxcsn) || strcasecmp(data->force,"yes") == 0){
+        if(csn_get_replicaid(data->maxcsn) == 0 ||
+           ruv_covers_csn_cleanallruv(ruv,data->maxcsn) ||
+           strcasecmp(data->force,"yes") == 0)
+        {
             /* We are caught up, now we can clean the ruv's */
             break;
         }
@@ -1816,7 +1819,7 @@ replica_cleanallruv_thread(void *arg)
      *  Even if we are forcing the cleaning, the replicas still need to be up
      */
     cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,"Waiting for all the replicas to be online...");
-    if(check_agmts_are_alive(data->replica, data->rid, data->task)){
+    if(strcasecmp(data->force, "no") == 0 && check_agmts_are_alive(data->replica, data->rid, data->task)){
         /* error, aborted or shutdown */
         aborted = 1;
         goto done;
@@ -1857,7 +1860,9 @@ replica_cleanallruv_thread(void *arg)
             } else {
                 agmt_not_notified = 1;
                 cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Failed to send task to replica (%s)",agmt_get_long_name(agmt));
-                break;
+                if(strcasecmp(data->force,"no") == 0){
+                    break;
+                }
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
         }
@@ -1866,7 +1871,7 @@ replica_cleanallruv_thread(void *arg)
             aborted = 1;
             goto done;
         }
-        if(agmt_not_notified == 0){
+        if(agmt_not_notified == 0 || strcasecmp(data->force, "yes") == 0){
            break;
         }
         /*
@@ -1909,7 +1914,7 @@ replica_cleanallruv_thread(void *arg)
                 found_dirty_rid = 0;
                 continue;
             }
-            if(replica_cleanallruv_check_ruv(data->repl_root, agmt, rid_text, data->task) == 0){
+            if(replica_cleanallruv_check_ruv(data->repl_root, agmt, rid_text, data->task, data->force) == 0){
                 found_dirty_rid = 0;
             } else {
                 found_dirty_rid = 1;
@@ -1924,7 +1929,7 @@ replica_cleanallruv_thread(void *arg)
             aborted = 1;
             goto done;
         }
-        if(found_dirty_rid == 0){
+        if(found_dirty_rid == 0 || strcasecmp(data->force, "yes") == 0){
             break;
         }
         /*
@@ -2033,7 +2038,8 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
     int not_all_cleaned = 1;
     int interval = 10;
 
-    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Waiting for all the replicas to finish cleaning...");
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,
+        "Waiting for all the replicas to finish cleaning...");
 
     csn_as_string(data->maxcsn, PR_FALSE, csnstr);
     filter = PR_smprintf("(%s=%d:%s:%s)", type_replicaCleanRUV,(int)data->rid, csnstr, data->force);
@@ -2058,15 +2064,22 @@ check_replicas_are_done_cleaning(cleanruv_data *data )
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
         }
-        if(not_all_cleaned == 0 || is_task_aborted(data->rid) ){
+        if(not_all_cleaned == 0 ||
+           is_task_aborted(data->rid) ||
+           strcasecmp(data->force, "yes") == 0)
+        {
             break;
         }
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Not all replicas finished cleaning, retrying in %d seconds",interval);
+
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID,
+                     "Not all replicas finished cleaning, retrying in %d seconds",
+                     interval);
         if(!slapi_is_shutting_down()){
             PR_Lock( notify_lock );
             PR_WaitCondVar( notify_cvar, PR_SecondsToInterval(interval) );
             PR_Unlock( notify_lock );
         }
+
         if(interval < 14400){ /* 4 hour max */
             interval = interval * 2;
         } else {
@@ -3400,7 +3413,7 @@ replica_cleanallruv_replica_alive(Repl_Agmt *agmt)
 }
 
 static int
-replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, Slapi_Task *task)
+replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, Slapi_Task *task, char *force)
 {
     Repl_Connection *conn = NULL;
     ConnResult crc = 0;
@@ -3410,6 +3423,9 @@ replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, 
     int rc = -1;
 
     if((conn = conn_new(agmt)) == NULL){
+        if(strcasecmp(force, "yes") == 0){
+            return 0;
+        }
         return rc;
     }
 
@@ -3439,6 +3455,11 @@ replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, 
                 if (NULL != retsdata)
                     ber_bvfree(retsdata);
             }
+        }
+    } else {
+        if (strcasecmp(force, "yes") == 0){
+            /* We are forcing, we don't care that the replica is not online */
+            rc = 0;
         }
     }
     conn_delete_internal_ext(conn);

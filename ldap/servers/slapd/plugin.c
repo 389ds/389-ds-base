@@ -3625,8 +3625,6 @@ plugin_invoke_plugin_pb (struct slapdplugin *plugin, int operation, Slapi_PBlock
 	PR_ASSERT (pb->pb_op);
 
 	target_spec = operation_get_target_spec (pb->pb_op);
-	
-	PR_ASSERT (target_spec);
 
 	rc = plugin_invoke_plugin_sdn (plugin, operation, pb, target_spec);
 
