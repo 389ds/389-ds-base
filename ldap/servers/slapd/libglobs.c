@@ -3078,10 +3078,10 @@ config_set_pw_inhistory( const char *attrname, char *value, char *errorbuf, int 
   errno = 0;
   history = strtol(value, &endp, 10);
 
-  if ( *endp != '\0' || errno == ERANGE || history < 2 || history > 24 ) {
+  if ( *endp != '\0' || errno == ERANGE || history < 1 || history > 24 ) {
 	PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
 			  "password history length \"%s\" is invalid. "
-			  "The password history must range from 2 to 24",
+			  "The password history must range from 1 to 24",
 			  value );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
