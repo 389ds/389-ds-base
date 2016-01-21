@@ -110,6 +110,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
 	ldap/admin/src/scripts/start-dirsrv ldap/admin/src/scripts/stop-dirsrv \
 	ldap/admin/src/scripts/restart-dirsrv ldap/admin/src/scripts/Setup.pm \
+	ldap/admin/src/scripts/status-dirsrv \
 	ldap/admin/src/scripts/template-bak2db ldap/admin/src/scripts/template-bak2db.pl \
 	ldap/admin/src/scripts/template-db2bak ldap/admin/src/scripts/template-db2bak.pl \
 	ldap/admin/src/scripts/template-db2index ldap/admin/src/scripts/template-db2index.pl \
@@ -577,6 +578,7 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/start-dirsrv \
 	ldap/admin/src/scripts/stop-dirsrv \
 	ldap/admin/src/scripts/restart-dirsrv \
+	ldap/admin/src/scripts/status-dirsrv \
 	ldap/admin/src/scripts/bak2db \
 	ldap/admin/src/scripts/db2bak \
 	ldap/admin/src/scripts/db2index \
@@ -744,6 +746,7 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man8/setup-ds.pl.8 \
         man/man8/start-dirsrv.8 \
         man/man8/stop-dirsrv.8 \
+        man/man8/status-dirsrv.8 \
         man/man8/bak2db.8 man/man8/bak2db.pl.8 \
         man/man8/db2bak.8 man/man8/db2bak.pl.8 \
         man/man8/db2ldif.8 man/man8/db2ldif.pl.8 \
