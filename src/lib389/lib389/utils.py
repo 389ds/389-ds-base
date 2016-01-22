@@ -574,7 +574,6 @@ def getserverroot(cfgconn, isLocal, args):
                 ent.getValue('nsslapd-instancedir'))
 
 
-@staticmethod
 def getadminport(cfgconn, cfgdn, args):
     """Return a 2-tuple (asport, True) if the admin server is using SSL,
     False otherwise.
@@ -665,7 +664,6 @@ def formatInfData(args):
         ServerAdminID= admin
         ServerAdminPwd= admin
 
-
     """
     args = args.copy()
     args['CFGSUFFIX'] = CFGSUFFIX
@@ -689,7 +687,6 @@ def formatInfData(args):
     content += ("RootDNPwd= %s\n" % args[SER_ROOT_PW])
     content += ("ServerIdentifier= %s\n" % args[SER_SERVERID_PROP])
     content += ("Suffix= %s\n" % args[SER_CREATION_SUFFIX])
-
 
     # Create admin?
     if args.get('setup_admin'):
