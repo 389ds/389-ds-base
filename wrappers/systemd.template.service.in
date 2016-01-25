@@ -26,3 +26,7 @@ ExecStopPost=/bin/rm -f @localstatedir@/run/@package_name@/slapd-%i.pid
 # if you need to set other directives e.g. LimitNOFILE=8192
 # set them in this file
 .include @initconfigdir@/@package_name@.systemd
+
+[Install]
+WantedBy=dirsrv.target
+
