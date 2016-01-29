@@ -388,7 +388,11 @@ sub statusreport {
 #                                        # 
 ##########################################
 
-if ($files[$#files] =~ m/access.rotationinfo/) {  $file_count--; }
+if ($files[$#files] =~ m/access.rotationinfo/) {
+	# Remove the rotationinfo file from the log array
+	delete $files[$#files];
+	$file_count--;
+}
 $logCount = $file_count;
 
 print "Processing $logCount Access Log(s)...\n";
@@ -398,10 +402,16 @@ print "Processing $logCount Access Log(s)...\n";
 #print "--------------------------------------------------\n";
 
 my $skipFirstFile = 0;
-if ($logCount > 1 && $files[0] =~ /\/access$/){
-	$files[$logCount] = $files[0];
-	$skipFirstFile = 1;
-	$file_count++;
+if ($logCount > 1){
+	# sort the log array
+	my @sorted_files = sort @files;
+	if($sorted_files[0] =~ /access$/){
+		# Move "access" to the end of the array
+		$sorted_files[$logCount] = $sorted_files[0];
+		$skipFirstFile = 1;
+		$file_count++;
+	}
+	@files = @sorted_files;
 }
 
 
