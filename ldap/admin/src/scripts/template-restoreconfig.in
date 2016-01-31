@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./restoreconfig "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/restoreconfig "$@" -Z {{SERV-ID}}
 exit $?

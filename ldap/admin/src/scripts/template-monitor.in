@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./monitor "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/monitor "$@" -Z {{SERV-ID}}
 exit $?

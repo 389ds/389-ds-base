@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./dbverify "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/dbverify "$@" -Z {{SERV-ID}}
 exit $?

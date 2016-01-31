@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./dn2rdn "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/dn2rdn "$@" -Z {{SERV-ID}}
 exit $?

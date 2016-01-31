@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./upgradedb "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/upgradedb "$@" -Z {{SERV-ID}}
 exit $?

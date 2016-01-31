@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./upgradednformat "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/upgradednformat "$@" -Z {{SERV-ID}}
 exit $?
