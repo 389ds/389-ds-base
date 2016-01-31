@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./ldif2ldap "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/ldif2ldap "$@" -Z {{SERV-ID}}
 exit $?

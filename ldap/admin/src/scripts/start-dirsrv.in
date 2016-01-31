@@ -70,7 +70,7 @@ start_instance() {
             return 1
         fi
     else
-        cd $SERVERBIN_DIR; ./ns-slapd -D $CONFIG_DIR -i $PIDFILE -w $STARTPIDFILE "$@"
+        $SERVERBIN_DIR/ns-slapd -D $CONFIG_DIR -i $PIDFILE -w $STARTPIDFILE "$@"
         if [ $? -ne 0 ]; then
             return 1
         fi

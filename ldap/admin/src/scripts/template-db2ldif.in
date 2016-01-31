@@ -1,6 +1,5 @@
 #!/bin/sh
 
 cwd=`pwd`
-cd {{SERVERBIN-DIR}}
-./db2ldif "$@" -Z {{SERV-ID}} -c $cwd
+{{SERVERBIN-DIR}}/db2ldif "$@" -Z {{SERV-ID}} -c $cwd
 exit $?

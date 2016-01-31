@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./suffix2instance "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/suffix2instance "$@" -Z {{SERV-ID}}
 exit $?

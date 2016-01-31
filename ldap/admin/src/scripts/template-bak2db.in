@@ -1,5 +1,4 @@
 #!/bin/sh
 
-cd {{SERVERBIN-DIR}}
-./bak2db "$@" -Z {{SERV-ID}}
+{{SERVERBIN-DIR}}/bak2db "$@" -Z {{SERV-ID}}
 exit $?
