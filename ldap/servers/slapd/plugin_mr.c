@@ -170,22 +170,25 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
 		    for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next)
 		    {
 				IFP indexFn = NULL;
+				IFP indexSvFn = NULL;
 				Slapi_PBlock pb;
 				memcpy (&pb, opb, sizeof(Slapi_PBlock));
-				if (!(rc = slapi_pblock_set (&pb, SLAPI_PLUGIN, mrp)) &&
-				    !(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) &&
-				    createFn != NULL &&
-				    !(rc = createFn (&pb)) &&
-					((!(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn)) &&
-					 indexFn != NULL) ||
-					 (!(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexFn)) &&
-					  indexFn != NULL)))
-				{
-				    /* Success: this plugin can handle it. */
-				    memcpy (opb, &pb, sizeof(Slapi_PBlock));
-				    plugin_mr_bind (oid, mrp); /* for future reference */
-					rc = 0; /* success */
-				    break;
+				slapi_pblock_set(&pb, SLAPI_PLUGIN, mrp);
+				if (slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) {
+					/* plugin not a matchingrule type */
+					continue;
+				}
+				if (createFn && !createFn(&pb)) {
+					slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn);
+					slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexSvFn);
+					if (indexFn || indexSvFn) {
+						/* Success: this plugin can handle it. */
+						memcpy(opb, &pb, sizeof (Slapi_PBlock));
+						plugin_mr_bind(oid, mrp); /* for future reference */
+						rc = 0; /* success */
+						break;
+					}
+
 				}
 		    }
 			if (rc != 0) {
