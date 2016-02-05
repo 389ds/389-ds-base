@@ -401,6 +401,12 @@ int config_set_maxsimplepaged_per_conn( const char *attrname, char *value, char 
 
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 
+#ifdef HAVE_CLOCK_GETTIME
+int config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply);
+void log_enable_hr_timestamps();
+void log_disable_hr_timestamps();
+#endif
+
 int config_get_SSLclientAuth();
 int config_get_ssl_check_hostname();
 char *config_get_SSL3ciphers();
@@ -1151,6 +1157,8 @@ void free_timestring(char *timestr);
 time_t current_time();
 time_t poll_current_time();
 char* format_localTime (time_t from);
+int format_localTime_log(time_t t, int initsize, char *buf, int *bufsize);
+int format_localTime_hr_log(time_t t, long nsec, int initsize, char *buf, int *bufsize);
 time_t parse_localTime (char* from);
 
 #ifndef HAVE_TIME_R

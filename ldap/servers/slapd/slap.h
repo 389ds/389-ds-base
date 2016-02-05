@@ -2124,6 +2124,10 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
 #define CONFIG_LOGGING_BACKEND "nsslapd-logging-backend"
 
+#ifdef HAVE_CLOCK_GETTIME
+#define CONFIG_LOGGING_HR_TIMESTAMPS "nsslapd-logging-hr-timestamps-enabled"
+#endif
+
 /* getenv alternative */
 #define CONFIG_MALLOC_MXFAST "nsslapd-malloc-mxfast"
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
@@ -2319,6 +2323,9 @@ typedef struct _slapdFrontendConfig {
   slapi_onoff_t auditfaillog_logging_hide_unhashed_pw;
 
   char *logging_backend;
+#ifdef HAVE_CLOCK_GETTIME
+  slapi_onoff_t logging_hr_timestamps;
+#endif
 
   slapi_onoff_t return_exact_case;	/* Return attribute names with the same case
                                        as they appear in at.conf */

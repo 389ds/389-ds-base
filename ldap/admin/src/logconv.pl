@@ -25,6 +25,7 @@ use sigtrap qw(die normal-signals);
 use Archive::Tar;
 use IO::Uncompress::AnyUncompress qw($AnyUncompressError);
 use Scalar::Util qw(looks_like_number);
+use DB;
 
 Getopt::Long::Configure ("bundling");
 Getopt::Long::Configure ("permute");
@@ -45,10 +46,10 @@ my $logversion = "8.1";
 my $sizeCount = "20";
 my $startFlag = 0;
 my $startTime = 0;
-my $startTimeInSecs = 0;
+my $startTimeInNsecs = 0;
 my $endFlag = 0;
 my $endTime = 0;
-my $endTimeInSecs = 0;
+my $endTimeInNsecs = 0;
 my $minEtime = 0;
 my $reportStats = "";
 my $dataLocation = "/tmp";
@@ -361,8 +362,8 @@ my %monthname = (
 #
 if ($startTime and $endTime){
 	# Make sure the end time is not earlier than the start time
-	my $testStart = convertTimeToSeconds($startTime);
-	my $testEnd = convertTimeToSeconds($endTime);
+	my $testStart = convertTimeToNanoseconds($startTime);
+	my $testEnd = convertTimeToNanoseconds($endTime);
 	if ($testStart > $testEnd){
 		print "Start time ($startTime) is greater than end time ($endTime)!\n";
 		exit 1;
@@ -471,7 +472,7 @@ sub doUncompress {
 	return $TARFH;
 }
 
-sub convertTimeToSeconds {
+sub convertTimeToNanoseconds {
 	my $log_line = shift;
 
 	my $logDate;
@@ -506,11 +507,11 @@ sub convertTimeToSeconds {
 
 	my $logTime;
 	my @timeComps;
-	my ($timeHour, $timeMinute, $timeSecond, $timeTotal);
+	my ($timeHour, $timeMinute, $timeSecond, $timeNanosecond, $timeTotal);
 	$timeTotal = 0;
-	if ($log_line =~ / *(:[0-9:]+)/i ){
+	if ($log_line =~ / *(:[0-9:\.]+)/i ){
 		$logTime = $1;
-		@timeComps = split /:/, $logTime;
+		@timeComps = split /:|\./, $logTime;
 		if ($#timeComps < 3) {
 			print "The time string ($log_line) is invalid, exiting...\n";
 			exit(1);
@@ -527,20 +528,26 @@ sub convertTimeToSeconds {
 			print "The time string ($log_line) has invalid second ($timeComps[3]), exiting...\n";
 			exit(1);
 		}
+		if ($#timeComps < 4 || !looks_like_number($timeComps[4]) || length $timeComps[4] != 9){
+			# This isn't an error for nano seconds, we just assume old log format and set nsec to 0
+			$timeNanosecond = 0;
+		} else {
+			$timeNanosecond = $timeComps[4];
+		}
 		$timeHour = $timeComps[1] * 3600;
 		$timeMinute = $timeComps[2] * 60;
 		$timeSecond = $timeComps[3];
 		$timeTotal = $timeHour + $timeMinute + $timeSecond;
 	}
 
-	return $timeTotal + $dateTotal;
+	return (($timeTotal + $dateTotal) * 1000000000) + $timeNanosecond;
 }
 
 if($startTime){
-	$startTimeInSecs = convertTimeToSeconds($startTime);
+	$startTimeInNsecs = convertTimeToNanoseconds($startTime);
 }
 if($endTime){
-	$endTimeInSecs = convertTimeToSeconds($endTime);
+	$endTimeInNsecs = convertTimeToNanoseconds($endTime);
 }
 
 $Archive::Tar::WARN = 0; # so new will shut up when reading a regular file
@@ -672,58 +679,61 @@ $allOps = $srchCount + $modCount + $addCount + $cmpCount + $delCount + $modrdnCo
 
 my $start;
 if($startTime){
-	if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+	if ($start =~ / *([0-9a-z:\/\.]+)/i){$start=$1;}
 }
 my $end;
 if($endTime){
-	if ($end =~ / *([0-9a-z:\/]+)/i){$end =$1;}
+	if ($end =~ / *([0-9a-z:\/\.]+)/i){$end =$1;}
 }
 
 #
 # Get the start time in seconds
 #  
 my $logStart = $start;
-my $startTotal = convertTimeToSeconds($logStart);
+my $startTotal = convertTimeToNanoseconds($logStart);
 
 #
 # Get the end time in seconds
 #
 my $logEnd = $end;
-my $endTotal = convertTimeToSeconds($logEnd);
+my $endTotal = convertTimeToNanoseconds($logEnd);
 
 #
 # Tally the numbers
 #
-my $totalTimeInSecs = $endTotal - $startTotal;
-my $remainingTimeInSecs = $totalTimeInSecs;
+my $totalTimeInNsecs = $endTotal - $startTotal;
+my $remainingTimeInNsecs = $totalTimeInNsecs;
+
+my $totalTimeInSecs = $totalTimeInNsecs / 1000000000;
+my $remainingTimeInSecs = $remainingTimeInNsecs / 1000000000;
 
 #
 # Calculate the elapsed time
 #
 
 # days
-while(($remainingTimeInSecs - 86400) > 0){
+while(($remainingTimeInNsecs - (86400 * 1000000000)) > 0){
 	$elapsedDays++;
-	$remainingTimeInSecs =  $remainingTimeInSecs - 86400;
+	$remainingTimeInNsecs =  $remainingTimeInNsecs - (86400 * 1000000000);
 
 }
 
 # hours
 my $elapsedHours = 0;
-while(($remainingTimeInSecs - 3600) > 0){
+while(($remainingTimeInNsecs - (3600 * 1000000000 )) > 0){
 	$elapsedHours++;
-	$remainingTimeInSecs = $remainingTimeInSecs - 3600;
+	$remainingTimeInNsecs = $remainingTimeInNsecs - (3600 * 1000000000);
 }
 
 # minutes
 my $elapsedMinutes = 0;
-while($remainingTimeInSecs - 60 > 0){
+while($remainingTimeInNsecs - (60 * 1000000000) > 0){
 	$elapsedMinutes++;
-	$remainingTimeInSecs = $remainingTimeInSecs - 60;
+	$remainingTimeInNsecs = $remainingTimeInNsecs - (60 * 1000000000);
 }
 
 # seconds
-my $elapsedSeconds = $remainingTimeInSecs;
+my $elapsedSeconds = $remainingTimeInNsecs / 1000000000;
 
 #####################################
 #                                   #
@@ -784,7 +794,7 @@ if ($allOps ne "0"){
 	print "Overall Performance:          No Operations to evaluate\n\n";
 }
 
-if ($totalTimeInSecs == 0){
+if ($totalTimeInNsecs == 0){
 	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
 	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
 	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
@@ -1697,15 +1707,15 @@ parseLineBind {
 
 	if($firstFile == 1 && $_ =~ /^\[/){
 		$start = $_;
-		if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+		if ($start =~ / *([0-9a-z:\/\.]+)/i){$start=$1;}
 		$firstFile = 0;
 	}
-	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){
+	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/\.]+)/i){
 		$end =$1;
 	}
 	if ($startTime && !$startFlag) {
-		my $currentTimeInSecs = convertTimeToSeconds($_);
-		if ($currentTimeInSecs >= $startTimeInSecs) {
+		my $currentTimeInNsecs = convertTimeToNanoseconds($_);
+		if ($currentTimeInNsecs >= $startTimeInNsecs) {
 			$startFlag = 1;
 			($start) = $startTime =~ /\D*(\S*)/;
 		} else {
@@ -1713,8 +1723,8 @@ parseLineBind {
 		}
 	}
 	if ($endTime && !$endFlag) {
-		my $currentTimeInSecs = convertTimeToSeconds($_);
-		if ($currentTimeInSecs > $endTimeInSecs) {
+		my $currentTimeInNsecs = convertTimeToNanoseconds($_);
+		if ($currentTimeInNsecs > $endTimeInNsecs) {
 			$endFlag = 1;
 			($end) = $endTime =~ /\D*(\S*)/;
 		}
@@ -1867,15 +1877,15 @@ sub parseLineNormal
 	if($firstFile == 1 && $_ =~ /^\[/){
 		# if we are using startTime & endTime, this will get overwritten, which is ok
 		$start = $_;
-		if ($start =~ / *([0-9a-z:\/]+)/i){$start=$1;}
+		if ($start =~ / *([0-9a-z:\/\.]+)/i){$start=$1;}
 		$firstFile = 0;
 	}
-	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/]+)/i){
+	if ($endFlag != 1 && $_ =~ /^\[/ && $_ =~ / *([0-9a-z:\/\.]+)/i){
 		$end =$1;
 	}
 	if ($startTime && !$startFlag) {
-		my $currentTimeInSecs = convertTimeToSeconds($_);
-		if ($currentTimeInSecs >= $startTimeInSecs) {
+		my $currentTimeInNsecs = convertTimeToNanoseconds($_);
+		if ($currentTimeInNsecs >= $startTimeInNsecs) {
 			$startFlag = 1;
 			($start) = $startTime =~ /\D*(\S*)/;
 		} else {
@@ -1883,8 +1893,8 @@ sub parseLineNormal
 		}
 	}
 	if ($endTime && !$endFlag) {
-		my $currentTimeInSecs = convertTimeToSeconds($_);
-		if ($currentTimeInSecs > $endTimeInSecs) {
+		my $currentTimeInNsecs = convertTimeToNanoseconds($_);
+		if ($currentTimeInNsecs > $endTimeInNsecs) {
 			$endFlag = 1;
 			($end) = $endTime =~ /\D*(\S*)/;
 		}

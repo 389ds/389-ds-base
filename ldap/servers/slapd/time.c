@@ -166,6 +166,110 @@ time_plus_sec (time_t l, long r)
     return mktime_r (&t);
 }
 
+
+/*
+ * format_localTime_log will take a time value, and prepare it for
+ * log printing.
+ *
+ * \param time_t t - the time to convert
+ * \param int initsize - the initial buffer size
+ * \param char *buf - The destitation string
+ * \param int *bufsize - The size of the resulting buffer
+ *
+ * \return int success - 0 on correct format, >= 1 on error.
+ */
+int
+format_localTime_log(time_t t, int initsize, char *buf, int *bufsize)
+{
+    
+    long	tz;
+    struct tm	*tmsp, tms;
+    char	tbuf[ *bufsize ];
+    char	sign;
+    /* make sure our buffer will be big enough. Need at least 29 */
+    if (*bufsize < 29) {
+        return 1;
+    }
+    /* nope... painstakingly create the new strftime buffer */
+    (void)localtime_r( &t, &tms );
+    tmsp = &tms;
+
+#ifdef BSD_TIME
+    tz = tmsp->tm_gmtoff;
+#else /* BSD_TIME */
+    tz = - timezone;
+    if ( tmsp->tm_isdst ) {
+        tz += 3600;
+    }
+#endif /* BSD_TIME */
+    sign = ( tz >= 0 ? '+' : '-' );
+    if ( tz < 0 ) {
+        tz = -tz;
+    }
+    if (strftime( tbuf, (size_t)*bufsize, "%d/%b/%Y:%H:%M:%S", tmsp) == 0) {
+        return 1;
+    }
+    if (PR_snprintf( buf, *bufsize, "[%s %c%02d%02d] ", tbuf, sign,
+            (int)( tz / 3600 ), (int)( tz % 3600)) == -1) {
+        return 1;
+    }
+    *bufsize = strlen(buf);
+    return 0;
+}
+
+#ifdef HAVE_CLOCK_GETTIME
+/*
+ * format_localTime_hr_log will take a time value, and prepare it for
+ * log printing.
+ *
+ * \param time_t t - the time to convert
+ * \param long nsec - the nanoseconds elapsed in the current second.
+ * \param int initsize - the initial buffer size
+ * \param char *buf - The destitation string
+ * \param int *bufsize - The size of the resulting buffer
+ *
+ * \return int success - 0 on correct format, >= 1 on error.
+ */
+int
+format_localTime_hr_log(time_t t, long nsec, int initsize, char *buf, int *bufsize)
+{
+    
+    long	tz;
+    struct tm	*tmsp, tms;
+    char	tbuf[ *bufsize ];
+    char	sign;
+    /* make sure our buffer will be big enough. Need at least 39 */
+    if (*bufsize < 39) {
+        /* Should this set the buffer to be something? */
+        return 1;
+    }
+    (void)localtime_r( &t, &tms );
+    tmsp = &tms;
+
+#ifdef BSD_TIME
+    tz = tmsp->tm_gmtoff;
+#else /* BSD_TIME */
+    tz = - timezone;
+    if ( tmsp->tm_isdst ) {
+        tz += 3600;
+    }
+#endif /* BSD_TIME */
+    sign = ( tz >= 0 ? '+' : '-' );
+    if ( tz < 0 ) {
+        tz = -tz;
+    }
+    if (strftime( tbuf, (size_t)*bufsize, "%d/%b/%Y:%H:%M:%S", tmsp) == 0) {
+        return 1;
+    }
+    if (PR_snprintf( buf, *bufsize, "[%s.%09ld %c%02d%02d] ", tbuf, nsec, sign,
+            (int)( tz / 3600 ), (int)( tz % 3600)) == -1) {
+        return 1;
+    }
+    *bufsize = strlen(buf);
+    return 0;
+}
+#endif /* HAVE_CLOCK_GETTIME */
+
 char*
 format_localTime (time_t from)
     /* return a newly-allocated string containing the given time, expressed

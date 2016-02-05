@@ -36,9 +36,7 @@ PRUintn logbuf_tsdindex;
 struct logbufinfo *logbuf_accum;
 static struct logging_opts  loginfo;
 static int detached=0;
-
-/* used to lock the timestamp info used by vslapd_log_access */
-static PRLock *ts_time_lock = NULL;
+static int logging_hr_timestamps_enabled = 1;
 
 /*
  * Note: the order of the values in the slapi_log_map array must exactly
@@ -187,10 +185,6 @@ void g_set_detached(int val)
 void g_log_init(int log_enabled)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-	ts_time_lock = PR_NewLock();
-	if (! ts_time_lock)
-	    exit(-1);
 
 	/* ACCESS LOG */
 	loginfo.log_access_state = 0;
@@ -1812,6 +1806,24 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 	return rv;
 }
 
+/*
+ * Enables HR timestamps in logs.
+ */
+void
+log_enable_hr_timestamps()
+{
+    logging_hr_timestamps_enabled = 1;
+}
+
+/*
+ * Disables HR timestamps in logs.
+ */
+void
+log_disable_hr_timestamps()
+{
+    logging_hr_timestamps_enabled = 0;
+}
+
 /******************************************************************************
  * Write title line in log file
  *****************************************************************************/
@@ -2172,41 +2184,46 @@ slapd_log_error_proc_internal(
 static void
 vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
 {
-    time_t    tnl;
-    long      tz;
-    struct tm *tmsp, tms;
     char      tbuf[ TBUFSIZE ];
     char      buffer[SLAPI_LOG_BUFSIZ];
-    char      sign;
-    int       size;
+    int       size = TBUFSIZE;
 
-    tnl = current_time();
-    (void)localtime_r( &tnl, &tms );
-    tmsp = &tms;
-#ifdef BSD_TIME
-    tz = tmsp->tm_gmtoff;
-#else /* BSD_TIME */
-    tz = - timezone;
-    if ( tmsp->tm_isdst ) {
-        tz += 3600;
+#ifdef HAVE_CLOCK_GETTIME
+    if (logging_hr_timestamps_enabled == 1) {
+        struct timespec tsnow;
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+            syslog(LOG_CRIT, "CRITICAL: vslapd_log_emergency_error, Unable to determine system time for message :: %s", msg);
+            return;
+        }
+        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(tbuf), tbuf, &size) != 0) {
+            syslog(LOG_CRIT, "CRITICAL: vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
+            return;
+        }
+    } else {
+#endif
+        time_t    tnl;
+        tnl = current_time();
+        if (format_localTime_log(tnl, sizeof(tbuf), tbuf, &size) != 0) {
+            syslog(LOG_CRIT, "CRITICAL: vslapd_log_emergency_error, Unable to format system time for message :: %s", msg);
+            return;
+        }
+#ifdef HAVE_CLOCK_GETTIME
     }
-#endif /* BSD_TIME */
-    sign = ( tz >= 0 ? '+' : '-' );
-    if ( tz < 0 ) {
-        tz = -tz;
-    }
-    (void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
-    sprintf( buffer, "[%s %c%02d%02d] - %s", tbuf, sign, (int)( tz / 3600 ), (int)( tz % 3600 ), msg);
+#endif
+
+    PR_snprintf( buffer, sizeof(buffer), "%s - %s", tbuf, msg);
     size = strlen(buffer);
 
-    if(!locked)
+    if(!locked) {
         LOG_ERROR_LOCK_WRITE();
+    }
 
     slapi_write_buffer((fp), (buffer), (size));
     PR_Sync(fp);
 
-    if(!locked)
+    if(!locked) {
         LOG_ERROR_UNLOCK_WRITE();
+    }
 }
 
 static int
@@ -2217,37 +2234,43 @@ vslapd_log_error(
     va_list	ap,
 	int     locked )
 {
-    time_t    tnl;
-    long      tz;
-    struct tm *tmsp, tms;
-    char      tbuf[ TBUFSIZE ];
-    char      sign;
     char      buffer[SLAPI_LOG_BUFSIZ];
-    int       blen;
+    int       blen = TBUFSIZE;
     char      *vbuf;
     int       header_len = 0;
     int       err = 0;
 
-    tnl = current_time();
-    (void)localtime_r( &tnl, &tms );
-    tmsp = &tms;
-#ifdef BSD_TIME
-    tz = tmsp->tm_gmtoff;
-#else /* BSD_TIME */
-    tz = - timezone;
-    if ( tmsp->tm_isdst ) {
-    tz += 3600;
+    if ((vbuf = PR_vsmprintf(fmt, ap)) == NULL) {
+        log__error_emergency("CRITICAL: vslapd_log_error, Unable to format message", 1 , locked);
+        return -1;
     }
-#endif /* BSD_TIME */
-    sign = ( tz >= 0 ? '+' : '-' );
-    if ( tz < 0 ) {
-    tz = -tz;
+
+#ifdef HAVE_CLOCK_GETTIME
+    if (logging_hr_timestamps_enabled == 1) {
+        struct timespec tsnow;
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_error, Unable to determine system time for message :: %s", vbuf);
+            log__error_emergency(buffer, 1 ,locked);
+            return -1;
+        }
+        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+            /* MSG may be truncated */
+            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_error, Unable to format system time for message :: %s", vbuf);
+            log__error_emergency(buffer, 1 ,locked);
+            return -1;
+        }
+    } else {
+#endif
+        time_t    tnl;
+        tnl = current_time();
+        if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
+            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_error, Unable to format system time for message :: %s", vbuf);
+            log__error_emergency(buffer, 1 ,locked);
+            return -1;
+        }
+#ifdef HAVE_CLOCK_GETTIME
     }
-    (void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
-    sprintf( buffer, "[%s %c%02d%02d]%s%s - ", tbuf, sign, 
-                    (int)( tz / 3600 ), (int)( tz % 3600 ),
-                    subsystem ? " " : "",
-                    subsystem ? subsystem : "");
+#endif
 
     /* Bug 561525: to be able to remove timestamp to not over pollute syslog, we may need
         to skip the timestamp part of the message. 
@@ -2261,12 +2284,11 @@ vslapd_log_error(
         + size of ]
     */
 
-    header_len = strlen(tbuf) + 8;
+    /* Due to the change to use format_localTime_log, this is now blen */
+    header_len = blen;
 
-    if ((vbuf = PR_vsmprintf(fmt, ap)) == NULL) {
-        return -1;
-    }
-    blen = strlen(buffer);
+    /* blen = strlen(buffer); */
+    /* This truncates again .... But we have the nice smprintf above! */
     PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
     buffer[sizeof(buffer)-1] = '\0';
 
@@ -2387,61 +2409,52 @@ slapi_is_loglevel_set ( const int loglevel )
 ******************************************************************************/ 
 static int vslapd_log_access(char *fmt, va_list ap)
 {
-    time_t	tnl;
-    long	tz;
-    struct tm	*tmsp, tms;
-    char	tbuf[ TBUFSIZE ];
-    char	sign;
     char	buffer[SLAPI_LOG_BUFSIZ];
     char	vbuf[SLAPI_LOG_BUFSIZ];
-    int     blen;
+    int     blen = TBUFSIZE;
     int     vlen;
-    /* info needed to keep us from calling localtime/strftime so often: */
-    static time_t	old_time = 0;
-    static char		old_tbuf[SLAPI_LOG_BUFSIZ];
-	static int old_blen = 0;
+    time_t tnl;
 
-    tnl = current_time();
-
-    /* check if we can use the old strftime buffer */
-    PR_Lock(ts_time_lock);
-    if (tnl == old_time) {
-        strcpy(buffer, old_tbuf);
-        blen = old_blen;
-        PR_Unlock(ts_time_lock);
-    } else {
-    /* nope... painstakingly create the new strftime buffer */
-        (void)localtime_r( &tnl, &tms );
-        tmsp = &tms;
-
-#ifdef BSD_TIME
-        tz = tmsp->tm_gmtoff;
-#else /* BSD_TIME */
-        tz = - timezone;
-        if ( tmsp->tm_isdst ) {
-            tz += 3600;
-	    }
-#endif /* BSD_TIME */
-        sign = ( tz >= 0 ? '+' : '-' );
-        if ( tz < 0 ) {
-            tz = -tz;
-        }
-        (void)strftime( tbuf, (size_t)TBUFSIZE, "%d/%b/%Y:%H:%M:%S", tmsp);
-        sprintf( buffer, "[%s %c%02d%02d] ", tbuf, sign,
-                (int)( tz / 3600 ), (int)( tz % 3600));
-        old_time = tnl;
-        strcpy(old_tbuf, buffer);
-        blen = strlen(buffer);
-        old_blen = blen;
-        PR_Unlock(ts_time_lock);
-    }
-
+    /* We do this sooner, because that we we can use the message in other calls */
     vlen = PR_vsnprintf(vbuf, SLAPI_LOG_BUFSIZ, fmt, ap);
     if (! vlen) {
+        log__error_emergency("CRITICAL: vslapd_log_access, Unable to format message", 1 ,0);
         return -1;
     }
-    
+
+#ifdef HAVE_CLOCK_GETTIME
+    if (logging_hr_timestamps_enabled == 1) {
+        struct timespec tsnow;
+        if (clock_gettime(CLOCK_REALTIME, &tsnow) != 0) {
+            /* Make an error */
+            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_access, Unable to determine system time for message :: %s", vbuf);
+            log__error_emergency(buffer, 1 ,0);
+            return -1;
+        }
+        tnl = tsnow.tv_sec;
+        if (format_localTime_hr_log(tsnow.tv_sec, tsnow.tv_nsec, sizeof(buffer), buffer, &blen) != 0) {
+            /* MSG may be truncated */
+            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_access, Unable to format system time for message :: %s", vbuf);
+            log__error_emergency(buffer, 1 ,0);
+            return -1;
+        }
+    } else {
+#endif
+        tnl = current_time();
+        if (format_localTime_log(tnl, sizeof(buffer), buffer, &blen) != 0) {
+            /* MSG may be truncated */
+            PR_snprintf(buffer, sizeof(buffer), "CRITICAL: vslapd_log_access, Unable to format system time for message :: %s", vbuf);
+            log__error_emergency(buffer, 1 ,0);
+            return -1;
+        }
+#ifdef HAVE_CLOCK_GETTIME
+    }
+#endif
+
     if (SLAPI_LOG_BUFSIZ - blen < vlen) {
+        /* We won't be able to fit the message in! Uh-oh! */
+        /* Should we actually just do the snprintf, and warn that message was trunced? */
+        log__error_emergency("Insufficent buffer capacity to fit timestamp and message!", 1 ,0);
         return -1;
     }
 
