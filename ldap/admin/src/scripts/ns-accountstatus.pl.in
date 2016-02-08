@@ -2,7 +2,7 @@
 #
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2013 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,14 +12,16 @@
 
 use lib qw(@perlpath@);
 use DSUtil;
+use Time::Local;
 
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
 $ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
-$single = 0;
-$role = 0;
+my $single = 0;
+my $role = 0;
+my $verbose = 0;
 
 ###############################
 # SUB-ROUTINES
@@ -27,9 +29,10 @@ $role = 0;
 
 sub usage
 {
-    print (STDERR "ns-accountstatus.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
-    print (STDERR "                    [-p port] [-h host] [-P protocol] -I DN-to-$operation\n\n");
-    print (STDERR "May be used to $operation a user or a domain of users\n\n");
+    print (STDERR "ns-accountstatus.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
+    print (STDERR "                    [-p port] [-h host] [-P protocol] {-I DN | -b basedn -f filter [-s scope]}"
+    print (STDERR "                    [-i] [-g seconds]\n\n");
+    print (STDERR "May be used to get the status a user or a domain of users\n\n");
     print (STDERR "Arguments:\n");
     print (STDERR "        -?                   - Display usage\n");
     print (STDERR "        -D rootdn            - Provide a Directory Manager DN\n");
@@ -40,7 +43,13 @@ sub usage
     print (STDERR "        -p port              - Provide a port\n");
     print (STDERR "        -h host              - Provide a host name\n");
     print (STDERR "        -P protocol          - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print (STDERR "        -I DN-to-$operation  - Single entry DN or role DN to $operation\n");
+    print (STDERR "        -I DN                - Single entry DN or role DN to get status\n");
+    print (STDERR "        -b basedn            - Search base for finding entries**\n");
+    print (STDERR "        -f filter            - Search filter for finding entries**\n");
+    print (STDERR "        -s scope             - Search scope (base, one, sub - default is sub)**\n");
+    print (STDERR "        -i                   - Only display inactivated entries\n");
+    print (STDERR "        -g seconds           - Only display entries that will become inactive within the timeframe\n");
+    print (STDERR "        -V                   - Display verbose information\n");
 }
 
 sub debug
@@ -319,39 +328,397 @@ sub checkScope
     }
 }
 
+#
+# Check if an account is locked by inactivity
+# Take the lastlogintime (which is in Generalized Time), and convert it to its
+# EPOCH time.  Then compare this to the current time and the inactivity limit
+#
+sub checkForInactivity
+{
+    my $gentime_lastlogin = shift;
+    my $limit = shift;
+
+    if ($limit == 0){
+        return 0;
+    }
+    my ($year, $mon, $day, $hour, $min, $sec) =
+        ($gentime_lastlogin =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    my $lastlogin = timegm($sec, $min, $hour, $day, ($mon-1), $year); # EPOCH time
+    my $now = time(); # EPOCH time
+
+    if (($now - $lastlogin) > $limit){
+        # Account has be inactive for too long
+        return 1;
+    }
+    # Account is fine and active
+    return 0;
+}
+
+sub checkForUpcomingInactivity
+{
+    my $gentime_lastlogin = shift;
+    my $limit = shift;
+    my $timeframe = shift;
+
+    if ($limit == 0){
+        return 0;
+    }
+    my ($year, $mon, $day, $hour, $min, $sec) =
+        ($gentime_lastlogin =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    my $lastlogin = timegm($sec, $min, $hour, $day, ($mon-1), $year); # EPOCH time
+    my $now = time(); # EPOCH time
+    my $time_to_inactive = ($limit - ($now - $lastlogin));
+    if ($time_to_inactive <= $timeframe){
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+#
+# Return the time in seconds until the account reaches the limit
+#
+sub getTimeToInactivity
+{
+    my $gentime_lastlogin = shift;
+    my $limit = shift;
+
+    my ($year, $mon, $day, $hour, $min, $sec) =
+        ($gentime_lastlogin =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    my $lastlogin = timegm($sec, $min, $hour, $day, ($mon-1), $year); # EPOCH time
+    my $now = time(); # EPOCH time
+
+    return ($limit - ($now - $lastlogin));
+}
+
+#
+# Return the time in seconds until the account reaches the limit
+#
+sub getTimeSinceInactive
+{
+    my $gentime_lastlogin = shift;
+    my $limit = shift;
+
+    my ($year, $mon, $day, $hour, $min, $sec) =
+        ($gentime_lastlogin =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    my $lastlogin = timegm($sec, $min, $hour, $day, ($mon-1), $year); # EPOCH time
+    my $now = time(); # EPOCH time
+
+    return ($now - ($lastlogin + $limit));
+    #return (($now - $lastlogin) - limit);
+}
+
+#
+# Return various components of the acct policy
+#
+sub getAcctPolicy
+{
+    my %srch = %{$_[0]};
+    my $entry = $_[1];
+
+    my $enabled = 0;
+    my $stateattr = 0;
+    my $altstateattr = 0;
+    my $cosspecattr = 0;
+    my $limitattr = 0;
+    my $limit = 0;
+    my $configentry = 0;
+    my $templateDN = "";
+
+    $srch{base} = "cn=Account Policy Plugin,cn=plugins,cn=config";
+    $srch{filter} = "(&(objectclass=top)(nsslapd-pluginarg0=*))";
+    $srch{scope} = "base";
+    $srch{attrs} = "nsslapd-pluginEnabled nsslapd-pluginarg0";
+
+    #
+    # Get the main plugin entry
+    #
+    $searchAccPolicy = DSUtil::ldapsrch(%srch);
+    open (LDAP1, "$searchAccPolicy |");
+    while (<LDAP1>) {
+        s/\n //g;
+        if( /^nsslapd-pluginenabled: on/i) {
+            $enabled = 1;
+        } elsif (/^nsslapd-pluginarg0: (.*)/i) {
+            $configentry = $1;
+        }
+    }
+    close(LDAP1);
+
+    if ($enabled == 0){
+        # Not using acct policy plugin, no reason to continue.
+        return (0, 0, 0, 0);
+    }
+
+    #
+    # Get the plugin config entry
+    #
+    $srch{base} = $configentry;
+    $srch{filter} = "(objectclass=top)";
+    $srch{scope} = "base";
+    $srch{attrs} = "stateattrname altstateattrname specattrname limitattrname";
+    $searchAccPolicy = DSUtil::ldapsrch(%srch);
+    open (LDAP1, "$searchAccPolicy |");
+    while (<LDAP1>) {
+        s/\n //g;
+        if( /^stateattrname: (.*)/i) {
+            $stateattr = $1;
+        } elsif (/^altstateattrname: (.*)/i) {
+            $altstateattr = $1;
+        } elsif (/^specattrname: (.*)/i) {
+            $cosspecattr = $1;
+        } elsif (/^limitattrname: (.*)/i) {
+            $limitattr = $1;
+        }
+    }
+    close(LDAP1);
+
+    #
+    # Now, get the DN for the cos template from the entry
+    #
+    $srch{base} = $entry;
+    $srch{filter} = "(objectclass=*)";
+    $srch{scope} = "base";
+    $srch{attrs} = "$cosspecattr";
+    $searchAccPolicy= DSUtil::ldapsrch(%srch);
+    open (LDAP1, "$searchAccPolicy |");
+    while (<LDAP1>) {
+        s/\n //g;
+        if (/^$cosspecattr: (.*)/i){
+            $templateDN = $1;
+        }
+    }
+    close(LDAP1);
+
+    #
+    # Get the inactivity limit from the template]
+    #
+    $srch{base} = $templateDN;
+    $srch{filter} = "($limitattr=*)";
+    $srch{scope} = "base";
+    $srch{attrs} = "$limitattr";
+    my @result = DSUtil::ldapsrch_ext(%srch);
+    if ($#result > 1){
+        if ($result[1] =~ /^$limitattr: *([0-9]+)/i){
+            $limit = $1;
+        }
+    }
+
+    return ($enabled, $stateattr, $altstateattr, $limit);
+}
+
+#
+# Return a friendly time string for the client
+#
+sub get_time_from_epoch
+{
+    my $sec = shift;
+    my $result = "";
+    my $add_space = 0;
+
+    if (int($sec/(24*60*60))){
+        $result = int($sec/(24*60*60)) . " days";
+        $add_space = 1;
+    }
+    if (($sec/(60*60))%24){
+        if ($add_space){
+            $result = $result . ", ";
+        }
+        $add_space = 1;
+        $result = $result . ($sec/(60*60))%24 . " hours";
+    }
+    if ( ($sec/60)%60){
+        if ($add_space){
+            $result = $result . ", ";
+        }
+        $add_space = 1;
+        $result = $result . ($sec/60)%60 . " minutes";
+    }
+    if ($sec%60){
+        if ($add_space){
+            $result = $result . ", ";
+        }
+        $result = $result . $sec%60 . " seconds";
+    }
+    return $result;
+}
+
+#
+# Given a string in generalized time format, convert it to ascii time
+#
+sub get_time_from_gentime
+{
+    my $zstr = shift;
+    return "n/a" if (! $zstr);
+    my ($year, $mon, $day, $hour, $min, $sec) =
+        ($zstr =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    my $time = timegm($sec, $min, $hour, $day, ($mon-1), $year);
+    ($sec, $min, $hour, $day, $mon, $year) = localtime($time);
+    $mon++;
+    $year += 1900;
+    foreach ($sec, $min, $hour, $day, $mon) {
+        $_ = "0".$_ if ($_ < 10);
+    }
+
+    return "$mon/$day/$year $hour:$min:$sec";
+}
+
+#
+# Print Verbose output about the entry
+#
+sub printVerbose
+{
+    my %dsinfo = %{$_[0]};
+    my $suffix = $_[1];
+    my $entry = $_[2];
+    my $createtime = $_[3];
+    my $modifytime = $_[4];
+    my $lastlogintime = $_[5];
+    my $state = $_[6];
+    my $limit = $_[7];
+    my $usingAcct = $_[8];
+
+    out("Entry:                   $entry\n");
+    out("Entry Creation Date:     $createtime (" . get_time_from_gentime($createtime) . ")\n");
+    out("Entry Modification Date: $modifytime (" . get_time_from_gentime($modifytime) . ")\n");
+    if ($lastlogintime ne ""){
+        out("Last Login Date:         $lastlogintime (" . get_time_from_gentime($lastlogintime) . ")\n");
+    }
+    if($usingAcct){
+        if ($limit){
+            out("Inactivity Limit:        $limit seconds (" . get_time_from_epoch($limit) . ")\n");
+            if ($lastlogintime ne ""){
+                my $remaining_time = getTimeToInactivity($lastlogintime, $limit);
+                if($remaining_time < 0){
+                    out("Time Until Inactive:     -\n");
+                    # We only display elapsed time if the account was locked by inactivity
+                    if($state =~ /inactivity limit exceeded/){
+                        my $elapsed_time = getTimeSinceInactive($lastlogintime, $limit);
+                        out("Time Since Inactivated:  $elapsed_time seconds (" . get_time_from_epoch($elapsed_time) . ")\n");
+                    } else {
+                        out("Time Since Inactive:     -\n");
+                    }
+                } else {
+                    out("Time Until Inactive:     $remaining_time seconds (" . get_time_from_epoch($remaining_time) . ")\n");
+                    out("Time Since Inactive:     -\n");
+                }
+            }
+        }
+    }
+    out("Entry State:             $state\n\n");
+}
+
+#
+# Just strip any unneeded spaces from the DN
+#
+sub normalizeDN
+{
+    my $entry = shift;
+    my $result = "";
+    my $part = "";
+
+    @suffix=split /([,])/,$entry;
+    $result="";
+    foreach $part (@suffix){
+        $part=~s/^ +//;
+        $part=~ tr/A-Z/a-z/;
+        $result="$result$part";
+    }
+    return $result;
+}
+
+#
+# Get the suffix from the entry
+#
+sub getSuffix
+{
+    my $entry = shift;
+    my $cont = 0;
+    my @suffixN = normalizeDN($entry);
+    my @suffix = split /([,])/,$entry;
+
+    while ($cont == 0){
+        # Look if suffix is the suffix of the entry
+        #    ldapsearch -s one -b "cn=mapping tree,cn=config" "cn=\"uid=jvedder,ou=People,dc=example,dc=com\""
+        #
+        debug("\tSuffix from the entry: #@suffixN#\n");
+        $info{base} = "cn=mapping tree, cn=config";
+        $info{filter} = "cn=\"@suffixN\"";
+        $info{scope} = "one";
+        $info{attrs} = "cn";
+        @mapping = DSUtil::ldapsrch_ext(%info);
+        my $retCode = $?;
+        if ( $retCode != 0 ){
+            $retCode = $?>>8;
+            exit $retCode;
+        }
+
+        # If we get a result, remove the dn:
+        #    dn: cn="o=sun.com",cn=mapping tree,cn=config
+        #    cn: "dc=example,dc=com"
+        #
+        shift @mapping;
+
+        foreach $res (@mapping){
+            # Break the string cn: "o=sun.com" into pieces
+            @cn = split(/ /,$res);
+
+            # And remove the cn: part
+            shift @cn;
+
+            # Now compare the suffix we extract from the mapping tree
+            # with the suffix derived from the entry
+            debug("\tSuffix from mapping tree: #@cn#\n");
+            if ( @cn eq @suffixN ){
+                debug("Found matching suffix\n");
+                $cont = 1;
+            }
+        }
+
+        if ( $cont == 0 ){
+            # Remove the current rdn to try another suffix
+            shift @suffix;
+
+            my $result="";
+            foreach $part (@suffix){
+                $part =~ s/^ +//;
+                $part =~ tr/A-Z/a-z/;
+                $result = "$result$part";
+            }
+            @suffixN = $result;
+
+            debug("\t\tNothing found => go up one level in rdn #@suffix#\n");
+            $len = @suffix;
+            if ( $len == 0 ){
+                debug("Can not find suffix. Problem\n");
+                $cont=2;
+            }
+        }
+    } # while cont = 0
+    if ( $cont == 2){
+        out("Can not find suffix for entry $entry\n");
+        exit 100;
+    }
+    return @suffixN
+}
 
 ###############################
 # MAIN ROUTINE
 ###############################
 
-# Determine which command we are running
-if ( $0 =~ /ns-inactivate(.pl)?$/ ){
-    $cmd="ns-inactivate.pl";
-    $operation="inactivate";
-    $state="inactivated";
-    $modrole="add";
-    $already="already";
-}
-elsif ( $0 =~ /ns-activate(.pl)?$/ ){
-    $cmd="ns-activate.pl";
-    $operation="activate";
-    $state="activated";
-    $modrole="delete";
-    $already="already";
-}
-elsif ( $0 =~ /ns-accountstatus(.pl)?$/ ){
-    $cmd="ns-accountstatus.pl";
-    $operation="get status of";
-    $state="activated";
-    # no need for $modrole as no operation is performed
-    $already="";
 
-} else {
-    out("$0: unknown command\n");
-    exit 100;
-}
-
-debug("Running ** $cmd ** $operation\n");
+my $state="activated";
+my $acct_policy_enabled;
+my $stateattr;
+my $altstateattr;
+my $limit;
+my $filter = 0;
+my $basedn = 0;
+my $scope = "sub";
+my $keep_processing = 0;
+my $only_inactive = 0;
+my $inactive_timeframe = 0;
+my @entries;
 
 # Process the command line arguments
 while( $arg = shift){
@@ -372,6 +739,18 @@ while( $arg = shift){
         $entry= shift @ARGV;
     } elsif($arg eq "-Z"){
         $servid= shift @ARGV;
+    } elsif($arg eq "-b"){
+        $basedn= shift @ARGV;
+    } elsif($arg eq "-s"){
+        $scope= shift @ARGV;
+    } elsif($arg eq "-f"){
+        $filter= shift @ARGV;
+    } elsif($arg eq "-i"){
+        $only_inactive = 1;
+    } elsif($arg eq "-g"){
+        $inactive_timeframe = shift @ARGV;
+    } elsif($arg eq "-V"){
+        $verbose = 1;
     } elsif ($arg eq "-P") { 
         $protocol = shift @ARGV;
     } else {
@@ -389,291 +768,271 @@ while( $arg = shift){
 $info{rootdnpw} = DSUtil::get_password_from_file($rootpw, $pwfile);
 $info{protocol} = $protocol;
 $info{args} = "-c -a";
-if($entry eq ""){
+if($entry eq "" and (!$basedn or !$filter)){
     usage();
     exit 1;
 }
 
 #
-# Check the actual existence of the entry to inactivate/activate
-# and at the same time, validate the various parm: port, host, rootdn, rootpw
+# Check if we have a filter, and gather the dn's
 #
-$info{base} = $entry;
-$info{filter} = "(objectclass=*)";
-$info{scope} = "base";
-$info{attrs} = "dn";
-@exist=DSUtil::ldapsrch_ext(%info);
-$retCode1=$?;
-if ( $retCode1 != 0 ){
-    $retCode1=$?>>8;
-    exit $retCode1;
-}
+if ($basedn && $filter){
+    $info{base} = $basedn;
+    $info{filter} = $filter;
+    $info{scope} = $scope;
+    $info{attrs} = "dn";
 
-$info{filter} = "(&(objectclass=LDAPsubentry)(objectclass=nsRoleDefinition))";
-@isRole  = DSUtil::ldapsrch_ext(%info);
-$nbLineRole=@isRole;
-$retCode2=$?;
-if ( $retCode2 != 0 ){
-    $retCode2=$?>>8;
-    exit $retCode2;
-}
-
-if ( $nbLineRole > 0 ){
-    debug("Groups of users\n");
-    $role=1;
+    @users=DSUtil::ldapsrch_ext(%info);
+    $retCode1=$?;
+    if ( $retCode1 != 0 ){
+        $retCode1=$?>>8;
+        exit $retCode1;
+    }
+    my $i = 0;
+    my $c = 0;
+    while($#users > 0 && $users[$i]){
+        if($users[$i] =~ /^dn: (.*)/i){
+            $entries[$c] = $1;
+            $c++;
+        }
+        $i++;
+    }
+    if ($c > 1){
+        # Mark that we are processing multiple entries
+        $keep_processing = 1;
+    }
 } else {
-    debug("Single user\n");
-    $single=1;
-}
-
-#
-# First of all, check the existence of the nsaccountlock attribute in the entry
-#
-$isLocked=0;
-if ( $single == 1 ){
+    # Single entry
+    #
+    # Check the actual existence of the entry
+    # and at the same time, validate the various
+    # parm: port, host, rootdn, rootpw
+    #
+    $info{base} = $entry;
     $info{filter} = "(objectclass=*)";
-    $info{attrs} = "nsaccountlock";
-    $searchAccountLock= DSUtil::ldapsrch(%info);
-    open (LDAP1, "$searchAccountLock |");
-    while (<LDAP1>) {
-        s/\n //g;
-        if (/^nsaccountlock: (.*)\n/) {
-            $L_currentvalue = $1;
-            $L_currentvalue=~ tr/A-Z/a-z/;
-            if ( $L_currentvalue eq "true"){
-                $isLocked=1;
-            } elsif ( $L_currentvalue eq "false" ){
-                $isLocked=0;
-            }
-        }
+    $info{scope} = "base";
+    $info{attrs} = "dn";
+    @exist=DSUtil::ldapsrch_ext(%info);
+    $retCode1=$?;
+    if ( $retCode1 != 0 ){
+        $retCode1=$?>>8;
+        exit $retCode1;
     }
-    close(LDAP1);
-}
-debug("Is the entry already locked? ==> $isLocked\n");
-
-#
-# Get the suffix name of that entry
-#
-
-# Remove the space at the beginning (just in case...)
-#    -I "uid=jvedder , ou=People , o=sun.com"
-@suffix=split /([,])/,$entry;
-$result="";
-foreach $part (@suffix){
-    $part=~s/^ +//;
-    $part=~ tr/A-Z/a-z/;
-    $result="$result$part";
-}
-@suffixN=$result;
-
-debug("Entry to $operation: #@suffix#\n");
-debug("Entry to $operation: #@suffixN#\n");
-
-# Get the suffix
-$cont=0;
-while ($cont == 0){
-    # Look if suffix is the suffix of the entry
-    #    ldapsearch -s one -b "cn=mapping tree,cn=config" "cn=\"uid=jvedder,ou=People,o=sun.com\""
-    #
-    debug("\tSuffix from the entry: #@suffixN#\n");
-    $info{base} = "cn=mapping tree, cn=config";
-    $info{filter} = "cn=\"@suffixN\"";
-    $info{scope} = "one";
-    $info{attrs} = "cn";
-    @mapping = DSUtil::ldapsrch_ext(%info);
-    $retCode=$?;
-    if ( $retCode != 0 ){
-        $retCode=$?>>8;
-        exit $retCode;
-    }
-
-    # If we get a result, remove the dn:
-    #    dn: cn="o=sun.com",cn=mapping tree,cn=config
-    #    cn: "o=sun.com"
-    #
-    shift @mapping;
-
-    foreach $res (@mapping){
-        # Break the string cn: "o=sun.com" into pieces
-        @cn= split(/ /,$res);
-
-        # And remove the cn: part
-        shift @cn;
-
-        # Now compare the suffix we extract from the mapping tree 
-        # with the suffix derived from the entry
-        debug("\tSuffix from mapping tree: #@cn#\n");
-        if ( @cn eq @suffixN ){
-            debug("Found matching suffix\n");
-            $cont=1;
-        }
-    }
-
-    if ( $cont == 0 ){
-        # Remove the current rdn to try another suffix
-        shift @suffix;
-
-        $result="";
-        foreach $part (@suffix){
-            $part=~ s/^ +//;
-            $part=~ tr/A-Z/a-z/;
-            $result="$result$part";
-        }
-        @suffixN=$result;
-
-        debug("\t\tNothing found => go up one level in rdn #@suffix#\n");
-        $len=@suffix;
-        if ( $len == 0 ){
-            debug("Can not find suffix. Problem\n");
-            $cont=2;
-        }
-    }
-}
-if ( $cont == 2){
-    out("Can not find suffix for entry $entry\n");
-    exit 100;
+    $entries[0] = $entry;
 }
 
-if ( $operation eq "inactivate" ){
+for(my $i = 0; $i <= $#entries; $i++){
     #
-    # Now that we have the suffix and we know if we deal with a single entry or
-    # a role, just try to create the COS and roles associated.
+    # Process each entry
     #
-    $role1="dn: cn=nsManagedDisabledRole,@suffixN\n" . 
-        "objectclass: LDAPsubentry\n" .
-        "objectclass: nsRoleDefinition\n" .
-        "objectclass: nsSimpleRoleDefinition\n" .
-        "objectclass: nsManagedRoleDefinition\n" .
-        "cn: nsManagedDisabledRole\n\n";
-    $role2="dn: cn=nsDisabledRole,@suffixN\n" . 
-        "objectclass: top\n" .
-        "objectclass: LDAPsubentry\n" .
-        "objectclass: nsRoleDefinition\n" .
-        "objectclass: nsComplexRoleDefinition\n" .
-        "objectclass: nsNestedRoleDefinition\n" .
-        "nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n" .
-        "cn: nsDisabledRole\n\n";
-    $cos1="dn: cn=nsAccountInactivationTmp,@suffixN\n" .
-        "objectclass: top\n" .
-        "objectclass: nsContainer\n\n";
-    $cos2="dn: cn=\"cn=nsDisabledRole,@suffixN\",cn=nsAccountInactivationTmp,@suffixN\n" .
-        "objectclass: top\n" .
-        "objectclass: extensibleObject\n" .
-        "objectclass: costemplate\n" .
-        "objectclass: ldapsubentry\n" .
-        "cosPriority: 1\n" .
-        "nsAccountLock: true\n\n";
-    $cos3=(
-        "dn: cn=nsAccountInactivation_cos,@suffixN\n",
-        "objectclass: top\n",
-        "objectclass: LDAPsubentry\n",
-        "objectclass: cosSuperDefinition\n",
-        "objectclass: cosClassicDefinition\n",
-        "cosTemplateDn: cn=nsAccountInactivationTmp,@suffixN\n",
-        "cosSpecifier: nsRole\n",
-        "cosAttribute: nsAccountLock operational\n\n" );
-    $all = $role1 . $role2 . $cos1 . $cos2 . $cos3;
-    DSUtil::ldapmod($all, %info);
-    if ( $? != 0 ){
-        $retCode=$?>>8;
-        if ( $retCode == 68 ){
-            debug("Entry $current already exists, ignore error\n");
-        } else {
-            # Probably a more serious problem.
-            # Exit with LDAP error
-            exit $retCode;
-        }
+    $entry = $entries[$i];
+
+    #
+    # Determine if we are deadling with a entry or a role
+    #
+    $info{base} = $entry;
+    $info{filter} = "(&(objectclass=LDAPsubentry)(objectclass=nsRoleDefinition))";
+    @isRole  = DSUtil::ldapsrch_ext(%info);
+    $nbLineRole=@isRole;
+    $retCode2=$?;
+    if ( $retCode2 != 0 ){
+        $retCode2=$?>>8;
+        exit $retCode2;
+    }
+
+    if ( $nbLineRole > 0 ){
+        debug("Groups of users\n");
+        $role=1;
     } else {
-        debug("Roles/cos created\n");
+        debug("Single user\n");
+        $single=1;
     }
-}
 
-$skipManaged=0;
-$skipDisabled=0;
-$directLocked=0;
+    #
+    # Gather the Account Ppoliy PLugin information(if available)
+    #
+    ($acct_policy_enabled, $stateattr, $altstateattr, $limit) = getAcctPolicy(\%info, $entry);
 
-$nsDisabledRole="cn=nsDisabledRole,@suffixN";
-$nsDisabledRole=~ tr/A-Z/a-z/;
+    #
+    # First of all, check the existence of the nsaccountlock attribute in the entry
+    #
+    $isLocked = 0;
+    my $lastlogintime = "";
+    my $altlogintime = "";
+    my $createtime = "";
+    my $modifytime = "";
 
-$nsManagedDisabledRole="cn=nsManagedDisabledRole,@suffixN";
-$nsManagedDisabledRole=~ tr/A-Z/a-z/;
-
-if ( $operation eq "inactivate" ){
-    # Go through all the roles part of nsdisabledrole to check if the entry
-    # is a member of one of those roles
-    $ret=indirectLock("LDAP00", $entry, $nsDisabledRole);
-    if ( $ret == 0 )    {
-        if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole ){
-            # indirect lock
-            out("$entry already $state through $throughRole.\n");
-        } else {
-            # direct lock
-            out("$entry already $state.\n");
-        }
-        exit 100;
-    } elsif ( $isLocked == 1 ){
-        # the entry is not locked through a role, may be nsaccountlock is "hardcoded" ?
-        out("$entry already $state (probably directly).\n");
-        exit 103;
-    }
-} elsif ( $operation eq "activate" || $operation eq "get status of" ){
-    $skipManaged=$single;
-    $skipDisabled=$role;
-
-    $ret=indirectLock("LDAP00",$entry, $nsDisabledRole);
-
-    if ( $ret == 0 ){
-        # undirectly locked
-        if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole ){
-            if ( $operation eq "activate" ){
-                out("$entry inactivated through $throughRole. Can not activate it individually.\n");
-                exit 100;
-            } else {
-                out("$entry inactivated through $throughRole.\n");
-                exit 104;
+    if ( $single == 1 ){
+        $info{filter} = "(objectclass=*)";
+        $info{attrs} = "nsaccountlock lastLoginTime createtimestamp modifytimestamp";
+        $info{scope} = "base";
+        $searchAccountLock= DSUtil::ldapsrch(%info);
+        open (LDAP1, "$searchAccountLock |");
+        while (<LDAP1>) {
+            s/\n //g;
+            if (/^nsaccountlock: (.*)\n/i) {
+                $L_currentvalue = $1;
+                $L_currentvalue=~ tr/A-Z/a-z/;
+                if ( $L_currentvalue eq "true"){
+                    $isLocked=1;
+                } elsif ( $L_currentvalue eq "false" ){
+                    $isLocked=0;
+                }
             }
+            if (/^$stateattr: (.*)\n/i) {
+                $lastlogintime = $1;
+            }
+            if (/^$altstateattr: (.*)\n/i) {
+                $altlogintime = $1;
+            }
+            if (/^createtimestamp: (.*)\n/i) {
+                $createtime = $1;
+            }
+            if (/^modifyTimeStamp: (.*)\n/i) {
+                $modifytime = $1;
+            }
+        }
+        close(LDAP1);
+
+        if($lastlogintime eq ""){
+            $lastlogintime = $altlogintime;
+        }
+    }
+    debug("Is the entry already locked? ==> $isLocked\n");
+
+    #
+    # Get the suffix of the entry
+    #
+    @suffixN = getSuffix($entry);
+
+    $skipManaged = $single;
+    $skipDisabled = $role;
+    $directLocked = 0;
+    $nsDisabledRole = "cn=nsDisabledRole,@suffixN";
+    $nsDisabledRole =~ tr/A-Z/a-z/;
+    $nsManagedDisabledRole = "cn=nsManagedDisabledRole,@suffixN";
+    $nsManagedDisabledRole =~ tr/A-Z/a-z/;
+
+    $ret = indirectLock("LDAP00", $entry, $nsDisabledRole);
+    if ( $ret == 0 && $inactive_timeframe == 0){
+        # indirectly locked
+        if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole ){
+            if ($verbose){
+                printVerbose(\%info, "@suffixN", $entry, $createtime,
+                             $modifytime, $lastlogintime,
+                             "inactivated through $throughRole", $limit,
+                             $acct_policy_enabled);
+            } else {
+                out("$entry - inactivated through $throughRole.\n");
+            }
+            if($keep_processing){
+                next;
+            }
+            exit 104;
         }
         debug("$entry locked individually\n");
-
-        if ( $operation ne "activate" ){
-            out("$entry inactivated.\n");
-            exit 103;
+        if ($verbose){
+            printVerbose(\%info, "@suffixN", $entry, $createtime,
+                         $modifytime, $lastlogintime, "inactivated", $limit,
+                         $acct_policy_enabled);
+        } else {
+            out("$entry - inactivated.\n");
         }
+        if($keep_processing){
+            next;
+        }
+        exit 103;
     } elsif ( $directLocked == 0 ){
-        if ( $operation eq "activate" && $isLocked != 1 ){
-            out("$entry $already $state.\n");
-            exit 100;
-        } elsif ( $isLocked != 1 ){
-            out("$entry $already $state.\n");
+        if ( $isLocked != 1 ){
+            #
+            # We are not locked by account lockout, but we could be locked by
+            # the Account Policy Plugin (inactivity)
+            #
+            if($acct_policy_enabled && $lastlogintime ne ""){
+                #
+                # Now check the Acount Policy Plugin inactivity limits
+                #
+                if(checkForInactivity($lastlogintime, $limit)){
+                    if ($inactive_timeframe > 0){
+                        # We are only looking for active entries that are about to expire
+                        next;
+                    }
+                    # Account is inactive by inactivity!
+                    if($verbose){
+                        printVerbose(\%info, "@suffixN", $entry, $createtime,
+                                     $modifytime, $lastlogintime,
+                                     "inactivated (inactivity limit exceeded)",
+                                     $limit, $acct_policy_enabled);
+                    } else {
+                        out("$entry - inactivated (inactivity limit exceeded).\n");
+                    }
+                    if($keep_processing){
+                        next;
+                    }
+                    exit 103;
+                } elsif (checkForUpcomingInactivity($lastlogintime, $limit, $inactive_timeframe)){
+                    if($verbose){
+                        printVerbose(\%info, "@suffixN", $entry, $createtime,
+                                     $modifytime, $lastlogintime,
+                                     "activated",
+                                     $limit, $acct_policy_enabled);
+                    } else {
+                        out("$entry - activated\n");
+                    }
+                    if($keep_processing){
+                        next;
+                    }
+                    exit 0;
+                }
+            }
+            if(!$only_inactive and $inactive_timeframe == 0){
+                if($verbose){
+                    printVerbose(\%info, "@suffixN", $entry, $createtime,
+                                 $modifytime, $lastlogintime, $state, $limit,
+                                 $acct_policy_enabled);
+                } else {
+                    out("$entry - $state.\n");
+                }
+            }
+            if($keep_processing){
+                next;
+            }
             exit 102;
         } else {
             # not locked using our schema, but nsaccountlock is probably present
-            out("$entry inactivated (probably directly).\n");
+            if ($inactive_timeframe > 0){
+                # We are only looking for active entries that are about to expire,
+                # so move on to the next entry
+                next;
+            }
+            if($verbose){
+                printVerbose(\%info, "@suffixN", $entry, $createtime,
+                             $modifytime, $lastlogintime,
+                             "inactivated (probably directly)", $limit,
+                             $acct_policy_enabled);
+            } else {
+                out("$entry - inactivated (probably directly).\n");
+            }
+            if($keep_processing){
+                next;
+            }
             exit 103;
         }
-    } elsif ( $operation ne "activate" ){
-        out("$entry inactivated.\n");
+    } else {
+        if ($inactive_timeframe > 0){
+            # We are only looking for active entries that are about to expire
+            next;
+        }
+        if($verbose){
+            printVerbose(\%info, "@suffixN", $entry, $createtime,
+                         $modifytime, $lastlogintime, "inactivated", $limit,
+                         $acct_policy_enabled);
+        } else {
+            out("$entry - inactivated.\n");
+        }
+        if($keep_processing){
+            next;
+        }
         exit 103;
     }
-    # else Locked directly, juste unlock it!
-    debug("$entry locked individually\n");
 }
-
-#
-# Inactivate/activate the entry
-#
-if ( $single == 1 ){
-    $record = "dn: $entry\n" . "changetype: modify\n" . "$modrole: nsRoleDN\n" . "nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n";
-} else {
-    $record = "dn: cn=nsDisabledRole,@suffixN\n" . "changetype: modify\n" . "$modrole: nsRoleDN\n" . "nsRoleDN: $entry\n";
-}
-$info{args} = "-c";
-DSUtil::ldapmod($record, %info);
-if( $? != 0 ){
-    debug("$modrole, $entry\n");
-    $retCode=$?>>8;
-    exit $retCode;
-}
-
-out("$entry $state.\n");
-exit 0;

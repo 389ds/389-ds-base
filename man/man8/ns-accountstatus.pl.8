@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH NS-ACCOUNTSTATUS.PL 8 "Mar 5, 2013"
+.TH NS-ACCOUNTSTATUS.PL 8 "Feb 8, 2016"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -18,7 +18,8 @@
 .SH NAME 
 ns-accountstatus.pl - Directory Server perl script for checking the status of entries.
 .SH SYNOPSIS
-ns-accountstatus.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-p port] [\-h host] [\-P protocol] \-I DN
+ns-accountstatus.pl [\-Z serverID] [\-D rootdn] { \-w password | \-w \- | \-j filename } [\-p port] [\-h host] [\-P protocol] {\-I DN |
+ \-b basedn \-f filter [\-s scope]} [\-i] [\-g seconds]
 .SH DESCRIPTION
 Provides account status information to establish whether an entry or group of entries is inactivated.
 .SH OPTIONS
@@ -55,12 +56,38 @@ Host name of the Directory Server.
 .TP
 .B \fB\-p\fR \fIport\fR
 Port number of the Directory Server.
+.TP
+.B \fB\-p\fR \fIport\fR
+Port number of the Directory Server.
+.TP
+.B \fB\-p\fR \fIport\fR
+Port number of the Directory Server.
+.TP
+.B \fB\-b\fR \fIbasedn\fR
+The suffix DN from which to search from.
+.TP
+.B \fB\-f\fR \fIfilter\fR
+The search filter used to find user entries.
+.TP
+.B \fB\-s\fR \fIscope\fR
+The search scope.  "base", "one, "sub".  Default is "sub"
+.TP
+.B \fB\-i\fR
+.br
+Only list entries that are inactivated.
+.TP
+.B \fB\-g\fR \fIseconds\fR
+Only display entries that will become inactive within the timeframe.
+
 .SH EXAMPLE
 .TP
 ns-accountstatus.pl \-Z instance3 \-D 'cn=directory manager' \-w password \-I 'uid=user,ou=people,dc=example,dc=com'
 .TP
+ns-accountstatus.pl \-Z instance3 \-D 'cn=directory manager' \-w password \-b 'dc=example,dc=com' \-f "(uid=*)"
+.TP
+ns-accountstatus.pl \-Z instance3 \-D 'cn=directory manager' \-w password \-b 'dc=example,dc=com' \-f "(uid=*)" -g 86400
+.TP
 ns-accountstatus.pl \-w password \-I 'uid=user,ou=people,dc=example,dc=com' \-P STARTTLS
-
 Note: security must be enabled to use protocol STARTTLS.  If STARTTLS is not available it will default to next strongest/available protocol automatically.
 .SH DIAGNOSTICS
 Exit status is zero if no errors occur.  Errors result in a 
@@ -71,4 +98,4 @@ ns-accountstatus.pl was written by the 389 Project.
 .SH "REPORTING BUGS"
 Report bugs to https://fedorahosted.org/389/newticket.
 .SH COPYRIGHT
-Copyright \(co 2013 Red Hat, Inc.
+Copyright \(co 2016 Red Hat, Inc.

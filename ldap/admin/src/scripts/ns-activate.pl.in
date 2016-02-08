@@ -2,7 +2,7 @@
 #
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2013 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,14 +12,16 @@
 
 use lib qw(@perlpath@);
 use DSUtil;
+use Time::Local;
+use POSIX qw(strftime);
 
 DSUtil::libpath_add("@nss_libdir@");
 DSUtil::libpath_add("/usr/lib");
 $ENV{'PATH'} = "@ldaptool_bindir@:/usr/bin:/usr/lib64/mozldap/";
 $ENV{'SHLIB_PATH'} = "$ENV{'LD_LIBRARY_PATH'}";
 
-$single = 0;
-$role = 0;
+my $single = 0;
+my $role = 0;
 
 ###############################
 # SUB-ROUTINES
@@ -28,8 +30,8 @@ $role = 0;
 sub usage
 {
     print (STDERR "ns-activate.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } \n");
-    print (STDERR "               [-p port] [-h host] [-P protocol] -I DN-to-$operation\n\n");
-    print (STDERR "May be used to $operation a user or a domain of users\n\n");
+    print (STDERR "               [-p port] [-h host] [-P protocol] -I DN-to-activate\n\n");
+    print (STDERR "May be used to activate a user or a domain of users\n\n");
     print (STDERR "Arguments:\n");
     print (STDERR "        -?                   - Display usage\n");
     print (STDERR "        -D rootdn            - Provide a Directory Manager DN\n");
@@ -40,7 +42,7 @@ sub usage
     print (STDERR "        -p port              - Provide a port\n");
     print (STDERR "        -h host              - Provide a host name'\n");
     print (STDERR "        -P protocol          - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
-    print (STDERR "        -I DN-to-$operation  - Single entry DN or role DN to $operation\n");
+    print (STDERR "        -I DN-to-activate    - Single entry DN or role DN to activate\n");
 }
 
 sub debug
@@ -318,6 +320,130 @@ sub checkScope
     }
 }
 
+#
+# Check if an account is locked by inactivity
+# Take the lastlogintime (which is in Generalized Time), and convert it to its
+# EPOCH time.  Then compare this to the current time and the inactivity limit
+#
+sub checkForInactivity
+{
+    my $gentime_lastlogin = shift;
+    my $limit = shift;
+
+    if ($limit == 0){
+        return 0;
+    }
+    my ($year, $mon, $day, $hour, $min, $sec) =
+        ($gentime_lastlogin =~ /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+    my $lastlogin = timegm($sec, $min, $hour, $day, ($mon-1), $year); # EPOCH time
+    my $now = time(); # EPOCH time
+
+    if (($now - $lastlogin) > $limit){
+        # Account has be inactive for too long
+        return 1;
+    }
+    # Account is fine and active
+    return 0;
+}
+
+#
+# Return various components of the acct policy
+#
+sub getAcctPolicy
+{
+    my %srch = %{$_[0]};
+    my $entry = $_[1];
+
+    my $enabled = 0;
+    my $stateattr = 0;
+    my $altstateattr = 0;
+    my $cosspecattr = 0;
+    my $limitattr = 0;
+    my $limit = 0;
+    my $configentry = 0;
+    my $templateDN = "";
+
+    $srch{base} = "cn=Account Policy Plugin,cn=plugins,cn=config";
+    $srch{filter} = "(&(objectclass=top)(nsslapd-pluginarg0=*))";
+    $srch{scope} = "base";
+    $srch{attrs} = "nsslapd-pluginEnabled nsslapd-pluginarg0";
+
+    #
+    # Get the main plugin entry
+    #
+    $searchAccPolicy = DSUtil::ldapsrch(%srch);
+    open (LDAP1, "$searchAccPolicy |");
+    while (<LDAP1>) {
+        s/\n //g;
+        if( /^nsslapd-pluginenabled: on/i) {
+            $enabled = 1;
+        } elsif (/^nsslapd-pluginarg0: (.*)/i) {
+            $configentry = $1;
+        }
+    }
+    close(LDAP1);
+
+    if ($enabled == 0){
+        # Not using acct policy plugin, no reason to continue.
+        return (0, 0, 0, 0);
+    }
+
+    #
+    # Get the plugin config entry
+    #
+    $srch{base} = $configentry;
+    $srch{filter} = "(objectclass=top)";
+    $srch{scope} = "base";
+    $srch{attrs} = "stateattrname altstateattrname specattrname limitattrname";
+    $searchAccPolicy = DSUtil::ldapsrch(%srch);
+    open (LDAP1, "$searchAccPolicy |");
+    while (<LDAP1>) {
+        s/\n //g;
+        if( /^stateattrname: (.*)/i) {
+            $stateattr = $1;
+        } elsif (/^altstateattrname: (.*)/i) {
+            $altstateattr = $1;
+        } elsif (/^specattrname: (.*)/i) {
+            $cosspecattr = $1;
+        } elsif (/^limitattrname: (.*)/i) {
+            $limitattr = $1;
+        }
+    }
+    close(LDAP1);
+
+    #
+    # Now, get the DN for the cos template from the entry
+    #
+    $srch{base} = $entry;
+    $srch{filter} = "(objectclass=*)";
+    $srch{scope} = "base";
+    $srch{attrs} = "$cosspecattr";
+    $searchAccPolicy= DSUtil::ldapsrch(%srch);
+    open (LDAP1, "$searchAccPolicy |");
+    while (<LDAP1>) {
+        s/\n //g;
+        if (/^$cosspecattr: (.*)/i){
+            $templateDN = $1;
+        }
+    }
+    close(LDAP1);
+
+    #
+    # Get the inactivity limit from the template]
+    #
+    $srch{base} = $templateDN;
+    $srch{filter} = "($limitattr=*)";
+    $srch{scope} = "base";
+    $srch{attrs} = "$limitattr";
+    my @result = DSUtil::ldapsrch_ext(%srch);
+    if ($#result > 1){
+        if ($result[1] =~ /^$limitattr: *([0-9]+)/i){
+            $limit = $1;
+        }
+    }
+
+    return ($enabled, $stateattr, $altstateattr, $limit);
+}
 
 ###############################
 # MAIN ROUTINE
@@ -325,32 +451,12 @@ sub checkScope
 
 # Generated variable
 
-# Determine which command we are running
-if ( $0 =~ /ns-inactivate(.pl)?$/ ){
-    $cmd="ns-inactivate.pl";
-    $operation="inactivate";
-    $state="inactivated";
-    $modrole="add";
-    $already="already";
-} elsif ( $0 =~ /ns-activate(.pl)?$/ ){
-    $cmd="ns-activate.pl";
-    $operation="activate";
-    $state="activated";
-    $modrole="delete";
-    $already="already";
-} elsif ( $0 =~ /ns-accountstatus(.pl)?$/ ){
-    $cmd="ns-accountstatus.pl";
-    $operation="get status of";
-    $state="activated";
-    # no need for $modrole as no operation is performed
-    $already="";
-
-} else {
-    out("$0: unknown command\n");
-    exit 100;
-}
-
-debug("Running ** $cmd ** $operation\n");
+my $state="activated";
+my $already="already";
+my $acct_policy_enabled;
+my $stateattr;
+my $altstateattr;
+my $limit;
 
 # Process the command line arguments
 while( $arg = shift)
@@ -395,6 +501,11 @@ if($entry eq ""){
 }
 
 #
+# Gather the Account Ppoliy PLugin information(if available)
+#
+($acct_policy_enabled, $stateattr, $altstateattr, $limit) = getAcctPolicy(\%info, $entry);
+
+#
 # Check the actual existence of the entry to inactivate/activate
 # and at the same time, validate the various parm: port, host, rootdn, rootpw
 #
@@ -430,14 +541,17 @@ if ( $nbLineRole > 0 ){
 # First of all, check the existence of the nsaccountlock attribute in the entry
 #
 $isLocked=0;
+my $lastlogintime = "";
+my $altlogintime  = "";
+
 if ( $single == 1 ){
     $info{filter} = "(objectclass=*)";
-    $info{attrs} = "nsaccountlock";
+    $info{attrs} = "nsaccountlock $stateattr $altstateattr";
     $searchAccountLock= DSUtil::ldapsrch(%info);
     open (LDAP1, "$searchAccountLock |");
     while (<LDAP1>) {
         s/\n //g;
-        if (/^nsaccountlock: (.*)\n/) {
+        if (/^nsaccountlock: (.*)\n/i) {
             $L_currentvalue = $1;
             $L_currentvalue=~ tr/A-Z/a-z/;
             if ( $L_currentvalue eq "true"){
@@ -445,6 +559,10 @@ if ( $single == 1 ){
             } elsif ( $L_currentvalue eq "false" ){
                 $isLocked=0;
             }
+        } elsif (/^$stateattr: (.*)\n/i) {
+            $lastlogintime = $1;
+        } elsif (/^$altstateattr: (.*)\n/i) {
+            $altlogintime = $1;
         }
     }
     close(LDAP1);
@@ -466,8 +584,8 @@ foreach $part (@suffix){
 }
 @suffixN=$result;
 
-debug("Entry to $operation: #@suffix#\n");
-debug("Entry to $operation: #@suffixN#\n");
+debug("Entry to activate: #@suffix#\n");
+debug("Entry to activate: #@suffixN#\n");
 
 # Get the suffix
 $cont=0;
@@ -534,145 +652,88 @@ if ( $cont == 2){
     exit 100;
 }
 
-if ( $operation eq "inactivate" ){
-    #
-    # Now that we have the suffix and we know if we deal with a single entry or
-    # a role, just try to create the COS and roles associated.
-    #
-    $role1="dn: cn=nsManagedDisabledRole,@suffixN\n" .
-           "objectclass: LDAPsubentry\n" .
-           "objectclass: nsRoleDefinition\n" .
-           "objectclass: nsSimpleRoleDefinition\n" .
-           "objectclass: nsManagedRoleDefinition\n" .
-           "cn: nsManagedDisabledRole\n\n";
-    $role2="dn: cn=nsDisabledRole,@suffixN\n" .
-           "objectclass: top\n" .
-           "objectclass: LDAPsubentry\n" .
-           "objectclass: nsRoleDefinition\n" .
-           "objectclass: nsComplexRoleDefinition\n" .
-           "objectclass: nsNestedRoleDefinition\n" .
-           "nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n" .
-           "cn: nsDisabledRole\n\n";
-    $cos1="dn: cn=nsAccountInactivationTmp,@suffixN\n" .
-          "objectclass: top\n" .
-          "objectclass: nsContainer\n\n";
-    $cos2="dn: cn=\"cn=nsDisabledRole,@suffixN\",cn=nsAccountInactivationTmp,@suffixN\n" .
-          "objectclass: top\n" .
-          "objectclass: extensibleObject\n" .
-          "objectclass: costemplate\n" .
-            "objectclass: ldapsubentry\n" .
-            "cosPriority: 1\n" .
-          "nsAccountLock: true\n\n";
-    $cos3="dn: cn=nsAccountInactivation_cos,@suffixN\n" .
-          "objectclass: top\n" .
-          "objectclass: LDAPsubentry\n" .
-          "objectclass: cosSuperDefinition\n" .
-          "objectclass: cosClassicDefinition\n" .
-          "cosTemplateDn: cn=nsAccountInactivationTmp,@suffixN\n" .
-          "cosSpecifier: nsRole\n" .
-          "cosAttribute: nsAccountLock operational\n\n";
-    $all=$role1 . $role2 . $cos1 . $cos2 . $cos3;
-
-    $info{args} = "-c -a";
-    DSUtil::ldapmod($all[$i], %info);
-    if ( $? != 0 ){
-        $retCode=$?>>8;
-        if ( $retCode == 68 ){
-            debug("Entry already exists, ignore error\n");
-        } else {
-            # Probably a more serious problem.
-            # Exit with LDAP error
-            exit $retCode;
-        }
-    } else {
-        debug("Role/cos entries created\n");
-    }
-}
-
 $skipManaged=0;
 $skipDisabled=0;
 $directLocked=0;
-
+$inactiveLocked = 0;
 $nsDisabledRole="cn=nsDisabledRole,@suffixN";
 $nsDisabledRole=~ tr/A-Z/a-z/;
-
 $nsManagedDisabledRole="cn=nsManagedDisabledRole,@suffixN";
 $nsManagedDisabledRole=~ tr/A-Z/a-z/;
+$skipManaged=$single;
+$skipDisabled=$role;
 
-if ( $operation eq "inactivate" ){
-    # Go through all the roles part of nsdisabledrole to check if the entry
-    # is a member of one of those roles
-    $ret=indirectLock("LDAP00", $entry, $nsDisabledRole);
-    if ( $ret == 0 ){
-        if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole ){
-            # indirect lock
-            out("$entry already $state through $throughRole.\n");
-        } else {
-            # direct lock
-            out("$entry already $state.\n");
-        }
+$ret = indirectLock("LDAP00",$entry, $nsDisabledRole);
+if ( $ret == 0 ){
+    # indirectly locked
+    if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole ){
+        out("$entry inactivated through $throughRole. Can not activate it individually.\n");
         exit 100;
-    } elsif ( $isLocked == 1 ){
-        # the entry is not locked through a role, may be nsaccountlock is "hardcoded" ?
-        out("$entry already $state (probably directly).\n");
-        exit 103;
     }
-} elsif ( $operation eq "activate" || $operation eq "get status of" ){
-    $skipManaged=$single;
-    $skipDisabled=$role;
-
-    $ret=indirectLock("LDAP00",$entry, $nsDisabledRole);
-
-    if ( $ret == 0 ){
-        # undirectly locked
-        if ( $throughRole ne $nsDisabledRole && $throughRole ne $nsManagedDisabledRole ){
-            if ( $operation eq "activate" ){
-                out("$entry inactivated through $throughRole. Can not activate it individually.\n");
-                exit 100;
-            } else {
-                out("$entry inactivated through $throughRole.\n");
-                exit 104;
-            }
-        }
-        debug("$entry locked individually\n");
-
-        if ( $operation ne "activate" ){
-            out("$entry inactivated.\n");
-            exit 103;
-        }
-    } elsif ( $directLocked == 0 ){
-        if ( $operation eq "activate" && $isLocked != 1 ){
-            out("$entry $already $state.\n");
-            exit 100;
-        } elsif ( $isLocked != 1 ) {
-            out("$entry $already $state.\n");
-            exit 102;
-        } else {
-            # not locked using our schema, but nsaccountlock is probably present
-            out("$entry inactivated (probably directly).\n");
-            exit 103;
-        }
-    } elsif ( $operation ne "activate" ){
-        out("$entry inactivated.\n");
-        exit 103;
-    }
-    # else Locked directly, juste unlock it!
     debug("$entry locked individually\n");
+} elsif ( $directLocked == 0 ){
+    if ( $isLocked != 1 ){
+        # The user is not "inactivated", but we need to check for account
+        # inactivity before saying the account is actually active
+        if($acct_policy_enabled){
+            #
+            # Now check the Acount Policy Plugin inactivity limits
+            #
+            my $logintime;
+            if ($lastlogintime ne ""){
+                $logintime = $lastlogintime;
+            }  else {
+                $logintime = $altlogintime;
+            }
+            if(checkForInactivity($logintime, $limit) == 0){
+                # The user truly is active
+                out("$entry $already $state.\n");
+                exit 100;
+            }
+            $inactiveLocked = 1;
+        }
+    }
+}
+# else Locked directly, just unlock it!
+debug("$entry locked individually\n");
+
+if($inactiveLocked == 0 and $acct_policy_enabled){
+    #
+    # Now check the Acount Policy Plugin inactivity limits
+    #
+    my $logintime;
+    if ($lastlogintime ne ""){
+        $logintime = $lastlogintime;
+    }  else {
+        $logintime = $altlogintime;
+    }
+    if(checkForInactivity($logintime, $limit)){
+        $inactiveLocked = 1;
+    }
 }
 
 #
-# Inactivate/activate the entry
+# Activate the entry
 #
 if ( $single == 1 ){
-    $record = "dn: $entry\n" . "changetype: modify\n" . "$modrole: nsRoleDN\n" . "nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n";
+    $record = "dn: $entry\n" . "changetype: modify\n";
+    if ($isLocked or $directLocked){
+        # Remove the role
+        $record = $record . "delete: nsRoleDN\n" . "nsRoleDN: cn=nsManagedDisabledRole,@suffixN\n-\n";
+    }
+    if ($inactiveLocked) {
+        # Reset the lastlogintime to active the user
+        my $newlogintime = strftime "%Y%m%d%H%M%SZ", gmtime;
+        $record = $record . "replace: lastlogintime\n" . "lastlogintime: " . $newlogintime . "\n";
+    }
 } else {
-    $record = "dn: cn=nsDisabledRole,@suffixN\n" . "changetype: modify\n" . "$modrole: nsRoleDN\n" . "nsRoleDN: $entry\n";
+    $record = "dn: cn=nsDisabledRole,@suffixN\n" . "changetype: modify\n" . "delete: nsRoleDN\n" . "nsRoleDN: $entry\n";
 }
 
 $info{args} = "-c";
 DSUtil::ldapmod($record, %info);
 if( $? != 0 ){
-    debug("$modrole, $entry\n");
+    debug("delete, $entry\n");
     $retCode=$?>>8;
     exit $retCode;
 }
