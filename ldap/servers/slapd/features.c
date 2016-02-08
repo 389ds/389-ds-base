@@ -44,7 +44,7 @@ slapi_register_supported_feature( char *featureoid )
 int
 slapi_get_supported_features_copy( char ***ftroidsp )
 {
-    slapi_rwlock_unlock(supported_features_lock);
+    slapi_rwlock_rdlock(supported_features_lock);
     if ( ftroidsp != NULL ) {
         *ftroidsp = charray_dup(supported_features);
     }
