@@ -221,7 +221,7 @@ cp %{SOURCE2} README.devel
 pushd ../nunc-stans-%{nunc_stans_ver}
 %configure --with-fhs --libdir=%{_libdir}/%{pkgname}
 make %{?_smp_mflags}
-mkdir lib
+mkdir -p lib
 cp .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
 mkdir -p include/nunc-stans
 cp nunc-stans.h include/nunc-stans/nunc-stans.h
