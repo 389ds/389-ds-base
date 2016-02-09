@@ -524,7 +524,7 @@ class DirSrv(SimpleLDAPObject):
 
     def openConnection(self, saslmethod=None, certdir=None):
         # Open a new connection to our LDAP server
-        server = DirSrv(verbose=False)
+        server = DirSrv(verbose=self.verbose)
         args_instance[SER_HOST] = self.host
         args_instance[SER_PORT] = self.port
         args_instance[SER_SERVERID_PROP] = self.serverid
@@ -787,7 +787,7 @@ class DirSrv(SimpleLDAPObject):
 
         return instances
 
-    def _createDirsrv(self, verbose=0):
+    def _createDirsrv(self):
         """Create a new instance of directory server
 
         @param self - containing the set properties
@@ -833,7 +833,7 @@ class DirSrv(SimpleLDAPObject):
                 SER_BACKUP_INST_DIR: self.backupdir,
                 SER_STRICT_HOSTNAME_CHECKING: self.strict_hostname}
         content = formatInfData(args)
-        result = DirSrvTools.runInfProg(prog, content, verbose,
+        result = DirSrvTools.runInfProg(prog, content, self.verbose,
                                         prefix=self.prefix)
         if result != 0:
             raise Exception('Failed to run setup-ds.pl')
@@ -883,7 +883,7 @@ class DirSrv(SimpleLDAPObject):
                              "it is required to create an instance")
 
         # Time to create the instance and retrieve the effective sroot
-        self._createDirsrv(verbose=self.verbose)
+        self._createDirsrv()
 
         # Retrieve sroot from the sys/priv config file
         props = self.list()
@@ -1055,7 +1055,7 @@ class DirSrv(SimpleLDAPObject):
             timeout = 120
 
         # called with the default timeout
-        if DirSrvTools.start(self, verbose=False, timeout=timeout):
+        if DirSrvTools.start(self, verbose=self.verbose, timeout=timeout):
             self.log.error("Probable failure to start the instance")
 
         self.open()
@@ -1078,7 +1078,7 @@ class DirSrv(SimpleLDAPObject):
             timeout = 120
 
         # called with the default timeout
-        if DirSrvTools.stop(self, verbose=False, timeout=timeout):
+        if DirSrvTools.stop(self, verbose=self.verbose, timeout=timeout):
             self.log.error("Probable failure to stop the instance")
 
         # whatever the initial state, the instance is now Offline
@@ -2136,7 +2136,7 @@ class DirSrv(SimpleLDAPObject):
 
         return ret
 
-    def subtreePwdPolicy(self, basedn, pwdpolicy, verbose=False, **pwdargs):
+    def subtreePwdPolicy(self, basedn, pwdpolicy, **pwdargs):
         args = {'basedn': basedn, 'escdn': escapeDNValue(
             normalizeDN(basedn))}
         condn = "cn=nsPwPolicyContainer,%(basedn)s" % args
@@ -2163,7 +2163,7 @@ class DirSrv(SimpleLDAPObject):
         for ent in (conent, polent, tement, cosent):
             try:
                 self.add_s(ent)
-                if verbose:
+                if self.verbose:
                     print("created subtree pwpolicy entry", ent.dn)
             except ldap.ALREADY_EXISTS:
                 print("subtree pwpolicy entry", ent.dn,
@@ -2171,7 +2171,7 @@ class DirSrv(SimpleLDAPObject):
         self.setPwdPolicy({'nsslapd-pwpolicy-local': 'on'})
         self.setDNPwdPolicy(poldn, pwdpolicy, **pwdargs)
 
-    def userPwdPolicy(self, user, pwdpolicy, verbose=False, **pwdargs):
+    def userPwdPolicy(self, user, pwdpolicy, **pwdargs):
         ary = ldap.explode_dn(user)
         par = ','.join(ary[1:])
         escuser = escapeDNValue(normalizeDN(user))
@@ -2186,7 +2186,7 @@ class DirSrv(SimpleLDAPObject):
         for ent in (conent, polent):
             try:
                 self.add_s(ent)
-                if verbose:
+                if self.verbose:
                     print("created user pwpolicy entry", ent.dn)
             except ldap.ALREADY_EXISTS:
                 print("user pwpolicy entry", ent.dn,
@@ -2729,7 +2729,7 @@ class DirSrv(SimpleLDAPObject):
         error_msg = "Unavailable"
 
         # Open a connection to the consumer
-        consumer = DirSrv(verbose=False)
+        consumer = DirSrv(verbose=self.verbose)
         args_instance[SER_HOST] = host
         args_instance[SER_PORT] = int(port)
         args_instance[SER_ROOT_DN] = self.binddn
