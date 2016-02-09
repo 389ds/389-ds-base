@@ -78,6 +78,7 @@ BuildRequires:    tcp_wrappers
 # the following is for the pam passthru auth plug-in
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
+BuildRequires:    systemd-devel
 
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python
@@ -122,6 +123,7 @@ Requires:         perl-Socket6
 Requires:         perl-Socket
 %endif
 Requires:         perl-NetAddr-IP
+Requires:         systemd-libs
 
 Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
@@ -169,6 +171,7 @@ BuildRequires:    /usr/bin/xsltproc
 BuildRequires:    valgrind-devel
 %endif
 %endif
+BuildRequires:    systemd-devel
 
 %description      libs
 Core libraries for the 389 Directory Server base package.  These libraries
@@ -193,6 +196,8 @@ Requires:         libtalloc
 Requires:         libevent
 Requires:         libtevent
 %endif
+Requires:         systemd-libs
+
 
 %description      devel
 Development Libraries and headers for the 389 Directory Server base package.

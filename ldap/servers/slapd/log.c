@@ -393,20 +393,17 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
 int
 log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply) {
 
-    int retval = LDAP_SUCCESS;
     int backend = 0;
     char *backendstr = NULL; /* The backend we are looking at */
     char *token = NULL; /* String to tokenise, need to dup value */
     char *next = NULL; /* The next value */
 
-
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     /* We don't need to bother checking log type ... */
-    if ( !apply || !value || !*value ) {
-        return retval;
+    if ( !value || !*value ) {
+        return LDAP_OPERATIONS_ERROR;
     }
-
 
     /* We have a comma seperated list. So split it up */
     token = slapi_ch_strdup(value);
@@ -417,12 +414,12 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
         if(strlen(backendstr) == 0) {
             /* Probably means someone did ",,"*/
             continue;
-        } else if (slapi_UTF8NCASECMP(backendstr, "dirsrv-log", 10) ) {
+        } else if (slapi_UTF8NCASECMP(backendstr, "dirsrv-log", 10) == 0 ) {
             backend |= LOGGING_BACKEND_INTERNAL;
-        } else if (slapi_UTF8NCASECMP(backendstr, "syslog", 6) ) {
+        } else if (slapi_UTF8NCASECMP(backendstr, "syslog", 6) == 0) {
             backend |= LOGGING_BACKEND_SYSLOG;
 #ifdef WITH_SYSTEMD
-        } else if (slapi_UTF8NCASECMP(backendstr, "journald", 8) ) {
+        } else if (slapi_UTF8NCASECMP(backendstr, "journald", 8) == 0 ) {
             backend |= LOGGING_BACKEND_JOURNALD;
 #endif
         }
@@ -436,20 +433,21 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
 #endif
        ) {
         /* There is probably a better error here .... */
-        retval = LDAP_OPERATIONS_ERROR;
-    } else {
+        return LDAP_OPERATIONS_ERROR;
+    }
+    if ( apply ) {
         /* We have a valid backend, set it */
         /*
          * We just need to use any lock here, doesn't matter which. 
          */
-		LOG_ACCESS_LOCK_WRITE( );
+        LOG_ACCESS_LOCK_WRITE( );
         loginfo.log_backend = backend;
         slapi_ch_free_string(&(slapdFrontendConfig->logging_backend));
         slapdFrontendConfig->logging_backend = slapi_ch_strdup(value);
-		LOG_ACCESS_UNLOCK_WRITE( );
+        LOG_ACCESS_UNLOCK_WRITE( );
     }
 
-    return retval;
+    return LDAP_SUCCESS;
 }
 /******************************************************************************
 * Tell me  the access log file name inc path
@@ -1985,7 +1983,7 @@ slapd_log_audit (
     }
 #ifdef WITH_SYSTEMD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
-        retval = sd_journal_print(LOG_NOTICE, buffer);
+        retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
     }
 #endif
     return retval;
@@ -2044,7 +2042,7 @@ slapd_log_auditfail (
     }
 #ifdef WITH_SYSTEMD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
-        retval = sd_journal_print(LOG_NOTICE, buffer);
+        retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
     }
 #endif
     return retval;

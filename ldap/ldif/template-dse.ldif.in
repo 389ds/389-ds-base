@@ -62,7 +62,7 @@ nsslapd-ndn-cache-enabled: on
 nsslapd-sasl-mapping-fallback: off
 nsslapd-dynamic-plugins: off
 nsslapd-allow-hashed-passwords: off
-nsslapd-logging-backend: 1
+nsslapd-logging-backend: dirsrv-log
 
 dn: cn=features,cn=config
 objectclass: top
