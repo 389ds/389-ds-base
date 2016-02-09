@@ -21,8 +21,8 @@ After=chronyd.service
 Type=notify
 EnvironmentFile=@initconfigdir@/@package_name@
 EnvironmentFile=@initconfigdir@/@package_name@-%i
-ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid -w @localstatedir@/run/@package_name@/slapd-%i.startpid
-ExecStopPost=/bin/rm -f @localstatedir@/run/@package_name@/slapd-%i.pid
+PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
+ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
 # if you need to set other directives e.g. LimitNOFILE=8192
 # set them in this file
 .include @initconfigdir@/@package_name@.systemd
