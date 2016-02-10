@@ -9,7 +9,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 # from clitools import clitools_parser, get_instance_dict, get_rootdn_pass
-from clitools import CliTool, clitools_parser
+from lib389.clitools import CliTool, clitools_parser
 # from lib389 import DirSrv
 from lib389._constants import *
 
@@ -20,8 +20,10 @@ class MonitorTool(CliTool):
             self.populate_instance_dict(self.args.instance)
             self.connect()
             # This is pretty rough, it just dumps the objects
-            for monitor in self.ds.monitor.server():
-                print(monitor)
+            status = self.ds.monitor.server()
+            print ("dn: %s" % status.pop('dn'))
+            for monitor in status:
+                print("%s: %s" % (monitor, status[monitor][0]))
         finally:
             self.disconnect()
 

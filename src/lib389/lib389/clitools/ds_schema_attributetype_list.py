@@ -9,7 +9,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 # from clitools import clitools_parser, get_instance_dict, get_rootdn_pass
-from clitools import CliTool, clitools_parser
+from lib389.clitools import CliTool, clitools_parser
 # from lib389 import DirSrv
 from lib389._constants import *
 import ldap

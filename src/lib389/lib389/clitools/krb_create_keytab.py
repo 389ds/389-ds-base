@@ -8,7 +8,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from clitools import CliTool, clitools_parser
+from lib389.clitools import CliTool, clitools_parser
 from lib389._constants import *
 from lib389.mit_krb5 import MitKrb5
 from argparse import ArgumentParser
@@ -25,7 +25,7 @@ class MitKrb5Tool(CliTool):
 if __name__ == '__main__':
     # Do some arg parse stuff
     # You can always add a child parser here too ...
-    parser = ArgumentParser(parents=[clitools_parser])
+    parser = clitools_parser.add_argument_group('krb', 'kerberos options')
     parser.add_argument('--realm', '-r',
                         help='The name of the realm to create',
                         required=True)
@@ -35,6 +35,6 @@ if __name__ == '__main__':
     parser.add_argument('--keytab', '-k',
                         help='The path to the keytab to create',
                         required=True)
-    args = parser.parse_args()
+    args = clitools_parser.parse_args()
     mittool = MitKrb5Tool(args)
     mittool.mit_krb5_realm_create()

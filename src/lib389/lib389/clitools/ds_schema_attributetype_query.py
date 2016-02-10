@@ -8,7 +8,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from clitools import CliTool, clitools_parser
+from lib389.clitools import CliTool, clitools_parser
 from lib389._constants import *
 import ldap
 from argparse import ArgumentParser

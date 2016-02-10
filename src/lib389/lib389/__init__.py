@@ -1031,11 +1031,10 @@ class DirSrv(SimpleLDAPObject):
             @raise ValueError - if the instance has not the right state
         '''
         # check that DirSrv was in DIRSRV_STATE_ONLINE state
-        if self.state != DIRSRV_STATE_ONLINE:
-            raise ValueError("invalid state for calling close: %s" %
-                             self.state)
+        if self.state == DIRSRV_STATE_ONLINE:
+            # Don't raise an error. Just move the state and return
+            SimpleLDAPObject.unbind(self)
 
-        SimpleLDAPObject.unbind(self)
         self.state = DIRSRV_STATE_OFFLINE
 
     def start(self, timeout):
