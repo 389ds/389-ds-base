@@ -317,6 +317,13 @@ acl_access_allowed(
 		goto cleanup_and_ret;
 	}
 
+	if (pb != aclpb->aclpb_pblock) {
+		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		                "acl_access_allowed: Resetting aclpb_pblock 0x%x to pblock addr 0x%x\n",
+		                aclpb->aclpb_pblock, pb);
+		aclpb->aclpb_pblock = pb;
+	}
+
 	if ( !aclpb->aclpb_curr_entry_sdn ) {
 		slapi_log_error	( SLAPI_LOG_FATAL, plugin_name,	 "NULL aclpb_curr_entry_sdn \n" );
 		ret_val	= LDAP_OPERATIONS_ERROR;
@@ -931,6 +938,13 @@ acl_read_access_allowed_on_entry (
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_entry_end ,"ACL","",
 							tnf_string,end,"aclpb error");
 		return LDAP_OPERATIONS_ERROR;
+	}
+	 
+	if (pb != aclpb->aclpb_pblock) {
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		                "acl_read_access_allowed_on_entry: Resetting aclpb_pblock 0x%x to pblock addr 0x%x\n",
+		                aclpb->aclpb_pblock, pb);
+		aclpb->aclpb_pblock = pb;
 	}
 
 	/*
