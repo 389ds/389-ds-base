@@ -189,6 +189,9 @@ attr_syntax_check_oids()
 void
 attr_syntax_free( struct asyntaxinfo *a )
 {
+	if (!a) {
+		return;
+	}
 	cool_charray_free( a->asi_aliases );
 	slapi_ch_free_string(&a->asi_name );
 	slapi_ch_free_string(&a->asi_desc );
