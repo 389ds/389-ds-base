@@ -263,6 +263,9 @@ static PRCallOnceType schema_dse_mandatory_init_callonce = { 0, 0, 0 };
 static int parse_at_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf, size_t errorbufsize,
         PRUint32 schema_flags, int is_user_defined, int schema_ds4x_compat, int is_remote)
 {
+    if (asipp) {
+        *asipp = NULL;
+    }
 #ifdef USE_OPENLDAP
     return parse_attr_str(input, asipp, errorbuf, errorbufsize, schema_flags, is_user_defined,schema_ds4x_compat,is_remote);
 #else
@@ -274,6 +277,9 @@ static int parse_oc_str(const char *input, struct objclass **oc, char *errorbuf,
 		size_t errorbufsize, PRUint32 schema_flags, int is_user_defined,
 		int schema_ds4x_compat, struct objclass* private_schema )
 {
+    if (oc) {
+        *oc = NULL;
+    }
 #ifdef USE_OPENLDAP
     return parse_objclass_str (input, oc, errorbuf, errorbufsize, schema_flags, is_user_defined, schema_ds4x_compat, private_schema );
 #else
@@ -7146,11 +7152,15 @@ schema_berval_to_oclist(struct berval **oc_berval)
         oc_list = NULL;
         oc_tail = NULL;
         if (oc_berval != NULL) {
+                errorbuf[0] = '\0';
                 for (i = 0; oc_berval[i] != NULL; i++) {
                         /* parse the objectclass value */
                         if (LDAP_SUCCESS != (rc = parse_oc_str(oc_berval[i]->bv_val, &oc,
                                 errorbuf, sizeof (errorbuf), DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0,
                                 schema_ds4x_compat, oc_list))) {
+                                slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                                                "parse_oc_str returned error: %s\n",
+                                                errorbuf[0]?errorbuf:"unknown");
                                 oc_free(&oc);
                                 rc = 1;
                                 break;
@@ -7184,11 +7194,15 @@ schema_berval_to_atlist(struct berval **at_berval)
     schema_ds4x_compat = config_get_ds4_compatible_schema();
 
     if (at_berval != NULL) {
+        errorbuf[0] = '\0';
         for (i = 0; at_berval[i] != NULL; i++) {
             /* parse the objectclass value */
             rc = parse_at_str(at_berval[i]->bv_val, &at, errorbuf, sizeof (errorbuf),
                     DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0, schema_ds4x_compat, 0);
-            if(rc){
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "schema",
+                                "parse_oc_str returned error: %s\n",
+                                errorbuf[0]?errorbuf:"unknown");
                 attr_syntax_free(at);
                 break;
             }
