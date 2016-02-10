@@ -319,7 +319,7 @@ acl_access_allowed(
 
 	if (pb != aclpb->aclpb_pblock) {
 		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
-		                "acl_access_allowed: Resetting aclpb_pblock 0x%x to pblock addr 0x%x\n",
+		                "acl_access_allowed: Resetting aclpb_pblock %p to pblock addr %p\n",
 		                aclpb->aclpb_pblock, pb);
 		aclpb->aclpb_pblock = pb;
 	}
@@ -942,7 +942,7 @@ acl_read_access_allowed_on_entry (
 	 
 	if (pb != aclpb->aclpb_pblock) {
 		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
-		                "acl_read_access_allowed_on_entry: Resetting aclpb_pblock 0x%x to pblock addr 0x%x\n",
+		                "acl_read_access_allowed_on_entry: Resetting aclpb_pblock %p to pblock addr %p\n",
 		                aclpb->aclpb_pblock, pb);
 		aclpb->aclpb_pblock = pb;
 	}
