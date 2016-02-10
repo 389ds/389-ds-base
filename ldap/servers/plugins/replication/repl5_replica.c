@@ -3776,7 +3776,6 @@ replica_enable_replication (Replica *r)
         /* What to do ? */
     }
 
-    replica_subentry_check(r->repl_root, replica_get_rid(r));
     /* Replica came back online, Check if the total update was terminated.
        If flag is still set, it was not terminated, therefore the data is
        very likely to be incorrect, and we should not restart Replication threads...
