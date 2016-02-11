@@ -30,7 +30,7 @@ if test "$with_systemd" = yes; then
         systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-journal libsystemd-daemon`
         systemd_defs="-DWITH_SYSTEMD"
     else
-        AC_MSG_RESULT([no Systemd pkg-config files])
+        AC_MSG_ERROR([no Systemd pkg-config files])
     fi
 
 fi
