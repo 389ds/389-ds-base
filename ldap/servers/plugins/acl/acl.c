@@ -2460,7 +2460,7 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		((aclpb->aclpb_access & SLAPI_ACL_DELETE) && 
 		 (aci->aci_type & ACI_TARGET_ATTR_DEL_FILTERS) ) ) {
 		
-			Targetattrfilter **attrFilterArray;
+			Targetattrfilter **attrFilterArray = NULL;
 
 			Targetattrfilter	*attrFilter = NULL;
 
