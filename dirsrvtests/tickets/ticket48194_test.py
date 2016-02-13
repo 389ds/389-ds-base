@@ -22,8 +22,6 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 RSA = 'RSA'
@@ -46,11 +44,8 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
 
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
+    # Creating standalone instance ...
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance
@@ -86,7 +81,7 @@ def _header(topology, label):
     topology.standalone.log.info("###############################################")
 
 
-def test_ticket48194_init(topology):
+def my_test_init(topology):
     """
     Generate self signed cert and import it to the DS cert db.
     Enable SSL
@@ -208,7 +203,7 @@ def connectWithOpenssl(topology, cipher, expect):
                     proc.stdin.close()
                     assert False
 
-def test_ticket48194_run_0(topology):
+def my_test_run_0(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -225,7 +220,7 @@ def test_ticket48194_run_0(topology):
     connectWithOpenssl(topology, 'RC4-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def test_ticket48194_run_1(topology):
+def my_test_run_1(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -247,7 +242,7 @@ def test_ticket48194_run_1(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def test_ticket48194_run_2(topology):
+def my_test_run_2(topology):
     """
     Check nsSSL3Ciphers: +rsa_aes_128_sha,+rsa_aes_256_sha
     rsa_aes_128_sha, tls_rsa_aes_128_sha, rsa_aes_256_sha, tls_rsa_aes_256_sha are enabled.
@@ -269,7 +264,7 @@ def test_ticket48194_run_2(topology):
     connectWithOpenssl(topology, 'AES128-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA', True)
 
-def test_ticket48194_run_3(topology):
+def my_test_run_3(topology):
     """
     Check nsSSL3Ciphers: -all
     All ciphers are disabled.
@@ -289,7 +284,7 @@ def test_ticket48194_run_3(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
-def test_ticket48194_run_4(topology):
+def my_test_run_4(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -309,7 +304,7 @@ def test_ticket48194_run_4(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def test_ticket48194_run_5(topology):
+def my_test_run_5(topology):
     """
     Check nsSSL3Ciphers: default
     Default ciphers are enabled.
@@ -329,7 +324,7 @@ def test_ticket48194_run_5(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def test_ticket48194_run_6(topology):
+def my_test_run_6(topology):
     """
     Check nsSSL3Ciphers: +all,-TLS_RSA_WITH_AES_256_CBC_SHA256 
     All ciphers are disabled.
@@ -350,7 +345,7 @@ def test_ticket48194_run_6(topology):
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'AES128-SHA', True)
 
-def test_ticket48194_run_7(topology):
+def my_test_run_7(topology):
     """
     Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5
     All ciphers are disabled.
@@ -371,7 +366,7 @@ def test_ticket48194_run_7(topology):
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'RC4-MD5', True)
 
-def test_ticket48194_run_8(topology):
+def my_test_run_8(topology):
     """
     Check nsSSL3Ciphers: default + allowWeakCipher: off
     Strong Default ciphers are enabled.
@@ -391,7 +386,7 @@ def test_ticket48194_run_8(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def test_ticket48194_run_9(topology):
+def my_test_run_9(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -414,7 +409,7 @@ def test_ticket48194_run_9(topology):
     connectWithOpenssl(topology, 'RC4-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def test_ticket48194_run_10(topology):
+def my_test_run_10(topology):
     """
     Check nsSSL3Ciphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
         +TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
@@ -443,7 +438,7 @@ def test_ticket48194_run_10(topology):
     connectWithOpenssl(topology, 'RC4-MD5', True)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
-def test_ticket48194_run_11(topology):
+def my_test_run_11(topology):
     """
     Check nsSSL3Ciphers: +fortezza
     SSL_GetImplementedCiphers does not return this as a secuire cipher suite
@@ -462,38 +457,36 @@ def test_ticket48194_run_11(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
-def test_ticket48194_final(topology):
+def my_test_final(topology):
     topology.standalone.delete()
     log.info('Testcase PASSED')
 
-def run_isolated():
+def test_ticket48194(topology):
     '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
+    run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
+    To run isolated without py.test, you need to
+      - edit this file and comment '@pytest.fixture' line before 'topology' function.
+      - set the installation prefix
+      - run this program
     '''
-    global installation_prefix
-    installation_prefix = None
 
-    topo = topology(True)
-    test_ticket48194_init(topo)
-
-    test_ticket48194_run_0(topo)
-    test_ticket48194_run_1(topo)
-    test_ticket48194_run_2(topo)
-    test_ticket48194_run_3(topo)
-    test_ticket48194_run_4(topo)
-    test_ticket48194_run_5(topo)
-    test_ticket48194_run_6(topo)
-    test_ticket48194_run_7(topo)
-    test_ticket48194_run_8(topo)
-    test_ticket48194_run_9(topo)
-    test_ticket48194_run_10(topo)
-    test_ticket48194_run_11(topo)
-
-    test_ticket48194_final(topo)
+    my_test_init(topology)
+    my_test_run_0(topology)
+    my_test_run_1(topology)
+    my_test_run_2(topology)
+    my_test_run_3(topology)
+    my_test_run_4(topology)
+    my_test_run_5(topology)
+    my_test_run_6(topology)
+    my_test_run_7(topology)
+    my_test_run_8(topology)
+    my_test_run_9(topology)
+    my_test_run_10(topology)
+    my_test_run_11(topology)
+    my_test_final(topology)
 
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
