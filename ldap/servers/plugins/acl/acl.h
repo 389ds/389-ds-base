@@ -822,7 +822,7 @@ void 		acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb,
 								const char *dn, int copy_from_aclcb);
 int 		acl_create_aclpb_pool ();
 void        acl_destroy_aclpb_pool ();
-int			acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e );
+int		acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e, int access );
 
 int			aclext_alloc_lockarray ();
 void		aclext_free_lockarray();

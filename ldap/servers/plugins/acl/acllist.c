@@ -611,7 +611,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 	char				*basedn = NULL;
 	int					index;
 
-	if ( acl_skip_access_check ( pb, NULL ) ) {
+	if ( acl_skip_access_check ( pb, NULL, 0 ) ) {
 		return;
 	}
 

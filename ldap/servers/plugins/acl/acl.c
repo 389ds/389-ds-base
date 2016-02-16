@@ -287,7 +287,7 @@ acl_access_allowed(
 	
 	/* Check for things we need to skip */
 	TNF_PROBE_0_DEBUG(acl_skipaccess_start,"ACL","");
-	if (  acl_skip_access_check ( pb, e )) {
+	if (  acl_skip_access_check ( pb, e, access )) {
 		slapi_log_error	(loglevel,	plugin_name,
 				"conn=%" NSPRIu64 " op=%d (main): Allow %s on entry(%s)"
 				": root user\n", 
@@ -921,7 +921,7 @@ acl_read_access_allowed_on_entry (
 	** If it's the root, or acl is off or the entry is a rootdse, 
 	** Then you have the privilege to read it.
 	*/
-	if ( acl_skip_access_check ( pb, e ) ) {
+	if ( acl_skip_access_check ( pb, e, access ) ) {
 		char   *n_edn =  slapi_entry_get_ndn ( e );
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			  "Root access (%s) allowed on entry(%s)\n",
@@ -1227,7 +1227,7 @@ acl_read_access_allowed_on_attr (
 	n_edn =  slapi_entry_get_ndn ( e );
 
 	/* If it's the root or acl is off or rootdse, he has all the priv */
-	if ( acl_skip_access_check ( pb, e ) ) {
+	if ( acl_skip_access_check ( pb, e, access ) ) {
 		slapi_log_error (SLAPI_LOG_ACL, plugin_name, 
 			  "Root access (%s) allowed on entry(%s)\n",
 			   acl_access2str(access), 
@@ -4053,14 +4053,17 @@ acl__get_attrEval ( struct acl_pblock *aclpb, char *attr )
  * 
  */
 int
-acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e )
+acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e, int access )
 {
 	int				rv, isRoot, accessCheckDisabled;
 	void			*conn = NULL;
 	Slapi_Backend	*be;   
+	struct	acl_pblock	*aclpb =  NULL;
 
 	slapi_pblock_get ( pb, SLAPI_REQUESTOR_ISROOT, &isRoot );
-	if ( isRoot ) return ACL_TRUE;
+	/* need to check if root is proying another user */
+	aclpb =	acl_get_aclpb (	pb, ACLPB_PROXYDN_PBLOCK );
+	if ( isRoot && ((access &SLAPI_ACL_PROXY) || !aclpb)) return ACL_TRUE;
 
 	/* See  if this is local request */
 	slapi_pblock_get ( pb, SLAPI_CONNECTION, &conn);

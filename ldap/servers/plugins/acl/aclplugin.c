@@ -110,14 +110,22 @@ aclplugin_preop_search ( Slapi_PBlock *pb )
 	Slapi_DN	*sdn = NULL;
 	int			optype;
 	int			isRoot;
+	int			isProxy = 0;
 	int			rc = 0;
+	char *errtxt = NULL;
+	char *proxy_dn = NULL;
 			
 	TNF_PROBE_0_DEBUG(aclplugin_preop_search_start ,"ACL","");
 
 	slapi_pblock_get ( pb, SLAPI_OPERATION_TYPE, &optype );
 	slapi_pblock_get ( pb, SLAPI_REQUESTOR_ISROOT, &isRoot );
 
-	if ( isRoot ) {
+	if (LDAP_SUCCESS == proxyauth_get_dn(pb, &proxy_dn, &errtxt) && proxy_dn) {
+		isProxy = 1;
+		slapi_ch_free_string(&proxy_dn);
+	}
+
+	if ( isRoot && !isProxy) {
 		TNF_PROBE_1_DEBUG(aclplugin_preop_search_end ,"ACL","",
 							tnf_string,isroot,"");
 		return rc;
