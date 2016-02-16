@@ -311,6 +311,9 @@ def test_setProperties(topology):
     assert properties[RA_SCHEDULE][0] == test_schedule
     assert properties[RA_DESCRIPTION][0] == test_desc
 
+    # Set RA Schedule back to "always"
+    topology.master.agreement.schedule(ents[0].dn, Agreement.ALWAYS)
+
 
 def test_changes(topology):
     """Test the changes counter behaviour after making some changes
