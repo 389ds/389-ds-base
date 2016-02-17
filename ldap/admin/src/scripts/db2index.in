@@ -52,12 +52,6 @@ do
     esac
 done
 
-if [ -z $benameopt ] && [ -z $includeSuffix ]
-then
-    usage
-    exit 1;
-fi
-
 initfile=$(get_init_file "@initconfigdir@" $servid)
 if [ $? -eq 1 ]
 then
@@ -67,17 +61,32 @@ then
     exit 1
 fi
 
+idxall=0
+print_usage=0
+if [ -z $servid ] && [ $# -eq 0 ]; then
+    idxall=1
+elif [ "$servid" ] && [ $# -eq 2 ]; then
+    idxall=1
+elif [ -z $benameopt ] && [ -z $includeSuffix ]; then
+    print_usage=1
+fi
+if [ -z $servid ] && [ $# -lt 2 ]; then
+    print_usage=1
+elif [ "$servid" ] && [ $# -lt 4 ]; then
+    print_usage=1
+fi
+
 servid=`normalize_server_id $initfile`
 . $initfile
 
-if [ $# -eq 0 ]
+if [ $idxall -eq 1 ]
 then
     bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
-    @sbindir@/ns-slapd upgradedb -D $CONFIG_DIR -a "$bak_dir"
-elif [ $# -lt 2 ]
+    @sbindir@/ns-slapd upgradedb -D $CONFIG_DIR -a "$bak_dir" -f |& egrep -v "util_info_sys_page|check_and_set_import_cache|WARNING|Backing up" | sed -e "s/upgrade DB/Reindex/" | sed -e "s/upgradedb/reindexing/"
+elif [ $print_usage -eq 1 ]
 then
     usage
     exit 1
 else
-    eval @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args
+    eval @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args |& egrep -v "util_info_sys_page|check_and_set_import_cache|WARNING|Backing up" | sed -e "s/upgrade DB/Reindex/" | sed -e "s/upgradedb/reindexing/"
 fi
