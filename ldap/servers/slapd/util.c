@@ -1717,7 +1717,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
     /* This is stupid. If you set %u to %zu to print a size_t, you get literal %zu in your logs 
      * So do the filthy cast instead.
      */
-    slapi_log_error(SLAPI_LOG_FATAL,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
+    slapi_log_error(SLAPI_LOG_TRACE,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
         (unsigned long)*pages, (unsigned long)*procpages, (unsigned long)*availpages);
     return 0;
 

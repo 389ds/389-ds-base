@@ -690,13 +690,15 @@ import_producer(void *param)
         }
 
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-        if (newesize > job->fifo.bsize) {    /* entry too big */
-            import_log_notice(job, "WARNING: skipping entry \"%s\" "
+        /* Check to see if we have the space in the fifo */
+        /* If not, make it bigger if possible */
+        if (import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
+            import_log_notice(job, "CRITICAL: skipping entry \"%s\" "
                     "ending line %d of file \"%s\"",
                     slapi_entry_get_dn(e),
                     curr_lineno, curr_filename);
             import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
+                    "the buffer size (%lu bytes), and we were UNABLE to expand buffer.", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -822,11 +824,11 @@ index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e,
     }
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-    if (newesize > job->fifo.bsize) {    /* entry too big */
-        import_log_notice(job, "WARNING: skipping entry \"%s\"",
+    if (import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
+        import_log_notice(job, "CRITICAL: skipping entry \"%s\"",
                     slapi_entry_get_dn(e));
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
+                    "the buffer size (%lu bytes), and we were UNABLE to expand buffer.", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_free(&ep);
         job->skipped++;
         rc = 0; /* go to the next loop */
@@ -2100,11 +2102,11 @@ upgradedn_producer(void *param)
         }
 
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-        if (newesize > job->fifo.bsize) {    /* entry too big */
+        if (import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
             import_log_notice(job, "WARNING: skipping entry \"%s\"",
                     slapi_entry_get_dn(e));
             import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the buffer size (%lu bytes)", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
+                    "the buffer size (%lu bytes), and we were UNABLE to expand buffer.", (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
             backentry_free(&ep);
             job->skipped++;
             continue;
@@ -3319,12 +3321,10 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     }
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-    if (newesize > job->fifo.bsize) {    /* entry too big */
+    if (import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
         import_log_notice(job, "REASON: entry too large (%lu bytes) for "
-                    "the effective import buffer size (%lu bytes). "
-                    "Try increasing nsslapd-cachememsize for the backend instance \"%s\".",
-                    (long unsigned int)newesize, (long unsigned int)job->fifo.bsize,
-                    job->inst->inst_name);
+                    "the effective import buffer size (%lu bytes), and we were UNABLE to expand buffer. ",
+                    (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_clear_entry(ep);      /* entry is released in the frontend on failure*/
         backentry_free( &ep );          /* release the backend wrapper, here */
         PR_Unlock(job->wire_lock);

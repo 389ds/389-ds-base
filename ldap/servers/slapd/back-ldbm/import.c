@@ -44,11 +44,11 @@ static int import_fifo_init(ImportJob *job)
     job->fifo.size = inst->inst_cache.c_maxsize / 1024;    /* guess */
 
     /* byte limit that should be respected to avoid memory starvation */
-    /* conservative computing: multiply by .8 to allow for reasonable overflow */
-    job->fifo.bsize = (inst->inst_cache.c_maxsize/10) << 3;
+    /* Rather than cachesize * .8, we set it to cachesize for clarity */
+    job->fifo.bsize = inst->inst_cache.c_maxsize;
 
     job->fifo.c_bsize = 0;
-    
+
     if (job->fifo.size > MAX_FIFO_SIZE)
     job->fifo.size = MAX_FIFO_SIZE;
     /* has to be at least 1 or 2, and anything less than about 100 destroys
@@ -67,6 +67,45 @@ static int import_fifo_init(ImportJob *job)
     return -1;
     }
     return 0;
+}
+
+/*
+ * import_fifo_validate_capacity_or_expand
+ *
+ * This is used to check if the capacity of the fifo is able to accomodate
+ * the entry of the size entrysize. If it is enable to hold the entry the
+ * fifo buffer is automatically expanded.
+ *
+ * \param job The ImportJob queue
+ * \param entrysize The size to check for
+ *
+ * \return int: If able to hold the entry, returns 0. If unable to, but resize was sucessful, so now able to hold the entry, 0. If unable to hold the entry and unable to resize, 1.
+ */
+int import_fifo_validate_capacity_or_expand(ImportJob *job, int entrysize) {
+    int result = 1;
+    /* We shoot for four times as much to start with. */
+    size_t request = entrysize * 4;
+    int sane = 0;
+
+    if (entrysize > job->fifo.bsize) {
+        /* Check the amount of memory on the system */
+        sane = util_is_cachesize_sane(&request);
+        if (!sane && entrysize <= request) {
+            /* Did the amount cachesize set still exceed entrysize? It'll do ... */
+            job->fifo.bsize = request;
+            result = 0;
+        } else if (!sane) {
+            /* Can't allocate! No!!! */
+            result = 1;
+        } else {
+            /* Our request was okay, go ahead .... */
+            job->fifo.bsize = request;
+            result = 0;
+        }
+    } else {
+        result = 0;
+    }
+    return result;
 }
 
 FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
