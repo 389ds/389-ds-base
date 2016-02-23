@@ -217,6 +217,49 @@ Execution parameters:
 .br
 \fBrandomauthidhigh=value\fR high value for random SASL Authid.
 .PP
+.SH EXAMPLES
+To populate a database with 1000 user objects create a file template.ldif containing:
+.PP
+.nf
+.RS
+objectClass: top
+objectclass: person
+objectClass: organizationalPerson
+objectClass: inetorgperson
+objectClass: posixAccount
+objectClass: shadowAccount
+sn: user[A]
+cn: user[A]
+givenName: user[A]
+description: description[A]
+userPassword: password[A]
+mail: user[A]@example.com
+uidNumber: 1[A]
+gidNumber: 1[A]
+shadowMin: 0
+shadowMax: 99999
+shadowInactive: 30
+shadowWarning: 7
+homeDirectory: /home/uid[A]
+.RE
+.fi
+.PP
+This can now be loaded to the database using:
+.PP
+.nf
+.RS
+ldclt -h localhost -p 389 -D "cn=Directory Manager" -w password -b "ou=people,dc=example,dc=com" -I 68 -e add,commoncounter -e "object=/tmp/template.ldif,rdn=uid:user[A=INCRNNOLOOP(0;999;4)]"
+.RE
+.fi
+.PP
+Using these created users you can test binding to the accounts with:
+.PP
+.nf
+.RS
+ldclt -h localhost -p 389 -e bindeach,bindonly -D uid=user0XXX,dc=example,dc=com -w password0XXX -e randombinddn,randombinddnlow=0,randombinddnhigh=0999 -e esearch -f "(&(objectClass=posixAccount)(uid=user*)(uidNumber=*)(gidNumber=*))"
+.RE
+.fi
+.PP
 .SH AUTHOR
 ldclt was written by the 389 Project.
 .SH "REPORTING BUGS"
