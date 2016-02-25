@@ -1704,6 +1704,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
 #if defined(__LP64__) || defined (_LP64)
 #else
     {    
+#define GIGABYTE (1024*1024*1024)
         size_t one_gig_pages = GIGABYTE / *pagesize;
         if (*pages > (2 * one_gig_pages) ) {
             LDAPDebug(LDAP_DEBUG_TRACE,"More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
