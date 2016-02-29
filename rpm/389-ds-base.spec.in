@@ -15,7 +15,7 @@
 # To build without nunc-stans, set use_nunc_stans to 0.
 %global use_nunc_stans __NUNC_STANS_ON__
 %if 0%{?use_nunc_stans:1}
-%global nunc_stans_ver 0.1.7
+%global nunc_stans_ver 0.1.8
 %endif
 
 # Are we bundling jemalloc?
