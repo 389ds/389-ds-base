@@ -15,7 +15,7 @@
 [Unit]
 Description=@capbrand@ Directory Server %i.
 PartOf=@systemdgroupname@
-After=chronyd.service
+After=chronyd.service network.service
 
 [Service]
 Type=notify
