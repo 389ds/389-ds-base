@@ -47,8 +47,8 @@ def topology(request):
     standalone.clearTmpDir(__file__)
 
     def fin():
-        topology.standalone.delete()
-        sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
+        standalone.delete()
+        sbin_dir = get_sbin_dir(prefix=standalone.prefix)
         valgrind_disable(sbin_dir)
     request.addfinalizer(fin)
 
