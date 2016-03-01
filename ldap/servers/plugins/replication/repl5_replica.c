@@ -476,7 +476,7 @@ replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
                     "Need to create replication keep alive entry <cn=%s %d,%s>\n", KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
             rc = replica_subentry_create(repl_root, rid);
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
                     "replication keep alive entry <cn=%s %d,%s> already exists\n", KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
             rc = 0;
         }
