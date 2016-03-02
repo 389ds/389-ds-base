@@ -165,41 +165,44 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
 		}
 		else
 		{
-		    /* call each plugin, until one is able to handle this request. */
-		    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
-		    for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next)
-		    {
+		    /* look for a new syntax-style mr plugin */
+			struct slapdplugin* pi = plugin_mr_find(oid);
+			rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+
+			/* register that plugin at the condition it has a createFn/index/indexSvFn */
+			if (pi) {
 				IFP indexFn = NULL;
+				IFP indexSvFn = NULL;
 				Slapi_PBlock pb;
-				memcpy (&pb, opb, sizeof(Slapi_PBlock));
-				if (!(rc = slapi_pblock_set (&pb, SLAPI_PLUGIN, mrp)) &&
-				    !(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) &&
-				    createFn != NULL &&
-				    !(rc = createFn (&pb)) &&
-					((!(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn)) &&
-					 indexFn != NULL) ||
-					 (!(rc = slapi_pblock_get (&pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexFn)) &&
-					  indexFn != NULL)))
-				{
-				    /* Success: this plugin can handle it. */
-				    memcpy (opb, &pb, sizeof(Slapi_PBlock));
-				    plugin_mr_bind (oid, mrp); /* for future reference */
-					rc = 0; /* success */
-				    break;
-				}
-		    }
-			if (rc != 0) {
-				/* look for a new syntax-style mr plugin */
-				struct slapdplugin *pi = plugin_mr_find(oid);
-				if (pi) {
-					Slapi_PBlock pb;
-					memcpy (&pb, opb, sizeof(Slapi_PBlock));
-					slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
-					rc = default_mr_indexer_create(&pb);
-					if (!rc) {
-						memcpy (opb, &pb, sizeof(Slapi_PBlock));
-						plugin_mr_bind (oid, pi); /* for future reference */
+
+				memcpy(&pb, opb, sizeof (Slapi_PBlock));
+				slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
+				slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn);
+				if (createFn && !createFn(&pb)) {
+					/* we need to call the createFn before testing the indexFn/indexSvFn
+					 * because it sets the index callbacks
+					 */
+					slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn);
+					slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexSvFn);
+					if (indexFn || indexSvFn) {
+						/* Use the defined indexer_create function if it exists */
+						memcpy(opb, &pb, sizeof (Slapi_PBlock));
+						plugin_mr_bind(oid, pi); /* for future reference */
+						rc = 0; /* success */
 					}
+				}
+			}
+			if (pi && (rc != 0)) {
+				/* No defined indexer_create or it fails
+				 * Let's use the default one
+				 */
+				Slapi_PBlock pb;
+				memcpy(&pb, opb, sizeof (Slapi_PBlock));
+				slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
+				rc = default_mr_indexer_create(&pb);
+				if (!rc) {
+					memcpy(opb, &pb, sizeof (Slapi_PBlock));
+					plugin_mr_bind(oid, pi); /* for future reference */
 				}
 			}
 		}
@@ -289,8 +292,14 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock* pb)
 		slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals);
 		/* we have to save out_vals to free next time or during destroy */
 		slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
-		mr_private_indexer_done(mrpriv); /* free old vals, if any */
-		mrpriv->sva = out_vals; /* save pointer for later */
+		
+		/* In case SLAPI_PLUGIN_OBJECT is not set 
+		 * (e.g. custom index/filter create function did not initialize it
+		 */
+		if (mrpriv) {
+			mr_private_indexer_done(mrpriv); /* free old vals, if any */
+			mrpriv->sva = out_vals; /* save pointer for later */
+		}
 		rc = 0;
 	}
 	return rc;
@@ -326,8 +335,14 @@ mr_wrap_mr_index_fn(Slapi_PBlock* pb)
 	   get freed by mr_private_indexer_done() */
 	/* we have to save out_vals to free next time or during destroy */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
-	mr_private_indexer_done(mrpriv); /* free old vals, if any */
-	mrpriv->bva = out_vals; /* save pointer for later */
+
+	/* In case SLAPI_PLUGIN_OBJECT is not set 
+	 * (e.g. custom index/filter create function did not initialize it
+	 */
+	if (mrpriv) {
+		mr_private_indexer_done(mrpriv); /* free old vals, if any */
+		mrpriv->bva = out_vals; /* save pointer for later */
+	}
 	/* set return value berval array for caller */
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals);
 
@@ -356,6 +371,11 @@ default_mr_filter_match(void *obj, Slapi_Entry *e, Slapi_Attr *attr)
  */
 	int rc = -1;
 	struct mr_private* mrpriv = (struct mr_private*)obj;
+	
+	/* In case SLAPI_PLUGIN_OBJECT is not set, mrpriv may be NULL */
+	if (mrpriv == NULL)
+		return rc;
+	
     for (; (rc == -1) && (attr != NULL); slapi_entry_next_attr(e, attr, &attr)) {
 		char* type = NULL;
 		if (!slapi_attr_get_type (attr, &type) && type != NULL &&
@@ -382,6 +402,22 @@ default_mr_filter_index(Slapi_PBlock *pb)
 	struct mr_private* mrpriv = NULL;
 
 	slapi_pblock_get(pb, SLAPI_PLUGIN_OBJECT, &mrpriv);
+	
+		/* In case SLAPI_PLUGIN_OBJECT is not set 
+	 * (e.g. custom index/filter create function did not initialize it
+	 */
+	if (mrpriv == NULL) {
+		char* mrOID = NULL;
+		char* mrTYPE = NULL;
+		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID);
+		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
+
+		slapi_log_error(SLAPI_LOG_FATAL, "default_mr_filter_index",
+				"Failure because mrpriv is NULL : %s %s\n",
+				mrOID ? "" : " oid",
+				mrTYPE ? "" : " attribute type");
+		return -1;
+	}	
 
 	slapi_pblock_set(pb, SLAPI_PLUGIN, (void *)mrpriv->pi);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_TYPE, (void *)mrpriv->type);
@@ -544,19 +580,7 @@ plugin_mr_filter_create (mr_filter_t* f)
     {
 		rc = attempt_mr_filter_create (f, mrp, &pb);
     }
-    else
-    {
-		/* call each plugin, until one is able to handle this request. */
-		for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next)
-		{
-		    if (!(rc = attempt_mr_filter_create (f, mrp, &pb)))
-		    {
-				plugin_mr_bind (f->mrf_oid, mrp); /* for future reference */
-				break;
-		    }
-		}
-    }
-    if (rc)
+    if (!mrp || rc)
     {
 		/* look for a new syntax-style mr plugin */
 		mrp = plugin_mr_find(f->mrf_oid);
