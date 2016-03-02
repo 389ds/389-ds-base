@@ -18,9 +18,11 @@ from lib389._constants import *
 
 class CliTool(object):
     def __init__(self, args=None):
-        self.ds = DirSrv()
         if args is not None:
             self.args = args
+            self.ds = DirSrv(verbose=args.verbose)
+        else:
+            self.ds = DirSrv()
 
     def populate_instance_dict(self, instance):
         insts = self.ds.list(serverid=instance)
@@ -38,10 +40,12 @@ class CliTool(object):
             binddn = self.args.binddn
         # There is a dict get key thing somewhere ...
         if self.inst.get(SER_ROOT_PW, None) is None:
+            print("")
             prompt_txt = ('Enter password for %s on instance %s: ' %
                           (binddn,
                            self.inst[SER_SERVERID_PROP]))
             self.inst[SER_ROOT_PW] = getpass(prompt_txt)
+            print("")
         return
 
     def connect(self):
@@ -68,6 +72,7 @@ def _clitools_parser():
     parser.add_argument('-D', '--binddn',
                         help='The bind dn to use for operations. Defaults to ' +
                              'rooddn', default=None)
+    parser.add_argument('-v', '--verbose', help="Display verbose debug information", action='store_true', default=False)
     return parser
 
 clitools_parser = _clitools_parser()

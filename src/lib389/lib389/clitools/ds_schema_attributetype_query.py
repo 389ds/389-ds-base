@@ -22,9 +22,11 @@ class SchemaTool(CliTool):
             attributetype, must, may = \
                 self.ds.schema.query_attributetype(self.args.attributetype)
             print(attributetype)
+            print("")
             print('MUST')
             for objectclass in must:
                 print(objectclass)
+            print("")
             print('MAY')
             for objectclass in may:
                 print(objectclass)
@@ -34,11 +36,11 @@ class SchemaTool(CliTool):
 if __name__ == '__main__':
     # Do some arg parse stuff
     # You can always add a child parser here too ...
-    parser = ArgumentParser(parents=[clitools_parser])
+    parser = clitools_parser.add_argument_group('schema', 'schema options')
     parser.add_argument('--attributetype',
                         '-a',
                         help='The name of the attribute type to query',
                         required=True)
-    args = parser.parse_args()
+    args = clitools_parser.parse_args()
     schematool = SchemaTool(args)
     schematool.schema_attributetype_query()

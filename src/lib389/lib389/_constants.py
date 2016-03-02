@@ -505,20 +505,4 @@ args_instance = {SER_DEPLOYED_DIR: os.environ.get('PREFIX', None),
                  SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
 
 # Helper for linking dse.ldif values to the parse_config function
-<<<<<<< HEAD
-args_dse_keys = {SER_HOST: 'nsslapd-localhost',
-                 SER_PORT: 'nsslapd-port',
-                 SER_SECURE_PORT: 'nsslapd-secureport',
-                 SER_ROOT_DN: 'nsslapd-rootdn',
-                 SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
-                 SER_USER_ID: 'nsslapd-localuser'}
-=======
 args_dse_keys = SER_PROPNAME_TO_ATTRNAME
-#                {SER_HOST: 'nsslapd-localhost',
-#                 SER_PORT: 'nsslapd-port',
-#                 SER_SECURE_PORT: 'nsslapd-secureport',
-#                 SER_ROOT_DN: 'nsslapd-rootdn',
-#                 SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
-#                 SER_USER_ID: 'nsslapd-localuser',
-#                 }
->>>>>>> cee015a... Ticket 48751 - Improve lib389 ldapi support

@@ -15,10 +15,14 @@ from clitools import CliTool
 class ListTool(CliTool):
     def list_instances(self):
         # Remember, the prefix can be set with the os environment
-        instances = self.ds.list(all=True)
-        print('Instances on this system:')
-        for instance in instances:
-            print(instance[CONF_SERVER_ID])
+        try:
+            instances = self.ds.list(all=True)
+            print('Instances on this system:')
+            for instance in instances:
+                print(instance[CONF_SERVER_ID])
+        except IOError as e:
+            print(e)
+            print("Perhaps you need to be a different user?")
 
 if __name__ == '__main__':
     listtool = ListTool()

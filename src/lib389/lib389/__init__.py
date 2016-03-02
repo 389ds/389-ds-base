@@ -535,6 +535,11 @@ class DirSrv(SimpleLDAPObject):
         self.agmt = {}
 
         self.state = DIRSRV_STATE_ALLOCATED
+        if self.verbose:
+            self.log.info("Allocate %s with %s:%s" % (self.__class__,
+                                                      self.host,
+                                                      (self.sslport or
+                                                       self.port)))
 
     def openConnection(self, saslmethod=None, certdir=None):
         # Open a new connection to our LDAP server
@@ -686,7 +691,6 @@ class DirSrv(SimpleLDAPObject):
                                         did not find it.
             '''
             added = False
-            print(pattern)
             for instance in glob.glob(pattern):
                 serverid = os.path.basename(instance)[len(DEFAULT_ENV_HEAD):]
 
@@ -730,7 +734,8 @@ class DirSrv(SimpleLDAPObject):
         # first identify the directories we will scan
         confdir = os.getenv('INITCONFIGDIR')
         if confdir:
-            self.log.info("$INITCONFIGDIR set to: %s" % confdir)
+            if self.verbose:
+                self.log.info("$INITCONFIGDIR set to: %s" % confdir)
             if not os.path.isdir(confdir):
                 raise ValueError("$INITCONFIGDIR incorrect directory (%s)" %
                                  confdir)
@@ -741,8 +746,9 @@ class DirSrv(SimpleLDAPObject):
             privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
             if not os.path.isdir(sysconfig_head):
                 privconfig_head = None
-            self.log.info("dir (sys) : %s" % sysconfig_head)
-            if privconfig_head:
+            if self.verbose:
+                self.log.info("dir (sys) : %s" % sysconfig_head)
+            if privconfig_head and self.verbose:
                 self.log.info("dir (priv): %s" % privconfig_head)
 
         # list of the found instances
@@ -760,7 +766,7 @@ class DirSrv(SimpleLDAPObject):
                 pattern = "%s*" % os.path.join(privconfig_head,
                                                DEFAULT_ENV_HEAD)
                 found = search_dir(instances, pattern, serverid)
-                if len(instances) > 0:
+                if self.verbose and len(instances) > 0:
                     self.log.info("List from %s" % privconfig_head)
                     for instance in instances:
                         self.log.info("list instance %r\n" % instance)
@@ -776,7 +782,7 @@ class DirSrv(SimpleLDAPObject):
                 pattern = "%s*" % os.path.join(sysconfig_head,
                                                DEFAULT_ENV_HEAD)
                 search_dir(instances, pattern, serverid)
-                if len(instances) > 0:
+                if self.verbose and len(instances) > 0:
                     self.log.info("List from %s" % privconfig_head)
                     for instance in instances:
                         self.log.info("list instance %r\n" % instance)
@@ -787,14 +793,14 @@ class DirSrv(SimpleLDAPObject):
                 pattern = "%s*" % os.path.join(privconfig_head,
                                                DEFAULT_ENV_HEAD)
                 search_dir(instances, pattern)
-                if len(instances) > 0:
+                if self.verbose and len(instances) > 0:
                     self.log.info("List from %s" % privconfig_head)
                     for instance in instances:
                         self.log.info("list instance %r\n" % instance)
 
             pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
             search_dir(instances, pattern)
-            if len(instances) > 0:
+            if self.verbose and len(instances) > 0:
                 self.log.info("List from %s" % privconfig_head)
                 for instance in instances:
                     self.log.info("list instance %r\n" % instance)
@@ -1430,7 +1436,8 @@ class DirSrv(SimpleLDAPObject):
 
             XXX This cannot return None
         """
-        log.debug("Retrieving entry with %r" % [args])
+        if self.verbose:
+            log.debug("Retrieving entry with %r" % [args])
         if len(args) == 1 and 'scope' not in kwargs:
             args += (ldap.SCOPE_BASE, )
 
@@ -1440,7 +1447,8 @@ class DirSrv(SimpleLDAPObject):
         if not obj:
             raise NoSuchEntryError("no such entry for %r" % [args])
 
-        log.info("Retrieved entry %r" % obj)
+        if self.verbose:
+            log.info("Retrieved entry %r" % obj)
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple
