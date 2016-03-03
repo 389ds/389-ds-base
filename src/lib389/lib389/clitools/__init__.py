@@ -45,8 +45,14 @@ class CliTool(object):
         return
 
     def connect(self):
-        self.get_rootdn_pass()
+        # Can we attempt the autobind?
+        # This should be a bit cleaner perhaps
+        # Perhaps an argument to the cli?
         self.ds.allocate(self.inst)
+        if not self.ds.can_autobind():
+            self.get_rootdn_pass()
+            self.ds.allocate(self.inst)
+        print("")
         self.ds.open()
 
     def disconnect(self):

@@ -37,6 +37,7 @@ import socket
 import ldif
 import re
 import ldap
+import ldapurl
 import time
 import operator
 import shutil
@@ -435,6 +436,8 @@ class DirSrv(SimpleLDAPObject):
         """XXX and in SSL case?"""
         return self.host + ":" + str(self.port)
 
+    # Should there be an extra boolean to this function to determine to use
+    #  ldapi or not? Or does the settings presence indicate intent?
     def allocate(self, args):
         '''
            Initialize a DirSrv object according to the provided args.
@@ -467,20 +470,36 @@ class DirSrv(SimpleLDAPObject):
         if SER_SERVERID_PROP not in args:
             self.log.info('SER_SERVERID_PROP not provided')
 
-        # Settings from args of server attributes
-        self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
-        self.host = None
-        if self.strict_hostname is True:
-            self.host = args.get(SER_HOST, LOCALHOST)
-            if self.host == LOCALHOST:
-                DirSrvTools.testLocalhost()
-            else:
-                # Make sure our name is in hosts
-                DirSrvTools.searchHostsFile(self.host, None)
+        # Do we have ldapi settings?
+        self.ldapi_enabled = args.get(SER_LDAPI_ENABLED, 'off').strip()
+        self.ldapi_socket = args.get(SER_LDAPI_SOCKET, None)
+        # Or do we have tcp / ip settings?
+        if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
+            self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
+            self.isLocal = True
+            if self.verbose:
+                self.log.info("Allocate %s with %s" % (self.__class__, self.ldapi_socket))
         else:
-            self.host = args.get(SER_HOST, LOCALHOST_SHORT)
-        self.port = args.get(SER_PORT, DEFAULT_PORT)
-        self.sslport = args.get(SER_SECURE_PORT)
+            # Settings from args of server attributes
+            self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
+            self.host = None
+            if self.strict_hostname is True:
+                self.host = args.get(SER_HOST, LOCALHOST)
+                if self.host == LOCALHOST:
+                    DirSrvTools.testLocalhost()
+                else:
+                    # Make sure our name is in hosts
+                    DirSrvTools.searchHostsFile(self.host, None)
+            else:
+                self.host = args.get(SER_HOST, LOCALHOST_SHORT)
+            self.port = args.get(SER_PORT, DEFAULT_PORT)
+            self.sslport = args.get(SER_SECURE_PORT)
+            self.isLocal = isLocalHost(self.host)
+            if self.verbose:
+                self.log.info("Allocate %s with %s:%s" % (self.__class__,
+                                                          self.host,
+                                                          (self.sslport or
+                                                           self.port)))
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
         self.bindpw = args.get(SER_ROOT_PW, PW_DM)
         self.creation_suffix = args.get(SER_CREATION_SUFFIX, DEFAULT_SUFFIX)
@@ -512,15 +531,10 @@ class DirSrv(SimpleLDAPObject):
         self.inst = self.serverid
 
         # additional settings
-        self.isLocal = isLocalHost(self.host)
         self.suffixes = {}
         self.agmt = {}
 
         self.state = DIRSRV_STATE_ALLOCATED
-        self.log.info("Allocate %s with %s:%s" % (self.__class__,
-                                                  self.host,
-                                                  (self.sslport or
-                                                   self.port)))
 
     def openConnection(self, saslmethod=None, certdir=None):
         # Open a new connection to our LDAP server
@@ -965,6 +979,8 @@ class DirSrv(SimpleLDAPObject):
         '''
 
         uri = self.toLDAPURL()
+        if self.verbose:
+            self.log.info('open(): Connecting to uri %s' % uri)
         SimpleLDAPObject.__init__(self, uri)
 
         if certdir:
@@ -998,6 +1014,14 @@ class DirSrv(SimpleLDAPObject):
             log.debug('Unsupported SASL method: %s' % saslmethod)
             raise ldap.UNWILLING_TO_PERFORM
 
+        elif self.can_autobind():
+            # Connect via ldapi, and autobind.
+            # do nothing: the bind is complete.
+            if self.verbose:
+                log.info("open(): Using root autobind ...")
+            sasl_auth = ldap.sasl.external()
+            self.sasl_interactive_bind_s("", sasl_auth)
+
         else:
             """
             Do a simple bind
@@ -1015,6 +1039,8 @@ class DirSrv(SimpleLDAPObject):
         """
         Authenticated, now finish the initialization
         """
+        if self.verbose:
+            log.info("open(): bound as %s" % self.whoami_s() )
         self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
 
@@ -1374,10 +1400,15 @@ class DirSrv(SimpleLDAPObject):
 
     def toLDAPURL(self):
         """Return the uri ldap[s]://host:[ssl]port."""
-        if self.sslport:
+        if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
+            return "ldapi://%s" % (ldapurl.ldapUrlEscape(self.ldapi_socket))
+        elif self.sslport:
             return "ldaps://%s:%d/" % (self.host, self.sslport)
         else:
             return "ldap://%s:%d/" % (self.host, self.port)
+
+    def can_autobind(self):
+        return self.ldapi_enabled == 'on' and self.ldapi_socket is not None and self.ldapi_autobind == 'on'
 
     def getServerId(self):
         return self.serverid

@@ -23,13 +23,22 @@ SER_SECURE_PORT = 'ldap-secureport'
 SER_ROOT_DN = 'root-dn'
 SER_ROOT_PW = 'root-pw'
 SER_USER_ID = 'user-id'
+SER_CREATION_SUFFIX = 'suffix'
+SER_LDAPI_ENABLED = 'ldapi_enabled'
+SER_LDAPI_SOCKET = 'ldapi_socket'
+SER_LDAPI_AUTOBIND = 'ldapi_autobind'
 
 SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_PORT: 'nsslapd-port',
                             SER_SECURE_PORT: 'nsslapd-securePort',
                             SER_ROOT_DN: 'nsslapd-rootdn',
-                            SER_ROOT_PW: 'nsslapd-rootpw',
-                            SER_USER_ID: 'nsslapd-localuser'}
+                            #SER_ROOT_PW: 'nsslapd-rootpw', # We can't use this value ...
+                            SER_USER_ID: 'nsslapd-localuser',
+                            SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
+                            SER_LDAPI_ENABLED: 'nsslapd-ldapilisten',
+                            SER_LDAPI_SOCKET: 'nsslapd-ldapifilepath',
+                            SER_LDAPI_AUTOBIND: 'nsslapd-ldapiautobind',
+                            }
 #
 # Those WITHOUT related attribute name
 #
@@ -38,7 +47,6 @@ SER_SERVERID_PROP = 'server-id'
 SER_GROUP_ID = 'group-id'
 SER_DEPLOYED_DIR = 'deployed-dir'
 SER_BACKUP_INST_DIR = 'inst-backupdir'
-SER_CREATION_SUFFIX = 'suffix'
 SER_STRICT_HOSTNAME_CHECKING = 'strict_hostname_checking'
 
 ####################################

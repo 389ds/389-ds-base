@@ -10,8 +10,8 @@ import os
 from lib389.properties import *
 
 (MASTER_TYPE,
- HUB_TYPE,
- LEAF_TYPE) = list(range(3))
+        HUB_TYPE,
+        LEAF_TYPE) = list(range(3))
 
 REPLICAROLE_MASTER = "master"
 REPLICAROLE_HUB = "hub"
@@ -33,7 +33,7 @@ REPLICA_TYPE_HUBCON = '2'
 
 REPLICA_RUV_UUID = "ffffffff-ffffffff-ffffffff-ffffffff"
 REPLICA_RUV_FILTER = ('(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)'
-                      '(objectclass=nstombstone))')
+        '(objectclass=nstombstone))')
 REPLICA_OC_TOMBSTONE = "nsTombstone"
 REPLICATION_BIND_DN = RA_BINDDN
 REPLICATION_BIND_PW = RA_BINDPW
@@ -45,16 +45,16 @@ TRANS_STARTTLS = "starttls"
 TRANS_SECURE = "secure"
 TRANS_NORMAL = "normal"
 REPL_TRANS_VALUE = {TRANS_STARTTLS: 'TLS',
-                    TRANS_SECURE: 'SSL',
-                    TRANS_NORMAL: 'LDAP'}
+        TRANS_SECURE: 'SSL',
+        TRANS_NORMAL: 'LDAP'}
 
 defaultProperties = {
-    REPLICATION_BIND_DN: "cn=replrepl,cn=config",
-    REPLICATION_BIND_PW: "password",
-    REPLICATION_BIND_METHOD: "simple",
-    REPLICATION_TRANSPORT: REPL_TRANS_VALUE[TRANS_NORMAL],
-    REPLICATION_TIMEOUT: str(120)
-}
+        REPLICATION_BIND_DN: "cn=replrepl,cn=config",
+        REPLICATION_BIND_PW: "password",
+        REPLICATION_BIND_METHOD: "simple",
+        REPLICATION_TRANSPORT: REPL_TRANS_VALUE[TRANS_NORMAL],
+        REPLICATION_TIMEOUT: str(120)
+        }
 
 
 CFGSUFFIX = "o=NetscapeRoot"
@@ -107,6 +107,10 @@ CONF_INST_DIR = 'INST_DIR'
 CONF_RUN_DIR = 'RUN_DIR'
 CONF_DS_ROOT = 'DS_ROOT'
 CONF_PRODUCT_NAME = 'PRODUCT_NAME'
+CONF_LDAPI_ENABLED = 'LDAPI_ENABLED'
+CONF_LDAPI_SOCKET = 'LDAPI_SOCKET'
+CONF_LDAPI_AUTOBIND = 'LDAPI_AUTOBIND'
+CONF_LDAPI_ROOTUSER = 'LDAPI_ROOTUSER'
 
 DN_CONFIG = "cn=config"
 DN_PLUGIN = "cn=plugins,%s" % DN_CONFIG
@@ -501,9 +505,20 @@ args_instance = {SER_DEPLOYED_DIR: os.environ.get('PREFIX', None),
                  SER_CREATION_SUFFIX: DEFAULT_SUFFIX}
 
 # Helper for linking dse.ldif values to the parse_config function
+<<<<<<< HEAD
 args_dse_keys = {SER_HOST: 'nsslapd-localhost',
                  SER_PORT: 'nsslapd-port',
                  SER_SECURE_PORT: 'nsslapd-secureport',
                  SER_ROOT_DN: 'nsslapd-rootdn',
                  SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
                  SER_USER_ID: 'nsslapd-localuser'}
+=======
+args_dse_keys = SER_PROPNAME_TO_ATTRNAME
+#                {SER_HOST: 'nsslapd-localhost',
+#                 SER_PORT: 'nsslapd-port',
+#                 SER_SECURE_PORT: 'nsslapd-secureport',
+#                 SER_ROOT_DN: 'nsslapd-rootdn',
+#                 SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
+#                 SER_USER_ID: 'nsslapd-localuser',
+#                 }
+>>>>>>> cee015a... Ticket 48751 - Improve lib389 ldapi support
