@@ -569,6 +569,7 @@ plugin_mr_filter_create (mr_filter_t* f)
 		    pblock_init(&pb);
 		    slapi_pblock_set(&pb, SLAPI_PLUGIN, mrp);
 		    slapi_pblock_set(&pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, default_mr_filter_create);
+		    slapi_pblock_set(&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, default_mr_indexer_create);
 		    if (!(rc = attempt_mr_filter_create (f, mrp, &pb)))
 		    {
 				plugin_mr_bind (f->mrf_oid, mrp); /* for future reference */
@@ -639,6 +640,7 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, mr_wrap_mr_index_sv_fn);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_DESTROY_FN, default_mr_indexer_destroy);
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, default_mr_indexer_create);
+	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, default_mr_filter_create);
 	rc = 0;
 
 done:
