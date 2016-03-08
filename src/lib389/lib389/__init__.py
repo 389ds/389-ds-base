@@ -369,6 +369,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.monitor import Monitor
         from lib389.nss_ssl import NssSsl
         from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
+        from lib389.ldclt import Ldclt
 
         self.agreement = Agreement(self)
         self.replica = Replica(self)
@@ -387,6 +388,7 @@ class DirSrv(SimpleLDAPObject):
         self.nss_ssl = NssSsl(self)
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
+        self.ldclt = Ldclt(self)
 
     def __init__(self, verbose=False, timeout=10):
         """
