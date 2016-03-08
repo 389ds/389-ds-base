@@ -39,7 +39,7 @@ Summary:          389 Directory Server (base)
 Name:             389-ds-base
 Version:          __VERSION__
 Release:          __RELEASE__%{?dist}
-License:          GPLv2 with exceptions
+License:          GPLv3+
 URL:              http://port389.org/
 Group:            System Environment/Daemons
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
