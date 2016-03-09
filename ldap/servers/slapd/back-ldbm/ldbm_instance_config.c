@@ -789,9 +789,19 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
             }
 
         /* This assumes there is only one bval for this mod. */
-            rc = ldbm_config_set((void *) inst, attr_name,
-                ldbm_instance_config, mods[i]->mod_bvalues[0], returntext,
-                CONFIG_PHASE_RUNNING, apply_mod, mods[i]->mod_op);
+            if (mods[i]->mod_bvalues == NULL) {
+                /* This avoids the null pointer deref.
+                 * In ldbm_config.c ldbm_config_set, it checks for the NULL.
+                 * If it's a NULL, we get NO_SUCH_ATTRIBUTE error.
+                 */
+                rc = ldbm_config_set((void *) inst, attr_name,
+                    ldbm_instance_config, NULL, returntext,
+                    CONFIG_PHASE_RUNNING, apply_mod, mods[i]->mod_op);
+            } else {
+                rc = ldbm_config_set((void *) inst, attr_name,
+                    ldbm_instance_config, mods[i]->mod_bvalues[0], returntext,
+                    CONFIG_PHASE_RUNNING, apply_mod, mods[i]->mod_op);
+            }
         }
     }
 
