@@ -17,6 +17,8 @@ from subprocess import Popen, PIPE
 import krbV
 import os
 import signal
+import string
+import random
 
 from lib389._constants import *
 from socket import getfqdn
@@ -42,10 +44,11 @@ class MitKrb5(object):
                               (self.krb_prefix,
                                self.realm.lower().replace('.', '-')))
 
-        # THIS IS NOT SECURE
-        # We should probably randomise this per install
-        # We should write it to a file too ...
-        self.krb_master_password = 'si7athohyiezah9riz6Aayaiphoo1ii0uashail5'
+        secure_password = [random.choice(string.letters) for x in xrange(64)]
+        secure_password = "".join(secure_password)
+        self.krb_master_password = secure_password
+
+        # Should we write this to a file?
 
         self.krb_env = {}
         if debug is True:
@@ -80,8 +83,8 @@ class MitKrb5(object):
         # Raise a scary warning about eating your krb settings
         if self.warnings:
             print("This will alter / erase your krb5 and kdc settings.")
-            print("THIS IS NOT A SECURE KRB5 INSTALL, DON'T USE IN PRODUCTION")
             raw_input("Ctrl-C to exit, or press ENTER to continue.")
+        print("Kerberos master password: %s" % self.krb_master_password)
 
         # If we don't have the directories for this, create them.
         # but if we create them there is no guarantee this will work ...

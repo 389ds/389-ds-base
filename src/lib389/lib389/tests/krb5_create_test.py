@@ -12,6 +12,7 @@ from lib389.mit_krb5 import MitKrb5, KrbClient
 from lib389 import DirSrv, Entry
 import pytest
 import logging
+import socket
 
 import ldap
 import ldap.sasl
@@ -37,6 +38,8 @@ def topology(request):
     krb = MitKrb5(realm=REALM)
     instance = DirSrv(verbose=False)
     instance.log.debug("Instance allocated")
+    ## WARNING: If this test fails it's like a hostname issue!!!
+    # args = {SER_HOST: socket.gethostname(),
     args = {SER_HOST: LOCALHOST,
             SER_PORT: INSTANCE_PORT,
             SER_REALM: REALM,
@@ -53,6 +56,7 @@ def topology(request):
     instance.open()
 
     def fin():
+        return
         if instance.exists():
             instance.delete()
         if krb.check_realm():
@@ -89,8 +93,13 @@ def test_gssapi(topology, add_user):
     kclient = KrbClient("test@%s" % REALM, "/tmp/test.keytab")
     # Probably need to change this to NOT be raw python ldap
     conn = ldap.initialize("ldap://%s:%s" % (LOCALHOST, INSTANCE_PORT))
-    sasl = ldap.sasl.gssapi()
-    conn.sasl_interactive_bind_s('', sasl)
+    # conn = ldap.initialize("ldap://%s:%s" % (socket.gethostname(), INSTANCE_PORT))
+    sasl = ldap.sasl.gssapi("test@%s" % REALM)
+    try:
+        conn.sasl_interactive_bind_s('', sasl)
+    except Exception as e:
+        print("IF THIS TEST FAILS ITS LIKELY A HOSTNAME ISSUE")
+        raise e
     assert(conn.whoami_s() == "dn: uid=test,dc=example,dc=com")
 
 
