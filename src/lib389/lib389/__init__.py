@@ -1224,15 +1224,16 @@ class DirSrv(SimpleLDAPObject):
 
         # First check it if already exists a backup file
         backup_dir, backup_pattern = self._infoBackupFS()
-        backup_file = self.checkBackupFS()
         if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir)
         # make the backup directory accessible for anybody so that any user can
         # run the tests even if it existed a backup created by somebody else
         os.chmod(backup_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
-        if backup_file:
-            return backup_file
+        # Forget this: Just make a new backup!
+        #backup_file = self.checkBackupFS()
+        #if backup_file:
+        #    return backup_file
 
         # goes under the directory where the DS is deployed
         listFilesToBackup = []
@@ -1289,7 +1290,7 @@ class DirSrv(SimpleLDAPObject):
                                   (name, self.prefix))
 
         # create the archive
-        name = "backup_%s.tar.gz" % (time.strftime("%m%d%Y_%H%M%S"))
+        name = "backup_%s_%s.tar.gz" % (self.serverid, time.strftime("%m%d%Y_%H%M%S"))
         backup_file = os.path.join(backup_dir, name)
         tar = tarfile.open(backup_file, "w:gz")
 
