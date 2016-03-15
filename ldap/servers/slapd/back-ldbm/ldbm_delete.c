@@ -346,24 +346,26 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			   if for some reason they ever do, do not use e->ep_entry since
 			   it could be in the cache and referenced by other search threads -
 			   instead, have them modify a copy of the entry */
-			retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
-			if (retval) {
-				LDAPDebug1Arg( LDAP_DEBUG_TRACE,
-							   "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
-							   "returned error code %d\n", retval );
-				if (!ldap_result_code) {
-					slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+			if (!delete_tombstone_entry) {
+				retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN);
+				if (retval) {
+					LDAPDebug1Arg( LDAP_DEBUG_TRACE,
+								   "SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN plugin "
+								   "returned error code %d\n", retval );
+					if (!ldap_result_code) {
+						slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+					}
+					if (!opreturn) {
+						slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
+					}
+					if (!opreturn) {
+						slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
+										  ldap_result_code ?
+										  &ldap_result_code : &retval );
+					}
+					slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+					goto error_return;
 				}
-				if (!opreturn) {
-					slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &opreturn );
-				}
-				if (!opreturn) {
-					slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN,
-									  ldap_result_code ?
-									  &ldap_result_code : &retval );
-				}
-				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-				goto error_return;
 			}
 
 			/*
@@ -640,7 +642,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				}
 			}
 		} /* if (0 == retry_count) just once */
-		else {
+		else if (!delete_tombstone_entry) {
 			/* call the transaction pre delete plugins not just once
 			 * but every time transaction is restarted. */
 			/* these should not need to modify the entry to be deleted -
@@ -1209,7 +1211,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
     }
 
 	/* call the transaction post delete plugins just before the commit */
-	if (plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
+	if (!delete_tombstone_entry &&
+	    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
 		LDAPDebug0Args( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
 						"returned error code\n" );
 		if (!ldap_result_code) {
@@ -1361,7 +1364,8 @@ error_return:
 		}
 
 		/* call the transaction post delete plugins just before the abort */
-		if (plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
+                if (!delete_tombstone_entry &&
+		    plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN)) {
 			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN plugin "
 						   "returned error code %d\n", retval );
 			if (!ldap_result_code) {
