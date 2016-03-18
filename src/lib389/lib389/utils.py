@@ -29,6 +29,7 @@ import logging
 import shutil
 import ldap
 import socket
+import subprocess
 from socket import getfqdn
 from ldapurl import LDAPUrl
 
@@ -708,3 +709,20 @@ def formatInfData(args):
         content += "\nldapifilepath=%s\n" % args['ldapifilepath']
 
     return content
+
+
+def get_ds_version():
+    """Return version of ns-slapd binary, for example
+    1.3.4.8 B2016.043.2254"""
+    nsslapd = get_sbin_dir() + "/ns-slapd"
+    output = subprocess.Popen([nsslapd, "-v"],
+                              stdout=subprocess.PIPE).communicate()[0]
+    fullver = output.splitlines()[1]
+    ver = fullver.split('/')[1]
+    return ver
+
+
+def ds_is_older(ver):
+    """Return True if current version of ns-slapd is older than provided
+    version"""
+    return get_ds_version() < ver
