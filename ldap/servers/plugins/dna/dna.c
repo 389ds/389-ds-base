@@ -277,6 +277,7 @@ static int dna_pre_op(Slapi_PBlock * pb, int modtype);
 static int dna_mod_pre_op(Slapi_PBlock * pb);
 static int dna_add_pre_op(Slapi_PBlock * pb);
 static int dna_extend_exop(Slapi_PBlock *pb);
+static int dna_extend_exop_backend(Slapi_PBlock *pb, Slapi_Backend **target);
 static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype);
 static int dna_be_txn_add_pre_op(Slapi_PBlock *pb);
 static int dna_be_txn_mod_pre_op(Slapi_PBlock *pb);
@@ -483,7 +484,7 @@ dna_init(Slapi_PBlock *pb)
 
     if ((status == DNA_SUCCESS) &&
         /* the range extension extended operation */
-        slapi_register_plugin("extendedop", /* op type */
+        slapi_register_plugin("betxnextendedop", /* op type */
                               1,        /* Enabled */
                               "dna_init",   /* this function desc */
                               dna_exop_init,  /* init func for exop */
@@ -557,7 +558,9 @@ dna_exop_init(Slapi_PBlock * pb)
         slapi_pblock_set(pb, SLAPI_PLUGIN_EXT_OP_OIDLIST,
                          (void *) dna_extend_exop_oid_list) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_EXT_OP_FN,
-                         (void *) dna_extend_exop) != 0) {
+                         (void *) dna_extend_exop) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_EXT_OP_BACKEND_FN,
+                         (void *) dna_extend_exop_backend) != 0) {
         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                         "dna_exop_init: failed to register plugin\n");
         status = DNA_FAILURE;
@@ -699,6 +702,64 @@ dna_close(Slapi_PBlock * pb)
     return DNA_SUCCESS;
 }
 
+static int
+dna_parse_exop_ber(Slapi_PBlock *pb, char **shared_dn)
+{
+    int ret = -1; /* What's a better default? */
+    char *oid = NULL;
+    struct berval *reqdata = NULL;
+    BerElement *tmp_bere = NULL;
+
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
+                    "----> dna_parse_exop_ber\n");
+
+    /* Fetch the request OID */
+    slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid);
+    if (!oid) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_exop_ber: Unable to retrieve request OID.\n");
+        goto out;
+    }
+
+    /* Make sure the request OID is correct. */
+    if (strcmp(oid, DNA_EXTEND_EXOP_REQUEST_OID) != 0) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_exop_ber: Received incorrect request OID.\n");
+        goto out;
+    }
+
+    /* Fetch the request data */
+    slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &reqdata);
+    if (!BV_HAS_DATA(reqdata)) {
+        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_exop_ber: No request data received.\n");
+        goto out;
+    }
+
+    /* decode the exop */
+    tmp_bere = ber_init(reqdata);
+    if (tmp_bere == NULL) {
+        goto out;
+    }
+
+    if (ber_scanf(tmp_bere, "{a}", shared_dn) == LBER_ERROR) {
+        ret = LDAP_PROTOCOL_ERROR;
+        goto out;
+    }
+
+    ret = LDAP_SUCCESS;
+
+out:
+    if (NULL != tmp_bere) {
+        ber_free(tmp_bere, 1);
+        tmp_bere = NULL;
+    }
+
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
+                    "<---- dna_parse_exop_ber %s\n", *shared_dn);
+    return ret;
+}
+
 /*
  * Free the global linkedl ist of shared servers
  */
@@ -832,6 +893,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
          * looking for valid ones. */
         dna_parse_config_entry(pb, entries[i], 1);
     }
+
     dna_unlock();
 
     if (use_eventq) {
@@ -1562,6 +1624,10 @@ dna_update_config_event(time_t event_time, void *arg)
                 if (dna_pb) {
                     if (0 == rc) {
                         slapi_back_transaction_commit(dna_pb);
+                    } else {
+                        if (slapi_back_transaction_abort(dna_pb) != 0) {
+                            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM, "dna_update_config_event: failed to abort transaction!\n");
+                        }
                     }
                     slapi_pblock_destroy(dna_pb);
                 }
@@ -4244,16 +4310,41 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
 
 
 /****************************************************
+ * Pre Extended Operation, Backend selection
+ ***************************************************/
+static int dna_extend_exop_backend(Slapi_PBlock *pb, Slapi_Backend **target)
+{
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
+                    "--> dna_parse_exop_backend\n");
+    Slapi_DN *shared_sdn = NULL;
+    char *shared_dn = NULL;
+    int res = -1;
+    /* Parse the oid and what exop wants us to do */
+    res = dna_parse_exop_ber(pb, &shared_dn);
+    if (res != LDAP_SUCCESS) {
+        return res;
+    }
+    if (shared_dn) {
+        shared_sdn = slapi_sdn_new_dn_byref(shared_dn);
+        *target = slapi_be_select(shared_sdn);
+        slapi_sdn_free(&shared_sdn);
+    }
+    res = LDAP_SUCCESS;
+
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
+                    "<-- dna_parse_exop_backend %d\n", res);
+    return res;
+}
+
+
+/****************************************************
  * Range Extension Extended Operation
  ***************************************************/
 static int dna_extend_exop(Slapi_PBlock *pb)
 {
     int ret = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
-    struct berval *reqdata = NULL;
-    BerElement *tmp_bere = NULL;
     char *shared_dn = NULL;
     char *bind_dn = NULL;
-    char *oid = NULL;
     PRUint64 lower = 0;
     PRUint64 upper = 0;
 
@@ -4264,38 +4355,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_extend_exop\n");
 
-    /* Fetch the request OID */
-    slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid);
-    if (!oid) {
-        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_extend_exop: Unable to retrieve request OID.\n");
-        goto free_and_return;
-    }
-
-    /* Make sure the request OID is correct. */
-    if (strcmp(oid, DNA_EXTEND_EXOP_REQUEST_OID) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_extend_exop: Received incorrect request OID.\n");
-        goto free_and_return;
-    }
-
-    /* Fetch the request data */
-    slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &reqdata);
-    if (!BV_HAS_DATA(reqdata)) {
-        slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_extend_exop: No request data received.\n");
-        goto free_and_return;
-    }
-
-    /* decode the exop */
-    tmp_bere = ber_init(reqdata);
-    if (tmp_bere == NULL) {
-        goto free_and_return;
-    }
-
-    if (ber_scanf(tmp_bere, "{a}", &shared_dn) == LBER_ERROR) {
-        ret = LDAP_PROTOCOL_ERROR;
-        goto free_and_return;
+    if(dna_parse_exop_ber(pb, &shared_dn) != LDAP_SUCCESS) {
+        return ret;
     }
 
     slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
@@ -4365,10 +4426,6 @@ static int dna_extend_exop(Slapi_PBlock *pb)
   free_and_return:
     slapi_ch_free_string(&shared_dn);
     slapi_ch_free_string(&bind_dn);
-    if (NULL != tmp_bere) {
-        ber_free(tmp_bere, 1);
-        tmp_bere = NULL;
-    }
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_extend_exop\n");
@@ -4530,6 +4587,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                 if (ret == LDAP_SUCCESS) {
                     /* Adjust maxval in our cached config and shared config */
                     config_entry->maxval = *lower - 1;
+                    /* This is within the dna_lock, so okay */
                     dna_notice_allocation(config_entry, config_entry->nextval, 0);
                 }
             }
