@@ -681,22 +681,23 @@ struct matchingRuleList {
 #define PLUGIN_LIST_INTERNAL_PREOPERATION 5
 #define PLUGIN_LIST_INTERNAL_POSTOPERATION 6
 #define PLUGIN_LIST_EXTENDED_OPERATION 7
-#define PLUGIN_LIST_BACKEND_MAX 8
+#define PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION 8
+#define PLUGIN_LIST_BACKEND_MAX 9
 
 /* Global Plugins */
-#define PLUGIN_LIST_ACL 9
-#define PLUGIN_LIST_MATCHINGRULE 10
-#define PLUGIN_LIST_SYNTAX 11
-#define PLUGIN_LIST_ENTRY 12
-#define PLUGIN_LIST_OBJECT 13
-#define PLUGIN_LIST_PWD_STORAGE_SCHEME 14
-#define PLUGIN_LIST_VATTR_SP 15	/* DBDB */
-#define PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME 16
-#define PLUGIN_LIST_LDBM_ENTRY_FETCH_STORE 17
-#define PLUGIN_LIST_INDEX 18
-#define PLUGIN_LIST_BETXNPREOPERATION 19
-#define PLUGIN_LIST_BETXNPOSTOPERATION 20
-#define PLUGIN_LIST_GLOBAL_MAX 21
+#define PLUGIN_LIST_ACL 10
+#define PLUGIN_LIST_MATCHINGRULE 11
+#define PLUGIN_LIST_SYNTAX 12
+#define PLUGIN_LIST_ENTRY 13
+#define PLUGIN_LIST_OBJECT 14
+#define PLUGIN_LIST_PWD_STORAGE_SCHEME 15
+#define PLUGIN_LIST_VATTR_SP 16	/* DBDB */
+#define PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME 17
+#define PLUGIN_LIST_LDBM_ENTRY_FETCH_STORE 18
+#define PLUGIN_LIST_INDEX 19
+#define PLUGIN_LIST_BETXNPREOPERATION 20
+#define PLUGIN_LIST_BETXNPOSTOPERATION 21
+#define PLUGIN_LIST_GLOBAL_MAX 22
 
 /* plugin configuration attributes */
 #define ATTR_PLUGIN_PATH				"nsslapd-pluginPath"
@@ -900,10 +901,12 @@ struct slapdplugin {
 			char	**plg_un_pe_exoids;	  /* exop oids */
 			char	**plg_un_pe_exnames;  /* exop names (may be NULL) */
 			IFP	plg_un_pe_exhandler;	  /* handler */
+			IFP	plg_un_pe_be_exhandler;	  /* handler to retrieve the be name for the operation */
 		} plg_un_pe;
 #define plg_exoids		plg_un.plg_un_pe.plg_un_pe_exoids
 #define plg_exnames		plg_un.plg_un_pe.plg_un_pe_exnames
 #define plg_exhandler		plg_un.plg_un_pe.plg_un_pe_exhandler
+#define plg_be_exhandler		plg_un.plg_un_pe.plg_un_pe_be_exhandler
 
 
 		/* pre-operation plugin structure */

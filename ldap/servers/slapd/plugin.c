@@ -485,44 +485,54 @@ plugin_call_entryfetch_plugins(char **entrystr, uint *size)
  *	returned by the plugins we called).
  */
 int
-plugin_call_exop_plugins( Slapi_PBlock *pb, char *oid )
+plugin_call_exop_plugins( Slapi_PBlock *pb, char *oid, int whichtype )
 {
-	struct slapdplugin	*p;
-	int			i, rc;
-	int lderr = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
+    struct slapdplugin  *p;
+    int         i, rc;
+    int list_type;
+    int lderr = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
 
-	for ( p = global_plugin_list[PLUGIN_LIST_EXTENDED_OPERATION]; p != NULL; p = p->plg_next ) {
-		if ( p->plg_exhandler != NULL ) {
-			if ( p->plg_exoids != NULL ) {
-				for ( i = 0; p->plg_exoids[i] != NULL; i++ ) {
-					if ( strcasecmp( oid, p->plg_exoids[i] )
-					    == 0 ) {
-						break;
-					}
-				}
-				if (  p->plg_exoids[i] == NULL ) {
-					continue;
-				}
-			}
+    if (whichtype == SLAPI_PLUGIN_EXTENDEDOP) {
+        list_type = PLUGIN_LIST_EXTENDED_OPERATION;
+    } else if (whichtype == SLAPI_PLUGIN_BETXNEXTENDEDOP) {
+        list_type = PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION;
+    } else {
+        slapi_log_error(SLAPI_LOG_FATAL, NULL, "plugin_call_exop_plugins unknown plugin list type %d\n", whichtype);
+        return( lderr );
+    }
 
-			slapi_pblock_set( pb, SLAPI_PLUGIN, p );
-			set_db_default_result_handlers( pb );
-			if ( (rc = (*p->plg_exhandler)( pb ))
-			    == SLAPI_PLUGIN_EXTENDED_SENT_RESULT ) {
-				return( rc );	/* result sent */
-			} else if ( rc != SLAPI_PLUGIN_EXTENDED_NOT_HANDLED ) {
-				/*
-				 * simple merge: report last real error
-				 */
-				if ( lderr == SLAPI_PLUGIN_EXTENDED_NOT_HANDLED
-				    || rc != LDAP_SUCCESS ) {
-					lderr = rc;
-				}
-			}
-		}
-	}	
+    for ( p = global_plugin_list[list_type]; p != NULL; p = p->plg_next ) {
+        if ( p->plg_exhandler != NULL && p->plg_type == whichtype ) {
+            if ( p->plg_exoids != NULL ) {
+                for ( i = 0; p->plg_exoids[i] != NULL; i++ ) {
+                    if ( strcasecmp( oid, p->plg_exoids[i] )
+                        == 0 ) {
+                        break;
+                    }
+                }
+                if (  p->plg_exoids[i] == NULL ) {
+                    continue;
+                }
+            }
 
-	return( lderr );
+            slapi_pblock_set( pb, SLAPI_PLUGIN, p );
+            set_db_default_result_handlers( pb );
+            if ( (rc = (*p->plg_exhandler)( pb ))
+                == SLAPI_PLUGIN_EXTENDED_SENT_RESULT ) {
+                return( rc );   /* result sent */
+            } else if ( rc != SLAPI_PLUGIN_EXTENDED_NOT_HANDLED ) {
+                /*
+                 * simple merge: report last real error
+                 */
+                if ( lderr == SLAPI_PLUGIN_EXTENDED_NOT_HANDLED
+                    || rc != LDAP_SUCCESS ) {
+                    lderr = rc;
+                }
+            }
+        }
+    }
+
+    return( lderr );
 }
 
 
@@ -539,36 +549,77 @@ plugin_call_exop_plugins( Slapi_PBlock *pb, char *oid )
 const char *
 plugin_extended_op_oid2string( const char *oid )
 {
-	struct slapdplugin	*p;
-	int					i, j;
-	const char			*rval = NULL;
+    struct slapdplugin  *p;
+    int                 i, j, l, list_type;
+    const char          *rval = NULL;
+    int list_types[] = {PLUGIN_LIST_EXTENDED_OPERATION, PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION};
 
-	for ( p = global_plugin_list[PLUGIN_LIST_EXTENDED_OPERATION]; p != NULL;
-			p = p->plg_next ) {
-		if ( p->plg_exhandler != NULL && p->plg_exoids != NULL ) {
-			for ( i = 0; p->plg_exoids[i] != NULL; i++ ) {
-				if ( strcasecmp( oid, p->plg_exoids[i] ) == 0 ) {
-					if ( NULL != p->plg_exnames ) {
-						for ( j = 0; j < i && p->plg_exnames[j] != NULL; ++j ) {
-							;
-						}
-						rval = p->plg_exnames[j];		/* OID-related name */
-					}
+    /* I feel there may be a better way to achieve this, but it works. */
+    for ( l = 0; l < 2; ++l ) {
+        list_type = list_types[l];
+        for ( p = global_plugin_list[list_type]; p != NULL; p = p->plg_next ) {
+            if ( p->plg_exhandler != NULL && p->plg_exoids != NULL ) {
+                for ( i = 0; p->plg_exoids[i] != NULL; i++ ) {
+                    if ( strcasecmp( oid, p->plg_exoids[i] ) == 0 ) {
+                        if ( NULL != p->plg_exnames ) {
+                            for ( j = 0; j < i && p->plg_exnames[j] != NULL; ++j ) {
+                                ;
+                            }
+                            rval = p->plg_exnames[j];       /* OID-related name */
+                        }
 
-					if ( NULL == rval ) {
-						if ( NULL != p->plg_desc.spd_id ) {
-							rval = p->plg_desc.spd_id;	/* short name */
-						} else {
-							rval = p->plg_name;			/* RDN */
-						}
-					}
-					break;
-				}
-			}
-		}
-	}
+                        if ( NULL == rval ) {
+                            if ( NULL != p->plg_desc.spd_id ) {
+                                rval = p->plg_desc.spd_id;  /* short name */
+                            } else {
+                                rval = p->plg_name;         /* RDN */
+                            }
+                        }
+                        break;
+                    }
+                } /* for */
+            } /* If */
+        } /* for p in global_plugin list */
+    } /* list type */
 
-	return( rval );
+    return( rval );
+}
+
+
+Slapi_Backend *
+plugin_extended_op_getbackend( Slapi_PBlock *pb, char *oid )
+{
+    struct slapdplugin  *p;
+    int i;
+    int rc;
+    /* This could be an error type, but for now we expect the caller to check 
+     * that it's not null
+     */
+    Slapi_Backend *result = NULL;
+
+    for ( p = global_plugin_list[PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION]; p != NULL; p = p->plg_next ) {
+        if ( p->plg_be_exhandler != NULL && p->plg_type == SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
+            if ( p->plg_exoids != NULL ) {
+                for ( i = 0; p->plg_exoids[i] != NULL; i++ ) {
+                    if ( strcasecmp( oid, p->plg_exoids[i] ) == 0 ) {
+                        break;
+                    }
+                }
+                if (  p->plg_exoids[i] == NULL ) {
+                    continue;
+                }
+            }
+
+            rc = (*p->plg_be_exhandler)( pb, &result );
+            if (rc != LDAP_SUCCESS) {
+                /* Do we need to do anything? Or it is the parents job? */
+                result = NULL;
+            }
+            break;
+        }
+    }
+
+    return( result );
 }
 
 static int
@@ -2264,6 +2315,9 @@ plugin_get_type_and_list(
 	} else if ( strcasecmp( plugintype, "index" ) == 0 ) {
         *type = SLAPI_PLUGIN_INDEX;
         plugin_list_index= PLUGIN_LIST_INDEX;
+	} else if ( strcasecmp( plugintype, "betxnextendedop" ) == 0 ) {
+		*type = SLAPI_PLUGIN_BETXNEXTENDEDOP;
+    	plugin_list_index= PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION;
 	} else {
         return( 1 ); /* unknown plugin type - pass to backend */
 	}

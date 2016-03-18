@@ -333,8 +333,63 @@ do_extended( Slapi_PBlock *pb )
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
 	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
+
+    /* wibrown 201603 I want to rewrite this to get plugin p, and use that 
+     * rather than all these plugin_call_, that loop over the plugin lists
+     * We do "get plugin (oid).
+     * then we just hand *p into the call functions.
+     * much more efficient! :)
+     */
 	
-	rc = plugin_call_exop_plugins( pb, extoid );
+    slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugins ... \n");
+
+	rc = plugin_call_exop_plugins( pb, extoid, SLAPI_PLUGIN_EXTENDEDOP);
+
+    slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called exop, got %d \n", rc);
+
+    if (rc == SLAPI_PLUGIN_EXTENDED_NOT_HANDLED) {
+        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling betxn plugins ... \n");
+        /* Look up the correct backend to use. */
+        Slapi_Backend *be = plugin_extended_op_getbackend( pb, extoid );
+
+        if ( be == NULL ) {
+            slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c plugin_extended_op_getbackend was unable to retrieve a backend!!!\n");
+            rc = SLAPI_PLUGIN_EXTENDED_NO_BACKEND_AVAILABLE;
+        } else {
+            /* We need to make a new be pb here because when you set SLAPI_BACKEND
+             * you overwrite the plg parts of the pb. So if we re-use pb
+             * you actually nuke the request, and everything hangs. (╯°□°)╯︵ ┻━┻
+             */
+            Slapi_PBlock *be_pb = NULL;
+            be_pb = slapi_pblock_new();
+            slapi_pblock_set(be_pb, SLAPI_BACKEND, be);
+
+            int txn_rc = slapi_back_transaction_begin(be_pb);
+            if (txn_rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, NULL, "exendop.c Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
+            } else {
+                rc = plugin_call_exop_plugins( pb, extoid, SLAPI_PLUGIN_BETXNEXTENDEDOP);
+                slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called betxn exop, got %d \n", rc);
+                if (rc == LDAP_SUCCESS || rc == SLAPI_PLUGIN_EXTENDED_SENT_RESULT) {
+                    /* commit */
+                    txn_rc = slapi_back_transaction_commit(be_pb);
+                    if (txn_rc == 0) {
+                        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c commit with result %d \n", txn_rc);
+                    } else {
+                        slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c Unable to commit commit with result %d \n", txn_rc);
+                    }
+                } else {
+                    /* abort */
+                    txn_rc = slapi_back_transaction_abort(be_pb);
+                    slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c abort with result %d \n", txn_rc);
+                }
+            } /* txn_rc */
+            if (be_pb != NULL) {
+                slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
+            }
+            slapi_log_error(SLAPI_LOG_TRACE, NULL, "exendop.c plugin_call_exop_plugins rc final %d\n", rc);
+        } /* if be */
+    }
 
 	if ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT != rc ) {
 		if ( SLAPI_PLUGIN_EXTENDED_NOT_HANDLED == rc ) {

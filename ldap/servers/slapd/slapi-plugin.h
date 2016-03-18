@@ -6745,6 +6745,7 @@ time_t slapi_current_time( void );
 #define SLAPI_PLUGIN_INDEX			18
 #define	SLAPI_PLUGIN_BETXNPREOPERATION		19
 #define SLAPI_PLUGIN_BETXNPOSTOPERATION		20
+#define SLAPI_PLUGIN_BETXNEXTENDEDOP			21
 
 /*
  * special return values for extended operation plugins (zero or positive
@@ -6752,6 +6753,7 @@ time_t slapi_current_time( void );
  */
 #define SLAPI_PLUGIN_EXTENDED_SENT_RESULT	-1
 #define SLAPI_PLUGIN_EXTENDED_NOT_HANDLED	-2
+#define SLAPI_PLUGIN_EXTENDED_NO_BACKEND_AVAILABLE -3
 
 /*
  * Return values of plugins:
@@ -6876,6 +6878,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_EXT_OP_FN			300
 #define SLAPI_PLUGIN_EXT_OP_OIDLIST		301
 #define SLAPI_PLUGIN_EXT_OP_NAMELIST	302
+#define SLAPI_PLUGIN_EXT_OP_BACKEND_FN  1948
 
 /* preoperation plugin functions */
 #define SLAPI_PLUGIN_PRE_BIND_FN		401

@@ -727,22 +727,32 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* extendedop plugin functions */
 	case SLAPI_PLUGIN_EXT_OP_FN:
-		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP ) {
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
 			return( -1 );
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_exhandler;
 		break;
 	case SLAPI_PLUGIN_EXT_OP_OIDLIST:
-		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP ) {
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
 			return( -1 );
 		}
 		(*(char ***)value) = pblock->pb_plugin->plg_exoids;
 		break;
 	case SLAPI_PLUGIN_EXT_OP_NAMELIST:
-		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP ) {
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
 			return( -1 );
 		}
 		(*(char ***)value) = pblock->pb_plugin->plg_exnames;
+		break;
+	case SLAPI_PLUGIN_EXT_OP_BACKEND_FN:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_be_exhandler;
 		break;
 
 	/* preoperation plugin functions */
@@ -2353,23 +2363,33 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	/* extendedop plugin functions */
 	case SLAPI_PLUGIN_EXT_OP_FN:
-		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP ) {
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_exhandler = (IFP) value;
 		break;
 	case SLAPI_PLUGIN_EXT_OP_OIDLIST:
-		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP ) {
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_exoids = (char **) value;
 		ldapi_register_extended_op( (char **)value );
 		break;
 	case SLAPI_PLUGIN_EXT_OP_NAMELIST:
-		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP ) {
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_exnames = (char **) value;
+		break;
+	case SLAPI_PLUGIN_EXT_OP_BACKEND_FN:
+		if ( pblock->pb_plugin->plg_type != SLAPI_PLUGIN_EXTENDEDOP &&
+             pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BETXNEXTENDEDOP ) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_be_exhandler = (IFP) value;
 		break;
 
 	/* preoperation plugin functions */
