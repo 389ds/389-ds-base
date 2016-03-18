@@ -78,37 +78,37 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
     }
 
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
-	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
-	
-	{
-		/* Access Control Check to see if the client is
-		 *  allowed to use task import
-		 */
-		char *dummyAttr = "dummy#attr";
-		char *dummyAttrs[2] = { NULL, NULL };
-		int rc = 0;
-		char dn[128];
-		Slapi_Entry *feature;
+    slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
+    
+    {
+        /* Access Control Check to see if the client is
+         *  allowed to use task import
+         */
+        char *dummyAttr = "dummy#attr";
+        char *dummyAttrs[2] = { NULL, NULL };
+        int rc = 0;
+        char dn[128];
+        Slapi_Entry *feature;
 
-		/* slapi_str2entry modify its dn parameter so we must copy
-		 * this string each time we call it !
-		 */
-		/* This dn is no need to be normalized. */
-		PR_snprintf(dn, sizeof(dn), "dn: oid=%s,cn=features,cn=config",
-			EXTOP_BULK_IMPORT_START_OID);
+        /* slapi_str2entry modify its dn parameter so we must copy
+         * this string each time we call it !
+         */
+        /* This dn is no need to be normalized. */
+        PR_snprintf(dn, sizeof(dn), "dn: oid=%s,cn=features,cn=config",
+            EXTOP_BULK_IMPORT_START_OID);
 
-		dummyAttrs[0] = dummyAttr;
-		feature = slapi_str2entry(dn, 0);
-		rc = plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL,
-			 SLAPI_ACL_WRITE, ACLPLUGIN_ACCESS_DEFAULT, NULL);
-		slapi_entry_free(feature);
-		if (rc != LDAP_SUCCESS)
-		{
-			/* Client isn't allowed to do this. */
-			send_ldap_result(pb, rc, NULL, NULL, 0, NULL);
-			goto out;
-		}
-	}
+        dummyAttrs[0] = dummyAttr;
+        feature = slapi_str2entry(dn, 0);
+        rc = plugin_call_acl_plugin (pb, feature, dummyAttrs, NULL,
+             SLAPI_ACL_WRITE, ACLPLUGIN_ACCESS_DEFAULT, NULL);
+        slapi_entry_free(feature);
+        if (rc != LDAP_SUCCESS)
+        {
+            /* Client isn't allowed to do this. */
+            send_ldap_result(pb, rc, NULL, NULL, 0, NULL);
+            goto out;
+        }
+    }
 
     if (be->be_wire_import == NULL) {
         /* not supported by this backend */
@@ -204,135 +204,135 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
 void
 do_extended( Slapi_PBlock *pb )
 {
-	char		*extoid = NULL,	*errmsg;
-	struct berval	extval = {0};
-	int		lderr, rc;
-	ber_len_t	len;
-	ber_tag_t	tag;
-	const char	*name;
+    char        *extoid = NULL, *errmsg;
+    struct berval   extval = {0};
+    int     lderr, rc;
+    ber_len_t   len;
+    ber_tag_t   tag;
+    const char  *name;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "do_extended\n", 0, 0, 0 );
+    LDAPDebug( LDAP_DEBUG_TRACE, "do_extended\n", 0, 0, 0 );
 
-	/*
-	 * Parse the extended request. It looks like this:
-	 *
-	 *	ExtendedRequest := [APPLICATION 23] SEQUENCE {
-	 *		requestName	[0]	LDAPOID,
-	 *		requestValue	[1]	OCTET STRING OPTIONAL
-	 *	}
-	 */
+    /*
+     * Parse the extended request. It looks like this:
+     *
+     *  ExtendedRequest := [APPLICATION 23] SEQUENCE {
+     *      requestName [0] LDAPOID,
+     *      requestValue    [1] OCTET STRING OPTIONAL
+     *  }
+     */
 
-	if ( ber_scanf( pb->pb_op->o_ber, "{a", &extoid )
-	    == LBER_ERROR ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
-		    "ber_scanf failed (op=extended; params=OID)\n",
-		    0, 0, 0 );
-		op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension OID");
-		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
-		    NULL );
-		goto free_and_return;
-	}
-	tag = ber_peek_tag(pb->pb_op->o_ber, &len);
+    if ( ber_scanf( pb->pb_op->o_ber, "{a", &extoid )
+        == LBER_ERROR ) {
+        LDAPDebug( LDAP_DEBUG_ANY,
+            "ber_scanf failed (op=extended; params=OID)\n",
+            0, 0, 0 );
+        op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension OID");
+        send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
+            NULL );
+        goto free_and_return;
+    }
+    tag = ber_peek_tag(pb->pb_op->o_ber, &len);
 
-	if (tag == LDAP_TAG_EXOP_REQ_VALUE) {
-		if ( ber_scanf( pb->pb_op->o_ber, "o}", &extval ) == LBER_ERROR ) {
-			op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension value");
-			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
-							  NULL );
-			goto free_and_return;
-		}
-	} else {
-		if ( ber_scanf( pb->pb_op->o_ber, "}") == LBER_ERROR ) {
-			op_shared_log_error_access (pb, "EXT", "???", "decoding error"); 
-			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
-							  NULL );
-			goto free_and_return;
-		}
-	}
-	if ( NULL == ( name = extended_op_oid2string( extoid ))) {
-		LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s)\n", extoid, 0, 0 );
+    if (tag == LDAP_TAG_EXOP_REQ_VALUE) {
+        if ( ber_scanf( pb->pb_op->o_ber, "o}", &extval ) == LBER_ERROR ) {
+            op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension value");
+            send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
+                              NULL );
+            goto free_and_return;
+        }
+    } else {
+        if ( ber_scanf( pb->pb_op->o_ber, "}") == LBER_ERROR ) {
+            op_shared_log_error_access (pb, "EXT", "???", "decoding error"); 
+            send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
+                              NULL );
+            goto free_and_return;
+        }
+    }
+    if ( NULL == ( name = extended_op_oid2string( extoid ))) {
+        LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s)\n", extoid, 0, 0 );
 
-		slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\"\n",
-				pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
-	} else {
-		LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s-%s)\n",
-				extoid, name, 0 );
+        slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\"\n",
+                pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
+    } else {
+        LDAPDebug( LDAP_DEBUG_ARGS, "do_extended: oid (%s-%s)\n",
+                extoid, name, 0 );
 
-		slapi_log_access( LDAP_DEBUG_STATS,
-			"conn=%" NSPRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
-			pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
-	}
+        slapi_log_access( LDAP_DEBUG_STATS,
+            "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
+            pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid, name );
+    }
 
-	/* during a bulk import, only BULK_IMPORT_DONE is allowed! 
-	 * (and this is the only time it's allowed)
-	 */
-	if (pb->pb_conn->c_flags & CONN_FLAG_IMPORT) {
-		if (strcmp(extoid, EXTOP_BULK_IMPORT_DONE_OID) != 0) {
-			send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
-			goto free_and_return;
-		}
-		extop_handle_import_done(pb, extoid, &extval);
-		goto free_and_return;
-	}
-	
-	if (strcmp(extoid, EXTOP_BULK_IMPORT_START_OID) == 0) {
-		extop_handle_import_start(pb, extoid, &extval);
-		goto free_and_return;
-	}
+    /* during a bulk import, only BULK_IMPORT_DONE is allowed! 
+     * (and this is the only time it's allowed)
+     */
+    if (pb->pb_conn->c_flags & CONN_FLAG_IMPORT) {
+        if (strcmp(extoid, EXTOP_BULK_IMPORT_DONE_OID) != 0) {
+            send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
+            goto free_and_return;
+        }
+        extop_handle_import_done(pb, extoid, &extval);
+        goto free_and_return;
+    }
+    
+    if (strcmp(extoid, EXTOP_BULK_IMPORT_START_OID) == 0) {
+        extop_handle_import_start(pb, extoid, &extval);
+        goto free_and_return;
+    }
 
-	if (strcmp(extoid, START_TLS_OID) != 0) {
-		int minssf = config_get_minssf();
+    if (strcmp(extoid, START_TLS_OID) != 0) {
+        int minssf = config_get_minssf();
 
-		/* If anonymous access is disabled and we haven't
-		 * authenticated yet, only allow startTLS. */
-		if ((config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) && ((pb->pb_op->o_authtype == NULL) ||
-    		        (strcasecmp(pb->pb_op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
-			send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
-				"Anonymous access is not allowed.", 0, NULL );
-			goto free_and_return;
-		}
+        /* If anonymous access is disabled and we haven't
+         * authenticated yet, only allow startTLS. */
+        if ((config_get_anon_access_switch() != SLAPD_ANON_ACCESS_ON) && ((pb->pb_op->o_authtype == NULL) ||
+                    (strcasecmp(pb->pb_op->o_authtype, SLAPD_AUTH_NONE) == 0))) {
+            send_ldap_result( pb, LDAP_INAPPROPRIATE_AUTH, NULL,
+                "Anonymous access is not allowed.", 0, NULL );
+            goto free_and_return;
+        }
 
-		/* If the minssf is not met, only allow startTLS. */
-		if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf) &&
-		    (pb->pb_conn->c_local_ssf < minssf)) {
-			send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
-				"Minimum SSF not met.", 0, NULL );
-			goto free_and_return;
-		}
-	}
+        /* If the minssf is not met, only allow startTLS. */
+        if ((pb->pb_conn->c_sasl_ssf < minssf) && (pb->pb_conn->c_ssl_ssf < minssf) &&
+            (pb->pb_conn->c_local_ssf < minssf)) {
+            send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
+                "Minimum SSF not met.", 0, NULL );
+            goto free_and_return;
+        }
+    }
 
-	/* If a password change is required, only allow the password
-	 * modify extended operation */
-	if (!pb->pb_conn->c_isreplication_session &&
+    /* If a password change is required, only allow the password
+     * modify extended operation */
+    if (!pb->pb_conn->c_isreplication_session &&
                 pb->pb_conn->c_needpw && (strcmp(extoid, EXTOP_PASSWD_OID) != 0))
-	{
-		char *dn = NULL;
-		slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
+    {
+        char *dn = NULL;
+        slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
 
-		(void)slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
-		op_shared_log_error_access (pb, "EXT", dn ? dn : "", "need new password");
-		send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
+        (void)slapi_add_pwd_control ( pb, LDAP_CONTROL_PWEXPIRED, 0);
+        op_shared_log_error_access (pb, "EXT", dn ? dn : "", "need new password");
+        send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL );
 
-		slapi_ch_free_string(&dn);
-		goto free_and_return;
-	}
+        slapi_ch_free_string(&dn);
+        goto free_and_return;
+    }
 
-	/* decode the optional controls - put them in the pblock */
-	if ( (lderr = get_ldapmessage_controls( pb, pb->pb_op->o_ber, NULL )) != 0 )
-	{
-		char *dn = NULL;
-		slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
+    /* decode the optional controls - put them in the pblock */
+    if ( (lderr = get_ldapmessage_controls( pb, pb->pb_op->o_ber, NULL )) != 0 )
+    {
+        char *dn = NULL;
+        slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
 
-		op_shared_log_error_access (pb, "EXT", dn ? dn : "", "failed to decode LDAP controls");
-		send_ldap_result( pb, lderr, NULL, NULL, 0, NULL );
+        op_shared_log_error_access (pb, "EXT", dn ? dn : "", "failed to decode LDAP controls");
+        send_ldap_result( pb, lderr, NULL, NULL, 0, NULL );
 
-		slapi_ch_free_string(&dn);
-		goto free_and_return;
-	}
+        slapi_ch_free_string(&dn);
+        goto free_and_return;
+    }
 
-	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
-	slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
-	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
+    slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_OID, extoid );
+    slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
+    slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
 
     /* wibrown 201603 I want to rewrite this to get plugin p, and use that 
      * rather than all these plugin_call_, that loop over the plugin lists
@@ -340,10 +340,10 @@ do_extended( Slapi_PBlock *pb )
      * then we just hand *p into the call functions.
      * much more efficient! :)
      */
-	
+    
     slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugins ... \n");
 
-	rc = plugin_call_exop_plugins( pb, extoid, SLAPI_PLUGIN_EXTENDEDOP);
+    rc = plugin_call_exop_plugins( pb, extoid, SLAPI_PLUGIN_EXTENDEDOP);
 
     slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called exop, got %d \n", rc);
 
@@ -391,37 +391,37 @@ do_extended( Slapi_PBlock *pb )
         } /* if be */
     }
 
-	if ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT != rc ) {
-		if ( SLAPI_PLUGIN_EXTENDED_NOT_HANDLED == rc ) {
-			lderr = LDAP_PROTOCOL_ERROR;	/* no plugin handled the op */
-			errmsg = "unsupported extended operation";
-		} else {
-			errmsg = NULL;
-			lderr = rc;
-		}
-		send_ldap_result( pb, lderr, NULL, errmsg, 0, NULL );
-	}
+    if ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT != rc ) {
+        if ( SLAPI_PLUGIN_EXTENDED_NOT_HANDLED == rc ) {
+            lderr = LDAP_PROTOCOL_ERROR;    /* no plugin handled the op */
+            errmsg = "unsupported extended operation";
+        } else {
+            errmsg = NULL;
+            lderr = rc;
+        }
+        send_ldap_result( pb, lderr, NULL, errmsg, 0, NULL );
+    }
 free_and_return:
-	if (extoid)
-		slapi_ch_free((void **)&extoid);
-	if (extval.bv_val)
-		slapi_ch_free((void **)&extval.bv_val);
-	return;
+    if (extoid)
+        slapi_ch_free((void **)&extoid);
+    if (extval.bv_val)
+        slapi_ch_free((void **)&extval.bv_val);
+    return;
 }
 
 
 static const char *
 extended_op_oid2string( const char *oid )
 {
-	const char *rval = NULL;
+    const char *rval = NULL;
 
-	if ( 0 == strcmp(oid, EXTOP_BULK_IMPORT_START_OID)) {
-		rval = "Bulk Import Start";
-	} else if ( 0 == strcmp(oid, EXTOP_BULK_IMPORT_DONE_OID)) {
-		rval = "Bulk Import End";
-	} else {
-		rval = plugin_extended_op_oid2string( oid );
-	}
+    if ( 0 == strcmp(oid, EXTOP_BULK_IMPORT_START_OID)) {
+        rval = "Bulk Import Start";
+    } else if ( 0 == strcmp(oid, EXTOP_BULK_IMPORT_DONE_OID)) {
+        rval = "Bulk Import End";
+    } else {
+        rval = plugin_extended_op_oid2string( oid );
+    }
 
-	return( rval );
+    return( rval );
 }
