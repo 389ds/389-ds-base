@@ -706,7 +706,8 @@ convert_pbe_des_to_aes()
     char **attrs = NULL;
     char **backends = NULL;
     char *val = NULL;
-    int converted_des = 0;
+    int converted_des_passwd = 0;
+    int disable_des = 1;
     int result = -1;
     int have_aes = 0;
     int have_des = 0;
@@ -751,7 +752,7 @@ convert_pbe_des_to_aes()
         char *cookie = NULL;
 
         LDAPDebug(LDAP_DEBUG_ANY, "convert_pbe_des_to_aes:  "
-                "Converting DES passwords to AES...\n",0,0,0);
+                "Checking for DES passwords to convert to AES...\n",0,0,0);
 
         be = slapi_get_first_backend(&cookie);
         while (be){
@@ -789,10 +790,13 @@ convert_pbe_des_to_aes()
                 slapi_search_internal_pb(pb);
                 slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
                 if (LDAP_SUCCESS != result) {
-                    LDAPDebug(LDAP_DEBUG_ANY,"convert_pbe_des_to_aes: "
-                            "failed to search for password on (%s) error (%d)\n",
-                            backends[be_idx], result, 0);
-                    goto done;
+                    slapi_log_error(SLAPI_LOG_TRACE, "convert_pbe_des_to_aes: ",
+                        "Failed to search for password attribute (%s) error (%d), skipping suffix (%s)\n",
+                        attrs[i], result, backends[be_idx]);
+                    slapi_free_search_results_internal(pb);
+                    slapi_pblock_destroy(pb);
+                    pb = NULL;
+                    continue;
                 }
                 slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
                 for (ii = 0; entries && entries[ii]; ii++){
@@ -811,9 +815,9 @@ convert_pbe_des_to_aes()
                             /* decode the DES password */
                             if(pw_rever_decode(val, &passwd, attrs[i]) == -1){
                                 LDAPDebug(LDAP_DEBUG_ANY,"convert_pbe_des_to_aes: "
-                                        "failed to decode existing DES password for (%s)\n",
+                                        "Failed to decode existing DES password for (%s)\n",
                                         slapi_entry_get_dn(entries[ii]), 0, 0);
-                                converted_des = 0;
+                                disable_des = 0;
                                 goto done;
                             }
 
@@ -825,7 +829,7 @@ convert_pbe_des_to_aes()
                                         slapi_entry_get_dn(entries[ii]), 0, 0);
                                 slapi_ch_free_string(&passwd);
                                 slapi_value_free(&sval);
-                                converted_des = 0;
+                                disable_des = 0;
                                 goto done;
                             }
 
@@ -846,22 +850,18 @@ convert_pbe_des_to_aes()
                             slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
                             if (LDAP_SUCCESS != result) {
                                 LDAPDebug(LDAP_DEBUG_ANY,"convert_pbe_des_to_aes: "
-                                        "failed to convert password for (%s) error (%d)\n",
+                                        "Failed to convert password for (%s) error (%d)\n",
                                         slapi_entry_get_dn(entries[ii]), result, 0);
-                                converted_des = -1;
+                                disable_des = 0;
                             } else {
                                 LDAPDebug(LDAP_DEBUG_ANY,"convert_pbe_des_to_aes: "
-                                        "successfully converted password for (%s)\n",
+                                        "Successfully converted password for (%s)\n",
                                          slapi_entry_get_dn(entries[ii]), result, 0);
-                                converted_des = 1;
-
+                                converted_des_passwd = 1;
                             }
                             slapi_ch_free_string(&passwd);
                             slapi_value_free(&sval);
                             slapi_pblock_destroy(mod_pb);
-                            if(result){
-                                goto done;
-                            }
                         }
                         slapi_ch_free_string(&val);
                     }
@@ -871,6 +871,10 @@ convert_pbe_des_to_aes()
                 pb = NULL;
             }
             slapi_ch_free_string(&filter);
+        }
+        if (!converted_des_passwd){
+            slapi_log_error(SLAPI_LOG_FATAL, "convert_pbe_des_to_aes",
+                "No DES passwords found to convert.\n");
         }
     }
 
@@ -882,9 +886,9 @@ done:
 
     if (have_aes && have_des){
         /*
-         * If a conversion attempt did not fail, disable DES plugin
+         * If a conversion attempt did not fail then we can disable the DES plugin
          */
-        if(converted_des != -1){
+        if(converted_des_passwd && disable_des){
             /*
              * Disable the DES plugin - this also prevents potentially expensive
              * searches at every server startup.
@@ -917,14 +921,9 @@ done:
                         des_dn, 0, 0);
             }
             slapi_pblock_destroy(pb);
-        }
-        if(converted_des == 1){
-             LDAPDebug(LDAP_DEBUG_ANY,"convert_pbe_des_to_aes: "
-                    "Finished - all DES passwords have been converted to AES.\n",
-                    0, 0, 0);
-        } else if (converted_des == 0){
-            LDAPDebug(LDAP_DEBUG_ANY, "convert_pbe_des_to_aes:  "
-                    "Finished - no DES passwords to convert.\n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_ANY,"convert_pbe_des_to_aes: "
+                      "All DES passwords have been converted to AES.\n",
+                      0, 0, 0);
         }
     }
 }
