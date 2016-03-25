@@ -20,6 +20,7 @@
 #include "repl_shared.h" 
 #include "csnpl.h"
 #include "cl5_api.h"
+#include "slap.h"
 
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
 
@@ -1089,45 +1090,118 @@ replica_set_legacy_purl (Replica *r, const char *purl)
     replica_unlock(r->repl_lock);
 }
 
+static PRBool
+valuesets_equal(Slapi_ValueSet *new_dn_groups, Slapi_ValueSet *old_dn_groups)
+{
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *val = NULL;
+    int idx = 0;
+    PRBool rc = PR_TRUE;
+
+    if (new_dn_groups == NULL) {
+        if (old_dn_groups == NULL)
+            return PR_TRUE;
+        else
+            return PR_FALSE;
+    }
+    if (old_dn_groups == NULL) {
+        return PR_FALSE;
+    }
+
+    /* if there is not the same number of value, no need to check the value themselves */
+    if (new_dn_groups->num != old_dn_groups->num) {
+        return PR_FALSE;
+    }
+
+    attr = slapi_attr_new();
+    slapi_attr_init(attr, attr_replicaBindDnGroup);
+
+    /* Check that all values in old_dn_groups also exist in new_dn_groups */
+    for (idx = slapi_valueset_first_value(old_dn_groups, &val);
+            val && (idx != -1);
+            idx = slapi_valueset_next_value(old_dn_groups, idx, &val)) {
+        if (slapi_valueset_find(attr, new_dn_groups, val) == NULL) {
+            rc = PR_FALSE;
+            break;
+        }
+    }
+    slapi_attr_free(&attr);
+    return rc;
+}
 /* 
  * Returns true if sdn is the same as updatedn and false otherwise 
  */
 PRBool 
 replica_is_updatedn (Replica *r, const Slapi_DN *sdn)
 {
-	PRBool result;
+    PRBool result = PR_FALSE;
 
-	PR_ASSERT (r);
+    PR_ASSERT(r);
 
-	replica_lock(r->repl_lock);
+    replica_lock(r->repl_lock);
 
-	if ((r->updatedn_list == NULL) && (r->groupdn_list == NULL)) {
-		if (sdn == NULL) {
-			result = PR_TRUE;
-		} else {
-			result = PR_FALSE;
-		}
-	} else {
-		result = PR_FALSE;
-		if (r->updatedn_list ) {
-			result = replica_updatedn_list_ismember(r->updatedn_list, sdn);
-		}
-		if ((result == PR_FALSE) && r->groupdn_list ) {
-			/* check and rebuild groupdns */
-			if (r->updatedn_group_check_interval > -1) {
-				time_t now = time(NULL); 
-				if (now - r->updatedn_group_last_check > r->updatedn_group_check_interval) {
-					replica_updatedn_list_group_replace( r->groupdn_list, r->updatedn_groups);
-					r->updatedn_group_last_check = now;
-				}
-			}
-			result = replica_updatedn_list_ismember(r->groupdn_list, sdn);
-		}
-	}
+    if ((r->updatedn_list == NULL) && (r->groupdn_list == NULL)) {
+        if (sdn == NULL) {
+            result = PR_TRUE;
+        } else {
+            result = PR_FALSE;
+        }
+        replica_unlock(r->repl_lock);
+        return result;
+    }
 
-	replica_unlock(r->repl_lock);
+    if (r->updatedn_list) {
+        result = replica_updatedn_list_ismember(r->updatedn_list, sdn);
+        if (result == PR_TRUE) {
+            replica_unlock(r->repl_lock);
+            return result;
+        }
+    }
 
-	return result;
+    if (r->groupdn_list) {
+        /* check and rebuild groupdns */
+        if (r->updatedn_group_check_interval > -1) {
+            time_t now = time(NULL);
+            if (now - r->updatedn_group_last_check > r->updatedn_group_check_interval) {
+                Slapi_ValueSet *updatedn_groups_copy = NULL;
+                ReplicaUpdateDNList groupdn_list = replica_updatedn_list_new(NULL);
+
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "Authorized replication managers is resync (%ld)\n", now);
+                updatedn_groups_copy = slapi_valueset_new();
+                slapi_valueset_set_valueset(updatedn_groups_copy, r->updatedn_groups);
+                r->updatedn_group_last_check = now; /* Just to be sure no one will try to reload */
+
+                /* It can do internal searches, to avoid deadlock release the replica lock
+                 * as we are working on local variables
+                 */
+                replica_unlock(r->repl_lock);
+                replica_updatedn_list_group_replace(groupdn_list, updatedn_groups_copy);
+                replica_lock(r->repl_lock);
+
+                if (valuesets_equal(r->updatedn_groups, updatedn_groups_copy)) {
+                    /* the updatedn_groups has not been updated while we release the replica
+                     * this is fine to apply the groupdn_list
+                     */
+                    replica_updatedn_list_delete(r->groupdn_list, NULL);
+                    replica_updatedn_list_free(r->groupdn_list);
+                    r->groupdn_list = groupdn_list;
+                } else {
+                    /* the unpdatedn_groups has been updated while we released the replica
+                     * groupdn_list in the replica is up to date. Do not replace it
+                     */
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "Authorized replication managers (%s) was updated during a refresh\n", attr_replicaBindDnGroup);
+                    replica_updatedn_list_delete(groupdn_list, NULL);
+                    replica_updatedn_list_free(groupdn_list);
+                }
+                slapi_valueset_free(updatedn_groups_copy);
+            }
+        }
+        result = replica_updatedn_list_ismember(r->groupdn_list, sdn);
+    }
+
+    replica_unlock(r->repl_lock);
+
+    return result;
 }
 /* 
  * Sets updatedn list for this replica 
