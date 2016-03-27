@@ -240,6 +240,15 @@ def test_ticket47462(topology):
         assert False
 
     #
+    # Add a backend (that has no entries)
+    #
+    try:
+        topology.master1.backend.create("o=empty", {BACKEND_NAME: "empty"})
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create extra/empty backend: ' + e.message['desc'])
+        assert False
+
+    #
     # Run the upgrade...
     #
     topology.master1.upgrade('online')
