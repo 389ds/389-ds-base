@@ -15,7 +15,9 @@ libsvrcore_la_SOURCES =	alt.c \
 			pin.c \
 			pk11.c \
 			std.c \
+			systemd-ask-pass.c \
+			std-systemd.c \
 			user.c
 
 libsvrcore_la_LDFLAGS = -version-info 0:0:0 @NSS_LIBS@ @NSPR_LIBS@
-libsvrcore_la_CFLAGS = @NSS_CFLAGS@ @NSPR_CFLAGS@
+libsvrcore_la_CFLAGS = @NSS_CFLAGS@ @NSPR_CFLAGS@ @SYSTEMD_CFLAGS@

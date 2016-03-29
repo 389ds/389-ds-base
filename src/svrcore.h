@@ -54,7 +54,12 @@ enum SVRCOREError
   SVRCORE_System_Error             = 2,
   SVRCORE_NoSuchToken_Error        = 3,
   SVRCORE_IncorrectPassword_Error  = 4,
-  SVRCORE_MaximumErrorValue        = 4
+  SVRCORE_IOOperationError         = 5,
+  SVRCORE_SocketError              = 6,
+  SVRCORE_PermissionError          = 7,
+  SVRCORE_ClockError               = 8,
+  SVRCORE_TimeoutError             = 9,
+  SVRCORE_MaximumErrorValue        = 9
 };
 typedef enum SVRCOREError SVRCOREError;
 
@@ -227,6 +232,57 @@ SVRCORE_CachedPinGetPin(char **pin, SVRCORECachedPinObj *obj,
 
 void
 SVRCORE_DestroyCachedPinObj(SVRCORECachedPinObj *obj);
+
+
+#ifdef WITH_SYSTEMD
+#ifndef _WIN32
+/* ------------------------------------------------------------ */
+/*
+ * SVRCORESystemdPinObj - implementation of SVRCOREPinObj that
+ *      is able to contact the systemd ask pass api to retrieve
+ *      the PIN material.
+ */
+
+typedef struct SVRCORESystemdPinObj SVRCORESystemdPinObj;
+
+SVRCOREError
+SVRCORE_CreateSystemdPinObj(SVRCORESystemdPinObj **out, uint64_t timeout);
+
+void
+SVRCORE_DestroySystemdPinObj(SVRCORESystemdPinObj *obj);
+
+/* ------------------------------------------------------------ */
+/*
+ * SVRCOREStdSystemdPinObj - implementation of SVRCOREPinObj that
+ *   provides the standard handling for servers, including systemd.
+ *   This includes systemd request, optional file lookup, and
+ *   optional caching.
+ *
+ * SVRCORE_SetStdSystemdPinInteractive - allows the application to declare
+ *   that input via the terminal is no longer possible (set interactive
+ *   to PR_FALSE).  See the corresponding routine for UserPinObj
+ *
+ * SVRCORE_StdSystemdPinGetPin - get a (securely) cached PIN value.  Returns
+ *   SVRCORE_NoSuchToken_Error if the object is not set up for caching.
+ */
+typedef struct SVRCOREStdSystemdPinObj SVRCOREStdSystemdPinObj;
+
+SVRCOREError
+SVRCORE_CreateStdSystemdPinObj(SVRCOREStdSystemdPinObj **out,
+  const char *filename, PRBool cachePINs, PRBool systemdPINs, uint64_t timeout);
+
+void
+SVRCORE_SetStdSystemdPinInteractive(SVRCOREStdSystemdPinObj *obj, PRBool interactive);
+
+SVRCOREError
+SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
+  const char *tokenName);
+
+void
+SVRCORE_DestroyStdSystemdPinObj(SVRCOREStdSystemdPinObj *obj);
+
+#endif
+#endif
 
 
 /* ------------------------------------------------------------ */

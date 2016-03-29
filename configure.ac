@@ -27,6 +27,7 @@ AC_CHECK_FUNCS([memset strchr strdup])
 # Check for library dependencies
 m4_include(m4/nss.m4)
 m4_include(m4/nspr.m4)
+m4_include(m4/systemd.m4)
 
 AC_SUBST([NSPR_CFLAGS])
 AC_SUBST([NSPR_LIBS])
@@ -36,6 +37,7 @@ AC_SUBST([NSS_CFLAGS])
 AC_SUBST([NSS_LIBS])
 AC_SUBST([NSS_MIN_VER])
 AC_SUBST([NSS_NAME])
+AC_SUBST([SYSTEMD_CFLAGS])
 
 AC_CONFIG_FILES([src/Makefile Makefile svrcore.pc])
 AC_OUTPUT
