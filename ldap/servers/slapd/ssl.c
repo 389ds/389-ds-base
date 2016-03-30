@@ -1125,13 +1125,22 @@ svrcore_setup()
 {
     PRErrorCode errorCode;
     int rv = 0;
+#ifdef WITH_SYSTEMD
+    SVRCOREStdSystemdPinObj *StdPinObj;
+    StdPinObj = (SVRCOREStdSystemdPinObj *)SVRCORE_GetRegisteredPinObj();
+#else
     SVRCOREStdPinObj *StdPinObj;
-
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+#endif
+
     if (StdPinObj) {
         return 0; /* already registered */
     }
+#ifdef WITH_SYSTEMD
+    if ( SVRCORE_CreateStdSystemdPinObj(&StdPinObj, dongle_file_name, PR_TRUE, PR_TRUE, 90) != SVRCORE_Success) {
+#else
     if ( SVRCORE_CreateStdPinObj(&StdPinObj, dongle_file_name, PR_TRUE) != SVRCORE_Success) {
+#endif
         errorCode = PR_GetError();
         slapd_SSL_warn("Security Initialization: Unable to create PinObj ("
 				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
@@ -1248,6 +1257,10 @@ slapd_ssl_init()
                 return -1;
             }
             /* authenticate */
+#ifdef WITH_SYSTEMD
+            slapd_SSL_warn("Sending pin request to SVRCore. You may need to run"
+                    " systemd-tty-ask-password-agent to provide the password.");
+#endif
             if (slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                 errorCode = PR_GetError();
                 slapd_SSL_warn("Security Initialization: Unable to authenticate ("
@@ -1494,6 +1507,10 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     int allowweakcipher = CIPHER_SET_DEFAULTWEAKCIPHER;
 
     /* turn off the PKCS11 pin interactive mode */
+    /* wibrown 2016 */
+    /* We don't need to do the detection for the StdSystemPin, it does it */
+    /* automatically for us. */
+#ifndef WITH_SYSTEMD
     SVRCOREStdPinObj *StdPinObj;
 
     if (svrcore_setup()) {
@@ -1502,6 +1519,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     SVRCORE_SetStdPinInteractive(StdPinObj, PR_FALSE);
+#endif
     errorbuf[0] = '\0';
 
     /*
@@ -2116,6 +2134,10 @@ slapd_SSL_client_auth (LDAP* ld)
     /* Free config data */
 
     if (!svrcore_setup()) {
+#ifdef WITH_SYSTEMD
+        slapd_SSL_warn("Sending pin request to SVRCore. You may need to run "
+                "systemd-tty-ask-password-agent to provide the password.");
+#endif
         StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
         err =  SVRCORE_StdPinGetPin( &pw, StdPinObj, token );
         if ( err != SVRCORE_Success || pw == NULL) {
