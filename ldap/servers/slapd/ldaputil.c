@@ -608,7 +608,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
        that optval is ignored - what matters is that it is not NULL */
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
 	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
-			"failed: unable to create new TLS context\n");
+			"failed: unable to create new TLS context - %d\n", rc);
     }
 
     return rc;
