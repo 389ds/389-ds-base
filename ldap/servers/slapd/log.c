@@ -2289,7 +2289,12 @@ vslapd_log_error(
 
     /* blen = strlen(buffer); */
     /* This truncates again .... But we have the nice smprintf above! */
-    PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
+    if (subsystem == NULL) {
+        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
+    } else {
+        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s", subsystem, vbuf);
+    }
+
     buffer[sizeof(buffer)-1] = '\0';
 
     if (fp)
