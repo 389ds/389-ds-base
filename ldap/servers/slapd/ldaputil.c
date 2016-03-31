@@ -605,7 +605,8 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
 
     /* have to do this last - this creates the new TLS handle and sets/copies
        all of the parameters set above into that TLS handle context - note
-       that optval is ignored - what matters is that it is not NULL */
+       that optval is zero, meaning create a context for a client */
+    optval = 0;
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
 	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
 			"failed: unable to create new TLS context - %d\n", rc);
