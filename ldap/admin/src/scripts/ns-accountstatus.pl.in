@@ -30,7 +30,7 @@ my $verbose = 0;
 sub usage
 {
     print (STDERR "ns-accountstatus.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename }\n");
-    print (STDERR "                    [-p port] [-h host] [-P protocol] {-I DN | -b basedn -f filter [-s scope]}"
+    print (STDERR "                    [-p port] [-h host] [-P protocol] {-I DN | -b basedn -f filter [-s scope]}\n");
     print (STDERR "                    [-i] [-g seconds]\n\n");
     print (STDERR "May be used to get the status a user or a domain of users\n\n");
     print (STDERR "Arguments:\n");
