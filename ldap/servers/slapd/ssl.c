@@ -893,8 +893,6 @@ restrict_SSLVersionRange(void)
         slapdNSSVersions.max = enabledNSSVersions.max;
     }
     if (enableSSL3) {
-        slapd_SSL_warn("Found unsecure configuration: nsSSL3: on; "
-                       "We strongly recommend to disable nsSSL3 in %s.", configDN);
         if (enableTLS1) {
             if (slapdNSSVersions.min >= CURRENT_DEFAULT_SSL_VERSION) {
                 slapd_SSL_warn("Configured range: min: %s, max: %s; "
@@ -902,6 +900,10 @@ restrict_SSLVersionRange(void)
                                "Respect the supported range.",
                                mymin, mymax);
                 enableSSL3 = PR_FALSE;
+            } else {
+                slapd_SSL_warn("Min value is too low in range: min: %s, max: %s; "
+                               "We strongly recommend to set sslVersionMin higher than %s.",
+                               mymin, mymax, DEFVERSION);
             }
             if (slapdNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
                 slapd_SSL_warn("Configured range: min: %s, max: %s; "
@@ -928,7 +930,7 @@ restrict_SSLVersionRange(void)
                 enableSSL3 = PR_FALSE;
                 enableTLS1 = PR_TRUE;
             } else if (slapdNSSVersions.min < CURRENT_DEFAULT_SSL_VERSION) {
-                slapd_SSL_warn("Too low configured range: min: %s, max: %s; "
+                slapd_SSL_warn("Min value is too low in range: min: %s, max: %s; "
                                "We strongly recommend to set sslVersionMin higher than %s.",
                                mymin, mymax, DEFVERSION);
             } else {
