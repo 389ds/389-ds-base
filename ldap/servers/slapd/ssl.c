@@ -380,20 +380,99 @@ getSSLVersionInfo(int *ssl2, int *ssl3, int *tls1)
 int
 getSSLVersionRange(char **min, char **max)
 {
-    if (!slapd_ssl_listener_is_initialized()) {
+    if (!min && !max) {
         return -1;
     }
-    if ((NULL == min) || (NULL == max)) {
+    if (!slapd_ssl_listener_is_initialized()) {
+        if (min) {
+            *min = slapi_getSSLVersion_str(LDAP_OPT_X_TLS_PROTOCOL_TLS1_0, NULL, 0);
+        }
+        if (max) {
+            *max = slapi_getSSLVersion_str(LDAP_OPT_X_TLS_PROTOCOL_TLS1_2, NULL, 0);
+        }
         return -1;
     }
 #if defined(NSS_TLS10)
     return -1; /* not supported */
 #else /* NSS_TLS11 or newer */
-    *min = slapi_getSSLVersion_str(slapdNSSVersions.min, NULL, 0);
-    *max = slapi_getSSLVersion_str(slapdNSSVersions.max, NULL, 0);
+    if (min) {
+        *min = slapi_getSSLVersion_str(slapdNSSVersions.min, NULL, 0);
+    }
+    if (max) {
+        *max = slapi_getSSLVersion_str(slapdNSSVersions.max, NULL, 0);
+    }
     return 0;
 #endif
 }
+
+#if defined(USE_OPENLDAP)
+void
+getSSLVersionRangeOL(int *min, int *max)
+{
+    /* default range values */
+    if (min) {
+        *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_0;
+    }
+    if (max) {
+        *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
+    }
+    if (!slapd_ssl_listener_is_initialized()) {
+        return;
+    }
+#if defined(NSS_TLS10)
+    *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_0;
+    return;
+#else /* NSS_TLS11 or newer */
+    if (min) {
+        switch (slapdNSSVersions.min) {
+        case SSL_LIBRARY_VERSION_3_0:
+            *min = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+            break;
+        case SSL_LIBRARY_VERSION_TLS_1_0:
+            *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_0;
+            break;
+        case SSL_LIBRARY_VERSION_TLS_1_1:
+            *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_1;
+            break;
+        case SSL_LIBRARY_VERSION_TLS_1_2:
+            *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
+            break;
+        default:
+            if (slapdNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_2) {
+                *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 + 1;
+            } else {
+                *min = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+            }
+            break;
+        }
+    }
+    if (max) {
+        switch (slapdNSSVersions.max) {
+        case SSL_LIBRARY_VERSION_3_0:
+            *max = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+            break;
+        case SSL_LIBRARY_VERSION_TLS_1_0:
+            *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_0;
+            break;
+        case SSL_LIBRARY_VERSION_TLS_1_1:
+            *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_1;
+            break;
+        case SSL_LIBRARY_VERSION_TLS_1_2:
+            *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
+            break;
+        default:
+            if (slapdNSSVersions.max > SSL_LIBRARY_VERSION_TLS_1_2) {
+                *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 + 1;
+            } else {
+                *max = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+            }
+            break;
+        }
+    }
+    return;
+#endif
+}
+#endif /* USE_OPENLDAP */
 
 static void
 _conf_init_ciphers()

@@ -70,6 +70,11 @@
 static PRCallOnceType ol_init_callOnce = {0,0};
 static PRLock *ol_init_lock = NULL;
 
+#if defined(USE_OPENLDAP)
+extern void getSSLVersionRangeOL(int *min, int *max);
+extern int getSSLVersionRange(char **min, char **max);
+#endif
+
 static PRStatus
 internal_ol_init_init(void)
 {
@@ -572,35 +577,38 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     int rc = 0;
 
     if (config_get_ssl_check_hostname()) {
-	ssl_strength = LDAP_OPT_X_TLS_HARD;
+        ssl_strength = LDAP_OPT_X_TLS_HARD;
     } else {
-	/* verify certificate only */
-	ssl_strength = LDAP_OPT_X_TLS_NEVER;
+        /* verify certificate only */
+        ssl_strength = LDAP_OPT_X_TLS_NEVER;
     }
 
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
-	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
-			"failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
+        slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                        "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
     }
     /* tell it where our cert db is */
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
-	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
-			"failed: unable to set CACERTDIR option to %s\n", certdir);
+        slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                        "failed: unable to set CACERTDIR option to %s\n", certdir);
     }
     slapi_ch_free_string(&certdir);
 #if defined(LDAP_OPT_X_TLS_PROTOCOL_MIN)
-    optval = LDAP_OPT_X_TLS_PROTOCOL_SSL3;
+    getSSLVersionRangeOL(&optval, NULL);
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
-	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
-			"failed: unable to set minimum TLS protocol level to SSL3\n");
+        char *minstr = NULL;
+        (void)getSSLVersionRange(&minstr, NULL);
+        slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                        "failed: unable to set minimum TLS protocol level to %s\n", minstr);
+        slapi_ch_free_string(&minstr);
     }
 #endif /* LDAP_OPT_X_TLS_PROTOCOL_MIN */
     if (clientauth) {
-	rc = slapd_SSL_client_auth(ld);
-	if (rc) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
-			    "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication - %d\n", rc);
-	}
+        rc = slapd_SSL_client_auth(ld);
+        if (rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                            "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication - %d\n", rc);
+        }
     }
 
     /* have to do this last - this creates the new TLS handle and sets/copies
@@ -608,8 +616,8 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
        that optval is zero, meaning create a context for a client */
     optval = 0;
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
-	slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
-			"failed: unable to create new TLS context - %d\n", rc);
+        slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                        "failed: unable to create new TLS context - %d\n", rc);
     }
 
     return rc;
