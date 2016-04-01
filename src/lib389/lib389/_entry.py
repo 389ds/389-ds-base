@@ -410,6 +410,18 @@ class EntryAci(object):
         self._rawaci = rawaci
         self.acidata = self._parse_aci(self._rawaci)
 
+    def __eq__(self, other):
+
+        # If we are from different entries, we should fail
+        # Can this fail if we have different filters to get the acis though?
+        if self.entry.dn != other.entry.dn:
+            return False
+        # Should we be checking the generated Aci incase it has changed?
+        return self.getRawAci() == other.getRawAci()
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def _format_term(self, key, value_dict):
         rawaci = ''
         if value_dict['equal']:

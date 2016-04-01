@@ -92,6 +92,24 @@ def test_aci(topology, complex_aci):
     }
     assert aci.getRawAci() == complex_aci
 
+def test_aci_lint(topology, complex_aci):
+    """Checks content of previously added aci"""
+
+    # Make sure we actually have acis to check!
+    acis = topology.standalone.aci.list('cn=testgroup,%s' % DEFAULT_SUFFIX)
+    #print(acis)
+    assert len(acis) == 1
+
+    # Actually test them
+    (result, detail) = topology.standalone.aci.lint(DEFAULT_SUFFIX)
+    # What is the point of testing perfect acis! We need this to fail!
+    assert (result is False)
+    #print(topology.standalone.aci.format_lint(detail))
+
+    assert(len(detail) == 2)
+    assert (detail[0]['dsale'] == 'DSALE0001')
+    assert (detail[1]['dsale'] == 'DSALE0002')
+    # Check all the results
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
