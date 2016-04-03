@@ -1603,35 +1603,35 @@ dna_update_config_event(time_t event_time, void *arg)
                     slapi_pblock_set(dna_pb, SLAPI_BACKEND, be);
                     /* We need to start transaction to avoid the deadlock */
                     rc = slapi_back_transaction_begin(dna_pb);
-                    if (rc) {
+                    if (rc == 0) {
+
+                        /* First delete the existing shared config entry.  This
+                         * will allow the entry to be updated for things like
+                         * port number changes, etc. */
+                        slapi_delete_internal_set_pb(pb, config_entry->shared_cfg_dn,
+                                                     NULL, NULL, getPluginID(), 0);
+
+                        /* We don't care about the results */
+                        slapi_delete_internal_pb(pb);
+
+                        /* Now force the entry to be recreated */
+                        rc = dna_update_shared_config(config_entry);
+
+                        if (0 == rc) {
+                            slapi_back_transaction_commit(dna_pb);
+                        } else {
+                            if (slapi_back_transaction_abort(dna_pb) != 0) {
+                                slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM, "dna_update_config_event: failed to abort transaction!\n");
+                            }
+                        }
+                        slapi_pblock_destroy(dna_pb);
+                        slapi_pblock_init(pb);
+                    } else {
                         slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
                                   "dna_update_config_event: failed to start transaction\n");
                     }
                 }
 
-                /* First delete the existing shared config entry.  This
-                 * will allow the entry to be updated for things like
-                 * port number changes, etc. */
-                slapi_delete_internal_set_pb(pb, config_entry->shared_cfg_dn,
-                                             NULL, NULL, getPluginID(), 0);
-
-                /* We don't care about the results */
-                slapi_delete_internal_pb(pb);
-
-                /* Now force the entry to be recreated */
-                dna_update_shared_config(config_entry);
-
-                if (dna_pb) {
-                    if (0 == rc) {
-                        slapi_back_transaction_commit(dna_pb);
-                    } else {
-                        if (slapi_back_transaction_abort(dna_pb) != 0) {
-                            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM, "dna_update_config_event: failed to abort transaction!\n");
-                        }
-                    }
-                    slapi_pblock_destroy(dna_pb);
-                }
-                slapi_pblock_init(pb);
             }
 
             list = PR_NEXT_LINK(list);
