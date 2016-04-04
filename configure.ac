@@ -185,7 +185,7 @@ if test -z "$enable_auto_dn_suffix" ; then
    enable_auto_dn_suffix=no # if not set on cmdline, set default
 fi
 AC_MSG_CHECKING(for --enable-auto-dn-suffix)
-AC_ARG_ENABLE(autobind,
+AC_ARG_ENABLE(auto-dn-suffix,
         AS_HELP_STRING([--enable-auto-dn-suffix],
                        [enable auto bind with auto dn suffix over unix domain socket (LDAPI) support (default: no)]))
 if test "$enable_ldapi" = yes -a "$enable_autobind" = yes -a "$enable_auto_dn_suffix" = "yes"; then

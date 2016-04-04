@@ -921,6 +921,7 @@ enable_pam_passthru
 enable_dna
 enable_ldapi
 enable_autobind
+enable_auto_dn_suffix
 enable_bitwise
 enable_presence
 enable_acctpolicy
@@ -17907,9 +17908,9 @@ if test -z "$enable_auto_dn_suffix" ; then
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-auto-dn-suffix" >&5
 $as_echo_n "checking for --enable-auto-dn-suffix... " >&6; }
-# Check whether --enable-autobind was given.
-if test "${enable_autobind+set}" = set; then :
-  enableval=$enable_autobind;
+# Check whether --enable-auto-dn-suffix was given.
+if test "${enable_auto_dn_suffix+set}" = set; then :
+  enableval=$enable_auto_dn_suffix;
 fi
 
 if test "$enable_ldapi" = yes -a "$enable_autobind" = yes -a "$enable_auto_dn_suffix" = "yes"; then
