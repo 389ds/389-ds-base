@@ -11,6 +11,7 @@ import six
 import logging
 import ldif
 import ldap
+import binascii
 from ldap.cidict import cidict
 
 from lib389._constants import *
@@ -253,6 +254,27 @@ class Entry(object):
             sio, Entry.base64_attrs, 1000).unparse(self.dn, newdata)
         return sio.getvalue()
 
+    def bin2b64(self):
+        """
+        Convert any binary values in the entry to base 64
+        """
+        for attr, vals in self.iterAttrs():
+            attr_vals = []
+            for val in vals:
+                try:
+                    val.decode('ascii')
+                    attr_vals.append(val)
+                except:
+                    # We have a binary value we need to convert
+                    b64 = binascii.b2a_base64(val)
+                    if b64[-1] == '\n':
+                        # Strip off the newline
+                        b64 = b64[:-1]
+
+                    attr_vals.append(b64)
+
+            self.data[attr] = attr_vals
+
     def getJSONEntry(self):
         """
         Return a JSON dictionary representation of the entry:
@@ -285,6 +307,9 @@ class Entry(object):
                 }
             }
         """
+        # Need to convert binary values to base64 for our JSON representations
+        self.bin2b64()
+
         entry = {'dn': self.dn, 'attrs': dict(self.data)}
         return entry
 
