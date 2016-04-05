@@ -1049,7 +1049,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     if (!add_hash(cache->c_dntable, (void *)newndn, strlen(newndn), newe, (void **)&alte)) {
         LOG("entry cache replace (%s): can't add to dn table (returned %s)\n", 
             newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none", 0);
-        cache_lock(cache);
+        cache_unlock(cache);
         return 1;
     }
     if (!add_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID), newe, (void **)&alte)) {
@@ -1507,6 +1507,7 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
         if (! e->ep_mutexp) {
             e->ep_mutexp = PR_NewMonitor();
             if (!e->ep_mutexp) {
+                PR_Unlock(cache->c_emutexalloc_mutex);
                 LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
                 LDAPDebug1Arg(LDAP_DEBUG_ANY,
                               "cache_lock_entry: failed to create a lock for %s\n",
