@@ -2112,10 +2112,10 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 @SYSTEMD_TRUE@	wrappers/$(systemdgroupname) \
 @SYSTEMD_TRUE@	wrappers/$(PACKAGE_NAME)-snmp.service
 
-@SYSTEMD_FALSE@init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
-@SYSTEMD_FALSE@	wrappers/$(PACKAGE_NAME)-snmp
+@INITDDIR_TRUE@@SYSTEMD_FALSE@init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
+@INITDDIR_TRUE@@SYSTEMD_FALSE@	wrappers/$(PACKAGE_NAME)-snmp
 
-@SYSTEMD_FALSE@initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
+@INITDDIR_TRUE@@SYSTEMD_FALSE@initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 @SYSTEMD_TRUE@initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME) \
 @SYSTEMD_TRUE@	wrappers/$(PACKAGE_NAME).systemd
 

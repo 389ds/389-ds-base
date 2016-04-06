@@ -695,15 +695,19 @@ systemdsystemunit_DATA = wrappers/$(PACKAGE_NAME)@.service \
 	wrappers/$(systemdgroupname) \
 	wrappers/$(PACKAGE_NAME)-snmp.service
 else
+if INITDDIR
 init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
 	wrappers/$(PACKAGE_NAME)-snmp
+endif
 endif
 
 if SYSTEMD
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME) \
 	wrappers/$(PACKAGE_NAME).systemd
-else
+else 
+if INITDDIR
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
+endif
 endif
 
 inf_DATA = ldap/admin/src/slapd.inf \

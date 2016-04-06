@@ -463,14 +463,13 @@ AC_ARG_WITH(initddir,
         AS_HELP_STRING([--with-initddir=/path],
                        [Absolute path (not relative like some of the other options) that should contain the SysV init scripts (default '$(sysconfdir)/rc.d')]),
 [
-  if test "$withval" = yes -o "$withval" = no  ; then
-     AC_ERROR([Please specify a full path with --with-initddir])
-  fi
   AC_MSG_RESULT($withval)
 ],
 [
   AC_MSG_RESULT(no)
 ])
+
+AM_CONDITIONAL([INITDDIR], [test -n "$with_initddir" -a "$with_initddir" != "no"])
 # on most platforms, we will just use perl from PATH
 # On some platforms, we cannot.  Why not just use any old
 # perl?  Because of perldap.  We use a perldap that is
@@ -618,6 +617,7 @@ esac
 if test -n "$with_initddir" ; then
    initdir="$with_initddir"
 fi
+
 # sysv init scripts not used when systemd is used
 AC_SUBST(initdir)
 AC_SUBST(perlexec)
