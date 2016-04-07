@@ -909,7 +909,7 @@ sub setDefaults {
                                                   $inf->{General}->{prefix});
 
     if (!defined($inf->{slapd}->{InstScriptsEnabled})) {
-        $inf->{slapd}->{InstScriptsEnabled} = "false";
+        $inf->{slapd}->{InstScriptsEnabled} = "true";
     }
 
     if (!defined($inf->{General}->{StrictHostCheck})) {
