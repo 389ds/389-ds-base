@@ -3,6 +3,8 @@ The Netscape svrcore library
 Terry Hayes wrote the Netscape svrcore library in 1998.
 Valerie Chu wrote the ntgetpin.c and related files.
 
+William Brown wrote systemd integration and related parts.
+
 svrcore used to contain two major parts.
 
 The first part is what we released on mozilla.  It is a kind of
