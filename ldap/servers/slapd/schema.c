@@ -1638,6 +1638,16 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 	}
 
 	if ( !aew->schema_ds4x_compat ) {
+#if defined (USE_OPENLDAP)
+		/* 
+		 * These values in quotes are not supported by the openldap parser.
+		 * Even if nsslapd-enquote-sup-oc is on, quotes should not be added.
+		 */
+		outp += put_tagged_oid( outp, "SUP ", asip->asi_superior, NULL, 0 );
+		outp += put_tagged_oid( outp, "EQUALITY ", asip->asi_mr_equality, NULL, 0 );
+		outp += put_tagged_oid( outp, "ORDERING ", asip->asi_mr_ordering, NULL, 0 );
+		outp += put_tagged_oid( outp, "SUBSTR ", asip->asi_mr_substring, NULL, 0 );
+#else
 		outp += put_tagged_oid( outp, "SUP ",
 				asip->asi_superior, NULL, aew->enquote_sup_oc );
 		outp += put_tagged_oid( outp, "EQUALITY ",
@@ -1646,6 +1656,7 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 				asip->asi_mr_ordering, NULL, aew->enquote_sup_oc );
 		outp += put_tagged_oid( outp, "SUBSTR ",
 				asip->asi_mr_substring, NULL, aew->enquote_sup_oc );
+#endif
 	}
 
 	outp += put_tagged_oid( outp, "SYNTAX ", syntaxoid, syntaxlengthbuf,
@@ -4105,13 +4116,24 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     char **attr_names = NULL;
     unsigned long flags = SLAPI_ATTR_FLAG_OVERRIDE;
     /* If we ever accept openldap schema directly, then make parser_flags configurable */
-    const int parser_flags = LDAP_SCHEMA_ALLOW_NONE | LDAP_SCHEMA_ALLOW_NO_OID;
+    unsigned int parser_flags = LDAP_SCHEMA_ALLOW_NONE | LDAP_SCHEMA_ALLOW_NO_OID;
     int invalid_syntax_error;
     int syntaxlength = SLAPI_SYNTAXLENGTH_NONE;
     int num_names = 0;
     int status = 0;
     int rc = 0;
     int a, aa;
+
+    if (config_get_enquote_sup_oc()) {
+        parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
+    } else if (getenv("LDAP_SCHEMA_ALLOW_QUOTED")) {
+        char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
+        if (config_set_enquote_sup_oc(CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, "on", ebuf, CONFIG_APPLY)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "schema", "Failed to enable %s: %s\n",
+                            CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, ebuf);
+        }
+    }
 
     /*
      *      OpenLDAP AttributeType struct
@@ -4159,7 +4181,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         /* trim any leading spaces */
         input++;
     }
-    if((atype = ldap_str2attributetype(input, &rc, &errp, parser_flags )) == NULL){
+    if((atype = ldap_str2attributetype(input, &rc, &errp, (const unsigned int)parser_flags )) == NULL){
         schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, input,
                                "Failed to parse attribute, error(%d - %s) at (%s)", rc, ldap_scherr2str(rc), errp );
         return invalid_syntax_error;
@@ -4478,11 +4500,22 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
     char **OrigRequiredAttrsArray, **OrigAllowedAttrsArray;
     char *first_oc_name = NULL;
     /* If we ever accept openldap schema directly, then make parser_flags configurable */
-    const int parser_flags = LDAP_SCHEMA_ALLOW_NONE | LDAP_SCHEMA_ALLOW_NO_OID;
+    unsigned int parser_flags = LDAP_SCHEMA_ALLOW_NONE | LDAP_SCHEMA_ALLOW_NO_OID;
     PRUint8 flags = 0;
     int invalid_syntax_error;
     int i, j;
     int rc = 0;
+
+    if (config_get_enquote_sup_oc()) {
+        parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
+    } else if (getenv("LDAP_SCHEMA_ALLOW_QUOTED")) {
+        char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
+        parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
+        if (config_set_enquote_sup_oc(CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, "on", ebuf, CONFIG_APPLY)) {
+            slapi_log_error(SLAPI_LOG_FATAL, "schema", "Failed to enable %s: %s\n",
+                            CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, ebuf);
+        }
+    }
 
     /*
      *     openLDAP Objectclass struct
@@ -4521,10 +4554,10 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
      *  Parse the input and create the openLdap objectclass structure
      */
     while(isspace(*input)){
-    	/* trim any leading spaces */
+        /* trim any leading spaces */
         input++;
     }
-    if((objClass = ldap_str2objectclass(input, &rc, &errp, parser_flags )) == NULL){
+    if((objClass = ldap_str2objectclass(input, &rc, &errp, (const unsigned int)parser_flags )) == NULL){
         schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, input,
                                "Failed to parse objectclass, error(%d) at (%s)", rc, errp );
         return invalid_syntax_error;
@@ -5592,7 +5625,7 @@ get_tagged_oid( const char *tag, const char **inputp,
 	PR_ASSERT( NULL != *inputp );
 	PR_ASSERT( NULL != tag );
 	PR_ASSERT( '\0' != tag[ 0 ] );
-       	if('(' !=tag[0]) 
+	if('(' !=tag[0]) 
 	  PR_ASSERT((' ' == tag[ strlen( tag ) - 1 ]) || ('(' == tag[ strlen( tag ) - 1 ]));
 
 	if ( NULL == strstr_fn ) {
@@ -5611,8 +5644,8 @@ get_tagged_oid( const char *tag, const char **inputp,
 		/* skip past the leading single quote, if present */
 		if ( *startp == '\'' ) {
 			++startp;
-                        /* skip past any extra white space */
-                        startp = skipWS( startp );
+			/* skip past any extra white space */
+			startp = skipWS( startp );
 		}
 
 		/* locate the end of the OID */
@@ -7155,6 +7188,7 @@ schema_berval_to_oclist(struct berval **oc_berval)
                 errorbuf[0] = '\0';
                 for (i = 0; oc_berval[i] != NULL; i++) {
                         /* parse the objectclass value */
+                        oc = NULL;
                         if (LDAP_SUCCESS != (rc = parse_oc_str(oc_berval[i]->bv_val, &oc,
                                 errorbuf, sizeof (errorbuf), DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0,
                                 schema_ds4x_compat, oc_list))) {
@@ -7197,12 +7231,13 @@ schema_berval_to_atlist(struct berval **at_berval)
         errorbuf[0] = '\0';
         for (i = 0; at_berval[i] != NULL; i++) {
             /* parse the objectclass value */
+            at = NULL;
             rc = parse_at_str(at_berval[i]->bv_val, &at, errorbuf, sizeof (errorbuf),
                     DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0, schema_ds4x_compat, 0);
             if (rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, "schema",
-                                "parse_oc_str returned error: %s\n",
-                                errorbuf[0]?errorbuf:"unknown");
+                                "schema_berval_to_atlist: parse_at_str(%s) failed - %s\n",
+                                at_berval[i]->bv_val, errorbuf[0]?errorbuf:"unknown");
                 attr_syntax_free(at);
                 break;
             }
@@ -7217,6 +7252,7 @@ schema_berval_to_atlist(struct berval **at_berval)
     }
     if (rc) {
         schema_atlist_free(head);
+        head = NULL;
     }
 
     return head;
@@ -7319,12 +7355,12 @@ schema_attributetypes_superset_check(struct berval **remote_schema, char *type)
 static void
 modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
 {
-        Slapi_PBlock *newpb;
+	Slapi_PBlock *newpb;
 	int op_result;
-        CSN *schema_csn;
+	CSN *schema_csn;
         
-        /* allocate internal mod components: pblock*/
-        newpb = slapi_pblock_new();
+	/* allocate internal mod components: pblock*/
+	newpb = slapi_pblock_new();
         
 	slapi_modify_internal_set_pb_ext (
 			newpb,
@@ -7333,7 +7369,7 @@ modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
 			NULL, /* Controls */
 			NULL,
 			(void *)plugin_get_default_component_id(),
-			0);	
+			0);
 
 	/* do modify */
 	slapi_modify_internal_pb (newpb);
