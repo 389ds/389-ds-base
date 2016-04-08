@@ -34,7 +34,8 @@ enum SVRCOREError
   SVRCORE_PermissionError          = 7,
   SVRCORE_ClockError               = 8,
   SVRCORE_TimeoutError             = 9,
-  SVRCORE_MaximumErrorValue        = 9
+  SVRCORE_MissingFeature           = 10,
+  SVRCORE_MaximumErrorValue        = 10
 };
 typedef enum SVRCOREError SVRCOREError;
 
@@ -209,8 +210,6 @@ void
 SVRCORE_DestroyCachedPinObj(SVRCORECachedPinObj *obj);
 
 
-#ifdef WITH_SYSTEMD
-#ifndef _WIN32
 /* ------------------------------------------------------------ */
 /*
  * SVRCORESystemdPinObj - implementation of SVRCOREPinObj that
@@ -255,10 +254,6 @@ SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
 
 void
 SVRCORE_DestroyStdSystemdPinObj(SVRCOREStdSystemdPinObj *obj);
-
-#endif
-#endif
-
 
 /* ------------------------------------------------------------ */
 /*

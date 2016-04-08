@@ -22,7 +22,7 @@ AC_ARG_WITH(systemd, AS_HELP_STRING([--with-systemd],[Enable Systemd native inte
 AC_MSG_RESULT(no))
 
 if test "$with_systemd" = yes; then
-    SYSTEMD_CFLAGS="-DWITH_SYSTEMD"
+    SYSTEMD_CFLAGS="-DHAVE_SYSTEMD"
 else
     SYSTEMD_CFLAGS=""
 fi

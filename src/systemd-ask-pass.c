@@ -13,9 +13,6 @@
  * systemd-ask-pass.c - SVRCORE module for reading the PIN from systemd integrations.
  */
 
-#ifdef WITH_SYSTEMD
-#ifndef _WIN32
-
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -51,6 +48,9 @@ static const struct SVRCOREPinMethods vtable;
 SVRCOREError
 SVRCORE_CreateSystemdPinObj(SVRCORESystemdPinObj **out, uint64_t timeout)
 {
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
+
     SVRCOREError err = SVRCORE_Success;
     SVRCORESystemdPinObj *obj = NULL;
 
@@ -78,6 +78,10 @@ SVRCORE_CreateSystemdPinObj(SVRCORESystemdPinObj **out, uint64_t timeout)
 
     *out = obj;
     return err;
+#endif // win32
+#else // systemd
+    return SVRCORE_MissingFeature;
+#endif // Systemd
 }
 
 SVRCOREError
@@ -157,7 +161,8 @@ out:
 static char *
 getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
 {
-
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
     SVRCORESystemdPinObj *sobj = (SVRCORESystemdPinObj *)obj;
     SVRCOREError err = SVRCORE_Success;
     char *tbuf = malloc(PASS_MAX);
@@ -395,14 +400,23 @@ out:
     }
 
     return token;
+
+#endif // win32
+#else // systemd
+    return NULL;
+#endif // Systemd
 }
 
 void
 SVRCORE_DestroySystemdPinObj(SVRCORESystemdPinObj *obj)
 {
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
     if (obj) {
         free(obj);
     }
+#endif // win32
+#endif // Systemd
 }
 
 static void
@@ -414,6 +428,3 @@ destroyObject(SVRCOREPinObj *obj)
 static const SVRCOREPinMethods vtable =
 { 0, 0, destroyObject, getPin };
 
-
-#endif /* End ifndef WIN32 */
-#endif /* End ifdef WITH_SYSTEMD */

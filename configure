@@ -12683,7 +12683,7 @@ fi
 
 
 if test "$with_systemd" = yes; then
-    SYSTEMD_CFLAGS="-DWITH_SYSTEMD"
+    SYSTEMD_CFLAGS="-DHAVE_SYSTEMD"
 else
     SYSTEMD_CFLAGS=""
 fi

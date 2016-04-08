@@ -13,8 +13,6 @@
  * std-systemd.c - Extension of the STD module to integrate file, tty and systemd
  */
 
-#ifdef WITH_SYSTEMD
-#ifndef _WIN32
 
 #if HAVE_CONFIG_H
 #include <config.h>
@@ -50,6 +48,8 @@ SVRCORE_CreateStdSystemdPinObj(
     const char *filename,  PRBool cachePINs,
     PRBool systemdPINs, uint64_t timeout)
 {
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
     SVRCOREError err = SVRCORE_Success;
     SVRCOREStdSystemdPinObj *obj = 0;
 
@@ -146,12 +146,18 @@ SVRCORE_CreateStdSystemdPinObj(
     *out = obj;
 
     return err;
+#endif // win32
+#else // systemd
+    return SVRCORE_MissingFeature;
+#endif // Systemd
 }
 
 void
 SVRCORE_DestroyStdSystemdPinObj(
   SVRCOREStdSystemdPinObj *obj)
 {
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
     if (!obj) return;
 
     if (obj->user) SVRCORE_DestroyUserPinObj(obj->user);
@@ -162,6 +168,8 @@ SVRCORE_DestroyStdSystemdPinObj(
     if (obj->systemdalt) SVRCORE_DestroyAltPinObj(obj->systemdalt);
 
     free(obj);
+#endif // win32
+#endif // Systemd
 }
 
 /* ------------------------------------------------------------ */
@@ -169,7 +177,11 @@ SVRCORE_DestroyStdSystemdPinObj(
 void
 SVRCORE_SetStdSystemdPinInteractive(SVRCOREStdSystemdPinObj *obj, PRBool i)
 {
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
     SVRCORE_SetUserPinInteractive(obj->user, i);
+#endif // win32
+#endif // Systemd
 }
 
 /* ------------------------------------------------------------ */
@@ -180,6 +192,8 @@ SVRCOREError
 SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
   const char *tokenName)
 {
+#ifdef HAVE_SYSTEMD
+#ifndef _WIN32
 #ifdef DEBUG
     printf("std-systemd:stdsystem-getpin() -> starting \n", isatty(fileno(stdin)));
 #endif
@@ -191,6 +205,10 @@ SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
     }
 
     return SVRCORE_CachedPinGetPin(pin, obj->cache, tokenName);
+#endif // win32
+#else // systemd
+    return SVRCORE_MissingFeature;
+#endif // Systemd
 }
 
 /* ------------------------------------------------------------ */
@@ -221,5 +239,3 @@ getPin(SVRCOREPinObj *pinObj, const char *tokenName, PRBool retry)
 static const SVRCOREPinMethods vtable =
 { 0, 0, destroyObject, getPin };
 
-#endif /* End ifndef WIN32 */
-#endif /* End ifdef WITH_SYSTEMD */

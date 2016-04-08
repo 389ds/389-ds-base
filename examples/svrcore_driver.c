@@ -10,7 +10,7 @@
 // Author: William Brown <wibrown@redhat.com>
 //
 
-// Build with gcc -g3 -o svrcore_driver `pkg-config --libs --cflags nspr` `PKG_CONFIG_PATH=/opt/svrcore/lib/pkgconfig pkg-config --cflags --libs svrcore` -L`PKG_CONFIG_PATH=/opt/svrcore/lib/pkgconfig pkg-config --variable=libdir svrcore` -DWITH_SYSTEMD svrcore_driver.c
+// Build with gcc -g3 -o svrcore_driver `pkg-config --libs --cflags nspr` `PKG_CONFIG_PATH=/opt/svrcore/lib/pkgconfig pkg-config --cflags --libs svrcore` -L`PKG_CONFIG_PATH=/opt/svrcore/lib/pkgconfig pkg-config --variable=libdir svrcore` svrcore_driver.c
 
 #include <stdio.h>
 #include <nspr.h>
@@ -122,8 +122,18 @@ svrcore_stdsystemd_get_token()
 int
 main(int argc, char **argv)
 {
-    svrcore_stdsystemd_setup();
-    svrcore_stdsystemd_get_token();
+
+    int result = 0;
+
+    result = svrcore_systemd_setup();
+    if (result == 0) {
+        svrcore_systemd_get_token();
+    }
+
+    result = svrcore_stdsystemd_setup();
+    if (result == 0) {
+        svrcore_stdsystemd_get_token();
+    }
     return 0;
 }
 
