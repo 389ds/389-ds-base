@@ -3,10 +3,10 @@
 
 Summary:          Secure PIN handling using NSS crypto
 Name:             svrcore
-Version:          4.0.4
+Version:          4.1.0
 Release:          1%{?dist}
-License:          MPL/GPL/LGPL
-URL:              http://www.mozilla.org/projects/security/pki/
+License:          MPL2.0
+URL:              https://pagure.io/svrcore
 Group:            Development/Libraries
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:         nspr >= %{nspr_version}
@@ -15,7 +15,7 @@ BuildRequires:    nspr-devel >= %{nspr_version}
 BuildRequires:    nss-devel >= %{nss_version}
 BuildRequires:    pkgconfig
 
-Source0:          ftp://ftp.mozilla.org/pub/mozilla.org/directory/svrcore/releases/%{version}/src/%{name}-%{version}.tar.bz2
+Source0:            http://www.port389.org/binaries/%{name}-%{version}.tar.bz2
 
 %description
 svrcore provides applications with several ways to handle secure PIN storage
@@ -74,6 +74,9 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 %{_includedir}/svrcore.h
 
 %changelog
+* Fri Apr 8 2016 William Brown <wibrown@redhat.com> - 4.1.0
+- Added systemd ask password support
+
 * Tue Mar 13 2007 Rich Megginson <richm@stanfordalumni.org> - 4.0.4-1
 - Removed some autoconf generated files which were GPL only - all
 - code needs to be tri-licensed
