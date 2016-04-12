@@ -184,7 +184,11 @@ SVRCORE_CreatePk11PinStore(
 
       ctx = PK11_CreateContextBySymKey(store->mech->type, CKA_ENCRYPT,
               store->key, store->params);
-      if (!ctx) { err = SVRCORE_System_Error; break; }
+      if (!ctx) {
+        err = SVRCORE_System_Error;
+        free(plain);
+        break;
+      }
 
       do {
         rv = PK11_CipherOp(ctx, store->crypt, &outLen, store->length,

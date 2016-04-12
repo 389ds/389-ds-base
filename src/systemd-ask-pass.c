@@ -246,7 +246,7 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     tmp_fd = fopen(tmp_path, "w");
 
     if (tmp_fd == NULL) {
-        fprintf(stderr, "SVRCORE systemd:getPin() -> opening ask file FAILED\n",);
+        fprintf(stderr, "SVRCORE systemd:getPin() -> opening ask file FAILED\n");
         err = SVRCORE_IOOperationError;
         goto out;
     }
@@ -366,7 +366,7 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
         // The response starts with a + to say the value was a success
         if (tbuf[0] == '+') {
             if (data_size == 1) {
-                token = "";
+                strncpy(token, "", PASS_MAX - 1);
             } else {
                 strncpy(token, tbuf + 1, PASS_MAX - 1);
             }
