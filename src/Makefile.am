@@ -1,3 +1,9 @@
+ASAN_DEFINES = @asan_defs@
+DEBUG_DEFINES = @debug_defs@
+
+AM_CPPFLAGS = $(ASAN_DEFINES) $(DEBUG_DEFINES)
+AM_LDFLAGS = $(ASAN_DEFINES) $(DEBUG_DEFINES)
+
 EXTRA_DIST = key.ico \
 	     logo.ico \
 	     manifest.mn \

@@ -29,6 +29,30 @@ m4_include(m4/nss.m4)
 m4_include(m4/nspr.m4)
 m4_include(m4/systemd.m4)
 
+AC_MSG_CHECKING(for --enable-debug)
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  debug_defs="-g3 -DDEBUG"
+],
+[
+  AC_MSG_RESULT(no)
+  debug_defs=""
+])
+AC_SUBST([debug_defs])
+
+AC_MSG_CHECKING(for --enable-asan)
+AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitizer options (default: no)]),
+[
+  AC_MSG_RESULT(yes)
+  asan_defs="-fsanitize=address -fno-omit-frame-pointer"
+],
+[
+  AC_MSG_RESULT(no)
+  asan_defs=""
+])
+AC_SUBST([asan_defs])
+
 AC_SUBST([NSPR_CFLAGS])
 AC_SUBST([NSPR_LIBS])
 AC_SUBST([NSPR_MIN_VER])
