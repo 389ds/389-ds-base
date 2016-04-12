@@ -31,6 +31,7 @@
 #include <sys/un.h>
 #include <sys/uio.h>
 #include <time.h>
+#include <inttypes.h>
 #include <svrcore.h>
 
 
@@ -92,7 +93,7 @@ _create_socket(char **path, int *sfd)
 
     int one = 1;
 
-    struct sockaddr_un saddr = { AF_UNIX, 0 };
+    struct sockaddr_un saddr = { AF_UNIX, {0} };
     // This is the max len of the path
     strncpy(saddr.sun_path, *path, 50);
 
@@ -201,7 +202,7 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     }
 
 #ifdef DEBUG
-    printf("systemd:getPin() -> time until %llu\n", until);
+    printf("systemd:getPin() -> time until %" PRId64 "\n", until);
 #endif
 
 #ifdef DEBUG
@@ -264,7 +265,7 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     //    Echo= Display password as entered or not
     fprintf(tmp_fd, "Echo=0\n");
     //    NotAfter= Number of microseconds from clock monotonic + timeout
-    fprintf(tmp_fd, "NotAfter=%llu\n", until);
+    fprintf(tmp_fd, "NotAfter=%" PRIu64 "\n", until);
     //    Message=Prompt to display
     fprintf(tmp_fd, "Message=Enter PIN for %s:\n", tokenName);
     //    Id=Who wants it
@@ -333,7 +334,7 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
             }
         }
 #ifdef DEBUG
-        printf("systemd:getPin() -> receiving ... %d %d\n", data_size, errno);
+        printf("systemd:getPin() -> receiving ... %ld %d\n", data_size, errno);
 #endif
         // Check the response is valid
         // Check that the other end is authenticated.

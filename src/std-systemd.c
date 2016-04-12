@@ -196,7 +196,7 @@ SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
 #ifdef HAVE_SYSTEMD
 #ifndef _WIN32
 #ifdef DEBUG
-    printf("std-systemd:stdsystem-getpin() -> starting \n", isatty(fileno(stdin)));
+    printf("std-systemd:stdsystem-getpin() -> starting \n");
 #endif
     /* Make sure caching is turned on */
     if (!obj->cache)
@@ -226,7 +226,7 @@ static char *
 getPin(SVRCOREPinObj *pinObj, const char *tokenName, PRBool retry)
 {
 #ifdef DEBUG
-    printf("std-systemd:getpin() -> starting \n", isatty(fileno(stdin)));
+    printf("std-systemd:getpin() -> starting \n");
 #endif
     SVRCOREStdSystemdPinObj *obj = (SVRCOREStdSystemdPinObj*)pinObj;
 
