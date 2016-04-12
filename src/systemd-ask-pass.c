@@ -196,9 +196,9 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
 
     err = _until(sobj->timeout, &until);
     if(err != SVRCORE_Success) {
-        goto out;
         free(token);
         token = NULL;
+        goto out;
     }
 
 #ifdef DEBUG
@@ -214,9 +214,9 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     if (mkdir(path, 0755) != 0) {
         if (errno != EEXIST) {
             err = SVRCORE_IOOperationError;
-            goto out;
             free(token);
             token = NULL;
+            goto out;
         }
     }
 
@@ -249,6 +249,8 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     if (tmp_fd == NULL) {
         fprintf(stderr, "SVRCORE systemd:getPin() -> opening ask file FAILED\n");
         err = SVRCORE_IOOperationError;
+        free(token);
+        token = NULL;
         goto out;
     }
 
@@ -285,6 +287,8 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     if (rename(tmp_path, ask_path) != 0) {
         fprintf(stderr, "SVRCORE systemd:getPin() -> renaming ask file FAILED %d\n", err);
         err = SVRCORE_IOOperationError;
+        free(token);
+        token = NULL;
         goto out;
     }
 
@@ -303,11 +307,15 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
 
         err = _now(&now);
         if (err != SVRCORE_Success) {
+            free(token);
+            token = NULL;
             goto out;
         }
 
         if (now >= until) {
             err = SVRCORE_TimeoutError;
+            free(token);
+            token = NULL;
             goto out;
         }
 
@@ -330,6 +338,8 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
         if (data_size < 0) {
             if (errno != EAGAIN && errno != EINTR) {
                 err = SVRCORE_SocketError;
+                free(token);
+                token = NULL;
                 goto out;
             }
         }
