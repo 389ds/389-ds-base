@@ -138,12 +138,13 @@ SVRCORE_CreateStdSystemdPinObj(
         obj->top = top;
     } while(0);
 
+    *out = obj;
+
     if (err != SVRCORE_Success)
     {
         SVRCORE_DestroyStdSystemdPinObj(obj);
+        *out = NULL;
     }
-
-    *out = obj;
 
     return err;
 #endif // win32

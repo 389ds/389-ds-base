@@ -104,6 +104,13 @@ SVRCORE_RegisterPinObj(SVRCOREPinObj *obj);
 SVRCOREPinObj *
 SVRCORE_GetRegisteredPinObj(void);
 
+/* 
+ *  SVRCORE_DestroyRegisteredPinObj - Destroys (frees) the currently registered
+ * pin object, and zeros the pointer. This way a new object can be created
+ */
+void
+SVRCORE_DestroyRegisteredPinObj(void);
+
 /* ------------------------------------------------------------ */
 /*
  * SVRCOREStdPinObj - implementation of SVRCOREPinObj that

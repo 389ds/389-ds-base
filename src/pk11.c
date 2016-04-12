@@ -274,9 +274,11 @@ SVRCORE_Pk11StoreGetPin(char **out, SVRCOREPk11PinStore *store)
   if (rv)
   {
     err = SVRCORE_System_Error;
-    memset(plain, 0, store->length);
-    free(plain);
-    plain = 0;
+    if (plain) {
+      memset(plain, 0, store->length);
+      free(plain);
+      plain = 0;
+    }
   }
 
   *out = (char *)plain;

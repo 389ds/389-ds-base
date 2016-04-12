@@ -62,7 +62,7 @@ svrcore_systemd_get_token()
     // Should set a password into &pw
 
     // Cleanup
-    SVRCORE_DestroySystemdPinObj(StdPinObj);
+    SVRCORE_DestroyRegisteredPinObj();
 
     return 0;
 }
@@ -71,21 +71,21 @@ int
 svrcore_stdsystemd_setup()
 {
     PRErrorCode errorCode;
-    SVRCOREStdSystemdPinObj *StdPinObj;
+    SVRCOREStdSystemdPinObj *StdSysPinObj;
     char *filename = "/tmp/pin.txt";
 
-    StdPinObj = (SVRCOREStdSystemdPinObj *)SVRCORE_GetRegisteredPinObj();
+    StdSysPinObj = (SVRCOREStdSystemdPinObj *)SVRCORE_GetRegisteredPinObj();
 
-    if (StdPinObj) {
+    if (StdSysPinObj) {
         // This means it's already registered?
         return 0;
     }
-    if (SVRCORE_CreateStdSystemdPinObj(&StdPinObj, filename, PR_FALSE, PR_TRUE, 60) != SVRCORE_Success) {
+    if (SVRCORE_CreateStdSystemdPinObj(&StdSysPinObj, filename, PR_FALSE, PR_TRUE, 60) != SVRCORE_Success) {
         errorCode = PR_GetError();
         printf("Unable to create std systemd pin %d\n", errorCode);
         return -1;
     }
-    SVRCORE_RegisterPinObj((SVRCOREPinObj *)StdPinObj);
+    SVRCORE_RegisterPinObj((SVRCOREPinObj *)StdSysPinObj);
     return 0;
 }
 
@@ -94,17 +94,17 @@ svrcore_stdsystemd_get_token()
 {
     //Actually get the password
     // Get the pinobj
-    SVRCOREStdSystemdPinObj *StdPinObj;
+    SVRCOREStdSystemdPinObj *StdSysPinObj;
     char *pw = NULL;
     char *token = NULL;
     SVRCOREError err = SVRCORE_Success;
 
-    StdPinObj = (SVRCOREStdSystemdPinObj *)SVRCORE_GetRegisteredPinObj();
+    StdSysPinObj = (SVRCOREStdSystemdPinObj *)SVRCORE_GetRegisteredPinObj();
     // Are we interactive?
     // SVRCORE_SetStdPinInteractive((SVRCOREStdPinObj *) StdPinObj , PR_TRUE);
     // what is token?
     token = "internal (software)";
-    pw = SVRCORE_GetPin( (SVRCOREPinObj *)StdPinObj, token , PR_FALSE);
+    pw = SVRCORE_GetPin( (SVRCOREPinObj *)StdSysPinObj, token , PR_FALSE);
     if ( err != SVRCORE_Success || pw == NULL) {
         printf("Couldn't get pin %d \n", err);
     } else {
@@ -114,7 +114,7 @@ svrcore_stdsystemd_get_token()
     // Should set a password into &pw
 
     // Cleanup
-    SVRCORE_DestroyStdSystemdPinObj(StdPinObj);
+    SVRCORE_DestroyRegisteredPinObj();
 
     return 0;
 }

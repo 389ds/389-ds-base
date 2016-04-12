@@ -68,3 +68,12 @@ SVRCORE_GetRegisteredPinObj(void)
 {
   return pinObj;
 }
+
+void
+SVRCORE_DestroyRegisteredPinObj(void)
+{
+  if (pinObj) {
+    pinObj->methods->destroyObj(pinObj);
+  }
+  pinObj = 0;
+}

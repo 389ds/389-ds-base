@@ -89,12 +89,14 @@ SVRCORE_CreateStdPinObj(
     obj->top = top;
   } while(0);
 
+  *out = obj;
+
   if (err != SVRCORE_Success)
   {
     SVRCORE_DestroyStdPinObj(obj);
+    *out = NULL;
   }
 
-  *out = obj;
 
   return err;
 }
