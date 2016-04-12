@@ -153,11 +153,15 @@ getPin(SVRCOREPinObj *ctx, const char *tokenName, PRBool retry)
     } while(0);
 
     /* If adding fails, disable the whole object */
-    if (!ent) obj->disabled = PR_TRUE;
+    if (!ent) {
+        obj->disabled = PR_TRUE;
+    }
 
-    /* Add to list */
-    ent->next = obj->badPinList;
-    obj->badPinList = ent;
+    if (ent) {
+        /* Add to list */
+        ent->next = obj->badPinList;
+        obj->badPinList = ent;
+    }
 
     return 0;
   }

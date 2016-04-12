@@ -249,7 +249,7 @@ SVRCORE_Pk11StoreGetPin(char **out, SVRCOREPk11PinStore *store)
 {
   SVRCOREError err = SVRCORE_Success;
   unsigned char *plain;
-  SECStatus rv;
+  SECStatus rv = 0;
   PK11Context *ctx = 0;
   int outLen;
 

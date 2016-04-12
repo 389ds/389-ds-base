@@ -179,6 +179,11 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     char *socket_path = malloc(sizeof(char) * 50);
     char *ask_path = malloc(sizeof(char) * 50);
     char *tmp_path = malloc(sizeof(char) * 50);
+    if (token == NULL || tbuf == NULL || socket_path == NULL
+        || ask_path == NULL || tmp_path == NULL ) {
+        err = SVRCORE_NoMemory_Error;
+        goto out;
+    }
 
     snprintf(socket_path, 50, "%s/sck.%d", path, pid );
     snprintf(ask_path, 50, "%s/ask.%d", path, pid );
@@ -240,6 +245,12 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     umask( S_IWGRP | S_IWOTH );
     tmp_fd = fopen(tmp_path, "w");
 
+    if (tmp_fd == NULL) {
+        fprintf(stderr, "SVRCORE systemd:getPin() -> opening ask file FAILED\n",);
+        err = SVRCORE_IOOperationError;
+        goto out;
+    }
+
     // Create the inf file asking for the password
     //    Write data to the file
     //    [Ask]
@@ -259,9 +270,7 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     //    Id=Who wants it
     // fprintf(tmp_fd, "Id=svrcore\n");
     //    Icon?
-    if (tmp_fd != NULL) {
-        fclose(tmp_fd);
-    }
+    fclose(tmp_fd);
 
     // rename the file to .ask ??
     //  -rw-r--r--.  1 root root 127 Mar 22 13:08 ask.9m8ftM
