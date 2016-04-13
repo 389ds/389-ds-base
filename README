@@ -34,6 +34,11 @@ pin.c - functions to register a PIN request object with NSS
 pk11.c - implementation of the encrypted in-memory caching
 std.c - a "standard" PIN object that satisfies requests from a
         file or the terminal and allows caching if desired.
+std-systemd.c - a "standard" PIN object that satisfies requests from a
+        file or the terminal, or systemd-ask-pass, and allows caching 
+        if desired.
+systemd-ask-pass.c - a PIN object that can request pins from the systemd
+        ask password api.
 user.c - prompts the user for the PIN
 
 Note: the pk11.c file (secure PIN store) is a pretty good example
