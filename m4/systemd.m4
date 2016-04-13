@@ -23,14 +23,40 @@ AC_ARG_WITH(systemd, AS_HELP_STRING([--with-systemd],[Enable Systemd native inte
 AC_MSG_RESULT(no))
 
 if test "$with_systemd" = yes; then
+
+    AC_MSG_CHECKING(for --with-journald)
+    AC_ARG_WITH(journald, AS_HELP_STRING([--with-journald],[Enable Journald native integration. WARNING, this may cause system instability]),
+    [
+        if test "$withval" = yes
+        then
+            AC_MSG_RESULT([using journald logging: WARNING, this may cause system instability])
+            with_systemd=yes
+        else
+            AC_MSG_RESULT(no)
+        fi
+    ],
+    AC_MSG_RESULT(no))
+
     AC_PATH_PROG(PKG_CONFIG, pkg-config)
     AC_MSG_CHECKING(for Systemd with pkg-config)
-    if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-journal libsystemd-daemon ; then
-        systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-journal libsystemd-daemon`
-        systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-journal libsystemd-daemon`
-        systemd_defs="-DWITH_SYSTEMD"
+    if test "$with_journald" = yes; then
+
+        if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-journal libsystemd-daemon ; then
+            systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-journal libsystemd-daemon`
+            systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-journal libsystemd-daemon`
+            systemd_defs="-DWITH_SYSTEMD -DHAVE_JOURNALD"
+        else
+            AC_MSG_ERROR([no Systemd / Journald pkg-config files])
+        fi
     else
-        AC_MSG_ERROR([no Systemd / Journald pkg-config files])
+
+        if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-daemon ; then
+            systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-daemon`
+            systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-daemon`
+            systemd_defs="-DWITH_SYSTEMD"
+        else
+            AC_MSG_ERROR([no Systemd pkg-config files])
+        fi
     fi
 
     # Check for the pkg config provided unit paths
@@ -101,4 +127,5 @@ fi
 # End of with_systemd
 
 AM_CONDITIONAL([SYSTEMD],[test -n "$with_systemd"])
+AM_CONDITIONAL([JOURNALD],[test -n "$with_journald"])
 

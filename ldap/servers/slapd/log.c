@@ -412,7 +412,7 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
             backend |= LOGGING_BACKEND_INTERNAL;
         } else if (slapi_UTF8NCASECMP(backendstr, "syslog", 6) == 0) {
             backend |= LOGGING_BACKEND_SYSLOG;
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
         } else if (slapi_UTF8NCASECMP(backendstr, "journald", 8) == 0 ) {
             backend |= LOGGING_BACKEND_JOURNALD;
 #endif
@@ -422,7 +422,7 @@ log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, 
 
     if ( !( backend & LOGGING_BACKEND_INTERNAL)
          && ! (backend & LOGGING_BACKEND_SYSLOG)
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
          && ! (backend & LOGGING_BACKEND_JOURNALD)
 #endif
        ) {
@@ -1993,7 +1993,7 @@ slapd_log_audit (
         /* This returns void, so we hope it worked */
         syslog(LOG_NOTICE, "%s", buffer);
     }
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
         retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
     }
@@ -2052,7 +2052,7 @@ slapd_log_auditfail (
         /* This returns void, so we hope it worked */
         syslog(LOG_NOTICE, "%s", buffer);
     }
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
     if (lbackend & LOGGING_BACKEND_JOURNALD) {
         retval = sd_journal_print(LOG_NOTICE, "%s", buffer);
     }
@@ -2122,7 +2122,7 @@ slapd_log_error_proc(
         /* va_end(ap_file); */
         va_end(ap_err);
     }
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
     if (loginfo.log_backend & LOGGING_BACKEND_JOURNALD) {
         va_start( ap_err, fmt );
         /* va_start( ap_file, fmt ); */
@@ -2364,7 +2364,7 @@ slapi_log_error( int severity, char *subsystem, char *fmt, ... )
             /* va_end(ap_file); */
             va_end(ap_err);
         }
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
         if (lbackend & LOGGING_BACKEND_JOURNALD) {
             va_start( ap_err, fmt );
             /* va_start( ap_file, fmt ); */
@@ -2504,7 +2504,7 @@ slapi_log_access( int level,
             vsyslog(LOG_INFO, fmt, ap);
             va_end( ap );
         }
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
         if (lbackend & LOGGING_BACKEND_JOURNALD) {
             va_start (ap, fmt );
             rc = sd_journal_printv(LOG_INFO, fmt, ap);

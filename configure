@@ -693,6 +693,8 @@ OPENLDAP_TRUE
 SELINUX_FALSE
 SELINUX_TRUE
 PACKAGE_BASE_VERSION
+JOURNALD_FALSE
+JOURNALD_TRUE
 SYSTEMD_FALSE
 SYSTEMD_TRUE
 with_systemdgroupname
@@ -973,6 +975,7 @@ with_nunc_stans
 with_nunc_stans_inc
 with_nunc_stans_lib
 with_systemd
+with_journald
 with_systemdsystemunitdir
 with_systemdsystemconfdir
 with_systemdgroupname
@@ -1733,6 +1736,8 @@ Optional Packages:
   --with-nunc-stans-lib=PATH
                           nunc-stans library directory
   --with-systemd          Enable Systemd native integration.
+  --with-journald         Enable Journald native integration. WARNING, this
+                          may cause system instability
   --with-systemdsystemunitdir=PATH
                           Directory for systemd service files (default:
                           $with_systemdsystemunitdir)
@@ -21180,6 +21185,29 @@ fi
 
 
 if test "$with_systemd" = yes; then
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-journald" >&5
+$as_echo_n "checking for --with-journald... " >&6; }
+
+# Check whether --with-journald was given.
+if test "${with_journald+set}" = set; then :
+  withval=$with_journald;
+        if test "$withval" = yes
+        then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: using journald logging: WARNING, this may cause system instability" >&5
+$as_echo "using journald logging: WARNING, this may cause system instability" >&6; }
+            with_systemd=yes
+        else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+        fi
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
     # Extract the first word of "pkg-config", so it can be a program name with args.
 set dummy pkg-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -21222,12 +21250,24 @@ fi
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Systemd with pkg-config" >&5
 $as_echo_n "checking for Systemd with pkg-config... " >&6; }
-    if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-journal libsystemd-daemon ; then
-        systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-journal libsystemd-daemon`
-        systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-journal libsystemd-daemon`
-        systemd_defs="-DWITH_SYSTEMD"
+    if test "$with_journald" = yes; then
+
+        if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-journal libsystemd-daemon ; then
+            systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-journal libsystemd-daemon`
+            systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-journal libsystemd-daemon`
+            systemd_defs="-DWITH_SYSTEMD -DHAVE_JOURNALD"
+        else
+            as_fn_error $? "no Systemd / Journald pkg-config files" "$LINENO" 5
+        fi
     else
-        as_fn_error $? "no Systemd / Journald pkg-config files" "$LINENO" 5
+
+        if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-daemon ; then
+            systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-daemon`
+            systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-daemon`
+            systemd_defs="-DWITH_SYSTEMD"
+        else
+            as_fn_error $? "no Systemd pkg-config files" "$LINENO" 5
+        fi
     fi
 
     # Check for the pkg config provided unit paths
@@ -21317,6 +21357,14 @@ fi
 else
   SYSTEMD_TRUE='#'
   SYSTEMD_FALSE=
+fi
+
+ if test -n "$with_journald"; then
+  JOURNALD_TRUE=
+  JOURNALD_FALSE='#'
+else
+  JOURNALD_TRUE='#'
+  JOURNALD_FALSE=
 fi
 
 
@@ -21658,6 +21706,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SYSTEMD_TRUE}" && test -z "${SYSTEMD_FALSE}"; then
   as_fn_error $? "conditional \"SYSTEMD\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${JOURNALD_TRUE}" && test -z "${JOURNALD_FALSE}"; then
+  as_fn_error $? "conditional \"JOURNALD\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SELINUX_TRUE}" && test -z "${SELINUX_FALSE}"; then

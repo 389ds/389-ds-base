@@ -126,7 +126,9 @@ typedef struct symbol_t {
 #endif
 
 #ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
 #include <systemd/sd-journal.h>
+#endif
 #include <systemd/sd-daemon.h>
 #endif
 
@@ -1897,7 +1899,7 @@ typedef struct _slapdEntryPoints {
 
 #define LOGGING_BACKEND_INTERNAL 0x1
 #define LOGGING_BACKEND_SYSLOG 0x2
-#ifdef WITH_SYSTEMD
+#ifdef HAVE_JOURNALD
 #define LOGGING_BACKEND_JOURNALD 0x4
 #endif
 
