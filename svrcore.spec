@@ -3,7 +3,7 @@
 
 Summary:          Secure PIN handling using NSS crypto
 Name:             svrcore
-Version:          4.1.0
+Version:          __VERSION__
 Release:          1%{?dist}
 License:          MPL2.0
 URL:              https://pagure.io/svrcore
@@ -46,7 +46,7 @@ develop programs which will use the svrcore library.
 
 %build
 
-%configure
+%configure --with-systemd
 make
 
 %install
