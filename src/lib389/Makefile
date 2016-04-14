@@ -11,6 +11,7 @@ install:
 	python setup.py install --force --root=/
 
 rpmbuild-prep:
+	mkdir ./dist/
 	mkdir -p ~/rpmbuild/SOURCES
 	mkdir -p ~/rpmbuild/SPECS
 	git archive --prefix=python-lib389-$(LIB389_VERS)-1/ HEAD | bzip2 > ./dist/python-lib389-$(LIB389_VERS)-1.tar.bz2
