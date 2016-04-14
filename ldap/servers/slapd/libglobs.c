@@ -253,6 +253,7 @@ slapi_int_t init_malloc_mmap_threshold;
 #ifdef MEMPOOL_EXPERIMENTAL
 slapi_onoff_t init_mempool_switch;
 #endif
+slapi_onoff_t init_extract_pem;
 
 #define DEFAULT_SSLCLIENTAPTH "off"
 #define DEFAULT_ALLOW_ANON_ACCESS "on"
@@ -1197,6 +1198,10 @@ static struct config_get_and_set {
         (void**)&global_slapdFrontendConfig.logging_hr_timestamps,
         CONFIG_ON_OFF, NULL, &init_logging_hr_timestamps},
 #endif
+	{CONFIG_EXTRACT_PEM, config_set_extract_pem,
+		NULL, 0,
+		(void**)&global_slapdFrontendConfig.extract_pem,
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_extract_pem, &init_extract_pem},
     {CONFIG_LOGGING_BACKEND, NULL,
         log_set_backend, 0,
         (void**)&global_slapdFrontendConfig.logging_backend,
@@ -1680,6 +1685,7 @@ FrontendConfig_init () {
     }
   }
 #endif /* MEMPOOL_EXPERIMENTAL */
+  init_extract_pem = cfg->extract_pem = LDAP_OFF;
 
   init_config_get_and_set();
 }
@@ -8071,6 +8077,26 @@ config_get_maxsimplepaged_per_conn()
   int retVal;
 
   retVal = slapdFrontendConfig->maxsimplepaged_per_conn;
+  return retVal; 
+}
+
+int
+config_set_extract_pem(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int retVal = LDAP_SUCCESS;
+
+    retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->extract_pem), errorbuf, apply);
+    return retVal;
+}
+
+int
+config_get_extract_pem()
+{
+  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+  int retVal;
+
+  retVal = slapdFrontendConfig->extract_pem;
   return retVal; 
 }
 

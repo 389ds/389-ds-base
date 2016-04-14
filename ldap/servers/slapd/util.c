@@ -55,8 +55,14 @@
 #include <sys/pstat.h>
 #endif
 
-
-
+static int special_filename(unsigned char c)
+{
+    if ((c < 45) || (c == '/') || ((c > 57) && (c < 65)) ||
+        ((c > 90) && (c < 95)) || (c == 96) ||(c > 122) ) {
+        return UTIL_ESCAPE_HEX;
+    } 
+    return UTIL_ESCAPE_NONE;
+}
 
 static int special_np(unsigned char c)
 {
@@ -118,12 +124,16 @@ special_attr_char(unsigned char c)
             c == '"');
 }
 
+/* No '\\' */
+#define DOESCAPE_FLAGS_HEX_NOESC 0x1
+
 static const char*
 do_escape_string (
     const char* str, 
     int len,                    /* -1 means str is nul-terminated */
     char buf[BUFSIZ],
-    int (*special)(unsigned char)
+    int (*special)(unsigned char),
+    int flags
 )
 {
     const char* s;
@@ -140,54 +150,56 @@ do_escape_string (
 
     last = str + len - 1;
     for (s = str; s <= last; ++s) {
-	if ( (esc = (*special)((unsigned char)*s))) {
-	    const char* first = str;
-	    char* bufNext = buf;
-	    int bufSpace = BUFSIZ - 4;
-	    while (1) {
-		if (bufSpace < (s - first)) s = first + bufSpace - 1;
-		if (s > first) {
-		    memcpy (bufNext, first, s - first);
-		    bufNext  += (s - first);
-		    bufSpace -= (s - first);
-		}
-		if (s > last) {
-		    break;
-		}
-		do {
-		    if (esc == UTIL_ESCAPE_BACKSLASH) {
-			/* *s is '\\' */
-			/* If *(s+1) and *(s+2) are both hex digits,
-			 * the char is already escaped. */
-			if (isxdigit(*(s+1)) && isxdigit(*(s+2))) {
-			    memcpy(bufNext, s, 3);
-			    bufNext += 3;
-			    bufSpace -= 3;
-			    s += 2;
-			} else {
-			    *bufNext++ = *s; --bufSpace;
-			}
-		    } else {    /* UTIL_ESCAPE_HEX */
-			*bufNext++ = '\\'; --bufSpace;
-			if (bufSpace < 3) {
-			    memcpy(bufNext, "..", 2);
-			    bufNext += 2;
-			    goto bail;
-			}
-			PR_snprintf(bufNext, 3, "%02x", *(unsigned char*)s);
-			bufNext += 2; bufSpace -= 2;
-		    }
-	        } while (++s <= last && 
+        if ( (esc = (*special)((unsigned char)*s))) {
+            const char* first = str;
+            char* bufNext = buf;
+            int bufSpace = BUFSIZ - 4;
+            while (1) {
+                if (bufSpace < (s - first)) s = first + bufSpace - 1;
+                if (s > first) {
+                    memcpy (bufNext, first, s - first);
+                    bufNext  += (s - first);
+                    bufSpace -= (s - first);
+                }
+                if (s > last) {
+                    break;
+                }
+                do {
+                    if (esc == UTIL_ESCAPE_BACKSLASH) {
+                        /* *s is '\\' */
+                        /* If *(s+1) and *(s+2) are both hex digits,
+                         * the char is already escaped. */
+                        if (isxdigit(*(s+1)) && isxdigit(*(s+2))) {
+                            memcpy(bufNext, s, 3);
+                            bufNext += 3;
+                            bufSpace -= 3;
+                            s += 2;
+                        } else {
+                            *bufNext++ = *s; --bufSpace;
+                        }
+                    } else {    /* UTIL_ESCAPE_HEX */
+                        if (!(flags & DOESCAPE_FLAGS_HEX_NOESC)) {
+                            *bufNext++ = '\\'; --bufSpace;
+                        }
+                        if (bufSpace < 3) {
+                            memcpy(bufNext, "..", 2);
+                            bufNext += 2;
+                            goto bail;
+                        }
+                        PR_snprintf(bufNext, 3, "%02x", *(unsigned char*)s);
+                        bufNext += 2; bufSpace -= 2;
+                    }
+                } while (++s <= last && 
                          (esc = (*special)((unsigned char)*s)));
-		if (s > last) break;
-		first = s;
-		while ( (esc = (*special)((unsigned char)*s)) == UTIL_ESCAPE_NONE && s <= last) ++s;
-	    }
-	  bail:
-	    *bufNext = '\0';
-	    return buf;
-	}
-    }
+                if (s > last) break;
+                first = s;
+                while ( (esc = (*special)((unsigned char)*s)) == UTIL_ESCAPE_NONE && s <= last) ++s;
+            }
+bail:
+            *bufNext = '\0';
+            return buf;
+        }
+    } /* for */
     return str;
 }
 
@@ -204,13 +216,20 @@ do_escape_string (
 const char*
 escape_string (const char* str, char buf[BUFSIZ])
 {
-  return do_escape_string(str,-1,buf,special_np);
+  return do_escape_string(str,-1,buf,special_np, 0);
 }
 
 const char*
 escape_string_with_punctuation(const char* str, char buf[BUFSIZ])
 {
-  return do_escape_string(str,-1,buf,special_np_and_punct);
+  return do_escape_string(str,-1,buf,special_np_and_punct, 0);
+}
+
+const char*
+escape_string_for_filename(const char *str)
+{
+  char buf[BUFSIZ];
+  return do_escape_string(str,-1,buf,special_filename, DOESCAPE_FLAGS_HEX_NOESC);
 }
 
 #define ESCAPE_FILTER 1

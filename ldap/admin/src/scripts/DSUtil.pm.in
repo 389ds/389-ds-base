@@ -1251,6 +1251,19 @@ sub get_info {
         $info{ldapiURL} = "ldapi://" . $value;
     }
 
+    while($entry = readOneEntry $ldif){
+        if($entry->getDN() eq "cn=encryption,cn=config"){
+            $foundcfg = "yes";
+            last;
+        }
+    }
+    if($foundcfg eq "yes"){
+        $info{cacertfile} = $entry->getValues("CACertExtractFile");
+        if ($info{cacertfile}) {
+            $ENV{LDAPTLS_CACERT}=$info{cacertfile};
+        }
+    }
+
     close (DSE);
     return %info;
 }

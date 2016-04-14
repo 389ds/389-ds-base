@@ -6160,12 +6160,14 @@ int slapi_rwlock_get_size( void );
 /*
  * thread-safe LDAP connections
  */
+#define SLAPI_LDAP_INIT_FLAG_SSL      1  /* SSL */
+#define SLAPI_LDAP_INIT_FLAG_startTLS 2  /* startTLS */
 /**
  * Initializes an LDAP connection, and returns a handle to the connection.
  *
  * \param ldaphost Hostname or IP address - NOTE: for TLS or GSSAPI, should be the FQDN
  * \param ldapport LDAP server port number (default 389)
- * \param secure \c 0 - LDAP \c 1 - LDAPS \c 2 - startTLS
+ * \param secure \c 0 - LDAP \c SLAPI_LDAP_INIT_FLAG_SSL - LDAPS \c SLAPI_LDAP_INIT_FLAG_startTLS - startTLS
  * \param shared \c 0 - single thread access \c 1 - LDAP* will be shared among multiple threads
  * \return A pointer to an LDAP* handle
  *
@@ -6184,6 +6186,7 @@ LDAP *slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared );
  * \see slapi_ldap_init_ext()
  */
 void slapi_ldap_unbind( LDAP *ld );
+
 /**
  * Initializes an LDAP connection, and returns a handle to the connection.
  *
@@ -6191,9 +6194,9 @@ void slapi_ldap_unbind( LDAP *ld );
  *                ldapi://path - if \c NULL, #hostname, #port, and #secure must be provided
  * \param hostname Hostname or IP address - NOTE: for TLS or GSSAPI, should be the FQDN
  * \param port LDAP server port number (default 389)
- * \param secure \c 0 - LDAP \c 1 - LDAPS \c 2 - startTLS
+ * \param secure \c 0 - LDAP \c SLAPI_LDAP_INIT_FLAG_SSL - LDAPS \c SLAPI_LDAP_INIT_FLAG_startTLS - startTLS
  * \param shared \c 0 - single thread access \c 1 - LDAP* will be shared among multiple threads
- * \param filename - currently not supported
+ * \param ldapi_socket - ldapi socket path
  * \return A pointer to an LDAP* handle
  *
  * \note Use #slapi_ldap_unbind() to close and free the handle
@@ -6209,7 +6212,7 @@ LDAP *slapi_ldap_init_ext(
     int secure, /* 0 for ldap, 1 for ldaps, 2 for starttls -
                    override proto in url */
     int shared, /* if true, LDAP* will be shared among multiple threads */
-    const char *filename /* for ldapi */
+    const char *ldap_socket /* ldapi socket path */
 );
 /**
  * The LDAP bind request - this function handles all of the different types of mechanisms
@@ -6244,6 +6247,18 @@ int slapi_ldap_bind(
     struct timeval *timeout, /* timeout */
     int *msgidp /* pass in non-NULL for async handling */
 );
+
+/**
+ * Return the full path of PEM format CA Cert
+ * 
+ * \return the full path of PEM format CA Cert
+ */
+const char * slapi_get_cacertfile();
+
+/**
+ * Set the full path of PEM format CA Cert
+ */
+void slapi_set_cacertfile(char *certfile);
 
 /**
  * Create either a v1 Proxy Auth Control or a v2 Proxied Auth Control

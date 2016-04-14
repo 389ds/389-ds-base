@@ -1234,9 +1234,9 @@ conn_connect(Repl_Connection *conn)
 	 * initialisation should be done before ever trying to open any connection at all.
 	 */
 	if (conn->transport_flags == TRANSPORT_FLAG_TLS) {
-		secure = 2;
+		secure = SLAPI_LDAP_INIT_FLAG_startTLS;
 	} else if (conn->transport_flags == TRANSPORT_FLAG_SSL) {
-		secure = 1;
+		secure = SLAPI_LDAP_INIT_FLAG_SSL;
 	}
 
 	if (secure > 0) {
@@ -1261,7 +1261,7 @@ conn_connect(Repl_Connection *conn)
 			"%s: Trying %s%s slapi_ldap_init_ext\n",
 			agmt_get_long_name(conn->agmt),
 			secure ? "secure" : "non-secure",
-			(secure == 2) ? " startTLS" : "");
+			(secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? " startTLS" : "");
 		/* shared = 1 because we will read results from a second thread */
 		if (conn->ld) {
 			/* Since we call slapi_ldap_init, we must call slapi_ldap_unbind */
@@ -1279,7 +1279,7 @@ conn_connect(Repl_Connection *conn)
 				"%s: Failed to establish %s%sconnection to the consumer\n",
 				agmt_get_long_name(conn->agmt),
 				secure ? "secure " : "",
-				(secure == 2) ? "startTLS " : "");
+				(secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? "startTLS " : "");
 			goto done;
 		}
 		

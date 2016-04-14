@@ -2129,6 +2129,8 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE "nsslapd-maxsimplepaged-per-conn"
 #define CONFIG_LOGGING_BACKEND "nsslapd-logging-backend"
 
+#define CONFIG_EXTRACT_PEM "nsslapd-extract-pemfiles"
+
 #ifdef HAVE_CLOCK_GETTIME
 #define CONFIG_LOGGING_HR_TIMESTAMPS "nsslapd-logging-hr-timestamps-enabled"
 #endif
@@ -2331,7 +2333,6 @@ typedef struct _slapdFrontendConfig {
 #ifdef HAVE_CLOCK_GETTIME
   slapi_onoff_t logging_hr_timestamps;
 #endif
-
   slapi_onoff_t return_exact_case;	/* Return attribute names with the same case
                                        as they appear in at.conf */
 
@@ -2427,6 +2428,7 @@ typedef struct _slapdFrontendConfig {
   int malloc_trim_threshold;    /* mallopt M_TRIM_THRESHOLD */
   int malloc_mmap_threshold;    /* mallopt M_MMAP_THRESHOLD */
 #endif
+  slapi_onoff_t extract_pem;     /* If "on", export key/cert as pem files */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

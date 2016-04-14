@@ -581,6 +581,7 @@ int config_get_cn_uses_dn_syntax_in_dns();
 int config_get_enable_nunc_stans(void);
 int config_set_enable_nunc_stans(const char *attrname, char *value, char *errorbuf, int apply);
 #endif
+int config_set_extract_pem(const char *attrname, char *value, char *errorbuf, int apply);
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
@@ -594,6 +595,7 @@ int config_get_malloc_mmap_threshold();
 #endif
 
 int config_get_maxsimplepaged_per_conn();
+int config_get_extract_pem();
 
 int is_abspath(const char *);
 char* rel2abspath( char * );

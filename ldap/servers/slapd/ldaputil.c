@@ -575,6 +575,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     int optval = 0;
     int ssl_strength = 0;
     int rc = 0;
+    const char *cacert = NULL;
 
     if (config_get_ssl_check_hostname()) {
         ssl_strength = LDAP_OPT_X_TLS_HARD;
@@ -587,7 +588,29 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
         slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
                         "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
     }
-    /* tell it where our cert db is */
+    if (slapi_client_uses_non_nss(ld)) {
+        cacert = slapi_get_cacertfile();
+        if (cacert) {
+            /* CA Cert PEM file exists.  Set the path to openldap option. */
+            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cacert);
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                                "Could not set CA cert path [%s]: %d:%s\n",
+                                cacert, rc, ldap_err2string(rc));
+            }
+        }
+        if (slapi_client_uses_openssl(ld)) {
+            const int crlcheck = LDAP_OPT_X_TLS_CRL_ALL;
+            /* Sets the CRL evaluation strategy. */
+            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
+            if (rc) {
+                slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
+                                "Could not set CRLCHECK [%d]: %d:%s\n",
+                                crlcheck, rc, ldap_err2string(rc));
+            }
+        }
+    }
+    /* tell it where our cert db/file is */
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
         slapi_log_error(SLAPI_LOG_FATAL, "setup_ol_tls_conn",
                         "failed: unable to set CACERTDIR option to %s\n", certdir);
@@ -635,8 +658,8 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
   on the secure setting (389 for ldap, 636 for ldaps, 389 for starttls)
   secure takes 1 of 3 values - 0 means regular ldap, 1 means ldaps, 2
   means regular ldap with starttls.
-  filename is the ldapi file name - if this is given, and no other options
-  are given, ldapi is assumed.
+  ldapi_socket is the ldapi file name 
+     if this is given, and no other options are given, ldapi is assumed.
  */
 /* util_sasl_path: the string argument for putenv.
    It must be a global or a static */
@@ -646,12 +669,12 @@ LDAP *
 slapi_ldap_init_ext(
     const char *ldapurl, /* full ldap url */
     const char *hostname, /* can also use this to override
-			     host in url */
+                             host in url */
     int port, /* can also use this to override port in url */
     int secure, /* 0 for ldap, 1 for ldaps, 2 for starttls -
-		   override proto in url */
+                   override proto in url */
     int shared, /* if true, LDAP* will be shared among multiple threads */
-    const char *filename /* for ldapi */
+    const char *ldapi_socket /* for ldapi */
 )
 {
     LDAPURLDesc	*ludp = NULL;
@@ -705,16 +728,16 @@ slapi_ldap_init_ext(
     /* use secure setting from url if none given */
     if (!secure && ludp) {
         if (secureurl) {
-            secure = 1;
+            secure = SLAPI_LDAP_INIT_FLAG_SSL;
         } else if (0/* starttls option - not supported yet in LDAP URLs */) {
-            secure = 2;
+            secure = SLAPI_LDAP_INIT_FLAG_startTLS;
         }
     }
 
     /* ldap_url_parse doesn't yet handle ldapi */
     /*
-      if (!filename && ludp && ludp->lud_file) {
-      filename = ludp->lud_file;
+      if (!ldapi_socket && ludp && ludp->lud_file) {
+      ldapi_socket = ludp->lud_file;
       }
     */
 
@@ -762,10 +785,11 @@ slapi_ldap_init_ext(
     } else {
         char *makeurl = NULL;
 
-        if (filename) {
-            makeurl = slapi_ch_smprintf("ldapi://%s/", filename);
+        if (ldapi_socket) {
+            makeurl = slapi_ch_smprintf("ldapi://%s/", ldapi_socket);
         } else { /* host port */
-            makeurl = convert_to_openldap_uri(hostname, port, (secure == 1 ? "ldaps" : "ldap"));
+            makeurl = convert_to_openldap_uri(hostname, port,
+                                              (secure == SLAPI_LDAP_INIT_FLAG_SSL ? "ldaps" : "ldap"));
         }
         if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
             slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
@@ -796,15 +820,15 @@ slapi_ldap_init_ext(
          * hostname (such as localhost.localdomain).
          */
         if((rc = ldap_set_option(ld, LDAP_OPT_X_SASL_NOCANON, LDAP_OPT_ON))){
-        	slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_init_ext",
                 "Could not set ldap option LDAP_OPT_X_SASL_NOCANON for (%s), error %d (%s)\n",
                 ldapurl, rc, ldap_err2string(rc) );
         }
     }
 #else /* !USE_OPENLDAP */
-    if (filename) {
+    if (ldapi_socket) {
         /* ldapi in mozldap client is not yet supported */
-    } else if (secure == 1) {
+    } else if (secure == SLAPI_LDAP_INIT_FLAG_SSL) {
         ld = ldapssl_init(hostname, port, secure);
     } else { /* regular ldap and/or starttls */
         /*
@@ -828,7 +852,7 @@ slapi_ldap_init_ext(
         }
     }
 
-    if ((ld != NULL) && !filename) {
+    if (ld && !ldapi_socket) {
         /*
          * Set the outbound LDAP I/O timeout based on the server config.
          */
@@ -876,7 +900,7 @@ slapi_ldap_init_ext(
              * LDAP* if it has already gone through ldapssl_init -
              * so, use NULL if using starttls
              */
-            if (secure == 1) {
+            if (secure == SLAPI_LDAP_INIT_FLAG_SSL) {
                 myld = ld;
             }
 
@@ -900,7 +924,7 @@ slapi_ldap_init_ext(
                     SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                     prerr, slapd_pr_strerror(prerr));
             }
-            if (secure == 1) {
+            if (secure == SLAPI_LDAP_INIT_FLAG_SSL) {
                 /* tell bind code we are using SSL */
                 ldap_set_option(ld, LDAP_OPT_SSL, LDAP_OPT_ON);
             }
@@ -908,7 +932,7 @@ slapi_ldap_init_ext(
         }
     }
 
-    if (ld && (secure == 2)) {
+    if (ld && (secure == SLAPI_LDAP_INIT_FLAG_startTLS)) {
         /*
          * We don't have a way to stash context data with the LDAP*, so we
          * stash the information in the client controls (currently unused).
@@ -938,8 +962,8 @@ slapi_ldap_init_ext(
     slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
             "Success: set up conn to [%s:%d]%s\n",
             hostname, port,
-            (secure == 2) ? " using startTLS" :
-            ((secure == 1) ? " using SSL" : ""));
+            (secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? " using startTLS" :
+            ((secure == SLAPI_LDAP_INIT_FLAG_SSL) ? " using SSL" : ""));
 done:
     ldap_free_urldesc(ludp);
 
@@ -993,7 +1017,7 @@ ldaputil_get_saslpath()
 LDAP *
 slapi_ldap_init( char *ldaphost, int ldapport, int secure, int shared )
 {
-    return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL);
+    return slapi_ldap_init_ext(NULL, ldaphost, ldapport, secure, shared, NULL/*, NULL*/);
 }
 
 /*
@@ -1030,7 +1054,7 @@ slapi_ldap_bind(
     ldap_get_option(ld, LDAP_OPT_CLIENT_CONTROLS, &clientctrls);
     if (clientctrls && clientctrls[0] &&
         slapi_control_present(clientctrls, START_TLS_OID, NULL, NULL)) {
-        secure = 2;
+        secure = SLAPI_LDAP_INIT_FLAG_startTLS;
     } else {
 #if defined(USE_OPENLDAP)
 	/* openldap doesn't have a SSL/TLS yes/no flag - so grab the
@@ -1039,7 +1063,7 @@ slapi_ldap_bind(
 
 	ldap_get_option(ld, LDAP_OPT_URI, &ldapurl);
 	if (ldapurl && !PL_strncasecmp(ldapurl, "ldaps", 5)) {
-	    secure = 1;
+	    secure = SLAPI_LDAP_INIT_FLAG_SSL;
 	}
 	slapi_ch_free_string(&ldapurl);
 #else /* !USE_OPENLDAP */
@@ -1077,7 +1101,7 @@ slapi_ldap_bind(
         bvcreds.bv_len = creds ? strlen(creds) : 0;
     }
 
-    if (secure == 2) { /* send start tls */
+    if (secure == SLAPI_LDAP_INIT_FLAG_startTLS) { /* send start tls */
 	rc = ldap_start_tls_s(ld, NULL /* serverctrls?? */, NULL);
 	if (LDAP_SUCCESS != rc) {
 	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
@@ -2385,4 +2409,48 @@ slapi_berval_get_msg_len(struct berval *bv, int strict)
     }
 
     return len;
+}
+
+int
+slapi_client_uses_non_nss(LDAP *ld)
+{
+    static int not_nss = 0;
+#if defined(USE_OPENLDAP)
+    static int initialized = 0;
+    char *package_name = NULL;
+    int rc;
+
+    if (initialized) {
+        return not_nss;
+    }
+    rc = ldap_get_option(ld, LDAP_OPT_X_TLS_PACKAGE, &package_name);
+    if (!rc && PL_strcasecmp(package_name, "MozNSS")) {
+        not_nss = 1;
+        slapi_ch_free_string(&package_name);
+    }
+    initialized = 1;
+#endif
+    return not_nss;
+}
+
+int
+slapi_client_uses_openssl(LDAP *ld)
+{
+    static int is_openssl = 0;
+#if defined(USE_OPENLDAP)
+    static int initialized = 0;
+    char *package_name = NULL;
+    int rc;
+
+    if (initialized) {
+        return is_openssl;
+    }
+    rc = ldap_get_option(ld, LDAP_OPT_X_TLS_PACKAGE, &package_name);
+    if (!rc && !PL_strcasecmp(package_name, "OpenSSL")) {
+        is_openssl = 1;
+        slapi_ch_free_string(&package_name);
+    }
+    initialized = 1;
+#endif
+    return is_openssl;
 }

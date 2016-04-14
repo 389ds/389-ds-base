@@ -231,6 +231,19 @@ PRBool enableSSL3 = PR_FALSE;
  */
 PRBool enableTLS1 = PR_TRUE;
 
+/*
+ * OpenLDAP client library with OpenSSL (ticket 47536)
+ */
+#define PEMEXT ".pem"
+/* CA cert pem file */
+static char *CACertPemFile = NULL;
+
+/* helper functions for openldap update. */
+static int slapd_extract_cert(Slapi_Entry *entry, int isCA);
+static int slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot);
+static void entrySetValue(Slapi_DN *sdn, char *type, char *value);
+static char *gen_pem_path(char *filename);
+
 static void
 slapd_SSL_report(int degree, char *fmt, va_list args)
 {
@@ -277,7 +290,7 @@ getSupportedCiphers()
 			SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[i].num,&info,sizeof(info));
 			/* only support FIPS approved ciphers in FIPS mode */
 			if (!isFIPS || info.isFIPS) {
-				cipher_names[idx++] = PR_smprintf("%s%s%s%s%s%s%d",
+				cipher_names[idx++] = slapi_ch_smprintf("%s%s%s%s%s%s%d",
 						_conf_ciphers[i].name,sep,
 						info.symCipherName,sep,
 						info.macAlgorithmName,sep,
@@ -315,7 +328,7 @@ getEnabledCiphers()
             SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &enabled);
             if (enabled) {
                 SSL_GetCipherSuiteInfo((PRUint16)_conf_ciphers[x].num,&info,sizeof(info));
-                enabled_cipher_names[idx++] = PR_smprintf("%s%s%s%s%s%s%d",
+                enabled_cipher_names[idx++] = slapi_ch_smprintf("%s%s%s%s%s%s%d",
                         _conf_ciphers[x].name,sep,
                         info.symCipherName,sep,
                         info.macAlgorithmName,sep,
@@ -575,7 +588,7 @@ charray2str(char **ary, const char *delim)
         if (str) {
             str = PR_sprintf_append(str, "%s%s", delim, *ary++);
         } else {
-            str = PR_smprintf("%s", *ary++);
+            str = slapi_ch_smprintf("%s", *ary++);
         }
     }
 
@@ -757,7 +770,7 @@ _conf_setciphers(char *ciphers, int flags)
     slapi_ch_free((void **)&unsuplist); /* strings inside are static */
 
     if (!enabledOne) {
-        char *nocipher = PR_smprintf("No active cipher suite is available.");
+        char *nocipher = slapi_ch_smprintf("No active cipher suite is available.");
         return nocipher;
     }
     _conf_dumpciphers();
@@ -856,6 +869,31 @@ freeChildren( char **list ) {
 	}
 }
 
+static void
+entrySetValue(Slapi_DN *sdn, char *type, char *value)
+{
+    Slapi_PBlock mypb;
+    LDAPMod attr;
+    LDAPMod *mods[2];
+    char *values[2];
+
+    values[0] = value;
+    values[1] = NULL;
+
+    /* modify the attribute */
+    attr.mod_type = type;
+    attr.mod_op = LDAP_MOD_REPLACE;
+    attr.mod_values = values;
+
+    mods[0] = &attr;
+    mods[1] = NULL;
+
+    pblock_init(&mypb);
+    slapi_modify_internal_set_pb_ext(&mypb, sdn, mods, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
+    slapi_modify_internal_pb(&mypb);
+    pblock_done(&mypb);
+}
+
 /* Logs a warning and returns 1 if cert file doesn't exist. You
  * can skip the warning log message by setting no_log to 1.*/
 static int 
@@ -863,8 +901,8 @@ warn_if_no_cert_file(const char *dir, int no_log)
 {
     int ret = 0;
     char *filename = slapi_ch_smprintf("%s/cert8.db", dir);
-	PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
-	if (PR_SUCCESS != status) {
+    PRStatus status = PR_Access(filename, PR_ACCESS_READ_OK);
+    if (PR_SUCCESS != status) {
         slapi_ch_free_string(&filename);
         filename = slapi_ch_smprintf("%s/cert7.db", dir);
         status = PR_Access(filename, PR_ACCESS_READ_OK);
@@ -1148,7 +1186,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	slapd_pk11_configurePKCS11(NULL, NULL, tokPBE, ptokPBE, NULL, NULL, NULL, NULL, 0, 0 );
 	secStatus = NSS_Initialize(certdir, NULL, NULL, "secmod.db", nssFlags);
 
-	dongle_file_name = PR_smprintf("%s/pin.txt", certdir);
+	dongle_file_name = slapi_ch_smprintf("%s/pin.txt", certdir);
 
 	if (secStatus != SECSuccess) {
 		errorCode = PR_GetError();
@@ -1280,10 +1318,16 @@ slapd_ssl_init()
         freeConfigEntry( &entry );
         return -1;
     }
+    if (config_get_extract_pem()) {
+        /* extract cert file and convert it to a pem file. */
+        slapd_extract_cert(entry, PR_TRUE);
+    }
+
     if ((family_list = getChildren(configDN))) {
         char **family;
         char *token;
         char *activation;
+        int isinternal = 0;
 
         for (family = family_list; *family; family++) {
 
@@ -1311,6 +1355,7 @@ slapd_ssl_init()
                 if (!PL_strcasecmp(token, "internal") ||
                     !PL_strcasecmp(token, "internal (software)")) {
                     slot = slapd_pk11_getInternalKeySlot();
+                    isinternal = 1;
                 } else {
                     slot = slapd_pk11_findSlotByName(token);
                 }
@@ -1324,8 +1369,6 @@ slapd_ssl_init()
                 return -1;
             }
 
-            slapi_ch_free((void **) &token);
-
             if (!slot) {
                 errorCode = PR_GetError();
                 slapd_SSL_warn("Security Initialization: Unable to find slot ("
@@ -1333,6 +1376,7 @@ slapd_ssl_init()
                        errorCode, slapd_pr_strerror(errorCode));
                 freeChildren(family_list);
                 freeConfigEntry( &entry );
+                slapi_ch_free((void **) &token);
                 return -1;
             }
             /* authenticate */
@@ -1342,13 +1386,20 @@ slapd_ssl_init()
 #endif
             if (slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                 errorCode = PR_GetError();
-                slapd_SSL_warn("Security Initialization: Unable to authenticate ("
-                       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-                       errorCode, slapd_pr_strerror(errorCode));
+                slapi_log_error(SLAPI_LOG_FATAL, "slapd_ssl_init", 
+                                "Unable to authenticate (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                                errorCode, slapd_pr_strerror(errorCode));
                 freeChildren(family_list);
                 freeConfigEntry( &entry );
+                slapi_ch_free((void **) &token);
                 return -1;
             }
+            if (config_get_extract_pem()) {
+                /* Get Server{Key,Cert}ExtractFile from cn=Cipher,cn=encryption entry if any. */
+                slapd_extract_cert(entry, PR_FALSE);
+                slapd_extract_key(entry, isinternal?internalTokenName:token, slot);
+            }
+            slapi_ch_free((void **) &token);
         }
         freeChildren( family_list );
         freeConfigEntry( &entry );
@@ -1669,9 +1720,9 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         if(slapd_pk11_isFIPS()) {
             if(slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                errorCode = PR_GetError();
-               slapd_SSL_warn("Security Initialization: Unable to authenticate ("
-                  SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-                  errorCode, slapd_pr_strerror(errorCode));
+               slapi_log_error(SLAPI_LOG_FATAL, "slapd_ssl_init2", 
+                                "Unable to authenticate (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
+                                errorCode, slapd_pr_strerror(errorCode));
                return -1;
             }
             fipsMode = PR_TRUE;
@@ -2103,111 +2154,117 @@ slapd_SSL_client_auth (LDAP* ld)
     char *token = NULL;
     SVRCOREStdPinObj *StdPinObj;
     SVRCOREError err = SVRCORE_Success;
+    char *finalpersonality = NULL;
+    char *CertExtractFile = NULL;
+    char *KeyExtractFile = NULL;
 
-    if((family_list = getChildren(configDN))) {
+    if ((family_list = getChildren(configDN))) {
         char **family;
-        char *personality = NULL;
         char *activation = NULL;
         char *cipher = NULL;
+        char *personality = NULL;
 
         for (family = family_list; *family; family++) {
             getConfigEntry( *family, &entry );
             if ( entry == NULL ) {
-                    continue;
+                continue;
             }
 
             activation = slapi_entry_attr_get_charptr( entry, "nssslactivation" );
-            if((!activation) || (!PL_strcasecmp(activation, "off"))) {
-                    /* this family was turned off, goto next */
-					slapi_ch_free((void **) &activation);
-					freeConfigEntry( &entry );
-                    continue;
+            if ((!activation) || (!PL_strcasecmp(activation, "off"))) {
+                /* this family was turned off, goto next */
+                slapi_ch_free((void **) &activation);
+                freeConfigEntry( &entry );
+                continue;
             }
-
-	    slapi_ch_free((void **) &activation);
+            slapi_ch_free((void **) &activation);
 
             personality = slapi_entry_attr_get_charptr( entry, "nssslpersonalityssl" );
             cipher = slapi_entry_attr_get_charptr( entry, "cn" );
-	    if ( cipher && !PL_strcasecmp(cipher, "RSA" )) {
-			char *ssltoken;
+            if ( cipher && !PL_strcasecmp(cipher, "RSA" )) {
+                char *ssltoken;
 
-			/* If there already is a token name, use it */
-			if (token) {
-				slapi_ch_free((void **) &personality);
-				slapi_ch_free((void **) &cipher);
-				freeConfigEntry( &entry );
-				continue;
-			}
+                /* If there already is a token name, use it */
+                if (token) {
+                    slapi_ch_free_string(&personality);
+                    slapi_ch_free_string(&cipher);
+                    freeConfigEntry( &entry );
+                    continue;
+                }
 
-			ssltoken = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
- 			if( ssltoken && personality ) {
-			  if( !PL_strcasecmp(ssltoken, "internal") ||
-			      !PL_strcasecmp(ssltoken, "internal (software)") ) {
+                ssltoken = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
+                if( ssltoken && personality ) {
+                    if (!PL_strcasecmp(ssltoken, "internal") ||
+                        !PL_strcasecmp(ssltoken, "internal (software)")) {
 
-						/* Translate config internal name to more
-			 			 * readable form.  Certificate name is just
-			 			 * the personality for internal tokens.
-			 			 */
-						token = slapi_ch_strdup(internalTokenName);
+                        /* Translate config internal name to more
+                          * readable form.  Certificate name is just
+                          * the personality for internal tokens.
+                          */
+                        token = slapi_ch_strdup(internalTokenName);
 #if defined(USE_OPENLDAP)
-						/* openldap needs tokenname:certnick */
-						PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
+                        /* openldap needs tokenname:certnick */
+                        PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
 #else
-						PL_strncpyz(cert_name, personality, sizeof(cert_name));
+                        PL_strncpyz(cert_name, personality, sizeof(cert_name));
 #endif
-						slapi_ch_free((void **) &ssltoken);
-			  } else {
-						/* external PKCS #11 token - attach token name */
-						/*ssltoken was already dupped and we don't need it anymore*/
-						token = ssltoken;
-						PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
-			  }
- 			} else {
-			  errorCode = PR_GetError(); 
-			  slapd_SSL_warn("Security Initialization: Failed to get cipher "
-					 "family information.  Missing nsssltoken or"
-					 "nssslpersonalityssl in %s ("
-					 SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-					 *family, errorCode, slapd_pr_strerror(errorCode));
-	  		  slapi_ch_free((void **) &ssltoken);
-			  slapi_ch_free((void **) &personality);
-			  slapi_ch_free((void **) &cipher);
-			  freeConfigEntry( &entry );
-			  continue;
-			}
-	    } else { /* external PKCS #11 cipher */
-			char *ssltoken;
+                        slapi_ch_free_string(&ssltoken);
+                    } else {
+                        /* external PKCS #11 token - attach token name */
+                        token = ssltoken; /*ssltoken was already dupped */
+                        PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
+                    }
+                } else {
+                    errorCode = PR_GetError(); 
+                    slapd_SSL_warn("Security Initialization: Failed to get cipher "
+                        "family information.  Missing nsssltoken or"
+                        "nssslpersonalityssl in %s ("
+                        SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                        *family, errorCode, slapd_pr_strerror(errorCode));
+                    slapi_ch_free_string(&ssltoken);
+                    slapi_ch_free_string(&personality);
+                    slapi_ch_free_string(&cipher);
+                    freeConfigEntry( &entry );
+                    continue;
+                }
+            } else { /* external PKCS #11 cipher */
+                char *ssltoken;
 
-			ssltoken = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
-			if( token && personality ) {
+                ssltoken = slapi_entry_attr_get_charptr( entry, "nsssltoken" );
+                if( ssltoken && personality ) {
 
-				/* free the old token and remember the new one */
-				if (token) slapi_ch_free((void **)&token);
-				token = ssltoken; /*ssltoken was already dupped and we don't need it anymore*/
+                    /* free the old token and remember the new one */
+                    if (token) slapi_ch_free_string(&token);
+                    token = ssltoken; /*ssltoken was already dupped */
 
-				/* external PKCS #11 token - attach token name */
-				PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
-			} else {
-			  errorCode = PR_GetError();
-			  slapd_SSL_warn("Security Initialization: Failed to get cipher "
-					 "family information.  Missing nsssltoken or"
-					 "nssslpersonalityssl in %s ("
-					 SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-					 *family, errorCode, slapd_pr_strerror(errorCode));
-	        	  slapi_ch_free((void **) &ssltoken);
-	    		  slapi_ch_free((void **) &personality);
-			  slapi_ch_free((void **) &cipher);
-			  freeConfigEntry( &entry );
-			  continue;
-			}
-
-	    }
-	    slapi_ch_free((void **) &personality);
-	    slapi_ch_free((void **) &cipher);
-		freeConfigEntry( &entry );
+                    /* external PKCS #11 token - attach token name */
+                    PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
+                } else {
+                    errorCode = PR_GetError();
+                    slapd_SSL_warn("Security Initialization: Failed to get cipher "
+                       "family information.  Missing nsssltoken or"
+                       "nssslpersonalityssl in %s ("
+                       SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
+                     *  family, errorCode, slapd_pr_strerror(errorCode));
+                    slapi_ch_free_string(&ssltoken);
+                    slapi_ch_free_string(&personality);
+                    slapi_ch_free_string(&cipher);
+                    freeConfigEntry( &entry );
+                    continue;
+                }
+            }
+            slapi_ch_free_string(&finalpersonality);
+            finalpersonality = personality;
+            slapi_ch_free_string(&cipher);
+            /* Get ServerCert/KeyExtractFile from given entry if any. */
+            slapi_ch_free_string(&CertExtractFile);
+            CertExtractFile = slapi_entry_attr_get_charptr(entry, "ServerCertExtractFile");
+            slapi_ch_free_string(&KeyExtractFile);
+            KeyExtractFile = slapi_entry_attr_get_charptr(entry, "ServerKeyExtractFile");
+            freeConfigEntry( &entry );
         } /* end of for */
 
-		freeChildren( family_list );
+        freeChildren( family_list );
     }
 
     /* Free config data */
@@ -2226,15 +2283,69 @@ slapd_SSL_client_auth (LDAP* ld)
                 errorCode, slapd_pr_strerror(errorCode));
         } else {
 #if defined(USE_OPENLDAP)
-            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, SERVER_KEY_NAME);
-            if (rc) {
-                slapd_SSL_warn("SSL client authentication cannot be used "
-                    "unable to set the key to use to %s", SERVER_KEY_NAME);
-            }
-            rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, cert_name);
-            if (rc) {
-                slapd_SSL_warn("SSL client authentication cannot be used "
-                    "unable to set the cert to use to %s", cert_name);
+            if (slapi_client_uses_non_nss(ld)) {
+                char *certdir = config_get_certdir();
+                char *keyfile = NULL;
+                char *certfile = NULL;
+                if (KeyExtractFile) {
+                    if ('/' == *KeyExtractFile) {
+                        keyfile = KeyExtractFile;
+                    } else {
+                        keyfile = slapi_ch_smprintf("%s/%s", certdir, KeyExtractFile);
+                        slapi_ch_free_string(&KeyExtractFile);
+                    }
+                } else {
+                    keyfile = slapi_ch_smprintf("%s/%s-Key%s", certdir, finalpersonality, PEMEXT);
+                }
+                if (CertExtractFile) {
+                    if ('/' == *CertExtractFile) {
+                        certfile = CertExtractFile;
+                    } else {
+                        certfile = slapi_ch_smprintf("%s/%s", certdir, CertExtractFile);
+                        slapi_ch_free_string(&CertExtractFile);
+                    }
+                } else {
+                    certfile = slapi_ch_smprintf("%s/%s%s", certdir, finalpersonality, PEMEXT);
+                }
+                slapi_ch_free_string(&certdir);
+                if (PR_SUCCESS != PR_Access(keyfile, PR_ACCESS_EXISTS)) {
+                    slapi_ch_free_string(&keyfile);
+                    slapd_SSL_warn("SSL key file (%s) for client authentication does not exist. "
+                                   "Using %s", keyfile, SERVER_KEY_NAME);
+                    keyfile = slapi_ch_strdup(SERVER_KEY_NAME);
+                }
+                rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, keyfile);
+                if (rc) {
+                    slapd_SSL_warn("SSL client authentication cannot be used "
+                        "unable to set the key to use to %s", keyfile);
+                }
+                slapi_ch_free_string(&keyfile);
+                rc = PR_Access(certfile, PR_ACCESS_EXISTS);
+                if (rc) {
+                    slapi_ch_free_string(&certfile);
+                    slapd_SSL_warn("SSL cert file (%s) for client authentication does not exist. "
+                                   "Using %s", certfile, cert_name);
+                    certfile = cert_name;
+                }
+                rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, certfile);
+                if (rc) {
+                    slapd_SSL_warn("SSL client authentication cannot be used "
+                        "unable to set the cert to use to %s", certfile);
+                }
+                if (certfile != cert_name) {
+                    slapi_ch_free_string(&certfile);
+                }
+            } else {
+                rc = ldap_set_option(ld, LDAP_OPT_X_TLS_KEYFILE, SERVER_KEY_NAME);
+                if (rc) {
+                    slapd_SSL_warn("SSL client authentication cannot be used "
+                        "unable to set the key to use to %s", SERVER_KEY_NAME);
+                }
+                rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CERTFILE, cert_name);
+                if (rc) {
+                    slapd_SSL_warn("SSL client authentication cannot be used "
+                        "unable to set the cert to use to %s", cert_name);
+                }
             }
             /*
              * not sure what else needs to be done for client auth - don't
@@ -2265,6 +2376,7 @@ slapd_SSL_client_auth (LDAP* ld)
 
     slapi_ch_free_string(&token);
     slapi_ch_free_string(&pw);
+    slapi_ch_free_string(&finalpersonality);
 
     LDAPDebug (LDAP_DEBUG_TRACE, "slapd_SSL_client_auth() %i\n", rc, 0, 0);
     return rc;
@@ -2365,9 +2477,10 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 					slotname, tokenname, certsubject);
 			break;
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
-					"Skipping locked slot [%s] token [%s] for certificate [%s]\n",
-					slotname, tokenname, certsubject);
+			PRErrorCode errcode = PR_GetError();
+			slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+					"Skipping locked slot [%s] token [%s] for certificate [%s] (%d - %s)\n",
+					slotname, tokenname, certsubject, errcode, slapd_pr_strerror(errcode));
 		}
 	}
 
@@ -2391,3 +2504,591 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 	return key;
 }
 
+/*
+ * Functions to extract key and cert from the NSS cert db.
+ */
+#include <libgen.h>
+#include <seccomon.h>
+#include <secmodt.h>
+#include <certt.h>
+#include <base64.h>
+#define DONOTEDIT "This file is auto-generated by 389-ds-base.\nDo not edit directly.\n"
+#define NS_CERT_HEADER "-----BEGIN CERTIFICATE-----"
+#define NS_CERT_TRAILER "-----END CERTIFICATE-----"
+#define KEY_HEADER  "-----BEGIN PRIVATE KEY-----"
+#define KEY_TRAILER "-----END PRIVATE KEY-----"
+#define ENCRYPTED_KEY_HEADER  "-----BEGIN ENCRYPTED PRIVATE KEY-----"
+#define ENCRYPTED_KEY_TRAILER "-----END ENCRYPTED PRIVATE KEY-----"
+
+typedef struct {
+    enum {
+    PW_NONE = 0,
+    PW_FROMFILE = 1,
+    PW_PLAINTEXT = 2,
+    PW_EXTERNAL = 3
+    } source;
+    char *data;
+} secuPWData;
+
+static SECStatus
+listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
+          PRFileDesc *outfile, void *pwarg)
+{
+    SECItem data;
+    SECStatus rv = SECFailure;
+    CERTCertList *certs;
+    CERTCertListNode *node;
+    CERTCertificate *the_cert = NULL;
+    char *name = NULL;
+
+    if (!cert) {
+        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "No cert given\n");
+        return rv;
+    }
+    name = cert->nickname;
+
+    if (!name) {
+        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "No cert nickname\n");
+        return rv;
+    }
+    the_cert = CERT_FindCertByNicknameOrEmailAddr(handle, name);
+    if (!the_cert) {
+        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "Could not find cert: %s\n", name);
+        return SECFailure;
+    }
+
+    PR_fprintf(outfile, "%s\n", DONOTEDIT);
+    /* Here, we have one cert with the desired nickname or email 
+     * address.  Now, we will attempt to get a list of ALL certs 
+     * with the same subject name as the cert we have.  That list 
+     * should contain, at a minimum, the one cert we have already found.
+     * If the list of certs is empty (NULL), the libraries have failed.
+     */
+    certs = CERT_CreateSubjectCertList(NULL, handle, &the_cert->derSubject,
+                                       PR_Now(), PR_FALSE);
+    CERT_DestroyCertificate(the_cert);
+    if (!certs) {
+        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "problem printing certificates");
+        return SECFailure;
+    }
+    for (node = CERT_LIST_HEAD(certs); !CERT_LIST_END(node,certs); node = CERT_LIST_NEXT(node)) {
+        the_cert = node->cert;
+        PR_fprintf(outfile, "Issuer: %s\n", the_cert->issuerName);
+        PR_fprintf(outfile, "Subject: %s\n", the_cert->subjectName);
+        /* now get the subjectList that matches this cert */
+        data.data = the_cert->derCert.data;
+        data.len = the_cert->derCert.len;
+        PR_fprintf(outfile, "\n%s\n%s\n%s\n", NS_CERT_HEADER, 
+                   BTOA_DataToAscii(data.data, data.len), NS_CERT_TRAILER);
+        rv = SECSuccess;
+    }
+    if (certs) {
+        CERT_DestroyCertList(certs);
+    }
+    if (rv) {
+        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "problem printing certificate nicknames");
+        return SECFailure;
+    }
+
+    return rv;
+}
+
+static char *
+gen_pem_path(char *filename)
+{
+    char *pem = NULL;
+    char *pempath = NULL;
+    char *dname = NULL;
+    char *bname = NULL;
+    char *certdir = config_get_certdir();
+
+    if (!filename) {
+        goto bail;
+    }
+    pem = PL_strstr(filename, PEMEXT);
+    if (pem) {
+        *pem = '\0';
+    }
+    bname = basename(filename);
+    dname = dirname(filename);
+    if (!PL_strcmp(dname, ".")) {
+        /* just a file name */
+        pempath = slapi_ch_smprintf("%s/%s%s", certdir, bname, PEMEXT);
+    } else if (*dname == '/') {
+        /* full path */
+        pempath = slapi_ch_smprintf("%s/%s%s", dname, bname, PEMEXT);
+    } else {
+        /* relative path */
+        pempath = slapi_ch_smprintf("%s/%s/%s%s", certdir, dname, bname, PEMEXT);
+    }
+bail:
+    return pempath;
+}
+
+static int
+slapd_extract_cert(Slapi_Entry *entry, int isCA)
+{
+    CERTCertDBHandle *certHandle;
+    char *certdir = config_get_certdir();
+    CERTCertListNode *node;
+    CERTCertList *list = PK11_ListCerts(PK11CertListAll, NULL);
+    PRFileDesc *outFile = NULL;
+    SECStatus rv = SECFailure;
+    char *CertExtractFile = NULL;
+    char *certfile = NULL;
+    char *personality = NULL;
+
+    if (!entry) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert",
+                        "No entry is given for %s Cert.\n", isCA?"CA":"Server");
+        goto bail;
+    }
+
+    /* Get CertExtractFile from given entry if any. */
+    if (isCA) {
+        CertExtractFile = slapi_entry_attr_get_charptr(entry, "CACertExtractFile");
+    } else {
+        CertExtractFile = slapi_entry_attr_get_charptr(entry, "ServerCertExtractFile");
+        personality = slapi_entry_attr_get_charptr(entry, "nsSSLPersonalitySSL" );
+    }
+    certfile = gen_pem_path(CertExtractFile);
+    if (isCA) {
+        slapi_ch_free_string(&CACertPemFile);
+        CACertPemFile = certfile;
+    }
+
+    certHandle = CERT_GetDefaultCertDB();
+    for (node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
+         node = CERT_LIST_NEXT(node)) {
+        CERTCertificate *cert = node->cert;
+        CERTCertTrust trust;
+          switch (isCA) {
+          case PR_TRUE:
+            if ((CERT_GetCertTrust(cert, &trust) == SECSuccess) &&
+                (trust.sslFlags & (CERTDB_VALID_CA|CERTDB_TRUSTED_CA|CERTDB_TRUSTED_CLIENT_CA))) {
+                /* default token "internal" */
+                PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
+                slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
+                if (!certfile) {
+                    certfile = slapi_ch_smprintf("%s/%s%s", certdir, escape_string_for_filename(cert->nickname), PEMEXT);
+                    entrySetValue(slapi_entry_get_sdn(entry), "CACertExtractFile", certfile);
+                    slapi_set_cacertfile(certfile);
+                }
+                if (!outFile) {
+                    outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
+                }
+                if (!outFile) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert",
+                                    "Unable to open \"%s\" for writing (%d, %d).\n",
+                                    certfile, PR_GetError(), PR_GetOSError());
+                    goto bail;
+                }
+                rv = listCerts(certHandle, cert, slot, outFile, NULL);
+                if (rv) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "listCerts failed\n");
+                    break;
+                }
+            }
+            break;
+        default:
+            if (!PL_strcmp(cert->nickname, personality)) {
+                PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
+                slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
+                if (!certfile) {
+                    certfile = slapi_ch_smprintf("%s/%s%s", certdir, escape_string_for_filename(cert->nickname), PEMEXT);
+                }
+                if (!outFile) {
+                    outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
+                }
+                if (!outFile) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert",
+                                    "Unable to open \"%s\" for writing (%d, %d).\n",
+                                    certfile, PR_GetError(), PR_GetOSError());
+                    goto bail;
+                }
+                rv = listCerts(certHandle, cert, slot, outFile, NULL);
+                if (rv) {
+                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "listCerts failed\n");
+                }
+                PR_Close(outFile);
+                outFile = NULL;
+                break; /* One cert per one pem file. */
+            }
+            break;
+        }
+    }
+    rv = SECSuccess;
+bail:
+    CERT_DestroyCertList(list);
+    slapi_ch_free_string(&CertExtractFile);
+    if (CACertPemFile != certfile) {
+        slapi_ch_free_string(&certfile);
+    }
+    slapi_ch_free_string(&personality);
+    if (outFile) {
+        PR_Close(outFile);
+    }
+    return rv;
+}
+
+/*
+ * Borrowed from keyutil.c (crypto-util)
+ *
+ * Extract the public and private keys and the subject
+ * distinguished from the cert with the given nickname
+ * in the given slot.
+ *
+ * @param nickname the certificate nickname
+ * @param slot the slot where keys it was loaded
+ * @param pwdat module authentication password
+ * @param privkey private key out
+ * @param pubkey public key out
+ * @param subject subject out
+ */
+static SECStatus 
+extractRSAKeysAndSubject(
+    const char *nickname,
+    PK11SlotInfo *slot,
+    secuPWData *pwdata,
+    SECKEYPrivateKey **privkey,
+    SECKEYPublicKey **pubkey,
+    CERTName **subject)
+{
+    PRErrorCode rv = SECFailure;
+    CERTCertificate *cert = PK11_FindCertFromNickname((char *)nickname, NULL);
+    if (!cert) {
+        rv = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+                        "Failed extract cert with %s, (%d-%s, %d).\n",
+                        nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
+        goto bail;
+    }
+
+    *pubkey = CERT_ExtractPublicKey(cert);
+    if (!*pubkey) {
+        rv = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+                        "Could not get public key from cert for %s, (%d-%s, %d)\n",
+                        nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
+        goto bail;
+    }
+
+    *privkey = PK11_FindKeyByDERCert(slot, cert, pwdata);
+    if (!*privkey) {
+        rv = PR_GetError();
+        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+                        "Unable to find the key with PK11_FindKeyByDERCert for %s, (%d-%s, %d)\n",
+                        nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
+        *privkey= PK11_FindKeyByAnyCert(cert, &pwdata);
+        if (!*privkey) {
+            rv = PR_GetError();
+            slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+                            "Unable to find the key with PK11_FindKeyByAnyCert for %s, (%d-%s, %d)\n",
+                            nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
+            goto bail;
+        }
+    }
+
+    PR_ASSERT(((*privkey)->keyType) == rsaKey);
+    *subject = CERT_AsciiToName(cert->subjectName);
+
+    if (!*subject) {
+        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+                        "Improperly formatted name: \"%s\"\n",
+                        cert->subjectName);
+        goto bail;
+    }
+    rv = SECSuccess;
+bail:
+    if (cert)
+        CERT_DestroyCertificate(cert);
+    return rv;
+}
+
+/*
+ * Decrypt the private key
+ */
+SECStatus DecryptKey(
+    SECKEYEncryptedPrivateKeyInfo *epki,
+    SECOidTag algTag,
+    SECItem *pwitem,
+    secuPWData *pwdata,
+    SECItem *derPKI)
+{
+    SECItem  *cryptoParam = NULL;
+    PK11SymKey *symKey = NULL;
+    PK11Context *ctx = NULL;
+    SECStatus rv = SECFailure;
+
+    if (!pwitem) {
+        return rv;
+    }
+
+    do {
+        SECAlgorithmID algid = epki->algorithm;
+        CK_MECHANISM_TYPE cryptoMechType;
+        CK_ATTRIBUTE_TYPE operation = CKA_DECRYPT;
+        PK11SlotInfo *slot = NULL;
+
+        cryptoMechType = PK11_GetPBECryptoMechanism(&algid, &cryptoParam, pwitem);
+        if (cryptoMechType == CKM_INVALID_MECHANISM)  {
+            break;
+        }
+
+        slot = PK11_GetBestSlot(cryptoMechType, NULL);
+        if (!slot) {
+            break;
+        }
+
+        symKey = PK11_PBEKeyGen(slot, &algid, pwitem, PR_FALSE, pwdata);
+        if (symKey == NULL) {
+            break;
+        }
+
+        ctx = PK11_CreateContextBySymKey(cryptoMechType, operation, symKey, cryptoParam);
+        if (ctx == NULL) {
+             break;
+        }
+
+        rv = PK11_CipherOp(ctx,
+                derPKI->data,                  /* out     */
+                (int *)(&derPKI->len),         /* out len */
+                (int)epki->encryptedData.len,  /* max out */
+                epki->encryptedData.data,      /* in      */
+                (int)epki->encryptedData.len); /* in len  */
+
+        PR_ASSERT(derPKI->len == epki->encryptedData.len);
+        PR_ASSERT(rv == SECSuccess);
+        rv = PK11_Finalize(ctx);
+        PR_ASSERT(rv == SECSuccess);
+
+    } while (0);
+
+    /* cleanup */
+    if (symKey) {
+        PK11_FreeSymKey(symKey);
+    }
+    if (cryptoParam) {
+        SECITEM_ZfreeItem(cryptoParam, PR_TRUE);
+        cryptoParam = NULL;
+    }
+    if (ctx) {
+        PK11_DestroyContext(ctx, PR_TRUE);
+    }
+
+    return rv;
+
+}
+
+/* #define ENCRYPTEDKEY 1 */
+#define RAND_PASS_LEN 32
+static int
+slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
+{
+    char *KeyExtractFile = NULL;
+    char *personality = NULL;
+    char *keyfile = NULL;
+    unsigned char randomPassword[RAND_PASS_LEN] = {0};
+    SECStatus rv = SECFailure;
+    SECItem pwitem = { 0, NULL, 0 };
+    SECItem clearKeyDER = { 0, NULL, 0 };
+    PRFileDesc *outFile = NULL;
+    SECKEYEncryptedPrivateKeyInfo *epki = NULL;
+    SECKEYPrivateKey *privkey = NULL;
+    SECKEYPublicKey *pubkey = NULL;
+    secuPWData pwdata = { PW_NONE, 0 };
+    CERTName *subject = NULL;
+    PLArenaPool *arenaForPKI = NULL;
+    char *b64 = NULL;
+    PRUint32 total = 0;
+    PRUint32 numBytes = 0;
+    char *certdir = config_get_certdir();
+#if defined(ENCRYPTEDKEY)
+    char *keyEncPwd = NULL;
+    SVRCOREError err = SVRCORE_Success;
+    PRArenaPool *arenaForEPKI = NULL;
+    SVRCOREStdPinObj *StdPinObj;
+    SECItem *encryptedKeyDER = NULL;
+#endif
+
+    if (!entry) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "No entry is given for Server Key.\n");
+        goto bail;
+    }
+#if defined(ENCRYPTEDKEY)
+    if (!token) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "No token is given.\n");
+        goto bail;
+    }
+    StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
+    if (!StdPinObj) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "No entry is given for Server Key.\n");
+        goto bail;
+    }
+    err =  SVRCORE_StdPinGetPin(&keyEncPwd, StdPinObj, token);
+    if (err || !keyEncPwd) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "Failed to extract pw with token %s.\n", token);
+        goto bail;
+    }
+    pwitem.data = (unsigned char *)keyEncPwd;
+    pwitem.len = (unsigned int)strlen(keyEncPwd);
+    pwitem.type = siBuffer;
+#else
+    /* Caller wants clear keys. Make up a dummy
+     * password to get NSS to export an encrypted
+     * key which we will decrypt.
+     */
+    rv = PK11_GenerateRandom(randomPassword, sizeof((const char *)randomPassword) - 1);
+    if (rv != SECSuccess) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key", "Failed to generate random.\n");
+        goto bail;
+    }
+    pwitem.data = randomPassword;
+    pwitem.len = strlen((const char *)randomPassword);
+    pwitem.type = siBuffer;
+#endif
+
+    /* Get ServerKeyExtractFile from given entry if any. */
+    KeyExtractFile = slapi_entry_attr_get_charptr(entry, "ServerKeyExtractFile");
+    personality = slapi_entry_attr_get_charptr(entry, "nsSSLPersonalitySSL" );
+    if (!personality) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "nsSSLPersonalitySSL value not found.\n");
+        goto bail;
+    }
+    keyfile = gen_pem_path(KeyExtractFile);
+    if (!keyfile) {
+        keyfile = slapi_ch_smprintf("%s/%s-Key%s", certdir, escape_string_for_filename(personality), PEMEXT);
+    }
+    outFile = PR_Open(keyfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
+    if (!outFile) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "Unable to open \"%s\" for writing (%d, %d).\n",
+                        keyfile, PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+    rv = extractRSAKeysAndSubject(personality, slot, &pwdata, &privkey, &pubkey, &subject);
+    if (rv != SECSuccess) {
+#if defined(ENCRYPTEDKEY)
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "Failed to extract keys for \"%s\".\n", token);
+#else
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key", "Failed to extract keys for %s.\n", personality);
+#endif
+        goto bail;
+    }
+
+    /* 
+     * Borrowed the code from KeyOut in keyutil.c (crypto-util).
+     * Is it ok to hardcode the algorithm SEC_OID_DES_EDE3_CBC???
+     */
+    epki = PK11_ExportEncryptedPrivKeyInfo(NULL, SEC_OID_DES_EDE3_CBC, &pwitem, privkey, 1000, &pwdata);
+    if (!epki) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "Unable to export encrypted private key (%d, %d).\n",
+                        PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+#if defined(ENCRYPTEDKEY)
+    arenaForEPKI = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+    /* NULL dest to let it allocate memory for us */
+    encryptedKeyDER = SEC_ASN1EncodeItem(arenaForEPKI, NULL, epki, SECKEY_EncryptedPrivateKeyInfoTemplate);
+    if (!encryptedKeyDER) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "SEC_ASN1EncodeItem failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+#else
+    /* Make a decrypted key the one to write out. */
+    arenaForPKI = PORT_NewArena(2048);
+    if (!arenaForPKI) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "PORT_NewArena failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+    clearKeyDER.data = PORT_ArenaAlloc(arenaForPKI, epki->encryptedData.len);
+    clearKeyDER.len = epki->encryptedData.len;
+    clearKeyDER.type = siBuffer;
+
+    rv = DecryptKey(epki, SEC_OID_DES_EDE3_CBC, &pwitem, &pwdata, &clearKeyDER);
+    if (rv != SECSuccess) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "DekryptKey failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+#endif
+
+    /* we could be exporting a clear or encrypted key */
+#if defined(ENCRYPTEDKEY)
+    b64 = BTOA_ConvertItemToAscii(encryptedKeyDER);
+#else
+    b64 = BTOA_ConvertItemToAscii(&clearKeyDER);
+#endif
+    if (!b64) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "Failed to conver to the ASCII (%d, %d).\n",
+                        PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+
+    total = PL_strlen(b64);
+    PR_fprintf(outFile, "%s\n", DONOTEDIT);
+#if defined(ENCRYPTEDKEY)
+    PR_fprintf(outFile, "%s\n", ENCRYPTED_KEY_HEADER);
+#else
+    PR_fprintf(outFile, "%s\n", KEY_HEADER);
+#endif
+    numBytes = PR_Write(outFile, b64, total);
+    if (numBytes != total) {
+        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+                        "Failed to write to the file (%d, %d).\n",
+                        PR_GetError(), PR_GetOSError());
+        goto bail;
+    }
+#if defined(ENCRYPTEDKEY)
+    PR_fprintf(outFile, "\n%s\n", ENCRYPTED_KEY_TRAILER);
+#else
+    PR_fprintf(outFile, "\n%s\n", KEY_TRAILER);
+#endif
+    rv = SECSuccess;
+bail:
+    slapi_ch_free_string(&certdir);
+    slapi_ch_free_string(&KeyExtractFile);
+    slapi_ch_free_string(&keyfile);
+    if (outFile) {
+        PR_Close(outFile);
+    }
+#if defined(ENCRYPTEDKEY)
+    if (arenaForEPKI) {
+        PORT_FreeArena(arenaForEPKI, PR_FALSE);
+    }
+    if (pwitem.data) {
+        memset(pwitem.data, 0, pwitem.len);
+        PORT_Free(pwitem.data);
+    }
+    memset(&pwitem, 0, sizeof(SECItem));
+#else
+    if (arenaForPKI) {
+        PORT_FreeArena(arenaForPKI, PR_FALSE);
+    }
+    memset(randomPassword, 0, strlen((const char *)randomPassword));
+#endif
+    return rv;
+}
+
+const char *
+slapi_get_cacertfile()
+{
+    return CACertPemFile;
+}
+
+void
+slapi_set_cacertfile(char *certfile)
+{
+    slapi_ch_free_string(&CACertPemFile);
+    CACertPemFile = certfile;
+}
