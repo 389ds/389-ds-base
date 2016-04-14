@@ -8,7 +8,10 @@ License: GPLv3+
 Group: Development/Libraries
 BuildArch: noarch
 Url: http://port389.org/docs/389ds/FAQ/upstream-test-framework.html
-BuildRequires: python2-devel, python-ldap, krb5-devel, python-setuptools
+BuildRequires: python2-devel
+BuildRequires: python-ldap
+BuildRequires: krb5-devel
+BuildRequires: python-setuptools
 Requires: pytest
 Requires: python-ldap
 Requires: python-six
