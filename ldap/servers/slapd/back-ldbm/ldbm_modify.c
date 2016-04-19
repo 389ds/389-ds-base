@@ -273,7 +273,7 @@ modify_apply_check_expand(
 	 * If the objectClass attribute type was modified in any way, expand
 	 * the objectClass values to reflect the inheritance hierarchy.
 	 */
-	for ( i = 0; (mods != NULL) && (mods[i] != NULL) && !repl_op; ++i ) {
+	for ( i = 0; mods && mods[i]; ++i ) {
 		if ( 0 == strcasecmp( SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type )) {
 			slapi_schema_expand_objectclasses( ec->ep_entry );
 			break;
