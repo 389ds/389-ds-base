@@ -74,6 +74,9 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 %{_includedir}/svrcore.h
 
 %changelog
+* Thu Apr 21 2016 Noriko Hosoi <nhosoi@redhat.com> - 4.1.2
+- Code quality improvements
+
 * Thu Apr 14 2016 William Brown <wibrown@redhat.com> - 4.1.1
 - Code quality and stability improvements
 - Improvements to rpm tooling and features
