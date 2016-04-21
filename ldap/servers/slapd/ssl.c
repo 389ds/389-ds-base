@@ -89,6 +89,10 @@
 #define NSS_TLS10 1
 #endif
 
+#if NSS_VMAJOR * 100 + NSS_VMINOR >= 320
+#define HAVE_NSS_DHE 1
+#endif
+
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
 static SSLVersionRange enabledNSSVersions;
 static SSLVersionRange slapdNSSVersions;
@@ -117,6 +121,7 @@ static int stimeout;
 static char *ciphers = NULL;
 static char * configDN = "cn=encryption,cn=config";
 
+
 /* Copied from libadmin/libadmin.h public/nsapi.h */
 #define SERVER_KEY_NAME "Server-Key"
 #define MAGNUS_ERROR_LEN 1024
@@ -125,6 +130,15 @@ static char * configDN = "cn=encryption,cn=config";
 #define FILE_PATHSEP '/'
 
 /* ----------------------- Multiple cipher support ------------------------ */
+#ifdef HAVE_NSS_DHE
+#define CIPHER_SET_DEFAULTWEAKDHPARAM 0x100 /* allowWeakDhParam is not set in cn=encryption */
+#define CIPHER_SET_ALLOWWEAKDHPARAM   0x200 /* allowWeakDhParam is on */
+#define CIPHER_SET_DISALLOWWEAKDHPARAM   0x400 /* allowWeakDhParam is off */
+#endif
+
+#ifdef HAVE_NSS_DHE
+static int allowweakdhparam = CIPHER_SET_DEFAULTWEAKDHPARAM;
+#endif
 
 
 static char **cipher_names = NULL;
@@ -243,6 +257,33 @@ getSupportedCiphers()
 	}
 	return cipher_names;
 }
+
+#ifdef HAVE_NSS_DHE
+int
+get_allow_weak_dh_param(Slapi_Entry *e)
+{
+    /* Check if the user wants weak params */
+    int allow = CIPHER_SET_DEFAULTWEAKDHPARAM;
+    char *val;
+    val = slapi_entry_attr_get_charptr(e, "allowWeakDHParam");
+    if (val) {
+        if (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") || 
+                !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no")) {
+            allow = CIPHER_SET_DISALLOWWEAKDHPARAM;
+        } else if (!PL_strcasecmp(val, "on") || !PL_strcasecmp(val, "true") || 
+                !PL_strcmp(val, "1") || !PL_strcasecmp(val, "yes")) {
+            allow = CIPHER_SET_ALLOWWEAKDHPARAM;
+            slapd_SSL_warn("The value of allowWeakDHParam is set to %s. THIS EXPOSES YOU TO CVE-2015-4000.", val);
+        } else {
+            slapd_SSL_warn("The value of allowWeakDHParam \"%s\" is invalid.",
+                           "Ignoring it and set it to default.", val);
+        }
+    }
+    slapi_ch_free((void **) &val);
+    return allow;
+}
+#endif
+
 
 char **
 getEnabledCiphers()
@@ -841,6 +882,9 @@ slapd_ssl_init() {
     int rv = 0;
     PK11SlotInfo *slot;
     Slapi_Entry *entry = NULL;
+#ifdef HAVE_NSS_DHE
+    SECStatus  nss_rv = SECFailure;
+#endif
 
     /* Get general information */
 
@@ -848,6 +892,17 @@ slapd_ssl_init() {
 
     val = slapi_entry_attr_get_charptr( entry, "nssslSessionTimeout" );
     ciphers = slapi_entry_attr_get_charptr( entry, "nsssl3ciphers" );
+
+#ifdef HAVE_NSS_DHE
+    allowweakdhparam = get_allow_weak_dh_param(entry);
+    if (allowweakdhparam & CIPHER_SET_ALLOWWEAKDHPARAM) {
+        slapd_SSL_warn("notice, generating new WEAK DH param");
+        nss_rv = SSL_EnableWeakDHEPrimeGroup(NULL, PR_TRUE);
+        if (nss_rv != SECSuccess) {
+            slapd_SSL_warn("Warning, unable to generate weak dh parameters");
+        }
+    }
+#endif
 
     /* We are currently using the value of sslSessionTimeout
 	   for ssl3SessionTimeout, see SSL_ConfigServerSessionIDCache() */
@@ -1192,6 +1247,24 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                 }
 
                 if (SECSuccess == rv) {
+
+#ifdef HAVE_NSS_DHE
+                    /* Step If we want weak dh params, flag it on the socket now! */
+
+                    rv = SSL_OptionSet(*fd, SSL_ENABLE_SERVER_DHE, PR_TRUE);
+                    if (rv != SECSuccess) {
+                        slapd_SSL_warn("Warning, unable to start DHE");
+                    }
+
+                    if (allowweakdhparam & CIPHER_SET_ALLOWWEAKDHPARAM) {
+                        slapd_SSL_warn("notice, allowing weak parameters on socket.");
+                        rv = SSL_EnableWeakDHEPrimeGroup(*fd, PR_TRUE);
+                        if (rv != SECSuccess) {
+                            slapd_SSL_warn("Warning, unable to allow weak DH params on socket.");
+                        }
+                    }
+#endif
+
                     if( slapd_pk11_fortezzaHasKEA(cert) == PR_TRUE ) {
                         rv = SSL_ConfigSecureServer(*fd, cert, key, kt_fortezza);
                     }
