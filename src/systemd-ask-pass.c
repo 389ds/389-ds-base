@@ -173,16 +173,33 @@ getPin(SVRCOREPinObj *obj, const char *tokenName, PRBool retry)
     FILE *tmp_fd = NULL;
     uint64_t until = 0;
     uint64_t now = 0;
+    // Now make up the paths we will use.
+    char *socket_path = NULL;
+    char *ask_path = NULL;
+    char *tmp_path = NULL;
+
+    if (token == NULL || tbuf == NULL) {
+        err = SVRCORE_NoMemory_Error;
+        goto out;
+    }
 
     pid_t pid = getpid();
 
-    // Now make up the paths we will use.
-    char *socket_path = malloc(sizeof(char) * 50);
-    char *ask_path = malloc(sizeof(char) * 50);
-    char *tmp_path = malloc(sizeof(char) * 50);
-    if (token == NULL || tbuf == NULL || socket_path == NULL
-        || ask_path == NULL || tmp_path == NULL ) {
+    socket_path = malloc(sizeof(char) * 50);
+    ask_path = malloc(sizeof(char) * 50);
+    tmp_path = malloc(sizeof(char) * 50);
+
+    if (socket_path == NULL || ask_path == NULL || tmp_path == NULL) {
         err = SVRCORE_NoMemory_Error;
+        if (socket_path) {
+            *socket_path = '\0';
+        }
+        if (ask_path) {
+            *ask_path = '\0';
+        }
+        if (tmp_path) {
+            *tmp_path = '\0';
+        }
         goto out;
     }
 
@@ -406,16 +423,21 @@ out:
     }
 
     if (socket_path) {
-        unlink(socket_path);
+        if (*socket_path) {
+            unlink(socket_path);
+        }
         free(socket_path);
     }
     if (ask_path) {
-        unlink(ask_path);
+        if (*ask_path) {
+            unlink(ask_path);
+        }
         free(ask_path);
     }
-
     if (tmp_path) {
-        unlink(tmp_path);
+        if (*tmp_path) {
+            unlink(tmp_path);
+        }
         free(tmp_path);
     }
 
