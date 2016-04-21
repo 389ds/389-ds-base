@@ -1815,5 +1815,20 @@ out:
     return issane;
 }
 
+void
+slapi_create_errormsg(
+    char        *errorbuf,
+    size_t      len,
+    const char  *fmt,
+    ...
+)
+{
+    if (errorbuf) { 
+        va_list     ap;
+        va_start(ap, fmt);
+        (void)PR_vsnprintf(errorbuf, len?len-1:sizeof(errorbuf)-1, fmt, ap);
+        va_end( ap );
+    }
+}
 
 

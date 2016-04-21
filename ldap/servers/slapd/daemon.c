@@ -442,7 +442,6 @@ disk_mon_check_diskspace(char **dirs, PRUint64 threshold, PRUint64 *disk_space)
 void
 disk_monitoring_thread(void *nothing)
 {
-    char errorbuf[BUFSIZ];
     char **dirs = NULL;
     char *dirstr = NULL;
     PRUint64 previous_mark = 0;
@@ -553,7 +552,7 @@ disk_monitoring_thread(void *nothing)
             /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
             config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
                                       STRINGIFYDEFINE(SLAPD_DEFAULT_ERRORLOG_LEVEL),
-                                      errorbuf, CONFIG_APPLY);
+                                      NULL, CONFIG_APPLY);
             continue;
         }
         /*

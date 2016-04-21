@@ -791,9 +791,9 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char			*dn= (char*)slapi_sdn_get_ndn(sdn); /* jcm - Had to cast away const */
 	char			*pwd = NULL;
 	char			*p = NULL;
-	char			errormsg[ BUFSIZ ];
 	passwdPolicy	*pwpolicy = NULL;
 	Slapi_Operation *operation = NULL;
+	char errormsg[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
 
 	/*
 	 * check_pw_syntax_ext could be called with mod_op == LDAP_MOD_DELETE.
@@ -838,11 +838,9 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			if (!is_replication && !config_get_allow_hashed_pw() && 
 				((internal_op && pb->pb_conn && !slapi_dn_isroot(pb->pb_conn->c_dn)) || 
 				(!internal_op && !pw_is_pwp_admin(pb, pwpolicy)))) {
-				PR_snprintf( errormsg, BUFSIZ,
-					"invalid password syntax - passwords with storage scheme are not allowed");
+				PR_snprintf( errormsg, sizeof(errormsg) - 1, "invalid password syntax - passwords with storage scheme are not allowed");
 				if ( pwresponse_req == 1 ) {
-					slapi_pwpolicy_make_response_control ( pb, -1, -1,
-							LDAP_PWPOLICY_INVALIDPWDSYNTAX );
+					slapi_pwpolicy_make_response_control ( pb, -1, -1, LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 				}
 				pw_send_ldap_result ( pb, LDAP_CONSTRAINT_VIOLATION, NULL, errormsg, 0, NULL );
 				return( 1 );
@@ -870,8 +868,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			if ( pwpolicy->pw_minlength >
 				ldap_utf8characters((char *)slapi_value_get_string( vals[i] )) )
 			{
-				PR_snprintf( errormsg, BUFSIZ,
-				    "invalid password syntax - password must be at least %d characters long",
+				PR_snprintf( errormsg, sizeof(errormsg) - 1, "invalid password syntax - password must be at least %d characters long",
 				    pwpolicy->pw_minlength );
 				if ( pwresponse_req == 1 ) {
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
@@ -944,42 +941,42 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 			/* check for character based syntax limits */
 			if ( pwpolicy->pw_mindigits > num_digits ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
-                                    "invalid password syntax - password must contain at least %d digit characters",
-                                    pwpolicy->pw_mindigits );
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
+				    "invalid password syntax - password must contain at least %d digit characters",
+				    pwpolicy->pw_mindigits );
 			} else if ( pwpolicy->pw_minalphas > num_alphas ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - password must contain at least %d alphabetic characters",
 				    pwpolicy->pw_minalphas );
 			} else if ( pwpolicy->pw_minuppers > num_uppers ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - password must contain at least %d uppercase characters",
 				    pwpolicy->pw_minuppers );
 			} else if ( pwpolicy->pw_minlowers > num_lowers ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - password must contain at least %d lowercase characters",
-					pwpolicy->pw_minlowers );
+				    pwpolicy->pw_minlowers );
 			} else if ( pwpolicy->pw_minspecials > num_specials ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - password must contain at least %d special characters",
 				    pwpolicy->pw_minspecials );
 			} else if ( pwpolicy->pw_min8bit > num_8bit ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - password must contain at least %d 8-bit characters",
 				    pwpolicy->pw_min8bit );
 			} else if ( (pwpolicy->pw_maxrepeats != 0) && (pwpolicy->pw_maxrepeats < (max_repeated + 1)) ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - a character cannot be repeated more than %d times",
 				    (pwpolicy->pw_maxrepeats + 1) );
 			} else if ( pwpolicy->pw_mincategories > num_categories ) {
 				syntax_violation = 1;
-				PR_snprintf ( errormsg, BUFSIZ,
+				PR_snprintf ( errormsg, sizeof(errormsg) - 1,
 				    "invalid password syntax - password must contain at least %d character "
 				    "categories (valid categories are digit, uppercase, lowercase, special, and 8-bit characters)",
 				    pwpolicy->pw_mincategories );
@@ -2179,16 +2176,14 @@ check_pw_duration_value( const char *attr_name, char *value,
 
 	age = parse_duration(value);
 	if (-1 == age) {
-		PR_snprintf ( errorbuf, BUFSIZ, 
-		              "password minimum age \"%s\" is invalid. ", value );
+		slapi_create_errormsg(errorbuf, 0, "password minimum age \"%s\" is invalid. ", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	} else if (0 == strcasecmp(CONFIG_PW_LOCKDURATION_ATTRIBUTE, attr_name)) {
 		if ( (age <= 0) ||
 			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
-			PR_snprintf ( errorbuf, BUFSIZ, "%s: \"%s\" seconds is invalid. ",
-			              attr_name, value );
+			slapi_create_errormsg(errorbuf, 0, "%s: \"%s\" seconds is invalid. ", attr_name, value);
 			retVal = LDAP_CONSTRAINT_VIOLATION;
 		}
 	} else {
@@ -2196,8 +2191,7 @@ check_pw_duration_value( const char *attr_name, char *value,
 			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
-			PR_snprintf ( errorbuf, BUFSIZ, "%s: \"%s\" seconds is invalid. ",
-			              attr_name, value );
+			slapi_create_errormsg(errorbuf, 0, "%s: \"%s\" seconds is invalid. ", attr_name, value);
 			retVal = LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
@@ -2214,9 +2208,7 @@ check_pw_resetfailurecount_value( const char *attr_name, char *value, long minva
 	/* in seconds */  
 	duration = strtol (value, NULL, 0);
 	if ( duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-		PR_snprintf ( errorbuf, BUFSIZ, 
-			"password reset count duration \"%s\" seconds is invalid. ",
-			value );
+		slapi_create_errormsg(errorbuf, 0, "password reset count duration \"%s\" seconds is invalid.", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
 
@@ -2234,16 +2226,13 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 	new_scheme = pw_name2scheme(value);
 	if ( new_scheme == NULL) {
 		if ( scheme_list != NULL ) {
-			PR_snprintf ( errorbuf, BUFSIZ,
-					"%s: invalid scheme - %s. Valid schemes are: %s",
+			slapi_create_errormsg(errorbuf, 0, "%s: invalid scheme - %s. Valid schemes are: %s",
 					CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value, scheme_list );
 		} else {
-			PR_snprintf ( errorbuf, BUFSIZ,
-					"%s: invalid scheme - %s (no pwdstorage scheme"
-					" plugin loaded)",
+			slapi_create_errormsg(errorbuf, 0, "%s: invalid scheme - %s (no pwdstorage scheme plugin loaded)",
 					CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value);
 		}
-	retVal = LDAP_CONSTRAINT_VIOLATION;
+		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
 	else if ( new_scheme->pws_enc == NULL )
 	{
@@ -2253,9 +2242,8 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 		and won't encrypt passwords if they are in clear. We don't take it 
 		*/ 
 
-		if ( scheme_list != NULL ) {
-			PR_snprintf ( errorbuf, BUFSIZ, 
-				"%s: invalid encoding scheme - %s\nValid values are: %s\n",
+		if (scheme_list) {
+			slapi_create_errormsg(errorbuf, 0, "%s: invalid encoding scheme - %s\nValid values are: %s\n",
 				CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value, scheme_list );
 		}
 

@@ -165,14 +165,13 @@ void
 aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 	char **errbuf)
 {
-	char	ebuf [BUFSIZ];
+	char	ebuf[BUFSIZ];
 	/* 
 	 * The maximum size of line is ebuf_size + the log message
 	 * itself (less than 200 characters for all but potentially ACL_INVALID_TARGET)
 	 */
-	char	line [BUFSIZ + 200]; 
-	char	str  [1024];
-	const char	*dn;
+	char line[BUFSIZ + 200]; 
+	char str[1024];
 	char *lineptr = line;
 	char *newline = NULL;
 
@@ -185,68 +184,71 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 	    str[0] = '\0';
 	}
 
-	dn = slapi_sdn_get_dn ( sdn );
-	if (dn && (rv == ACL_INVALID_TARGET) && ((strlen(dn) + strlen(str)) > BUFSIZ)) {
-		/*
-		 * if (str_length + dn_length + 200 char message) > (BUFSIZ + 200) line
-		 * we have to make space for a bigger line...
-		 */
-		newline = slapi_ch_malloc(strlen(dn) + strlen(str) + 200);
-		lineptr = newline;
-	}
-
 	switch (rv) {
 	   case ACL_TARGET_FILTER_ERR:
-		sprintf (line, "ACL Internal Error(%d): "
+		sprintf (lineptr, "ACL Internal Error(%d): "
 			 "Error in generating the target filter for the ACL(%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_TARGETATTR_FILTER_ERR:
-		sprintf (line, "ACL Internal Error(%d): "
+		sprintf (lineptr, "ACL Internal Error(%d): "
 			 "Error in generating the targetattr filter for the ACL(%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_TARGETFILTER_ERR:
-		sprintf (line, "ACL Internal Error(%d): "
+		sprintf (lineptr, "ACL Internal Error(%d): "
 			 "Error in generating the targetfilter filter for the ACL(%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_SYNTAX_ERR:
-		sprintf (line, "ACL Syntax Error(%d):%s\n",
+		sprintf (lineptr, "ACL Syntax Error(%d):%s\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_ONEACL_TEXT_ERR:
-		sprintf (line, "ACL Syntax Error in the Bind Rules(%d):%s\n",
+		sprintf (lineptr, "ACL Syntax Error in the Bind Rules(%d):%s\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_ERR_CONCAT_HANDLES:
-		sprintf (line, "ACL Internal Error(%d): "
+		sprintf (lineptr, "ACL Internal Error(%d): "
 			 "Error in Concatenating List handles\n",
 			 rv);
 		break;
 	   case ACL_INVALID_TARGET:
+		{
+		size_t newsize;
+		const char *dn = slapi_sdn_get_dn(sdn);
+		newsize = strlen(dn) + strlen(str) + 200;
+		if (dn && (newsize > sizeof(line))) {
+			/*
+			 * if (str_length + dn_length + 200 char message) > (BUFSIZ + 200) line
+			 * we have to make space for a bigger line...
+			 */
+			newline = slapi_ch_malloc(newsize);
+			lineptr = newline;
+		}
 		sprintf (lineptr, "ACL Invalid Target Error(%d): "
 			 "Target is beyond the scope of the ACL(SCOPE:%s)",
 			 rv, dn ? escape_string_with_punctuation (dn, ebuf) : "NULL");
 		sprintf (lineptr + strlen(lineptr), " %s\n", escape_string_with_punctuation (str, ebuf));
 		break;
+		}
 	   case ACL_INVALID_AUTHMETHOD:
-		sprintf (line, "ACL Multiple auth method Error(%d):"
+		sprintf (lineptr, "ACL Multiple auth method Error(%d):"
 			 "Multiple Authentication Metod in the ACL(%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_INVALID_AUTHORIZATION:
-		sprintf (line, "ACL Syntax Error(%d):"
+		sprintf (lineptr, "ACL Syntax Error(%d):"
 			 "Invalid Authorization statement in the ACL(%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   case ACL_INCORRECT_ACI_VERSION:
-		sprintf (line, "ACL Syntax Error(%d):"
+		sprintf (lineptr, "ACL Syntax Error(%d):"
 			 "Incorrect version Number in the ACL(%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
 	   default:
-		sprintf (line, "ACL Internal Error(%d):"
+		sprintf (lineptr, "ACL Internal Error(%d):"
 			 "ACL generic error (%s)\n",
 			 rv, escape_string_with_punctuation (str, ebuf));
 		break;
@@ -254,7 +256,7 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 
 	if (errbuf) {
 		/* If a buffer is provided, then copy the error */
-		aclutil_str_append(errbuf, lineptr );	
+		aclutil_str_append(errbuf, lineptr);	
 	}
 
 	slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "%s", lineptr);

@@ -109,10 +109,8 @@ ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, in
         if (val > inst->inst_cache.c_maxsize) {
             delta = val - inst->inst_cache.c_maxsize;
             if (!util_is_cachesize_sane(&delta)){
-                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "Error: cachememsize value is too large.");
-                LDAPDebug( LDAP_DEBUG_ANY,"Error: cachememsize value is too large.\n",
-                        0, 0, 0);
+                slapi_create_errormsg(errorbuf, 0, "Error: cachememsize value is too large.");
+                LDAPDebug0Args(LDAP_DEBUG_ANY, "Error: cachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -153,10 +151,8 @@ ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, 
         if (val > inst->inst_dncache.c_maxsize) {
             delta = val - inst->inst_dncache.c_maxsize;
             if (!util_is_cachesize_sane(&delta)){
-                PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "Error: dncachememsize value is too large.");
-                LDAPDebug( LDAP_DEBUG_ANY,"Error: dncachememsize value is too large.\n",
-                        0, 0, 0);
+                slapi_create_errormsg(errorbuf, 0, "Error: dncachememsize value is too large.");
+                LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: dncachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -311,10 +307,9 @@ void
 ldbm_instance_config_setup_default(ldbm_instance *inst) 
 {
     config_info *config;
-    char err_buf[BUFSIZ];
 
     for (config = ldbm_instance_config; config->config_name != NULL; config++) {
-        ldbm_config_set((void *)inst, config->config_name, ldbm_instance_config, NULL /* use default */, err_buf, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
+        ldbm_config_set((void *)inst, config->config_name, ldbm_instance_config, NULL /* use default */, NULL, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
 }
 
@@ -440,7 +435,7 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
         char *attr_name = NULL;
         Slapi_Value *sval = NULL;
         struct berval *bval;
-        char err_buf[BUFSIZ];
+        char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
         
         slapi_attr_get_type(attr, &attr_name);
 
@@ -833,7 +828,7 @@ out:
 void 
 ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *value)
 {
-    char err_buf[BUFSIZ];
+    char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
     struct berval bval;
 
     bval.bv_val = value;

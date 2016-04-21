@@ -225,7 +225,7 @@ static void op_shared_delete (Slapi_PBlock *pb)
 	Slapi_Operation *operation;
 	Slapi_Entry *referral;
 	Slapi_Entry	*ecopy = NULL;
-	char errorbuf[BUFSIZ];
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	int				err;
 	char		*proxydn = NULL;
 	char		*proxystr = NULL;

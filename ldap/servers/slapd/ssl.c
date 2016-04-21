@@ -1618,7 +1618,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     char ** family_list;
     CERTCertificate   *cert = NULL;
     SECKEYPrivateKey  *key = NULL;
-    char errorbuf[BUFSIZ];
+    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
     char *val = NULL;
     char *default_val = NULL;
     int nFamilies = 0;
@@ -1650,7 +1650,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     SVRCORE_SetStdPinInteractive(StdPinObj, PR_FALSE);
 #endif
-    errorbuf[0] = '\0';
 
     /*
      * Cipher preferences must be set before any sslSocket is created

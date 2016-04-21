@@ -1761,7 +1761,7 @@ upgradedn_producer(void *param)
                 if (NULL == dn_norm_sp_conflicts) {
                     char buf[BUFSIZ];
                     int my_max = 8;
-                    while (fgets(buf, BUFSIZ-1, job->upgradefd)) {
+                    while (fgets(buf, sizeof(buf)-1, job->upgradefd)) {
                         /* search "OID0: OID1 OID2 ... */
                         if (!isdigit(*buf) || (NULL == PL_strchr(buf, ':'))) {
                             continue;
@@ -3535,7 +3535,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
         LDAPDebug(LDAP_DEBUG_TRACE, "\ndn: %s\n", 
                  slapi_entry_get_dn_const(*ep), 0, 0);
 
-        if (l <= BUFSIZ)
+        if (l <= sizeof(tmpbuf))
             tp = tmpbuf;
         else
             tp = (char *)slapi_ch_malloc(l);    /* should be very rare ... */
@@ -3547,11 +3547,11 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
                 "dse_conf_backup(%s): write %s failed: %d (%s)\n",
                 filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
-            if (l > BUFSIZ)
+            if (l > sizeof(tmpbuf))
                 slapi_ch_free_string(&tp);
             goto out;
         }
-        if (l > BUFSIZ)
+        if (l > sizeof(tmpbuf))
             slapi_ch_free_string(&tp);
 
         for (slapi_entry_first_attr(*ep, &attr); attr;
@@ -3574,7 +3574,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
                 l = strlen(attr_val->bv_val) + attr_name_len + 3; /* : \n" */
                 LDAPDebug(LDAP_DEBUG_TRACE, "%s: %s\n", attr_name,
                             attr_val->bv_val, 0);
-                if (l <= BUFSIZ)
+                if (l <= sizeof(tmpbuf))
                     tp = tmpbuf;
                 else
                     tp = (char *)slapi_ch_malloc(l);
@@ -3586,11 +3586,11 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
                         "dse_conf_backup(%s): write %s failed: %d (%s)\n",
                         filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                     rval = -1;
-                    if (l > BUFSIZ)
+                    if (l > sizeof(tmpbuf))
                         slapi_ch_free_string(&tp);
                     goto out;
                 }
-                if (l > BUFSIZ)
+                if (l > sizeof(tmpbuf))
                     slapi_ch_free_string(&tp);
             }
         }
@@ -3980,19 +3980,18 @@ _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value)
             /* import_init value is not digit.
              * Use the counter which stores the old DB's
              * next entryusn. */
-            PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN,
-                    "%" NSPRIu64,
-                    slapi_counter_get_value(be->be_usn_counter));
+            PR_snprintf(counter_buf, sizeof(counter_buf),
+                    "%" NSPRIu64, slapi_counter_get_value(be->be_usn_counter));
         } else {
             /* import_init value is digit.
              * Initialize the entryusn values with the digit */
-            PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN, "%s", usn_init_str);
+            PR_snprintf(counter_buf, sizeof(counter_buf), "%s", usn_init_str);
         }
         slapi_ch_free_string(&usn_init_str);
     } else {
         /* nsslapd-entryusn-import-init is not defined */
          /* Initialize to 0 by default */
-        PR_snprintf(counter_buf, USN_COUNTER_BUF_LEN, "0");
+        PR_snprintf(counter_buf, sizeof(counter_buf), "0");
     }
     usn_berval.bv_val = counter_buf;
     usn_berval.bv_len = strlen(usn_berval.bv_val);

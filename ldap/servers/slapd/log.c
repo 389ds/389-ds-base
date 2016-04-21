@@ -310,9 +310,7 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
 	if ( NULL == value ) {
-	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			  "%s: NULL value; valid values "
-			  "are \"on\" or \"off\"", attrname );
+	  slapi_create_errormsg(errorbuf, 0, "%s: NULL value; valid values are \"on\" or \"off\"", attrname);
 	  return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -323,12 +321,11 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
 	  v = 0;
 	}
 	else {
-	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			  "%s: invalid value \"%s\", valid values "
-			  "are \"on\" or \"off\"", attrname, value );
+	  slapi_create_errormsg(errorbuf, 0, "%s: invalid value \"%s\", valid values are \"on\" or \"off\"",
+	                        attrname, value);
 	  return LDAP_OPERATIONS_ERROR;
 	}
-			  
+
 	if ( !apply ){
 	  return LDAP_SUCCESS;
 	}
@@ -762,10 +759,9 @@ log_set_mode (const char *attrname, char *value, int logtype, char *errorbuf, in
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
 	if ( NULL == value ) {
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			  "%s: null value; valid values "
-			  "are are of the format \"yz-yz-yz-\" where y could be 'r' or '-',"
-			  " and z could be 'w' or '-'", attrname );
+		slapi_create_errormsg(errorbuf, 0,
+			    "%s: null value; valid values are are of the format \"yz-yz-yz-\" where y could be 'r' or '-',"
+			    " and z could be 'w' or '-'", attrname );
 		return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -781,9 +777,9 @@ log_set_mode (const char *attrname, char *value, int logtype, char *errorbuf, in
 			if (loginfo.log_access_file &&
 				( chmod( loginfo.log_access_file, v ) != 0) ) {
 				int oserr = errno;
-				PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-					"%s: Failed to chmod access log file to %s: errno %d (%s)",
-					attrname, value, oserr, slapd_system_strerror(oserr) );
+				slapi_create_errormsg(errorbuf, 0,
+				        "%s: Failed to chmod access log file to %s: errno %d (%s)",
+				        attrname, value, oserr, slapd_system_strerror(oserr));
 				retval = LDAP_UNWILLING_TO_PERFORM;
 			} else { /* only apply the changes if no file or if successful */
 				slapi_ch_free ( (void **) &fe_cfg->accesslog_mode );
@@ -797,9 +793,9 @@ log_set_mode (const char *attrname, char *value, int logtype, char *errorbuf, in
 			if (loginfo.log_error_file &&
 				( chmod( loginfo.log_error_file, v ) != 0) ) {
 				int oserr = errno;
-				PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-					"%s: Failed to chmod error log file to %s: errno %d (%s)",
-					attrname, value, oserr, slapd_system_strerror(oserr) );
+				slapi_create_errormsg(errorbuf, 0,
+				        "%s: Failed to chmod error log file to %s: errno %d (%s)",
+				        attrname, value, oserr, slapd_system_strerror(oserr));
 				retval = LDAP_UNWILLING_TO_PERFORM;
 			} else { /* only apply the changes if no file or if successful */
 				slapi_ch_free ( (void **) &fe_cfg->errorlog_mode );
@@ -813,9 +809,9 @@ log_set_mode (const char *attrname, char *value, int logtype, char *errorbuf, in
 			if (loginfo.log_audit_file &&
 				( chmod( loginfo.log_audit_file, v ) != 0) ) {
 				int oserr = errno;
-				PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-					"%s: Failed to chmod audit log file to %s: errno %d (%s)",
-					attrname, value, oserr, slapd_system_strerror(oserr) );
+				slapi_create_errormsg(errorbuf, 0,
+				        "%s: Failed to chmod audit log file to %s: errno %d (%s)",
+				        attrname, value, oserr, slapd_system_strerror(oserr));
 				retval = LDAP_UNWILLING_TO_PERFORM;
 			} else { /* only apply the changes if no file or if successful */
 				slapi_ch_free ( (void **) &fe_cfg->auditlog_mode );
@@ -1018,9 +1014,8 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
 	slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
 	if ( NULL == value ) {
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			  "%s: NULL value; valid values "
-			  "are \"on\" or \"off\"", attrname );
+		slapi_create_errormsg(errorbuf, 0,
+			  "%s: NULL value; valid values are \"on\" or \"off\"", attrname);
 		return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -1031,9 +1026,8 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
 		v = LDAP_OFF;
 	}
 	else {
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			  "%s: invalid value \"%s\", valid values "
-			  "are \"on\" or \"off\"", attrname, value );
+		slapi_create_errormsg(errorbuf, 0,
+			  "%s: invalid value \"%s\", valid values are \"on\" or \"off\"", attrname, value);
 		return LDAP_OPERATIONS_ERROR;
 	}
 			  
@@ -1310,8 +1304,7 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
        logtype != SLAPD_ERROR_LOG &&
        logtype != SLAPD_AUDIT_LOG &&
        logtype != SLAPD_AUDITFAIL_LOG ) {
-    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-            "%s: invalid log type: %d", attrname, logtype );
+    slapi_create_errormsg(errorbuf, 0, "%s: invalid log type: %d", attrname, logtype);
     return LDAP_OPERATIONS_ERROR;
   }
   
@@ -1322,8 +1315,7 @@ int log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, cha
     (strcasecmp(runit, "minute") == 0)) {
     /* all good values */
   } else  {
-    PR_snprintf ( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-            "%s: unknown unit \"%s\"", attrname, runit );
+    slapi_create_errormsg(errorbuf, 0, "%s: unknown unit \"%s\"", attrname, runit);
     rv = LDAP_OPERATIONS_ERROR;
   }
   
@@ -1431,8 +1423,7 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
         logtype != SLAPD_ERROR_LOG &&
         logtype != SLAPD_AUDIT_LOG &&
         logtype != SLAPD_AUDITFAIL_LOG ) {
-        PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                "%s: invalid log type: %d", attrname, logtype );
+        slapi_create_errormsg(errorbuf, 0, "%s: invalid log type: %d", attrname, logtype);
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -1465,9 +1456,9 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
         maxdiskspace = -1;
     } else if (maxdiskspace < mlogsize) {
         rv = LDAP_OPERATIONS_ERROR;
-        PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-            "%s: \"%d (MB)\" is less than max log size \"%d (MB)\"",
-            attrname, s_maxdiskspace, (int)(mlogsize/LOG_MB_IN_BYTES) );
+        slapi_create_errormsg(errorbuf, 0,
+                "%s: \"%d (MB)\" is less than max log size \"%d (MB)\"",
+                attrname, s_maxdiskspace, (int)(mlogsize/LOG_MB_IN_BYTES));
     }
 
     switch (logtype) {
@@ -1522,8 +1513,7 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
 		 logtype != SLAPD_ERROR_LOG &&
 		 logtype != SLAPD_AUDIT_LOG &&
 		 logtype != SLAPD_AUDITFAIL_LOG ) {
-	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-				"%s: invalid log type: %d", attrname, logtype );
+	  slapi_create_errormsg(errorbuf, 0, "%s: invalid log type: %d", attrname, logtype);
 	  rv = LDAP_OPERATIONS_ERROR;
 	}
 
@@ -1588,8 +1578,7 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
 		 logtype != SLAPD_ERROR_LOG &&
 		 logtype != SLAPD_AUDIT_LOG &&
 		 logtype != SLAPD_AUDITFAIL_LOG ) {
-	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-			"%s: invalid log type: %d", attrname, logtype );
+	  slapi_create_errormsg(errorbuf, 0, "%s: invalid log type: %d", attrname, logtype);
 	  rv = LDAP_OPERATIONS_ERROR;
 	}
 	
@@ -1695,24 +1684,21 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
 	   logtype != SLAPD_ERROR_LOG &&
 	   logtype != SLAPD_AUDIT_LOG &&
 	   logtype != SLAPD_AUDITFAIL_LOG ) {
-	  PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
-				"%s: invalid log type: %d", attrname, logtype );
+	  slapi_create_errormsg(errorbuf, 0, "%s: invalid log type: %d", attrname, logtype);
 	  return LDAP_OPERATIONS_ERROR;
 	}
 
 	if ( NULL == expunit ) {
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-				"%s: NULL value", attrname );
+		slapi_create_errormsg(errorbuf, 0, "%s: NULL value", attrname);
 		return LDAP_OPERATIONS_ERROR;
 	}
 
 	if  ( (strcasecmp(expunit, "month") == 0)  || 
 		(strcasecmp(expunit, "week") == 0) ||
 		(strcasecmp(expunit, "day") == 0)) {
-		/* we have good values */	
+		/* we have good values */
 	} else  {
-		PR_snprintf( errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-				"%s: invalid time unit \"%s\"", attrname, expunit );
+		slapi_create_errormsg(errorbuf, 0, "%s: invalid time unit \"%s\"", attrname, expunit);
 		rv = LDAP_OPERATIONS_ERROR;;
 	}
 	

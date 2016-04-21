@@ -219,8 +219,8 @@ do_modify( Slapi_PBlock *pb )
 		mod->mod_op = mod_op;
 		mod->mod_type = slapi_attr_syntax_normalize(type);
 		if ( !mod->mod_type || !*mod->mod_type ) {
-			char ebuf[BUFSIZ];
-			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
+			char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
+			PR_snprintf (ebuf, sizeof(ebuf), "invalid type '%s'", type);
 			op_shared_log_error_access (pb, "MOD", rawdn, ebuf);
 			send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, ebuf, 0, NULL );
 			slapi_ch_free((void **)&type);
@@ -628,7 +628,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	int repl_op, internal_op, lastmod, skip_modified_attrs;
 	char *unhashed_pw_attr = NULL;
 	Slapi_Operation *operation;
-	char errorbuf[BUFSIZ];
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	int err;
 	LDAPMod *lc_mod = NULL;
 	struct slapdplugin  *p = NULL;
@@ -710,6 +710,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 * We could be serving multiple database backends.  Select the
 	 * appropriate one.
 	 */
+	errorbuf[0] = '\0';
 	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf)) != LDAP_SUCCESS) {
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
 		be = NULL;

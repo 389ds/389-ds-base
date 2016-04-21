@@ -2190,7 +2190,6 @@ static void
 repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 {
 	char buf[20];
-	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	if (eqctx && !*setlevel) {
 		(void)slapi_eq_cancel(eqctx);
@@ -2199,7 +2198,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
 	if (s_debug_timeout && s_debug_level && *setlevel) {
 		void config_set_errorlog_level(const char *type, char *buf, char *msg, int apply);
 		sprintf(buf, "%d", 0);
-		config_set_errorlog_level("nsslapd-errorlog-level", buf, msg, 1);
+		config_set_errorlog_level("nsslapd-errorlog-level", buf, NULL, 1);
 	}
 }
 
@@ -2209,11 +2208,10 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	int *setlevel = (int *)arg;
 	void config_set_errorlog_level(const char *type, char *buf, char *msg, int apply);
 	char buf[20];
-	char msg[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	*setlevel = 1;
 	sprintf(buf, "%d", s_debug_level);
-	config_set_errorlog_level("nsslapd-errorlog-level", buf, msg, 1);
+	config_set_errorlog_level("nsslapd-errorlog-level", buf, NULL, 1);
 
 	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
 		"repl5_debug_timeout_callback: set debug level to %d at %ld\n",

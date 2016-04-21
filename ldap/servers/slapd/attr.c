@@ -942,14 +942,13 @@ attr_check_onoff ( const char *attr_name, char *value, long minval, long maxval,
 {
 	int retVal = LDAP_SUCCESS;
 
-	if ( strcasecmp ( value, "on" ) != 0 &&
-		strcasecmp ( value, "off") != 0 &&
-		strcasecmp ( value, "1" ) != 0 &&
-		strcasecmp ( value, "0" ) != 0 &&
-		strcasecmp ( value, "true" ) != 0 &&
-		strcasecmp ( value, "false" ) != 0 ) {
-			PR_snprintf ( errorbuf, BUFSIZ,
-			"%s: invalid value \"%s\".", attr_name, value );
+	if (strcasecmp ( value, "on" ) != 0 &&
+	    strcasecmp ( value, "off") != 0 &&
+	    strcasecmp ( value, "1" ) != 0 &&
+	    strcasecmp ( value, "0" ) != 0 &&
+	    strcasecmp ( value, "true" ) != 0 &&
+	    strcasecmp ( value, "false" ) != 0 ) {
+		slapi_create_errormsg(errorbuf, 0, "%s: invalid value \"%s\".", attr_name, value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
 
@@ -965,9 +964,7 @@ attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval
 	val = strtol(value, NULL, 0);
 	if ( (minval != -1 ? (val < minval ? 1 : 0) : 0) ||
 		 (maxval != -1 ? (val > maxval ? 1 : 0) : 0) ) {
-		PR_snprintf ( errorbuf, BUFSIZ, 
-			"%s: invalid value \"%s\".",
-			attr_name, value );
+		slapi_create_errormsg(errorbuf, 0, "%s: invalid value \"%s\".", attr_name, value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
 

@@ -41,7 +41,7 @@ do_compare( Slapi_PBlock *pb )
 	int		err;
 	Slapi_DN sdn;
 	Slapi_Entry *referral = NULL;
-	char errorbuf[BUFSIZ];
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "do_compare\n", 0, 0, 0 );
 

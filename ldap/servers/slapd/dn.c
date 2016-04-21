@@ -2804,8 +2804,6 @@ ndn_cache_init()
 void
 ndn_cache_destroy()
 {
-    char *errorbuf = NULL;
-
     if(!ndn_started){
         return;
     }
@@ -2818,11 +2816,11 @@ ndn_cache_destroy()
         ndn_cache_lock = NULL;
     }
     if(ndn_cache_hashtable){
-    	ndn_cache_free();
+        ndn_cache_free();
         PL_HashTableDestroy(ndn_cache_hashtable);
         ndn_cache_hashtable = NULL;
     }
-    config_set_ndn_cache_enabled(CONFIG_NDN_CACHE, "off", errorbuf, 1 );
+    config_set_ndn_cache_enabled(CONFIG_NDN_CACHE, "off", NULL, 1 );
     slapi_counter_destroy(&ndn_cache->cache_hits);
     slapi_counter_destroy(&ndn_cache->cache_tries);
     slapi_counter_destroy(&ndn_cache->cache_misses);

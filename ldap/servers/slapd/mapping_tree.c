@@ -1600,17 +1600,16 @@ done:
                                    CONFIG_DEFAULT_NAMING_CONTEXT, rc);
                 }
                 if (LDAP_SUCCESS == rc) {
-                    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+                    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
                     /* Removing defaultNamingContext from cn=config entry
                      * was successful.  The remove does not reset the
                      * global parameter.  We need to reset it separately. */
                     if (config_set_default_naming_context(
                                                 CONFIG_DEFAULT_NAMING_CONTEXT,
                                                 NULL, errorbuf, CONFIG_APPLY)) {
-                        LDAPDebug2Args(LDAP_DEBUG_ANY,
-                                       "mapping_tree_entry_delete_callback: "
-                                       "setting NULL to %s failed. %s\n",
-                                       CONFIG_DEFAULT_NAMING_CONTEXT, errorbuf);
+                        slapi_log_error(SLAPI_LOG_FATAL, "mapping_tree", 
+                            "mapping_tree_entry_delete_callback: setting NULL to %s failed. %s\n",
+                             CONFIG_DEFAULT_NAMING_CONTEXT, errorbuf);
                     }
                 }
             }
@@ -2128,7 +2127,7 @@ int slapi_dn_write_needs_referral(Slapi_DN *target_sdn, Slapi_Entry **referral)
  * referral is an output param that will be set to the selected referral.
  * errorbuf is a pointer to a buffer that an error string will be written to
  *    if there is an error.  The caller is responsible for passing in a big 
- *    enough chunk of memory.  BUFSIZ should be fine.  If errorbuf is NULL, 
+ *    enough chunk of memory.  SLAPI_DSE_RETURNTEXT_SIZE should be fine.  If errorbuf is NULL, 
  *    no error string is written to it.  The string returned in errorbuf
  *    would be a good candidate for sending back to the client to describe the
  *    error.
@@ -2226,10 +2225,11 @@ int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry 
             (op_type != SLAPI_OPERATION_BIND) && 
             (op_type != SLAPI_OPERATION_UNBIND))
         {
+            if (errorbuf) {
+                PL_strncpyz(errorbuf, slapi_config_get_readonly() ? 
+                            "Server is read-only" : "database is read-only", sizeof(errorbuf));
+            }
             ret = LDAP_UNWILLING_TO_PERFORM;
-            PL_strncpyz(errorbuf, slapi_config_get_readonly() ? 
-                    "Server is read-only" :
-                    "database is read-only", BUFSIZ);
             slapi_be_Unlock(*be);
             *be = NULL;
         }
@@ -2335,10 +2335,11 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
             if (be && !be_isdeleted(be))
             {
                 if (be_index == BE_LIST_SIZE) { /* error - too many backends */
+                    slapi_create_errormsg(errorbuf, 0,
+                            "Error: too many backends match search request - cannot proceed");
+                    slapi_log_error(SLAPI_LOG_FATAL, "mapping_tree",
+                        "Error: too many backends match search request - cannot proceed");
                     ret_code = LDAP_ADMINLIMIT_EXCEEDED;
-                    PR_snprintf(errorbuf, BUFSIZ-1,
-                                "Error: too many backends match search request - cannot proceed");
-                    slapi_log_error(SLAPI_LOG_FATAL, NULL, "%s\n", errorbuf);
                     break;
                 } else {
                     be_list[be_index++]=be;
@@ -2469,10 +2470,9 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
         const Slapi_DN *suffix = slapi_get_suffix_by_dn(target_sdn);
         if ((*be != def_be) && (NULL == suffix))
         {
+            slapi_create_errormsg(errorbuf, 0,
+                    "Target entry \"%s\" does not exist\n", slapi_sdn_get_dn(target_sdn));
             ret = LDAP_NO_SUCH_OBJECT;
-            PR_snprintf(errorbuf, BUFSIZ,
-                        "Target entry \"%s\" does not exist\n", 
-                        slapi_sdn_get_dn(target_sdn));
             goto unlock_and_return;
         }
         if (suffix && (0 == slapi_sdn_compare(target_sdn, suffix)))
@@ -2484,30 +2484,26 @@ int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn, Slapi_Back
             if (!slapi_be_exist((const Slapi_DN *)&dn_newdn))
             {
                 /* new_be is an empty backend */
+                slapi_create_errormsg(errorbuf, 0, "Backend for suffix \"%s\" does not exist\n", newdn);
                 ret = LDAP_NO_SUCH_OBJECT;
-                PR_snprintf(errorbuf, BUFSIZ,
-                           "Backend for suffix \"%s\" does not exist\n", newdn);
                 goto unlock_and_return;
             }
             if (0 == slapi_sdn_compare(&dn_newdn, new_suffix))
             {
                 ret = LDAP_ALREADY_EXISTS;
-                PR_snprintf(errorbuf, BUFSIZ,
-                            "Suffix \"%s\" already exists\n", newdn);
+                slapi_create_errormsg(errorbuf, 0, "Suffix \"%s\" already exists\n", newdn);
                 goto unlock_and_return;
             }
             ret = LDAP_NAMING_VIOLATION;
-            PR_snprintf(errorbuf, BUFSIZ, "Cannot rename suffix \"%s\"\n",
-                        slapi_sdn_get_dn(target_sdn));
+            slapi_create_errormsg(errorbuf, 0, "Cannot rename suffix \"%s\"\n", slapi_sdn_get_dn(target_sdn));
             goto unlock_and_return;
         }
         else
         {
             if ((*be != new_be) || mtn_sdn_has_child(target_sdn))
             {
+                slapi_create_errormsg(errorbuf, 0, "Cannot move entries across backends\n");
                 ret = LDAP_AFFECTS_MULTIPLE_DSAS;
-                PR_snprintf(errorbuf, BUFSIZ,
-                                "Cannot move entries across backends\n");
                 goto unlock_and_return;
             }
         }
@@ -2637,11 +2633,9 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
     target_sdn = operation_get_target_spec (op);
 
     if (target_node->mtn_state == MTN_DISABLED) {
-        if (errorbuf) {
-            PR_snprintf(errorbuf, BUFSIZ,
+        slapi_create_errormsg(errorbuf, 0,
                 "Warning: Operation attempted on a disabled node : %s\n",
                 slapi_sdn_get_dn(target_node->mtn_subtree));
-        }
         result = LDAP_OPERATIONS_ERROR;
         return result;
     }
@@ -2773,12 +2767,8 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
             }
             (*index)++;
             if (NULL == target_node->mtn_referral_entry) {
-                if (errorbuf) {
-                    PR_snprintf(errorbuf, BUFSIZ,
-                    "Mapping tree node for %s is set to return a referral,"
-                        " but no referral is configured for it",
-                        slapi_sdn_get_ndn(target_node->mtn_subtree));
-                }
+                slapi_create_errormsg(errorbuf, 0, "Mapping tree node for %s is set to return a referral,"
+                        " but no referral is configured for it", slapi_sdn_get_ndn(target_node->mtn_subtree));
                 result = LDAP_OPERATIONS_ERROR;
             } else {
                 result = LDAP_SUCCESS;

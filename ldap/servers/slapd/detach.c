@@ -52,7 +52,6 @@ detach( int slapd_exemode, int importexport_encrypt,
 	char *workingdir = 0;
 	char *errorlog = 0;
 	char *ptr = 0;
-	char errorbuf[BUFSIZ];
 	extern char *config_get_errorlog(void);
 
 	if ( should_detach ) {
@@ -92,12 +91,12 @@ detach( int slapd_exemode, int importexport_encrypt,
 					*ptr = 0;
 				}
 				(void) chdir( errorlog );
-				config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, errorbuf, 1);
+				config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, NULL, 1);
 				slapi_ch_free_string(&errorlog);
 			}
 		} else {
 			/* calling config_set_workingdir to check for validity of directory, don't apply */
-			if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, errorbuf, 0) == LDAP_OPERATIONS_ERROR) {
+			if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, NULL, 0) == LDAP_OPERATIONS_ERROR) {
 				return 1;
 			}
 			(void) chdir( workingdir );

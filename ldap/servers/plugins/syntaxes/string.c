@@ -196,7 +196,6 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	size_t		tmpbufsize;
 	char		pat[BUFSIZ];
 	char		buf[BUFSIZ];
-	char		ebuf[BUFSIZ];
 	time_t		curtime = 0;
 	time_t		time_up = 0;
 	time_t		optime = 0; /* time op was initiated */
@@ -327,9 +326,9 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 					   pat, p, re_result?re_result:"unknown" );
 			rc = LDAP_OPERATIONS_ERROR;
 			goto bailout;
-		} else {
-			LDAPDebug( LDAP_DEBUG_TRACE, "re_comp (%s)\n",
-					   escape_string( p, ebuf ), 0, 0 );
+		} else if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
+			char ebuf[BUFSIZ];
+			LDAPDebug(LDAP_DEBUG_TRACE, "re_comp (%s)\n", escape_string(p, ebuf), 0, 0);
 		}
 	}
 
@@ -375,8 +374,10 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 			tmprc = slapi_re_exec( re, realval, time_up );
 		}
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "re_exec (%s) %i\n",
-				   escape_string( realval, ebuf ), tmprc, 0 );
+		if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
+			char ebuf[BUFSIZ];
+			LDAPDebug(LDAP_DEBUG_TRACE, "re_exec (%s) %i\n", escape_string(realval, ebuf), tmprc, 0);
+		}
 		if ( tmprc == 1 ) {
 			rc = 0;
 			break;

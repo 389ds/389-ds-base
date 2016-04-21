@@ -150,9 +150,9 @@ do_add( Slapi_PBlock *pb )
 
 		normtype = slapi_attr_syntax_normalize(type);
 		if ( !normtype || !*normtype ) {
-			char ebuf[ BUFSIZ ];
+			char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
 			rc = LDAP_INVALID_SYNTAX;
-			PR_snprintf (ebuf, BUFSIZ, "invalid type '%s'", type);
+			slapi_create_errormsg(ebuf, 0, "invalid type '%s'", type);
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), ebuf);
 			send_ldap_result( pb, rc, NULL, ebuf, 0, NULL );
             slapi_ch_free_string(&type);
@@ -423,7 +423,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 	char *pwdtype = NULL;
 	Slapi_Attr *attr = NULL;
 	Slapi_Entry *referral;
-	char errorbuf[BUFSIZ];
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	struct slapdplugin  *p = NULL;
 	char *proxydn = NULL;
 	char *proxystr = NULL;

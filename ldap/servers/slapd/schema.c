@@ -5345,13 +5345,13 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		if (schema_flags & DSE_SCHEMA_NO_LOAD)
 		{
 			struct asyntaxinfo *tmpasip = NULL;
-			rc = parse_at_str(attr_str, &tmpasip, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+			rc = parse_at_str(attr_str, &tmpasip, errorbuf, sizeof(errorbuf),
 						  DSE_SCHEMA_NO_GLOCK|schema_flags, 0, 0, 0);
 			attr_syntax_free( tmpasip );	/* trash it */
 		}
 		else
 		{
-			rc = parse_at_str(attr_str, NULL, errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+			rc = parse_at_str(attr_str, NULL, errorbuf, sizeof(errorbuf),
 						  schema_flags, 0, 0, 0);
 		}
 		if (rc)
@@ -5918,7 +5918,7 @@ schema_create_errormsg(
 		}
 		/* ok to cast here because rc is positive */
 		if ( (rc >= 0) && ((size_t)rc < errorbufsize) ) {
-			(void)PR_vsnprintf( errorbuf + rc, errorbufsize - rc, fmt, ap );
+			(void)PR_vsnprintf( errorbuf + rc, errorbufsize - rc - 1, fmt, ap );
 		}
 		va_end( ap );
 	}
@@ -7175,7 +7175,7 @@ static struct objclass *
 schema_berval_to_oclist(struct berval **oc_berval)
 {
         struct objclass *oc, *oc_list, *oc_tail;
-        char errorbuf[BUFSIZ];
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
         int schema_ds4x_compat, rc;
         int i;
         
@@ -7185,12 +7185,11 @@ schema_berval_to_oclist(struct berval **oc_berval)
         oc_list = NULL;
         oc_tail = NULL;
         if (oc_berval != NULL) {
-                errorbuf[0] = '\0';
                 for (i = 0; oc_berval[i] != NULL; i++) {
                         /* parse the objectclass value */
                         oc = NULL;
                         if (LDAP_SUCCESS != (rc = parse_oc_str(oc_berval[i]->bv_val, &oc,
-                                errorbuf, sizeof (errorbuf), DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0,
+                                errorbuf, sizeof(errorbuf), DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0,
                                 schema_ds4x_compat, oc_list))) {
                                 slapi_log_error(SLAPI_LOG_FATAL, "schema",
                                                 "parse_oc_str returned error: %s\n",
@@ -7222,17 +7221,16 @@ static struct asyntaxinfo *
 schema_berval_to_atlist(struct berval **at_berval)
 {
     struct asyntaxinfo *at, *head = NULL, *at_list = NULL;
-    char errorbuf[BUFSIZ];
+    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
     int schema_ds4x_compat, rc = 0, i;
 
     schema_ds4x_compat = config_get_ds4_compatible_schema();
 
     if (at_berval != NULL) {
-        errorbuf[0] = '\0';
         for (i = 0; at_berval[i] != NULL; i++) {
             /* parse the objectclass value */
             at = NULL;
-            rc = parse_at_str(at_berval[i]->bv_val, &at, errorbuf, sizeof (errorbuf),
+            rc = parse_at_str(at_berval[i]->bv_val, &at, errorbuf, sizeof(errorbuf),
                     DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0, schema_ds4x_compat, 0);
             if (rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, "schema",

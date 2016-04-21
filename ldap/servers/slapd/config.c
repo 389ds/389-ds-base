@@ -122,7 +122,7 @@ slapd_bootstrap_config(const char *configdir)
 	int done = 0;
 	PRInt32 nr = 0;
 	PRFileDesc *prfd = 0;
-	char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = "";
+	char returntext[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
 	char *buf = 0;
 	char *lastp = 0;
 	char *entrystr = 0;
@@ -198,7 +198,7 @@ slapd_bootstrap_config(const char *configdir)
 			slapi_sdn_init_ndn_byref(&plug_dn, PLUGIN_BASE_DN);
 			while ((entrystr = dse_read_next_entry(buf, &lastp)) != NULL)
 			{
-				char errorbuf[BUFSIZ];
+				char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 				/*
 				 * XXXmcs: it would be better to also pass
 				 * SLAPI_STR2ENTRY_REMOVEDUPVALS in the flags, but

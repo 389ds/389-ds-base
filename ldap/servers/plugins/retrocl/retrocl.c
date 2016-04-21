@@ -189,7 +189,7 @@ static int retrocl_select_backend(void)
     Slapi_Backend *be = NULL;
     Slapi_Entry *referral = NULL;
     Slapi_Operation *op = NULL;
-    char errbuf[BUFSIZ];
+    char errbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 
     pb = slapi_pblock_new();
 
@@ -204,19 +204,19 @@ static int retrocl_select_backend(void)
     slapi_pblock_set(pb,SLAPI_OPERATION, op);
 
     err = slapi_mapping_tree_select(pb,&be,&referral,errbuf);
-	slapi_entry_free(referral);
+    slapi_entry_free(referral);
 
     if (err != LDAP_SUCCESS || be == NULL || be == defbackend_get_backend()) {
-        LDAPDebug2Args(LDAP_DEBUG_TRACE,"Mapping tree select failed (%d) %s.\n",
-		  err,errbuf);
-	
-	/* could not find the backend for cn=changelog, either because
-	 * it doesn't exist
-	 * mapping tree not registered.
-	 */
-	err = retrocl_create_config();
+        slapi_log_error(SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME,
+                        "Mapping tree select failed (%d) %s.\n", err, errbuf);
+        
+        /* could not find the backend for cn=changelog, either because
+         * it doesn't exist
+         * mapping tree not registered.
+         */
+        err = retrocl_create_config();
 
-	if (err != LDAP_SUCCESS) return err;
+        if (err != LDAP_SUCCESS) return err;
     } else {
       retrocl_be_changelog = be;
     }

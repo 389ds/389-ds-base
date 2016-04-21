@@ -1359,6 +1359,15 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
  */
 int util_is_cachesize_sane(size_t *cachesize);
 
+/**
+ * Write an error message to the given error buffer.
+ *
+ * \param errorbuf. The buffer that the error message is written into.  If NULL, nothing happens.  It could be a static array or allocated memory.  If it is allocated memory, the next param len should be given.
+ * \param len. The length of errorbuf.  If 0 is given, sizeof(errorbuf) is used. 
+ * \param fmt. The format of the error message.
+ */
+void slapi_create_errormsg(char *errorbuf, size_t len, const char *fmt, ...);
+
 #ifdef __cplusplus
 }
 #endif

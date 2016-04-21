@@ -1306,9 +1306,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					/* Wow it matches */
 					slapi_log_error( SLAPI_LOG_ACL, plugin_name,
 						"%s matches(%s, %s) level (%d)\n", attr_name,
-						val,
-				ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo.clientDn, ebuf),
-						0);
+						val, ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo.clientDn, ebuf), 0);
 					matched = ACL_TRUE;
 					slapi_ch_free ( (void **) &val);
 					break;
@@ -2844,7 +2842,6 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	char			*str, *s_str, *base, *groupattr = NULL;
 	int				i,j,k,matched, enumerate_groups;
 	aclUserGroup	*u_group;
-	char			ebuf [ BUFSIZ ];
 	Slapi_Value     *sval=NULL;
 	const struct berval	*attrVal;
 
@@ -2967,14 +2964,18 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 
 			slapi_ch_free_string(&filter_str_ptr);
 
-			if (tt == info.lu_idx) {
-				slapi_log_error( SLAPI_LOG_ACL, plugin_name, "currDn:(%s) \n\tNO MEMBER ADDED\n", 
-								ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf));
-			} else {
-				for (i=tt; i < info.lu_idx; i++)
-					slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-						"currDn:(%s) \n\tADDED MEMBER[%d]=%s\n", 
-						ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf), i, info.member[i]);
+			if (slapi_is_loglevel_set(SLAPI_LOG_ACL)) {
+				char ebuf[BUFSIZ];
+				if (tt == info.lu_idx) {
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name, "currDn:(%s) \n\tNO MEMBER ADDED\n",
+					                ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf));
+				} else {
+					for (i=tt; i < info.lu_idx; i++) {
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						                "currDn:(%s) \n\tADDED MEMBER[%d]=%s\n",
+						                ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf), i, info.member[i]);
+					}
+				}
 			}
 
 			if (info.c_idx >= info.lu_idx) {
@@ -3019,10 +3020,14 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 		}
 	}
 
-	for (j=0; j < u_group->aclug_numof_member_group; j++)
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-				"acllas__eval_memberGroupDnAttr:GROUP[%d] IN CACHE:%s\n", 
-					j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf));
+	if (slapi_is_loglevel_set(SLAPI_LOG_ACL)) {
+		char ebuf[BUFSIZ];
+		for (j = 0; j < u_group->aclug_numof_member_group; j++) {
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			                "acllas__eval_memberGroupDnAttr:GROUP[%d] IN CACHE:%s\n",
+			                j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf));
+		}
+	}
 
 	matched = ACL_FALSE;
 	slapi_entry_attr_find( e, groupattr, &attr);
@@ -4467,7 +4472,6 @@ acllas_eval_one_role(char *role, lasInfo *lasinfo) {
 	
 	Slapi_DN *roleDN = NULL;
 	int rc = ACL_FALSE;	
-	char    ebuf [ BUFSIZ ];
 
 	/*
 	 * See if lasinfo.clientDn has role rolebuf.
@@ -4478,26 +4482,24 @@ acllas_eval_one_role(char *role, lasInfo *lasinfo) {
 
 	roleDN = slapi_sdn_new_dn_byval(role);
 	if (role) {
-		rc = acllas__user_has_role(									
-								lasinfo->aclpb,	      						
-			      				roleDN, 
-			      				lasinfo->aclpb->aclpb_authorization_sdn);
+		rc = acllas__user_has_role(lasinfo->aclpb, roleDN, lasinfo->aclpb->aclpb_authorization_sdn);
 	} else {	/* The user does not have the empty role */
 		rc = ACL_FALSE;
 	}
 	slapi_sdn_free(&roleDN );
 
 	/* Some useful logging */
-	if (rc == ACL_TRUE ) {
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-                        "role evaluation: user '%s' does have role '%s'\n",
-                ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo->clientDn, ebuf),
-                        role);
-	} else {
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
-                        "role evaluation: user '%s' does NOT have role '%s'\n",
-                ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo->clientDn, ebuf),
-				role);
+	if (slapi_is_loglevel_set(SLAPI_LOG_ACL)) {
+		char ebuf[BUFSIZ];
+		if (rc == ACL_TRUE ) {
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			                "role evaluation: user '%s' does have role '%s'\n",
+			                ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo->clientDn, ebuf), role);
+		} else {
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			                "role evaluation: user '%s' does NOT have role '%s'\n",
+			                ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo->clientDn, ebuf), role);
+		}
 	}
 	return(rc);
 }

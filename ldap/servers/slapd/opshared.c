@@ -225,7 +225,6 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   char            *proxystr = NULL;
   int             proxy_err = LDAP_SUCCESS;
   char            *errtext = NULL;
-  char            errorbuf[BUFSIZ];
   int             nentries,pnentries;
   int             flag_search_base_found = 0;
   int             flag_no_such_object = 0;
@@ -434,8 +433,10 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   }
 
   if (be_name == NULL) {
+      char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
       /* no specific backend was requested, use the mapping tree
        */
+      errorbuf[0] = '\0';
       err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf);
       if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL))
           || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL))) {

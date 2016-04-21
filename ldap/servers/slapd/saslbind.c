@@ -756,7 +756,6 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     char authtype[256]; /* >26 (strlen(SLAPD_AUTH_SASL)+SASL_MECHNAMEMAX+1) */
     Slapi_Entry *bind_target_entry = NULL, *referral = NULL;
     Slapi_Backend *be = NULL;
-    char errorbuf[BUFSIZ];
 
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ids_sasl_check_bind\n", 0, 0, 0 );
 
@@ -956,7 +955,7 @@ sasl_check_result:
             slapi_add_auth_response_control(pb, normdn);
         }
 
-        if (slapi_mapping_tree_select(pb, &be, &referral, errorbuf) != LDAP_SUCCESS) {
+        if (slapi_mapping_tree_select(pb, &be, &referral, NULL) != LDAP_SUCCESS) {
             send_nobackend_ldap_result( pb );
             be = NULL;
             LDAPDebug( LDAP_DEBUG_TRACE, "<= ids_sasl_check_bind\n", 0, 0, 0 );
