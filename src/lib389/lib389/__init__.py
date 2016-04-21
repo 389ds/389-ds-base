@@ -367,6 +367,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.index import Index
         from lib389.aci import Aci
         from lib389.monitor import Monitor
+        from lib389.nss_ssl import NssSsl
 
         self.agreement = Agreement(self)
         self.replica = Replica(self)
@@ -381,6 +382,8 @@ class DirSrv(SimpleLDAPObject):
         self.tasks = Tasks(self)
         self.aci = Aci(self)
         self.monitor = Monitor(self)
+        # Do we have a certdb path?
+        self.nss_ssl = NssSsl(self)
 
     def __init__(self, verbose=False, timeout=10):
         """
@@ -406,6 +409,7 @@ class DirSrv(SimpleLDAPObject):
         self.verbose = verbose
         self.log = log
         self.timeout = timeout
+        self.confdir = None
 
         # Reset the args (py.test reuses the args_instance for each test case)
         args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', '/')

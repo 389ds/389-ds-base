@@ -16,6 +16,7 @@ Requires: pytest
 Requires: python-ldap
 Requires: python-six
 Requires: python-krbV
+Requires: python-nss
 
 %{?python_provide:%python_provide python2-lib389}
 
