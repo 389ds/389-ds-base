@@ -120,7 +120,8 @@ passthru_bindpreop_close( Slapi_PBlock *pb )
 static int
 passthru_bindpreop( Slapi_PBlock *pb )
 {
-    int			rc, method, freeresctrls=1;
+    int			rc, freeresctrls=1;
+    ber_tag_t   method = 0;
     char		*matcheddn;
     const char	*normbinddn = NULL;
     Slapi_DN	*sdn = NULL;
