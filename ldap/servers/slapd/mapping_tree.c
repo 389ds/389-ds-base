@@ -2657,7 +2657,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
         if (referral) {
             *referral = NULL;
         }
-        if ((target_node == mapping_tree_root) ){
+        if (target_node == mapping_tree_root) {
             /* If we got here, then we couldn't find a matching node 
              * for the target. We'll use the default backend.  Once
              * we fully support the NULL suffix, we should do something more

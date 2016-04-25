@@ -822,7 +822,7 @@ slapi_filter_join_ex( int ftype, struct slapi_filter *f1, struct slapi_filter *f
 	struct slapi_filter *fjoin;
 	struct slapi_filter *add_to;
 	struct slapi_filter *add_this;
-	struct slapi_filter *return_this;
+	struct slapi_filter *return_this = NULL;
 	int insert = 0;
 
 	if ((NULL == f1) || (NULL == f2)) {

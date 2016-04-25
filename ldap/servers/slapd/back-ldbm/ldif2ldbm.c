@@ -1056,7 +1056,7 @@ bail:
 int
 ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
 {
-    backend          *be;
+    backend          *be = NULL;
     struct ldbminfo  *li = NULL;
     DB               *db = NULL;
     DBC              *dbc = NULL;

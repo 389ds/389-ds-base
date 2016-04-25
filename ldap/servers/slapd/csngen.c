@@ -682,16 +682,16 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
                              gen->state.remote_offset);
         }
 
-        if (!ignore_time_skew && (abs (time_diff) > CSN_MAX_TIME_ADJUST))
+        if (!ignore_time_skew && (labs (time_diff) > CSN_MAX_TIME_ADJUST))
         {
             slapi_log_error (SLAPI_LOG_FATAL, NULL, "_csngen_adjust_local_time: "
-                             "adjustment limit exceeded; value - %d, limit - %d\n",
-                             abs (time_diff), CSN_MAX_TIME_ADJUST);
+                             "adjustment limit exceeded; value - %ld, limit - %d\n",
+                             labs (time_diff), CSN_MAX_TIME_ADJUST);
             return CSN_LIMIT_EXCEEDED;
         }    
 
         gen->state.sampled_time = cur_time;
-        gen->state.local_offset = MAX_VAL (gen->state.local_offset, abs (time_diff));
+        gen->state.local_offset = MAX_VAL (gen->state.local_offset, labs (time_diff));
         gen->state.seq_num = 0;
 
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {

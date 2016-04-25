@@ -1029,7 +1029,7 @@ acl_get_effective_rights (
 	int iscritical = 0; /* critical may be missing or false http://tools.ietf.org/html/draft-ietf-ldapext-acl-model-08 */
 	int rc = LDAP_SUCCESS;
 
-	*errbuf = '\0';
+	*errbuf = NULL;
 
 	if (NULL == e)	/* create a template entry from SLAPI_SEARCH_GERATTRS */
 	{

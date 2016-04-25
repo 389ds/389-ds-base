@@ -165,7 +165,7 @@ do_bind( Slapi_PBlock *pb )
         slapi_sdn_free(&sdn);
         return;
     }
-    LDAPDebug( LDAP_DEBUG_TRACE, "BIND dn=\"%s\" method=%d version=%d\n",
+    LDAPDebug( LDAP_DEBUG_TRACE, "BIND dn=\"%s\" method=%" BERTAG_T " version=%d\n",
                dn?dn:"empty", method, version );
 
     /* target spec is used to decide which plugins are applicable for the operation */
@@ -916,13 +916,13 @@ log_bind_access (
     } else if (msg) {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
-                          "method=%ld version=%d, %s\n",
+                          "method=%" BERTAG_T " version=%d, %s\n",
                           pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
                           method, version, msg );
     } else {
         slapi_log_access( LDAP_DEBUG_STATS, 
                           "conn=%" NSPRIu64 " op=%d BIND dn=\"%s\" "
-                          "method=%ld version=%d\n",
+                          "method=%" BERTAG_T " version=%d\n",
                           pb->pb_conn->c_connid, pb->pb_op->o_opid, dn,
                           method, version );
     }

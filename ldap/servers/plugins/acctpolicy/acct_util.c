@@ -221,7 +221,7 @@ gentimeToEpochtime( char *gentimestr ) {
 
 	/* Find the local offset from GMT */
 	cur_gm_time = (struct tm*)slapi_ch_calloc( 1, sizeof( struct tm ) );
-	cur_local_epochtime = time( (time_t)0 );
+	cur_local_epochtime = time( (time_t *)0 );
 	gmtime_r( &cur_local_epochtime, cur_gm_time );
 	cur_gm_epochtime = mktime( cur_gm_time );
 	free( cur_gm_time );

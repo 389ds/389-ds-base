@@ -218,7 +218,7 @@ acl_access_allowed(
 	int					rv;
 	int					err;
 	int					ret_val;
-	const char				*right;
+	const char				*right = NULL;
 	struct	acl_pblock	*aclpb = NULL;
 	AclAttrEval			*c_attrEval = NULL;
 	int					got_reader_locked = 0;
@@ -2924,7 +2924,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
  	acleval =  aclpb->aclpb_acleval;
 
 	testRights[0] = *right;
-	testRights[1] = '\0';
+	testRights[1] = NULL;
 	
 	/* 
 	** START PROCESSING DENY HANDLES
@@ -4191,7 +4191,7 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 	ACL_EvalSetACL(NULL, aclpb->aclpb_acleval, aci->aci_handle);
 
 	testRight[0] = acl_access2str ( access );
-	testRight[1] = '\0';
+	testRight[1] = NULL;
 	aclpb->aclpb_curr_aci = aci;
 	result_status = ACL_EvalTestRights (NULL, aclpb->aclpb_acleval, testRight,
 							ds_map_generic, &unused_str1,

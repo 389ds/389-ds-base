@@ -647,7 +647,7 @@ multimaster_ruv_search(Slapi_PBlock *pb)
 static void
 purge_entry_state_information (Slapi_PBlock *pb)
 {
-	CSN *purge_csn;
+	CSN *purge_csn = NULL;
 	Object *repl_obj;
 	Replica *replica;
 
