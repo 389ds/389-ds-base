@@ -7,7 +7,12 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-from ldap.controls.readentry import PostReadControl
+
+import sys
+MAJOR, MINOR, _, _, _ = sys.version_info
+
+if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
+    from ldap.controls.readentry import PostReadControl
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import Entry
@@ -78,14 +83,15 @@ class Index(object):
             if matchingRules:
                 entry.setValues('nsMatchingRule', matchingRules)
 
-        try:
-            if postReadCtrl:
-                pr = PostReadControl(criticality=True, attrList=['*'])
-                msg_id = self.conn.add_ext(dn, add_record, serverctrls=[pr])
-            else:
-                self.conn.add_s(entry)
-        except ldap.LDAPError as e:
-            raise e
+        if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
+            try:
+                if postReadCtrl:
+                    pr = PostReadControl(criticality=True, attrList=['*'])
+                    msg_id = self.conn.add_ext(dn, add_record, serverctrls=[pr])
+                else:
+                    self.conn.add_s(entry)
+            except ldap.LDAPError as e:
+                raise e
 
         return msg_id
 
