@@ -124,6 +124,7 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
             prp = conn->c_pagedresults.prl_list;
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++, prp++) {
                 if (!prp->pr_current_be) { /* unused slot; take it */
+                    _pr_cleanup_one_slot(prp);
                     prp->pr_current_be = be;
                     *index = i;
                     break;
