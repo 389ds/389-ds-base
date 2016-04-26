@@ -72,8 +72,10 @@ elif [ -z $benameopt ] && [ -z $includeSuffix ]; then
 fi
 if [ -z $servid ] && [ $# -lt 2 ]; then
     print_usage=1
-elif [ "$servid" ] && [ $# -lt 4 ]; then
+elif [ -n "$servid" ] && [ $# -lt 4 ]; then
     print_usage=1
+elif [ -n "$servid" ] && [ $# -eq 4 ]; then
+    idxall=1
 fi
 
 servid=`normalize_server_id $initfile`
