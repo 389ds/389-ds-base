@@ -545,7 +545,7 @@ write_start_pid_file()
 	 * admin programs. Please do not make changes here without
 	 * consulting the start/stop code for the admin code.
 	 */
-	if ( (fp = fopen( start_pid_file, "w" )) != NULL ) {
+	if ( (start_pid_file != NULL) && (fp = fopen( start_pid_file, "w" )) != NULL ) {
 		fprintf( fp, "%d\n", getpid() );
 		fclose( fp );
 		if ( chmod(start_pid_file, S_IWUSR|S_IRUSR|S_IRGRP|S_IROTH) != 0 ) {

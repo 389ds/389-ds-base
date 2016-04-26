@@ -54,7 +54,7 @@ Slapi_Counter	*conns_in_maxthreads;
 Connection_Table *the_connection_table = NULL;
 
 char *pid_file = "/dev/null";
-char *start_pid_file = "/dev/null";
+char *start_pid_file = NULL;
 
 char *attr_dataversion = ATTR_DATAVERSION;
 
