@@ -206,6 +206,7 @@ do_extended( Slapi_PBlock *pb )
 {
     char        *extoid = NULL, *errmsg;
     struct berval   extval = {0};
+    struct slapdplugin *p = NULL;
     int     lderr, rc;
     ber_len_t   len;
     ber_tag_t   tag;
@@ -334,23 +335,19 @@ do_extended( Slapi_PBlock *pb )
     slapi_pblock_set( pb, SLAPI_EXT_OP_REQ_VALUE, &extval );
     slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
 
-    /* wibrown 201603 I want to rewrite this to get plugin p, and use that 
-     * rather than all these plugin_call_, that loop over the plugin lists
-     * We do "get plugin (oid).
-     * then we just hand *p into the call functions.
-     * much more efficient! :)
-     */
-    
-    slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugins ... \n");
+    rc = plugin_determine_exop_plugins( extoid, &p );
+    slapi_log_error(SLAPI_LOG_TRACE, NULL, "exendop.c plugin_determine_exop_plugins rc %d\n", rc);
+    if (rc == SLAPI_PLUGIN_EXTENDEDOP && p != NULL) {
+        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugin ... \n");
+        rc = plugin_call_exop_plugins( pb, p);
 
-    rc = plugin_call_exop_plugins( pb, extoid, SLAPI_PLUGIN_EXTENDEDOP);
+        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called exop, got %d \n", rc);
 
-    slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called exop, got %d \n", rc);
+    } else if (rc == SLAPI_PLUGIN_BETXNEXTENDEDOP && p != NULL) {
 
-    if (rc == SLAPI_PLUGIN_EXTENDED_NOT_HANDLED) {
-        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling betxn plugins ... \n");
+        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling betxn plugin ... \n");
         /* Look up the correct backend to use. */
-        Slapi_Backend *be = plugin_extended_op_getbackend( pb, extoid );
+        Slapi_Backend *be = plugin_extended_op_getbackend( pb, p );
 
         if ( be == NULL ) {
             slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c plugin_extended_op_getbackend was unable to retrieve a backend!!!\n");
@@ -368,7 +365,7 @@ do_extended( Slapi_PBlock *pb )
             if (txn_rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, NULL, "exendop.c Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
             } else {
-                rc = plugin_call_exop_plugins( pb, extoid, SLAPI_PLUGIN_BETXNEXTENDEDOP);
+                rc = plugin_call_exop_plugins( pb, p );
                 slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called betxn exop, got %d \n", rc);
                 if (rc == LDAP_SUCCESS || rc == SLAPI_PLUGIN_EXTENDED_SENT_RESULT) {
                     /* commit */
@@ -387,7 +384,6 @@ do_extended( Slapi_PBlock *pb )
             if (be_pb != NULL) {
                 slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
             }
-            slapi_log_error(SLAPI_LOG_TRACE, NULL, "exendop.c plugin_call_exop_plugins rc final %d\n", rc);
         } /* if be */
     }
 
@@ -396,6 +392,7 @@ do_extended( Slapi_PBlock *pb )
             lderr = LDAP_PROTOCOL_ERROR;    /* no plugin handled the op */
             errmsg = "unsupported extended operation";
         } else {
+            slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c failed with result %d \n", rc);
             errmsg = NULL;
             lderr = rc;
         }

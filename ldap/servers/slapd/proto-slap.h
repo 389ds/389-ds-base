@@ -879,8 +879,9 @@ void global_plugin_init();
 int plugin_call_plugins( Slapi_PBlock *, int );
 int plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	slapi_plugin_init_fnptr initfunc, int add_to_dit, char *returntext);
-int plugin_call_exop_plugins( Slapi_PBlock *pb, char *oid, int whichtype );
-Slapi_Backend * plugin_extended_op_getbackend( Slapi_PBlock *pb, char *oid);
+int plugin_determine_exop_plugins( const char *oid, struct slapdplugin **plugin );
+int plugin_call_exop_plugins( Slapi_PBlock *pb, struct slapdplugin *p );
+Slapi_Backend * plugin_extended_op_getbackend( Slapi_PBlock *pb, struct slapdplugin *p);
 const char *plugin_extended_op_oid2string( const char *oid );
 void plugin_closeall(int close_backends, int close_globals);
 void plugin_startall(int argc, char **argv, char **plugin_list);
