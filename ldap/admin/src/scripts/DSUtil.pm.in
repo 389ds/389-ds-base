@@ -463,6 +463,7 @@ sub check_and_add_entry
                 return 0;
             }
             debug(1, "Entry $aentry->{dn} is deleted\n");
+            $sentry = undef;
         }
         elsif ( 0 < $op )    # modify op
         {
