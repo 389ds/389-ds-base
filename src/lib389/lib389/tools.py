@@ -596,7 +596,9 @@ class DirSrvTools(object):
             child_stdout = pipe.fromchild
         child_stdin.write(content)
         child_stdin.close()
-        while not pipe.poll():
+        if verbose:
+            log.debug("PID %s" % pipe.pid)
+        while pipe.poll() is None:
             (rr, wr, xr) = select.select([child_stdout], [], [], 1.0)
             if rr and len(rr) > 0:
                 line = rr[0].readline()
@@ -605,7 +607,7 @@ class DirSrvTools(object):
                 if verbose:
                     sys.stdout.write(line)
             elif verbose:
-                print("timed out waiting to read from", cmd)
+                print("timed out waiting to read from pid %s : %s " % (pipe.pid, cmd))
         child_stdout.close()
         exitCode = pipe.wait()
         # if verbose:

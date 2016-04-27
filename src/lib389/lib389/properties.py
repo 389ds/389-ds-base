@@ -446,6 +446,21 @@ TASK_TOMB_STRIP = "strip-csn"
 EXPORT_REPL_INFO = "repl-info"
 
 
+####################################
+#
+# Properties related to logging.
+#
+####################################
+
+LOG_ACCESS_ENABLED = "nsslapd-accesslog-logging-enabled"
+LOG_ACCESS_LEVEL = "nsslapd-accesslog-level"
+LOG_ACCESS_PATH = "nsslapd-accesslog"
+
+LOG_ERROR_ENABLED = "nsslapd-errorlog-logging-enabled"
+LOG_ERROR_LEVEL = "nsslapd-errorlog-level"
+LOG_ERROR_PATH = "nsslapd-errorlog"
+
+
 def rawProperty(prop):
     '''
         Return the string 'prop' without the heading '+'/'-'

@@ -368,6 +368,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.aci import Aci
         from lib389.monitor import Monitor
         from lib389.nss_ssl import NssSsl
+        from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
 
         self.agreement = Agreement(self)
         self.replica = Replica(self)
@@ -384,6 +385,8 @@ class DirSrv(SimpleLDAPObject):
         self.monitor = Monitor(self)
         # Do we have a certdb path?
         self.nss_ssl = NssSsl(self)
+        self.ds_access_log = DirsrvAccessLog(self)
+        self.ds_error_log = DirsrvErrorLog(self)
 
     def __init__(self, verbose=False, timeout=10):
         """
