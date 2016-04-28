@@ -60,6 +60,14 @@ start_instance() {
             return 1
         fi
     else
+        if test 1 -eq @enable_asan@; then
+            echo "NOTICE: Starting instance ${SERV_ID} with ASAN options."
+            echo "This is probably not what you want. Please contact support."
+            : ${ASAN_LOG_PATH:=$RUN_DIR/ns-slapd-${SERV_ID}.asan}
+            echo "Asan errors will go to ${ASAN_LOG_PATH}*"
+            export ASAN_OPTIONS="detect_leaks=1 symbolize=1 detect_deadlocks=1 log_path=${ASAN_LOG_PATH}"
+            export ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
+        fi
         $SERVERBIN_DIR/ns-slapd -D $CONFIG_DIR -i $PIDFILE "$@"
         if [ $? -ne 0 ]; then
             return 1
@@ -70,16 +78,17 @@ start_instance() {
     max_count=${PID_TIME:-600}
     while test $loop_counter -le $max_count; do
         loop_counter=`expr $loop_counter + 1`
-        if test ! -f $PIDFILE ; then
-            if kill -s 0 $PID > /dev/null 2>&1 ; then
-                sleep 1
-        else
-            echo Server failed to start !!! Please check errors log for problems
-            return 1
-        fi
-        else
+        if test -f $PIDFILE ; then
             PID=`cat $PIDFILE`
             return 0;
+        else
+            # I'm not sure what this meant to achieve, but $PID is 0 here.
+            if kill -s 0 $PID > /dev/null 2>&1 ; then
+                sleep 1
+            else
+                echo Server failed to start !!! Please check errors log for problems
+                return 1
+            fi
         fi
     done
     echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.

@@ -26,6 +26,12 @@ NUNC_STANS_ON = 0
 endif
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I. $(NUNC_STANS_INCLUDES)
 
+if enable_asan
+ASAN_ON = 1
+else
+ASAN_ON = 0
+endif
+
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
 # values prior to their being defined.  Defining them here ensures that they are properly
@@ -1797,6 +1803,7 @@ fixupcmd = sed \
 	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 	-e 's,@enable_presence\@,$(enable_presence),g' \
+	-e 's,@enable_asan\@,$(ASAN_ON),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
@@ -1864,6 +1871,7 @@ fixupcmd = sed \
 	-e 's,@enable_autobind\@,$(enable_autobind),g' \
 	-e 's,@enable_auto_dn_suffix\@,$(enable_auto_dn_suffix),g' \
 	-e 's,@enable_presence\@,$(enable_presence),g' \
+	-e 's,@enable_asan\@,$(ASAN_ON),g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \
@@ -1925,10 +1933,18 @@ endif
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
+
+if enable_asan
+# yes, that is an @ in the filename . . .
+%/$(PACKAGE_NAME)@.service: %/systemd.template.asan.service.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+else
 # yes, that is an @ in the filename . . .
 %/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
+endif
 
 %/$(PACKAGE_NAME).systemd: %/systemd.template.sysconfig
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
@@ -1974,7 +1990,7 @@ rpmbrprep: dist-bzip2 rpmroot
 	cp $(distdir).tar.bz2 $(RPMBUILD)/SOURCES
 	cp $(srcdir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
 	cp $(srcdir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
-	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
+	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" -e "s/__ASAN_ON__/$(ASAN_ON)/"  < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
 # Requires rpmdevtools. Consider making this a dependancy of rpms.
 rpmsources: rpmbrprep

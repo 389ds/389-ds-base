@@ -1,5 +1,8 @@
 
 %global pkgname   dirsrv
+
+# This is used in certain builds to help us know if it has extra features.
+%global variant base
 # for a pre-release, define the prerel field e.g. .a1 .rc2 - comment out for official release
 # also remove the space between % and global - this space is needed because
 # fedpkg verrel stupidly ignores comment lines
@@ -25,6 +28,13 @@
 %global jemalloc_ver 3.6.0
 %endif
 
+# This enables an ASAN build. This should not go to production, so we rename.
+%global use_asan __ASAN_ON__
+%if 0%{?use_asan:1}
+%global variant base-asan
+%endif
+
+
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
 %{!?with_tmpfiles_d: %global with_tmpfiles_d %{_sysconfdir}/tmpfiles.d}
@@ -35,7 +45,7 @@
 # set PIE flag
 %global _hardened_build 1
 
-Summary:          389 Directory Server (base)
+Summary:          389 Directory Server (%{variant})
 Name:             389-ds-base
 Version:          __VERSION__
 Release:          __RELEASE__%{?dist}
@@ -79,6 +89,9 @@ BuildRequires:    tcp_wrappers
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
+%if 0%{?use_asan:1}
+BuildRequires:    libasan
+%endif
 
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python
@@ -125,6 +138,11 @@ Requires:         perl-Socket
 Requires:         perl-NetAddr-IP
 Requires:         systemd-libs
 
+%if 0%{?use_asan:1}
+Requires:    libasan
+Requires:    llvm
+%endif
+
 Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz2
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
@@ -137,12 +155,21 @@ Source3:          http://www.port389.org/binaries/jemalloc-%{jemalloc_ver}.tar.b
 Source4:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
 %endif
 
+%if 0%{?use_asan:1}
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
 the LDAP server and command line utilities for server administration.
+WARNING! This build is linked to Address Sanitisation libraries. This probably
+isn't what you want. Please contact support immediately.
+Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
+%else
+%description
+389 Directory Server is an LDAPv3 compliant server.  The base package includes
+the LDAP server and command line utilities for server administration.
+%endif
 
 %package          libs
-Summary:          Core libraries for 389 Directory Server
+Summary:          Core libraries for 389 Directory Server (%{variant})
 Group:            System Environment/Daemons
 BuildRequires:    nspr-devel
 BuildRequires:    nss-devel
@@ -179,7 +206,7 @@ are used by the main package and the -devel package.  This allows the -devel
 package to be installed with just the -libs package and without the main package.
 
 %package          devel
-Summary:          Development libraries for 389 Directory Server
+Summary:          Development libraries for 389 Directory Server (%{variant})
 Group:            Development/Libraries
 Requires:         %{name}-libs = %{version}-%{release}
 Requires:         pkgconfig
@@ -246,14 +273,20 @@ OPENLDAP_FLAG="--with-openldap"
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
 # hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529
 NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
+
 %if %{use_nunc_stans}
 NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_stans_ver}" 
 %endif
+
+%if 0%{?use_asan:1}
+ASAN_FLAGS="--enable-asan --enable-debug"
+%endif
+
 %configure --enable-autobind --with-selinux $OPENLDAP_FLAG $TMPFILES_FLAG \
            --with-systemdsystemunitdir=%{_unitdir} \
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} $NSSARGS $NUNC_STANS_FLAGS \
-           --with-systemd
+           --with-systemd $ASAN_FLAGS
 
 # Generate symbolic info for debuggers
 export XCFLAGS=$RPM_OPT_FLAGS

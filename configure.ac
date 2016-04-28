@@ -69,7 +69,7 @@ AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
 [
   AC_MSG_RESULT(yes)
-  debug_defs="-g3 -DDEBUG -DMCC_DEBUG"
+  debug_defs="-g3 -DDEBUG -DMCC_DEBUG -O0"
 ],
 [
   AC_MSG_RESULT(no)
@@ -88,6 +88,7 @@ AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc address sanitize
   asan_defs=""
 ])
 AC_SUBST([asan_defs])
+AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
 
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
 AC_MSG_CHECKING(for --enable-gcc-security)
