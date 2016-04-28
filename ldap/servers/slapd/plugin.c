@@ -562,7 +562,6 @@ plugin_extended_op_oid2string( const char *oid )
 {
     struct slapdplugin  *p;
     int j = 0;
-    int l = 0;
     int rc = 0;
     const char *rval = NULL;
 
