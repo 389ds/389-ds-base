@@ -1077,6 +1077,65 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 }
 
+/*
+ * Get the old password -used by password admin so we properly
+ * update pw history when reseting a password.
+ */
+void
+get_old_pw( Slapi_PBlock *pb, const Slapi_DN *sdn, char **old_pw )
+{
+    Slapi_Entry *e = NULL;
+    Slapi_Value **va = NULL;
+    Slapi_Attr *attr = NULL;
+    char *dn = (char*)slapi_sdn_get_ndn(sdn);
+
+    e = get_entry ( pb, dn );
+    if ( e == NULL ) {
+        return;
+    }
+
+    /* get current password, and remember it  */
+    attr = attrlist_find(e->e_attrs, "userpassword");
+    if ( attr && !valueset_isempty(&attr->a_present_values) ) {
+        va = valueset_get_valuearray(&attr->a_present_values);
+        *old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+    } else {
+        *old_pw = NULL;
+    }
+
+    slapi_entry_free(e);
+}
+
+/*
+ * Basically, h0 and h1 must be longer than GENERALIZED_TIME_LENGTH.
+ */
+static int
+pw_history_cmp(const void *h0, const void *h1)
+{
+	if (!h0) {
+		if (!h1) {
+			return 0;
+		} else {
+			return -1;
+		}
+	} else {
+		if (!h1) {
+			return 1;
+		} else {
+			char *h0str = *(char **)h0;
+			char *h1str = *(char **)h1;
+			size_t h0sz = strlen(h0str);
+			size_t h1sz = strlen(h1str);
+			if ((h0sz < GENERALIZED_TIME_LENGTH) ||
+			    (h1sz < GENERALIZED_TIME_LENGTH)) {
+				/* too short for the history str. */
+				return h0sz - h1sz;
+			}
+			return PL_strncmp(h0str, h1str, GENERALIZED_TIME_LENGTH);
+		}
+	}
+}
+
 static int
 update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 {
