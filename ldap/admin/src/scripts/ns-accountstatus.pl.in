@@ -643,7 +643,7 @@ sub getSuffix
         #
         debug("\tSuffix from the entry: #@suffixN#\n");
         $info{base} = "cn=mapping tree, cn=config";
-        $info{filter} = "cn=\"@suffixN\"";
+        $info{filter} = "cn=@suffix";
         $info{scope} = "one";
         $info{attrs} = "cn";
         @mapping = DSUtil::ldapsrch_ext(%info);
@@ -849,7 +849,7 @@ for(my $i = 0; $i <= $#entries; $i++){
     }
 
     #
-    # Gather the Account Ppoliy PLugin information(if available)
+    # Gather the Account Policy Plugin information (if available)
     #
     ($acct_policy_enabled, $stateattr, $altstateattr, $limit) = getAcctPolicy(\%info, $entry);
 
