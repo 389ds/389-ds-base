@@ -920,10 +920,10 @@ for(my $i = 0; $i <= $#entries; $i++){
             if ($verbose){
                 printVerbose(\%info, "@suffixN", $entry, $createtime,
                              $modifytime, $lastlogintime,
-                             "inactivated through $throughRole", $limit,
+                             "inactivated (indirectly through role: $throughRole)", $limit,
                              $acct_policy_enabled);
             } else {
-                out("$entry - inactivated through $throughRole.\n");
+                out("$entry - inactivated (indirectly through role: $throughRole).\n");
             }
             if($keep_processing){
                 next;
@@ -933,10 +933,10 @@ for(my $i = 0; $i <= $#entries; $i++){
         debug("$entry locked individually\n");
         if ($verbose){
             printVerbose(\%info, "@suffixN", $entry, $createtime,
-                         $modifytime, $lastlogintime, "inactivated", $limit,
+                         $modifytime, $lastlogintime, "inactivated (directly locked)", $limit,
                          $acct_policy_enabled);
         } else {
-            out("$entry - inactivated.\n");
+            out("$entry - inactivated (directly locked).\n");
         }
         if($keep_processing){
             next;
@@ -1025,10 +1025,10 @@ for(my $i = 0; $i <= $#entries; $i++){
         }
         if($verbose){
             printVerbose(\%info, "@suffixN", $entry, $createtime,
-                         $modifytime, $lastlogintime, "inactivated", $limit,
+                         $modifytime, $lastlogintime, "inactivated (directly locked)", $limit,
                          $acct_policy_enabled);
         } else {
-            out("$entry - inactivated.\n");
+            out("$entry - inactivated (directly locked).\n");
         }
         if($keep_processing){
             next;
