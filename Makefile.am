@@ -51,7 +51,8 @@ endif
 PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfdir)\"" \
 	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
-	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" -DTEMPLATEDIR="\"$(sampledatadir)\""
+	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" \
+	-DTEMPLATEDIR="\"$(sampledatadir)\"" -DSYSTEMSCHEMADIR="\"$(systemschemadir)\""
 
 AM_CPPFLAGS = $(DEBUG_DEFINES) $(GCCSEC_DEFINES) $(ASAN_DEFINES) $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES)
 PLUGIN_CPPFLAGS = $(AM_CPPFLAGS) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ @nspr_inc@ @systemd_inc@
@@ -184,6 +185,7 @@ selinux-built/dirsrv.fc: selinux-built
 prefixdir = @prefixdir@
 configdir = $(sysconfdir)@configdir@
 sampledatadir = $(datadir)@sampledatadir@
+systemschemadir = $(datadir)@systemschemadir@
 propertydir = $(datadir)@propertydir@
 schemadir = $(sysconfdir)@schemadir@
 serverdir = $(libdir)@serverdir@
@@ -552,7 +554,7 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/schema/60sendmail.ldif \
 	$(LIBPRESENCE_SCHEMA)
 
-schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
+systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/01core389.ldif \
 	$(srcdir)/ldap/schema/02common.ldif \
 	$(srcdir)/ldap/schema/05rfc2927.ldif \
@@ -585,8 +587,9 @@ schema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60sudo.ldif \
 	$(srcdir)/ldap/schema/60trust.ldif \
 	$(srcdir)/ldap/schema/60nss-ldap.ldif \
-	$(srcdir)/ldap/schema/99user.ldif \
 	$(LIBACCTPOLICY_SCHEMA)
+
+schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
@@ -1822,6 +1825,7 @@ fixupcmd = sed \
 	-e 's,@infdir\@,$(infdir),g' \
 	-e 's,@mibdir\@,$(mibdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
+	-e 's,@systemschemadir\@,$(systemschemadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
 	-e 's,@enable_ldapi\@,$(enable_ldapi),g' \
@@ -1893,6 +1897,7 @@ fixupcmd = sed \
 	-e 's,@infdir\@,$(infdir),g' \
 	-e 's,@mibdir\@,$(mibdir),g' \
 	-e 's,@templatedir\@,$(sampledatadir),g' \
+	-e 's,@systemschemadir\@,$(systemschemadir),g' \
 	-e 's,@package_name\@,$(PACKAGE_NAME),g' \
 	-e 's,@instconfigdir\@,$(instconfigdir),g' \
 	-e 's,@enable_ldapi\@,$(enable_ldapi),g' \

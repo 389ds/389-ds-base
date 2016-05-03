@@ -1369,14 +1369,15 @@ int plugin_get_log_audit (const struct slapdplugin *plugin);
  * getfilelist.c
  */
 char **get_filelist(
-	const char *dirname, /* directory path; if NULL, uses "." */
-	const char *pattern, /* regex pattern, not shell style wildcard */
-	int hiddenfiles, /* if true, return hidden files and directories too */
-	int nofiles, /* if true, do not return files */
-	int nodirs /* if true, do not return directories */
+    const char **dirnames, /* directory paths; if NULL, uses "." */
+    const char *pattern, /* regex pattern, not shell style wildcard */
+    int hiddenfiles, /* if true, return hidden files and directories too */
+    int nofiles, /* if true, do not return files */
+    int nodirs, /* if true, do not return directories */
+    int dirnames_size
 );
 void free_filelist(char **filelist);
-char **get_priority_filelist(const char *directory, const char *pattern);
+char **get_priority_filelist(const char **directories, const char *pattern, int dirnames_size);
 
 /* this interface is exposed to be used by internal operations. 
  */

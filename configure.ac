@@ -297,6 +297,8 @@ if test "$with_fhs_opt" = "yes"; then
   # relative to datadir
   sampledatadir=/data
   # relative to datadir
+  systemschemadir=/schema
+  # relative to datadir
   scripttemplatedir=/script-templates
   # relative to datadir
   updatedir=/updates
@@ -330,6 +332,8 @@ else
   prefixdir=$prefix
   # relative to datadir
   sampledatadir=/$PACKAGE_NAME/data
+  # relative to datadir
+  systemschemadir=/$PACKAGE_NAME/schema
   # relative to datadir
   scripttemplatedir=/$PACKAGE_NAME/script-templates
   # relative to datadir
@@ -424,6 +428,7 @@ fi
 AC_SUBST(prefixdir)
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
+AC_SUBST(systemschemadir)
 AC_SUBST(propertydir)
 AC_SUBST(schemadir)
 AC_SUBST(serverdir)

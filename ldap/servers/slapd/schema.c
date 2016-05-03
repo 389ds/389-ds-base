@@ -868,36 +868,34 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
     i = slapi_entry_first_attr(e, &a);
     while (-1 != i && 0 == ret)
       {
-	if (is_extensible_object == 0 && 
-	    unknown_class == 0 &&
-	    !slapi_attr_flag_is_set(a, SLAPI_ATTR_FLAG_OPATTR))
-	  {
-	    char *attrtype;
-	    slapi_attr_get_type(a, &attrtype);
-	    if (oc_check_allowed_sv(pb, e, attrtype, oclist) != 0)
-	      {
-		ret = 1;
-	      }
-	  }
-	
-	if ( slapi_attr_flag_is_set( a, SLAPI_ATTR_FLAG_SINGLE ) ) {
-	  if (slapi_valueset_count(&a->a_present_values) > 1)
-	    {
-          slapi_log_err(SLAPI_LOG_ERR,
-	         "slapi_entry_schema_check_ext", "Entry \"%s\" single-valued attribute \"%s\" has multiple values\n",
-			 slapi_entry_get_dn_const(e),
-			 a->a_type);
-		  if (pb) {
-			PR_snprintf( errtext, sizeof( errtext ),
-	         	"single-valued attribute \"%s\" has multiple values\n",
-				a->a_type );
-			slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
-		  }
-	      ret = 1;
-	    }
-	}
-	prevattr = a;
-	i = slapi_entry_next_attr(e, prevattr, &a);
+        if (is_extensible_object == 0 && 
+            unknown_class == 0 &&
+            !slapi_attr_flag_is_set(a, SLAPI_ATTR_FLAG_OPATTR))
+          {
+            char *attrtype;
+            slapi_attr_get_type(a, &attrtype);
+            if (oc_check_allowed_sv(pb, e, attrtype, oclist) != 0)
+              {
+            ret = 1;
+              }
+          }
+
+        if ( slapi_attr_flag_is_set( a, SLAPI_ATTR_FLAG_SINGLE ) ) {
+          if (slapi_valueset_count(&a->a_present_values) > 1)
+            {
+              slapi_log_err(SLAPI_LOG_ERR, "slapi_entry_schema_check_ext", "Entry \"%s\" single-valued attribute \"%s\" has multiple values\n",
+                 slapi_entry_get_dn_const(e), a->a_type);
+              if (pb) {
+                PR_snprintf( errtext, sizeof( errtext ),
+                    "single-valued attribute \"%s\" has multiple values\n",
+                    a->a_type );
+                slapi_pblock_set( pb, SLAPI_PB_RESULT_TEXT, errtext );
+              }
+              ret = 1;
+            }
+        }
+        prevattr = a;
+        i = slapi_entry_next_attr(e, prevattr, &a);
       }
   }
 
@@ -5272,6 +5270,8 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 	char *userschematmpfile = 0;
 	char **filelist = 0;
 	char *myschemadir = NULL;
+    /* SYSTEMSCHEMADIR is set out of the makefile.am -D, from configure.ac */
+    char *myschemadirs[2] = {SYSTEMSCHEMADIR, NULL};
 	Slapi_DN schema;
 
 	if (NULL == local_pschemadse)
@@ -5296,61 +5296,65 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		myschemadir = schemadir;
 	}
 
-	filelist = get_priority_filelist(myschemadir, ".*ldif$");
-	if (!filelist || !*filelist)
-	{
-		slapi_log_err(SLAPI_LOG_ERR, "init_schema_dse_ext",
-			"No schema files were found in the directory %s\n", myschemadir);
-		free_filelist(filelist);
-		rc = 0;
-	}
-	else
-	{
-		/* figure out the last file in the list; it is the user schema */
-		int ii = 0;
-		while (filelist[ii]) ++ii;
-		userschemafile = filelist[ii-1];
-		userschematmpfile = slapi_ch_smprintf("%s.tmp", userschemafile);
-	}
+    myschemadirs[1] = myschemadir;
 
-	if(rc)
-	{
-		*local_pschemadse = dse_new_with_filelist(userschemafile,
-						userschematmpfile, NULL, NULL, myschemadir, filelist);
-	}
-	PR_ASSERT(*local_pschemadse);
-	if ((rc = (*local_pschemadse != NULL)) != 0)
-	{
-		/* pass schema_flags as arguments */
-		dse_register_callback(*local_pschemadse,
-								  DSE_OPERATION_READ, DSE_FLAG_PREOP, &schema,
-								  LDAP_SCOPE_BASE, NULL,
-								  load_schema_dse, (void *)&schema_flags, NULL);
-	}
-	slapi_ch_free_string(&userschematmpfile);
-	if (NULL == schemadir)
-		slapi_ch_free_string(&myschemadir); /* allocated in this function */
+    // Make this take an array of strings?
+    filelist = get_priority_filelist((const char **)myschemadirs, ".*ldif$", 2);
+    if (!filelist || !*filelist)
+    {
+        slapi_log_err(SLAPI_LOG_ERR, "init_schema_dse_ext",
+            "No schema files were found in the directory %s\n", myschemadir);
+        free_filelist(filelist);
+        rc = 0;
+    }
+    else
+    {
+        /* figure out the last file in the list; it is the user schema */
+        int ii = 0;
+        while (filelist[ii]) ++ii;
+        userschemafile = filelist[ii-1];
+        userschematmpfile = slapi_ch_smprintf("%s.tmp", userschemafile);
+    }
 
-	if(rc)
-	{
-		char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
-		char *attr_str;
-		int dont_write = 1;
-		int merge = 1;
-		int dont_dup_check = 1;
-		Slapi_PBlock pb = {0};
-		/* don't write out the file when reading */
-		slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
-		/* duplicate entries are allowed */
-		slapi_pblock_set(&pb, SLAPI_DSE_MERGE_WHEN_ADDING, (void*)&merge);
-		/* use the non duplicate checking str2entry */
-		slapi_pblock_set(&pb, SLAPI_DSE_DONT_CHECK_DUPS, (void*)&dont_dup_check);
-		/* borrow the task flag space */
-		slapi_pblock_set(&pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
+    if(rc)
+    {
+        *local_pschemadse = dse_new_with_filelist(userschemafile,
+                        userschematmpfile, NULL, NULL, myschemadir, filelist);
+    }
+    PR_ASSERT(*local_pschemadse);
+    if ((rc = (*local_pschemadse != NULL)) != 0)
+    {
+        /* pass schema_flags as arguments */
+        dse_register_callback(*local_pschemadse,
+                                  DSE_OPERATION_READ, DSE_FLAG_PREOP, &schema,
+                                  LDAP_SCOPE_BASE, NULL,
+                                  load_schema_dse, (void *)&schema_flags, NULL);
+    }
+    slapi_ch_free_string(&userschematmpfile);
+    if (NULL == schemadir)
+        slapi_ch_free_string(&myschemadir); /* allocated in this function */
 
-		/* add the objectclass attribute so we can do some basic schema
-		   checking during initialization; this will be overridden when
-		   its "real" definition is read from the schema conf files */
+    if(rc)
+    {
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
+        char *attr_str;
+        int dont_write = 1;
+        int merge = 1;
+        int dont_dup_check = 1;
+        Slapi_PBlock pb = {0};
+        memset(&pb, 0, sizeof(pb));
+        /* don't write out the file when reading */
+        slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
+        /* duplicate entries are allowed */
+        slapi_pblock_set(&pb, SLAPI_DSE_MERGE_WHEN_ADDING, (void*)&merge);
+        /* use the non duplicate checking str2entry */
+        slapi_pblock_set(&pb, SLAPI_DSE_DONT_CHECK_DUPS, (void*)&dont_dup_check);
+        /* borrow the task flag space */
+        slapi_pblock_set(&pb, SLAPI_SCHEMA_FLAGS, (void*)&schema_flags);
+
+        /* add the objectclass attribute so we can do some basic schema
+           checking during initialization; this will be overridden when
+           its "real" definition is read from the schema conf files */
 
 #ifdef USE_OPENLDAP
 		attr_str = "( 2.5.4.0 NAME 'objectClass' "
