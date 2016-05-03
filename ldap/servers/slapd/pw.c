@@ -1080,6 +1080,35 @@ retry:
 }
 
 /*
+ * Get the old password -used by password admin so we properly
+ * update pw history when reseting a password.
+ */
+void
+get_old_pw( Slapi_PBlock *pb, const Slapi_DN *sdn, char **old_pw )
+{
+    Slapi_Entry *e = NULL;
+    Slapi_Value **va = NULL;
+    Slapi_Attr *attr = NULL;
+    char *dn = (char*)slapi_sdn_get_ndn(sdn);
+
+    e = get_entry ( pb, dn );
+    if ( e == NULL ) {
+        return;
+    }
+
+    /* get current password, and remember it  */
+    attr = attrlist_find(e->e_attrs, "userpassword");
+    if ( attr && !valueset_isempty(&attr->a_present_values) ) {
+        va = valueset_get_valuearray(&attr->a_present_values);
+        *old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+    } else {
+        *old_pw = NULL;
+    }
+
+    slapi_entry_free(e);
+}
+
+/*
  * Basically, h0 and h1 must be longer than GENERALIZED_TIME_LENGTH.
  */
 static int

@@ -1277,6 +1277,10 @@ static int op_shared_allow_pw_change (Slapi_PBlock *pb, LDAPMod *mod, char **old
 		 * just return success.
 		 */
 		if(pw_is_pwp_admin(pb, pwpolicy)){
+			if (!SLAPI_IS_MOD_DELETE(mod->mod_op) && pwpolicy->pw_history){
+				/* Updating pw history, get the old password */
+				get_old_pw(pb, &sdn, old_pw);
+			}
 			rc = 1;
 			goto done;
 		}

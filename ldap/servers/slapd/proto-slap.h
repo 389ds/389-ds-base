@@ -915,6 +915,7 @@ int check_pw_syntax( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char **old_pw, Slapi_Entry *e, int mod_op );
 int check_pw_syntax_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	char **old_pw, Slapi_Entry *e, int mod_op, Slapi_Mods *smods );
+void get_old_pw( Slapi_PBlock *pb, const Slapi_DN *sdn, char **old_pw);
 int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req, int account_inactivation_only /*no wire/no pw policy*/);
 int check_pw_minage( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals) ;
 void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );
