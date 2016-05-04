@@ -34,6 +34,8 @@ use Mozilla::LDAP::Utils qw(normalizeDN);
 use Mozilla::LDAP::API qw(ldap_explode_dn);
 use Mozilla::LDAP::LDIF;
 
+use POSIX ":sys_wait_h";
+
 use Exporter;
 @ISA       = qw(Exporter);
 @EXPORT    = qw(createDSInstance removeDSInstance setDefaults createInstanceScripts
@@ -713,14 +715,20 @@ sub startServer {
     $timeout = time + $timeout;
 
     debug(1, "Starting the server: $startcmd\n");
-    $? = 0; # clear error condition
-    my $output = `$startcmd 2>&1`;
-    $code = $?;
-    debug(1, "Started the server: code $code\n");
+
+    # We have to do this because docker is incapable of sane process management
+    # Sadly we have to sacrifice output collection, because of perl issues
+    my $cpid = open(my $output, "-|", "$startcmd 2>&1");
+    if ($cpid) {
+        # Parent process
+        waitpid($cpid,0);
+    }
+    close($output);
+    my $code = $?;
     if ($code) {
-        debug(0, $output);
+        debug(0, "Process returned $code");
     } else {
-        debug(1, $output);
+        debug(1, "Process returned $code");
     }
 
     # try to open the server error log
