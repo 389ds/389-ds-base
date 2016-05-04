@@ -538,7 +538,7 @@ plugin_call_exop_plugins( Slapi_PBlock *pb, struct slapdplugin *p )
         /*
          * simple merge: report last real error
          */
-        if ( lderr == SLAPI_PLUGIN_EXTENDED_NOT_HANDLED || rc != LDAP_SUCCESS ) {
+        if ( rc != LDAP_SUCCESS ) {
             lderr = rc;
         }
     }
