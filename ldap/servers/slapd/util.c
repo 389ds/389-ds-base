@@ -226,9 +226,8 @@ escape_string_with_punctuation(const char* str, char buf[BUFSIZ])
 }
 
 const char*
-escape_string_for_filename(const char *str)
+escape_string_for_filename(const char *str, char buf[BUFSIZ])
 {
-  char buf[BUFSIZ];
   return do_escape_string(str,-1,buf,special_filename, DOESCAPE_FLAGS_HEX_NOESC);
 }
 

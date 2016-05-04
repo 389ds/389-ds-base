@@ -1160,7 +1160,7 @@ char* slapd_get_tmp_dir( void );
 #include <stdio.h> /* GGOODREPL - For BUFSIZ, below, gak */
 const char* escape_string (const char* str, char buf[BUFSIZ]);
 const char* escape_string_with_punctuation(const char* str, char buf[BUFSIZ]);
-const char* escape_string_for_filename(const char* str);
+const char* escape_string_for_filename(const char* str, char buf[BUFSIZ]);
 void strcpy_unescape_value( char *d, const char *s );
 
 char *slapi_berval_get_string_copy(const struct berval *bval);

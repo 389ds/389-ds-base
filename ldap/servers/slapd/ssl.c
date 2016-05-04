@@ -2746,7 +2746,9 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                 PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
                 slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
-                    certfile = slapi_ch_smprintf("%s/%s%s", certdir, escape_string_for_filename(cert->nickname), PEMEXT);
+                    char buf[BUFSIZ];
+                    certfile = slapi_ch_smprintf("%s/%s%s", certdir,
+                                   escape_string_for_filename(cert->nickname, buf), PEMEXT);
                     entrySetValue(slapi_entry_get_sdn(entry), "CACertExtractFile", certfile);
                     slapi_set_cacertfile(certfile);
                 }
@@ -2771,7 +2773,9 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                 PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
                 slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
-                    certfile = slapi_ch_smprintf("%s/%s%s", certdir, escape_string_for_filename(cert->nickname), PEMEXT);
+                    char buf[BUFSIZ];
+                    certfile = slapi_ch_smprintf("%s/%s%s", certdir,
+                                   escape_string_for_filename(cert->nickname, buf), PEMEXT);
                 }
                 if (!outFile) {
                     outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
@@ -3038,7 +3042,9 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     }
     keyfile = gen_pem_path(KeyExtractFile);
     if (!keyfile) {
-        keyfile = slapi_ch_smprintf("%s/%s-Key%s", certdir, escape_string_for_filename(personality), PEMEXT);
+        char buf[BUFSIZ];
+        keyfile = slapi_ch_smprintf("%s/%s-Key%s", certdir, 
+                      escape_string_for_filename(personality, buf), PEMEXT);
     }
     outFile = PR_Open(keyfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
     if (!outFile) {
