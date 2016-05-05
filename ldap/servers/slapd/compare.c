@@ -119,7 +119,7 @@ do_compare( Slapi_PBlock *pb )
 	 * We could be serving multiple database backends.  Select the
 	 * appropriate one.
 	 */
-	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf)) != LDAP_SUCCESS) {
+	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
 		be = NULL;
 		goto free_and_return;

@@ -152,7 +152,7 @@ do_add( Slapi_PBlock *pb )
 		if ( !normtype || !*normtype ) {
 			char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
 			rc = LDAP_INVALID_SYNTAX;
-			slapi_create_errormsg(ebuf, 0, "invalid type '%s'", type);
+			slapi_create_errormsg(ebuf, sizeof(ebuf), "invalid type '%s'", type);
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), ebuf);
 			send_ldap_result( pb, rc, NULL, ebuf, 0, NULL );
             slapi_ch_free_string(&type);
@@ -487,7 +487,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 	 * We could be serving multiple database backends.  Select the
 	 * appropriate one.
 	 */
-	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf)) != LDAP_SUCCESS) {
+	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
 		be = NULL;
 		goto done;

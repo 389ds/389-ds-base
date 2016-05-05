@@ -36,9 +36,9 @@ struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, const char *dn 
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);
 
 /* function for checking the values of fine grained password policy attributes */
-int check_pw_duration_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
-int check_pw_resetfailurecount_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
-int check_pw_storagescheme_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
+int check_pw_duration_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
+int check_pw_resetfailurecount_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
+int check_pw_storagescheme_value(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 
 int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp);
 /*

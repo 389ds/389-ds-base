@@ -955,7 +955,7 @@ sasl_check_result:
             slapi_add_auth_response_control(pb, normdn);
         }
 
-        if (slapi_mapping_tree_select(pb, &be, &referral, NULL) != LDAP_SUCCESS) {
+        if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
             send_nobackend_ldap_result( pb );
             be = NULL;
             LDAPDebug( LDAP_DEBUG_TRACE, "<= ids_sasl_check_bind\n", 0, 0, 0 );

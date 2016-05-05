@@ -572,7 +572,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	/* slapi_mapping_tree_select_and_check ignores the case of newdn
 	 * which is generated using newrdn above. */
 	errorbuf[0] = '\0';
-	if ((err = slapi_mapping_tree_select_and_check(pb, newdn, &be, &referral, errorbuf)) != LDAP_SUCCESS)
+	if ((err = slapi_mapping_tree_select_and_check(pb, newdn, &be, &referral, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS)
 	{
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
 		goto free_and_return_nolock;

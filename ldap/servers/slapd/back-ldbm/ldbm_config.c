@@ -425,7 +425,7 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         } else if (val > li->li_dbcachesize) {
             delta = val - li->li_dbcachesize;
             if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, 0, "Error: dbcachememsize value is too large.");
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: dbcachememsize value is too large.");
                 LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: dbcachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
@@ -497,7 +497,7 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
         if (val > li->li_dbncache) {
             delta = val - li->li_dbncache;
             if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, 0, "Error: dbncache size value is too large.");
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: dbncache size value is too large.");
                 LDAPDebug1Arg(LDAP_DEBUG_ANY,"Error: dbncache size value is too large.\n", val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
@@ -780,7 +780,7 @@ static int ldbm_config_db_old_idl_maxids_set(void *arg, void *value, char *error
         if(val >= 0){
             li->li_old_idl_maxids = val;
         } else {
-            slapi_create_errormsg(errorbuf, 0,
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
         	            "Error: Invalid value for %s (%d). Value must be equal or greater than zero.",
         	            CONFIG_DB_OLD_IDL_MAXIDS, val);
             return LDAP_UNWILLING_TO_PERFORM;
@@ -844,7 +844,7 @@ static int ldbm_config_db_trickle_percentage_set(void *arg, void *value, char *e
     int val = (int) ((uintptr_t)value);
     
     if (val < 0 || val > 100) {
-        slapi_create_errormsg(errorbuf, 0, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
             CONFIG_DB_TRICKLE_PERCENTAGE, val);
         LDAPDebug2Args(LDAP_DEBUG_ANY, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
             CONFIG_DB_TRICKLE_PERCENTAGE, val);
@@ -1078,7 +1078,7 @@ static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int 
         if (val > li->li_dblayer_private->dblayer_cache_config) {
             delta = val - li->li_dblayer_private->dblayer_cache_config;
             if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, 0, "Error: db cachesize value is too large");
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: db cachesize value is too large");
                 LDAPDebug1Arg(LDAP_DEBUG_ANY,"Error: db cachesize value is too large.\n", val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
@@ -1209,7 +1209,7 @@ static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorb
         if (val > li->li_import_cachesize) {
             delta = val - li->li_import_cachesize;
             if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, 0, "Error: import cachesize value is too large.");
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: import cachesize value is too large.");
                 LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: import cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
@@ -1471,7 +1471,7 @@ static int ldbm_config_db_deadlock_policy_set(void *arg, void *value, char *erro
     u_int32_t val = (u_int32_t) ((uintptr_t)value);
 
     if (val > DB_LOCK_YOUNGEST) {
-	    slapi_create_errormsg(errorbuf, 0,
+	    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	                "Error: Invalid value for %s (%d). Must be between %d and %d inclusive",
 	                CONFIG_DB_DEADLOCK_POLICY, val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
 	    LDAPDebug(LDAP_DEBUG_ANY, "Error: Invalid value for deadlock policy (%d). Must be between %d and %d inclusive",
@@ -1479,7 +1479,7 @@ static int ldbm_config_db_deadlock_policy_set(void *arg, void *value, char *erro
 	    return LDAP_UNWILLING_TO_PERFORM;
     }
     if (val == DB_LOCK_NORUN) {
-	    slapi_create_errormsg(errorbuf, 0,
+	    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	                "Warning: Setting value for %s to (%d) will disable deadlock detection",
 	                CONFIG_DB_DEADLOCK_POLICY, val);
 	    LDAPDebug2Args(LDAP_DEBUG_ANY, "Warning: Setting value for %s to (%d) will disable deadlock detection",
@@ -1902,7 +1902,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     config = get_config_info(config_array, attr_name);
     if (NULL == config) {
         LDAPDebug(LDAP_DEBUG_CONFIG, "Unknown config attribute %s\n", attr_name, 0, 0);
-        slapi_create_errormsg(err_buf, 0, "Unknown config attribute %s\n", attr_name);
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown config attribute %s\n", attr_name);
         return LDAP_SUCCESS; /* Ignore unknown attributes */
     }
 
@@ -1910,7 +1910,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     if (phase == CONFIG_PHASE_RUNNING && 
         !(config->config_flags & CONFIG_FLAG_ALLOW_RUNNING_CHANGE)) {
         LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s can't be modified while the server is running.\n", attr_name);
-        slapi_create_errormsg(err_buf, 0, "%s can't be modified while the server is running.\n", attr_name);
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "%s can't be modified while the server is running.\n", attr_name);
         return LDAP_UNWILLING_TO_PERFORM;
     }
     
@@ -1928,7 +1928,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
            previously set to a non-default value */
         if (SLAPI_IS_MOD_ADD(mod_op) && apply_mod &&
             (config->config_flags & CONFIG_FLAG_PREVIOUSLY_SET)) {
-            slapi_create_errormsg(err_buf, 0, "cannot add a value to single valued attribute %s.\n", attr_name);
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "cannot add a value to single valued attribute %s.\n", attr_name);
             return LDAP_OBJECT_CLASS_VIOLATION;
         }
     }
@@ -1939,7 +1939,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         char buf[BUFSIZ];
         ldbm_config_get(arg, config, buf);
         if (PL_strncmp(buf, bval->bv_val, bval->bv_len)) {
-            slapi_create_errormsg(err_buf, 0,
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
                 "value [%s] for attribute %s does not match existing value [%s].\n", bval->bv_val, attr_name, buf);
             return LDAP_NO_SUCH_ATTRIBUTE;
         }
@@ -1956,19 +1956,19 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         llval = db_atoi(str_val, &err);
         /* check for parsing error (e.g. not a number) */
         if (err) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is not a number\n", str_val, attr_name);
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n", str_val, attr_name);
             LDAPDebug2Args(LDAP_DEBUG_ANY, "Error: value %s for attr %s is not a number\n", str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for overflow */
         } else if (LL_CMP(llval, >, llmaxint)) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is greater than the maximum %d\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
             LDAPDebug(LDAP_DEBUG_ANY, "Error: value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for underflow */
         } else if (LL_CMP(llval, <, llminint)) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is less than the minimum %d\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
             LDAPDebug(LDAP_DEBUG_ANY, "Error: value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
@@ -1996,21 +1996,21 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         llval = db_atoi(str_val, &err);
         /* check for parsing error (e.g. not a number) */
         if (err) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is not a number\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
             LDAPDebug2Args(LDAP_DEBUG_ANY, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for overflow */
         } else if (LL_CMP(llval, >, llmaxint)) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is greater than the maximum %d\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
             LDAPDebug(LDAP_DEBUG_ANY, "Error: value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for underflow */
         } else if (LL_CMP(llval, <, llminint)) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is less than the minimum %d\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
             LDAPDebug(LDAP_DEBUG_ANY, "Error: value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
@@ -2032,14 +2032,14 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
 
         /* check for parsing error (e.g. not a number) */
         if (err == EINVAL) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is not a number\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
             LDAPDebug2Args(LDAP_DEBUG_ANY, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
             /* check for overflow */
         } else if (err == ERANGE) {
-            slapi_create_errormsg(err_buf, 0, "Error: value %s for attr %s is outside the range of representable values\n",
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is outside the range of representable values\n",
                     str_val, attr_name);
             LDAPDebug2Args(LDAP_DEBUG_ANY, "Error: value %s for attr %s is outside the range of representable values\n",
                     str_val, attr_name);

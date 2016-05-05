@@ -3022,7 +3022,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
      * password to get NSS to export an encrypted
      * key which we will decrypt.
      */
-    rv = PK11_GenerateRandom(randomPassword, sizeof((const char *)randomPassword) - 1);
+    rv = PK11_GenerateRandom(randomPassword, sizeof(randomPassword) - 1);
     if (rv != SECSuccess) {
         slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key", "Failed to generate random.\n");
         goto bail;

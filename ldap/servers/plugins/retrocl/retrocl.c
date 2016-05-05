@@ -203,7 +203,7 @@ static int retrocl_select_backend(void)
     
     slapi_pblock_set(pb,SLAPI_OPERATION, op);
 
-    err = slapi_mapping_tree_select(pb,&be,&referral,errbuf);
+    err = slapi_mapping_tree_select(pb, &be, &referral, errbuf, sizeof(errbuf));
     slapi_entry_free(referral);
 
     if (err != LDAP_SUCCESS || be == NULL || be == defbackend_get_backend()) {

@@ -146,7 +146,7 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
   if ((slapi_counter_get_value(inst->inst_ref_count) > 0) ||
       /* check if the backend is ON or not. 
        * If offline or being deleted, non SUCCESS is returned. */
-      (slapi_mapping_tree_select(pb, &be, NULL, returntext) != LDAP_SUCCESS)) {
+      (slapi_mapping_tree_select(pb, &be, NULL, returntext, SLAPI_DSE_RETURNTEXT_SIZE) != LDAP_SUCCESS)) {
     *returncode = LDAP_UNAVAILABLE;
     rc = SLAPI_DSE_CALLBACK_ERROR;
     goto bail;

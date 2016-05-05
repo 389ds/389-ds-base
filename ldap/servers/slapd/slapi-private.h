@@ -681,14 +681,14 @@ PRBool slapi_mapping_tree_node_is_set (const mapping_tree_node *node,
 	PRUint32 flag); 
 Slapi_DN* slapi_mtn_get_dn(mapping_tree_node *node);
 int slapi_mapping_tree_select_and_check(Slapi_PBlock *pb,char *newdn,
-	Slapi_Backend **be, Slapi_Entry **referral, char *errorbuf);
+	Slapi_Backend **be, Slapi_Entry **referral, char *errorbuf, size_t ebuflen);
 int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
-	Slapi_Entry **referral_list, char *errorbuf);
+	Slapi_Entry **referral_list, char *errorbuf, size_t ebuflen);
 void slapi_mapping_tree_free_all(Slapi_Backend **be_list,
 	Slapi_Entry **referral_list);
 
 /* Mapping Tree */
-int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **referral, char *error_string);
+int slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **referral, char *error_string, size_t ebuflen);
 char ** slapi_mtn_get_referral(const Slapi_DN *sdn);
 int slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral);
 int slapi_mtn_set_state(const Slapi_DN *sdn, char *state);

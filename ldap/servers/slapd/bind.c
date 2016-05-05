@@ -655,7 +655,7 @@ do_bind( Slapi_PBlock *pb )
     }
 
     /* We could be serving multiple database backends.  Select the appropriate one */
-    if (slapi_mapping_tree_select(pb, &be, &referral, NULL) != LDAP_SUCCESS) {
+    if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
         send_nobackend_ldap_result( pb );
         be = NULL;
         goto free_and_return;
@@ -685,7 +685,7 @@ do_bind( Slapi_PBlock *pb )
             Slapi_DN *pb_sdn;
             slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
             if (!pb_sdn) {
-                slapi_create_errormsg(errorbuf, 0, "Pre-bind plug-in set NULL dn\n");
+                slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set NULL dn\n");
                 send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
                 goto free_and_return;
             } else if ((pb_sdn != sdn) || (sdn_updated = slapi_sdn_compare(original_sdn, pb_sdn))) {
@@ -696,7 +696,7 @@ do_bind( Slapi_PBlock *pb )
                 sdn = pb_sdn;
                 dn = slapi_sdn_get_dn(sdn);
                 if (!dn) {
-                    slapi_create_errormsg(errorbuf, 0, "Pre-bind plug-in set corrupted dn\n");
+                    slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set corrupted dn\n");
                     send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
                     goto free_and_return;
                 }
@@ -710,7 +710,7 @@ do_bind( Slapi_PBlock *pb )
                         slapi_be_Rlock(be);
                         slapi_pblock_set( pb, SLAPI_BACKEND, be );
                     } else {
-                        slapi_create_errormsg(errorbuf, 0, "No matching backend for %s\n", dn);
+                        slapi_create_errormsg(errorbuf, sizeof(errorbuf), "No matching backend for %s\n", dn);
                         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
                         goto free_and_return;
                     }

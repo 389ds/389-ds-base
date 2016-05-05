@@ -2197,22 +2197,22 @@ pw_boolean_str2value (const char *str)
 }
 
 int
-check_pw_duration_value( const char *attr_name, char *value, 
-                       long minval, long maxval, char *errorbuf )
+check_pw_duration_value(const char *attr_name, char *value,
+                        long minval, long maxval, char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
 	long age;
 
 	age = parse_duration(value);
 	if (-1 == age) {
-		slapi_create_errormsg(errorbuf, 0, "password minimum age \"%s\" is invalid. ", value);
+		slapi_create_errormsg(errorbuf, ebuflen, "password minimum age \"%s\" is invalid. ", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	} else if (0 == strcasecmp(CONFIG_PW_LOCKDURATION_ATTRIBUTE, attr_name)) {
 		if ( (age <= 0) ||
 			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
-			slapi_create_errormsg(errorbuf, 0, "%s: \"%s\" seconds is invalid. ", attr_name, value);
+			slapi_create_errormsg(errorbuf, ebuflen, "%s: \"%s\" seconds is invalid. ", attr_name, value);
 			retVal = LDAP_CONSTRAINT_VIOLATION;
 		}
 	} else {
@@ -2220,7 +2220,7 @@ check_pw_duration_value( const char *attr_name, char *value,
 			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
-			slapi_create_errormsg(errorbuf, 0, "%s: \"%s\" seconds is invalid. ", attr_name, value);
+			slapi_create_errormsg(errorbuf, ebuflen, "%s: \"%s\" seconds is invalid. ", attr_name, value);
 			retVal = LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
@@ -2229,7 +2229,8 @@ check_pw_duration_value( const char *attr_name, char *value,
 }
 
 int
-check_pw_resetfailurecount_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf )
+check_pw_resetfailurecount_value(const char *attr_name, char *value,
+                                 long minval, long maxval, char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
 	long duration = 0; /* in minutes */
@@ -2237,7 +2238,7 @@ check_pw_resetfailurecount_value( const char *attr_name, char *value, long minva
 	/* in seconds */  
 	duration = strtol (value, NULL, 0);
 	if ( duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-		slapi_create_errormsg(errorbuf, 0, "password reset count duration \"%s\" seconds is invalid.", value);
+		slapi_create_errormsg(errorbuf, ebuflen, "password reset count duration \"%s\" seconds is invalid.", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	}
 
@@ -2245,7 +2246,8 @@ check_pw_resetfailurecount_value( const char *attr_name, char *value, long minva
 }
 
 int
-check_pw_storagescheme_value( const char *attr_name, char *value, long minval, long maxval, char *errorbuf )
+check_pw_storagescheme_value(const char *attr_name, char *value,
+                             long minval, long maxval, char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
 	struct pw_scheme *new_scheme = NULL;
@@ -2255,10 +2257,10 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 	new_scheme = pw_name2scheme(value);
 	if ( new_scheme == NULL) {
 		if ( scheme_list != NULL ) {
-			slapi_create_errormsg(errorbuf, 0, "%s: invalid scheme - %s. Valid schemes are: %s",
+			slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid scheme - %s. Valid schemes are: %s",
 					CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value, scheme_list );
 		} else {
-			slapi_create_errormsg(errorbuf, 0, "%s: invalid scheme - %s (no pwdstorage scheme plugin loaded)",
+			slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid scheme - %s (no pwdstorage scheme plugin loaded)",
 					CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value);
 		}
 		retVal = LDAP_CONSTRAINT_VIOLATION;
@@ -2272,7 +2274,7 @@ check_pw_storagescheme_value( const char *attr_name, char *value, long minval, l
 		*/ 
 
 		if (scheme_list) {
-			slapi_create_errormsg(errorbuf, 0, "%s: invalid encoding scheme - %s\nValid values are: %s\n",
+			slapi_create_errormsg(errorbuf, ebuflen, "%s: invalid encoding scheme - %s\nValid values are: %s\n",
 				CONFIG_PW_STORAGESCHEME_ATTRIBUTE, value, scheme_list );
 		}
 

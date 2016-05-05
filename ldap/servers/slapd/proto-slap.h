@@ -38,8 +38,8 @@ void do_add( Slapi_PBlock *pb );
 void attr_done(Slapi_Attr *a);
 int attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn);
 int attr_replace(Slapi_Attr *a, Slapi_Value **vals);
-int attr_check_onoff ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
-int attr_check_minmax ( const char *attr_name, char *value, long minval, long maxval, char *errorbuf );
+int attr_check_onoff(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
+int attr_check_minmax(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 /**
  * Returns the function which can be used to compare (like memcmp/strcmp)
  * two values of this type of attribute.  The comparison function will use

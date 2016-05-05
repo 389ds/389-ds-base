@@ -1814,7 +1814,7 @@ config_value_is_null( const char *attrname, const char *value, char *errorbuf,
 		int or_zero_length )
 {
 	if ( NULL == value || ( or_zero_length && *value == '\0' )) {
-		slapi_create_errormsg(errorbuf, 0, "%s: deleting the value is not allowed.", attrname);
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: deleting the value is not allowed.", attrname);
 		return 1;
 	}
 
@@ -1869,7 +1869,7 @@ config_set_disk_threshold( const char *attrname, char *value, char *errorbuf, in
     errno = 0;
     threshold = strtoll(value, &endp, 10);
     if ( *endp != '\0' || threshold <= 4096 || errno == ERANGE ) {
-        slapi_create_errormsg(errorbuf, 0,
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                 "%s: \"%s\" is invalid, threshold must be greater than 4096 and less then %lld",
                 attrname, value, (long long int)LONG_MAX);
         retVal = LDAP_OPERATIONS_ERROR;
@@ -1910,7 +1910,7 @@ config_set_disk_grace_period( const char *attrname, char *value, char *errorbuf,
 
     period = strtol(value, &endp, 10);
     if ( *endp != '\0' || period < 1 || errno == ERANGE ) {
-        slapi_create_errormsg(errorbuf, 0, 
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
                 "%s: \"%s\" is invalid, grace period must be at least 1 minute", attrname, value);
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
@@ -1947,7 +1947,7 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
     size = strtol(value, &endp, 10);
     if ( *endp != '\0' || errno == ERANGE){
         retVal = LDAP_OPERATIONS_ERROR;
-        slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) is invalid\n", attrname, value);
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n", attrname, value);
         return retVal;
     }
 
@@ -1955,7 +1955,7 @@ config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf,
         size = 0; /* same as -1 */
     }
     if(size > 0 && size < 1024000){
-        slapi_create_errormsg(errorbuf, 0, 
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
                 "ndn_cache_max_size too low(%d), changing to %d bytes.\n",(int)size, NDN_DEFAULT_SIZE);
         size = NDN_DEFAULT_SIZE;
     }
@@ -1980,12 +1980,12 @@ config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, in
     size = strtol(value, &endp, 10);
     if ( *endp != '\0' || errno == ERANGE){
         retVal = LDAP_OPERATIONS_ERROR;
-        slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) is invalid\n", attrname, value);
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n", attrname, value);
         return retVal;
     }
 
     if(size < default_size){
-        slapi_create_errormsg(errorbuf, 0,
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                 "nsslapd-sasl-max-buffer-size is too low (%ld), setting to default value (%ld).\n",
                  size, default_size);
         size = default_size;
@@ -2025,7 +2025,7 @@ config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
   nPort = strtol(port, &endp, 10);
   if ( *endp != '\0' || errno == ERANGE || nPort > LDAP_PORT_MAX || nPort < 0 ) {
 	retVal = LDAP_OPERATIONS_ERROR;
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	        "%s: \"%s\" is invalid, ports must range from 0 to %d", attrname, port, LDAP_PORT_MAX);
 	return retVal;
   }
@@ -2060,7 +2060,7 @@ config_set_secureport( const char *attrname, char *port, char *errorbuf, int app
   nPort = strtol(port, &endp, 10);
   if (*endp != '\0' || errno == ERANGE || nPort > LDAP_PORT_MAX || nPort <= 0 ) {
 	retVal = LDAP_OPERATIONS_ERROR;
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	        "%s: \"%s\" is invalid, ports must range from 1 to %d", attrname, port, LDAP_PORT_MAX);
   }
   
@@ -2089,7 +2089,7 @@ config_set_SSLclientAuth( const char *attrname, char *value, char *errorbuf, int
 			strcasecmp (value, "allowed") != 0 &&
 			strcasecmp (value, "required")!= 0 ) {
 	retVal = LDAP_OPERATIONS_ERROR;
-	slapi_create_errormsg(errorbuf, 0, "%s: unsupported value: %s", attrname, value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: unsupported value: %s", attrname, value);
 	return retVal;
   }
   else if ( !apply ) {
@@ -2110,7 +2110,7 @@ config_set_SSLclientAuth( const char *attrname, char *value, char *errorbuf, int
   }
   else {
 	retVal = LDAP_OPERATIONS_ERROR;
-	slapi_create_errormsg(errorbuf, 0, "%s: unsupported value: %s", attrname, value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: unsupported value: %s", attrname, value);
   }
 
   CFG_UNLOCK_WRITE(slapdFrontendConfig);
@@ -2190,7 +2190,7 @@ config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int app
                 snmp_index = strtol(value, &endp, 10);
 
                 if (*endp != '\0' || errno == ERANGE || snmp_index < snmp_index_disable) {
-                    slapi_create_errormsg(errorbuf, 0,
+                    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                             "%s: invalid value \"%s\", %s must be greater or equal to %lu (%lu means disabled)",
                             attrname, value, CONFIG_SNMP_INDEX_ATTRIBUTE, snmp_index_disable, snmp_index_disable);
                     retVal = LDAP_OPERATIONS_ERROR;
@@ -2454,7 +2454,7 @@ config_set_sizelimit( const char *attrname, char *value, char *errorbuf, int app
   sizelimit = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || sizelimit < -1 ) {
-	slapi_create_errormsg(errorbuf, 0, "%s: \"%s\" is invalid, sizelimit must range from -1 to %lld",
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, sizelimit must range from -1 to %lld",
 			attrname, value, (long long int)LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -2498,7 +2498,7 @@ config_set_pagedsizelimit( const char *attrname, char *value, char *errorbuf, in
   pagedsizelimit = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || pagedsizelimit < -1 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	            "%s: \"%s\" is invalid, pagedsizelimit must range from -1 to %lld",
 	            attrname, value, (long long int)LONG_MAX );
 	retVal = LDAP_OPERATIONS_ERROR;
@@ -2540,10 +2540,10 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
   new_scheme = pw_name2scheme(value);
   if ( new_scheme == NULL) {
 	if ( scheme_list != NULL ) {
-		slapi_create_errormsg(errorbuf, 0, "%s: invalid scheme - %s. Valid schemes are: %s",
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid scheme - %s. Valid schemes are: %s",
 				attrname, value, scheme_list );
 	} else {
-		slapi_create_errormsg(errorbuf, 0,
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 				"%s: invalid scheme - %s (no pwdstorage scheme plugin loaded)",
 				attrname, value);
 	}
@@ -2559,7 +2559,7 @@ config_set_pw_storagescheme( const char *attrname, char *value, char *errorbuf, 
 	they are in clear. We don't take it */ 
 
 	if (scheme_list) {
-		slapi_create_errormsg(errorbuf, 0,
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 				"pw_storagescheme: invalid encoding scheme - %s\nValid values are: %s\n", value, scheme_list);
 	}
 	retVal = LDAP_UNWILLING_TO_PERFORM;
@@ -2720,7 +2720,7 @@ config_set_pw_minlength( const char *attrname, char *value, char *errorbuf, int 
   minLength = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minLength < 2 || minLength > 512 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	      "password minimum length \"%s\" is invalid. The minimum length must range from 2 to 512.", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -2753,7 +2753,7 @@ config_set_pw_mindigits( const char *attrname, char *value, char *errorbuf, int 
   minDigits = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minDigits < 0 || minDigits > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum number of digits \"%s\" is invalid. "
               "The minimum number of digits must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2787,7 +2787,7 @@ config_set_pw_minalphas( const char *attrname, char *value, char *errorbuf, int 
   minAlphas = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minAlphas < 0 || minAlphas > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum number of alphas \"%s\" is invalid. "
               "The minimum number of alphas must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2821,7 +2821,7 @@ config_set_pw_minuppers( const char *attrname, char *value, char *errorbuf, int 
   minUppers = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minUppers < 0 || minUppers > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                     "password minimum number of uppercase characters \"%s\" is invalid. "
                     "The minimum number of uppercase characters must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2855,7 +2855,7 @@ config_set_pw_minlowers( const char *attrname, char *value, char *errorbuf, int 
   minLowers = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minLowers < 0 || minLowers > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum number of lowercase characters \"%s\" is invalid. "
               "The minimum number of lowercase characters must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2889,7 +2889,7 @@ config_set_pw_minspecials( const char *attrname, char *value, char *errorbuf, in
   minSpecials = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minSpecials < 0 || minSpecials > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum number of special characters \"%s\" is invalid. "
               "The minimum number of special characters must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2923,7 +2923,7 @@ config_set_pw_min8bit( const char *attrname, char *value, char *errorbuf, int ap
   min8bit = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || min8bit < 0 || min8bit > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum number of 8-bit characters \"%s\" is invalid. "
               "The minimum number of 8-bit characters must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2957,7 +2957,7 @@ config_set_pw_maxrepeats( const char *attrname, char *value, char *errorbuf, int
   maxRepeats = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || maxRepeats < 0 || maxRepeats > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password maximum number of repeated characters \"%s\" is invalid. "
               "The maximum number of repeated characters must range from 0 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -2991,7 +2991,7 @@ config_set_pw_mincategories( const char *attrname, char *value, char *errorbuf, 
   minCategories = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minCategories < 1 || minCategories > 5 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum number of categories \"%s\" is invalid. "
               "The minimum number of categories must range from 1 to 5.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -3025,7 +3025,7 @@ config_set_pw_mintokenlength( const char *attrname, char *value, char *errorbuf,
   minTokenLength = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || minTokenLength < 1 || minTokenLength > 64 ) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "password minimum token length \"%s\" is invalid. "
               "The minimum token length must range from 1 to 64.", value);
       retVal = LDAP_OPERATIONS_ERROR;
@@ -3059,7 +3059,7 @@ config_set_pw_maxfailure( const char *attrname, char *value, char *errorbuf, int
   maxFailure = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || maxFailure <= 0 || maxFailure > 32767 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	      "password maximum retry \"%s\" is invalid. Password maximum failure must range from 1 to 32767", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -3094,7 +3094,7 @@ config_set_pw_inhistory( const char *attrname, char *value, char *errorbuf, int 
   history = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || history < 1 || history > 24 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	      "password history length \"%s\" is invalid. The password history must range from 1 to 24", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -3128,7 +3128,7 @@ config_set_pw_lockduration( const char *attrname, char *value, char *errorbuf, i
   duration = parse_duration(value);
 
   if ( errno == ERANGE || duration <= 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-	slapi_create_errormsg(errorbuf, 0, "password lockout duration \"%s\" is invalid. ", value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "password lockout duration \"%s\" is invalid. ", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -3157,7 +3157,7 @@ config_set_pw_resetfailurecount( const char *attrname, char *value, char *errorb
   duration = parse_duration(value);
 
   if ( errno == ERANGE || duration < 0 || duration > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-	slapi_create_errormsg(errorbuf, 0, "password reset count duration \"%s\" is invalid. ", value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "password reset count duration \"%s\" is invalid. ", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -3299,7 +3299,7 @@ config_set_pw_gracelimit( const char *attrname, char *value, char *errorbuf, int
   gracelimit = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || gracelimit < 0 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	      "password grace limit \"%s\" is invalid, password grace limit must range from 0 to %lld",
 	      value , (long long int)LONG_MAX);
 	retVal = LDAP_OPERATIONS_ERROR;
@@ -3522,7 +3522,7 @@ config_set_onoff(const char *attrname, char *value, int *configvalue, char *erro
   
   CFG_ONOFF_LOCK_WRITE(slapdFrontendConfig);
   if (strcasecmp(value, "on") && strcasecmp(value, "off")) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: invalid value \"%s\". Valid values are \"on\" or \"off\".", attrname, value);
     retVal = LDAP_OPERATIONS_ERROR;
   }
@@ -3725,7 +3725,7 @@ config_set_rootpw( const char *attrname, char *value, char *errorbuf, int apply 
     /* pwd enc func returns slapi_ch_malloc memory */
     slapdFrontendConfig->rootpw = (slapdFrontendConfig->rootpwstoragescheme->pws_enc)(value); 
   } else {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: password scheme mismatch (passwd scheme is %s; password is clear text)",
             attrname, slapdFrontendConfig->rootpwstoragescheme->pws_name);
     retVal = LDAP_PARAM_ERROR;
@@ -3751,10 +3751,10 @@ config_set_rootpwstoragescheme( const char *attrname, char *value, char *errorbu
 	if (errorbuf) {
 		char * scheme_list = plugin_get_pwd_storage_scheme_list(PLUGIN_LIST_PWD_STORAGE_SCHEME); 
 		if ( scheme_list ) { 
-			slapi_create_errormsg(errorbuf, 0, "%s: invalid scheme - %s. Valid schemes are: %s",
+			slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid scheme - %s. Valid schemes are: %s",
 					attrname, value, scheme_list );
 		} else {
-			slapi_create_errormsg(errorbuf, 0,
+			slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 					"%s: invalid scheme - %s (no pwdstorage scheme plugin loaded)", attrname, value);
 		}
 		slapi_ch_free_string(&scheme_list);
@@ -3834,12 +3834,12 @@ config_set_workingdir( const char *attrname, char *value, char *errorbuf, int ap
   }
 
   if ( PR_Access ( value, PR_ACCESS_EXISTS ) != 0 ) {
-	slapi_create_errormsg(errorbuf, 0, "Working directory \"%s\" does not exist.", value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Working directory \"%s\" does not exist.", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
   if ( PR_Access ( value, PR_ACCESS_WRITE_OK ) != 0 ) {
-	slapi_create_errormsg(errorbuf, 0, "Working directory \"%s\" is not writeable.", value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Working directory \"%s\" is not writeable.", value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -3889,7 +3889,7 @@ config_set_threadnumber( const char *attrname, char *value, char *errorbuf, int 
   threadnum = strtol(value, &endp, 10);
   
   if ( *endp != '\0' || errno == ERANGE || threadnum < 1 || threadnum > 65535 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	      "%s: invalid value \"%s\", maximum thread number must range from 1 to 65535", attrname, value);
 	retVal = LDAP_OPERATIONS_ERROR;
   }
@@ -3919,7 +3919,7 @@ config_set_maxthreadsperconn( const char *attrname, char *value, char *errorbuf,
   maxthreadnum = strtol(value, &endp, 10);
   
   if ( *endp != '\0' || errno == ERANGE || maxthreadnum < 1 || maxthreadnum > 65535 ) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	      "%s: invalid value \"%s\", maximum thread number per connection must range from 1 to 65535",
 	      attrname, value);
 	retVal = LDAP_OPERATIONS_ERROR;
@@ -3960,7 +3960,7 @@ config_set_maxdescriptors( const char *attrname, char *value, char *errorbuf, in
   nValue = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
-    slapi_create_errormsg(errorbuf, 0, 
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, 
         "%s: invalid value \"%s\", maximum file descriptors must range from 1 to %d (the current process limit). "
         "Server will use a setting of %d.", attrname, value, maxVal, maxVal);
     if ( nValue > maxVal ) {
@@ -4001,7 +4001,7 @@ config_set_conntablesize( const char *attrname, char *value, char *errorbuf, int
   nValue = strtol(value, &endp, 0);
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
         "%s: invalid value \"%s\", connection table size must range from 1 to %d (the current process maxdescriptors limit). "
         "Server will use a setting of %d.", attrname, value, maxVal, maxVal );
     if ( nValue > maxVal) {
@@ -4043,7 +4043,7 @@ config_set_reservedescriptors( const char *attrname, char *value, char *errorbuf
   nValue = strtol(value, &endp, 10);
   
   if ( *endp != '\0' || errno == ERANGE || nValue < 1 || nValue > maxVal ) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
         "%s: invalid value \"%s\", reserved file descriptors must range from 1 to %d (the current process maxdescriptors limit). "
         "Server will use a setting of %d.", attrname, value, maxVal, maxVal);
     if ( nValue > maxVal) {
@@ -4079,7 +4079,7 @@ config_set_ioblocktimeout( const char *attrname, char *value, char *errorbuf, in
   nValue = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || nValue < 0 ) {
-    slapi_create_errormsg(errorbuf, 0, "%s: invalid value \"%s\", I/O block timeout must range from 0 to %lld",
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", I/O block timeout must range from 0 to %lld",
             attrname, value, (long long int)LONG_MAX);
     retVal = LDAP_OPERATIONS_ERROR;
     return retVal;
@@ -4115,7 +4115,7 @@ config_set_idletimeout( const char *attrname, char *value, char *errorbuf, int a
   nValue = strtol(value, &endp, 10);
 
   if (*endp != '\0' || errno == ERANGE || nValue < 0 ) {
-    slapi_create_errormsg(errorbuf, 0, "%s: invalid value \"%s\", idle timeout must range from 0 to %lld",
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid value \"%s\", idle timeout must range from 0 to %lld",
                     attrname, value, (long long int)LONG_MAX);
     retVal = LDAP_OPERATIONS_ERROR;
     return retVal;
@@ -4148,7 +4148,7 @@ config_set_groupevalnestlevel( const char *attrname, char * value, char *errorbu
   nValue = strtol(value, &endp, 10);
   
   if ( *endp != '\0' || errno == ERANGE || nValue < 0 || nValue > 5 ) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
           "%s: invalid value \"%s\", group eval nest level must range from 0 to 5", attrname, value);
     retVal = LDAP_OPERATIONS_ERROR;
     return retVal;
@@ -4214,7 +4214,7 @@ config_set_timelimit( const char *attrname, char *value, char *errorbuf, int app
   nVal = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || nVal < -1 ) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
           "%s: invalid value \"%s\", time limit must range from -1 to %lld",
           attrname, value, (long long int)LONG_MAX );
     retVal = LDAP_OPERATIONS_ERROR;
@@ -4268,7 +4268,7 @@ config_set_accesslog( const char *attrname, char *value, char *errorbuf, int app
   retVal = log_update_accesslogdir ( value, apply );
   
   if (retVal != LDAP_SUCCESS) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
         "Cannot open accesslog directory \"%s\", client accesses will not be logged.", value);
   }
   
@@ -4293,7 +4293,7 @@ config_set_errorlog( const char *attrname, char *value, char *errorbuf, int appl
   retVal = log_update_errorlogdir ( value, apply );
   
   if ( retVal != LDAP_SUCCESS ) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
         "Cannot open errorlog file \"%s\", errors cannot be logged.  Exiting...", value);
     syslog(LOG_ERR, 
         "Cannot open errorlog file \"%s\", errors cannot be logged.  Exiting...", value);
@@ -4321,7 +4321,7 @@ config_set_auditlog( const char *attrname, char *value, char *errorbuf, int appl
     retVal = log_update_auditlogdir ( value, apply );
 
     if (retVal != LDAP_SUCCESS) {
-        slapi_create_errormsg(errorbuf, 0, "Cannot open auditlog directory \"%s\"", value);
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot open auditlog directory \"%s\"", value);
     }
 
     if ( apply ) {
@@ -4345,7 +4345,7 @@ config_set_auditfaillog( const char *attrname, char *value, char *errorbuf, int 
   retVal = log_update_auditfaillogdir ( value, apply );
   
   if (retVal != LDAP_SUCCESS) {
-	slapi_create_errormsg(errorbuf, 0, "Cannot open auditfaillog directory \"%s\"", value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot open auditfaillog directory \"%s\"", value);
   }
   
   if ( apply ) {
@@ -4373,7 +4373,7 @@ config_set_pw_maxage( const char *attrname, char *value, char *errorbuf, int app
   age = parse_duration(value);
 
   if ( age <= 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-	slapi_create_errormsg(errorbuf, 0, "%s: password maximum age \"%s\" is invalid.", attrname, value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: password maximum age \"%s\" is invalid.", attrname, value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -4398,7 +4398,7 @@ config_set_pw_minage( const char *attrname, char *value, char *errorbuf, int app
   /* age in seconds */
   age = parse_duration(value);
   if ( age < 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
-	slapi_create_errormsg(errorbuf, 0, "%s: password minimum age \"%s\" is invalid.", attrname, value);
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: password minimum age \"%s\" is invalid.", attrname, value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
   }
@@ -4425,7 +4425,7 @@ config_set_pw_warning( const char *attrname, char *value, char *errorbuf, int ap
   sec = parse_duration(value);
 
   if (errno == ERANGE || sec < 0) {
-	slapi_create_errormsg(errorbuf, 0,
+	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	       "%s: password warning age \"%s\" is invalid, password warning "
 	       "age must range from 0 to %lld seconds", 
 	       attrname, value, (long long int)LONG_MAX );
@@ -4457,7 +4457,7 @@ config_set_errorlog_level( const char *attrname, char *value, char *errorbuf, in
   level = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || level < 0 ) {
-    slapi_create_errormsg(errorbuf, 0, "%s: error log level \"%s\" is invalid,"
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: error log level \"%s\" is invalid,"
                           " error log level must range from 0 to %lld",
                           attrname, value, (long long int)LONG_MAX);
     retVal = LDAP_OPERATIONS_ERROR;
@@ -4492,7 +4492,7 @@ config_set_accesslog_level( const char *attrname, char *value, char *errorbuf, i
   level = strtol(value, &endp, 10);
 
   if ( *endp != '\0' || errno == ERANGE || level < 0 ) {
-    slapi_create_errormsg(errorbuf, 0, "%s: access log level \"%s\" is invalid,"
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: access log level \"%s\" is invalid,"
             " access log level must range from 0 to %lld",
             attrname, value, (long long int)LONG_MAX);
     retVal = LDAP_OPERATIONS_ERROR;
@@ -4516,7 +4516,7 @@ int config_set_referral_mode(const char *attrname, char *url, char *errorbuf, in
     slapdFrontendConfig->refer_mode=REFER_MODE_OFF;
 
     if ((!url) || (!url[0])) {
-        slapi_create_errormsg(errorbuf, 0, "referral url must have a value");
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "referral url must have a value");
         return LDAP_OPERATIONS_ERROR;
     }
     if (apply) {
@@ -4533,7 +4533,7 @@ config_set_versionstring( const char *attrname, char *version, char *errorbuf, i
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   if ((!version) || (!version[0])) {
-    slapi_create_errormsg(errorbuf, 0, "versionstring must have a value");
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "versionstring must have a value");
     return LDAP_OPERATIONS_ERROR;
   }
   if (apply) {
@@ -5909,7 +5909,7 @@ config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int ap
   errno = 0;
   size = strtol(value, &endp, 10);
   if ( *endp != '\0' || errno == ERANGE){
-    slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) is invalid\n",attrname, value);
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n",attrname, value);
     retVal = LDAP_OPERATIONS_ERROR;
     return retVal;
   }
@@ -5974,7 +5974,7 @@ config_set_maxsasliosize( const char *attrname, char *value, char *errorbuf, int
   }
 
   if (retVal != LDAP_SUCCESS) {
-      slapi_create_errormsg(errorbuf, 0,
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
               "%s: \"%s\" is invalid. Value must range from -1 to %lld",
               attrname, value, (long long int)LONG_MAX);
   } else if (apply) {
@@ -6028,7 +6028,7 @@ config_set_localssf( const char *attrname, char *value, char *errorbuf, int appl
   }
 
   if (retVal != LDAP_SUCCESS) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: \"%s\" is invalid. Value must range from 0 to %d", attrname, value, INT_MAX);
   } else if (apply) {
     CFG_LOCK_WRITE(slapdFrontendConfig);
@@ -6070,7 +6070,7 @@ config_set_minssf( const char *attrname, char *value, char *errorbuf, int apply 
   }
 
   if (retVal != LDAP_SUCCESS) {
-    slapi_create_errormsg(errorbuf, 0,
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
             "%s: \"%s\" is invalid. Value must range from 0 to %d", attrname, value, INT_MAX);
   } else if (apply) {
     CFG_LOCK_WRITE(slapdFrontendConfig);
@@ -6147,7 +6147,7 @@ config_set_max_filter_nest_level( const char *attrname, char *value,
   errno = 0;
   level = strtol(value, &endp, 10);
   if ( *endp != '\0' || errno == ERANGE){
-      slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) " "is invalid\n",attrname, value);
+      slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) " "is invalid\n",attrname, value);
       retVal = LDAP_OPERATIONS_ERROR;
       return retVal;
   }
@@ -6836,7 +6836,7 @@ config_set_schemareplace( const char *attrname, char *value, char *errorbuf, int
 			0 != strcasecmp( value, CONFIG_SCHEMAREPLACE_STR_ON ) && 
 			0 != strcasecmp( value, CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY )) {
 		retVal = LDAP_OPERATIONS_ERROR;
-		slapi_create_errormsg(errorbuf, 0, "unsupported value: %s", value);
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "unsupported value: %s", value);
 	}
   }
 
@@ -6868,7 +6868,7 @@ config_set_outbound_ldap_io_timeout( const char *attrname, char *value,
 	errno = 0;
 	timeout = strtol(value, &endp, 10);
 	if ( *endp != '\0' || errno == ERANGE){
-		slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) is invalid\n",attrname, value);
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n",attrname, value);
 		return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -6926,7 +6926,7 @@ config_set_anon_access_switch( const char *attrname, char *value,
 
 	if ((strcasecmp(value, "on") != 0) && (strcasecmp(value, "off") != 0) &&
 	    (strcasecmp(value, "rootdse") != 0)) {
-		slapi_create_errormsg(errorbuf, 0,
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 		        "%s: invalid value \"%s\". Valid values are \"on\", \"off\", or \"rootdse\".", attrname, value);
 		retVal = LDAP_OPERATIONS_ERROR;
 	}
@@ -6963,7 +6963,7 @@ config_set_validate_cert_switch( const char *attrname, char *value,
 
 	if ((strcasecmp(value, "on") != 0) && (strcasecmp(value, "off") != 0) &&
 	    (strcasecmp(value, "warn") != 0)) {
-		slapi_create_errormsg(errorbuf, 0,
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 		        "%s: invalid value \"%s\". Valid values are \"on\", \"off\", or \"warn\".", attrname, value);
 		retVal = LDAP_OPERATIONS_ERROR;
 	}
@@ -7217,7 +7217,7 @@ config_set_default_naming_context(const char *attrname,
         int in_init = 0;
         suffix = slapi_create_dn_string("%s", value);
         if (NULL == suffix) {
-            slapi_create_errormsg(errorbuf, 0, "%s is not a valid suffix.", value);
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s is not a valid suffix.", value);
             return LDAP_INVALID_DN_SYNTAX;
         }
         sdn = slapi_get_first_suffix(&node, 0);
@@ -7232,7 +7232,7 @@ config_set_default_naming_context(const char *attrname,
             sdn = slapi_get_next_suffix(&node, 0);
         }
         if (!in_init && (NULL == sdn)) { /* not in startup && no match */
-            slapi_create_errormsg(errorbuf, 0, "%s is not an existing suffix.", value);
+            slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s is not an existing suffix.", value);
             slapi_ch_free_string(&suffix);
             return LDAP_NO_SUCH_OBJECT;
         }
@@ -7273,7 +7273,7 @@ config_set_unhashed_pw_switch(const char *attrname, char *value,
 
     if ((strcasecmp(value, "on") != 0) && (strcasecmp(value, "off") != 0) &&
         (strcasecmp(value, "nolog") != 0)) {
-        slapi_create_errormsg(errorbuf, 0,
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                 "%s: invalid value \"%s\". Valid values are \"on\", \"off\", or \"nolog\".", attrname, value);
         retVal = LDAP_OPERATIONS_ERROR;
     }
@@ -7464,7 +7464,7 @@ config_set_connection_buffer( const char *attrname, char *value,
 
     if ((strcasecmp(value, "0") != 0) && (strcasecmp(value, "1") != 0) &&
         (strcasecmp(value, "2") != 0)) {
-        slapi_create_errormsg(errorbuf, 0,
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
                 "%s: invalid value \"%s\". Valid values are \"0\", \"1\", or \"2\".", attrname, value);
         retVal = LDAP_OPERATIONS_ERROR;
     }
@@ -7492,7 +7492,7 @@ config_set_listen_backlog_size( const char *attrname, char *value,
 	errno = 0;
 	size = strtol(value, &endp, 10);
 	if ( *endp != '\0' || errno == ERANGE){
-		slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) is invalid\n", attrname, value);
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n", attrname, value);
 		return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -7573,7 +7573,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 #if 0
 		debugHashTable(attr);
 #endif
-		slapi_create_errormsg(errorbuf, 0, "Unknown attribute %s will be ignored", attr);
+		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored", attr);
 		slapi_log_error(SLAPI_LOG_FATAL, "config_set", "Unknown attribute %s will be ignored", attr);
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
@@ -8007,7 +8007,7 @@ config_set_maxsimplepaged_per_conn( const char *attrname, char *value, char *err
   errno = 0;
   size = strtol(value, &endp, 10);
   if ( *endp != '\0' || errno == ERANGE){
-    slapi_create_errormsg(errorbuf, 0, "(%s) value (%s) is invalid\n", attrname, value);
+    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "(%s) value (%s) is invalid\n", attrname, value);
     return LDAP_OPERATIONS_ERROR;
   }
 
@@ -8068,7 +8068,7 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
     errno = 0;
     mxfast = strtol(value, &endp, 10);
     if ((*endp != '\0') || (errno == ERANGE)) {
-        slapi_create_errormsg(errorbuf, 0, "limit \"%s\" is invalid, %s must range from 0 to %d",
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "limit \"%s\" is invalid, %s must range from 0 to %d",
                               value, CONFIG_MALLOC_MXFAST, max);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -8109,7 +8109,7 @@ config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorb
     errno = 0;
     trim_threshold = strtol(value, &endp, 10);
     if ((*endp != '\0') || (errno == ERANGE)) {
-        slapi_create_errormsg(errorbuf, 0, "limit \"%s\" is invalid, %s must range from 0 to %lld",
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "limit \"%s\" is invalid, %s must range from 0 to %lld",
                               value, CONFIG_MALLOC_TRIM_THRESHOLD, (long long int)LONG_MAX);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -8158,7 +8158,7 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
     errno = 0;
     mmap_threshold = strtol(value, &endp, 10);
     if ((*endp != '\0') || (errno == ERANGE)) {
-        slapi_create_errormsg(errorbuf, 0, "limit \"%s\" is invalid, %s must range from 0 to %d",
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "limit \"%s\" is invalid, %s must range from 0 to %d",
                               value, CONFIG_MALLOC_MMAP_THRESHOLD, max);
         return LDAP_OPERATIONS_ERROR;
     }

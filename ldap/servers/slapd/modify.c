@@ -66,7 +66,7 @@ mod_op_image (int op)
 #endif
 
 /* an AttrCheckFunc function should return an LDAP result code (LDAP_SUCCESS if all goes well). */
-typedef int (*AttrCheckFunc)(const char *attr_name, char *value, long minval, long maxval, char *errorbuf);
+typedef int (*AttrCheckFunc)(const char *attr_name, char *value, long minval, long maxval, char *errorbuf, size_t ebuflen);
 
 static struct attr_value_check {
 	const char *attr_name; /* the name of the attribute */
@@ -711,7 +711,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 	 * appropriate one.
 	 */
 	errorbuf[0] = '\0';
-	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf)) != LDAP_SUCCESS) {
+	if ((err = slapi_mapping_tree_select(pb, &be, &referral, errorbuf, sizeof(errorbuf))) != LDAP_SUCCESS) {
 		send_ldap_result(pb, err, NULL, errorbuf, 0, NULL);
 		be = NULL;
 		goto free_and_return;
@@ -766,7 +766,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 							 */
 							if ( (err = AttrValueCheckList[i].checkfunc (AttrValueCheckList[i].attr_name,
 								(*tmpmods)->mod_bvalues[0]->bv_val, AttrValueCheckList[i].minval,
-								AttrValueCheckList[i].maxval, errorbuf))
+								AttrValueCheckList[i].maxval, errorbuf, sizeof(errorbuf)))
 								!= LDAP_SUCCESS)
 							{
 								/* return error */
