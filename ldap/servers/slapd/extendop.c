@@ -381,9 +381,7 @@ do_extended( Slapi_PBlock *pb )
                     slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c abort with result %d \n", txn_rc);
                 }
             } /* txn_rc */
-            if (be_pb != NULL) {
-                slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
-            }
+            slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
         } /* if be */
     }
 

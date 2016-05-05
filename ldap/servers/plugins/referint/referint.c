@@ -1699,6 +1699,11 @@ referint_validate_config(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_entry);
+    if (!pre_entry) {
+        slapi_log_error(SLAPI_LOG_FATAL, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config: Null pre op entry.\n");
+        rc = LDAP_OPERATIONS_ERROR;
+        goto bail;
+    }
 
     if (referint_sdn_config_cmp(sdn) == 0 && slapi_sdn_compare(sdn, referint_get_plugin_area()) ){
         /*

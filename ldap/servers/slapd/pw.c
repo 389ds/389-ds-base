@@ -2879,7 +2879,7 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     char *shexp = NULL;
     int rc = 0;
 
-    if (!e && !*e) {
+    if (!e || !*e) {
         return rc;
     }
     dn = slapi_entry_get_ndn(*e);

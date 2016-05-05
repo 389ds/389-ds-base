@@ -217,8 +217,12 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 		{
 		size_t newsize;
 		const char *dn = slapi_sdn_get_dn(sdn);
-		newsize = strlen(dn) + strlen(str) + 200;
-		if (dn && (newsize > sizeof(line))) {
+		if (dn) {
+			newsize = strlen(dn) + strlen(str) + 200;
+		} else {
+			newsize = strlen(str) + 208; /* for "NULL" */
+		}
+		if (newsize > sizeof(line)) {
 			/*
 			 * if (str_length + dn_length + 200 char message) > (BUFSIZ + 200) line
 			 * we have to make space for a bigger line...

@@ -1163,10 +1163,14 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         slapi_pblock_set(pb, SLAPI_BACKEND, be);
     } else {
         slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+        if (!be) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "No backend\n");
+            return_value = -1;
+            goto bye;
+        }
         inst = (ldbm_instance *)be->be_instance_info;
-
-        if (NULL == inst) {
-            LDAPDebug(LDAP_DEBUG_ANY, "Unknown ldbm instance\n", 0, 0, 0);
+        if (!inst) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "Unknown ldbm instance\n");
             return_value = -1;
             goto bye;
         }

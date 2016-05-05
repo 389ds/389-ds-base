@@ -4506,6 +4506,9 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
     int i, j;
     int rc = 0;
 
+    if (!oc) {
+        return LDAP_PARAM_ERROR;
+    }
     if (config_get_enquote_sup_oc()) {
         parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
     } else if (getenv("LDAP_SCHEMA_ALLOW_QUOTED")) {
