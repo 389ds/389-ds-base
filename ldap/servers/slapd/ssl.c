@@ -2676,11 +2676,12 @@ gen_pem_path(char *filename)
     char *pempath = NULL;
     char *dname = NULL;
     char *bname = NULL;
-    char *certdir = config_get_certdir();
+    char *certdir = NULL;
 
     if (!filename) {
         goto bail;
     }
+    certdir = config_get_certdir();
     pem = PL_strstr(filename, PEMEXT);
     if (pem) {
         *pem = '\0';
@@ -2698,6 +2699,7 @@ gen_pem_path(char *filename)
         pempath = slapi_ch_smprintf("%s/%s/%s%s", certdir, dname, bname, PEMEXT);
     }
 bail:
+    slapi_ch_free_string(&certdir);
     return pempath;
 }
 
@@ -2705,7 +2707,7 @@ static int
 slapd_extract_cert(Slapi_Entry *entry, int isCA)
 {
     CERTCertDBHandle *certHandle;
-    char *certdir = config_get_certdir();
+    char *certdir = NULL;
     CERTCertListNode *node;
     CERTCertList *list = PK11_ListCerts(PK11CertListAll, NULL);
     PRFileDesc *outFile = NULL;
@@ -2733,6 +2735,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
         CACertPemFile = certfile;
     }
 
+    certdir = config_get_certdir();
     certHandle = CERT_GetDefaultCertDB();
     for (node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
          node = CERT_LIST_NEXT(node)) {
@@ -2805,6 +2808,7 @@ bail:
         slapi_ch_free_string(&certfile);
     }
     slapi_ch_free_string(&personality);
+    slapi_ch_free_string(&certdir);
     if (outFile) {
         PR_Close(outFile);
     }
@@ -2982,7 +2986,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     char *b64 = NULL;
     PRUint32 total = 0;
     PRUint32 numBytes = 0;
-    char *certdir = config_get_certdir();
+    char *certdir = NULL;
 #if defined(ENCRYPTEDKEY)
     char *keyEncPwd = NULL;
     SVRCOREError err = SVRCORE_Success;
@@ -3040,6 +3044,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
                         "nsSSLPersonalitySSL value not found.\n");
         goto bail;
     }
+    certdir = config_get_certdir();
     keyfile = gen_pem_path(KeyExtractFile);
     if (!keyfile) {
         char buf[BUFSIZ];
@@ -3141,6 +3146,7 @@ bail:
     slapi_ch_free_string(&certdir);
     slapi_ch_free_string(&KeyExtractFile);
     slapi_ch_free_string(&keyfile);
+    slapi_ch_free_string(&personality);
     if (outFile) {
         PR_Close(outFile);
     }
