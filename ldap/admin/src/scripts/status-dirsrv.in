@@ -40,7 +40,7 @@ status_instance() {
         @bindir@/systemctl status @package_name@@$SERV_ID.service
         rv=$?
         if [ $rv -ne 0 ]; then
-            return $rv
+            return 1
         fi
     fi
     return 0
@@ -64,7 +64,7 @@ fi
 found=0
 if [ $# -eq 0 ]; then
     # We're reporting the status of all instances.
-    ret=-1
+    ret=0
     @bindir@/systemctl status @package_name@.target
     initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
     for i in $initfiles; do
@@ -73,10 +73,8 @@ if [ $# -eq 0 ]; then
         status_instance $inst
         rv=$?
         #if one of them is successful, return 0.
-        if [ $ret -gt -1 ]; then
-            ret=`expr $ret \& $rv`
-        else
-            ret=$rv
+        if [ $rv -ne 0 ]; then
+            ret=`expr $ret + 1`
         fi
     done
     exit $ret

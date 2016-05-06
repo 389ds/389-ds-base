@@ -37,10 +37,10 @@ Sample usage:
 .TP
 .B status-dirsrv example
 .br
-.SH EXIST STATUS
-status-dirsrv returns 0 if all Directory Server instances are running.  Otherwise, a non-zero failure code returned from systemctl is returned.
+.SH EXIT STATUS
+status-dirsrv returns 0 if all Directory Server instances are running.  Otherwise, it returns a positive value which represents the number of server instances which are not running.
 
-If a single Directory Server instance is specified, 0 is returned if the instance is running; a non-zero failure code returned from systemctl is returned if the instance is not running; 255 is returned if the instance does not exist.
+If a single Directory Server instance is specified, 0 is returned if the instance is running; 1 is returned if the instance is not running; 255 is returned if the instance does not exist.
 .br
 .SH AUTHOR
 status\-dirsrv was written by the 389 Project.
