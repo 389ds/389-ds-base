@@ -17,23 +17,15 @@
 # nunc-stans only builds on x86_64 for now
 # To build without nunc-stans, set use_nunc_stans to 0.
 %global use_nunc_stans __NUNC_STANS_ON__
-%if 0%{?use_nunc_stans:1}
+%if %{use_nunc_stans}
 %global nunc_stans_ver 0.1.8
-%endif
-
-# Are we bundling jemalloc?
-%global bundle_jemalloc __BUNDLE_JEMALLOC__
-%if 0%{?bundle_jemalloc:1}
-# The version used in the source tarball
-%global jemalloc_ver 3.6.0
 %endif
 
 # This enables an ASAN build. This should not go to production, so we rename.
 %global use_asan __ASAN_ON__
-%if 0%{?use_asan:1}
+%if %{use_asan}
 %global variant base-asan
 %endif
-
 
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
@@ -60,7 +52,7 @@ Provides:         ldif2ldbm
 
 BuildRequires:    nspr-devel
 BuildRequires:    nss-devel
-BuildRequires:    svrcore-devel
+BuildRequires:    svrcore-devel >= 4.1.2
 %if %{use_openldap}
 BuildRequires:    openldap-devel
 %else
@@ -89,7 +81,7 @@ BuildRequires:    tcp_wrappers
 BuildRequires:    pam-devel
 BuildRequires:    systemd-units
 BuildRequires:    systemd-devel
-%if 0%{?use_asan:1}
+%if %{use_asan}
 BuildRequires:    libasan
 %endif
 
@@ -138,7 +130,7 @@ Requires:         perl-Socket
 Requires:         perl-NetAddr-IP
 Requires:         systemd-libs
 
-%if 0%{?use_asan:1}
+%if %{use_asan}
 Requires:    libasan
 Requires:    llvm
 %endif
@@ -147,15 +139,11 @@ Source0:          http://port389.org/sources/%{name}-%{version}%{?prerel}.tar.bz
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README
-
-%if 0%{?bundle_jemalloc:1}
-Source3:          http://www.port389.org/binaries/jemalloc-%{jemalloc_ver}.tar.bz2
-%endif
-%if 0%{?use_nunc_stans:1}
-Source4:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
+%if %{use_nunc_stans}
+Source3:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
 %endif
 
-%if 0%{?use_asan:1}
+%if %{use_asan}
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
 the LDAP server and command line utilities for server administration.
@@ -187,16 +175,10 @@ BuildRequires:    libdb-devel
 BuildRequires:    cyrus-sasl-devel
 BuildRequires:    libicu-devel
 BuildRequires:    pcre-devel
-%if 0%{?use_nunc_stans:1}
+%if %{use_nunc_stans}
 BuildRequires:    libtalloc-devel
 BuildRequires:    libevent-devel
 BuildRequires:    libtevent-devel
-%endif
-%if 0%{?bundle_jemalloc:1}
-BuildRequires:    /usr/bin/xsltproc
-%ifnarch s390
-BuildRequires:    valgrind-devel
-%endif
 %endif
 BuildRequires:    systemd-devel
 
@@ -240,16 +222,13 @@ The lib389 CI tests that can be run against the Directory Server.
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
 
-%if 0%{?bundle_jemalloc:1}
+%if %{use_nunc_stans}
 %setup -q -n %{name}-%{version}%{?prerel} -T -D -b 3
-%endif
-%if 0%{?use_nunc_stans:1}
-%setup -q -n %{name}-%{version}%{?prerel} -T -D -b 4
 %endif
 cp %{SOURCE2} README.devel
 
 %build
-%if 0%{?use_nunc_stans:1}
+%if %{use_nunc_stans}
 pushd ../nunc-stans-%{nunc_stans_ver}
 %configure --with-fhs --libdir=%{_libdir}/%{pkgname}
 make %{?_smp_mflags}
@@ -257,13 +236,6 @@ mkdir -p lib
 cp .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
 mkdir -p include/nunc-stans
 cp nunc-stans.h include/nunc-stans/nunc-stans.h
-popd
-%endif
-
-%if 0%{?bundle_jemalloc:1}
-pushd ../jemalloc-%{jemalloc_ver}
-%configure CFLAGS='%{optflags} -msse2' --libdir=%{_libdir}/%{pkgname}
-make %{?_smp_mflags}
 popd
 %endif
 
@@ -278,7 +250,7 @@ NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-
 NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_stans_ver}" 
 %endif
 
-%if 0%{?use_asan:1}
+%if %{use_asan}
 ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
 
@@ -301,17 +273,11 @@ make %{?_smp_mflags}
 %install
 rm -rf $RPM_BUILD_ROOT 
 
-%if 0%{?use_nunc_stans:1}
+%if %{use_nunc_stans}
 pushd ../nunc-stans-%{nunc_stans_ver}
 make DESTDIR="$RPM_BUILD_ROOT" install
 rm -rf $RPM_BUILD_ROOT%{_includedir} $RPM_BUILD_ROOT%{_datadir} \
     $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/pkgconfig
-popd
-%endif
-
-%if 0%{?bundle_jemalloc:1}
-pushd ../jemalloc-%{jemalloc_ver}
-cp --preserve=links lib/libjemalloc.so* $RPM_BUILD_ROOT%{_libdir}/%{pkgname}
 popd
 %endif
 
@@ -474,11 +440,8 @@ fi
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_includedir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so
-%if 0%{?use_nunc_stans:1}
+%if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so
-%endif
-%if 0%{?bundle_jemalloc:1}
-%{_libdir}/%{pkgname}/libjemalloc.so
 %endif
 %{_libdir}/pkgconfig/*
 
@@ -488,11 +451,8 @@ fi
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd.so*
-%if 0%{?use_nunc_stans:1}
+%if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so*
-%endif
-%if 0%{?bundle_jemalloc:1}
-%{_libdir}/%{pkgname}/libjemalloc.so*
 %endif
 
 %files tests
