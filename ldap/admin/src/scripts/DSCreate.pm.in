@@ -719,16 +719,17 @@ sub startServer {
     # We have to do this because docker is incapable of sane process management
     # Sadly we have to sacrifice output collection, because of perl issues
     my $cpid = open(my $output, "-|", "$startcmd 2>&1");
+    my $code = -512;
     if ($cpid) {
         # Parent process
         waitpid($cpid,0);
+        $code = $?;
     }
     close($output);
-    my $code = $?;
     if ($code) {
-        debug(0, "Process returned $code");
+        debug(0, "Process returned $code\n");
     } else {
-        debug(1, "Process returned $code");
+        debug(1, "Process returned $code\n");
     }
 
     # try to open the server error log

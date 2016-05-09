@@ -80,15 +80,15 @@ start_instance() {
         loop_counter=`expr $loop_counter + 1`
         if test -f $PIDFILE ; then
             PID=`cat $PIDFILE`
-            return 0;
-        else
-            # I'm not sure what this meant to achieve, but $PID is 0 here.
-            if kill -s 0 $PID > /dev/null 2>&1 ; then
-                sleep 1
+            # if kill -s 0 $PID > /dev/null 2>&1 ; then
+            if kill -s 0 $PID ; then
+                return 0;
             else
                 echo Server failed to start !!! Please check errors log for problems
                 return 1
             fi
+        else
+            sleep 1
         fi
     done
     echo Server not running!! Failed to start ns-slapd process.  Please check the errors log for problems.
