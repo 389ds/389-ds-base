@@ -6,7 +6,8 @@ use File::Basename;
 use File::Copy;
 use DSUtil qw(debug serverIsRunning);
 
-no warnings 'experimental::smartmatch';
+# no warnings 'experimental::smartmatch';
+no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 
 #
 # Check if there is a DES plugin and make sure the AES plugin contains the same attributes
