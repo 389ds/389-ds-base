@@ -103,24 +103,22 @@ if test "$with_systemd" = yes; then
     fi
     AC_SUBST(with_systemdsystemconfdir)
 
-    if test -n "$with_systemdsystemunitdir" -o -n "$with_systemdsystemconfdir" ; then
-       if test -z "$with_systemdgroupname" ; then
-          with_systemdgroupname=$PACKAGE_NAME.target
-       fi
-       AC_MSG_CHECKING(for --with-systemdgroupname)
-       AC_ARG_WITH([systemdgroupname],
-            AS_HELP_STRING([--with-systemdgroupname=NAME],
-                           [Name of group target for all instances (default: $with_systemdgroupname)])
-       )
-       if test "$with_systemdgroupname" = yes ; then
-          AC_MSG_ERROR([You must specify --with-systemdgroupname=name.of.group])
-       elif test "$with_systemdgroupname" = no ; then
-          AC_MSG_ERROR([You must specify --with-systemdgroupname=name.of.group])
-       else
-          AC_MSG_RESULT([$with_systemdgroupname])
-       fi
-       AC_SUBST(with_systemdgroupname)
+    if test -z "$with_systemdgroupname" ; then
+       with_systemdgroupname=$PACKAGE_NAME.target
     fi
+    AC_MSG_CHECKING(for --with-systemdgroupname)
+    AC_ARG_WITH([systemdgroupname],
+         AS_HELP_STRING([--with-systemdgroupname=NAME],
+                        [Name of group target for all instances (default: $with_systemdgroupname)])
+    )
+    if test "$with_systemdgroupname" = yes ; then
+       AC_MSG_ERROR([You must specify --with-systemdgroupname=name.of.group])
+    elif test "$with_systemdgroupname" = no ; then
+       AC_MSG_ERROR([You must specify --with-systemdgroupname=name.of.group])
+    else
+       AC_MSG_RESULT([$with_systemdgroupname])
+    fi
+    AC_SUBST(with_systemdgroupname)
 
 
 fi
