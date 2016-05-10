@@ -1058,6 +1058,9 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     Slapi_Entry *e = NULL;
     PRBool enableSSL2 = PR_FALSE;
     PRBool enableSSL3 = PR_FALSE;
+    int enableTLS10 = -1;
+    int enableTLS11 = -1;
+    int enableTLS12 = -1;
     PRBool enableTLS1 = PR_TRUE;
     PRBool fipsMode = PR_FALSE;
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
@@ -1414,6 +1417,39 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             }
         }
         slapi_ch_free_string( &val );
+        val = slapi_entry_attr_get_charptr( e, "nsTLS10" );
+        if ( val ) {
+            if ( !strcasecmp( val, "off" ) ) {
+                enableTLS10 = 0;
+            } else if ( !strcasecmp( val, "on" ) ) {
+                enableTLS10 = 1;
+            } else {
+                enableTLS10 = slapi_entry_attr_get_bool(e, "nsTLS10")?1:0;
+            }
+        }
+        slapi_ch_free_string( &val );
+        val = slapi_entry_attr_get_charptr( e, "nsTLS11" );
+        if ( val ) {
+            if ( !strcasecmp( val, "off" ) ) {
+                enableTLS11 = 0;
+            } else if ( !strcasecmp( val, "on" ) ) {
+                enableTLS11 = 1;
+            } else {
+                enableTLS11 = slapi_entry_attr_get_bool(e, "nsTLS11")?1:0;
+            }
+        }
+        slapi_ch_free_string( &val );
+        val = slapi_entry_attr_get_charptr( e, "nsTLS12" );
+        if ( val ) {
+            if ( !strcasecmp( val, "off" ) ) {
+                enableTLS12 = 0;
+            } else if ( !strcasecmp( val, "on" ) ) {
+                enableTLS12 = 1;
+            } else {
+                enableTLS12 = slapi_entry_attr_get_bool(e, "nsTLS12")?1:0;
+            }
+        }
+        slapi_ch_free_string( &val );
         val = slapi_entry_attr_get_charptr( e, "nsTLS1" );
         if ( val ) {
             if ( !strcasecmp( val, "off" ) ) {
@@ -1430,25 +1466,40 @@ int slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
     if (NSSVersionMin > 0) {
         char mymin[VERSION_STR_LENGTH], mymax[VERSION_STR_LENGTH];
+        NSSVersionMax = enabledNSSVersions.max;
         /* Use new NSS API SSL_VersionRangeSet (NSS3.14 or newer) */
-        if (enableTLS1) {
+        if ((enableTLS10 >= 0) || (enableTLS11 >= 0) || (enableTLS12 >= 0)) {
+            if (enableTLS10 > 0) {
+                NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
+            } else if (enableTLS11 > 0) {
+                NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_1;
+            } else if (enableTLS12 > 0) {
+                NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_2;
+            } else if (enableTLS1) {
+                NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
+            } else if (enableSSL3) {
+                NSSVersionMin = SSL_LIBRARY_VERSION_3_0;
+                NSSVersionMax = SSL_LIBRARY_VERSION_3_0;
+            } else {
+                slapd_SSL_error("SSL Initialization 2: all SSL version parameters are off. "
+                                "Enable nsTLS1 or nsTLS10, nsTLS11, nsTLS12.");
+                return 0;
+            }
+        } else if (enableTLS1) {
             NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
-        } else {
+        } else if (enableSSL3) {
             NSSVersionMin = SSL_LIBRARY_VERSION_3_0;
             NSSVersionMax = SSL_LIBRARY_VERSION_3_0;
-        }
-        if (enableSSL3) {
-            NSSVersionMin = SSL_LIBRARY_VERSION_3_0;
-        } else if (!enableTLS1) {
-            slapd_SSL_error("SSL Initialization 2: Both nsSSL3 and nsTLS1 are off.  Enabling nsTLS1.");
-            NSSVersionMin = SSL_LIBRARY_VERSION_TLS_1_0;
-            NSSVersionMax = enabledNSSVersions.max;
+        } else {
+            slapd_SSL_error("SSL Initialization 2: all SSL version parameters are off. "
+                            "Enable nsTLS1 or nsTLS10, nsTLS11, nsTLS12.");
+            return 0;
         }
         slapdNSSVersions.min = NSSVersionMin;
         slapdNSSVersions.max = NSSVersionMax;
         (void) slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
         (void) slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
-        slapi_log_error(SLAPI_LOG_CONFIG, "SSL Initialization",
+        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
                         "Configured SSL version range: min: %s, max: %s\n",
                         mymin, mymax);
         sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
