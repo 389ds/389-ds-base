@@ -1784,10 +1784,10 @@ int util_is_cachesize_sane(size_t *cachesize)
         (unsigned long)cachepages,(unsigned long)availpages,0);
 
     if (!issane) {
-        /* Since we are ask for more than what's available, we give half of
+        /* Since we are ask for more than what's available, we give 3/4 of the remaining.
          * the remaining system mem to the cachesize instead, and log a warning
          */
-        *cachesize = (size_t)((availpages / 2) * pagesize);
+        *cachesize = (size_t)((availpages * 0.75 ) * pagesize);
         slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
     }
 #else

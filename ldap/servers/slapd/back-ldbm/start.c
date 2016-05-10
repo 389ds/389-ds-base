@@ -35,6 +35,10 @@ ldbm_back_start( Slapi_PBlock *pb )
   char *home_dir;
   int action;
   int retval; 
+  int issane = 0;
+  PRUint64 total_cache_size = 0;
+  size_t pagesize, pages, procpages, availpages;
+  char *msg; /* This will be set by one of the two cache sizing paths below. */
 
   LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend starting\n", 0, 0, 0 );
 
@@ -116,8 +120,6 @@ ldbm_back_start( Slapi_PBlock *pb )
       LDAPDebug( LDAP_DEBUG_ANY, "cache autosizing: bad settings, "
         "value or sum of values can not larger than 100.\n", 0, 0, 0 );
   } else {
-      size_t pagesize, pages, procpages, availpages;
-
       if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0) {
           LDAPDebug( LDAP_DEBUG_ANY, "start: Unable to determine system page limits\n",
                 0, 0, 0 );
@@ -130,47 +132,73 @@ ldbm_back_start( Slapi_PBlock *pb )
           Object *inst_obj;
           ldbm_instance *inst;   
           PRUint64 cache_size;
+          PRUint64 dncache_size;
           PRUint64 db_size;
-          PRUint64 total_cache_size = 0;
+#ifndef LINUX
           PRUint64 memsize = pages * pagesize;
-          PRUint64 extra = 0; /* e.g., dncache size */
+#endif
+          if (li->li_cache_autosize == 0) {
+              /* First, set our message. */
+              msg = "This can be corrected by altering the values of nsslapd-dbcachesize, nsslapd-cachememsize and nsslapd-dncachememsize\n";
 
-          for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
-               inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-              inst = (ldbm_instance *)object_get_data(inst_obj);
-              cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
-              db_size = dblayer_get_id2entry_size(inst);
-              if (cache_size < db_size) {
-                  LDAPDebug(LDAP_DEBUG_ANY,
-                            "WARNING: %s: entry cache size %" NSPRIu64 "B is "
-                            "less than db size %" NSPRIu64 "B; "
-                            "We recommend to increase the entry cache size "
-                            "nsslapd-cachememsize.\n",
-                            inst->inst_name, cache_size, db_size);
-              } else {
+              for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
+                   inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
+                  inst = (ldbm_instance *)object_get_data(inst_obj);
+                  cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
+                  db_size = dblayer_get_id2entry_size(inst);
+                  if (cache_size < db_size) {
+                      LDAPDebug(LDAP_DEBUG_ANY,
+                                "WARNING: %s: entry cache size %llu B is "
+                                "less than db size %llu B; "
+                                "We recommend to increase the entry cache size "
+                                "nsslapd-cachememsize.\n",
+                                inst->inst_name, cache_size, db_size);
+                  } else {
+                      LDAPDebug(LDAP_DEBUG_BACKLDBM,
+                                "%s: entry cache size: %llu B; db size: %llu B\n",
+                                inst->inst_name, cache_size, db_size);
+                  }
+                  /* Get the dn_cachesize */
+                  dncache_size = (PRUint64)cache_get_max_size(&(inst->inst_dncache));
+                  total_cache_size += cache_size + dncache_size;
                   LDAPDebug(LDAP_DEBUG_BACKLDBM,
-                            "%s: entry cache size: %" NSPRIu64 "B; db size: %" NSPRIu64 "B\n",
-                            inst->inst_name, cache_size, db_size);
+                            "total cache size: %llu B; \n",
+                            total_cache_size, 0 ,0 );
               }
-              total_cache_size += cache_size;
-              /* estimated overhead: dncache size * 2 */
-              extra += (PRUint64)cache_get_max_size(&(inst->inst_dncache)) * 2;
-          }
-          LDAPDebug(LDAP_DEBUG_BACKLDBM,
-                    "Total entry cache size: %" NSPRIu64 "B; "
-                    "dbcache size: %" NSPRIu64 "B; "
-                    "available memory size: %" NSPRIu64 "B\n",
-                    total_cache_size, (PRUint32)li->li_dbcachesize, memsize - extra);
+              LDAPDebug(LDAP_DEBUG_BACKLDBM,
+                        "Total entry cache size: %llu B; "
+                        "dbcache size: %llu B; "
+                        "available memory size: %llu B; \n",
+#ifdef LINUX
+                        (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
+#else
+                        (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, memsize
+#endif
+                );
+
           /* autosizing dbCache and entryCache */
-          if (li->li_cache_autosize > 0) {
+          } else if (li->li_cache_autosize > 0) {
+              msg = "This can be corrected by altering the values of nsslapd-cache-autosize, nsslapd-cache-autosize-split and nsslapd-dncachememsize\n";
               zone_pages = (li->li_cache_autosize * pages) / 100;
-              /* now split it according to user prefs */
+              size_t zone_size = zone_pages * pagesize;
+              /* This is how much we "might" use, lets check it's sane. */
+              /* In the case it is not, this will *reduce* the allocation */
+              issane = util_is_cachesize_sane(&zone_size);
+              if (!issane) {
+                  LDAPDebug(LDAP_DEBUG_ANY, "Your autosized cache values have been reduced. Likely your nsslapd-cache-autosize percentage is too high.\n", 0,0,0);
+                  LDAPDebug(LDAP_DEBUG_ANY, msg, 0,0,0);
+              }
+              /* It's valid, lets divide it up and set according to user prefs */
+              zone_pages = zone_size / pagesize;
               db_pages = (li->li_cache_autosize_split * zone_pages) / 100;
-              /* fudge an extra instance into our calculations... */
-              entry_pages = (zone_pages - db_pages) /
-                      (objset_size(li->li_instance_set) + 1);
+              entry_pages = (zone_pages - db_pages) / objset_size(li->li_instance_set);
+              /* We update this for the is-sane check below. */
+              total_cache_size = (zone_pages - db_pages) * pagesize;
+
               LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing. found %dk physical memory\n",
                 pages*(pagesize/1024), 0, 0);
+              LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing. found %dk avaliable\n",
+                zone_pages*(pagesize/1024), 0, 0);
               LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing: db cache: %dk, "
                 "each entry cache (%d total): %dk\n",
                 db_pages*(pagesize/1024), objset_size(li->li_instance_set),
@@ -193,6 +221,10 @@ ldbm_back_start( Slapi_PBlock *pb )
                   cache_set_max_entries(&(inst->inst_cache), -1);
                   cache_set_max_size(&(inst->inst_cache),
                                     li->li_cache_autosize_ec, CACHE_TYPE_ENTRY);
+                  /* We need to get each instances dncache size to add to the total */
+                  /* Else we can't properly check the cache allocations below */
+                  /* Trac 48831 exists to allow this to be auto-sized too ... */
+                  total_cache_size += (PRUint64)cache_get_max_size(&(inst->inst_dncache));
               }
           }    
           /* autosizing importCache */
@@ -202,6 +234,10 @@ ldbm_back_start( Slapi_PBlock *pb )
                     li->li_import_cache_autosize = 50;
               }
               import_pages = (li->li_import_cache_autosize * pages) / 100;
+              size_t import_size = import_pages * pagesize;
+              issane = util_is_cachesize_sane(&import_size);
+              /* We just accept the reduced allocation here. */
+              import_pages = import_size / pagesize;
               LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing: import cache: %dk \n",
                 import_pages*(pagesize/1024), NULL, NULL);
     
@@ -210,6 +246,29 @@ ldbm_back_start( Slapi_PBlock *pb )
           }
       }
   }
+
+  /* Finally, lets check that the total result is sane. */
+
+  size_t total_size = total_cache_size + (PRUint64)li->li_dbcachesize;
+  issane = util_is_cachesize_sane(&total_size);
+  if (!issane) {
+    /* Right, it's time to panic */
+    LDAPDebug( LDAP_DEBUG_ANY, "CRITICAL: It is highly likely your memory configuration will EXCEED your systems memory.\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_ANY,
+              "Total entry cache size: %llu B; "
+              "dbcache size: %llu B; "
+              "available memory size: %llu B; \n",
+#ifdef LINUX
+              (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
+#else
+              (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, memsize
+#endif
+    );
+    LDAPDebug(LDAP_DEBUG_ANY, msg, 0,0,0);
+    return SLAPI_FAIL_GENERAL;
+  }
+
+
 
   retval = check_db_version(li, &action);
   if (0 != retval)
