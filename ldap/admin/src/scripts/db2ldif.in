@@ -104,11 +104,11 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;; 
-        n) benameopt="-n $OPTARG"
+        n) benameopt=$benameopt" -n $OPTARG"
            required_param="yes";;
-        s) includeSuffix="-s \"$OPTARG\""
+        s) includeSuffix=$includeSuffix" -s \"$OPTARG\""
            required_param="yes";;
-        x) excludeSuffix="-x \"$OPTARG\"";;
+        x) excludeSuffix=$excludeSuffix" -x \"$OPTARG\"";;
         a) outputFile="-a \"$OPTARG\"";;
         d) args=$args" -d \"$OPTARG\"";;
         D) args=$args" -D \"$OPTARG\"";;
