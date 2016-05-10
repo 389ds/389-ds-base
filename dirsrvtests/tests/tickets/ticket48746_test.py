@@ -3,7 +3,7 @@ import sys
 import time
 import ldap
 import logging
-#import pytest
+import pytest
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
