@@ -371,9 +371,9 @@ def isLocalHost(host_name):
 
     # next, see if this IP addr is one of our
     # local addresses
-    p = my_popen(['/sbin/ifconfig', '-a'], stdout=PIPE)
+    p = my_popen(['/sbin/ip', 'addr'], stdout=PIPE)
     child_stdout = p.stdout.read()
-    found = ('inet addr:' + ip_addr) in child_stdout
+    found = ('inet ' + ip_addr) in child_stdout
     p.wait()
 
     return found
