@@ -61,7 +61,7 @@ AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
 AM_LDFLAGS = $(ASAN_DEFINES)
-endif
+endif #end hpux
 
 #------------------------
 # Linker Flags
@@ -89,7 +89,7 @@ PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
-DLOPEN_LINK = -ldl
+
 SYSTEMD_LINK = @systemd_lib@
 
 
@@ -1751,7 +1751,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) @sasl_inc@ @openldap_inc@ @ldapsdk_inc@ @nss_inc@ \
 	@nspr_inc@ @svrcore_inc@ @systemd_inc@
-ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(DLOPEN_LINK) \
+ns_slapd_LDADD = libslapd.la libldaputil.a $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(SVRCORE_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK)
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
@@ -1946,7 +1946,7 @@ endif
 if SYSTEMD
 	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
 else
-	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d}' -e '/^$$/{p;d}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
+	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d;}' -e '/^$$/{p;d;}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
 	$(fixupcmd) $(srcdir)/ldap/admin/src/initconfig.in >> $@
 endif
 
@@ -1955,7 +1955,7 @@ endif
 if SYSTEMD
 	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
 else
-	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d}' -e '/^$$/{p;d}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
+	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d;}' -e '/^$$/{p;d;}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
 endif
 
 %/$(PACKAGE_NAME).pc: %/dirsrv.pc.in

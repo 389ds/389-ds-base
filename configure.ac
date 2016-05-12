@@ -39,7 +39,7 @@ AC_PROG_LIBTOOL
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h unistd.h inttypes.h mntent.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h malloc.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/file.h sys/socket.h sys/time.h unistd.h inttypes.h mntent.h sys/sysinfo.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
@@ -67,6 +67,9 @@ AC_FUNC_STRERROR_R
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([clock_gettime endpwent ftruncate getcwd gethostbyname inet_ntoa localtime_r memmove memset mkdir munmap putenv rmdir setrlimit socket strcasecmp strchr strcspn strdup strerror strncasecmp strpbrk strrchr strstr strtol tzset])
+
+# This will detect if we need to add the LIBADD_DL value for us.
+LT_LIB_DLLOAD
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
@@ -550,6 +553,15 @@ case $host in
     AC_SUBST([LIBCRYPT], [$LIBCRYPT])
     AC_DEFINE([USE_POSIX_RWLOCKS], [1], [POSIX rwlocks])
     ;;
+  *-*-freebsd*)
+    AC_DEFINE([FREEBSD], [1], [FreeBSD])
+    platform="freebsd"
+    initdir='$(sysconfdir)/rc.d'
+    THREADLIB=-lthr
+    AC_SUBST([THREADLIB], [$THREADLIB])
+    AC_DEFINE([USE_POSIX_RWLOCKS], [1], [POSIX rwlocks])
+    LIBDL=
+    ;;
   ia64-hp-hpux*)
     AC_DEFINE([hpux], [1], [HP-UX])
     AC_DEFINE([HPUX], [1], [HP-UX])
@@ -654,6 +666,7 @@ AC_SUBST(initconfigdir)
 
 AM_CONDITIONAL([HPUX],[test "$platform" = "hpux"])
 AM_CONDITIONAL([SOLARIS],[test "$platform" = "solaris"])
+AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])
 
 # Check for library dependencies
 m4_include(m4/nspr.m4)
