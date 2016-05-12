@@ -1155,6 +1155,7 @@ replica_is_updatedn (Replica *r, const Slapi_DN *sdn)
     if (r->updatedn_list) {
         result = replica_updatedn_list_ismember(r->updatedn_list, sdn);
         if (result == PR_TRUE) {
+            /* sdn is present in the updatedn_list */
             replica_unlock(r->repl_lock);
             return result;
         }

@@ -284,7 +284,10 @@ replica_updatedn_list_ismember(ReplicaUpdateDNList list, const Slapi_DN *dn)
 
 	/* Bug 605169 - null ndn would cause core dump */
 	if ( ndn ) {
-		ret = (PRBool)((uintptr_t)PL_HashTableLookupConst(hash, ndn));
+		if ((uintptr_t)PL_HashTableLookupConst(hash, ndn))
+                    ret = PR_TRUE;
+                else
+                    ret = PR_FALSE;
 	}
 
 	return ret;
