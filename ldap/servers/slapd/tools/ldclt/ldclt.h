@@ -172,6 +172,11 @@ dd/mm/yy | Author	| Comments
 #if defined(USE_OPENLDAP)
 #define ABS(x) ((x > 0) ? (x) : (-x))
 #endif
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 /*
  * Misc constant definitions
  */

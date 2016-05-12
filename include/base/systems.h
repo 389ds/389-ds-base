@@ -142,6 +142,32 @@
 #define NET_SOCKETS
 #define SHMEM_MMAP_FLAGS MAP_SHARED
 
+#elif defined(__FreeBSD__)
+
+#define ACCELERATOR_CACHE
+#define DNS_CACHE
+#define FILE_INHERIT_FCNTL
+#define DAEMON_UNIX_MOBRULE
+#define BSD_RLIMIT
+#define BSD_SIGNALS
+#define FILE_UNIX_MMAP
+#define FILE_MMAP_FLAGS (MAP_FILE | MAP_SHARED)
+#define SHMEM_UNIX_MMAP
+#define SHMEM_MMAP_FLAGS MAP_SHARED
+#define AUTH_DBM
+#define SEM_FLOCK
+#define DLL_CAPABLE
+#define DLL_DLOPEN
+#define DLL_DLOPEN_FLAGS RTLD_NOW
+#define HAVE_ATEXIT
+#define HAS_STATFS
+#define JAVA_STATIC_LINK
+#undef NEED_CRYPT_PROTO
+#define NET_SOCKETS
+#ifndef NO_DOMAINNAME
+#define NO_DOMAINNAME
+#endif
+
 #else
 #error "Missing defines in ns/netsite/include/base/systems.h"
 #endif

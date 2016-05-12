@@ -124,7 +124,7 @@
  * Are sys_errlist and sys_nerr declared in stdio.h?
  */
 #ifndef SYSERRLIST_IN_STDIO
-#if defined( freebsd ) || defined(Linux)
+#if defined( __FreeBSD__ ) || defined(Linux)
 #define SYSERRLIST_IN_STDIO
 #endif
 #endif
@@ -250,7 +250,7 @@ int strncasecmp(const char *, const char *, size_t);
     defined(UNIXWARE) || defined(SUNOS4) || defined(SNI) || defined(BSDI) || \
     defined(NCR) || defined(OSF1) || defined(NEC) || \
     ( defined(HPUX10) && !defined(_REENTRANT)) || defined(HPUX11) || \
-    defined(UnixWare) || defined(LINUX2_0)
+    defined(UnixWare) || defined(LINUX2_0) || defined (__FreeBSD__)
 #define GETHOSTBYNAME( n, r, b, l, e )  gethostbyname( n )
 #elif defined(AIX)
 #define GETHOSTBYNAME_BUF_T struct hostent_data
@@ -282,7 +282,7 @@ typedef char GETHOSTBYADDR_buf_t [BUFSIZ];
 
 
 #if defined(HPUX9) || defined(LINUX1_2) || defined(SUNOS4) || defined(SNI) || \
-    defined(SCOOS) || defined(BSDI) || defined(NCR) || \
+    defined(SCOOS) || defined(BSDI) || defined(NCR) || defined (__FreeBSD__) || \
     defined(NEC) || ( defined(HPUX10) && !defined(_REENTRANT)) 
 #define CTIME( c, b, l )		ctime( c )
 #elif defined( hpux10 )
@@ -312,7 +312,7 @@ char *strtok_r(char *, const char *, char **);
 extern char *strdup();
 #endif /* ultrix || nextstep */
 
-#if defined( sunos4 ) || defined( OSF1 )
+#if defined( sunos4 ) || defined( OSF1 ) || defined (__FreeBSD__)
 #define	BSD_TIME	1	/* for servers/slapd/log.h */
 #endif /* sunos4 || osf */
 

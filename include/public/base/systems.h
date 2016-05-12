@@ -65,6 +65,15 @@
 #define SHMEM_UNIX_MMAP
 #define ZERO(ptr,len) memset(ptr,0,len)
 
+#elif defined(__FreeBSD__)
+
+#define FILE_UNIX
+#define FILE_UNIX_MMAP
+#define MALLOC_POOLS
+#define SEM_FLOCK
+#define SHMEM_UNIX_MMAP
+#define ZERO(ptr,len) memset(ptr,0,len)
+
 #else
 #error "Missing defines in ns/netsite/include/public/base/systems.h"
 #endif
