@@ -66,6 +66,15 @@
 #include <ldap_ssl.h>
 #include <ldappr.h>
 #else
+
+#ifdef HAVE_HEIMDAL_KERBEROS
+#include <com_err.h>
+#endif
+
+#ifndef MAX_KEYTAB_NAME_LEN
+#define MAX_KEYTAB_NAME_LEN 1100
+#endif
+
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
 static PRCallOnceType ol_init_callOnce = {0,0,0};
 static PRLock *ol_init_lock = NULL;
@@ -1667,7 +1676,11 @@ show_one_credential(int authtracelevel,
     char *logname = "show_one_credential";
     krb5_error_code rc;
     char *name = NULL, *sname = NULL;
+#ifdef HAVE_HEIMDAL_KERBEROS
+    krb5_timestamp startts, endts, renewts;
+#else
     char startts[BUFSIZ], endts[BUFSIZ], renewts[BUFSIZ];
+#endif
 
     if ((rc = krb5_unparse_name(ctx, cred->client, &name))) {
         slapi_log_err(SLAPI_LOG_ERR, logname,
@@ -1684,6 +1697,13 @@ show_one_credential(int authtracelevel,
     if (!cred->times.starttime) {
         cred->times.starttime = cred->times.authtime;
     }
+#ifdef HAVE_HEIMDAL_KERBEROS
+    slapi_log_error(authtracelevel, logname,
+                    "\tKerberos credential: client [%s] server [%s] "
+                    "start time [%s] end time [%s] renew time [%s] "
+                    "flags [0x%x]\n", name, sname, ctime(&startts), ctime(&endts),
+                    ctime(&renewts), (uint32_t)cred->flags.i);
+#else
     krb5_timestamp_to_sfstring((krb5_timestamp)cred->times.starttime,
                                startts, sizeof(startts), NULL);
     krb5_timestamp_to_sfstring((krb5_timestamp)cred->times.endtime,
@@ -1696,6 +1716,7 @@ show_one_credential(int authtracelevel,
                     "start time [%s] end time [%s] renew time [%s] "
                     "flags [0x%x]\n", name, sname, startts, endts,
                     renewts, (uint32_t)cred->ticket_flags);
+#endif
 
 cleanup:
     krb5_free_unparsed_name(ctx, name);
@@ -1796,8 +1817,13 @@ credentials_are_valid(
        order to set mcreds.server required in order
        to use krb5_cc_retrieve_creds() */
     /* get default realm first */
+#ifdef HAVE_HEIMDAL_KERBEROS
+    realm_str = krb5_principal_get_realm(ctx, princ);
+    realm_len = krb5_realm_length(realm_str);
+#else
     realm_len = krb5_princ_realm(ctx, princ)->length;
     realm_str = krb5_princ_realm(ctx, princ)->data;
+#endif
     tgs_princ_name = slapi_ch_smprintf("%s/%*s@%*s", KRB5_TGS_NAME,
                                        realm_len, realm_str,
                                        realm_len, realm_str);

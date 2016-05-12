@@ -11,7 +11,9 @@
 #  include <config.h>
 #endif
 
-#include <malloc.h>
+/* This was malloc.h - but it's moved to stdlib.h on most platforms, and FBSD is strict */
+/* Make it stdlib.h, and revert to malloc.h with ifdefs if we have issues here. WB 2016 */
+#include <stdlib.h>
 #include <ldap.h>
 #undef OFF
 #undef LITTLE_ENDIAN
@@ -31,7 +33,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pwd.h> /* getpwnam */
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(__FreeBSD__)
 union semun {
     int val;
     struct semid_ds *buf;
@@ -58,6 +60,11 @@ union semun {
 
 #ifndef LDAP_DONT_USE_SMARTHEAP
 #include "smrtheap.h"
+#endif
+
+#ifdef LINUX
+/* For mallopt. Should be removed soon. */
+#include <malloc.h>
 #endif
 
 /* Forward Declarations */

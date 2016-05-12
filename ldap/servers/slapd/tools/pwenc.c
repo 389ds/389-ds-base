@@ -16,7 +16,7 @@
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#if defined(LINUX) /* I bet other Unix would like
+#if defined(LINUX) || defined(__FreeBSD__) /* I bet other Unix would like
 					* this flag. But don't want to
 					* break other builds so far */
 #include <unistd.h>

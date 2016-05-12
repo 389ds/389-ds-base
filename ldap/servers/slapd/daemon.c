@@ -39,10 +39,14 @@
 #endif /* NEED_FILIO */
 /* for some reason, linux tty stuff defines CTIME */
 #include <stdio.h>
+#if defined(LINUX) || defined(__FreeBSD__)
 #ifdef LINUX
 #undef CTIME
 #include <sys/statfs.h>
-#else
+#endif /* linux*/
+#include <sys/param.h>
+#include <sys/mount.h>
+#else  /* Linux or fbsd */
 #include <sys/statvfs.h>
 #include <sys/mnttab.h>
 #endif
@@ -346,7 +350,7 @@ disk_mon_get_mount_point(char *dir)
 
     return NULL;
 }
-#else /* Linux */
+#elif LINUX /* Linux */
 char *
 disk_mon_get_mount_point(char *dir)
 {
@@ -376,6 +380,17 @@ disk_mon_get_mount_point(char *dir)
 
     return NULL;
 }
+#elif __FreeBSD__
+char *
+disk_mon_get_mount_point(char *dir)
+{
+    struct statfs sb;
+    if (statfs(dir, &sb) != 0) {
+        return NULL;
+    }
+
+    return slapi_ch_strdup(sb.f_mntonname);
+}
 #endif
 
 /*
@@ -387,8 +402,9 @@ disk_mon_add_dir(char ***list, char *directory)
 {
     char *dir = disk_mon_get_mount_point(directory);
 
-    if(dir == NULL)
+    if(dir == NULL) {
         return;
+    }
 
     if(!charray_inlist(*list,dir)){
         slapi_ch_array_add(list, dir);
@@ -444,7 +460,7 @@ disk_mon_get_dirs(char ***list, int logs_critical){
 char *
 disk_mon_check_diskspace(char **dirs, PRUint64 threshold, PRUint64 *disk_space)
 {
-#ifdef LINUX
+#if defined(LINUX) || defined(__FreeBSD__)
     struct statfs buf;
 #else
     struct statvfs buf;
@@ -457,10 +473,10 @@ disk_mon_check_diskspace(char **dirs, PRUint64 threshold, PRUint64 *disk_space)
     int i = 0;
 
     for(i = 0; dirs && dirs[i]; i++){
-#ifndef LINUX
-        if (statvfs(dirs[i], &buf) != -1)
-#else
+#if defined(LINUX) || defined(__FreeBSD__)
         if (statfs(dirs[i], &buf) != -1)
+#else
+        if (statvfs(dirs[i], &buf) != -1)
 #endif
         {
             LL_UI2L(freeBytes, buf.f_bavail);

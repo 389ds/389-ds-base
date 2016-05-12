@@ -24,7 +24,7 @@
 #include <resolv.h>
 #include <errno.h>
 #include "slap.h"
-#if defined(USE_SYSCONF) || defined(LINUX)
+#if defined(USE_SYSCONF) || defined(LINUX) || defined( __FreeBSD__ )
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 

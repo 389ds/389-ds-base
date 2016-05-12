@@ -1601,7 +1601,12 @@ _entryrdn_open_index(backend *be, struct attrinfo **ai, DB **dbp)
     /* Open the entryrdn index */
     ainfo_get(be, LDBM_ENTRYRDN_STR, ai);
     if (NULL == *ai) {
-        rc = ENODATA;
+        /*
+         * ENODATA exists on linux, but not other platforms. Change to -1, as
+         * all callers to this function only ever check != 0.
+         */
+        slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_open_index", "EntryRDN str for attrinfo is null, unable to proceed.\n");
+        rc = -1;
         goto bail;
     }
     inst = (ldbm_instance *)be->be_instance_info;

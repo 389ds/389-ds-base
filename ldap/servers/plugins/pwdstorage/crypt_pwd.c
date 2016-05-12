@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#if defined( hpux ) || defined (LINUX)
+#if defined( hpux ) || defined (LINUX) || defined (__FreeBSD__)
 #ifndef __USE_XOPEN
 #define __USE_XOPEN     /* linux */
 #endif /* __USE_XOPEN */

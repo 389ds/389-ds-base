@@ -40,7 +40,11 @@
 #include <pk11func.h>
 #include <sys/types.h>
 #include <sys/time.h>
+
+#ifdef HAVE_SYS_SYSINFO_H
 #include <sys/sysinfo.h>
+#endif
+
 #include <sys/utsname.h>
 #include <unistd.h>     /* gethostname() */
 #include "slap.h"

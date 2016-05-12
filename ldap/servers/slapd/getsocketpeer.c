@@ -94,10 +94,13 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 	iov.iov_len = sizeof(dummy);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
+#ifndef __FreeBSD__
 	msg.msg_accrights = (caddr_t)&pass_sd;
 	msg.msg_accrightslen = sizeof(pass_sd); /* Initialize it with 8 bytes. 
 											   If recvmsg is successful,
 											   4 is supposed to be returned. */
+
+#endif
 	/* 
 	   Since PR_SockOpt_Nonblocking is set to the socket,
 	   recvmsg returns immediately if no data is waiting to be received.
@@ -107,7 +110,11 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 	while ((rc = recvmsg(fd, &msg, MSG_PEEK)) < 0 && (EAGAIN == (myerrno = errno)) && retrycnt-- >= 0)
 		;
 
+#ifdef __FreeBSD__
+	if (rc >= 0)
+#else
 	if (rc >= 0 && msg.msg_accrightslen == sizeof(int))
+#endif
 	{
 		struct stat st;
 

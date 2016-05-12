@@ -16,7 +16,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/time.h>
+
+/* What platforms actually need this? */
+#ifdef HAVE_SYS_SYSINFO_H
 #include <sys/sysinfo.h>
+#endif
+
 #include <sys/utsname.h>
 #include "nspr.h"
 #include "slap.h"
