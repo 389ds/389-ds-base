@@ -166,6 +166,7 @@ use Mozilla::LDAP::Conn;	# LDAP module for Perl
 use Mozilla::LDAP::Utils qw(normalizeDN);	# LULU, utilities.
 use Mozilla::LDAP::API qw(:api :ssl :apiv3 :constant); # Direct access to C API
 use Time::Local; # to convert GMT Z strings to localtime
+use POSIX;
 
 #
 # Global variables
@@ -206,7 +207,7 @@ my %ld;
 
 my ($opt_f, $opt_h, $opt_p, $opt_u, $opt_t, $opt_r, $opt_s);
 my (@conns, @alias, @color);
-my ($section, $interval, $nowraw, $now, $mm, $dd, $tt, $yy, $wday);
+my ($section, $interval, $now, $mm, $dd, $tt, $yy, $wday);
 my ($fn, $rc, $prompt, $last_sidx);
 my $supplierUrl = "";
 my %passwords = ();
@@ -242,9 +243,7 @@ $prompt = "";
 	$interval = 300 if ( !$interval || $interval <= 0 );
 
 	# Get current date/time
-	$nowraw = localtime();
-	($wday, $mm, $dd, $tt, $yy) = split(/ /, $nowraw);
-	$now = "$wday $mm $dd $yy $tt";
+	$now = strftime "%a %b %e %Y %H:%M:%S", localtime;
 
 	# if no -r (Reenter and skip html header), print html header
 	if (!$opt_r) {
