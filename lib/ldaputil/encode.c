@@ -12,7 +12,9 @@
 #endif
 
 
-#include <malloc.h>
+/* This was malloc.h - but it's moved to stdlib.h on most platforms, and FBSD is strict */
+/* Make it stdlib.h, and revert to malloc.h with ifdefs if we have issues here. WB 2016 */
+#include <stdlib.h>
 #include <string.h>
 #include <ldaputil/certmap.h>
 #include <ldaputil/encode.h>

@@ -15,7 +15,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <malloc.h>
+/* This was malloc.h - but it's moved to stdlib.h on most platforms, and FBSD is strict */
+/* Make it stdlib.h, and revert to malloc.h with ifdefs if we have issues here. WB 2016 */
+#include <stdlib.h>
 
 /* removed for ns security integration
 #include <sec.h>
