@@ -25,6 +25,10 @@ static char *build_date = "14-JULY-2016";
 #define IDDS_SYSV_INCLUDE 1
 #endif
 
+#if defined(__FreeBSD__)
+#define IDDS_BSD_INCLUDE 1
+#endif
+
 #include <sys/types.h>
 
 #if !defined(__VMS)
