@@ -42,12 +42,12 @@ typedef struct critical {
 	PRLock		*lock;
 	PRUint32	count;
 	PRThread	*owner;
-} critical_t;
+} ns_critical_t;
 
 typedef struct condvar {
-	critical_t	*lock;
+	ns_critical_t	*lock;
 	PRCondVar	*cvar;
-} condvar_t;
+} ns_condvar_t;
 
 #endif
 /* -------------------------- critical sections --------------------------- */
@@ -57,7 +57,7 @@ typedef struct condvar {
 NSAPI_PUBLIC int crit_owner_is_me(CRITICAL id)
 {
 #ifdef USE_NSPR
-    critical_t *crit = (critical_t*)id;
+    ns_critical_t *crit = (ns_critical_t*)id;
 
     return (crit->owner == PR_GetCurrentThread());
 #else
@@ -68,7 +68,7 @@ NSAPI_PUBLIC int crit_owner_is_me(CRITICAL id)
 NSAPI_PUBLIC CRITICAL crit_init(void)
 {
 #ifdef USE_NSPR
-    critical_t *crit = (critical_t*)PERM_MALLOC(sizeof(critical_t)) ;
+    ns_critical_t *crit = (ns_critical_t*)PERM_MALLOC(sizeof(ns_critical_t)) ;
 
     if (crit) {
         if (!(crit->lock = PR_NewLock())) {
@@ -87,7 +87,7 @@ NSAPI_PUBLIC CRITICAL crit_init(void)
 NSAPI_PUBLIC void crit_enter(CRITICAL id)
 {
 #ifdef USE_NSPR
-    critical_t *crit = (critical_t*)id;
+    ns_critical_t *crit = (ns_critical_t*)id;
     PRThread *me = PR_GetCurrentThread();
 
     if ( crit->owner == me) {
@@ -106,7 +106,7 @@ NSAPI_PUBLIC void crit_enter(CRITICAL id)
 NSAPI_PUBLIC void crit_exit(CRITICAL id)
 {
 #ifdef USE_NSPR
-    critical_t	*crit = (critical_t*)id;
+    ns_critical_t	*crit = (ns_critical_t*)id;
 
     if (crit->owner != PR_GetCurrentThread()) 
         return;
@@ -121,7 +121,7 @@ NSAPI_PUBLIC void crit_exit(CRITICAL id)
 NSAPI_PUBLIC void crit_terminate(CRITICAL id)
 {
 #ifdef USE_NSPR
-    critical_t	*crit = (critical_t*)id;
+    ns_critical_t	*crit = (ns_critical_t*)id;
 
     PR_DestroyLock((PRLock*)crit->lock);
     PERM_FREE(crit);
@@ -135,9 +135,9 @@ NSAPI_PUBLIC void crit_terminate(CRITICAL id)
 NSAPI_PUBLIC CONDVAR condvar_init(CRITICAL id)
 {
 #ifdef USE_NSPR
-    critical_t	*crit = (critical_t*)id;
+    ns_critical_t	*crit = (ns_critical_t*)id;
 
-    condvar_t *cvar = (condvar_t*)PERM_MALLOC(sizeof(condvar_t)) ;
+    ns_condvar_t *cvar = (ns_condvar_t*)PERM_MALLOC(sizeof(ns_condvar_t)) ;
 
     if (crit) {
         cvar->lock = crit;
@@ -153,7 +153,7 @@ NSAPI_PUBLIC CONDVAR condvar_init(CRITICAL id)
 NSAPI_PUBLIC void condvar_wait(CONDVAR _cv)
 {
 #ifdef USE_NSPR
-    condvar_t *cv = (condvar_t *)_cv;
+    ns_condvar_t *cv = (ns_condvar_t *)_cv;
     /* Save away recursion count so we can restore it after the wait */
     int saveCount = cv->lock->count;
     PRThread *saveOwner = cv->lock->owner;
@@ -170,10 +170,10 @@ NSAPI_PUBLIC void condvar_wait(CONDVAR _cv)
 }
 
 
-NSAPI_PUBLIC void condvar_timed_wait(CONDVAR _cv, long secs)
+NSAPI_PUBLIC void ns_condvar_timed_wait(CONDVAR _cv, long secs)
 {
 #ifdef USE_NSPR
-    condvar_t *cv = (condvar_t *)_cv;
+    ns_condvar_t *cv = (ns_condvar_t *)_cv;
     /* Save away recursion count so we can restore it after the wait */
     int saveCount = cv->lock->count;
     PRThread *saveOwner = cv->lock->owner;
@@ -197,7 +197,7 @@ NSAPI_PUBLIC void condvar_timed_wait(CONDVAR _cv, long secs)
 NSAPI_PUBLIC void condvar_notify(CONDVAR _cv)
 {
 #ifdef USE_NSPR
-    condvar_t *cv = (condvar_t *)_cv;
+    ns_condvar_t *cv = (ns_condvar_t *)_cv;
     PR_ASSERT(cv->lock->owner == PR_GetCurrentThread());
     PR_NotifyCondVar(cv->cvar);
 #endif
@@ -206,16 +206,16 @@ NSAPI_PUBLIC void condvar_notify(CONDVAR _cv)
 NSAPI_PUBLIC void condvar_notifyAll(CONDVAR _cv)
 {
 #ifdef USE_NSPR
-    condvar_t *cv = (condvar_t *)_cv;
+    ns_condvar_t *cv = (ns_condvar_t *)_cv;
     PR_ASSERT(cv->lock->owner == PR_GetCurrentThread());
     PR_NotifyAllCondVar(cv->cvar);
 #endif
 }
 
-NSAPI_PUBLIC void condvar_terminate(CONDVAR _cv)
+NSAPI_PUBLIC void ns_condvar_terminate(CONDVAR _cv)
 {
 #ifdef USE_NSPR
-    condvar_t *cv = (condvar_t *)_cv;
+    ns_condvar_t *cv = (ns_condvar_t *)_cv;
     PR_DestroyCondVar(cv->cvar);
     PERM_FREE(cv);
 #endif
@@ -297,7 +297,7 @@ cs_terminate(COUNTING_SEMAPHORE csp)
 	/* usfreesema() */
 	return;
 #else
-	condvar_terminate(cs->cv);
+	ns_condvar_terminate(cs->cv);
 	crit_terminate(cs->cv_lock);
 	crit_terminate(cs->lock);
 	PERM_FREE(cs);

@@ -213,7 +213,7 @@ NSAPI_PUBLIC int file_notfound(void)
     return (errno == ENOENT);
 }
 
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(__FreeBSD__)
 extern char *sys_errlist[];
 #endif
 

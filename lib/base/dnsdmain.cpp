@@ -40,7 +40,7 @@ extern int getdomainname(char *, size_t);
 #else 
 extern int getdomainname(char *, int);
 #endif /* Linux */
-#if defined(HPUX) || defined(Linux) || defined(SOLARIS_GCC)
+#if defined(HPUX) || defined(Linux) || defined(SOLARIS_GCC) || defined(__FreeBSD__)
 extern int gethostname (char *name, size_t namelen);
 #else
 extern int gethostname (char *name, int namelen);
