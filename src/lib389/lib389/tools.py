@@ -222,10 +222,21 @@ class DirSrvTools(object):
                 pass
 
         log.info("Setup error log")
-        logfp = open(errLog, 'r')
-        logfp.seek(0, os.SEEK_END)  # seek to end
-        pos = logfp.tell()  # get current position
-        logfp.seek(pos, os.SEEK_SET)  # reset the EOF flag
+        try:
+            logfp = open(errLog, 'r')
+            logfp.seek(0, os.SEEK_END)  # seek to end
+            pos = logfp.tell()  # get current position
+            logfp.seek(pos, os.SEEK_SET)  # reset the EOF flag
+        except IOError as e:
+            if e.errno == 2:
+                # No error log - just create one and move on
+                try:
+                    open(errLog, 'w').close()  # Create empty file
+                    logfp = open(errLog, 'r')  # now open it for reading
+                except:
+                    done = True
+            else:
+                done = True
 
         log.warn("Running command: %r" % (fullCmd))
         rc = os.system("%s" % (fullCmd))
@@ -296,6 +307,9 @@ class DirSrvTools(object):
 
     @staticmethod
     def start(self, verbose=False, timeout=120):
+        """
+        Start a server
+        """
         if not self.isLocal and hasattr(self, 'asport'):
             log.debug("starting remote server %s " % self)
             cgiargs = {}
@@ -888,10 +902,12 @@ class DirSrvTools(object):
 
     @staticmethod
     def createAndSetupReplica(createArgs, repArgs):
-        # pass this sub two dicts - the first one is a dict suitable to create
-        # a new instance - see createInstance for more details
-        # the second is a dict suitable for replicaSetupAll -
-        # see replicaSetupAll
+        """
+        Pass this sub two dicts - the first one is a dict suitable to create
+        a new instance - see createInstance for more details
+        the second is a dict suitable for replicaSetupAll -
+        see replicaSetupAll
+        """
         conn = DirSrvTools.createInstance(createArgs)
         if not conn:
             print("Error: could not create server", createArgs)
@@ -902,6 +918,9 @@ class DirSrvTools(object):
 
     @staticmethod
     def makeGroup(group=DEFAULT_USER):
+        """
+        Create a system group
+        """
         try:
             grp.getgrnam(group)
             print("OK group %s exists" % group)
@@ -912,6 +931,9 @@ class DirSrvTools(object):
 
     @staticmethod
     def makeUser(user=DEFAULT_USER, group=DEFAULT_USER, home=DEFAULT_USERHOME):
+        """
+        Create a system user
+        """
         try:
             pwd.getpwnam(user)
             print("OK user %s exists" % user)
@@ -923,12 +945,18 @@ class DirSrvTools(object):
 
     @staticmethod
     def lib389User(user=DEFAULT_USER):
+        """
+        Create the lib389 user/group
+        """
         DirSrvTools.makeGroup(group=user)
         time.sleep(1)  # Need a little time for the group to get fully created
         DirSrvTools.makeUser(user=user, group=user, home=DEFAULT_USERHOME)
 
     @staticmethod
     def searchHostsFile(expectedHost, ipPattern=None):
+        """
+        Search the hosts file
+        """
         hostFile = '/etc/hosts'
 
         with open(hostFile, 'r') as hostfp:
@@ -1040,27 +1068,42 @@ class DirSrvTools(object):
 
     @staticmethod
     def searchFile(filename, pattern):
-        # Open the file and read it line by line
+        """
+        Search file (or files using a wildcard) for the pattern
+        """
         found = False
-        try:
-            myfile = open(filename)
-            for line in myfile:
-                if re.search(pattern, line):
-                    found = True
-            myfile.close()
-        except IOError as e:
-            log.error('Problem opening/searching file (%s): I/O error(%d): %s'
-                      % (filename, e.errno, e.strerror))
 
+        file_list = glob.glob(filename)
+        for file_name in file_list:
+            try:
+                myfile = open(file_name)
+                for line in myfile:
+                    result = re.search(pattern, line)
+                    if result:
+                        found = True
+                        break
+                myfile.close()
+                if found:
+                    break
+            except IOError as e:
+                log.error('Problem opening/searching file ' +
+                          '(%s): I/O error(%d): %s' %
+                          (file_name, e.errno, e.strerror))
         return found
 
 
 class MockDirSrv(object):
+    """
+    Mock DirSrv Object
+    """
     host = 'localhost'
     port = 22389
     sslport = 0
 
     def __init__(self, dict_=None):
+        """
+        Init object
+        """
         if dict_:
             self.host = dict_['host']
             self.port = dict_['port']
@@ -1068,6 +1111,9 @@ class MockDirSrv(object):
                 self.sslport = dict_['sslport']
 
     def __str__(self):
+        """
+        Return ldap URL
+        """
         if self.sslport:
             return 'ldaps://%s:%s' % (self.host, self.sslport)
         else:

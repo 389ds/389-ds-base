@@ -1076,7 +1076,7 @@ class DirSrv(SimpleLDAPObject):
 
         self.state = DIRSRV_STATE_OFFLINE
 
-    def start(self, timeout):
+    def start(self, timeout=120):
         '''
             It starts an instance and rebind it. Its final state after rebind
             (open) is DIRSRV_STATE_ONLINE
@@ -1088,9 +1088,6 @@ class DirSrv(SimpleLDAPObject):
 
             @raise None
         '''
-        # Default starting timeout (to find 'slapd started' in error log)
-        if not timeout:
-            timeout = 120
 
         # called with the default timeout
         if DirSrvTools.start(self, verbose=self.verbose, timeout=timeout):
@@ -1098,7 +1095,7 @@ class DirSrv(SimpleLDAPObject):
 
         self.open()
 
-    def stop(self, timeout):
+    def stop(self, timeout=120):
         '''
             It stops an instance.
             It changes the state  -> DIRSRV_STATE_OFFLINE
@@ -1110,10 +1107,6 @@ class DirSrv(SimpleLDAPObject):
 
             @raise None
         '''
-
-        # Default starting timeout (to find 'slapd started' in error log)
-        if not timeout:
-            timeout = 120
 
         # called with the default timeout
         if DirSrvTools.stop(self, verbose=self.verbose, timeout=timeout):
@@ -2623,16 +2616,71 @@ class DirSrv(SimpleLDAPObject):
         return outs
 
     def searchAccessLog(self, pattern):
-        return DirSrvTools.searchFile(self.accesslog, pattern)
+        """
+        Search all the access logs
+        """
+        return DirSrvTools.searchFile(self.accesslog + "*", pattern)
 
     def searchAuditLog(self, pattern):
-        return DirSrvTools.searchFile(self.auditlog, pattern)
+        """
+        Search all the audit logs
+        """
+        time.sleep(1)
+        return DirSrvTools.searchFile(self.auditlog + "*", pattern)
 
     def searchErrorsLog(self, pattern):
-        return DirSrvTools.searchFile(self.errlog, pattern)
+        """
+        Search all the error logs
+        """
+        time.sleep(1)
+        return DirSrvTools.searchFile(self.errlog + "*", pattern)
 
     def detectDisorderlyShutdown(self):
+        """
+        Search the current errors log for a disorderly shutdown message
+        """
+        time.sleep(1)
         return DirSrvTools.searchFile(self.errlog, DISORDERLY_SHUTDOWN)
+
+    def deleteLog(self, logtype, restart=True):
+        """
+        Delete all the logs for this log type.
+        """
+        if restart:
+            self.stop()
+        for log in glob.glob(logtype + "*"):
+            if os.path.isfile(log):
+                os.remove(log)
+        if restart:
+            self.start()
+
+    def deleteAccessLogs(self, restart=True):
+        """
+        Delete all the access logs.
+        """
+        self.deleteLog(self.accesslog, restart)
+
+    def deleteAuditLogs(self, restart=True):
+        """
+        Delete all the audit logs.
+        """
+        self.deleteLog(self.auditlog, restart)
+
+    def deleteErrorLogs(self, restart=True):
+        """
+        Delete all the error logs.
+        """
+        self.deleteLog(self.errlog, restart)
+
+    def deleteAllLogs(self, restart=True):
+        """
+        Delete all the logs.
+        """
+        self.stop()
+        self.deleteAccessLogs(restart=False)
+        self.deleteErrorLogs(restart=False)
+        self.deleteAuditLogs(restart=False)
+        self.start()
 
     def get_effective_rights(self, sourcedn, base=DEFAULT_SUFFIX,
                              scope=ldap.SCOPE_SUBTREE, *args, **kwargs):

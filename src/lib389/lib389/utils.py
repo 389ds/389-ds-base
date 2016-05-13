@@ -30,6 +30,7 @@ import shutil
 import ldap
 import socket
 import subprocess
+import time
 from socket import getfqdn
 from ldapurl import LDAPUrl
 
@@ -726,3 +727,13 @@ def ds_is_older(ver):
     """Return True if current version of ns-slapd is older than provided
     version"""
     return get_ds_version() < ver
+
+
+def getDateTime():
+    """
+    Return the date and time:
+
+        2016-04-21 21:21:00
+
+    """
+    return time.strftime("%Y-%m-%d %H:%M:%S")
