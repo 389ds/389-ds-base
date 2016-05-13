@@ -155,7 +155,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/schema-reload.pl ldap/admin/src/scripts/syntax-validate.pl \
 	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/ds_selinux_port_query ldap/admin/src/scripts/ds_selinux_enabled \
-	ldap/admin/src/scripts/dbverify \
+	ldap/admin/src/scripts/dbverify ldap/admin/src/scripts/readnsstate \
 	$(NULL)
 
 clean-local:
@@ -637,6 +637,7 @@ bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	ldap/admin/src/scripts/cl-dump.pl \
 	wrappers/repl-monitor \
 	ldap/admin/src/scripts/repl-monitor.pl \
+	ldap/admin/src/scripts/readnsstate \
 	ldap/admin/src/scripts/ds-logpipe.py
 
 # SCRIPTS makes them executables - these are perl modules
