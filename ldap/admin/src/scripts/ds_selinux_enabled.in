@@ -1,0 +1,23 @@
+#!@pythonexec@
+
+# BEGIN COPYRIGHT BLOCK
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details. 
+# END COPYRIGHT BLOCK
+#
+
+# These are python 3 capable, but el7 doesn't have libsemanage-python3
+
+
+import sys
+import selinux
+import semanage
+
+# Returns 1 for true, 0 for false.
+
+sys.exit(selinux.is_selinux_enabled())
+
+

@@ -396,21 +396,21 @@ else
   with_perldir=
 fi
 
-AC_MSG_CHECKING(for --with-pythondir)
-AC_ARG_WITH([pythondir],
-   AS_HELP_STRING([--with-pythondir=PATH],
-                  [Directory for python)])
+AC_MSG_CHECKING(for --with-pythonexec)
+AC_ARG_WITH([pythonexec],
+   AS_HELP_STRING([--with-pythonexec=PATH],
+                  [Path to executable for python)])
 )
-if test -n "$with_pythondir"; then
-  if test  "$with_pythondir" = yes ; then
-    AC_MSG_ERROR([You must specify --with-pythondir=/full/path/to/python])
-  elif test  "$with_pythondir" = no ; then
-    with_pythondir=
+if test -n "$with_pythonexec"; then
+  if test  "$with_pythonexec" = yes ; then
+    AC_MSG_ERROR([You must specify --with-pythonexec=/full/path/to/python])
+  elif test  "$with_pythonexec" = no ; then
+    with_pythonexec=/usr/bin/python2
   else
-    AC_MSG_RESULT([$with_pythondir])
+    AC_MSG_RESULT([$with_pythonexec])
   fi
 else
-  with_pythondir=
+  with_pythonexec=/usr/bin/python2
 fi
 
 AC_SUBST(configdir)
@@ -483,6 +483,14 @@ if test -n "$with_perldir"; then
 else
   perlexec='/usr/bin/env perl'
 fi
+
+# This will let us change over the python version easier in the future.
+if test -n "$with_pythonexec"; then
+  pythonexec="$with_pythonexec"
+else
+  pythonexec='/usr/bin/env python2'
+fi
+
 # we use stty in perl scripts to disable password echo
 # this doesn't work unless the full absolute path of the
 # stty command is used e.g. system("stty -echo") does not
@@ -622,6 +630,7 @@ fi
 # sysv init scripts not used when systemd is used
 AC_SUBST(initdir)
 AC_SUBST(perlexec)
+AC_SUBST(pythonexec)
 AC_SUBST(sttyexec)
 
 # set default initconfigdir if not already set

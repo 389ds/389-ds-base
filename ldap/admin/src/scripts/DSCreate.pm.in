@@ -1009,8 +1009,10 @@ sub updateSelinuxPolicy {
     my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
 
     # if selinux is not available, do nothing
-    if ((getLogin() eq 'root') and "@with_selinux@" and
-        -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
+    # In perl, exit(1) is 256 from system. ds_selinux_enable returns 1 on true, 0 on false.
+    if ((getLogin() eq 'root') and "@with_selinux@" and system("$inf->{slapd}->{sbindir}/ds_selinux_enabled") == 256 ) {
+        debug(1, "Selinux is enabled or permissive, fixing contexts\n");
+        # -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
         my $localstatedir = $inf->{slapd}->{localstatedir};
 
         # run restorecon on all of the parent directories we
@@ -1036,36 +1038,35 @@ sub updateSelinuxPolicy {
         }
 
         # label the selected port as ldap_port_t
+        # We should be doing this for secure port too .....
         if ($inf->{slapd}->{ServerPort} != 0) {
-            my $need_label = 1;
+            my $port_query_cmd = ("$inf->{slapd}->{sbindir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t 2> $mydevnull");
+            my $need_label = 0;
+            my $result = system($port_query_cmd);
 
-            # check if the port is already labeled properly
-            my $portline = `semanage port -l | grep ldap_port_t | grep tcp`;
-            chomp($portline);
-            $portline =~ s/ldap_port_t\s+tcp\s+//g;
-            my @labeledports = split(/,\s+/, $portline);
-            foreach my $labeledport (@labeledports) {
-                if (index($labeledport, "-") == -1) {
-                        # this is not a range of ports
-                        if ($inf->{slapd}->{ServerPort} == $labeledport) {
-                                $need_label = 0;
-                                last;
-                        }
-                } else {
-                        # this is a range of ports like '<portMin>-<portMax>'
-                        my @range = split(/-/, $labeledport);
-                        if ((@range[0] <= $inf->{slapd}->{ServerPort}) && ($inf->{slapd}->{ServerPort} <= @range[1])) {
-                                $need_label = 0;
-                                last;
-                        }
-                }
+            # 0 is false, 1 is true. True means 'already in policy'.
+            if ($result == 0) {
+                debug(1, "Port $inf->{slapd}->{ServerPort} must be labeled as ldap_port_t \n");
+                $need_label = 1;
+            } 
+            if ($result == 512) {
+                $need_label = 0;
+                debug(0, "Port $inf->{slapd}->{ServerPort} already belongs to another selinux type.\n");
+                debug(0, " The command below will show you the current type that owns the port.\n");
+                debug(0, "sudo $inf->{slapd}->{sbindir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t\n");
+                debug(0, " It is highly likely your server will fail to start ... \n");
+            }
+            if ($result == 131072) {
+                $need_label = 0;
+                debug(0, "An error occured running ds_selinux_port_query. This is probably a bug\n");
+                debug(0, "$port_query_cmd \n");
             }
 
             if ($need_label == 1) {
                 my $semanage_err;
                 my $rc;
                 # 60 is a bit excessive, we should fail faster.
-                my $retry = 5;
+                my $retry = 2;
                 $ENV{LANG} = "C";
                 while (($retry > 0) && ($semanage_err = `semanage port -a -t ldap_port_t -p tcp $inf->{slapd}->{ServerPort} 2>&1`) && ($rc = $?)) {
                     debug(1, "Adding port $inf->{slapd}->{ServerPort} to selinux policy failed - $semanage_err (return code: $rc, $retry attempts remain).\n");
@@ -1461,51 +1462,82 @@ sub removeDSInstance {
 
     # remove the selinux label from the ports if needed
     my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
-    if ((getLogin() eq 'root') and "@with_selinux@" and
-        -f "@sbindir@/sestatus" and !system ("@sbindir@/sestatus | egrep -i \"selinux status:\\s*enabled\" > $mydevnull 2>&1")) {
+    if ((getLogin() eq 'root') and "@with_selinux@" and system("@sbindir@/ds_selinux_enabled") == 256 ) {
         foreach my $port (@{$entry->{"nsslapd-port"}}) 
         {
+
+            my $need_remove_label = 0;
+            my $port_query_cmd = ("@sbindir@/ds_selinux_port_query $port ldap_port_t 2> $mydevnull");
+            my $result = system($port_query_cmd);
+
+            if ($result == 256) {
+                debug(1, "Port $port may be removed as ldap_port_t \n");
+                $need_remove_label = 1;
+            } 
+            if ($result == 131072) {
+                $need_remove_label = 0;
+                debug(0, "An error occured running ds_selinux_port_query. This is probably a bug\n");
+                debug(0, "$port_query_cmd \n");
+            }
+
             my $semanage_err;
             my $rc;
             my $retry = 5;
             $ENV{LANG} = "C";
-            while (($retry > 0) && ($semanage_err = `semanage port -d -t ldap_port_t -p tcp $port 2>&1`) && ($rc = $?)) {
-                if (($semanage_err =~ /defined in policy, cannot be deleted/) || ($semanage_err =~ /is not defined/)) {
-                    $retry = -1;
-                } else {
-                    debug(1, "Warning: Port $port not removed from selinux policy correctly, $retry attempts remain.  Error: $semanage_err\n");
-                    debug(1, "Retrying in 5 seconds\n");
-                    sleep(5);
-                    $retry--;
+            if ($need_remove_label) {
+                while (($retry > 0) && ($semanage_err = `semanage port -d -t ldap_port_t -p tcp $port 2>&1`) && ($rc = $?)) {
+                    if (($semanage_err =~ /defined in policy, cannot be deleted/) || ($semanage_err =~ /is not defined/)) {
+                        $retry = -1;
+                    } else {
+                        debug(1, "Warning: Port $port not removed from selinux policy correctly, $retry attempts remain.  Error: $semanage_err\n");
+                        debug(1, "Retrying in 5 seconds\n");
+                        sleep(5);
+                        $retry--;
+                    }
                 }
-            }
-            if (0 == $retry) {
-                push @errs, [ 'error_removing_port_label', $port, $semanage_err];
-                debug(1, "Warning: Port $port not removed from selinux policy correctly.  Error: $semanage_err\n");
-                debug(1, "Reached time limit.\n");
+                if (0 == $retry) {
+                    push @errs, [ 'error_removing_port_label', $port, $semanage_err];
+                    debug(1, "Warning: Port $port not removed from selinux policy correctly.  Error: $semanage_err\n");
+                    debug(1, "Reached time limit.\n");
+                }
             }
         }
 
         foreach my $secureport (@{$entry->{"nsslapd-secureport"}})
         {
+            my $need_remove_label = 0;
+            my $port_query_cmd = ("@sbindir@/ds_selinux_port_query $secureport ldap_port_t 2> $mydevnull");
+            my $result = system($port_query_cmd);
+
+            if ($result == 256) {
+                debug(1, "Port $secureport may be removed as ldap_port_t \n");
+                $need_remove_label = 1;
+            } 
+            if ($result == 131072) {
+                $need_remove_label = 0;
+                debug(0, "An error occured running ds_selinux_port_query. This is probably a bug\n");
+                debug(0, "$port_query_cmd \n");
+            }
             my $semanage_err;
             my $rc;
             my $retry = 60;
             $ENV{LANG} = "C";
-            while (($retry > 0) && ($semanage_err = `semanage port -d -t ldap_port_t -p tcp $secureport 2>&1`) && ($rc = $?)) {
-                if (($semanage_err =~ /defined in policy, cannot be deleted/) || ($semanage_err =~ /is not defined/)) {
-                    $retry = -1;
-                } else {
-                    debug(1, "Warning: Port $secureport not removed from selinux policy correctly.  Error: $semanage_err\n");
-                    debug(1, "Retrying in 5 seconds\n");
-                    sleep(5);
-                    $retry--;
+            if ($need_remove_label) {
+                while (($retry > 0) && ($semanage_err = `semanage port -d -t ldap_port_t -p tcp $secureport 2>&1`) && ($rc = $?)) {
+                    if (($semanage_err =~ /defined in policy, cannot be deleted/) || ($semanage_err =~ /is not defined/)) {
+                        $retry = -1;
+                    } else {
+                        debug(1, "Warning: Port $secureport not removed from selinux policy correctly.  Error: $semanage_err\n");
+                        debug(1, "Retrying in 5 seconds\n");
+                        sleep(5);
+                        $retry--;
+                    }
                 }
-            }
-            if (0 == $retry) {
-                push @errs, [ 'error_removing_port_label', $secureport, $semanage_err];
-                debug(1, "Warning: Port $secureport not removed from selinux policy correctly.  Error: $semanage_err\n");
-                debug(1, "Reached time limit.\n");
+                if (0 == $retry) {
+                    push @errs, [ 'error_removing_port_label', $secureport, $semanage_err];
+                    debug(1, "Warning: Port $secureport not removed from selinux policy correctly.  Error: $semanage_err\n");
+                    debug(1, "Reached time limit.\n");
+                }
             }
         }
     }

@@ -154,6 +154,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/ns-inactivate.pl ldap/admin/src/scripts/ns-newpwpolicy.pl \
 	ldap/admin/src/scripts/schema-reload.pl ldap/admin/src/scripts/syntax-validate.pl \
 	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
+	ldap/admin/src/scripts/ds_selinux_port_query ldap/admin/src/scripts/ds_selinux_enabled \
 	ldap/admin/src/scripts/dbverify \
 	$(NULL)
 
@@ -617,6 +618,8 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/dbverify \
 	ldap/admin/src/scripts/upgradedb \
 	ldap/admin/src/scripts/dbmon.sh \
+	ldap/admin/src/scripts/ds_selinux_enabled \
+	ldap/admin/src/scripts/ds_selinux_port_query \
     wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
@@ -1822,6 +1825,7 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
+	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g'\
 	-e 's,@updatedir\@,$(updatedir),g' \
@@ -1890,6 +1894,7 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
+	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \
 	-e 's,@updatedir\@,$(updatedir),g' \
