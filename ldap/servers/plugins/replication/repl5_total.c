@@ -866,8 +866,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
 						rc, connid, opid);
 	}
    
-    if (rc != 0)
-    {
+    if (rc) {
         /* just disconnect from the supplier. bulk import is stopped when
            connection object is destroyed */
         slapi_pblock_get (pb, SLAPI_CONNECTION, &conn);
@@ -881,6 +880,8 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
         {
             slapi_entry_free (e);
         }
+    } else {
+        rc = SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
     }
 
 	return rc;

@@ -527,23 +527,19 @@ plugin_determine_exop_plugins( const char *oid, struct slapdplugin **plugin)
 int
 plugin_call_exop_plugins( Slapi_PBlock *pb, struct slapdplugin *p )
 {
-    int rc = LDAP_SUCCESS;
-    int lderr = SLAPI_PLUGIN_EXTENDED_NOT_HANDLED;
-
+    int rc;
     slapi_pblock_set( pb, SLAPI_PLUGIN, p );
     set_db_default_result_handlers( pb );
-    if ( (rc = (*p->plg_exhandler)( pb )) == SLAPI_PLUGIN_EXTENDED_SENT_RESULT ) {
-        return( rc );   /* result sent */
-    } else if ( rc != SLAPI_PLUGIN_EXTENDED_NOT_HANDLED ) {
-        /*
-         * simple merge: report last real error
+    rc = (*p->plg_exhandler)( pb );
+    if (LDAP_SUCCESS == rc) { 
+        /* 
+         * Some plugin may return LDAP_SUCCESS in the success case.
+         * It is translated to SLAPI_PLUGIN_EXTENDED_SENT_RESULT to
+         * reduce the unnecessary error logs.
          */
-        if ( rc != LDAP_SUCCESS ) {
-            lderr = rc;
-        }
+        rc = SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
     }
-
-    return( lderr );
+    return (rc);
 }
 
 
