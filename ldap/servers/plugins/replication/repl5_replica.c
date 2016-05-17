@@ -204,6 +204,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 	r->protocol_timeout = slapi_counter_new();
 	r->backoff_min = slapi_counter_new();
 	r->backoff_max = slapi_counter_new();
+	r->precise_purging = slapi_counter_new();
 
     /* read parameters from the replica config entry */
     rc = _replica_init_from_config (r, e, errortext);
@@ -411,6 +412,7 @@ replica_destroy(void **arg)
 	slapi_counter_destroy(&r->protocol_timeout);
 	slapi_counter_destroy(&r->backoff_min);
 	slapi_counter_destroy(&r->backoff_max);
+	slapi_counter_destroy(&r->precise_purging);
 
 	slapi_ch_free((void **)arg);
 }
