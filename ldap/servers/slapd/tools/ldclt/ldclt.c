@@ -2363,6 +2363,7 @@ main (
   mctx.filter	     = NULL;
   mctx.globStatsCnt  = DEF_GLOBAL_NB;				/*JLS 08-08-00*/
   mctx.hostname	     = "localhost";
+  mctx.ldapurl       = NULL;                /* Default url to none. */
   mctx.ignErrNb      = 0;
   mctx.images	     = NULL;					/*JLS 17-11-00*/
   mctx.imagesDir     = DEF_IMAGES_PATH;				/*JLS 16-11-00*/
@@ -2412,7 +2413,7 @@ main (
    * Get options
    */
   while ((opt_ret = getopt (argc, argv, 
-		"a:b:D:e:E:f:h:i:I:n:N:o:p:qQr:R:s:S:t:T:vVw:W:Z:H")) != EOF)
+		"a:b:D:e:E:f:h:H:i:I:n:N:o:p:qQr:R:s:S:t:T:vVw:W:Z:H")) != EOF)
     switch (opt_ret)
     {
       case 'a':
@@ -2438,6 +2439,9 @@ main (
 	break;
       case 'h':
 	mctx.hostname = optarg;
+	break;
+      case 'H':
+	mctx.ldapurl = optarg;
 	break;
       case 'i':
 	mctx.inactivMax = atoi (optarg);
@@ -2517,10 +2521,12 @@ main (
 	mctx.mode |= SSL;
 	mctx.certfile = optarg;
 	break;
+    /*
       case 'H':
 	usage ();
-	ldcltExit (EXIT_OK);					/*JLS 18-12-00*/
+	ldcltExit (EXIT_OK);
 	break;
+    */
       case '?':
 	usage ();
 	ldcltExit (EXIT_PARAMS);				/*JLS 13-11-00*/
@@ -2818,8 +2824,12 @@ main (
   {
     printf ("%s\n", argvList);					/*JLS 07-12-00*/
     printf ("Process ID         = %d\n", mctx.pid);
-    printf ("Host to connect    = %s\n", mctx.hostname);
-    printf ("Port number        = %d\n", mctx.port);
+    if (mctx.ldapurl != NULL) {
+      printf ("Ldap url           = %s\n", mctx.ldapurl);
+    } else {
+      printf ("Host to connect    = %s\n", mctx.hostname);
+      printf ("Port number        = %d\n", mctx.port);
+    }
     if (mctx.bindDN == NULL)
       printf ("Bind DN            = NULL\n");
     else

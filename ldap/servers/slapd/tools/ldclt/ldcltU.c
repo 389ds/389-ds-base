@@ -94,6 +94,7 @@
  * 		withnewparent : rename with newparent specified as argument.
  * 	 -f  Filter for searches.
  * 	 -h  Host to connect.                      Default "localhost".
+ * 	 -H  Ldap URL to connect to. Overrides -h -p. Default "None".
  * 	 -i  Number of times inactivity allowed.   Default 3 (30 seconds)
  * 	 -I  Ignore errors (cf. -E).               Default none.
  * 	 -n  Number of threads.                    Default 10.
@@ -200,6 +201,7 @@ void usage ()
   (void) printf ("		randomauthidhigh=value : high value for random SASL Authid.\n");
   (void) printf ("	 -f  Filter for searches.\n");
   (void) printf ("	 -h  Host to connect.                      Default \"localhost\".\n");
+  (void) printf ("	 -H  Ldap URL to connect to. Overrides -h -p. Default \"None\".\n");
   (void) printf ("	 -i  Number of times inactivity allowed.   Default 3 (30 seconds)\n");
   (void) printf ("	 -I  Ignore errors (cf. -E).               Default none.\n");
   (void) printf ("	 -n  Number of threads.                    Default 10.\n");

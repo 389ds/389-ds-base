@@ -521,6 +521,7 @@ typedef struct main_context {
 	char		*genldifName;	/* Where to put ldif */	/*JLS 19-03-01*/
 	int		 genldifFile;	/* Where to put ldif */	/*JLS 19-03-01*/
 	char		*hostname;	/* Host to connect */
+	char		*ldapurl; /* Url to connect to */
 	int		 globStatsCnt;	/* Global stats loop */ /*JLS 08-08-00*/
 	int		 ignErr[MAX_IGN_ERRORS]; /* Err ignor */
 	int		 ignErrNb;	/* Nb err ignored */

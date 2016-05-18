@@ -489,9 +489,13 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
   }
 
 #if defined(USE_OPENLDAP)
-  ldapurl = PR_smprintf("ldap%s://%s:%d/",
-			(mode & SSL) ? "s" : "",
-			mctx.hostname, mctx.port);
+  if (mctx.ldapurl != NULL) {
+    ldapurl = PL_strdup(mctx.ldapurl);
+  } else {
+    ldapurl = PR_smprintf("ldap%s://%s:%d/",
+              (mode & SSL) ? "s" : "",
+              mctx.hostname, mctx.port);
+  }
   if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
       printf("Could not perform internal ol_init init\n");
       goto done;
