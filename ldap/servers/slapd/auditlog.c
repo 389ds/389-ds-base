@@ -21,10 +21,12 @@
 #define	ATTR_CHANGETYPE		"changetype"
 #define	ATTR_NEWRDN		"newrdn"
 #define	ATTR_DELETEOLDRDN	"deleteoldrdn"
+#define	ATTR_NEWSUPERIOR	"newsuperior"
 #define ATTR_MODIFIERSNAME "modifiersname"
 char	*attr_changetype	= ATTR_CHANGETYPE;
 char	*attr_newrdn		= ATTR_NEWRDN;
 char	*attr_deleteoldrdn	= ATTR_DELETEOLDRDN;
+char	*attr_newsuperior	= ATTR_NEWSUPERIOR;
 char	*attr_modifiersname = ATTR_MODIFIERSNAME;
 
 static int audit_hide_unhashed_pw = 1;
@@ -32,6 +34,8 @@ static int auditfail_hide_unhashed_pw = 1;
 
 /* Forward Declarations */
 static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc );
+
+static char *modrdn_changes[4];
 
 void
 write_audit_log_entry( Slapi_PBlock *pb )
@@ -68,10 +72,26 @@ write_audit_log_entry( Slapi_PBlock *pb )
         break;
     
     case SLAPI_OPERATION_MODDN:
+        {
+        char *rdn = NULL;
+        Slapi_DN *snewsuperior = NULL;
+        char *requestor = NULL;
         /* newrdn: change is just for logging -- case does not matter. */
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &rdn );
         slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &snewsuperior );
+        slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &requestor );
+        modrdn_changes[0] = rdn;
+        modrdn_changes[1] = requestor;
+        if (snewsuperior && slapi_sdn_get_dn(snewsuperior)) {
+            modrdn_changes[2] = slapi_sdn_get_dn(snewsuperior);
+            modrdn_changes[3] = NULL;
+        } else {
+            modrdn_changes[2] = NULL; 
+        }
+		change = (void *)modrdn_changes;
         break;
+        }
     default:
         return; /* Unsupported operation type. */
     }
@@ -120,10 +140,26 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
         }
         break;
     case SLAPI_OPERATION_MODDN:
+        {
+        char *rdn = NULL;
+        Slapi_DN *snewsuperior = NULL;
+        char *requestor = NULL;
         /* newrdn: change is just for logging -- case does not matter. */
-        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &change );
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &rdn );
         slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &flag );
+        slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &snewsuperior );
+        slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &requestor );
+        modrdn_changes[0] = rdn;
+        modrdn_changes[1] = requestor;
+        if (snewsuperior && slapi_sdn_get_dn(snewsuperior)) {
+            modrdn_changes[2] = slapi_sdn_get_dn(snewsuperior);
+            modrdn_changes[3] = NULL;
+        } else {
+            modrdn_changes[2] = NULL; 
+        }
+		change = (void *)modrdn_changes;
         break;
+        }
     default:
         return; /* Unsupported operation type. */
     }
@@ -292,7 +328,7 @@ write_audit_file(
         break;
     
     case SLAPI_OPERATION_MODDN:
-        newrdn = change;
+        newrdn = ((char **)change)[0];
         addlenstr( l, attr_changetype );
         addlenstr( l, ": modrdn\n" );
         addlenstr( l, attr_newrdn );
@@ -303,6 +339,20 @@ write_audit_file(
         addlenstr( l, ": " );
         addlenstr( l, flag ? "1" : "0" );
         addlenstr( l, "\n" );
+        if (((char **)change)[2]) {
+            char *newsuperior = ((char **)change)[2];
+            addlenstr( l, attr_newsuperior );
+            addlenstr( l, ": " );
+            addlenstr( l, newsuperior );
+            addlenstr( l, "\n" );
+        }
+        if (((char **)change)[1]) {
+            char *modifier = ((char **)change)[1];
+            addlenstr( l, attr_modifiersname );
+            addlenstr( l, ": " );
+            addlenstr( l, modifier );
+            addlenstr( l, "\n" );
+        }
     }
     addlenstr( l, "\n" );
 
