@@ -37,8 +37,29 @@ ldbm_back_start( Slapi_PBlock *pb )
   int retval; 
   int issane = 0;
   PRUint64 total_cache_size = 0;
-  size_t pagesize, pages, procpages, availpages;
-  char *msg; /* This will be set by one of the two cache sizing paths below. */
+  size_t pagesize = 0;
+  size_t pages = 0;
+  size_t procpages = 0;
+  size_t availpages = 0;
+  char *msg = ""; /* This will be set by one of the two cache sizing paths below. */
+
+  char s[32];    /* big enough to hold %ld */
+  unsigned long cache_size_to_configure = 0;
+  int zone_pages;
+  int db_pages;
+  int entry_pages;
+  int import_pages;
+  size_t zone_size;
+  size_t import_size;
+  size_t total_size;
+  Object *inst_obj;
+  ldbm_instance *inst;   
+  PRUint64 cache_size;
+  PRUint64 dncache_size;
+  PRUint64 db_size;
+#ifndef LINUX
+  PRUint64 memsize = pages * pagesize;
+#endif
 
   LDAPDebug( LDAP_DEBUG_TRACE, "ldbm backend starting\n", 0, 0, 0 );
 
@@ -126,17 +147,6 @@ ldbm_back_start( Slapi_PBlock *pb )
           return SLAPI_FAIL_GENERAL;
       }
       if (pagesize) {
-          char s[32];    /* big enough to hold %ld */
-          unsigned long cache_size_to_configure = 0;
-          int zone_pages, db_pages, entry_pages, import_pages;
-          Object *inst_obj;
-          ldbm_instance *inst;   
-          PRUint64 cache_size;
-          PRUint64 dncache_size;
-          PRUint64 db_size;
-#ifndef LINUX
-          PRUint64 memsize = pages * pagesize;
-#endif
           if (li->li_cache_autosize == 0) {
               /* First, set our message. */
               msg = "This can be corrected by altering the values of nsslapd-dbcachesize, nsslapd-cachememsize and nsslapd-dncachememsize\n";
@@ -180,7 +190,7 @@ ldbm_back_start( Slapi_PBlock *pb )
           } else if (li->li_cache_autosize > 0) {
               msg = "This can be corrected by altering the values of nsslapd-cache-autosize, nsslapd-cache-autosize-split and nsslapd-dncachememsize\n";
               zone_pages = (li->li_cache_autosize * pages) / 100;
-              size_t zone_size = zone_pages * pagesize;
+              zone_size = zone_pages * pagesize;
               /* This is how much we "might" use, lets check it's sane. */
               /* In the case it is not, this will *reduce* the allocation */
               issane = util_is_cachesize_sane(&zone_size);
@@ -234,8 +244,11 @@ ldbm_back_start( Slapi_PBlock *pb )
                     li->li_import_cache_autosize = 50;
               }
               import_pages = (li->li_import_cache_autosize * pages) / 100;
-              size_t import_size = import_pages * pagesize;
+              import_size = import_pages * pagesize;
               issane = util_is_cachesize_sane(&import_size);
+              if (!issane) {
+                  LDAPDebug(LDAP_DEBUG_ANY, "Your autosized import cache values have been reduced. Likely your nsslapd-import-cache-autosize percentage is too high.\n", 0,0,0);
+              }
               /* We just accept the reduced allocation here. */
               import_pages = import_size / pagesize;
               LDAPDebug(LDAP_DEBUG_ANY, "cache autosizing: import cache: %dk \n",
@@ -249,7 +262,7 @@ ldbm_back_start( Slapi_PBlock *pb )
 
   /* Finally, lets check that the total result is sane. */
 
-  size_t total_size = total_cache_size + (PRUint64)li->li_dbcachesize;
+  total_size = total_cache_size + (PRUint64)li->li_dbcachesize;
   issane = util_is_cachesize_sane(&total_size);
   if (!issane) {
     /* Right, it's time to panic */
