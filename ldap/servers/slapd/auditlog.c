@@ -35,7 +35,7 @@ static int auditfail_hide_unhashed_pw = 1;
 /* Forward Declarations */
 static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc );
 
-static char *modrdn_changes[4];
+static const char *modrdn_changes[4];
 
 void
 write_audit_log_entry( Slapi_PBlock *pb )
