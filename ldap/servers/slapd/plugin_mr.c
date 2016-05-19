@@ -165,43 +165,44 @@ slapi_mr_indexer_create (Slapi_PBlock* opb)
 		}
 		else
 		{
-		    /* look for a new syntax-style mr plugin */
-			struct slapdplugin* pi = plugin_mr_find(oid);
-			rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
-
-			/* register that plugin at the condition it has a createFn/index/indexSvFn */
-			if (pi) {
+		    /* call each plugin, until one is able to handle this request. */
+		    rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
+		    for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next)
+		    {
 				IFP indexFn = NULL;
 				IFP indexSvFn = NULL;
 				Slapi_PBlock pb;
-				memcpy(&pb, opb, sizeof (Slapi_PBlock));
-				slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
-				slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn);
+				memcpy (&pb, opb, sizeof(Slapi_PBlock));
+				slapi_pblock_set(&pb, SLAPI_PLUGIN, mrp);
+				if (slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, &createFn)) {
+					/* plugin not a matchingrule type */
+					continue;
+				}
 				if (createFn && !createFn(&pb)) {
-					/* we need to call the createFn before testing the indexFn/indexSvFn
-					 * because it sets the index callbacks
-					 */
 					slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEX_FN, &indexFn);
 					slapi_pblock_get(&pb, SLAPI_PLUGIN_MR_INDEX_SV_FN, &indexSvFn);
 					if (indexFn || indexSvFn) {
-						/* Use the defined indexer_create function if it exists */
+						/* Success: this plugin can handle it. */
 						memcpy(opb, &pb, sizeof (Slapi_PBlock));
-						plugin_mr_bind(oid, pi); /* for future reference */
+						plugin_mr_bind(oid, mrp); /* for future reference */
 						rc = 0; /* success */
+						break;
 					}
+
 				}
-			}
-			if (pi && (rc != 0)) {
-				/* No defined indexer_create or it fails
-				 * Let's use the default one
-				 */
-				Slapi_PBlock pb;
-				memcpy(&pb, opb, sizeof (Slapi_PBlock));
-				slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
-				rc = default_mr_indexer_create(&pb);
-				if (!rc) {
-					memcpy(opb, &pb, sizeof (Slapi_PBlock));
-					plugin_mr_bind(oid, pi); /* for future reference */
+		    }
+			if (rc != 0) {
+				/* look for a new syntax-style mr plugin */
+				struct slapdplugin *pi = plugin_mr_find(oid);
+				if (pi) {
+					Slapi_PBlock pb;
+					memcpy (&pb, opb, sizeof(Slapi_PBlock));
+					slapi_pblock_set(&pb, SLAPI_PLUGIN, pi);
+					rc = default_mr_indexer_create(&pb);
+					if (!rc) {
+						memcpy (opb, &pb, sizeof(Slapi_PBlock));
+						plugin_mr_bind (oid, pi); /* for future reference */
+					}
 				}
 			}
 		}
@@ -579,7 +580,19 @@ plugin_mr_filter_create (mr_filter_t* f)
     {
 		rc = attempt_mr_filter_create (f, mrp, &pb);
     }
-    if (!mrp || rc)
+    else
+    {
+		/* call each plugin, until one is able to handle this request. */
+		for (mrp = get_plugin_list(PLUGIN_LIST_MATCHINGRULE); mrp != NULL; mrp = mrp->plg_next)
+		{
+		    if (!(rc = attempt_mr_filter_create (f, mrp, &pb)))
+		    {
+				plugin_mr_bind (f->mrf_oid, mrp); /* for future reference */
+				break;
+		    }
+		}
+    }
+    if (rc)
     {
 		/* look for a new syntax-style mr plugin */
 		mrp = plugin_mr_find(f->mrf_oid);
