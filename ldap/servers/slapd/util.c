@@ -1670,15 +1670,15 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
                 (unsigned long)*pages, (unsigned long)*availpages, (unsigned long)freesize);
         }
 
-        if (rlimsize != RLIM_INFINITY && rlimsize < freesize && rlimsize < *pages) {
+        if (rlimsize != RLIM_INFINITY && rlimsize < freesize && rlimsize < *pages && rlimsize > 0) {
             LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using getrlim for availpages \n",0,0,0);
             *availpages = rlimsize;
-        } else if (*pages < freesize) {
-            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for availpages \n",0,0,0);
-            *availpages = *pages;
-        } else {
+        } else if (freesize < *pages && freesize > 0) {
             LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using freesize for availpages \n",0,0,0);
             *availpages = freesize;
+        } else {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for availpages \n",0,0,0);
+            *availpages = *pages;
         }
 
     }
