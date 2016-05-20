@@ -1571,6 +1571,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
 
         size_t vmsize = 0;
         size_t freesize = 0;
+        size_t rlimsize = 0;
 
         *pagesize = getpagesize();
 
@@ -1632,8 +1633,14 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         freesize /= (*pagesize / 1024);
         /* procpages is now in kb not pages... */
         *procpages /= (*pagesize / 1024);
-        /* This is in bytes, make it pages  */
-        *availpages = util_getvirtualmemsize() / *pagesize;
+
+        rlimsize = util_getvirtualmemsize();
+        /* On a 64 bit system, this is uint64 max, but on 32 it's -1 */
+        /* Either way, we should be ignoring it at this point if it's infinite */
+        if (rlimsize != RLIM_INFINITY) {
+            /* This is in bytes, make it pages  */
+            rlimsize = rlimsize / *pagesize;
+        }
         /* Now we have vmsize, the availpages from getrlimit, our freesize */
         vmsize /= (*pagesize / 1024);
 
@@ -1655,18 +1662,24 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
          * - getrlimit (availpages)
          * - freesize
          */
-        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, getrlim=%lu, freesize=%lu\n",
-            (unsigned long)*pages, (unsigned long)*availpages, (unsigned long)freesize);
-        if (*pages < *availpages && *pages < freesize) {
-            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for availpages \n",0,0,0);
-            *availpages = *pages;
-        } else if ( freesize < *pages && freesize < *availpages ) {
-            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using freesize for availpages \n",0,0,0);
-            *availpages = freesize;
+        if (rlimsize == RLIM_INFINITY) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, getrlim=RLIM_INFINITY, freesize=%lu\n",
+                (unsigned long)*pages, (unsigned long)freesize, 0);
         } else {
-            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using getrlim for availpages \n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, getrlim=%lu, freesize=%lu\n",
+                (unsigned long)*pages, (unsigned long)*availpages, (unsigned long)freesize);
         }
 
+        if (rlimsize != RLIM_INFINITY && rlimsize < freesize && rlimsize < *pages) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using getrlim for availpages \n",0,0,0);
+            *availpages = rlimsize;
+        } else if (*pages < freesize) {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for availpages \n",0,0,0);
+            *availpages = *pages;
+        } else {
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using freesize for availpages \n",0,0,0);
+            *availpages = freesize;
+        }
 
     }
 #endif /* linux */

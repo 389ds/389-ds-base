@@ -2380,7 +2380,12 @@ static void disk_tests(void)
     if (flag_debug) {
         printf("DEBUG  : RLIMIT_CORE is %ld, %ld\n", r.rlim_cur, r.rlim_max);
     }
-    if (r.rlim_cur == (unsigned long)-1 || r.rlim_cur >= 2147483647) {
+
+#if defined(RLIM_INFINITY)
+    if (r.rlim_cur == RLIM_INFINITY || r.rlim_cur >= 2147483647) {
+#else
+    if (r.rlim_cur >= 2147483647) {
+#endif
         if (swap_mb <2048) {
             max_core = swap_mb;
         } else {
@@ -2482,7 +2487,7 @@ static void check_mem_size(int ro,char *rn)
     rprev = r.rlim_cur;
     r.rlim_cur = r.rlim_max;
     setrlimit(ro,&r);
-    getrlimit(ro,&r);  
+    getrlimit(ro,&r);
 
     if (flag_debug) printf("DEBUG  : %s (%d) max %d prev %d.\n", rn, ro, (int)r.rlim_cur, rprev);
 
@@ -2490,10 +2495,16 @@ static void check_mem_size(int ro,char *rn)
     if (r.rlim_cur <= 0L) {
         return;
     }
-#endif  
+#endif
     if (r.rlim_cur <= 0) {
         return;
     }
+
+#if defined(RLIM_INFINITY)
+    if (r.rlim_cur == RLIM_INFINITY) {
+        return;
+    }
+#endif
 
     m_mb = r.rlim_cur / 1048576;
 
@@ -2522,7 +2533,11 @@ static void limits_tests(void)
 #if defined(RLIMIT_NOFILE)  
     getrlimit(RLIMIT_NOFILE,&r);
 
+#if defined(RLIM_INFINITY)
+    if (r.rlim_max <= 1024 && r.rlim_max != RLIM_INFINITY) {
+#else
     if (r.rlim_max <= 1024) {
+#endif
         if (flag_html) printf("<P>\n");
 
         if (flag_carrier) {
@@ -2568,7 +2583,11 @@ static void limits_tests(void)
         }
     }
 
+#if defined(RLIM_INFINITY)
+    if (r.rlim_cur <= 1024 && r.rlim_max != RLIM_INFINITY) {
+#else
     if (r.rlim_cur <= 1024) {
+#endif
         if (flag_html) {
             printf("<P>\n");
         }
