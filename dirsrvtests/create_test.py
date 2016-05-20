@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -21,6 +21,7 @@ non-interesting parts of a test script:
 
 
 def displayUsage():
+    """Display the usage"""
     print ('\nUsage:\ncreate_ticket.py -t|--ticket <ticket number> ' +
            '-s|--suite <suite name> ' +
            '[ i|--instances <number of standalone instances> ' +
@@ -36,29 +37,43 @@ def displayUsage():
 
 
 def writeFinalizer():
-    """Write the finalizer function - delete each instance"""
+    """Write the finalizer function - delete/stop each instance"""
 
-    TEST.write('    # Delete each instance in the end\n')
+    def writeInstanceOp(action):
+        """Write instance finializer action"""
+        if repl_deployment:
+            for idx in range(masters):
+                idx += 1
+                TEST.write('            master' + str(idx) + '.' + action +
+                           '()\n')
+            for idx in range(hubs):
+                idx += 1
+                TEST.write('            hub' + str(idx) + '.' + action +
+                           '()\n')
+            for idx in range(consumers):
+                idx += 1
+                TEST.write('            consumer' + str(idx) + '.' + action +
+                           '()\n')
+        else:
+            for idx in range(instances):
+                idx += 1
+                if idx == 1:
+                    idx = ''
+                else:
+                    idx = str(idx)
+                TEST.write('            standalone' + idx + '.' + action +
+                           '()\n')
+
     TEST.write('    def fin():\n')
-    if repl_deployment:
-        for idx in range(masters):
-            idx += 1
-            TEST.write('        master' + str(idx) + '.delete()\n')
-        for idx in range(hubs):
-            idx += 1
-            TEST.write('        hub' + str(idx) + '.delete()\n')
-        for idx in range(consumers):
-            idx += 1
-            TEST.write('        consumer' + str(idx) + '.delete()\n')
-    else:
-        for idx in range(instances):
-            idx += 1
-            if idx == 1:
-                idx = ''
-            else:
-                idx = str(idx)
-            TEST.write('        standalone' + idx + '.delete()\n')
-    TEST.write('    request.addfinalizer(fin)')
+    TEST.write('        """')
+    TEST.write('If we are debugging just stop the instances, ' +
+               'otherwise remove\n        them\n')
+    TEST.write('        """\n')
+    TEST.write('        if DEBUGGING:\n')
+    writeInstanceOp('stop')
+    TEST.write('        else:\n')
+    writeInstanceOp('delete')
+    TEST.write('\n    request.addfinalizer(fin)')
     TEST.write('\n\n')
 
 
@@ -170,13 +185,14 @@ if len(sys.argv) > 0:
                'from lib389.tasks import *\nfrom lib389.utils import *\n\n')
 
     #
-    # Set the logger and installation prefix
+    # Set the logger and other settings
     #
-    TEST.write('logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
-    TEST.write('log = logging.getLogger(__name__)\n\n')
-
-    # We don't need the prefix anymore, it's worked out in lib389
-    # TEST.write('installation1_prefix = None\n\n\n')
+    TEST.write('DEBUGGING = False\n\n')
+    TEST.write('if DEBUGGING:\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
+    TEST.write('else:\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n\n\n')
+    TEST.write('log = logging.getLogger(__name__)\n\n\n')
 
     #
     # Write the replication or standalone classes
@@ -189,6 +205,7 @@ if len(sys.argv) > 0:
         repl_deployment = True
 
         TEST.write('class TopologyReplication(object):\n')
+        TEST.write('    """The Replication Topology Class"""\n')
         TEST.write('    def __init__(self')
         for idx in range(masters):
             TEST.write(', master' + str(idx + 1))
@@ -197,6 +214,7 @@ if len(sys.argv) > 0:
         for idx in range(consumers):
             TEST.write(', consumer' + str(idx + 1))
         TEST.write('):\n')
+        TEST.write('        """Init"""\n')
 
         for idx in range(masters):
             TEST.write('        master' + str(idx + 1) + '.open()\n')
@@ -216,6 +234,7 @@ if len(sys.argv) > 0:
         # Write the standalone class
         #
         TEST.write('class TopologyStandalone(object):\n')
+        TEST.write('    """The DS Topology Class"""\n')
         TEST.write('    def __init__(self')
         for idx in range(instances):
             idx += 1
@@ -225,7 +244,7 @@ if len(sys.argv) > 0:
                 idx = str(idx)
             TEST.write(', standalone' + idx)
         TEST.write('):\n')
-
+        TEST.write('        """Init"""\n')
         for idx in range(instances):
             idx += 1
             if idx == 1:
@@ -242,19 +261,19 @@ if len(sys.argv) > 0:
     #
     TEST.write('@pytest.fixture(scope="module")\n')
     TEST.write('def topology(request):\n')
-    #TEST.write('    global installation1_prefix\n')
-    #TEST.write('    if installation1_prefix:\n')
-    #TEST.write('        args_instance[SER_DEPLOYED_DIR] = ' +
-    #           'installation1_prefix\n\n')
 
     if repl_deployment:
         #
         # Create the replication instances
         #
+        TEST.write('    """Create Replication Deployment"""\n\n')
         for idx in range(masters):
             idx = str(idx + 1)
             TEST.write('    # Creating master ' + idx + '...\n')
-            TEST.write('    master' + idx + ' = DirSrv(verbose=False)\n')
+            TEST.write('    if DEBUGGING:\n')
+            TEST.write('        master' + idx + ' = DirSrv(verbose=True)\n')
+            TEST.write('    else:\n')
+            TEST.write('        master' + idx + ' = DirSrv(verbose=False)\n')
             TEST.write('    args_instance[SER_HOST] = HOST_MASTER_' + idx +
                        '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_MASTER_' + idx +
@@ -278,7 +297,10 @@ if len(sys.argv) > 0:
         for idx in range(hubs):
             idx = str(idx + 1)
             TEST.write('    # Creating hub ' + idx + '...\n')
-            TEST.write('    hub' + idx + ' = DirSrv(verbose=False)\n')
+            TEST.write('    if DEBUGGING:\n')
+            TEST.write('        hub' + idx + ' = DirSrv(verbose=True)\n')
+            TEST.write('    else:\n')
+            TEST.write('        hub' + idx + ' = DirSrv(verbose=False)\n')
             TEST.write('    args_instance[SER_HOST] = HOST_HUB_' + idx + '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_HUB_' + idx + '\n')
             TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_HUB_' +
@@ -300,7 +322,10 @@ if len(sys.argv) > 0:
         for idx in range(consumers):
             idx = str(idx + 1)
             TEST.write('    # Creating consumer ' + idx + '...\n')
-            TEST.write('    consumer' + idx + ' = DirSrv(verbose=False)\n')
+            TEST.write('    if DEBUGGING:\n')
+            TEST.write('        consumer' + idx + ' = DirSrv(verbose=True)\n')
+            TEST.write('    else:\n')
+            TEST.write('        consumer' + idx + ' = DirSrv(verbose=False)\n')
             TEST.write('    args_instance[SER_HOST] = HOST_CONSUMER_' + idx +
                        '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_CONSUMER_' + idx +
@@ -340,13 +365,15 @@ if len(sys.argv) > 0:
                     continue
                 TEST.write('    # Creating agreement from master ' +
                            str(master_idx) + ' to master ' + str(idx) + '\n')
-                TEST.write("    properties = {RA_NAME:      " +
-                           "r'meTo_$host:$port',\n")
-                TEST.write("                  RA_BINDDN:    " +
+                TEST.write("    properties = {RA_NAME: " +
+                           "'meTo_' + master" + str(idx) +
+                           ".host + ':' + str(master" + str(idx) +
+                           ".port),\n")
+                TEST.write("                  RA_BINDDN: " +
                            "defaultProperties[REPLICATION_BIND_DN],\n")
-                TEST.write("                  RA_BINDPW:    " +
+                TEST.write("                  RA_BINDPW: " +
                            "defaultProperties[REPLICATION_BIND_PW],\n")
-                TEST.write("                  RA_METHOD:    " +
+                TEST.write("                  RA_METHOD: " +
                            "defaultProperties[REPLICATION_BIND_METHOD],\n")
                 TEST.write("                  RA_TRANSPORT_PROT: " +
                            "defaultProperties[REPLICATION_TRANSPORT]}\n")
@@ -371,13 +398,15 @@ if len(sys.argv) > 0:
                 #
                 TEST.write('    # Creating agreement from master ' +
                            str(master_idx) + ' to hub ' + str(idx) + '\n')
-                TEST.write("    properties = {RA_NAME:      " +
-                           "r'meTo_$host:$port',\n")
-                TEST.write("                  RA_BINDDN:    " +
+                TEST.write("    properties = {RA_NAME: " +
+                           "'meTo_' + hub" + str(idx) +
+                           ".host + ':' + str(hub" + str(idx) +
+                           ".port),\n")
+                TEST.write("                  RA_BINDDN: " +
                            "defaultProperties[REPLICATION_BIND_DN],\n")
-                TEST.write("                  RA_BINDPW:    " +
+                TEST.write("                  RA_BINDPW: " +
                            "defaultProperties[REPLICATION_BIND_PW],\n")
-                TEST.write("                  RA_METHOD:    " +
+                TEST.write("                  RA_METHOD: " +
                            "defaultProperties[REPLICATION_BIND_METHOD],\n")
                 TEST.write("                  RA_TRANSPORT_PROT: " +
                            "defaultProperties[REPLICATION_TRANSPORT]}\n")
@@ -410,13 +439,15 @@ if len(sys.argv) > 0:
                 #
                 TEST.write('    # Creating agreement from hub ' + str(hub_idx)
                            + ' to consumer ' + str(idx) + '\n')
-                TEST.write("    properties = {RA_NAME:      " +
-                           "r'meTo_$host:$port',\n")
-                TEST.write("                  RA_BINDDN:    " +
+                TEST.write("    properties = {RA_NAME: " +
+                           "'meTo_' + consumer" + str(idx) +
+                           ".host + ':' + str(consumer" + str(idx) +
+                           ".port),\n")
+                TEST.write("                  RA_BINDDN: " +
                            "defaultProperties[REPLICATION_BIND_DN],\n")
-                TEST.write("                  RA_BINDPW:    " +
+                TEST.write("                  RA_BINDPW: " +
                            "defaultProperties[REPLICATION_BIND_PW],\n")
-                TEST.write("                  RA_METHOD:    " +
+                TEST.write("                  RA_METHOD: " +
                            "defaultProperties[REPLICATION_BIND_METHOD],\n")
                 TEST.write("                  RA_TRANSPORT_PROT: " +
                            "defaultProperties[REPLICATION_TRANSPORT]}\n")
@@ -451,13 +482,15 @@ if len(sys.argv) > 0:
                     TEST.write('    # Creating agreement from master ' +
                                str(master_idx) + ' to consumer ' + str(idx) +
                                '\n')
-                    TEST.write("    properties = {RA_NAME:      " +
-                               "r'meTo_$host:$port',\n")
-                    TEST.write("                  RA_BINDDN:    " +
+                    TEST.write("    properties = {RA_NAME: " +
+                               "'meTo_' + consumer" + str(idx) +
+                               ".host + ':' + str(consumer" + str(idx) +
+                               ".port),\n")
+                    TEST.write("                  RA_BINDDN: " +
                                "defaultProperties[REPLICATION_BIND_DN],\n")
-                    TEST.write("                  RA_BINDPW:    " +
+                    TEST.write("                  RA_BINDPW: " +
                                "defaultProperties[REPLICATION_BIND_PW],\n")
-                    TEST.write("                  RA_METHOD:    " +
+                    TEST.write("                  RA_METHOD: " +
                                "defaultProperties[REPLICATION_BIND_METHOD],\n")
                     TEST.write("                  RA_TRANSPORT_PROT: " +
                                "defaultProperties[REPLICATION_TRANSPORT]}\n")
@@ -575,6 +608,7 @@ if len(sys.argv) > 0:
         #
 
         # Args for the standalone instance
+        TEST.write('    """Create DS Deployment"""\n\n')
         for idx in range(instances):
             idx += 1
             if idx == 1:
@@ -582,7 +616,12 @@ if len(sys.argv) > 0:
             else:
                 idx = str(idx)
             TEST.write('    # Creating standalone instance ' + idx + '...\n')
-            TEST.write('    standalone' + idx + ' = DirSrv(verbose=False)\n')
+            TEST.write('    if DEBUGGING:\n')
+            TEST.write('        standalone' + idx +
+                       ' = DirSrv(verbose=True)\n')
+            TEST.write('    else:\n')
+            TEST.write('        standalone' + idx +
+                       ' = DirSrv(verbose=False)\n')
             TEST.write('    args_instance[SER_HOST] = HOST_STANDALONE' +
                        idx + '\n')
             TEST.write('    args_instance[SER_PORT] = PORT_STANDALONE' +
@@ -630,7 +669,7 @@ if len(sys.argv) > 0:
     if ticket:
         TEST.write('def test_ticket' + ticket + '(topology):\n')
         if repl_deployment:
-            TEST.write('    """Write your replication testcase here.\n\n')
+            TEST.write('    """Write your replication test here.\n\n')
             TEST.write('    To access each DirSrv instance use:  ' +
                        'topology.master1, topology.master2,\n' +
                        '        ..., topology.hub1, ..., topology.consumer1' +
@@ -643,17 +682,21 @@ if len(sys.argv) > 0:
             TEST.write('    Also, if you need any testcase initialization,\n')
             TEST.write('    please, write additional fixture for that' +
                        '(include finalizer).\n')
-        TEST.write('    """\n\n')
-        TEST.write("    log.info('Test complete')\n")
-        TEST.write('\n\n')
+        TEST.write('\n    """\n\n')
+
     else:
         # Write the first initial empty test function
-        TEST.write('def test_' + suite + '_#####(topology):\n')
+        TEST.write('def test_' + suite + '(topology):\n')
         TEST.write('    """Write a single test here...\n\n')
         TEST.write('    Also, if you need any test suite initialization,\n')
         TEST.write('    please, write additional fixture for that(include ' +
-                   'finalizer).\n')
-        TEST.write('    """\n\n    return\n\n\n')
+                   'finalizer).\n    """\n')
+
+    TEST.write('    if DEBUGGING:\n')
+    TEST.write('        # Add debugging steps(if any)...\n')
+    TEST.write('        pass\n\n')
+    TEST.write("    log.info('Test PASSED')\n")
+    TEST.write('\n\n')
 
     #
     # Write the main function
@@ -662,7 +705,7 @@ if len(sys.argv) > 0:
     TEST.write('    # Run isolated\n')
     TEST.write('    # -s for DEBUG mode\n')
     TEST.write('    CURRENT_FILE = os.path.realpath(__file__)\n')
-    TEST.write('    pytest.main("-s %s" % CURRENT_FILE)\n')
+    TEST.write('    pytest.main("-s %s" % CURRENT_FILE)\n\n')
 
     #
     # Done, close things up
