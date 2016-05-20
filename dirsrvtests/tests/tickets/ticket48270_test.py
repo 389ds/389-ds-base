@@ -34,7 +34,7 @@ class TopologyStandalone(object):
         self.standalone = standalone
 
 
-#@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
     global installation1_prefix
     if installation1_prefix:

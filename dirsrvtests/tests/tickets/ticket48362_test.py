@@ -14,9 +14,6 @@ from lib389.utils import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
-
-
 PEOPLE_OU='people'
 PEOPLE_DN = "ou=%s,%s" % (PEOPLE_OU, SUFFIX)
 MAX_ACCOUNTS=5
@@ -34,16 +31,11 @@ class TopologyReplication(object):
         self.master2 = master2
 
 
-#@pytest.fixture(scope="module")
+@pytest.fixture(scope="module")
 def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
 
     # Creating master 1...
     master1 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_1
     args_instance[SER_PORT] = PORT_MASTER_1
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
@@ -59,8 +51,6 @@ def topology(request):
 
     # Creating master 2...
     master2 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_2
     args_instance[SER_PORT] = PORT_MASTER_2
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
@@ -244,7 +234,7 @@ def test_ticket48362(topology):
     assert(ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
 
 
-    ent = topology.master1.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % topology.master2.port)
+    ent = topology.master2.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % topology.master2.port)
     log.info('\n======================== BEFORE RESTART ============================\n')
     assert(ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert(ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
@@ -260,7 +250,7 @@ def test_ticket48362(topology):
     assert(ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert(ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
 
-    ent = topology.master1.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % topology.master2.port)
+    ent = topology.master2.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % topology.master2.port)
     log.info('\n=================== AFTER RESTART =================================\n')
     assert(ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert(ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
@@ -270,9 +260,5 @@ def test_ticket48362(topology):
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-    global installation1_prefix
-    installation1_prefix='/home/tbordaz/install_1.3.4'
-    topo = topology(True)
-    test_ticket48362(topo)
-#     CURRENT_FILE = os.path.realpath(__file__)
-#     pytest.main("-s %s" % CURRENT_FILE)
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
