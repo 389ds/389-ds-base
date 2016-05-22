@@ -1650,12 +1650,20 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
          */
         LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, vmsize=%lu, \n", 
             (unsigned long) *pages, (unsigned long) vmsize,0);
+#if __GNUC__
+#if __x86_64__ || __ppc64__
+        /* On 64bit platforms, vmsize is set high (VmSize), and doesn't change. IE 17tb */
         if (vmsize < *pages) {
             LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using vmsize for pages \n",0,0,0);
             *pages = vmsize;
         } else {
             LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for pages \n",0,0,0);
         }
+#else
+        /* On 32bit platforms, vmsize is set low (VmSize) and grows. */
+        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for pages \n",0,0,0);
+#endif
+#endif
 
         /* Availpages is how much we *could* alloc. We should take the smallest:
          * - pages
