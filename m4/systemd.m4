@@ -39,24 +39,18 @@ if test "$with_systemd" = yes; then
 
     AC_PATH_PROG(PKG_CONFIG, pkg-config)
     AC_MSG_CHECKING(for Systemd with pkg-config)
-    if test "$with_journald" = yes; then
 
-        if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-journal libsystemd-daemon ; then
-            systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-journal libsystemd-daemon`
-            systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-journal libsystemd-daemon`
-            systemd_defs="-DWITH_SYSTEMD -DHAVE_JOURNALD"
-        else
-            AC_MSG_ERROR([no Systemd / Journald pkg-config files])
-        fi
+    if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists libsystemd ; then
+        systemd_inc=`$PKG_CONFIG --cflags-only-I libsystemd`
+        systemd_lib=`$PKG_CONFIG --libs-only-l libsystemd`
     else
+        AC_MSG_ERROR([no Systemd pkg-config files])
+    fi
 
-        if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists systemd libsystemd-daemon ; then
-            systemd_inc=`$PKG_CONFIG --cflags-only-I systemd libsystemd-daemon`
-            systemd_lib=`$PKG_CONFIG --libs-only-l systemd libsystemd-daemon`
-            systemd_defs="-DWITH_SYSTEMD"
-        else
-            AC_MSG_ERROR([no Systemd pkg-config files])
-        fi
+    if test "$with_journald" = yes; then
+        systemd_defs="-DWITH_SYSTEMD -DHAVE_JOURNALD"
+    else
+        systemd_defs="-DWITH_SYSTEMD"
     fi
 
     # Check for the pkg config provided unit paths
