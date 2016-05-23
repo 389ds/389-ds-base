@@ -129,6 +129,7 @@ main( argc, argv )
 {
     int			i, rc;
     char		*enc, *cmp, *name;
+    char    *decoded = NULL;
     struct pw_scheme	*pwsp, *cmppwsp;
     extern int		optind;
     char 		*cpwd = NULL;	/* candidate password for comparison */
@@ -206,51 +207,63 @@ main( argc, argv )
 		}
 	}
 
-    if ( cpwd != NULL ) {
-	cmppwsp = pw_val2scheme( decode( cpwd ), &cmp, 1 );
-    }
-    
-    if ( cmppwsp != NULL && pwsp != NULL ) {
-	fprintf( stderr, "%s: do not use -s with -c\n", name );
-	usage( name );
-    }
+	if ( cpwd != NULL ) {
+		decoded = decode( cpwd );
+		cmppwsp = pw_val2scheme(decoded, &cmp, 1 );
+	}
+	
+	if ( cmppwsp != NULL && pwsp != NULL ) {
+		fprintf( stderr, "%s: do not use -s with -c\n", name );
+		usage( name );
+	}
 
-    if ( cmppwsp == NULL && pwsp == NULL ) {
-	pwsp = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
-    }
+	if ( cmppwsp == NULL && pwsp == NULL ) {
+		pwsp = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
+	}
 
-    if ( argc <= optind ) {
-	usage( name );
-    }
+	if ( argc <= optind ) {
+		usage( name );
+	}
 
-    if ( cmppwsp == NULL && pwsp->pws_enc == NULL ) {
+	if ( cmppwsp == NULL && pwsp->pws_enc == NULL ) {
 	fprintf( stderr,
 		"The scheme \"%s\" does not support password encoding.\n",
 		pwsp->pws_name );
-	return( 1 );
-    }
+		rc = 1;
+		goto out;
+	}
 
-    srand((int)time(NULL));	/* schemes such as crypt use random salt */
+	srand((int)time(NULL));	/* schemes such as crypt use random salt */
 
-    for ( rc = 0; optind < argc && rc == 0; ++optind ) {
+	for ( rc = 0; optind < argc && rc == 0; ++optind ) {
 		if ( cmppwsp == NULL ) {	/* encode passwords */
-			if (( enc = (*pwsp->pws_enc)( decode( argv[ optind ] ))) == NULL ) {
-			perror( name );
-			return( 1 );
+			decoded = decode( argv[ optind ] );
+			if (( enc = (*pwsp->pws_enc)( decoded )) == NULL ) {
+				perror( name );
+				rc = 1;
+				goto out;
 			}
 
 			puts( enc );
 			slapi_ch_free_string( &enc );
-		} else {		/* compare passwords */
-			if (( rc = (*(cmppwsp->pws_cmp))( decode( argv[ optind ]), cmp )) == 0 ) {
-			printf( "%s: password ok.\n", name );
+		} else {        /* compare passwords */
+			decoded = decode( argv[ optind ] );
+			if (( rc = (*(cmppwsp->pws_cmp))( decoded, cmp )) == 0 ) {
+				printf( "%s: password ok.\n", name );
 			} else {
-			printf( "%s: password does not match.\n", name );
+				printf( "%s: password does not match.\n", name );
 			}
 		}
-    }
+	}
 
-    return( rc == 0 ? 0 : 1 );
+out:
+
+	free_pw_scheme(pwsp);
+	slapi_ch_free_string(&decoded);
+
+	plugin_closeall( 1 /* Close Backends */, 1 /* Close Globals */);
+
+	return( rc == 0 ? 0 : 1 );
 }
 
 /* -------------------------------------------------------------- */
@@ -322,7 +335,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 				 * and schema subsystems be initialized... and they
 				 * are not yet.
 				 */
-				Slapi_Entry	*e = slapi_str2entry(entrystr,
+				Slapi_Entry	*e = slapi_str2entry(entrystr, // this one
 									SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF);
 				if (e == NULL)
 				{
@@ -339,22 +352,18 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 					if ( entry_has_attr_and_value(e, ATTR_PLUGIN_TYPE, "pwdstoragescheme"))
 					{
 						/* add the syntax/matching/pwd storage scheme rule plugin */
-						if (plugin_setup(e, 0, 0, 1, returntext))
+						/* Because add_entry is 1, plugin_entry is duplicated */
+						if (plugin_setup(e, 0, 0, 1, returntext)) // This one
 						{
 							fprintf(stderr,
 									"The plugin entry [%s] in the configfile %s was invalid.  %s\n",
 									slapi_entry_get_dn(e), configfile, returntext);
 							exit(1); /* yes this sucks, but who knows what else would go on if I did the right thing */
 						}
-						else
-						{
-							e = 0; /* successful plugin_setup consumes entry */
-						}
 					}
 				}
 
-				if (e)
-					slapi_entry_free(e);
+				slapi_entry_free(e);
 			}
 
 			/* kexcoff: initialize rootpwstoragescheme and pw_storagescheme

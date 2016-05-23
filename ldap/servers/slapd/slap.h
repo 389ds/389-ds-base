@@ -792,6 +792,7 @@ struct slapdplugin {
 	int					plg_type;		/* discriminates union */
 	char				*plg_dn;		/* config dn for this plugin */
 	char				*plg_id;		/* plugin id, used when adding/removing plugins */
+	struct slapi_componentid *plg_identity; /* Slapi component id */
 	int					plg_precedence;	/* for plugin execution ordering */
 	struct slapdplugin  *plg_group;		/* pointer to the group to which this plugin belongs */
 	struct pluginconfig plg_conf;		/* plugin configuration parameters */

@@ -52,6 +52,7 @@ static PRBool plugin_matches_operation (Slapi_DN *target_spec, PluginTargetData 
 
 static void plugin_config_init (struct pluginconfig *config);
 static void plugin_config_cleanup (struct pluginconfig *config);
+static void plugin_free(struct slapdplugin *plugin);
 static int plugin_config_set_action (int *action, char *value);
 static struct pluginconfig* plugin_get_config (struct slapdplugin *plugin);
 static void default_plugin_init();
@@ -1951,6 +1952,7 @@ plugin_closeall(int close_backends, int close_globals)
 	while (iterp) {
 		nextp = iterp->next;
 		slapi_entry_free(iterp->e);
+		plugin_free(iterp->plugin);
 		slapi_ch_free((void **)&iterp);
 		iterp = nextp;
 	}
@@ -2709,6 +2711,8 @@ plugin_free(struct slapdplugin *plugin)
 	slapi_ch_free_string(&plugin->plg_initfunc);
 	slapi_ch_free_string(&plugin->plg_name);
 	slapi_ch_free_string(&plugin->plg_dn);
+	slapi_ch_free_string(&plugin->plg_pwdstorageschemename);
+	release_componentid(plugin->plg_identity);
 	slapi_counter_destroy(&plugin->plg_op_counter);
 	if (!plugin->plg_group)
 		plugin_config_cleanup(&plugin->plg_conf);
@@ -3005,8 +3009,10 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	slapi_pblock_set(&pb, SLAPI_PLUGIN, plugin);
 	slapi_pblock_set(&pb, SLAPI_PLUGIN_VERSION, (void *)SLAPI_PLUGIN_CURRENT_VERSION);
 
-        cid = generate_componentid (plugin,NULL);
-        slapi_pblock_set(&pb, SLAPI_PLUGIN_IDENTITY, (void*)cid);
+	cid = generate_componentid (plugin,NULL);
+	/* We take a copy of the pointer to this so we can free it correctly. */
+	plugin->plg_identity = cid;
+	slapi_pblock_set(&pb, SLAPI_PLUGIN_IDENTITY, (void*)cid);
 
 	configdir = config_get_configdir();
 	slapi_pblock_set(&pb, SLAPI_CONFIG_DIRECTORY, configdir);
