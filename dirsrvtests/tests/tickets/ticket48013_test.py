@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import os
 import sys
 import time
@@ -89,7 +97,8 @@ def test_ticket48013(topology):
     topology.standalone.plugins.enable(name=PLUGIN_REPL_SYNC)
 
     # Set everything up
-    ldap_url = ldapurl.LDAPUrl('ldap://localhost:31389')
+    ldap_url = ldapurl.LDAPUrl('ldap://%s:%s' % (HOST_STANDALONE,
+                                                 PORT_STANDALONE))
     ldap_connection = SyncObject(ldap_url.initializeUrl())
 
     # Authenticate

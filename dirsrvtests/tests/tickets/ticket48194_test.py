@@ -1,9 +1,9 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -26,7 +26,7 @@ CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 RSA = 'RSA'
 RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
-LDAPSPORT = '10636'
+LDAPSPORT = '636'
 SERVERCERT = 'Server-Cert'
 plus_all_ecount = 0
 plus_all_dcount = 0
@@ -326,7 +326,7 @@ def my_test_run_5(topology):
 
 def my_test_run_6(topology):
     """
-    Check nsSSL3Ciphers: +all,-TLS_RSA_WITH_AES_256_CBC_SHA256 
+    Check nsSSL3Ciphers: +all,-TLS_RSA_WITH_AES_256_CBC_SHA256
     All ciphers are disabled.
     default allowWeakCipher
     """

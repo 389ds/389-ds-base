@@ -82,7 +82,7 @@ def runDbVerify(topology):
         assert False
     else:
         topology.standalone.log.info("dbverify passed")
-        
+
 def reindexUidNumber(topology):
     topology.standalone.log.info("\n\n	+++++ reindex uidnumber +++++\n")
     sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
@@ -91,27 +91,13 @@ def reindexUidNumber(topology):
     indexOUT = os.popen(indexCMD, "r")
     topology.standalone.log.info("Running %s" % indexCMD)
 
-    time.sleep(10)
+    time.sleep(15)
 
     tailCMD = "tail -n 3 " + topology.standalone.errlog
     tailOUT = os.popen(tailCMD, "r")
-    running = True
-    done = False
-    while running:
-        l = tailOUT.readline()
-        if l == "":
-            running = False
-        elif "Finished indexing" in l:
-            running = False
-            done = True
-            topology.standalone.log.info("%s" % l)
-        
-    if done:
-        topology.standalone.log.info("%s done" % indexCMD)
-    else:
-        topology.standalone.log.fatal("%s did not finish" % indexCMD)
-        assert False
-        
+    assert 'Finished indexing' in tailOUT.read()
+
+
 def test_ticket48212(topology):
     """
     Import posixAccount entries.

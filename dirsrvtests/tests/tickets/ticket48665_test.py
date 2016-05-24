@@ -76,8 +76,12 @@ def test_ticket48665(topology):
     assert(DN_DM.lower() in result.lower())
 
     # This has a magic hack to determine if we are in cn=config.
-    topology.standalone.backend.setProperties(bename=DEFAULT_BENAME,
-        prop='nsslapd-cachememsize', values='1')
+    try:
+        topology.standalone.modify_s(DEFAULT_BENAME, [(ldap.MOD_REPLACE,
+                                                       'nsslapd-cachememsize', '1')])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to change nsslapd-cachememsize ' + e.message['desc'])
+
     # Check the server has not commited seppuku.
     result = topology.standalone.whoami_s()
     assert(DN_DM.lower() in result.lower())

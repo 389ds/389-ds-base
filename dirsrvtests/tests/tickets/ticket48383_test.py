@@ -26,7 +26,7 @@ class TopologyStandalone(object):
 @pytest.fixture(scope="module")
 def topology(request):
     # Creating standalone instance ...
-    standalone = DirSrv(verbose=True)
+    standalone = DirSrv(verbose=False)
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
@@ -98,10 +98,13 @@ def test_ticket48383(topology):
     except ldap.LDAPError as e:
         log.fatal('test 48383: Failed to user%s: error %s ' % (i, e.message['desc']))
         assert False
-    # Set the dbsize really low.
 
-    topology.standalone.backend.setProperties(bename=DEFAULT_BENAME,
-        prop='nsslapd-cachememsize', values='1')
+    # Set the dbsize really low.
+    try:
+        topology.standalone.modify_s(DEFAULT_BENAME, [(ldap.MOD_REPLACE,
+                                                       'nsslapd-cachememsize', '1')])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to change nsslapd-cachememsize ' + e.message['desc'])
 
     ## Does ds try and set a minimum possible value for this?
     ## Yes: [16/Feb/2016:16:39:18 +1000] - WARNING: cache too small, increasing to 500K bytes

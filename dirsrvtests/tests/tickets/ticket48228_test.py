@@ -162,22 +162,22 @@ def check_passwd_inhistory(topology, user, cpw, passwd):
     except ldap.LDAPError as e:
         log.info('		The password ' + passwd + ' of user' + USER1_DN + ' in history: error ' + e.message['desc'])
         inhistory = 1
+    time.sleep(1)
     return inhistory
 
 
 def update_passwd(topology, user, passwd, times):
     cpw = passwd
-    loop = 0
-    while loop < times:
+    for i in range(times):
         log.info("		Bind as {%s,%s}" % (user, cpw))
         topology.standalone.simple_bind_s(user, cpw)
-        cpw = 'password%d' % loop
+        cpw = 'password%d' % i
         try:
             topology.standalone.modify_s(user, [(ldap.MOD_REPLACE, 'userpassword', cpw)])
         except ldap.LDAPError as e:
             log.fatal('test_ticket48228: Failed to update the password ' + cpw + ' of user ' + user + ': error ' + e.message['desc'])
             assert False
-        loop += 1
+        time.sleep(1)
 
     # checking the first password, which is supposed to be in history
     inhistory = check_passwd_inhistory(topology, user, cpw, passwd)
@@ -227,15 +227,15 @@ def test_ticket48228_test_global_policy(topology):
     inhistory = check_passwd_inhistory(topology, USER1_DN, cpw, tpw)
     assert inhistory == 0
 
-    log.info('	checking the second password, which is supposed NOT to be in history any more')
+    log.info('	checking the third password, which is supposed NOT to be in history any more')
     cpw = tpw
     tpw = 'password%d' % 1
     inhistory = check_passwd_inhistory(topology, USER1_DN, cpw, tpw)
     assert inhistory == 0
 
-    log.info('	checking the third password, which is supposed to be in history')
+    log.info('	checking the sixth password, which is supposed to be in history')
     cpw = tpw
-    tpw = 'password%d' % 2
+    tpw = 'password%d' % 5
     inhistory = check_passwd_inhistory(topology, USER1_DN, cpw, tpw)
     assert inhistory == 1
 
@@ -286,19 +286,19 @@ def test_ticket48228_test_subtree_policy(topology):
 
     log.info('	checking the second password, which is supposed NOT to be in history any more')
     cpw = tpw
-    tpw = 'password%d' % 0
-    inhistory = check_passwd_inhistory(topology, USER2_DN, cpw, tpw)
-    assert inhistory == 0
-
-    log.info('	checking the second password, which is supposed NOT to be in history any more')
-    cpw = tpw
     tpw = 'password%d' % 1
     inhistory = check_passwd_inhistory(topology, USER2_DN, cpw, tpw)
     assert inhistory == 0
 
-    log.info('	checking the third password, which is supposed to be in history')
+    log.info('	checking the third password, which is supposed NOT to be in history any more')
     cpw = tpw
     tpw = 'password%d' % 2
+    inhistory = check_passwd_inhistory(topology, USER2_DN, cpw, tpw)
+    assert inhistory == 0
+
+    log.info('	checking the six password, which is supposed to be in history')
+    cpw = tpw
+    tpw = 'password%d' % 5
     inhistory = check_passwd_inhistory(topology, USER2_DN, cpw, tpw)
     assert inhistory == 1
 

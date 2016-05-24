@@ -25,7 +25,7 @@ from lib389.utils import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
+installation1_prefix = ''
 
 CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
@@ -70,7 +70,7 @@ def topology(request):
     master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
 
     # Creating master 2...
-    master2 = DirSrv(verbose=True)
+    master2 = DirSrv(verbose=False)
     if installation1_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_2
@@ -489,7 +489,7 @@ def test_ticket47536(topology):
     add_entry(topology.master2, 'master2', 'uid=m2user', 0, 5)
 
     time.sleep(1)
-   
+
     log.info('##### Searching for entries on master1...')
     entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
@@ -513,7 +513,7 @@ def test_ticket47536(topology):
     entries = topology.master2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 20 == len(entries)
 
-    db2ldifpl = '%s/sbin/db2ldif.pl' % os.getenv('PREFIX')
+    db2ldifpl = '%s/sbin/db2ldif.pl' % installation1_prefix
     cmdline = [db2ldifpl, '-n', 'userRoot', '-Z', SERVERID_MASTER_1, '-D', DN_DM, '-w', PASSWORD]
     log.info("##### db2ldif.pl -- %s" % (cmdline))
     doAndPrintIt(cmdline)
