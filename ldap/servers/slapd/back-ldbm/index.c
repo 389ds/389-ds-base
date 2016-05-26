@@ -1232,6 +1232,7 @@ index_range_read_ext(
     int timelimit = -1;
     back_search_result_set *sr = NULL;
     int isroot = 0;
+    int coreop = operator & SLAPI_OP_RANGE;
 
     if (!pb) {
         LDAPDebug(LDAP_DEBUG_ANY, "index_range_read: NULL pblock\n",
@@ -1278,7 +1279,7 @@ index_range_read_ext(
     LDAPDebug1Arg(LDAP_DEBUG_TRACE, "index_range_read lookthrough_limit=%d\n",
                   lookthrough_limit);
 
-    switch( operator ) {
+    switch( coreop ) {
       case SLAPI_OP_LESS:
       case SLAPI_OP_LESS_OR_EQUAL:
       case SLAPI_OP_GREATER_OR_EQUAL:
@@ -1287,7 +1288,7 @@ index_range_read_ext(
       default:
         LDAPDebug( LDAP_DEBUG_ANY,
               "<= index_range_read(%s,%s) NULL (operator %i)\n",
-              type, prefix, operator );
+              type, prefix, coreop );
         index_free_prefix(prefix);
         return( NULL );
     }
@@ -1343,7 +1344,7 @@ index_range_read_ext(
     if (range != 1) { /* open range search */
         char *tmpbuf = NULL;
         /* this is a search with only one boundary value */
-        switch( operator ) {
+        switch( coreop ) {
           case SLAPI_OP_LESS:
           case SLAPI_OP_LESS_OR_EQUAL:
             lowerkey.dptr = slapi_ch_strdup(prefix);
@@ -1451,8 +1452,17 @@ index_range_read_ext(
     cur_key.data = lowerkey.data;
     cur_key.size = lowerkey.size;
     lowerkey.data = NULL; /* Don't need this any more, since the memory will be freed from cur_key */
-    if (operator == SLAPI_OP_GREATER) {
-        *err = index_range_next_key(db,&cur_key,db_txn);
+    *err = 0;
+    if (coreop == SLAPI_OP_GREATER) {
+        *err = index_range_next_key(db, &cur_key, db_txn);
+        if (*err) {
+            LDAPDebug(LDAP_DEBUG_ANY, "<= index_range_read(%s,%s) op==GREATER, no next key: %i)\n",
+                type, prefix, *err );
+            goto error;
+        }
+    }
+    if (operator & SLAPI_OP_RANGE_NO_ALLIDS) {
+        *err = NEW_IDL_NO_ALLID;
     }
     if (idl_get_idl_new()) { /* new idl */
         idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
@@ -1462,7 +1472,7 @@ index_range_read_ext(
         int retry_count = 0;
         while (*err == 0 &&
                (upperkey.data &&
-                (operator == SLAPI_OP_LESS) ?
+                (coreop == SLAPI_OP_LESS) ?
                 DBTcmp(&cur_key, &upperkey, ai->ai_key_cmp_fn) < 0 :
                 DBTcmp(&cur_key, &upperkey, ai->ai_key_cmp_fn) <= 0)) {
             /* exit the loop when we either run off the end of the table,

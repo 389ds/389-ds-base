@@ -405,7 +405,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 {
                     if (apply_mods)
                         replica_set_precise_purging(r, 0);
-                    }
+                }
                 else
                 {
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -567,8 +567,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 {
                     if (apply_mods)
                     {
-                        if (apply_mods && config_attr_value[0])
-                        {
+                        if (config_attr_value[0]) {
                             PRUint64 on_off = 0;
 
                             if (strcasecmp(config_attr_value, "on") == 0){
@@ -587,7 +586,7 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                                 break;
                             }
                             replica_set_precise_purging(r, on_off);
-                        } else if (apply_mods) {
+                        } else {
                             replica_set_precise_purging(r, 0);
                         }
                     }

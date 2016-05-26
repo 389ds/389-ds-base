@@ -350,17 +350,31 @@ error:
     return idl;
 }
 
+typedef struct _range_id_pair {
+    ID key;
+    ID id;
+} idl_range_id_pair;
 /* 
  * Perform the range search in the idl layer instead of the index layer
  * to improve the performance.
  */
+/*
+ * NOTE:
+ * In the total update (bulk import), an entry requires its ancestors already added.
+ * To guarantee it, the range search with parentid is used with setting the flag
+ * SLAPI_OP_RANGE_NO_IDL_SORT in operator.
+ *
+ * If the flag is set,
+ * 1. the IDList is not sorted by the ID.
+ * 2. holding to add an ID to the IDList unless the key is found in the IDList.
+ */
 IDList *
 idl_new_range_fetch(
-    backend *be, 
-    DB* db, 
-    DBT *lowerkey, 
+    backend *be,
+    DB* db,
+    DBT *lowerkey,
     DBT *upperkey,
-    DB_TXN *txn, 
+    DB_TXN *txn,
     struct attrinfo *ai,
     int *flag_err,
     int allidslimit,
@@ -380,7 +394,7 @@ idl_new_range_fetch(
     size_t count = 0;
 #ifdef DB_USE_BULK_FETCH
     /* beware that a large buffer on the stack might cause a stack overflow on some platforms */
-    char buffer[BULK_FETCH_BUFFER_SIZE]; 
+    char buffer[BULK_FETCH_BUFFER_SIZE];
     void *ptr;
     DBT dataret;
 #endif
@@ -388,15 +402,21 @@ idl_new_range_fetch(
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     time_t curtime;
     void *saved_key = NULL;
+    int coreop = operator & SLAPI_OP_RANGE;
+    ID key;
+    ID suffix;
+    idl_range_id_pair *leftover = NULL;
+    size_t leftoverlen = 32;
+    int leftovercnt = 0;
 
     if (NULL == flag_err) {
         return NULL;
     }
 
-    *flag_err = 0;
     if (NEW_IDL_NOOP == *flag_err) {
         return NULL;
     }
+
     dblayer_txn_init(li, &s_txn);
     if (txn) {
         dblayer_read_txn_begin(be, txn, &s_txn);
@@ -460,7 +480,7 @@ idl_new_range_fetch(
 #ifdef DB_USE_BULK_FETCH
     while (cur_key.data &&
            (upperkey && upperkey->data ?
-            ((operator == SLAPI_OP_LESS) ?
+            ((coreop == SLAPI_OP_LESS) ?
              DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
              DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
             PR_TRUE /* e.g., (x > a) */)) {
@@ -496,6 +516,9 @@ idl_new_range_fetch(
                 goto error;
             }
         }
+        if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+            key = (ID)strtol((char *)cur_key.data+1 , (char **)NULL, 10);
+        }
         while (PR_TRUE) {
             DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
             if (dataret.data == NULL) break;
@@ -524,7 +547,29 @@ idl_new_range_fetch(
             /* note the last id read to check for dups */
             lastid = id;
             /* we got another ID, add it to our IDL */
-            idl_rc = idl_append_extend(&idl, id);
+            if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+                if (!idl) {
+                    /* First time.  Keep the suffix ID. */
+                    suffix = key;
+                    idl_rc = idl_append_extend(&idl, id);
+                } else if ((key == suffix) || idl_id_is_in_idlist(idl, key)) {
+                    /* the parent is the suffix or already in idl. */
+                    idl_rc = idl_append_extend(&idl, id);
+                } else {
+                    /* Otherwise, keep the {key,id} in leftover array */
+                    if (!leftover) {
+                        leftover = (idl_range_id_pair *)slapi_ch_calloc(leftoverlen, sizeof(idl_range_id_pair));
+                    } else if (leftovercnt == leftoverlen) {
+                        leftover = (idl_range_id_pair *)slapi_ch_realloc((char *)leftover, 2 * leftoverlen * sizeof(idl_range_id_pair));
+                        memset(leftover + leftovercnt, 0, leftoverlen);
+                        leftoverlen *= 2;
+                    }
+                    leftover[leftovercnt].key = key;
+                    leftover[leftovercnt++].id = id;
+                }
+            } else {
+                idl_rc = idl_append_extend(&idl, id);
+            }
             if (idl_rc) {
                 LDAPDebug1Arg(LDAP_DEBUG_ANY,
                               "unable to extend id list (err=%d)\n", idl_rc);
@@ -581,7 +626,7 @@ idl_new_range_fetch(
     }
 #else
     while (upperkey && upperkey->data ?
-           ((operator == SLAPI_OP_LESS) ?
+           ((coreop == SLAPI_OP_LESS) ?
             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 :
             DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) :
            PR_TRUE /* e.g., (x > a) */) {
@@ -698,9 +743,27 @@ error:
     *flag_err = ret;
 
     /* sort idl */
-    if (idl && !ALLIDS(idl)) {
-        qsort((void *)&idl->b_ids[0], idl->b_nids,
-              (size_t)sizeof(ID), idl_sort_cmp);
+    if (idl && !ALLIDS(idl) && !(operator & SLAPI_OP_RANGE_NO_IDL_SORT)) {
+        qsort((void *)&idl->b_ids[0], idl->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
+    }
+    if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
+        int i;
+        int left = leftovercnt;
+        while (left) {
+            for (i = 0; i < leftovercnt; i++) {
+                if (leftover[i].key && idl_id_is_in_idlist(idl, leftover[i].key)) {
+                    idl_rc = idl_append_extend(&idl, leftover[i].id);
+                    if (idl_rc) {
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc);
+                        idl_free(&idl);
+                        return NULL;
+                    }
+                    leftover[i].key = 0;
+                    left--;
+                }
+            }
+        }
+		slapi_ch_free((void **)&leftover);
     }
     return idl;
 }
