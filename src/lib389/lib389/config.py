@@ -19,40 +19,28 @@
 import ldap
 from lib389._constants import *
 from lib389 import Entry
+from lib389._mapped_object import DSLdapObject
 
-
-class Config(object):
+class Config(DSLdapObject):
     """
         Manage "cn=config" tree, including:
         - enable SSL
         - set access and error logging
         - get and set "cn=config" attributes
     """
-    def __init__(self, conn):
+    def __init__(self, conn, batch=False):
         """@param conn - a DirSrv instance """
-        self.conn = conn
-        self.log = conn.log
-
-    def set(self, key, value):
-        """Set a parameter under cn=config
-            @param key - the attribute name
-            @param value - attribute value as string
-
-            eg. set('passwordExp', 'on')
-        """
-        self.log.debug("set(%r, %r)" % (key, value))
-        return self.conn.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, key, value)])
-
-    def get(self, key):
-        """Get an attribute under cn=config"""
-        return self.conn.getEntry(DN_CONFIG).__getattr__(key)
+        super(Config, self).__init__(instance=conn, batch=batch)
+        self._dn = DN_CONFIG
+        #self.conn = conn
+        #self.log = conn.log
 
     def _alter_log_enabled(self, service, state):
         if service not in ('access', 'error', 'audit'):
-            self.log.error('Attempted to enable invalid log service "%s"' %
+            self._log.error('Attempted to enable invalid log service "%s"' %
                            service)
         service = 'nsslapd-%slog-logging-enabled' % service
-        self.log.debug('Setting log %s to %s' % (service, state))
+        self._log.debug('Setting log %s to %s' % (service, state))
         self.set(service, state)
 
     def enable_log(self, service):
@@ -84,7 +72,7 @@ class Config(object):
         ex. loglevel([lib389.LOG_DEFAULT, lib389.LOG_ENTRY_PARSER])
         """
         if service not in ('access', 'error'):
-            self.log.error('Attempted to set level on invalid log service "%s"'
+            self._log.error('Attempted to set level on invalid log service "%s"'
                            % service)
         service = 'nsslapd-%slog-level' % service
         assert len(vals) > 0, "set at least one log level"
@@ -95,9 +83,9 @@ class Config(object):
         if update:
             old = int(self.get(service))
             tot |= old
-            self.log.debug("Update %s value: %r -> %r" % (service, old, tot))
+            self._log.debug("Update %s value: %r -> %r" % (service, old, tot))
         else:
-            self.log.debug("Replace %s with value: %r" % (service, tot))
+            self._log.debug("Replace %s with value: %r" % (service, tot))
 
         self.set(service, str(tot))
         return tot
@@ -110,6 +98,7 @@ class Config(object):
 
         self.set('nsslapd-accesslog-logbuffering', value)
 
+    #### THIS WILL BE SPLIT OUT TO ITS OWN MODULE
     def enable_ssl(self, secport=636, secargs=None):
         """Configure SSL support into cn=encryption,cn=config.
 
@@ -117,7 +106,7 @@ class Config(object):
                 'nsSSLPersonalitySSL': 'Server-Cert'
             }
         """
-        self.log.debug("configuring SSL with secargs:%r" % secargs)
+        self._log.debug("configuring SSL with secargs:%r" % secargs)
         secargs = secargs or {}
 
         dn_enc = 'cn=encryption,cn=config'

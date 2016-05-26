@@ -10,11 +10,13 @@ import ldap
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import normalizeDN
-from lib389 import DirSrv, Entry
-from lib389 import NoSuchEntryError, InvalidArgumentError
+from lib389 import Entry
+# Need to fix this ....
 
+from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
-class Backend(object):
+class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
 
     def __init__(self, conn):
@@ -24,6 +26,7 @@ class Backend(object):
 
     def __getattr__(self, name):
         if name in Backend.proxied_methods:
+            from lib389 import DirSrv
             return DirSrv.__getattr__(self.conn, name)
 
     def list(self, suffix=None, backend_dn=None, bename=None):
@@ -216,6 +219,8 @@ class Backend(object):
                 BACKEND_CHAIN_BIND_DN = 'chain-bind-dn'
                 BACKEND_CHAIN_BIND_PW = 'chain-bind-pw'
                 BACKEND_CHAIN_URLS    = 'chain-urls'
+                BACKEND_SUFFIX        = 'suffix'
+                BACKEND_SAMPLE_ENTRIES = 'sample_entries'
 
             @return backend DN of the created backend
 
@@ -242,13 +247,17 @@ class Backend(object):
                     return bename
                 index += 1
 
-        # suffix is mandatory
+        # suffix is mandatory. If may be in the properties
+        if isinstance(properties, dict) and properties.get(BACKEND_SUFFIX, None) is not None:
+            suffix = properties.get(BACKEND_SUFFIX)
         if not suffix:
             raise ldap.UNWILLING_TO_PERFORM('Missing Suffix')
         else:
             nsuffix = normalizeDN(suffix)
 
         # Check it does not already exist a backend for that suffix
+        if self.conn.verbose:
+            self.log.info("Checking suffix %s for existence" % suffix)
         ents = self.conn.backend.list(suffix=suffix)
         if len(ents) != 0:
             raise ldap.ALREADY_EXISTS
@@ -281,13 +290,14 @@ class Backend(object):
                                       % ents[0].dn)
 
         # All checks are done, Time to create the backend
+        import time
         try:
             entry = Entry(dn)
             entry.update({
                 'objectclass': ['top', 'extensibleObject',
                                 BACKEND_OBJECTCLASS_VALUE],
                 BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME]: cn,
-                BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_SUFFIX]: nsuffix
+                BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_SUFFIX]: nsuffix,
             })
 
             if chained_suffix:
@@ -346,12 +356,9 @@ class Backend(object):
         elif name:
             filt = "(objectclass=%s)" % BACKEND_OBJECTCLASS_VALUE
 
-            try:
-                attrs = [attr_suffix]
-                ent = self.conn.getEntry(name, ldap.SCOPE_BASE, filt, attrs)
-                self.log.debug("toSuffix: %s found by its DN" % ent.dn)
-            except NoSuchEntryError:
-                raise ldap.NO_SUCH_OBJECT("Backend DN not found: %s" % name)
+            attrs = [attr_suffix]
+            ent = self.conn.getEntry(name, ldap.SCOPE_BASE, filt, attrs)
+            self.log.debug("toSuffix: %s found by its DN" % ent.dn)
 
             if not ent.hasValue(attr_suffix):
                 raise ValueError("Entry has no %s attribute %r" %
@@ -369,3 +376,56 @@ class Backend(object):
         dn = entries_backend[0].dn
         replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
         self.modify_s(dn, replace)
+
+class Backend(DSLdapObject):
+    def __init__(self, instance, dn=None, batch=False):
+        super(Backend, self).__init__(instance, dn, batch)
+        self._naming_attr = 'cn'
+
+    def create_sample_entries(self):
+        self._log.debug('Creating sample entries ....')
+
+# This only does ldbm backends. Chaining backends are a special case
+# of this, so they can be subclassed off.
+class Backends(DSLdapObjects):
+    def __init__(self, instance, batch=False):
+        super(Backends, self).__init__(instance=instance, batch=False)
+        self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
+        self._create_objectclasses = self._objectclasses + ['top', 'extensibleObject' ]
+        self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
+        self._basedn = DN_LDBM
+        self._childobject = Backend
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['nsslapd-suffix', 'cn']
+
+    def _validate(self, rdn, properties):
+        # We always need to call the super validate first. This way we can
+        # guarantee that properties is a dictionary.
+        # However, backend can take different properties. One is
+        # based on the actual key, value of the object
+        # one is the "python magic" types.
+        # So we actually have to do the super validation later.
+        if properties is None:
+            raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
+        if type(properties) != dict:
+            raise ldap.UNWILLING_TO_PERFORM("properties must be a dictionary")
+
+        # This is converting the BACKEND_ types to the DS nsslapd- attribute values
+        nprops = {}
+        for key, value in properties.items():
+            nprops[BACKEND_PROPNAME_TO_ATTRNAME[key]] = [value,]
+
+        (dn, rdn, valid_props) = super(Backends, self)._validate(rdn, nprops)
+
+        return (dn, rdn, nprops)
+
+    def create(self, rdn=None, properties=None):
+        # properties for a backend might contain a key called BACKEND_SAMPLE_ENTRIES
+        # We need to pop this value out, and pass it to our new instance.
+        sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
+        be_inst = super(Backends, self).create(rdn, properties)
+        if sample_entries is True:
+            be_inst.create_sample_entries()
+        return be_inst
+
+
