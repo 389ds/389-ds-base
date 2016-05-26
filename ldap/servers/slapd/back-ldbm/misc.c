@@ -79,6 +79,7 @@ static const char *systemIndexes[] = {
     SLAPI_ATTR_NSCP_ENTRYDN,
     ATTR_NSDS5_REPLCONFLICT,
     SLAPI_ATTR_ENTRYUSN,
+    SLAPI_ATTR_PARENTID,
     NULL
 };
 
