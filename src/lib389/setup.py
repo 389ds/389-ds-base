@@ -48,5 +48,28 @@ setup(
 
     keywords='389 directory server test configure',
     packages=find_packages(exclude=['tests*']),
-    install_requires=['python-ldap'],
+
+    # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
+    data_files=[
+        ('/usr/sbin/', [
+            # 'lib389/clitools/ds_setup',
+            'lib389/clitools/ds_aci_lint',
+            'lib389/clitools/ds_list_instances',
+            'lib389/clitools/ds_monitor_backend',
+            'lib389/clitools/ds_monitor_server',
+            'lib389/clitools/ds_schema_attributetype_list',
+            'lib389/clitools/ds_schema_attributetype_query',
+            'lib389/clitools/ds_start',
+            'lib389/clitools/ds_stop',
+            'lib389/clitools/ds_krb_create_keytab',
+            'lib389/clitools/ds_krb_create_principal',
+            'lib389/clitools/ds_krb_create_realm',
+            'lib389/clitools/ds_krb_destroy_realm',
+            'lib389/clitools/ds_backend_getattr',
+            'lib389/clitools/ds_backend_setattr',
+            'lib389/clitools/ds_backend_list',
+            ]),
+    ],
+
+    install_requires=['python-ldap', 'dateutil'],
 )

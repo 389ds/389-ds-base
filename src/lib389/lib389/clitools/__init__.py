@@ -40,7 +40,6 @@ class CliTool(object):
             binddn = self.args.binddn
         # There is a dict get key thing somewhere ...
         if self.inst.get(SER_ROOT_PW, None) is None:
-            print("")
             prompt_txt = ('Enter password for %s on instance %s: ' %
                           (binddn,
                            self.inst[SER_SERVERID_PROP]))
@@ -56,7 +55,6 @@ class CliTool(object):
         if not self.ds.can_autobind():
             self.get_rootdn_pass()
             self.ds.allocate(self.inst)
-        print("")
         self.ds.open()
 
     def disconnect(self):

@@ -1,0 +1,43 @@
+#!/usr/bin/python
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+# from clitools import clitools_parser, get_instance_dict, get_rootdn_pass
+from lib389.clitools import CliTool, clitools_parser
+# from lib389 import DirSrv
+from lib389._constants import *
+from argparse import ArgumentParser
+
+
+class BackendTool(CliTool):
+    def backend_set_attr(self):
+        try:
+            self.populate_instance_dict(self.args.instance)
+            self.connect()
+            # This is pretty rough, it just dumps the objects
+            props = self.ds.backend.setProperties(bename=self.args.backend, prop=self.args.attribute[0], values=self.args.values)
+            print(props)
+
+        finally:
+            self.disconnect()
+
+if __name__ == '__main__':
+    # Do some arg parse stuff
+    # You can always add a child parser here too ...
+    parser = clitools_parser.add_argument_group('monitor', 'monitoring options')
+    parser.add_argument('-n', '--backend', help='The name of the backend to ' +
+                        ' retrieve monitoring information for.', required=True)
+    parser.add_argument('attribute', metavar='attr', type=str, nargs=1,
+                        help='The attribute we wish to change')
+    parser.add_argument('values', metavar='values', type=str, nargs='+',
+                        help='The values to apply to the attribute')
+
+    args = clitools_parser.parse_args()
+    backendtool = BackendTool(args)
+    backendtool.backend_set_attr()
