@@ -31,12 +31,15 @@ import ldap
 import socket
 import subprocess
 import time
+import sys
 from socket import getfqdn
 from ldapurl import LDAPUrl
+from contextlib import closing
 
 from lib389._constants import *
 from lib389.properties import *
 
+MAJOR, MINOR, _, _, _ = sys.version_info
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -365,7 +368,7 @@ def isLocalHost(host_name):
     try:
         ip_addr = socket.gethostbyname(host_name)
         if ip_addr.startswith("127."):
-            log.debug("this ip is on loopback, retain only the first octet")
+            # log.debug("this ip is on loopback, retain only the first octet")
             ip_addr = '127.'
     except socket.gaierror:
         log.debug("no ip address for %r" % host_name)
@@ -375,7 +378,7 @@ def isLocalHost(host_name):
     # local addresses
     p = my_popen(['/sbin/ip', 'addr'], stdout=PIPE)
     child_stdout = p.stdout.read()
-    found = ('inet ' + ip_addr) in child_stdout
+    found = ('inet %s' % ip_addr).encode() in child_stdout
     p.wait()
 
     return found
@@ -711,7 +714,6 @@ def formatInfData(args):
 
     return content
 
-
 def get_ds_version():
     """Return version of ns-slapd binary, for example
     1.3.4.8 B2016.043.2254"""
@@ -737,3 +739,21 @@ def getDateTime():
 
     """
     return time.strftime("%Y-%m-%d %H:%M:%S")
+
+def socket_check_open(host, port):
+    with closing(socket.socket(socket.AF_INET6, socket.SOCK_STREAM)) as sock:
+        if sock.connect_ex((host, port)) == 0:
+            return True
+        else:
+            return False
+
+def ensure_bytes(val):
+    if MAJOR >= 3 and type(val) != bytes:
+        return val.encode()
+    return val
+
+def ensure_str(val):
+    if MAJOR >= 3 and type(val) != str:
+        return val.decode('utf-8')
+    return val
+

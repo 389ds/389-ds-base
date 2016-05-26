@@ -78,10 +78,14 @@ from lib389.utils import (
     update_newhost_with_fqdn,
     formatInfData,
     get_sbin_dir,
-    get_bin_dir)
+    get_bin_dir,
+    ensure_bytes,
+    ensure_str)
 
 # mixin
 # from lib389.tools import DirSrvTools
+
+from  lib389.exceptions import *
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -95,39 +99,6 @@ RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 # My logger
 log = logging.getLogger(__name__)
 
-
-class Error(Exception):
-    pass
-
-
-class InvalidArgumentError(Error):
-    pass
-
-
-class AlreadyExists(ldap.ALREADY_EXISTS):
-    pass
-
-
-class NoSuchEntryError(ldap.NO_SUCH_OBJECT):
-    pass
-
-
-class MissingEntryError(NoSuchEntryError):
-    """When just added entries are missing."""
-    pass
-
-
-class UnwillingToPerformError(Error):
-    pass
-
-
-class NotImplementedError(Error):
-    pass
-
-
-class DsError(Error):
-    """Generic DS Error."""
-    pass
 
 
 def wrapper(f, name):
@@ -149,9 +120,9 @@ def wrapper(f, name):
     by an Entry class.  If name is a method that takes an entry argument, we
     extract the raw data from the entry object to pass in.
     """
-    def inner(*args, **kargs):
+    def inner(*args, **kwargs):
         if name == 'result':
-            objtype, data = f(*args, **kargs)
+            objtype, data = f(*args, **kwargs)
             # data is either a 2-tuple or a list of 2-tuples
             # print data
             if data:
@@ -181,9 +152,9 @@ def wrapper(f, name):
             if isinstance(ent, Entry):
                 return f(ent.dn, ent.toTupleList(), *args[2:])
             else:
-                return f(*args, **kargs)
+                return f(*args, **kwargs)
         else:
-            return f(*args, **kargs)
+            return f(*args, **kwargs)
     return inner
 
 
@@ -193,7 +164,7 @@ class DirSrv(SimpleLDAPObject):
         """Return a given attribute from dse.ldif.
             TODO can we take it from "cn=config" ?
         """
-        conffile = self.confdir + '/dse.ldif'
+        conffile = self.confdir.decode('utf-8') + '/dse.ldif'
         try:
             dse_ldif = LDIFConn(conffile)
             cnconfig = dse_ldif.get(DN_CONFIG)
@@ -246,7 +217,7 @@ class DirSrv(SimpleLDAPObject):
 
                 if self.isLocal:
                     if not self.confdir or \
-                       not os.access(self.confdir + '/dse.ldif', os.R_OK):
+                       not os.access(self.confdir.decode('utf-8') + '/dse.ldif', os.R_OK):
                         self.confdir = ent.getValue('nsslapd-schemadir')
                         if self.confdir:
                             self.confdir = os.path.dirname(self.confdir)
@@ -257,35 +228,37 @@ class DirSrv(SimpleLDAPObject):
                 if not instdir and self.isLocal:
                     # get instance name from errorlog
                     # move re outside
-                    self.inst = re.match(
-                        r'(.*)[\/]slapd-([^/]+)/errors', self.errlog).group(2)
+                    # This is a terrible check! There is NO GUARANTEE this pattern will match or work!
+                    #self.inst = re.match(
+                    #    r'(.*)[\/]slapd-([^/]+)/errors', self.errlog.decode('utf-8')).group(2)
                     if self.isLocal and self.confdir:
                         instdir = self.getDseAttr('nsslapd-instancedir')
                     else:
                         instdir = re.match(r'(.*/slapd-.*)/logs/errors',
                                            self.errlog).group(1)
                 if not instdir:
-                    instdir = self.confdir
+                    instdir = self.confdir.decode('utf-8')
 
                 # parse the lib dir, and so set the plugin dir
                 self.instdir = instdir
-                self.libdir = self.instdir.replace('slapd-%s' % self.inst, '')
+                ### THIS NEEDS TO BE FIXED .... There is no guarantee this is correct.
+                self.libdir = self.instdir.replace(u'slapd-%s' % self.serverid, u'')
                 self.plugindir = self.libdir + 'plugins'
 
-                if self.verbose:
-                    log.debug("instdir=%r" % instdir)
-                    log.debug("Entry: %r" % ent)
-                match = re.match(r'(.*)[\/]slapd-([^/]+)$', instdir)
-                if match:
-                    self.sroot, self.inst = match.groups()
-                else:
-                    self.sroot = self.inst = ''
+                #if self.verbose:
+                #    log.debug("instdir=%r" % instdir)
+                #    log.debug("Entry: %r" % ent)
+                #match = re.match(r'(.*)[\/]slapd-([^/]+)$', instdir)
+                #if match:
+                #    self.sroot, self.inst = match.groups()
+                #else:
+                #    self.sroot = self.inst = ''
                 # In case DirSrv was allocated without creating the instance
                 # serverid is not set. Set it now from the config
-                if hasattr(self, 'serverid') and self.serverid:
-                    assert self.serverid == self.inst
-                else:
-                    self.serverid = self.inst
+                #if hasattr(self, 'serverid') and self.serverid != None and self.serverid != "":
+                #    assert(self.serverid == self.inst)
+                #else:
+                #    self.serverid = self.inst
 
                 ent = self.getEntry('cn=config,' + DN_LDBM,
                                     attrlist=['nsslapd-directory'])
@@ -333,7 +306,7 @@ class DirSrv(SimpleLDAPObject):
                 if needtls:
                     self.start_tls_s()
                 try:
-                    self.simple_bind_s(self.binddn, self.bindpw)
+                    self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
                 except ldap.SERVER_DOWN as e:
                     # TODO add server info in exception
                     log.debug("Cannot connect to %r" % uri)
@@ -350,13 +323,12 @@ class DirSrv(SimpleLDAPObject):
         """
         SimpleLDAPObject.__init__(self, self.toLDAPURL())
         # self.start_tls_s()
-        self.simple_bind_s(self.binddn, self.bindpw)
+        self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
 
     def __add_brookers__(self):
-        from lib389.brooker import (
-            Config)
+        from lib389.config import Config
         from lib389.mappingTree import MappingTree
-        from lib389.backend import Backend
+        from lib389.backend import BackendLegacy as Backend
         from lib389.suffix import Suffix
         from lib389.replica import Replica
         from lib389.changelog import Changelog
@@ -367,7 +339,8 @@ class DirSrv(SimpleLDAPObject):
         from lib389.index import Index
         from lib389.aci import Aci
         from lib389.monitor import Monitor
-        from lib389.nss_ssl import NssSsl
+        if MAJOR < 3:
+            from lib389.nss_ssl import NssSsl
         from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
         from lib389.ldclt import Ldclt
 
@@ -385,7 +358,8 @@ class DirSrv(SimpleLDAPObject):
         self.aci = Aci(self)
         self.monitor = Monitor(self)
         # Do we have a certdb path?
-        self.nss_ssl = NssSsl(self)
+        if MAJOR < 3:
+            self.nss_ssl = NssSsl(self)
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ldclt = Ldclt(self)
@@ -480,7 +454,8 @@ class DirSrv(SimpleLDAPObject):
             self.log.info('SER_SERVERID_PROP not provided')
 
         # Do we have ldapi settings?
-        self.ldapi_enabled = args.get(SER_LDAPI_ENABLED, 'off').strip()
+        # Do we really need .strip() on this?
+        self.ldapi_enabled = args.get(SER_LDAPI_ENABLED, 'off')
         self.ldapi_socket = args.get(SER_LDAPI_SOCKET, None)
         # Or do we have tcp / ip settings?
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
@@ -996,7 +971,10 @@ class DirSrv(SimpleLDAPObject):
         uri = self.toLDAPURL()
         if self.verbose:
             self.log.info('open(): Connecting to uri %s' % uri)
-        SimpleLDAPObject.__init__(self, uri)
+        if hasattr(ldap, 'PYLDAP_VERSION'):
+            SimpleLDAPObject.__init__(self, uri, bytes_mode=False)
+        else:
+            SimpleLDAPObject.__init__(self, uri)
 
         if certdir:
             """
@@ -1042,7 +1020,7 @@ class DirSrv(SimpleLDAPObject):
             Do a simple bind
             """
             try:
-                self.simple_bind_s(self.binddn, self.bindpw)
+                self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
             except ldap.SERVER_DOWN as e:
                 # TODO add server info in exception
                 log.debug("Cannot connect to %r" % uri)
@@ -1241,6 +1219,7 @@ class DirSrv(SimpleLDAPObject):
             prefix_pattern = None
 
         # build the list of directories to scan
+        ## THIS MUST BE FIXED, No guarantee of sroot!
         instroot = "%s/slapd-%s" % (self.sroot, self.serverid)
         ldir = [instroot]
         if hasattr(self, 'confdir'):
@@ -1409,12 +1388,13 @@ class DirSrv(SimpleLDAPObject):
 
     def toLDAPURL(self):
         """Return the uri ldap[s]://host:[ssl]port."""
+        host = self.host
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
-            return "ldapi://%s" % (ldapurl.ldapUrlEscape(self.ldapi_socket))
+            return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
         elif self.sslport:
-            return "ldaps://%s:%d/" % (self.host, self.sslport)
+            return "ldaps://%s:%d/" % (ensure_str(host), self.sslport)
         else:
-            return "ldap://%s:%d/" % (self.host, self.port)
+            return "ldap://%s:%d/" % (ensure_str(host), self.port)
 
     def can_autobind(self):
         return self.ldapi_enabled == 'on' and self.ldapi_socket is not None and self.ldapi_autobind == 'on'

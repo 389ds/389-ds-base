@@ -13,6 +13,9 @@ import ldif
 import ldap
 import binascii
 from ldap.cidict import cidict
+import sys
+
+MAJOR, MINOR, _, _, _ = sys.version_info
 
 from lib389._constants import *
 from lib389.properties import *
@@ -216,7 +219,18 @@ class Entry(object):
         element of the tuple is the attribute name.  The second element
         is either a single value or a list of values.
         """
-        return list(self.data.items())
+        # For python3, we have to make sure EVERYTHING is a byte string.
+        # Else everything EXPLODES
+        lt = list(self.data.items())
+        if MAJOR >= 3:
+            ltnew = []
+            for l in lt:
+                vals = []
+                for v in l[1]:
+                    vals.append(v.encode())
+                ltnew.append((l[0], vals ))
+            lt = ltnew
+        return lt
 
     def getref(self):
         return self.ref
@@ -231,7 +245,7 @@ class Entry(object):
         """Update passthru to the data attribute."""
         log.debug("update dn: %r with %r" % (self.dn, dct))
         for k, v in list(dct.items()):
-            if hasattr(v, '__iter__'):
+            if isinstance(v, list) or isinstance(v, tuple):
                 self.data[k] = v
             else:
                 self.data[k] = [v]
@@ -250,6 +264,7 @@ class Entry(object):
         """
         newdata = {}
         newdata.update(self.data)
+
         ldif.LDIFWriter(
             sio, Entry.base64_attrs, 1000).unparse(self.dn, newdata)
         return sio.getvalue()
