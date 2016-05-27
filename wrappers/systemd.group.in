@@ -1,6 +1,6 @@
 [Unit]
 Description=@capbrand@ Directory Server
-After=syslog.target network.target ntpd.service
+After=chronyd.service ntpd.service network-online.target syslog.target
 
 [Install]
 WantedBy=multi-user.target
