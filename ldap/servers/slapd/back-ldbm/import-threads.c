@@ -2542,7 +2542,9 @@ import_foreman(void *param)
                  * we reject the entry but carry on since we've not stored
                  * anything related to this entry.
                  */
-                if (! slapi_be_issuffix(inst->inst_be, backentry_get_sdn(fi->entry))) {
+#define RUVRDN SLAPI_ATTR_UNIQUEID "=" RUV_STORAGE_ENTRY_UNIQUEID
+                if (!slapi_be_issuffix(inst->inst_be, backentry_get_sdn(fi->entry)) &&
+                    strcasecmp(backentry_get_ndn(fi->entry), RUVRDN) /* NOT nsuniqueid=ffffffff-... */) {
                     import_log_notice(job, "WARNING: Skipping entry \"%s\" "
                                       "which has no parent, ending at line %d "
                                       "of file \"%s\"",
@@ -2568,8 +2570,7 @@ import_foreman(void *param)
                     goto cont;      /* skip entry */
                 }
             }
-            if ((job->flags & FLAG_UPGRADEDNFORMAT) &&
-                (LDBM_ERROR_FOUND_DUPDN == ret)) {
+            if ((job->flags & FLAG_UPGRADEDNFORMAT) && (LDBM_ERROR_FOUND_DUPDN == ret)) {
                 /* 
                  * Duplicated DN is detected. 
                  *
