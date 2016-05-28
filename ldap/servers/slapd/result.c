@@ -26,6 +26,7 @@
 #include "pratom.h"
 #include "fe.h"
 #include "vattr_spi.h"
+#include "slapi-plugin.h"
 
 #include <ssl.h>
 
@@ -1938,8 +1939,10 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 	char csn_str[CSN_STRSIZE + 5];
 	char etime[ETIME_BUFSIZ];
 	int pr_idx = -1;
+	int pr_cookie = -1;
 
 	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
+	slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_COOKIE, &pr_cookie);
 
 	internal_op = operation_is_flag_set( op, OP_FLAG_INTERNAL );
 
@@ -2040,24 +2043,24 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
 								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
-								  " pr_idx=%d\n",
+								  " pr_idx=%d pr_cookie=%d\n",
 								  op->o_connid, 
 								  op->o_opid,
 								  err, tag, nentries, 
 								  etime, 
-								  notes_str, csn_str, pr_idx );
+								  notes_str, csn_str, pr_idx, pr_cookie );
 			}
 			else
 			{
 				slapi_log_access( LDAP_DEBUG_ARGS,
 								  "conn=%s op=%d RESULT err=%d"
 								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s"
-								  " pr_idx=%d\n",
+								  " pr_idx=%d pr_cookie=%d \n",
 								  LOG_INTERNAL_OP_CON_ID,
 								  LOG_INTERNAL_OP_OP_ID,
 								  err, tag, nentries, 
 								  etime, 
-								  notes_str, csn_str, pr_idx );
+								  notes_str, csn_str, pr_idx, pr_cookie );
 			}
 		}
 		else if ( !internal_op )

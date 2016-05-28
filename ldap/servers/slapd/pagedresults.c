@@ -235,6 +235,7 @@ pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
     char *cookie_str = NULL;
     int found = 0;
     int i;
+    int cookie = 0;
 
     LDAPDebug1Arg(LDAP_DEBUG_TRACE,
                   "--> pagedresults_set_response_control: idx=%d\n", index);
@@ -246,10 +247,13 @@ pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
 
     /* begin sequence, payload, end sequence */
     if (current_search_count < 0) {
+        cookie = 0;
         cookie_str = slapi_ch_strdup("");
     } else {
+        cookie = index;
         cookie_str = slapi_ch_smprintf("%d", index);
     }
+    slapi_pblock_set ( pb, SLAPI_PAGED_RESULTS_COOKIE, &cookie );
     ber_printf ( ber, "{io}", estimate, cookie_str, strlen(cookie_str) );
     if ( ber_flatten ( ber, &berval ) != LDAP_SUCCESS )
     {

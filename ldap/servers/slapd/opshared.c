@@ -477,10 +477,12 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       if ( slapi_control_present (ctrlp, LDAP_CONTROL_PAGEDRESULTS,
                                   &ctl_value, &iscritical) )
       {
+          int pr_cookie = -1;
           /* be is set only when this request is new. otherwise, prev be is honored. */
           rc = pagedresults_parse_control_value(pb, ctl_value, &pagesize, &pr_idx, be);
           /* Let's set pr_idx even if it fails; in case, pr_idx == -1. */
           slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
+          slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_COOKIE, &pr_cookie);
           if ((LDAP_SUCCESS == rc) || (LDAP_CANCELLED == rc) || (0 == pagesize)) {
               unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
               op_set_pagedresults(operation);
@@ -700,7 +702,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
       }
       pagedresults_unlock(pb->pb_conn, pr_idx);
 
-      if (PAGEDRESULTS_SEARCH_END == pr_stat) {
+      if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
         /* no more entries to send in the backend */
         if (NULL == next_be) {
           /* no more entries && no more backends */
@@ -709,6 +711,7 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           curr_search_count = pnentries;
         }
         estimate = 0;
+        pr_stat = PAGEDRESULTS_SEARCH_END; /* make sure stat is SEARCH_END */
       } else {
         curr_search_count = pnentries;
         estimate -= estimate?curr_search_count:0;
@@ -870,13 +873,14 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
   
             curr_search_count = pnentries;
             slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
-            if (PAGEDRESULTS_SEARCH_END == pr_stat) {
+            if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
               /* no more entries, but at least another backend */
               PR_EnterMonitor(pb->pb_conn->c_mutex);
               pagedresults_set_search_result(pb->pb_conn, operation, NULL, 1, pr_idx);
               be->be_search_results_release(&sr);
               rc = pagedresults_set_current_be(pb->pb_conn, next_be, pr_idx, 1);
               PR_ExitMonitor(pb->pb_conn->c_mutex);
+              pr_stat = PAGEDRESULTS_SEARCH_END; /* make sure stat is SEARCH_END */
               if (NULL == next_be) {
                   /* no more entries && no more backends */
                   curr_search_count = -1;

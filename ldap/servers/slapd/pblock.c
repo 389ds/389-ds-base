@@ -1946,6 +1946,15 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		break;
 
+	case SLAPI_PAGED_RESULTS_COOKIE:
+		if (op_is_pagedresults(pblock->pb_op)) {
+			/* search req is simple paged results */
+			(*(int *)value) = pblock->pb_paged_results_cookie;
+		} else {
+			(*(int *)value) = 0;
+		}
+		break;
+
 	/* ACI Target Check */	
 	case SLAPI_ACI_TARGET_CHECK:
 		(*(int *)value) = pblock->pb_aci_target_check;
@@ -3538,6 +3547,10 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_PAGED_RESULTS_INDEX:
 		pblock->pb_paged_results_index = *(int *)value;
+		break;
+
+	case SLAPI_PAGED_RESULTS_COOKIE:
+		pblock->pb_paged_results_cookie = *(int *)value;
 		break;
 
 	/* ACI Target Check */

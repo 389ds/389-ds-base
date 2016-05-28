@@ -1735,6 +1735,7 @@ typedef struct slapi_pblock {
 	int		pb_syntax_filter_normalized; /* the syntax filter types/values are already normalized */
 	void		*pb_syntax_filter_data; /* extra data to pass to a syntax plugin function */
 	int	pb_paged_results_index;    /* stash SLAPI_PAGED_RESULTS_INDEX */
+        int	pb_paged_results_cookie;   /* stash SLAPI_PAGED_RESULTS_COOKIE */
 	passwdPolicy *pwdpolicy;
 	void *op_stack_elem;
 

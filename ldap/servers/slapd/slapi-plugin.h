@@ -7314,6 +7314,7 @@ typedef struct slapi_plugindesc {
 
 /* Simple paged results index */
 #define SLAPI_PAGED_RESULTS_INDEX   1945
+#define SLAPI_PAGED_RESULTS_COOKIE  1949
 
 /* ACI Target Check */
 #define SLAPI_ACI_TARGET_CHECK      1946
