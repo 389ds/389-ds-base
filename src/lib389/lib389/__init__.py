@@ -339,8 +339,8 @@ class DirSrv(SimpleLDAPObject):
         from lib389.index import Index
         from lib389.aci import Aci
         from lib389.monitor import Monitor
-        if MAJOR < 3:
-            from lib389.nss_ssl import NssSsl
+        from lib389.nss_ssl import NssSsl
+        from lib389.config import RSA
         from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
         from lib389.ldclt import Ldclt
 
@@ -358,8 +358,9 @@ class DirSrv(SimpleLDAPObject):
         self.aci = Aci(self)
         self.monitor = Monitor(self)
         # Do we have a certdb path?
-        if MAJOR < 3:
-            self.nss_ssl = NssSsl(self)
+        #if MAJOR < 3:
+        self.nss_ssl = NssSsl(self)
+        self.rsa = RSA(self)
         self.ds_access_log = DirsrvAccessLog(self)
         self.ds_error_log = DirsrvErrorLog(self)
         self.ldclt = Ldclt(self)

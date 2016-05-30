@@ -106,6 +106,7 @@ class Config(DSLdapObject):
                 'nsSSLPersonalitySSL': 'Server-Cert'
             }
         """
+        self._log.debug("config.enable_ssl is deprecated! Use RSA, Encryption instead!")
         self._log.debug("configuring SSL with secargs:%r" % secargs)
         secargs = secargs or {}
 
@@ -151,3 +152,49 @@ class Config(DSLdapObject):
 
         fields = 'nsslapd-security nsslapd-ssl-check-hostname'.split()
         return self.conn.getEntry(DN_CONFIG, attrlist=fields)
+
+
+class Encryption(DSLdapObject):
+    """
+        Manage "cn=encryption,cn=config" tree, including:
+        - ssl ciphers
+        - ssl / tls levels
+    """
+    def __init__(self, conn, batch=False):
+        """@param conn - a DirSrv instance """
+        super(Encryption, self).__init__(instance=conn, batch=batch)
+        self._dn = 'cn=encryption,%s' % DN_CONFIG
+        # Once created, don't allow it's removal
+        self._protected = True
+
+
+class RSA(DSLdapObject):
+    """
+        Manage the "cn=RSA,cn=encryption,cn=config" object
+        - Set the certificate name
+        - Database path
+        - ssl token name
+    """
+    def __init__(self, conn, batch=False):
+        """@param conn - a DirSrv instance """
+        super(RSA, self).__init__(instance=conn, batch=batch)
+        self._dn = 'cn=RSA,cn=encryption,%s' % DN_CONFIG
+        self._create_objectclasses = ['top', 'nsEncryptionModule']
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        # Once we create it, don't remove it
+        self._protected = True
+
+    def _validate(self, tdn, properties):
+        (dn, valid_props) = super(RSA, self)._validate(tdn, properties)
+        # Ensure that dn matches self._dn
+        assert(self._dn == dn)
+        return (dn, valid_props)
+
+    def create(self, dn=None, properties={'cn': 'RSA'}):
+        # Is this the best way to for the dn?
+        if dn is not None:
+            self._log.debug("dn on cn=Rsa create request is not None. This is a mistake.")
+        super(RSA, self).create(dn=self._dn, properties=properties)
+
+

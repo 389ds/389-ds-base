@@ -63,24 +63,29 @@ class DSLogging(object):
 
 
 class DSLdapObject(DSLogging):
+    # TODO: Automatically create objects when they are requested to have properties added
     def __init__(self, instance, dn=None, batch=False):
         """
         """
         self._instance = instance
         super(DSLdapObject, self).__init__(self._instance.verbose)
         # This allows some factor objects to be overriden
-        self._dn = ''
+        self._dn = None
         if dn is not None:
             self._dn = dn
 
         self._batch = batch
-        self._naming_attr = None
         self._protected = True
+        # Used in creation
+        self._create_objectclasses = []
+        self._rdn_attribute = None
+        self._must_attributes = None
+        self._basedn = ""
 
     def __unicode__(self):
         val = self._dn
-        if self._naming_attr:
-            val = self.get(self._naming_attr)
+        if self._rdn_attribute:
+            val = self.get(self._rdn_attribute)
         return ensure_str(val)
 
     def __str__(self):
@@ -98,6 +103,7 @@ class DSLdapObject(DSLogging):
     def get(self, key):
         """Get an attribute under dn"""
         self._log.debug("%s get(%r)" % (self._dn, key))
+        # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
             ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
             # In the future, I plan to add a mode where if local == true, we can use
@@ -123,6 +129,51 @@ class DSLdapObject(DSLogging):
         if not self._protected:
             pass
 
+    def _validate(self, tdn, properties):
+        """
+        Used to validate a create request.
+        This way, it can be over-ridden without affecting
+        the create types
+
+        It also checks that all the values in _must_attribute exist
+        in some form in the dictionary
+
+        It has the useful trick of returning the dn, so subtypes
+        can use extra properties to create the dn's here for this.
+        """
+        if properties is None:
+            raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
+        if type(properties) != dict:
+            raise ldap.UNWILLING_TO_PERFORM("properties must be a dictionary")
+
+        # I think this needs to be made case insensitive
+        # How will this work with the dictionary?
+        for attr in self._must_attributes:
+            if properties.get(attr, None) is None:
+                raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
+
+        # We may need to map over the data in the properties dict to satisfy python-ldap
+        #
+        # Do we need to do extra dn validation here?
+        return (tdn, properties)
+
+    def create(self, dn, properties=None):
+        assert(len(self._create_objectclasses) > 0)
+        self._log.debug('Creating %s : %s' % (dn, properties))
+        # Make sure these aren't none.
+        # Create the dn based on the various properties.
+        (dn, valid_props) = self._validate(dn, properties)
+        # Check if the entry exists or not? .add_s is going to error anyway ...
+        self._log.debug('Validated %s : %s' % (dn, properties))
+
+        e = Entry(dn)
+        e.update({'objectclass' : self._create_objectclasses})
+        e.update(valid_props)
+        # We rely on exceptions here to indicate failure to the parent.
+        self._instance.add_s(e)
+        # If it worked, we need to fix our instance dn
+        self._dn = dn
+
 
 # A challenge of this, is how do we manage indexes? They have two naming attribunes....
 
@@ -132,14 +183,11 @@ class DSLdapObjects(DSLogging):
         self._instance = instance
         super(DSLdapObjects, self).__init__(self._instance.verbose)
         self._objectclasses = []
-        self._create_objectclasses = []
         self._filterattrs = []
         self._list_attrlist = ['dn']
         self._basedn = ""
         self._batch = batch
         self._scope = ldap.SCOPE_SUBTREE
-        self._rdn_attribute = None
-        self._must_attributes = None
 
     def list(self):
         # Filter based on the objectclasses and the basedn
@@ -181,17 +229,10 @@ class DSLdapObjects(DSLogging):
             raise ldap.UNWILLING_TO_PERFORM("Too many objects matched selection criteria %s" % selector)
         return self._childobject(instance=self._instance, dn=results[0].dn, batch=self._batch)
 
+
     def _validate(self, rdn, properties):
         """
-        Used to validate a create request.
-        This way, it can be over-ridden without affecting
-        the create types
-
-        It also checks that all the values in _must_attribute exist
-        in some form in the dictionary
-
-        It has the useful trick of returning the dn, so subtypes
-        can use extra properties to create the dn's here for this.
+        Validate the factor part of the creation
         """
         if properties is None:
             raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
@@ -211,32 +252,15 @@ class DSLdapObjects(DSLogging):
         if type(rdn) != str:
             raise ldap.UNWILLING_TO_PERFORM("rdn %s must be a utf8 string (str)", rdn)
 
-        for attr in self._must_attributes:
-            if properties.get(attr, None) is None:
-                raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
-
-        # We may need to map over the data in the properties dict to satisfy python-ldap
-        # to do str -> bytes
-        #
-        # Do we need to fix anything here in the rdn_attribute?
-        dn = '%s=%s,%s' % (self._rdn_attribute, rdn, self._basedn)
-        # Do we need to do extra dn validation here?
-        return (dn, rdn, properties)
-
     def create(self, rdn=None, properties=None):
-        assert(len(self._create_objectclasses) > 0)
-        self._log.debug('Creating %s : %s' % (rdn, properties))
-        # Make sure these aren't none.
-        # Create the dn based on the various properties.
-        (dn, rdn, valid_props) = self._validate(rdn, properties)
-        # Check if the entry exists or not? .add_s is going to error anyway ...
-        self._log.debug('Validated %s : %s' % (dn, properties))
-
-        e = Entry(dn)
-        e.update({'objectclass' : self._create_objectclasses})
-        e.update(valid_props)
-        self._instance.add_s(e)
-
-        # Now return the created instance.
-        return self._childobject(instance=self._instance, dn=dn, batch=self._batch)
+        # Create the object
+        # Should we inject the rdn to properties?
+        co = self._childobject(instance=self._instance, batch=self._batch)
+        # Make the rdn naming attr avaliable
+        self._rdn_attribute = co._rdn_attribute
+        (rdn, properties) = self._validate(rdn, properties)
+        # Do we need to fix anything here in the rdn_attribute?
+        dn = '%s=%s,%s' % (co._rdn_attribute, rdn, self._basedn)
+        # Now actually commit the creation req
+        return co.create(dn, properties)
 

@@ -380,23 +380,11 @@ class BackendLegacy(object):
 class Backend(DSLdapObject):
     def __init__(self, instance, dn=None, batch=False):
         super(Backend, self).__init__(instance, dn, batch)
-        self._naming_attr = 'cn'
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['nsslapd-suffix', 'cn']
 
     def create_sample_entries(self):
         self._log.debug('Creating sample entries ....')
-
-# This only does ldbm backends. Chaining backends are a special case
-# of this, so they can be subclassed off.
-class Backends(DSLdapObjects):
-    def __init__(self, instance, batch=False):
-        super(Backends, self).__init__(instance=instance, batch=False)
-        self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
-        self._create_objectclasses = self._objectclasses + ['top', 'extensibleObject' ]
-        self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
-        self._basedn = DN_LDBM
-        self._childobject = Backend
-        self._rdn_attribute = 'cn'
-        self._must_attributes = ['nsslapd-suffix', 'cn']
 
     def _validate(self, rdn, properties):
         # We always need to call the super validate first. This way we can
@@ -420,12 +408,21 @@ class Backends(DSLdapObjects):
         return (dn, rdn, nprops)
 
     def create(self, rdn=None, properties=None):
-        # properties for a backend might contain a key called BACKEND_SAMPLE_ENTRIES
-        # We need to pop this value out, and pass it to our new instance.
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
-        be_inst = super(Backends, self).create(rdn, properties)
+        super(Backend, self).create(rdn, properties)
         if sample_entries is True:
             be_inst.create_sample_entries()
-        return be_inst
+
+# This only does ldbm backends. Chaining backends are a special case
+# of this, so they can be subclassed off.
+class Backends(DSLdapObjects):
+    def __init__(self, instance, batch=False):
+        super(Backends, self).__init__(instance=instance, batch=False)
+        self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
+        self._create_objectclasses = self._objectclasses + ['top', 'extensibleObject' ]
+        self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
+        self._basedn = DN_LDBM
+        self._childobject = Backend
+
 
 
