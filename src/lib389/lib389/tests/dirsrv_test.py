@@ -20,7 +20,6 @@ log = logging.getLogger(__name__)
 TEST_DN = "uid=test,%s" % DEFAULT_SUFFIX
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'dirsrv'
-INSTANCE_PREFIX = '/'
 INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 
 
@@ -94,7 +93,6 @@ def test_allocate(topology):
     assert topology.instance.userid == userid
     assert topology.instance.serverid == INSTANCE_SERVERID
     assert topology.instance.groupid == topology.instance.userid
-    assert topology.instance.prefix == INSTANCE_PREFIX
     assert topology.instance.backupdir == INSTANCE_BACKUP
 
     log.info('Check that we can change the settings of an allocated DirSrv')
@@ -117,7 +115,6 @@ def test_allocate(topology):
     assert topology.instance.userid == userid
     assert topology.instance.serverid == INSTANCE_SERVERID
     assert topology.instance.groupid == topology.instance.userid
-    assert topology.instance.prefix == INSTANCE_PREFIX
     assert topology.instance.backupdir == INSTANCE_BACKUP
 
     log.info('Restore back the valid parameters and check')
@@ -139,7 +136,6 @@ def test_allocate(topology):
     assert topology.instance.userid == userid
     assert topology.instance.serverid == INSTANCE_SERVERID
     assert topology.instance.groupid == topology.instance.userid
-    assert topology.instance.prefix == INSTANCE_PREFIX
     assert topology.instance.backupdir == INSTANCE_BACKUP
 
 

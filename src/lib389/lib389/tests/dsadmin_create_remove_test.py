@@ -14,7 +14,7 @@ import os
 import socket
 from lib389 import DirSrv, DN_CONFIG
 from lib389.tools import DirSrvTools
-from nose import *
+#from nose import *
 
 added_instances = []
 

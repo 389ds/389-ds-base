@@ -53,10 +53,12 @@ def test_isLocalHost():
         assert r == v, "Mismatch %r vs %r on %r" % (r, v, k)
 
 
-def test_update_jewhost_with_fqdn():
+def test_update_newhost_with_fqdn():
+    # This test doesn't account for platform where localhost.localdomain isn't
+    # the name ....
     test = [
-        ({'hostname': 'localhost'}, ('localhost.localdomain', True)),
-        ({'hostname': 'remote'}, ('remote', False)),
+        ({'hostname': 'localhost'}, (['localhost.localdomain', 'localhost'], True)),
+        ({'hostname': 'remote'}, (['remote'], False)),
     ]
     for k, v in test:
         old = k.copy()
@@ -64,7 +66,7 @@ def test_update_jewhost_with_fqdn():
         r = update_newhost_with_fqdn(k)
         assert expected_r == r, "Mismatch %r vs %r for %r" % (
             r, expected_r, old)
-        assert expected_host == k['hostname'], "Mismatch %r vs %r for %r" % (
+        assert k['hostname'] in expected_host, "Mismatch %r vs %r for %r" % (
             k['hostname'], expected_host, old)
 
 

@@ -32,7 +32,7 @@ class Config(DSLdapObject):
         """@param conn - a DirSrv instance """
         super(Config, self).__init__(instance=conn, batch=batch)
         self._dn = DN_CONFIG
-        #self.conn = conn
+        #self._instance = conn
         #self.log = conn.log
 
     def _alter_log_enabled(self, service, state):
@@ -106,7 +106,10 @@ class Config(DSLdapObject):
                 'nsSSLPersonalitySSL': 'Server-Cert'
             }
         """
-        self._log.debug("config.enable_ssl is deprecated! Use RSA, Encryption instead!")
+        if self.deprecation_strict:
+            raise Exception("Use of deprecated enable_ssl!")
+        else:
+            self._log.debug("config.enable_ssl is deprecated! Use RSA, Encryption instead!")
         self._log.debug("configuring SSL with secargs:%r" % secargs)
         secargs = secargs or {}
 
@@ -120,7 +123,7 @@ class Config(DSLdapObject):
                 secargs.get('nsSSLClientAuth', 'allowed')),
                (ldap.MOD_REPLACE, 'nsSSL3Ciphers', secargs.get('nsSSL3Ciphers',
                 ciphers))]
-        self.conn.modify_s(dn_enc, mod)
+        self._instance.modify_s(dn_enc, mod)
 
         dn_rsa = 'cn=RSA,cn=encryption,cn=config'
         e_rsa = Entry(dn_rsa)
@@ -132,7 +135,7 @@ class Config(DSLdapObject):
             'nsSSLActivation': secargs.get('nsSSLActivation', 'on')
         })
         try:
-            self.conn.add_s(e_rsa)
+            self._instance.add_s(e_rsa)
         except ldap.ALREADY_EXISTS:
             pass
 
@@ -148,10 +151,10 @@ class Config(DSLdapObject):
              str(secport))
         ]
         self.log.debug("trying to modify %r with %r" % (DN_CONFIG, mod))
-        self.conn.modify_s(DN_CONFIG, mod)
+        self._instance.modify_s(DN_CONFIG, mod)
 
         fields = 'nsslapd-security nsslapd-ssl-check-hostname'.split()
-        return self.conn.getEntry(DN_CONFIG, attrlist=fields)
+        return self._instance.getEntry(DN_CONFIG, attrlist=fields)
 
 
 class Encryption(DSLdapObject):
