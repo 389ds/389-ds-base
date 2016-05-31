@@ -1436,22 +1436,24 @@ hash_rootpw (LDAPMod **mods)
 		if (strcasecmp (mod->mod_type, CONFIG_ROOTPW_ATTRIBUTE) != 0) 
 			continue;
 
-		for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
-			char *val = mod->mod_bvalues[j]->bv_val;
-			char *hashedval = NULL;
-			struct pw_scheme *pws = pw_val2scheme (val, NULL, 0);
-			if (pws) {
-				free_pw_scheme(pws);
-				/* Value is pre-hashed, no work to do for this value */
-				continue;
-			} else if (! slapd_nss_is_initialized() ) {
-				/* We need to hash a value but NSS is not initialized; bail */
-				return -1;
+		if (mod->mod_bvalues != NULL) {
+			for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
+				char *val = mod->mod_bvalues[j]->bv_val;
+				char *hashedval = NULL;
+				struct pw_scheme *pws = pw_val2scheme (val, NULL, 0);
+				if (pws) {
+					free_pw_scheme(pws);
+					/* Value is pre-hashed, no work to do for this value */
+					continue;
+				} else if (! slapd_nss_is_initialized() ) {
+					/* We need to hash a value but NSS is not initialized; bail */
+					return -1;
+				}
+				hashedval=(slapdFrontendConfig->rootpwstoragescheme->pws_enc)(val);
+				slapi_ch_free_string (&val);
+				mod->mod_bvalues[j]->bv_val = hashedval;
+				mod->mod_bvalues[j]->bv_len = strlen (hashedval);
 			}
-			hashedval=(slapdFrontendConfig->rootpwstoragescheme->pws_enc)(val);
-			slapi_ch_free_string (&val);
-			mod->mod_bvalues[j]->bv_val = hashedval;
-			mod->mod_bvalues[j]->bv_len = strlen (hashedval);
 		}
 	}
 	return 0;
