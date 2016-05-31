@@ -14,11 +14,11 @@ integration with 389ds.
 """
 # In the future we might add support for an ldap-backed krb realm
 from subprocess import Popen, PIPE
-import krbV
 import os
 import signal
 import string
 import random
+import subprocess
 
 from lib389._constants import *
 from socket import getfqdn
@@ -214,28 +214,14 @@ class MitKrb5(object):
                   (keytab, principal, self.realm)])
         assert(p.wait() == 0)
 
-
 class KrbClient(object):
-    def __init__(self, principal, keytab, cache_file=None):
-        self.context = krbV.default_context()
-        self.principal = principal
-        self.keytab = keytab
-        self._keytab = krbV.Keytab(name=self.keytab, context=self.context)
-        self._principal = krbV.Principal(name=self.principal,
-                                         context=self.context)
-        if cache_file:
-            self.ccache = krbV.CCache(name="FILE:" + cache_file,
-                                      context=self.context,
-                                      primary_principal=self._principal)
-        else:
-            self.ccache = self.context.default_ccache(
-                primary_principal=self._principal)
-        if self._keytab:
-            self.reinit()
+    def __init__(self, principal, keytab, ccache=None):
+        self.krb_prefix = ""
+        self.kdestroy = "/usr/bin/kdestroy"
+        if ccache is not None:
+            os.environ["KRB5CCNAME"] = ccache
+        # Destroy the previous cache if any.
+        subprocess.call(self.kdestroy)
+        # Gssapi has magic that automatically creates things by env vars
+        os.environ["KRB5_CLIENT_KTNAME"] = keytab
 
-    def reinit(self):
-        assert self._keytab
-        assert self._principal
-        self.ccache.init(self._principal)
-        self.ccache.init_creds_keytab(keytab=self._keytab,
-                                      principal=self._principal)

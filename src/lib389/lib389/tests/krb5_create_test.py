@@ -13,6 +13,7 @@ from lib389 import DirSrv, Entry
 import pytest
 import logging
 import socket
+import subprocess
 
 import ldap
 import ldap.sasl
@@ -25,6 +26,8 @@ INSTANCE_SERVERID = 'gssapi'
 REALM = "EXAMPLE.COM"
 TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
 
+KEYTAB = "/tmp/test.keytab"
+CCACHE = "FILE:/tmp/test.ccache"
 
 class TopologyInstance(object):
     def __init__(self, instance):
@@ -39,8 +42,8 @@ def topology(request):
     instance = DirSrv(verbose=False)
     instance.log.debug("Instance allocated")
     ## WARNING: If this test fails it's like a hostname issue!!!
-    # args = {SER_HOST: socket.gethostname(),
-    args = {SER_HOST: LOCALHOST,
+    args = {SER_HOST: socket.gethostname(),
+    #args = {SER_HOST: LOCALHOST,
             SER_PORT: INSTANCE_PORT,
             SER_REALM: REALM,
             SER_SERVERID_PROP: INSTANCE_SERVERID}
@@ -48,6 +51,9 @@ def topology(request):
     if instance.exists():
         instance.delete()
     # Its likely our realm exists too
+    # Remove the old keytab
+    if os.path.exists(KEYTAB):
+        os.remove(KEYTAB)
     if krb.check_realm():
         krb.destroy_realm()
     # This will automatically create the krb entries
@@ -56,11 +62,14 @@ def topology(request):
     instance.open()
 
     def fin():
-        return
         if instance.exists():
             instance.delete()
         if krb.check_realm():
             krb.destroy_realm()
+        if os.path.exists(KEYTAB):
+            os.remove(KEYTAB)
+        if os.path.exists(CCACHE):
+            os.remove(CCACHE)
     request.addfinalizer(fin)
 
     return TopologyInstance(instance)
@@ -90,14 +99,19 @@ def test_gssapi(topology, add_user):
     the principal to our test user object.
     """
     # Init our local ccache
-    kclient = KrbClient("test@%s" % REALM, "/tmp/test.keytab")
+    kclient = KrbClient("test@%s" % REALM, KEYTAB, CCACHE)
     # Probably need to change this to NOT be raw python ldap
-    conn = ldap.initialize("ldap://%s:%s" % (LOCALHOST, INSTANCE_PORT))
-    # conn = ldap.initialize("ldap://%s:%s" % (socket.gethostname(), INSTANCE_PORT))
+    # conn = ldap.initialize("ldap://%s:%s" % (LOCALHOST, INSTANCE_PORT))
+    conn = ldap.initialize("ldap://%s:%s" % (socket.gethostname(), INSTANCE_PORT))
     sasl = ldap.sasl.gssapi("test@%s" % REALM)
     try:
         conn.sasl_interactive_bind_s('', sasl)
     except Exception as e:
+        try:
+            print("%s" % subprocess.check_output(['klist']))
+        except Exception as ex:
+            print("%s" % ex)
+        print("%s" % os.environ)
         print("IF THIS TEST FAILS ITS LIKELY A HOSTNAME ISSUE")
         raise e
     assert(conn.whoami_s() == "dn: uid=test,dc=example,dc=com")
