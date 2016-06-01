@@ -39,7 +39,7 @@ class DirsrvLog(object):
     def __init__(self, dirsrv):
         self.dirsrv = dirsrv
         self.log = self.dirsrv.log
-        self.prog_timestamp = re.compile('\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>\+\d*)')
+        self.prog_timestamp = re.compile('\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')
 
     def _get_log_attr(self, attr):
         return self.dirsrv.getEntry(DN_CONFIG).__getattr__(attr)

@@ -80,6 +80,10 @@ def test_access_log(topology):
         topology.standalone.ds_access_log.parse_line('[27/Apr/2016:12:49:49.736297002 +1000] conn=1 op=4 fd=64 closed - U1') ==
         {'status': 'U1', 'fd': '64', 'action': 'DISCONNECT', 'timestamp': '[27/Apr/2016:12:49:49.736297002 +1000]', 'conn': '1', 'op': '4', 'datetime': datetime.datetime(2016, 4, 27, 12, 0, 0, 736297, tzinfo=tzoffset(None, 36000))}
     )
+    assert(
+        topology.standalone.ds_access_log.parse_line('[27/Apr/2016:12:49:49.736297002 -1000] conn=1 op=4 fd=64 closed - U1') ==
+        {'status': 'U1', 'fd': '64', 'action': 'DISCONNECT', 'timestamp': '[27/Apr/2016:12:49:49.736297002 -1000]', 'conn': '1', 'op': '4', 'datetime': datetime.datetime(2016, 4, 27, 12, 0, 0, 736297, tzinfo=tzoffset(None, -36000))}
+    )
 
 def test_error_log(topology):
     """Check the parsing of the error log"""
