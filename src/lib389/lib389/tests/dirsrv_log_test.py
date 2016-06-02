@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 from lib389._constants import *
+from lib389.utils import ensure_bytes, ensure_str
 from lib389 import DirSrv, Entry
 import pytest
 import time
@@ -53,7 +54,7 @@ def test_access_log_rotation(topology):
 
     # Artificially rotate the log.
     lpath = topology.standalone.ds_access_log._get_log_path()
-    shutil.copyfile(lpath, '%s.20160515-104822' % lpath  )
+    shutil.copyfile(lpath, lpath + ensure_bytes('.20160515-104822'))
     # check we have the right number of lines.
     access_lines = topology.standalone.ds_access_log.readlines_archive()
     assert(len(access_lines) > 0)

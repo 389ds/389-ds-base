@@ -382,11 +382,13 @@ class Backend(DSLdapObject):
         super(Backend, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['nsslapd-suffix', 'cn']
+        self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE ]
+        self._protected = False
 
     def create_sample_entries(self):
         self._log.debug('Creating sample entries ....')
 
-    def _validate(self, rdn, properties):
+    def _validate(self, rdn, properties, basedn):
         # We always need to call the super validate first. This way we can
         # guarantee that properties is a dictionary.
         # However, backend can take different properties. One is
@@ -401,17 +403,41 @@ class Backend(DSLdapObject):
         # This is converting the BACKEND_ types to the DS nsslapd- attribute values
         nprops = {}
         for key, value in properties.items():
-            nprops[BACKEND_PROPNAME_TO_ATTRNAME[key]] = [value,]
+            try:
+                nprops[BACKEND_PROPNAME_TO_ATTRNAME[key]] = [value,]
+            except KeyError:
+                # This means, it's not a mapped value, so continue
+                pass
 
-        (dn, rdn, valid_props) = super(Backends, self)._validate(rdn, nprops)
+        (dn, valid_props) = super(Backend, self)._validate(rdn, nprops, basedn)
 
-        return (dn, rdn, nprops)
+        return (dn, valid_props)
 
-    def create(self, rdn=None, properties=None):
+    def create(self, dn=None, properties=None, basedn=None):
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
-        super(Backend, self).create(rdn, properties)
+        super(Backend, self).create(dn, properties, basedn)
         if sample_entries is True:
-            be_inst.create_sample_entries()
+            self.create_sample_entries()
+
+    def delete(self):
+        if self._protected:
+            raise ldap.UNWILLING_TO_PERFORM("This is a protected backend!")
+        # First check if the mapping tree has our suffix still.
+        suffix = self.get('nsslapd-suffix')[0]
+        bename = self.get('cn')[0]
+        # TODO: This is the old api, change it!!!!
+        mt_ents = self._instance.mappingtree.list(suffix=suffix)
+        if len(mt_ents) > 0:
+            raise ldap.UNWILLING_TO_PERFORM(
+                "It still exists a mapping tree (%s) for that backend (%s)" %
+                (mt_ents[0].dn, self.dn))
+
+        self._instance.index.delete_all(bename)
+
+        # Now remove the children
+        self._instance.delete_branch_s(self._dn, ldap.SCOPE_ONELEVEL)
+        # The super will actually delete ourselves.
+        super(Backend, self).delete()
 
 # This only does ldbm backends. Chaining backends are a special case
 # of this, so they can be subclassed off.
@@ -419,10 +445,9 @@ class Backends(DSLdapObjects):
     def __init__(self, instance, batch=False):
         super(Backends, self).__init__(instance=instance, batch=False)
         self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
-        self._create_objectclasses = self._objectclasses + ['top', 'extensibleObject' ]
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
-        self._basedn = DN_LDBM
         self._childobject = Backend
+        self._basedn = DN_LDBM
 
 
 

@@ -16,6 +16,7 @@ from dateutil.parser import parse as dt_parse
 from glob import glob
 from lib389._constants import DN_CONFIG
 from lib389.properties import LOG_ACCESS_PATH, LOG_ERROR_PATH
+from lib389.utils import ensure_bytes, ensure_str
 
 # Because many of these settings can change live, we need to check for certain
 # attributes all the time.
@@ -59,7 +60,7 @@ class DirsrvLog(object):
         lines = []
         for log in self._get_all_log_paths():
             # Open the log
-            if log.endswith('.gz'):
+            if log.endswith(ensure_bytes('.gz')):
                 with gzip.open(log, 'r') as lf:
                     lines += lf.readlines()
             else:
@@ -84,7 +85,7 @@ class DirsrvLog(object):
         results = []
         prog = re.compile(pattern)
         for log in self._get_all_log_paths():
-            if log.endswith('.gz'):
+            if log.endswith(ensure_bytes('.gz')):
                 with gzip.open(log, 'r') as lf:
                     for line in lf:
                         mres = prog.match(line)
@@ -123,7 +124,7 @@ class DirsrvLog(object):
             TZ=timedata['tz'],
             )
         dt = dt_parse(dt_str)
-        dt = dt.replace(microsecond= int(timedata['nanosecond']) / 1000)
+        dt = dt.replace(microsecond= int(int(timedata['nanosecond']) / 1000))
         return dt
 
 class DirsrvAccessLog(DirsrvLog):

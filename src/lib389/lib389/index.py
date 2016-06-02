@@ -16,6 +16,7 @@ if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import Entry
+from lib389.utils import ensure_str, ensure_bytes
 
 
 class Index(object):
@@ -26,13 +27,11 @@ class Index(object):
         self.log = conn.log
 
     def delete_all(self, benamebase):
+        benamebase = ensure_str(benamebase)
         dn = "cn=index,cn=" + benamebase + "," + DN_LDBM
 
         # delete each defined index
-        ents = self.conn.search_s(dn, ldap.SCOPE_ONELEVEL)
-        for ent in ents:
-            self.log.debug("Delete index entry %s" % (ent.dn))
-            self.conn.delete_s(ent.dn)
+        self.conn.delete_branch_s(dn, ldap.SCOPE_ONELEVEL)
 
         # Then delete the top index entry
         self.log.debug("Delete head index entry %s" % (dn))

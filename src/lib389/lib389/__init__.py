@@ -242,8 +242,8 @@ class DirSrv(SimpleLDAPObject):
                 # parse the lib dir, and so set the plugin dir
                 self.instdir = instdir
                 ### THIS NEEDS TO BE FIXED .... There is no guarantee this is correct.
-                self.libdir = self.instdir.replace(u'slapd-%s' % self.serverid, u'')
-                self.plugindir = self.libdir + 'plugins'
+                self.libdir = self.instdir.replace(ensure_bytes('slapd-%s' % self.serverid), ensure_bytes(''))
+                self.plugindir = self.libdir + ensure_bytes('plugins')
 
                 #if self.verbose:
                 #    log.debug("instdir=%r" % instdir)
@@ -2922,3 +2922,12 @@ class DirSrv(SimpleLDAPObject):
         if rc != 0:
             raise ValueError(status)
         return status
+
+
+    # This could be made to delete by filter ....
+    def delete_branch_s(self, basedn, scope):
+        ents = self.search_s(basedn, scope)
+        for ent in ents:
+            self.log.debug("Delete entry children %s" % (ent.dn))
+            self.delete_s(ent.dn)
+

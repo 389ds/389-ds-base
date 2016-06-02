@@ -14,6 +14,7 @@ integration with 389ds.
 """
 # In the future we might add support for an ldap-backed krb realm
 from subprocess import Popen, PIPE
+
 import os
 import signal
 import string
@@ -24,6 +25,7 @@ from lib389._constants import *
 from socket import getfqdn
 from lib389.utils import getdomainname
 from lib389.tools import DirSrvTools
+from lib389.passwd import password_generate
 
 
 class MitKrb5(object):
@@ -44,9 +46,7 @@ class MitKrb5(object):
                               (self.krb_prefix,
                                self.realm.lower().replace('.', '-')))
 
-        secure_password = [random.choice(string.letters) for x in xrange(64)]
-        secure_password = "".join(secure_password)
-        self.krb_master_password = secure_password
+        self.krb_master_password = password_generate()
 
         # Should we write this to a file?
 

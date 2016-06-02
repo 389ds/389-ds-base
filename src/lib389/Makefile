@@ -1,14 +1,15 @@
 .PHONY: build install test rpms srpms
 
 LIB389_VERS ?= $(shell cat ./VERSION | head -n 1)
+PYTHON ?= /usr/bin/python
 
 all: build
 
 build:
-	python setup.py build
+	$(PYTHON) setup.py build
 
 install:
-	python setup.py install --force --root=/
+	$(PYTHON) setup.py install --force --root=/
 
 rpmbuild-prep:
 	mkdir -p ./dist/

@@ -108,6 +108,8 @@ BACKEND_CHAIN_BIND_DN = 'chain-bind-dn'
 BACKEND_CHAIN_BIND_PW = 'chain-bind-pw'
 BACKEND_CHAIN_URLS = 'chain-urls'
 BACKEND_STATS = 'stats'
+BACKEND_SUFFIX = 'suffix'
+BACKEND_SAMPLE_ENTRIES = 'sample_entries'
 
 BACKEND_OBJECTCLASS_VALUE = 'nsBackendInstance'
 

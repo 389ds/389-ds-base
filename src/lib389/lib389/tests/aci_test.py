@@ -10,6 +10,10 @@ from lib389._constants import *
 from lib389 import DirSrv, Entry
 import pytest
 
+import sys
+MAJOR, MINOR, _, _, _ = sys.version_info
+from lib389.utils import ensure_bytes, ensure_str
+
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'aciparseds'
 # INSTANCE_PREFIX   = None
@@ -62,7 +66,7 @@ def complex_aci(topology):
 
     topology.standalone.add_s(gentry)
 
-    return ACI_BODY
+    return ensure_str(ACI_BODY)
 
 
 def test_aci(topology, complex_aci):
@@ -71,6 +75,7 @@ def test_aci(topology, complex_aci):
     acis = topology.standalone.aci.list('cn=testgroup,%s' % DEFAULT_SUFFIX)
     assert len(acis) == 1
     aci = acis[0]
+    print(aci.acidata)
     assert aci.acidata == {
         'allow': [{'values': ['read', 'search', 'write']}],
         'target': [], 'targetattr': [{'values': ['uniqueMember', 'member'],

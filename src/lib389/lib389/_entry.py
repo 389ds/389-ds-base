@@ -19,6 +19,7 @@ MAJOR, MINOR, _, _, _ = sys.version_info
 
 from lib389._constants import *
 from lib389.properties import *
+from lib389.utils import ensure_str, ensure_bytes
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -227,7 +228,7 @@ class Entry(object):
             for l in lt:
                 vals = []
                 for v in l[1]:
-                    vals.append(v.encode())
+                    vals.append(ensure_bytes(v))
                 ltnew.append((l[0], vals ))
             lt = ltnew
         return lt
@@ -368,7 +369,7 @@ class Entry(object):
             # There should be a better way to do this? Perhaps
             # self search for the aci attr?
             return []
-        self.acis = [EntryAci(self, a) for a in self.getValues('aci')]
+        self.acis = [EntryAci(self, a, verbose=False) for a in self.getValues('aci')]
 
         return self.acis
 
@@ -415,14 +416,15 @@ class EntryAci(object):
                 'groupdn',
                 'roledn']
 
-    def __init__(self, entry, rawaci):
+    def __init__(self, entry, rawaci, verbose=False):
         """
         Breaks down an aci attribute string from 389, into a dictionary
         of terms and values. These values can then be manipulated, and
         subsequently rebuilt into an aci string.
         """
+        self.verbose = verbose
         self.entry = entry
-        self._rawaci = rawaci
+        self._rawaci = ensure_str(rawaci)
         self.acidata = self._parse_aci(self._rawaci)
 
     def __eq__(self, other):
@@ -451,6 +453,8 @@ class EntryAci(object):
             rawaci += "%s || " % value
         rawaci += values[-1]
         rawaci += '"'
+        if self.verbose:
+            print("_format_term: %s" % rawaci)
         return rawaci
 
     def getRawAci(self):
@@ -484,6 +488,9 @@ class EntryAci(object):
         return rawaci
 
     def _find_terms(self, aci):
+        if self.verbose:
+            print("_find_terms aci: %s" % aci)
+            print("_find_terms aci: %s" % type(aci))
         lbr_list = []
         rbr_list = []
         depth = 0
@@ -498,8 +505,13 @@ class EntryAci(object):
                 depth -= 1
         # Now build a set of terms.
         terms = []
+        if self.verbose:
+            print("_find_terms lbr_list" % lbr_list)
+            print("_find_terms rbr_list" % rbr_list)
         for lb, rb in zip(lbr_list, rbr_list):
             terms.append(aci[lb + 1:rb])
+        if self.verbose:
+            print("_find_terms terms: %s" % terms)
         return terms
 
     def _parse_term(self, key, term):
@@ -519,6 +531,8 @@ class EntryAci(object):
                                for x in wdict['values']])
         wdict['values'] = [x.strip() for x in wdict['values']]
 
+        if self.verbose:
+            print("_parse_term: %s" % wdict)
         return wdict
 
     def _parse_bind_rules(self, subterm):
@@ -533,6 +547,9 @@ class EntryAci(object):
         them.  Or we can just leave the bind rule alone, as a string. Let
         the human do it.  It comes down to cost versus reward.
         """
+
+        if self.verbose:
+            print("_parse_bind_rules: %s" % subterm)
 
         return [subterm]
 
@@ -560,6 +577,8 @@ class EntryAci(object):
                         'values': self._parse_bind_rules(subterm)
                     })
 
+        if self.verbose:
+            print("_parse_version_3_0: %s" % terms)
         return terms
 
     def _parse_aci(self, rawaci):
@@ -589,4 +608,6 @@ class EntryAci(object):
                         continue
                     data[k].append(self._parse_term(k, aci))
                     break
+        if self.verbose:
+            print("_parse_aci: %s" % data )
         return data

@@ -757,3 +757,7 @@ def ensure_str(val):
         return val.decode('utf-8')
     return val
 
+def ensure_list_bytes(val):
+    if MAJOR >= 3:
+        return [ensure_bytes(v) for v in val]
+    return val

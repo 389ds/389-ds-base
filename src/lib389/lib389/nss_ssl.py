@@ -18,6 +18,8 @@ from nss import nss
 from nss import error as nss_error
 from subprocess import check_call
 
+from lib389.passwd import password_generate
+
 KEYBITS=4096
 CA_NAME='Self-Signed-CA'
 CERT_NAME='Server-Cert'
@@ -38,15 +40,12 @@ class NssSsl(object):
         self.dirsrv = dirsrv
         self.log = self.dirsrv.log
         if dbpassword is None:
-            secure_password = [random.choice(string.letters) for x in xrange(64)]
-            secure_password = "".join(secure_password)
-            self.dbpassword = secure_password
+            self.dbpassword = password_generate()
         else:
             self.dbpassword = dbpassword
 
     def _generate_noise(self, fpath):
-        noise = [random.choice(string.letters) for x in xrange(256)]
-        noise = "".join(noise)
+        noise = password_generate(256)
         with open(fpath, 'w') as f:
             f.write(noise)
 
@@ -239,14 +238,3 @@ class NssSsl(object):
         else:
             return True
 
-def nss_create_new_database(path, pin=None, force=False):
-    ## How do we manage this safely? Cli isn't ... safe.
-    # And writing to pin.txt isn't either.
-    # Can we enter no password?
-
-    cmd = ['/usr/bin/certutil', '-N', '-d', path, '-f', '/dev/null']
-    p = Popen(cmd)
-    returncode = p.wait()
-    if returncode == 0:
-        return True
-    return False

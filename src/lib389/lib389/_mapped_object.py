@@ -7,10 +7,11 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
+from ldap import filter as ldap_filter
 import logging
 
 from lib389._constants import *
-from lib389.utils import ensure_bytes, ensure_str
+from lib389.utils import ensure_bytes, ensure_str, ensure_list_bytes
 
 from lib389._entry import Entry
 
@@ -45,7 +46,7 @@ def _gen_filter(attrtypes, values, extra=None):
     filt = ''
     for attr, value in zip(attrtypes, values):
         if attr is not None and value is not None:
-            filt += '(%s=%s)' % (attr, value)
+            filt += '(%s=%s)' % (attr, ldap_filter.escape_filter_chars(value))
     if extra is not None:
         filt += '{FILT}'.format(FILT=extra)
     return filt
@@ -80,7 +81,6 @@ class DSLdapObject(DSLogging):
         self._create_objectclasses = []
         self._rdn_attribute = None
         self._must_attributes = None
-        self._basedn = ""
 
     def __unicode__(self):
         val = self._dn
@@ -91,14 +91,34 @@ class DSLdapObject(DSLogging):
     def __str__(self):
         return self.__unicode__()
 
-    def set(self, key, value):
+    # We make this a property so that we can over-ride dynamically if needed
+    @property
+    def dn(self):
+        return self._dn
+
+    def add(self, key, value):
+        self.set(key, value, action=ldap.MOD_ADD)
+
+    # Basically what it means;
+    def replace(self, key, value):
+        self.set(key, value, action=ldap.MOD_REPLACE)
+
+    # maybe this could be renamed?
+    def set(self, key, value, action=ldap.MOD_REPLACE):
         self._log.debug("%s set(%r, %r)" % (self._dn, key, value))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot set properties on instance that is not ONLINE.")
+
+        if isinstance(value, list):
+            # value = map(lambda x: ensure_bytes(x), value)
+            value = ensure_list_bytes(value)
+        else:
+            value = [ensure_bytes(value)]
+
         if self._batch:
             pass
         else:
-            return self._instance.modify_s(self._dn, [(ldap.MOD_REPLACE, key, value)])
+            return self._instance.modify_s(self._dn, [(action, key, value)])
 
     def get(self, key):
         """Get an attribute under dn"""
@@ -111,6 +131,7 @@ class DSLdapObject(DSLogging):
         else:
             return self._instance.getEntry(self._dn).getValues(key)
 
+    # This needs to work on key + val, and key
     def remove(self, key):
         """Remove a value defined by key"""
         self._log.debug("%s get(%r, %r)" % (self._dn, key, value))
@@ -120,6 +141,17 @@ class DSLdapObject(DSLogging):
             # Do a mod_delete on the value.
             pass
 
+    # Duplicate, but with many values. IE a dict api.
+    # This 
+    def add_values(self, values):
+        pass
+
+    def replace_values(self, values):
+        pass
+
+    def set_values(self, values, action=ldap.MOD_REPLACE):
+        pass
+
     def delete(self):
         """
         Deletes the object defined by self._dn.
@@ -127,9 +159,10 @@ class DSLdapObject(DSLogging):
         """
         self._log.debug("%s delete" % (self._dn))
         if not self._protected:
-            pass
+            # Is there a way to mark this as offline and kill it
+            self._instance.delete_s(self._dn)
 
-    def _validate(self, tdn, properties):
+    def _validate(self, rdn, properties, basedn):
         """
         Used to validate a create request.
         This way, it can be over-ridden without affecting
@@ -141,6 +174,8 @@ class DSLdapObject(DSLogging):
         It has the useful trick of returning the dn, so subtypes
         can use extra properties to create the dn's here for this.
         """
+        if basedn is None:
+            raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. basedn cannot be None')
         if properties is None:
             raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
         if type(properties) != dict:
@@ -151,25 +186,44 @@ class DSLdapObject(DSLogging):
         for attr in self._must_attributes:
             if properties.get(attr, None) is None:
                 raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
+        # Make sure the naming attribute is present
+        if properties.get(self._rdn_attribute, None) is None and rdn is None:
+            raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None or rdn provided' % self._rdn_attribute)
+        elif properties.get(self._rdn_attribute, None) is not None:
+            # Favour the value in the properties dictionary
+            v = properties.get(self._rdn_attribute)
+            if isinstance(v, list):
+                rdn = ensure_str(v[0])
+            else:
+                rdn = ensure_str(v)
+
+        tdn = '%s=%s,%s' % (self._rdn_attribute, rdn, basedn)
 
         # We may need to map over the data in the properties dict to satisfy python-ldap
+        str_props = {}
+        for k, v in properties.items():
+            if isinstance(v, list):
+                # str_props[k] = map(lambda v1: ensure_bytes(v1), v)
+                str_props[k] = ensure_list_bytes(v)
+            else:
+                str_props[k] = ensure_bytes(v)
         #
         # Do we need to do extra dn validation here?
-        return (tdn, properties)
+        return (tdn, str_props)
 
-    def create(self, dn, properties=None):
+    def create(self, rdn, properties=None, basedn=None):
         assert(len(self._create_objectclasses) > 0)
-        self._log.debug('Creating %s : %s' % (dn, properties))
-        # Make sure these aren't none.
-        # Create the dn based on the various properties.
-        (dn, valid_props) = self._validate(dn, properties)
+        self._log.debug('Creating %s %s : %s' % (rdn, basedn, properties))
+        # Add the objectClasses to the properties
+        (dn, valid_props) = self._validate(rdn, properties, basedn)
         # Check if the entry exists or not? .add_s is going to error anyway ...
-        self._log.debug('Validated %s : %s' % (dn, properties))
+        self._log.debug('Validated %s : %s' % (dn, valid_props))
 
         e = Entry(dn)
-        e.update({'objectclass' : self._create_objectclasses})
+        e.update({'objectclass' : ensure_list_bytes(self._create_objectclasses)})
         e.update(valid_props)
         # We rely on exceptions here to indicate failure to the parent.
+        self._log.debug('Creating entry %s : %s' % (dn, e))
         self._instance.add_s(e)
         # If it worked, we need to fix our instance dn
         self._dn = dn
@@ -185,6 +239,7 @@ class DSLdapObjects(DSLogging):
         self._objectclasses = []
         self._filterattrs = []
         self._list_attrlist = ['dn']
+        # Copy this from the child if we need.
         self._basedn = ""
         self._batch = batch
         self._scope = ldap.SCOPE_SUBTREE
@@ -201,13 +256,39 @@ class DSLdapObjects(DSLogging):
             attrlist=self._list_attrlist,
         )
         # def __init__(self, instance, dn=None, batch=False):
-        insts = map(lambda r: self._childobject(instance=self._instance, dn=r.dn, batch=self._batch), results)
+        # insts = map(lambda r: self._childobject(instance=self._instance, dn=r.dn, batch=self._batch), results)
+        insts = [self._childobject(instance=self._instance, dn=r.dn, batch=self._batch) for r in results]
+        print(insts)
         return insts
 
-    def get(self, selector):
+    def get(self, selector=[], dn=None):
+        results = []
+        if dn is not None:
+            results = self._get_dn(dn)
+        else:
+            results = self._get_selector(selector)
+
+        if len(results) == 0:
+            raise ldap.NO_SUCH_OBJECT("No object exists given the filter criteria %s" % selector)
+        if len(results) > 1:
+            raise ldap.UNWILLING_TO_PERFORM("Too many objects matched selection criteria %s" % selector)
+        return self._childobject(instance=self._instance, dn=results[0].dn, batch=self._batch)
+
+    def _get_dn(self, dn):
+        return self._instance.search_s(
+            base=dn,
+            scope=ldap.SCOPE_BASE,
+            # This will yield and & filter for objectClass with as many terms as needed.
+            filterstr=_gen_and(
+                _gen_filter(_term_gen('objectclass'), self._objectclasses,)
+            ),
+            attrlist=self._list_attrlist,
+        )
+
+    def _get_selector(self, selector):
         # Filter based on the objectclasses and the basedn
         # Based on the selector, we should filter on that too.
-        results = self._instance.search_s(
+        return self._instance.search_s(
             base=self._basedn,
             scope=self._scope,
             # This will yield and & filter for objectClass with as many terms as needed.
@@ -223,16 +304,9 @@ class DSLdapObjects(DSLogging):
             attrlist=self._list_attrlist,
         )
 
-        if len(results) == 0:
-            raise ldap.NO_SUCH_OBJECT("No object exists given the filter criteria %s" % selector)
-        if len(results) > 1:
-            raise ldap.UNWILLING_TO_PERFORM("Too many objects matched selection criteria %s" % selector)
-        return self._childobject(instance=self._instance, dn=results[0].dn, batch=self._batch)
-
-
     def _validate(self, rdn, properties):
         """
-        Validate the factor part of the creation
+        Validate the factory part of the creation
         """
         if properties is None:
             raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
@@ -242,15 +316,14 @@ class DSLdapObjects(DSLogging):
         # Get the rdn out of the properties if it's unset???
         if rdn is None and self._rdn_attribute in properties:
             # First see if we can get it from the properties.
-            trdn = properties.get(self._rdn_attribute)
+            trdn = str_properties.get(self._rdn_attribute)
             if type(trdn) != list:
                 raise ldap.UNWILLING_TO_PERFORM("rdn %s from properties is not in a list" % self._rdn_attribute)
             if len(trdn) != 1:
                 raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties. Too many choices" % (self._rdn_attribute))
             rdn = trdn[0]
 
-        if type(rdn) != str:
-            raise ldap.UNWILLING_TO_PERFORM("rdn %s must be a utf8 string (str)", rdn)
+        return (rdn, properties)
 
     def create(self, rdn=None, properties=None):
         # Create the object
@@ -259,8 +332,6 @@ class DSLdapObjects(DSLogging):
         # Make the rdn naming attr avaliable
         self._rdn_attribute = co._rdn_attribute
         (rdn, properties) = self._validate(rdn, properties)
-        # Do we need to fix anything here in the rdn_attribute?
-        dn = '%s=%s,%s' % (co._rdn_attribute, rdn, self._basedn)
         # Now actually commit the creation req
-        return co.create(dn, properties)
+        return co.create(rdn, properties, self._basedn)
 

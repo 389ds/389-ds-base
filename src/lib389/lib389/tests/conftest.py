@@ -13,12 +13,16 @@ import pytest
 from tempfile import mkdtemp
 from shutil import rmtree
 
+MAJOR, MINOR, _, _, _ = sys.version_info
 
 def ldrop(numchar, inputstr):
     """
         Drop numchar characters from the beginning of each line in inputstring.
     """
-    return "\n".join([x[numchar:] for x in string.split(inputstr, "\n")])
+    if MAJOR >= 3:
+        return "\n".join(map(lambda x: x[numchar:], inputstr.split("\n")  ))
+    else:
+        return "\n".join([x[numchar:] for x in string.split(inputstr, "\n")])
 
 
 @pytest.fixture
