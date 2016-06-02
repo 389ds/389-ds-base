@@ -1538,7 +1538,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
          * This space is a "funny number". It's a best effort based system
          * where linux instead of telling us how much memory *actually* exists
          * for us to use, gives us a virtual memory allocation which is the
-         * value of ram + swap.
+         * value of ram + swap.... sometimes. Depends on platform.
          *
          * But none of these pages even exist or belong to us on the real system
          * until will malloc them AND write a non-zero to them.
@@ -1569,13 +1569,12 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
          * potentially allocate: generally, this will be MemAvailable.
          */
 
-        size_t vmsize = 0;
         size_t freesize = 0;
         size_t rlimsize = 0;
 
         *pagesize = getpagesize();
 
-        /* Get the amount of freeram, rss, and the vmsize */
+        /* Get the amount of freeram, rss */
 
         FILE *f;
         char fn[40], s[80];
@@ -1596,9 +1595,6 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
             /* VmRSS shows us what we are ACTUALLY using for proc pages
              * Rather than "funny" pages.
              */
-            if (strncmp(s, "VmSize:", 7) == 0) {
-                sscanf(s+7, "%lu", (long unsigned int *)&vmsize);
-            }
             if (strncmp(s, "VmRSS:", 6) == 0) {
                 sscanf(s+6, "%lu", (long unsigned int *)procpages);
             }
@@ -1641,29 +1637,11 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
             /* This is in bytes, make it pages  */
             rlimsize = rlimsize / *pagesize;
         }
-        /* Now we have vmsize, the availpages from getrlimit, our freesize */
-        vmsize /= (*pagesize / 1024);
 
-        /* Pages is the total ram on the system. We should smaller of:
-         * - vmsize
-         * - pages
-         */
-        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, vmsize=%lu, \n", 
-            (unsigned long) *pages, (unsigned long) vmsize,0);
-#if __GNUC__
-#if __x86_64__ || __ppc64__
-        /* On 64bit platforms, vmsize is set high (VmSize), and doesn't change. IE 17tb */
-        if (vmsize < *pages) {
-            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using vmsize for pages \n",0,0,0);
-            *pages = vmsize;
-        } else {
-            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for pages \n",0,0,0);
-        }
-#else
-        /* On 32bit platforms, vmsize is set low (VmSize) and grows. */
+        /* Pages is the total ram on the system. */
+        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages pages=%lu, \n", 
+            (unsigned long) *pages, 0,0);
         LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages using pages for pages \n",0,0,0);
-#endif
-#endif
 
         /* Availpages is how much we *could* alloc. We should take the smallest:
          * - pages
@@ -1809,6 +1787,7 @@ int util_is_cachesize_sane(size_t *cachesize)
          * the remaining system mem to the cachesize instead, and log a warning
          */
         *cachesize = (size_t)((availpages * 0.75 ) * pagesize);
+        slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
         slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
     }
 #else
