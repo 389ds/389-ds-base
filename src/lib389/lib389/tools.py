@@ -10,6 +10,7 @@
 
     uses DirSrv
 """
+import sys
 __all__ = ['DirSrvTools']
 try:
     from subprocess import Popen, PIPE, STDOUT
@@ -18,7 +19,8 @@ except ImportError:
     import popen2
     HASPOPEN = False
 
-import sys
+MAJOR, MINOR, _, _, _ = sys.version_info
+
 import os
 import os.path
 import base64
@@ -42,11 +44,20 @@ try:
 except ImportError:
     pass
 import ldap
+if MAJOR >= 3:
+    import configparser
+else:
+    import ConfigParser as configparser
+
+import socket
+import getpass
+# from .nss_ssl import nss_create_new_database
 
 from lib389._constants import *
 from lib389._ldifconn import LDIFConn
 from lib389.properties import *
 from lib389.utils import (
+    is_a_dn,
     getcfgdsuserdn,
     getcfgdsinfo,
     getcfgdsuserdn,
@@ -59,7 +70,14 @@ from lib389.utils import (
     getserverroot,
     update_admin_domain,
     getadminport,
-    getdefaultsuffix)
+    getdefaultsuffix,
+    ensure_bytes,
+    ensure_str,
+    socket_check_open,)
+from lib389.passwd import password_hash, password_generate
+
+# The poc backend api
+from lib389.backend import Backends
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -608,7 +626,7 @@ class DirSrvTools(object):
             pipe = popen2.Popen4(cmd)
             child_stdin = pipe.tochild
             child_stdout = pipe.fromchild
-        child_stdin.write(content)
+        child_stdin.write(ensure_bytes(content))
         child_stdin.close()
         if verbose:
             log.debug("PID %s" % pipe.pid)
@@ -619,7 +637,7 @@ class DirSrvTools(object):
                 if not line:
                     break
                 if verbose:
-                    sys.stdout.write(line)
+                    sys.stdout.write(ensure_str(line))
             elif verbose:
                 print("timed out waiting to read from pid %s : %s " % (pipe.pid, cmd))
         child_stdout.close()
@@ -1118,3 +1136,406 @@ class MockDirSrv(object):
             return 'ldaps://%s:%s' % (self.host, self.sslport)
         else:
             return 'ldap://%s:%s' % (self.host, self.port)
+
+
+class SetupDs(object):
+    """
+    Implements the Directory Server installer.
+
+    This maybe subclassed, and a number of well known steps will be called.
+    This allows the inf to be shared, and for other installers to work in lock
+    step with this.
+
+    If you are subclassing you want to derive:
+
+    _validate_config_2(self, config):
+    _prepare(self, extra):
+    _install(self, extra):
+
+    If you are calling this from an INF, you can pass the config in
+    _validate_config, then stash the result into self.extra
+
+    If you have anything you need passed to your install helpers, this can
+    be given in create_from_args(extra) if you are calling as an api.
+
+    If you use create_from_inf, self.extra is passed to create_from_args for
+    you. You only need to over-load the three methods above.
+
+    A logging interface is provided to self.log that you should call.
+    """
+
+
+    def __init__(self, verbose=False, dryrun=False):
+        self.verbose = verbose
+        self.extra = None
+        self.dryrun = dryrun
+        # Expose the logger to our children.
+        self.log = log
+        if self.verbose:
+            log.info('Running setup with verbose')
+
+    def _validate_config_2(self, config):
+        pass
+
+    def _prepare(self, extra):
+        pass
+
+    def _install(self, extra):
+        pass
+
+    def _validate_ds_2_config(self, config):
+        assert config.has_section('slapd')
+        # Extract them in a way that create can understand.
+        general = {}
+        general['config_version'] = config.getint('general', 'config_version')
+        general['full_machine_name'] = config.get('general', 'full_machine_name')
+        general['strict_host_checking'] = config.getboolean('general', 'strict_host_checking', fallback=True)
+        # CHange this to detect if SELinux is running
+        general['selinux'] = config.getboolean('general', 'selinux', fallback=False)
+
+        if self.verbose:
+            log.info("Configuration general %s" % general)
+
+        ## Validate that we are a config_version=2
+        assert general['config_version'] >= 2
+
+        slapd = {}
+        # Can probably set these defaults out of somewhere else ...
+        slapd['instance_name'] = config.get('slapd', 'instance_name')
+        slapd['user'] = config.get('slapd', 'user', fallback='dirsrv')
+        slapd['group'] = config.get('slapd', 'group', fallback='dirsrv')
+        slapd['root_dn'] = config.get('slapd', 'root_dn', fallback='cn=Directory Manager')
+        slapd['root_password'] = config.get('slapd', 'root_password')
+        slapd['prefix'] = config.get('slapd', 'prefix', fallback='/')
+        # How do we default, defaults to the DS version.
+        slapd['defaults'] = config.get('slapd', 'defaults', fallback=None)
+        slapd['port'] = config.getint('slapd', 'port', fallback=389)
+        slapd['secure_port'] = config.getint('slapd', 'secure_port', fallback=636)
+
+        # These are all the paths for DS, that are RELATIVE to the prefix
+        # This will need to change to cope with configure scripts from DS!
+        # perhaps these should be read as a set of DEFAULTs from a config file?
+        slapd['bin_dir'] = config.get('slapd', 'bin_dir', fallback='%s/bin/' % slapd['prefix'])
+        slapd['sysconf_dir'] = config.get('slapd', 'sysconf_dir', fallback='%s/etc' % slapd['prefix'] )
+        slapd['data_dir'] = config.get('slapd', 'data_dir', fallback='%s/share/' % slapd['prefix'])
+        slapd['local_state_dir'] = config.get('slapd', 'local_state_dir', fallback='%s/var' % slapd['prefix'])
+
+        slapd['lib_dir'] = config.get('slapd', 'lib_dir', fallback='%s/usr/lib64/dirsrv' % (slapd['prefix']))
+        slapd['cert_dir'] = config.get('slapd', 'cert_dir', fallback='%s/etc/dirsrv/slapd-%s/' % (slapd['prefix'], slapd['instance_name']))
+        slapd['config_dir'] = config.get('slapd', 'config_dir', fallback='%s/etc/dirsrv/slapd-%s/'% (slapd['prefix'], slapd['instance_name']))
+
+        slapd['inst_dir'] = config.get('slapd', 'inst_dir', fallback='%s/var/lib/dirsrv/slapd-%s' % (slapd['prefix'], slapd['instance_name']))
+        slapd['backup_dir'] = config.get('slapd', 'backup_dir', fallback='%s/bak' % (slapd['inst_dir']))
+        slapd['db_dir'] = config.get('slapd', 'db_dir', fallback='%s/db' % (slapd['inst_dir']))
+        slapd['ldif_dir'] = config.get('slapd', 'ldif_dir', fallback='%s/ldif' % (slapd['inst_dir']))
+
+        slapd['lock_dir'] = config.get('slapd', 'lock_dir', fallback='%s/var/lock/dirsrv/slapd-%s' % (slapd['prefix'], slapd['instance_name']))
+        slapd['log_dir'] = config.get('slapd', 'log_dir', fallback='%s/var/log/dirsrv/slapd-%s' % (slapd['prefix'], slapd['instance_name']))
+        slapd['run_dir'] = config.get('slapd', 'run_dir', fallback='%s/var/run/dirsrv' % slapd['prefix'])
+        slapd['sbin_dir'] = config.get('slapd', 'sbin_dir', fallback='%s/sbin' % slapd['prefix'])
+        slapd['schema_dir'] = config.get('slapd', 'schema_dir', fallback='%s/etc/dirsrv/slapd-%s/schema' % (slapd['prefix'], slapd['instance_name']))
+        slapd['tmp_dir'] = config.get('slapd', 'tmp_dir', fallback='/tmp')
+
+        ## Need to add all the default filesystem paths.
+
+        if self.verbose:
+            log.info("Configuration slapd %s" % slapd)
+
+        backends = []
+        for section in config.sections():
+            if section.startswith('backend-'):
+                be = {}
+                # TODO: Add the other BACKEND_ types
+                be[BACKEND_NAME] = section.replace('backend-', '')
+                be[BACKEND_SUFFIX] = config.get(section, 'suffix')
+                be[BACKEND_SAMPLE_ENTRIES] = config.getboolean(section, 'sample_entries')
+                backends.append(be)
+
+        if self.verbose:
+            log.info("Configuration backends %s" % backends)
+
+        return (general, slapd, backends)
+
+    def _validate_ds_config(self, config):
+        # This will move to lib389 later.
+        # Check we have all the sections.
+        # Make sure we have needed keys.
+        assert(config.has_section('general'))
+        assert(config.has_option('general', 'config_version'))
+        assert(config.get('general', 'config_version') >= '2')
+        if config.get('general', 'config_version') == '2':
+            # Call our child api to validate itself from the inf.
+            self._validate_config_2(config)
+            return self._validate_ds_2_config(config)
+        else:
+            log.info("Failed to validate configuration version.")
+            assert(False)
+
+
+    def create_from_inf(self, inf_path):
+        """
+        Will trigger a create from the settings stored in inf_path
+        """
+        # Get the inf file
+        if self.verbose:
+            log.info("Using inf from %s" % inf_path)
+        if not os.path.isfile(inf_path):
+            log.error("%s is not a valid file path" % inf_path)
+            return False
+        config = None
+        try:
+            config = configparser.SafeConfigParser()
+            config.read([inf_path])
+        except Exception as e:
+            log.error("Exception %s occured" % e)
+            return False
+
+        if self.verbose:
+            log.info("Configuration %s" % config.sections())
+
+        (general, slapd, backends) = self._validate_ds_config(config)
+
+        # Actually do the setup now.
+        self.create_from_args(general, slapd, backends, self.extra)
+
+        return True
+
+    def _prepare_ds(self, general, slapd, backends):
+        # Validate our arguments.
+        assert(slapd['user'] is not None)
+        # check the user exists
+        assert(pwd.getpwnam(slapd['user']))
+        slapd['user_uid'] = pwd.getpwnam(slapd['user']).pw_uid
+        assert(slapd['group'] is not None)
+        assert(grp.getgrnam(slapd['group']))
+        slapd['group_gid'] = grp.getgrnam(slapd['group']).gr_gid
+        # check this group exists
+        # Check that we are running as this user / group, or that we are root.
+        assert(os.geteuid() == 0 or getpass.getuser() == slapd['user'] )
+
+        if self.verbose:
+            log.info("PASSED: user / group checking")
+
+
+        assert(general['full_machine_name'] is not None)
+        assert(general['strict_host_checking'] is not None)
+        if general['strict_host_checking'] is True:
+            # Check it resolves with dns
+            assert( socket.gethostbyname(general['full_machine_name']) )
+            if self.verbose:
+                log.info("PASSED: Hostname strict checking")
+
+        assert(slapd['prefix'] is not None)
+        assert(os.path.exists( slapd['prefix'] ))
+        if self.verbose:
+            log.info("PASSED: prefix checking")
+
+        # We need to know the prefix before we can do the instance checks
+        assert(slapd['instance_name'] is not None)
+        # Check if the instance exists or not.
+        # Should I move this import? I think this prevents some recursion
+        from lib389 import DirSrv
+        ds = DirSrv(verbose=self.verbose)
+        ds.prefix = slapd['prefix']
+        insts = ds.list(serverid=slapd['instance_name'])
+        assert(len(insts) == 0)
+
+        if self.verbose:
+            log.info("PASSED: instance checking")
+
+
+        assert(slapd['root_dn'] is not None)
+        # Assert this is a valid DN
+        assert(is_a_dn(slapd['root_dn']))
+        assert(slapd['root_password'] is not None)
+        # Check if pre-hashed or not.
+        #!!!!!!!!!!!!!!
+
+
+        # Right now, the way that rootpw works on ns-slapd works, it force hashes the pw
+        # see https://fedorahosted.org/389/ticket/48859
+        if not re.match('^\{[A-Z0-9]+\}.*$', slapd['root_password']):
+            # We need to hash it. Call pwdhash-bin.
+            #slapd['root_password'] = password_hash(slapd['root_password'], prefix=slapd['prefix'])
+            pass
+        else:
+            pass
+
+        # Create a random string
+        # Hash it.
+        # This will be our temporary rootdn password so that we can do
+        # live mods and setup rather than static ldif manipulations.
+        self._raw_secure_password = password_generate()
+        self._secure_password = password_hash(self._raw_secure_password, prefix=slapd['prefix'])
+
+        if self.verbose:
+            log.info("PASSED: root user checking")
+
+        assert(slapd['defaults'] is not None)
+        if self.verbose:
+            log.info("PASSED: using config settings %s" % slapd['defaults'])
+
+        assert(slapd['port'] is not None)
+        assert(socket_check_open('::1', slapd['port']) is False)
+        assert(slapd['secure_port'] is not None)
+        assert(socket_check_open('::1', slapd['secure_port']) is False)
+        if self.verbose:
+            log.info("PASSED: network avaliability checking")
+
+        ## Make assertions of the paths?
+
+        ## Make assertions of the backends?
+
+    def create_from_args(self, general, slapd, backends=[], extra=None):
+        """
+        Actually does the setup. this is what you want to call as an api.
+        """
+        # Check we have privs to run
+
+        if self.verbose:
+            log.info("READY: preparing installation")
+        self._prepare_ds(general, slapd, backends)
+        # Call our child api to prepare itself.
+        self._prepare(extra)
+
+        if self.verbose:
+            log.info("READY: beginning installation")
+
+        if self.dryrun:
+            log.info("NOOP: dry run requested")
+        else:
+            # Actually trigger the installation.
+            self._install_ds(general, slapd, backends)
+            # Call the child api to do anything it needs.
+            self._install(extra)
+        if self.verbose:
+            log.info("Directory Server is brought to you by the letter R and the number 27.")
+        log.info("FINISH: completed installation")
+
+
+    def _install_ds(self, general, slapd, backends):
+        """
+        Actually install the Ds from the dicts provided.
+
+        You should never call this directly, as it bypasses assertions.
+        """
+
+        # register the instance to /etc/sysconfig
+        # We do this first so that we can trick remove-ds.pl if needed.
+        # There may be a way to create this from template like the dse.ldif ...
+        initconfig = ""
+        with open("%s/dirsrv/config/template-initconfig" % slapd['sysconf_dir']) as template_init:
+            for line in template_init.readlines():
+                initconfig += line.replace('{{', '{', 1).replace('}}', '}', 1).replace('-', '_')
+        with open("%s/sysconfig/dirsrv-%s" % (slapd['sysconf_dir'], slapd['instance_name']), 'w') as f:
+            f.write(initconfig.format(
+SERVER_DIR=slapd['lib_dir'],
+SERVERBIN_DIR=slapd['sbin_dir'],
+CONFIG_DIR=slapd['config_dir'],
+INST_DIR=slapd['inst_dir'],
+RUN_DIR=slapd['run_dir'],
+DS_ROOT='',
+PRODUCT_NAME='slapd',
+        ))
+
+        # Create all the needed paths
+        ## we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir? schema_dir,
+        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+            if self.verbose:
+                log.info("ACTION: creating %s" % slapd[path])
+            os.makedirs(slapd[path], mode=0o770, exist_ok=True)
+            os.chown(slapd[path], slapd['user_uid'], slapd['group_gid'])
+
+        # Copy correct data to the paths.
+        ## Copy in the schema
+        ##  This is a little fragile, make it better.
+        shutil.copytree("%s/dirsrv/schema" % slapd['sysconf_dir'], slapd['schema_dir'])
+        os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
+
+
+
+        # Selinux fixups?
+        ## Restorecon of paths?
+        ## Bind sockets to our type?
+
+        # Create certdb in sysconfidir
+        if self.verbose:
+            log.info("ACTION: Creating certificate database is %s" % slapd['cert_dir'])
+        # nss_create_new_database(slapd['cert_dir'])
+
+        # Create dse.ldif with a temporary root password.
+        # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
+        # Variables are done with %KEY%.
+        # You could cheat and read it in, do a replace of % to { and } then use format?
+        if self.verbose:
+            log.info("ACTION: Creating dse.ldif")
+        dse = ""
+        with open("%s/dirsrv/data/template-dse.ldif" % slapd['data_dir']) as template_dse:
+            for line in template_dse.readlines():
+                dse += line.replace('%', '{', 1).replace('%', '}', 1)
+
+        with open("%s/dse.ldif" % slapd['config_dir'], 'w' ) as file_dse:
+            file_dse.write(dse.format(
+                schema_dir=slapd['schema_dir'],
+                lock_dir=slapd['lock_dir'],
+                tmp_dir=slapd['tmp_dir'],
+                cert_dir=slapd['cert_dir'],
+                ldif_dir=slapd['ldif_dir'],
+                bak_dir=slapd['backup_dir'],
+                run_dir=slapd['run_dir'],
+                inst_dir="",
+                log_dir=slapd['log_dir'],
+                fqdn=general['full_machine_name'],
+                ds_port=slapd['port'],
+                ds_user=slapd['user'],
+                rootdn=slapd['root_dn'],
+                # ds_passwd=slapd['root_password'],
+                ds_passwd=self._secure_password, # We set our own password here, so we can connect and mod.
+                ds_suffix='',
+                config_dir=slapd['config_dir'],
+                db_dir=slapd['db_dir'],
+            ))
+
+        # open the connection to the instance.
+
+        # Should I move this import? I think this prevents some recursion
+        from lib389 import DirSrv
+        ds_instance = DirSrv(self.verbose)
+        args = {
+            SER_PORT: slapd['port'],
+            SER_SERVERID_PROP: slapd['instance_name'],
+            SER_ROOT_DN: slapd['root_dn'],
+            SER_ROOT_PW: self._raw_secure_password,
+            SER_DEPLOYED_DIR: slapd['prefix']
+        }
+
+        ds_instance.allocate(args)
+        # Does this work?
+        assert(ds_instance.exists())
+        # Start the server
+        ds_instance.start(timeout=60)
+        ds_instance.open()
+
+        # Create the backends as listed
+        ## Load example data if needed.
+        for backend in backends:
+            ds_instance.backends.create(properties=backend)
+
+        # Make changes using the temp root
+        # Change the root password finally
+
+        ds_instance.config.set('nsslapd-rootpw', ensure_str(slapd['root_password']) )
+
+        # Complete.
+
+
+
+    def _remove_ds(self):
+        """
+        The opposite of install: Removes an instance from the system.
+        This takes a backup of all relevant data, and removes the paths.
+        """
+        # This probably actually would need to be able to read the ldif, to know what to remove ...
+        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+            print(path)
+
