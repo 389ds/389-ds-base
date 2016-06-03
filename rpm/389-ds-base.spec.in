@@ -156,6 +156,9 @@ Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
 the LDAP server and command line utilities for server administration.
 %endif
 
+# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
+Obsoletes:        %{name} <= 1.3.5.4
+
 %package          libs
 Summary:          Core libraries for 389 Directory Server (%{variant})
 Group:            System Environment/Daemons
@@ -207,9 +210,19 @@ Requires:         libtevent
 %endif
 Requires:         systemd-libs
 
-
 %description      devel
 Development Libraries and headers for the 389 Directory Server base package.
+
+%package          snmp
+Summary:          SNMP Agent for 389 Directory Server
+Group:            System Environment/Daemons
+Requires:         %{name} = %{version}-%{release}
+
+%description      snmp
+SNMP Agent for the 389 Directory Server base package.
+
+# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
+Obsoletes:        %{name} <= 1.3.5.4
 
 %package          tests
 Summary:          The lib389 Continuous Integration Tests
@@ -313,13 +326,10 @@ rm -rf $RPM_BUILD_ROOT
 %post
 output=/dev/null
 output2=/dev/null
-%systemd_post %{pkgname}-snmp.service
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >$output 2>&1 || :
 # reload to pick up any shared lib changes
 /sbin/ldconfig
-# restart the snmp subagent if needed
-/bin/systemctl try-restart %{pkgname}-snmp.service > $output 2>&1 || :
 # find all instances
 instances="" # instances that require a restart after upgrade
 ninst=0 # number of instances found in total
@@ -395,8 +405,6 @@ exit 0
 
 %preun
 if [ $1 -eq 0 ]; then # Final removal
-    # Package removal, not upgrade
-    %systemd_preun %{pkgname}-snmp.service %{groupname}
     # remove instance specific service files/links
     rm -rf %{_sysconfdir}/systemd/system/%{groupname}.wants/* > /dev/null 2>&1 || :
 fi
@@ -406,6 +414,15 @@ fi
 if [ $1 = 0 ]; then # Final removal
     rm -rf /var/run/%{pkgname}
 fi
+
+%post snmp
+%systemd_post %{pkgname}-snmp.service
+
+%preun snmp
+%systemd_preun %{pkgname}-snmp.service %{groupname}
+
+%postun snmp
+%systemd_postun_with_restart %{pkgname}-snmp.service
 
 %files
 %defattr(-,root,root,-)
@@ -417,7 +434,6 @@ fi
 %dir %{_sysconfdir}/systemd/system/%{groupname}.wants
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
-%config(noreplace)%{_sysconfdir}/%{pkgname}/config/ldap-agent.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
 %config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}
 %config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}.systemd
@@ -434,6 +450,8 @@ fi
 %ghost %dir %{_localstatedir}/lock/%{pkgname}
 %{_mandir}/man1/*
 %{_mandir}/man8/*
+%exclude %{_sbindir}/ldap-agent*
+%exclude %{_mandir}/man1/ldap-agent.1.gz
 
 %files devel
 %defattr(-,root,root,-)
@@ -454,6 +472,13 @@ fi
 %if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so*
 %endif
+
+%files snmp
+%defattr(-,root,root,-)
+%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
+%config(noreplace)%{_sysconfdir}/%{pkgname}/config/ldap-agent.conf
+%{_sbindir}/ldap-agent*
+%{_mandir}/man1/ldap-agent.1.gz
 
 %files tests
 %defattr(-,root,root,-)
