@@ -1821,7 +1821,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				slapi_attr_get_type(attr, &attr_name);
 				if (!strcasecmp(attr_name, "passwordminage")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_minage = slapi_value_get_timelong(*sval);
+						pwdpolicy->pw_minage = slapi_value_get_timelonglong(*sval);
 						if (-1 == pwdpolicy->pw_minage) {
 							LDAPDebug2Args(LDAP_DEBUG_ANY, 
 								"Password Policy Entry%s: Invalid passwordMinAge: %s\n",
@@ -1833,7 +1833,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				else
 				if (!strcasecmp(attr_name, "passwordmaxage")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_maxage = slapi_value_get_timelong(*sval);
+						pwdpolicy->pw_maxage = slapi_value_get_timelonglong(*sval);
 						if (-1 == pwdpolicy->pw_maxage) {
 							LDAPDebug2Args(LDAP_DEBUG_ANY, 
 								"Password Policy Entry%s: Invalid passwordMaxAge: %s\n",
@@ -1845,7 +1845,7 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 				else
 				if (!strcasecmp(attr_name, "passwordwarning")) {
 					if ((sval = attr_get_present_values(attr))) {
-						pwdpolicy->pw_warning = slapi_value_get_timelong(*sval);
+						pwdpolicy->pw_warning = slapi_value_get_timelonglong(*sval);
 						if (-1 == pwdpolicy->pw_warning) {
 							LDAPDebug2Args(LDAP_DEBUG_ANY, 
 								"Password Policy Entry%s: Invalid passwordWarning: %s\n",
@@ -2201,15 +2201,19 @@ check_pw_duration_value(const char *attr_name, char *value,
                         long minval, long maxval, char *errorbuf, size_t ebuflen)
 {
 	int retVal = LDAP_SUCCESS;
-	long age;
+	long long age;
 
-	age = parse_duration(value);
+	age = slapi_parse_duration_longlong(value);
 	if (-1 == age) {
 		slapi_create_errormsg(errorbuf, ebuflen, "password minimum age \"%s\" is invalid. ", value);
 		retVal = LDAP_CONSTRAINT_VIOLATION;
 	} else if (0 == strcasecmp(CONFIG_PW_LOCKDURATION_ATTRIBUTE, attr_name)) {
 		if ( (age <= 0) ||
+#if defined(CPU_x86_64)
+			 (age > (MAX_ALLOWED_TIME_IN_SECS_64 - current_time())) ||
+#else
 			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
+#endif
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
 			slapi_create_errormsg(errorbuf, ebuflen, "%s: \"%s\" seconds is invalid. ", attr_name, value);
@@ -2217,7 +2221,11 @@ check_pw_duration_value(const char *attr_name, char *value,
 		}
 	} else {
 		if ( (age < 0) ||
+#if defined(CPU_x86_64)
+			 (age > (MAX_ALLOWED_TIME_IN_SECS_64 - current_time())) ||
+#else
 			 (age > (MAX_ALLOWED_TIME_IN_SECS - current_time())) ||
+#endif
 			 ((-1 != minval) && (age < minval)) ||
 			 ((-1 != maxval) && (age > maxval))) {
 			slapi_create_errormsg(errorbuf, ebuflen, "%s: \"%s\" seconds is invalid. ", attr_name, value);
@@ -2867,11 +2875,11 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
 {
     const char *dn = NULL;
     passwdPolicy *pwpolicy = NULL;
-    time_t shadowval = 0;
-    time_t exptime = 0;
+    long long shadowval = 0;
+    long long exptime = 0;
     Slapi_Mods *smods = NULL;
     LDAPMod **mods;
-    long sval;
+    long long sval;
     int mod_num = 0;
     char *shmin = NULL;
     char *shmax = NULL;
@@ -2904,59 +2912,68 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     /* shadowMin - the minimum number of days required between password changes. */
     if (pwpolicy->pw_minage > 0) {
         shadowval = pwpolicy->pw_minage / _SEC_PER_DAY;
+        if (shadowval > _MAX_SHADOW) {
+            shadowval = _MAX_SHADOW;
+        }
     } else {
         shadowval = 0;
     }
     shmin = slapi_entry_attr_get_charptr(*e, "shadowMin");
     if (shmin) {
-        sval = strtol(shmin, NULL, 0);
+        sval = strtoll(shmin, NULL, 0);
         if (sval != shadowval) {
             slapi_ch_free_string(&shmin);
-            shmin = slapi_ch_smprintf("%ld", shadowval);
+            shmin = slapi_ch_smprintf("%lld", shadowval);
             mod_num++;
         }
     } else {
         mod_num++;
-        shmin = slapi_ch_smprintf("%ld", shadowval);
+        shmin = slapi_ch_smprintf("%lld", shadowval);
     }
 
     /* shadowMax - the maximum number of days for which the user password remains valid. */
     if (pwpolicy->pw_maxage > 0) {
         shadowval = pwpolicy->pw_maxage / _SEC_PER_DAY;
         exptime = time_plus_sec(current_time(), pwpolicy->pw_maxage);
+        if (shadowval > _MAX_SHADOW) {
+            shadowval = _MAX_SHADOW;
+        }
     } else {
-        shadowval = 99999;
+        shadowval = _MAX_SHADOW;
     }
     shmax = slapi_entry_attr_get_charptr(*e, "shadowMax");
     if (shmax) {
-        sval = strtol(shmax, NULL, 0);
+        sval = strtoll(shmax, NULL, 0);
         if (sval != shadowval) {
             slapi_ch_free_string(&shmax);
-            shmax = slapi_ch_smprintf("%ld", shadowval);
+            shmax = slapi_ch_smprintf("%lld", shadowval);
             mod_num++;
         }
     } else {
         mod_num++;
-        shmax = slapi_ch_smprintf("%ld", shadowval);
+        shmax = slapi_ch_smprintf("%lld", shadowval);
     }
 
     /* shadowWarning - the number of days of advance warning given to the user before the user password expires. */
     if (pwpolicy->pw_warning > 0) {
         shadowval = pwpolicy->pw_warning / _SEC_PER_DAY;
+        if (shadowval > _MAX_SHADOW) {
+            shadowval = _MAX_SHADOW;
+        }
     } else {
         shadowval = 0;
     }
     shwarn = slapi_entry_attr_get_charptr(*e, "shadowWarning");
     if (shwarn) {
-        sval = strtol(shwarn, NULL, 0);
+        sval = strtoll(shwarn, NULL, 0);
         if (sval != shadowval) {
             slapi_ch_free_string(&shwarn);
-            shwarn = slapi_ch_smprintf("%ld", shadowval);
+            shwarn = slapi_ch_smprintf("%lld", shadowval);
             mod_num++;
         }
     } else {
         mod_num++;
-        shwarn = slapi_ch_smprintf("%ld", shadowval);
+        shwarn = slapi_ch_smprintf("%lld", shadowval);
     }
 
     /* shadowExpire - the date on which the user login will be disabled. */
@@ -2964,15 +2981,15 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         shexp = slapi_entry_attr_get_charptr(*e, "shadowExpire");
         exptime /= _SEC_PER_DAY;
         if (shexp) {
-            sval = strtol(shexp, NULL, 0);
+            sval = strtoll(shexp, NULL, 0);
             if (sval != exptime) {
                 slapi_ch_free_string(&shexp);
-                shexp = slapi_ch_smprintf("%ld", shadowval);
+                shexp = slapi_ch_smprintf("%lld", exptime);
                 mod_num++;
             }
         } else {
             mod_num++;
-            shexp = slapi_ch_smprintf("%ld", exptime);
+            shexp = slapi_ch_smprintf("%lld", exptime);
         }
     }
     smods = slapi_mods_new();

@@ -1546,7 +1546,11 @@ FrontendConfig_init () {
   cfg->pw_policy.pw_maxrepeats = 0;
   cfg->pw_policy.pw_mincategories = 3;
   cfg->pw_policy.pw_mintokenlength = 3;
+#if defined(CPU_x86_64)
+  cfg->pw_policy.pw_maxage = 8639913600; /* 99999 days     */
+#else
   cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
+#endif
   cfg->pw_policy.pw_minage = 0;
   cfg->pw_policy.pw_warning = _SEC_PER_DAY; /* 1 day */
   init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
@@ -4360,7 +4364,7 @@ config_set_auditfaillog( const char *attrname, char *value, char *errorbuf, int 
 int
 config_set_pw_maxage( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
-  long age;
+  long long age;
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
@@ -4370,9 +4374,15 @@ config_set_pw_maxage( const char *attrname, char *value, char *errorbuf, int app
   
   errno = 0;
   /* age in seconds */
-  age = parse_duration(value);
+  age = slapi_parse_duration_longlong(value);
 
-  if ( age <= 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
+  if (age <= 0 || 
+#if defined(CPU_x86_64)
+      age > (MAX_ALLOWED_TIME_IN_SECS_64 - current_time())
+#else
+      age > (MAX_ALLOWED_TIME_IN_SECS - current_time())
+#endif
+  ) {
 	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: password maximum age \"%s\" is invalid.", attrname, value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -4387,7 +4397,7 @@ config_set_pw_maxage( const char *attrname, char *value, char *errorbuf, int app
 int
 config_set_pw_minage( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
-  long age;
+  long long age;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
   if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
@@ -4396,8 +4406,14 @@ config_set_pw_minage( const char *attrname, char *value, char *errorbuf, int app
   
   errno = 0;
   /* age in seconds */
-  age = parse_duration(value);
-  if ( age < 0 || age > (MAX_ALLOWED_TIME_IN_SECS - current_time()) ) {
+  age = slapi_parse_duration_longlong(value);
+  if (age < 0 ||
+#if defined(CPU_x86_64)
+      age > (MAX_ALLOWED_TIME_IN_SECS_64 - current_time())
+#else
+      age > (MAX_ALLOWED_TIME_IN_SECS - current_time())
+#endif
+  ) {
 	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: password minimum age \"%s\" is invalid.", attrname, value);
 	retVal = LDAP_OPERATIONS_ERROR;
 	return retVal;
@@ -4412,7 +4428,7 @@ config_set_pw_minage( const char *attrname, char *value, char *errorbuf, int app
 int
 config_set_pw_warning( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal = LDAP_SUCCESS;
-  long sec;
+  long long sec;
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   
@@ -4422,7 +4438,7 @@ config_set_pw_warning( const char *attrname, char *value, char *errorbuf, int ap
   
   errno = 0;
   /* in seconds */
-  sec = parse_duration(value);
+  sec = slapi_parse_duration_longlong(value);
 
   if (errno == ERANGE || sec < 0) {
 	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -5699,10 +5715,10 @@ config_get_auditfaillog(  ){
     return retVal;
 }
 
-long
+long long
 config_get_pw_maxage() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  long retVal;
+  long long retVal;
 
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = slapdFrontendConfig->pw_policy.pw_maxage;
@@ -5710,7 +5726,7 @@ config_get_pw_maxage() {
   return retVal; 
 }
 
-long
+long long
 config_get_pw_minage(){
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -5723,7 +5739,7 @@ config_get_pw_minage(){
   return retVal; 
 }
 
-long
+long long
 config_get_pw_warning() {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   long retVal;

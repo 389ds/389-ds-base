@@ -1573,9 +1573,9 @@ typedef struct passwordpolicyarray {
   int pw_mintokenlength;
   slapi_onoff_t pw_exp;
   slapi_onoff_t pw_send_expiring;
-  long pw_maxage;
-  long pw_minage;
-  long pw_warning;
+  long long pw_maxage;
+  long long pw_minage;
+  long long pw_warning;
   slapi_onoff_t pw_history;
   int pw_inhistory;
   slapi_onoff_t pw_lockout;
@@ -2200,6 +2200,7 @@ typedef struct _slapdEntryPoints {
 #define REFER_MODE_ON 1
 
 #define MAX_ALLOWED_TIME_IN_SECS	2147483647
+#define MAX_ALLOWED_TIME_IN_SECS_64	9223372036854775807
 
 typedef struct _slapdFrontendConfig {
 #if SLAPI_CFG_USE_RWLOCK == 1
@@ -2589,5 +2590,6 @@ extern char	*attr_dataversion;
 #define RUV_STORAGE_ENTRY_UNIQUEID "ffffffff-ffffffff-ffffffff-ffffffff"
 
 #define _SEC_PER_DAY 86400
+#define _MAX_SHADOW  99999
 
 #endif /* _slap_h_ */

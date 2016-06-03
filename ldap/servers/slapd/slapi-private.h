@@ -1335,6 +1335,7 @@ char *slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize);
  *    Failure: -1
  */
 time_t slapi_parse_duration(const char *value);
+long long slapi_parse_duration_longlong(const char *value);
 int slapi_is_duration_valid(const char *value);
 
 /**

@@ -517,7 +517,74 @@ parse_duration(char *value)
     duration *= times;
 bail:
     if (duration == -1) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, "slapi_parse_duration: invalid duration (%s)\n", value?value:"null");
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "parse_duration: invalid duration (%s)\n", value?value:"null");
+    }
+    slapi_ch_free_string(&input);
+    return duration;
+}
+
+long long
+parse_duration_longlong(char *value)
+{
+    char *input = NULL;
+    char *endp;
+    long long duration = -1;
+    int times = 1;
+
+    if (NULL == value || '\0' == *value) {
+        goto bail;
+    }
+    input = slapi_ch_strdup(value);
+    endp = input + strlen(input) - 1;
+    while ((' ' == *endp || '\t' == *endp) && endp > input) {
+        endp--;
+    }
+    if ((endp == input) && !isdigit(*input)) {
+        goto bail;
+    }
+    switch ( *endp ) {
+    case 'w':
+    case 'W':
+      times = 60 * 60 * 24 * 7;
+      *endp = '\0';
+      break;
+    case 'd':
+    case 'D':
+      times = 60 * 60 * 24;
+      *endp = '\0';
+      break;
+    case 'h':
+    case 'H':
+      times = 60 * 60;
+      *endp = '\0';
+      break;
+    case 'm':
+    case 'M':
+      times = 60;
+      *endp = '\0';
+      break;
+    case 's':
+    case 'S':
+      times = 1;
+      *endp = '\0';
+      break;
+    default:
+      if (isdigit(*endp)) {
+        times = 1;
+        break;
+      } else {
+        goto bail;
+      }
+    }
+    duration = strtoll(input, &endp, 10);
+    if ( *endp != '\0' || errno == ERANGE ) {
+        duration = -1;
+        goto bail;
+    }
+    duration *= times;
+bail:
+    if (duration == -1) {
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, "parse_duration_longlong: invalid duration (%s)\n", value?value:"null");
     }
     slapi_ch_free_string(&input);
     return duration;
@@ -527,6 +594,12 @@ time_t
 slapi_parse_duration(const char *value)
 {
     return (time_t)parse_duration((char *)value);
+}
+
+long long
+slapi_parse_duration_longlong(const char *value)
+{
+    return parse_duration_longlong((char *)value);
 }
 
 static int
