@@ -751,7 +751,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             /* Build the list of modifications required to the existing entry */
             slapi_mods_init(&smods_generated,4);
             slapi_mods_init(&smods_generated_wsi,4);
-            ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_ndn(sdn),
+            ldap_result_code = moddn_newrdn_mods(pb, slapi_sdn_get_dn(sdn),
                                 ec, &smods_generated_wsi, is_replicated_operation);
             if (ldap_result_code != LDAP_SUCCESS) {
                 if (ldap_result_code == LDAP_UNWILLING_TO_PERFORM)
