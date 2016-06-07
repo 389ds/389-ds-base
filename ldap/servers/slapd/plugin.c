@@ -504,7 +504,13 @@ plugin_determine_exop_plugins( const char *oid, struct slapdplugin **plugin)
                     if ( strcasecmp( oid, p->plg_exoids[i] ) == 0 ) {
                         *plugin = p;
                         rc = p->plg_type;
-                        break;
+                        /* break; */
+                        /* WB - 48870, return early so that we can get the plugin
+                         * that is set earlier in the list. This prevents the
+                         * need to change add_plugin_to_list, which may have
+                         * side effects.
+                         */
+                        return rc;
                     }
                 }
             }
