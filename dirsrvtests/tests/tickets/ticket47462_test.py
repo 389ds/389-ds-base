@@ -1,19 +1,20 @@
-import os
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2015 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import sys
 import time
 import ldap
 import logging
-import socket
-import time
-import logging
 import pytest
-import re
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-from constants import *
-from lib389._constants import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ AGMT_DN = ''
 USER_DN = 'cn=test_user,' + DEFAULT_SUFFIX
 USER1_DN = 'cn=test_user1,' + DEFAULT_SUFFIX
 TEST_REPL_DN = 'cn=test repl,' + DEFAULT_SUFFIX
+DES2AES_TASK_DN = 'cn=convert,cn=des2aes,cn=tasks,cn=config'
 
 
 class TopologyMaster1Master2(object):
@@ -47,27 +49,6 @@ def topology(request):
     '''
         This fixture is used to create a replicated topology for the 'module'.
         The replicated topology is MASTER1 <-> Master2.
-        At the beginning, It may exists a master2 instance and/or a master2 instance.
-        It may also exists a backup for the master1 and/or the master2.
-
-        Principle:
-            If master1 instance exists:
-                restart it
-            If master2 instance exists:
-                restart it
-            If backup of master1 AND backup of master2 exists:
-                create or rebind to master1
-                create or rebind to master2
-
-                restore master1 from backup
-                restore master2 from backup
-            else:
-                Cleanup everything
-                    remove instances
-                    remove backups
-                Create instances
-                Initialize replication
-                Create backups
     '''
     global installation1_prefix
     global installation2_prefix
@@ -96,134 +77,69 @@ def topology(request):
     args_master = args_instance.copy()
     master2.allocate(args_master)
 
-    # Get the status of the backups
-    backup_master1 = master1.checkBackupFS()
-    backup_master2 = master2.checkBackupFS()
-
     # Get the status of the instance and restart it if it exists
     instance_master1 = master1.exists()
-    if instance_master1:
-        master1.stop(timeout=10)
-        master1.start(timeout=10)
-
     instance_master2 = master2.exists()
+
+    # Remove all the instances
+    if instance_master1:
+        master1.delete()
     if instance_master2:
-        master2.stop(timeout=10)
-        master2.start(timeout=10)
+        master2.delete()
 
-    if backup_master1 and backup_master2:
-        # The backups exist, assuming they are correct
-        # we just re-init the instances with them
-        if not instance_master1:
-            master1.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            master1.open()
+    # Create the instances
+    master1.create()
+    master1.open()
+    master2.create()
+    master2.open()
 
-        if not instance_master2:
-            master2.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            master2.open()
+    #
+    # Now prepare the Master-Consumer topology
+    #
+    # First Enable replication
+    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
+    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
 
-        # restore master1 from backup
-        master1.stop(timeout=10)
-        master1.restoreFS(backup_master1)
-        master1.start(timeout=10)
+    # Initialize the supplier->consumer
 
-        # restore master2 from backup
-        master2.stop(timeout=10)
-        master2.restoreFS(backup_master2)
-        master2.start(timeout=10)
+    properties = {RA_NAME:      r'meTo_$host:$port',
+                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+    AGMT_DN = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
+    master1.agreement
+    if not AGMT_DN:
+        log.fatal("Fail to create a replica agreement")
+        sys.exit(1)
+
+    log.debug("%s created" % AGMT_DN)
+
+    properties = {RA_NAME:      r'meTo_$host:$port',
+                  RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+    master2.agreement.create(suffix=DEFAULT_SUFFIX, host=master1.host, port=master1.port, properties=properties)
+
+    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
+    master1.waitForReplInit(AGMT_DN)
+
+    # Check replication is working fine
+    if master1.testReplication(DEFAULT_SUFFIX, master2):
+        log.info('Replication is working.')
     else:
-        # We should be here only in two conditions
-        #      - This is the first time a test involve master-consumer
-        #        so we need to create everything
-        #      - Something weird happened (instance/backup destroyed)
-        #        so we discard everything and recreate all
-
-        # Remove all the backups. So even if we have a specific backup file
-        # (e.g backup_master) we clear all backups that an instance my have created
-        if backup_master1:
-            master1.clearBackupFS()
-        if backup_master2:
-            master2.clearBackupFS()
-
-        # Remove all the instances
-        if instance_master1:
-            master1.delete()
-        if instance_master2:
-            master2.delete()
-
-        # Create the instances
-        master1.create()
-        master1.open()
-        master2.create()
-        master2.open()
-
-        #
-        # Now prepare the Master-Consumer topology
-        #
-        # First Enable replication
-        master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-        master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
-
-        # Initialize the supplier->consumer
-
-        properties = {RA_NAME:      r'meTo_$host:$port',
-                      RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        AGMT_DN = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
-        master1.agreement
-        if not AGMT_DN:
-            log.fatal("Fail to create a replica agreement")
-            sys.exit(1)
-
-        log.debug("%s created" % AGMT_DN)
-
-        properties = {RA_NAME:      r'meTo_$host:$port',
-                      RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        master2.agreement.create(suffix=DEFAULT_SUFFIX, host=master1.host, port=master1.port, properties=properties)
-
-        master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-        master1.waitForReplInit(AGMT_DN)
-
-        # Check replication is working fine
-        master1.add_s(Entry((TEST_REPL_DN, {'objectclass': "top person".split(),
-                                            'sn': 'test_repl',
-                                            'cn': 'test_repl'})))
-        loop = 0
-        while loop <= 10:
-            try:
-                ent = master2.getEntry(TEST_REPL_DN, ldap.SCOPE_BASE, "(objectclass=*)")
-                break
-            except ldap.NO_SUCH_OBJECT:
-                time.sleep(1)
-                loop += 1
-        if not ent:
-            log.fatal('Replication is not working!')
-            assert False
-
-        # Time to create the backups
-        master1.stop(timeout=10)
-        master1.backupfile = master1.backupFS()
-        master1.start(timeout=10)
-
-        master2.stop(timeout=10)
-        master2.backupfile = master2.backupFS()
-        master2.start(timeout=10)
+        log.fatal('Replication is not working.')
+        assert False
 
     # clear the tmp directory
     master1.clearTmpDir(__file__)
 
-    #
-    # Here we have two instances master and consumer
-    # with replication working. Either coming from a backup recovery
-    # or from a fresh (re)init
-    # Time to return the topology
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
+
     return TopologyMaster1Master2(master1, master2)
 
 
@@ -234,31 +150,39 @@ def test_ticket47462(topology):
     """
 
     #
-    # First set config as if it's an older version.  Set DES to use libdes-plugin,
-    # MMR to depend on DES, delete the existing AES plugin, and set a DES password
-    # for the replication agreement.
-    #
-
+    # First set config as if it's an older version.  Set DES to use
+    # libdes-plugin, MMR to depend on DES, delete the existing AES plugin,
+    # and set a DES password for the replication agreement.
     #
     # Add an extra attribute to the DES plugin args
     #
     try:
         topology.master1.modify_s(DES_PLUGIN,
-                      [(ldap.MOD_REPLACE, 'nsslapd-pluginPath', 'libdes-plugin'),
-                       (ldap.MOD_ADD, 'nsslapd-pluginarg2', 'description')])
+                      [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
+    except ldap.LDAPError as e:
+            log.fatal('Failed to enable DES plugin, error: ' +
+                      e.message['desc'])
+            assert False
 
-    except ldap.LDAPError, e:
-            log.fatal('Failed to reset DES plugin, error: ' + e.message['desc'])
+    try:
+        topology.master1.modify_s(DES_PLUGIN,
+                      [(ldap.MOD_ADD, 'nsslapd-pluginarg2', 'description')])
+    except ldap.LDAPError as e:
+            log.fatal('Failed to reset DES plugin, error: ' +
+                      e.message['desc'])
             assert False
 
     try:
         topology.master1.modify_s(MMR_PLUGIN,
-                      [(ldap.MOD_DELETE, 'nsslapd-plugin-depends-on-named', 'AES')])
+                      [(ldap.MOD_DELETE,
+                        'nsslapd-plugin-depends-on-named',
+                        'AES')])
 
     except ldap.NO_SUCH_ATTRIBUTE:
         pass
-    except ldap.LDAPError, e:
-            log.fatal('Failed to reset DES plugin, error: ' + e.message['desc'])
+    except ldap.LDAPError as e:
+            log.fatal('Failed to reset MMR plugin, error: ' +
+                      e.message['desc'])
             assert False
 
     #
@@ -268,8 +192,9 @@ def test_ticket47462(topology):
         topology.master1.delete_s(AES_PLUGIN)
     except ldap.NO_SUCH_OBJECT:
         pass
-    except ldap.LDAPError, e:
-            log.fatal('Failed to delete AES plugin, error: ' + e.message['desc'])
+    except ldap.LDAPError as e:
+            log.fatal('Failed to delete AES plugin, error: ' +
+                      e.message['desc'])
             assert False
 
     # restart the server so we must use DES plugin
@@ -279,20 +204,23 @@ def test_ticket47462(topology):
     # Get the agmt dn, and set the password
     #
     try:
-        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE, 'objectclass=nsDS5ReplicationAgreement')
+        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE,
+                                          'objectclass=nsDS5ReplicationAgreement')
         if entry:
             agmt_dn = entry[0].dn
             log.info('Found agmt dn (%s)' % agmt_dn)
         else:
             log.fatal('No replication agreements!')
             assert False
-    except ldap.LDAPError, e:
-        log.fatal('Failed to search for replica credentials: ' + e.message['desc'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for replica credentials: ' +
+                  e.message['desc'])
         assert False
 
     try:
         properties = {RA_BINDPW: "password"}
-        topology.master1.agreement.setProperties(None, agmt_dn, None, properties)
+        topology.master1.agreement.setProperties(None, agmt_dn, None,
+                                                 properties)
         log.info('Successfully modified replication agreement')
     except ValueError:
         log.error('Failed to update replica agreement: ' + AGMT_DN)
@@ -305,12 +233,14 @@ def test_ticket47462(topology):
         topology.master1.add_s(Entry((USER1_DN,
                                       {'objectclass': "top person".split(),
                                        'sn': 'sn',
+                                       'description': 'DES value to convert',
                                        'cn': 'test_user'})))
         loop = 0
         ent = None
         while loop <= 10:
             try:
-                ent = topology.master2.getEntry(USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+                ent = topology.master2.getEntry(USER1_DN, ldap.SCOPE_BASE,
+                                                "(objectclass=*)")
                 break
             except ldap.NO_SUCH_OBJECT:
                 time.sleep(1)
@@ -320,8 +250,17 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('Replication test passed')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add test user: ' + e.message['desc'])
+        assert False
+
+    #
+    # Add a backend (that has no entries)
+    #
+    try:
+        topology.master1.backend.create("o=empty", {BACKEND_NAME: "empty"})
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create extra/empty backend: ' + e.message['desc'])
         assert False
 
     #
@@ -335,7 +274,8 @@ def test_ticket47462(topology):
     # Check that the restart converted existing DES credentials
     #
     try:
-        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE, 'nsDS5ReplicaCredentials=*')
+        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE,
+                                          'nsDS5ReplicaCredentials=*')
         if entry:
             val = entry[0].getValue('nsDS5ReplicaCredentials')
             if val.startswith('{AES-'):
@@ -344,26 +284,30 @@ def test_ticket47462(topology):
                 log.fatal('Failed to convert credentials from DES to AES!')
                 assert False
         else:
-            log.fatal('Failed to find any entries with nsDS5ReplicaCredentials ')
+            log.fatal('Failed to find entries with nsDS5ReplicaCredentials')
             assert False
-    except ldap.LDAPError, e:
-        log.fatal('Failed to search for replica credentials: ' + e.message['desc'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for replica credentials: ' +
+                  e.message['desc'])
         assert False
 
     #
-    # Check that the AES plugin exists, and has all the attributes listed in DES plugin.
-    # The attributes might not be in the expected order so check all the attributes.
+    # Check that the AES plugin exists, and has all the attributes listed in
+    # DES plugin.  The attributes might not be in the expected order so check
+    # all the attributes.
     #
     try:
-        entry = topology.master1.search_s(AES_PLUGIN, ldap.SCOPE_BASE, 'objectclass=*')
+        entry = topology.master1.search_s(AES_PLUGIN, ldap.SCOPE_BASE,
+                                          'objectclass=*')
         if not entry[0].hasValue('nsslapd-pluginarg0', 'description') and \
            not entry[0].hasValue('nsslapd-pluginarg1', 'description') and \
            not entry[0].hasValue('nsslapd-pluginarg2', 'description'):
-            log.fatal('The AES plugin did not have the DES attribute copied over correctly')
+            log.fatal('The AES plugin did not have the DES attribute copied ' +
+                      'over correctly')
             assert False
         else:
             log.info('The AES plugin was correctly setup')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to find AES plugin: ' + e.message['desc'])
         assert False
 
@@ -371,13 +315,14 @@ def test_ticket47462(topology):
     # Check that the MMR plugin was updated
     #
     try:
-        entry = topology.master1.search_s(MMR_PLUGIN, ldap.SCOPE_BASE, 'objectclass=*')
+        entry = topology.master1.search_s(MMR_PLUGIN, ldap.SCOPE_BASE,
+                                          'objectclass=*')
         if not entry[0].hasValue('nsslapd-plugin-depends-on-named', 'AES'):
             log.fatal('The MMR Plugin was not correctly updated')
             assert False
         else:
             log.info('The MMR plugin was correctly updated')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to find AES plugin: ' + e.message['desc'])
         assert False
 
@@ -385,13 +330,14 @@ def test_ticket47462(topology):
     # Check that the DES plugin was correctly updated
     #
     try:
-        entry = topology.master1.search_s(DES_PLUGIN, ldap.SCOPE_BASE, 'objectclass=*')
+        entry = topology.master1.search_s(DES_PLUGIN, ldap.SCOPE_BASE,
+                                          'objectclass=*')
         if not entry[0].hasValue('nsslapd-pluginPath', 'libpbe-plugin'):
             log.fatal('The DES Plugin was not correctly updated')
             assert False
         else:
             log.info('The DES plugin was correctly updated')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to find AES plugin: ' + e.message['desc'])
         assert False
 
@@ -407,7 +353,8 @@ def test_ticket47462(topology):
         ent = None
         while loop <= 10:
             try:
-                ent = topology.master2.getEntry(USER_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+                ent = topology.master2.getEntry(USER_DN, ldap.SCOPE_BASE,
+                                                "(objectclass=*)")
                 break
             except ldap.NO_SUCH_OBJECT:
                 time.sleep(1)
@@ -417,36 +364,70 @@ def test_ticket47462(topology):
             assert False
         else:
             log.info('Replication test passed')
-    except ldap.LDAPError, e:
+    except ldap.LDAPError as e:
         log.fatal('Failed to add test user: ' + e.message['desc'])
         assert False
 
+    # Check the entry
+    log.info('Entry before running task...')
+    try:
+        entry = topology.master1.search_s(USER1_DN,
+                                          ldap.SCOPE_BASE,
+                                          'objectclass=*')
+        if entry:
+            print(str(entry))
+        else:
+            log.fatal('Failed to find entries')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for entries: ' +
+                  e.message['desc'])
+        assert False
+
     #
-    # If we got here the test passed
+    # Test the DES2AES Task on USER1_DN
     #
-    log.info('Test PASSED')
+    try:
+        topology.master1.add_s(Entry((DES2AES_TASK_DN,
+                                      {'objectclass': ['top',
+                                                       'extensibleObject'],
+                                       'suffix': DEFAULT_SUFFIX,
+                                       'cn': 'convert'})))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add task entry: ' + e.message['desc'])
+        assert False
 
+    # Wait for task
+    task_entry = Entry(DES2AES_TASK_DN)
+    (done, exitCode) = topology.master1.tasks.checkTask(task_entry, True)
+    if exitCode:
+        log.fatal("Error: des2aes task exited with %d" % (exitCode))
+        assert False
 
-def test_ticket47462_final(topology):
-    topology.master1.stop(timeout=10)
-    topology.master2.stop(timeout=10)
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation1_prefix
-    global installation2_prefix
-    installation1_prefix = None
-    installation2_prefix = None
-
-    topo = topology(True)
-    test_ticket47462(topo)
+    # Check the entry
+    try:
+        entry = topology.master1.search_s(USER1_DN,
+                                          ldap.SCOPE_BASE,
+                                          'objectclass=*')
+        if entry:
+            val = entry[0].getValue('description')
+            print(str(entry[0]))
+            if val.startswith('{AES-'):
+                log.info('Task: DES credentials have been converted to AES')
+            else:
+                log.fatal('Task: Failed to convert credentials from DES to ' +
+                          'AES! (%s)' % (val))
+                assert False
+        else:
+            log.fatal('Failed to find entries')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for entries: ' +
+                  e.message['desc'])
+        assert False
 
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
