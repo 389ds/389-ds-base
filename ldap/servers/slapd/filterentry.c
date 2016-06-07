@@ -22,7 +22,8 @@
 static int	test_filter_list();
 static int	test_extensible_filter();
 
-static int	vattr_test_filter_list();
+static int	vattr_test_filter_list_and();
+static int	vattr_test_filter_list_or();
 static int test_filter_access( Slapi_PBlock	*pb, Slapi_Entry*e,
 								char * attr_type, struct berval *attr_val);
 static int slapi_vattr_filter_test_ext_internal( Slapi_PBlock *pb, Slapi_Entry *e,
@@ -762,9 +763,40 @@ slapi_vattr_filter_test(
 /*
  * vattr_filter_test_ext - full-feature filter test function
  *
- * returns	0	filter matched
- *			-1	filter did not match
- *			>0	an ldap error code
+ * the filter test functions can  be run in three different modes:
+ * - verify that the filter matches the entry
+ * - verify that the bound user has access to the attributes used in the filter
+ * - verify that the filter matches and the user has access to the attributes
+ *
+ * A special situation is the case of OR filters, eg 
+ *   (|(attr1=xxx)(attr2=yyy)(attr3=zzz))
+ * and the case to verify access and filter matching. An or filter is true if any
+ * of the filter components in the or filter is true. So if (attr2=yyy) matches 
+ * and the user has access to attr2 the complete filter should match.
+ * But to prevent using a mixture of matching filter components and components with
+ * granted access to guess values of components without access filter evaluation needs 
+ * to handle access and matching synchronously.
+ * It is also not sufficient to set a component without access to false because in cases
+ * where this component is part of a NOT filter it would be negated to true. 
+ * Filter components withou access to the attribute need to be completely ignored.
+ *
+ * The implementation uses a three valued logic where the result of the evaluation of a
+ * filter component can be:
+ * - true: access to attribute and filter matches
+ * - false: access to attribute and filter does not match
+ * - undefined: no access to the attribute or any error during filter evaluatio
+ *
+ * The rules for complex filters are:
+ *  (!(undefined)) --> undefined
+ *  (|(undefined)(true)) --> true
+ *  (|(undefined)(false)) --> false
+ *  (&(undefined)(true)) --> undefined
+ *  (&(undefined)(false)) --> false
+ *
+ * This is reflected in the return codes:
+ * 	0	filter matched (true)
+ *	-1	filter did not match (false)
+ *	>0	undefined (or an ldap error code)
  */
 int
 slapi_vattr_filter_test_ext(
@@ -778,39 +810,11 @@ slapi_vattr_filter_test_ext(
 	int rc = 0; /* a no op request succeeds */
 	int access_check_done = 0;
 
-	switch ( f->f_choice ) {
-	case LDAP_FILTER_AND:
-	case LDAP_FILTER_OR:
-	case LDAP_FILTER_NOT:
-		/* 
-		* optimize acl checking by only doing it once it is
-		* known that the whole filter passes and so the entry
-		* is eligible to be returned.
-		* then we check the filter only for access
-		*
-		* complex filters really benefit from
-		* separate stages, filter eval, followed by acl check...
-		*/
-		if(!only_check_access)
-		{
-			rc = slapi_vattr_filter_test_ext_internal(pb,e,f,0,0, &access_check_done);
-		}
-
-		if(rc == 0 && verify_access)
-		{
-			rc = slapi_vattr_filter_test_ext_internal(pb,e,f,-1,-1, &access_check_done);
-		}
-
-		break;
-
-	default:
-		/*
-		* ...but simple filters are better off doing eval and
-		* acl check at once
-		*/
-		rc = slapi_vattr_filter_test_ext_internal(pb,e,f,verify_access,only_check_access, &access_check_done);
-		break;
-	}
+	/* Fix for ticket 48275
+	 * If we want to handle or components which can contain nonmatching components without access propoerly
+	 * always filter verification and access check have to be done together for each component
+	 */ 
+	rc = slapi_vattr_filter_test_ext_internal(pb,e,f,verify_access,only_check_access, &access_check_done);
 
 	return rc; 
 }
@@ -925,35 +929,53 @@ slapi_vattr_filter_test_ext_internal(
 
 	case LDAP_FILTER_AND:
 		LDAPDebug( LDAP_DEBUG_FILTER, "    AND\n", 0, 0, 0 );
-		rc = vattr_test_filter_list( pb, e, f->f_and, 
+		rc = vattr_test_filter_list_and( pb, e, f->f_and,
 					LDAP_FILTER_AND , verify_access, only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_OR:
 		LDAPDebug( LDAP_DEBUG_FILTER, "    OR\n", 0, 0, 0 );
-		rc = vattr_test_filter_list( pb, e, f->f_or, 
+		rc = vattr_test_filter_list_or( pb, e, f->f_or,
 					LDAP_FILTER_OR , verify_access, only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_NOT:
 		LDAPDebug( LDAP_DEBUG_FILTER, "    NOT\n", 0, 0, 0 );
 		rc = slapi_vattr_filter_test_ext_internal( pb, e, f->f_not , verify_access, only_check_access, access_check_done);
-		if(!(verify_access && only_check_access))  /* dont play with access control return codes */
+		if(verify_access && only_check_access) 
 		{
-			if(verify_access && !rc && !(*access_check_done))
-			{
+			/* dont play with access control return codes
+			 * do not negate return code */
+			break;
+		}
+		if (rc > 0) {
+			/* an error occurred or access denied, don't negate */
+			break;
+		}
+		if(verify_access)
+		{
+			int rc2;
+			if (!(*access_check_done)) {
 				/* the filter failed so access control was not checked
 				 * for NOT filters this is significant so we must ensure
 				 * access control is checked
 				 */
 				/* check access control only */
-				rc = slapi_vattr_filter_test_ext_internal( pb, e, f->f_not , verify_access, -1 /*only_check_access*/, access_check_done);
+				rc2 = slapi_vattr_filter_test_ext_internal( pb, e, f->f_not , verify_access, -1 /*only_check_access*/, access_check_done);
 				/* preserve error code if any */
-				if(!rc)
-					rc = !rc;
+				if (rc2) {
+					rc = rc2;
+				} else {
+					rc = (rc==0)?-1:0;
+				}
+			} else {
+				rc = (rc==0)?-1:0;
 			}
-			else
-				rc = !rc;
+		}
+		else
+		{
+			/* filter verification only, no error */
+			rc = (rc==0)?-1:0;
 		}
 		break;
 
@@ -987,7 +1009,7 @@ static int test_filter_access( Slapi_PBlock		*pb,
 }
 
 static int
-vattr_test_filter_list(
+vattr_test_filter_list_and(
     Slapi_PBlock		*pb,
     Slapi_Entry		*e,
     struct slapi_filter	*flist,
@@ -997,37 +1019,83 @@ vattr_test_filter_list(
 	int			*access_check_done
 )
 {
-	int		nomatch;
+	int		nomatch = -1;
+	int		undefined = 0;
+	int rc = 0;
 	struct slapi_filter	*f;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> vattr_test_filter_list\n", 0, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_FILTER, "=> vattr_test_filter_list_and\n", 0, 0, 0 );
 
-	nomatch = 1;
 	for ( f = flist; f != NULL; f = f->f_next ) {
-		if ( slapi_vattr_filter_test_ext_internal( pb, e, f, verify_access, only_check_access, access_check_done ) != 0 ) {
-			/* optimize AND evaluation */
-			if ( ftype == LDAP_FILTER_AND || verify_access) {
-				/* one false is failure
-				 * for AND all components need to match 
-				 * and for AND and OR access to ALL filter attributes is required
-				 */
-				nomatch = 1;
-				break;
-			}
+		rc = slapi_vattr_filter_test_ext_internal( pb, e, f, verify_access, only_check_access, access_check_done );
+		if ( rc > 0 ) {
+			undefined = rc;
+		} else if (rc < 0) {
+			undefined = 0;
+			nomatch = -1;
+			break;
 		} else {
-			nomatch = 0;
-
-			/* optimize OR evaluation too */
-			if ( ftype == LDAP_FILTER_OR && !verify_access) {
-				/* access to all atributes needs to be evaluated
-				 * for filter matching
-				 * only one needs to be true 
-				 */
-				break;
+			if (!verify_access || (*access_check_done)) {
+				nomatch = 0;
+			} else {
+				/* check access */
+				rc = slapi_vattr_filter_test_ext_internal( pb, e, f, verify_access, 1, access_check_done );
+				if (rc) undefined = rc;
 			}
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_filter_list %d\n", nomatch, 0, 0 );
+	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_filter_list_and %d\n", nomatch, 0, 0 );
+	if (undefined) return undefined;
+	return( nomatch );
+}
+
+static int
+vattr_test_filter_list_or(
+    Slapi_PBlock		*pb,
+    Slapi_Entry		*e,
+    struct slapi_filter	*flist,
+    int			ftype,
+    int			verify_access,
+	int			only_check_access,
+	int			*access_check_done
+)
+{
+	int		nomatch = 1;
+	int		undefined = 0;
+	int rc = 0;
+	struct slapi_filter	*f;
+
+	LDAPDebug( LDAP_DEBUG_FILTER, "=> vattr_test_filter_list_or\n", 0, 0, 0 );
+
+	for ( f = flist; f != NULL; f = f->f_next ) {
+		if ( verify_access) {
+			/* we do access check first */
+			rc = slapi_vattr_filter_test_ext_internal( pb, e, f, verify_access, -1, access_check_done );
+			if (rc != 0 ) {
+                                /* no access to this component, ignore it */
+				undefined = rc;
+				continue;
+			}
+		}
+		if (only_check_access) continue;
+		/* now check if filter matches */
+		undefined = 0;
+		rc = slapi_vattr_filter_test_ext_internal( pb, e, f, 0, 0, access_check_done );
+		if ( rc == 0 ) {
+			undefined = 0;
+			nomatch = 0;
+			break;
+		} else if (rc > 0) {
+			undefined = rc;
+		} else {
+			/* filter didn't match, but we have one or component evaluated */
+			nomatch = -1;
+		}
+	}
+
+	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_filter_list_or %d\n", nomatch, 0, 0 );
+
+	if (nomatch == 1) return undefined;
 	return( nomatch );
 }
