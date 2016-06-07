@@ -52,7 +52,6 @@ static PRBool plugin_matches_operation (Slapi_DN *target_spec, PluginTargetData 
 
 static void plugin_config_init (struct pluginconfig *config);
 static void plugin_config_cleanup (struct pluginconfig *config);
-static void plugin_free(struct slapdplugin *plugin);
 static int plugin_config_set_action (int *action, char *value);
 static struct pluginconfig* plugin_get_config (struct slapdplugin *plugin);
 static void default_plugin_init();
@@ -1951,6 +1950,10 @@ plugin_closeall(int close_backends, int close_globals)
 	iterp = dep_plugin_entries;
 	while (iterp) {
 		nextp = iterp->next;
+		if (close_backends == 0 && iterp->plugin->plg_type == SLAPI_PLUGIN_DATABASE) {
+			iterp = nextp;
+			continue;
+		}
 		slapi_entry_free(iterp->e);
 		plugin_free(iterp->plugin);
 		slapi_ch_free((void **)&iterp);
@@ -2703,15 +2706,18 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 /*
   clean up the memory associated with the plugin
 */
-static void
+void
 plugin_free(struct slapdplugin *plugin)
 {
+	slapi_log_error(SLAPI_LOG_TRACE, "plugin_free", "Freeing %s \n", plugin->plg_name );
 	charray_free(plugin->plg_argv);
 	slapi_ch_free_string(&plugin->plg_libpath);
 	slapi_ch_free_string(&plugin->plg_initfunc);
 	slapi_ch_free_string(&plugin->plg_name);
 	slapi_ch_free_string(&plugin->plg_dn);
-	slapi_ch_free_string(&plugin->plg_pwdstorageschemename);
+	if (plugin->plg_type == SLAPI_PLUGIN_PWD_STORAGE_SCHEME) {
+		slapi_ch_free_string(&plugin->plg_pwdstorageschemename);
+	}
 	release_componentid(plugin->plg_identity);
 	slapi_counter_destroy(&plugin->plg_op_counter);
 	if (!plugin->plg_group)

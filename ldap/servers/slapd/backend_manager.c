@@ -323,6 +323,7 @@ be_cleanupall()
             slapi_pblock_set( &pb, SLAPI_BACKEND, backends[i] );
 
             (*backends[i]->be_cleanup)( &pb );
+            plugin_free(backends[i]->be_database);
             slapi_be_free(&backends[i]);
         }
     }
