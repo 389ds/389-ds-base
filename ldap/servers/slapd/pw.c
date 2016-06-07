@@ -516,10 +516,10 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 	for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL; p = p->plg_next )
 	{
 		char *L_attr = NULL;
-		int i = 0;
+		int i = 0, ii = 0;
 
 		/* Get the appropriate encoding function */
-		for ( L_attr = p->plg_argv[i]; i<p->plg_argc; L_attr = p->plg_argv[++i] )
+		for ( L_attr = p->plg_argv[ii]; ii<p->plg_argc; L_attr = p->plg_argv[++ii] )
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{

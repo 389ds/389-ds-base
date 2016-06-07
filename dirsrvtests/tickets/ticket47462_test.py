@@ -32,6 +32,7 @@ AGMT_DN = ''
 USER_DN = 'cn=test_user,' + DEFAULT_SUFFIX
 USER1_DN = 'cn=test_user1,' + DEFAULT_SUFFIX
 TEST_REPL_DN = 'cn=test repl,' + DEFAULT_SUFFIX
+DES2AES_TASK_DN = 'cn=convert,cn=des2aes,cn=tasks,cn=config'
 
 
 class TopologyMaster1Master2(object):
@@ -134,6 +135,11 @@ def topology(request):
     # clear the tmp directory
     master1.clearTmpDir(__file__)
 
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
+
     return TopologyMaster1Master2(master1, master2)
 
 
@@ -144,11 +150,9 @@ def test_ticket47462(topology):
     """
 
     #
-    # First set config as if it's an older version.  Set DES to use libdes-plugin,
-    # MMR to depend on DES, delete the existing AES plugin, and set a DES password
-    # for the replication agreement.
-    #
-
+    # First set config as if it's an older version.  Set DES to use
+    # libdes-plugin, MMR to depend on DES, delete the existing AES plugin,
+    # and set a DES password for the replication agreement.
     #
     # Add an extra attribute to the DES plugin args
     #
@@ -168,7 +172,9 @@ def test_ticket47462(topology):
 
     try:
         topology.master1.modify_s(MMR_PLUGIN,
-                      [(ldap.MOD_DELETE, 'nsslapd-plugin-depends-on-named', 'AES')])
+                      [(ldap.MOD_DELETE,
+                        'nsslapd-plugin-depends-on-named',
+                        'AES')])
 
     except ldap.NO_SUCH_ATTRIBUTE:
         pass
@@ -194,7 +200,8 @@ def test_ticket47462(topology):
     # Get the agmt dn, and set the password
     #
     try:
-        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE, 'objectclass=nsDS5ReplicationAgreement')
+        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE,
+                                          'objectclass=nsDS5ReplicationAgreement')
         if entry:
             agmt_dn = entry[0].dn
             log.info('Found agmt dn (%s)' % agmt_dn)
@@ -207,7 +214,8 @@ def test_ticket47462(topology):
 
     try:
         properties = {RA_BINDPW: "password"}
-        topology.master1.agreement.setProperties(None, agmt_dn, None, properties)
+        topology.master1.agreement.setProperties(None, agmt_dn, None,
+                                                 properties)
         log.info('Successfully modified replication agreement')
     except ValueError:
         log.error('Failed to update replica agreement: ' + AGMT_DN)
@@ -220,12 +228,14 @@ def test_ticket47462(topology):
         topology.master1.add_s(Entry((USER1_DN,
                                       {'objectclass': "top person".split(),
                                        'sn': 'sn',
+                                       'description': 'DES value to convert',
                                        'cn': 'test_user'})))
         loop = 0
         ent = None
         while loop <= 10:
             try:
-                ent = topology.master2.getEntry(USER1_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+                ent = topology.master2.getEntry(USER1_DN, ldap.SCOPE_BASE,
+                                                "(objectclass=*)")
                 break
             except ldap.NO_SUCH_OBJECT:
                 time.sleep(1)
@@ -250,7 +260,8 @@ def test_ticket47462(topology):
     # Check that the restart converted existing DES credentials
     #
     try:
-        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE, 'nsDS5ReplicaCredentials=*')
+        entry = topology.master1.search_s('cn=config', ldap.SCOPE_SUBTREE,
+                                          'nsDS5ReplicaCredentials=*')
         if entry:
             val = entry[0].getValue('nsDS5ReplicaCredentials')
             if val.startswith('{AES-'):
@@ -259,22 +270,25 @@ def test_ticket47462(topology):
                 log.fatal('Failed to convert credentials from DES to AES!')
                 assert False
         else:
-            log.fatal('Failed to find any entries with nsDS5ReplicaCredentials ')
+            log.fatal('Failed to find entries with nsDS5ReplicaCredentials')
             assert False
     except ldap.LDAPError, e:
         log.fatal('Failed to search for replica credentials: ' + e.message['desc'])
         assert False
 
     #
-    # Check that the AES plugin exists, and has all the attributes listed in DES plugin.
-    # The attributes might not be in the expected order so check all the attributes.
+    # Check that the AES plugin exists, and has all the attributes listed in
+    # DES plugin.  The attributes might not be in the expected order so check
+    # all the attributes.
     #
     try:
-        entry = topology.master1.search_s(AES_PLUGIN, ldap.SCOPE_BASE, 'objectclass=*')
+        entry = topology.master1.search_s(AES_PLUGIN, ldap.SCOPE_BASE,
+                                          'objectclass=*')
         if not entry[0].hasValue('nsslapd-pluginarg0', 'description') and \
            not entry[0].hasValue('nsslapd-pluginarg1', 'description') and \
            not entry[0].hasValue('nsslapd-pluginarg2', 'description'):
-            log.fatal('The AES plugin did not have the DES attribute copied over correctly')
+            log.fatal('The AES plugin did not have the DES attribute copied ' +
+                      'over correctly')
             assert False
         else:
             log.info('The AES plugin was correctly setup')
@@ -286,7 +300,8 @@ def test_ticket47462(topology):
     # Check that the MMR plugin was updated
     #
     try:
-        entry = topology.master1.search_s(MMR_PLUGIN, ldap.SCOPE_BASE, 'objectclass=*')
+        entry = topology.master1.search_s(MMR_PLUGIN, ldap.SCOPE_BASE,
+                                          'objectclass=*')
         if not entry[0].hasValue('nsslapd-plugin-depends-on-named', 'AES'):
             log.fatal('The MMR Plugin was not correctly updated')
             assert False
@@ -300,7 +315,8 @@ def test_ticket47462(topology):
     # Check that the DES plugin was correctly updated
     #
     try:
-        entry = topology.master1.search_s(DES_PLUGIN, ldap.SCOPE_BASE, 'objectclass=*')
+        entry = topology.master1.search_s(DES_PLUGIN, ldap.SCOPE_BASE,
+                                          'objectclass=*')
         if not entry[0].hasValue('nsslapd-pluginPath', 'libpbe-plugin'):
             log.fatal('The DES Plugin was not correctly updated')
             assert False
@@ -322,7 +338,8 @@ def test_ticket47462(topology):
         ent = None
         while loop <= 10:
             try:
-                ent = topology.master2.getEntry(USER_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+                ent = topology.master2.getEntry(USER_DN, ldap.SCOPE_BASE,
+                                                "(objectclass=*)")
                 break
             except ldap.NO_SUCH_OBJECT:
                 time.sleep(1)
@@ -336,30 +353,66 @@ def test_ticket47462(topology):
         log.fatal('Failed to add test user: ' + e.message['desc'])
         assert False
 
+    # Check the entry
+    log.info('Entry before running task...')
+    try:
+        entry = topology.master1.search_s(USER1_DN,
+                                          ldap.SCOPE_BASE,
+                                          'objectclass=*')
+        if entry:
+            print(str(entry))
+        else:
+            log.fatal('Failed to find entries')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for entries: ' +
+                  e.message['desc'])
+        assert False
 
-def test_ticket47462_final(topology):
-    topology.master1.delete()
-    topology.master2.delete()
-    log.info('Testcase PASSED')
+    #
+    # Test the DES2AES Task on USER1_DN
+    #
+    try:
+        topology.master1.add_s(Entry((DES2AES_TASK_DN,
+                                      {'objectclass': ['top',
+                                                       'extensibleObject'],
+                                       'suffix': DEFAULT_SUFFIX,
+                                       'cn': 'convert'})))
+    except ldap.LDAPError as e:
+        log.fatal('Failed to add task entry: ' + e.message['desc'])
+        assert False
 
+    # Wait for task
+    task_entry = Entry(DES2AES_TASK_DN)
+    (done, exitCode) = topology.master1.tasks.checkTask(task_entry, True)
+    if exitCode:
+        log.fatal("Error: des2aes task exited with %d" % (exitCode))
+        assert False
 
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation1_prefix
-    global installation2_prefix
-    installation1_prefix = None
-    installation2_prefix = None
-
-    topo = topology(True)
-    test_ticket47462(topo)
-    test_ticket47462_final(topo)
-
+    # Check the entry
+    try:
+        entry = topology.master1.search_s(USER1_DN,
+                                          ldap.SCOPE_BASE,
+                                          'objectclass=*')
+        if entry:
+            val = entry[0].getValue('description')
+            print(str(entry[0]))
+            if val.startswith('{AES-'):
+                log.info('Task: DES credentials have been converted to AES')
+            else:
+                log.fatal('Task: Failed to convert credentials from DES to ' +
+                          'AES! (%s)' % (val))
+                assert False
+        else:
+            log.fatal('Failed to find entries')
+            assert False
+    except ldap.LDAPError as e:
+        log.fatal('Failed to search for entries: ' +
+                  e.message['desc'])
+        assert False
 
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
