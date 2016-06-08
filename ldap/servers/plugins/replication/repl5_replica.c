@@ -23,8 +23,8 @@
 
 #define RUV_SAVE_INTERVAL (30 * 1000) /* 30 seconds */
 
-#define REPLICA_RDN				 "cn=replica"
-#define CHANGELOG_RDN            "cn=legacy changelog"
+#define REPLICA_RDN "cn=replica"
+#define CHANGELOG_RDN "cn=legacy changelog"
 
 /*
  * A replica is a locally-held copy of a portion of the DIT.
@@ -68,6 +68,8 @@ struct replica {
 	Slapi_Counter *backoff_max;		/* backoff retry maximum */
 	Slapi_Counter *precise_purging;		/* Enable precise tombstone purging */
 	PRUint64 agmt_count;			/* Number of agmts */
+	Slapi_Counter *release_timeout;		/* The amount of time to wait before releasing active replica */
+	PRUint64 abort_session;			/* Abort the current replica session */
 };
 
 
@@ -201,6 +203,7 @@ replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_operation
 
 	/* init the slapi_counter/atomic settings */
 	r->protocol_timeout = slapi_counter_new();
+	r->release_timeout = slapi_counter_new();
 	r->backoff_min = slapi_counter_new();
 	r->backoff_max = slapi_counter_new();
 	r->precise_purging = slapi_counter_new();
@@ -409,6 +412,7 @@ replica_destroy(void **arg)
 	}
 
 	slapi_counter_destroy(&r->protocol_timeout);
+	slapi_counter_destroy(&r->release_timeout);
 	slapi_counter_destroy(&r->backoff_min);
 	slapi_counter_destroy(&r->backoff_max);
 	slapi_counter_destroy(&r->precise_purging);
@@ -587,8 +591,7 @@ replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid)
  */
 PRBool
 replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid,
-							 const char *locking_purl,
-							 char **current_purl)
+							 const char *locking_purl, char **current_purl)
 {
 	PRBool rval = PR_TRUE;
 
@@ -611,6 +614,15 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 		{
 			*current_purl = slapi_ch_strdup(r->locking_purl);
 		}
+		if (!(r->repl_state_flags & REPLICA_TOTAL_IN_PROGRESS) &&
+		    replica_get_release_timeout(r))
+		{
+			/*
+			 * We are not doing a total update, so abort the current session
+			 * so other replicas can acquire this server.
+			 */
+			r->abort_session = ABORT_SESSION;
+		}
 	}
 	else
 	{
@@ -619,14 +631,17 @@ replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opi
 						connid, opid,
 						slapi_sdn_get_dn(r->repl_root));
 		r->repl_state_flags |= REPLICA_IN_USE;
+		r->abort_session = SESSION_ACQUIRED;
 		if (isInc && *isInc) 
 		{
 			r->repl_state_flags |= REPLICA_INCREMENTAL_IN_PROGRESS;
 		}
 		else
 		{ 
-			/* if connid or opid != 0, it's a total update */
-			/* Both set to 0 means we're disabling replication */
+			/*
+			 * If connid or opid != 0, it's a total update.
+			 * Both set to 0 means we're disabling replication
+			 */
 			if (connid || opid)
 			{
 				r->repl_state_flags |= REPLICA_TOTAL_IN_PROGRESS;
@@ -654,13 +669,13 @@ replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid)
 	/* check to see if the replica is in use and log a warning if not */
 	if (!(r->repl_state_flags & REPLICA_IN_USE))
 	{
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Replica not in use\n",
 					connid, opid,
 					slapi_sdn_get_dn(r->repl_root));
 	} else {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 					"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 					"Released replica held by locking_purl=%s\n",
 					connid, opid,
@@ -972,6 +987,24 @@ replica_get_protocol_timeout(Replica *r)
 	}
 }
 
+PRUint64
+replica_get_release_timeout(Replica *r)
+{
+	if(r){
+		return slapi_counter_get_value(r->release_timeout);
+	} else {
+		return 0;
+	}
+}
+
+void
+replica_set_release_timeout(Replica *r, PRUint64 limit)
+{
+	if(r){
+		slapi_counter_set_value(r->release_timeout, limit);
+	}
+}
+
 void
 replica_set_protocol_timeout(Replica *r, PRUint64 timeout)
 {
@@ -979,6 +1012,7 @@ replica_set_protocol_timeout(Replica *r, PRUint64 timeout)
 		slapi_counter_set_value(r->protocol_timeout, timeout);
 	}
 }
+
 void
 replica_set_groupdn_checkinterval(Replica *r, int interval)
 {
@@ -1066,11 +1100,7 @@ replica_get_legacy_purl (const Replica *r)
     char *purl;
 
     replica_lock(r->repl_lock);
-
-    PR_ASSERT (r->legacy_consumer);
-
     purl = slapi_ch_strdup(r->legacy_purl);
-
     replica_unlock(r->repl_lock);
 
     return purl;
@@ -1926,6 +1956,7 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
     int backoff_min;
     int backoff_max;
     int ptimeout = 0;
+    int release_timeout = 0;
     int rc;
 
     PR_ASSERT (r && e);
@@ -2008,6 +2039,14 @@ _replica_init_from_config (Replica *r, Slapi_Entry *e, char *errortext)
         slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
     } else {
         slapi_counter_set_value(r->protocol_timeout, ptimeout);
+    }
+
+    /* Get the release timeout */
+    release_timeout = slapi_entry_attr_get_int(e, type_replicaReleaseTimeout);
+    if(release_timeout <= 0){
+        slapi_counter_set_value(r->release_timeout, 0);
+    } else {
+        slapi_counter_set_value(r->release_timeout, release_timeout);
     }
 
     /* check for precise tombstone purging */
@@ -4031,21 +4070,21 @@ replica_disable_replication (Replica *r, Object *r_obj)
 	ruv_get_first_id_and_purl(repl_ruv, &junkrid, &p_locking_purl);
 	locking_purl = slapi_ch_strdup(p_locking_purl);
 	p_locking_purl = NULL;
-	repl_ruv = NULL;	
-    while (!replica_get_exclusive_access(r, &isInc, 0, 0, "replica_disable_replication",
+	repl_ruv = NULL;
+	while (!replica_get_exclusive_access(r, &isInc, 0, 0, "replica_disable_replication",
 										 &current_purl)) {
-        if (!isInc) /* already locked, but not by inc update - break */
-            break;
-        isInc = PR_FALSE;
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		if (!isInc) /* already locked, but not by inc update - break */
+			break;
+		isInc = PR_FALSE;
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
 						"replica_disable_replication: "
 						"replica %s is already locked by (%s) for incoming "
 						"incremental update; sleeping 100ms\n",
-                        slapi_sdn_get_ndn (replica_get_root (r)),
+						slapi_sdn_get_ndn (replica_get_root (r)),
 						current_purl ? current_purl : "unknown");
 		slapi_ch_free_string(&current_purl);
-        DS_Sleep(PR_MillisecondsToInterval(100));
-    }
+		DS_Sleep(PR_MillisecondsToInterval(100));
+	}
 
 	slapi_ch_free_string(&current_purl);
 	slapi_ch_free_string(&locking_purl);
@@ -4282,4 +4321,58 @@ replica_decr_agmt_count(Replica *r)
 		    r->agmt_count--;
 		}
 	}
+}
+
+/*
+ * Add the "Abort Replication Session" control to the pblock
+ */
+static void
+replica_add_session_abort_control(Slapi_PBlock *pb)
+{
+	LDAPControl ctrl = {0};
+	BerElement *ber;
+	struct berval *bvp;
+	int rc;
+
+	/* Build the BER payload */
+	if ( (ber = der_alloc()) == NULL ) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"add_session_abort_control: Failed to create ber\n");
+		return;
+	}
+	rc = ber_printf( ber, "{}");
+	if (rc != -1) {
+		rc = ber_flatten( ber, &bvp );
+	}
+	ber_free( ber, 1 );
+	if ( rc == -1 ) {
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"add_session_abort_control: Failed to flatten ber\n");
+		return;
+	}
+
+	ctrl.ldctl_oid = slapi_ch_strdup( REPL_ABORT_SESSION_OID );
+	ctrl.ldctl_value = *bvp;
+	bvp->bv_val = NULL;
+	ber_bvfree( bvp );
+	slapi_pblock_set(pb, SLAPI_ADD_RESCONTROL, &ctrl);
+
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		"add_session_abort_control: abort control successfully added to result\n");
+}
+
+/*
+ * Check if we have exceeded the failed replica acquire limit,
+ * if so, end the replication session.
+ */
+void
+replica_check_release_timeout(Replica *r, Slapi_PBlock *pb)
+{
+	replica_lock(r->repl_lock);
+	if(r->abort_session  == ABORT_SESSION){
+		/* Need to abort this session (just send the control once) */
+		replica_add_session_abort_control(pb);
+		r->abort_session = SESSION_ABORTED;
+	}
+	replica_unlock(r->repl_lock);
 }
