@@ -399,6 +399,11 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                     /* only allow the deletion of the cleanAllRUV config attributes */
                     continue;
                 }
+                else if (strcasecmp (config_attr, type_replicaReleaseTimeout) == 0 )
+                {
+                    if (apply_mods)
+                        replica_set_release_timeout(r, 0);
+                    }
                 else
                 {
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -487,6 +492,23 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
                 else if (slapi_attr_is_last_mod(config_attr))
                 {
                     *returncode = LDAP_SUCCESS;
+                }
+                else if (strcasecmp (config_attr, type_replicaReleaseTimeout) == 0 )
+                {
+                    if (apply_mods)
+                    {
+                        PRUint64 val = atoll(config_attr_value);
+
+                        if(val < 0){
+                            *returncode = LDAP_UNWILLING_TO_PERFORM;
+                            PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE,
+                                    "attribute %s value (%s) is invalid, must be a number zero or greater.\n",
+                                    config_attr, config_attr_value);
+                            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "replica_config_modify: %s\n", errortext);
+                            break;
+                        }
+                        replica_set_release_timeout(r, val);
+                    }
                 }
                 else
                 {
