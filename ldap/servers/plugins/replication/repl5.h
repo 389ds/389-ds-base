@@ -100,6 +100,10 @@
 #define REPL_ABORT_CLEANRUV_OID "2.16.840.1.113730.3.6.6"
 #define REPL_CLEANRUV_GET_MAXCSN_OID "2.16.840.1.113730.3.6.7"
 #define REPL_CLEANRUV_CHECK_STATUS_OID "2.16.840.1.113730.3.6.8"
+#define REPL_ABORT_SESSION_OID "2.16.840.1.113730.3.6.9"
+#define SESSION_ACQUIRED 0
+#define ABORT_SESSION 1
+#define SESSION_ABORTED 2
 
 #define CLEANRUV_ACCEPTED "accepted"
 #define CLEANRUV_REJECTED "rejected"
@@ -170,7 +174,7 @@ extern const char *type_nsds5ReplicaStripAttrs;
 extern const char *type_nsds5ReplicaCleanRUVnotified;
 extern const char *type_nsds5ReplicaFlowControlWindow;
 extern const char *type_nsds5ReplicaFlowControlPause;
-
+extern const char *type_replicaReleaseTimeout;
 
 /* Attribute names for windows replication agreements */
 extern const char *type_nsds7WindowsReplicaArea;
@@ -523,9 +527,9 @@ Replica *replica_new_from_entry (Slapi_Entry *e, char *errortext, PRBool is_add_
 void replica_destroy(void **arg);
 int replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid);
 int replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid);
-PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid, int opid,
-									const char *locking_purl,
-									char **current_purl);
+PRBool replica_get_exclusive_access(Replica *r, PRBool *isInc, PRUint64 connid,
+                                    int opid, const char *locking_purl,
+                                    char **current_purl);
 void replica_relinquish_exclusive_access(Replica *r, PRUint64 connid, int opid);
 PRBool replica_get_tombstone_reap_active(const Replica *r);
 const Slapi_DN *replica_get_root(const Replica *r);
@@ -589,7 +593,11 @@ void replica_set_ruv_dirty (Replica *r);
 int replica_write_ruv (Replica *r);
 char *replica_get_dn(Replica *r);
 void replica_check_for_tasks(Replica*r, Slapi_Entry *e);
+PRUint64 replica_get_release_timeout(Replica *r);
+void replica_set_release_timeout(Replica *r, PRUint64 timeout);
+void replica_set_groupdn_checkinterval(Replica *r, int timeout);
 PRBool ignore_error_and_keep_going(int error);
+void replica_check_release_timeout(Replica *r, Slapi_PBlock *pb);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */
