@@ -1106,6 +1106,8 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 	r = (Replica*)object_get_data (repl_obj);
 	PR_ASSERT (r);
 
+	replica_check_release_timeout(r, pb);
+
 	if (replica_is_flag_set (r, REPLICA_LOG_CHANGES) &&
 		(cl5GetState () == CL5_STATE_OPEN))
 	{
@@ -1393,7 +1395,6 @@ process_postop (Slapi_PBlock *pb)
 
 	return rc;
 }
-
 
 /*
  * Cancel an operation CSN. This removes it from any CSN pending lists.
