@@ -688,7 +688,9 @@ struct matchingRuleList {
 #define PLUGIN_LIST_INTERNAL_POSTOPERATION 6
 #define PLUGIN_LIST_EXTENDED_OPERATION 7
 #define PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION 8
-#define PLUGIN_LIST_BACKEND_MAX 9
+#define PLUGIN_LIST_PREEXTENDED_OPERATION 9
+#define PLUGIN_LIST_POSTEXTENDED_OPERATION 10
+#define PLUGIN_LIST_BACKEND_MAX 11
 
 /* Global Plugins */
 #define PLUGIN_LIST_ACL 10
@@ -908,11 +910,15 @@ struct slapdplugin {
 			char	**plg_un_pe_exoids;	  /* exop oids */
 			char	**plg_un_pe_exnames;  /* exop names (may be NULL) */
 			IFP	plg_un_pe_exhandler;	  /* handler */
+                        IFP	plg_un_pe_pre_exhandler;  /* pre extop */
+                        IFP	plg_un_pe_post_exhandler; /* post extop */
 			IFP	plg_un_pe_be_exhandler;	  /* handler to retrieve the be name for the operation */
 		} plg_un_pe;
 #define plg_exoids		plg_un.plg_un_pe.plg_un_pe_exoids
 #define plg_exnames		plg_un.plg_un_pe.plg_un_pe_exnames
 #define plg_exhandler		plg_un.plg_un_pe.plg_un_pe_exhandler
+#define plg_preextop		plg_un.plg_un_pe.plg_un_pe_pre_exhandler
+#define plg_postextop		plg_un.plg_un_pe.plg_un_pe_post_exhandler
 #define plg_be_exhandler		plg_un.plg_un_pe.plg_un_pe_be_exhandler
 
 

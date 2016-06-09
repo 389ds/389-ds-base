@@ -420,6 +420,12 @@ plugin_call_plugins( Slapi_PBlock *pb, int whichfunction )
         plugin_list_number= PLUGIN_LIST_BETXNPOSTOPERATION;
 		do_op = 1; /* always allow backend callbacks (even during startup) */
 		break;
+        case SLAPI_PLUGIN_PRE_EXTOP_FN:
+            plugin_list_number= PLUGIN_LIST_PREEXTENDED_OPERATION;
+            break;
+	case SLAPI_PLUGIN_POST_EXTOP_FN:
+            plugin_list_number= PLUGIN_LIST_POSTEXTENDED_OPERATION;
+            break;
 	}
 
 	if(plugin_list_number!=-1 && do_op)
@@ -2311,7 +2317,13 @@ plugin_get_type_and_list(
 	} else if ( strcasecmp( plugintype, "betxnextendedop" ) == 0 ) {
 		*type = SLAPI_PLUGIN_BETXNEXTENDEDOP;
     	plugin_list_index= PLUGIN_LIST_BE_TXN_EXTENDED_OPERATION;
-	} else {
+	} else if ( strcasecmp( plugintype, "preextendedop" ) == 0 ) {
+		*type = SLAPI_PLUGIN_PREEXTOPERATION;
+		plugin_list_index= PLUGIN_LIST_PREEXTENDED_OPERATION;
+        } else if ( strcasecmp( plugintype, "postextendedop" ) == 0 ) {
+		*type = SLAPI_PLUGIN_POSTEXTOPERATION;
+		plugin_list_index= PLUGIN_LIST_POSTEXTENDED_OPERATION;
+        } else {
         return( 1 ); /* unknown plugin type - pass to backend */
 	}
 

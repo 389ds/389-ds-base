@@ -828,6 +828,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_preresult;
 		break;
+	case SLAPI_PLUGIN_PRE_EXTOP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_PREEXTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_preextop;
+		break;
 
 	/* postoperation plugin functions */
 	case SLAPI_PLUGIN_POST_BIND_FN:
@@ -908,7 +914,12 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		(*(IFP *)value) = pblock->pb_plugin->plg_postresult;
 		break;
-
+	case SLAPI_PLUGIN_POST_EXTOP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_POSTEXTOPERATION) {
+			return( -1 );
+		}
+		(*(IFP *)value) = pblock->pb_plugin->plg_postextop;
+		break;
 	case SLAPI_ENTRY_PRE_OP:
 		(*(Slapi_Entry **)value) = pblock->pb_pre_op_entry;
 		break;
@@ -2474,6 +2485,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		}
 		pblock->pb_plugin->plg_preresult = (IFP) value;
 		break;
+        case SLAPI_PLUGIN_PRE_EXTOP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_PREEXTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_preextop  = (IFP) value;
+		break;
 
 	/* postoperation plugin functions */
 	case SLAPI_PLUGIN_POST_BIND_FN:
@@ -2553,6 +2570,12 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 			return( -1 );
 		}
 		pblock->pb_plugin->plg_postresult = (IFP) value;
+		break;
+        case SLAPI_PLUGIN_POST_EXTOP_FN:
+		if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_POSTEXTOPERATION) {
+			return( -1 );
+		}
+		pblock->pb_plugin->plg_postextop  = (IFP) value;
 		break;
 
 	/* backend preoperation plugin */

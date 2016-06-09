@@ -337,6 +337,11 @@ do_extended( Slapi_PBlock *pb )
 
     rc = plugin_determine_exop_plugins( extoid, &p );
     slapi_log_error(SLAPI_LOG_TRACE, NULL, "exendop.c plugin_determine_exop_plugins rc %d\n", rc);
+
+    if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_EXTOP_FN) != SLAPI_PLUGIN_SUCCESS) {
+        goto free_and_return;
+    }
+
     if (rc == SLAPI_PLUGIN_EXTENDEDOP && p != NULL) {
         slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugin ... \n");
         rc = plugin_call_exop_plugins( pb, p);
@@ -383,6 +388,10 @@ do_extended( Slapi_PBlock *pb )
             } /* txn_rc */
             slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
         } /* if be */
+    }
+
+    if (plugin_call_plugins(pb, SLAPI_PLUGIN_POST_EXTOP_FN) != SLAPI_PLUGIN_SUCCESS) {
+        goto free_and_return;
     }
 
     if ( SLAPI_PLUGIN_EXTENDED_SENT_RESULT != rc ) {

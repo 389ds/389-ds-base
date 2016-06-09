@@ -6762,7 +6762,9 @@ time_t slapi_current_time( void );
 #define SLAPI_PLUGIN_INDEX			18
 #define	SLAPI_PLUGIN_BETXNPREOPERATION		19
 #define SLAPI_PLUGIN_BETXNPOSTOPERATION		20
-#define SLAPI_PLUGIN_BETXNEXTENDEDOP			21
+#define SLAPI_PLUGIN_BETXNEXTENDEDOP		21
+#define SLAPI_PLUGIN_PREEXTOPERATION		22
+#define SLAPI_PLUGIN_POSTEXTOPERATION		23
 
 /*
  * special return values for extended operation plugins (zero or positive
@@ -6910,6 +6912,7 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_PRE_ENTRY_FN		410
 #define SLAPI_PLUGIN_PRE_REFERRAL_FN		411
 #define SLAPI_PLUGIN_PRE_RESULT_FN		412
+#define SLAPI_PLUGIN_PRE_EXTOP_FN		413
 
 /* internal preoperation plugin functions */
 #define SLAPI_PLUGIN_INTERNAL_PRE_ADD_FN    	420
@@ -6946,7 +6949,8 @@ typedef struct slapi_plugindesc {
 #define SLAPI_PLUGIN_POST_ENTRY_FN		510
 #define SLAPI_PLUGIN_POST_REFERRAL_FN		511
 #define SLAPI_PLUGIN_POST_RESULT_FN		512
-#define SLAPI_PLUGIN_POST_SEARCH_FAIL_FN		513
+#define SLAPI_PLUGIN_POST_SEARCH_FAIL_FN	513
+#define SLAPI_PLUGIN_POST_EXTOP_FN		514
 
 /* internal preoperation plugin functions */
 #define SLAPI_PLUGIN_INTERNAL_POST_ADD_FN   	520
