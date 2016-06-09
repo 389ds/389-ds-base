@@ -266,7 +266,8 @@ ldbm_back_start( Slapi_PBlock *pb )
   issane = util_is_cachesize_sane(&total_size);
   if (!issane) {
     /* Right, it's time to panic */
-    LDAPDebug( LDAP_DEBUG_ANY, "CRITICAL: It is highly likely your memory configuration will EXCEED your systems memory.\n", 0, 0, 0 );
+    LDAPDebug( LDAP_DEBUG_ANY, "CRITICAL: It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n", 0, 0, 0 );
+    LDAPDebug( LDAP_DEBUG_ANY, "CRITICAL: In a future release this WILL prevent server start up. You MUST alter your configuration.\n", 0, 0, 0 );
     LDAPDebug(LDAP_DEBUG_ANY,
               "Total entry cache size: %llu B; "
               "dbcache size: %llu B; "
@@ -278,7 +279,8 @@ ldbm_back_start( Slapi_PBlock *pb )
 #endif
     );
     LDAPDebug(LDAP_DEBUG_ANY, msg, 0,0,0);
-    return SLAPI_FAIL_GENERAL;
+    /* WB 2016 - This should be UNCOMMENTED in a future release */
+    /* return SLAPI_FAIL_GENERAL; */
   }
 
 

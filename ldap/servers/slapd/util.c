@@ -1787,8 +1787,11 @@ int util_is_cachesize_sane(size_t *cachesize)
          * the remaining system mem to the cachesize instead, and log a warning
          */
         *cachesize = (size_t)((availpages * 0.75 ) * pagesize);
-        slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
-        slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
+        /* These are now trace warnings, because it was to confusing to log this *then* kill the request anyway.
+         * Instead, we will let the caller worry about the notification, and we'll just use this in debugging and tracing.
+         */
+        slapi_log_error(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
+        slapi_log_error(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
     }
 #else
     size_t freepages = 0;
@@ -1808,7 +1811,7 @@ int util_is_cachesize_sane(size_t *cachesize)
 #endif
 out:
     if (!issane) {
-        slapi_log_error(SLAPI_LOG_FATAL,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
+        slapi_log_error(SLAPI_LOG_TRACE,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
     }
 
     return issane;

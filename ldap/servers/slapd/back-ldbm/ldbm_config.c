@@ -425,8 +425,8 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         } else if (val > li->li_dbcachesize) {
             delta = val - li->li_dbcachesize;
             if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: dbcachememsize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: dbcachememsize value is too large.\n");
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: nsslapd-dbcachesize value is too large.");
+                LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: nsslapd-dbcachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -481,36 +481,17 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) ((uintptr_t)value);
-    size_t delta = 0;
 
-    /* There is an error here. We check the new val against our current mem-alloc 
-     * Issue is that we already are using system pages, so while our value *might*
-     * be valid, we may reject it here due to the current procs page usage.
-     * 
-     * So how do we solve this? If we are setting a SMALLER value than we
-     * currently have ALLOW it, because we already passed the cache sanity.
-     * If we are setting a LARGER value, we check the delta of the two, and make
-     * sure that it is sane.
-     */
-    
     if (apply) {
-        if (val > li->li_dbncache) {
-            delta = val - li->li_dbncache;
-            if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: dbncache size value is too large.");
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,"Error: dbncache size value is too large.\n", val);
-                return LDAP_UNWILLING_TO_PERFORM;
-            }
-        }
-        
+
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbncache = val;
-            LDAPDebug(LDAP_DEBUG_ANY, "New db ncache will not take affect until the server is restarted\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_ANY, "New nsslapd-dbncache will not take affect until the server is restarted\n", 0, 0, 0);
         } else {
             li->li_new_dbncache = val;
             li->li_dbncache = val;
         }
-        
+
     }
 
     return retval;
