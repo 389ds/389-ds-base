@@ -143,17 +143,13 @@ Source2:          %{name}-devel.README
 Source3:          https://git.fedorahosted.org/cgit/nunc-stans.git/snapshot/nunc-stans-%{nunc_stans_ver}.tar.xz
 %endif
 
-%if %{use_asan}
 %description
 389 Directory Server is an LDAPv3 compliant server.  The base package includes
 the LDAP server and command line utilities for server administration.
+%if %{use_asan}
 WARNING! This build is linked to Address Sanitisation libraries. This probably
 isn't what you want. Please contact support immediately.
 Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
-%else
-%description
-389 Directory Server is an LDAPv3 compliant server.  The base package includes
-the LDAP server and command line utilities for server administration.
 %endif
 
 # upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
