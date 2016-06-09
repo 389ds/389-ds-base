@@ -458,6 +458,7 @@ fi
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_includedir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so
+%{_libdir}/%{pkgname}/libns-dshttpd.so
 %if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so
 %endif
@@ -468,9 +469,9 @@ fi
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/%{pkgname}/libslapd.so.*
-%{_libdir}/%{pkgname}/libns-dshttpd.so*
+%{_libdir}/%{pkgname}/libns-dshttpd.so.*
 %if %{use_nunc_stans}
-%{_libdir}/%{pkgname}/libnunc-stans.so*
+%{_libdir}/%{pkgname}/libnunc-stans.so.*
 %endif
 
 %files snmp
