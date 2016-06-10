@@ -76,11 +76,10 @@ def test_list(topology):
                                      (nb_backend, ent.dn))
 
     log.info("Create a first backend and check list all backends")
-    topology.standalone.backends.create(None,
-                                       properties={
-                                            BACKEND_NAME: NEW_BACKEND_1,
-                                            'suffix':NEW_SUFFIX_1,
-                                            })
+    topology.standalone.backends.create(None, properties={
+                                                            BACKEND_NAME: NEW_BACKEND_1,
+                                                            'suffix': NEW_SUFFIX_1,
+                                                         })
     ents = topology.standalone.backends.list()
     for ent in ents:
         topology.standalone.log.info("List(%d): backend %s" %
@@ -88,11 +87,10 @@ def test_list(topology):
     assert len(ents) == (nb_backend + 1)
 
     log.info("Create a second backend and check list all backends")
-    topology.standalone.backends.create(None,
-                                       properties={
-                                            BACKEND_NAME: NEW_BACKEND_2,
-                                            'suffix': NEW_SUFFIX_2,
-                                            })
+    topology.standalone.backends.create(None, properties={
+                                                            BACKEND_NAME: NEW_BACKEND_2,
+                                                            'suffix': NEW_SUFFIX_2,
+                                                         })
     ents = topology.standalone.backends.list()
     for ent in ents:
         topology.standalone.log.info("List(%d): backend %s" %
@@ -115,24 +113,23 @@ def test_list(topology):
 
     log.info("Check get backends by their DN")
     ents = topology.standalone.backends.get(dn=ent.dn)
-    topology.standalone.log.info("List DN (%d): backend %s" %
-                                     (1, ents.dn))
+    topology.standalone.log.info("List DN (%d): backend %s" % (1, ents.dn))
     assert ents is not None
 
     # The new backends api just does selection on a single attr, and
     # You would then validate the other attributes on retrival.
     # But what would really be a case for this? If you know the suffix, get
     # that. If you know the name, get that. Why both?
-    #log.info("Check list with valid backend DN but invalid suffix/bename")
-    #all = topology.standalone.backend.list()
-    #for ent in all:
-    #    ents = topology.standalone.backend.list(suffix="o=dummy",
-    #                                            backend_dn=ent.dn,
-    #                                            bename="dummydb")
-    #    for bck in ents:
-    #        topology.standalone.log.info("List invalid suffix+bename "
-    #                                     "(%d): backend %s" % (1, bck.dn))
-    #    assert len(ents) == 1
+    #  log.info("Check list with valid backend DN but invalid suffix/bename")
+    #  all = topology.standalone.backend.list()
+    #  for ent in all:
+    #      ents = topology.standalone.backend.list(suffix="o=dummy",
+    #                                              backend_dn=ent.dn,
+    #                                              bename="dummydb")
+    #      for bck in ents:
+    #          topology.standalone.log.info("List invalid suffix+bename "
+    #                                       "(%d): backend %s" % (1, bck.dn))
+    #      assert len(ents) == 1
 
     log.info("Just to make it clean in the end")
     b1 = topology.standalone.backends.get(NEW_SUFFIX_1)

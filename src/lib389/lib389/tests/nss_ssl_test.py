@@ -49,10 +49,10 @@ def test_nss(topology):
     """
 
     # This is a trick. The nss db that ships with DS is broken fundamentally.
-    ## THIS ASSUMES old nss format. SQLite will bite us!
+    # THIS ASSUMES old nss format. SQLite will bite us!
     for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
         try:
-            os.remove("%s/%s" % (topology.standalone.confdir, f ))
+            os.remove("%s/%s" % (topology.standalone.confdir, f))
         except:
             pass
 

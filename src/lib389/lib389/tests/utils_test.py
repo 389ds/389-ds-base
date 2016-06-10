@@ -9,6 +9,11 @@
 import pytest
 from lib389.utils import *
 
+#
+# socket related functions
+#
+import socket
+
 
 def test_normalizeDN():
     test = [
@@ -35,11 +40,6 @@ def test_escapeDNFiltValue():
     for k, v in test:
         r = escapeDNFiltValue(k)
         assert r == v, "Mismatch %r vs %r" % (r, v)
-
-#
-# socket related functions
-#
-import socket
 
 
 def test_isLocalHost():

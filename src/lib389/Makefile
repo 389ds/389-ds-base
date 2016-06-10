@@ -25,6 +25,8 @@ srpm: rpmbuild-prep
 rpm: rpmbuild-prep
 	rpmbuild -bb python-lib389.spec
 
+pep8:
+	pep8 --max-line-length=160 ./lib389
 # Needs to generally be run as sudo
 test:
 	py.test -s ./lib389/tests

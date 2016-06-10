@@ -53,7 +53,7 @@ def test_ldctl(topology):
     """
     # Batch create users
     topology.instance.ldclt.create_users('ou=People,%s' % DEFAULT_SUFFIX, max=1999)
-    results = topology.instance.search_s('ou=People,%s' % DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filterstr='(objectClass=posixAccount)', attrlist=['uid'] )
+    results = topology.instance.search_s('ou=People,%s' % DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filterstr='(objectClass=posixAccount)', attrlist=['uid'])
     assert(len(results) == 1000)
 
     # Run the load test for a few rounds

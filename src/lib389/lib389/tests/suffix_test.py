@@ -96,8 +96,7 @@ def test_getParent(topology):
     topology.instance.mappingtree.create(
         NEW_CHILDSUFFIX_1, bename=NEW_CHILDBACKEND_1, parent=NEW_SUFFIX_1)
     parent = topology.instance.suffix.getParent(suffix=NEW_CHILDSUFFIX_1)
-    topology.instance.log.info("Retrieved parent of %s:  %s" %
-                            (NEW_CHILDSUFFIX_1, parent))
+    topology.instance.log.info("Retrieved parent of %s:  %s" % (NEW_CHILDSUFFIX_1, parent))
     assert parent == NEW_SUFFIX_1
 
 

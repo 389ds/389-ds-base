@@ -6,8 +6,8 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-#from nose import *
-#from nose.tools import *
+# from nose import *
+# from nose.tools import *
 
 from . import config
 from .config import log
@@ -151,7 +151,7 @@ def setupBackend_ok_test():
         conn.backend.delete(benamebase='mockbe5')
 
 
-#@raises(ldap.ALREADY_EXISTS)
+# @raises(ldap.ALREADY_EXISTS)
 def setupBackend_double_test():
     "setupBackend_double calls brooker.Backend.add"
     backendEntry, dummy = conn.backend.add('o=mockbe3', benamebase='mockbe3')
@@ -203,7 +203,7 @@ def prepare_master_replica_test():
     conn.added_entries.append(e.dn)
 
 
-#@with_setup(setup_backend)
+# @with_setup(setup_backend)
 def setupAgreement_test():
     consumer = MockDirSrv()
     args = {

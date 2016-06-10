@@ -29,6 +29,7 @@ TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
 KEYTAB = "/tmp/test.keytab"
 CCACHE = "FILE:/tmp/test.ccache"
 
+
 class TopologyInstance(object):
     def __init__(self, instance):
         instance.open()
@@ -41,9 +42,8 @@ def topology(request):
     krb = MitKrb5(realm=REALM)
     instance = DirSrv(verbose=False)
     instance.log.debug("Instance allocated")
-    ## WARNING: If this test fails it's like a hostname issue!!!
+    # WARNING: If this test fails it's like a hostname issue!!!
     args = {SER_HOST: socket.gethostname(),
-    #args = {SER_HOST: LOCALHOST,
             SER_PORT: INSTANCE_PORT,
             SER_REALM: REALM,
             SER_SERVERID_PROP: INSTANCE_SERVERID}

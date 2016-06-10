@@ -15,7 +15,7 @@ import lib389
 from lib389 import DirSrv
 from lib389 import NoSuchEntryError
 from ldap import *
-#from nose.tools import *
+# from nose.tools import *
 from . import config
 from .config import *
 
@@ -107,7 +107,7 @@ def setupChangelog_full_test():
     conn.delete_s("cn=changelog5,cn=config")
 
 
-#@raises(NoSuchEntryError)
+# @raises(NoSuchEntryError)
 def getMTEntry_missing_test():
     e = conn.getMTEntry('o=MISSING')
     return e
