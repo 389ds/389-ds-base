@@ -620,7 +620,7 @@ sub normalizeDN
     @suffix=split /([,])/,$entry;
     $result="";
     foreach $part (@suffix){
-        $part=~s/^ +//;
+        $part =~ s/^\s+|\s+$//g;
         $part=~ tr/A-Z/a-z/;
         $result="$result$part";
     }
@@ -641,9 +641,11 @@ sub getSuffix
         # Look if suffix is the suffix of the entry
         #    ldapsearch -s one -b "cn=mapping tree,cn=config" "cn=\"uid=jvedder,ou=People,dc=example,dc=com\""
         #
+        my $filter = normalizeDN("@suffix");
+
         debug("\tSuffix from the entry: #@suffixN#\n");
         $info{base} = "cn=mapping tree, cn=config";
-        $info{filter} = "cn=@suffix";
+        $info{filter} = "cn=$filter";
         $info{scope} = "one";
         $info{attrs} = "cn";
         @mapping = DSUtil::ldapsrch_ext(%info);
