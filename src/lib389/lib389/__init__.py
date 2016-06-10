@@ -85,7 +85,7 @@ from lib389.utils import (
 # mixin
 # from lib389.tools import DirSrvTools
 
-from  lib389.exceptions import *
+from lib389.exceptions import *
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -98,7 +98,6 @@ RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 
 # My logger
 log = logging.getLogger(__name__)
-
 
 
 def wrapper(f, name):
@@ -229,8 +228,8 @@ class DirSrv(SimpleLDAPObject):
                     # get instance name from errorlog
                     # move re outside
                     # This is a terrible check! There is NO GUARANTEE this pattern will match or work!
-                    #self.inst = re.match(
-                    #    r'(.*)[\/]slapd-([^/]+)/errors', self.errlog.decode('utf-8')).group(2)
+                    # self.inst = re.match(
+                    #     r'(.*)[\/]slapd-([^/]+)/errors', self.errlog.decode('utf-8')).group(2)
                     if self.isLocal and self.confdir:
                         instdir = self.getDseAttr('nsslapd-instancedir')
                     else:
@@ -241,24 +240,24 @@ class DirSrv(SimpleLDAPObject):
 
                 # parse the lib dir, and so set the plugin dir
                 self.instdir = instdir
-                ### THIS NEEDS TO BE FIXED .... There is no guarantee this is correct.
+                # THIS NEEDS TO BE FIXED .... There is no guarantee this is correct.
                 self.libdir = self.instdir.replace(ensure_bytes('slapd-%s' % self.serverid), ensure_bytes(''))
                 self.plugindir = self.libdir + ensure_bytes('plugins')
 
-                #if self.verbose:
-                #    log.debug("instdir=%r" % instdir)
-                #    log.debug("Entry: %r" % ent)
-                #match = re.match(r'(.*)[\/]slapd-([^/]+)$', instdir)
-                #if match:
-                #    self.sroot, self.inst = match.groups()
-                #else:
-                #    self.sroot = self.inst = ''
-                # In case DirSrv was allocated without creating the instance
-                # serverid is not set. Set it now from the config
-                #if hasattr(self, 'serverid') and self.serverid != None and self.serverid != "":
-                #    assert(self.serverid == self.inst)
-                #else:
-                #    self.serverid = self.inst
+                # if self.verbose:
+                #     log.debug("instdir=%r" % instdir)
+                #     log.debug("Entry: %r" % ent)
+                # match = re.match(r'(.*)[\/]slapd-([^/]+)$', instdir)
+                # if match:
+                #     self.sroot, self.inst = match.groups()
+                # else:
+                #     self.sroot = self.inst = ''
+                #  In case DirSrv was allocated without creating the instance
+                #  serverid is not set. Set it now from the config
+                # if hasattr(self, 'serverid') and self.serverid != None and self.serverid != "":
+                #     assert(self.serverid == self.inst)
+                # else:
+                #     self.serverid = self.inst
 
                 ent = self.getEntry('cn=config,' + DN_LDBM,
                                     attrlist=['nsslapd-directory'])
@@ -361,7 +360,7 @@ class DirSrv(SimpleLDAPObject):
         self.tasks = Tasks(self)
         self.monitor = Monitor(self)
         # Do we have a certdb path?
-        #if MAJOR < 3:
+        # if MAJOR < 3:
         self.backends = Backends(self)
         self.aci = Aci(self)
         self.nss_ssl = NssSsl(self)
@@ -1040,7 +1039,7 @@ class DirSrv(SimpleLDAPObject):
         Authenticated, now finish the initialization
         """
         if self.verbose:
-            log.info("open(): bound as %s" % self.whoami_s() )
+            log.info("open(): bound as %s" % self.whoami_s())
         self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
 
@@ -1211,9 +1210,9 @@ class DirSrv(SimpleLDAPObject):
         os.chmod(backup_dir, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
         # Forget this: Just make a new backup!
-        #backup_file = self.checkBackupFS()
-        #if backup_file:
-        #    return backup_file
+        # backup_file = self.checkBackupFS()
+        # if backup_file:
+        #     return backup_file
 
         # goes under the directory where the DS is deployed
         listFilesToBackup = []
@@ -1226,7 +1225,7 @@ class DirSrv(SimpleLDAPObject):
             prefix_pattern = None
 
         # build the list of directories to scan
-        ## THIS MUST BE FIXED, No guarantee of sroot!
+        # THIS MUST BE FIXED, No guarantee of sroot!
         instroot = "%s/slapd-%s" % (self.sroot, self.serverid)
         ldir = [instroot]
         if hasattr(self, 'confdir'):
@@ -2923,11 +2922,9 @@ class DirSrv(SimpleLDAPObject):
             raise ValueError(status)
         return status
 
-
     # This could be made to delete by filter ....
     def delete_branch_s(self, basedn, scope):
         ents = self.search_s(basedn, scope)
         for ent in ents:
             self.log.debug("Delete entry children %s" % (ent.dn))
             self.delete_s(ent.dn)
-

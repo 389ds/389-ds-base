@@ -6,6 +6,8 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import subprocess
+
 """
 This class will allow general usage of ldclt.
 
@@ -17,7 +19,6 @@ Calling this on a production DS instance is likely a fast way to MESS THINGS UP.
 
 """
 
-import subprocess
 
 class Ldclt(object):
     def __init__(self, ds):
@@ -64,69 +65,66 @@ loginShell: /bin/false
         digits = len('%s' % max)
 
         cmd = [
-        '%s/bin/ldclt-bin' % self.ds.prefix,
-        '-h',
-        self.ds.host,
-        '-p',
-        '%s' % self.ds.port,
-        '-D',
-        self.ds.binddn,
-        '-w',
-        self.ds.bindpw,
-        '-b',
-        subtree,
-        '-e',
-        'add,commoncounter',
-        '-e',
-        "object=/tmp/ldclt_template_lib389.ldif,rdn=uid:user[A=INCRNNOLOOP(%s;%s;%s)]" %
-            (min, max, digits),
+            '%s/bin/ldclt-bin' % self.ds.prefix,
+            '-h',
+            self.ds.host,
+            '-p',
+            '%s' % self.ds.port,
+            '-D',
+            self.ds.binddn,
+            '-w',
+            self.ds.bindpw,
+            '-b',
+            subtree,
+            '-e',
+            'add,commoncounter',
+            '-e',
+            "object=/tmp/ldclt_template_lib389.ldif,rdn=uid:user[A=INCRNNOLOOP(%s;%s;%s)]" % (min, max, digits),
         ]
         result = None
         if self.verbose:
             self.log.info("ldclt begining user create ...")
-            self.log.info(' '.join(cmd)  )
+            self.log.info(' '.join(cmd))
         try:
             result = subprocess.check_output(cmd)
         # If verbose, capture / log the output.
         except subprocess.CalledProcessError as e:
-            print(' '.join(cmd)  )
+            print(' '.join(cmd))
             print(result)
             raise(e)
         if self.verbose:
             self.log.info(result)
 
-    def bind_loadtest(self, subtree, min=1000, max=9999, rounds=3 ):
+    def bind_loadtest(self, subtree, min=1000, max=9999, rounds=3):
         # The bind users will be uid=userXXXX
         digits = len('%s' % max)
         cmd = [
-        '%s/bin/ldclt-bin' % self.ds.prefix,
-        '-h',
-        self.ds.host,
-        '-p',
-        '%s' % self.ds.port,
-        '-N',
-        '%s' % rounds,
-        '-D',
-        'uid=user%s,%s' % ('X' * digits, subtree),
-        '-w',
-        'user%s' % ('X' * digits),
-        '-e',
-        "randombinddn,randombinddnlow=%s,randombinddnhigh=%s" % (min, max),
-        '-e',
-        'bindonly',
+            '%s/bin/ldclt-bin' % self.ds.prefix,
+            '-h',
+            self.ds.host,
+            '-p',
+            '%s' % self.ds.port,
+            '-N',
+            '%s' % rounds,
+            '-D',
+            'uid=user%s,%s' % ('X' * digits, subtree),
+            '-w',
+            'user%s' % ('X' * digits),
+            '-e',
+            "randombinddn,randombinddnlow=%s,randombinddnhigh=%s" % (min, max),
+            '-e',
+            'bindonly',
         ]
         result = None
         if self.verbose:
             self.log.info("ldclt loadtest ...")
-            self.log.info(' '.join(cmd)  )
+            self.log.info(' '.join(cmd))
         try:
             result = subprocess.check_output(cmd)
         # If verbose, capture / log the output.
         except subprocess.CalledProcessError as e:
-            print(' '.join(cmd)  )
+            print(' '.join(cmd))
             print(result)
             raise(e)
         if self.verbose:
             self.log.info(result)
-
-

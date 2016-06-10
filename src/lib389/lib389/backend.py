@@ -16,6 +16,7 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
+
 class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
 
@@ -176,9 +177,7 @@ class BackendLegacy(object):
         if not bename:
             bename = found_bename
         elif bename.lower() != found_bename.lower():
-            raise ldap.UNWILLING_TO_PERFORM(
-                "Backend name specified (%s) differs from the retrieved "
-                "one (%s)" % (bename,found_bename))
+            raise ldap.UNWILLING_TO_PERFORM("Backend name specified (%s) differs from the retrieved one (%s)" % (bename, found_bename))
 
         self.conn.index.delete_all(bename)
 
@@ -377,12 +376,13 @@ class BackendLegacy(object):
         replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
         self.modify_s(dn, replace)
 
+
 class Backend(DSLdapObject):
     def __init__(self, instance, dn=None, batch=False):
         super(Backend, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['nsslapd-suffix', 'cn']
-        self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE ]
+        self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
         self._protected = False
 
     def create_sample_entries(self):
@@ -404,7 +404,7 @@ class Backend(DSLdapObject):
         nprops = {}
         for key, value in properties.items():
             try:
-                nprops[BACKEND_PROPNAME_TO_ATTRNAME[key]] = [value,]
+                nprops[BACKEND_PROPNAME_TO_ATTRNAME[key]] = [value, ]
             except KeyError:
                 # This means, it's not a mapped value, so continue
                 pass
@@ -439,6 +439,7 @@ class Backend(DSLdapObject):
         # The super will actually delete ourselves.
         super(Backend, self).delete()
 
+
 # This only does ldbm backends. Chaining backends are a special case
 # of this, so they can be subclassed off.
 class Backends(DSLdapObjects):
@@ -448,6 +449,3 @@ class Backends(DSLdapObjects):
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
         self._childobject = Backend
         self._basedn = DN_LDBM
-
-
-

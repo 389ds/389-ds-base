@@ -13,27 +13,27 @@ import os
 import sys
 import random
 import string
-
 from nss import nss
 from nss import error as nss_error
 from subprocess import check_call
-
 from lib389.passwd import password_generate
 
-KEYBITS=4096
-CA_NAME='Self-Signed-CA'
-CERT_NAME='Server-Cert'
-PIN_TXT='pin.txt'
-PWD_TXT='pwdfile.txt'
-ISSUER='CN=ca.unknown.example.com,O=testing,L=unknown,ST=Queensland,C=AU'
-SELF_ISSUER='CN={HOSTNAME},O=testing,L=unknown,ST=Queensland,C=AU'
-VALID=2
+KEYBITS = 4096
+CA_NAME = 'Self-Signed-CA'
+CERT_NAME = 'Server-Cert'
+PIN_TXT = 'pin.txt'
+PWD_TXT = 'pwdfile.txt'
+ISSUER = 'CN=ca.unknown.example.com,O=testing,L=unknown,ST=Queensland,C=AU'
+SELF_ISSUER = 'CN={HOSTNAME},O=testing,L=unknown,ST=Queensland,C=AU'
+VALID = 2
 
 dbpassword = None
+
 
 def nss_ssl_pw_cb(slot, retry, optional=[]):
     global dbpassword
     return dbpassword
+
 
 class NssSsl(object):
     def __init__(self, dirsrv, dbpassword=None):
@@ -49,15 +49,13 @@ class NssSsl(object):
         with open(fpath, 'w') as f:
             f.write(noise)
 
-
-
     def open(self):
         """
         Opens the certdb.
         """
         global dbpassword
         # Read in the password
-        ## How! Do I make the password CB work here?
+        # How! Do I make the password CB work here?
         if os.path.exists('%s/%s' % (self.dirsrv.confdir, PWD_TXT)):
             with open('%s/%s' % (self.dirsrv.confdir, PWD_TXT), 'r') as f:
                 self.dbpassword = f.readline()
@@ -80,7 +78,7 @@ class NssSsl(object):
         if r:
             # This is impossible to clean out to make shutdown work ...
             self.log.info(nss.dump_certificate_cache_info())
-            #nss.nss_shutdown()
+            # nss.nss_shutdown()
         return r
 
     def reinit(self):
@@ -97,8 +95,7 @@ class NssSsl(object):
             with open('%s/%s' % (self.dirsrv.confdir, PWD_TXT), 'w') as f:
                 f.write('%s' % self.dbpassword)
         # Init the db.
-        cmd = ['/usr/bin/certutil', '-N', '-d', self.dirsrv.confdir, '-f',
-            '%s/%s' % (self.dirsrv.confdir, PWD_TXT)]
+        cmd = ['/usr/bin/certutil', '-N', '-d', self.dirsrv.confdir, '-f', '%s/%s' % (self.dirsrv.confdir, PWD_TXT)]
         result = check_call(cmd)
         if result != 0:
             return False
@@ -166,7 +163,7 @@ class NssSsl(object):
         for ca_cert in ca_certs:
             pk = nss.find_key_by_any_cert(ca_cert)
             if pk is not None:
-                #### STILL NEED TO CHECK the nickname.
+                # STILL NEED TO CHECK the nickname.
                 have_ca = True
                 del(pk)
             del(ca_cert)
@@ -184,7 +181,7 @@ class NssSsl(object):
             cert = nss.find_cert_from_nickname(CERT_NAME)
             pk = nss.find_key_by_any_cert(cert)
             if pk is not None:
-                ### STILL NEED tO CHECK THE NICKNAME
+                # STILL NEED TO CHECK THE NICKNAME
                 have_cert = True
                 del(pk)
             del(cert)
@@ -237,4 +234,3 @@ class NssSsl(object):
             return False
         else:
             return True
-

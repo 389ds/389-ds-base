@@ -11,16 +11,6 @@
     uses DirSrv
 """
 import sys
-__all__ = ['DirSrvTools']
-try:
-    from subprocess import Popen, PIPE, STDOUT
-    HASPOPEN = True
-except ImportError:
-    import popen2
-    HASPOPEN = False
-
-MAJOR, MINOR, _, _, _ = sys.version_info
-
 import os
 import os.path
 import base64
@@ -34,20 +24,7 @@ import glob
 import pwd
 import grp
 import logging
-try:
-    # There are too many issues with this on EL7
-    # Out of the box, it's just outright broken ...
-    import six.moves.urllib.request
-    import six.moves.urllib.parse
-    import six.moves.urllib.error
-    import six
-except ImportError:
-    pass
 import ldap
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
 
 import socket
 import getpass
@@ -78,6 +55,31 @@ from lib389.passwd import password_hash, password_generate
 
 # The poc backend api
 from lib389.backend import Backends
+
+try:
+    # There are too many issues with this on EL7
+    # Out of the box, it's just outright broken ...
+    import six.moves.urllib.request
+    import six.moves.urllib.parse
+    import six.moves.urllib.error
+    import six
+except ImportError:
+    pass
+
+MAJOR, MINOR, _, _, _ = sys.version_info
+
+if MAJOR >= 3:
+    import configparser
+else:
+    import ConfigParser as configparser
+
+__all__ = ['DirSrvTools']
+try:
+    from subprocess import Popen, PIPE, STDOUT
+    HASPOPEN = True
+except ImportError:
+    import popen2
+    HASPOPEN = False
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -1164,7 +1166,6 @@ class SetupDs(object):
     A logging interface is provided to self.log that you should call.
     """
 
-
     def __init__(self, verbose=False, dryrun=False):
         self.verbose = verbose
         self.extra = None
@@ -1190,13 +1191,13 @@ class SetupDs(object):
         general['config_version'] = config.getint('general', 'config_version')
         general['full_machine_name'] = config.get('general', 'full_machine_name')
         general['strict_host_checking'] = config.getboolean('general', 'strict_host_checking', fallback=True)
-        # CHange this to detect if SELinux is running
+        # Change this to detect if SELinux is running
         general['selinux'] = config.getboolean('general', 'selinux', fallback=False)
 
         if self.verbose:
             log.info("Configuration general %s" % general)
 
-        ## Validate that we are a config_version=2
+        # Validate that we are a config_version=2
         assert general['config_version'] >= 2
 
         slapd = {}
@@ -1216,13 +1217,13 @@ class SetupDs(object):
         # This will need to change to cope with configure scripts from DS!
         # perhaps these should be read as a set of DEFAULTs from a config file?
         slapd['bin_dir'] = config.get('slapd', 'bin_dir', fallback='%s/bin/' % slapd['prefix'])
-        slapd['sysconf_dir'] = config.get('slapd', 'sysconf_dir', fallback='%s/etc' % slapd['prefix'] )
+        slapd['sysconf_dir'] = config.get('slapd', 'sysconf_dir', fallback='%s/etc' % slapd['prefix'])
         slapd['data_dir'] = config.get('slapd', 'data_dir', fallback='%s/share/' % slapd['prefix'])
         slapd['local_state_dir'] = config.get('slapd', 'local_state_dir', fallback='%s/var' % slapd['prefix'])
 
         slapd['lib_dir'] = config.get('slapd', 'lib_dir', fallback='%s/usr/lib64/dirsrv' % (slapd['prefix']))
         slapd['cert_dir'] = config.get('slapd', 'cert_dir', fallback='%s/etc/dirsrv/slapd-%s/' % (slapd['prefix'], slapd['instance_name']))
-        slapd['config_dir'] = config.get('slapd', 'config_dir', fallback='%s/etc/dirsrv/slapd-%s/'% (slapd['prefix'], slapd['instance_name']))
+        slapd['config_dir'] = config.get('slapd', 'config_dir', fallback='%s/etc/dirsrv/slapd-%s/' % (slapd['prefix'], slapd['instance_name']))
 
         slapd['inst_dir'] = config.get('slapd', 'inst_dir', fallback='%s/var/lib/dirsrv/slapd-%s' % (slapd['prefix'], slapd['instance_name']))
         slapd['backup_dir'] = config.get('slapd', 'backup_dir', fallback='%s/bak' % (slapd['inst_dir']))
@@ -1236,7 +1237,7 @@ class SetupDs(object):
         slapd['schema_dir'] = config.get('slapd', 'schema_dir', fallback='%s/etc/dirsrv/slapd-%s/schema' % (slapd['prefix'], slapd['instance_name']))
         slapd['tmp_dir'] = config.get('slapd', 'tmp_dir', fallback='/tmp')
 
-        ## Need to add all the default filesystem paths.
+        # Need to add all the default filesystem paths.
 
         if self.verbose:
             log.info("Configuration slapd %s" % slapd)
@@ -1270,7 +1271,6 @@ class SetupDs(object):
         else:
             log.info("Failed to validate configuration version.")
             assert(False)
-
 
     def create_from_inf(self, inf_path):
         """
@@ -1311,22 +1311,21 @@ class SetupDs(object):
         slapd['group_gid'] = grp.getgrnam(slapd['group']).gr_gid
         # check this group exists
         # Check that we are running as this user / group, or that we are root.
-        assert(os.geteuid() == 0 or getpass.getuser() == slapd['user'] )
+        assert(os.geteuid() == 0 or getpass.getuser() == slapd['user'])
 
         if self.verbose:
             log.info("PASSED: user / group checking")
-
 
         assert(general['full_machine_name'] is not None)
         assert(general['strict_host_checking'] is not None)
         if general['strict_host_checking'] is True:
             # Check it resolves with dns
-            assert( socket.gethostbyname(general['full_machine_name']) )
+            assert(socket.gethostbyname(general['full_machine_name']))
             if self.verbose:
                 log.info("PASSED: Hostname strict checking")
 
         assert(slapd['prefix'] is not None)
-        assert(os.path.exists( slapd['prefix'] ))
+        assert(os.path.exists(slapd['prefix']))
         if self.verbose:
             log.info("PASSED: prefix checking")
 
@@ -1343,20 +1342,18 @@ class SetupDs(object):
         if self.verbose:
             log.info("PASSED: instance checking")
 
-
         assert(slapd['root_dn'] is not None)
         # Assert this is a valid DN
         assert(is_a_dn(slapd['root_dn']))
         assert(slapd['root_password'] is not None)
         # Check if pre-hashed or not.
-        #!!!!!!!!!!!!!!
-
+        # !!!!!!!!!!!!!!
 
         # Right now, the way that rootpw works on ns-slapd works, it force hashes the pw
         # see https://fedorahosted.org/389/ticket/48859
         if not re.match('^\{[A-Z0-9]+\}.*$', slapd['root_password']):
             # We need to hash it. Call pwdhash-bin.
-            #slapd['root_password'] = password_hash(slapd['root_password'], prefix=slapd['prefix'])
+            # slapd['root_password'] = password_hash(slapd['root_password'], prefix=slapd['prefix'])
             pass
         else:
             pass
@@ -1382,9 +1379,9 @@ class SetupDs(object):
         if self.verbose:
             log.info("PASSED: network avaliability checking")
 
-        ## Make assertions of the paths?
+        # Make assertions of the paths?
 
-        ## Make assertions of the backends?
+        # Make assertions of the backends?
 
     def create_from_args(self, general, slapd, backends=[], extra=None):
         """
@@ -1412,14 +1409,12 @@ class SetupDs(object):
             log.info("Directory Server is brought to you by the letter R and the number 27.")
         log.info("FINISH: completed installation")
 
-
     def _install_ds(self, general, slapd, backends):
         """
         Actually install the Ds from the dicts provided.
 
         You should never call this directly, as it bypasses assertions.
         """
-
         # register the instance to /etc/sysconfig
         # We do this first so that we can trick remove-ds.pl if needed.
         # There may be a way to create this from template like the dse.ldif ...
@@ -1429,17 +1424,17 @@ class SetupDs(object):
                 initconfig += line.replace('{{', '{', 1).replace('}}', '}', 1).replace('-', '_')
         with open("%s/sysconfig/dirsrv-%s" % (slapd['sysconf_dir'], slapd['instance_name']), 'w') as f:
             f.write(initconfig.format(
-SERVER_DIR=slapd['lib_dir'],
-SERVERBIN_DIR=slapd['sbin_dir'],
-CONFIG_DIR=slapd['config_dir'],
-INST_DIR=slapd['inst_dir'],
-RUN_DIR=slapd['run_dir'],
-DS_ROOT='',
-PRODUCT_NAME='slapd',
-        ))
+                SERVER_DIR=slapd['lib_dir'],
+                SERVERBIN_DIR=slapd['sbin_dir'],
+                CONFIG_DIR=slapd['config_dir'],
+                INST_DIR=slapd['inst_dir'],
+                RUN_DIR=slapd['run_dir'],
+                DS_ROOT='',
+                PRODUCT_NAME='slapd',
+            ))
 
         # Create all the needed paths
-        ## we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir? schema_dir,
+        # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir? schema_dir,
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             if self.verbose:
                 log.info("ACTION: creating %s" % slapd[path])
@@ -1447,16 +1442,14 @@ PRODUCT_NAME='slapd',
             os.chown(slapd[path], slapd['user_uid'], slapd['group_gid'])
 
         # Copy correct data to the paths.
-        ## Copy in the schema
-        ##  This is a little fragile, make it better.
+        # Copy in the schema
+        #  This is a little fragile, make it better.
         shutil.copytree("%s/dirsrv/schema" % slapd['sysconf_dir'], slapd['schema_dir'])
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
 
-
-
         # Selinux fixups?
-        ## Restorecon of paths?
-        ## Bind sockets to our type?
+        # Restorecon of paths?
+        # Bind sockets to our type?
 
         # Create certdb in sysconfidir
         if self.verbose:
@@ -1474,7 +1467,7 @@ PRODUCT_NAME='slapd',
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
-        with open("%s/dse.ldif" % slapd['config_dir'], 'w' ) as file_dse:
+        with open("%s/dse.ldif" % slapd['config_dir'], 'w') as file_dse:
             file_dse.write(dse.format(
                 schema_dir=slapd['schema_dir'],
                 lock_dir=slapd['lock_dir'],
@@ -1490,7 +1483,7 @@ PRODUCT_NAME='slapd',
                 ds_user=slapd['user'],
                 rootdn=slapd['root_dn'],
                 # ds_passwd=slapd['root_password'],
-                ds_passwd=self._secure_password, # We set our own password here, so we can connect and mod.
+                ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
                 ds_suffix='',
                 config_dir=slapd['config_dir'],
                 db_dir=slapd['db_dir'],
@@ -1517,18 +1510,15 @@ PRODUCT_NAME='slapd',
         ds_instance.open()
 
         # Create the backends as listed
-        ## Load example data if needed.
+        # Load example data if needed.
         for backend in backends:
             ds_instance.backends.create(properties=backend)
 
         # Make changes using the temp root
         # Change the root password finally
 
-        ds_instance.config.set('nsslapd-rootpw', ensure_str(slapd['root_password']) )
-
         # Complete.
-
-
+        ds_instance.config.set('nsslapd-rootpw', ensure_str(slapd['root_password']))
 
     def _remove_ds(self):
         """
@@ -1538,4 +1528,3 @@ PRODUCT_NAME='slapd',
         # This probably actually would need to be able to read the ldif, to know what to remove ...
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             print(path)
-

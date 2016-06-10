@@ -6,11 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-__all__ = ['LDIFConn']
 import ldif
 import six
 from lib389._entry import Entry
 from lib389.utils import normalizeDN
+
+__all__ = ['LDIFConn']
 
 
 class LDIFConn(ldif.LDIFParser):

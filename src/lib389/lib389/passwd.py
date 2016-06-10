@@ -20,7 +20,7 @@ import sys
 BESTSCHEME = 'SSHA512'
 MAJOR, MINOR, _, _, _ = sys.version_info
 
-# We need a dict of the schemes I think .... 
+# We need a dict of the schemes I think ....
 PWSCHEMES = [
     'SHA1',
     'SHA256',
@@ -29,6 +29,7 @@ PWSCHEMES = [
     'SSHA256',
     'SSHA512',
 ]
+
 
 # How do we feed our prefix into this?
 def password_hash(pw, scheme=BESTSCHEME, prefix='/'):
@@ -39,10 +40,11 @@ def password_hash(pw, scheme=BESTSCHEME, prefix='/'):
     h = subprocess.check_output([pwdhashbin, '-s', scheme, pw]).strip()
     return h.decode('utf-8')
 
+
 def password_generate(length=64):
     pw = None
     if MAJOR >= 3:
-        pw =  [random.choice(string.ascii_letters) for x in range(length)]
+        pw = [random.choice(string.ascii_letters) for x in range(length)]
     else:
-        pw =  [random.choice(string.letters) for x in xrange(length)]
+        pw = [random.choice(string.letters) for x in xrange(length)]
     return "".join(pw)

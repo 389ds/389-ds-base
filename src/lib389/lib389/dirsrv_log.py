@@ -22,25 +22,26 @@ from lib389.utils import ensure_bytes, ensure_str
 # attributes all the time.
 
 MONTH_LOOKUP = {
-    'Jan' : 1,
-    'Feb' : 2,
-    'Mar' : 3,
-    'Apr' : 4,
-    'May' : 5,
-    'Jun' : 6,
-    'Jul' : 7,
-    'Aug' : 8,
-    'Oct' : 9,
-    'Sep' : 10,
-    'Nov' : 11,
-    'Dec' : 12,
+    'Jan': 1,
+    'Feb': 2,
+    'Mar': 3,
+    'Apr': 4,
+    'May': 5,
+    'Jun': 6,
+    'Jul': 7,
+    'Aug': 8,
+    'Oct': 9,
+    'Sep': 10,
+    'Nov': 11,
+    'Dec': 12,
 }
+
 
 class DirsrvLog(object):
     def __init__(self, dirsrv):
         self.dirsrv = dirsrv
         self.log = self.dirsrv.log
-        self.prog_timestamp = re.compile('\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')
+        self.prog_timestamp = re.compile('\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')  # noqa
 
     def _get_log_attr(self, attr):
         return self.dirsrv.getEntry(DN_CONFIG).__getattr__(attr)
@@ -49,7 +50,7 @@ class DirsrvLog(object):
         return self._get_log_attr(self.log_path_attr)
 
     def _get_all_log_paths(self):
-        return glob("%s.*-*" % self._get_log_path() ) + [self._get_log_path()]
+        return glob("%s.*-*" % self._get_log_path()) + [self._get_log_path()]
 
     def readlines_archive(self):
         """
@@ -124,17 +125,18 @@ class DirsrvLog(object):
             TZ=timedata['tz'],
             )
         dt = dt_parse(dt_str)
-        dt = dt.replace(microsecond= int(int(timedata['nanosecond']) / 1000))
+        dt = dt.replace(microsecond=int(int(timedata['nanosecond']) / 1000))
         return dt
+
 
 class DirsrvAccessLog(DirsrvLog):
     def __init__(self, dirsrv):
         super(DirsrvAccessLog, self).__init__(dirsrv)
         self.log_path_attr = LOG_ACCESS_PATH
-        ## We precompile our regex for parse_line to make it faster.
-        self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\s(?P<action>\w*)\s(?P<rem>.*)')
-        self.prog_con = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')
-        self.prog_discon = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\sfd=(?P<fd>\d*)\s(?P<action>closed)\s-\s(?P<status>\w*)')
+        # We precompile our regex for parse_line to make it faster.
+        self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\s(?P<action>\w*)\s(?P<rem>.*)')  # noqa
+        self.prog_con = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')  # noqa
+        self.prog_discon = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\sfd=(?P<fd>\d*)\s(?P<action>closed)\s-\s(?P<status>\w*)')  # noqa
 
     def parse_line(self, line):
         """
@@ -178,14 +180,12 @@ class DirsrvErrorLog(DirsrvLog):
         self.log_path_attr = LOG_ERROR_PATH
         self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\s(?P<message>.*)')
 
-
     def parse_line(self, line):
         line = line.strip()
         action = self.prog_m1.match(line).groupdict()
 
         action['datetime'] = self.parse_timestamp(action['timestamp'])
         return action
-
 
     def parse_lines(self, lines):
         return map(self.parse_line, lines)

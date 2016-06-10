@@ -9,14 +9,15 @@
 import ldap
 
 import sys
-MAJOR, MINOR, _, _, _ = sys.version_info
-
-if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
-    from ldap.controls.readentry import PostReadControl
 from lib389._constants import *
 from lib389.properties import *
 from lib389 import Entry
 from lib389.utils import ensure_str, ensure_bytes
+
+MAJOR, MINOR, _, _, _ = sys.version_info
+
+if MAJOR >= 3 or (MAJOR == 2 and MINOR >= 7):
+    from ldap.controls.readentry import PostReadControl
 
 
 class Index(object):

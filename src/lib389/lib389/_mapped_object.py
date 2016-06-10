@@ -16,11 +16,13 @@ from lib389.utils import ensure_bytes, ensure_str, ensure_list_bytes
 from lib389._entry import Entry
 
 # This function filter and term generation provided thanks to
-# The University Of Adelaide. <william@adelaide.edu.au>
+# The University of Adelaide. <william@adelaide.edu.au>
+
 
 def _term_gen(term):
     while True:
         yield term
+
 
 def _gen(op=None, extra=None):
     filt = ''
@@ -33,14 +35,18 @@ def _gen(op=None, extra=None):
         filt = '(%s%s)' % (op, filt)
     return filt
 
+
 def _gen_and(extra=None):
     return _gen('&', extra)
+
 
 def _gen_or(extra=None):
     return _gen('|', extra)
 
+
 def _gen_not(extra=None):
     return _gen('!', extra)
+
 
 def _gen_filter(attrtypes, values, extra=None):
     filt = ''
@@ -50,6 +56,7 @@ def _gen_filter(attrtypes, values, extra=None):
     if extra is not None:
         filt += '{FILT}'.format(FILT=extra)
     return filt
+
 
 class DSLogging(object):
     """
@@ -142,7 +149,7 @@ class DSLdapObject(DSLogging):
             pass
 
     # Duplicate, but with many values. IE a dict api.
-    # This 
+    # This
     def add_values(self, values):
         pass
 
@@ -220,7 +227,7 @@ class DSLdapObject(DSLogging):
         self._log.debug('Validated %s : %s' % (dn, valid_props))
 
         e = Entry(dn)
-        e.update({'objectclass' : ensure_list_bytes(self._create_objectclasses)})
+        e.update({'objectclass': ensure_list_bytes(self._create_objectclasses)})
         e.update(valid_props)
         # We rely on exceptions here to indicate failure to the parent.
         self._log.debug('Creating entry %s : %s' % (dn, e))
@@ -293,8 +300,7 @@ class DSLdapObjects(DSLogging):
             scope=self._scope,
             # This will yield and & filter for objectClass with as many terms as needed.
             filterstr=_gen_and(
-                _gen_filter(_term_gen('objectclass'), self._objectclasses,
-                    extra=_gen_or(
+                _gen_filter(_term_gen('objectclass'), self._objectclasses, extra=_gen_or(
                         # This will yield all combinations of selector to filterattrs.
                         # This won't work with multiple values in selector (yet)
                         _gen_filter(self._filterattrs, _term_gen(selector))
@@ -334,4 +340,3 @@ class DSLdapObjects(DSLogging):
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
         return co.create(rdn, properties, self._basedn)
-

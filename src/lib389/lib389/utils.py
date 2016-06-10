@@ -714,6 +714,7 @@ def formatInfData(args):
 
     return content
 
+
 def get_ds_version():
     """Return version of ns-slapd binary, for example
     1.3.4.8 B2016.043.2254"""
@@ -740,6 +741,7 @@ def getDateTime():
     """
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
+
 def socket_check_open(host, port):
     with closing(socket.socket(socket.AF_INET6, socket.SOCK_STREAM)) as sock:
         if sock.connect_ex((host, port)) == 0:
@@ -747,15 +749,18 @@ def socket_check_open(host, port):
         else:
             return False
 
+
 def ensure_bytes(val):
     if MAJOR >= 3 and type(val) != bytes:
         return val.encode()
     return val
 
+
 def ensure_str(val):
     if MAJOR >= 3 and type(val) != str:
         return val.decode('utf-8')
     return val
+
 
 def ensure_list_bytes(val):
     if MAJOR >= 3:

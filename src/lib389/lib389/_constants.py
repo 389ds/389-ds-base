@@ -9,9 +9,11 @@
 import os
 from lib389.properties import *
 
-(MASTER_TYPE,
-        HUB_TYPE,
-        LEAF_TYPE) = list(range(3))
+(
+    MASTER_TYPE,
+    HUB_TYPE,
+    LEAF_TYPE
+) = list(range(3))
 
 REPLICAROLE_MASTER = "master"
 REPLICAROLE_HUB = "hub"
@@ -32,8 +34,7 @@ REPLICA_TYPE_MASTER = '3'
 REPLICA_TYPE_HUBCON = '2'
 
 REPLICA_RUV_UUID = "ffffffff-ffffffff-ffffffff-ffffffff"
-REPLICA_RUV_FILTER = ('(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)'
-        '(objectclass=nstombstone))')
+REPLICA_RUV_FILTER = ('(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))')
 REPLICA_OC_TOMBSTONE = "nsTombstone"
 REPLICATION_BIND_DN = RA_BINDDN
 REPLICATION_BIND_PW = RA_BINDPW
@@ -44,16 +45,18 @@ REPLICATION_TIMEOUT = RA_TIMEOUT
 TRANS_STARTTLS = "starttls"
 TRANS_SECURE = "secure"
 TRANS_NORMAL = "normal"
-REPL_TRANS_VALUE = {TRANS_STARTTLS: 'TLS',
-        TRANS_SECURE: 'SSL',
-        TRANS_NORMAL: 'LDAP'}
+REPL_TRANS_VALUE = {
+            TRANS_STARTTLS: 'TLS',
+            TRANS_SECURE: 'SSL',
+            TRANS_NORMAL: 'LDAP'
+        }
 
 defaultProperties = {
-        REPLICATION_BIND_DN: "cn=replrepl,cn=config",
-        REPLICATION_BIND_PW: "password",
-        REPLICATION_BIND_METHOD: "simple",
-        REPLICATION_TRANSPORT: REPL_TRANS_VALUE[TRANS_NORMAL],
-        REPLICATION_TIMEOUT: str(120)
+            REPLICATION_BIND_DN: "cn=replrepl,cn=config",
+            REPLICATION_BIND_PW: "password",
+            REPLICATION_BIND_METHOD: "simple",
+            REPLICATION_TRANSPORT: REPL_TRANS_VALUE[TRANS_NORMAL],
+            REPLICATION_TIMEOUT: str(120)
         }
 
 

@@ -32,7 +32,7 @@ SER_PROPNAME_TO_ATTRNAME = {SER_HOST: 'nsslapd-localhost',
                             SER_PORT: 'nsslapd-port',
                             SER_SECURE_PORT: 'nsslapd-securePort',
                             SER_ROOT_DN: 'nsslapd-rootdn',
-                            #SER_ROOT_PW: 'nsslapd-rootpw', # We can't use this value ...
+                            # SER_ROOT_PW: 'nsslapd-rootpw', # We can't use this value ...
                             SER_USER_ID: 'nsslapd-localuser',
                             SER_CREATION_SUFFIX: 'nsslapd-defaultnamingcontext',
                             SER_LDAPI_ENABLED: 'nsslapd-ldapilisten',

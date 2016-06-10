@@ -42,6 +42,7 @@ done
 %license LICENSE
 %doc README
 %{python2_sitelib}/*
+%exclude %{_sbindir}/*
 
 %changelog
 * Mon Dec 7 2015 Mark Reynolds <mreynolds@redhat.com> - 1.0.1-1

@@ -15,11 +15,11 @@ import binascii
 from ldap.cidict import cidict
 import sys
 
-MAJOR, MINOR, _, _, _ = sys.version_info
-
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import ensure_str, ensure_bytes
+
+MAJOR, MINOR, _, _, _ = sys.version_info
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -133,8 +133,8 @@ class Entry(object):
             # Perhaps this should be an exception?
             raise Exception('Invalid data state in Entry')
         # We can't actually enforce this because cidict doesn't inherit Mapping
-        #if not isinstance(self.data, collections.Mapping):
-        #    raise Exception('Invalid data type for Entry')
+        # if not isinstance(self.data, collections.Mapping):
+        #     raise Exception('Invalid data type for Entry')
         return name in self.data
 
     def __getattr__(self, name):
@@ -229,7 +229,7 @@ class Entry(object):
                 vals = []
                 for v in l[1]:
                     vals.append(ensure_bytes(v))
-                ltnew.append((l[0], vals ))
+                ltnew.append((l[0], vals))
             lt = ltnew
         return lt
 
@@ -609,5 +609,5 @@ class EntryAci(object):
                     data[k].append(self._parse_term(k, aci))
                     break
         if self.verbose:
-            print("_parse_aci: %s" % data )
+            print("_parse_aci: %s" % data)
         return data

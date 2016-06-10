@@ -214,6 +214,7 @@ class MitKrb5(object):
                   (keytab, principal, self.realm)])
         assert(p.wait() == 0)
 
+
 class KrbClient(object):
     def __init__(self, principal, keytab, ccache=None):
         self.krb_prefix = ""
@@ -224,4 +225,3 @@ class KrbClient(object):
         subprocess.call(self.kdestroy)
         # Gssapi has magic that automatically creates things by env vars
         os.environ["KRB5_CLIENT_KTNAME"] = keytab
-

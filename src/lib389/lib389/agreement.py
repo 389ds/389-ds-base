@@ -574,8 +574,7 @@ class Agreement(object):
                 try:
                     agmt_dn = agmts[0].dn
                     self.conn.delete_s(agmt_dn)
-                    self.log.info('Agreement (%s) was successfully removed' %
-                                       agmt_dn)
+                    self.log.info('Agreement (%s) was successfully removed' % agmt_dn)
                 except ldap.LDAPError as e:
                     self.log.error('Failed to delete agreement (%s), ' +
                                    'error: %s' % (agmt_dn, str(e)))

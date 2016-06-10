@@ -8,6 +8,7 @@
 
 import ldap
 
+
 class Error(Exception):
     pass
 
@@ -40,4 +41,3 @@ class NotImplementedError(Error):
 class DsError(Error):
     """Generic DS Error."""
     pass
-

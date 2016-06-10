@@ -15,8 +15,8 @@ import ldap
 
 from lib389._constants import *
 
-# Helpers to detect common patterns in aci
 
+# Helpers to detect common patterns in aci
 def _aci_any_targetattr_ne(aci):
     """
     Returns if any of the targetattr types is a != type
@@ -110,7 +110,7 @@ Advice: {FIX}
             )
         return buf
 
-    ### These are the aci lint checks.
+    # These are the aci lint checks.
 
     def _lint_dsale_0001_ne_internal(self, acis):
         """
@@ -128,23 +128,23 @@ Advice: {FIX}
         if len(affected) > 0:
             self.warnings.append(
                 {
-                    'dsale' : 'DSALE0001',
+                    'dsale': 'DSALE0001',
                     'severity': 'HIGH',
-                    'acis' : "\n".join(affected),
+                    'acis': "\n".join(affected),
                     'detail': """
 An aci of the form "(targetAttr!="attr")" exists on your system. This aci
 will internally be expanded to mean "all possible attributes including system,
 excluding the listed attributes".
 
 This may allow access to a bound user or anonymous to read more data about
-directory internals, including aci state or user limits. In the case of write 
+directory internals, including aci state or user limits. In the case of write
 acis it may allow a dn to set their own resource limits, unlock passwords or
 their own aci.
 
 The ability to change the aci on the object may lead to privilege escalation in
 some cases.
                     """,
-                    'fix' : """
+                    'fix': """
 Convert the aci to the form "(targetAttr="x || y || z")".
                     """
                 }
@@ -188,9 +188,9 @@ Convert the aci to the form "(targetAttr="x || y || z")".
         if len(affected) > 0:
             self.warnings.append(
                 {
-                    'dsale' : 'DSALE0002',
+                    'dsale': 'DSALE0002',
                     'severity': 'HIGH',
-                    'acis' : "\n".join(affected),
+                    'acis': "\n".join(affected),
                     'detail': """
 Acis on your system exist which are both not equals targetattr, and overlap in
 scope.
@@ -213,7 +213,7 @@ This combination allows self write to *all* attributes within the subtree.
 In cases where the target is members of a group, it may allow a member who is
 within two groups to have elevated privilege.
                     """,
-                    'fix' : """
+                    'fix': """
 Convert the aci to the form "(targetAttr="x || y || z")".
 
 Prevent the acis from overlapping, and have them on unique subtrees.

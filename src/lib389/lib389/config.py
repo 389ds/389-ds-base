@@ -21,6 +21,7 @@ from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
 
+
 class Config(DSLdapObject):
     """
         Manage "cn=config" tree, including:
@@ -32,13 +33,12 @@ class Config(DSLdapObject):
         """@param conn - a DirSrv instance """
         super(Config, self).__init__(instance=conn, batch=batch)
         self._dn = DN_CONFIG
-        #self._instance = conn
-        #self.log = conn.log
+        # self._instance = conn
+        # self.log = conn.log
 
     def _alter_log_enabled(self, service, state):
         if service not in ('access', 'error', 'audit'):
-            self._log.error('Attempted to enable invalid log service "%s"' %
-                           service)
+            self._log.error('Attempted to enable invalid log service "%s"' % service)
         service = 'nsslapd-%slog-logging-enabled' % service
         self._log.debug('Setting log %s to %s' % (service, state))
         self.set(service, state)
@@ -72,8 +72,7 @@ class Config(DSLdapObject):
         ex. loglevel([lib389.LOG_DEFAULT, lib389.LOG_ENTRY_PARSER])
         """
         if service not in ('access', 'error'):
-            self._log.error('Attempted to set level on invalid log service "%s"'
-                           % service)
+            self._log.error('Attempted to set level on invalid log service "%s"' % service)
         service = 'nsslapd-%slog-level' % service
         assert len(vals) > 0, "set at least one log level"
         tot = 0
@@ -98,7 +97,7 @@ class Config(DSLdapObject):
 
         self.set('nsslapd-accesslog-logbuffering', value)
 
-    #### THIS WILL BE SPLIT OUT TO ITS OWN MODULE
+    # THIS WILL BE SPLIT OUT TO ITS OWN MODULE
     def enable_ssl(self, secport=636, secargs=None):
         """Configure SSL support into cn=encryption,cn=config.
 
@@ -106,10 +105,7 @@ class Config(DSLdapObject):
                 'nsSSLPersonalitySSL': 'Server-Cert'
             }
         """
-        if self.deprecation_strict:
-            raise Exception("Use of deprecated enable_ssl!")
-        else:
-            self._log.debug("config.enable_ssl is deprecated! Use RSA, Encryption instead!")
+        self._log.debug("config.enable_ssl is deprecated! Use RSA, Encryption instead!")
         self._log.debug("configuring SSL with secargs:%r" % secargs)
         secargs = secargs or {}
 
@@ -199,5 +195,3 @@ class RSA(DSLdapObject):
         if dn is not None:
             self._log.debug("dn on cn=Rsa create request is not None. This is a mistake.")
         super(RSA, self).create(dn=self._dn, properties=properties)
-
-
