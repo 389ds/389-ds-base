@@ -76,10 +76,11 @@ def test_list(topology):
                                      (nb_backend, ent.dn))
 
     log.info("Create a first backend and check list all backends")
-    topology.standalone.backends.create(None, properties={
-                                                            BACKEND_NAME: NEW_BACKEND_1,
-                                                            'suffix': NEW_SUFFIX_1,
-                                                         })
+    topology.standalone.backends.create(
+        None, properties={
+            BACKEND_NAME: NEW_BACKEND_1,
+            'suffix': NEW_SUFFIX_1,
+        })
     ents = topology.standalone.backends.list()
     for ent in ents:
         topology.standalone.log.info("List(%d): backend %s" %
@@ -87,10 +88,11 @@ def test_list(topology):
     assert len(ents) == (nb_backend + 1)
 
     log.info("Create a second backend and check list all backends")
-    topology.standalone.backends.create(None, properties={
-                                                            BACKEND_NAME: NEW_BACKEND_2,
-                                                            'suffix': NEW_SUFFIX_2,
-                                                         })
+    topology.standalone.backends.create(
+        None, properties={
+            BACKEND_NAME: NEW_BACKEND_2,
+            'suffix': NEW_SUFFIX_2,
+         })
     ents = topology.standalone.backends.list()
     for ent in ents:
         topology.standalone.log.info("List(%d): backend %s" %
