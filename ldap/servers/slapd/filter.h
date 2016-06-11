@@ -24,10 +24,14 @@ typedef int (*mrf_plugin_fn) (Slapi_PBlock*);
 #define MRF_ANY_TYPE   1
 #define MRF_ANY_VALUE  2
 
+/*
+ * To adjust the other structures in struct slapi_filter, 
+ * the first field must be type and the second must be value.
+ */
 typedef struct mr_filter_t {
-    char*         mrf_oid;
     char*         mrf_type;
     struct berval mrf_value;
+    char*         mrf_oid;
     char          mrf_dnAttrs;
     mrFilterMatchFn mrf_match;
     mrf_plugin_fn mrf_index;

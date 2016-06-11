@@ -45,32 +45,28 @@ slapi_str2filter( char *str )
 		str++;
 		switch ( *str ) {
 		case '&':
-			LDAPDebug( LDAP_DEBUG_FILTER, "slapi_str2filter: AND\n",
-			    0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, "slapi_str2filter: AND\n");
 
 			str++;
 			f = str2list( str, LDAP_FILTER_AND );
 			break;
 
 		case '|':
-			LDAPDebug( LDAP_DEBUG_FILTER, "put_filter: OR\n",
-			    0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, "put_filter: OR\n");
 
 			str++;
 			f = str2list( str, LDAP_FILTER_OR );
 			break;
 
 		case '!':
-			LDAPDebug( LDAP_DEBUG_FILTER, "put_filter: NOT\n",
-			    0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, "put_filter: NOT\n");
 
 			str++;
 			f = str2list( str, LDAP_FILTER_NOT );
 			break;
 
 		default:
-			LDAPDebug( LDAP_DEBUG_FILTER, "slapi_str2filter: simple\n",
-			    0, 0, 0 );
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, "slapi_str2filter: simple\n");
 
 			f = str2simple( str , 1 /* unescape_filter */);
 			break;
@@ -79,8 +75,7 @@ slapi_str2filter( char *str )
 		break;
 
 	default:	/* assume it's a simple type=value filter */
-		LDAPDebug( LDAP_DEBUG_FILTER, "slapi_str2filter: default\n", 0, 0,
-		    0 );
+		LDAPDebug0Args(LDAP_DEBUG_FILTER, "slapi_str2filter: default\n");
 
 		f = str2simple( str , 1 /* unescape_filter */);
 		break;
@@ -209,7 +204,102 @@ filt_unescape_str(const char *instr, char *outstr, size_t outsize, size_t* outle
     return 1; /* ok */
 }
 
-    
+/*
+ * Return value: 0 -- success
+ *             : 1 -- failure
+ */
+static int
+_parse_ext_filter(char *str, char *p0, char **type, char **oid, char *dnAttrs)
+{
+	char *p1 = NULL;
+	char *p2 = NULL;
+
+	if (!type || !oid || !dnAttrs) {
+		return 1;
+	}
+	*type = NULL;
+	*oid = NULL;
+	*dnAttrs = '\0';
+	/*
+	 * RFC 4515 examples
+	 * 1 - (cn:caseExactMatch:=Fred Flintstone)
+	 * 2 - (cn:=Betty Rubble) 
+	 * 3 - (sn:dn:2.4.6.8.10:=Barney Rubble)
+	 * 4 - (o:dn:=Ace Industry) 
+	 * 5 - (:1.2.3:=Wilma Flintstone)
+	 * 6 - (:DN:2.4.6.8.10:=Dino)
+	 */
+	p1 = strchr(p0+1, ':');
+	if (p1) {
+		p2 = strchr(p1+1, ':');
+	}
+	if (p0 == str) {
+		*type = slapi_ch_strdup(""); /* no type */
+		if (p2) {
+			/* example 6 */
+			*p1 = *p2 = '\0';
+			if (strcasecmp(p0+1, "dn") == 0) {
+				*dnAttrs = -1;
+				*oid = slapi_ch_strdup(p1+1);
+			} else {
+				goto error;
+			}
+		} else if (p1) {
+			/* example 5 */
+			*p1 = '\0';
+			if (strcasecmp(p0+1, "dn") == 0) {
+				*dnAttrs = -1;
+			} else {
+				*oid = slapi_ch_strdup(p0+1);
+			}
+		} else {
+			goto error;
+		}
+	} else if (p2) {
+		/* example 3 */
+		*p0 = *p1 = *p2 = '\0';
+		*type = slapi_ch_strdup(str);
+		if (strcasecmp(p0+1, "dn") == 0) {
+			*dnAttrs = -1;
+			*oid = slapi_ch_strdup(p1+1);
+		} else {
+			goto error;
+		}
+	} else if (p1) {
+		*p0 = *p1 = '\0';
+		*type = slapi_ch_strdup(str);
+		if (strcasecmp(p0+1, "dn") == 0) {
+			/* example 4 */
+			*dnAttrs = -1;
+		} else {
+			/* example 1 */
+			*oid = slapi_ch_strdup(p0+1);
+		}
+	} else {
+		/* example 2 */
+		*type = slapi_ch_strdup(str);
+		*p0 = '\0';
+	}
+	if (p1) {
+		*p1 = ':';
+	}
+	if (p2) {
+		*p2 = ':';
+	}
+	return 0;
+
+error:
+	slapi_ch_free_string(type);
+	slapi_ch_free_string(oid);
+	if (p1) {
+		*p1 = ':';
+	}
+	if (p2) {
+		*p2 = ':';
+	}
+	return 1;
+}
+
 /*
  *  The caller unescapes it if unescape_filter  == 0.
  */
@@ -234,6 +324,7 @@ str2simple( char *str , int unescape_filter)
 	f = (struct slapi_filter *) slapi_ch_calloc( 1, sizeof(struct slapi_filter) );
 
 	switch ( *s ) {
+	char *extp = NULL;
 	case '<':
 		f->f_choice = LDAP_FILTER_LE;
 		break;
@@ -245,7 +336,17 @@ str2simple( char *str , int unescape_filter)
 		break;
 	default:
 		LDAP_UTF8INC(s);
-		if ( str_find_star( value ) == NULL ) {
+		if ((extp = strchr(str, ':')) && (extp < value)) {
+			int rc;
+			char *endp = s; /* '=' */
+			*endp = '\0';
+			rc = _parse_ext_filter(str, extp, &f->f_mr_type, &f->f_mr_oid, &f->f_mr_dnAttrs);
+			if (rc) {
+				return NULL; /* error */
+			} else {
+				f->f_choice = LDAP_FILTER_EXTENDED;
+			}
+		} else if ( str_find_star( value ) == NULL ) {
 			f->f_choice = LDAP_FILTER_EQUALITY;
 		} else if ( strcmp( value, "*" ) == 0 ) {
 			f->f_choice = LDAP_FILTER_PRESENT;
@@ -271,21 +372,23 @@ str2simple( char *str , int unescape_filter)
 		f->f_type = slapi_ch_strdup( str );
 		*s = savechar;
 	} else if ( unescape_filter ) {
-        int r;
+		int r;
 		char *unqstr;
 		size_t len = strlen(value), len2;
 
 		/* dup attr */
 		savechar = *s;
 		*s = 0;
-		f->f_avtype = slapi_ch_strdup( str );
+		if (f->f_choice != LDAP_FILTER_EXTENDED) {
+			f->f_avtype = slapi_ch_strdup( str );
+		}
 		*s = savechar;
 
 		/* dup value */
 		savechar = value[len];
 		value[len] = 0;
 		unqstr = slapi_ch_calloc( 1, len+1);
-        	r= filt_unescape_str(value, unqstr, len, &len2, 1);
+		r = filt_unescape_str(value, unqstr, len, &len2, 1);
 		value[len] = savechar;
 		if (!r) {
 		    slapi_filter_free(f, 1);
@@ -310,7 +413,9 @@ str2simple( char *str , int unescape_filter)
 		}
 
 	} else if ( !unescape_filter ) {
-		f->f_avtype = slapi_ch_strdup( str );
+		if (f->f_choice != LDAP_FILTER_EXTENDED) {
+			f->f_avtype = slapi_ch_strdup( str );
+		}
 		f->f_avvalue.bv_val = slapi_ch_strdup ( value );
 		f->f_avvalue.bv_len = strlen ( f->f_avvalue.bv_val );
 	} 
@@ -337,12 +442,12 @@ str2subvals( char *val, struct slapi_filter *f, int unescape_filter )
 			len = strlen(val);
 			unqval = slapi_ch_malloc(len+1);
 			if (!filt_unescape_str(val, unqval, len, &outlen, 0)) {
-		    		slapi_ch_free((void **)&unqval);
-		    		return -1;
+				slapi_ch_free((void **)&unqval);
+				return -1;
 			}
-        		unqval[outlen]= '\0';
+		unqval[outlen]= '\0';
 		} else {
-			unqval = slapi_ch_strdup ( val );		
+			unqval = slapi_ch_strdup ( val );
 		}
 		if (unqval && unqval[0]) {
 		    if (gotstar == 0) {
