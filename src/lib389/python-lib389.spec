@@ -16,6 +16,9 @@ Requires: pytest
 Requires: python-ldap
 Requires: python-six
 Requires: python-nss
+Requires: python-pyasn1
+Requires: python-pyasn1-modules
+Requires: python-dateutil
 
 %{?python_provide:%python_provide python2-lib389}
 
