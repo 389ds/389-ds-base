@@ -68,6 +68,8 @@ class DSLogging(object):
         self._log = logging.getLogger(type(self).__name__)
         if verbose:
             self._log.setLevel(logging.DEBUG)
+        else:
+            self._log.setLevel(logging.INFO)
 
 
 class DSLdapObject(DSLogging):
@@ -92,7 +94,8 @@ class DSLdapObject(DSLogging):
     def __unicode__(self):
         val = self._dn
         if self._rdn_attribute:
-            val = self.get(self._rdn_attribute)
+            # What if the rdn is multi value and we don't get the primary .... ARGHHH
+            val = self.get(self._rdn_attribute)[0]
         return ensure_str(val)
 
     def __str__(self):
@@ -234,6 +237,7 @@ class DSLdapObject(DSLogging):
         self._instance.add_s(e)
         # If it worked, we need to fix our instance dn
         self._dn = dn
+        return self
 
 
 # A challenge of this, is how do we manage indexes? They have two naming attribunes....
@@ -253,19 +257,23 @@ class DSLdapObjects(DSLogging):
 
     def list(self):
         # Filter based on the objectclasses and the basedn
-        results = self._instance.search_s(
-            base=self._basedn,
-            scope=self._scope,
-            # This will yield and & filter for objectClass with as many terms as needed.
-            filterstr=_gen_and(
-                _gen_filter(_term_gen('objectclass'), self._objectclasses)
-            ),
-            attrlist=self._list_attrlist,
-        )
-        # def __init__(self, instance, dn=None, batch=False):
-        # insts = map(lambda r: self._childobject(instance=self._instance, dn=r.dn, batch=self._batch), results)
-        insts = [self._childobject(instance=self._instance, dn=r.dn, batch=self._batch) for r in results]
-        print(insts)
+        insts = None
+        try:
+            results = self._instance.search_s(
+                base=self._basedn,
+                scope=self._scope,
+                # This will yield and & filter for objectClass with as many terms as needed.
+                filterstr=_gen_and(
+                    _gen_filter(_term_gen('objectclass'), self._objectclasses)
+                ),
+                attrlist=self._list_attrlist,
+            )
+            # def __init__(self, instance, dn=None, batch=False):
+            # insts = map(lambda r: self._childobject(instance=self._instance, dn=r.dn, batch=self._batch), results)
+            insts = [self._childobject(instance=self._instance, dn=r.dn, batch=self._batch) for r in results]
+        except ldap.NO_SUCH_OBJECT:
+            # There are no objects to select from, se we return an empty array
+            insts = []
         return insts
 
     def get(self, selector=[], dn=None):
@@ -322,12 +330,15 @@ class DSLdapObjects(DSLogging):
         # Get the rdn out of the properties if it's unset???
         if rdn is None and self._rdn_attribute in properties:
             # First see if we can get it from the properties.
-            trdn = str_properties.get(self._rdn_attribute)
-            if type(trdn) != list:
-                raise ldap.UNWILLING_TO_PERFORM("rdn %s from properties is not in a list" % self._rdn_attribute)
-            if len(trdn) != 1:
+            trdn = properties.get(self._rdn_attribute)
+            if type(trdn) == str:
+                rdn = trdn
+            elif type(trdn) == list and len(trdn) != 1:
                 raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties. Too many choices" % (self._rdn_attribute))
-            rdn = trdn[0]
+            elif type(trdn) == list:
+                rdn = trdn[0]
+            else:
+                raise ldap.UNWILLING_TO_PERFORM("Cannot determine rdn %s from properties, Invalid type" % type(trdn))
 
         return (rdn, properties)
 

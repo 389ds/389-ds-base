@@ -19,6 +19,7 @@ from lib389._constants import *
 #
 SER_HOST = 'hostname'
 SER_PORT = 'ldap-port'
+SER_LDAP_URL = 'ldapurl'
 SER_SECURE_PORT = 'ldap-secureport'
 SER_ROOT_DN = 'root-dn'
 SER_ROOT_PW = 'root-pw'

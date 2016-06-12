@@ -392,7 +392,12 @@ class DirSrv(SimpleLDAPObject):
 
         self.state = DIRSRV_STATE_INIT
         self.verbose = verbose
+        if self.verbose:
+            log.setLevel(logging.DEBUG)
+        else:
+            log.setLevel(logging.INFO)
         self.log = log
+
         self.timeout = timeout
         self.confdir = None
 
@@ -457,22 +462,31 @@ class DirSrv(SimpleLDAPObject):
                              self.state)
 
         if SER_SERVERID_PROP not in args:
-            self.log.info('SER_SERVERID_PROP not provided')
+            self.log.debug('SER_SERVERID_PROP not provided')
+            # The lack of this value basically rules it out in most cases
+            self.isLocal = False
 
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
         self.ldapi_enabled = args.get(SER_LDAPI_ENABLED, 'off')
         self.ldapi_socket = args.get(SER_LDAPI_SOCKET, None)
+        self.host = None
+        self.ldapuri = None
+        self.sslport = None
+        self.port = None
         # Or do we have tcp / ip settings?
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
             self.isLocal = True
             if self.verbose:
                 self.log.info("Allocate %s with %s" % (self.__class__, self.ldapi_socket))
+        elif args.get(SER_LDAP_URL, None) is not None:
+            self.ldapuri = args.get(SER_LDAP_URL)
+            if self.verbose:
+                self.log.info("Allocate %s with %s" % (self.__class__, self.ldapuri))
         else:
             # Settings from args of server attributes
             self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
-            self.host = None
             if self.strict_hostname is True:
                 self.host = args.get(SER_HOST, LOCALHOST)
                 if self.host == LOCALHOST:
@@ -486,10 +500,8 @@ class DirSrv(SimpleLDAPObject):
             self.sslport = args.get(SER_SECURE_PORT)
             self.isLocal = isLocalHost(self.host)
             if self.verbose:
-                self.log.info("Allocate %s with %s:%s" % (self.__class__,
-                                                          self.host,
-                                                          (self.sslport or
-                                                           self.port)))
+                self.log.info("Allocate %s with %s:%s" % (self.__class__, self.host, (self.sslport or self.port)))
+
         self.binddn = args.get(SER_ROOT_DN, DN_DM)
         self.bindpw = args.get(SER_ROOT_PW, PW_DM)
         self.creation_suffix = args.get(SER_CREATION_SUFFIX, DEFAULT_SUFFIX)
@@ -957,7 +969,7 @@ class DirSrv(SimpleLDAPObject):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, saslmethod=None, certdir=None):
+    def open(self, saslmethod=None, certdir=None, starttls=False):
         '''
             It opens a ldap bound connection to dirsrv so that online
             administrative tasks are possible.  It binds with the binddn
@@ -986,8 +998,10 @@ class DirSrv(SimpleLDAPObject):
             """
             We have a certificate directory, so lets start up TLS negotiations
             """
+            self.set_option(ldap.OPT_X_TLS_CACERTFILE, certdir)
+
+        if certdir or starttls:
             try:
-                self.set_option(ldap.OPT_X_TLS_CACERTFILE, certdir)
                 self.start_tls_s()
             except ldap.LDAPError as e:
                 log.fatal('TLS negotiation failed: %s' % str(e))
@@ -1039,7 +1053,7 @@ class DirSrv(SimpleLDAPObject):
         Authenticated, now finish the initialization
         """
         if self.verbose:
-            log.info("open(): bound as %s" % self.whoami_s())
+            log.info("open(): bound as %s" % self.binddn)
         self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
 
@@ -1397,6 +1411,8 @@ class DirSrv(SimpleLDAPObject):
         host = self.host
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
+        elif self.ldapuri:
+            return self.ldapuri
         elif self.sslport:
             return "ldaps://%s:%d/" % (ensure_str(host), self.sslport)
         else:
