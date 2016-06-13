@@ -15,7 +15,6 @@ BuildRequires: python-setuptools
 Requires: pytest
 Requires: python-ldap
 Requires: python-six
-Requires: python-nss
 Requires: python-pyasn1
 Requires: python-pyasn1-modules
 Requires: python-dateutil

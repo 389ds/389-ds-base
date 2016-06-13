@@ -44,7 +44,8 @@ def password_hash(pw, scheme=BESTSCHEME, prefix='/'):
 def password_generate(length=64):
     pw = None
     if MAJOR >= 3:
-        pw = [random.choice(string.ascii_letters) for x in range(length)]
+        pw = [random.choice(string.ascii_letters) for x in range(length - 1)]
     else:
-        pw = [random.choice(string.letters) for x in xrange(length)]
+        pw = [random.choice(string.letters) for x in xrange(length - 1)]
+    pw.append('%s' % random.randint(0, 9))
     return "".join(pw)

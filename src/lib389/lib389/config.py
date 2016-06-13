@@ -146,7 +146,7 @@ class Config(DSLdapObject):
              'nsslapd-secureport',
              str(secport))
         ]
-        self.log.debug("trying to modify %r with %r" % (DN_CONFIG, mod))
+        self._log.debug("trying to modify %r with %r" % (DN_CONFIG, mod))
         self._instance.modify_s(DN_CONFIG, mod)
 
         fields = 'nsslapd-security nsslapd-ssl-check-hostname'.split()

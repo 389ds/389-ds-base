@@ -13,9 +13,9 @@ import os
 import sys
 import random
 import string
-from nss import nss
-from nss import error as nss_error
-from subprocess import check_call
+import re
+# from nss import nss
+from subprocess import check_call, check_output
 from lib389.passwd import password_generate
 
 KEYBITS = 4096
@@ -27,13 +27,6 @@ ISSUER = 'CN=ca.unknown.example.com,O=testing,L=unknown,ST=Queensland,C=AU'
 SELF_ISSUER = 'CN={HOSTNAME},O=testing,L=unknown,ST=Queensland,C=AU'
 VALID = 2
 
-dbpassword = None
-
-
-def nss_ssl_pw_cb(slot, retry, optional=[]):
-    global dbpassword
-    return dbpassword
-
 
 class NssSsl(object):
     def __init__(self, dirsrv, dbpassword=None):
@@ -44,47 +37,29 @@ class NssSsl(object):
         else:
             self.dbpassword = dbpassword
 
+    @property
+    def _certdb(self):
+        # return "sql:%s" % self.dirsrv.confdir
+        return self.dirsrv.confdir
+
     def _generate_noise(self, fpath):
         noise = password_generate(256)
         with open(fpath, 'w') as f:
             f.write(noise)
 
-    def open(self):
-        """
-        Opens the certdb.
-        """
-        global dbpassword
-        # Read in the password
-        # How! Do I make the password CB work here?
-        if os.path.exists('%s/%s' % (self.dirsrv.confdir, PWD_TXT)):
-            with open('%s/%s' % (self.dirsrv.confdir, PWD_TXT), 'r') as f:
-                self.dbpassword = f.readline()
-            # This is to make the password CB work.
-            dbpassword = self.dbpassword
-        else:
-            Exception('No pwdfile.txt!')
-
-        if not nss.nss_is_initialized():
-            nss.nss_init(self.dirsrv.confdir)
-        nss.set_password_callback(nss_ssl_pw_cb)
-
-    # How do we automatically close it? Decorator?
-
-    def close(self):
-        """
-        Close the db, and returns IF it was opened (IE we had to close it)
-        """
-        r = nss.nss_is_initialized()
-        if r:
-            # This is impossible to clean out to make shutdown work ...
-            self.log.info(nss.dump_certificate_cache_info())
-            # nss.nss_shutdown()
-        return r
 
     def reinit(self):
         """
         Re-init (create) the nss db.
         """
+        # 48886: The DB that DS ships with is .... well, broken. Purge it!
+        for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
+            try:
+                # Perhaps we should be backing these up instead ...
+                os.remove("%s/%s" % (self.dirsrv.confdir, f ))
+            except:
+                pass
+
         # In the future we may add the needed option to avoid writing the pin
         # files.
         # Write the pin.txt, and the pwdfile.txt
@@ -94,29 +69,34 @@ class NssSsl(object):
         if not os.path.exists('%s/%s' % (self.dirsrv.confdir, PWD_TXT)):
             with open('%s/%s' % (self.dirsrv.confdir, PWD_TXT), 'w') as f:
                 f.write('%s' % self.dbpassword)
+
         # Init the db.
-        cmd = ['/usr/bin/certutil', '-N', '-d', self.dirsrv.confdir, '-f', '%s/%s' % (self.dirsrv.confdir, PWD_TXT)]
-        result = check_call(cmd)
-        if result != 0:
-            return False
-        else:
-            return True
+        # 48886; This needs to be sql format ...
+        cmd = ['/usr/bin/certutil', '-N', '-d', self._certdb, '-f', '%s/%s' % (self.dirsrv.confdir, PWD_TXT)]
+        self.dirsrv.log.debug("nss cmd: %s" % cmd)
+        result = check_output(cmd)
+        self.dirsrv.log.debug("nss output: %s" % result)
+        return True
 
     def _db_exists(self):
         """
         Check that a nss db exists at the certpath
         """
-        try:
-            self.open()
-        except nss_error.NSPRError:
-            return False
-        return self.close()
+        key3 = os.path.exists("%s/key3.db" % (self.dirsrv.confdir))
+        cert8 = os.path.exists("%s/cert8.db" % (self.dirsrv.confdir))
+        key4 = os.path.exists("%s/key4.db" % (self.dirsrv.confdir))
+        cert9 = os.path.exists("%s/cert9.db" % (self.dirsrv.confdir))
+        secmod = os.path.exists("%s/secmod.db" % (self.dirsrv.confdir))
+        pkcs11 = os.path.exists("%s/pkcs11.txt" % (self.dirsrv.confdir))
+
+        if ((key3 and cert8 and secmod) or (key4 and cert9 and pkcs11)):
+            return True
+        return False
 
     def create_rsa_ca(self):
         """
         Create a self signed CA.
         """
-        self.open()
 
         # Create noise.
         self._generate_noise('%s/noise.txt' % self.dirsrv.confdir)
@@ -136,59 +116,89 @@ class NssSsl(object):
             '-v',
             '%s' % VALID,
             '-d',
-            self.dirsrv.confdir,
+            self._certdb,
             '-z',
             '%s/noise.txt' % self.dirsrv.confdir,
             '-f',
             '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
         ]
 
-        result = check_call(cmd)
+        result = check_output(cmd)
+        self.dirsrv.log.debug("nss output: %s" % result)
+        return True
 
-        self.close()
+    def _rsa_cert_list(self):
+        cmd = [
+            '/usr/bin/certutil',
+            '-L',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
+        ]
+        result = check_output(cmd)
 
-        if result != 0:
-            return False
-        else:
-            return True
+        # We can skip the first few lines. They are junk
+        # IE ['', 
+        #     'Certificate Nickname                                         Trust Attributes', 
+        #     '                                                             SSL,S/MIME,JAR/XPI', 
+        #     '', 
+        #     'Self-Signed-CA                                               CTu,u,u', 
+        #     '']
+        lines = result.split('\n')[4:-1]
+        # Now make the lines usable
+        cert_values = []
+        for line in lines:
+            data = line.split()
+            cert_values.append((data[0], data[1]))
+        return cert_values
+
+    def _rsa_cert_key_exists(self, cert_tuple):
+        name = cert_tuple[0]
+        cmd = [
+            '/usr/bin/certutil',
+            '-K',
+            '-d',
+            self._certdb,
+            '-f',
+            '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
+        ]
+        result = check_output(cmd)
+
+        lines = result.split('\n')[1:-1]
+        key_list = []
+        for line in lines:
+            m = re.match('\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
+            if name == m.group('name'):
+                return True
+        return False
+
+    def _rsa_cert_is_catrust(self, cert_tuple):
+        trust_flags = cert_tuple[1]
+        (ssl_flag, mime_flag, jar_flag) = trust_flags.split(',')
+        return 'C' in ssl_flag
 
     def _rsa_ca_exists(self):
         """
         Detect if a self-signed ca exists
         """
-        self.open()
         have_ca = False
-        ca_certs = nss.list_certs(nss.PK11CertListCA)
-        # I'll let the bad password exception go up here.
-        for ca_cert in ca_certs:
-            pk = nss.find_key_by_any_cert(ca_cert)
-            if pk is not None:
-                # STILL NEED TO CHECK the nickname.
+        cert_list = self._rsa_cert_list()
+        for cert in cert_list:
+            if self._rsa_cert_key_exists(cert) and self._rsa_cert_is_catrust(cert):
                 have_ca = True
-                del(pk)
-            del(ca_cert)
-        self.close()
         return have_ca
 
     def _rsa_key_and_cert_exists(self):
         """
         Check if a valid server key and cert pain exist.
         """
-        self.open()
         have_cert = False
-        # I'll let the bad password exception go up here.
-        try:
-            cert = nss.find_cert_from_nickname(CERT_NAME)
-            pk = nss.find_key_by_any_cert(cert)
-            if pk is not None:
-                # STILL NEED TO CHECK THE NICKNAME
+        cert_list = self._rsa_cert_list()
+        for cert in cert_list:
+            # This could do a better check for !ca, and server attrs
+            if self._rsa_cert_key_exists(cert) and not self._rsa_cert_is_catrust(cert):
                 have_cert = True
-                del(pk)
-            del(cert)
-        except:
-            # Means no cert. Need to expand this to work with no password either.
-            pass
-        self.close()
         return have_cert
 
     def create_rsa_key_and_cert(self, alt_names=[]):
@@ -198,7 +208,6 @@ class NssSsl(object):
         This will use the hostname from the DS instance, and takes a list of
         extra names to take.
         """
-        self.open()
 
         # Create noise.
         self._generate_noise('%s/noise.txt' % self.dirsrv.confdir)
@@ -219,18 +228,13 @@ class NssSsl(object):
             '-v',
             '%s' % VALID,
             '-d',
-            self.dirsrv.confdir,
+            self._certdb,
             '-z',
             '%s/noise.txt' % self.dirsrv.confdir,
             '-f',
             '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
         ]
 
-        result = check_call(cmd)
-
-        self.close()
-
-        if result != 0:
-            return False
-        else:
-            return True
+        result = check_output(cmd)
+        self.dirsrv.log.debug("nss output: %s" % result)
+        return True
