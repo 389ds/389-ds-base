@@ -1796,10 +1796,12 @@ config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorb
 
     retVal = config_set_onoff ( attrname, value, &(slapdFrontendConfig->logging_hr_timestamps),
                                 errorbuf, apply);
-    if(strcasecmp(value,"on") == 0){
-        log_enable_hr_timestamps();
-    } else {
-        log_disable_hr_timestamps();
+    if (apply && retVal == LDAP_SUCCESS) {
+        if(strcasecmp(value,"on") == 0){
+            log_enable_hr_timestamps();
+        } else {
+            log_disable_hr_timestamps();
+        }
     }
     return retVal;
 }
