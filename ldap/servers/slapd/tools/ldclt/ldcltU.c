@@ -134,7 +134,7 @@ void usage ()
   (void) printf ("\n");
   (void) printf ("	The valid options are:\n");
   (void) printf ("	 -a  Asynchronous mode, with max pending operations.\n");
-  (void) printf ("	 -b  Give the base DN to use. Default \"o=sun,c=us\".\n");
+  (void) printf ("	 -b  Give the base DN to use. Default \"dc=example,dc=com\".\n");
   (void) printf ("	 -D  Bind DN. See -w\n");
   (void) printf ("	 -E  Max errors allowed.                   Default 1000.\n");
   (void) printf ("	 -e  Execution parameters:\n");
