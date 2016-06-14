@@ -184,14 +184,16 @@ class RSA(DSLdapObject):
         # Once we create it, don't remove it
         self._protected = True
 
-    def _validate(self, tdn, properties):
-        (dn, valid_props) = super(RSA, self)._validate(tdn, properties)
+    def _validate(self, rdn, properties, basedn):
+        (dn, valid_props) = super(RSA, self)._validate(rdn, properties, basedn)
         # Ensure that dn matches self._dn
         assert(self._dn == dn)
         return (dn, valid_props)
 
-    def create(self, dn=None, properties={'cn': 'RSA'}):
+    def create(self, rdn=None, properties={'cn': 'RSA'}):
         # Is this the best way to for the dn?
-        if dn is not None:
+        if rdn is not None:
             self._log.debug("dn on cn=Rsa create request is not None. This is a mistake.")
-        super(RSA, self).create(dn=self._dn, properties=properties)
+        # Our self._dn is already set, no need for rdn.
+        super(RSA, self).create(properties=properties)
+

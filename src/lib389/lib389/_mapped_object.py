@@ -184,8 +184,6 @@ class DSLdapObject(DSLogging):
         It has the useful trick of returning the dn, so subtypes
         can use extra properties to create the dn's here for this.
         """
-        if basedn is None:
-            raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. basedn cannot be None')
         if properties is None:
             raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. Properties cannot be None')
         if type(properties) != dict:
@@ -196,18 +194,28 @@ class DSLdapObject(DSLogging):
         for attr in self._must_attributes:
             if properties.get(attr, None) is None:
                 raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
+
         # Make sure the naming attribute is present
         if properties.get(self._rdn_attribute, None) is None and rdn is None:
             raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None or rdn provided' % self._rdn_attribute)
-        elif properties.get(self._rdn_attribute, None) is not None:
-            # Favour the value in the properties dictionary
-            v = properties.get(self._rdn_attribute)
-            if isinstance(v, list):
-                rdn = ensure_str(v[0])
-            else:
-                rdn = ensure_str(v)
+        
+        # This change here, means we can pre-load a full dn to _dn, or we can
+        # accept based on the rdn
+        tdn = self._dn
 
-        tdn = '%s=%s,%s' % (self._rdn_attribute, rdn, basedn)
+        if tdn is None:
+            if basedn is None:
+                raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. basedn cannot be None')
+
+            if properties.get(self._rdn_attribute, None) is not None:
+                # Favour the value in the properties dictionary
+                v = properties.get(self._rdn_attribute)
+                if isinstance(v, list):
+                    rdn = ensure_str(v[0])
+                else:
+                    rdn = ensure_str(v)
+
+                tdn = '%s=%s,%s' % (self._rdn_attribute, rdn, basedn)
 
         # We may need to map over the data in the properties dict to satisfy python-ldap
         str_props = {}
@@ -221,7 +229,7 @@ class DSLdapObject(DSLogging):
         # Do we need to do extra dn validation here?
         return (tdn, str_props)
 
-    def create(self, rdn, properties=None, basedn=None):
+    def create(self, rdn=None, properties=None, basedn=None):
         assert(len(self._create_objectclasses) > 0)
         self._log.debug('Creating %s %s : %s' % (rdn, basedn, properties))
         # Add the objectClasses to the properties
