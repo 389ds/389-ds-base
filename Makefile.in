@@ -2171,6 +2171,7 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man1/pwdhash.1 \
         man/man1/repl-monitor.1 \
         man/man1/rsearch.1 \
+        man/man1/readnsstate.1 \
         man/man8/migrate-ds.pl.8 \
         man/man8/ns-slapd.8 \
         man/man8/restart-dirsrv.8 \
