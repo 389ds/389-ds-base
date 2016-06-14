@@ -209,4 +209,3 @@ error_opening_file = Opening file '%s' failed.  Error: %s\n
 error_format_error = '%s' has invalid format.\n
 error_update_not_offline = Error: offline mode selected but the server [%s] is still running.\n
 error_update_all = Failed to update all the Directory Server instances.\n
-error_reindexing = Failed to reindex '%s' in backend '%s'.  Error: %s\n

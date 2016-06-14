@@ -3429,8 +3429,8 @@ slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, Slapi_D
 
     /* We remove the parentid and entrydn since the backend will change these.
      * We don't want to give the caller an inconsistent entry. */
-    slapi_entry_attr_delete(e, SLAPI_ATTR_PARENTID);
-    slapi_entry_attr_delete(e, SLAPI_ATTR_ENTRYDN);
+    slapi_entry_attr_delete(e, "parentid");
+    slapi_entry_attr_delete(e, "entrydn");
 
     /* Build new DN.  If newsuperior is set, just use "newrdn,newsuperior".  If
      * newsuperior is not set, need to add newrdn to old superior. */

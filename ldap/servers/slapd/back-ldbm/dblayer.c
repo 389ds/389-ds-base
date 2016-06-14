@@ -7315,11 +7315,6 @@ ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info)
         }
         break;
     }
-    case BACK_INFO_IS_ENTRYRDN:
-    {
-        *(int *)info = entryrdn_get_switch();
-        break;
-    }
     default:
         break;
     }

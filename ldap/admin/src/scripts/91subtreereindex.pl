@@ -51,18 +51,14 @@ sub runinst {
                 if ($_ =~ /rdn-format-1/) {
                     $is_rdn_format = 2;
                 }
-                elsif ($_ =~ /rdn-format-2/) {
+                if ($_ =~ /rdn-format-2/) {
                     $is_rdn_format = 3;
-                }
-                elsif ($_ =~ /rdn-format-/) {
-                    # assume greater than -2
-                    $is_rdn_format = 4;
                 }
             }
         }
         close DBVERSION;
 
-        if (3 <= $is_rdn_format) {
+        if (3 == $is_rdn_format) {
             return (); # DB already has the new rdn format.
         }
 
