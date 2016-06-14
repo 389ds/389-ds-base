@@ -927,7 +927,6 @@ objectclass: nsIndex
 cn: parentid
 nssystemindex: true
 nsindextype: eq
-nsmatchingrule: integerOrderingMatch
 
 dn: cn=seeAlso,cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config
 objectclass: top

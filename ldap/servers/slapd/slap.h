@@ -529,16 +529,12 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc,
 /* OIDs for some commonly used matching rules */
 #define DNMATCH_OID				"2.5.13.1"	/* distinguishedNameMatch */
 #define CASEIGNOREMATCH_OID		"2.5.13.2"	/* caseIgnoreMatch */
-#define INTEGERMATCH_OID		"2.5.13.14"	/* integerMatch */
-#define INTEGERORDERINGMATCH_OID		"2.5.13.15"	/* integerOrderingMatch */
 #define INTFIRSTCOMPMATCH_OID	"2.5.13.29"	/* integerFirstComponentMatch */
 #define OIDFIRSTCOMPMATCH_OID	"2.5.13.30"	/* objectIdentifierFirstComponentMatch */
 
 /* Names for some commonly used matching rules */
 #define DNMATCH_NAME			"distinguishedNameMatch"
 #define CASEIGNOREMATCH_NAME	"caseIgnoreMatch"
-#define INTEGERMATCH_NAME		"integerMatch"
-#define INTEGERORDERINGMATCH_NAME		"integerOrderingMatch"
 #define INTFIRSTCOMPMATCH_NAME	"integerFirstComponentMatch"
 #define OIDFIRSTCOMPMATCH_NAME	"objectIdentifierFirstComponentMatch"
 

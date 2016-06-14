@@ -589,8 +589,7 @@ update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
 	ldap/admin/src/scripts/50AES-pbe-plugin.ldif\
 	ldap/admin/src/scripts/50updateconfig.ldif \
 	ldap/admin/src/scripts/52updateAESplugin.pl \
-	ldap/admin/src/scripts/dnaplugindepends.ldif \
-	ldap/admin/src/scripts/91reindex.pl
+	ldap/admin/src/scripts/dnaplugindepends.ldif
 
 update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
 

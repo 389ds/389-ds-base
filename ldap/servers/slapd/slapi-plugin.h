@@ -483,7 +483,6 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_ENTRYDN 			"entrydn"
 #define SLAPI_ATTR_DN 				"dn"
 #define SLAPI_ATTR_RDN 				"rdn"
-#define SLAPI_ATTR_PARENTID			"parentid"
 #define SLAPI_ATTR_UNIQUEID_LENGTH		10
 #define SLAPI_ATTR_OBJECTCLASS_LENGTH		11
 #define SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH	11
@@ -495,7 +494,6 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #define SLAPI_ATTR_ENTRYDN_LENGTH 		7
 #define SLAPI_ATTR_DN_LENGTH 			2
 #define SLAPI_ATTR_RDN_LENGTH 			3
-#define SLAPI_ATTR_PARENTID_LENGTH 		8
 
 /* plugin shared config area */
 #define SLAPI_PLUGIN_SHARED_CONFIG_AREA "nsslapd-pluginConfigArea"
@@ -6977,9 +6975,6 @@ typedef struct slapi_plugindesc {
 #define SLAPI_OP_GREATER_OR_EQUAL			4
 #define SLAPI_OP_GREATER				5
 #define SLAPI_OP_SUBSTRING				6
-#define SLAPI_OP_RANGE					0xff
-#define SLAPI_OP_RANGE_NO_IDL_SORT		0x100
-#define SLAPI_OP_RANGE_NO_ALLIDS		0x200
 
 /* Defined values of SLAPI_PLUGIN_MR_USAGE: */
 #define SLAPI_PLUGIN_MR_USAGE_INDEX		0
@@ -7557,8 +7552,7 @@ enum
     BACK_INFO_CRYPT_ENCRYPT_VALUE, /* Ctrl: clcrypt_encrypt_value */
     BACK_INFO_CRYPT_DECRYPT_VALUE, /* Ctrl: clcrypt_decrypt_value */
     BACK_INFO_DIRECTORY,           /* Get the directory path */
-    BACK_INFO_LOG_DIRECTORY,       /* Get the txn log directory */
-    BACK_INFO_IS_ENTRYRDN          /* Get the flag for entryrdn */
+    BACK_INFO_LOG_DIRECTORY        /* Get the txn log directory */
 };
 
 struct _back_info_crypt_init {

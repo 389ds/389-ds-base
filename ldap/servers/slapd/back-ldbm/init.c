@@ -36,7 +36,7 @@ ldbm_back_add_schema( Slapi_PBlock *pb )
 			SLAPI_ATTR_FLAG_NOUSERMOD );
 
 	rc |= slapi_add_internal_attr_syntax( LDBM_PARENTID_STR,
-			LDBM_PARENTID_OID, INTEGER_SYNTAX_OID, INTEGERMATCH_NAME,
+			LDBM_PARENTID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
 			SLAPI_ATTR_FLAG_SINGLE|SLAPI_ATTR_FLAG_NOUSERMOD );
 
 	rc |= slapi_add_internal_attr_syntax( "entryid",
