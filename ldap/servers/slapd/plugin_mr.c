@@ -655,22 +655,22 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 {
 	int rc = -1;
 	struct slapdplugin *pi = NULL;
-        char* oid = NULL;
-	
+	char* oid = NULL;
+
 	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
-        slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &oid);
-        /* this default_mr_indexer_create can be common indexer create to several
-         * MR plugin. We need to check the selected plugin handle the expected OID
-         */
-        if ( oid == NULL || !charray_inlist(pi->plg_mr_names, oid)) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY, "default_mr_indexer_create: warning - plugin [%s] does not handle %s\n",
-                    pi->plg_name,
-                    oid ? oid : "unknown oid");
-            goto done;
-        }
 	if (NULL == pi) {
 		LDAPDebug0Args(LDAP_DEBUG_ANY, "default_mr_indexer_create: error - no plugin specified\n");
 		goto done;
+	}
+	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &oid);
+	/* this default_mr_indexer_create can be common indexer create to several
+	 * MR plugin. We need to check the selected plugin handle the expected OID
+	 */
+	if ( oid == NULL || !charray_inlist(pi->plg_mr_names, oid)) {
+	    LDAPDebug2Args(LDAP_DEBUG_ANY, "default_mr_indexer_create: warning - plugin [%s] does not handle %s\n",
+		    pi->plg_name,
+		    oid ? oid : "unknown oid");
+	    goto done;
 	}
 
 	if (NULL == pi->plg_mr_values2keys) {
