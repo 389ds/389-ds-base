@@ -116,7 +116,7 @@ void
 slapi_ldap_unbind( LDAP *ld )
 {
     if ( ld != NULL ) {
-	ldap_unbind_ext( ld, NULL, NULL );
+        ldap_unbind_ext( ld, NULL, NULL );
     }
 }
 
@@ -206,46 +206,46 @@ slapi_urlparse_err2string( int err )
 
     switch( err ) {
     case 0:
-	s = "no error";
-	break;
+        s = "no error";
+        break;
     case LDAP_URL_ERR_BADSCOPE:
-	s = "invalid search scope";
-	break;
+        s = "invalid search scope";
+        break;
     case LDAP_URL_ERR_MEM:
-	s = "unable to allocate memory";
-	break;
+        s = "unable to allocate memory";
+        break;
     case LDAP_URL_ERR_PARAM:
-	s = "bad parameter to an LDAP URL function";
-	break;
+        s = "bad parameter to an LDAP URL function";
+        break;
 #if defined(USE_OPENLDAP)
     case LDAP_URL_ERR_BADSCHEME:
-	s = "does not begin with ldap://, ldaps://, or ldapi://";
-	break;
+        s = "does not begin with ldap://, ldaps://, or ldapi://";
+        break;
     case LDAP_URL_ERR_BADENCLOSURE:
-	s = "missing trailing '>' in enclosure";
-	break;
+        s = "missing trailing '>' in enclosure";
+        break;
     case LDAP_URL_ERR_BADURL:
-	s = "not a valid LDAP URL";
-	break;
+        s = "not a valid LDAP URL";
+        break;
     case LDAP_URL_ERR_BADHOST:
-	s = "hostname part of url is not valid or not given";
-	break;
+        s = "hostname part of url is not valid or not given";
+        break;
     case LDAP_URL_ERR_BADATTRS:
-	s = "attribute list not formatted correctly or missing";
-	break;
+        s = "attribute list not formatted correctly or missing";
+        break;
     case LDAP_URL_ERR_BADFILTER:
-	s = "search filter not correct";
-	break;
+        s = "search filter not correct";
+        break;
     case LDAP_URL_ERR_BADEXTS:
-	s = "extensions not specified correctly";
-	break;
+        s = "extensions not specified correctly";
+        break;
 #else /* !USE_OPENLDAP */
     case LDAP_URL_ERR_NOTLDAP:
-	s = "missing ldap:// or ldaps:// or ldapi://";
-	break;
+        s = "missing ldap:// or ldaps:// or ldapi://";
+        break;
     case LDAP_URL_ERR_NODN:
-	s = "missing suffix";
-	break;
+        s = "missing suffix";
+        break;
 #endif
     }
 
@@ -498,33 +498,33 @@ slapi_ldap_create_proxyauth_control (
        so we just hard code it here */
     beropts = LBER_USE_DER; /* openldap seems to use DER by default */
     if (ctrlp == NULL) {
-	return LDAP_PARAM_ERROR;
+        return LDAP_PARAM_ERROR;
     }
     if (NULL == dn) {
-	dn = "";
+        dn = "";
     }
 
     if (NULL == (ber = ber_alloc_t(beropts))) {
-	return LDAP_NO_MEMORY;
+        return LDAP_NO_MEMORY;
     }
 
     if (usev2) {
-	berfmtstr = "s";
-	ctrloid = LDAP_CONTROL_PROXIEDAUTH;
+        berfmtstr = "s";
+        ctrloid = LDAP_CONTROL_PROXIEDAUTH;
     } else {
-	berfmtstr = "{s}";
-	ctrloid = LDAP_CONTROL_PROXYAUTH;
+        berfmtstr = "{s}";
+        ctrloid = LDAP_CONTROL_PROXYAUTH;
     }
 
     if (LBER_ERROR == ber_printf(ber, berfmtstr, dn)) {
-	ber_free(ber, 1);
-	return LDAP_ENCODING_ERROR;
+        ber_free(ber, 1);
+        return LDAP_ENCODING_ERROR;
     }
 
     if (LBER_ERROR == ber_flatten(ber, &bv)) {
         ber_bvfree(bv);
         ber_free(ber, 1);
-	return LDAP_ENCODING_ERROR;
+        return LDAP_ENCODING_ERROR;
     }
 	
     if (NULL == bv) {
@@ -1057,17 +1057,17 @@ slapi_ldap_bind(
         secure = SLAPI_LDAP_INIT_FLAG_startTLS;
     } else {
 #if defined(USE_OPENLDAP)
-	/* openldap doesn't have a SSL/TLS yes/no flag - so grab the
-	   ldapurl, parse it, and see if it is a secure one */
-	char *ldapurl = NULL;
+        /* openldap doesn't have a SSL/TLS yes/no flag - so grab the
+           ldapurl, parse it, and see if it is a secure one */
+        char *ldapurl = NULL;
 
-	ldap_get_option(ld, LDAP_OPT_URI, &ldapurl);
-	if (ldapurl && !PL_strncasecmp(ldapurl, "ldaps", 5)) {
-	    secure = SLAPI_LDAP_INIT_FLAG_SSL;
-	}
-	slapi_ch_free_string(&ldapurl);
+        ldap_get_option(ld, LDAP_OPT_URI, &ldapurl);
+        if (ldapurl && !PL_strncasecmp(ldapurl, "ldaps", 5)) {
+            secure = SLAPI_LDAP_INIT_FLAG_SSL;
+        }
+        slapi_ch_free_string(&ldapurl);
 #else /* !USE_OPENLDAP */
-	ldap_get_option(ld, LDAP_OPT_SSL, &secure);
+        ldap_get_option(ld, LDAP_OPT_SSL, &secure);
 #endif
     }
     ldap_controls_free(clientctrls);
@@ -1075,24 +1075,28 @@ slapi_ldap_bind(
 
     if ((secure > 0) && mech && !strcmp(mech, LDAP_SASL_EXTERNAL)) {
 #if defined(USE_OPENLDAP)
-	/* we already set up a tls context in slapi_ldap_init_ext() - this will
-	   free those old settings and context and create a new one */
-	rc = setup_ol_tls_conn(ld, 1);
+        /*
+         * we already set up a tls context in slapi_ldap_init_ext() - this will
+         * free those old settings and context and create a new one
+         */
+        rc = setup_ol_tls_conn(ld, 1);
 #else
-	/* SSL connections will use the server's security context
-	   and cert for client auth */
-	rc = slapd_SSL_client_auth(ld);
+        /*
+         * SSL connections will use the server's security context
+         * and cert for client auth
+         */
+        rc = slapd_SSL_client_auth(ld);
 #endif
-	if (rc != 0) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-			    "Error: could not configure the server for cert "
-			    "auth - error %d - make sure the server is "
-			    "correctly configured for SSL/TLS\n", rc);
-	    goto done;
-	} else {
-	    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
-			    "Set up conn to use client auth\n");
-	}
+        if (rc != 0) {
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                    "Error: could not configure the server for cert "
+                    "auth - error %d - make sure the server is "
+                    "correctly configured for SSL/TLS\n", rc);
+            goto done;
+        } else {
+            slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
+                "Set up conn to use client auth\n");
+        }
         bvcreds.bv_val = NULL; /* ignore username and passed in creds */
         bvcreds.bv_len = 0; /* for external auth */
         bindid = NULL;
@@ -1102,72 +1106,72 @@ slapi_ldap_bind(
     }
 
     if (secure == SLAPI_LDAP_INIT_FLAG_startTLS) { /* send start tls */
-	rc = ldap_start_tls_s(ld, NULL /* serverctrls?? */, NULL);
-	if (LDAP_SUCCESS != rc) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-			    "Error: could not send startTLS request: "
-			    "error %d (%s) errno %d (%s)\n",
-			    rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
-	    goto done;
-	}
-	slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
-			"startTLS started on connection\n");
+        rc = ldap_start_tls_s(ld, NULL /* serverctrls?? */, NULL);
+        if (LDAP_SUCCESS != rc) {
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                    "Error: could not send startTLS request: "
+                    "error %d (%s) errno %d (%s)\n",
+                    rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+            goto done;
+        }
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
+                "startTLS started on connection\n");
     }
 
     /* The connection has been set up - now do the actual bind, depending on
        the mechanism and arguments */
     if (!mech || (mech == LDAP_SASL_SIMPLE) ||
-	!strcmp(mech, LDAP_SASL_EXTERNAL)) {
-	int mymsgid = 0;
+        !strcmp(mech, LDAP_SASL_EXTERNAL)) {
+        int mymsgid = 0;
 
-	slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
-			"attempting %s bind with id [%s] creds [%s]\n",
-			mech ? mech : "SIMPLE",
-			bindid, creds);
-	if ((rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
-	                         NULL /* clientctrls */, &mymsgid))) {
-	    char *hostname = NULL;
-	    char *host_port = NULL;
-	    char *ptr = NULL;
-	    int myerrno = errno;
-	    int gaierr = 0;
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
+                "attempting %s bind with id [%s] creds [%s]\n",
+                mech ? mech : "SIMPLE",
+                bindid, creds);
+        if ((rc = ldap_sasl_bind(ld, bindid, mech, &bvcreds, serverctrls,
+                                 NULL /* clientctrls */, &mymsgid))) {
+            char *hostname = NULL;
+            char *host_port = NULL;
+            char *ptr = NULL;
+            int myerrno = errno;
+            int gaierr = 0;
 
-	    ldap_get_option(ld, LDAP_OPT_HOST_NAME, &host_port);
-	    if (host_port) {
-	        ptr = strchr(host_port, ':');
-	        if (ptr) {
-	            hostname = slapi_ch_strdup(host_port);
-	            *(hostname + (ptr - host_port)) = '\0';
-	        }
-	    }
-	    if (0 == myerrno) {
-	        struct addrinfo *result = NULL;
-	        gaierr = getaddrinfo(hostname, NULL, NULL, &result);
-	        myerrno = errno;
-	        if (result) {
-	            freeaddrinfo(result);
-	        }
-	    }
+            ldap_get_option(ld, LDAP_OPT_HOST_NAME, &host_port);
+            if (host_port) {
+                ptr = strchr(host_port, ':');
+                if (ptr) {
+                    hostname = slapi_ch_strdup(host_port);
+                    *(hostname + (ptr - host_port)) = '\0';
+                }
+            }
+            if (0 == myerrno) {
+                struct addrinfo *result = NULL;
+                gaierr = getaddrinfo(hostname, NULL, NULL, &result);
+                myerrno = errno;
+                if (result) {
+                    freeaddrinfo(result);
+                }
+            }
 
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-			    "Error: could not send bind request for id "
-			    "[%s] authentication mechanism [%s]: error %d (%s), system error %d (%s), "
-			    "network error %d (%s, host \"%s\")\n",
-			    bindid ? bindid : "(anon)",
-			    mech ? mech : "SIMPLE",
-			    rc, ldap_err2string(rc),
-			    PR_GetError(), slapd_pr_strerror(PR_GetError()),
-			    myerrno ? myerrno : gaierr,
-			    myerrno ? slapd_system_strerror(myerrno) : gai_strerror(gaierr),
-			    host_port ? host_port : "unknown host");
-	    slapi_ch_free_string(&hostname);
-	    slapi_ch_free_string(&host_port);
-	    goto done;
-	}
+            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                    "Error: could not send bind request for id "
+                    "[%s] authentication mechanism [%s]: error %d (%s), system error %d (%s), "
+                    "network error %d (%s, host \"%s\")\n",
+                    bindid ? bindid : "(anon)",
+                    mech ? mech : "SIMPLE",
+                    rc, ldap_err2string(rc),
+                    PR_GetError(), slapd_pr_strerror(PR_GetError()),
+                    myerrno ? myerrno : gaierr,
+                    myerrno ? slapd_system_strerror(myerrno) : gai_strerror(gaierr),
+                    host_port ? host_port : "unknown host");
+            slapi_ch_free_string(&hostname);
+            slapi_ch_free_string(&host_port);
+            goto done;
+        }
 
-	if (msgidp) { /* let caller process result */
-	    *msgidp = mymsgid;
-	} else { /* process results */
+        if (msgidp) { /* let caller process result */
+            *msgidp = mymsgid;
+        } else { /* process results */
             struct timeval default_timeout, *bind_timeout;
             
             if ((timeout == NULL) || ((timeout->tv_sec == 0) && (timeout->tv_usec == 0))) {
@@ -1180,87 +1184,89 @@ slapi_ldap_bind(
                     /* take the one provided by the caller. It should be the one defined in the protocol */
                     bind_timeout = timeout;
             }
-	    rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, bind_timeout, &result);
-	    if (-1 == rc) { /* error */
-		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-				"Error reading bind response for id "
-				"[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
-				bindid ? bindid : "(anon)",
-				mech ? mech : "SIMPLE",
-				rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
-		goto done;
-	    } else if (rc == 0) { /* timeout */
-		rc = LDAP_TIMEOUT;
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-				"Error: timeout after [%ld.%ld] seconds reading "
-				"bind response for [%s] authentication mechanism [%s]\n",
-				bind_timeout->tv_sec, bind_timeout->tv_usec,
-				bindid ? bindid : "(anon)",
-				mech ? mech : "SIMPLE");
-		goto done;
-	    }
-        /* if we got here, we were able to read success result */
-        /* Get the controls sent by the server if requested */
-        if ((rc = ldap_parse_result(ld, result, &err, NULL, NULL,
-                      NULL, returnedctrls, 0)) != LDAP_SUCCESS) {
-            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-                "Error: could not parse bind result: error %d (%s) errno %d (%s)\n",
-                rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
-            goto done;
-        }
+            rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, bind_timeout, &result);
+            if (-1 == rc) { /* error */
+                rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                        "Error reading bind response for id "
+                        "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
+                        bindid ? bindid : "(anon)",
+                        mech ? mech : "SIMPLE",
+                        rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                goto done;
+            } else if (rc == 0) { /* timeout */
+                rc = LDAP_TIMEOUT;
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                        "Error: timeout after [%ld.%ld] seconds reading "
+                        "bind response for [%s] authentication mechanism [%s]\n",
+                        bind_timeout->tv_sec, bind_timeout->tv_usec,
+                        bindid ? bindid : "(anon)",
+                        mech ? mech : "SIMPLE");
+                goto done;
+            }
+            /*
+             * If we got here, we were able to read success result.
+             * Get the controls sent by the server if requested
+             */
+            if ((rc = ldap_parse_result(ld, result, &err, NULL, NULL,
+                                        NULL, returnedctrls, 0)) != LDAP_SUCCESS) {
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                        "Error: could not parse bind result: error %d (%s) errno %d (%s)\n",
+                        rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                goto done;
+            }
 
-        /* check the result code from the bind operation */
-        if(err){
-            rc = err;
-            slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-                            "Error: could not bind id "
-                            "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
-                            bindid ? bindid : "(anon)",
-                            mech ? mech : "SIMPLE",
-                            rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
-            goto done;
-        }
+            /* check the result code from the bind operation */
+            if(err){
+                rc = err;
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                         "Error: could not bind id "
+                         "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
+                         bindid ? bindid : "(anon)",
+                         mech ? mech : "SIMPLE",
+                         rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                goto done;
+            }
 
-	    /* parse the bind result and get the ldap error code */
-	    if ((rc = ldap_parse_sasl_bind_result(ld, result, &servercredp,
-						  0))) {
-		rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
-		slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
-				"Error: could not read bind results for id "
-				"[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
-				bindid ? bindid : "(anon)",
-				mech ? mech : "SIMPLE",
-				rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
-		goto done;
-	    }
-	}
+            /* parse the bind result and get the ldap error code */
+            if ((rc = ldap_parse_sasl_bind_result(ld, result, &servercredp, 0))) {
+                rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
+                slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+                        "Error: could not read bind results for id "
+                        "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
+                        bindid ? bindid : "(anon)",
+                        mech ? mech : "SIMPLE",
+                        rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                goto done;
+            }
+        }
     } else {
-	/* a SASL mech - set the sasl ssf to 0 if using TLS/SSL */
-	/* openldap supports tls + sasl security */
+        /*
+         * a SASL mech - set the sasl ssf to 0 if using TLS/SSL.
+         * openldap supports tls + sasl security
+         */
 #if !defined(USE_OPENLDAP)
-	if (secure) {
-	    sasl_ssf_t max_ssf = 0;
-	    ldap_set_option(ld, LDAP_OPT_X_SASL_SSF_MAX, &max_ssf);
-	}
-#endif
-	rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
-					      serverctrls, returnedctrls,
-					      msgidp);
-	if (LDAP_SUCCESS != rc) {
-	    slapi_log_error(SLAPI_LOG_CONNS, "slapi_ldap_bind",
-			    "Error: could not perform interactive bind for id "
-			    "[%s] authentication mechanism [%s]: error %d (%s)\n",
-			    bindid ? bindid : "(anon)",
-			    mech, /* mech cannot be SIMPLE here */
-			    rc, ldap_err2string(rc));
-#ifdef HAVE_KRB5
-        if(mech && !strcmp(mech, "GSSAPI") && rc == 49){
-            /* only on err 49 should we clear out the credential cache */
-            clear_krb5_ccache();
+        if (secure) {
+            sasl_ssf_t max_ssf = 0;
+            ldap_set_option(ld, LDAP_OPT_X_SASL_SSF_MAX, &max_ssf);
         }
 #endif
-	}
+        rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
+                 serverctrls, returnedctrls, msgidp);
+        if (LDAP_SUCCESS != rc) {
+            slapi_log_error(SLAPI_LOG_CONNS, "slapi_ldap_bind",
+                "Error: could not perform interactive bind for id "
+                "[%s] authentication mechanism [%s]: error %d (%s)\n",
+                bindid ? bindid : "(anon)",
+                mech, /* mech cannot be SIMPLE here */
+                rc, ldap_err2string(rc));
+#ifdef HAVE_KRB5
+            if(mech && !strcmp(mech, "GSSAPI") && rc == 49){
+                /* only on err 49 should we clear out the credential cache */
+                clear_krb5_ccache();
+            }
+#endif
+        }
     }
 
 done:
@@ -1408,7 +1414,7 @@ ldap_sasl_set_interact_vals(LDAP *ld, const char *mech, const char *authid,
     } else { /* use option value if any */
         ldap_get_option(ld, LDAP_OPT_X_SASL_AUTHCID, &vals->authid);
         if (!vals->authid) {
-/* get server user id? */
+            /* get server user id? */
             vals->authid = slapi_ch_strdup("");
         }
     }
@@ -2266,11 +2272,13 @@ mozldap_ldap_explode( const char *dn, const int notypes, const int nametype )
 					return NULL;
 				}
 				if ( (*p == ',' || *p == ';') && !goteq ) {
-                                   /* If we get here, we have a case similar
-				    * to <attr>=<value>,<string>,<attr>=<value>
-				    * This is not a valid dn */
-				    charray_free( rdns );
-				    return NULL;
+					/*
+					 * If we get here, we have a case similar
+					 * to <attr>=<value>,<string>,<attr>=<value>
+					 * This is not a valid dn .
+					 */
+					charray_free( rdns );
+					return NULL;
 				}
 				goteq = 0;
 				++count;
