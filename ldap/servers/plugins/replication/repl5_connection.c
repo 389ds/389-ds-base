@@ -2072,11 +2072,19 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 	{
 		if (conn->last_ldap_error != rc)
 		{
+			int log_level = SLAPI_LOG_FATAL;
+			if (conn->last_ldap_error == LDAP_LOCAL_ERROR){
+				/*
+				 * Local errors are not logged by default, so when we recover
+				 * from local errors we must also not log it by default.
+				 */
+				log_level = SLAPI_LOG_REPL;
+			}
 			conn->last_ldap_error = rc;
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Replication bind with %s auth resumed\n",
-							agmt_get_long_name(conn->agmt),
-							mech ? mech : "SIMPLE");
+			slapi_log_error(log_level, repl_plugin_name,
+				"%s: Replication bind with %s auth resumed\n",
+				agmt_get_long_name(conn->agmt),
+				mech ? mech : "SIMPLE");
 		}
 
 		if ( ctrls ) 
@@ -2122,20 +2130,21 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			conn->last_ldap_error = rc;
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
-							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
-							agmt_get_long_name(conn->agmt),
-							mech ? mech : "SIMPLE", rc,
-							ldap_err2string(rc), errmsg ? errmsg : "");
+			slapi_log_error(rc == LDAP_LOCAL_ERROR ? SLAPI_LOG_REPL : SLAPI_LOG_FATAL,
+				repl_plugin_name,
+				"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
+				agmt_get_long_name(conn->agmt),
+				mech ? mech : "SIMPLE", rc,
+				ldap_err2string(rc), errmsg ? errmsg : "");
 		} else {
 			char *errmsg = NULL;
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
 			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
-							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
-							agmt_get_long_name(conn->agmt),
-							mech ? mech : "SIMPLE", rc,
-							ldap_err2string(rc), errmsg ? errmsg : "");
+				"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
+				agmt_get_long_name(conn->agmt),
+				mech ? mech : "SIMPLE", rc,
+				ldap_err2string(rc), errmsg ? errmsg : "");
 		}
 
 		return (CONN_OPERATION_FAILED);

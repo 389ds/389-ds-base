@@ -1248,7 +1248,7 @@ slapi_ldap_bind(
 					      serverctrls, returnedctrls,
 					      msgidp);
 	if (LDAP_SUCCESS != rc) {
-	    slapi_log_error(SLAPI_LOG_FATAL, "slapi_ldap_bind",
+	    slapi_log_error(SLAPI_LOG_CONNS, "slapi_ldap_bind",
 			    "Error: could not perform interactive bind for id "
 			    "[%s] authentication mechanism [%s]: error %d (%s)\n",
 			    bindid ? bindid : "(anon)",
@@ -1575,7 +1575,7 @@ slapd_ldap_sasl_interactive_bind(
         if (LDAP_SUCCESS != rc) {
             char *errmsg = NULL;
             rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
-            slapi_log_error(SLAPI_LOG_FATAL, "slapd_ldap_sasl_interactive_bind",
+            slapi_log_error(SLAPI_LOG_CONNS, "slapd_ldap_sasl_interactive_bind",
                             "Error: could not perform interactive bind for id "
                             "[%s] mech [%s]: LDAP error %d (%s) (%s) "
                             "errno %d (%s)\n",
