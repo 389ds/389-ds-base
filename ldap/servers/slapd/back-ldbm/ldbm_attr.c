@@ -790,23 +790,23 @@ attr_index_config(
 			 *   nsMatchingRule: nsSubstrMiddle=2
 			 *   nsMatchingRule: nsSubstrEnd=2
 			 */ 
-			if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTRBEGIN]) {
-				if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTRBEGIN)) {
+			if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTRBEGIN)) {
+				if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTRBEGIN]) {
 					_set_attr_substrlen(INDEX_SUBSTRBEGIN, attrValue->bv_val, &substrlens);
-					do_continue = 1; /* done with j - next j */
 				}
+				do_continue = 1; /* done with j - next j */
 			}
-			if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTRMIDDLE]) {
-				if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTRMIDDLE)) {
+			if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTRMIDDLE)) {
+				if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTRMIDDLE]) {
 					_set_attr_substrlen(INDEX_SUBSTRMIDDLE, attrValue->bv_val, &substrlens);
-					do_continue = 1; /* done with j - next j */
 				}
+				do_continue = 1; /* done with j - next j */
 			}
-			if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTREND]) {
-				if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTREND)) {
+			if (PL_strcasestr(attrValue->bv_val, INDEX_ATTR_SUBSTREND)) {
+				if (!a->ai_substr_lens || !a->ai_substr_lens[INDEX_SUBSTREND]) {
 					_set_attr_substrlen(INDEX_SUBSTREND, attrValue->bv_val, &substrlens);
-					do_continue = 1; /* done with j - next j */
 				}
+				do_continue = 1; /* done with j - next j */
 			}
 			/* check if this is a simple ordering specification
 			   for an attribute that has no ordering matching rule */

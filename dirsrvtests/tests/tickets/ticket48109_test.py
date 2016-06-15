@@ -26,6 +26,13 @@ installation1_prefix = None
 
 UID_INDEX = 'cn=uid,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
 
+
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+log = logging.getLogger(__name__)
+
+installation1_prefix = None
+
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -52,13 +59,18 @@ def topology(request):
     standalone.create()
     standalone.open()
 
+    # Delete each instance in the end
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
+
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
     return TopologyStandalone(standalone)
 
 
-def test_ticket48109_0(topology):
+def test_ticket48109(topology):
     '''
     Set SubStr lengths to cn=uid,cn=index,...
       objectClass: extensibleObject
@@ -147,8 +159,6 @@ def test_ticket48109_0(topology):
         log.error('Failed to delete substr lengths: error ' + e.message['desc'])
         assert False
 
-
-def test_ticket48109_1(topology):
     '''
     Set SubStr lengths to cn=uid,cn=index,...
       nsIndexType: sub
@@ -234,8 +244,6 @@ def test_ticket48109_1(topology):
         log.error('Failed to delete substr lengths: error ' + e.message['desc'])
         assert False
 
-
-def test_ticket48109_2(topology):
     '''
     Set SubStr conflict formats/lengths to cn=uid,cn=index,...
       objectClass: extensibleObject
@@ -369,26 +377,11 @@ def test_ticket48109_2(topology):
     except ldap.LDAPError as e:
         log.error('Failed to delete substr lengths: error ' + e.message['desc'])
         assert False
-
-    log.info('Test complete')
-
-
-def test_ticket48109_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket48109_0(topo)
-    test_ticket48109_1(topo)
-    test_ticket48109_2(topo)
-    test_ticket48109_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
