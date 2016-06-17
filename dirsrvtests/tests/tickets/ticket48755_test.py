@@ -149,6 +149,44 @@ def add_user_entry(server, idx, myparent):
                              'cn': 'Test User%d' % idx,
                              'userpassword': 'password'})))
 
+def del_user_entry(server, idx, myparent):
+    name = 'tuser%d' % idx
+    dn = 'uid=%s,%s' % (name, myparent)
+    server.delete_s(dn)
+
+def add_ldapsubentry(server, myparent):
+    name = 'nsPwPolicyContainer'
+    container = 'cn=%s,%s' % (name, myparent)
+    server.add_s(Entry((container, {'objectclass': ['top', 'nsContainer'],
+                                    'cn': '%s' % name})))
+
+    name = 'nsPwPolicyEntry'
+    pwpentry = 'cn=%s,%s' % (name, myparent)
+    pwpdn = 'cn="%s",%s' % (pwpentry, container)
+    server.add_s(Entry((pwpdn, {'objectclass': ['top', 'ldapsubentry', 'passwordpolicy'],
+                                'passwordStorageScheme': 'ssha',
+                                'passwordCheckSyntax': 'on',
+                                'passwordInHistory': '6',
+                                'passwordChange': 'on',
+                                'passwordMinAge': '0',
+                                'passwordExp': 'off',
+                                'passwordMustChange': 'off',
+                                'cn': '%s' % pwpentry})))
+
+    name = 'nsPwTemplateEntry'
+    tmplentry = 'cn=%s,%s' % (name, myparent)
+    tmpldn = 'cn="%s",%s' % (tmplentry, container)
+    server.add_s(Entry((tmpldn, {'objectclass': ['top', 'ldapsubentry', 'costemplate', 'extensibleObject'],
+                                'cosPriority': '1',
+                                'cn': '%s' % tmplentry})))
+
+    name = 'nsPwPolicy_CoS'
+    cos = 'cn=%s,%s' % (name, myparent)
+    server.add_s(Entry((cos, {'objectclass': ['top', 'ldapsubentry', 'cosPointerDefinition', 'cosSuperDefinition'],
+                              'costemplatedn': '%s' % tmpldn,
+                              'cosAttribute': 'pwdpolicysubentry default operational-default',
+                              'cn': '%s' % name})))
+
 def test_ticket48755(topology):
     log.info("Ticket 48755 - moving an entry could make the online init fail")
 
@@ -163,9 +201,14 @@ def test_ticket48755(topology):
     parent0 = '%s,%s' % (ou0, DEFAULT_SUFFIX)
     add_ou_entry(M1, idx, parent0)
 
+    add_ldapsubentry(M1, parent0)
+
     parent00 = 'ou=OU%d,%s' % (idx, parent0)
     for idx in range(0, 9):
         add_user_entry(M1, idx, parent00)
+        if idx % 2 == 0:
+            log.info("Turning tuser%d into a tombstone entry" % idx)
+            del_user_entry(M1, idx, parent00)
 
     log.info('%s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, parent0, parent00))
 
@@ -175,6 +218,8 @@ def test_ticket48755(topology):
 
     parent1 = 'ou=OU%d,%s' % (idx, DEFAULT_SUFFIX)
     add_ou_entry(M1, idx, parent1)
+
+    add_ldapsubentry(M1, parent1)
 
     log.info("Moving %s to DIT_1" % parent00)
     M1.rename_s(parent00, ou0, newsuperior=parent1, delold=1)
@@ -186,19 +231,13 @@ def test_ticket48755(topology):
     parent001 = '%s,%s' % (ou0, parent01)
     log.info("Moving USERS to %s" % parent0)
     for idx in range(0, 9):
-        name = 'tuser%d' % idx
-        rdn = 'uid=%s' % name
-        dn = 'uid=%s,%s' % (name, parent01)
-        M1.rename_s(dn, rdn, newsuperior=parent001, delold=1)
+        if idx % 2 == 1:
+            name = 'tuser%d' % idx
+            rdn = 'uid=%s' % name
+            dn = 'uid=%s,%s' % (name, parent01)
+            M1.rename_s(dn, rdn, newsuperior=parent001, delold=1)
 
     log.info('%s => %s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, parent1, parent01, parent001))
-
-    log.info("Deleting 5 USERS to turn them into a tombstone entries")
-    for idx in range(5, 9):
-        name = 'tuser%d' % idx
-        rdn = 'uid=%s' % name
-        dn = 'uid=%s,%s' % (name, parent001)
-        M1.delete_s(dn)
 
     log.info("Run Consumer Initialization.")
     global m1_m2_agmt
