@@ -790,7 +790,7 @@ sub print_consumers
         
 		if ($c_ridx >= 0) {
 			$myruv = $allruvs {"$c_ridx:$mid"};
-			($c_maxcsn, $c_lastmodified) = split ( /;/, "$myruv" );
+			($c_maxcsn, $c_lastmodified) = split ( /;/, $myruv );
 			($c_sidx, $c_replicaroot, $c_replicatype) = split (/:/, $allreplicas[$c_ridx]);
 			$c_replicaroot = "same as master" if $m_replicaroot eq $c_replicaroot;
 		}
@@ -829,7 +829,7 @@ sub print_consumers
 				$first_entry = 0;
 				$c_ldapurl = &get_ldap_url ($c_sidx, $conntype);
 				if ($c_ridx >= 0) {
-					($c_maxcsn_str, $lag, $markcolor, $supplier_maxcsn) = 
+					($c_maxcsn_str, $lag, $markcolor, $supplier_maxcsn) =
 					&cacl_time_lag ($_->{nsDS5ReplicaRoot},
 							$_->{cn},
 							$_->{nsds5ReplicaHost},
@@ -1179,7 +1179,7 @@ sub get_ldap_url
 sub to_decimal_csn
 {
 	my ($maxcsn) = @_;
-	if (!$maxcsn || $maxcsn eq "") {
+	if (!$maxcsn || $maxcsn eq "" || $maxcsn eq "Unavailable") {
 		return "none";
 	}
 
@@ -1198,6 +1198,9 @@ sub to_string_csn
 	my ($rawcsn, $decimalcsn) = split(/:/, "@_");
 	if (!$rawcsn || $rawcsn eq "") {
 		return "none";
+	}
+	if ($rawcsn eq "Unavailable"){
+	    return $rawcsn;
 	}
 	my ($tm, $seq, $masterid, $subseq) = split(/ /, $decimalcsn);
 	my ($sec, $min, $hour, $mday, $mon, $year) = localtime($tm);
@@ -1219,8 +1222,9 @@ sub get_color
 	my ($color) = $allcolors { $colorkeys[0] };
 	
 	foreach ( keys %allcolors) {
-		last if ($lag_minute < $_);
-		$color = $allcolors {$_};
+		if ($lag_minute >= $_){
+		    $color = $allcolors {$_};
+		}
 	}
 	return $color;
 }
@@ -1283,9 +1287,9 @@ sub print_html_header
         print "Directory Server Replication Status ($version)\n\n";
         print "Time: $now";
         if ($opt_u) {
-		print " - This report updates every $interval seconds\n\n";
+            print " - This report updates every $interval seconds\n\n";
         } else {
-		print "\n";
+            print "\n";
         }
     }
 }
