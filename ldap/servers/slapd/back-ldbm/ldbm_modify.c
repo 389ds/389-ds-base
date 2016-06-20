@@ -946,8 +946,11 @@ common_return:
 		modify_term(&ruv_c, be);
 	}
 
-	if(ldap_result_code!=-1)
-	{
+	if (ldap_result_code == -1) {
+		/* Reset to LDAP_NO_SUCH_OBJECT*/
+		ldap_result_code = LDAP_NO_SUCH_OBJECT;
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+	} else {
 		if (not_an_error) {
 			/* This is mainly used by urp.  Solved conflict is not an error.
 			 * And we don't want the supplier to halt sending the updates. */

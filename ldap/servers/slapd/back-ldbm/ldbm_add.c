@@ -1339,8 +1339,11 @@ common_return:
 	done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_DN_ENTRY);
 	done_with_pblock_entry(pb,SLAPI_ADD_EXISTING_UNIQUEID_ENTRY);
 	done_with_pblock_entry(pb,SLAPI_ADD_PARENT_ENTRY);
-	if(ldap_result_code!=-1)
-	{
+	if (ldap_result_code == -1) {
+		/* Reset to LDAP_NO_SUCH_OBJECT*/
+		ldap_result_code = LDAP_NO_SUCH_OBJECT;
+		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ldap_result_code);
+	} else {
 		if (not_an_error) {
 			/* This is mainly used by urp.  Solved conflict is not an error.
 			 * And we don't want the supplier to halt sending the updates. */
