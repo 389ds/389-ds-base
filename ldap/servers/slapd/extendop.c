@@ -344,6 +344,13 @@ do_extended( Slapi_PBlock *pb )
 
     if (rc == SLAPI_PLUGIN_EXTENDEDOP && p != NULL) {
         slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugin ... \n");
+        /*
+         * Return values:
+         *  SLAPI_PLUGIN_EXTENDED_SENT_RESULT: The result is already sent to the client. 
+         *                                     There is nothing to do further.
+         *  SLAPI_PLUGIN_EXTENDED_NOT_HANDLED: Unsupported extended operation
+         *  LDAP codes (e.g., LDAP_SUCCESS): The result is not sent yet. Call send_ldap_result.
+         */
         rc = plugin_call_exop_plugins( pb, p);
 
         slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called exop, got %d \n", rc);
@@ -356,7 +363,7 @@ do_extended( Slapi_PBlock *pb )
 
         if ( be == NULL ) {
             slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c plugin_extended_op_getbackend was unable to retrieve a backend!!!\n");
-            rc = SLAPI_PLUGIN_EXTENDED_NO_BACKEND_AVAILABLE;
+            rc = LDAP_OPERATIONS_ERROR;
         } else {
             /* We need to make a new be pb here because when you set SLAPI_BACKEND
              * you overwrite the plg parts of the pb. So if we re-use pb
@@ -370,6 +377,13 @@ do_extended( Slapi_PBlock *pb )
             if (txn_rc) {
                 slapi_log_error(SLAPI_LOG_FATAL, NULL, "exendop.c Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
             } else {
+                /*
+                 * Return values:
+                 *  SLAPI_PLUGIN_EXTENDED_SENT_RESULT: The result is already sent to the client. 
+                 *                                     There is nothing to do further.
+                 *  SLAPI_PLUGIN_EXTENDED_NOT_HANDLED: Unsupported extended operation
+                 *  LDAP codes (e.g., LDAP_SUCCESS): The result is not sent yet. Call send_ldap_result.
+                 */
                 rc = plugin_call_exop_plugins( pb, p );
                 slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called betxn exop, got %d \n", rc);
                 if (rc == LDAP_SUCCESS || rc == SLAPI_PLUGIN_EXTENDED_SENT_RESULT) {
@@ -399,7 +413,9 @@ do_extended( Slapi_PBlock *pb )
             lderr = LDAP_PROTOCOL_ERROR;    /* no plugin handled the op */
             errmsg = "unsupported extended operation";
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c failed with result %d \n", rc);
+            if (rc != LDAP_SUCCESS) {
+                slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c failed with result %d \n", rc);
+            }
             errmsg = NULL;
             lderr = rc;
         }

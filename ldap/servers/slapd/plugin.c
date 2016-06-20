@@ -543,14 +543,6 @@ plugin_call_exop_plugins( Slapi_PBlock *pb, struct slapdplugin *p )
     slapi_pblock_set( pb, SLAPI_PLUGIN, p );
     set_db_default_result_handlers( pb );
     rc = (*p->plg_exhandler)( pb );
-    if (LDAP_SUCCESS == rc) { 
-        /* 
-         * Some plugin may return LDAP_SUCCESS in the success case.
-         * It is translated to SLAPI_PLUGIN_EXTENDED_SENT_RESULT to
-         * reduce the unnecessary error logs.
-         */
-        rc = SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
-    }
     return (rc);
 }
 
