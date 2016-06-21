@@ -122,8 +122,8 @@ aclplugin_preop_search ( Slapi_PBlock *pb )
 
 	if (LDAP_SUCCESS == proxyauth_get_dn(pb, &proxy_dn, &errtxt) && proxy_dn) {
 		isProxy = 1;
-		slapi_ch_free_string(&proxy_dn);
 	}
+	slapi_ch_free_string(&proxy_dn);
 
 	if ( isRoot && !isProxy) {
 		TNF_PROBE_1_DEBUG(aclplugin_preop_search_end ,"ACL","",
