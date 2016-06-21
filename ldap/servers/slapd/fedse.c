@@ -111,7 +111,6 @@ static const char *internal_entries[] =
 	"objectclass:nsSNMP\n"
 	"cn:SNMP\n"
 	"nsSNMPEnabled: on\n"
-    "aci:(target=\"ldap:///cn=SNMP,cn=config\")(targetattr !=\"aci\")(version 3.0;acl \"snmp\";allow (read, search, compare)(userdn = \"ldap:///anyone\");)\n",
 };
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries)/sizeof(internal_entries[0]);
