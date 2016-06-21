@@ -1318,7 +1318,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		uniqueIDGenCleanup ();   
 	}
 
-	plugin_closeall( 0 /* Close Backends */, 1 /* Close Globals */);
+	plugin_closeall( 1 /* Close Backends */, 1 /* Close Globals */);
 
 	if ( ! in_referral_mode ) {
 		/* Close SNMP collator after the plugins closed... 

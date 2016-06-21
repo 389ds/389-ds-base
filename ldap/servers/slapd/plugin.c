@@ -71,6 +71,7 @@ static char *plugin_get_type_str( int type );
 static void plugin_cleanup_list();
 static int plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type);
 static void plugin_remove_from_shutdown(struct slapdplugin *plugin_entry);
+static void plugin_free(struct slapdplugin *plugin);
 
 static PLHashTable *global_plugin_dns = NULL;
 
@@ -1954,10 +1955,6 @@ plugin_closeall(int close_backends, int close_globals)
 	iterp = dep_plugin_entries;
 	while (iterp) {
 		nextp = iterp->next;
-		if (close_backends == 0 && iterp->plugin->plg_type == SLAPI_PLUGIN_DATABASE) {
-			iterp = nextp;
-			continue;
-		}
 		slapi_entry_free(iterp->e);
 		plugin_free(iterp->plugin);
 		slapi_ch_free((void **)&iterp);
@@ -2716,7 +2713,7 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 /*
   clean up the memory associated with the plugin
 */
-void
+static void
 plugin_free(struct slapdplugin *plugin)
 {
 	slapi_log_error(SLAPI_LOG_TRACE, "plugin_free", "Freeing %s \n", plugin->plg_name );
