@@ -224,6 +224,7 @@ Obsoletes:        %{name} <= 1.3.5.4
 Summary:          The lib389 Continuous Integration Tests
 Group:            Development/Libraries
 Requires:         python-lib389
+BuildArch:        noarch
 
 %description      tests
 The lib389 CI tests that can be run against the Directory Server.
