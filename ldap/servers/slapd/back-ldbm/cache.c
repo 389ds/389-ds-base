@@ -1135,6 +1135,15 @@ entrycache_return(struct cache *cache, struct backentry **bep)
         ASSERT(e->ep_refcnt > 0);
         if (! --e->ep_refcnt) {
             if (e->ep_state & ENTRY_STATE_DELETED) {
+                const char* ndn = slapi_sdn_get_ndn(backentry_get_sdn(e));
+                if (ndn){
+                    /*
+                     * State is "deleted" and there are no more references,
+                     * so we need to remove the entry from the DN cache because
+                     * we don't/can't always call cache_remove().
+                     */
+                    remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn));
+                }
                 backentry_free(bep);
             } else {
                 lru_add(cache, e);
