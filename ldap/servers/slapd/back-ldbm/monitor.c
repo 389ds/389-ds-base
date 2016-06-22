@@ -226,7 +226,7 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
     char buf[BUFSIZ];
     DB_MPOOL_STAT *mpstat = NULL;
     DB_MPOOL_FSTAT **mpfstat = NULL;
-    u_int32_t cache_tries;
+    uintmax_t cache_tries;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -247,7 +247,7 @@ int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e,
 
     /* cache tries*/
     cache_tries = (mpstat->st_cache_miss + mpstat->st_cache_hit);
-    sprintf(buf, "%u", cache_tries);
+    sprintf(buf, "%lu", cache_tries);
     MSET("dbCacheTries");
 
     /* cache hit ratio*/
