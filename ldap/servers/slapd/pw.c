@@ -621,7 +621,6 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	/* update passwordHistory */
 	if ( old_pw != NULL && pwpolicy->pw_history == 1 ) {
 		(void)update_pw_history(pb, sdn, old_pw);
-		slapi_ch_free ( (void**)&old_pw );
 	}
 
 	/* Update the "pwdUpdateTime" attribute */
@@ -1046,9 +1045,13 @@ retry:
 				 * This is because password policy assumes that there's only one 
 				 *  password in the userpassword attribute.
 				 */
-				*old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+				if (old_pw) {
+					*old_pw = slapi_ch_strdup(slapi_value_get_string(va[0]));
+				}
 			} else {
-				*old_pw = NULL;
+				if (old_pw) {
+					*old_pw = NULL;
+				}
 			}
 		}
 	}
@@ -1472,13 +1475,13 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 				{
 					/* Add new value to valueset */
 					valp = slapi_value_new_berval( bvp );
-                                        slapi_valueset_add_value_ext( vs, valp, SLAPI_VALUE_FLAG_PASSIN );
+					slapi_valueset_add_value_ext( vs, valp, SLAPI_VALUE_FLAG_PASSIN );
 					valp = NULL;
 				}
 			}
 		}
 		/* Free smod */
-        	slapi_mod_free(&smod);
+		slapi_mod_free(&smod);
 		smod = NULL;
 		smodp = NULL;
 	}
@@ -1490,17 +1493,37 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 			(i != -1) && (valp != NULL);
 			i = slapi_valueset_next_value( vs, i, &valp) )
 		{
+			char *sp, *ep, *wp;
+			int found = 0;
 			/* If the value is smaller than the max token length,
 			 * we don't need to check the password */
 			if ( (int)ldap_utf8characters(slapi_value_get_string( valp )) < toklen )
 				continue;
 
+			sp = slapi_ch_strdup(slapi_value_get_string(valp));
+			ep = sp + strlen(sp);
+			ep = ldap_utf8prevn(sp, ep, toklen);
+			if (!ep || (sp >= ep)) {
+				continue;
+			}
 			/* See if the password contains the value */
-			if ( PL_strcasestr( slapi_value_get_string( vals[0] ),
-				slapi_value_get_string( valp ) ) )
-			{
-				if ( pwresponse_req == 1 )
-				{
+			for (wp = sp; wp && (wp <= ep); wp = ldap_utf8next(wp)) {
+				char *tp = ldap_utf8nextn(wp, toklen);
+				char c;
+				if (tp) {
+					c = *tp;
+					*tp = '\0';
+				} else {
+					break;
+				}
+			    if (PL_strcasestr(slapi_value_get_string(vals[0]), wp)) {
+					found = 1;
+				}
+				*tp = c;
+			}
+			slapi_ch_free_string(&sp);
+			if (found) {
+				if ( pwresponse_req == 1 ) {
 					slapi_pwpolicy_make_response_control ( pb, -1, -1,
 						LDAP_PWPOLICY_INVALIDPWDSYNTAX );
 				}

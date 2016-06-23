@@ -7455,6 +7455,10 @@ int ldap_utf8len( const char* );
 char *ldap_utf8next( char* );
 /* find previous character */
 char *ldap_utf8prev( char* );
+/* find n-th character */
+char *ldap_utf8nextn (char* s, int n);
+/* find n-th previous character from "from" */
+char *ldap_utf8prevn (char *s, char *from, int n);
 /* copy one character */
 int ldap_utf8copy( char* dst, const char* src );
 /* total number of characters */

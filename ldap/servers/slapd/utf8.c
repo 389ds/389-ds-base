@@ -93,6 +93,52 @@ ldap_utf8prev (char* s)
     return (char*) prev;
 }
 
+/* 
+ * Return a pointer to the n-th character following *s.
+ * Handle any valid UTF-8 character, including '\0' and ASCII.
+ * Try to handle a misaligned pointer or a malformed character.
+ * If the n-th character is beyond the string, it returns NULL.
+ */
+char*
+ldap_utf8nextn (char* s, int n)
+{
+    char *endp;
+    char *next = s;
+    if (!s) {
+        return NULL;
+    }
+    endp = s + strlen(s);
+    for ( ;n > 0; --n) {
+        next = ldap_utf8next(next);
+        if ((next > endp) && (n > 0)) {
+            return NULL;
+        }
+    }
+    return next;
+}
+
+/* 
+ * Return a pointer to the n-th character preceding *from.
+ * Handle any valid UTF-8 character, including '\0' and ASCII.
+ * Try to handle a misaligned pointer or a malformed character.
+ * If the n-th previous character is beyond the start address, it returns NULL.
+ */
+char*
+ldap_utf8prevn (char *s, char *from, int n)
+{
+    char *prev = from;
+    if (!s || !from || (s > from)) {
+        return NULL;
+    }
+    for ( ;n > 0; --n) {
+        prev = ldap_utf8prev(prev);
+        if ((prev <= s) && (n > 0)) {
+            return NULL;
+        }
+    }
+    return prev;
+}
+
 int
 ldap_utf8copy (char* dst, const char* src)
      /* Copy a character from src to dst; return the number of char's copied.

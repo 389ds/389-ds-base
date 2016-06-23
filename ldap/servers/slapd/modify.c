@@ -390,7 +390,8 @@ do_modify( Slapi_PBlock *pb )
 	ldap_mods_free (normalized_mods, 1 /* Free the Array and the Elements */);
 
 free_and_return:;
-	slapi_ch_free ((void**)&rawdn);
+	slapi_ch_free_string(&old_pw);
+	slapi_ch_free_string(&rawdn);
 	slapi_mods_done(&smods);
 }
 
