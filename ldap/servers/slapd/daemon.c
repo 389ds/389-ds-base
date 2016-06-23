@@ -1307,6 +1307,16 @@ void slapd_daemon( daemon_ports_t *ports )
 		mapping_tree_free ();
 	}
 
+#ifdef ENABLE_NUNC_STANS
+	/*
+	 * We need to shutdown the nunc-stans thread pool before we free the
+	 * connection table.
+	 */
+	if (enable_nunc_stans) {
+		ns_thrpool_destroy(tp);
+	}
+#endif
+
 	/* 
 	 * connection_table_free could use callbacks in the backend.
 	 * (e.g., be_search_results_release)
@@ -1314,11 +1324,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	 */
 	connection_table_free(the_connection_table);
 	the_connection_table= NULL;
-#ifdef ENABLE_NUNC_STANS
-	if (enable_nunc_stans) {
-		ns_thrpool_destroy(tp);
-	}
-#endif
+
 	be_cleanupall ();
 	connection_post_shutdown_cleanup();
 	LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
