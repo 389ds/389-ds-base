@@ -1863,6 +1863,16 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 	 */	
 	plugin_free_plugin_dep_config(&config);
 
+	if(plugin_head){
+		plugin_dep_type next;
+		while(plugin_head){
+			next = plugin_head->next;
+			slapi_ch_free_string(&plugin_head->type);
+			slapi_ch_free((void *)&plugin_head);
+			plugin_head = next;
+		}
+	}
+
 	/* Finally enable registered plugin functions */
 	global_plugin_callbacks_enabled = 1;
 
@@ -1914,6 +1924,31 @@ plugin_dependency_closeall()
 	}
 }
 
+/*
+ * Function: plugin_dependency_freeall
+ *
+ * Description: Free the plugin dependency list.
+ * It need to be called after be_cleanupall so that the
+ * ldbm_database plugin is not freed when be_cleanupall calls the cleanup
+ * callback of the backend
+ */
+void
+plugin_dependency_freeall()
+{
+	entry_and_plugin_t *iterp, *nextp;
+
+	/* free the plugin dependency entry list */
+	iterp = dep_plugin_entries;
+	while (iterp) {
+		nextp = iterp->next;
+		slapi_entry_free(iterp->e);
+		plugin_free(iterp->plugin);
+		slapi_ch_free((void **)&iterp);
+		iterp = nextp;
+	}
+	dep_plugin_entries = NULL;
+}
+
 /***********************************************************
 	end of plugin dependency code
 ************************************************************/
@@ -1948,19 +1983,7 @@ plugin_startall(int argc, char** argv, char **plugin_list)
 void 
 plugin_closeall(int close_backends, int close_globals)
 {
-	entry_and_plugin_t *iterp, *nextp;
-
 	plugin_dependency_closeall();
-	/* free the plugin dependency entry list */
-	iterp = dep_plugin_entries;
-	while (iterp) {
-		nextp = iterp->next;
-		slapi_entry_free(iterp->e);
-		plugin_free(iterp->plugin);
-		slapi_ch_free((void **)&iterp);
-		iterp = nextp;
-	}
-	dep_plugin_entries = NULL;
 }
 
 
