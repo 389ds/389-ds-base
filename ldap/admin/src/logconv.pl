@@ -42,7 +42,7 @@ if ($#ARGV < 0){;
 
 my $file_count = 0;
 my $arg_count = 0;
-my $logversion = "8.1";
+my $logversion = "8.2";
 my $sizeCount = "20";
 my $startFlag = 0;
 my $startTime = 0;
@@ -236,6 +236,11 @@ my $startTLSCount = 0;
 my $ldapiCount = 0;
 my $autobindCount = 0;
 my $limit = 25000; # number of lines processed to trigger output
+my $connStat;
+my $ldapiConnStat;
+my $sslConnStat;
+my $ldapConnStat;
+my $tlsConnStat;
 my $searchStat;
 my $modStat;
 my $addStat;
@@ -767,15 +772,42 @@ if($reportStats ne ""){
 }
 
 #
+# Generate stats first
+#
+if ($totalTimeInNsecs == 0){
+	$connStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$ldapiConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$sslConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$tlsConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$ldapConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+	$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
+} else {
+	$connStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($connectionCount / $totalTimeInSecs), $connectionCount / ($totalTimeInSecs/60);
+	$ldapiConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($ldapiCount / $totalTimeInSecs), $ldapiCount / ($totalTimeInSecs/60);
+	$sslConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($sslCount / $totalTimeInSecs), $sslCount / ($totalTimeInSecs/60);
+	$tlsConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($startTLSCount / $totalTimeInSecs), $startTLSCount / ($totalTimeInSecs/60);
+	$ldapConnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",(($connectionCount - $sslCount - $ldapiCount) / $totalTimeInSecs),
+                                                            ($connectionCount - $sslCount - $ldapiCount) / ($totalTimeInSecs/60);
+	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($srchCount / $totalTimeInSecs), $srchCount / ($totalTimeInSecs/60);
+	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modCount / $totalTimeInSecs, $modCount/($totalTimeInSecs/60);
+	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$addCount/$totalTimeInSecs, $addCount/($totalTimeInSecs/60);
+	$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delCount/$totalTimeInSecs, $delCount/($totalTimeInSecs/60);
+	$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdnCount/$totalTimeInSecs, $modrdnCount/($totalTimeInSecs/60);
+	$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs, $cmpCount/($totalTimeInSecs/60);
+	$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
+}
+
+#
 # Continue with standard report
 #
-
 print "Restarts:                     $serverRestartCount\n";
-print "Total Connections:            $connectionCount\n";
-print " - LDAP Connections:          " . ($connectionCount - $sslCount - $ldapiCount) . "\n";
-print " - LDAPI Connections:         $ldapiCount\n";
-print " - LDAPS Connections:         $sslCount\n";
-print " - StartTLS Extended Ops:     $startTLSCount\n";
+
 if(%cipher){
 	print " Secure Protocol Versions:\n";
 	foreach my $key (sort { $b cmp $a } keys %cipher) {
@@ -794,25 +826,18 @@ if ($allOps ne "0"){
 	print "Overall Performance:          No Operations to evaluate\n\n";
 }
 
-if ($totalTimeInNsecs == 0){
-	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-	$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-	$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-	$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-	$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n","0", "0";
-} else {
-	$searchStat = sprintf "(%.2f/sec)  (%.2f/min)\n",($srchCount / $totalTimeInSecs), $srchCount / ($totalTimeInSecs/60);
-	$modStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modCount / $totalTimeInSecs, $modCount/($totalTimeInSecs/60);
-	$addStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$addCount/$totalTimeInSecs, $addCount/($totalTimeInSecs/60);
-	$deleteStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$delCount/$totalTimeInSecs, $delCount/($totalTimeInSecs/60);
-	$modrdnStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$modrdnCount/$totalTimeInSecs, $modrdnCount/($totalTimeInSecs/60);
-	$compareStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$cmpCount/$totalTimeInSecs, $cmpCount/($totalTimeInSecs/60);
-	$bindCountStat = sprintf "(%.2f/sec)  (%.2f/min)\n",$bindCount/$totalTimeInSecs, $bindCount/($totalTimeInSecs/60);
-}
-
 format STDOUT =
+Total Connections:            @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $connectionCount, $connStat,
+ - LDAP Connections:          @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              ($connectionCount - $sslCount - $ldapiCount), $ldapConnStat
+ - LDAPI Connections:         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $ldapiCount, $ldapiConnStat
+ - LDAPS Connections:         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $sslCount, $sslConnStat
+ - StartTLS Extended Ops:     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                              $startTLSCount, $tlsConnStat
+
 Searches:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                               $srchCount,   $searchStat,
 Modifications:                @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
