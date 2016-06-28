@@ -255,17 +255,19 @@ log_and_return:
 	 * set o_status
 	 */
 
+	if (rc == LBER_ERROR) {
+		rc = LDAP_OPERATIONS_ERROR;
+	} else {
+		rc = LDAP_SUCCESS;
+	}
+
 	if ( logit && operation_is_flag_set( operation,
 	    OP_FLAG_ACTION_LOG_ACCESS )) {
 		log_result( pb, operation, rc, tag, 0 );
 	}
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "<= send_ldap_intermediate\n", 0, 0, 0 );
-	if (rc == LBER_ERROR) {
-		return(1);
-	} else {
-		return(0);
-	}
+	return rc;
 }
 
 static int
