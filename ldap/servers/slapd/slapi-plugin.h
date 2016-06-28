@@ -6460,6 +6460,8 @@ void slapi_be_set_flag(Slapi_Backend * be, int flag);
 void slapi_be_unset_flag(Slapi_Backend * be, int flag);
 #define SLAPI_BE_FLAG_REMOTE_DATA   0x1  /* entries held by backend are remote */
 #define SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST   0x10  /* force to call filter_test (search only) */
+#define SLAPI_BE_FLAG_POST_IMPORT   0x100  /* backend was imported */
+#define SLAPI_BE_FLAG_POST_RESTORE   0x200  /* startup after restore */
 
 
 /* These functions allow a plugin to register for callback when

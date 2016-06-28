@@ -299,7 +299,16 @@ ldbm_instance_stop(backend *be)
 
     return rc;
 }
-
+static void
+ldbm_instance_set_flags(ldbm_instance *inst)
+{
+    if (dblayer_is_restored()) {
+        slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_RESTORE);
+    }
+    if (dblayer_import_file_check(inst)) {
+        slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
+    }
+}
 
 /* Walks down the set of instances, starting each one. */
 int 
@@ -313,6 +322,7 @@ ldbm_instance_startall(struct ldbminfo *li)
     while (inst_obj != NULL)  {
         int rc1;
         inst = (ldbm_instance *) object_get_data(inst_obj);
+        ldbm_instance_set_flags(inst);
         rc1 = ldbm_instance_start(inst->inst_be);
     if (rc1 != 0) {
         rc = rc1;

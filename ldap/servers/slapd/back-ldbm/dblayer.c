@@ -203,6 +203,8 @@ static void dblayer_push_pvt_txn(back_txn *txn);
 static back_txn *dblayer_get_pvt_txn();
 static void dblayer_pop_pvt_txn();
 
+static int dblayer_post_restore = 0;
+
 #define MEGABYTE (1024 * 1024)
 #define GIGABYTE (1024 * MEGABYTE)
 
@@ -1403,6 +1405,9 @@ dblayer_start(struct ldbminfo *li, int dbmode)
         if (0 != return_value) {
             /* The error message was output by read_metadata() */
             return -1;
+        }
+        if (dblayer_restore_file_check(li)) {
+            dblayer_set_restored();
         }
     }
 
@@ -7052,6 +7057,167 @@ error_out:
     }
     slapi_ch_free_string(&changelogdir);
     return return_value;
+}
+
+static char *
+dblayer_import_file_name(ldbm_instance *inst)
+{
+    char *fname = slapi_ch_smprintf("%s/.import_%s",
+                                    inst->inst_parent_dir_name,
+                                    inst->inst_dir_name);
+    return fname;
+}
+
+static char *
+dblayer_restore_file_name(struct ldbminfo *li)
+{
+    char *fname = slapi_ch_smprintf("%s/../.restore", li->li_directory);
+
+    return fname;
+}
+
+static int
+dblayer_file_open(char *fname, int flags, int mode, PRFileDesc **prfd)
+{
+    int rc = 0;
+    *prfd = PR_Open(fname, flags, mode );
+
+    if (NULL == *prfd) rc = PR_GetError();
+    if (rc && rc != PR_FILE_NOT_FOUND_ERROR ) {
+        LDAPDebug(LDAP_DEBUG_ANY,
+                       "Failed to open file: %s, error: (%d) %s\n",
+                       fname, rc, slapd_pr_strerror(rc));
+    }
+    return rc;
+}
+
+int
+dblayer_import_file_init(ldbm_instance *inst)
+{
+    int rc = -1;
+    PRFileDesc *prfd = NULL;
+    char *fname = dblayer_import_file_name(inst);
+    rc = dblayer_file_open(fname, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, inst->inst_li->li_mode, &prfd);
+    if (prfd) {
+        PR_Close(prfd);
+        rc = 0;
+    }
+    slapi_ch_free_string(&fname);
+    return rc;
+}
+
+int
+dblayer_restore_file_init(struct ldbminfo *li)
+{
+    int rc = -1;
+    PRFileDesc *prfd;
+    char *fname = dblayer_restore_file_name(li);
+    rc = dblayer_file_open(fname, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, li->li_mode, &prfd);
+    if (prfd) {
+        PR_Close(prfd);
+        rc = 0;
+    }
+    slapi_ch_free_string(&fname);
+    return rc;
+
+}
+void
+dblayer_import_file_update(ldbm_instance *inst)
+{
+    int rc;
+    PRFileDesc *prfd;
+    char *fname = dblayer_import_file_name(inst);
+    dblayer_file_open(fname, PR_RDWR, inst->inst_li->li_mode, &prfd);
+
+    if (prfd) {
+        char *line = slapi_ch_smprintf("import of %s succeeded",inst->inst_dir_name);
+        slapi_write_buffer(prfd, line, strlen(line));
+        slapi_ch_free_string(&line);
+        PR_Close(prfd);
+    }
+    slapi_ch_free_string(&fname);
+}
+
+int
+dblayer_file_check(char *fname, int mode)
+{
+    int rc = 0;
+    int err;
+    PRFileDesc *prfd;
+    err = dblayer_file_open(fname, PR_RDWR, mode, &prfd);
+
+    if (prfd) {
+        /* file exists, additional check on size */
+        PRFileInfo64 prfinfo;
+        rc = 1;
+        /* read it */
+        err = PR_GetOpenFileInfo64(prfd, &prfinfo);
+        if (err == PR_SUCCESS && 0 == prfinfo.size) {
+            /* it is empty restore or import has failed */
+            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                       "Previous import or restore failed, file: %s is empty\n", fname);
+        }
+        PR_Close(prfd);
+        PR_Delete(fname);
+    } else {
+        if (PR_FILE_NOT_FOUND_ERROR == err) {
+            rc = 0;
+        } else {
+            /* file exists, but we cannot open it */
+            rc = 1;
+            /* error is already looged try to delete it*/
+            PR_Delete(fname);
+        }
+    }
+
+    return rc;
+
+}
+int
+dblayer_import_file_check(ldbm_instance *inst)
+{
+    int rc;
+    char *fname = dblayer_import_file_name(inst);
+    rc = dblayer_file_check(fname, inst->inst_li->li_mode);
+    slapi_ch_free_string(&fname);
+    return rc;
+}
+
+int
+dblayer_restore_file_check(struct ldbminfo *li)
+{
+    int rc;
+    char *fname = dblayer_restore_file_name(li);
+    rc = dblayer_file_check(fname, li->li_mode);
+    slapi_ch_free_string(&fname);
+    return rc;
+}
+
+void
+dblayer_restore_file_update(struct ldbminfo *li, char *directory)
+{
+    int rc;
+    PRFileDesc *prfd;
+    char *fname = dblayer_restore_file_name(li);
+    dblayer_file_open(fname, PR_RDWR, li->li_mode, &prfd);
+    if (prfd) {
+        char *line = slapi_ch_smprintf("restore of %s succeeded", directory);
+        slapi_write_buffer(prfd, line, strlen(line));
+        slapi_ch_free_string(&line);
+        PR_Close(prfd);
+    }
+}
+
+int
+dblayer_is_restored(void)
+{
+    return dblayer_post_restore;
+}
+
+void
+dblayer_set_restored(void)
+{
+    dblayer_post_restore = 1;
 }
 
 /*

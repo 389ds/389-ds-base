@@ -168,6 +168,15 @@ int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
 int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
 int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 
+int dblayer_is_restored(void);
+void dblayer_set_restored(void);
+int dblayer_restore_file_check(struct ldbminfo *li);
+int dblayer_restore_file_init(struct ldbminfo *li);
+void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
+int dblayer_import_file_init(ldbm_instance *inst);
+void dblayer_import_file_update(ldbm_instance *inst);
+int dblayer_import_file_check(ldbm_instance *inst);
+
 /*
  * dn2entry.c
  */

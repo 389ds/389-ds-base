@@ -690,6 +690,14 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
         return -1;
     }
 
+    if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
+        if (dblayer_import_file_init(inst)) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY,
+                    "ldbm_back_ldif2ldbm: failed to write import file\n");
+            return -1;
+        }
+    }
+
     /***** prepare & init libdb and dblayer *****/
 
     if (! (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
@@ -766,7 +774,15 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
 
     /* always use "new" import code now */
     slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
-    return ldbm_back_ldif2ldbm_deluxe(pb);
+    ret = ldbm_back_ldif2ldbm_deluxe(pb);
+    if (ret == 0) {
+	if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+		dblayer_import_file_update(inst);
+	} else {
+		slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
+	}
+    }
+    return ret;
 
 fail:
     /* DON'T enable the backend -- leave it offline */

@@ -146,6 +146,9 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
                         "failed; error = %d\n", rc);
         return LDAP_OPERATIONS_ERROR;
     }
+    if (state == SLAPI_BI_STATE_DONE) {
+	slapi_be_set_flag(be, SLAPI_BE_FLAG_POST_IMPORT);
+    }
 
     return LDAP_SUCCESS;
 }

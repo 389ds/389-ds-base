@@ -69,6 +69,12 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     if (run_from_cmdline) {
         mapping_tree_init();
         ldbm_config_load_dse_info(li);
+
+        /* initialize a restore file to be able to detect a startup after restore */
+        if (dblayer_restore_file_init(li)) {
+            LDAPDebug0Args(LDAP_DEBUG_ANY, "archive2db: failed to write restore file.\n");
+            return -1;
+        }
     } 
     if (backendname) {
         inst = ldbm_instance_find_by_name(li, backendname);
@@ -249,6 +255,9 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         }
     }
 out:
+    if (run_from_cmdline && ( 0 == return_value )) {
+        dblayer_restore_file_update(li, directory);
+    }
     slapi_ch_free_string(&directory);
     return return_value;
 }
