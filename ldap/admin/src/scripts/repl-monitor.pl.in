@@ -596,7 +596,7 @@ sub process_suppliers
 			# Skip replicas without agreements defined yet
 			next if (! grep {$_->{ridx} == $ridx} @allagreements);
 			$maxcsn = &print_master_header ($ridx, $mid);
-			if ( "$maxcsn" ne "none" ) {
+			if ( "$maxcsn" ne "Unavailable" ) {
 				&print_consumer_header ();
 				&print_consumers ($ridx, $mid);
 			}
@@ -754,12 +754,12 @@ sub print_consumers
 	my ($c_maxcsn, $c_maxcsn_str, $c_lastmodified, $c_sidx, $lag, $markcolor);
 	my ($c_replicaroot, $c_replicatype);
 	my ($first_entry, $s_ldapurl, $c_ldapurl);
-	my $supplier_maxcsn = "_";
+	my $supplier_maxcsn = "Unavailable";
 	my ($nrows);
 	my ($found);
 
 	undef @ouragreements;
-	$c_lastmodified = "";
+	$c_lastmodified = "Unavailable";
     
 	# Collect all the consumer replicas for the current master replica
 	push (@consumers, $m_ridx);
@@ -790,18 +790,20 @@ sub print_consumers
         
 		if ($c_ridx >= 0) {
 			$myruv = $allruvs {"$c_ridx:$mid"};
-			($c_maxcsn, $c_lastmodified) = split ( /;/, $myruv );
-			($c_sidx, $c_replicaroot, $c_replicatype) = split (/:/, $allreplicas[$c_ridx]);
-			$c_replicaroot = "same as master" if $m_replicaroot eq $c_replicaroot;
+			if ($myruv) {
+				($c_maxcsn, $c_lastmodified) = split ( /;/, $myruv );
+				($c_sidx, $c_replicaroot, $c_replicatype) = split (/:/, $allreplicas[$c_ridx]);
+				$c_replicaroot = "same as master" if $m_replicaroot eq $c_replicaroot;
+			}
 		}
 		else {
 			# $c_ridx is actually -$c_sidx when c is not available
 			$c_sidx = -$c_ridx;
-			$c_maxcsn_str = "_";
+			$c_maxcsn_str = "Unavailable";
 			$lag = "n/a";
 			$markcolor = "red";
-			$c_replicaroot = "_";
-			$c_replicatype = "_";
+			$c_replicaroot = "Unavailable";
+			$c_replicatype = "Unavailable";
 		}
 
 		$nrows = 0;
@@ -932,7 +934,7 @@ sub get_supplier_maxcsn
 {
 	my ($ridx, $s, $cn, $h, $p) = @_;
 	my $decimalcsn;
-	my $csn = "";
+	my $csn = "Unavailable";
 	# normalize suffix
 	$s =~ s/ //;
 	$s =~ lc $s;
@@ -944,7 +946,7 @@ sub get_supplier_maxcsn
 			last;
 		}
 	}
-	if($csn ne ""){
+	if($csn && $csn ne "Unavailable"){
 		$decimalcsn = &to_decimal_csn ($csn);
 		return "$csn:$decimalcsn";
 	}
@@ -966,11 +968,16 @@ sub cacl_time_lag
 	$supplier_csn_str = &to_string_csn ($s_maxcsn);
 	$csn_str = &to_string_csn ($c_maxcsn);
 	
-	if ($s_maxcsn && !$c_maxcsn) {
+	if ((!$s_maxcsn || $s_maxcsn eq "Unavailable") &&
+	    (!$c_maxcsn || $c_maxcsn eq "Unavailable")) {
+		$lag_str = "?:??:??";
+		$markcolor = "white"; # Both unknown
+	}
+	elsif ($s_maxcsn && (!$c_maxcsn || $c_maxcsn eq "Unavailable")) {
 		$lag_str = "- ?:??:??";
 		$markcolor = &get_color (36000); # assume consumer has big latency
 	}
-	elsif (!$s_maxcsn && $c_maxcsn) {
+	elsif ((!$s_maxcsn || $s_maxcsn eq "Unavailable") && $c_maxcsn) {
 		$lag_str = "+ ?:??:??";
 		$markcolor = &get_color (1); # consumer is ahead of supplier
 	}
@@ -1180,7 +1187,7 @@ sub to_decimal_csn
 {
 	my ($maxcsn) = @_;
 	if (!$maxcsn || $maxcsn eq "" || $maxcsn eq "Unavailable") {
-		return "none";
+		return "Unavailable";
 	}
 
 	my ($tm, $seq, $masterid, $subseq) = unpack("a8 a4 a4 a4", $maxcsn);
@@ -1195,9 +1202,13 @@ sub to_decimal_csn
 
 sub to_string_csn
 {
-	my ($rawcsn, $decimalcsn) = split(/:/, "@_");
+	my $str = shift;
+	if (!defined($str)){
+		return "Unavailable";
+	}
+	my ($rawcsn, $decimalcsn) = split(/:/, "$str");
 	if (!$rawcsn || $rawcsn eq "") {
-		return "none";
+		return "Unavailable";
 	}
 	if ($rawcsn eq "Unavailable"){
 	    return $rawcsn;
@@ -1221,7 +1232,7 @@ sub get_color
 	$lag_minute /= 60;
 	my ($color) = $allcolors { $colorkeys[0] };
 	
-	foreach ( keys %allcolors) {
+	foreach ( sort keys %allcolors) {
 		if ($lag_minute >= $_){
 		    $color = $allcolors {$_};
 		}
@@ -1300,14 +1311,15 @@ sub print_legend
 	if($opt_s){ return; }
 	print "\n<center><p><font class=page-subtitle color=#0099cc>Time Lag Legend:</font><p>\n";
 	print "<table cellpadding=6 cols=$nlegends width=40%>\n<tr>\n";
+	print "\n<td bgcolor=white><center>Unknown</center></td>\n";
 	my ($i, $j);
 	for ($i = 0; $i < $nlegends - 1; $i++) {
 		$j = $colorkeys[$i];
-		print "\n<td bgcolor=$allcolors{$j}><center>within $colorkeys[$i+1] min</center></td>\n";
+		print "\n<td bgcolor=$allcolors{$j}><center>Within $colorkeys[$i+1] minutes</center></td>\n";
 	}
 	$j = $colorkeys[$i];
-	print "\n<td bgcolor=$allcolors{$j}><center>over $colorkeys[$i] min</center></td>\n";
-	print "\n<td bgcolor=red><center>server n/a</center></td>\n";
+	print "\n<td bgcolor=$allcolors{$j}><center>Over $colorkeys[$i] minutes</center></td>\n";
+	print "\n<td bgcolor=red><center>Server n/a</center></td>\n";
 	print "</table></center>\n";
 }
 
