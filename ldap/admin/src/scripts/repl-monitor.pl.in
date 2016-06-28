@@ -811,7 +811,9 @@ sub print_consumers
 
 		if ($c_ridx >= 0) {
 			$myruv = $allruvs {"$c_ridx:$mid"};
-			($c_maxcsn, $c_lastmodified) = split ( /;/, $myruv );
+			($c_maxcsn, $c_lastmodified) = split ( /;/, "$myruv" );
+			($c_maxcsn_str, $lag, $markcolor) = &cacl_time_lag ($m_maxcsn, $c_maxcsn);
+			if(!$opt_s){ $c_maxcsn_str =~ s/ /\<br\>/; }
 			($c_sidx, $c_replicaroot, $c_replicatype) = split (/:/, $allreplicas[$c_ridx]);
 			$c_replicaroot = "same as master" if $m_replicaroot eq $c_replicaroot;
 		}
@@ -846,17 +848,6 @@ sub print_consumers
 			if ($first_entry) {
 				$first_entry = 0;
 				$c_ldapurl = &get_ldap_url ($c_sidx, $conntype);
-				if ($c_ridx >= 0) {
-					($c_maxcsn_str, $lag, $markcolor, $supplier_maxcsn) =
-					&cacl_time_lag ($_->{nsDS5ReplicaRoot},
-							$_->{cn},
-							$_->{nsds5ReplicaHost},
-							$_->{nsds5ReplicaPort},
-							$s_ridx,
-							$m_maxcsn,
-							$c_maxcsn);
-					if(!$opt_s){ $c_maxcsn_str =~ s/ /\<br\>/; }
-				}
 				if($opt_s){
 					print "Receiver: $c_ldapurl\nType: $c_replicatype\n";
 					print "Time Lag: $lag\n";
@@ -1141,7 +1132,7 @@ sub get_ldap_url
 sub to_decimal_csn
 {
 	my ($maxcsn) = @_;
-	if (!$maxcsn || $maxcsn eq "" || $maxcsn eq "Unavailable") {
+	if (!$maxcsn || $maxcsn eq "") {
 		return "none";
 	}
 
@@ -1161,9 +1152,6 @@ sub to_string_csn
 	if (!$rawcsn || $rawcsn eq "") {
 		return "none";
 	}
-	if ($rawcsn eq "Unavailable"){
-	    return $rawcsn;
-	}
 	my ($tm, $seq, $masterid, $subseq) = split(/ /, $decimalcsn);
 	my ($sec, $min, $hour, $mday, $mon, $year) = localtime($tm);
 	$mon++;
@@ -1182,9 +1170,9 @@ sub get_color
 	$lag_minute /= 60;
 	my ($color) = $allcolors { $colorkeys[0] };
 	
-	foreach ( keys %allcolors) {
+	foreach ( sort keys %allcolors) {
 		if ($lag_minute >= $_){
-		    $color = $allcolors {$_};
+			$color = $allcolors {$_};
 		}
 	}
 	return $color;
