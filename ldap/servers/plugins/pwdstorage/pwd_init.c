@@ -50,7 +50,6 @@ int
 sha_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int	rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha_pwd_storage_scheme_init\n" );
 
@@ -62,9 +61,8 @@ sha_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	    (void *) sha1_pw_enc);
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 	    (void *) sha1_pw_cmp );
-	name = slapi_ch_strdup("SHA");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    name );
+	    "SHA" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha_pwd_storage_scheme_init %d\n\n", rc );
 
@@ -75,7 +73,6 @@ int
 ssha_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int	rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha_pwd_storage_scheme_init\n" );
 
@@ -87,9 +84,8 @@ ssha_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	    (void *) salted_sha1_pw_enc );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 	    (void *) sha1_pw_cmp );
-	name = slapi_ch_strdup("SSHA");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    name );
+	    "SSHA" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
@@ -99,7 +95,6 @@ int
 sha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
         int     rc;
-        char *name;
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha256_pwd_storage_scheme_init\n" );
 
@@ -111,9 +106,8 @@ sha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
             (void *) sha256_pw_enc);
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
             (void *) sha256_pw_cmp );
-        name = slapi_ch_strdup("SHA256");
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-            name );
+            "SHA256" );
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha256_pwd_storage_scheme_init %d\n\n", rc );
 
@@ -124,7 +118,6 @@ int
 ssha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
         int     rc;
-        char *name;
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha256_pwd_storage_scheme_init\n" );
 
@@ -136,9 +129,8 @@ ssha256_pwd_storage_scheme_init( Slapi_PBlock *pb )
             (void *) salted_sha256_pw_enc );
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
             (void *) sha256_pw_cmp );
-        name = slapi_ch_strdup("SSHA256");
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-            name );
+            "SSHA256" );
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha256_pwd_storage_scheme_init %d\n\n", rc );
         return( rc );
@@ -148,7 +140,6 @@ int
 sha384_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
         int     rc;
-        char *name;
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha384_pwd_storage_scheme_init\n" );
 
@@ -160,9 +151,8 @@ sha384_pwd_storage_scheme_init( Slapi_PBlock *pb )
             (void *) sha384_pw_enc);
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
             (void *) sha384_pw_cmp );
-        name = slapi_ch_strdup("SHA384");
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-            name );
+            "SHA384" );
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha384_pwd_storage_scheme_init %d\n\n", rc );
 
@@ -173,7 +163,6 @@ int
 ssha384_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
         int     rc;
-        char *name;
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha384_pwd_storage_scheme_init\n" );
 
@@ -185,9 +174,8 @@ ssha384_pwd_storage_scheme_init( Slapi_PBlock *pb )
             (void *) salted_sha384_pw_enc );
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
             (void *) sha384_pw_cmp );
-        name = slapi_ch_strdup("SSHA384");
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-            name );
+            "SSHA384" );
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha384_pwd_storage_scheme_init %d\n\n", rc );
         return( rc );
@@ -197,7 +185,6 @@ int
 sha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
         int     rc;
-        char *name;
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> sha512_pwd_storage_scheme_init\n" );
 
@@ -209,9 +196,8 @@ sha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
             (void *) sha512_pw_enc);
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
             (void *) sha512_pw_cmp );
-        name = slapi_ch_strdup("SHA512");
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-            name );
+            "SHA512" );
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= sha512_pwd_storage_scheme_init %d\n\n", rc );
 
@@ -222,7 +208,6 @@ int
 ssha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
         int     rc;
-        char *name;
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ssha512_pwd_storage_scheme_init\n" );
 
@@ -234,9 +219,8 @@ ssha512_pwd_storage_scheme_init( Slapi_PBlock *pb )
             (void *) salted_sha512_pw_enc );
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
             (void *) sha512_pw_cmp );
-        name = slapi_ch_strdup("SSHA512");
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-            name );
+            "SSHA512" );
 
         slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ssha512_pwd_storage_scheme_init %d\n\n", rc );
         return( rc );
@@ -246,7 +230,6 @@ int
 crypt_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int	rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> crypt_pwd_storage_scheme_init\n" );
 
@@ -259,9 +242,8 @@ crypt_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	    (void *) crypt_pw_enc );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 	    (void *) crypt_pw_cmp );
-	name = slapi_ch_strdup("CRYPT");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    name );
+	    "CRYPT" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= crypt_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
@@ -271,7 +253,6 @@ int
 clear_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int	rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> clear_pwd_storage_scheme_init\n" );
 
@@ -283,9 +264,8 @@ clear_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	    (void *) clear_pw_enc );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 	    (void *) clear_pw_cmp );
-	name = slapi_ch_strdup("CLEAR");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    name );
+	    "CLEAR" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= clear_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
@@ -295,7 +275,6 @@ int
 ns_mta_md5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int	rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> ns_mta_md5_pwd_storage_scheme_init\n" );
 
@@ -307,9 +286,8 @@ ns_mta_md5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	    (void *) NULL );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 	    (void *) ns_mta_md5_pw_cmp );
-	name = slapi_ch_strdup("NS-MTA-MD5");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-	    name );
+	    "NS-MTA-MD5" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= ns_mta_md5_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
@@ -319,7 +297,6 @@ int
 md5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int     rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> md5_pwd_storage_scheme_init\n" );
 
@@ -331,9 +308,8 @@ md5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 							(void *) md5_pw_enc );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 							(void *) md5_pw_cmp );
-	name = slapi_ch_strdup("MD5");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-							name );
+							"MD5" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= md5_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
@@ -343,7 +319,6 @@ int
 smd5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 {
 	int     rc;
-	char *name;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> smd5_pwd_storage_scheme_init\n" );
 
@@ -355,9 +330,8 @@ smd5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 							(void *) smd5_pw_enc );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN,
 							(void *) smd5_pw_cmp );
-	name = slapi_ch_strdup("SMD5");
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME,
-							name );
+							"SMD5" );
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= smd5_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );

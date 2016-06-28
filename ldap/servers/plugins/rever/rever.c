@@ -68,7 +68,6 @@ aes_dec( char *pwd, char *alg )
 int
 aes_init( Slapi_PBlock *pb)
 {
-       char *name = slapi_ch_strdup(AES_REVER_SCHEME_NAME);
        int rc;
 
        slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> aes_init\n" );
@@ -78,7 +77,7 @@ aes_init( Slapi_PBlock *pb)
        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN, (void *) aes_enc);
        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *) aes_cmp );
        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN, (void *) aes_dec );
-       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, name );
+       rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, AES_REVER_SCHEME_NAME );
 
        init_pbe_plugin();
 
@@ -130,7 +129,6 @@ des_dec( char *pwd )
 int
 des_init( Slapi_PBlock *pb )
 {
-	char *name = slapi_ch_strdup(DES_REVER_SCHEME_NAME);
 	int	rc;
 
 	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> des_init\n" );
@@ -140,7 +138,7 @@ des_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN, (void *) des_enc);
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *) des_cmp );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_DEC_FN, (void *) des_dec );
-	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, name );
+	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, DES_REVER_SCHEME_NAME );
 
 	init_pbe_plugin();
 
