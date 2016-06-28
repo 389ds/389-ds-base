@@ -1200,6 +1200,8 @@ subtree_candidates(
     int isroot = 0;
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
     int allidslimit = compute_allids_limit(pb, li);
+    Operation *op = NULL;
+    PRBool is_bulk_import = PR_FALSE;
 
     /* make (|(originalfilter)(objectclass=referral)) */
     ftop= create_subtree_filter(filter, managedsait, &focref, &forr);
@@ -1216,6 +1218,12 @@ subtree_candidates(
 
     has_tombstone_filter = (filter->f_flags & SLAPI_FILTER_TOMBSTONE);
     slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
+    /* Check if it is for bulk import. */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+        operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
+        is_bulk_import = PR_TRUE;
+    }
 
     /*
      * Apply the DN components if the candidate list is greater than
@@ -1237,13 +1245,13 @@ subtree_candidates(
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(&tmp);
             idl_free(&descendants);
-        } else if (!has_tombstone_filter) {
+        } else if (!has_tombstone_filter && !is_bulk_import) {
             *err = ldbm_ancestorid_read_ext(be, &txn, e->ep_id, &descendants, allidslimit);
             idl_insert(&descendants, e->ep_id);
             candidates = idl_intersection(be, candidates, descendants);
             idl_free(&tmp);
             idl_free(&descendants);
-        } /* else == has_tombstone_filter: do nothing */
+        } /* else == has_tombstone_filter OR is_bulk_import: do nothing */
     }
 
     return( candidates );
@@ -1683,13 +1691,17 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
            * >0 an ldap error code
            */
           int filter_test = -1;
+          int is_bulk_import = operation_is_flag_set(op, OP_FLAG_BULK_IMPORT);
         
-          if((slapi_entry_flag_is_set(e->ep_entry,SLAPI_ENTRY_LDAPSUBENTRY) 
-             && !filter_flag_is_set(filter,SLAPI_FILTER_LDAPSUBENTRY)) ||
-            (slapi_entry_flag_is_set(e->ep_entry,SLAPI_ENTRY_FLAG_TOMBSTONE)
-             && ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
-             !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
-          {
+          if (is_bulk_import) {
+              /* If it is from bulk import, no need to check. */
+              filter_test = 0;
+              slimit = -1; /* no sizelimit applied */
+          } else if ((slapi_entry_flag_is_set(e->ep_entry,SLAPI_ENTRY_LDAPSUBENTRY) &&
+                      !filter_flag_is_set(filter,SLAPI_FILTER_LDAPSUBENTRY)) ||
+                     (slapi_entry_flag_is_set(e->ep_entry,SLAPI_ENTRY_FLAG_TOMBSTONE) &&
+                      ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
+                       !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE)))) {
             /* If the entry is an LDAP subentry and filter don't filter subentries OR 
              * the entry is a TombStone and filter don't filter Tombstone 
              * don't return the entry.  We make a special case to allow a non-root user
@@ -1736,7 +1748,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* ugaston - if filter failed due to subentries or tombstones (filter_test=-1),
              * just forget about it, since we don't want to return anything at all. */
          {
-             if ( slapi_uniqueIDCompareString(target_uniqueid, e->ep_entry->e_uniqueid) ||
+             if ( is_bulk_import ||
+                  slapi_uniqueIDCompareString(target_uniqueid, e->ep_entry->e_uniqueid) ||
                   slapi_sdn_scope_test_ext( backentry_get_sdn(e), basesdn, scope, e->ep_entry->e_flags ))
              {
                  /* check size limit */
@@ -1781,7 +1794,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                  }
                  rc = 0;
                  goto bail;
-             } 
+             }
              else 
              {
                  CACHE_RETURN ( &inst->inst_cache, &(sr->sr_entry) );

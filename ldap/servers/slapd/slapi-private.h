@@ -416,6 +416,7 @@ char *slapi_filter_to_string_internal( const struct slapi_filter *f, char *buf, 
 #define OP_FLAG_REVERSE_CANDIDATE_ORDER  0x100000 /* reverse the search candidate list */
 #define OP_FLAG_NEVER_CACHE              0x200000 /* never keep the entry in cache */
 #define OP_FLAG_TOMBSTONE_FIXUP          0x400000 /* operation is tombstone fixup op */
+#define OP_FLAG_BULK_IMPORT              0x800000 /* operation is bulk import */
 
 /* reverse search states */
 #define REV_STARTED 1

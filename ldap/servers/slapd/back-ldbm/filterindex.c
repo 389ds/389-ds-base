@@ -552,6 +552,8 @@ range_candidates(
     struct berval *low = NULL, *high = NULL;
     struct berval **lows = NULL, **highs = NULL;
     back_txn txn = {NULL};
+    int operator = 0;
+    Operation *op = NULL;
 
     LDAPDebug(LDAP_DEBUG_TRACE, "=> range_candidates attr=%s\n", type, 0, 0);
 
@@ -579,17 +581,24 @@ range_candidates(
         high = attr_value_lowest(highs, slapi_berval_cmp);
     }
 
+    /* Check if it is for bulk import. */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (entryrdn_get_switch() && operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
+        operation_is_flag_set(op, OP_FLAG_BULK_IMPORT)) {
+        /* parentid is treated specially that is needed for the bulk import. (See #48755) */
+        operator = SLAPI_OP_RANGE_NO_IDL_SORT|SLAPI_OP_RANGE_NO_ALLIDS;
+    }
     if (low == NULL) {
-        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
-                                   SLAPI_OP_LESS_OR_EQUAL,
+        operator |= SLAPI_OP_LESS_OR_EQUAL;
+        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY, operator,
                                    high, NULL, 0, &txn, err, allidslimit);
     } else if (high == NULL) {
-        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
-                                   SLAPI_OP_GREATER_OR_EQUAL,
+        operator |= SLAPI_OP_GREATER_OR_EQUAL;
+        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY, operator,
                                    low, NULL, 0, &txn, err, allidslimit);
     } else {
-        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY,
-                                   SLAPI_OP_LESS_OR_EQUAL,
+        operator |= SLAPI_OP_LESS_OR_EQUAL;
+        idl = index_range_read_ext(pb, be, type, (char*)indextype_EQUALITY, operator,
                                    low, high, 1, &txn, err, allidslimit);
     }
 

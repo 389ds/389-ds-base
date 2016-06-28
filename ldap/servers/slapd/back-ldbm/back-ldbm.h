@@ -132,7 +132,7 @@ typedef unsigned short u_int16_t;
 #define BDB_BACKEND     "libback-ldbm" /* This backend plugin */
 #define BDB_NEWIDL      "newidl"       /* new idl format */
 #define BDB_RDNFORMAT   "rdn-format"   /* Subtree rename enabled */
-#define BDB_RDNFORMAT_VERSION   "2"    /* rdn-format version (by default, 0) */
+#define BDB_RDNFORMAT_VERSION   "3"    /* rdn-format version (by default, 0) */
 #define BDB_DNFORMAT    "dn-4514"      /* DN format RFC 4514 compliant */
 #define BDB_DNFORMAT_VERSION    "1"    /* DN format version */
 
@@ -808,11 +808,11 @@ typedef struct _back_search_result_set
 /* #define LDBM_ENTRYRDN_OID			"2.16.840.1.113730.3.1.2097" */
 
 #define LDBM_ANCESTORID_STR         "ancestorid"
-#define LDBM_ENTRYDN_STR            "entrydn"
+#define LDBM_ENTRYDN_STR            SLAPI_ATTR_ENTRYDN
 #define LDBM_ENTRYRDN_STR           "entryrdn"
 #define LDBM_NUMSUBORDINATES_STR    "numsubordinates"
 #define LDBM_TOMBSTONE_NUMSUBORDINATES_STR    "tombstonenumsubordinates"
-#define LDBM_PARENTID_STR           "parentid"
+#define LDBM_PARENTID_STR           SLAPI_ATTR_PARENTID
 
 /* Name of psuedo attribute used to track default indexes */
 #define LDBM_PSEUDO_ATTR_DEFAULT	".default"
