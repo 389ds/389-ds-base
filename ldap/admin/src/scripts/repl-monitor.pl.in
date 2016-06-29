@@ -365,7 +365,7 @@ sub read_cfg_file
 		$allcolors {5} = "#ffffcc"; #cream yellow
 		$allcolors {60} = "#ffcccc"; #pale pink
 	}
-	@colorkeys = sort (keys (%allcolors));
+	@colorkeys = sort ({ $a <=> $b } keys (%allcolors));
     
 	return 0;
 }
@@ -969,18 +969,10 @@ sub cacl_time_lag
 	$supplier_csn_str = &to_string_csn ($s_maxcsn);
 	$csn_str = &to_string_csn ($c_maxcsn);
 	
-	if ((!$s_maxcsn || $s_maxcsn eq "Unavailable") &&
-	    (!$c_maxcsn || $c_maxcsn eq "Unavailable")) {
+	if (!$s_maxcsn || $s_maxcsn eq "Unavailable" ||
+	    !$c_maxcsn || $c_maxcsn eq "Unavailable") {
 		$lag_str = "?:??:??";
-		$markcolor = "white"; # Both unknown
-	}
-	elsif ($s_maxcsn && (!$c_maxcsn || $c_maxcsn eq "Unavailable")) {
-		$lag_str = "- ?:??:??";
-		$markcolor = &get_color (36000); # assume consumer has big latency
-	}
-	elsif ((!$s_maxcsn || $s_maxcsn eq "Unavailable") && $c_maxcsn) {
-		$lag_str = "+ ?:??:??";
-		$markcolor = &get_color (1); # consumer is ahead of supplier
+		$markcolor = "white"; # True status unknown
 	}
 	elsif ($s_maxcsn le $c_maxcsn) {
 		$lag_str = "0:00:00";
@@ -1233,7 +1225,7 @@ sub get_color
 	$lag_minute /= 60;
 	my ($color) = $allcolors { $colorkeys[0] };
 	
-	foreach ( sort keys %allcolors) {
+	foreach ( sort { $a <=> $b } keys %allcolors) {
 		if ($lag_minute >= $_){
 		    $color = $allcolors {$_};
 		}
