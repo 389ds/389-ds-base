@@ -333,11 +333,11 @@ class DirSrv(SimpleLDAPObject):
         from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
         from lib389.ldclt import Ldclt
         from lib389.backend import Backends
-
         from lib389.mappingTree import MappingTree
         from lib389.backend import BackendLegacy as Backend
         from lib389.suffix import Suffix
-        from lib389.replica import Replica
+        from lib389.replica import ReplicaLegacy as Replica
+        from lib389.replica import Replicas
         from lib389.changelog import Changelog
         from lib389.agreement import Agreement
         from lib389.schema import Schema
@@ -362,6 +362,7 @@ class DirSrv(SimpleLDAPObject):
         # Do we have a certdb path?
         # if MAJOR < 3:
         self.backends = Backends(self)
+        self.replicas = Replicas(self)
         self.aci = Aci(self)
         self.nss_ssl = NssSsl(self)
         self.rsa = RSA(self)

@@ -81,6 +81,7 @@ def test_list(topology):
             BACKEND_NAME: NEW_BACKEND_1,
             'suffix': NEW_SUFFIX_1,
         })
+
     ents = topology.standalone.backends.list()
     for ent in ents:
         topology.standalone.log.info("List(%d): backend %s" %
@@ -93,6 +94,7 @@ def test_list(topology):
             BACKEND_NAME: NEW_BACKEND_2,
             'suffix': NEW_SUFFIX_2,
          })
+
     ents = topology.standalone.backends.list()
     for ent in ents:
         topology.standalone.log.info("List(%d): backend %s" %

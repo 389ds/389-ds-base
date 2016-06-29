@@ -60,8 +60,8 @@ def _gen_filter(attrtypes, values, extra=None):
 
 class DSLogging(object):
     """
-    The benefit of this is automatic name detection, and correct application of level
-    and verbosity to the object.
+    The benefit of this is automatic name detection, and correct application
+    of level and verbosity to the object.
     """
     def __init__(self, verbose=False):
         # Maybe we can think of a way to make this display the instance name or __unicode__?
@@ -130,23 +130,67 @@ class DSLdapObject(DSLogging):
         else:
             return self._instance.modify_s(self._dn, [(action, key, value)])
 
-    def get(self, key):
-        """Get an attribute under dn"""
+    def apply_mods(self, mods):
+        """Perform modification operation using several mods at once
+
+        @param mods - list of tuples:  [(action, key, value),]
+        @raise ValueError - if a provided mod op is invalid
+        @raise LDAPError
+        """
+        mod_list = []
+        for mod in mods:
+            if len(mod) < 2:
+                # Error
+                raise ValueError('Not enough arguments in the mod op')
+            elif len(mod) == 2:  # no action
+                action = ldap.MOD_REPLACE
+                key, value = mod
+            elif len(mod) == 3:
+                action, key, value = mod
+                if action != ldap.MOD_REPLACE or \
+                   action != ldap.MOD_ADD or \
+                   action != ldap.MOD_DELETE:
+                    raise ValueError('Invalid mod action(%s)' % str(action))
+            else:
+                # Error too many items
+                raise ValueError('Too many arguments in the mod op')
+
+            if isinstance(value, list):
+                value = ensure_list_bytes(value)
+            else:
+                value = [ensure_bytes(value)]
+
+            mod_list.append((action, key, value))
+        return self._instance.modify_s(self._dn, mod_list)
+
+    def get_attr_vals(self, key):
+        """Get an attribute's values from the dn"""
         self._log.debug("%s get(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
         if self._instance.state != DIRSRV_STATE_ONLINE:
-            ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
-            # In the future, I plan to add a mode where if local == true, we can use
-            # get on dse.ldif to get values offline.
+            raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+            # In the future, I plan to add a mode where if local == true, we
+            # can use get on dse.ldif to get values offline.
         else:
             return self._instance.getEntry(self._dn).getValues(key)
+
+    def get_attr_val(self, key):
+        """Get a single attribute value from the dn"""
+        self._log.debug("%s getVal(%r)" % (self._dn, key))
+        # We might need to add a state check for NONE dn.
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+            # In the future, I plan to add a mode where if local == true, we
+            # can use get on dse.ldif to get values offline.
+        else:
+            return self._instance.getEntry(self._dn).getValue(key)
 
     # This needs to work on key + val, and key
     def remove(self, key):
         """Remove a value defined by key"""
         self._log.debug("%s get(%r, %r)" % (self._dn, key, value))
         if self._instance.state != DIRSRV_STATE_ONLINE:
-            ValueError("Invalid state. Cannot remove properties on instance that is not ONLINE")
+            raise ValueError("Invalid state. Cannot remove properties on instance that is not ONLINE")
         else:
             # Do a mod_delete on the value.
             pass

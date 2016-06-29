@@ -1518,13 +1518,16 @@ class SetupDs(object):
         # Change the root password finally
 
         # Complete.
-        ds_instance.config.set('nsslapd-rootpw', ensure_str(slapd['root_password']))
+        ds_instance.config.set('nsslapd-rootpw',
+                               ensure_str(slapd['root_password']))
 
     def _remove_ds(self):
         """
         The opposite of install: Removes an instance from the system.
         This takes a backup of all relevant data, and removes the paths.
         """
-        # This probably actually would need to be able to read the ldif, to know what to remove ...
-        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+        # This probably actually would need to be able to read the ldif, to
+        # know what to remove ...
+        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
+                     'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             print(path)

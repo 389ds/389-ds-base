@@ -11,6 +11,7 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import normalizeDN
 from lib389 import Entry
+
 # Need to fix this ....
 
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
@@ -289,7 +290,6 @@ class BackendLegacy(object):
                                       % ents[0].dn)
 
         # All checks are done, Time to create the backend
-        import time
         try:
             entry = Entry(dn)
             entry.update({

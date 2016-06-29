@@ -165,6 +165,7 @@ REPL_CLEAN_RUV = 'nsds5ReplicaCleanRUV'
 REPL_ABORT_RUV = 'nsds5ReplicaAbortCleanRUV'
 REPL_COUNT_COUNT = 'nsds5ReplicaChangeCount'
 REPL_PRECISE_PURGE = 'nsds5ReplicaPreciseTombstonePurging'
+REPL_RELEASE_TIMEOUT = 'nsds5replicaReleaseTimeout'
 
 # The values are from the REST API
 REPLICA_SUFFIX = 'suffix'
@@ -190,6 +191,7 @@ REPLICA_CLEAN_RUV = 'ReplicaCleanRUV'
 REPLICA_ABORT_RUV = 'ReplicaAbortCleanRUV'
 REPLICA_COUNT_COUNT = 'ReplicaChangeCount'
 REPLICA_PRECISE_PURGING = 'ReplicaPreciseTombstonePurging'
+REPLICA_RELEASE_TIMEOUT = 'ReplicaReleaseTimeout'
 
 REPLICA_PROPNAME_TO_ATTRNAME = {REPLICA_SUFFIX: REPL_ROOT,
                                 REPLICA_ROOT: REPL_ROOT,
@@ -217,7 +219,8 @@ REPLICA_PROPNAME_TO_ATTRNAME = {REPLICA_SUFFIX: REPL_ROOT,
                                 REPLICA_CLEAN_RUV: REPL_CLEAN_RUV,
                                 REPLICA_ABORT_RUV: REPL_ABORT_RUV,
                                 REPLICA_COUNT_COUNT: REPL_COUNT_COUNT,
-                                REPLICA_PRECISE_PURGING: REPL_PRECISE_PURGE}
+                                REPLICA_PRECISE_PURGING: REPL_PRECISE_PURGE,
+                                REPLICA_RELEASE_TIMEOUT: REPL_RELEASE_TIMEOUT}
 
 ####################################
 #
