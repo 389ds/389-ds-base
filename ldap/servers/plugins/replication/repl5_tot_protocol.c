@@ -314,7 +314,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 {
     int rc;
     callback_data cb_data = {0};
-    Slapi_PBlock *pb;
+    Slapi_PBlock *pb = NULL;
     LDAPControl **ctrls;
 	char *hostname = NULL;
 	int portnum = 0;
@@ -575,7 +575,6 @@ retry:
 	 * suitable messages will have been logged to the error log about the failure.
 	 */
 
-	slapi_pblock_destroy (pb);
 	agmt_set_last_init_end(prp->agmt, current_time());
 	rc = cb_data.rc;
 	agmt_set_update_in_progress(prp->agmt, PR_FALSE);
@@ -595,6 +594,7 @@ retry:
 	}
 
 done:
+	slapi_pblock_destroy(pb);
 	slapi_sdn_free(&area_sdn);
 	slapi_ch_free_string(&hostname);
 	if (cb_data.flowcontrol_detection > 1)

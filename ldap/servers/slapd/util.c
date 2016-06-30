@@ -1500,18 +1500,22 @@ static size_t util_getvirtualmemsize()
  */
 int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages)
 {
+    if ((NULL == pagesize) || (NULL == pages) || (NULL == procpages) || (NULL == availpages)) {
+        slapi_log_error(SLAPI_LOG_FATAL, "util_info_sys_pages",
+                        "ERROR: Null return variables are passed.  Skip getting the system info.\n");
+        return 1;
+    }
     *pagesize = 0;
     *pages = 0;
     *availpages = 0;
-    if (procpages)
-        *procpages = 0;
+    *procpages = 0;
 
 #ifdef OS_solaris
     *pagesize = (int)sysconf(_SC_PAGESIZE);
     *pages = (int)sysconf(_SC_PHYS_PAGES);
     *availpages = util_getvirtualmemsize() / *pagesize;
     /* solaris has THE most annoying way to get this info */
-    if (procpages) {
+    {
         struct prpsinfo psi;
         char fn[40];
         int fd;
