@@ -22,7 +22,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'gssapi'
+INSTANCE_SERVERID = 'standalone'
 REALM = "EXAMPLE.COM"
 TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
 

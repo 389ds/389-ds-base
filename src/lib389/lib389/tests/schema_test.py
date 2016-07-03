@@ -11,7 +11,7 @@ from lib389._constants import *
 from lib389 import DirSrv
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'schemainspectds'
+INSTANCE_SERVERID = 'standalone'
 
 
 class TopologyInstance(object):

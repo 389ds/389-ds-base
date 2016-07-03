@@ -16,7 +16,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'dereferenceds'
+INSTANCE_SERVERID = 'standalone'
 
 
 class TopologyStandalone(object):

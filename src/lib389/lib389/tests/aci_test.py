@@ -15,7 +15,7 @@ import sys
 MAJOR, MINOR, _, _, _ = sys.version_info
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'aciparseds'
+INSTANCE_SERVERID = 'standalone'
 # INSTANCE_PREFIX   = None
 
 

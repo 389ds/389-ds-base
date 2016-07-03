@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 TEST_REPL_DN = "uid=test,%s" % DEFAULT_SUFFIX
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'dirsrv'
+INSTANCE_SERVERID = 'standalone'
 INSTANCE_PREFIX = None
 INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 NEW_SUFFIX_1 = 'o=test_create'

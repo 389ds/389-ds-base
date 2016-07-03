@@ -423,8 +423,8 @@ class Backend(DSLdapObject):
         if self._protected:
             raise ldap.UNWILLING_TO_PERFORM("This is a protected backend!")
         # First check if the mapping tree has our suffix still.
-        suffix = self.get('nsslapd-suffix')[0]
-        bename = self.get('cn')[0]
+        suffix = self.get_attr_val('nsslapd-suffix')
+        bename = self.get_attr_val('cn')
         # TODO: This is the old api, change it!!!!
         mt_ents = self._instance.mappingtree.list(suffix=suffix)
         if len(mt_ents) > 0:

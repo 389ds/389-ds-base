@@ -95,7 +95,7 @@ class DSLdapObject(DSLogging):
         val = self._dn
         if self._rdn_attribute:
             # What if the rdn is multi value and we don't get the primary .... ARGHHH
-            val = self.get(self._rdn_attribute)[0]
+            val = self.get_attr_val(self._rdn_attribute)
         return ensure_str(val)
 
     def __str__(self):

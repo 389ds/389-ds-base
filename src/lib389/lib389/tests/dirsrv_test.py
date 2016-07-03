@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 TEST_DN = "uid=test,%s" % DEFAULT_SUFFIX
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'dirsrv'
+INSTANCE_SERVERID = 'standalone'
 INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 
 

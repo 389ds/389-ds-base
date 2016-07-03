@@ -12,7 +12,7 @@ import pytest
 import os
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'nss_ssl'
+INSTANCE_SERVERID = 'standalone'
 # INSTANCE_PREFIX   = None
 
 

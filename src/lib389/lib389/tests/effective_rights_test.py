@@ -15,7 +15,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'effectiverightsds'
+INSTANCE_SERVERID = 'standalone'
 TEST_USER = 'uid=test,%s' % DEFAULT_SUFFIX
 TEST_GROUP = 'cn=testgroup,%s' % DEFAULT_SUFFIX
 

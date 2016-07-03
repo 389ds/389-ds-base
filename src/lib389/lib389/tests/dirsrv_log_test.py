@@ -16,7 +16,7 @@ import datetime
 from dateutil.tz import tzoffset
 
 INSTANCE_PORT = 54321
-INSTANCE_SERVERID = 'loggingtest'
+INSTANCE_SERVERID = 'standalone'
 
 
 class TopologyStandalone(object):
