@@ -137,6 +137,10 @@ class Entry(object):
         #     raise Exception('Invalid data type for Entry')
         return name in self.data
 
+    def __getitem__(self, name):
+        # This should probably return getValues?
+        return self.__getattr__(name)
+
     def __getattr__(self, name):
         """
         If name is the name of an LDAP attribute, return the first

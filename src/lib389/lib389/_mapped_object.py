@@ -113,6 +113,16 @@ class DSLdapObject(DSLogging):
     def replace(self, key, value):
         self.set(key, value, action=ldap.MOD_REPLACE)
 
+    # This needs to work on key + val, and key
+    def remove(self, key, value):
+        """Remove a value defined by key"""
+        self._log.debug("%s get(%r, %r)" % (self._dn, key, value))
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot remove properties on instance that is not ONLINE")
+        else:
+            # Do a mod_delete on the value.
+            self.set(key, value, action=ldap.MOD_DELETE)
+
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):
         self._log.debug("%s set(%r, %r)" % (self._dn, key, value))
@@ -184,16 +194,6 @@ class DSLdapObject(DSLogging):
             # can use get on dse.ldif to get values offline.
         else:
             return self._instance.getEntry(self._dn).getValue(key)
-
-    # This needs to work on key + val, and key
-    def remove(self, key):
-        """Remove a value defined by key"""
-        self._log.debug("%s get(%r, %r)" % (self._dn, key, value))
-        if self._instance.state != DIRSRV_STATE_ONLINE:
-            raise ValueError("Invalid state. Cannot remove properties on instance that is not ONLINE")
-        else:
-            # Do a mod_delete on the value.
-            pass
 
     # Duplicate, but with many values. IE a dict api.
     # This
@@ -307,6 +307,13 @@ class DSLdapObjects(DSLogging):
         self._batch = batch
         self._scope = ldap.SCOPE_SUBTREE
 
+    def _entry_to_instance(self, dn=None, entry=None):
+        # Normally this won't be used. But for say the plugin type where we
+        # have "many" possible child types, this allows us to overload
+        # and select / return the right one through ALL our get/list/create
+        # functions with very little work on the behalf of the overloader
+        return self._childobject(instance=self._instance, dn=dn, batch=self._batch)
+
     def list(self):
         # Filter based on the objectclasses and the basedn
         insts = None
@@ -321,8 +328,7 @@ class DSLdapObjects(DSLogging):
                 attrlist=self._list_attrlist,
             )
             # def __init__(self, instance, dn=None, batch=False):
-            # insts = map(lambda r: self._childobject(instance=self._instance, dn=r.dn, batch=self._batch), results)
-            insts = [self._childobject(instance=self._instance, dn=r.dn, batch=self._batch) for r in results]
+            insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
         except ldap.NO_SUCH_OBJECT:
             # There are no objects to select from, se we return an empty array
             insts = []
@@ -339,7 +345,7 @@ class DSLdapObjects(DSLogging):
             raise ldap.NO_SUCH_OBJECT("No object exists given the filter criteria %s" % selector)
         if len(results) > 1:
             raise ldap.UNWILLING_TO_PERFORM("Too many objects matched selection criteria %s" % selector)
-        return self._childobject(instance=self._instance, dn=results[0].dn, batch=self._batch)
+        return self._entry_to_instance(results[0].dn, results[0])
 
     def _get_dn(self, dn):
         return self._instance.search_s(
@@ -397,7 +403,9 @@ class DSLdapObjects(DSLogging):
     def create(self, rdn=None, properties=None):
         # Create the object
         # Should we inject the rdn to properties?
-        co = self._childobject(instance=self._instance, batch=self._batch)
+        # This may not work in all cases, especially when we consider plugins.
+        # 
+        co = self._entry_to_instance(dn=None, entry=None)
         # Make the rdn naming attr avaliable
         self._rdn_attribute = co._rdn_attribute
         (rdn, properties) = self._validate(rdn, properties)

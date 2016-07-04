@@ -11,8 +11,100 @@ from lib389 import DirSrv, InvalidArgumentError
 from lib389.properties import *
 from lib389._constants import *
 
+from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
-class Plugins(object):
+class Plugin(DSLdapObject):
+    def __init__(self, instance, dn=None, batch=False):
+        super(Plugin, self).__init__(instance, dn, batch)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = []
+        self._create_objectclasses = ['top', 'nsslapdplugin']
+        # We'll mark this protected, and people can just disable the plugins.
+        self._protected = True
+
+    def enable(self):
+        self.set('nsslapd-pluginEnabled', 'on')
+
+    def disable(self):
+        self.set('nsslapd-pluginEnabled', 'off')
+
+class AttributeUniquenessPlugin(Plugin):
+    def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config", batch=False):
+        super(AttributeUniquenessPlugin, self).__init__(instance, dn, batch)
+
+    ## These are some wrappers to the important attributes
+    # This plugin will be "tricky" in that it can have "many" instance
+    # of the plugin, rather than many configs.
+
+    def add_unique_attribute(self, attr):
+        self.add('uniqueness-attribute-name', attr)
+
+    def remove_unique_attribute(self, attr):
+        self.remove('uniqueness-attribute-name', attr)
+
+    def add_unique_subtree(self, basedn):
+        self.add('uniqueness-subtrees', basedn)
+
+    def remove_unique_subtree(self, basedn):
+        self.remove('uniqueness-subtrees', basedn)
+
+    def enable_all_subtrees(self):
+        self.set('uniqueness-across-all-subtrees', 'on')
+
+    def disable_all_subtrees(self):
+        self.set('uniqueness-across-all-subtrees', 'off')
+
+class ManagedEntriesPlugin(Plugin):
+    def __init__(self, instance, dn="cn=managed entries,cn=plugins,cn=config", batch=False):
+        super(ManagedEntriesPlugin, self).__init__(instance, dn, batch)
+
+    # This will likely need to be a bit like both the DSLdapObjects AND the object.
+    # Because there are potentially many MEP configs.
+
+class ReferentialIntegrityPlugin(Plugin):
+    def __init__(self, instance, dn="cn=referential integrity postoperation,cn=plugins,cn=config", batch=False):
+        super(ReferentialIntegrityPlugin, self).__init__(instance, dn, batch)
+
+    # referint-update-delay: 0
+    # referint-logfile: /opt/dirsrv/var/log/dirsrv/slapd-standalone_2/referint
+    # referint-logchanges: 0
+    # referint-membership-attr: member
+    # referint-membership-attr: uniquemember
+    # referint-membership-attr: owner
+    # referint-membership-attr: seeAlso
+
+
+
+class Plugins(DSLdapObjects):
+
+    # This is a map of plugin to type, so when we
+    # do a get / list / create etc, we can map to the correct
+    # instance.
+    def __init__(self, instance, batch=False):
+        super(Plugins, self).__init__(instance=instance, batch=batch)
+        self._objectclasses = ['top', 'nsslapdplugin']
+        self._filterattrs = ['cn', 'nsslapd-pluginPath']
+        self._childobject = Plugin
+        self._basedn = 'cn=plugins,cn=config'
+        # This is used to allow entry to instance to work
+        self._list_attrlist = ['dn', 'nsslapd-pluginPath']
+        # This may not work for attr unique which can have many instance ....
+        # Should we be doing this from the .so name?
+        self._pluginmap = {
+            'libattr-unique-plugin' : AttributeUniquenessPlugin,
+            'libmanagedentries-plugin' : ManagedEntriesPlugin,
+            'libreferint-plugin' : ReferentialIntegrityPlugin,
+        }
+
+    def _entry_to_instance(self, dn=None, entry=None):
+        # If dn in self._pluginmap
+        if entry['nsslapd-pluginPath'] in self._pluginmap:
+            return self._pluginmap[entry['nsslapd-pluginPath']](self._instance, dn=dn, batch=self._batch)
+        else:
+            return super(Plugins, self)._entry_to_instance(dn)
+
+
+class PluginsLegacy(object):
 
     proxied_methods = 'search_s getEntry'.split()
 
