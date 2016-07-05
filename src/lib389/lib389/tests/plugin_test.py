@@ -117,6 +117,14 @@ def test_plugin_management(topology):
     uniqplugin.enable_all_subtrees()
     uniqplugin.enable()
 
+    # Test compat with the old api
+
+    topology.standalone.plugins.enable('attribute uniqueness')
+
+    # Show the status
+
+    assert(uniqplugin.status())
+
     log.info('Test PASSED')
 
 

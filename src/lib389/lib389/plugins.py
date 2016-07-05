@@ -28,6 +28,11 @@ class Plugin(DSLdapObject):
     def disable(self):
         self.set('nsslapd-pluginEnabled', 'off')
 
+    def status(self):
+        if self.get_attr_val('nsslapd-pluginEnabled') == 'on':
+            return True
+        return False
+
 class AttributeUniquenessPlugin(Plugin):
     def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config", batch=False):
         super(AttributeUniquenessPlugin, self).__init__(instance, dn, batch)
@@ -102,6 +107,25 @@ class Plugins(DSLdapObjects):
             return self._pluginmap[entry['nsslapd-pluginPath']](self._instance, dn=dn, batch=self._batch)
         else:
             return super(Plugins, self)._entry_to_instance(dn)
+
+
+    # To maintain compat with pluginslegacy, here are some helpers.
+
+    def enable(self, name=None, plugin_dn=None):
+        if plugin_dn is not None:
+            raise ValueError('You should swap to the new Plugin API!')
+        if name is None:
+            raise ldap.NO_SUCH_OBJECT('Must provide a selector for name')
+        plugin = self.get(selector=name)
+        plugin.enable()
+
+    def disable(self, name=None, plugin_dn=None):
+        if plugin_dn is not None:
+            raise ValueError('You should swap to the new Plugin API!')
+        if name is None:
+            raise ldap.NO_SUCH_OBJECT('Must provide a selector for name')
+        plugin = self.get(selector=name)
+        plugin.disable()
 
 
 class PluginsLegacy(object):
