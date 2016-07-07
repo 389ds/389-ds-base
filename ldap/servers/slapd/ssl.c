@@ -749,7 +749,7 @@ _conf_setciphers(char *ciphers, int flags)
             if (lookup) { /* lookup with old cipher name and get NSS cipherSuiteName */
                 for (i = 0; _lookup_cipher[i].alias; i++) {
                     if (!PL_strcasecmp(ciphers, _lookup_cipher[i].alias)) {
-                        if (!_lookup_cipher[i].name[0]) {
+                        if (enabled && !_lookup_cipher[i].name[0]) {
                             slapd_SSL_warn("Cipher suite %s is not available in NSS %d.%d.  Ignoring %s",
                                            ciphers, NSS_VMAJOR, NSS_VMINOR, ciphers);
                             continue;
