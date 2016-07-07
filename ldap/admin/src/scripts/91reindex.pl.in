@@ -12,7 +12,7 @@ sub runinst {
     # rdn-format value.  See $rdn_format set below.
     # If equal to or greater than this value, no need to reindex.
     # If it needs to be unconditionally reindexed, set 0.
-    my @rdnconditions = (4)
+    my @rdnconditions = (4);
 
     my $config = $conn->search("cn=config", "base", "(objectclass=*)");
     if (!$config) {
