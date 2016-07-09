@@ -5,6 +5,7 @@ autom4te.cache
 .cproject
 .project
 .settings
+.cache
 *.a
 *.dirstamp
 *.la
