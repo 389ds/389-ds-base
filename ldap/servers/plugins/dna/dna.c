@@ -1244,6 +1244,12 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_THRESHOLD, value);
 
+        if (entry->threshold <= 0) {
+            entry->threshold = 1;
+            slapi_log_error(SLAPI_LOG_FATAL, DNA_PLUGIN_SUBSYSTEM,
+                            "----------> %s too low, setting to [%s]\n", DNA_THRESHOLD, value);
+        }
+
         slapi_ch_free_string(&value);
     } else {
         entry->threshold = 1;
@@ -2171,7 +2177,7 @@ static int dna_dn_is_config(char *dn)
     int ret = 0;
 
     slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
-                    "--> dna_is_config\n");
+                    "--> dna_is_config %s\n", dn);
 
     if (slapi_dn_issuffix(dn, getPluginDN())) {
         ret = 1;
@@ -3404,18 +3410,21 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
 
             /* Did we already service all of these configured types? */
             if (dna_list_contains_types(generated_types, config_entry->types)) {
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    no types to act upon.\n");
                 goto next;
             }
 
             /* is the entry in scope? */
             if (config_entry->scope &&
                 !slapi_dn_issuffix(dn, config_entry->scope)) {
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    dn not in scope\n");
                 goto next;
             }
 
             /* is this entry in an excluded scope? */
             for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
                 if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    dn in excluded scope\n");
                     goto next;
                 }
             }
@@ -3424,7 +3433,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
             if (config_entry->slapi_filter) {
                 ret = slapi_vattr_filter_test(pb, e, config_entry->slapi_filter, 0);
                 if (LDAP_SUCCESS != ret) {
-                        goto next;
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    dn does not match filter\n");
+                    goto next;
                 }
             }
 
@@ -3454,6 +3464,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
             }
 
             if (types_to_generate && types_to_generate[0]) {
+
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    adding %s to %s as -2\n", types_to_generate[0], dn);
                 /* add - add to entry */
                 for (i = 0; types_to_generate && types_to_generate[i]; i++) {
                     slapi_entry_attr_set_charptr(e, types_to_generate[i],
@@ -3492,6 +3504,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                 slapi_lock_mutex(config_entry->lock);
 
                 ret = dna_first_free_value(config_entry, &setval);
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    retrieved value %" PRIu64 " ret %d\n", setval, ret);
                 if (LDAP_SUCCESS != ret) {
                     /* check if we overflowed the configured range */
                     if (setval > config_entry->maxval) {
@@ -4022,18 +4035,22 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
                     "--> dna_be_txn_pre_op\n");
 
     if (!slapi_plugin_running(pb)) {
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, " --x bailing, plugin not running\n");
         goto bail;
     }
 
     if (0 == (dn = dna_get_dn(pb))) {
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, " --x bailing, is dna dn\n");
         goto bail;
     }
 
     if (dna_dn_is_config(dn)) {
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, " --x bailing is dna config dn\n");
         goto bail;
     }
 
     if (dna_isrepl(pb)) {
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, " --x bailing replicated operation\n");
         /* if repl, the dna values should be already in the entry. */
         goto bail;
     }
@@ -4045,6 +4062,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     }
 
     if (e == NULL) {
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, " --x bailing entry is NULL\n");
         goto bail;
     } else if (LDAP_CHANGETYPE_MODIFY == modtype) {
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -4056,32 +4074,39 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "     using global config...\n");
 
         while (list != dna_global_config && LDAP_SUCCESS == ret) {
             config_entry = (struct configEntry *) list;
 
             /* Did we already service all of these configured types? */
             if (dna_list_contains_types(generated_types, config_entry->types)) {
+                slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "    All types already serviced\n");
                 goto next;
             }
 
             /* is the entry in scope? */
             if (config_entry->scope) {
-                if (!slapi_dn_issuffix(dn, config_entry->scope))
+                if (!slapi_dn_issuffix(dn, config_entry->scope)) {
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    Entry not in scope of dnaScope!\n");
                     goto next;
+                }
             }
 
             /* is this entry in an excluded scope? */
             for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
                 if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    Entry in excluded scope, next\n");
                     goto next;
                 }
             }
-            
+
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
-                if(LDAP_SUCCESS != slapi_vattr_filter_test(pb,e,config_entry->slapi_filter, 0))
+                if(LDAP_SUCCESS != slapi_vattr_filter_test(pb,e,config_entry->slapi_filter, 0)) {
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    Entry does not match filter\n");
                     goto next;
+                }
             }
 
             if (LDAP_CHANGETYPE_ADD == modtype) {
@@ -4526,6 +4551,11 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
              * it instead of from the active range */
             if (config_entry->next_range_lower != 0) {
                 /* Release up to half of our values from the next range. */
+                if (config_entry->threshold == 0) {
+                    ret = LDAP_UNWILLING_TO_PERFORM;
+                    goto bail;
+                }
+
                 release = (((config_entry->next_range_upper - config_entry->next_range_lower + 1) /
                            2) / config_entry->threshold) * config_entry->threshold; 
 
