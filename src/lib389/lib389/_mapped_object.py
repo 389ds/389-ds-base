@@ -106,6 +106,20 @@ class DSLdapObject(DSLogging):
     def dn(self):
         return self._dn
 
+    def present(self, attr, value=None):
+        """
+        Assert that some attr, or some attr / value exist on the entry.
+        """
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot get presence on instance that is not ONLINE")
+        self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
+
+        e = self._instance.getEntry(self._dn)
+        if value is None:
+            return e.hasAttr(attr)
+        else:
+            return e.hasValue(attr, value)
+
     def add(self, key, value):
         self.set(key, value, action=ldap.MOD_ADD)
 
@@ -116,12 +130,8 @@ class DSLdapObject(DSLogging):
     # This needs to work on key + val, and key
     def remove(self, key, value):
         """Remove a value defined by key"""
-        self._log.debug("%s get(%r, %r)" % (self._dn, key, value))
-        if self._instance.state != DIRSRV_STATE_ONLINE:
-            raise ValueError("Invalid state. Cannot remove properties on instance that is not ONLINE")
-        else:
-            # Do a mod_delete on the value.
-            self.set(key, value, action=ldap.MOD_DELETE)
+        # Do a mod_delete on the value.
+        self.set(key, value, action=ldap.MOD_DELETE)
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):

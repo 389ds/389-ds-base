@@ -445,7 +445,7 @@ class EntryAci(object):
 
     def _format_term(self, key, value_dict):
         rawaci = ''
-        if value_dict['equal']:
+        if value_dict.get('equal', True):
             rawaci += '="'
         else:
             rawaci += '!="'
