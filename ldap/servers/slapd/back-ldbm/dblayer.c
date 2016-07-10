@@ -5643,18 +5643,16 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
     source_fd = OPEN_FUNCTION(source,O_RDONLY,0);
     if (-1 == source_fd)
     {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                      "dblayer_copyfile: failed to open source file: %s\n",
-                      source);
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "dblayer_copyfile: failed to open source file %s by \"%s\"\n",
+                       source, strerror(errno));
         goto error;
     }
     /* Open destination file */
     dest_fd = OPEN_FUNCTION(destination,O_CREAT | O_WRONLY, mode);
     if (-1 == dest_fd)
     {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                      "dblayer_copyfile: failed to open dest file: %s\n",
-                      destination);
+        LDAPDebug2Args(LDAP_DEBUG_ANY, "dblayer_copyfile: failed to open dest file %s by \"%s\"\n",
+                       destination, strerror(errno));
         goto error;
     }
     LDAPDebug2Args(LDAP_DEBUG_BACKLDBM,
@@ -5662,24 +5660,38 @@ dblayer_copyfile(char *source, char *destination, int overwrite, int mode)
     /* Loop round reading data and writing it */
     while (1)
     {
+        int i;
+        char *ptr = NULL;
         return_value = read(source_fd,buffer,64*1024);
-        if (return_value <= 0)
-        {
+        if (return_value <= 0) {
             /* means error or EOF */
-            if (return_value < 0)
-            {
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                              "dblayer_copyfile: failed to read: %d\n", errno);
+            if (return_value < 0) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY, "dblayer_copyfile: failed to read by \"%s\": rval = %d\n",
+                               strerror(errno), return_value);
             }
             break;
         }
         bytes_to_write = return_value;
-        return_value = write(dest_fd,buffer,bytes_to_write);
-        if (return_value != bytes_to_write)
-        {
-            /* means error */
-            LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                          "dblayer_copyfile: failed to write: %d\n", errno);
+        ptr = buffer;
+#define CPRETRY 4
+        for (i = 0; i < CPRETRY; i++) { /* retry twice */
+            return_value = write(dest_fd, ptr, bytes_to_write);
+            if (return_value == bytes_to_write) {
+                break;
+            } else {
+                /* means error */
+                LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copyfile: failed to write by \"%s\"; real: %d bytes, exp: %d bytes\n",
+                          strerror(errno), return_value, bytes_to_write);
+                if (return_value > 0) {
+                    bytes_to_write -= return_value;
+                    ptr += return_value;
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY, "dblayer_copyfile: retrying to write %d bytes\n", bytes_to_write);
+                } else {
+                    break;
+                }
+            }
+        }
+        if ((CPRETRY == i) || (return_value < 0)) {
             return_value = -1;
             break;
         }
@@ -5906,10 +5918,15 @@ dblayer_copy_directory(struct ldbminfo *li,
                 return_value = dblayer_copyfile(filename1, filename2,
                                                 0, priv->dblayer_file_mode);
             }
+            if (return_value < 0) {
+                LDAPDebug2Args(LDAP_DEBUG_ANY, "dblayer_copy_directory: Failed to copy file %s to %s\n",
+                               filename1, filename2);
+                slapi_ch_free((void**)&filename1);
+                slapi_ch_free((void**)&filename2);
+                break;
+            }
             slapi_ch_free((void**)&filename1);
             slapi_ch_free((void**)&filename2);
-            if (0 > return_value)
-                break;
 
             (*cnt)++;
         }
@@ -6165,9 +6182,14 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                                          changelog_destdir, DBVERSION_FILENAME);
             return_value = dblayer_copyfile(pathname1, pathname2,
                                             0, priv->dblayer_file_mode);
-            slapi_ch_free_string(&pathname1);
             slapi_ch_free_string(&pathname2);
             slapi_ch_free_string(&changelog_destdir);
+            if (0 > return_value) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, "Backup: Failed to copy file %s\n", pathname1);
+                slapi_ch_free_string(&pathname1);
+                goto bail;
+            }
+            slapi_ch_free_string(&pathname1);
         }
         if (priv->dblayer_enable_transactions) {
             /* now, get the list of logfiles that still exist */
@@ -6240,15 +6262,15 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     return_value = dblayer_copyfile(pathname1, pathname2,
                         0, priv->dblayer_file_mode);
                     if (0 > return_value) {
-                        LDAPDebug2Args(LDAP_DEBUG_ANY, "Backup: error in "
-                            "copying file '%s' (err=%d) -- Starting over...\n",
-                            pathname1, return_value);
+                        LDAPDebug2Args(LDAP_DEBUG_ANY, "Backup: error in copying file '%s' (err=%d)\n",
+                                       pathname1, return_value);
                         if (task) {
-                            slapi_task_log_notice(task,
-                                "Error copying file '%s' (err=%d) -- Starting "
-                                "over...", pathname1, return_value);
+                            slapi_task_log_notice(task, "Error copying file '%s' (err=%d)",
+                                                  pathname1, return_value);
                         }
-                        ok = 0;
+                        slapi_ch_free((void **)&pathname1);
+                        slapi_ch_free((void **)&pathname2);
+                        goto bail;
                     }
                     if ( g_get_shutdown() || c_get_shutdown() ) {
                         LDAPDebug0Args(LDAP_DEBUG_ANY, "Backup aborted\n");
@@ -6276,9 +6298,8 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
         slapi_task_log_notice(task, "Backing up file %d (%s)", cnt, pathname2);
         slapi_task_log_status(task, "Backing up file %d (%s)", cnt, pathname2);
     }
-    return_value =
-             dblayer_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
-    if (return_value) {
+    return_value = dblayer_copyfile(pathname1, pathname2, 0, priv->dblayer_file_mode);
+    if (0 > return_value) {
         LDAPDebug(LDAP_DEBUG_ANY,
                   "Backup: error in copying version file "
                   "(%s -> %s): err=%d\n",
@@ -6458,11 +6479,12 @@ static int dblayer_copy_dirand_contents(char* src_dir, char* dst_dir, int mode, 
 				slapi_task_log_status(task, "Moving file %s",
                                           filename2);
 			}
-			return_value = dblayer_copyfile(filename1, filename2, 0,
-                                               mode);
+			return_value = dblayer_copyfile(filename1, filename2, 0, mode);
 	   }
-       if (0 > return_value)
+       if (0 > return_value) {
+         LDAPDebug1Arg(LDAP_DEBUG_ANY, "dblayer_copy_dirand_contents: failed to copy file %s\n", filename1);
          break;
+       }
     }
     PR_CloseDir(dirhandle);
   }
@@ -6838,6 +6860,10 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
                                               changelogdir, DBVERSION_FILENAME);
                     return_value = dblayer_copyfile(filename1, filename2,
                                                     0, priv->dblayer_file_mode);
+                    if (0 > return_value) {
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Restore: failed to copy file %s\n", filename1);
+                        goto error_out;
+                    }
                 }
                 continue;
             }
@@ -6897,6 +6923,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
         return_value = dblayer_copyfile(filename1, filename2, 0,
                                         priv->dblayer_file_mode);
         if (0 > return_value) {
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, "Restore: failed to copy file %s\n", filename1);
             goto error_out;
         }
         cnt++;
