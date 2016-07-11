@@ -136,8 +136,6 @@ typedef struct cl5dbfile
 							 * or as initialized */
     RUV  *purgeRUV;         /* ruv to which the file has been purged */
     RUV  *maxRUV;           /* ruv that marks the upper boundary of the data */
-	char *semaName;			/* semaphore name */ 
-	PRSem *sema;			/* semaphore for max concurrent cl writes */
 }CL5DBFile;
 
 /* structure that allows to iterate through entries to be sent to a consumer
@@ -3347,7 +3345,6 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 
 static void _cl5SetDefaultDBConfig(void)
 {
-  s_cl5Desc.dbConfig.maxConcurrentWrites= CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES;
   s_cl5Desc.dbConfig.fileMode           = FILE_CREATE_MODE;
 }
 
@@ -3355,7 +3352,6 @@ static void _cl5SetDBConfig (const CL5DBConfig *config)
 {
   /* s_cl5Desc.dbConfig.pageSize is retrieved from backend */
   /* Some other configuration parameters are hardcoded... */
-  s_cl5Desc.dbConfig.maxConcurrentWrites = config->maxConcurrentWrites;
   s_cl5Desc.dbConfig.fileMode = FILE_CREATE_MODE;
 }
 
@@ -5045,15 +5041,7 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen,
 			goto done;
 		}
 
-		if ( file->sema )
-		{
-			PR_WaitSemaphore(file->sema);
-		}
 		rc = file->db->put(file->db, txnid, &key, data, 0);
-		if ( file->sema )
-		{
-			PR_PostSemaphore(file->sema);
-		}
 		if (CL5_OS_ERR_IS_DISKFULL(rc))
 		{
 			slapi_log_err(SLAPI_LOG_CRIT, repl_plugin_name_cl,
@@ -6084,7 +6072,6 @@ static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile**
 	int rc;
 	DB *db = NULL;
 	char *name;
-	char *semadir;
 #ifdef HPUX
 	char cwd [PATH_MAX+1];
 #endif
@@ -6149,91 +6136,6 @@ out:
     (*dbFile)->replName = slapi_ch_strdup (replName);
     (*dbFile)->replGen = slapi_ch_strdup (replGen);
 
-	/*
-	 * Considerations for setting up cl semaphore:
-	 * (1) The NT version of SleepyCat uses test-and-set mutexes
-	 *     at the DB page level instead of blocking mutexes. That has
-	 *     proven to be a killer for the changelog DB, as this DB is
-	 *     accessed by multiple a reader threads (the repl thread) and
-	 *     writer threads (the server ops threads) usually at the last
-	 *     pages of the DB, due to the sequential nature of the changelog
-	 *     keys. To avoid the test-and-set mutexes, we could use semaphore
-	 *     to serialize the writers and avoid the high mutex contention
-	 *     that SleepyCat is unable to avoid.
-	 * (2) DS 6.2 introduced the semaphore on all platforms (replaced
-	 *     the serial lock used on Windows and Linux described above). 
-	 *     The number of the concurrent writes now is configurable by
-	 *     nsslapd-changelogmaxconcurrentwrites (the server needs to
-	 *     be restarted).
-	 */
-
-	semadir = s_cl5Desc.dbDir;
-#ifdef HPUX
-	/*
-	 * HP sem_open() does not allow pathname component "./" or "../"
-	 * in the semaphore name. For simplicity and to avoid doing
-	 * chdir() in multi-thread environment, current working dir
-	 * (log dir) is used to replace the original semaphore dir
-	 * if it contains "./".
-	 */
-	if ( strstr ( semadir, "./" ) != NULL && getcwd ( cwd, PATH_MAX+1 ) != NULL )
-	{
-		semadir = cwd;
-	}
-#endif
-
-	if ( semadir != NULL )
-	{
-		(*dbFile)->semaName = slapi_ch_smprintf("%s/%s.sema", semadir, replName);
-		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-			"_cl5NewDBFile - semaphore %s\n", (*dbFile)->semaName);
-		(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName,
-                        PR_SEM_CREATE | PR_SEM_EXCL, 0666,
-                        s_cl5Desc.dbConfig.maxConcurrentWrites );
-		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5NewDBFile - maxConcurrentWrites=%d\n", s_cl5Desc.dbConfig.maxConcurrentWrites );
-	}
-
-	if ((*dbFile)->sema == NULL )
-	{
-		/* If the semaphore was left around due
-		 * to an unclean exit last time, remove
-		 * and re-create it.
-		 */ 
-		if (PR_GetError() == PR_FILE_EXISTS_ERROR) {
-			PRErrorCode prerr;
-			PR_DeleteSemaphore((*dbFile)->semaName);
-			prerr = PR_GetError();
-			if (PR_SUCCESS != prerr) {
-				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-				                "_cl5NewDBFile - PR_DeleteSemaphore: %s; NSPR error - %d\n",
-				                (*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", prerr);
-			}
-			(*dbFile)->sema = PR_OpenSemaphore((*dbFile)->semaName,
-					PR_SEM_CREATE | PR_SEM_EXCL, 0666,
-					s_cl5Desc.dbConfig.maxConcurrentWrites );
-		}
-
-		/* If we still failed to create the semaphore,
-		 * we should just error out. */
-		if ((*dbFile)->sema == NULL )
-		{
-			PRErrorCode prerr = PR_GetError();
-			if (PR_FILE_EXISTS_ERROR == prerr) {
-				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-				                "_cl5NewDBFile - PR_OpenSemaphore: %s; sema: 0x%p, NSPR error - %d\n",
-				                (*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", (*dbFile)->sema, prerr);
-				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-				                "_cl5NewDBFile - Leftover semaphores may exist.  "
-				                "Run \"ipcs -s\", and remove them with \"ipcrm -s <SEMID>\" if any\n");
-			} else {
-				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-				                "_cl5NewDBFile - Failed to create semaphore %s; NSPR error - %d\n",
-				                (*dbFile)->semaName ? (*dbFile)->semaName : "(nil)", prerr);
-			}
-			rc = CL5_SYSTEM_ERROR;
-			goto done;
-		}
-	}
 
 	/* compute number of entries in the file */
 	/* ONREPL - to improve performance, we keep entry count in memory
@@ -6326,12 +6228,6 @@ static void _cl5DBCloseFile (void **data)
 	ruv_destroy(&file->maxRUV);
 	ruv_destroy(&file->purgeRUV);
 	file->db = NULL;
-	if (file->sema) {
-		PR_CloseSemaphore (file->sema);
-		PR_DeleteSemaphore (file->semaName);
-		file->sema = NULL;
-	}
-	slapi_ch_free ((void**)&file->semaName);
 
 	slapi_ch_free (data);
 }

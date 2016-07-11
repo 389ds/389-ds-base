@@ -740,7 +740,6 @@ static changelog5Config * changelog5_dup_config(changelog5Config *config)
 
 	dup->dbconfig.pageSize = config->dbconfig.pageSize;
 	dup->dbconfig.fileMode = config->dbconfig.fileMode;
-	dup->dbconfig.maxConcurrentWrites = config->dbconfig.maxConcurrentWrites;
 
 	return dup;
 }
@@ -811,20 +810,6 @@ static void changelog5_extract_config(Slapi_Entry* entry, changelog5Config *conf
 		}
 	} else {
 		config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
-	}
-
-	/* 
-	 * Read the Changelog Internal Configuration Parameters for the Changelog DB
-	 */
-	arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES);
-	if (arg)
-	{
-		config->dbconfig.maxConcurrentWrites = atoi (arg);
-		slapi_ch_free_string(&arg);
-	}
-	if ( config->dbconfig.maxConcurrentWrites <= 0 )
-	{
-		config->dbconfig.maxConcurrentWrites = CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES;
 	}
 
 	/* 

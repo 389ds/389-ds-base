@@ -41,7 +41,6 @@ typedef struct cl5dbconfig
 {
 	size_t	pageSize;			/* page size in bytes */
 	PRInt32	fileMode;			/* file mode */
-	PRUint32 maxConcurrentWrites;	/* max number of concurrent cl writes */
 	char *encryptionAlgorithm;	/* nsslapd-encryptionalgorithm */
 	char *symmetricKey;
 } CL5DBConfig;
@@ -73,17 +72,6 @@ typedef struct cl5entry
 #define CL5_DEFAULT_CONFIG_CACHESIZE			3000 /* number of entries */
 #define CL5_DEFAULT_CONFIG_CACHEMEMSIZE			1048576 /* 1 M bytes */
 #define CL5_DEFAULT_CONFIG_NB_LOCK	1000 /* Number of locks in the lock table of the DB */
-
-/*
- * Small number of concurrent writes degradate the throughput.
- * Large one increases deadlock.
- */
-#ifdef SOLARIS
-#define CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES	10
-#else
-#define CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES	2
-#endif
-
 
 #define CL5_MIN_DB_DBCACHESIZE		524288 /* min 500K bytes */
 #define CL5_MIN_CACHESIZE		500 /* min number of entries */

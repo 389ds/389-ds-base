@@ -33,7 +33,6 @@
 #define CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE	"nsslapd-changelogcompactdb-interval"
 #define CONFIG_CHANGELOG_TRIM_ATTRIBUTE	"nsslapd-changelogtrim-interval"
 /* Changelog Internal Configuration Parameters -> Changelog Cache related */
-#define CONFIG_CHANGELOG_MAX_CONCURRENT_WRITES	"nsslapd-changelogmaxconcurrentwrites"
 #define CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM	"nsslapd-encryptionalgorithm"
 #define CONFIG_CHANGELOG_SYMMETRIC_KEY	"nsSymmetricKey"
 
