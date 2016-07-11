@@ -47,6 +47,8 @@ Group:            System Environment/Daemons
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes:        %{name}-selinux
 Conflicts:        selinux-policy-base < 3.9.8
+# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
+Obsoletes:        %{name} <= 1.3.5.4
 Requires:         %{name}-libs = %{version}-%{release}
 Provides:         ldif2ldbm 
 
@@ -152,9 +154,6 @@ isn't what you want. Please contact support immediately.
 Please see http://seclists.org/oss-sec/2016/q1/363 for more information.
 %endif
 
-# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
-Obsoletes:        %{name} <= 1.3.5.4
-
 %package          libs
 Summary:          Core libraries for 389 Directory Server (%{variant})
 Group:            System Environment/Daemons
@@ -213,12 +212,11 @@ Development Libraries and headers for the 389 Directory Server base package.
 Summary:          SNMP Agent for 389 Directory Server
 Group:            System Environment/Daemons
 Requires:         %{name} = %{version}-%{release}
+# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
+Obsoletes:        %{name} <= 1.3.5.4
 
 %description      snmp
 SNMP Agent for the 389 Directory Server base package.
-
-# upgrade path from monolithic %{name} (including -libs & -devel) to %{name} + %{name}-snmp
-Obsoletes:        %{name} <= 1.3.5.4
 
 %package          tests
 Summary:          The lib389 Continuous Integration Tests
