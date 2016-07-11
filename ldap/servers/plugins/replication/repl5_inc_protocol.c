@@ -479,9 +479,11 @@ repl5_inc_flow_control_results(Repl_Agmt *agmt, result_data *rd)
     if ((rd->last_message_id_received <= rd->last_message_id_sent) &&
         ((rd->last_message_id_sent - rd->last_message_id_received) >= agmt_get_flowcontrolwindow(agmt))) {
         rd->flowcontrol_detection++;
+        PR_Unlock(rd->lock);
         DS_Sleep(PR_MillisecondsToInterval(agmt_get_flowcontrolpause(agmt)));
+    } else {
+        PR_Unlock(rd->lock);
     }
-    PR_Unlock(rd->lock);
 }
 
 static int
