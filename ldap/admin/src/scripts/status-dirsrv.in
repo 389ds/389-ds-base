@@ -11,14 +11,14 @@ status_instance() {
     SERV_ID=$1
     shift
 
-    initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return -1 ; }
+    initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return 255 ; }
 
     # source env. for this instance
     if [ -f $initfile ] ; then
         . $initfile
     else
         echo Instance $SERV_ID not found.
-        return -1
+        return 255
     fi
 
     prefix="$DS_ROOT"
