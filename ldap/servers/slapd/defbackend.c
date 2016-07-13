@@ -171,6 +171,51 @@ defbackend_abandon( Slapi_PBlock *pb )
 }
 
 
+#define DEFBE_NO_SUCH_SUFFIX "No such suffix"
+/*
+ * Generate a "No such suffix" return text
+ * Example:
+ *   cn=X,dc=bogus,dc=com ==> "No such suffix (dc=bogus,dc=com)" 
+ *     if the last rdn starts with "dc=", print all last dc= rdn's.
+ *   cn=X,cn=bogus ==> "No such suffix (cn=bogus)"
+ *     otherwise, print the very last rdn.
+ *   cn=X,z=bogus ==> "No such suffix (x=bogus)"
+ *     it is true even if it is an invalid rdn.
+ *   cn=X,bogus ==> "No such suffix (bogus)"
+ *     another example of invalid rdn.
+ */
+static void
+_defbackend_gen_returntext(char *buffer, size_t buflen, char **dns)
+{
+    int dnidx;
+    int sidx;
+    struct suffix_repeat {
+        char *suffix;
+        int size;
+    } candidates[] = {
+        {"dc=", 3}, /* dc could be repeated.  otherwise the last rdn is used. */
+        {NULL, 0}
+    };
+    PR_snprintf(buffer, buflen, "%s (", DEFBE_NO_SUCH_SUFFIX);
+    for (dnidx = 0; dns[dnidx]; dnidx++) ; /* finding the last */
+    dnidx--; /* last rdn */
+    for (sidx = 0; candidates[sidx].suffix; sidx++) {
+        if (!PL_strncasecmp(dns[dnidx], candidates[sidx].suffix, candidates[sidx].size)) {
+            while (!PL_strncasecmp(dns[--dnidx], candidates[sidx].suffix, candidates[sidx].size)) ;
+            PL_strcat(buffer, dns[++dnidx]); /* the first "dn=", e.g. */
+            for (++dnidx; dns[dnidx]; dnidx++) {
+                PL_strcat(buffer, ",");
+                PL_strcat(buffer, dns[dnidx]);
+            }
+            PL_strcat(buffer, ")");
+            return; /* finished the task */
+        }
+    }
+    PL_strcat(buffer, dns[dnidx]);
+    PL_strcat(buffer, ")");
+    return;
+}
+
 static int
 defbackend_bind( Slapi_PBlock *pb )
 {
@@ -188,11 +233,40 @@ defbackend_bind( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method );
     slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &cred );
     if ( method == LDAP_AUTH_SIMPLE && cred->bv_len == 0 ) {
-	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
-	rc = SLAPI_BIND_ANONYMOUS;
+        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
+        rc = SLAPI_BIND_ANONYMOUS;
     } else {
-	send_nobackend_ldap_result( pb );
-	rc = SLAPI_BIND_FAIL;
+        Slapi_DN *sdn = NULL;
+        char *suffix = NULL;
+        char **dns = NULL;
+        
+        if (pb->pb_op) {
+            sdn = operation_get_target_spec(pb->pb_op);
+            if (sdn) {
+                dns = slapi_ldap_explode_dn(slapi_sdn_get_dn(sdn), 0);
+                if (dns) {
+                    size_t dnlen = slapi_sdn_get_ndn_len(sdn);
+                    size_t len = dnlen + sizeof(DEFBE_NO_SUCH_SUFFIX) + 4;
+                    suffix = slapi_ch_malloc(len);
+                    if (dnlen) {
+                        _defbackend_gen_returntext(suffix, len, dns);
+                    } else {
+                        PR_snprintf(suffix, len, "%s", DEFBE_NO_SUCH_SUFFIX);
+                    }
+                }
+            }
+        }
+        if (suffix) {
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, suffix);
+        } else {
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, DEFBE_NO_SUCH_SUFFIX);
+        }
+        send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
+        if (dns) {
+            slapi_ldap_value_free(dns);
+        }
+        slapi_ch_free_string(&suffix);
+        rc = SLAPI_BIND_FAIL;
     }
 
     return( rc );

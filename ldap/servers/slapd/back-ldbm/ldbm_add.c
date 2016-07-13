@@ -93,6 +93,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int myrc = 0;
 	PRUint64 conn_id;
 	int op_id;
+	int result_sent = 0;
 	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
 		conn_id = 0; /* connection is NULL */
 	}
@@ -379,7 +380,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				addr.sdn = &parentsdn;
 				addr.udn = NULL;
 				addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
-				parententry = find_entry2modify_only(pb,be,&addr,&txn);
+				parententry = find_entry2modify_only(pb, be, &addr, &txn, &result_sent);
 				if (parententry && parententry->ep_entry) {
 					if (!operation->o_params.p.p_add.parentuniqueid){
 						/* Set the parentuniqueid now */
@@ -431,6 +432,14 @@ ldbm_back_add( Slapi_PBlock *pb )
 						/* The entry already exists */ 
 						ldap_result_code = LDAP_ALREADY_EXISTS;
 					}
+					if ((LDAP_ALREADY_EXISTS == ldap_result_code) && !isroot && !is_replicated_operation) {
+						myrc = plugin_call_acl_plugin(pb, e, NULL, NULL, SLAPI_ACL_ADD,
+						                              ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
+						if (myrc) {
+							ldap_result_code = myrc;
+							ldap_result_message = errbuf;
+						}
+					}
 					goto error_return;
 				} 
 				else 
@@ -447,7 +456,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 						Slapi_DN ancestorsdn;
 						struct backentry *ancestorentry;
 						slapi_sdn_init(&ancestorsdn);
-						ancestorentry= dn2ancestor(pb->pb_backend,sdn,&ancestorsdn,&txn,&err);
+						ancestorentry = dn2ancestor(pb->pb_backend, sdn, &ancestorsdn, &txn, &err, 0);
 						slapi_sdn_done(&ancestorsdn);
 						if ( ancestorentry != NULL )
 						{
@@ -495,7 +504,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				addr.udn = NULL;
 				addr.sdn = NULL;
 				addr.uniqueid = (char *)slapi_entry_get_uniqueid(e); /* jcm - cast away const */
-				tombstoneentry = find_entry2modify( pb, be, &addr, &txn );
+				tombstoneentry = find_entry2modify(pb, be, &addr, &txn, &result_sent);
 				if ( tombstoneentry==NULL )
 				{
 					ldap_result_code= -1;
@@ -712,7 +721,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 					LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, "ldbm_add: Parent \"%s\" does not exist. "
 					              "It might be a conflict entry.\n", slapi_sdn_get_dn(&parentsdn));
 					slapi_sdn_init(&ancestorsdn);
-					ancestorentry = dn2ancestor(be, &parentsdn, &ancestorsdn, &txn, &err );
+					ancestorentry = dn2ancestor(be, &parentsdn, &ancestorsdn, &txn, &err, 1);
 					CACHE_RETURN( &inst->inst_cache, &ancestorentry );
 
 					ldap_result_code= LDAP_NO_SUCH_OBJECT;
@@ -1349,7 +1358,9 @@ common_return:
 			 * And we don't want the supplier to halt sending the updates. */
 			ldap_result_code = LDAP_SUCCESS;
 		}
-		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
+		if (!result_sent) {
+			slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL);
+		}
 	}
 	backentry_free(&originalentry);
 	backentry_free(&tmpentry);
