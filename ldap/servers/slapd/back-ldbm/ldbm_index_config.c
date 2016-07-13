@@ -151,6 +151,12 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sla
     rc = SLAPI_DSE_CALLBACK_ERROR;
     goto bail;
   }
+
+  while(is_instance_busy(inst)){
+    /* Wait for import/indexing job to complete */
+    DS_Sleep(PR_SecondsToInterval(1));
+  }
+
   *returncode = LDAP_SUCCESS;
   
   slapi_entry_attr_find(e, "cn", &attr);
