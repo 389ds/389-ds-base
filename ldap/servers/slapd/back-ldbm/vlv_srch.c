@@ -162,7 +162,7 @@ vlvSearch_init(struct vlvSearch* p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
 
             addr.sdn = p->vlv_base;
             addr.uniqueid = NULL;
-            e = find_entry( pb, inst->inst_be, &addr, &txn );
+            e = find_entry(pb, inst->inst_be, &addr, &txn, NULL);
             /* Check to see if the entry is absent. If it is, mark this search
              * as not initialized */
             if (NULL == e) {

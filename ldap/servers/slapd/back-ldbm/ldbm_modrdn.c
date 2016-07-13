@@ -95,6 +95,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     int myrc = 0;
     PRUint64 conn_id;
     int op_id;
+    int result_sent = 0;
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
     }
@@ -474,7 +475,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             /* find and lock the entry we are about to modify */
             /* JCMREPL - Argh, what happens about the stinking referrals? */
             slapi_pblock_get (pb, SLAPI_TARGET_ADDRESS, &old_addr);
-            e = find_entry2modify( pb, be, old_addr, &txn );
+            e = find_entry2modify(pb, be, old_addr, &txn, &result_sent);
             if ( e == NULL )
             {
                 ldap_result_code= -1;
@@ -510,7 +511,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             } else {
                 oldparent_addr.uniqueid = NULL;            
             }
-            parententry = find_entry2modify_only( pb, be, &oldparent_addr, &txn );
+            parententry = find_entry2modify_only(pb, be, &oldparent_addr, &txn, &result_sent);
             modify_init(&parent_modify_context,parententry);
         
             /* Fetch and lock the new parent of the entry that is moving */            
@@ -520,7 +521,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 if (is_resurect_operation) {
                     newsuperior_addr->uniqueid = slapi_entry_attr_get_charptr(e->ep_entry, SLAPI_ATTR_VALUE_PARENT_UNIQUEID);
                 }
-                newparententry = find_entry2modify_only( pb, be, newsuperior_addr, &txn );
+                newparententry = find_entry2modify_only(pb, be, newsuperior_addr, &txn, &result_sent);
                 slapi_ch_free_string(&newsuperior_addr->uniqueid);
                 modify_init(&newparent_modify_context,newparententry);
             }
@@ -581,7 +582,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                         Slapi_DN ancestorsdn;
                         struct backentry *ancestorentry;
                         slapi_sdn_init(&ancestorsdn);
-                        ancestorentry= dn2ancestor(be,&dn_newdn,&ancestorsdn,&txn,&err);
+                        ancestorentry = dn2ancestor(be, &dn_newdn, &ancestorsdn, &txn, &err, 0);
                         CACHE_RETURN( &inst->inst_cache, &ancestorentry );
                         ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestorsdn));
                         ldap_result_code= LDAP_NO_SUCH_OBJECT;
@@ -1486,8 +1487,10 @@ common_return:
              * And we don't want the supplier to halt sending the updates. */
             ldap_result_code = LDAP_SUCCESS;
         }
-        slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn,
-                    ldap_result_message, 0,NULL );
+        if (!result_sent) {
+            slapi_send_ldap_result(pb, ldap_result_code, ldap_result_matcheddn,
+                                   ldap_result_message, 0, NULL);
+        }
     }
     slapi_mods_done(&smods_operation_wsi);
     slapi_mods_done(&smods_generated);

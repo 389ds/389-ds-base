@@ -77,6 +77,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int op_id;
 	ID ep_id = 0;
 	ID tomb_ep_id = 0;
+	int result_sent = 0;
 
 	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
 		conn_id = 0; /* connection is NULL */
@@ -266,7 +267,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 			 * deleted.  That is, the entry 'e' found with "addr" is a tomb-
 			 * stone.  If it is the case, we need to back off.
 			 */
-			if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL )
+			if ((e = find_entry2modify(pb, be, addr, &txn, &result_sent)) == NULL)
 			{
 				ldap_result_code= LDAP_NO_SUCH_OBJECT; 
 				retval = -1;
@@ -507,7 +508,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 						parent_addr.uniqueid = NULL;
 					}
 					parent_addr.sdn = &parentsdn;
-					parent = find_entry2modify_only_ext(pb, be, &parent_addr, TOMBSTONE_INCLUDED, &txn);
+					parent = find_entry2modify_only_ext(pb, be, &parent_addr, TOMBSTONE_INCLUDED, &txn, &result_sent);
 				}
 				if (parent) {
 					int isglue;
@@ -1466,7 +1467,9 @@ diskfull_return:
 			 * And we don't want the supplier to halt sending the updates. */
 			ldap_result_code = LDAP_SUCCESS;
 		}
-		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		if (!result_sent) {
+			slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		}
 	}
 	slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
 	                "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p, in_cache=%d\n",

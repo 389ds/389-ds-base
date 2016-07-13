@@ -392,6 +392,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int not_an_error = 0;
 	int fixup_tombstone = 0;
 	int ec_locked = 0;
+	int result_sent = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -466,12 +467,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	if ( MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
 		/* find and lock the entry we are about to modify */
 		if (fixup_tombstone) {
-			e = find_entry2modify_only_ext( pb, be, addr, TOMBSTONE_INCLUDED, &txn );
+			e = find_entry2modify_only_ext( pb, be, addr, TOMBSTONE_INCLUDED, &txn, &result_sent );
 		} else {
-			e = find_entry2modify( pb, be, addr, &txn );
+			e = find_entry2modify( pb, be, addr, &txn, &result_sent );
 		}
 		if (e == NULL) {
-			ldap_result_code= -1;
+			ldap_result_code = -1;
 			goto error_return; /* error result sent by find_entry2modify() */
 		}
 	}
@@ -551,12 +552,12 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			if ( !MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
 				/* find and lock the entry we are about to modify */
 				if (fixup_tombstone) {
-					e = find_entry2modify_only_ext( pb, be, addr, TOMBSTONE_INCLUDED, &txn );
+					e = find_entry2modify_only_ext( pb, be, addr, TOMBSTONE_INCLUDED, &txn, &result_sent );
 				} else {
-					e = find_entry2modify( pb, be, addr, &txn );
+					e = find_entry2modify( pb, be, addr, &txn, &result_sent );
 				}
 				if (e == NULL) {
-					ldap_result_code= -1;
+					ldap_result_code = -1;
 					goto error_return; /* error result sent by find_entry2modify() */
 				}
 			}
@@ -966,7 +967,10 @@ common_return:
 			 * And we don't want the supplier to halt sending the updates. */
 			ldap_result_code = LDAP_SUCCESS;
 		}
-		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		if (!result_sent) {
+			/* result is already sent in find_entry. */
+			slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		}
 	}
 
 	/* free our backups */

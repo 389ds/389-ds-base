@@ -412,7 +412,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
 
     /* Note: if we find the bentry, it will stay locked until someone calls
      * modify_term on the mc we'll be associating the bentry with */
-    bentry = find_entry2modify_only( pb, be, &bentry_addr, &txn );
+    bentry = find_entry2modify_only(pb, be, &bentry_addr, &txn, NULL);
 
     if (NULL == bentry) {
         /* Uh oh, we couldn't find and lock the RUV entry! */
