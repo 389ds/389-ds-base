@@ -465,9 +465,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	 */
 	if ( MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
 		/* find and lock the entry we are about to modify */
-		if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+		if (fixup_tombstone) {
+			e = find_entry2modify_only_ext( pb, be, addr, TOMBSTONE_INCLUDED, &txn );
+		} else {
+			e = find_entry2modify( pb, be, addr, &txn );
+		}
+		if (e == NULL) {
 			ldap_result_code= -1;
-			goto error_return;	  /* error result sent by find_entry2modify() */
+			goto error_return; /* error result sent by find_entry2modify() */
 		}
 	}
 
@@ -545,9 +550,14 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		if (0 == retry_count) { /* just once */
 			if ( !MANAGE_ENTRY_BEFORE_DBLOCK(li)) {
 				/* find and lock the entry we are about to modify */
-				if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+				if (fixup_tombstone) {
+					e = find_entry2modify_only_ext( pb, be, addr, TOMBSTONE_INCLUDED, &txn );
+				} else {
+					e = find_entry2modify( pb, be, addr, &txn );
+				}
+				if (e == NULL) {
 					ldap_result_code= -1;
-					goto error_return;	  /* error result sent by find_entry2modify() */
+					goto error_return; /* error result sent by find_entry2modify() */
 				}
 			}
 		
