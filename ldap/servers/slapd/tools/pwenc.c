@@ -263,6 +263,9 @@ out:
 
 	plugin_closeall( 1 /* Close Backends */, 1 /* Close Globals */);
 
+    /* Shutdown NSS to free values */
+    (void)NSS_Shutdown();
+
 	return( rc == 0 ? 0 : 1 );
 }
 
