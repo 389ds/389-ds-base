@@ -25,11 +25,12 @@ import pwd
 import grp
 import logging
 import ldap
-
+import shlex
 import socket
 import getpass
-# from .nss_ssl import nss_create_new_database
 
+# from .nss_ssl import nss_create_new_database
+from threading import Timer
 from lib389._constants import *
 from lib389._ldifconn import LDIFConn
 from lib389.properties import *
@@ -93,6 +94,31 @@ PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
 GROUPADD = "/usr/sbin/groupadd"
 USERADD = "/usr/sbin/useradd"
 NOLOGIN = "/sbin/nologin"
+
+
+def kill_proc(proc, timeout):
+    """Kill a process after the timeout is reached
+    @param proc - The subprocess process
+    @param timeout - timeout in seconds
+    """
+    timeout["value"] = True
+    proc.kill()
+
+
+def runCmd(cmd, timeout_sec):
+    """Run a system command with a timeout
+    @param cmd - The full system command
+    @param timeout_sec - The timeoput value in seconds
+    @return - The result code
+    """
+    proc = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    timeout = {"value": False}
+    timer = Timer(timeout_sec, kill_proc, [proc, timeout])
+    timer.start()
+    stdout, stderr = proc.communicate()
+    timer.cancel()
+    return proc.returncode
 
 
 class DirSrvTools(object):
@@ -232,7 +258,9 @@ class DirSrvTools(object):
 
         if "USE_GDB" in os.environ or "USE_VALGRIND" in os.environ:
             timeout = timeout * 3
-        timeout += int(time.time())
+
+        full_timeout = int(time.time()) + timeout
+
         if cmd == 'stop':
             log.warn("unbinding before stop")
             try:
@@ -258,9 +286,9 @@ class DirSrvTools(object):
             else:
                 done = True
 
-        log.warn("Running command: %r" % (fullCmd))
-        rc = os.system("%s" % (fullCmd))
-        while not done and int(time.time()) < timeout:
+        log.warn("Running command: %r - timeout(%d)" % (fullCmd, timeout))
+        rc = runCmd("%s" % fullCmd, timeout)
+        while not done and int(time.time()) < full_timeout:
             line = logfp.readline()
             while not done and line:
                 lastLine = line
@@ -272,7 +300,7 @@ class DirSrvTools(object):
                         done = True
                 elif line.find("Initialization Failed") >= 0:
                     # sometimes the server fails to start - try again
-                    rc = os.system("%s" % (fullCmd))
+                    rc = runCmd("%s" % (fullCmd), timeout)
                     pos = logfp.tell()
                     break
                 elif line.find("exiting.") >= 0:
