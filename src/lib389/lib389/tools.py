@@ -288,7 +288,7 @@ class DirSrvTools(object):
 
         log.warn("Running command: %r - timeout(%d)" % (fullCmd, timeout))
         rc = runCmd("%s" % fullCmd, timeout)
-        while not done and int(time.time()) < full_timeout:
+        while rc == 0 and not done and int(time.time()) < full_timeout:
             line = logfp.readline()
             while not done and line:
                 lastLine = line
@@ -305,7 +305,7 @@ class DirSrvTools(object):
                     break
                 elif line.find("exiting.") >= 0:
                     # possible transient condition - try again
-                    rc = os.system("%s" % (fullCmd))
+                    rc = runCmd("%s" % (fullCmd), timeout)
                     pos = logfp.tell()
                     break
                 pos = logfp.tell()
