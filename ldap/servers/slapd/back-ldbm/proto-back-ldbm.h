@@ -176,7 +176,7 @@ int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 struct backentry *dn2entry(Slapi_Backend *be, const Slapi_DN *sdn, back_txn *txn, int    *err);
 struct backentry *dn2entry_ext(Slapi_Backend *be, const Slapi_DN *sdn, back_txn *txn, int flags, int *err);
 struct backentry *dn2entry_or_ancestor(Slapi_Backend *be, const Slapi_DN *sdn, Slapi_DN *ancestor, back_txn *txn, int *err);
-struct backentry *dn2ancestor(Slapi_Backend *be,const Slapi_DN *sdn,Slapi_DN *ancestordn,back_txn *txn,int *err);
+struct backentry *dn2ancestor(Slapi_Backend *be,const Slapi_DN *sdn,Slapi_DN *ancestordn,back_txn *txn,int *err, int allow_suffix);
 int get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, int plock_parameter, int must_exist);
 int get_copy_of_entry_ext(Slapi_PBlock *pb, ID id, const entry_address *addr, back_txn *txn, int plock_parameter, int must_exist);
 void done_with_pblock_entry(Slapi_PBlock *pb, int plock_parameter);
@@ -196,11 +196,13 @@ IDList * filter_candidates_ext( Slapi_PBlock *pb, backend *be, const char *base,
 /*
  * findentry.c
  */
-struct backentry * find_entry2modify( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn );
-struct backentry * find_entry( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn );
-struct backentry * find_entry2modify_only( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn);
-struct backentry * find_entry2modify_only_ext( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, int flags, back_txn *txn);
-struct backentry * find_entry_only( Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn);
+/* Return code */
+#define FE_RC_SENT_RESULT 1
+struct backentry *find_entry2modify(Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn, int *rc);
+struct backentry *find_entry(Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn, int *rc);
+struct backentry *find_entry2modify_only(Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn, int *rc);
+struct backentry *find_entry2modify_only_ext(Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, int flags, back_txn *txn, int *rc);
+struct backentry *find_entry_only(Slapi_PBlock *pb, Slapi_Backend *be, const entry_address *addr, back_txn *txn, int *rc);
 int check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, const char *callingfn);
 
 /*

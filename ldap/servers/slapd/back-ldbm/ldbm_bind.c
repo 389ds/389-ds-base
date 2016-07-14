@@ -29,6 +29,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	entry_address *addr;
 	back_txn txn = {NULL};
 	int rc = SLAPI_BIND_SUCCESS;
+	int result_sent = 0;
 
 	/* get parameters */
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -63,8 +64,12 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	 * find the target entry.  find_entry() takes care of referrals
 	 *   and sending errors if the entry does not exist.
 	 */
-	if (( e = find_entry( pb, be, addr, &txn )) == NULL ) {
+	if ((e = find_entry( pb, be, addr, &txn, &result_sent)) == NULL) {
 		rc = SLAPI_BIND_FAIL;
+		/* In the failure case, the result is supposed to be sent in the backend. */
+		if (!result_sent) {
+			slapi_send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL, NULL, 0, NULL);
+		}
 		goto bail;
 	}
 
@@ -82,8 +87,8 @@ ldbm_back_bind( Slapi_PBlock *pb )
 		bvals= attr_get_present_values(attr);
 		slapi_value_init_berval(&cv,cred);
 		if ( slapi_pw_find_sv( bvals, &cv ) != 0 ) {
-			slapi_send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
-			    NULL, 0, NULL );
+			slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
+			slapi_send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL );
 			CACHE_RETURN( &inst->inst_cache, &e );
 			value_done(&cv);
 			rc = SLAPI_BIND_FAIL;
