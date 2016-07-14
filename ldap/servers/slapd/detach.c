@@ -133,7 +133,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 	}
 
 	(void) SIGNAL( SIGPIPE, SIG_IGN );
-	return 0;
+	return rc;
 }
 
 /*
