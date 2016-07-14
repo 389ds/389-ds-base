@@ -11,11 +11,12 @@
 #  include <config.h>
 #endif
 
+#define _GNU_SOURCE
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *    Don't forget to update build_date when the patch sets are updated. 
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-static char *build_date = "23-FEBRUARY-2012";
+static char *build_date = "14-JULY-2016";
 
 #if defined(linux) || defined(__linux) || defined(__linux__)
 #define IDDS_LINUX_INCLUDE 1
@@ -32,10 +33,12 @@ static char *build_date = "23-FEBRUARY-2012";
 #include <sys/resource.h>
 #include <unistd.h>
 #endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+
 #if !defined(__VMS) && !defined(IDDS_LINUX_INCLUDE)
 #if defined(__hpux) && defined(f_type)
 #undef f_type
@@ -864,6 +867,39 @@ done:
         free(cmd);
     }
 }
+
+
+static void
+linux_check_cpu_features(void)
+{
+    FILE *cpuinfo = fopen("/proc/cpuinfo", "rb");
+    char *arg = 0;
+    char *token = NULL;
+    size_t size = 0;
+    int found = 0;
+    while(getline(&arg, &size, cpuinfo) != -1)
+    {
+        if (strncmp("flags", arg, 5) == 0) {
+            token = strtok(arg, " ");
+            while (token != NULL) {
+                if (strncmp(token, "cx16", 4) == 0) {
+                    found += 1;
+                }
+                token = strtok(NULL, " ");
+            }
+        }
+    }
+    free(arg);
+    fclose(cpuinfo);
+
+    if (found == 0) {
+        flag_os_bad = 1;
+        printf("ERROR: This system does not support CMPXCHG16B instruction (cpuflag cx16).\n");
+        printf("       nsslapd-enable-nunc-stans must be set to "off" on this system. \n");
+        printf("       In a future release of Directory Server this platform will NOT be supported.\n\n");
+    }
+
+}
 #endif /* IDDS_LINUX_INCLUDE */
 
 
@@ -976,6 +1012,8 @@ static void gen_tests (void)
 
 #if defined(IDDS_LINUX_INCLUDE)
     linux_check_release();
+
+    linux_check_cpu_features();
 #endif
 
 
