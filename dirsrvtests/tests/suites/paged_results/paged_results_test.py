@@ -12,8 +12,7 @@ import logging
 import pytest
 from random import sample
 from ldap.controls import SimplePagedResultsControl
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -24,8 +23,14 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 TEST_USER_NAME = 'simplepaged_test'
-TEST_USER_DN = 'uid=%s,%s' % (TEST_USER_NAME, DEFAULT_SUFFIX)
+TEST_USER_DN = 'uid={},{}'.format(TEST_USER_NAME, DEFAULT_SUFFIX)
 TEST_USER_PWD = 'simplepaged_test'
+NEW_SUFFIX_1_NAME = 'test_parent'
+NEW_SUFFIX_1 = 'o={}'.format(NEW_SUFFIX_1_NAME)
+NEW_SUFFIX_2_NAME = 'child'
+NEW_SUFFIX_2 = 'ou={},{}'.format(NEW_SUFFIX_2_NAME, NEW_SUFFIX_1)
+NEW_BACKEND_1 = 'parent_base'
+NEW_BACKEND_2 = 'child_base'
 
 
 class TopologyStandalone(object):
@@ -62,9 +67,10 @@ def topology(request):
 
 
 @pytest.fixture(scope="module")
-def test_user(topology):
+def test_user(topology, request):
     """User for binding operation"""
 
+    log.info('Adding user {}'.format(TEST_USER_DN))
     try:
         topology.standalone.add_s(Entry((TEST_USER_DN, {
                                         'objectclass': 'top person'.split(),
@@ -81,8 +87,63 @@ def test_user(topology):
                                                            e.message['desc']))
         raise e
 
+    def fin():
+        log.info('Deleting user {}'.format(TEST_USER_DN))
+        topology.standalone.delete_s(TEST_USER_DN)
+    request.addfinalizer(fin)
 
-def add_users(topology, users_num):
+
+@pytest.fixture(scope="module")
+def new_suffixes(topology):
+    """Add two suffixes with backends, one is a parent
+    of the another
+    """
+
+    log.info('Adding suffix:{} and backend: {}'.format(NEW_SUFFIX_1, NEW_BACKEND_1))
+    topology.standalone.backend.create(NEW_SUFFIX_1,
+                                       {BACKEND_NAME: NEW_BACKEND_1})
+    topology.standalone.mappingtree.create(NEW_SUFFIX_1,
+                                           bename=NEW_BACKEND_1)
+    try:
+        topology.standalone.add_s(Entry((NEW_SUFFIX_1, {
+                                        'objectclass': 'top',
+                                        'objectclass': 'organization',
+                                        'o': NEW_SUFFIX_1_NAME
+                                        })))
+    except ldap.LDAPError as e:
+        log.error('Failed to add suffix ({}): error ({})'.format(NEW_SUFFIX_1,
+                                                                 e.message['desc']))
+        raise
+
+    log.info('Adding suffix:{} and backend: {}'.format(NEW_SUFFIX_2, NEW_BACKEND_2))
+    topology.standalone.backend.create(NEW_SUFFIX_2,
+                                       {BACKEND_NAME: NEW_BACKEND_2})
+    topology.standalone.mappingtree.create(NEW_SUFFIX_2,
+                                           bename=NEW_BACKEND_2,
+                                           parent=NEW_SUFFIX_1)
+
+    try:
+        topology.standalone.add_s(Entry((NEW_SUFFIX_2, {
+                                        'objectclass': 'top',
+                                        'objectclass': 'organizationalunit',
+                                        'ou': NEW_SUFFIX_2_NAME
+                                        })))
+    except ldap.LDAPError as e:
+        log.error('Failed to add suffix ({}): error ({})'.format(NEW_SUFFIX_2,
+                                                                 e.message['desc']))
+        raise
+
+    log.info('Adding ACI to allow our test user to search')
+    ACI_TARGET = '(targetattr != "userPassword || aci")'
+    ACI_ALLOW = '(version 3.0; acl "Enable anonymous access";allow (read, search, compare)'
+    ACI_SUBJECT = '(userdn = "ldap:///anyone");)'
+    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+
+    mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
+    topology.standalone.modify_s(NEW_SUFFIX_1, mod)
+
+
+def add_users(topology, users_num, suffix):
     """Add users to the default suffix
 
     Return the list of added user DNs.
@@ -93,7 +154,7 @@ def add_users(topology, users_num):
     for num in sample(range(1000), users_num):
         num_ran = int(round(num))
         USER_NAME = 'test%05d' % num_ran
-        USER_DN = 'uid=%s,%s' % (USER_NAME, DEFAULT_SUFFIX)
+        USER_DN = 'uid=%s,%s' % (USER_NAME, suffix)
         users_list.append(USER_DN)
         try:
             topology.standalone.add_s(Entry((USER_DN, {
@@ -154,7 +215,7 @@ def change_conf_attr(topology, suffix, attr_name, attr_value):
     return attr_value_bck
 
 
-def paged_search(topology, controls, search_flt, searchreq_attrlist):
+def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
     """Search at the DEFAULT_SUFFIX with ldap.SCOPE_SUBTREE
     using Simple Paged Control(should the first item in the
     list controls.
@@ -167,7 +228,7 @@ def paged_search(topology, controls, search_flt, searchreq_attrlist):
     pctrls = []
     all_results = []
     req_ctrl = controls[0]
-    msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
+    msgid = topology.standalone.search_ext(suffix,
                                            ldap.SCOPE_SUBTREE,
                                            search_flt,
                                            searchreq_attrlist,
@@ -187,7 +248,7 @@ def paged_search(topology, controls, search_flt, searchreq_attrlist):
             if pctrls[0].cookie:
                 # Copy cookie from response control to request control
                 req_ctrl.cookie = pctrls[0].cookie
-                msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
+                msgid = topology.standalone.search_ext(suffix,
                                                        ldap.SCOPE_SUBTREE,
                                                        search_flt,
                                                        searchreq_attrlist,
@@ -219,7 +280,7 @@ def test_search_success(topology, test_user, page_size, users_num):
     @Assert: All users should be found
     """
 
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -230,7 +291,7 @@ def test_search_success(topology, test_user, page_size, users_num):
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
-        all_results = paged_search(topology, [req_ctrl],
+        all_results = paged_search(topology, DEFAULT_SUFFIX, [req_ctrl],
                                    search_flt, searchreq_attrlist)
 
         log.info('%d results' % len(all_results))
@@ -272,7 +333,7 @@ def test_search_limits_fail(topology, test_user, page_size, users_num,
     @Assert: Should fail with appropriate exception
     """
 
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     attr_value_bck = change_conf_attr(topology, suffix, attr_name, attr_value)
     conf_param_dict = {attr_name: attr_value}
     search_flt = r'(uid=test*)'
@@ -362,7 +423,7 @@ def test_search_sort_success(topology, test_user):
 
     users_num = 50
     page_size = 5
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -377,7 +438,7 @@ def test_search_sort_success(topology, test_user):
         log.info('Initiate ldapsearch with created control instance')
         log.info('Collect data with sorting')
         controls = [req_ctrl, sort_ctrl]
-        results_sorted = paged_search(topology, controls,
+        results_sorted = paged_search(topology, DEFAULT_SUFFIX, controls,
                                       search_flt, searchreq_attrlist)
 
         log.info('Substring numbers from user DNs')
@@ -411,7 +472,7 @@ def test_search_abandon(topology, test_user):
 
     users_num = 10
     page_size = 2
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -464,7 +525,7 @@ def test_search_with_timelimit(topology, test_user):
     users_num = 100
     page_size = 50
     timelimit = 5
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -547,7 +608,7 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
 
     users_num = 100
     page_size = 5
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -578,7 +639,7 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
         log.info('Initiate three searches with a paged results control')
         for ii in range(3):
             log.info('%d search' % (ii + 1))
-            all_results = paged_search(topology, controls,
+            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
@@ -618,7 +679,7 @@ def test_search_multiple_paging(topology, test_user):
 
     users_num = 100
     page_size = 30
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -679,7 +740,7 @@ def test_search_invalid_cookie(topology, test_user, invalid_cookie):
 
     users_num = 100
     page_size = 50
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -732,7 +793,7 @@ def test_search_abandon_with_zero_size(topology, test_user):
 
     users_num = 10
     page_size = 0
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -787,7 +848,7 @@ def test_search_pagedsizelimit_success(topology, test_user):
     attr_value = '20'
     attr_value_bck = change_conf_attr(topology, DN_CONFIG,
                                       attr_name, attr_value)
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
@@ -799,7 +860,7 @@ def test_search_pagedsizelimit_success(topology, test_user):
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
-        all_results = paged_search(topology, controls,
+        all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                    search_flt, searchreq_attrlist)
 
         log.info('%d results' % len(all_results))
@@ -846,7 +907,7 @@ def test_search_nspagedsizelimit(topology, test_user,
 
     users_num = 10
     page_size = 10
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     conf_attr_bck = change_conf_attr(topology, DN_CONFIG,
@@ -865,11 +926,11 @@ def test_search_nspagedsizelimit(topology, test_user,
         if expected_rs == ldap.SIZELIMIT_EXCEEDED:
             log.info('Expect to fail with SIZELIMIT_EXCEEDED')
             with pytest.raises(expected_rs):
-                all_results = paged_search(topology, controls,
+                all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                            search_flt, searchreq_attrlist)
         elif expected_rs == 'PASS':
             log.info('Expect to pass')
-            all_results = paged_search(topology, controls,
+            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
@@ -917,7 +978,7 @@ def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs)
 
     users_num = 101
     page_size = 10
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     size_attr_bck = change_conf_attr(topology, DN_CONFIG,
@@ -940,11 +1001,11 @@ def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs)
         if expected_rs == ldap.ADMINLIMIT_EXCEEDED:
             log.info('Expect to fail with ADMINLIMIT_EXCEEDED')
             with pytest.raises(expected_rs):
-                all_results = paged_search(topology, controls,
+                all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                            search_flt, searchreq_attrlist)
         elif expected_rs == 'PASS':
             log.info('Expect to pass')
-            all_results = paged_search(topology, controls,
+            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
@@ -996,7 +1057,7 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
 
     users_num = 101
     page_size = 10
-    users_list = add_users(topology, users_num)
+    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     lookthrough_attr_bck = change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
@@ -1019,11 +1080,11 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
         if expected_rs == ldap.ADMINLIMIT_EXCEEDED:
             log.info('Expect to fail with ADMINLIMIT_EXCEEDED')
             with pytest.raises(expected_rs):
-                all_results = paged_search(topology, controls,
+                all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                            search_flt, searchreq_attrlist)
         elif expected_rs == 'PASS':
             log.info('Expect to pass')
-            all_results = paged_search(topology, controls,
+            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
@@ -1039,6 +1100,62 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
                          'nsPagedIDListScanLimit', user_idlistscan_attr_bck)
         change_conf_attr(topology, TEST_USER_DN,
                          'nsPagedLookthroughLimit', user_lookthrough_attr_bck)
+
+
+def test_multi_suffix_search(topology, test_user, new_suffixes):
+    """Verify that page result search returns empty cookie
+    if there is no returned entry.
+
+    :Feature: Simple paged results
+
+    :Setup: Standalone instance, test user for binding,
+            two suffixes with backends, one is inserted into another,
+            10 users for the search base within each suffix
+
+    :Steps: 1. Bind as test user
+            2. Search through all 20 added users with a simple paged control
+               using page_size = 4
+            3. Wait some time logs to be updated
+            3. Check access log
+
+    :Assert: All users should be found, the access log should contain
+             the pr_cookie for each page request and it should be equal 0,
+             except the last one should be equal -1
+    """
+
+    search_flt = r'(uid=test*)'
+    searchreq_attrlist = ['dn', 'sn']
+    page_size = 4
+    users_num = 20
+
+    users_list_1 = add_users(topology, users_num / 2, NEW_SUFFIX_1)
+    users_list_2 = add_users(topology, users_num / 2, NEW_SUFFIX_2)
+
+    try:
+        log.info('Set DM bind')
+        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+        log.info('Create simple paged results control instance')
+        req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+
+        all_results = paged_search(topology, NEW_SUFFIX_1, [req_ctrl],
+                                search_flt, searchreq_attrlist)
+
+        log.info('{} results'.format(len(all_results)))
+        assert len(all_results) == users_num
+
+        log.info('Waiting for logs to be updated')
+        time.sleep(30)
+        access_log_lines = topology.standalone.ds_access_log.match('.*pr_cookie=.*')
+        pr_cookie_list = ([line.rsplit('=', 1)[-1] for line in access_log_lines])
+        pr_cookie_list = [int(pr_cookie) for pr_cookie in pr_cookie_list]
+        log.info('Assert that last pr_cookie == -1 and others pr_cookie == 0')
+        assert all((pr_cookie == 0 for pr_cookie in pr_cookie_list[0:-1]))
+        assert pr_cookie_list[-1] == -1
+    finally:
+        log.info('Remove added users')
+        del_users(topology, users_list_1)
+        del_users(topology, users_list_2)
 
 
 if __name__ == '__main__':
