@@ -132,7 +132,10 @@ int main( int argc, char **argv )
 					free( buf );
 					return( 1 );
 				}
-				(void)fgets(buf+curlen, maxlen/2 + 1, stdin);
+				if (NULL == fgets(buf+curlen, maxlen/2 + 1, stdin)) {
+					/* no more input to read. */
+					break;
+				}
 			}
 			/* we have a full line, chop potential newline and turn into ldif */
 			if( buf[curlen-1] == '\n' )

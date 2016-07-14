@@ -766,8 +766,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             while (*vptr == ' ') vptr++; /* skip optional spaces */
             b64 = initDec64((unsigned char *)att->value, 0x20000);
             if (Dec64(b64, (unsigned char *) vptr)) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "%s\n invalid input line\n", 
-			  line, 0, 0);
+                LDAPDebug(LDAP_DEBUG_TRACE, "%s\n invalid input line\n", line, 0, 0);
                 continue;       /* invalid line, but we'll just skip it */
             }
             toolong = FALSE;
@@ -775,7 +774,11 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 lookahead = fgetc(edf1->fp);
                 if (lookahead != ' ')
                     break;
-                (void)fgets(line, sizeof(line), edf1->fp);
+                line[0] = '\0';
+                if (NULL == fgets(line, sizeof(line), edf1->fp)) {
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, "readrec: failed to read line\n");
+                    break;
+                }
                 len = strlen(line);
                 for (lptr = line+len-1; len; len--, lptr--) {
                     if ((*lptr != '\n') && (*lptr != '\r'))
@@ -785,16 +788,14 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 rc = Dec64(b64, (unsigned char *)line);
                 if (rc == -1)
                 {
-                    LDAPDebug(LDAP_DEBUG_TRACE, 
-			      "%s\n invalid input line\n", line, 0, 0);
+                    LDAPDebug(LDAP_DEBUG_TRACE, "%s\n invalid input line\n", line, 0, 0);
                     continue;   /* invalid line, but we'll just skip it */
                 }
 
                 if (rc) {
                     if (!toolong) {
                         toolong = TRUE;
-                        LDAPDebug(LDAP_DEBUG_TRACE, 
-				  "%s\n line too long\n", line, 0, 0);
+                        LDAPDebug(LDAP_DEBUG_TRACE, "%s\n line too long\n", line, 0, 0);
                     }
                     continue;
                 }
@@ -813,7 +814,10 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 lookahead = fgetc(edf1->fp);
                 if (lookahead != ' ')
                     break;
-                (void)fgets(line, sizeof(line), edf1->fp);
+                if (NULL == fgets(line, sizeof(line), edf1->fp)) {
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, "readrec: failed to read line\n");
+                    break;
+                }
                 len = strlen(line);
                 for (lptr = line+len-1; len; len--, lptr--) {
                     if ((*lptr != '\n') && (*lptr != '\r'))

@@ -1009,7 +1009,6 @@ export_one_entry(struct ldbminfo *li,
         }
         slapi_ch_free_string(&pw);
     }
-    rc = 0;
     data.data = slapi_entry2str_with_options(expargs->ep->ep_entry,
                                              &len, expargs->options);
     data.size = len + 1;
@@ -1018,10 +1017,14 @@ export_one_entry(struct ldbminfo *li,
         char idstr[32];
         
         sprintf(idstr, "# entry-id: %lu\n", (u_long)expargs->ep->ep_id);
-        write(expargs->fd, idstr, strlen(idstr));
+        rc = write(expargs->fd, idstr, strlen(idstr));
+        PR_ASSERT(rc > 0);
     }
-    write(expargs->fd, data.data, len);
-    write(expargs->fd, "\n", 1);
+    rc = write(expargs->fd, data.data, len);
+    PR_ASSERT(rc > 0);
+    rc = write(expargs->fd, "\n", 1);
+    PR_ASSERT(rc > 0);
+    rc = 0;
     if ((*expargs->cnt) % 1000 == 0) {
         int percent;
 
@@ -1350,7 +1353,9 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                  */
 
         sprintf(vstr, "version: %d\n\n", myversion);
-        write(fd, vstr, strlen(vstr));
+        rc = write(fd, vstr, strlen(vstr));
+        PR_ASSERT(rc > 0);
+		rc = 0;
     }
 
     eargs.decrypt = decrypt;

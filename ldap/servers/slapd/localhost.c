@@ -118,9 +118,13 @@ find_localhost_DNS()
 #ifndef NO_DOMAINNAME
     if (domain == NULL) {
         /* No domain found. Try getdomainname. */
-        getdomainname (line, sizeof(line));
-        LDAPDebug (LDAP_DEBUG_CONFIG, "getdomainname(%s)\n", line, 0, 0);
-        if (line[0] != 0) {
+        line[0] = '\0';
+        if (getdomainname(line, sizeof(line)) < 0) { /* failure */
+            slapi_log_error(SLAPI_LOG_FATAL, "localhost_DNS", "getdomainname failed\n");
+        } else {
+            slapi_log_error(SLAPI_LOG_CONFIG, "localhost_DNS", "getdomainname(%s)\n", line);
+        }
+        if (line[0] != '\0') {
             domain = &line[0];
         }
     }

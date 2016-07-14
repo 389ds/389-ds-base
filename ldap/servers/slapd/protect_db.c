@@ -42,7 +42,7 @@ grab_lockfile()
 {
     pid_t pid, owning_pid;
     char lockfile[MAXPATHLEN];
-    int fd, x;
+    int fd, x, rc;
     int removed_lockfile = 0;
     struct timeval t;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -60,8 +60,12 @@ grab_lockfile()
     /* Try to grab it */
     if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644)) != -1) {
         /* We got the lock, write our pid to the file */
-        write(fd, (void *) &pid, sizeof(pid_t));
-    close(fd);
+        rc = write(fd, (void *) &pid, sizeof(pid_t));
+        close(fd);
+        if (rc < 0) {
+            fprintf(stderr, ERROR_WRITING_LOCKFILE, lockfile);
+            return rc;
+        }
         return 0;
     }
      
@@ -74,13 +78,17 @@ grab_lockfile()
 
     while(1) {
         /* Try to grab the lockfile NUM_TRIES times waiting WAIT_TIME milliseconds after each try */
-    t.tv_sec = 0;
-    t.tv_usec = WAIT_TIME * 1000;
+        t.tv_sec = 0;
+        t.tv_usec = WAIT_TIME * 1000;
         for(x = 0; x < NUM_TRIES; x++) {
             if ((fd = open(lockfile, O_RDWR | O_CREAT | O_EXCL, 0644)) != -1) {
                 /* Got the lock */
-                write(fd, (void *) &pid, sizeof(pid_t));
-        close(fd);
+                rc = write(fd, (void *) &pid, sizeof(pid_t));
+                close(fd);
+                if (rc < 0) {
+                    fprintf(stderr, ERROR_WRITING_LOCKFILE, lockfile);
+                    return rc;
+                }
                 return 0;
             }
             select(0, NULL, NULL, NULL, &t);

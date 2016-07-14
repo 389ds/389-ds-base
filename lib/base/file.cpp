@@ -38,7 +38,6 @@ extern "C" char *nscperror_lookup(int err);
 /* PRFileDesc * SYS_ERROR_FD = NULL; */
 
 const int errbuf_size = 256;
-const unsigned int LOCKFILERANGE=0x7FFFFFFF;
 PRLock *_atomic_write_lock = NULL;
 
 /* --------------------------------- stat --------------------------------- */

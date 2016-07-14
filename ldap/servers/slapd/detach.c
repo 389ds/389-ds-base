@@ -48,7 +48,7 @@ int
 detach( int slapd_exemode, int importexport_encrypt,
         int s_port, daemon_ports_t *ports_info )
 {
-	int		i, sd;
+	int i, sd, rc;
 	char *workingdir = 0;
 	char *errorlog = 0;
 	char *ptr = 0;
@@ -84,13 +84,15 @@ detach( int slapd_exemode, int importexport_encrypt,
 		if ( NULL == workingdir ) {
 			errorlog = config_get_errorlog();
 			if ( NULL == errorlog ) {
-				(void) chdir( "/" );
+				rc = chdir( "/" );
+				PR_ASSERT(rc == 0);
 			} else {
 				if ((ptr = strrchr(errorlog, '/')) ||
 					(ptr = strrchr(errorlog, '\\'))) {
 					*ptr = 0;
 				}
-				(void) chdir( errorlog );
+				rc = chdir( errorlog );
+				PR_ASSERT(rc == 0);
 				config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, NULL, 1);
 				slapi_ch_free_string(&errorlog);
 			}
@@ -99,7 +101,8 @@ detach( int slapd_exemode, int importexport_encrypt,
 			if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, NULL, 0) == LDAP_OPERATIONS_ERROR) {
 				return 1;
 			}
-			(void) chdir( workingdir );
+			rc = chdir( workingdir );
+			PR_ASSERT(rc == 0);
 			slapi_ch_free_string(&workingdir);
 		}
 

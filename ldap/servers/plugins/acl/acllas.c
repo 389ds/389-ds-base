@@ -190,7 +190,6 @@ extern int ldapu_member_certificate_match (void* cert, const char* desc);
 /****************************************************************************/
 /* Defines, Constants, ande Declarations                                    */
 /****************************************************************************/
-static char* const   	type_objectClass = "objectclass";
 static char* const 	filter_groups = "(|(objectclass=groupOfNames) (objectclass=groupOfUniqueNames)(objectclass=groupOfCertificates)(objectclass=groupOfURLs))";
 static char* const	type_member = "member";
 static char* const	type_uniquemember = "uniquemember";

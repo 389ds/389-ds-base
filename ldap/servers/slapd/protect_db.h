@@ -26,6 +26,9 @@ void remove_slapd_process();
 #define ERROR_ACCESSING_LOCKFILE "Error - Problem accessing the lockfile %s\n" 
   /* name of lockfile */
 
+#define ERROR_WRITING_LOCKFILE "Error - Problem writing the lockfile %s\n" 
+  /* name of lockfile */
+
 #define LOCKFILE_DEAD_OWNER "Error - The lockfile, %s, is held by process %d,\nwhich no longer seems to be running.  If this is\nthe case, please remove the lockfile\n"
   /* name of lockfile, pid of owning process */
 

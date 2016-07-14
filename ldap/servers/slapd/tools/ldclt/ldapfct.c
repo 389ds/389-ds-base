@@ -2552,7 +2552,10 @@ int	 ldclt_write_genldif_nb;
 void
 ldclt_flush_genldif (void)
 {
-  write (mctx.genldifFile, ldclt_write_genldif_buf, ldclt_write_genldif_nb);
+  if (write (mctx.genldifFile, ldclt_write_genldif_buf, ldclt_write_genldif_nb) < 0) {
+    printf("ldclt[%d]: ldclt_flush_genldif: Failed to write (%s) error=%d\n",
+           mctx.pid, ldclt_write_genldif_buf, errno);
+  }
   ldclt_write_genldif_pt = ldclt_write_genldif_buf;
   ldclt_write_genldif_nb = 0;
 }
