@@ -547,6 +547,9 @@ int ids_sasl_init(void)
     LDAPDebug( LDAP_DEBUG_TRACE, "=> ids_sasl_init\n", 0, 0, 0 );
 
     PR_ASSERT(inited == 0);
+    if (inited != 0) {
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "ids_sasl_init is called more than once.\n");
+    }
     inited = 1;
 
     serverfqdn = get_localhost_DNS();

@@ -403,8 +403,8 @@ idl_new_range_fetch(
     time_t curtime;
     void *saved_key = NULL;
     int coreop = operator & SLAPI_OP_RANGE;
-    ID key;
-    ID suffix;
+    ID key = 0xff; /* random- to suppress compiler warning */
+    ID suffix = 0; /* random- to suppress compiler warning */
     idl_range_id_pair *leftover = NULL;
     size_t leftoverlen = 32;
     int leftovercnt = 0;

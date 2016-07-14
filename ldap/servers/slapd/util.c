@@ -1592,7 +1592,9 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
             return 1;
         }
         while (! feof(f)) {
-            fgets(s, 79, f);
+            if (!fgets(s, 79, f)) {
+                break; /* error or eof */
+            }
             if (feof(f)) {
                 break;
             }
@@ -1614,8 +1616,9 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
             return 1;
         }
         while (! feof(fm)) {
-            fgets(s, 79, fm);
-            /* Is this really needed? */
+            if (!fgets(s, 79, fm)) {
+                break; /* error or eof */
+            }
             if (feof(fm)) {
                 break;
             }

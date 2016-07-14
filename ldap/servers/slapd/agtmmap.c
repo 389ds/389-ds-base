@@ -160,7 +160,15 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
                {
                    /* Without this we will get segv when we try to read/write later */
                    buf = calloc (1, sz);
-                   (void)write (fd, buf, sz);
+                   if (write(fd, buf, sz) < 0) {
+                       err = errno;
+#if (0)
+                       fprintf (stderr, "write failed errno=%d from %s(line: %d)\n", err, __FILE__, __LINE__);
+#endif
+                       rc = err;
+                       free (buf);
+                       goto bail;
+                   }
                    free (buf);
                }
 

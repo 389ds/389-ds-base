@@ -44,7 +44,7 @@ main (int argc, char *argv[]) {
     netsnmp_log_handler *log_hdl = NULL;
     int                 c, log_level = LOG_WARNING;
     struct stat         logdir_s;
-    pid_t               child_pid;
+    pid_t               child_pid = 0;
     FILE                *pid_fp;
 
     /* Load options */
@@ -74,7 +74,11 @@ main (int argc, char *argv[]) {
 
     /* check if we're already running as another process */
     if ((pid_fp = fopen(pidfile, "r")) != NULL) {
-        fscanf(pid_fp, "%d", &child_pid);
+        int rc = fscanf(pid_fp, "%d", &child_pid);
+        if ((rc == 0) || (rc == EOF)) {
+            printf("ldap-agent: Failed to get pid from %s\n", pidfile);
+            exit(1);
+        }
         fclose(pid_fp);
         if (kill(child_pid, SIGUSR1) == 0) {
             printf("ldap-agent: Already running as pid %d!\n", child_pid);
@@ -145,6 +149,7 @@ main (int argc, char *argv[]) {
     /* run as a daemon */
     if (netsnmp_daemonize(0, 0)) {
         int i;
+        int rc;
 
         /* sleep to allow pidfile to be created by child */
         for (i=0; i < 3; i++) {
@@ -159,7 +164,11 @@ main (int argc, char *argv[]) {
             exit(1);
         }
 
-        fscanf(pid_fp, "%d", &child_pid);
+        rc = fscanf(pid_fp, "%d", &child_pid);
+        if ((rc == 0) || (rc == EOF)) {
+            printf("ldap-agent: Failed to get pid from %s\n", pidfile);
+            exit(1);
+        }
         fclose(pid_fp);
         printf("ldap-agent: Started as pid %d\n", child_pid);
         exit(0);

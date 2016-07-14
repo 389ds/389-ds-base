@@ -1155,6 +1155,11 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
                             rc = PR_Delete(dbp);
                         }
                         PR_ASSERT(rc == 0);
+                        if (rc != 0) {
+                            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                "ldbm_instance_post_delete_instance_entry_callback:"
+                                " failed to delete %s\n", dbp);
+                        }
                         PR_smprintf_free(dbp);
                     }
                     PR_CloseDir(dirhandle);                

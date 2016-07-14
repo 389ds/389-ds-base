@@ -85,10 +85,14 @@ fsmutex_init(char *name, int number, int flags)
 NSAPI_PUBLIC void 
 fsmutex_setowner(FSMUTEX fsm, uid_t uid, gid_t gid)
 {
-    if(!geteuid())
-        (void) chown( ((fsmutex_s *)fsm)->id, uid, gid);
+    if(!geteuid()) {
+        int rc = chown( ((fsmutex_s *)fsm)->id, uid, gid);
+        PR_ASSERT(rc == 0);
+        if (rc != 0 ) {
+            return; /* just to suppress compiler warning... */
+        }
+    }
 }
-
 
 /* -------------------------- fsmutex_terminate --------------------------- */
 
