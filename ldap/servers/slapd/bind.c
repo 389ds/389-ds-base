@@ -697,7 +697,7 @@ do_bind( Slapi_PBlock *pb )
                 sdn = pb_sdn;
                 dn = slapi_sdn_get_dn(sdn);
                 if (!dn) {
-                    char *udn = slapi_sdn_get_udn(sdn);
+                    const char *udn = slapi_sdn_get_udn(sdn);
                     slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set corrupted dn %s\n", udn?udn:"");
                     slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errorbuf);
                     send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
