@@ -895,7 +895,7 @@ linux_check_cpu_features(void)
     if (found == 0) {
         flag_os_bad = 1;
         printf("ERROR: This system does not support CMPXCHG16B instruction (cpuflag cx16).\n");
-        printf("       nsslapd-enable-nunc-stans must be set to "off" on this system. \n");
+        printf("       nsslapd-enable-nunc-stans must be set to \"off\" on this system. \n");
         printf("       In a future release of Directory Server this platform will NOT be supported.\n\n");
     }
 
