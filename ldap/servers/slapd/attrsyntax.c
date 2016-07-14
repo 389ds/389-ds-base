@@ -1390,11 +1390,7 @@ attr_syntax_delete_if_not_flagged(struct asyntaxinfo *asip, void *arg)
 static int
 attr_syntax_force_to_delete(struct asyntaxinfo *asip, void *arg)
 {
-	struct attr_syntax_enum_flaginfo	*fi;
-
 	PR_ASSERT( asip != NULL );
-	fi = (struct attr_syntax_enum_flaginfo *)arg;
-	PR_ASSERT( fi != NULL );
 
 	attr_syntax_delete_no_lock( asip, PR_FALSE, 0 );
 	return ATTR_SYNTAX_ENUM_REMOVE;
