@@ -875,6 +875,10 @@ linux_check_cpu_features(void)
     char *token = NULL;
     size_t size = 0;
     int found = 0;
+    if (NULL == cpuinfo) {
+        printf("ERROR: Unable to check cpu features since opening \"/proc/cpuinfo\" failed.\n");
+        return;
+    }
     while(getline(&arg, &size, cpuinfo) != -1)
     {
         if (strncmp("flags", arg, 5) == 0) {

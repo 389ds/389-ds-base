@@ -1142,7 +1142,9 @@ entrycache_return(struct cache *cache, struct backentry **bep)
                      * so we need to remove the entry from the DN cache because
                      * we don't/can't always call cache_remove().
                      */
-                    remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn));
+                    if (remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0) {
+                        LOG("entrycache_return: failed to remove %s from dn table\n", ndn, 0, 0);
+                    }
                 }
                 backentry_free(bep);
             } else {
@@ -1392,7 +1394,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                 return 0;
             }
             if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
-                LOG("entrycache_add_int: failed to remove %s from dn table\n", 0, 0, 0);
+                LOG("entrycache_add_int: failed to remove %s from dn table\n", ndn, 0, 0);
             }
             e->ep_state |= ENTRY_STATE_NOTINCACHE;
             cache_unlock(cache);

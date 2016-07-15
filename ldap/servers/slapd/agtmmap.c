@@ -167,6 +167,7 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 #endif
                        rc = err;
                        free (buf);
+                       close(fd);
                        goto bail;
                    }
                    free (buf);
