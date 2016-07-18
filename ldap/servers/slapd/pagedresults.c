@@ -247,7 +247,7 @@ pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
 
     /* begin sequence, payload, end sequence */
     if (current_search_count < 0) {
-        cookie = 0;
+        cookie = -1;
         cookie_str = slapi_ch_strdup("");
     } else {
         cookie = index;
