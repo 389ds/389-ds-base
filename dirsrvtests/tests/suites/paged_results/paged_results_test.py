@@ -1190,6 +1190,115 @@ def test_multi_suffix_search(topology, test_user, new_suffixes):
         del_users(topology, users_list_2)
 
 
+@pytest.mark.parametrize('conf_attr_value', (None, '-1', '1000'))
+def test_maxsimplepaged_per_conn_success(topology, test_user, conf_attr_value):
+    """Verify that nsslapd-maxsimplepaged-per-conn acts according design
+
+    :Feature: Simple paged results
+
+    :Setup: Standalone instance, test user for binding,
+            20 users for the search base
+
+    :Steps: 1. Set nsslapd-maxsimplepaged-per-conn in cn=config
+               to the next values: no value, -1, some positive
+            2. Search through the added users with a simple paged control
+               using page size = 4
+
+    :Assert: If no value or value = -1 - all users should be found,
+             default behaviour;
+             If the value is positive, the value is the max simple paged
+             results requests per connection.
+    """
+
+    users_list = add_users(topology, 20, DEFAULT_SUFFIX)
+    search_flt = r'(uid=test*)'
+    searchreq_attrlist = ['dn', 'sn']
+    page_size = 4
+    if conf_attr_value:
+        max_per_con_bck = change_conf_attr(topology, DN_CONFIG,
+                                           'nsslapd-maxsimplepaged-per-conn',
+                                           conf_attr_value)
+
+    try:
+        log.info('Set user bind')
+        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+
+        log.info('Create simple paged results control instance')
+        req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+
+        all_results = paged_search(topology, DEFAULT_SUFFIX, [req_ctrl],
+                                   search_flt, searchreq_attrlist)
+
+        log.info('{} results'.format(len(all_results)))
+        assert len(all_results) == len(users_list)
+    finally:
+        log.info('Remove added users')
+        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology, users_list)
+        if conf_attr_value:
+            change_conf_attr(topology, DN_CONFIG,
+                             'nsslapd-maxsimplepaged-per-conn', max_per_con_bck)
+
+
+@pytest.mark.parametrize('conf_attr_value', ('0', '1'))
+def test_maxsimplepaged_per_conn_failure(topology, test_user, conf_attr_value):
+    """Verify that nsslapd-maxsimplepaged-per-conn acts according design
+
+    :Feature: Simple paged results
+
+    :Setup: Standalone instance, test user for binding,
+            20 users for the search base
+
+    :Steps: 1. Set nsslapd-maxsimplepaged-per-conn = 0 in cn=config
+            2. Search through the added users with a simple paged control
+               using page size = 4
+            3. Set nsslapd-maxsimplepaged-per-conn = 1 in cn=config
+            4. Search through the added users with a simple paged control
+               using page size = 4 two times, but don't close the connections
+
+    :Assert: During the searches UNWILLING_TO_PERFORM should be throwned
+    """
+
+    users_list = add_users(topology, 20, DEFAULT_SUFFIX)
+    search_flt = r'(uid=test*)'
+    searchreq_attrlist = ['dn', 'sn']
+    page_size = 4
+    max_per_con_bck = change_conf_attr(topology, DN_CONFIG,
+                                       'nsslapd-maxsimplepaged-per-conn',
+                                       conf_attr_value)
+
+    try:
+        log.info('Set user bind')
+        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+
+        log.info('Create simple paged results control instance')
+        req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
+
+        with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
+                                                ldap.SCOPE_SUBTREE,
+                                                search_flt,
+                                                searchreq_attrlist,
+                                                serverctrls=[req_ctrl])
+            rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+
+            # If nsslapd-maxsimplepaged-per-conn = 1,
+            # it should pass this point, but failed on the next search
+            assert conf_attr_value == '1'
+            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
+                                                ldap.SCOPE_SUBTREE,
+                                                search_flt,
+                                                searchreq_attrlist,
+                                                serverctrls=[req_ctrl])
+            rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+    finally:
+        log.info('Remove added users')
+        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology, users_list)
+        change_conf_attr(topology, DN_CONFIG,
+                         'nsslapd-maxsimplepaged-per-conn', max_per_con_bck)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
