@@ -79,8 +79,8 @@ SVRCORE_CreateStdSystemdPinObj(
 #endif
 
         // During testing, we want to disable this sometimes ...
-        //SVRCORE_SetUserPinInteractive(obj->user, isatty(fileno(stdin)));
-        SVRCORE_SetUserPinInteractive(obj->user, PR_FALSE);
+        // SVRCORE_SetUserPinInteractive(obj->user, PR_FALSE);
+        SVRCORE_SetUserPinInteractive(obj->user, isatty(fileno(stdin)));
 
         top = (SVRCOREPinObj*)obj->user;
 
