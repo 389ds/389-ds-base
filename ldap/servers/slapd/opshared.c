@@ -695,11 +695,12 @@ op_shared_search (Slapi_PBlock *pb, int send_result)
           /* search result could be reset in the backend/dse */
           slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_SET, &sr);
           pagedresults_set_search_result(pb->pb_conn, operation, sr, 1/*locked*/, pr_idx);
-          PR_ExitMonitor(pb->pb_conn->c_mutex);
         }
       } else {
         pr_stat = PAGEDRESULTS_SEARCH_END;
+        rc = LDAP_SUCCESS;
       }
+      PR_ExitMonitor(pb->pb_conn->c_mutex);
       pagedresults_unlock(pb->pb_conn, pr_idx);
 
       if ((PAGEDRESULTS_SEARCH_END == pr_stat) || (0 == pnentries)) {
