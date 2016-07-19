@@ -1420,10 +1420,30 @@ class DirSrv(SimpleLDAPObject):
             return "ldap://%s:%d/" % (ensure_str(host), self.port)
 
     def can_autobind(self):
+        """Check if autobind/LDAPI is enabled."""
         return self.ldapi_enabled == 'on' and self.ldapi_socket is not None and self.ldapi_autobind == 'on'
 
     def getServerId(self):
+        """Return the server identifier."""
         return self.serverid
+
+    def get_ldif_dir(self, prefix=None):
+        """Return the server instance ldif directory."""
+        try:
+            ldif_dir = self.getEntry(DN_CONFIG).__getattr__('nsslapd-ldifdir')
+        except:
+            ldif_dir = self.ldifdir
+
+        return ldif_dir
+
+    def get_bak_dir(self, prefix=None):
+        """Return the server instance ldif directory."""
+        try:
+            bak_dir = self.getEntry(DN_CONFIG).__getattr__('nsslapd-bakdir')
+        except:
+            bak_dir = self.bakdir
+
+        return bak_dir
 
     #
     # Get entries

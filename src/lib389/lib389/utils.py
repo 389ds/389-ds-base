@@ -32,6 +32,7 @@ import socket
 import subprocess
 import time
 import sys
+import filecmp
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
@@ -187,6 +188,9 @@ def valgrind_enable(sbin_dir, wrapper=None):
     Copy the valgrind ns-slapd wrapper into the /sbin directory
     (making a backup of the original ns-slapd binary).
 
+    The script calling valgrind_enable() must be run as the 'root' user
+    as selinux needs to be disabled for valgrind to work
+
     The server instance(s) should be stopped prior to calling this function.
     Then after calling valgrind_enable():
     - Start the server instance(s) with a timeout of 60 (valgrind takes a
@@ -197,11 +201,16 @@ def valgrind_enable(sbin_dir, wrapper=None):
     - Run valgrind_check_file(result_file, "pattern", "pattern", ...)
     - Run valgrind_disable()
 
-    @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
-    @param wrapper - The valgrind wrapper script for ns-slapd (if not set,
+    :param sbin_dir: the location of the ns-slapd binary (e.g. /usr/sbin)
+    :param wrapper: The valgrind wrapper script for ns-slapd (if not set,
                      a default wrapper is used)
-    @raise IOError
+    :raise IOError: If there is a problem setting up the valgrind scripts
+    :raise EnvironmentError: If script is not run as 'root'
     '''
+
+    if os.geteuid() != 0:
+        log.error('This script must be run as root to use valgrind')
+        raise EnvironmentError
 
     if not wrapper:
         # use the default ns-slapd wrapper
@@ -214,11 +223,10 @@ def valgrind_enable(sbin_dir, wrapper=None):
     if os.path.isfile(nsslapd_backup):
         # There is a backup which means we never cleaned up from a previous
         # run(failed test?)
-        # We do not want to copy ns-slapd to ns-slapd.original because ns-slapd
-        # is currently the wrapper.  Basically everything is already enabled
-        # and ready to go.
-        log.info('Valgrind is already enabled.')
-        return
+        if not filecmp.cmp(nsslapd_backup, nsslapd_orig):
+            # Files are different sizes, we assume valgrind is already setup
+            log.info('Valgrind is already enabled.')
+            return
 
     # Check both nsslapd's exist
     if not os.path.isfile(wrapper):
@@ -235,7 +243,7 @@ def valgrind_enable(sbin_dir, wrapper=None):
     except IOError as e:
         log.fatal('valgrind_enable(): failed to backup ns-slapd, error: %s' %
                   e.strerror)
-        raise IOError('failed to backup ns-slapd, error: ' % e.strerror)
+        raise IOError('failed to backup ns-slapd, error: %s' % e.strerror)
 
     # Copy the valgrind wrapper into place
     try:
@@ -243,8 +251,11 @@ def valgrind_enable(sbin_dir, wrapper=None):
     except IOError as e:
         log.fatal('valgrind_enable(): failed to copy valgrind wrapper '
                   'to ns-slapd, error: %s' % e.strerror)
-        raise IOError('failed to copy valgrind wrapper to ns-slapd, error: ' %
+        raise IOError('failed to copy valgrind wrapper to ns-slapd, error: %s' %
                       e.strerror)
+
+    # Disable selinux
+    os.system('setenforce 0')
 
     log.info('Valgrind is now enabled.')
 
@@ -253,9 +264,17 @@ def valgrind_disable(sbin_dir):
     '''
     Restore the ns-slapd binary to its original state - the server instances
     are expected to be stopped.
-    @param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
-    @raise ValueError
+
+    Note - selinux is enabled at the end of this process.
+
+    :param sbin_dir - the location of the ns-slapd binary (e.g. /usr/sbin)
+    :raise ValueError
+    :raise EnvironmentError: If script is not run as 'root'
     '''
+
+    if os.geteuid() != 0:
+        log.error('This script must be run as root to use valgrind')
+        raise EnvironmentError
 
     nsslapd_orig = '%s/ns-slapd' % sbin_dir
     nsslapd_backup = '%s/ns-slapd.original' % sbin_dir
@@ -266,7 +285,7 @@ def valgrind_disable(sbin_dir):
     except IOError as e:
         log.fatal('valgrind_disable: failed to restore ns-slapd, error: %s' %
                   e.strerror)
-        raise ValueError('failed to restore ns-slapd, error: ' % e.strerror)
+        raise ValueError('failed to restore ns-slapd, error: %s' % e.strerror)
 
     # Delete the backup now
     try:
@@ -274,8 +293,11 @@ def valgrind_disable(sbin_dir):
     except OSError as e:
         log.fatal('valgrind_disable: failed to delete backup ns-slapd, error:'
                   ' %s' % e.strerror)
-        raise ValueError('Failed to delete backup ns-slapd, error: ' %
+        raise ValueError('Failed to delete backup ns-slapd, error: %s' %
                          e.strerror)
+
+    # Enable selinux
+    os.system('setenforce 1')
 
     log.info('Valgrind is now disabled.')
 
@@ -290,7 +312,7 @@ def valgrind_get_results_file(dirsrv_inst):
 
         nobody 26239 1 10 14:33 ? 00:00:06 valgrind -q --tool=memcheck
         --leak-check=yes --leak-resolution=high --num-callers=50
-        --log-file=/var/tmp/slapd.vg.26179 /usr/sbin/ns-slapd.orig
+        --log-file=/var/tmp/slapd.vg.26179 /usr/sbin/ns-slapd.original
         -D /etc/dirsrv/slapd-localhost -i /var/run/dirsrv/slapd-localhost.pid
         -w /var/run/dirsrv/slapd-localhost.startpid
 
