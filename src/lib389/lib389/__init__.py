@@ -1427,7 +1427,7 @@ class DirSrv(SimpleLDAPObject):
         """Return the server identifier."""
         return self.serverid
 
-    def get_ldif_dir(self, prefix=None):
+    def get_ldif_dir(self):
         """Return the server instance ldif directory."""
         try:
             ldif_dir = self.getEntry(DN_CONFIG).__getattr__('nsslapd-ldifdir')
@@ -1436,7 +1436,7 @@ class DirSrv(SimpleLDAPObject):
 
         return ldif_dir
 
-    def get_bak_dir(self, prefix=None):
+    def get_bak_dir(self):
         """Return the server instance ldif directory."""
         try:
             bak_dir = self.getEntry(DN_CONFIG).__getattr__('nsslapd-bakdir')
@@ -2106,7 +2106,7 @@ class DirSrv(SimpleLDAPObject):
                         break
                 except ldap.LDAPError as e:
                     log.fatal('testReplication() failed to modify (%s),' +
-                              ' error (%d)' % (suffix, str(e)))
+                              ' error (%s)' % (suffix, str(e)))
                     return False
                 loop += 1
                 time.sleep(2)
