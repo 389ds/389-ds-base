@@ -19,7 +19,13 @@ from lib389.tasks import *
 from lib389.utils import *
 from sss_control import SSSRequestControl
 
-logging.getLogger(__name__).setLevel(logging.DEBUG)
+DEBUGGING = False
+
+if DEBUGGING:
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+else:
+    logging.getLogger(__name__).setLevel(logging.INFO)
+
 log = logging.getLogger(__name__)
 
 TEST_USER_NAME = 'simplepaged_test'
@@ -227,7 +233,13 @@ def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
     pages = 0
     pctrls = []
     all_results = []
-    req_ctrl = controls[0]
+    req_pr_ctrl = controls[0]
+    log.info('Running simple paged result search with - '
+             'search suffix: {}; filter: {}; attr list {}; '
+             'page_size = {}; controls: {}.'.format(suffix, search_flt,
+                                                    searchreq_attrlist,
+                                                    req_pr_ctrl.size,
+                                                    str(controls)))
     msgid = topology.standalone.search_ext(suffix,
                                            ldap.SCOPE_SUBTREE,
                                            search_flt,
@@ -236,6 +248,7 @@ def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
     while True:
         log.info('Getting page %d' % (pages,))
         rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+        log.debug('Data: {}'.format(rdata))
         all_results.extend(rdata)
         pages += 1
         pctrls = [
@@ -247,7 +260,8 @@ def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
         if pctrls:
             if pctrls[0].cookie:
                 # Copy cookie from response control to request control
-                req_ctrl.cookie = pctrls[0].cookie
+                log.debug('Cookie: {}'.format(pctrls[0].cookie))
+                req_pr_ctrl.cookie = pctrls[0].cookie
                 msgid = topology.standalone.search_ext(suffix,
                                                        ldap.SCOPE_SUBTREE,
                                                        search_flt,
@@ -287,7 +301,6 @@ def test_search_success(topology, test_user, page_size, users_num):
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
         all_results = paged_search(topology, DEFAULT_SUFFIX, [req_ctrl],
@@ -428,7 +441,6 @@ def test_search_sort_success(topology, test_user):
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         sort_ctrl = SSSRequestControl(True, ['sn'])
 
@@ -846,7 +858,6 @@ def test_search_pagedsizelimit_success(topology, test_user):
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
@@ -909,7 +920,6 @@ def test_search_nspagedsizelimit(topology, test_user,
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
@@ -984,7 +994,6 @@ def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs)
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
@@ -1063,7 +1072,6 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
@@ -1118,7 +1126,6 @@ def test_ger_basic(topology, test_user):
         log.info('Set bind to directory manager')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-        log.info('Create simple paged results control instance')
         spr_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         ger_ctrl = GetEffectiveRightsControl(True, "dn: " + DN_DM)
 
@@ -1167,7 +1174,6 @@ def test_multi_suffix_search(topology, test_user, new_suffixes):
         log.info('Set DM bind')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
         all_results = paged_search(topology, NEW_SUFFIX_1, [req_ctrl],
@@ -1223,7 +1229,6 @@ def test_maxsimplepaged_per_conn_success(topology, test_user, conf_attr_value):
         log.info('Set user bind')
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
-        log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
         all_results = paged_search(topology, DEFAULT_SUFFIX, [req_ctrl],
