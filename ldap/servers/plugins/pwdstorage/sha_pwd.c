@@ -120,13 +120,16 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     }
 
     /* the proof is in the comparison... */
-    result = ( hash_len >= shaLen ) ?
-        ( memcmp( userhash, dbhash, shaLen ) ) : /* include salt */
-        ( memcmp( userhash, dbhash + OLD_SALT_LENGTH,
-                  hash_len - OLD_SALT_LENGTH ) ); /* exclude salt */
+    if ( hash_len >= shaLen ) {
+        result = slapi_ct_memcmp( userhash, dbhash, shaLen );
+    } else {
+        result = slapi_ct_memcmp( userhash, dbhash + OLD_SALT_LENGTH, hash_len - OLD_SALT_LENGTH );
+    }
 
-    loser:
-    if ( dbhash && dbhash != quick_dbhash ) slapi_ch_free_string( &dbhash );
+loser:
+    if ( dbhash && dbhash != quick_dbhash ) {
+        slapi_ch_free_string( &dbhash );
+    }
     return result;
 }
 

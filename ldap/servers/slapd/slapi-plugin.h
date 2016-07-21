@@ -5837,6 +5837,22 @@ char * slapi_ch_smprintf(const char *fmt, ...)
 #else
         ;
 #endif
+/**
+ * slapi_ct_memcmp is a constant time memory comparison function. This is for
+ * use with password hashes and other locations which could lead to a timing
+ * attack due to early shortcut returns. This function *does not* shortcircuit
+ * during the comparison, always checking every byte regardless if it has already
+ * found that the memory does not match.
+ *
+ * WARNING! p1 and p2 must both reference content that is at least of size 'n'.
+ * Else this function may over-run (And will certainly fail).
+ *
+ * \param p1 pointer to first value to check.
+ * \param p2 pointer to second value to check.
+ * \param n length in bytes of the content of p1 AND p2.
+ * \return 0 on match. 1 on non-match. 2 on presence of NULL pointer in p1 or p2.
+ */
+int slapi_ct_memcmp( const void *p1, const void *p2, size_t n);
 
 /*
  * syntax plugin routines
