@@ -84,6 +84,7 @@ ns_mta_md5_pw_cmp(const char * clear, const char *mangled)
 
   mta_hash[32] = mta_salt[32] = 0;
 
+  /* This is salted, so we don't need to change it for constant time */
   return( strcmp(mta_hash,ns_mta_hash_alg(buffer,mta_salt,clear)));
 }
 
