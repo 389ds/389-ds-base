@@ -54,7 +54,7 @@ crypt_pw_cmp( const char *userpwd, const char *dbpwd )
     /* we use salt (first 2 chars) of encoded password in call to crypt() */
     cp = crypt( userpwd, dbpwd );
     if (cp) {
-       rc= strcmp( dbpwd, cp);
+       rc= slapi_ct_memcmp( dbpwd, cp, strlen(dbpwd));
     } else {
        rc = -1;
     }
