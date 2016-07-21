@@ -119,6 +119,7 @@ slapi_ch_malloc(
 			size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
 	}
+
 	if(!counters_created)
 	{
 		create_counters();
@@ -127,6 +128,33 @@ slapi_ch_malloc(
     PR_INCREMENT_COUNTER(slapi_ch_counter_malloc);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
+
+    /* So long as this happens once, we are happy, put it in ch_malloc. */
+    create_oom_buffer();
+
+    return( newmem );
+}
+
+/* See slapi-plugin.h */
+char *
+slapi_ch_memalign(size_t size, size_t alignment)
+{
+    char    *newmem;
+
+    if (size <= 0) {
+        log_negative_alloc_msg( "memalign", "bytes", size );
+        return 0;
+    }
+
+    if ( posix_memalign((void **)&newmem, alignment, size) != 0 ) {
+        int oserr = errno;
+
+        oom_occurred();
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+            size, oserr, slapd_system_strerror( oserr ), oom_advice );
+        exit( 1 );
+    }
 
 	return( newmem );
 }
@@ -374,13 +402,12 @@ slapi_ct_memcmp( const void *p1, const void *p2, size_t n)
     int result = 0;
     const unsigned char *_p1 = (const unsigned char *)p1;
     const unsigned char *_p2 = (const unsigned char *)p2;
-    size_t i;
 
     if (_p1 == NULL || _p2 == NULL) {
         return 2;
     }
 
-    for (i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         if (_p1[i] ^ _p2[i]) {
             result = 1;
         }
