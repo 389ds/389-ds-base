@@ -123,7 +123,7 @@ slapi_ch_memalign(size_t size, size_t alignment)
         int oserr = errno;
 
         oom_occurred();
-        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
             "malloc of %lu bytes failed; OS error %d (%s)%s\n",
             size, oserr, slapd_system_strerror( oserr ), oom_advice );
         exit( 1 );
@@ -349,13 +349,12 @@ slapi_ct_memcmp( const void *p1, const void *p2, size_t n)
     int result = 0;
     const unsigned char *_p1 = (const unsigned char *)p1;
     const unsigned char *_p2 = (const unsigned char *)p2;
-    size_t i;
 
     if (_p1 == NULL || _p2 == NULL) {
         return 2;
     }
 
-    for (i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         if (_p1[i] ^ _p2[i]) {
             result = 1;
         }
