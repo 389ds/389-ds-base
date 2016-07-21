@@ -109,7 +109,7 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
    PK11_DestroyContext(ctx, 1);
 
    /* Compare everything up to the salt. */
-   rc = memcmp( userhash, dbhash, MD5_LENGTH );
+   rc = slapi_ct_memcmp( userhash, dbhash, MD5_LENGTH );
 
 loser:
    if ( dbhash && dbhash != quick_dbhash ) slapi_ch_free_string( (char **)&dbhash );
