@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -54,6 +54,10 @@ def topology(request):
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
+
     return TopologyStandalone(standalone)
 
 
@@ -69,13 +73,8 @@ def test_automember_(topology):
     '''
     Write a single test here...
     '''
-
-    return
-
-
-def test_automember_final(topology):
-    topology.standalone.delete()
     log.info('automember test suite PASSED')
+    return
 
 
 def run_isolated():
@@ -85,7 +84,6 @@ def run_isolated():
     topo = topology(True)
     test_automember_init(topo)
     test_automember_(topo)
-    test_automember_final(topo)
 
 
 if __name__ == '__main__':

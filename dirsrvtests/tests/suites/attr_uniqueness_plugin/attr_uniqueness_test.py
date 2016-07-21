@@ -1,19 +1,16 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
 import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -54,6 +51,10 @@ def topology(request):
 
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
+
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -228,11 +229,6 @@ def test_attr_uniqueness(topology):
     log.info('test_attr_uniqueness: PASS\n')
 
 
-def test_attr_uniqueness_final(topology):
-    topology.standalone.delete()
-    log.info('attr_uniqueness test suite PASSED')
-
-
 def run_isolated():
     global installation1_prefix
     installation1_prefix = None
@@ -240,7 +236,6 @@ def run_isolated():
     topo = topology(True)
     test_attr_uniqueness_init(topo)
     test_attr_uniqueness(topo)
-    test_attr_uniqueness_final(topo)
 
 
 if __name__ == '__main__':

@@ -59,7 +59,7 @@ def topology(request):
     # Delete each instance in the end
     def fin():
         standalone.delete()
-    #request.addfinalizer(fin)
+    request.addfinalizer(fin)
 
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
@@ -83,16 +83,16 @@ def test_ticket48497_homeDirectory_mixed_value(topology):
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
     mod = [(ldap.MOD_REPLACE, 'homeDirectory', MIXED_VALUE)]
     topology.standalone.modify_s(name, mod)
-    
+
 def test_ticket48497_extensible_search(topology):
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
-    
+
     # check with the exact stored value
     log.info("Default: can retrieve an entry filter syntax with exact stored value")
     ent = topology.standalone.getEntry(name, ldap.SCOPE_BASE, "(homeDirectory=%s)" % MIXED_VALUE)
     log.info("Default: can retrieve an entry filter caseExactIA5Match with exact stored value")
     ent = topology.standalone.getEntry(name, ldap.SCOPE_BASE, "(homeDirectory:caseExactIA5Match:=%s)" % MIXED_VALUE)
-    
+
     # check with a lower case value that is different from the stored value
     log.info("Default: can not retrieve an entry filter syntax match with lowered stored value")
     try:
@@ -131,11 +131,11 @@ def test_ticket48497_homeDirectory_index_cfg(topology):
 def test_ticket48497_homeDirectory_index_run(topology):
     args = {TASK_WAIT: True}
     topology.standalone.tasks.reindex(suffix=SUFFIX, attrname='homeDirectory', args=args)
-    
+
     log.info("Check indexing succeeded with a specified matching rule")
     file_path = os.path.join(topology.standalone.prefix, "var/log/dirsrv/slapd-%s/errors" % topology.standalone.serverid)
     file_obj = open(file_path, "r")
-    
+
     # Check if the MR configuration failure occurs
     regex = re.compile("unknown or invalid matching rule")
     while True:
@@ -143,7 +143,7 @@ def test_ticket48497_homeDirectory_index_run(topology):
         found = regex.search(line)
         if ((line == '') or (found)):
             break
-        
+
     if (found):
         log.info("The configuration of a specific MR fails")
         log.info(line)
@@ -166,8 +166,8 @@ if __name__ == '__main__':
 #     installation1_prefix = None
 #     topo = topology(True)
 #     test_ticket48497_init(topo)
-# 
-# 
+#
+#
 #     test_ticket48497_homeDirectory_mixed_value(topo)
 #     test_ticket48497_extensible_search(topo)
 #     test_ticket48497_homeDirectory_index_cfg(topo)

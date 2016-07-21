@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -50,7 +50,7 @@ def topology(request):
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
 
     # Creating master 1...
-    master1 = DirSrv(verbose=True)
+    master1 = DirSrv(verbose=False)
     args_instance[SER_HOST] = HOST_MASTER_1
     args_instance[SER_PORT] = PORT_MASTER_1
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
@@ -118,9 +118,9 @@ def topology(request):
     #
     # Import tests entries into master1 before we initialize master2
     #
-    tmp_dir = master1.getDir(__file__, TMP_DIR)
+    ldif_dir = master1.get_ldif_dir()
 
-    import_ldif = tmp_dir + '/rel7.5-entries.ldif'
+    import_ldif = ldif_dir + '/rel7.5-entries.ldif'
 
     # First generate an ldif
     try:
@@ -200,6 +200,9 @@ def topology(request):
     def fin():
         master1.delete()
         master2.delete()
+        if ENABLE_VALGRIND:
+            sbin_dir = get_sbin_dir(prefix=master1.prefix)
+            valgrind_disable(sbin_dir)
     request.addfinalizer(fin)
 
     return TopologyReplication(master1, master2)
@@ -279,7 +282,7 @@ class ModUsers(threading.Thread):
                        DEFAULT_SUFFIX)
             NEW_RDN = 'cn=master' + self.id + '_entry' + str(idx)
             try:
-                conn.rename(USER_DN, NEW_RDN, delold=1)
+                conn.rename_s(USER_DN, NEW_RDN, delold=1)
             except ldap.LDAPError as e:
                 log.error('Failed to modrdn (' + USER_DN + ') on master ' +
                           self.id + ': error ' + e.message['desc'])
@@ -294,7 +297,7 @@ class ModUsers(threading.Thread):
                        DEFAULT_SUFFIX)
             NEW_RDN = 'uid=master' + self.id + '_entry' + str(idx)
             try:
-                conn.rename(USER_DN, NEW_RDN, delold=1)
+                conn.rename_s(USER_DN, NEW_RDN, delold=1)
             except ldap.LDAPError as e:
                 log.error('Failed to modrdn (' + USER_DN + ') on master ' +
                           self.id + ': error ' + e.message['desc'])
@@ -556,11 +559,6 @@ def test_reliab7_5_run(topology):
     RUNNING = False
     fullSearch1.join()
     fullSearch2.join()
-
-    if ENABLE_VALGRIND:
-        # We're done, disable valgrind...
-        sbin_dir = get_sbin_dir(prefix=topology.master1.prefix)
-        valgrind_disable(sbin_dir)
 
 
 if __name__ == '__main__':

@@ -22,8 +22,9 @@ log = logging.getLogger(__name__)
 
 installation_prefix = None
 
-ACCT_POLICY_CONFIG_DN = 'cn=config,cn=%s,cn=plugins,cn=config' % PLUGIN_ACCT_POLICY
-ACCT_POLICY_DN = 'cn=Account Inactivation Pplicy,%s' % SUFFIX
+ACCT_POLICY_CONFIG_DN = ('cn=config,cn=%s,cn=plugins,cn=config' %
+                         PLUGIN_ACCT_POLICY)
+ACCT_POLICY_DN = 'cn=Account Inactivation Policy,%s' % SUFFIX
 INACTIVITY_LIMIT = '9'
 SEARCHFILTER = '(objectclass=*)'
 
@@ -70,8 +71,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -138,18 +140,20 @@ def test_ticket47714_run_0(topology):
     except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
 
+    time.sleep(2)
+
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     entry = topology.standalone.search_s(TEST_USER_DN, ldap.SCOPE_BASE, SEARCHFILTER, ['lastLoginTime'])
 
     lastLoginTime0 = entry[0].lastLoginTime
-
-    time.sleep(2)
 
     log.info("\n######################### Bind as %s again ######################\n" % TEST_USER_DN)
     try:
         topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PW)
     except ldap.CONSTRAINT_VIOLATION as e:
         log.error('CONSTRAINT VIOLATION ' + e.message['desc'])
+
+    time.sleep(2)
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     entry = topology.standalone.search_s(TEST_USER_DN, ldap.SCOPE_BASE, SEARCHFILTER, ['lastLoginTime'])
@@ -164,8 +168,6 @@ def test_ticket47714_run_0(topology):
     log.info("\n######################### %s ######################\n" % ACCT_POLICY_CONFIG_DN)
     log.info("accountInactivityLimit: %s" % entry[0].accountInactivityLimit)
     log.info("\n######################### %s DONE ######################\n" % ACCT_POLICY_CONFIG_DN)
-
-    time.sleep(10)
 
     log.info("\n######################### Bind as %s again to fail ######################\n" % TEST_USER_DN)
     try:
@@ -234,7 +236,6 @@ def test_ticket47714_run_1(topology):
 
 
 def test_ticket47714_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

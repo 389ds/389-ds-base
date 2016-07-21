@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -64,11 +64,13 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
+
 
 def test_ticket48252_setup(topology):
     """
@@ -90,6 +92,8 @@ def test_ticket48252_setup(topology):
                                          'objectclass': "top person".split(),
                                          'sn': name,
                                          'cn': name})))
+
+
 def in_index_file(topology, id, index):
     key = "%s%s" % (TEST_USER, id)
     log.info("	dbscan - checking %s is in index file %s..." % (key, index))
@@ -103,6 +107,7 @@ def in_index_file(topology, id, index):
         topology.standalone.log.info("Did not found key %s in dbscan output" % key)
 
     return found
+
 
 def test_ticket48252_run_0(topology):
     """
@@ -123,6 +128,7 @@ def test_ticket48252_run_0(topology):
     assert in_index_file(topology, 0, 'cn') == False
     log.info("	entry %s is not in the cn index file after reindexed." % del_entry)
     log.info('Case 1 - PASSED')
+
 
 def test_ticket48252_run_1(topology):
     """
@@ -147,9 +153,10 @@ def test_ticket48252_run_1(topology):
     log.info("	entry %s is in the objectclass index file after reindexed." % del_entry)
     log.info('Case 2 - PASSED')
 
+
 def test_ticket48252_final(topology):
-    topology.standalone.delete()
     log.info('Testing Ticket 48252 - PASSED.')
+
 
 def run_isolated():
     '''

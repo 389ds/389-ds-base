@@ -110,22 +110,19 @@ def topology(request):
     master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
     master1.waitForReplInit(m1_m2_agmt)
 
-    # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master2):
-        log.info('Replication is working.')
-    else:
-        log.fatal('Replication is not working.')
-        assert False
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
     def fin():
         master1.delete()
         master2.delete()
         sbin_dir = get_sbin_dir(prefix=master2.prefix)
         valgrind_disable(sbin_dir)
     request.addfinalizer(fin)
+
+    # Check replication is working...
+    if master1.testReplication(DEFAULT_SUFFIX, master2):
+        log.info('Replication is working.')
+    else:
+        log.fatal('Replication is not working.')
+        assert False
 
     return TopologyReplication(master1, master2)
 
@@ -145,8 +142,8 @@ def test_ticket48226_set_purgedelay(topology):
         assert False
     topology.master1.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
     topology.master2.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
-    topology.master1.restart(10)
-    topology.master2.restart(10)
+    topology.master1.restart(30)
+    topology.master2.restart(30)
 
 
 def test_ticket48226_1(topology):
@@ -200,7 +197,7 @@ def test_ticket48226_1(topology):
     mods = [(ldap.MOD_ADD, 'description', '5')]
     topology.master2.modify_s(dn, mods)
 
-    # sleep of purgedelay so that the next update will purge the CSN_7
+    # sleep of purge delay so that the next update will purge the CSN_7
     time.sleep(6)
 
     # ADD 'description' by '6' that purge the state info
@@ -208,13 +205,12 @@ def test_ticket48226_1(topology):
     topology.master2.modify_s(dn, mods)
 
     # Restart master1
-    topology.master1.start(10)
+    #topology.master1.start(30)
 
-    # Get the results file
     results_file = valgrind_get_results_file(topology.master2)
 
     # Stop master2
-    topology.master2.stop(10)
+    topology.master2.stop(30)
 
     # Check for leak
     if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
@@ -237,7 +233,6 @@ def test_ticket48226_1(topology):
     else:
         log.info('Valgrind is happy!')
 
-    topology.master1.start(10)
     log.info('Testcase PASSED')
 
 

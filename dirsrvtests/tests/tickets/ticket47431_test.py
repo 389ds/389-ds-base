@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -53,8 +53,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -79,7 +80,7 @@ def test_ticket47431_1(topology):
     [..] - str2entry_dupcheck: 27 duplicate values for attribute type nsslapd-pluginarg2
            detected in entry cn=7-bit check,cn=plugins,cn=config. Extra values ignored.
     '''
-   
+
     log.info("Ticket 47431 - 1: Check 26 duplicate values are treated as one...")
     expected = "str2entry_dupcheck: .* duplicate values for attribute type nsslapd-pluginarg2 detected in entry cn=7-bit check,cn=plugins,cn=config."
 
@@ -138,7 +139,7 @@ def test_ticket47431_2(topology):
     '''
 
     log.info("Ticket 47431 - 2: Check two values belonging to one arg is fixed...")
-   
+
     try:
         topology.standalone.modify_s(DN_7BITPLUGIN,
                                      [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', "uid"),
@@ -197,7 +198,7 @@ def test_ticket47431_3(topology):
     '''
 
     log.info("Ticket 47431 - 3: Check missing args are fixed...")
-   
+
     try:
         topology.standalone.modify_s(DN_7BITPLUGIN,
                                      [(ldap.MOD_DELETE, 'nsslapd-pluginarg0', None),
@@ -238,7 +239,6 @@ def test_ticket47431_3(topology):
 
 
 def test_ticket47431_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

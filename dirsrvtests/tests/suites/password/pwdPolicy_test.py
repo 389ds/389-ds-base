@@ -3,25 +3,21 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
-import sys
 import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
-from lib389.config import RSA, Encryption, Config
 
 DEBUGGING = False
 
@@ -65,33 +61,6 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Deploy certs
-    # This is a trick. The nss db that ships with DS is broken
-    for f in ('key3.db', 'cert8.db', 'key4.db', 'cert9.db', 'secmod.db', 'pkcs11.txt'):
-        try:
-            os.remove("%s/%s" % (topology.standalone.confdir, f ))
-        except:
-            pass
-
-    assert(standalone.nss_ssl.reinit() is True)
-    assert(standalone.nss_ssl.create_rsa_ca() is True)
-    assert(standalone.nss_ssl.create_rsa_key_and_cert() is True)
-
-    # Say that we accept the cert
-    # Connect again!
-
-    # Enable the SSL options
-    standalone.rsa.create()
-    standalone.rsa.set('nsSSLPersonalitySSL', 'Server-Cert')
-    standalone.rsa.set('nsSSLToken', 'internal (software)')
-    standalone.rsa.set('nsSSLActivation', 'on')
-
-    standalone.config.set('nsslapd-secureport', PORT_STANDALONE2)
-    standalone.config.set('nsslapd-security', 'on')
-
-    standalone.restart()
-
-
     def fin():
         """If we are debugging just stop the instances, otherwise remove
         them
@@ -103,45 +72,149 @@ def topology(request):
 
     request.addfinalizer(fin)
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
-
     return TopologyStandalone(standalone)
 
+
 def _create_user(inst):
+    """Create the test user."""
     inst.add_s(Entry((
                 USER_DN, {
                     'objectClass': 'top account simplesecurityobject'.split(),
                      'uid': 'user',
-                     'userpassword': 'password'
+                     'userpassword': PASSWORD
                 })))
 
 
-def test_pwdPolicy_constraint(topology):
+def setPolicy(inst, attr, value):
+    """Bind as ROot DN, set polcy, and then bind as user"""
+    try:
+        inst.simple_bind_s(DN_DM, PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal("Failed to bind as Directory Manager: " + str(e))
+        assert False
+
+    value = str(value)
+    """
+    if value == '0':
+        # Remove the policy attribute
+        try:
+            inst.modify_s("cn=config",
+                [(ldap.MOD_DELETE, attr, None)])
+        except ldap.LDAPError as e:
+            log.fatal("Failed to rmeove password policy %s: %s" %
+                      (attr, str(e)))
+            assert False
+    else:
+    """
+    # Set the policy value
+    inst.config.set(attr, value)
+
+    try:
+        inst.simple_bind_s(USER_DN, PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal("Failed to bind: " + str(e))
+        assert False
+
+
+def resetPasswd(inst):
+    """Reset the user password for the next test"""
+
+    # First, bind as the ROOT DN so we can set the password
+    try:
+        inst.simple_bind_s(DN_DM, PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal("Failed to bind as Directory Manager: " + str(e))
+        assert False
+
+    # Now set the password
+    try:
+        inst.modify_s(USER_DN,
+            [(ldap.MOD_REPLACE, 'userpassword', PASSWORD)])
+    except ldap.LDAPError as e:
+        log.fatal("Failed to reset user password: " + str(e))
+        assert False
+
+
+def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
+    """Attempt to change the users password
+    inst: DirSrv Object
+    password: password
+    msg - error message if failure
+    """
+
+    setPolicy(inst, policy_attr, value)
+    try:
+        inst.modify_s(USER_DN,
+            [(ldap.MOD_REPLACE, 'userpassword', pw_bad)])
+        log.fatal('Invalid password was unexpectedly accepted (%s)' %
+                  (policy_attr))
+        assert False
+    except ldap.CONSTRAINT_VIOLATION:
+        log.info('Invalid password correctly rejected by %s:  %s' %
+                 (policy_attr, msg))
+        pass
+    except ldap.LDAPError as e:
+        log.fatal("Failed to change password: " + str(e))
+        assert False
+
+    # Change password that is allowed
+    try:
+        inst.modify_s(USER_DN,
+            [(ldap.MOD_REPLACE, 'userpassword', pw_good)])
+    except ldap.LDAPError as e:
+        log.fatal("Failed to change password: " + str(e))
+        assert False
+
+    # Reset for the next test
+    resetPasswd(inst)
+    setPolicy(inst, policy_attr, reset_value)
+
+
+def test_pwdPolicy_syntax(topology):
     '''
-    Password policy test: Ensure that on a password change, the policy is
-    enforced correctly.
+    Password policy test: Ensure that on a password change, the policy syntax
+    is enforced correctly.
     '''
 
     # Create a user
     _create_user(topology.standalone)
+
     # Set the password policy globally
-    topology.standalone.config.set('passwordMinLength', '10')
-    topology.standalone.config.set('passwordMinDigits', '2')
     topology.standalone.config.set('passwordCheckSyntax', 'on')
     topology.standalone.config.set('nsslapd-pwpolicy-local', 'off')
-    # Now open a new ldap connection with TLS
-    userconn = ldap.initialize("ldap://%s:%s" % (HOST_STANDALONE, PORT_STANDALONE))
-    userconn.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap. OPT_X_TLS_NEVER )
-    userconn.start_tls_s()
-    userconn.simple_bind_s(USER_DN, 'password')
-    # This should have an exception!
-    try:
-        userconn.passwd_s(USER_DN, 'password', 'password1')
-        assert(False)
-    except ldap.CONSTRAINT_VIOLATION:
-        assert(True)
-    # Change the password to something invalid!
+    topology.standalone.config.set('passwordMinCategories', '1')
+
+    #
+    # Test each syntax catagory
+    #
+
+    # Min Length
+    tryPassword(topology.standalone, 'passwordMinLength', 10, 2, 'passwd',
+                'password123', 'length too short')
+    # Min Digit
+    tryPassword(topology.standalone, 'passwordMinDigits', 2, 0, 'passwd',
+                'password123', 'does not contain minimum number of digits')
+    # Min Alphas
+    tryPassword(topology.standalone, 'passwordMinAlphas', 2, 0, 'p123456789',
+                'password123', 'does not contain minimum number of alphas')
+    # Max Repeats
+    tryPassword(topology.standalone, 'passwordMaxRepeats', 2, 0, 'passsword',
+                'pasword123', 'too many repeating characters')
+    # Min Specials
+    tryPassword(topology.standalone, 'passwordMinSpecials', 2, 0, 'passwd',
+                'password_#$',
+                'does not contain minimum number of special characters')
+    # Min Lowers
+    tryPassword(topology.standalone, 'passwordMinLowers', 2, 0, 'PASSWORD123',
+                'password123',
+                'does not contain minimum number of lowercase characters')
+    # Min Uppers
+    tryPassword(topology.standalone, 'passwordMinUppers', 2, 0, 'password',
+                'PASSWORD',
+                'does not contain minimum number of lowercase characters')
+    # Min 8-bits - "ldap" package only accepts ascii strings at the moment
+
+    log.info('pwdPolicy tests PASSED')
 
 
 if __name__ == '__main__':

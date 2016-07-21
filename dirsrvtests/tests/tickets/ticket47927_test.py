@@ -69,8 +69,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -289,7 +290,6 @@ def test_ticket47927_six(topology):
 
 
 def test_ticket47927_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

@@ -67,6 +67,10 @@ def topology(request):
     schemainst.create()
     schemainst.open()
 
+    def fin():
+        schemainst.delete()
+    request.addfinalizer(fin)
+
     return TopologyStandalone(schemainst)
 
 
@@ -202,10 +206,6 @@ def test_schema_comparewithfiles(topology):
     log.info('test_schema_comparewithfiles: PASSED')
 
 
-def test_schema_final(topology):
-    topology.standalone.delete()
-
-
 def run_isolated():
     '''
         run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
@@ -218,10 +218,8 @@ def run_isolated():
     installation_prefix = os.environ.get('PREFIX')
 
     topo = topology(True)
-
     test_schema_comparewithfiles(topo)
 
-    test_schema_final(topo)
 
 if __name__ == '__main__':
     run_isolated()

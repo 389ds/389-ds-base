@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -51,8 +51,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -78,7 +79,6 @@ def test_ticket48170(topology):
 
 
 def test_ticket48170_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

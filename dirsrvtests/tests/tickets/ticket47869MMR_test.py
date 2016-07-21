@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -132,8 +132,10 @@ def topology(request):
         log.fatal('Replication is not working.')
         assert False
 
-    # clear the tmp directory
-    master1.clearTmpDir(__file__)
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
 
     # Here we have two instances master and consumer
     return TopologyMaster1Master2(master1, master2)
@@ -315,8 +317,6 @@ def test_ticket47869_check(topology):
 
 
 def test_ticket47869_final(topology):
-    topology.master1.delete()
-    topology.master2.delete()
     log.info('Testcase PASSED')
 
 

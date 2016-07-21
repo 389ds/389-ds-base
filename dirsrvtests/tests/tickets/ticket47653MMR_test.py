@@ -158,8 +158,10 @@ def topology(request):
         log.fatal('Replication is not working.')
         assert False
 
-    # clear the tmp directory
-    master1.clearTmpDir(__file__)
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
 
     # Here we have two instances master and consumer
     # with replication working.
@@ -192,9 +194,8 @@ def test_ticket47653_init(topology):
     topology.master1.modify_s(DN_CONFIG, mod)
     topology.master2.modify_s(DN_CONFIG, mod)
 
-    # get read of anonymous ACI for use 'read-search' aci in SEARCH test
-    ACI_ANONYMOUS = "(targetattr!=\"userPassword\")(version 3.0; acl \"Enable anonymous access\"; allow (read, search, compare) userdn=\"ldap:///anyone\";)"
-    mod = [(ldap.MOD_DELETE, 'aci', ACI_ANONYMOUS)]
+    # remove all aci's and start with a clean slate
+    mod = [(ldap.MOD_DELETE, 'aci', None)]
     topology.master1.modify_s(SUFFIX, mod)
     topology.master2.modify_s(SUFFIX, mod)
 
@@ -442,8 +443,6 @@ def test_ticket47653_modify(topology):
 
 
 def test_ticket47653_final(topology):
-    topology.master1.delete()
-    topology.master2.delete()
     log.info('Testcase PASSED')
 
 

@@ -75,6 +75,10 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
+
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
 
@@ -469,10 +473,6 @@ def test_dynamic_plugins(topology):
     log.info('#####################################################\n')
 
 
-def test_dynamic_plugins_final(topology):
-    topology.standalone.delete()
-
-
 def run_isolated():
     '''
         run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
@@ -486,7 +486,6 @@ def run_isolated():
 
     topo = topology(True)
     test_dynamic_plugins(topo)
-    test_dynamic_plugins_final(topo)
 
 
 if __name__ == '__main__':

@@ -190,7 +190,7 @@ def add_attr(topology, attr_name):
     mod = [(ldap.MOD_ADD, 'attributeTypes', ATTR_VALUE)]
 
     try:
-        topology.standalone.modify_s(DN_SCHEMA, mod)
+        topology.master1.modify_s(DN_SCHEMA, mod)
     except ldap.LDAPError as e:
         log.fatal('Failed to add attr (%s): error (%s)' % (attr_name,
                                                            e.message['desc']))
@@ -220,7 +220,7 @@ def aci_with_attr_subtype(request, topology):
     log.info("        Add an ACI with attribute subtype")
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
     try:
-        topology.standalone.modify_s(DEFAULT_SUFFIX, mod)
+        topology.master1.modify_s(DEFAULT_SUFFIX, mod)
     except ldap.LDAPError as e:
         log.fatal('Failed to add ACI: error (%s)' % (e.message['desc']))
         assert False
@@ -230,7 +230,7 @@ def aci_with_attr_subtype(request, topology):
                                                        SUBTYPE)
         mod = [(ldap.MOD_DELETE, 'aci', ACI_BODY)]
         try:
-            topology.standalone.modify_s(DEFAULT_SUFFIX, mod)
+            topology.master1.modify_s(DEFAULT_SUFFIX, mod)
         except ldap.LDAPError as e:
             log.fatal('Failed to delete ACI: error (%s)' % (e.message['desc']))
             assert False

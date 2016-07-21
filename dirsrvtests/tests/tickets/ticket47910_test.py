@@ -55,11 +55,11 @@ def topology(request):
 
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
-    
+
     def fin():
         standalone.delete()
     request.addfinalizer(fin)
-    
+
     return TopologyStandalone(standalone)
 
 
@@ -73,13 +73,13 @@ def log_dir(topology):
 
     log.info("Diable access log buffering")
     topology.standalone.setAccessLogBuffering(False)
-    
+
     log.info("Do a ldapsearch operation")
     topology.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
-    
+
     log.info("sleep for sometime so that access log file get generated")
     time.sleep( 1 )
-    
+
     return topology.standalone.accesslog
 
 
@@ -95,7 +95,7 @@ def execute_logconv(start_time_stamp, end_time_stamp, access_log):
     assign these values to -S and -E options of logconv
     and, it will execute logconv and return result value
     '''
-    
+
     log.info("Executing logconv.pl with -S current time and -E end time")
     cmd = ['logconv.pl', '-S', start_time_stamp, '-E', end_time_stamp, access_log]
     log.info(" ".join(cmd))
@@ -115,20 +115,20 @@ def test_ticket47910_logconv_start_end_positive(topology, log_dir):
     # Execute logconv.pl -S -E with random timestamp
     #
     log.info('Running test_ticket47910 - Execute logconv.pl -S -E with random values')
-    
+
     log.info("taking current time with offset of 2 mins and formatting it to feed -S")
     start_time_stamp = (datetime.now() - timedelta(minutes=2))
     formatted_start_time_stamp = format_time(start_time_stamp)
-    
+
     log.info("taking current time with offset of 2 mins and formatting it to feed -E")
     end_time_stamp = (datetime.now() + timedelta(minutes=2))
     formatted_end_time_stamp = format_time(end_time_stamp)
-    
+
     log.info("Executing logconv.pl with -S and -E")
     result = execute_logconv(formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
     assert result == 0
 
-    
+
 def test_ticket47910_logconv_start_end_negative(topology, log_dir):
     '''
     Execute logconv.pl with -S and -E(endtime) with random time stamp
@@ -136,20 +136,20 @@ def test_ticket47910_logconv_start_end_negative(topology, log_dir):
     starttime
     This should give error message
     '''
-    
+
     #
     # Execute logconv.pl -S and -E with random timestamp
     #
     log.info('Running test_ticket47910 - Execute logconv.pl -S -E with starttime>endtime')
-    
+
     log.info("taking current time with offset of 2 mins and formatting it to feed -S")
     start_time_stamp = (datetime.now() + timedelta(minutes=2))
     formatted_start_time_stamp = format_time(start_time_stamp)
-    
+
     log.info("taking current time with offset of 2 mins and formatting it to feed -E")
     end_time_stamp = (datetime.now() - timedelta(minutes=2))
     formatted_end_time_stamp = format_time(end_time_stamp)
-    
+
     log.info("Executing logconv.pl with -S and -E")
     result = execute_logconv(formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
     assert result == 1
@@ -167,24 +167,24 @@ def test_ticket47910_logconv_start_end_invalid(topology, log_dir):
     log.info("Set start time and end time to invalid values")
     start_time_stamp = "invalid"
     end_time_stamp = "invalid"
-    
+
     log.info("Executing logconv.pl with -S and -E")
     result = execute_logconv(start_time_stamp, end_time_stamp, log_dir)
     assert result == 1
 
-    
+
 def test_ticket47910_logconv_noaccesslogs(topology, log_dir):
-    
+
     '''
     Execute logconv.pl -S(starttime) without specify
-    access logs location  
+    access logs location
     '''
-    
+
     #
     # Execute logconv.pl -S with random timestamp and no access log location
     #
     log.info('Running test_ticket47910 - Execute logconv.pl without access logs')
-        
+
     log.info("taking current time with offset of 2 mins and formatting it to feed -S")
     time_stamp = (datetime.now() - timedelta(minutes=2))
     formatted_time_stamp = format_time(time_stamp)
@@ -195,10 +195,10 @@ def test_ticket47910_logconv_noaccesslogs(topology, log_dir):
     stdout, stderr = proc.communicate()
     log.info("standard output" + stdout)
     log.info("standard errors" + stderr)
-    
+
     assert proc.returncode == 1
 
-    
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

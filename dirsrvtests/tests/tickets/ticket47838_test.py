@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -27,7 +27,6 @@ CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 RSA = 'RSA'
 RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
-LDAPSPORT = '10636'
 SERVERCERT = 'Server-Cert'
 plus_all_ecount = 0
 plus_all_dcount = 0
@@ -36,6 +35,7 @@ plus_all_dcount_noweak = 0
 
 nss_version = ''
 NSS320 = '3.20.0'
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -75,8 +75,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    #request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -166,7 +167,7 @@ def _47838_init(topology):
 
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
                                              (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
-                                             (ldap.MOD_REPLACE, 'nsslapd-secureport', LDAPSPORT)])
+                                             (ldap.MOD_REPLACE, 'nsslapd-secureport', str(DEFAULT_SECURE_PORT))])
 
     topology.standalone.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
                                               'cn': RSA,
@@ -204,7 +205,7 @@ def _47838_run_0(topology):
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
-
+    time.sleep(5)
     log.info("\n######################### Restarting the server ######################\n")
     topology.standalone.restart(timeout=120)
 
@@ -244,6 +245,7 @@ def _47838_run_1(topology):
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
+    time.sleep(5)
     # Make sure allowWeakCipher is not set.
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'allowWeakCipher', None)])
 
@@ -365,7 +367,7 @@ def _47838_run_4(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 20
+    assert ecount == 23
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -402,7 +404,7 @@ def _47838_run_5(topology):
     global plus_all_ecount
     global plus_all_dcount
     if nss_version >= NSS320:
-        assert ecount == 20
+        assert ecount == 23
     else:
         assert ecount == 12
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
@@ -507,7 +509,7 @@ def _47838_run_8(topology):
     global plus_all_ecount
     global plus_all_dcount
     if nss_version >= NSS320:
-       assert ecount == 20
+       assert ecount == 23
     else:
        assert ecount == 12
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
@@ -547,7 +549,7 @@ def _47838_run_9(topology):
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
     if nss_version >= NSS320:
-        assert ecount == 27
+        assert ecount == 30
     else:
         assert ecount == 23
     assert dcount == 0
@@ -655,6 +657,7 @@ def _47928_run_0(topology):
                                                  (ldap.MOD_DELETE, 'sslVersionMin', None),
                                                  (ldap.MOD_DELETE, 'sslVersionMax', None)])
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
+    time.sleep(5)
 
     log.info("\n######################### Restarting the server ######################\n")
     topology.standalone.stop(timeout=10)
@@ -823,7 +826,6 @@ def _47838_run_last(topology):
 
 
 def _47838_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

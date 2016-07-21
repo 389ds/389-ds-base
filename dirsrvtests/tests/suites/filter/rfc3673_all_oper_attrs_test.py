@@ -49,7 +49,7 @@ TEST_PARAMS = [(DN_ROOT, False, [
                    'nsUniqueId', 'numSubordinates', 'parentid'
                 ]),
                (DN_PEOPLE, True, [
-                   'aci', 'createTimestamp', 'creatorsName', 'entrydn',
+                   'createTimestamp', 'creatorsName', 'entrydn',
                    'entryid', 'modifyTimestamp', 'nsUniqueId',
                    'numSubordinates', 'parentid'
                 ]),

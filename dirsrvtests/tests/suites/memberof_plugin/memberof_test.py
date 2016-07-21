@@ -59,7 +59,6 @@ def topology(request):
     # Delete each instance in the end
     def fin():
         standalone.delete()
-        #pass
     request.addfinalizer(fin)
 
     # Clear out the tmp dir

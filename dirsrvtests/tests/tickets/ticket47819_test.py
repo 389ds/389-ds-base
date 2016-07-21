@@ -61,8 +61,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -129,7 +130,7 @@ def test_ticket47819(topology):
     log.info('Part 2:  Exporting replication ldif...')
 
     # Get the the full path and name for our LDIF we will be exporting
-    ldif_file = topology.standalone.getDir(__file__, TMP_DIR) + "export.ldif"
+    ldif_file = "/tmp/export.ldif"
 
     args = {EXPORT_REPL_INFO: True,
             TASK_WAIT: True}
@@ -178,7 +179,7 @@ def test_ticket47819(topology):
     #
     # Part 3 - test fixup task
     #
-    log.info('Part 4:  test the fixup task')
+    log.info('Part 3:  test the fixup task')
 
     # Run fixup task using the strip option.  This removes nsTombstoneCSN
     # so we can test if the fixup task works.
@@ -202,6 +203,7 @@ def test_ticket47819(topology):
         log.fatal('Search failed: ' + e.message['desc'])
         assert False
 
+
     # Now run the fixup task
     args = {TASK_WAIT: True}
     fixupTombTask = Tasks(topology.standalone)
@@ -209,6 +211,8 @@ def test_ticket47819(topology):
         fixupTombTask.fixupTombstones(DEFAULT_BENAME, args)
     except:
         assert False
+
+    time.sleep(1)
 
     # Search for tombstones with nsTombstoneCSN - better find some
     log.info('Search for tombstone entries...')
@@ -273,7 +277,6 @@ def test_ticket47819(topology):
 
 
 def test_ticket47819_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

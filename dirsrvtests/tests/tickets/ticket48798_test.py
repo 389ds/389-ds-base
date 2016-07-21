@@ -29,7 +29,7 @@ class TopologyStandalone(object):
 @pytest.fixture(scope="module")
 def topology(request):
     # Creating standalone instance ...
-    standalone = DirSrv(verbose=True)
+    standalone = DirSrv(verbose=False)
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
@@ -44,17 +44,13 @@ def topology(request):
 
     # Delete each instance in the end
     def fin():
-        pass
-        #standalone.delete()
+        standalone.delete()
     request.addfinalizer(fin)
-
-    # Clear out the tmp dir
-    #standalone.clearTmpDir(__file__)
 
     return TopologyStandalone(standalone)
 
 def check_socket_dh_param_size(hostname, port):
-    ### You know why we have to do this? 
+    ### You know why we have to do this?
     # Because TLS and SSL suck. Hard. They are impossible. It's all terrible, burn it all down.
     cmd = "echo quit | openssl s_client -connect {HOSTNAME}:{PORT} -msg -cipher DH | grep -A 1 ServerKeyExchange".format(
         HOSTNAME=hostname,

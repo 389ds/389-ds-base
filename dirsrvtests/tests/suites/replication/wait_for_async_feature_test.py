@@ -67,7 +67,7 @@ def topology(request):
     # Create all the agreements
     #
     # Creating agreement from master 1 to master 2
-    properties = {RA_NAME:      r'meTo_$host:$port',
+    properties = {RA_NAME:      'meTo_%s:%s' %(master2.host, master2.port),
                   RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
@@ -79,7 +79,7 @@ def topology(request):
     log.debug("%s created" % m1_m2_agmt)
 
     # Creating agreement from master 2 to master 1
-    properties = {RA_NAME:      r'meTo_$host:$port',
+    properties = {RA_NAME:      'meTo_%s:%s' %(master1.host, master1.port),
                   RA_BINDDN:    defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW:    defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD:    defaultProperties[REPLICATION_BIND_METHOD],
@@ -109,8 +109,12 @@ def topology(request):
         assert False
 
     log.info("Set Replication Debugging loglevel for the errorlog")
-    master1.setLogLevel(lib389.LOG_REPLICA)
-    master2.setLogLevel(lib389.LOG_REPLICA)
+    master1.setLogLevel(LOG_REPLICA)
+    master2.setLogLevel(LOG_REPLICA)
+
+    logging_attr = 'nsslapd-logging-hr-timestamps-enabled'
+    master1.modify_s("cn=config", [(ldap.MOD_REPLACE, logging_attr, "off")])
+    master2.modify_s("cn=config", [(ldap.MOD_REPLACE, logging_attr, "off")])
 
     # Delete each instance in the end
     def fin():
@@ -258,12 +262,14 @@ def test_behavior_with_value(topology, waitfor_async_attr, entries):
     min_ap = waitfor_async_attr[1][0]
     max_ap = waitfor_async_attr[1][1]
 
+    time.sleep(20)
+
     log.info("Gather all sync attempts within Counter dict, group by timestamp")
     with open(master1.errlog, 'r') as errlog:
         errlog_filtered = filter(lambda x: "waitfor_async_results" in x, errlog)
         for line in errlog_filtered:
             # Watch only over unsuccessful sync attempts
-            if line.split()[4] != line.split()[5]:
+            if line.split()[3] != line.split()[4]:
                 timestamp = line.split(']')[0]
                 sync_dict[timestamp] += 1
 

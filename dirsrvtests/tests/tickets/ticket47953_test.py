@@ -12,6 +12,7 @@ import time
 import ldap
 import logging
 import pytest
+import shutil
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
@@ -61,8 +62,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    #request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -80,13 +82,23 @@ def test_ticket47953(topology):
     #
     # Import an invalid ldif
     #
-    ldif_file = topology.standalone.getDir(__file__, DATA_DIR) + "ticket47953/ticket47953.ldif"
+    ldif_file = (topology.standalone.getDir(__file__, DATA_DIR) +
+                 "ticket47953/ticket47953.ldif")
+    try:
+        ldif_dir = topology.standalone.get_ldif_dir()
+        shutil.copy(ldif_file, ldif_dir)
+        ldif_file = ldif_dir + '/ticket47953.ldif'
+    except:
+        log.fatal('Failed to copy ldif to instance ldif dir')
+        assert False
     importTask = Tasks(topology.standalone)
     args = {TASK_WAIT: True}
     try:
         importTask.importLDIF(DEFAULT_SUFFIX, None, ldif_file, args)
     except ValueError:
         assert False
+
+    time.sleep(2)
 
     #
     # Delete the invalid aci
@@ -104,7 +116,6 @@ def test_ticket47953(topology):
 
 
 def test_ticket47953_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

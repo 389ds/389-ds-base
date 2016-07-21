@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -87,8 +87,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -99,7 +100,7 @@ def _header(topology, label):
     topology.standalone.log.info("####### %s" % label)
     topology.standalone.log.info("#######")
     topology.standalone.log.info("###############################################")
-    
+
 def _add_user(topology, type='active'):
     if type == 'active':
         topology.standalone.add_s(Entry((ACTIVE_USER_DN, {
@@ -130,9 +131,9 @@ def _find_memberof(topology, user_dn=None, group_dn=None, find_result=True):
             if val == group_dn:
                 found = True
                 break
-            
+
     if find_result:
-        assert(found) 
+        assert(found)
     else:
         assert(not found)
 
@@ -149,18 +150,18 @@ def _find_member(topology, user_dn=None, group_dn=None, find_result=True):
             if val == user_dn:
                 found = True
                 break
-            
+
     if find_result:
-        assert(found) 
+        assert(found)
     else:
         assert(not found)
-        
+
 def _modrdn_entry(topology=None, entry_dn=None, new_rdn=None, del_old=0, new_superior=None):
     assert topology != None
     assert entry_dn != None
     assert new_rdn != None
-    
-        
+
+
     topology.standalone.log.info("\n\n######################### MODRDN %s ######################\n" % new_rdn)
     if new_superior:
         topology.standalone.rename_s(entry_dn, new_rdn, newsuperior=new_superior, delold=del_old)
@@ -179,12 +180,12 @@ def _check_memberof(topology=None, action=None, user_dn=None, group_dn=None, fin
         txt = 'replace'
     topology.standalone.log.info('\n%s entry %s' % (txt, user_dn))
     topology.standalone.log.info('to group %s' % group_dn)
-    
+
     topology.standalone.modify_s(group_dn, [(action, 'member', user_dn)])
     time.sleep(1)
     _find_memberof(topology, user_dn=user_dn, group_dn=group_dn, find_result=find_result)
-    
-    
+
+
 
 
 def test_ticket47829_init(topology):
@@ -206,7 +207,7 @@ def test_ticket47829_init(topology):
     topology.standalone.add_s(Entry((DELETE_DN, {
                                                         'objectclass': "top nscontainer".split(),
                                                         'cn': DELETE_CN})))
-    
+
     # add groups
     topology.standalone.add_s(Entry((ACTIVE_GROUP_DN, {
                                                 'objectclass': "top groupOfNames".split(),
@@ -217,38 +218,38 @@ def test_ticket47829_init(topology):
     topology.standalone.add_s(Entry((OUT_GROUP_DN, {
                                                 'objectclass': "top groupOfNames".split(),
                                                 'cn': OUT_GROUP_CN})))
-    
+
     # add users
     _add_user(topology, 'active')
     _add_user(topology, 'stage')
     _add_user(topology, 'out')
-    
-    
+
+
 
     # enable memberof of with scope account
     topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
     dn = "cn=%s,%s" % (PLUGIN_MEMBER_OF, DN_PLUGIN)
     topology.standalone.modify_s(dn, [(ldap.MOD_REPLACE, 'memberOfEntryScope', ACTIVE_DN)])
-    
-    
-    
+
+
+
     topology.standalone.restart(timeout=10)
 
 
-    
-        
+
+
 def test_ticket47829_mod_stage_user_modrdn_stage_user_1(topology):
     _header(topology, 'add an Stage user to a Active group. Then move Stage user to Stage')
-    
+
     old_stage_user_dn  = STAGE_USER_DN
     old_stage_user_rdn = "cn=%s" % STAGE_USER_CN
     new_stage_user_rdn = "cn=x%s" % STAGE_USER_CN
     new_stage_user_dn = "%s,%s" % (new_stage_user_rdn, STAGE_DN)
-    
+
     # add Stage user to active group
     _check_memberof(topology, action=ldap.MOD_ADD, user_dn=old_stage_user_dn, group_dn=ACTIVE_GROUP_DN, find_result=False)
     _find_member  (topology, user_dn=old_stage_user_dn, group_dn=ACTIVE_GROUP_DN, find_result=True)
-    
+
     # move the Stage entry to Stage, expect  no 'member' and 'memberof'
     _modrdn_entry (topology, entry_dn=old_stage_user_dn, new_rdn=new_stage_user_rdn, new_superior=STAGE_DN)
     _find_memberof(topology, user_dn=new_stage_user_dn, group_dn=ACTIVE_GROUP_DN, find_result=False)
@@ -256,7 +257,6 @@ def test_ticket47829_mod_stage_user_modrdn_stage_user_1(topology):
 
 
 def test_ticket47833_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

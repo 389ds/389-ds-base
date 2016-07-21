@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -51,8 +51,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -73,11 +74,6 @@ def test_sasl_(topology):
     return
 
 
-def test_sasl_final(topology):
-    topology.standalone.delete()
-    log.info('sasl test suite PASSED')
-
-
 def run_isolated():
     global installation1_prefix
     installation1_prefix = None
@@ -85,8 +81,6 @@ def run_isolated():
     topo = topology(True)
     test_sasl_init(topo)
     test_sasl_(topo)
-    test_sasl_final(topo)
-
 
 if __name__ == '__main__':
     run_isolated()

@@ -50,8 +50,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -123,11 +124,6 @@ def test_password_delete_specific_password(topology):
     log.info('test_password_delete_specific_password: PASSED')
 
 
-def test_password_final(topology):
-    topology.standalone.delete()
-    log.info('Password test suite PASSED')
-
-
 def run_isolated():
     global installation1_prefix
     installation1_prefix = None
@@ -135,7 +131,6 @@ def run_isolated():
     topo = topology(True)
     test_password_init(topo)
     test_password_delete_specific_password(topo)
-    test_password_final(topo)
 
 
 if __name__ == '__main__':

@@ -14,7 +14,6 @@ import logging
 import pytest
 import shutil
 from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -52,8 +51,12 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    # Delete each instance in the end
+    def fin():
+        standalone.delete()
+        if os.geteuid() == 0:
+            os.system('setenforce 1')
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -65,8 +68,15 @@ def test_ticket47384(topology):
     With the inclusion of ticket 47601 - we do allow plugin paths
     outside the default location
     '''
+
+    if os.geteuid() != 0:
+        log.warn('This script must be run as root')
+        return
+
+    os.system('setenforce 0')
+
     PLUGIN_DN = 'cn=%s,cn=plugins,cn=config' % PLUGIN_WHOAMI
-    tmp_dir = topology.standalone.getDir(__file__, TMP_DIR)
+    tmp_dir = '/tmp'
     plugin_dir = get_plugin_dir(topology.standalone.prefix)
 
     # Copy the library to our tmp directory
@@ -79,9 +89,9 @@ def test_ticket47384(topology):
     try:
         shutil.copy('%s/libwhoami-plugin.la' % plugin_dir, tmp_dir)
     except IOError as e:
-        log.fatal('Failed to copy libwhoami-plugin.la to the tmp directory, error: '
+        log.warn('Failed to copy ' + plugin_dir +
+                 '/libwhoami-plugin.la to the tmp directory, error: '
                   + e.strerror)
-        assert False
 
     #
     # Test adding valid plugin paths
@@ -148,20 +158,9 @@ def test_ticket47384(topology):
     log.info('Test complete')
 
 
-def test_ticket47384_final(topology):
-    topology.standalone.delete()
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket47384(topo)
-    test_ticket47384_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 

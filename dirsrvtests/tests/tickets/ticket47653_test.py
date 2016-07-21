@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -85,8 +85,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -117,9 +118,8 @@ def test_ticket47653_init(topology):
     mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '128')]
     topology.standalone.modify_s(DN_CONFIG, mod)
 
-    # get read of anonymous ACI for use 'read-search' aci in SEARCH test
-    ACI_ANONYMOUS = "(targetattr!=\"userPassword\")(version 3.0; acl \"Enable anonymous access\"; allow (read, search, compare) userdn=\"ldap:///anyone\";)"
-    mod = [(ldap.MOD_DELETE, 'aci', ACI_ANONYMOUS)]
+    # Remove aci's to start with a clean slate
+    mod = [(ldap.MOD_DELETE, 'aci', None)]
     topology.standalone.modify_s(SUFFIX, mod)
 
     # add dummy entries
@@ -350,7 +350,6 @@ def test_ticket47653_delete(topology):
 
 
 def test_ticket47653_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

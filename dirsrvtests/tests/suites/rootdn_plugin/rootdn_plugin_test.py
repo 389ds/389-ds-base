@@ -53,8 +53,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -210,12 +211,20 @@ def test_rootdn_access_day_of_week(topology):
     days = ('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat')
     day = int(time.strftime("%w", time.gmtime()))
 
-    if day > 3:
+    if day == 6:
+        # Handle the roll over from Saturday into Sunday
+        deny_days = days[1] + ', ' + days[2]
+        allow_days = days[6] + ',' + days[0]
+    elif day > 3:
         deny_days = days[0] + ', ' + days[1]
         allow_days = days[day] + ',' + days[day - 1]
     else:
         deny_days = days[4] + ',' + days[5]
         allow_days = days[day] + ',' + days[day + 1]
+
+    log.info('Today:        ' + days[day])
+    log.info('Allowed days: ' + allow_days)
+    log.info('Deny days:    ' + deny_days)
 
     #
     # Set the deny days
@@ -751,11 +760,6 @@ def test_rootdn_config_validate(topology):
     log.info('test_rootdn_config_validate: PASSED')
 
 
-def test_rootdn_final(topology):
-    topology.standalone.delete()
-    log.info('Root DN Access Control test suite PASSED')
-
-
 def run_isolated():
     global installation1_prefix
     installation1_prefix = None
@@ -769,8 +773,6 @@ def run_isolated():
     test_rootdn_access_allowed_host(topo)
     test_rootdn_access_denied_host(topo)
     test_rootdn_config_validate(topo)
-
-    test_rootdn_final(topo)
 
 
 if __name__ == '__main__':

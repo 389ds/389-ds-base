@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -67,8 +67,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -78,6 +79,7 @@ def _header(topology, label):
     topology.standalone.log.info("###############################################")
     topology.standalone.log.info("####### %s" % label)
     topology.standalone.log.info("###############################################")
+
 
 def check_attr_val(topology, dn, attr, expected):
     try:
@@ -259,7 +261,6 @@ def _48294_run_2(topology):
 
 
 def _48294_final(topology):
-    topology.standalone.delete()
     log.info('All PASSED')
 
 

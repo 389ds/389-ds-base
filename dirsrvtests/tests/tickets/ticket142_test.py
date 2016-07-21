@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -71,8 +71,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -82,6 +83,7 @@ def _header(topology, label):
     topology.standalone.log.info("###############################################")
     topology.standalone.log.info("####### %s" % label)
     topology.standalone.log.info("###############################################")
+
 
 def check_attr_val(topology, dn, attr, expected):
     try:
@@ -99,6 +101,7 @@ def check_attr_val(topology, dn, attr, expected):
     except ldap.LDAPError as e:
         log.fatal('Failed to search ' + dn + ': ' + e.message['desc'])
         assert False
+
 
 def _142_init(topology):
     """
@@ -296,11 +299,6 @@ def _142_run_4(topology):
     log.info('PASSED')
 
 
-def _142_final(topology):
-    topology.standalone.delete()
-    log.info('All PASSED')
-
-
 def test_ticket142(topology):
     '''
         run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
@@ -320,7 +318,6 @@ def test_ticket142(topology):
     _142_run_3(topology)
     _142_run_4(topology)
 
-    _142_final(topology)
 
 if __name__ == '__main__':
     # Run isolated

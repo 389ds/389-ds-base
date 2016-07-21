@@ -309,9 +309,10 @@ def test_search_success(topology, test_user, page_size, users_num):
         log.info('%d results' % len(all_results))
         assert len(all_results) == len(users_list)
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_success)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
+
 
 
 @pytest.mark.parametrize("page_size,users_num,suffix,attr_name,attr_value,expected_err", [
@@ -408,7 +409,7 @@ def test_search_limits_fail(topology, test_user, page_size, users_num,
         if expected_err == ldap.UNAVAILABLE_CRITICAL_EXTENSION:
             topology.standalone.open()
 
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_limits_fail)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
         change_conf_attr(topology, suffix, attr_name, attr_value_bck)
@@ -456,7 +457,7 @@ def test_search_sort_success(topology, test_user):
         log.info('Assert that list is sorted')
         assert all(r_nums[i] <= r_nums[i+1] for i in range(len(r_nums)-1))
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_sort_success)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
 
@@ -505,7 +506,7 @@ def test_search_abandon(topology, test_user):
         with pytest.raises(ldap.TIMEOUT):
             topology.standalone.result3(msgid, timeout=5)
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_abandon)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
 
@@ -583,14 +584,14 @@ def test_search_with_timelimit(topology, test_user):
                 else:
                     break
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_with_timelimit)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
 
 
 @pytest.mark.parametrize('aci_subject',
                          ('dns = "localhost.localdomain"',
-                          'ip = "::1"'))
+                          'ip = "::1" or ip = "127.0.0.1"'))
 def test_search_dns_ip_aci(topology, test_user, aci_subject):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI
@@ -652,7 +653,7 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
         log.info('If we are here, then no error has happened. We are good.')
 
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_dns_ip_aci)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         log.info('Restore ACI')
         topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE,
@@ -718,7 +719,7 @@ def test_search_multiple_paging(topology, test_user):
                                                    searchreq_attrlist,
                                                    serverctrls=controls)
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_multiple_paging)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
 
@@ -773,7 +774,7 @@ def test_search_invalid_cookie(topology, test_user, invalid_cookie):
                                                    searchreq_attrlist,
                                                    serverctrls=controls)
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_invalid_cookie)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
 
@@ -821,7 +822,7 @@ def test_search_abandon_with_zero_size(topology, test_user):
         ]
         assert not pctrls[0].cookie
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_abandon_with_zero_size)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
 
@@ -868,7 +869,7 @@ def test_search_pagedsizelimit_success(topology, test_user):
         assert len(all_results) == len(users_list)
 
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_pagedsizelimit_success)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
         change_conf_attr(topology, DN_CONFIG,
@@ -936,7 +937,7 @@ def test_search_nspagedsizelimit(topology, test_user,
             assert len(all_results) == len(users_list)
 
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_nspagedsizelimit)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
         change_conf_attr(topology, DN_CONFIG,
@@ -1009,7 +1010,7 @@ def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_paged_limits)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
         change_conf_attr(topology, DN_CONFIG,
@@ -1087,7 +1088,7 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
     finally:
-        log.info('Set Directory Manager bind back')
+        log.info('Set Directory Manager bind back (test_search_paged_user_limits)')
         topology.standalone.simple_bind_s(DN_DM, PASSWORD)
         del_users(topology, users_list)
         change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
@@ -1167,6 +1168,9 @@ def test_multi_suffix_search(topology, test_user, new_suffixes):
     page_size = 4
     users_num = 20
 
+    log.info('Clear the access log')
+    topology.standalone.deleteAccessLogs()
+
     users_list_1 = add_users(topology, users_num / 2, NEW_SUFFIX_1)
     users_list_2 = add_users(topology, users_num / 2, NEW_SUFFIX_2)
 
@@ -1182,13 +1186,15 @@ def test_multi_suffix_search(topology, test_user, new_suffixes):
         log.info('{} results'.format(len(all_results)))
         assert len(all_results) == users_num
 
-        log.info('Waiting for logs to be updated')
-        time.sleep(30)
+        log.info('Restart the server to flush the logs')
+        topology.standalone.restart(timeout=10)
+
         access_log_lines = topology.standalone.ds_access_log.match('.*pr_cookie=.*')
         pr_cookie_list = ([line.rsplit('=', 1)[-1] for line in access_log_lines])
         pr_cookie_list = [int(pr_cookie) for pr_cookie in pr_cookie_list]
         log.info('Assert that last pr_cookie == -1 and others pr_cookie == 0')
-        assert all((pr_cookie == 0 for pr_cookie in pr_cookie_list[0:-1]))
+        pr_cookie_zeros = list(pr_cookie == 0 for pr_cookie in pr_cookie_list[0:-1])
+        assert all(pr_cookie_zeros)
         assert pr_cookie_list[-1] == -1
     finally:
         log.info('Remove added users')

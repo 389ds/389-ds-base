@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -63,8 +63,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -146,9 +147,6 @@ def test_ticket47313_run(topology):
     topology.standalone.log.info("Try to delete  %s " % entry_dn_en_only)
     topology.standalone.delete_s(entry_dn_en_only)
 
-
-def test_ticket47313_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 
@@ -165,8 +163,6 @@ def run_isolated():
 
     topo = topology(True)
     test_ticket47313_run(topo)
-
-    test_ticket47313_final(topo)
 
 
 if __name__ == '__main__':

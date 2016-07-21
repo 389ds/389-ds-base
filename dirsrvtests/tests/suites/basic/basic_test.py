@@ -81,9 +81,6 @@ def topology(request):
         standalone.delete()
     request.addfinalizer(fin)
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
-
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
 
@@ -94,7 +91,9 @@ def import_example_ldif(topology):
 
     log.info('Initializing the "basic" test suite')
 
-    import_ldif = '%s/Example.ldif' % get_data_dir(topology.standalone.prefix)
+    ldif = '%s/Example.ldif' % get_data_dir(topology.standalone.prefix)
+    import_ldif = topology.standalone.get_ldif_dir() + "/Example.ldif"
+    shutil.copyfile(ldif, import_ldif)
     try:
         topology.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
                                              input_file=import_ldif,
@@ -261,14 +260,15 @@ def test_basic_import_export(topology, import_example_ldif):
 
     log.info('Running test_basic_import_export...')
 
-    tmp_dir = topology.standalone.getDir(__file__, TMP_DIR)
+    tmp_dir = '/tmp'
 
     #
     # Test online/offline LDIF imports
     #
 
     # Generate a test ldif (50k entries)
-    import_ldif = tmp_dir + '/basic_import.ldif'
+    ldif_dir = topology.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/basic_import.ldif'
     try:
         topology.standalone.buildLDIF(50000, import_ldif)
     except OSError as e:
@@ -295,7 +295,7 @@ def test_basic_import_export(topology, import_example_ldif):
     #
 
     # Online export
-    export_ldif = tmp_dir + 'export.ldif'
+    export_ldif = ldif_dir + '/export.ldif'
     exportTask = Tasks(topology.standalone)
     try:
         args = {TASK_WAIT: True}
@@ -313,7 +313,9 @@ def test_basic_import_export(topology, import_example_ldif):
     #
     # Cleanup - Import the Example LDIF for the other tests in this suite
     #
-    import_ldif = '%s/Example.ldif' % get_data_dir(topology.standalone.prefix)
+    ldif = '%s/Example.ldif' % get_data_dir(topology.standalone.prefix)
+    import_ldif = topology.standalone.get_ldif_dir() + "/Example.ldif"
+    shutil.copyfile(ldif, import_ldif)
     try:
         topology.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
                                              input_file=import_ldif,
@@ -330,7 +332,7 @@ def test_basic_backup(topology, import_example_ldif):
 
     log.info('Running test_basic_backup...')
 
-    backup_dir = '%sbasic_backup/' % topology.standalone.getDir(__file__, TMP_DIR)
+    backup_dir = topology.standalone.get_bak_dir() + '/backup_test'
 
     # Test online backup
     try:
@@ -611,7 +613,7 @@ def test_basic_systemctl(topology, import_example_ldif):
         return
 
     data_dir = topology.standalone.getDir(__file__, DATA_DIR)
-    tmp_dir = topology.standalone.getDir(__file__, TMP_DIR)
+    tmp_dir = '/tmp'
     config_dir = topology.standalone.confdir
     start_ds = 'sudo systemctl start dirsrv@' + topology.standalone.serverid + '.service'
     stop_ds = 'sudo systemctl stop dirsrv@' + topology.standalone.serverid + '.service'
@@ -667,7 +669,7 @@ def test_basic_systemctl(topology, import_example_ldif):
     # Fix the dse.ldif, and make sure the server starts up,
     # and systemctl correctly identifies the successful start
     #
-    shutil.copy(tmp_dir + 'dse.ldif', config_dir)
+    shutil.copy(tmp_dir + '/dse.ldif', config_dir)
     log.info('Starting the server with good dse.ldif...')
     rc = os.system(start_ds)
     time.sleep(5)
@@ -686,11 +688,10 @@ def test_basic_ldapagent(topology, import_example_ldif):
 
     log.info('Running test_basic_ldapagent...')
 
-    tmp_dir = topology.standalone.getDir(__file__, TMP_DIR)
     var_dir = topology.standalone.prefix + '/var'
-    config_file = tmp_dir + '/agent.conf'
+    config_file = topology.standalone.prefix + '/etc/dirsrv/config/agent.conf'
     cmd = 'sudo %s/ldap-agent %s' % (get_sbin_dir(prefix=topology.standalone.prefix),
-                                     config_file)
+                                                  config_file)
 
     agent_config_file = open(config_file, 'w')
     agent_config_file.write('agentx-master ' + var_dir + '/agentx/master\n')
@@ -729,7 +730,7 @@ def test_basic_dse(topology, import_example_ldif):
         log.fatal('test_basic_dse: dse.ldif\'s content was incorrectly removed!')
         assert False
 
-    topology.standalone.start(timeout=10)
+    topology.standalone.start(timeout=60)
     log.info('dse.ldif was not corrupted, and the server was restarted')
 
     log.info('test_basic_dse: PASSED')

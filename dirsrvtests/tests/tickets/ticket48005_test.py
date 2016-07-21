@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -50,8 +50,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    #request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -75,7 +76,7 @@ def test_ticket48005_setup(topology):
         log.info('No ulimit -c in %s' % sysconfig_dirsrv)
         log.info('Adding it')
         cmdline = 'echo "ulimit -c unlimited" >> %s' % sysconfig_dirsrv
-        
+
     sysconfig_dirsrv_systemd = sysconfig_dirsrv + ".systemd"
     cmdline = 'egrep LimitCORE=infinity %s' % sysconfig_dirsrv_systemd
     p = os.popen(cmdline, "r")
@@ -87,7 +88,7 @@ def test_ticket48005_setup(topology):
 
     topology.standalone.restart(timeout=10)
 
-    ldif_file = topology.standalone.getDir(__file__, DATA_DIR) + "ticket48005.ldif"
+    ldif_file = topology.standalone.get_ldif_dir() + "/ticket48005.ldif"
     os.system('ls %s' % ldif_file)
     os.system('rm -f %s' % ldif_file)
     if hasattr(topology.standalone, 'prefix'):
@@ -113,7 +114,7 @@ def test_ticket48005_memberof(topology):
     '''
     Enable memberof and referint plugin
     Run fixmemberof task without waiting
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     '''
@@ -132,7 +133,7 @@ def test_ticket48005_memberof(topology):
 
     topology.standalone.stop(timeout=10)
 
-    mytmp = topology.standalone.getDir(__file__, TMP_DIR)
+    mytmp = '/tmp'
     logdir = re.sub('errors', '', topology.standalone.errlog)
     cmdline = 'ls ' + logdir + 'core*'
     p = os.popen(cmdline, "r")
@@ -157,15 +158,15 @@ def test_ticket48005_automember(topology):
     '''
     Enable automember and referint plugin
     1. Run automember rebuild membership task without waiting
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     2. Run automember export updates task without waiting
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     3. Run automember map updates task without waiting
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     '''
@@ -198,7 +199,7 @@ def test_ticket48005_automember(topology):
 
     topology.standalone.stop(timeout=10)
 
-    mytmp = topology.standalone.getDir(__file__, TMP_DIR)
+    mytmp = '/tmp'
     logdir = re.sub('errors', '', topology.standalone.errlog)
     cmdline = 'ls ' + logdir + 'core*'
     p = os.popen(cmdline, "r")
@@ -233,7 +234,7 @@ def test_ticket48005_automember(topology):
 
     topology.standalone.start(timeout=10)
 
-    ldif_in_file = topology.standalone.getDir(__file__, DATA_DIR) + "ticket48005.ldif"
+    ldif_in_file = topology.standalone.get_ldif_dir() + "/ticket48005.ldif"
     ldif_out_file = mytmp + "/ticket48005_automember_map.ldif"
     try:
         # run the automember map task
@@ -267,7 +268,7 @@ def test_ticket48005_automember(topology):
 def test_ticket48005_syntaxvalidate(topology):
     '''
     Run syntax validate task without waiting
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     '''
@@ -282,7 +283,7 @@ def test_ticket48005_syntaxvalidate(topology):
 
     topology.standalone.stop(timeout=10)
 
-    mytmp = topology.standalone.getDir(__file__, TMP_DIR)
+    mytmp = '/tmp'
     logdir = re.sub('errors', '', topology.standalone.errlog)
     cmdline = 'ls ' + logdir + 'core*'
     p = os.popen(cmdline, "r")
@@ -303,7 +304,7 @@ def test_ticket48005_usn(topology):
     Enable entryusn
     Delete all user entries.
     Run USN tombstone cleanup task
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     '''
@@ -337,7 +338,7 @@ def test_ticket48005_usn(topology):
 
     topology.standalone.stop(timeout=10)
 
-    mytmp = topology.standalone.getDir(__file__, TMP_DIR)
+    mytmp = '/tmp'
     logdir = re.sub('errors', '', topology.standalone.errlog)
     cmdline = 'ls ' + logdir + 'core*'
     p = os.popen(cmdline, "r")
@@ -360,7 +361,7 @@ def test_ticket48005_usn(topology):
 def test_ticket48005_schemareload(topology):
     '''
     Run schema reload task without waiting
-    Shutdown the server 
+    Shutdown the server
     Check if a core file was generated or not
     If no core was found, this test case was successful.
     '''
@@ -380,7 +381,7 @@ def test_ticket48005_schemareload(topology):
     p = os.popen(cmdline, "r")
     lcore = p.readline()
     if lcore != "":
-        mytmp = topology.standalone.getDir(__file__, TMP_DIR)
+        mytmp = '/tmp'
         s.system('mv %score* %s/core.ticket48005_schema_reload' % (logdir, mytmp))
         log.error('Schema reload: Moved core file(s) to %s; Test failed' % mytmp)
         assert False
@@ -392,7 +393,6 @@ def test_ticket48005_schemareload(topology):
 
 
 def test_ticket48005_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

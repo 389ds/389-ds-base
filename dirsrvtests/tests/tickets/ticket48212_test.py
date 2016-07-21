@@ -91,7 +91,7 @@ def reindexUidNumber(topology):
     indexOUT = os.popen(indexCMD, "r")
     topology.standalone.log.info("Running %s" % indexCMD)
 
-    time.sleep(15)
+    time.sleep(30)
 
     tailCMD = "tail -n 3 " + topology.standalone.errlog
     tailOUT = os.popen(tailCMD, "r")
@@ -117,6 +117,14 @@ def test_ticket48212(topology):
 
     data_dir_path = topology.standalone.getDir(__file__, DATA_DIR)
     ldif_file = data_dir_path + "ticket48212/" + _MYLDIF
+    try:
+        ldif_dir = topology.standalone.get_ldif_dir()
+        shutil.copy(ldif_file, ldif_dir)
+        ldif_file = ldif_dir + '/' +  _MYLDIF
+    except:
+        log.fatal('Failed to copy ldif to instance ldif dir')
+        assert False
+
     topology.standalone.log.info("\n\n######################### Import Test data (%s) ######################\n" % ldif_file)
     args = {TASK_WAIT: True}
     importTask = Tasks(topology.standalone)

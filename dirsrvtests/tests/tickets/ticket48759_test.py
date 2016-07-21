@@ -64,8 +64,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -108,9 +109,9 @@ def _find_memberof(topology, user_dn=None, group_dn=None, find_result=True):
             if val == group_dn:
                 found = True
                 break
-            
+
     if find_result:
-        assert(found) 
+        assert(found)
     else:
         assert(not found)
 
@@ -119,9 +120,9 @@ def test_ticket48759(topology):
     The fix for ticket 48759 has to prevent plugin calls for tombstone purging
 
     The test uses the memberof and retrocl plugins to verify this.
-    In tombstone purging without the fix the mmeberof plugin is called, 
-        if the tombstone entry is a group, 
-        it  modifies the user entries for the group 
+    In tombstone purging without the fix the mmeberof plugin is called,
+        if the tombstone entry is a group,
+        it  modifies the user entries for the group
         and if retrocl is enabled this mod is written to the retrocl
 
     The test sequence is:
@@ -262,7 +263,6 @@ def test_ticket48759(topology):
 
 
 def test_ticket48759_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

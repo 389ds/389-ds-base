@@ -65,8 +65,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -134,7 +135,6 @@ def test_ticket47970(topology):
 
 
 def test_ticket47970_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

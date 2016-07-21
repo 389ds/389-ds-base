@@ -111,17 +111,14 @@ def topology(request):
     def fin():
         master1.delete()
         master2.delete()
-    #request.addfinalizer(fin)
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
+    request.addfinalizer(fin)
 
     return TopologyReplication(master1, master2)
 
 
 def _dna_config(server, nextValue=500, maxValue=510):
     log.info("Add dna plugin config entry...%s" % server)
-    
+
     cfg_base_dn = 'cn=dna config,cn=Distributed Numeric Assignment Plugin,cn=plugins,cn=config'
 
     try:
@@ -152,8 +149,8 @@ def _dna_config(server, nextValue=500, maxValue=510):
     time.sleep(1)
     server.start(timeout=120)
     time.sleep(3)
-    
-    
+
+
 SHARE_CFG_BASE = 'ou=ranges,' + SUFFIX
 
 def _wait_shared_cfg_servers(server, expected):
@@ -174,22 +171,22 @@ def _wait_shared_cfg_servers(server, expected):
             pass
         except lib389.NoSuchEntryError:
             pass
-        
+
 def _shared_cfg_server_update(server, method=BINDMETHOD_VALUE, transport=PROTOCOLE_VALUE):
     log.info('\n======================== Update dnaPortNum=%d ============================\n'% server.port)
     try:
         ent = server.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % server.port)
-        mod = [(ldap.MOD_REPLACE, BINDMETHOD_ATTR, method), 
+        mod = [(ldap.MOD_REPLACE, BINDMETHOD_ATTR, method),
                (ldap.MOD_REPLACE, PROTOCOLE_ATTR, transport)]
         server.modify_s(ent.dn, mod)
-        
+
         log.info('\n======================== Update done\n')
         ent = server.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % server.port)
     except ldap.NO_SUCH_OBJECT:
         log.fatal("Unknown host")
         assert False
-        
-        
+
+
 def test_ticket48362(topology):
     """Write your replication testcase here.
 
@@ -206,7 +203,7 @@ def test_ticket48362(topology):
                                             'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
-    
+
     topology.master1.add_s(Entry((SHARE_CFG_BASE, {
                                      'objectclass': 'top organizationalunit'.split(),
                                      'ou': 'ranges'
@@ -216,15 +213,15 @@ def test_ticket48362(topology):
     # will not contain master 2. So at restart, master 2 is recreated without the method/protocol attribute
     _dna_config(topology.master1, nextValue=1000, maxValue=100)
     _dna_config(topology.master2, nextValue=2000, maxValue=-1)
-    
+
     # check we have all the servers available
     _wait_shared_cfg_servers(topology.master1, 2)
     _wait_shared_cfg_servers(topology.master2, 2)
-    
+
     # now force the method/transport on the servers entry
     _shared_cfg_server_update(topology.master1)
     _shared_cfg_server_update(topology.master2)
-    
+
 
 
     log.info('\n======================== BEFORE RESTART ============================\n')
@@ -240,10 +237,10 @@ def test_ticket48362(topology):
     assert(ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
     topology.master1.restart(10)
     topology.master2.restart(10)
-    
+
     # to allow DNA plugin to recreate the local host entry
     time.sleep(40)
-    
+
     log.info('\n=================== AFTER RESTART =================================\n')
     ent = topology.master1.getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL, "(dnaPortNum=%d)" % topology.master1.port)
     log.info('\n=================== AFTER RESTART =================================\n')

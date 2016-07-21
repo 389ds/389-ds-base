@@ -71,14 +71,15 @@ def topology(request):
     standalone.open()
 
     # Delete each instance in the end
-#    def fin():
-#        standalone.delete()
-#    request.addfinalizer(fin)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
 
     return TopologyStandalone(standalone)
+
 
 def pattern_accesslog(file, log_pattern):
     try:
@@ -102,6 +103,7 @@ def pattern_accesslog(file, log_pattern):
         return line
     else:
         return None
+
 
 def check_op_result(server, op, dn, superior, exists, rc):
     targetdn = dn
@@ -183,6 +185,7 @@ def check_op_result(server, op, dn, superior, exists, rc):
             assert False
 
     log.info('PASSED\n')
+
 
 def test_ticket1347760(topology):
     """
@@ -431,6 +434,7 @@ def test_ticket1347760(topology):
     check_op_result(topology.standalone, 'delete', BOGUSDN, None, exists, rc)
 
     log.info('SUCCESS')
+
 
 if __name__ == '__main__':
     # Run isolated

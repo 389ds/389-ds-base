@@ -61,8 +61,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -426,11 +427,6 @@ def test_pwdAdmin_config_validation(topology):
                  e.message['desc'])
 
 
-def test_pwdAdmin_final(topology):
-    topology.standalone.delete()
-    log.info('pwdAdmin test suite PASSED')
-
-
 def run_isolated():
     global installation1_prefix
     installation1_prefix = None
@@ -439,7 +435,6 @@ def run_isolated():
     test_pwdAdmin_init(topo)
     test_pwdAdmin(topo)
     test_pwdAdmin_config_validation(topo)
-    test_pwdAdmin_final(topo)
 
 
 if __name__ == '__main__':

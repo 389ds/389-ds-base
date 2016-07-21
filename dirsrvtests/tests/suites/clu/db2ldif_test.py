@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -50,8 +50,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -62,11 +63,6 @@ def test_db2ldif_init(topology):
     '''
 
     return
-
-
-def test_db2ldif_final(topology):
-    topology.standalone.delete()
-    log.info('db2ldif test suite PASSED')
 
 
 def run_isolated():
@@ -83,8 +79,6 @@ def run_isolated():
     # test 1 function...
     # test 2 function...
     # ...
-
-    test_db2ldif_final(topo)
 
 
 if __name__ == '__main__':

@@ -75,7 +75,7 @@ def test_range_search_init(topology):
     topology.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
 
     # First stop the instance
-    topology.standalone.stop(timeout=10)
+    topology.standalone.stop(timeout=30)
 
     # Get the sbin directory so we know where to replace 'ns-slapd'
     sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
@@ -84,7 +84,7 @@ def test_range_search_init(topology):
     valgrind_enable(sbin_dir)
 
     # Now start the server with a longer timeout
-    topology.standalone.start(timeout=60)
+    topology.standalone.start()
 
 
 def test_range_search(topology):

@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -41,7 +41,7 @@ def topology(request):
     if installation_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation_prefix
 
-    standalone = DirSrv(verbose=True)
+    standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance
     args_instance[SER_HOST] = HOST_STANDALONE
@@ -63,8 +63,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -140,7 +141,6 @@ def test_ticket47808_run(topology):
 
 
 def test_ticket47808_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

@@ -73,8 +73,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -92,7 +93,7 @@ def test_ticket48891_setup(topology):
     # bind as directory manager
     topology.standalone.log.info("Bind as %s" % DN_DM)
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-    
+
     # check there is no core
     entry = topology.standalone.search_s(CONFIG_DN, ldap.SCOPE_BASE, "(cn=config)",['nsslapd-workingdir'])
     assert entry
@@ -139,7 +140,7 @@ def test_ticket48891_setup(topology):
 
 
     topology.standalone.stop(timeout=1)
-    
+
 
     cores = fnmatch.filter(os.listdir(path), 'core.*')
     for core in cores:
@@ -150,7 +151,6 @@ def test_ticket48891_setup(topology):
 
 
 def test_ticket48891_final(topology):
-    #topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

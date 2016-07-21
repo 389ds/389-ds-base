@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 
 installation_prefix = None
 
-ACCT_POLICY_CONFIG_DN = 'cn=config,cn=%s,cn=plugins,cn=config' % PLUGIN_ACCT_POLICY 
-ACCT_POLICY_DN = 'cn=Account Inactivation Pplicy,%s' % SUFFIX
+ACCT_POLICY_CONFIG_DN = 'cn=config,cn=%s,cn=plugins,cn=config' % PLUGIN_ACCT_POLICY
+ACCT_POLICY_DN = 'cn=Account Inactivation Policy,%s' % SUFFIX
 INACTIVITY_LIMIT = '9'
 SEARCHFILTER = '(objectclass=*)'
 
@@ -39,6 +39,7 @@ DUMMY_USER1_DN  = 'cn=%s,%s' % (DUMMY_USER1_CN, DUMMY_CONTAINER)
 
 ALLOCATED_ATTR = 'employeeNumber'
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -51,20 +52,6 @@ def topology(request):
         This fixture is used to standalone topology for the 'module'.
         At the beginning, It may exists a standalone instance.
         It may also exists a backup for the standalone instance.
-
-        Principle:
-            If standalone instance exists:
-                restart it
-            If backup of standalone exists:
-                create/rebind to standalone
-
-                restore standalone instance from backup
-            else:
-                Cleanup everything
-                    remove instance
-                    remove backup
-                Create instance
-                Create backup
     '''
     global installation_prefix
 
@@ -80,64 +67,23 @@ def topology(request):
     args_standalone = args_instance.copy()
     standalone.allocate(args_standalone)
 
-    # Get the status of the backups
-    backup_standalone = standalone.checkBackupFS()
-
     # Get the status of the instance and restart it if it exists
     instance_standalone = standalone.exists()
     if instance_standalone:
-        # assuming the instance is already stopped, just wait 5 sec max
-        standalone.stop(timeout=5)
-        try:
-            standalone.start(timeout=10)
-        except ldap.SERVER_DOWN:
-            pass
+        standalone.delete()
 
-    if backup_standalone:
-        # The backup exist, assuming it is correct
-        # we just re-init the instance with it
-        if not instance_standalone:
-            standalone.create()
-            # Used to retrieve configuration information (dbdir, confdir...)
-            standalone.open()
+    # Create the instance
+    standalone.create()
 
-        # restore standalone instance from backup
-        standalone.stop(timeout=10)
-        standalone.restoreFS(backup_standalone)
-        standalone.start(timeout=10)
+    # Used to retrieve configuration information (dbdir, confdir...)
+    standalone.open()
 
-    else:
-        # We should be here only in two conditions
-        #      - This is the first time a test involve standalone instance
-        #      - Something weird happened (instance/backup destroyed)
-        #        so we discard everything and recreate all
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
-        # Remove the backup. So even if we have a specific backup file
-        # (e.g backup_standalone) we clear backup that an instance may have created
-        if backup_standalone:
-            standalone.clearBackupFS()
-
-        # Remove the instance
-        if instance_standalone:
-            standalone.delete()
-
-        # Create the instance
-        standalone.create()
-
-        # Used to retrieve configuration information (dbdir, confdir...)
-        standalone.open()
-
-        # Time to create the backups
-        standalone.stop(timeout=10)
-        standalone.backupfile = standalone.backupFS()
-        standalone.start(timeout=10)
-
-    #
-    # Here we have standalone instance up and running
-    # Either coming from a backup recovery
-    # or from a fresh (re)init
-    # Time to return the topology
     return TopologyStandalone(standalone)
+
 
 def _header(topology, label):
     topology.standalone.log.info("\n\n###############################################")
@@ -145,6 +91,7 @@ def _header(topology, label):
     topology.standalone.log.info("####### %s" % label)
     topology.standalone.log.info("#######")
     topology.standalone.log.info("###############################################")
+
 
 def test_ticket47828_init(topology):
     """
@@ -156,7 +103,7 @@ def test_ticket47828_init(topology):
                                                   'cn': 'provisioning'})))
     topology.standalone.add_s(Entry((DUMMY_CONTAINER,{'objectclass': "top nscontainer".split(),
                                                   'cn': 'dummy container'})))
-    
+
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
     topology.standalone.add_s(Entry((dn_config, {'objectclass': "top extensibleObject".split(),
                                                     'cn': 'excluded scope',
@@ -168,7 +115,6 @@ def test_ticket47828_init(topology):
                                                     'dnaScope': SUFFIX})))
     topology.standalone.restart(timeout=10)
 
-                                                    
 
 def test_ticket47828_run_0(topology):
     """
@@ -185,7 +131,8 @@ def test_ticket47828_run_0(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_1(topology):
     """
     NO exclude scope: Add an active entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -201,7 +148,8 @@ def test_ticket47828_run_1(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_2(topology):
     """
     NO exclude scope: Add a staged entry and check its ALLOCATED_ATTR is  set
@@ -217,7 +165,8 @@ def test_ticket47828_run_2(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_3(topology):
     """
     NO exclude scope: Add a staged entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -233,17 +182,19 @@ def test_ticket47828_run_3(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_4(topology):
     '''
     Exclude the provisioning container
     '''
     _header(topology, 'Exclude the provisioning container')
-    
+
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
     mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', PROVISIONING)]
     topology.standalone.modify_s(dn_config, mod)
-    
+
+
 def test_ticket47828_run_5(topology):
     """
     Provisioning excluded scope: Add an active entry and check its ALLOCATED_ATTR is set
@@ -259,7 +210,8 @@ def test_ticket47828_run_5(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_6(topology):
     """
     Provisioning excluded scope: Add an active entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -275,7 +227,8 @@ def test_ticket47828_run_6(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_7(topology):
     """
     Provisioning excluded scope: Add a staged entry and check its ALLOCATED_ATTR is  not set
@@ -291,7 +244,8 @@ def test_ticket47828_run_7(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_8(topology):
     """
     Provisioning excluded scope: Add a staged entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -307,7 +261,8 @@ def test_ticket47828_run_8(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_9(topology):
     """
     Provisioning excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is set
@@ -323,7 +278,8 @@ def test_ticket47828_run_9(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_run_10(topology):
     """
     Provisioning excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -339,17 +295,19 @@ def test_ticket47828_run_10(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_run_11(topology):
     '''
     Exclude (in addition) the dummy container
     '''
     _header(topology, 'Exclude (in addition) the dummy container')
-    
+
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
     mod = [(ldap.MOD_ADD, 'dnaExcludeScope', DUMMY_CONTAINER)]
     topology.standalone.modify_s(dn_config, mod)
-    
+
+
 def test_ticket47828_run_12(topology):
     """
     Provisioning/Dummy excluded scope: Add an active entry and check its ALLOCATED_ATTR is set
@@ -365,7 +323,8 @@ def test_ticket47828_run_12(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_13(topology):
     """
     Provisioning/Dummy excluded scope: Add an active entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -381,7 +340,8 @@ def test_ticket47828_run_13(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_14(topology):
     """
     Provisioning/Dummy excluded scope: Add a staged entry and check its ALLOCATED_ATTR is not set
@@ -397,7 +357,8 @@ def test_ticket47828_run_14(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_15(topology):
     """
     Provisioning/Dummy excluded scope: Add a staged entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -413,7 +374,8 @@ def test_ticket47828_run_15(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_16(topology):
     """
     Provisioning/Dummy excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is not set
@@ -429,7 +391,8 @@ def test_ticket47828_run_16(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_run_17(topology):
     """
     Provisioning/Dummy excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -445,14 +408,14 @@ def test_ticket47828_run_17(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
-    
+
+
 def test_ticket47828_run_18(topology):
     '''
     Exclude PROVISIONING and a wrong container
     '''
     _header(topology, 'Exclude PROVISIONING and a wrong container')
-    
+
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
     mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', PROVISIONING)]
     topology.standalone.modify_s(dn_config, mod)
@@ -462,7 +425,8 @@ def test_ticket47828_run_18(topology):
         raise ValueError("invalid dnaExcludeScope value (not a DN)")
     except ldap.INVALID_SYNTAX:
         pass
-    
+
+
 def test_ticket47828_run_19(topology):
     """
     Provisioning+wrong container excluded scope: Add an active entry and check its ALLOCATED_ATTR is set
@@ -478,7 +442,8 @@ def test_ticket47828_run_19(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_20(topology):
     """
     Provisioning+wrong container excluded scope: Add an active entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -494,7 +459,8 @@ def test_ticket47828_run_20(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_21(topology):
     """
     Provisioning+wrong container excluded scope: Add a staged entry and check its ALLOCATED_ATTR is  not set
@@ -510,7 +476,8 @@ def test_ticket47828_run_21(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_22(topology):
     """
     Provisioning+wrong container excluded scope: Add a staged entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -526,7 +493,8 @@ def test_ticket47828_run_22(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_23(topology):
     """
     Provisioning+wrong container excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is set
@@ -542,7 +510,8 @@ def test_ticket47828_run_23(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_run_24(topology):
     """
     Provisioning+wrong container excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -558,22 +527,24 @@ def test_ticket47828_run_24(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_run_25(topology):
     '''
     Exclude  a wrong container
     '''
     _header(topology, 'Exclude a wrong container')
-    
+
     dn_config = "cn=excluded scope, cn=%s, %s" % (PLUGIN_DNA, DN_PLUGIN)
-    
+
     try:
         mod = [(ldap.MOD_REPLACE, 'dnaExcludeScope', "invalidDN,%s" % SUFFIX)]
         topology.standalone.modify_s(dn_config, mod)
         raise ValueError("invalid dnaExcludeScope value (not a DN)")
     except ldap.INVALID_SYNTAX:
         pass
-    
+
+
 def test_ticket47828_run_26(topology):
     """
     Wrong container excluded scope: Add an active entry and check its ALLOCATED_ATTR is set
@@ -589,7 +560,8 @@ def test_ticket47828_run_26(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_27(topology):
     """
     Wrong container excluded scope: Add an active entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -605,7 +577,8 @@ def test_ticket47828_run_27(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (ACTIVE_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(ACTIVE_USER1_DN)
-    
+
+
 def test_ticket47828_run_28(topology):
     """
     Wrong container excluded scope: Add a staged entry and check its ALLOCATED_ATTR is  not set
@@ -621,7 +594,8 @@ def test_ticket47828_run_28(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_29(topology):
     """
     Wrong container excluded scope: Add a staged entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -637,7 +611,8 @@ def test_ticket47828_run_29(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (STAGED_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(STAGED_USER1_DN)
-    
+
+
 def test_ticket47828_run_30(topology):
     """
     Wrong container excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is set
@@ -653,7 +628,8 @@ def test_ticket47828_run_30(topology):
     assert ent.getValue(ALLOCATED_ATTR) != str(-1)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_run_31(topology):
     """
     Wrong container excluded scope: Add an dummy entry and check its ALLOCATED_ATTR is unchanged (!= magic)
@@ -669,10 +645,12 @@ def test_ticket47828_run_31(topology):
     assert ent.getValue(ALLOCATED_ATTR) == str(20)
     topology.standalone.log.debug('%s.%s=%s' % (DUMMY_USER1_CN, ALLOCATED_ATTR, ent.getValue(ALLOCATED_ATTR)))
     topology.standalone.delete_s(DUMMY_USER1_DN)
-    
+
+
 def test_ticket47828_final(topology):
     topology.standalone.plugins.disable(name=PLUGIN_DNA)
     topology.standalone.stop(timeout=10)
+
 
 def run_isolated():
     '''
@@ -687,7 +665,7 @@ def run_isolated():
 
     topo = topology(True)
     test_ticket47828_init(topo)
-    
+
     test_ticket47828_run_0(topo)
     test_ticket47828_run_1(topo)
     test_ticket47828_run_2(topo)
@@ -720,9 +698,9 @@ def run_isolated():
     test_ticket47828_run_29(topo)
     test_ticket47828_run_30(topo)
     test_ticket47828_run_31(topo)
-    
+
     test_ticket47828_final(topo)
-    
+
 
 if __name__ == '__main__':
     run_isolated()

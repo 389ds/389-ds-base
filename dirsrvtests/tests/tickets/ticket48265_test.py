@@ -54,6 +54,10 @@ def topology(request):
     standalone.create()
     standalone.open()
 
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
+
     return TopologyStandalone(standalone)
 
 
@@ -103,7 +107,6 @@ def test_ticket48265_test(topology):
 
 
 def test_ticket48265_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

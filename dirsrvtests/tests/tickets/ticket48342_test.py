@@ -180,10 +180,6 @@ def topology(request):
     # Delete each instance in the end
     def fin():
         for master in (master1, master2, master3):
-        #    master.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[], encrypt=False, \
-        #        repl_data=True, outputfile='%s/ldif/%s.ldif' % (master.dbdir,SERVERID_STANDALONE ))
-        #    master.clearBackupFS()
-        #    master.backupFS()
             master.delete()
     request.addfinalizer(fin)
 
@@ -240,7 +236,7 @@ def test_ticket4026(topology):
                                             'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
-    
+
     topology.master1.add_s(Entry(('ou=ranges,' + SUFFIX, {
                                      'objectclass': 'top organizationalunit'.split(),
                                      'ou': 'ranges'
@@ -255,7 +251,7 @@ def test_ticket4026(topology):
                           'gidNumber': '1',
                           'homeDirectory': '/home/%s' % name
                           })))
-        
+
     # make master3 having more free slots that master2
     # so master1 will contact master3
     _dna_config(topology.master1, nextValue=100, maxValue=10)
@@ -263,7 +259,7 @@ def test_ticket4026(topology):
     _dna_config(topology.master3, nextValue=300, maxValue=3000)
 
     # Turn on lots of error logging now.
-    
+
     mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '16384')]
     #mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '1')]
     topology.master1.modify_s('cn=config', mod)
@@ -273,7 +269,7 @@ def test_ticket4026(topology):
     # We need to wait for the event in dna.c to fire to start the servers
     # see dna.c line 899
     time.sleep(60)
-    
+
     # add on master1 users with description DNA
     for cpt in range(10):
         name = "user_with_desc1_%d" % (cpt)

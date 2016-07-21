@@ -25,8 +25,6 @@ from lib389.utils import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = ''
-
 CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 RSA = 'RSA'
@@ -38,6 +36,7 @@ M2SERVERCERT = 'Server-Cert2'
 M1LDAPSPORT = '41636'
 M2LDAPSPORT = '42636'
 
+
 class TopologyReplication(object):
     def __init__(self, master1, master2):
         master1.open()
@@ -48,14 +47,8 @@ class TopologyReplication(object):
 
 @pytest.fixture(scope="module")
 def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
     # Creating master 1...
     master1 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_1
     args_instance[SER_PORT] = PORT_MASTER_1
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
@@ -71,8 +64,6 @@ def topology(request):
 
     # Creating master 2...
     master2 = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_2
     args_instance[SER_PORT] = PORT_MASTER_2
     args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
@@ -85,6 +76,12 @@ def topology(request):
     master2.create()
     master2.open()
     master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
+
+    # Delete each instance in the end
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
 
     #
     # Create all the agreements
@@ -136,15 +133,6 @@ def topology(request):
         log.fatal('Replication is not working.')
         assert False
 
-    # Delete each instance in the end
-    def fin():
-       master1.delete()
-       master2.delete()
-    request.addfinalizer(fin)
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
     return TopologyReplication(master1, master2)
 
 
@@ -161,6 +149,7 @@ def add_entry(server, name, rdntmpl, start, num):
                                  'uid': '%s%d' % (rdntmpl, ii),
                                  'cn': '%s user%d' % (name, ii),
                                  'sn': 'user%d' % (ii)})))
+
 
 def enable_ssl(server, ldapsport, mycert):
     log.info("\n######################### Enabling SSL LDAPSPORT %s ######################\n" % ldapsport)
@@ -179,6 +168,7 @@ def enable_ssl(server, ldapsport, mycert):
                                  'nsSSLPersonalitySSL': mycert,
                                  'nsSSLToken': 'internal (software)',
                                  'nsSSLActivation': 'on'})))
+
 
 def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
     log.info("\n######################### Check PEM files (%s, %s, %s)%s in %s ######################\n"
@@ -224,6 +214,7 @@ def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
         else:
             log.info('%s is correctly not generated.' % serverkey)
 
+
 def doAndPrintIt(cmdline):
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     log.info("      OUT:")
@@ -239,6 +230,7 @@ def doAndPrintIt(cmdline):
             break
         log.info("      <%s>" % l)
         assert False
+
 
 def create_keys_certs(topology):
     log.info("\n######################### Creating SSL Keys and Certs ######################\n")
@@ -332,7 +324,7 @@ def create_keys_certs(topology):
     check_pems(m1confdir, CACERT, M1SERVERCERT, M1SERVERCERT + '-Key', "")
 
     global mytmp
-    mytmp = topology.master1.getDir(__file__, TMP_DIR)
+    mytmp = '/tmp'
     m2pk12file = '%s/%s.pk12' % (mytmp, M2SERVERCERT)
     cmd = 'pk12util -o %s -n "%s" -d %s -w %s -k %s' % (m2pk12file, M2SERVERCERT, m1confdir, pwdfile, pwdfile)
     log.info("##### Extract PK12 file for master2: %s" % cmd)
@@ -390,6 +382,7 @@ def create_keys_certs(topology):
 
 
     log.info("\n######################### Creating SSL Keys and Certs Done ######################\n")
+
 
 def config_tls_agreements(topology):
     log.info("######################### Configure SSL/TLS agreements ######################")
@@ -467,6 +460,7 @@ def relocate_pem_files(topology):
     topology.master1.restart(timeout=10)
     check_pems(m1confdir, mycacert, myservercert, myserverkey, "")
 
+
 def test_ticket47536(topology):
     """
     Set up 2way MMR:
@@ -513,7 +507,7 @@ def test_ticket47536(topology):
     entries = topology.master2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 20 == len(entries)
 
-    db2ldifpl = '%s/sbin/db2ldif.pl' % installation1_prefix
+    db2ldifpl = '%s/sbin/db2ldif.pl' % topology.master1.prefix
     cmdline = [db2ldifpl, '-n', 'userRoot', '-Z', SERVERID_MASTER_1, '-D', DN_DM, '-w', PASSWORD]
     log.info("##### db2ldif.pl -- %s" % (cmdline))
     doAndPrintIt(cmdline)

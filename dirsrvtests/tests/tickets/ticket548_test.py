@@ -67,9 +67,6 @@ def topology(request):
         standalone.delete()
     request.addfinalizer(fin)
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
-
     return TopologyStandalone(standalone)
 
 def days_to_secs(days):
@@ -421,4 +418,4 @@ if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
-    pytest.main("-s %s" % CURRENT_FILE)  
+    pytest.main("-s %s" % CURRENT_FILE)

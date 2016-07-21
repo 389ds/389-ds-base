@@ -346,6 +346,8 @@ if len(sys.argv) > 0:
                        '(suffix=SUFFIX, role=REPLICAROLE_CONSUMER, ' +
                        'replicaId=CONSUMER_REPLICAID)\n\n')
 
+        writeFinalizer()
+
         #
         # Create the master agreements
         #
@@ -584,8 +586,6 @@ if len(sys.argv) > 0:
             TEST.write('        assert False\n')
             TEST.write('\n')
 
-        writeFinalizer()
-
         #
         # Write the finals steps for replication
         #
@@ -649,10 +649,7 @@ if len(sys.argv) > 0:
 
         writeFinalizer()
 
-        TEST.write('    # Clear out the tmp dir\n')
-        TEST.write('    standalone.clearTmpDir(__file__)\n')
         TEST.write('\n')
-
         TEST.write('    return TopologyStandalone(standalone')
         for idx in range(instances):
             idx += 1

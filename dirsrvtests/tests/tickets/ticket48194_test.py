@@ -26,7 +26,7 @@ CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 RSA = 'RSA'
 RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
-LDAPSPORT = '636'
+LDAPSPORT = str(DEFAULT_SECURE_PORT)
 SERVERCERT = 'Server-Cert'
 plus_all_ecount = 0
 plus_all_dcount = 0
@@ -68,8 +68,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -457,9 +458,10 @@ def my_test_run_11(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
+
 def my_test_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
+
 
 def test_ticket48194(topology):
     '''

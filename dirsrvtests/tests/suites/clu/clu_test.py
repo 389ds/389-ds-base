@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -50,8 +50,9 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -89,11 +90,6 @@ def test_clu_pwdhash(topology):
     log.info('test_clu_pwdhash: PASSED')
 
 
-def test_clu_final(topology):
-    topology.standalone.delete()
-    log.info('clu test suite PASSED')
-
-
 def run_isolated():
     '''
     This test is for the simple scripts that don't have a lot of options or
@@ -104,10 +100,7 @@ def run_isolated():
 
     topo = topology(True)
     test_clu_init(topo)
-
     test_clu_pwdhash(topo)
-
-    test_clu_final(topo)
 
 
 if __name__ == '__main__':

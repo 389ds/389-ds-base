@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 import os
@@ -27,7 +27,7 @@ TEST_USER_DN    = 'cn=test,ou=people,%s' % SUFFIX
 USER_PW    = 'password'
 
 
-# subtrees used in test 
+# subtrees used in test
 SUBTREE_GREEN = "ou=green,%s" % SUFFIX
 SUBTREE_RED   = "ou=red,%s" % SUFFIX
 SUBTREES = (SUBTREE_GREEN, SUBTREE_RED)
@@ -67,8 +67,9 @@ def topology(request):
     # Used to retrieve configuration information (dbdir, confdir...)
     standalone.open()
 
-    # clear the tmp directory
-    standalone.clearTmpDir(__file__)
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -185,8 +186,8 @@ def test_ticket48366_search_dm(topology):
     ents = topology.standalone.search_ext_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid=test1', serverctrls=[proxy_ctrl])
     assert (len(ents) == 0)
 
+
 def test_ticket48366_final(topology):
-    topology.standalone.delete()
     log.info('Testcase PASSED')
 
 

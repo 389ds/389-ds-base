@@ -3,7 +3,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
 '''
@@ -122,6 +122,11 @@ def topology(request):
     master1.open()
     master2.create()
     master2.open()
+
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
 
     #
     # Now prepare the Master-Consumer topology
@@ -470,8 +475,6 @@ def test_ticket47988_6(topology):
 
 
 def test_ticket47988_final(topology):
-    topology.master1.delete()
-    topology.master2.delete()
     log.info('Testcase PASSED')
 
 

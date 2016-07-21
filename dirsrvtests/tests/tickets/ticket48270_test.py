@@ -4,8 +4,7 @@ import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -36,14 +35,8 @@ class TopologyStandalone(object):
 
 @pytest.fixture(scope="module")
 def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
     # Creating standalone instance ...
     standalone = DirSrv(verbose=False)
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE
     args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
@@ -59,7 +52,7 @@ def topology(request):
     # Delete each instance in the end
     def fin():
         standalone.delete()
-    #request.addfinalizer(fin)
+    request.addfinalizer(fin)
 
     # Clear out the tmp dir
     standalone.clearTmpDir(__file__)
@@ -103,11 +96,11 @@ def test_ticket48270_homeDirectory_indexed_cis(topology):
     #topology.standalone.start(timeout=10)
     args = {TASK_WAIT: True}
     topology.standalone.tasks.reindex(suffix=SUFFIX, attrname='homeDirectory', args=args)
-    
+
     log.info("Check indexing succeeded with a specified matching rule")
     file_path = os.path.join(topology.standalone.prefix, "var/log/dirsrv/slapd-%s/errors" % topology.standalone.serverid)
     file_obj = open(file_path, "r")
-    
+
     # Check if the MR configuration failure occurs
     regex = re.compile("unknown or invalid matching rule")
     while True:
@@ -115,11 +108,12 @@ def test_ticket48270_homeDirectory_indexed_cis(topology):
         found = regex.search(line)
         if ((line == '') or (found)):
             break
-        
+
     if (found):
         log.info("The configuration of a specific MR fails")
         log.info(line)
         #assert not found
+
 
 def test_ticket48270_homeDirectory_mixed_value(topology):
     # Set a homedirectory value with mixed case
@@ -127,15 +121,16 @@ def test_ticket48270_homeDirectory_mixed_value(topology):
     mod = [(ldap.MOD_REPLACE, 'homeDirectory', MIXED_VALUE)]
     topology.standalone.modify_s(name, mod)
 
+
 def test_ticket48270_extensible_search(topology):
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
-    
+
     # check with the exact stored value
     log.info("Default: can retrieve an entry filter syntax with exact stored value")
     ent = topology.standalone.getEntry(name, ldap.SCOPE_BASE, "(homeDirectory=%s)" % MIXED_VALUE)
     log.info("Default: can retrieve an entry filter caseExactIA5Match with exact stored value")
     ent = topology.standalone.getEntry(name, ldap.SCOPE_BASE, "(homeDirectory:caseExactIA5Match:=%s)" % MIXED_VALUE)
-    
+
     # check with a lower case value that is different from the stored value
     log.info("Default: can not retrieve an entry filter syntax match with lowered stored value")
     try:
@@ -152,6 +147,7 @@ def test_ticket48270_extensible_search(topology):
     log.info("Default: can retrieve an entry filter caseIgnoreIA5Match with lowered stored value")
     ent = topology.standalone.getEntry(name, ldap.SCOPE_BASE, "(homeDirectory:caseIgnoreIA5Match:=%s)" % LOWER_VALUE)
 
+
 def test_ticket48270(topology):
     """Write your testcase here...
 
@@ -165,13 +161,11 @@ def test_ticket48270(topology):
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-    global installation1_prefix
-    installation1_prefix = '/home/tbordaz/install_master'
     topo = topology(True)
     test_ticket48270_init(topo)
     test_ticket48270_homeDirectory_indexed_cis(topo)
     test_ticket48270_homeDirectory_mixed_value(topo)
     test_ticket48270_extensible_search(topo)
-    
+
 #     CURRENT_FILE = os.path.realpath(__file__)
 #     pytest.main("-s %s" % CURRENT_FILE)

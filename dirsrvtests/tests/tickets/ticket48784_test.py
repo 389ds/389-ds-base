@@ -38,6 +38,7 @@ M2SERVERCERT = 'Server-Cert2'
 M1LDAPSPORT = '41636'
 M2LDAPSPORT = '42636'
 
+
 class TopologyReplication(object):
     def __init__(self, master1, master2):
         master1.open()
@@ -53,7 +54,7 @@ def topology(request):
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
 
     # Creating master 1...
-    master1 = DirSrv(verbose=True)
+    master1 = DirSrv(verbose=False)
     if installation1_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_1
@@ -70,7 +71,7 @@ def topology(request):
     master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
 
     # Creating master 2...
-    master2 = DirSrv(verbose=True)
+    master2 = DirSrv(verbose=False)
     if installation1_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_MASTER_2
@@ -137,20 +138,15 @@ def topology(request):
         assert False
 
     # Delete each instance in the end
-    #def fin():
-       #master1.delete()
-       #master2.delete()
-    #request.addfinalizer(fin)
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
+    def fin():
+        master1.delete()
+        master2.delete()
+    request.addfinalizer(fin)
 
     return TopologyReplication(master1, master2)
 
 
 @pytest.fixture(scope="module")
-
-
 def add_entry(server, name, rdntmpl, start, num):
     log.info("\n######################### Adding %d entries to %s ######################" % (num, name))
 
@@ -165,6 +161,7 @@ def add_entry(server, name, rdntmpl, start, num):
         except ldap.LDAPError as e:
             log.error('Failed to add %s ' % dn + e.message['desc'])
             assert False
+
 
 def enable_ssl(server, ldapsport, mycert):
     log.info("\n######################### Enabling SSL LDAPSPORT %s ######################\n" % ldapsport)
@@ -209,6 +206,7 @@ def doAndPrintIt(cmdline, filename):
 
     if filename is not None:
         fd.close()
+
 
 def create_keys_certs(topology):
     log.info("\n######################### Creating SSL Keys and Certs ######################\n")
@@ -291,7 +289,7 @@ def create_keys_certs(topology):
     topology.master2.stop(timeout=10)
 
     global mytmp
-    mytmp = topology.master1.getDir(__file__, TMP_DIR)
+    mytmp = '/tmp'
     m2pk12file = '%s/%s.pk12' % (mytmp, M2SERVERCERT)
     cmd = 'pk12util -o %s -n "%s" -d %s -w %s -k %s' % (m2pk12file, M2SERVERCERT, m1confdir, pwdfile, pwdfile)
     log.info("##### Extract PK12 file for master2: %s" % cmd)
@@ -338,6 +336,7 @@ def create_keys_certs(topology):
 
     log.info("\n######################### Creating SSL Keys and Certs Done ######################\n")
 
+
 def config_tls_agreements(topology):
     log.info("######################### Configure SSL/TLS agreements ######################")
     log.info("######################## master1 <-- startTLS -> master2 #####################")
@@ -357,6 +356,7 @@ def config_tls_agreements(topology):
 
     log.info("\n######################### Configure SSL/TLS agreements Done ######################\n")
 
+
 def set_ssl_Version(server, name, version):
     log.info("\n######################### Set %s on %s ######################\n", (version, name))
     server.simple_bind_s(DN_DM, PASSWORD)
@@ -374,6 +374,7 @@ def set_ssl_Version(server, name, version):
         log.info("Invalid version %s", version)
         assert False
 
+
 def test_ticket48784(topology):
     """
     Set up 2way MMR:
@@ -381,7 +382,7 @@ def test_ticket48784(topology):
 
     Make sure the replication is working.
     Then, stop the servers and set only SSLv3 on master_1 while TLS1.2 on master_2
-    Replication is supposed to fail. 
+    Replication is supposed to fail.
     """
     log.info("Ticket 48784 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
 
@@ -392,7 +393,7 @@ def test_ticket48784(topology):
     add_entry(topology.master2, 'master2', 'uid=m2user', 0, 5)
 
     time.sleep(1)
-   
+
     log.info('##### Searching for entries on master1...')
     entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)

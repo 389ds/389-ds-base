@@ -1,19 +1,17 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
+
 import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -50,8 +48,10 @@ def topology(request):
     standalone.create()
     standalone.open()
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
+    # Delete each instance in the end
+    def fin():
+        standalone.delete()
+    request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
 
@@ -88,7 +88,10 @@ def test_ticket365(topology):
     # Enable the audit log
     #
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
+        topology.standalone.modify_s(DN_CONFIG,
+                                     [(ldap.MOD_REPLACE,
+                                       'nsslapd-auditlog-logging-enabled',
+                                       'on')])
     except ldap.LDAPError as e:
         log.fatal('Failed to enable audit log, error: ' + e.message['desc'])
         assert False
@@ -106,21 +109,26 @@ def test_ticket365(topology):
     #
     try:
         topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                     'nsslapd-auditlog-logging-hide-unhashed-pw', 'off')])
+            'nsslapd-auditlog-logging-hide-unhashed-pw', 'off')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to enable writing unhashed password to audit log, error: ' + e.message['desc'])
+        log.fatal('Failed to enable writing unhashed password to audit log, ' +
+                  'error: ' + e.message['desc'])
         assert False
 
     #
     # Set new password, and check the audit log
     #
     try:
-        topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'userpassword', 'mypassword')])
+        topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                                'userpassword',
+                                                'mypassword')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to enable writing unhashed password to audit log, error: ' + e.message['desc'])
+        log.fatal('Failed to enable writing unhashed password to audit log, ' +
+                  'error: ' + e.message['desc'])
         assert False
 
     # Check audit log
+    time.sleep(1)
     if not topology.standalone.searchAuditLog('unhashed#user#password: mypassword'):
         log.fatal('failed to find unhashed password in auditlog')
         assert False
@@ -129,9 +137,13 @@ def test_ticket365(topology):
     # Hide unhashed password in audit log
     #
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-hide-unhashed-pw', 'on')])
+        topology.standalone.modify_s(DN_CONFIG,
+            [(ldap.MOD_REPLACE,
+              'nsslapd-auditlog-logging-hide-unhashed-pw',
+              'on')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to deny writing unhashed password to audit log, error: ' + e.message['desc'])
+        log.fatal('Failed to deny writing unhashed password to audit log, ' +
+                  'error: ' + e.message['desc'])
         assert False
     log.info('Test complete')
 
@@ -139,31 +151,26 @@ def test_ticket365(topology):
     # Modify password, and check the audit log
     #
     try:
-        topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'userpassword', 'hidepassword')])
+        topology.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
+                                                'userpassword',
+                                                'hidepassword')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to enable writing unhashed password to audit log, error: ' + e.message['desc'])
+        log.fatal('Failed to enable writing unhashed password to audit log, ' +
+                  'error: ' + e.message['desc'])
         assert False
 
     # Check audit log
+    time.sleep(1)
     if topology.standalone.searchAuditLog('unhashed#user#password: hidepassword'):
         log.fatal('Found unhashed password in auditlog')
         assert False
 
-
-def test_ticket365_final(topology):
-    topology.standalone.delete()
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket365(topo)
-    test_ticket365_final(topo)
+    log.info('Test complete')
 
 
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 
