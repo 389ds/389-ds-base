@@ -116,6 +116,31 @@ def test_gssapi(topology, add_user):
         raise e
     assert(conn.whoami_s() == "dn: uid=test,dc=example,dc=com")
 
+    print("Error case 1. Broken Kerberos uid mapping")
+    uidmapping = 'cn=Kerberos uid mapping,cn=mapping,cn=sasl,cn=config'
+    topology.instance.modify_s(uidmapping, [(ldap.MOD_REPLACE, 'nsSaslMapFilterTemplate', '(cn=\1)')])
+    conn0 = ldap.initialize("ldap://%s:%s" % (socket.gethostname(), INSTANCE_PORT))
+    try:
+        conn0.sasl_interactive_bind_s('', sasl)
+    except Exception as e:
+        print("Exception (expected): %s" % type(e).__name__)
+        print('Desc ' + e.message['desc'])
+        assert isinstance(e, ldap.INVALID_CREDENTIALS)
+
+    # undo
+    topology.instance.modify_s(uidmapping, [(ldap.MOD_REPLACE, 'nsSaslMapFilterTemplate', '(uid=\1)')])
+
+    print("Error case 2. Delete %s from DS" % TEST_USER)
+    topology.instance.delete_s(TEST_USER)
+    try:
+        conn0.sasl_interactive_bind_s('', sasl)
+    except Exception as e:
+        print("Exception (expected): %s" % type(e).__name__)
+        print('Desc ' + e.message['desc'])
+        assert isinstance(e, ldap.INVALID_CREDENTIALS)
+
+    print("SUCCESS")
+
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
