@@ -12,6 +12,8 @@ import time
 import ldap
 import logging
 import pytest
+
+from subprocess import Popen
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
@@ -433,6 +435,27 @@ def test_ticket1347760(topology):
     rc = ldap.NO_SUCH_OBJECT
     log.info('Delete case. the deleting entry does not exist, it should fail with %s' % rc.__name__)
     check_op_result(topology.standalone, 'delete', BOGUSDN, None, exists, rc)
+
+    log.info('Inactivate %s' % BINDDN)
+    nsinactivate = '%s/sbin/ns-inactivate.pl' % topology.standalone.prefix
+    p = Popen([nsinactivate, '-Z', 'standalone', '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN])
+    assert(p.wait() == 0)
+
+    log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, BUID, ldap.UNWILLING_TO_PERFORM.__name__))
+    try:
+        topology.standalone.simple_bind_s(BINDDN, BUID)
+    except ldap.LDAPError as e:
+        log.info("Exception (expected): %s" % type(e).__name__)
+        log.info('Desc ' + e.message['desc'])
+        assert isinstance(e, ldap.UNWILLING_TO_PERFORM)
+
+    log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, 'bogus', ldap.INVALID_CREDENTIALS.__name__))
+    try:
+        topology.standalone.simple_bind_s(BINDDN, 'bogus')
+    except ldap.LDAPError as e:
+        log.info("Exception (expected): %s" % type(e).__name__)
+        log.info('Desc ' + e.message['desc'])
+        assert isinstance(e, ldap.INVALID_CREDENTIALS)
 
     log.info('SUCCESS')
 
