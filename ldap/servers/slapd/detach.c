@@ -44,16 +44,50 @@
 #include <unistd.h>
 #endif /* USE_SYSCONF */
 
+static int
+set_workingdir()
+{
+	int rc = 0;
+	char *workingdir = config_get_workingdir();
+	char *errorlog = 0;
+	char *ptr = 0;
+	extern char *config_get_errorlog(void);
+	extern int config_set_workingdir(const char *attrname, char *value, char *errorbuf, int apply);
+	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+
+	if ( NULL == workingdir ) {
+		errorlog = config_get_errorlog();
+		if (NULL == errorlog) {
+			rc = chdir("/");
+		} else {
+			ptr = strrchr(errorlog, '/');
+			if (ptr) {
+				*ptr = '\0';
+			}
+			rc = chdir(errorlog);
+			if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+			}
+			slapi_ch_free_string(&errorlog);
+		}
+	} else {
+		/* calling config_set_workingdir to check for validity of directory, don't apply */
+		if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, errorbuf, 0) == LDAP_OPERATIONS_ERROR) {
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+			rc = chdir("/");
+		} else {
+			rc = chdir(workingdir);
+		}
+		slapi_ch_free_string(&workingdir);
+	}
+	return rc;
+}
+
 int
 detach( int slapd_exemode, int importexport_encrypt,
         int s_port, daemon_ports_t *ports_info )
 {
 	int i, sd;
-	int rc = 0;
-	char *workingdir = 0;
-	char *errorlog = 0;
-	char *ptr = 0;
-	extern char *config_get_errorlog(void);
 
 	if ( should_detach ) {
 		for ( i = 0; i < 5; i++ ) {
@@ -76,35 +110,12 @@ detach( int slapd_exemode, int importexport_encrypt,
 		}
 
 		/* call this right after the fork, but before closing stdin */
-		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
-									  s_port, ports_info)) {
+		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt, s_port, ports_info)) {
 			return 1;
 		}
 
-		workingdir = config_get_workingdir();
-		if ( NULL == workingdir ) {
-			errorlog = config_get_errorlog();
-			if ( NULL == errorlog ) {
-				rc = chdir( "/" );
-				PR_ASSERT(rc == 0);
-			} else {
-				if ((ptr = strrchr(errorlog, '/')) ||
-					(ptr = strrchr(errorlog, '\\'))) {
-					*ptr = 0;
-				}
-				rc = chdir( errorlog );
-				PR_ASSERT(rc == 0);
-				config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, NULL, 1);
-				slapi_ch_free_string(&errorlog);
-			}
-		} else {
-			/* calling config_set_workingdir to check for validity of directory, don't apply */
-			if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, NULL, 0) == LDAP_OPERATIONS_ERROR) {
-				return 1;
-			}
-			rc = chdir( workingdir );
-			PR_ASSERT(rc == 0);
-			slapi_ch_free_string(&workingdir);
+		if (set_workingdir()) {
+			LDAPDebug0Args(LDAP_DEBUG_ANY, "detach: chdir to workingdir failed.\n");
 		}
 
 		if ( (sd = open( "/dev/null", O_RDWR )) == -1 ) {
@@ -127,14 +138,16 @@ detach( int slapd_exemode, int importexport_encrypt,
 
 		g_set_detached(1);
 	} else { /* not detaching - call nss/ssl init */
-		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt,
-									  s_port, ports_info)) {
+		if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt, s_port, ports_info)) {
 			return 1;
+		}
+		if (set_workingdir()) {
+			LDAPDebug0Args(LDAP_DEBUG_ANY, "detach: chdir to workingdir failed.\n");
 		}
 	}
 
 	(void) SIGNAL( SIGPIPE, SIG_IGN );
-	return rc;
+	return 0;
 }
 
 /*
