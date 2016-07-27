@@ -720,25 +720,6 @@ do_bind( Slapi_PBlock *pb )
                     }
                 }
             }
-
-            /*
-             * Is this account locked ?
-             *	could be locked through the account inactivation
-             *	or by the password policy
-             *
-             * rc=0: account not locked
-             * rc=1: account locked, can not bind, result has been sent
-             * rc!=0 and rc!=1: error. Result was not sent, lets be_bind
-             * 		deal with it.
-             *
-             */
-
-            /* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
-            if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-                bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(sdn));
-                rc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
-            }
-
             slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
             set_db_default_result_handlers(pb);
             if ( (rc != 1) && 
@@ -777,6 +758,28 @@ do_bind( Slapi_PBlock *pb )
 
                 if ( rc == SLAPI_BIND_SUCCESS ) {
                     int myrc = 0;
+                    /* 
+                     * The bind is successful.
+                     * We can give it to slapi_check_account_lock and reslimit_update_from_dn.
+                     */
+                    /*
+                     * Is this account locked ?
+                     *	could be locked through the account inactivation
+                     *	or by the password policy
+                     *
+                     * rc=0: account not locked
+                     * rc=1: account locked, can not bind, result has been sent
+                     * rc!=0 and rc!=1: error. Result was not sent, lets be_bind
+                     * 		deal with it.
+                     *
+                     */
+                    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+                        bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
+                        rc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
+                        if (1 == rc) { /* account is locked */
+                            goto account_locked;
+                        }
+                    }
                     if (!auto_bind) {
                         /* 
                          * There could be a race that bind_target_entry was not added 
@@ -787,13 +790,7 @@ do_bind( Slapi_PBlock *pb )
                         if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && 
                             !bind_target_entry) {
                             bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
-                            if (bind_target_entry) {
-                                myrc = slapi_check_account_lock(pb, bind_target_entry,
-                                                              pw_response_requested, 1, 1);
-                                if (1 == myrc) { /* account is locked */
-                                    goto account_locked;
-                                }
-                            } else {
+                            if (!bind_target_entry) {
                                 slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
                                 send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
                                 goto free_and_return;
