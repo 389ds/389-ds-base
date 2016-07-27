@@ -90,6 +90,9 @@ BuildRequires:    libasan
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python
 
+# This is needed for our future move to python selinux interaction.
+Requires:         libsemanage-python
+
 # the following are needed for some of our scripts
 %if %{use_openldap}
 Requires:         openldap-clients
