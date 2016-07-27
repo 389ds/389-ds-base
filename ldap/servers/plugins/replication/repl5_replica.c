@@ -1056,9 +1056,9 @@ replica_get_legacy_purl (const Replica *r)
 {
     char *purl;
 
-    replica_lock(r->repl_lock);
+    PR_Lock(r->repl_lock);
     purl = slapi_ch_strdup(r->legacy_purl);
-    replica_unlock(r->repl_lock);
+    PR_Unlock(r->repl_lock);
 
     return purl;
 }
@@ -4084,11 +4084,11 @@ replica_add_session_abort_control(Slapi_PBlock *pb)
 void
 replica_check_release_timeout(Replica *r, Slapi_PBlock *pb)
 {
-	replica_lock(r->repl_lock);
+	PR_Lock(r->repl_lock);
 	if(r->abort_session  == ABORT_SESSION){
 		/* Need to abort this session (just send the control once) */
 		replica_add_session_abort_control(pb);
 		r->abort_session = SESSION_ABORTED;
 	}
-	replica_unlock(r->repl_lock);
+	PR_Unlock(r->repl_lock);
 }
