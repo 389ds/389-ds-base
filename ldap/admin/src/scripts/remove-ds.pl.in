@@ -52,6 +52,10 @@ unless ($inst) {
     print STDERR "Full instance name must be specified (e.g. - slapd-example)\n";
     exit 1;
 }
+unless ($slapd eq "slapd") {
+    print STDERR "Error: Invalid instance name \"$instname\"\n";
+    exit 1;
+}
 
 my @errs = removeDSInstance($inst, $force, $all, $initconfig_dir);
 if (@errs) {
