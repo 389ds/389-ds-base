@@ -903,11 +903,10 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         slapi_sdn_done(&sdn);
         if (idl == NULL) {
             if (DB_NOTFOUND == *err) {
-                LDAPDebug(LDAP_DEBUG_ANY,
-                    "warning: %s not indexed on %lu; "
-                    "possibly, the entry id %lu has no descendants yet.\n",
-                    entryrdn_get_noancestorid()?"entryrdn":"ancestorid",
-                    id, id);
+                LDAPDebug2Args(LDAP_DEBUG_BACKLDBM, 
+                    "Info: Entry id %lu has no descendants according to %s. "
+                    "Index file created by this reindex will be empty.\n",
+                    id, entryrdn_get_noancestorid()?"entryrdn":"ancestorid");
                 *err = 0; /* not a problem */
             } else {
                 LDAPDebug(LDAP_DEBUG_ANY,
