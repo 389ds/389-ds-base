@@ -1049,8 +1049,8 @@ sasl_check_result:
         errstr = sasl_errdetail(sasl_conn);
 
         PR_ExitMonitor(pb->pb_conn->c_mutex); /* BIG LOCK */
-        send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL,
-                         (char*)errstr, 0, NULL);
+        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, (void *)errstr);
+        send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
         break;
     }
 
