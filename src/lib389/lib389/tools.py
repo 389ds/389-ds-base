@@ -234,8 +234,7 @@ class DirSrvTools(object):
                 assert len(props) == 1
                 self.sroot = props[0][CONF_SERVER_DIR]
 
-        # instanceDir = os.path.join(self.sroot, "slapd-" + self.inst)
-        sbinDir = os.path.join(self.prefix + '/sbin')
+        sbinDir = get_sbin_dir(prefix=self.prefix)
 
         if hasattr(self, 'errlog'):
             errLog = self.errlog
