@@ -19,6 +19,7 @@ installation1_prefix = None
 
 WAITFOR_ASYNC_ATTR = "nsDS5ReplicaWaitForAsyncResults"
 
+
 class TopologyReplication(object):
     def __init__(self, master1, master2, m1_m2_agmt, m2_m1_agmt):
         master1.open()

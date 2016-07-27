@@ -7,14 +7,12 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import os
-import sys
 import time
 import ldap
 import logging
 import pytest
 import re
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -23,6 +21,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 installation1_prefix = None
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -392,24 +391,8 @@ def test_ticket48005_schemareload(topology):
     log.info("Ticket 48005 schema reload test complete")
 
 
-def test_ticket48005_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket48005_setup(topo)
-    test_ticket48005_memberof(topo)
-    test_ticket48005_automember(topo)
-    test_ticket48005_syntaxvalidate(topo)
-    test_ticket48005_usn(topo)
-    test_ticket48005_schemareload(topo)
-    test_ticket48005_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

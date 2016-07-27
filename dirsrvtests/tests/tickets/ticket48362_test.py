@@ -23,6 +23,7 @@ BINDMETHOD_VALUE = "SASL/GSSAPI"
 PROTOCOLE_ATTR   = 'dnaRemoteConnProtocol'
 PROTOCOLE_VALUE  = 'LDAP'
 
+
 class TopologyReplication(object):
     def __init__(self, master1, master2):
         master1.open()

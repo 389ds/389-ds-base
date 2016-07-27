@@ -316,31 +316,8 @@ def test_ticket47869_check(topology):
     topology.master1.log.info("##### ticket47869 was successfully verified. #####")
 
 
-def test_ticket47869_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation1_prefix
-    global installation2_prefix
-    installation1_prefix = None
-    installation2_prefix = None
-
-    topo = topology(True)
-    test_ticket47869_init(topo)
-
-    test_ticket47869_check(topo)
-
-    test_ticket47869_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

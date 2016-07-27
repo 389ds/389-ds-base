@@ -66,6 +66,7 @@ def topology(request):
 
     return TopologyStandalone(standalone)
 
+
 def test_ticket48745_init(topology):
     log.info("Initialization: add dummy entries for the tests")
     for cpt in range(MAX_ACCOUNTS):
@@ -77,6 +78,7 @@ def test_ticket48745_init(topology):
                                             'uidnumber': str(111),
                                             'gidnumber': str(222),
                                             'homedirectory': "/home/tbordaz_%d" % cpt})))
+
 
 def test_ticket48745_homeDirectory_indexed_cis(topology):
     log.info("\n\nindex homeDirectory in caseIgnoreIA5Match and caseExactIA5Match")
@@ -120,11 +122,13 @@ def test_ticket48745_homeDirectory_indexed_cis(topology):
         log.info(line)
         assert 0
 
+
 def test_ticket48745_homeDirectory_mixed_value(topology):
     # Set a homedirectory value with mixed case
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
     mod = [(ldap.MOD_REPLACE, 'homeDirectory', MIXED_VALUE)]
     topology.standalone.modify_s(name, mod)
+
 
 def test_ticket48745_extensible_search_after_index(topology):
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
@@ -158,15 +162,6 @@ def test_ticket48745_extensible_search_after_index(topology):
         pass
     log.info("Default: can retrieve an entry filter caseIgnoreIA5Match with lowered stored value")
     ent = topology.standalone.getEntry(SUFFIX, ldap.SCOPE_SUBTREE, "(homeDirectory:caseIgnoreIA5Match:=%s)" % LOWER_VALUE)
-
-def test_ticket48745(topology):
-    """Write your testcase here...
-
-    Also, if you need any testcase initialization,
-    please, write additional fixture for that(include finalizer).
-    """
-
-    log.info('Test complete')
 
 
 if __name__ == '__main__':

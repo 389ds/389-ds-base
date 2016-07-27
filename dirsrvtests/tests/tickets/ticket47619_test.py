@@ -167,6 +167,7 @@ def test_ticket47619_create_index(topology):
     args = {INDEX_TYPE: 'eq'}
     for attr in ATTRIBUTES:
         topology.master.index.create(suffix=RETROCL_SUFFIX, attr=attr, args=args)
+    topology.master.restart(timeout=10)
 
 
 def test_ticket47619_reindex(topology):
@@ -185,36 +186,9 @@ def test_ticket47619_check_indexed_search(topology):
         assert len(ents) == 0
 
 
-def test_ticket47619_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    topo = topology(True)
-    test_ticket47619_init(topo)
-
-    test_ticket47619_create_index(topo)
-
-    # important restart that trigger the hang
-    # at restart, finding the new 'changelog' backend, the backend is acquired in Read
-    # preventing the reindex task to complete
-    topo.master.restart(timeout=10)
-    test_ticket47619_reindex(topo)
-    test_ticket47619_check_indexed_search(topo)
-
-    test_ticket47619_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 

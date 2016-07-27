@@ -147,6 +147,7 @@ def _create_user(inst, idnum):
         })
     ))
 
+
 def test_ticket48916(topology):
     """
     https://bugzilla.redhat.com/show_bug.cgi?id=1353629
@@ -222,11 +223,10 @@ def test_ticket48916(topology):
         })
     ))
 
-
     # Enable the plugins
     dna_m1.enable()
     dna_m2.enable()
-    
+
     # Restart the instances
     topology.master1.restart(60)
     topology.master2.restart(60)
@@ -236,7 +236,7 @@ def test_ticket48916(topology):
 
     # Allocate the 10 members to exhaust
 
-    for i in range(1,11):
+    for i in range(1, 11):
         _create_user(topology.master2, i)
 
     # Allocate the 11th

@@ -65,22 +65,8 @@ def test_db2ldif_init(topology):
     return
 
 
-def run_isolated():
-    '''
-    Test db2lidf/db2ldif.pl - test/stress functionality, all the command line options,
-    valid/invalid option combinations, etc, etc.
-    '''
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_db2ldif_init(topo)
-
-    # test 1 function...
-    # test 2 function...
-    # ...
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

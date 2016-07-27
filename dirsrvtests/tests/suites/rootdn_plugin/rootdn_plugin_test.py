@@ -12,6 +12,7 @@ import time
 import ldap
 import logging
 import pytest
+import socket
 from lib389 import DirSrv, Entry, tools, tasks
 from lib389.tools import DirSrvTools
 from lib389._constants import *
@@ -302,8 +303,12 @@ def test_rootdn_access_denied_ip(topology):
     log.info('Running test_rootdn_access_denied_ip...')
 
     try:
-        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-deny-ip', '127.0.0.1'),
-                                  (ldap.MOD_ADD, 'rootdn-deny-ip', '::1')])
+        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
+                                                  'rootdn-deny-ip',
+                                                  '127.0.0.1'),
+                                                 (ldap.MOD_ADD,
+                                                  'rootdn-deny-ip',
+                                                  '::1')])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_ip: Failed to set rootDN plugin config: error ' +
                   e.message['desc'])
@@ -371,9 +376,11 @@ def test_rootdn_access_denied_host(topology):
     '''
 
     log.info('Running test_rootdn_access_denied_host...')
-
+    hostname = socket.gethostname()
     try:
-        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-deny-host', 'localhost.localdomain')])
+        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
+                                                  'rootdn-deny-host',
+                                                  hostname)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_host: Failed to set deny host: error ' +
                   e.message['desc'])
@@ -760,21 +767,8 @@ def test_rootdn_config_validate(topology):
     log.info('test_rootdn_config_validate: PASSED')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_rootdn_init(topo)
-    test_rootdn_access_specific_time(topo)
-    test_rootdn_access_day_of_week(topo)
-    test_rootdn_access_allowed_ip(topo)
-    test_rootdn_access_denied_ip(topo)
-    test_rootdn_access_allowed_host(topo)
-    test_rootdn_access_denied_host(topo)
-    test_rootdn_config_validate(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

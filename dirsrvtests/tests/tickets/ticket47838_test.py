@@ -25,6 +25,7 @@ installation_prefix = None
 
 CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
+MY_SECURE_PORT = '36363'
 RSA = 'RSA'
 RSA_DN = 'cn=%s,%s' % (RSA, ENCRYPTION_DN)
 SERVERCERT = 'Server-Cert'
@@ -77,7 +78,7 @@ def topology(request):
 
     def fin():
         standalone.delete()
-    #request.addfinalizer(fin)
+    request.addfinalizer(fin)
 
     # Here we have standalone instance up and running
     return TopologyStandalone(standalone)
@@ -167,7 +168,7 @@ def _47838_init(topology):
 
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-security', 'on'),
                                              (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', 'off'),
-                                             (ldap.MOD_REPLACE, 'nsslapd-secureport', str(DEFAULT_SECURE_PORT))])
+                                             (ldap.MOD_REPLACE, 'nsslapd-secureport', MY_SECURE_PORT)])
 
     topology.standalone.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
                                               'cn': RSA,
@@ -825,47 +826,8 @@ def _47838_run_last(topology):
     topology.standalone.log.info("ticket47838, 47880, 47908, 47928 were successfully verified.")
 
 
-def _47838_final(topology):
-    log.info('Testcase PASSED')
-
-
-def test_ticket47838(topology):
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    _47838_init(topology)
-
-    _47838_run_0(topology)
-    _47838_run_1(topology)
-    _47838_run_2(topology)
-    _47838_run_3(topology)
-    _47838_run_4(topology)
-    _47838_run_5(topology)
-    _47838_run_6(topology)
-    _47838_run_7(topology)
-    _47838_run_8(topology)
-    _47838_run_9(topology)
-    _47838_run_10(topology)
-    _47838_run_11(topology)
-    _47928_run_0(topology)
-    _47928_run_1(topology)
-    _47928_run_2(topology)
-    _47928_run_3(topology)
-
-    _47838_run_last(topology)
-
-    _47838_final(topology)
-
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

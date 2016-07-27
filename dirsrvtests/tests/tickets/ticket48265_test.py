@@ -6,15 +6,11 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-import sys
 import time
 import ldap
 import logging
 import pytest
-import threading
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -27,6 +23,7 @@ installation1_prefix = None
 
 USER_NUM = 20
 TEST_USER = 'test_user'
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -106,28 +103,8 @@ def test_ticket48265_test(topology):
     log.info('Test 48265 complete\n')
 
 
-def test_ticket48265_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-              - edit this file and comment '@pytest.fixture' line before 'topology' function.
-             - set the installation prefix
-            - run this program
-    '''
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    log.info('Testing Ticket 48265 - Complex filter in a search request does not work as expected')
-
-    test_ticket48265_test(topo)
-
-    test_ticket48265_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

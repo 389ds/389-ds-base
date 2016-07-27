@@ -7,18 +7,14 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import os
-import sys
 import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
-from ldap.controls import SimplePagedResultsControl
-from ldap.controls.simple import GetEffectiveRightsControl
 import fnmatch
 
 log = logging.getLogger(__name__)
@@ -34,6 +30,7 @@ SEARCHFILTER = '(objectclass=person)'
 
 OTHER_NAME = 'other_entry'
 MAX_OTHERS = 10
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -95,11 +92,11 @@ def test_ticket48891_setup(topology):
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     # check there is no core
-    entry = topology.standalone.search_s(CONFIG_DN, ldap.SCOPE_BASE, "(cn=config)",['nsslapd-workingdir'])
+    entry = topology.standalone.search_s(CONFIG_DN, ldap.SCOPE_BASE,
+                                         "(cn=config)", ['nsslapd-errorlog'])
     assert entry
-    assert entry[0]
-    assert entry[0].hasAttr('nsslapd-workingdir')
-    path = entry[0].getValue('nsslapd-workingdir')
+    path = entry[0].getValue('nsslapd-errorlog').replace('errors', '')
+    log.debug('Looking for a core file in: ' + path)
     cores = fnmatch.filter(os.listdir(path), 'core.*')
     assert len(cores) == 0
 
@@ -137,10 +134,7 @@ def test_ticket48891_setup(topology):
     assert MAX_OTHERS == len(entries)
 
     topology.standalone.log.info('%d person entries are successfully created under %s.' % (len(entries), MYSUFFIX))
-
-
     topology.standalone.stop(timeout=1)
-
 
     cores = fnmatch.filter(os.listdir(path), 'core.*')
     for core in cores:
@@ -148,28 +142,11 @@ def test_ticket48891_setup(topology):
         topology.standalone.log.info('cores are %s' % core)
         assert not os.path.isfile(core)
 
-
-
-def test_ticket48891_final(topology):
     log.info('Testcase PASSED')
 
 
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    topo = topology(True)
-    test_ticket48891_setup(topo)
-    test_ticket48891_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

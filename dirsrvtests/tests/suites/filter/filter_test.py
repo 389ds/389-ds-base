@@ -130,17 +130,8 @@ def test_filter_search_original_attrs(topology):
     log.info('test_filter_search_original_attrs: PASSED')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-
-    test_filter_init(topo)
-    test_filter_escaped(topo)
-    test_filter_search_original_attrs(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

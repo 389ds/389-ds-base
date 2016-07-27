@@ -229,15 +229,8 @@ def test_attr_uniqueness(topology):
     log.info('test_attr_uniqueness: PASS\n')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_attr_uniqueness_init(topo)
-    test_attr_uniqueness(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

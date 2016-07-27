@@ -124,15 +124,8 @@ def test_password_delete_specific_password(topology):
     log.info('test_password_delete_specific_password: PASSED')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_password_init(topo)
-    test_password_delete_specific_password(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

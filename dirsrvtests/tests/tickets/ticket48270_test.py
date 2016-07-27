@@ -54,10 +54,8 @@ def topology(request):
         standalone.delete()
     request.addfinalizer(fin)
 
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
-
     return TopologyStandalone(standalone)
+
 
 def test_ticket48270_init(topology):
     log.info("Initialization: add dummy entries for the tests")
@@ -148,24 +146,8 @@ def test_ticket48270_extensible_search(topology):
     ent = topology.standalone.getEntry(name, ldap.SCOPE_BASE, "(homeDirectory:caseIgnoreIA5Match:=%s)" % LOWER_VALUE)
 
 
-def test_ticket48270(topology):
-    """Write your testcase here...
-
-    Also, if you need any testcase initialization,
-    please, write additional fixture for that(include finalizer).
-    """
-
-    log.info('Test complete')
-
-
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-    topo = topology(True)
-    test_ticket48270_init(topo)
-    test_ticket48270_homeDirectory_indexed_cis(topo)
-    test_ticket48270_homeDirectory_mixed_value(topo)
-    test_ticket48270_extensible_search(topo)
-
-#     CURRENT_FILE = os.path.realpath(__file__)
-#     pytest.main("-s %s" % CURRENT_FILE)
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

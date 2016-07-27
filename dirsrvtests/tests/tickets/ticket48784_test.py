@@ -358,7 +358,8 @@ def config_tls_agreements(topology):
 
 
 def set_ssl_Version(server, name, version):
-    log.info("\n######################### Set %s on %s ######################\n", (version, name))
+    log.info("\n######################### Set %s on %s ######################\n" %
+             (version, name))
     server.simple_bind_s(DN_DM, PASSWORD)
     if version.startswith('SSL'):
         server.modify_s(ENCRYPTION_DN, [(ldap.MOD_REPLACE, 'nsSSL3', 'on'),

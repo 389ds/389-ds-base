@@ -289,25 +289,8 @@ def test_ticket47927_six(topology):
         assert False
 
 
-def test_ticket47927_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket47927_init(topo)
-    test_ticket47927_one(topo)
-    test_ticket47927_two(topo)
-    test_ticket47927_three(topo)
-    test_ticket47927_four(topo)
-    test_ticket47927_five(topo)
-    test_ticket47927_six(topo)
-    test_ticket47927_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

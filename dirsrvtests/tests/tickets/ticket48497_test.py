@@ -16,16 +16,16 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-NEW_ACCOUNT    = "new_account"
-MAX_ACCOUNTS   = 20
+NEW_ACCOUNT = "new_account"
+MAX_ACCOUNTS = 20
 
-MIXED_VALUE="/home/mYhOmEdIrEcToRy"
-LOWER_VALUE="/home/myhomedirectory"
+MIXED_VALUE = "/home/mYhOmEdIrEcToRy"
+LOWER_VALUE = "/home/myhomedirectory"
 HOMEDIRECTORY_INDEX = 'cn=homeDirectory,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
-HOMEDIRECTORY_CN="homedirectory"
+HOMEDIRECTORY_CN = "homedirectory"
 MATCHINGRULE = 'nsMatchingRule'
 UIDNUMBER_INDEX = 'cn=uidnumber,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
-UIDNUMBER_CN="uidnumber"
+UIDNUMBER_CN = "uidnumber"
 
 
 class TopologyStandalone(object):
@@ -41,7 +41,7 @@ def topology(request):
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
 
     # Creating standalone instance ...
-    standalone = DirSrv(verbose=True)
+    standalone = DirSrv(verbose=False)
     if installation1_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation1_prefix
     args_instance[SER_HOST] = HOST_STANDALONE
@@ -66,6 +66,7 @@ def topology(request):
 
     return TopologyStandalone(standalone)
 
+
 def test_ticket48497_init(topology):
     log.info("Initialization: add dummy entries for the tests")
     for cpt in range(MAX_ACCOUNTS):
@@ -78,11 +79,13 @@ def test_ticket48497_init(topology):
                                             'gidnumber': str(222),
                                             'homedirectory': "/home/tb_%d" % cpt})))
 
+
 def test_ticket48497_homeDirectory_mixed_value(topology):
     # Set a homedirectory value with mixed case
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
     mod = [(ldap.MOD_REPLACE, 'homeDirectory', MIXED_VALUE)]
     topology.standalone.modify_s(name, mod)
+
 
 def test_ticket48497_extensible_search(topology):
     name = "uid=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
@@ -120,13 +123,12 @@ def test_ticket48497_homeDirectory_index_cfg(topology):
                                             'cn': HOMEDIRECTORY_CN,
                                             'nsSystemIndex': 'false',
                                             'nsIndexType': 'eq'})))
-#     log.info("attach debugger")
-#     time.sleep(60)
 
     IGNORE_MR_NAME='caseIgnoreIA5Match'
     EXACT_MR_NAME='caseExactIA5Match'
     mod = [(ldap.MOD_REPLACE, MATCHINGRULE, (IGNORE_MR_NAME, EXACT_MR_NAME))]
     topology.standalone.modify_s(HOMEDIRECTORY_INDEX, mod)
+
 
 def test_ticket48497_homeDirectory_index_run(topology):
     args = {TASK_WAIT: True}
@@ -149,29 +151,8 @@ def test_ticket48497_homeDirectory_index_run(topology):
         log.info(line)
         assert 0
 
-def test_ticket48497(topology):
-    """Write your testcase here...
-
-    Also, if you need any testcase initialization,
-    please, write additional fixture for that(include finalizer).
-    """
-
-    log.info('Test complete')
-
-
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-#     global installation1_prefix
-#     installation1_prefix = None
-#     topo = topology(True)
-#     test_ticket48497_init(topo)
-#
-#
-#     test_ticket48497_homeDirectory_mixed_value(topo)
-#     test_ticket48497_extensible_search(topo)
-#     test_ticket48497_homeDirectory_index_cfg(topo)
-#     test_ticket48497_homeDirectory_index_run(topo)
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

@@ -427,16 +427,8 @@ def test_pwdAdmin_config_validation(topology):
                  e.message['desc'])
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_pwdAdmin_init(topo)
-    test_pwdAdmin(topo)
-    test_pwdAdmin_config_validation(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

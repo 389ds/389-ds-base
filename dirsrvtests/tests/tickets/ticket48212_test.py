@@ -21,6 +21,7 @@ MYSUFFIXBE = 'userRoot'
 _MYLDIF = 'example1k_posix.ldif'
 UIDNUMBERDN = "cn=uidnumber,cn=index,cn=userroot,cn=ldbm database,cn=plugins,cn=config"
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()

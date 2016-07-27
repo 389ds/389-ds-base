@@ -256,19 +256,8 @@ def test_ticket47829_mod_stage_user_modrdn_stage_user_1(topology):
     _find_member  (topology, user_dn=new_stage_user_dn, group_dn=ACTIVE_GROUP_DN, find_result=False)
 
 
-def test_ticket47833_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket47829_init(topo)
-    test_ticket47829_mod_stage_user_modrdn_stage_user_1(topo)
-    test_ticket47833_final(topo)
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

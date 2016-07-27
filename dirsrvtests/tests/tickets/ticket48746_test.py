@@ -184,30 +184,9 @@ def test_ticket48746_homeDirectory_indexed_ces(topology):
         log.info(line)
         assert not found
 
-def test_ticket48746(topology):
-    """Write your testcase here...
-
-    Also, if you need any testcase initialization,
-    please, write additional fixture for that(include finalizer).
-    """
-
-    log.info('Test complete')
-
 
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-#     global installation1_prefix
-#     installation1_prefix = None
-#     topo = topology(True)
-#     test_ticket48746_init(topo)
-#
-#
-#     test_ticket48746_homeDirectory_indexed_cis(topo)
-#     test_ticket48746_homeDirectory_mixed_value(topo)
-#     test_ticket48746_extensible_search_after_index(topo)
-#     # crash should occur here
-#     test_ticket48746_homeDirectory_indexed_ces(topo)
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

@@ -29,6 +29,7 @@ OU_PEOPLE = 'ou=People,' + DEFAULT_SUFFIX
 LINKTYPE = 'directReport'
 MANAGEDTYPE = 'manager'
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -260,32 +261,8 @@ def _48294_run_2(topology):
     log.info('PASSED')
 
 
-def _48294_final(topology):
-    log.info('All PASSED')
-
-
-def test_ticket48294(topology):
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    _48294_init(topology)
-
-    _48294_run_0(topology)
-    _48294_run_1(topology)
-    _48294_run_2(topology)
-
-    _48294_final(topology)
-
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

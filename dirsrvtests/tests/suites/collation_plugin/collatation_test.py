@@ -74,20 +74,8 @@ def test_collatation_(topology):
     return
 
 
-def test_collatation_final(topology):
-    log.info('collatation test suite PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_collatation_init(topo)
-    test_collatation_(topo)
-    test_collatation_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

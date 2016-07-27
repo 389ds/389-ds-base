@@ -647,60 +647,9 @@ def test_ticket47828_run_31(topology):
     topology.standalone.delete_s(DUMMY_USER1_DN)
 
 
-def test_ticket47828_final(topology):
-    topology.standalone.plugins.disable(name=PLUGIN_DNA)
-    topology.standalone.stop(timeout=10)
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    topo = topology(True)
-    test_ticket47828_init(topo)
-
-    test_ticket47828_run_0(topo)
-    test_ticket47828_run_1(topo)
-    test_ticket47828_run_2(topo)
-    test_ticket47828_run_3(topo)
-    test_ticket47828_run_4(topo)
-    test_ticket47828_run_5(topo)
-    test_ticket47828_run_6(topo)
-    test_ticket47828_run_7(topo)
-    test_ticket47828_run_8(topo)
-    test_ticket47828_run_9(topo)
-    test_ticket47828_run_10(topo)
-    test_ticket47828_run_11(topo)
-    test_ticket47828_run_12(topo)
-    test_ticket47828_run_13(topo)
-    test_ticket47828_run_14(topo)
-    test_ticket47828_run_15(topo)
-    test_ticket47828_run_16(topo)
-    test_ticket47828_run_17(topo)
-    test_ticket47828_run_18(topo)
-    test_ticket47828_run_19(topo)
-    test_ticket47828_run_20(topo)
-    test_ticket47828_run_21(topo)
-    test_ticket47828_run_22(topo)
-    test_ticket47828_run_23(topo)
-    test_ticket47828_run_24(topo)
-    test_ticket47828_run_25(topo)
-    test_ticket47828_run_26(topo)
-    test_ticket47828_run_27(topo)
-    test_ticket47828_run_28(topo)
-    test_ticket47828_run_29(topo)
-    test_ticket47828_run_30(topo)
-    test_ticket47828_run_31(topo)
-
-    test_ticket47828_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
+

@@ -12,8 +12,7 @@ import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -21,10 +20,9 @@ from lib389.utils import *
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
-
 installation1_prefix = None
-
 m1_m2_agmt = ""
+
 
 class TopologyReplication(object):
     def __init__(self, master1, master2):
@@ -209,19 +207,8 @@ def test_ticket47966(topology):
     log.info('Test complete')
 
 
-def test_ticket47966_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket47966(topo)
-    test_ticket47966_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

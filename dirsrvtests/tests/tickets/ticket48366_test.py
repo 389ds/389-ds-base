@@ -32,6 +32,7 @@ SUBTREE_GREEN = "ou=green,%s" % SUFFIX
 SUBTREE_RED   = "ou=red,%s" % SUFFIX
 SUBTREES = (SUBTREE_GREEN, SUBTREE_RED)
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -187,29 +188,8 @@ def test_ticket48366_search_dm(topology):
     assert (len(ents) == 0)
 
 
-def test_ticket48366_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    topo = topology(True)
-    test_ticket48366_init(topo)
-
-    test_ticket48366_search_dm(topo)
-
-    test_ticket48366_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

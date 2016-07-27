@@ -90,19 +90,8 @@ def test_clu_pwdhash(topology):
     log.info('test_clu_pwdhash: PASSED')
 
 
-def run_isolated():
-    '''
-    This test is for the simple scripts that don't have a lot of options or
-    points of failure.  Scripts that do, should have their own individual tests.
-    '''
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_clu_init(topo)
-    test_clu_pwdhash(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

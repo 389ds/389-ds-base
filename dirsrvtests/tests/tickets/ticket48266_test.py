@@ -4,8 +4,7 @@ import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -16,8 +15,9 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-NEW_ACCOUNT    = "new_account"
-MAX_ACCOUNTS   = 20
+NEW_ACCOUNT = "new_account"
+MAX_ACCOUNTS = 20
+
 
 class TopologyReplication(object):
     def __init__(self, master1, master2):

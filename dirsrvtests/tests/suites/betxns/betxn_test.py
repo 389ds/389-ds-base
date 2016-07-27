@@ -233,21 +233,11 @@ def test_betxn_memberof(topology):
     #
     # Done
     #
-
     log.info('test_betxn_memberof: PASSED')
 
 
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_betxn_init(topo)
-    test_betxt_7bit(topo)
-    test_betxn_attr_uniqueness(topo)
-    test_betxn_memberof(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

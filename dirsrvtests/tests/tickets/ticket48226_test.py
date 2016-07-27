@@ -187,7 +187,7 @@ def test_ticket48226_1(topology):
     valgrind_enable(sbin_dir)
 
     # start M2 to do the next updates
-    topology.master2.start(60)
+    topology.master2.start()
 
     # ADD 'description' by '5'
     mods = [(ldap.MOD_DELETE, 'description', '5')]

@@ -14,6 +14,7 @@ from lib389.utils import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
+
 class TopologyReplication(object):
     def __init__(self, master1, consumer1):
         master1.open()
@@ -96,6 +97,7 @@ def topology(request):
 
     return TopologyReplication(master1, consumer1)
 
+
 def _add_custom_schema(server):
     attr_value = "( 10.0.9.2342.19200300.100.1.1 NAME 'customManager' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN 'user defined' )"
     mod = [(ldap.MOD_ADD, 'attributeTypes', attr_value)]
@@ -104,6 +106,7 @@ def _add_custom_schema(server):
     oc_value = "( 1.3.6.1.4.1.4843.2.1 NAME 'customPerson' SUP inetorgperson STRUCTURAL MAY (customManager) X-ORIGIN 'user defined' )"
     mod = [(ldap.MOD_ADD, 'objectclasses', oc_value)]
     server.modify_s('cn=schema', mod)
+
 
 def _create_user(server):
     server.add_s(Entry((
@@ -122,6 +125,7 @@ def _create_user(server):
         }
     )))
 
+
 def _modify_user(server):
     mod = [
         (ldap.MOD_ADD, 'objectClass', ['customPerson']),
@@ -129,6 +133,7 @@ def _modify_user(server):
         (ldap.MOD_ADD, 'customManager', ['cn=manager']),
     ]
     server.modify("uid=testuser,ou=People,%s" % DEFAULT_SUFFIX, mod)
+
 
 def test_ticket48799(topology):
     """Write your replication testcase here.
@@ -158,7 +163,6 @@ def test_ticket48799(topology):
     consumer_entry = topology.consumer1.search_s("uid=testuser,ou=People,%s" % DEFAULT_SUFFIX, ldap.SCOPE_BASE, '(objectclass=*)', ['objectClass'])
 
     assert(master_entry == consumer_entry)
-
 
     log.info('Test complete')
 

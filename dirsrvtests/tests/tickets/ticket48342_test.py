@@ -4,8 +4,7 @@ import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -16,9 +15,10 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-PEOPLE_OU='people'
+PEOPLE_OU = 'people'
 PEOPLE_DN = "ou=%s,%s" % (PEOPLE_OU, SUFFIX)
-MAX_ACCOUNTS=5
+MAX_ACCOUNTS = 5
+
 
 class TopologyReplication(object):
     def __init__(self, master1, master2, master3):
@@ -188,6 +188,7 @@ def topology(request):
 
     return TopologyReplication(master1, master2, master3)
 
+
 def _dna_config(server, nextValue=500, maxValue=510):
     log.info("Add dna plugin config entry...%s" % server)
 
@@ -219,6 +220,7 @@ def _dna_config(server, nextValue=500, maxValue=510):
     time.sleep(1)
     server.start(timeout=120)
     time.sleep(3)
+
 
 def test_ticket4026(topology):
     """Write your replication testcase here.
@@ -310,9 +312,5 @@ def test_ticket4026(topology):
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-#     global installation1_prefix
-#     installation1_prefix=None
-#     topo = topology(True)
-#     test_ticket4026(topo)
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

@@ -28,6 +28,7 @@ installation1_prefix = None
 
 m1_m2_agmt = None
 
+
 class TopologyReplication(object):
     def __init__(self, master1, master2):
         master1.open()
@@ -140,6 +141,7 @@ def add_ou_entry(server, idx, myparent):
     server.add_s(Entry((dn, {'objectclass': ['top', 'organizationalunit'],
                              'ou': name})))
 
+
 def add_user_entry(server, idx, myparent):
     name = 'tuser%d' % idx
     dn = 'uid=%s,%s' % (name, myparent)
@@ -149,10 +151,12 @@ def add_user_entry(server, idx, myparent):
                              'cn': 'Test User%d' % idx,
                              'userpassword': 'password'})))
 
+
 def del_user_entry(server, idx, myparent):
     name = 'tuser%d' % idx
     dn = 'uid=%s,%s' % (name, myparent)
     server.delete_s(dn)
+
 
 def add_ldapsubentry(server, myparent):
     name = 'nsPwPolicyContainer'
@@ -186,6 +190,7 @@ def add_ldapsubentry(server, myparent):
                               'costemplatedn': '%s' % tmpldn,
                               'cosAttribute': 'pwdpolicysubentry default operational-default',
                               'cn': '%s' % name})))
+
 
 def test_ticket48755(topology):
     log.info("Ticket 48755 - moving an entry could make the online init fail")
@@ -253,9 +258,9 @@ def test_ticket48755(topology):
     assert len(m1entries) == len(m2entries)
     log.info('PASSED')
 
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

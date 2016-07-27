@@ -33,6 +33,7 @@ ATTR_INHERIT_GLOBAL = 'nsslapd-pwpolicy-inherit-global'
 
 BN = 'uid=buser,' + DEFAULT_SUFFIX
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -322,6 +323,5 @@ def test_ticket142(topology):
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

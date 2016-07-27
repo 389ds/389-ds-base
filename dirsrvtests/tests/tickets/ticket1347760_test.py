@@ -44,6 +44,7 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -439,6 +440,5 @@ def test_ticket1347760(topology):
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

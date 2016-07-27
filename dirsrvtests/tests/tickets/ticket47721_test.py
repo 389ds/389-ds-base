@@ -433,35 +433,8 @@ def test_ticket47721_4(topology):
     assert schema_csn_master1 == schema_csn_master2
 
 
-def test_ticket47721_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation1_prefix
-    global installation2_prefix
-    installation1_prefix = None
-    installation2_prefix = None
-
-    topo = topology(True)
-    topo.master1.log.info("\n\n######################### Ticket 47721 ######################\n")
-    test_ticket47721_init(topo)
-
-    test_ticket47721_0(topo)
-    test_ticket47721_1(topo)
-    test_ticket47721_2(topo)
-    test_ticket47721_3(topo)
-    test_ticket47721_4(topo)
-
-    test_ticket47721_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

@@ -173,7 +173,7 @@ def check_ruvs(msg, topology):
     return clean
 
 
-def task_done(topology, task_dn, timeout=10):
+def task_done(topology, task_dn, timeout=60):
     """Check if the task is complete"""
     attrlist = ['nsTaskLog', 'nsTaskStatus', 'nsTaskExitCode',
                 'nsTaskCurrentItem', 'nsTaskTotalItems']
@@ -813,7 +813,7 @@ def test_cleanallruv_clean_force(topology):
         assert False
 
     # Start master 3, it should be out of sync with the other replicas...
-    topology.master3.start(timeout=10)
+    topology.master3.start(timeout=30)
 
     # Remove the agreements from the other masters that point to master 4
     remove_master4_agmts("test_cleanallruv_clean_force", topology)
@@ -871,7 +871,7 @@ def test_cleanallruv_abort(topology):
 
     # Stop master 2
     log.info('test_cleanallruv_abort: stop master 2 to freeze the cleanAllRUV task...')
-    topology.master2.stop(timeout=10)
+    topology.master2.stop(timeout=30)
 
     # Run the task
     log.info('test_cleanallruv_abort: add the cleanAllRUV task...')
@@ -904,7 +904,7 @@ def test_cleanallruv_abort(topology):
 
     # Start master 2
     log.info('test_cleanallruv_abort: start master 2 to begin the restore process...')
-    topology.master2.start(timeout=10)
+    topology.master2.start(timeout=30)
 
     #
     # Now run the clean task task again to we can properly restore master 4
@@ -1204,26 +1204,8 @@ def test_cleanallruv_stress_clean(topology):
     restore_master4(topology)
 
 
-def test_cleanallruv_final(topology):
-    log.info('cleanAllRUV test suite PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-    topo = topology(True)
-
-    test_cleanallruv_init(topo)
-    test_cleanallruv_clean(topo)
-    test_cleanallruv_clean_restart(topo)
-    test_cleanallruv_clean_force(topo)
-    test_cleanallruv_abort(topo)
-    test_cleanallruv_abort_restart(topo)
-    test_cleanallruv_abort_certify(topo)
-    test_cleanallruv_stress_clean(topo)
-    test_cleanallruv_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

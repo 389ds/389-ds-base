@@ -459,10 +459,6 @@ def my_test_run_11(topology):
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
 
-def my_test_final(topology):
-    log.info('Testcase PASSED')
-
-
 def test_ticket48194(topology):
     '''
     run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
@@ -471,7 +467,6 @@ def test_ticket48194(topology):
       - set the installation prefix
       - run this program
     '''
-
     my_test_init(topology)
     my_test_run_0(topology)
     my_test_run_1(topology)
@@ -485,7 +480,6 @@ def test_ticket48194(topology):
     my_test_run_9(topology)
     my_test_run_10(topology)
     my_test_run_11(topology)
-    my_test_final(topology)
 
 if __name__ == '__main__':
     # Run isolated

@@ -7,13 +7,11 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import os
-import sys
 import time
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -24,8 +22,9 @@ log = logging.getLogger(__name__)
 
 installation1_prefix = None
 
-DN_7BITPLUGIN="cn=7-bit check,%s" % DN_PLUGIN
+DN_7BITPLUGIN = "cn=7-bit check,%s" % DN_PLUGIN
 ATTRS = ["uid", "mail", "userpassword", ",", SUFFIX, None]
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -238,22 +237,9 @@ def test_ticket47431_3(topology):
     log.info('Test complete')
 
 
-def test_ticket47431_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    global installation1_prefix
-    installation1_prefix = None
-
-    topo = topology(True)
-    test_ticket47431_0(topo)
-    test_ticket47431_1(topo)
-    test_ticket47431_2(topo)
-    test_ticket47431_3(topo)
-    test_ticket47431_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)
 

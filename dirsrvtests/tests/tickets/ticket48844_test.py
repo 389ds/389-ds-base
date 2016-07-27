@@ -25,6 +25,7 @@ BITWISE_F2 = '(&(%s)(testUserAccountControl:1.2.840.113556.1.4.803:=514))' % F1
 BITWISE_F3 = '(&(%s)(testUserAccountControl:1.2.840.113556.1.4.803:=513))' % F1
 BITWISE_F6 = '(&(%s)(testUserAccountControl:1.2.840.113556.1.4.803:=16777216))' % F1
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -62,6 +63,7 @@ def topology(request):
     standalone.clearTmpDir(__file__)
 
     return TopologyStandalone(standalone)
+
 
 def _addBitwiseEntries(topology):
 
@@ -111,6 +113,7 @@ def _addBitwiseEntries(topology):
     except ValueError:
         topology.standalone.log.fatal("add_s failed: %s", ValueError)
 
+
 def test_ticket48844_init(topology):
     # create a suffix where test entries will be stored
     BITW_SCHEMA_AT_1 = '( NAME \'testUserAccountControl\' DESC \'Attribute Bitwise filteri-Multi-Valued\' SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )'
@@ -149,6 +152,7 @@ def test_ticket48844_bitwise_on(topology):
     ents = topology.standalone.search_s(TESTBASEDN, ldap.SCOPE_SUBTREE, BITWISE_F6)
     assert (len(ents) == expect)
     assert (ents[0].hasAttr('testUserAccountControl'))
+
 
 def test_ticket48844_bitwise_off(topology):
     """

@@ -608,49 +608,8 @@ def test_ticket47829_indirect_active_group_4(topology):
     _find_memberof(topology, user_dn=STAGE_USER_DN, group_dn=ACTIVE_GROUP_DN, find_result=False)
 
 
-def test_ticket47829_final(topology):
-    log.info('Testcase PASSED')
-
-
-def run_isolated():
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    topo = topology(True)
-    test_ticket47829_init(topo)
-
-    test_ticket47829_mod_active_user_1(topo)
-    test_ticket47829_mod_active_user_2(topo)
-    test_ticket47829_mod_active_user_3(topo)
-    test_ticket47829_mod_stage_user_1(topo)
-    test_ticket47829_mod_stage_user_2(topo)
-    test_ticket47829_mod_stage_user_3(topo)
-    test_ticket47829_mod_out_user_1(topo)
-    test_ticket47829_mod_out_user_2(topo)
-    test_ticket47829_mod_out_user_3(topo)
-
-    test_ticket47829_mod_active_user_modrdn_active_user_1(topo)
-    test_ticket47829_mod_active_user_modrdn_stage_user_1(topo)
-    test_ticket47829_mod_active_user_modrdn_out_user_1(topo)
-
-    test_ticket47829_mod_stage_user_modrdn_active_user_1(topo)
-    test_ticket47829_mod_stage_user_modrdn_stage_user_1(topo)
-
-    test_ticket47829_indirect_active_group_1(topo)
-    test_ticket47829_indirect_active_group_2(topo)
-    test_ticket47829_indirect_active_group_3(topo)
-    test_ticket47829_indirect_active_group_4(topo)
-
-    test_ticket47829_final(topo)
-
-
 if __name__ == '__main__':
-    run_isolated()
-
+    # Run isolated
+    # -s for DEBUG mode
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s %s" % CURRENT_FILE)

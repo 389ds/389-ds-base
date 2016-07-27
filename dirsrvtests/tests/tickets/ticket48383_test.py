@@ -17,6 +17,7 @@ import random
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
