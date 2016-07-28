@@ -113,7 +113,7 @@ def check_attr_val(topology, dn, attr, expected, revert):
         assert False
 
 
-def _48295_init(topology):
+def test_48295_init(topology):
     """
     Set up Linked Attribute
     """
@@ -164,7 +164,7 @@ def _48295_init(topology):
     log.info('PASSED')
 
 
-def _48295_run(topology):
+def test_48295_run(topology):
     """
     Add 2 linktypes - one exists, another does not
     """

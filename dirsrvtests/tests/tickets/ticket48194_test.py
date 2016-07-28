@@ -82,7 +82,7 @@ def _header(topology, label):
     topology.standalone.log.info("###############################################")
 
 
-def my_test_init(topology):
+def test_init(topology):
     """
     Generate self signed cert and import it to the DS cert db.
     Enable SSL
@@ -204,7 +204,7 @@ def connectWithOpenssl(topology, cipher, expect):
                     proc.stdin.close()
                     assert False
 
-def my_test_run_0(topology):
+def test_run_0(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -221,7 +221,7 @@ def my_test_run_0(topology):
     connectWithOpenssl(topology, 'RC4-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def my_test_run_1(topology):
+def test_run_1(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -243,7 +243,7 @@ def my_test_run_1(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def my_test_run_2(topology):
+def test_run_2(topology):
     """
     Check nsSSL3Ciphers: +rsa_aes_128_sha,+rsa_aes_256_sha
     rsa_aes_128_sha, tls_rsa_aes_128_sha, rsa_aes_256_sha, tls_rsa_aes_256_sha are enabled.
@@ -265,7 +265,7 @@ def my_test_run_2(topology):
     connectWithOpenssl(topology, 'AES128-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA', True)
 
-def my_test_run_3(topology):
+def test_run_3(topology):
     """
     Check nsSSL3Ciphers: -all
     All ciphers are disabled.
@@ -285,7 +285,7 @@ def my_test_run_3(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
-def my_test_run_4(topology):
+def test_run_4(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -305,7 +305,7 @@ def my_test_run_4(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def my_test_run_5(topology):
+def test_run_5(topology):
     """
     Check nsSSL3Ciphers: default
     Default ciphers are enabled.
@@ -325,7 +325,7 @@ def my_test_run_5(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def my_test_run_6(topology):
+def test_run_6(topology):
     """
     Check nsSSL3Ciphers: +all,-TLS_RSA_WITH_AES_256_CBC_SHA256
     All ciphers are disabled.
@@ -346,7 +346,7 @@ def my_test_run_6(topology):
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'AES128-SHA', True)
 
-def my_test_run_7(topology):
+def test_run_7(topology):
     """
     Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5
     All ciphers are disabled.
@@ -367,7 +367,7 @@ def my_test_run_7(topology):
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'RC4-MD5', True)
 
-def my_test_run_8(topology):
+def test_run_8(topology):
     """
     Check nsSSL3Ciphers: default + allowWeakCipher: off
     Strong Default ciphers are enabled.
@@ -387,7 +387,7 @@ def my_test_run_8(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def my_test_run_9(topology):
+def test_run_9(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -410,7 +410,7 @@ def my_test_run_9(topology):
     connectWithOpenssl(topology, 'RC4-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
 
-def my_test_run_10(topology):
+def test_run_10(topology):
     """
     Check nsSSL3Ciphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
         +TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
@@ -439,7 +439,7 @@ def my_test_run_10(topology):
     connectWithOpenssl(topology, 'RC4-MD5', True)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
-def my_test_run_11(topology):
+def test_run_11(topology):
     """
     Check nsSSL3Ciphers: +fortezza
     SSL_GetImplementedCiphers does not return this as a secuire cipher suite
@@ -458,28 +458,6 @@ def my_test_run_11(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
-
-def test_ticket48194(topology):
-    '''
-    run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-    To run isolated without py.test, you need to
-      - edit this file and comment '@pytest.fixture' line before 'topology' function.
-      - set the installation prefix
-      - run this program
-    '''
-    my_test_init(topology)
-    my_test_run_0(topology)
-    my_test_run_1(topology)
-    my_test_run_2(topology)
-    my_test_run_3(topology)
-    my_test_run_4(topology)
-    my_test_run_5(topology)
-    my_test_run_6(topology)
-    my_test_run_7(topology)
-    my_test_run_8(topology)
-    my_test_run_9(topology)
-    my_test_run_10(topology)
-    my_test_run_11(topology)
 
 if __name__ == '__main__':
     # Run isolated

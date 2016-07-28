@@ -104,7 +104,7 @@ def check_attr_val(topology, dn, attr, expected):
         assert False
 
 
-def _142_init(topology):
+def test_142_init(topology):
     """
     Set global password policy.
     Then, set fine-grained subtree level password policy to ou=People with no password syntax.
@@ -155,7 +155,7 @@ def _142_init(topology):
                                    '(targetattr="*")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///%s";)' % BN)])
 
 
-def _142_run_0(topology):
+def test_142_run_0(topology):
     """
     Make sure an entry added to ou=people has no password syntax restrictions.
     """
@@ -175,7 +175,7 @@ def _142_run_0(topology):
     log.info('PASSED')
 
 
-def _142_run_1(topology):
+def test_142_run_1(topology):
     """
     Set 'nsslapd-pwpolicy-inherit-global: on'
     But passwordCheckSyntax is still off.
@@ -201,7 +201,7 @@ def _142_run_1(topology):
     log.info('PASSED')
 
 
-def _142_run_2(topology):
+def test_142_run_2(topology):
     """
     Set 'passwordCheckSyntax: on'
     Set 'passwordMinLength: 9' for testing
@@ -244,7 +244,7 @@ def _142_run_2(topology):
     log.info('PASSED')
 
 
-def _142_run_3(topology):
+def test_142_run_3(topology):
     """
     Set 'passwordCheckSyntax: on'
     Set 'nsslapd-pwpolicy-inherit-global: off'
@@ -271,7 +271,7 @@ def _142_run_3(topology):
     log.info('PASSED')
 
 
-def _142_run_4(topology):
+def test_142_run_4(topology):
     """
     Set 'passwordCheckSyntax: on'
     Set 'nsslapd-pwpolicy-inherit-global: on'
@@ -298,26 +298,6 @@ def _142_run_4(topology):
         assert False
 
     log.info('PASSED')
-
-
-def test_ticket142(topology):
-    '''
-        run_isolated is used to run these test cases independently of a test scheduler (xunit, py.test..)
-        To run isolated without py.test, you need to
-            - edit this file and comment '@pytest.fixture' line before 'topology' function.
-            - set the installation prefix
-            - run this program
-    '''
-    global installation_prefix
-    installation_prefix = None
-
-    _142_init(topology)
-
-    _142_run_0(topology)
-    _142_run_1(topology)
-    _142_run_2(topology)
-    _142_run_3(topology)
-    _142_run_4(topology)
 
 
 if __name__ == '__main__':

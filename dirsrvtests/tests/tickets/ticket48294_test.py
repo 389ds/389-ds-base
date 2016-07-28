@@ -135,7 +135,7 @@ def _modrdn_entry(topology=None, entry_dn=None, new_rdn=None, del_old=0, new_sup
             ent = topology.standalone.getEntry(dn, ldap.SCOPE_BASE, myfilter)
 
 
-def _48294_init(topology):
+def test_48294_init(topology):
     """
     Set up Linked Attribute
     """
@@ -193,7 +193,7 @@ def _48294_init(topology):
     log.info('PASSED')
 
 
-def _48294_run_0(topology):
+def test_48294_run_0(topology):
     """
     Rename employee1 to employee2 and adjust the value of directReport by replace
     """
@@ -216,7 +216,7 @@ def _48294_run_0(topology):
     log.info('PASSED')
 
 
-def _48294_run_1(topology):
+def test_48294_run_1(topology):
     """
     Rename employee2 to employee3 and adjust the value of directReport by delete and add
     """
@@ -246,7 +246,7 @@ def _48294_run_1(topology):
     log.info('PASSED')
 
 
-def _48294_run_2(topology):
+def test_48294_run_2(topology):
     """
     Rename manager1 to manager2 and make sure the managed attribute value is updated
     """

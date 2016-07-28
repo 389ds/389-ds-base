@@ -167,14 +167,5 @@ def test_ticket48745_extensible_search_after_index(topology):
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
-#     global installation1_prefix
-#     installation1_prefix = None
-#     topo = topology(True)
-#     test_ticket48745_init(topo)
-#
-#     test_ticket48745_homeDirectory_indexed_cis(topo)
-#     test_ticket48745_homeDirectory_mixed_value(topo)
-#     test_ticket48745_extensible_search_after_index(topo)
-
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)

@@ -96,7 +96,7 @@ def _header(topology, label):
     topology.standalone.log.info("###############################################")
 
 
-def _47838_init(topology):
+def test_47838_init(topology):
     """
     Generate self signed cert and import it to the DS cert db.
     Enable SSL
@@ -200,7 +200,7 @@ def comp_nsSSLEnableCipherCount(topology, ecount):
     assert ecount == enabledciphercnt
 
 
-def _47838_run_0(topology):
+def test_47838_run_0(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -240,7 +240,7 @@ def _47838_run_0(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_1(topology):
+def test_47838_run_1(topology):
     """
     Check nsSSL3Ciphers: +all
     All ciphers are enabled except null.
@@ -283,7 +283,7 @@ def _47838_run_1(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_2(topology):
+def test_47838_run_2(topology):
     """
     Check nsSSL3Ciphers: +rsa_aes_128_sha,+rsa_aes_256_sha
     rsa_aes_128_sha, tls_rsa_aes_128_sha, rsa_aes_256_sha, tls_rsa_aes_256_sha are enabled.
@@ -315,7 +315,7 @@ def _47838_run_2(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_3(topology):
+def test_47838_run_3(topology):
     """
     Check nsSSL3Ciphers: -all
     All ciphers are disabled.
@@ -346,7 +346,7 @@ def _47838_run_3(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_4(topology):
+def test_47838_run_4(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -385,7 +385,7 @@ def _47838_run_4(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_5(topology):
+def test_47838_run_5(topology):
     """
     Check nsSSL3Ciphers: default
     Default ciphers are enabled.
@@ -424,7 +424,7 @@ def _47838_run_5(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_6(topology):
+def test_47838_run_6(topology):
     """
     Check nsSSL3Ciphers: +all,-rsa_rc4_128_md5
     All ciphers are disabled.
@@ -458,7 +458,7 @@ def _47838_run_6(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_7(topology):
+def test_47838_run_7(topology):
     """
     Check nsSSL3Ciphers: -all,+rsa_rc4_128_md5
     All ciphers are disabled.
@@ -490,7 +490,7 @@ def _47838_run_7(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_8(topology):
+def test_47838_run_8(topology):
     """
     Check nsSSL3Ciphers: default + allowWeakCipher: off
     Strong Default ciphers are enabled.
@@ -529,7 +529,7 @@ def _47838_run_8(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_9(topology):
+def test_47838_run_9(topology):
     """
     Check no nsSSL3Ciphers
     Default ciphers are enabled.
@@ -572,7 +572,7 @@ def _47838_run_9(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_10(topology):
+def test_47838_run_10(topology):
     """
     Check nsSSL3Ciphers: -TLS_RSA_WITH_NULL_MD5,+TLS_RSA_WITH_RC4_128_MD5,
         +TLS_RSA_EXPORT_WITH_RC4_40_MD5,+TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
@@ -620,7 +620,7 @@ def _47838_run_10(topology):
     comp_nsSSLEnableCipherCount(topology, ecount)
 
 
-def _47838_run_11(topology):
+def test_47838_run_11(topology):
     """
     Check nsSSL3Ciphers: +fortezza
     SSL_GetImplementedCiphers does not return this as a secuire cipher suite
@@ -647,7 +647,7 @@ def _47838_run_11(topology):
     comp_nsSSLEnableCipherCount(topology, 0)
 
 
-def _47928_run_0(topology):
+def test_47928_run_0(topology):
     """
     No SSL version config parameters.
     Check SSL3 (TLS1.0) is off.
@@ -682,7 +682,7 @@ def _47928_run_0(topology):
         assert False
 
 
-def _47928_run_1(topology):
+def test_47928_run_1(topology):
     """
     No nsSSL3, nsTLS1; sslVersionMin > sslVersionMax
     Check sslVersionMax is ignored.
@@ -716,7 +716,7 @@ def _47928_run_1(topology):
         assert False
 
 
-def _47928_run_2(topology):
+def test_47928_run_2(topology):
     """
     nsSSL3: on; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2
     Conflict between nsSSL3 and range; nsSSL3 is disabled
@@ -759,7 +759,7 @@ def _47928_run_2(topology):
         assert False
 
 
-def _47928_run_3(topology):
+def test_47928_run_3(topology):
     """
     nsSSL3: on; nsTLS1: off; sslVersionMin: TLS1.1; sslVersionMax: TLS1.2
     Conflict between nsSSL3/nsTLS1 and range; nsSSL3 is disabled; nsTLS1 is enabled.
@@ -803,7 +803,7 @@ def _47928_run_3(topology):
         assert False
 
 
-def _47838_run_last(topology):
+def test_47838_run_last(topology):
     """
     Check nsSSL3Ciphers: all <== invalid value
     All ciphers are disabled.

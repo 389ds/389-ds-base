@@ -428,6 +428,7 @@ def test_ticket48784(topology):
 
     log.info("Ticket 48784 - PASSED")
 
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
