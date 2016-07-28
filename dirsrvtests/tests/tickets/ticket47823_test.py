@@ -67,8 +67,6 @@ def topology(request):
     '''
     global installation_prefix
 
-
-
     standalone = DirSrv(verbose=False)
     if installation_prefix:
         args_instance[SER_DEPLOYED_DIR] = installation_prefix

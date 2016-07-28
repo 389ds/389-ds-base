@@ -34,8 +34,12 @@ plus_all_dcount = 0
 plus_all_ecount_noweak = 0
 plus_all_dcount_noweak = 0
 
+# Cipher counts tend to change with each new verson of NSS
 nss_version = ''
 NSS320 = '3.20.0'
+NSS321 = '3.21.0'  # RHEL6
+NSS323 = '3.23.0'  # F22
+NSS325 = '3.25.0'  # F23/F24
 
 
 class TopologyStandalone(object):
@@ -368,7 +372,10 @@ def _47838_run_4(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    assert ecount == 23
+    if nss_version >= NSS323:
+        assert ecount == 23
+    else:
+        assert ecount == 20
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())

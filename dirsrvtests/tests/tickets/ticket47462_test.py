@@ -267,8 +267,8 @@ def test_ticket47462(topology):
     # Run the upgrade...
     #
     topology.master1.upgrade('online')
-    topology.master1.restart(timeout=10)
-    topology.master2.restart(timeout=10)
+    topology.master1.restart()
+    topology.master2.restart()
 
     #
     # Check that the restart converted existing DES credentials

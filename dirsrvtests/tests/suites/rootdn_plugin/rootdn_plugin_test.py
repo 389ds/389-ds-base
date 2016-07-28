@@ -381,6 +381,9 @@ def test_rootdn_access_denied_host(topology):
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                   'rootdn-deny-host',
                                                   hostname)])
+        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
+                                                  'rootdn-deny-host',
+                                                  'localhost')])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_host: Failed to set deny host: error ' +
                   e.message['desc'])
@@ -555,8 +558,14 @@ def test_rootdn_access_allowed_host(topology):
         log.fatal('test_rootdn_access_allowed_host: : failed to bind as user1')
         assert False
 
+    hostname = socket.gethostname()
     try:
-        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-allow-host', 'localhost.localdomain')])
+        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
+                                                  'rootdn-allow-host',
+                                                  'localhost')])
+        topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
+                                                  'rootdn-allow-host',
+                                                  hostname)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_allowed_host: Failed to set allowed host: error ' +
                   e.message['desc'])

@@ -393,7 +393,7 @@ def test_ticket48784(topology):
     add_entry(topology.master1, 'master1', 'uid=m1user', 0, 5)
     add_entry(topology.master2, 'master2', 'uid=m2user', 0, 5)
 
-    time.sleep(1)
+    time.sleep(10)
 
     log.info('##### Searching for entries on master1...')
     entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
