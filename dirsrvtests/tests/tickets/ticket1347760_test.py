@@ -85,27 +85,29 @@ def topology(request):
 
 
 def pattern_accesslog(file, log_pattern):
-    try:
-        pattern_accesslog.last_pos += 1
-    except AttributeError:
-        pattern_accesslog.last_pos = 0
+    for i in range(5):
+        try:
+            pattern_accesslog.last_pos += 1
+        except AttributeError:
+            pattern_accesslog.last_pos = 0
 
-    found = None
-    file.seek(pattern_accesslog.last_pos)
+        found = None
+        file.seek(pattern_accesslog.last_pos)
 
-    # Use a while true iteration because 'for line in file: hit a
-    # python bug that break file.tell()
-    while True:
-        line = file.readline()
-        found = log_pattern.search(line)
-        if ((line == '') or (found)):
-            break
+        # Use a while true iteration because 'for line in file: hit a
+        # python bug that break file.tell()
+        while True:
+            line = file.readline()
+            found = log_pattern.search(line)
+            if ((line == '') or (found)):
+                break
 
-    pattern_accesslog.last_pos = file.tell()
-    if found:
-        return line
-    else:
-        return None
+        pattern_accesslog.last_pos = file.tell()
+        if found:
+            return line
+        else:
+            time.sleep(1)
+    return None
 
 
 def check_op_result(server, op, dn, superior, exists, rc):

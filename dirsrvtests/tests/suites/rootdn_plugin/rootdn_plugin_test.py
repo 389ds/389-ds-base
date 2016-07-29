@@ -377,13 +377,14 @@ def test_rootdn_access_denied_host(topology):
 
     log.info('Running test_rootdn_access_denied_host...')
     hostname = socket.gethostname()
+    localhost = DirSrvTools.getLocalhost()
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                   'rootdn-deny-host',
                                                   hostname)])
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                   'rootdn-deny-host',
-                                                  'localhost')])
+                                                  localhost)])
     except ldap.LDAPError as e:
         log.fatal('test_rootdn_access_denied_host: Failed to set deny host: error ' +
                   e.message['desc'])
@@ -559,10 +560,11 @@ def test_rootdn_access_allowed_host(topology):
         assert False
 
     hostname = socket.gethostname()
+    localhost = DirSrvTools.getLocalhost()
     try:
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                   'rootdn-allow-host',
-                                                  'localhost')])
+                                                  localhost)])
         topology.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
                                                   'rootdn-allow-host',
                                                   hostname)])

@@ -373,7 +373,7 @@ def test_47838_run_4(topology):
     global plus_all_ecount
     global plus_all_dcount
     if nss_version >= NSS323:
-        assert ecount == 23
+        assert ecount == 29
     else:
         assert ecount == 20
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
@@ -411,10 +411,10 @@ def test_47838_run_5(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    if nss_version >= NSS320:
-        assert ecount == 23
+    if nss_version >= NSS323:
+        assert ecount == 29
     else:
-        assert ecount == 12
+        assert ecount == 23
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -516,10 +516,10 @@ def test_47838_run_8(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    if nss_version >= NSS320:
-       assert ecount == 23
+    if nss_version >= NSS323:
+       assert ecount == 29
     else:
-       assert ecount == 12
+       assert ecount == 23
     assert dcount == (plus_all_ecount + plus_all_dcount - ecount)
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -556,10 +556,10 @@ def test_47838_run_9(topology):
 
     log.info("Enabled ciphers: %d" % ecount)
     log.info("Disabled ciphers: %d" % dcount)
-    if nss_version >= NSS320:
-        assert ecount == 30
+    if nss_version >= NSS323:
+        assert ecount == 36
     else:
-        assert ecount == 23
+        assert ecount == 30
     assert dcount == 0
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
@@ -606,10 +606,7 @@ def test_47838_run_10(topology):
     log.info("Disabled ciphers: %d" % dcount)
     global plus_all_ecount
     global plus_all_dcount
-    if nss_version >= NSS320:
-        assert ecount == 5
-    else:
-        assert ecount == 9
+    assert ecount == 9
     assert dcount == 0
     weak = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | egrep "WEAK CIPHER" | wc -l' % topology.standalone.errlog)
     wcount = int(weak.readline().rstrip())
