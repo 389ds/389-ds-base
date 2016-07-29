@@ -1030,6 +1030,19 @@ class DirSrvTools(object):
                 % (expectedHost, ipPattern))
 
     @staticmethod
+    def getLocalhost():
+        """Get the first host value after 127.0.0.1
+        from /etc/hosts file
+        """
+
+        with open('/etc/hosts', 'r') as f:
+            for line in f.readlines():
+                if line.startswith('127.0.0.1'):
+                    localhost = line.split()[1]
+                    return localhost
+        return None
+
+    @staticmethod
     def testLocalhost():
         '''
         Checks that the 127.0.0.1 is resolved as localhost.localdomain
