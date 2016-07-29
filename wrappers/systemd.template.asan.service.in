@@ -25,6 +25,7 @@ PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
 # We can't symbolize here, as llvm symbolize crashes when it goes near systemd.
 Environment='ASAN_OPTIONS="detect_leaks=1 symbolize=0 log_path=@localstatedir@/run/@package_name@/ns-slapd-%i.asan detect_deadlocks=1"'
 LimitCORE=infinity
+ExecStartPre=@sbindir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
 # if you need to set other directives e.g. LimitNOFILE=8192
 # set them in this file

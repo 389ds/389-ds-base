@@ -620,7 +620,8 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/dbmon.sh \
 	ldap/admin/src/scripts/ds_selinux_enabled \
 	ldap/admin/src/scripts/ds_selinux_port_query \
-    wrappers/ldap-agent
+	wrappers/ds_systemd_ask_password_acl \
+	wrappers/ldap-agent
 
 bin_SCRIPTS = ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/dbscan \
