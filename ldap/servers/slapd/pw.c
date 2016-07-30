@@ -1777,9 +1777,17 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 			attribute in the target entry itself. */
 		} else {
 			if ( (e = get_entry( pb, dn )) != NULL ) {
-				rc = slapi_vattr_values_get(e, "pwdpolicysubentry", &values,
-					&type_name_disposition, &actual_type_name, 
-					SLAPI_VIRTUALATTRS_REQUEST_POINTERS, &attr_free_flags);
+				Slapi_Attr* attr = NULL;
+				rc = slapi_entry_attr_find(e, "pwdpolicysubentry", &attr);
+				if (attr && (0 == rc)) {
+					/* If the entry has pwdpolicysubentry, use the PwPolicy. */
+					values = valueset_dup(&attr->a_present_values);
+				} else {
+					/* Otherwise, retrieve the policy from CoS Cache */
+					rc = slapi_vattr_values_get(e, "pwdpolicysubentry", &values,
+						&type_name_disposition, &actual_type_name,
+						SLAPI_VIRTUALATTRS_REQUEST_POINTERS, &attr_free_flags);
+				}
 				if (rc) {
 					values = NULL;
 				}
