@@ -545,14 +545,15 @@ class DirSrv(SimpleLDAPObject):
                                                        self.port)))
 
     def openConnection(self, saslmethod=None, certdir=None):
-        # Open a new connection to our LDAP server
+        """Open a new connection to our LDAP server
+        """
         server = DirSrv(verbose=self.verbose)
         args_instance[SER_HOST] = self.host
         args_instance[SER_PORT] = self.port
         args_instance[SER_SERVERID_PROP] = self.serverid
         args_standalone = args_instance.copy()
         server.allocate(args_standalone)
-        server.open(saslmethod, certdir)
+        server.open(saslmethod, certdir, connOnly=True)
 
         return server
 
@@ -970,7 +971,7 @@ class DirSrv(SimpleLDAPObject):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, saslmethod=None, certdir=None, starttls=False):
+    def open(self, saslmethod=None, certdir=None, starttls=False, connOnly=False):
         '''
             It opens a ldap bound connection to dirsrv so that online
             administrative tasks are possible.  It binds with the binddn
@@ -1055,7 +1056,8 @@ class DirSrv(SimpleLDAPObject):
         """
         if self.verbose:
             log.info("open(): bound as %s" % self.binddn)
-        self.__initPart2()
+        if not connOnly:
+            self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
 
     def close(self):
