@@ -71,5 +71,5 @@ setup(
             ]),
     ],
 
-    install_requires=['python-ldap', 'python-dateutil'],
+    install_requires=['python-ldap'],
 )
