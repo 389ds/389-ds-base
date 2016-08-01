@@ -67,13 +67,13 @@ def writeFinalizer():
     TEST.write('    def fin():\n')
     TEST.write('        """')
     TEST.write('If we are debugging just stop the instances, ' +
-               'otherwise remove\n        them\n')
+               'otherwise remove them\n')
     TEST.write('        """\n')
     TEST.write('        if DEBUGGING:\n')
     writeInstanceOp('stop')
     TEST.write('        else:\n')
     writeInstanceOp('delete')
-    TEST.write('\n    request.addfinalizer(fin)')
+    TEST.write('    request.addfinalizer(fin)')
     TEST.write('\n\n')
 
 
@@ -191,7 +191,7 @@ if len(sys.argv) > 0:
     TEST.write('if DEBUGGING:\n')
     TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
     TEST.write('else:\n')
-    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n\n\n')
+    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
     TEST.write('log = logging.getLogger(__name__)\n\n\n')
 
     #
@@ -649,7 +649,6 @@ if len(sys.argv) > 0:
 
         writeFinalizer()
 
-        TEST.write('\n')
         TEST.write('    return TopologyStandalone(standalone')
         for idx in range(instances):
             idx += 1
