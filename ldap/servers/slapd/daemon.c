@@ -164,6 +164,67 @@ static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDes
 static int write_pid_file();
 static int init_shutdown_detect();
 
+/*
+ * NSPR has different implementations for PRMonitor, depending
+ * on the availble threading model
+ * The PR_TestAndEnterMonitor is not available for pthreads
+ * so this is a implementation based on the code in
+ * prmon.c adapted to resemble the implementation in ptsynch.c
+ *
+ * The function needs access to the elements of the PRMonitor struct.
+ * Therfor the pthread variant of PRMonitor is copied here.
+ */
+typedef struct MY_PRMonitor {
+    const char* name;
+    pthread_mutex_t lock;
+    pthread_t owner;
+    pthread_cond_t entryCV;
+    pthread_cond_t waitCV;
+    PRInt32 refCount;
+    PRUint32 entryCount;
+    PRIntn notifyTimes;
+} MY_PRMonitor;
+
+static PRBool MY_TestAndEnterMonitor(MY_PRMonitor *mon)
+{
+    pthread_t self = pthread_self();
+    PRStatus rv;
+    PRBool rc = PR_FALSE;
+
+    PR_ASSERT(mon != NULL);
+    rv = pthread_mutex_lock(&mon->lock);
+    if (rv != 0) {
+	slapi_log_error(SLAPI_LOG_FATAL ,"TestAndEnterMonitor",
+                        "Failed to acquire monitor mutex, error (%d)\n", rv);
+	return rc;
+    }
+    if (mon->entryCount != 0) {
+        if (pthread_equal(mon->owner, self))
+            goto done;
+        rv = pthread_mutex_unlock(&mon->lock);
+	if (rv != 0) {
+	    slapi_log_error(SLAPI_LOG_FATAL ,"TestAndEnterMonitor",
+                        "Failed to release monitor mutex, error (%d)\n", rv);
+	}
+        return PR_FALSE;
+    }
+    /* and now I have the monitor */
+    PR_ASSERT(mon->notifyTimes == 0);
+    PR_ASSERT((mon->owner) == 0);
+    mon->owner = self;
+
+done:
+    mon->entryCount += 1;
+    rv = pthread_mutex_unlock(&mon->lock);
+    if (rv == PR_SUCCESS) {
+	rc = PR_TRUE;
+    } else {
+	slapi_log_error(SLAPI_LOG_FATAL ,"TestAndEnterMonitor",
+                        "Failed to release monitor mutex, error (%d)\n", rv);
+	rc = PR_FALSE;
+    }
+    return rc;
+}
 /* Globals which are used to store the sockets between
  * calls to daemon_pre_setuid_init() and the daemon thread
  * creation. */
@@ -1522,7 +1583,13 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		}
 		else
 		{
-			PR_EnterMonitor(c->c_mutex);
+			/* we try to acquire the connection mutex, if it is already
+			 * acquired by another thread, don't wait
+			 */
+			if (PR_FALSE == MY_TestAndEnterMonitor((MY_PRMonitor *)c->c_mutex)) {
+				c = next;
+				continue;
+			}
 			if (c->c_flags & CONN_FLAG_CLOSING)
 			{
 				/* A worker thread has marked that this connection
