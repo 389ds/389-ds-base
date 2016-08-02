@@ -432,6 +432,14 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 		Slapi_Attr *a= NULL;
 		long a_flags_orig;
 		int attr_state= entry_attr_find_wsi(e, type, &a);
+		const CSN *adcsn = attr_get_deletion_csn(a);
+		if (csn_compare(csn, adcsn)<0) {
+			/* the attribute was deleted with an adcsn
+			 * newer than the current csn.
+			 * Nothing to do.
+			 */
+			goto done;
+		}
 
 		a_flags_orig = a->a_flags;
 		a->a_flags |= flags;
@@ -499,6 +507,7 @@ entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, str
 		}
 		a->a_flags = a_flags_orig;
 	}
+done:
 	valuearray_free(&valuestoadd);
 
 	return(retVal);
@@ -517,6 +526,14 @@ entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, stru
 		long a_flags_orig;
 		int attr_state = entry_attr_find_wsi(e, type, &a);
 
+		const CSN *adcsn = attr_get_deletion_csn(a);
+		if (csn_compare(csn, adcsn)<0) {
+			/* the attribute was deleted with an adcsn
+			 * newer than the current csn.
+			 * Nothing to do.
+			 */
+			goto done;
+		}
 		a_flags_orig = a->a_flags;
 		a->a_flags |= flags;
 		/* Check if the type of the to-be-added values has DN syntax or not. */
@@ -594,6 +611,7 @@ entry_add_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, stru
 		}
 		a->a_flags = a_flags_orig;
 	}
+done:
 	valuearray_free(&valuestoadd);
 
 	return(retVal);
@@ -677,6 +695,14 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 	{
 		/* delete the entire attribute */
 		LDAPDebug( LDAP_DEBUG_ARGS, "removing entire attribute %s\n", type, 0, 0 );
+		const CSN *adcsn = attr_get_deletion_csn(a);
+		if (csn_compare(csn, adcsn)<0) {
+			/* the attribute was deleted with an adcsn
+			 * newer than the current csn.
+			 * Nothing to do.
+			 */
+			return LDAP_SUCCESS;
+		}
 		attr_set_deletion_csn(a,csn);
 		if(urp)
 		{
@@ -767,6 +793,14 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 		{
 			/* delete the entire attribute */
 			LDAPDebug( LDAP_DEBUG_ARGS, "removing entire attribute %s\n", type, 0, 0 );
+			const CSN *adcsn = attr_get_deletion_csn(a);
+			if (csn_compare(csn, adcsn)<0) {
+				/* the attribute was deleted with an adcsn
+				 * newer than the current csn.
+				 * Nothing to do.
+				 */
+				return LDAP_SUCCESS;
+			}
 			attr_set_deletion_csn(a,csn);
 			if(urp)
 			{
