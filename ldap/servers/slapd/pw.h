@@ -19,7 +19,8 @@
 #ifndef _SLAPD_PW_H_
 #define _SLAPD_PW_H_
 
-#define PWD_MAX_NAME_LEN    10
+// Updated to the 13 for PBKDF2_SHA256
+#define PWD_MAX_NAME_LEN    13
 
 #define PWD_HASH_PREFIX_START	'{'
 #define PWD_HASH_PREFIX_END	'}'

@@ -262,6 +262,13 @@ pw_val2scheme( char *val, char **valpwdp, int first_is_default )
 	if (NULL == val) {
 		return( NULL );
 	}
+
+    /*
+     * Future implementors of new password mechanisms may find that this function
+     * is causing them trouble. If your hash ends up as {CLEAR}{NEWMECH}.... it
+     * because NEWMECH > PWD_MAX_NAME_LEN. Update pw.h!
+     */
+
 	if ( *val != PWD_HASH_PREFIX_START ||
 	    ( end = strchr( val, PWD_HASH_PREFIX_END )) == NULL ||
 	    ( namelen = end - val - 1 ) > PWD_MAX_NAME_LEN ) {

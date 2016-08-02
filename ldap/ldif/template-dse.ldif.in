@@ -211,6 +211,15 @@ nsslapd-plugininitfunc: ns_mta_md5_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
 
+dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+cn: PBKDF2_SHA256
+nsslapd-pluginpath: libpwdstorage-plugin
+nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init
+nsslapd-plugintype: pwdstoragescheme
+nsslapd-pluginenabled: on
+
 dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

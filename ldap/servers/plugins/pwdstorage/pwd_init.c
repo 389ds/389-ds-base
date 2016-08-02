@@ -44,6 +44,8 @@ static Slapi_PluginDesc md5_pdesc = { "md5-password-storage-scheme", VENDOR, DS_
 
 static Slapi_PluginDesc smd5_pdesc = { "smd5-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted MD5 hash algorithm (SMD5)" };
 
+static Slapi_PluginDesc pbkdf2_sha256_pdesc = { "pbkdf2-sha256-password-storage-scheme", VENDOR, DS_PACKAGE_VERSION, "Salted PBKDF2 SHA256 hash algorithm (PBKDF2_SHA256)" };
+
 static char *plugin_name = "NSPwdStoragePlugin";
 
 int
@@ -336,3 +338,21 @@ smd5_pwd_storage_scheme_init( Slapi_PBlock *pb )
 	slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= smd5_pwd_storage_scheme_init %d\n\n", rc );
 	return( rc );
 }
+
+int
+pbkdf2_sha256_pwd_storage_scheme_init(Slapi_PBlock *pb)
+{
+    int rc;
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "=> pbkdf2_sha256_pwd_storage_scheme_init\n");
+
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pbkdf2_sha256_pdesc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN, (void *)pbkdf2_sha256_pw_enc);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *)pbkdf2_sha256_pw_cmp);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, PBKDF2_SHA256_SCHEME_NAME);
+
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "<= pbkdf2_sha256_pwd_storage_scheme_init %d\n", rc);
+    return rc;
+}
+
