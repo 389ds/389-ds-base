@@ -120,6 +120,20 @@ def runCmd(cmd, timeout_sec):
     timer.cancel()
     return proc.returncode
 
+# Could be nicer if we did _get_config_fallback_<type>?
+def _get_config_fallback(config, group, attr, value, boolean=False, num=False):
+    try:
+        if boolean:
+            return config.getboolean(group, attr)
+        elif num:
+            return config.getint(group, attr)
+        else:
+            return config.get(group, attr)
+    except ValueError:
+        return value
+    except configparser.NoOptionError:
+        log.info("%s not specified:setting to default - %s" % (attr, value))
+        return value
 
 class DirSrvTools(object):
     """DirSrv mix-in."""
@@ -1224,29 +1238,15 @@ class SetupDs(object):
     def _install(self, extra):
         pass
 
-    def _set_config_fallback(self, config, group, attr, value, boolean=False, num=False):
-        try:
-            if boolean:
-                return config.getboolean(group, attr)
-            elif num:
-                return config.getint(group, attr)
-            else:
-                return config.get(group, attr)
-        except ValueError:
-            return value
-        except configparser.NoOptionError:
-            log.info("%s not specified:setting to default - %s" % (attr, value))
-            return value
-
     def _validate_ds_2_config(self, config):
         assert config.has_section('slapd')
         # Extract them in a way that create can understand.
         general = {}
         general['config_version'] = config.getint('general', 'config_version')
         general['full_machine_name'] = config.get('general', 'full_machine_name')
-	general['strict_host_checking'] = self._set_config_fallback(config, 'general', 'strict_host_checking', True, boolean=True)
+        general['strict_host_checking'] = _get_config_fallback(config, 'general', 'strict_host_checking', True, boolean=True)
         # Change this to detect if SELinux is running
-        general['selinux'] = self._set_config_fallback(config, 'general', 'selinux', False, boolean=True)
+        general['selinux'] = _get_config_fallback(config, 'general', 'selinux', False, boolean=True)
 
         if self.verbose:
             log.info("Configuration general %s" % general)
@@ -1257,40 +1257,40 @@ class SetupDs(object):
         slapd = {}
         # Can probably set these defaults out of somewhere else ...
         slapd['instance_name'] = config.get('slapd', 'instance_name')
-        slapd['user'] = self._set_config_fallback(config, 'slapd', 'user', 'dirsrv')
-        slapd['group'] = self._set_config_fallback(config, 'slapd', 'group', 'dirsrv')
-        slapd['root_dn'] = self._set_config_fallback(config, 'slapd', 'root_dn', 'cn=Directory Manager')
+        slapd['user'] = _get_config_fallback(config, 'slapd', 'user', 'dirsrv')
+        slapd['group'] = _get_config_fallback(config, 'slapd', 'group', 'dirsrv')
+        slapd['root_dn'] = _get_config_fallback(config, 'slapd', 'root_dn', 'cn=Directory Manager')
         slapd['root_password'] = config.get('slapd', 'root_password')
-        slapd['prefix'] = self._set_config_fallback(config, 'slapd', 'prefix', '/')
+        slapd['prefix'] = _get_config_fallback(config, 'slapd', 'prefix', '/')
 
         # How do we default, defaults to the DS version.
-        slapd['defaults'] = self._set_config_fallback(config, 'slapd', 'defaults', None)
-        slapd['port'] = self._set_config_fallback(config, 'slapd', 'port', 389, num=True)
-        slapd['secure_port'] = self._set_config_fallback(config, 'slapd', 'secure_port', 636, num=True)
+        slapd['defaults'] = _get_config_fallback(config, 'slapd', 'defaults', None)
+        slapd['port'] = _get_config_fallback(config, 'slapd', 'port', 389, num=True)
+        slapd['secure_port'] = _get_config_fallback(config, 'slapd', 'secure_port', 636, num=True)
 
         # These are all the paths for DS, that are RELATIVE to the prefix
         # This will need to change to cope with configure scripts from DS!
         # perhaps these should be read as a set of DEFAULTs from a config file?
-        slapd['bin_dir'] = self._set_config_fallback(config, 'slapd', 'bin_dir', os.path.join(slapd['prefix'], 'bin'))
-        slapd['sysconf_dir'] = self._set_config_fallback(config, 'slapd', 'sysconf_dir', os.path.join(slapd['prefix'], 'etc'))
-        slapd['data_dir'] = self._set_config_fallback(config, 'slapd', 'data_dir', os.path.join(slapd['prefix'], 'share'))
-        slapd['local_state_dir'] = self._set_config_fallback(config, 'slapd', 'local_state_dir', os.path.join(slapd['prefix'], 'var'))
+        slapd['bin_dir'] = _get_config_fallback(config, 'slapd', 'bin_dir', os.path.join(slapd['prefix'], 'bin'))
+        slapd['sysconf_dir'] = _get_config_fallback(config, 'slapd', 'sysconf_dir', os.path.join(slapd['prefix'], 'etc'))
+        slapd['data_dir'] = _get_config_fallback(config, 'slapd', 'data_dir', os.path.join(slapd['prefix'], 'share'))
+        slapd['local_state_dir'] = _get_config_fallback(config, 'slapd', 'local_state_dir', os.path.join(slapd['prefix'], 'var'))
 
-        slapd['lib_dir'] = self._set_config_fallback(config, 'slapd', 'lib_dir', os.path.join(slapd['prefix'], 'usr', 'lib64', 'dirsrv'))
-        slapd['cert_dir'] = self._set_config_fallback(config, 'slapd', 'cert_dir', os.path.join(slapd['prefix'], 'etc', 'dirsrv', 'slapd-%s' % slapd['instance_name']))
-        slapd['config_dir'] = self._set_config_fallback(config, 'slapd', 'config_dir', os.path.join(slapd['prefix'], 'etc', 'dirsrv', 'slapd-%s' % slapd['instance_name']))
+        slapd['lib_dir'] = _get_config_fallback(config, 'slapd', 'lib_dir', os.path.join(slapd['prefix'], 'usr/lib64/dirsrv'))
+        slapd['cert_dir'] = _get_config_fallback(config, 'slapd', 'cert_dir', os.path.join(slapd['prefix'], 'etc/dirsrv/slapd-%s' % slapd['instance_name']))
+        slapd['config_dir'] = _get_config_fallback(config, 'slapd', 'config_dir', os.path.join(slapd['prefix'], 'etc/dirsrv/slapd-%s' % slapd['instance_name']))
 
-        slapd['inst_dir'] = self._set_config_fallback(config, 'slapd', 'inst_dir', os.path.join(slapd['prefix'], 'var', 'lib', 'dirsrv', 'slapd-%s' % slapd['instance_name']))
-        slapd['backup_dir'] = self._set_config_fallback(config, 'slapd', 'backup_dir', os.path.join(slapd['inst_dir'], 'bak'))
-        slapd['db_dir'] = self._set_config_fallback(config, 'slapd', 'db_dir', os.path.join(slapd['inst_dir'], 'db'))
-        slapd['ldif_dir'] = self._set_config_fallback(config, 'slapd', 'ldif_dir', os.path.join(slapd['inst_dir'], 'ldif'))
+        slapd['inst_dir'] = _get_config_fallback(config, 'slapd', 'inst_dir', os.path.join(slapd['prefix'], 'var/lib/dirsrv/slapd-%s' % slapd['instance_name']))
+        slapd['backup_dir'] = _get_config_fallback(config, 'slapd', 'backup_dir', os.path.join(slapd['inst_dir'], 'bak'))
+        slapd['db_dir'] = _get_config_fallback(config, 'slapd', 'db_dir', os.path.join(slapd['inst_dir'], 'db'))
+        slapd['ldif_dir'] = _get_config_fallback(config, 'slapd', 'ldif_dir', os.path.join(slapd['inst_dir'], 'ldif'))
 
-        slapd['lock_dir'] = self._set_config_fallback(config, 'slapd', 'lock_dir', os.path.join(slapd['prefix'], 'var', 'lock', 'dirsrv', 'slapd-%s' % slapd['instance_name']))
-        slapd['log_dir'] = self._set_config_fallback(config, 'slapd', 'log_dir', os.path.join(slapd['prefix'], 'var', 'log', 'dirsrv', 'slapd-%s' % slapd['instance_name']))
-        slapd['run_dir'] = self._set_config_fallback(config, 'slapd', 'run_dir', os.path.join(slapd['prefix'], 'var', 'run', 'dirsrv'))
-        slapd['sbin_dir'] = self._set_config_fallback(config, 'slapd', 'sbin_dir', os.path.join(slapd['prefix'], 'sbin'))
-        slapd['schema_dir'] = self._set_config_fallback(config, 'slapd', 'schema_dir', os.path.join(slapd['prefix'], 'etc', 'dirsrv', 'slapd-%s' % slapd['instance_name'], 'schema'))
-        slapd['tmp_dir'] = self._set_config_fallback(config, 'slapd', 'tmp_dir', '/tmp')
+        slapd['lock_dir'] = _get_config_fallback(config, 'slapd', 'lock_dir', os.path.join(slapd['prefix'], 'var/lock/dirsrv/slapd-%s' % slapd['instance_name']))
+        slapd['log_dir'] = _get_config_fallback(config, 'slapd', 'log_dir', os.path.join(slapd['prefix'], 'var/log/dirsrv/slapd-%s' % slapd['instance_name']))
+        slapd['run_dir'] = _get_config_fallback(config, 'slapd', 'run_dir', os.path.join(slapd['prefix'], 'var/run/dirsrv'))
+        slapd['sbin_dir'] = _get_config_fallback(config, 'slapd', 'sbin_dir', os.path.join(slapd['prefix'], 'sbin'))
+        slapd['schema_dir'] = _get_config_fallback(config, 'slapd', 'schema_dir', os.path.join(slapd['prefix'], 'etc/dirsrv/slapd-%s' % slapd['instance_name'], 'schema'))
+        slapd['tmp_dir'] = _get_config_fallback(config, 'slapd', 'tmp_dir', '/tmp')
 
         # Need to add all the default filesystem paths.
 
@@ -1502,10 +1502,11 @@ class SetupDs(object):
         # Copy correct data to the paths.
         # Copy in the schema
         #  This is a little fragile, make it better.
-        shutil.copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv', 'schema'), slapd['schema_dir'])
+        shutil.copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
 
-        srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv', 'config', 'slapd-collations.conf')
+        # Copy in the collation
+        srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/slapd-collations.conf')
         dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
         shutil.copy2(srcfile, dstfile)
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])

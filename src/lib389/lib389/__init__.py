@@ -241,8 +241,9 @@ class DirSrv(SimpleLDAPObject):
                 # parse the lib dir, and so set the plugin dir
                 self.instdir = instdir
                 # THIS NEEDS TO BE FIXED .... There is no guarantee this is correct.
-                self.libdir = self.instdir.replace(ensure_bytes('slapd-%s' % self.serverid), ensure_bytes(''))
-                self.plugindir = self.libdir + ensure_bytes('plugins')
+                # These two values aren't even used, yet cause so much pain.
+                # self.libdir = self.instdir.replace(ensure_bytes('slapd-%s' % self.serverid), ensure_bytes(''))
+                # self.plugindir = self.libdir + ensure_bytes('plugins')
 
                 # if self.verbose:
                 #     log.debug("instdir=%r" % instdir)
