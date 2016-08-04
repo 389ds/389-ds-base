@@ -374,12 +374,13 @@ slapi_ct_memcmp( const void *p1, const void *p2, size_t n)
     int result = 0;
     const unsigned char *_p1 = (const unsigned char *)p1;
     const unsigned char *_p2 = (const unsigned char *)p2;
+    size_t i;
 
     if (_p1 == NULL || _p2 == NULL) {
         return 2;
     }
 
-    for (size_t i = 0; i < n; i++) {
+    for (i = 0; i < n; i++) {
         if (_p1[i] ^ _p2[i]) {
             result = 1;
         }
