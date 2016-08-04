@@ -1502,7 +1502,12 @@ class SetupDs(object):
         # Copy correct data to the paths.
         # Copy in the schema
         #  This is a little fragile, make it better.
-        shutil.copytree("%s/dirsrv/schema" % slapd['sysconf_dir'], slapd['schema_dir'])
+        shutil.copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv', 'schema'), slapd['schema_dir'])
+        os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
+
+        srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv', 'config', 'slapd-collations.conf')
+        dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
+        shutil.copy2(srcfile, dstfile)
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
 
         # Selinux fixups?
@@ -1521,11 +1526,11 @@ class SetupDs(object):
         if self.verbose:
             log.info("ACTION: Creating dse.ldif")
         dse = ""
-        with open("%s/dirsrv/data/template-dse.ldif" % slapd['data_dir']) as template_dse:
+        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
             for line in template_dse.readlines():
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
-        with open("%s/dse.ldif" % slapd['config_dir'], 'w') as file_dse:
+        with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
             file_dse.write(dse.format(
                 schema_dir=slapd['schema_dir'],
                 lock_dir=slapd['lock_dir'],
