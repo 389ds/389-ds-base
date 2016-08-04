@@ -775,10 +775,12 @@ do_bind( Slapi_PBlock *pb )
                      */
                     if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
                         bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
-                        rc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
-                        if (1 == rc) { /* account is locked */
+                        myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
+                        if (1 == myrc) { /* account is locked */
+                            rc = myrc;
                             goto account_locked;
                         }
+                        myrc = 0;
                     }
                     if (!auto_bind) {
                         /* 
