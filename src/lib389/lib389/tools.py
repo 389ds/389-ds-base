@@ -1492,7 +1492,10 @@ class SetupDs(object):
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             if self.verbose:
                 log.info("ACTION: creating %s" % slapd[path])
-            os.makedirs(slapd[path], mode=0o770, exist_ok=True)
+            try:
+                os.makedirs(slapd[path], mode=0o770)
+            except OSError:
+                pass
             os.chown(slapd[path], slapd['user_uid'], slapd['group_gid'])
 
         # Copy correct data to the paths.
