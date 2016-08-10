@@ -1132,6 +1132,7 @@ class DirSrv(SimpleLDAPObject):
             @raise None
         '''
         self.stop(timeout)
+        time.sleep(1)
         self.start(timeout)
 
     def _infoBackupFS(self):
