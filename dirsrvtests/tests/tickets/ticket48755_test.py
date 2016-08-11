@@ -127,19 +127,16 @@ def topology(request):
         master2.delete()
     request.addfinalizer(fin)
 
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
     return TopologyReplication(master1, master2)
 
 
 @pytest.fixture(scope="module")
-
 def add_ou_entry(server, idx, myparent):
     name = 'OU%d' % idx
     dn = 'ou=%s,%s' % (name, myparent)
     server.add_s(Entry((dn, {'objectclass': ['top', 'organizationalunit'],
                              'ou': name})))
+    time.sleep(1)
 
 
 def add_user_entry(server, idx, myparent):
@@ -150,12 +147,14 @@ def add_user_entry(server, idx, myparent):
                              'sn': 'user%d' % idx,
                              'cn': 'Test User%d' % idx,
                              'userpassword': 'password'})))
+    time.sleep(1)
 
 
 def del_user_entry(server, idx, myparent):
     name = 'tuser%d' % idx
     dn = 'uid=%s,%s' % (name, myparent)
     server.delete_s(dn)
+    time.sleep(1)
 
 
 def add_ldapsubentry(server, myparent):
@@ -190,6 +189,7 @@ def add_ldapsubentry(server, myparent):
                               'costemplatedn': '%s' % tmpldn,
                               'cosAttribute': 'pwdpolicysubentry default operational-default',
                               'cn': '%s' % name})))
+    time.sleep(1)
 
 
 def test_ticket48755(topology):
@@ -228,10 +228,12 @@ def test_ticket48755(topology):
 
     log.info("Moving %s to DIT_1" % parent00)
     M1.rename_s(parent00, ou0, newsuperior=parent1, delold=1)
+    time.sleep(1)
 
     log.info("Moving %s to DIT_1" % parent0)
     parent01 = '%s,%s' % (ou0, parent1)
     M1.rename_s(parent0, ou0, newsuperior=parent01, delold=1)
+    time.sleep(1)
 
     parent001 = '%s,%s' % (ou0, parent01)
     log.info("Moving USERS to %s" % parent0)
@@ -241,6 +243,7 @@ def test_ticket48755(topology):
             rdn = 'uid=%s' % name
             dn = 'uid=%s,%s' % (name, parent01)
             M1.rename_s(dn, rdn, newsuperior=parent001, delold=1)
+            time.sleep(1)
 
     log.info('%s => %s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, parent1, parent01, parent001))
 
@@ -248,9 +251,12 @@ def test_ticket48755(topology):
     global m1_m2_agmt
     M1.startReplication_async(m1_m2_agmt)
     M1.waitForReplInit(m1_m2_agmt)
+    time.sleep(2)
 
-    m1entries = M1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))')
-    m2entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))')
+    m1entries = M1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                            '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))')
+    m2entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                            '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))')
 
     log.info("m1entry count - %d", len(m1entries))
     log.info("m2entry count - %d", len(m2entries))

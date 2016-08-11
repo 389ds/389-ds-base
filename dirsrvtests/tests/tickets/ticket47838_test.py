@@ -259,6 +259,7 @@ def test_47838_run_1(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_0' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -298,6 +299,7 @@ def test_47838_run_2(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_1' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -330,6 +332,7 @@ def test_47838_run_3(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_2' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -361,6 +364,7 @@ def test_47838_run_4(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_3' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -400,6 +404,7 @@ def test_47838_run_5(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_4' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -439,6 +444,7 @@ def test_47838_run_6(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_5' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -473,6 +479,7 @@ def test_47838_run_7(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_6' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -505,6 +512,7 @@ def test_47838_run_8(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_7' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -547,6 +555,7 @@ def test_47838_run_9(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_8' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -595,6 +604,7 @@ def test_47838_run_10(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_9' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
@@ -631,6 +641,7 @@ def test_47838_run_11(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_10' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     errmsg = os.popen('egrep "SSL alert:" %s | egrep "is not available in NSS"' % topology.standalone.errlog)
@@ -668,6 +679,7 @@ def test_47928_run_0(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_11' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     errmsg = os.popen('egrep "SSL alert:" %s | egrep "Default SSL Version settings; Configuring the version range as min: TLS1.1"' % topology.standalone.errlog)
@@ -729,6 +741,7 @@ def test_47928_run_2(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_13' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     errmsg = os.popen('egrep "SSL alert:" %s | egrep "Found unsecure configuration: nsSSL3: on"' % topology.standalone.errlog)
@@ -773,6 +786,7 @@ def test_47928_run_3(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_14' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     errmsg = os.popen('egrep "SSL alert:" %s | egrep "Found unsecure configuration: nsSSL3: on"' % topology.standalone.errlog)
@@ -815,6 +829,7 @@ def test_47838_run_last(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.47838_15' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     errmsg = os.popen('egrep "SSL alert:" %s | egrep "invalid ciphers"' % topology.standalone.errlog)

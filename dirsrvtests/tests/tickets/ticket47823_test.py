@@ -436,6 +436,7 @@ def _config_file(topology, action='save'):
         shutil.copy(dse_ldif, sav_file)
     else:
         shutil.copy(sav_file, dse_ldif)
+    time.sleep(1)
 
 
 def _pattern_errorlog(file, log_pattern):

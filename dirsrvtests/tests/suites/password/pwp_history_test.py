@@ -2,6 +2,7 @@ import os
 import ldap
 import logging
 import pytest
+import time
 from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
@@ -77,6 +78,7 @@ def test_pwp_history_test(topology):
     except ldap.LDAPError as e:
         log.fatal('Failed to configure password policy: ' + str(e))
         assert False
+    time.sleep(1)
 
     try:
         topology.standalone.add_s(Entry((USER_DN, {
@@ -126,6 +128,7 @@ def test_pwp_history_test(topology):
     except ldap.LDAPError as e:
         log.fatal('Failed to bind as user using "password1": ' + str(e))
         assert False
+    time.sleep(1)
 
     # password2
     try:
@@ -139,6 +142,7 @@ def test_pwp_history_test(topology):
     except ldap.LDAPError as e:
         log.fatal('Failed to bind as user using "password2": ' + str(e))
         assert False
+    time.sleep(1)
 
     # password3
     try:
@@ -152,6 +156,7 @@ def test_pwp_history_test(topology):
     except ldap.LDAPError as e:
         log.fatal('Failed to bind as user using "password3": ' + str(e))
         assert False
+    time.sleep(1)
 
     # password4
     try:
@@ -165,6 +170,7 @@ def test_pwp_history_test(topology):
     except ldap.LDAPError as e:
         log.fatal('Failed to bind as user using "password4": ' + str(e))
         assert False
+    time.sleep(1)
 
     #
     # Check that we only have 3 passwords stored in history\

@@ -238,6 +238,7 @@ def test_run_1(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_0' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -258,6 +259,7 @@ def test_run_2(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_1' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -280,6 +282,7 @@ def test_run_3(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_2' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -300,6 +303,7 @@ def test_run_4(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_3' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -320,6 +324,7 @@ def test_run_5(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_4' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -340,6 +345,7 @@ def test_run_6(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_5' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -361,6 +367,7 @@ def test_run_7(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_6' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -382,6 +389,7 @@ def test_run_8(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_7' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -405,6 +413,7 @@ def test_run_9(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_8' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', True)
@@ -433,6 +442,7 @@ def test_run_10(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_9' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
@@ -453,6 +463,7 @@ def test_run_11(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_10' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
+    time.sleep(1)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)

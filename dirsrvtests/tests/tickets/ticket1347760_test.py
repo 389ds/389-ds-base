@@ -7,15 +7,12 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import os
-import sys
 import time
 import ldap
 import logging
 import pytest
-
 from subprocess import Popen
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -151,6 +148,7 @@ def check_op_result(server, op, dn, superior, exists, rc):
         expstr = 'fail with %s' % rc.__name__
 
     log.info('%s %s, which should %s.' % (opstr, targetdn, expstr))
+    time.sleep(1)
     hit = 0
     try:
         if op == 'search':
@@ -253,6 +251,7 @@ def test_ticket1347760(topology):
             assert False
         else:
             log.info('Cause found - %s' % cause)
+    time.sleep(1)
 
     log.info('Bind case 2-2. the bind user\'s suffix does not exist, bind should fail with error %s' % ldap.INVALID_CREDENTIALS.__name__)
     log.info('Bind as {%s,%s} who does not exist.' % (BOGUSSUFFIX, 'bogus'))
@@ -269,6 +268,7 @@ def test_ticket1347760(topology):
             assert False
         else:
             log.info('Cause found - %s' % cause)
+    time.sleep(1)
 
     log.info('Bind case 2-3. the bind user\'s password is wrong, bind should fail with error %s' % ldap.INVALID_CREDENTIALS.__name__)
     log.info('Bind as {%s,%s} who does not exist.' % (BINDDN, 'bogus'))
@@ -285,6 +285,7 @@ def test_ticket1347760(topology):
             assert False
         else:
             log.info('Cause found - %s' % cause)
+    time.sleep(1)
 
     log.info('Adding aci for %s to %s.' % (BINDDN, BINDOU))
     acival = '(targetattr="*")(version 3.0; acl "%s"; allow(all) userdn = "ldap:///%s";)' % (BUID, BINDDN)
@@ -292,6 +293,7 @@ def test_ticket1347760(topology):
     log.info('Bind as {%s,%s}' % (DN_DM, PASSWORD))
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(BINDOU, [(ldap.MOD_ADD, 'aci', acival)])
+    time.sleep(1)
 
     log.info('Bind case 3. the bind user has the right to read the entry itself, bind should be successful.')
     log.info('Bind as {%s,%s} which should be ok.\n' % (BINDDN, BINDPW))
@@ -399,6 +401,7 @@ def test_ticket1347760(topology):
     log.info('Bind as {%s,%s}' % (DN_DM, PASSWORD))
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', acival)])
+    time.sleep(1)
 
     log.info('Bind as {%s,%s}.' % (BINDDN, BINDPW))
     try:
@@ -406,6 +409,7 @@ def test_ticket1347760(topology):
     except ldap.LDAPError as e:
         log.info('Desc ' + e.message['desc'])
         assert False
+    time.sleep(1)
 
     exists = False
     rc = ldap.NO_SUCH_OBJECT
