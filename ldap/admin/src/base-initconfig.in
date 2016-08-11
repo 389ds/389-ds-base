@@ -43,8 +43,8 @@
 # if using systemd, omit the "; export VARNAME" at the end
 #PID_TIME=600 ; export PID_TIME
 
-# jemalloc is a general purpose malloc implementation that emphasizes
-# fragmentation avoidance and scalable concurrency support.  jemalloc
-# has been shown to have a significant positive impact on the Directory
-# Server's process size/growth.
-#LD_PRELOAD=@libdir@/@package_name@/libjemalloc.so.1 ; export LD_PRELOAD
+# The tcmalloc memory allocator has been shown to have a positive impact on
+# the Directory Server's virtual & resident memory size/growth.  tcmalloc is
+# available on RHEL/Fedora in the gperftools package (this could be different
+# on other platforms).  Here is an example of preloading tcmalloc:
+#LD_PRELOAD=@libdir@/libtcmalloc.so.4 ; export LD_PRELOAD
