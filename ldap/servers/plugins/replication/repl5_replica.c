@@ -3517,41 +3517,59 @@ replica_remove_legacy_attr (const Slapi_DN *repl_root_sdn, const char *attr)
     slapi_mods_done (&smods);
     slapi_pblock_destroy (pb);
 }
+typedef struct replinfo {
+    char *repl_gen;
+    char *repl_name;
+} replinfo;
+
+static int
+replica_log_start_iteration(const ruv_enum_data *rid_data, void *data)
+{
+    int rc = 0;
+    replinfo *r_info = (replinfo *)data;
+    slapi_operation_parameters op_params;
+
+    if (rid_data->csn == NULL) return 0;
+
+    memset (&op_params, 0, sizeof (op_params));
+    op_params.operation_type = SLAPI_OPERATION_DELETE;
+    op_params.target_address.sdn = slapi_sdn_new_ndn_byval(START_ITERATION_ENTRY_DN);
+    op_params.target_address.uniqueid = START_ITERATION_ENTRY_UNIQUEID;
+    op_params.csn = csn_dup(rid_data->csn);
+    rc = cl5WriteOperation(r_info->repl_name, r_info->repl_gen, &op_params, PR_FALSE);
+    if (rc == CL5_SUCCESS)
+        rc = 0;
+    else
+        rc = -1;
+
+    slapi_sdn_free(&op_params.target_address.sdn);
+    csn_free (&op_params.csn);
+
+    return rc;
+}
 
 static int 
 replica_log_ruv_elements_nolock (const Replica *r)
 {
     int rc = 0;
-    slapi_operation_parameters op_params;
     RUV *ruv;
     char *repl_gen; 
-    CSN *csn = NULL;
+    replinfo r_info;
 
     ruv = (RUV*) object_get_data (r->repl_ruv);
     PR_ASSERT (ruv);
 
-    if ((ruv_get_min_csn(ruv, &csn) == RUV_SUCCESS) && csn)
-    {
         /* we log it as a delete operation to have the least number of fields
            to set. the entry can be identified by a special target uniqueid and
            special target dn */
-        memset (&op_params, 0, sizeof (op_params));
-        op_params.operation_type = SLAPI_OPERATION_DELETE;
-        op_params.target_address.sdn = slapi_sdn_new_ndn_byval(START_ITERATION_ENTRY_DN);
-        op_params.target_address.uniqueid = START_ITERATION_ENTRY_UNIQUEID;
-        op_params.csn = csn;
-        repl_gen = ruv_get_replica_generation (ruv);
+    repl_gen = ruv_get_replica_generation (ruv);
 
-        rc = cl5WriteOperation(r->repl_name, repl_gen, &op_params, PR_FALSE); 
-        if (rc == CL5_SUCCESS)
-            rc = 0;
-        else
-            rc = -1;
+    r_info.repl_name = r->repl_name;
+    r_info.repl_gen = repl_gen;
 
-        slapi_ch_free ((void**)&repl_gen);
-        slapi_sdn_free(&op_params.target_address.sdn);
-        csn_free (&csn);
-    }
+    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, &r_info);
+
+    slapi_ch_free ((void**)&repl_gen);
 
     return rc;
 }
