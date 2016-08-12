@@ -376,6 +376,7 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 	DBC *cursor = NULL;
 	int rc = 0;
 	int tries = 0;
+	int use_flag = flag;
 
 #if 0 /* txn control seems not improving anything so turn it off */
 	if ( *(_pool->pl_dbenv) ) {
@@ -400,20 +401,44 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 retry:
 	if ( 0 == ( rc = clcache_open_cursor ( txn, buf, &cursor )) ) {
 
-		if ( flag == DB_NEXT ) {
+		if ( use_flag == DB_NEXT ) {
 			/* For bulk read, position the cursor before read the next block */
 			rc = cursor->c_get ( cursor,
 								 & buf->buf_key,
 								 & buf->buf_data,
 								 DB_SET );
+			if (rc == DB_NOTFOUND) {
+				/* the start position in the changelog is not found
+				 * 1. log an error
+				 * 2. try to find another starting position as close
+				 *    as possible
+				 */
+				slapi_log_error ( SLAPI_LOG_FATAL, "clcache_load_buffer_bulk",
+							"changelog record with csn (%s) not found for DB_NEXT\n",
+							(char *)buf->buf_key.data );
+				rc = cursor->c_get ( cursor, & buf->buf_key, & buf->buf_data,
+							 DB_SET_RANGE );
+				/* this moves the cursor ahead of the tageted csn,
+				 * so we achieved what was intended with DB_SET/DB_NEXT
+				 * continute at this csn.
+				 */
+				use_flag = DB_CURRENT;
+			}
 		}
 
 		/*
 		 * Continue if the error is no-mem since we don't need to
 		 * load in the key record anyway with DB_SET.
 		 */
-		if ( 0 == rc || DB_BUFFER_SMALL == rc )
-			rc = clcache_cursor_get ( cursor, buf, flag );
+		if ( 0 == rc || DB_BUFFER_SMALL == rc ) {
+			rc = clcache_cursor_get ( cursor, buf, use_flag );
+			if ( rc == DB_NOTFOUND && use_flag == DB_SET) {
+				slapi_log_error ( SLAPI_LOG_FATAL, "clcache_load_buffer_bulk",
+							"changelog record with csn (%s) not found for DB_SET\n",
+							(char *)buf->buf_key.data );
+				rc = clcache_cursor_get ( cursor, buf, DB_SET_RANGE );
+			}
+		}
 
 	}
 
@@ -434,6 +459,7 @@ retry:
 		/* back off */
 		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
 		DS_Sleep(interval);
+		use_flag = flag;
 		goto retry;
 	}
 	if ((rc == DB_LOCK_DEADLOCK) && (tries >= MAX_TRIALS)) {
