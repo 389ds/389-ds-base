@@ -378,6 +378,8 @@ class BackendLegacy(object):
 
 
 class Backend(DSLdapObject):
+    _must_attributes = ['nsslapd-suffix', 'cn']
+
     def __init__(self, instance, dn=None, batch=False):
         super(Backend, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
@@ -407,7 +409,7 @@ class Backend(DSLdapObject):
                 nprops[BACKEND_PROPNAME_TO_ATTRNAME[key]] = [value, ]
             except KeyError:
                 # This means, it's not a mapped value, so continue
-                pass
+                nprops[key] = value
 
         (dn, valid_props) = super(Backend, self)._validate(rdn, nprops, basedn)
 
@@ -418,6 +420,7 @@ class Backend(DSLdapObject):
         super(Backend, self).create(dn, properties, basedn)
         if sample_entries is True:
             self.create_sample_entries()
+        return self
 
     def delete(self):
         if self._protected:

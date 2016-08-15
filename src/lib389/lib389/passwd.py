@@ -32,10 +32,10 @@ PWSCHEMES = [
 
 
 # How do we feed our prefix into this?
-def password_hash(pw, scheme=BESTSCHEME, prefix='/'):
+def password_hash(pw, scheme=BESTSCHEME, bin_dir='/bin'):
     # Check that the binary exists
     assert(scheme in PWSCHEMES)
-    pwdhashbin = os.path.join(prefix, 'bin', 'pwdhash-bin')
+    pwdhashbin = os.path.join(bin_dir, 'pwdhash-bin')
     assert(os.path.isfile(pwdhashbin))
     h = subprocess.check_output([pwdhashbin, '-s', scheme, pw]).strip()
     return h.decode('utf-8')

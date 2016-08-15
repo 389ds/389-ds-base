@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+import argparse
+import logging
+import sys
+
+from lib389 import DirSrv
+from lib389.cli_adm import instance as cli_instance
+from lib389.cli_base import disconnect_instance
+
+logging.basicConfig()
+log = logging.getLogger("dsadm")
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-v', '--verbose',
+            help="Display verbose operation tracing during command execution",
+            action='store_true', default=False
+        )
+    # Should this actually be in the sub modules? That way they can set the requirements.
+    parser.add_argument('-Z', '--instance',
+            help="The name of the instance to act upon",
+            default=None,
+        )
+
+    subparsers = parser.add_subparsers(help="resources to act upon")
+
+    # We stack our needed options in via submodules.
+
+    cli_instance.create_parser(subparsers)
+
+    # Then we tell it to execute.
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
+
+    log.debug("The 389 Directory Server Administration Tool")
+    # Leave this comment here: UofA let me take this code with me provided
+    # I gave attribution. -- wibrown
+    log.debug("Inspired by works of: ITS, The University of Adelaide")
+
+    log.debug("Called with: %s", args)
+
+    # Assert we have a resources to work on.
+    if not hasattr(args, 'func'):
+        log.error("No resource provided to act upon")
+        log.error("USAGE: dsadm [options] <resource> <action> [action options]")
+        sys.exit(1)
+
+    # Connect
+    # inst = None
+    inst = DirSrv(verbose=args.verbose)
+
+    result = True
+    if args.verbose:
+        # inst = connect_instance(args.ldapurl, args.binddn, args.verbose, args.starttls)
+        result = args.func(inst, log, args)
+    else:
+        try:
+            # inst = connect_instance(args.ldapurl, args.binddn, args.verbose, args.starttls)
+            result = args.func(inst, log, args)
+        except Exception as e:
+            log.debug(e, exc_info=True)
+            log.error("Error: %s" % e.message)
+    disconnect_instance(inst)
+
+    if result is True:
+        log.info('FINISH: Command succeeded')
+    elif result is False:
+        log.info('FAIL: Command failed. See output for details.')
+
+    # Done!
+    log.debug("dsadm is brought to you by the letter R and the number 27.")
+
+    if result is False:
+        sys.exit(1)
+

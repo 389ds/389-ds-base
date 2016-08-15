@@ -101,6 +101,10 @@ class DSLdapObject(DSLogging):
     def __str__(self):
         return self.__unicode__()
 
+    def display(self):
+        e = self._instance.getEntry(self._dn)
+        return e.__repr__()
+
     # We make this a property so that we can over-ride dynamically if needed
     @property
     def dn(self):
