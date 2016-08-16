@@ -6,7 +6,7 @@
 # for a pre-release, define the prerel field e.g. .a1 .rc2 - comment out for official release
 # also remove the space between % and global - this space is needed because
 # fedpkg verrel stupidly ignores comment lines
-#% global prerel .rc3
+%global prerel __VERSION_PREREL__%{nil}
 # also need the relprefix field for a pre-release e.g. .0 - also comment out for official release
 #% global relprefix 0.
 

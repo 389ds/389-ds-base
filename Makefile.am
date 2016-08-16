@@ -1999,7 +1999,7 @@ rpmbrprep: dist-bzip2 rpmroot
 	cp $(distdir).tar.bz2 $(RPMBUILD)/SOURCES
 	cp $(srcdir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
 	cp $(srcdir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
-	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" -e "s/__ASAN_ON__/$(ASAN_ON)/"  < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
+	sed -e "s/__VERSION__/$(RPM_VERSION)/" -e "s/__RELEASE__/$(RPM_RELEASE)/" -e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" -e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" -e "s/__ASAN_ON__/$(ASAN_ON)/"  < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
 
 # Requires rpmdevtools. Consider making this a dependancy of rpms.
 rpmsources: rpmbrprep

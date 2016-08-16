@@ -1,6 +1,7 @@
 RPMBUILD ?= $(PWD)/rpmbuild
 RPM_VERSION ?= $(shell $(PWD)/rpm/rpmverrel.sh version)
 RPM_RELEASE ?= $(shell $(PWD)/rpm/rpmverrel.sh release)
+VERSION_PREREL ?= $(shell $(PWD)/rpm/rpmverrel.sh prerel)
 PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)
 TARBALL = $(RPM_NAME_VERSION).tar.bz2
@@ -34,6 +35,7 @@ rpmroot:
 	mkdir -p $(RPMBUILD)/SPECS
 	mkdir -p $(RPMBUILD)/SRPMS
 	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
+	-e s/__VERSION_PREREL__/$(VERSION_PREREL)/ \
 	-e s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/ \
 	-e s/__ASAN_ON__/$(ASAN_ON)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec

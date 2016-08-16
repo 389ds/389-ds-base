@@ -12,4 +12,6 @@ if [ "$1" = "version" ]; then
   echo $RPM_VERSION
 elif [ "$1" = "release" ]; then
   echo $RPM_RELEASE
+elif [ "$1" = "prerel" ]; then
+  echo $VERSION_PREREL
 fi

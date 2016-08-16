@@ -13,8 +13,7 @@ VERSION_MINOR=3
 VERSION_MAINT=5.13
 # NOTE: VERSION_PREREL is automatically set for builds made out of a git tree
 VERSION_PREREL=
-VERSION_DATE=`date -u +%Y%m%d%H%M%S`
-GIT_CHECKOUT=`git log -1 >/dev/null 2>&1`
+VERSION_DATE=$(date -u +%Y%m%d)
 
 # Set the version and release numbers for local developer RPM builds. We
 # set these here because we do not want the git commit hash in the RPM
@@ -23,17 +22,16 @@ GIT_CHECKOUT=`git log -1 >/dev/null 2>&1`
 RPM_RELEASE=${VERSION_DATE}
 RPM_VERSION=${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_MAINT}
 
-if test -n "$GIT_CHECKOUT"; then
-# if the source is from a git repo, put the last commit
-# in the version
+if $(git -C "$srcdir" rev-parse --is-inside-work-tree > /dev/null 2>&1); then
+# Check if the source is from a git repo
 # if this is not a git repo, git log will say
 #  fatal: Not a git repository
 # to stderr and stdout will be empty
 # this tells git to print the short commit hash from the last commit
-    COMMIT=`cd $srcdir ; git log -1 --pretty=format:%h 2> /dev/null`
+    COMMIT=$(git -C "$srcdir" log -1 --pretty=format:%h 2> /dev/null)
     if test -n "$COMMIT" ; then
-        VERSION_PREREL=.${VERSION_DATE}-git$COMMIT
-        RPM_RELEASE=$RPM_RELEASE-git$COMMIT
+        VERSION_PREREL=.${VERSION_DATE}git$COMMIT
+        RPM_RELEASE=${RPM_RELEASE}git$COMMIT
     fi
 fi
 
