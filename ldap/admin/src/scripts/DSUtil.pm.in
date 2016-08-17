@@ -1201,8 +1201,10 @@ sub get_info {
     my $toollib = `ldapsearch -V 2>&1`;
     if ($toollib =~ /OpenLDAP/) { 
         $info{openldap} = "yes";
+        $info{nofold} = "-o ldif-wrap=no";
     } else {
         $info{openldap} = "no";
+        $info{nofold} = "-T";
     }
     
     #
@@ -1537,10 +1539,10 @@ sub ldapsrch {
             print "STARTTLS)\n";
         }
         if($info{openldap} eq "yes"){
-            $search = "ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw " .
+            $search = "ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} " .
                       "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } else {
-            $search = "ldapsearch -ZZZ -P \"$info{certdir}\" -p $info{port} -h $info{host} -D \"$info{rootdn}\" " .
+            $search = "ldapsearch -ZZZ -P \"$info{certdir}\" -p $info{port} -h $info{host} -D \"$info{rootdn}\" $info{nofold} " .
                       "-w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         }  
     } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
@@ -1551,10 +1553,10 @@ sub ldapsrch {
             print "LDAPS)\n";
         }
         if($info{openldap} eq "yes"){
-            $search = "ldapsearch -x -LLL -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" " .
+            $search = "ldapsearch -x -LLL -H \"ldaps://$info{host}:$info{secure_port}\" -D \"$info{rootdn}\" $info{nofold} " .
                       "-w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } else {
-            $search = "ldapsearch -Z -P \"$info{certdir}\" -p $info{secure_port} -h $info{host} -D \"$info{rootdn}\" " .
+            $search = "ldapsearch -Z -P \"$info{certdir}\" -p $info{secure_port} -h $info{host} -D \"$info{rootdn}\" $info{nofold} " .
                       "-w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } 
     } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
@@ -1562,10 +1564,10 @@ sub ldapsrch {
         # LDAPI
         #
         if ($< == 0 && $info{autobind} eq "on"){
-            $search = "ldapsearch  -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL " .
+            $search = "ldapsearch  -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL $info{nofold} " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} 2>/dev/null";
         } else {
-            $search = "ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw " .
+            $search = "ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         }
     } else {
@@ -1576,10 +1578,10 @@ sub ldapsrch {
             print "LDAP)\n";
         }
         if($info{openldap} eq "yes"){
-            $search = "ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw " .
+            $search = "ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         } else {
-            $search = "ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw " .
+            $search = "ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} " .
                   "$info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs}";
         }
     }
@@ -1611,9 +1613,9 @@ sub ldapsrch_ext {
             print "STARTTLS)\n";
         }
         if($info{openldap} eq "yes"){
-            return `ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -ZZ -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         } else {
-            return `ldapsearch -ZZZ -P $info{certdir} -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -ZZZ -P $info{certdir} -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }     
     } elsif (($info{security} eq "on" && $info{protocol} eq "") || ($info{security} eq "on" && $info{protocol} =~ m/LDAPS/i) ){ 
         # 
@@ -1623,18 +1625,18 @@ sub ldapsrch_ext {
             print "LDAPS)\n";
         }
         if($info{openldap} eq "yes"){
-            return `ldapsearch -x -LLL -H ldaps://$info{host}:$info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -H ldaps://$info{host}:$info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args}  -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         } else {
-            return `ldapsearch -Z -P $info{certdir} -p $info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -Z -P $info{certdir} -p $info{secure_port} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }
     } elsif (($info{openldap} eq "yes") && (($info{ldapi} eq "on" && $info{protocol} eq "") || ($info{ldapi} eq "on" && $info{protocol} =~ m/LDAPI/i)) ){  
         # 
         # LDAPI
         #
         if ($< == 0 && $info{autobind} eq "on"){
-            return `ldapsearch -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect} 2>/dev/null`;
+            return `ldapsearch -LLL -H \"$info{ldapiURL}\" -Y EXTERNAL $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect} 2>/dev/null`;
         } else {
-            return `ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -H \"$info{ldapiURL}\" -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }
     } else {
         # 
@@ -1644,9 +1646,9 @@ sub ldapsrch_ext {
             print "LDAP)\n";
         }
         if($info{openldap} eq "yes"){
-            return `ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -x -LLL -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         } else {
-            return `ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
+            return `ldapsearch -p $info{port} -h $info{host} -D \"$info{rootdn}\" -w $myrootdnpw $info{nofold} $info{srch_args} -b \"$info{base}\" -s $info{scope} \"$info{filter}\" $info{attrs} $info{redirect}`;
         }
     }
 }
