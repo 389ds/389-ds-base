@@ -369,8 +369,21 @@ void import_free_job(ImportJob *job)
     
     ldbm_back_free_incl_excl(job->include_subtrees, job->exclude_subtrees);
     charray_free(job->input_filenames);
-    if (job->fifo.size)
+    if (job->fifo.size) {
+        /* bulk_import_queue is running, while holding the job lock.
+         * bulk_import_queue is using the fifo queue.
+         * To avoid freeing fifo queue under bulk_import_queue use
+         * job lock to synchronize
+         */
+        if (job->wire_lock)
+            PR_Lock(job->wire_lock);
+
         import_fifo_destroy(job);
+
+        if (job->wire_lock)
+            PR_Unlock(job->wire_lock);
+    }
+
     if (NULL != job->uuid_namespace)
         slapi_ch_free((void **)&job->uuid_namespace);
     if (job->wire_lock)
