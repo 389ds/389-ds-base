@@ -167,7 +167,6 @@ static int invalid_sasl_mech(char *str);
 #define DEFAULT_LDAPI_AUTO_DN "cn=peercred,cn=external,cn=auth"
 #define ENTRYUSN_IMPORT_INIT "0"
 #define DEFAULT_ALLOWED_TO_DELETE_ATTRS "nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext nsslapd-snmp-index"
-#define SALTED_SHA1_SCHEME_NAME "SSHA"
 #define INIT_LOGGING_BACKEND_INTERNAL "dirsrv-log"
 
 /* CONFIG_ON_OFF */
@@ -372,7 +371,7 @@ static struct config_get_and_set {
 	{CONFIG_PW_STORAGESCHEME_ATTRIBUTE, config_set_pw_storagescheme,
 		NULL, 0, NULL,
 		CONFIG_STRING, (ConfigGetFunc)config_get_pw_storagescheme,
-		SALTED_SHA1_SCHEME_NAME},
+		DEFAULT_PASSWORD_SCHEME_NAME},
 	{CONFIG_PW_UNLOCK_ATTRIBUTE, config_set_pw_unlock,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_unlock,
@@ -568,7 +567,7 @@ static struct config_get_and_set {
 	{CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE, config_set_rootpwstoragescheme,
 		NULL, 0, NULL,
 		CONFIG_STRING, (ConfigGetFunc)config_get_rootpwstoragescheme,
-		SALTED_SHA1_SCHEME_NAME},
+		DEFAULT_PASSWORD_SCHEME_NAME},
 	{CONFIG_PW_HISTORY_ATTRIBUTE, config_set_pw_history,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_history,
@@ -1428,272 +1427,281 @@ getFrontendConfig(void)
 
 void 
 FrontendConfig_init(void) {
-  slapdFrontendConfig_t *cfg = getFrontendConfig();
+    slapdFrontendConfig_t *cfg = getFrontendConfig();
 
 #if SLAPI_CFG_USE_RWLOCK == 1
-  /* initialize the read/write configuration lock */
-  if ( (cfg->cfg_rwlock = slapi_new_rwlock()) == NULL ) {
-	slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
-	  "Failed to initialize cfg_rwlock. Exiting now.");
-	exit(-1);
-  }
+    /* initialize the read/write configuration lock */
+    if ( (cfg->cfg_rwlock = slapi_new_rwlock()) == NULL ) {
+    slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
+      "Failed to initialize cfg_rwlock. Exiting now.");
+    exit(-1);
+    }
 #else
-  if ((cfg->cfg_lock = PR_NewLock()) == NULL){
-	slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
-	  "Failed to initialize cfg_lock. Exiting now.");
-	exit(-1);
-  }
+    if ((cfg->cfg_lock = PR_NewLock()) == NULL){
+    slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
+      "Failed to initialize cfg_lock. Exiting now.");
+    exit(-1);
+    }
 #endif
-  cfg->port = LDAP_PORT;
-  cfg->secureport = LDAPS_PORT;
-  cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
-  init_ldapi_switch = cfg->ldapi_switch = LDAP_OFF;
-  init_ldapi_bind_switch = cfg->ldapi_bind_switch = LDAP_OFF;
-  cfg->ldapi_root_dn = slapi_ch_strdup(DEFAULT_DIRECTORY_MANAGER);
-  init_ldapi_map_entries = cfg->ldapi_map_entries = LDAP_OFF;
-  cfg->ldapi_uidnumber_type = slapi_ch_strdup(DEFAULT_UIDNUM_TYPE);
-  cfg->ldapi_gidnumber_type = slapi_ch_strdup(DEFAULT_GIDNUM_TYPE);
-  /* These DNs are no need to be normalized. */
-  cfg->ldapi_search_base_dn = slapi_ch_strdup(DEFAULT_LDAPI_SEARCH_BASE);
+    /* Take the lock to make sure we barrier correctly. */
+    CFG_LOCK_WRITE(cfg);
+
+    cfg->port = LDAP_PORT;
+    cfg->secureport = LDAPS_PORT;
+    cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
+    init_ldapi_switch = cfg->ldapi_switch = LDAP_OFF;
+    init_ldapi_bind_switch = cfg->ldapi_bind_switch = LDAP_OFF;
+    cfg->ldapi_root_dn = slapi_ch_strdup(DEFAULT_DIRECTORY_MANAGER);
+    init_ldapi_map_entries = cfg->ldapi_map_entries = LDAP_OFF;
+    cfg->ldapi_uidnumber_type = slapi_ch_strdup(DEFAULT_UIDNUM_TYPE);
+    cfg->ldapi_gidnumber_type = slapi_ch_strdup(DEFAULT_GIDNUM_TYPE);
+    /* These DNs are no need to be normalized. */
+    cfg->ldapi_search_base_dn = slapi_ch_strdup(DEFAULT_LDAPI_SEARCH_BASE);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
-  cfg->ldapi_auto_dn_suffix = slapi_ch_strdup(DEFAULT_LDAPI_AUTO_DN);
+    cfg->ldapi_auto_dn_suffix = slapi_ch_strdup(DEFAULT_LDAPI_AUTO_DN);
 #endif
-  init_allow_unauth_binds = cfg->allow_unauth_binds = LDAP_OFF;
-  init_require_secure_binds = cfg->require_secure_binds = LDAP_OFF;
-  cfg->allow_anon_access = SLAPD_ANON_ACCESS_ON;
-  init_slapi_counters = cfg->slapi_counters = LDAP_ON;
-  cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
-  cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
-  cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
-  cfg->idletimeout = SLAPD_DEFAULT_IDLE_TIMEOUT;
-  cfg->ioblocktimeout = SLAPD_DEFAULT_IOBLOCK_TIMEOUT;
-  cfg->outbound_ldap_io_timeout = SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT;
-  cfg->max_filter_nest_level = SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL;
-  cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
-  cfg->localssf = SLAPD_DEFAULT_LOCAL_SSF;
-  cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
-  /* minssf is applied to rootdse, by default */
-  init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
-  cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
+    init_allow_unauth_binds = cfg->allow_unauth_binds = LDAP_OFF;
+    init_require_secure_binds = cfg->require_secure_binds = LDAP_OFF;
+    cfg->allow_anon_access = SLAPD_ANON_ACCESS_ON;
+    init_slapi_counters = cfg->slapi_counters = LDAP_ON;
+    cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
+    cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
+    cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
+    cfg->idletimeout = SLAPD_DEFAULT_IDLE_TIMEOUT;
+    cfg->ioblocktimeout = SLAPD_DEFAULT_IOBLOCK_TIMEOUT;
+    cfg->outbound_ldap_io_timeout = SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT;
+    cfg->max_filter_nest_level = SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL;
+    cfg->maxsasliosize = SLAPD_DEFAULT_MAX_SASLIO_SIZE;
+    cfg->localssf = SLAPD_DEFAULT_LOCAL_SSF;
+    cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
+    /* minssf is applied to rootdse, by default */
+    init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
+    cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
 
 #ifdef USE_SYSCONF
-   cfg->conntablesize  = sysconf( _SC_OPEN_MAX );
+    cfg->conntablesize  = sysconf( _SC_OPEN_MAX );
 #else /* USE_SYSCONF */
-   cfg->conntablesize = getdtablesize();
+    cfg->conntablesize = getdtablesize();
 #endif /* USE_SYSCONF */
 
-  init_accesscontrol = cfg->accesscontrol = LDAP_ON;
+    init_accesscontrol = cfg->accesscontrol = LDAP_ON;
 #if defined(LINUX)
-  /* On Linux, by default, we use TCP_CORK so we must enable nagle */
-  init_nagle = cfg->nagle = LDAP_ON;
+    /* On Linux, by default, we use TCP_CORK so we must enable nagle */
+    init_nagle = cfg->nagle = LDAP_ON;
 #else
-  init_nagle = cfg->nagle = LDAP_OFF;
+    init_nagle = cfg->nagle = LDAP_OFF;
 #endif
-  init_security = cfg->security = LDAP_OFF;
-  init_ssl_check_hostname = cfg->ssl_check_hostname = LDAP_ON;
-  init_return_exact_case = cfg->return_exact_case = LDAP_ON;
-  init_result_tweak = cfg->result_tweak = LDAP_OFF;
-  init_attrname_exceptions = cfg->attrname_exceptions = LDAP_OFF;
-  cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
-  cfg->useroc = slapi_ch_strdup ( "" );
-  cfg->userat = slapi_ch_strdup ( "" );
-/* kexcoff: should not be initialized by default here
-  cfg->rootpwstoragescheme = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
-  cfg->pw_storagescheme = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
-*/
-  cfg->slapd_type = 0;
-  cfg->versionstring = SLAPD_VERSION_STR;
-  cfg->sizelimit = SLAPD_DEFAULT_SIZELIMIT;
-  cfg->pagedsizelimit = 0;
-  cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
-  cfg->anon_limits_dn = slapi_ch_strdup("");
-  init_schemacheck = cfg->schemacheck = LDAP_ON;
-  init_schemamod = cfg->schemamod = LDAP_ON;
-  init_syntaxcheck = cfg->syntaxcheck = LDAP_OFF;
-  init_plugin_track = cfg->plugin_track = LDAP_OFF;
-  init_moddn_aci = cfg->moddn_aci = LDAP_ON;
-  init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
-  init_dn_validate_strict = cfg->dn_validate_strict = LDAP_OFF;
-  init_ds4_compatible_schema = cfg->ds4_compatible_schema = LDAP_OFF;
-  init_enquote_sup_oc = cfg->enquote_sup_oc = LDAP_OFF;
-  init_lastmod = cfg->lastmod = LDAP_ON;
-  init_rewrite_rfc1274 = cfg->rewrite_rfc1274 = LDAP_OFF;
-  cfg->schemareplace = slapi_ch_strdup( CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY );
-  init_schema_ignore_trailing_spaces = cfg->schema_ignore_trailing_spaces =
-    SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES;
-  /* do not force sasl external by default - 
-   * let clients abide by the LDAP standards and send us a SASL/EXTERNAL bind
-   * if that's what they want to do */
-  init_force_sasl_external = cfg->force_sasl_external = LDAP_OFF;
+    init_security = cfg->security = LDAP_OFF;
+    init_ssl_check_hostname = cfg->ssl_check_hostname = LDAP_ON;
+    init_return_exact_case = cfg->return_exact_case = LDAP_ON;
+    init_result_tweak = cfg->result_tweak = LDAP_OFF;
+    init_attrname_exceptions = cfg->attrname_exceptions = LDAP_OFF;
+    cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
+    cfg->useroc = slapi_ch_strdup ( "" );
+    cfg->userat = slapi_ch_strdup ( "" );
+    /* kexcoff: should not be initialized by default here
+     * wibrown: The reason is that at the time this is called, plugins are
+     * not yet loaded, so there are no schemes avaliable. As a result
+     * pw_name2scheme will always return NULL
+     */
+    /* cfg->rootpwstoragescheme = pw_name2scheme( DEFAULT_PASSWORD_SCHEME_NAME ); */
+    /* cfg->pw_storagescheme = pw_name2scheme( DEFAULT_PASSWORD_SCHEME_NAME ); */
+    cfg->slapd_type = 0;
+    cfg->versionstring = SLAPD_VERSION_STR;
+    cfg->sizelimit = SLAPD_DEFAULT_SIZELIMIT;
+    cfg->pagedsizelimit = 0;
+    cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
+    cfg->anon_limits_dn = slapi_ch_strdup("");
+    init_schemacheck = cfg->schemacheck = LDAP_ON;
+    init_schemamod = cfg->schemamod = LDAP_ON;
+    init_syntaxcheck = cfg->syntaxcheck = LDAP_OFF;
+    init_plugin_track = cfg->plugin_track = LDAP_OFF;
+    init_moddn_aci = cfg->moddn_aci = LDAP_ON;
+    init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
+    init_dn_validate_strict = cfg->dn_validate_strict = LDAP_OFF;
+    init_ds4_compatible_schema = cfg->ds4_compatible_schema = LDAP_OFF;
+    init_enquote_sup_oc = cfg->enquote_sup_oc = LDAP_OFF;
+    init_lastmod = cfg->lastmod = LDAP_ON;
+    init_rewrite_rfc1274 = cfg->rewrite_rfc1274 = LDAP_OFF;
+    cfg->schemareplace = slapi_ch_strdup( CONFIG_SCHEMAREPLACE_STR_REPLICATION_ONLY );
+    init_schema_ignore_trailing_spaces = cfg->schema_ignore_trailing_spaces =
+        SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES;
+    /* do not force sasl external by default - 
+    * let clients abide by the LDAP standards and send us a SASL/EXTERNAL bind
+    * if that's what they want to do */
+    init_force_sasl_external = cfg->force_sasl_external = LDAP_OFF;
 
-  init_readonly = cfg->readonly = LDAP_OFF;
-  init_pwpolicy_local = cfg->pwpolicy_local = LDAP_OFF;
-  init_pwpolicy_inherit_global = cfg->pwpolicy_inherit_global = LDAP_OFF;
-  init_pw_change = cfg->pw_policy.pw_change = LDAP_ON;
-  init_pw_must_change = cfg->pw_policy.pw_must_change = LDAP_OFF;
-  init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
-  init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
-  init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
-  init_pw_send_expiring = cfg->pw_policy.pw_send_expiring = LDAP_OFF;
-  cfg->pw_policy.pw_minlength = 8;
-  cfg->pw_policy.pw_mindigits = 0;
-  cfg->pw_policy.pw_minalphas = 0;
-  cfg->pw_policy.pw_minuppers = 0;
-  cfg->pw_policy.pw_minlowers = 0;
-  cfg->pw_policy.pw_minspecials = 0;
-  cfg->pw_policy.pw_min8bit = 0;
-  cfg->pw_policy.pw_maxrepeats = 0;
-  cfg->pw_policy.pw_mincategories = 3;
-  cfg->pw_policy.pw_mintokenlength = 3;
+    init_readonly = cfg->readonly = LDAP_OFF;
+    init_pwpolicy_local = cfg->pwpolicy_local = LDAP_OFF;
+    init_pwpolicy_inherit_global = cfg->pwpolicy_inherit_global = LDAP_OFF;
+    init_pw_change = cfg->pw_policy.pw_change = LDAP_ON;
+    init_pw_must_change = cfg->pw_policy.pw_must_change = LDAP_OFF;
+    init_allow_hashed_pw = cfg->allow_hashed_pw = LDAP_OFF;
+    init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
+    init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
+    init_pw_send_expiring = cfg->pw_policy.pw_send_expiring = LDAP_OFF;
+    cfg->pw_policy.pw_minlength = 8;
+    cfg->pw_policy.pw_mindigits = 0;
+    cfg->pw_policy.pw_minalphas = 0;
+    cfg->pw_policy.pw_minuppers = 0;
+    cfg->pw_policy.pw_minlowers = 0;
+    cfg->pw_policy.pw_minspecials = 0;
+    cfg->pw_policy.pw_min8bit = 0;
+    cfg->pw_policy.pw_maxrepeats = 0;
+    cfg->pw_policy.pw_mincategories = 3;
+    cfg->pw_policy.pw_mintokenlength = 3;
 #if defined(CPU_x86_64)
-  cfg->pw_policy.pw_maxage = 8639913600; /* 99999 days     */
+    cfg->pw_policy.pw_maxage = 8639913600; /* 99999 days     */
 #else
-  cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
+    cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
 #endif
-  cfg->pw_policy.pw_minage = 0;
-  cfg->pw_policy.pw_warning = _SEC_PER_DAY; /* 1 day */
-  init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
-  cfg->pw_policy.pw_inhistory = 6;
-  init_pw_lockout = cfg->pw_policy.pw_lockout = LDAP_OFF;
-  cfg->pw_policy.pw_maxfailure = 3;
-  init_pw_unlock = cfg->pw_policy.pw_unlock = LDAP_ON;
-  cfg->pw_policy.pw_lockduration = 3600;     /* 60 minutes   */
-  cfg->pw_policy.pw_resetfailurecount = 600; /* 10 minutes   */ 
-  cfg->pw_policy.pw_gracelimit = 0;
-  cfg->pw_policy.pw_admin = NULL;
-  cfg->pw_policy.pw_admin_user = NULL;
-  init_pw_is_legacy = cfg->pw_policy.pw_is_legacy = LDAP_ON;
-  init_pw_track_update_time = cfg->pw_policy.pw_track_update_time = LDAP_OFF;
-  init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
+    cfg->pw_policy.pw_minage = 0;
+    cfg->pw_policy.pw_warning = _SEC_PER_DAY; /* 1 day */
+    init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
+    cfg->pw_policy.pw_inhistory = 6;
+    init_pw_lockout = cfg->pw_policy.pw_lockout = LDAP_OFF;
+    cfg->pw_policy.pw_maxfailure = 3;
+    init_pw_unlock = cfg->pw_policy.pw_unlock = LDAP_ON;
+    cfg->pw_policy.pw_lockduration = 3600;     /* 60 minutes   */
+    cfg->pw_policy.pw_resetfailurecount = 600; /* 10 minutes   */ 
+    cfg->pw_policy.pw_gracelimit = 0;
+    cfg->pw_policy.pw_admin = NULL;
+    cfg->pw_policy.pw_admin_user = NULL;
+    init_pw_is_legacy = cfg->pw_policy.pw_is_legacy = LDAP_ON;
+    init_pw_track_update_time = cfg->pw_policy.pw_track_update_time = LDAP_OFF;
+    init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
 
-  init_accesslog_logging_enabled = cfg->accesslog_logging_enabled = LDAP_ON;
-  cfg->accesslog_mode = slapi_ch_strdup(INIT_ACCESSLOG_MODE);
-  cfg->accesslog_maxnumlogs = 10;
-  cfg->accesslog_maxlogsize = 100;
-  cfg->accesslog_rotationtime = 1;
-  cfg->accesslog_rotationunit = slapi_ch_strdup(INIT_ACCESSLOG_ROTATIONUNIT);
-  init_accesslog_rotationsync_enabled =
-    cfg->accesslog_rotationsync_enabled = LDAP_OFF;
-  cfg->accesslog_rotationsynchour = 0;
-  cfg->accesslog_rotationsyncmin = 0;
-  cfg->accesslog_maxdiskspace = 500;
-  cfg->accesslog_minfreespace = 5;
-  cfg->accesslog_exptime = 1;
-  cfg->accesslog_exptimeunit = slapi_ch_strdup(INIT_ACCESSLOG_EXPTIMEUNIT);
-  cfg->accessloglevel = 256;
-  init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
-  init_csnlogging = cfg->csnlogging = LDAP_ON;
+    init_accesslog_logging_enabled = cfg->accesslog_logging_enabled = LDAP_ON;
+    cfg->accesslog_mode = slapi_ch_strdup(INIT_ACCESSLOG_MODE);
+    cfg->accesslog_maxnumlogs = 10;
+    cfg->accesslog_maxlogsize = 100;
+    cfg->accesslog_rotationtime = 1;
+    cfg->accesslog_rotationunit = slapi_ch_strdup(INIT_ACCESSLOG_ROTATIONUNIT);
+    init_accesslog_rotationsync_enabled =
+        cfg->accesslog_rotationsync_enabled = LDAP_OFF;
+    cfg->accesslog_rotationsynchour = 0;
+    cfg->accesslog_rotationsyncmin = 0;
+    cfg->accesslog_maxdiskspace = 500;
+    cfg->accesslog_minfreespace = 5;
+    cfg->accesslog_exptime = 1;
+    cfg->accesslog_exptimeunit = slapi_ch_strdup(INIT_ACCESSLOG_EXPTIMEUNIT);
+    cfg->accessloglevel = 256;
+    init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
+    init_csnlogging = cfg->csnlogging = LDAP_ON;
 
-  init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
-  cfg->errorlog_mode = slapi_ch_strdup(INIT_ERRORLOG_MODE);
-  cfg->errorlog_maxnumlogs = 1;
-  cfg->errorlog_maxlogsize = 100;
-  cfg->errorlog_rotationtime = 1;
-  cfg->errorlog_rotationunit = slapi_ch_strdup (INIT_ERRORLOG_ROTATIONUNIT);
-  init_errorlog_rotationsync_enabled =
-    cfg->errorlog_rotationsync_enabled = LDAP_OFF;
-  cfg->errorlog_rotationsynchour = 0;
-  cfg->errorlog_rotationsyncmin = 0;
-  cfg->errorlog_maxdiskspace = 100;
-  cfg->errorlog_minfreespace = 5;
-  cfg->errorlog_exptime = 1;
-  cfg->errorlog_exptimeunit = slapi_ch_strdup(INIT_ERRORLOG_EXPTIMEUNIT);
-  cfg->errorloglevel = SLAPD_DEFAULT_ERRORLOG_LEVEL;
+    init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
+    cfg->errorlog_mode = slapi_ch_strdup(INIT_ERRORLOG_MODE);
+    cfg->errorlog_maxnumlogs = 1;
+    cfg->errorlog_maxlogsize = 100;
+    cfg->errorlog_rotationtime = 1;
+    cfg->errorlog_rotationunit = slapi_ch_strdup (INIT_ERRORLOG_ROTATIONUNIT);
+    init_errorlog_rotationsync_enabled =
+        cfg->errorlog_rotationsync_enabled = LDAP_OFF;
+    cfg->errorlog_rotationsynchour = 0;
+    cfg->errorlog_rotationsyncmin = 0;
+    cfg->errorlog_maxdiskspace = 100;
+    cfg->errorlog_minfreespace = 5;
+    cfg->errorlog_exptime = 1;
+    cfg->errorlog_exptimeunit = slapi_ch_strdup(INIT_ERRORLOG_EXPTIMEUNIT);
+    cfg->errorloglevel = SLAPD_DEFAULT_ERRORLOG_LEVEL;
 
-  init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
-  cfg->auditlog_mode = slapi_ch_strdup(INIT_AUDITLOG_MODE);
-  cfg->auditlog_maxnumlogs = 1;
-  cfg->auditlog_maxlogsize = 100;
-  cfg->auditlog_rotationtime = 1;
-  cfg->auditlog_rotationunit = slapi_ch_strdup(INIT_AUDITLOG_ROTATIONUNIT);
-  init_auditlog_rotationsync_enabled =
-    cfg->auditlog_rotationsync_enabled = LDAP_OFF;
-  cfg->auditlog_rotationsynchour = 0;
-  cfg->auditlog_rotationsyncmin = 0;
-  cfg->auditlog_maxdiskspace = 100;
-  cfg->auditlog_minfreespace = 5;
-  cfg->auditlog_exptime = 1;
-  cfg->auditlog_exptimeunit = slapi_ch_strdup(INIT_AUDITLOG_EXPTIMEUNIT);
-  init_auditlog_logging_hide_unhashed_pw = 
+    init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
+    cfg->auditlog_mode = slapi_ch_strdup(INIT_AUDITLOG_MODE);
+    cfg->auditlog_maxnumlogs = 1;
+    cfg->auditlog_maxlogsize = 100;
+    cfg->auditlog_rotationtime = 1;
+    cfg->auditlog_rotationunit = slapi_ch_strdup(INIT_AUDITLOG_ROTATIONUNIT);
+    init_auditlog_rotationsync_enabled =
+        cfg->auditlog_rotationsync_enabled = LDAP_OFF;
+    cfg->auditlog_rotationsynchour = 0;
+    cfg->auditlog_rotationsyncmin = 0;
+    cfg->auditlog_maxdiskspace = 100;
+    cfg->auditlog_minfreespace = 5;
+    cfg->auditlog_exptime = 1;
+    cfg->auditlog_exptimeunit = slapi_ch_strdup(INIT_AUDITLOG_EXPTIMEUNIT);
+    init_auditlog_logging_hide_unhashed_pw = 
     cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
 
-  init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
-  cfg->auditfaillog_mode = slapi_ch_strdup(INIT_AUDITFAILLOG_MODE);
-  cfg->auditfaillog_maxnumlogs = 1;
-  cfg->auditfaillog_maxlogsize = 100;
-  cfg->auditfaillog_rotationtime = 1;
-  cfg->auditfaillog_rotationunit = slapi_ch_strdup(INIT_AUDITFAILLOG_ROTATIONUNIT);
-  init_auditfaillog_rotationsync_enabled =
-    cfg->auditfaillog_rotationsync_enabled = LDAP_OFF;
-  cfg->auditfaillog_rotationsynchour = 0;
-  cfg->auditfaillog_rotationsyncmin = 0;
-  cfg->auditfaillog_maxdiskspace = 100;
-  cfg->auditfaillog_minfreespace = 5;
-  cfg->auditfaillog_exptime = 1;
-  cfg->auditfaillog_exptimeunit = slapi_ch_strdup(INIT_AUDITFAILLOG_EXPTIMEUNIT);
-  init_auditfaillog_logging_hide_unhashed_pw = 
-    cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
+    init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
+    cfg->auditfaillog_mode = slapi_ch_strdup(INIT_AUDITFAILLOG_MODE);
+    cfg->auditfaillog_maxnumlogs = 1;
+    cfg->auditfaillog_maxlogsize = 100;
+    cfg->auditfaillog_rotationtime = 1;
+    cfg->auditfaillog_rotationunit = slapi_ch_strdup(INIT_AUDITFAILLOG_ROTATIONUNIT);
+    init_auditfaillog_rotationsync_enabled =
+        cfg->auditfaillog_rotationsync_enabled = LDAP_OFF;
+    cfg->auditfaillog_rotationsynchour = 0;
+    cfg->auditfaillog_rotationsyncmin = 0;
+    cfg->auditfaillog_maxdiskspace = 100;
+    cfg->auditfaillog_minfreespace = 5;
+    cfg->auditfaillog_exptime = 1;
+    cfg->auditfaillog_exptimeunit = slapi_ch_strdup(INIT_AUDITFAILLOG_EXPTIMEUNIT);
+    init_auditfaillog_logging_hide_unhashed_pw = 
+        cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
 
 #ifdef HAVE_CLOCK_GETTIME
-  init_logging_hr_timestamps = 
-    cfg->logging_hr_timestamps = LDAP_ON;
+    init_logging_hr_timestamps =
+        cfg->logging_hr_timestamps = LDAP_ON;
 #endif
 
-  init_entryusn_global = cfg->entryusn_global = LDAP_OFF; 
-  cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT); 
-  cfg->allowed_to_delete_attrs = slapi_ch_strdup("passwordadmindn nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
-  cfg->default_naming_context = NULL; /* store normalized dn */
-  cfg->allowed_sasl_mechs = NULL;
+    init_entryusn_global = cfg->entryusn_global = LDAP_OFF;
+    cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT);
+    cfg->allowed_to_delete_attrs = slapi_ch_strdup("passwordadmindn nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
+    cfg->default_naming_context = NULL; /* store normalized dn */
+    cfg->allowed_sasl_mechs = NULL;
 
-  init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
-  cfg->disk_threshold = 2097152;  /* 2 mb */
-  cfg->disk_grace_period = 60; /* 1 hour */
-  init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
-  init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_ON;
-  cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
-  init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
-  cfg->ignore_vattrs = LDAP_OFF;
-  cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
-  cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
-  init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
-  init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
-  init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
-  init_connection_nocanon = cfg->connection_nocanon = LDAP_ON;
-  init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
-  init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
-  init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
-  init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
-  init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
-  init_global_backend_local = LDAP_OFF;
-  cfg->maxsimplepaged_per_conn = DEFAULT_MAXSIMPLEPAGED_PER_CONN;
-  cfg->maxbersize = DEFAULT_MAXBERSIZE;
+    init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
+    cfg->disk_threshold = 2097152;  /* 2 mb */
+    cfg->disk_grace_period = 60; /* 1 hour */
+    init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
+    init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_ON;
+    cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
+    init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
+    cfg->ignore_vattrs = LDAP_OFF;
+    cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
+    cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
+    init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
+    init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
+    init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
+    init_connection_nocanon = cfg->connection_nocanon = LDAP_ON;
+    init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
+    init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
+    init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
+    init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
+    init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
+    init_global_backend_local = LDAP_OFF;
+    cfg->maxsimplepaged_per_conn = DEFAULT_MAXSIMPLEPAGED_PER_CONN;
+    cfg->maxbersize = DEFAULT_MAXBERSIZE;
 #ifdef ENABLE_NUNC_STANS
-  init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_ON;
+    init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_ON;
 #endif
 #if defined(LINUX)
-  init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
-  init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
-  init_malloc_mmap_threshold = cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
+    init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
+    init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
+    init_malloc_mmap_threshold = cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
 #endif
 
 #ifdef MEMPOOL_EXPERIMENTAL
-  init_mempool_switch = cfg->mempool_switch = LDAP_ON;
-  cfg->mempool_maxfreelist = 1024;
-  cfg->system_page_size = sysconf(_SC_PAGE_SIZE);	/* not to get every time; no set, get only */
-  {
-    long sc_size = cfg->system_page_size;
-    cfg->system_page_bits = 0;
-    while ((sc_size >>= 1) > 0) {
-      cfg->system_page_bits++;	/* to calculate once; no set, get only */
+    init_mempool_switch = cfg->mempool_switch = LDAP_ON;
+    cfg->mempool_maxfreelist = 1024;
+    cfg->system_page_size = sysconf(_SC_PAGE_SIZE);	/* not to get every time; no set, get only */
+    {
+        long sc_size = cfg->system_page_size;
+        cfg->system_page_bits = 0;
+        while ((sc_size >>= 1) > 0) {
+            cfg->system_page_bits++;	/* to calculate once; no set, get only */
+        }
     }
-  }
 #endif /* MEMPOOL_EXPERIMENTAL */
-  init_extract_pem = cfg->extract_pem = LDAP_OFF;
+    init_extract_pem = cfg->extract_pem = LDAP_OFF;
 
-  init_config_get_and_set();
+    /* Done, unlock!  */
+    CFG_UNLOCK_WRITE(cfg);
+
+    init_config_get_and_set();
 }
 
-int 
+int
 g_get_global_lastmod(void)
 {
   return  config_get_lastmod();
@@ -1715,7 +1723,7 @@ set_dll_entry_points( slapdEntryPoints *p )
 {
     if ( NULL == sep )
     {
-    	sep = p;
+        sep = p;
     }
 }
 
@@ -3761,31 +3769,31 @@ config_set_rootpwstoragescheme( const char *attrname, char *value, char *errorbu
   
   return retVal;
 }
-	
+
 /*
  * kexcoff: to replace default initialization in FrontendConfig_init()
  */
 int config_set_storagescheme(void) {
 
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-	struct pw_scheme *new_scheme = NULL;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    struct pw_scheme *new_scheme = NULL;
 
     CFG_LOCK_WRITE(slapdFrontendConfig);
 
-	new_scheme = pw_name2scheme("SSHA");
-	free_pw_scheme(slapdFrontendConfig->pw_storagescheme);
-	slapdFrontendConfig->pw_storagescheme = new_scheme;
+    new_scheme = pw_name2scheme(DEFAULT_PASSWORD_SCHEME_NAME);
+    free_pw_scheme(slapdFrontendConfig->pw_storagescheme);
+    slapdFrontendConfig->pw_storagescheme = new_scheme;
 
-	new_scheme = pw_name2scheme("SSHA");
-	slapdFrontendConfig->rootpwstoragescheme = new_scheme;
-       
+    new_scheme = pw_name2scheme(DEFAULT_PASSWORD_SCHEME_NAME);
+    slapdFrontendConfig->rootpwstoragescheme = new_scheme;
+
     CFG_UNLOCK_WRITE(slapdFrontendConfig);
 
-	return ( new_scheme == NULL );
-
+    return ( new_scheme == NULL );
 }
 
-int 
+
+int
 config_set_localuser( const char *attrname, char *value, char *errorbuf, int apply ) {
   int retVal =  LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4925,16 +4933,16 @@ config_get_pw_storagescheme(void) {
   CFG_LOCK_READ(slapdFrontendConfig);
   retVal = config_copy_strval(slapdFrontendConfig->pw_storagescheme->pws_name);
   CFG_UNLOCK_READ(slapdFrontendConfig);
-  
+
   return retVal;
 }
-	
+
 
 int
 config_get_pw_change(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
-  
+
   CFG_ONOFF_LOCK_READ(slapdFrontendConfig);
   retVal = (int)slapdFrontendConfig->pw_policy.pw_change;
   CFG_ONOFF_UNLOCK_READ(slapdFrontendConfig);

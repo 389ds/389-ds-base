@@ -215,7 +215,7 @@ main(int argc, char *argv[])
 	}
 
 	if ( cmppwsp == NULL && pwsp == NULL ) {
-		pwsp = pw_name2scheme( SALTED_SHA1_SCHEME_NAME );
+		pwsp = pw_name2scheme( DEFAULT_PASSWORD_SCHEME_NAME );
 	}
 
 	if ( argc <= optind ) {

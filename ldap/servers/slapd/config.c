@@ -589,26 +589,25 @@ slapd_bootstrap_config(const char *configdir)
 				if (e)
 					slapi_entry_free(e);
 			}
-			/* kexcoff: initialize rootpwstoragescheme and pw_storagescheme
-			 *			if not explicilty set in the config file
-			 */
-			if ( config_set_storagescheme() ) {		/* default scheme plugin not loaded */
-				slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
-					"The default password storage scheme SSHA could not be read or was not found in the file %s. It is mandatory.\n",
-					configfile);
-				exit (1);
-			}
-			else {
-				slapi_sdn_done(&plug_dn);
-				rc= 1; /* OK */
-			}
-		}
+            /* kexcoff: initialize rootpwstoragescheme and pw_storagescheme
+             *          if not explicilty set in the config file
+             */
+            if ( config_set_storagescheme() ) {
+                /* default scheme plugin not loaded */
+                slapi_log_err(SLAPI_LOG_ERR, "slapd_bootstrap_config",
+                    "The default password storage scheme could not be read or was not found in the file %s. It is mandatory.\n", configfile);
+                exit (1);
+            } else {
+                slapi_sdn_done(&plug_dn);
+                    rc= 1; /* OK */
+            }
+        }
 
-		slapi_ch_free_string(&buf);
-	}
+        slapi_ch_free_string(&buf);
+    }
 
 bail:
-	slapi_ch_free_string(&buf);
-	return rc;
+    slapi_ch_free_string(&buf);
+    return rc;
 }
 
