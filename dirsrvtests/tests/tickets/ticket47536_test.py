@@ -269,6 +269,7 @@ def create_keys_certs(topology):
     noisewdfd = open(noisefile, "w")
     noisewdfd.write(noise.readline())
     noisewdfd.close()
+    time.sleep(1)
 
     cmdline = ['certutil', '-N', '-d', m1confdir, '-f', pwdfile]
     log.info("##### Create key3.db and cert8.db database (master1): %s" % cmdline)

@@ -33,6 +33,7 @@ plus_all_dcount = 0
 plus_all_ecount_noweak = 0
 plus_all_dcount_noweak = 0
 
+
 class TopologyStandalone(object):
     def __init__(self, standalone):
         standalone.open()
@@ -109,6 +110,7 @@ def test_init(topology):
     noisewdfd = open(noisefile, "w")
     noisewdfd.write(noise.readline())
     noisewdfd.close()
+    time.sleep(1)
 
     log.info("\n######################### Create key3.db and cert8.db database ######################\n")
     os.system("ls %s" % pwdfile)
@@ -119,7 +121,8 @@ def test_init(topology):
     os.system('certutil -G -d %s -z %s -f %s' % (conf_dir, noisefile, pwdfile))
 
     log.info("\n######################### Creating self-signed CA certificate ######################\n")
-    os.system('( echo y ; echo ; echo y ) | certutil -S -n "CA certificate" -s "cn=CAcert" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' % (conf_dir, noisefile, pwdfile))
+    os.system('( echo y ; echo ; echo y ) | certutil -S -n "CA certificate" -s "cn=CAcert" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' %
+              (conf_dir, noisefile, pwdfile))
 
     log.info("\n######################### Exporting the CA certificate to cacert.asc ######################\n")
     cafile = '%s/cacert.asc' % conf_dir
@@ -135,7 +138,8 @@ def test_init(topology):
     log.info("\n######################### Generate the server certificate ######################\n")
     ohostname = os.popen('hostname --fqdn', "r")
     myhostname = ohostname.readline()
-    os.system('certutil -S -n "%s" -s "cn=%s,ou=389 Directory Server" -c "CA certificate" -t "u,u,u" -m 1001 -v 120 -d %s -z %s -f %s' % (SERVERCERT, myhostname.rstrip(), conf_dir, noisefile, pwdfile))
+    os.system('certutil -S -n "%s" -s "cn=%s,ou=389 Directory Server" -c "CA certificate" -t "u,u,u" -m 1001 -v 120 -d %s -z %s -f %s' %
+              (SERVERCERT, myhostname.rstrip(), conf_dir, noisefile, pwdfile))
 
     log.info("\n######################### create the pin file ######################\n")
     pinfile = '%s/pin.txt' % (conf_dir)
@@ -143,6 +147,7 @@ def test_init(topology):
     pinfd = open(pinfile, "w")
     pinfd.write(pintxt)
     pinfd.close()
+    time.sleep(1)
 
     log.info("\n######################### enable SSL in the directory server with all ciphers ######################\n")
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -161,6 +166,7 @@ def test_init(topology):
                                               'nsSSLPersonalitySSL': SERVERCERT,
                                               'nsSSLToken': 'internal (software)',
                                               'nsSSLActivation': 'on'})))
+
 
 def connectWithOpenssl(topology, cipher, expect):
     """
@@ -204,6 +210,7 @@ def connectWithOpenssl(topology, cipher, expect):
                     proc.stdin.close()
                     assert False
 
+
 def test_run_0(topology):
     """
     Check nsSSL3Ciphers: +all
@@ -220,6 +227,7 @@ def test_run_0(topology):
 
     connectWithOpenssl(topology, 'RC4-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
+
 
 def test_run_1(topology):
     """
@@ -238,11 +246,12 @@ def test_run_1(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_0' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
+
 
 def test_run_2(topology):
     """
@@ -259,13 +268,14 @@ def test_run_2(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_1' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'AES128-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA', True)
+
 
 def test_run_3(topology):
     """
@@ -288,6 +298,7 @@ def test_run_3(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
 
+
 def test_run_4(topology):
     """
     Check no nsSSL3Ciphers
@@ -303,11 +314,12 @@ def test_run_4(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_3' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
+
 
 def test_run_5(topology):
     """
@@ -324,11 +336,12 @@ def test_run_5(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_4' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
+
 
 def test_run_6(topology):
     """
@@ -345,12 +358,13 @@ def test_run_6(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_5' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'AES128-SHA', True)
+
 
 def test_run_7(topology):
     """
@@ -367,12 +381,13 @@ def test_run_7(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_6' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
     connectWithOpenssl(topology, 'RC4-MD5', True)
+
 
 def test_run_8(topology):
     """
@@ -389,11 +404,12 @@ def test_run_8(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_7' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
+
 
 def test_run_9(topology):
     """
@@ -413,11 +429,12 @@ def test_run_9(topology):
     topology.standalone.stop(timeout=10)
     os.system('mv %s %s.48194_8' % (topology.standalone.errlog, topology.standalone.errlog))
     os.system('touch %s' % (topology.standalone.errlog))
-    time.sleep(1)
+    time.sleep(2)
     topology.standalone.start(timeout=120)
 
     connectWithOpenssl(topology, 'RC4-SHA', True)
     connectWithOpenssl(topology, 'AES256-SHA256', True)
+
 
 def test_run_10(topology):
     """
@@ -448,6 +465,7 @@ def test_run_10(topology):
     connectWithOpenssl(topology, 'RC4-SHA', False)
     connectWithOpenssl(topology, 'RC4-MD5', True)
     connectWithOpenssl(topology, 'AES256-SHA256', False)
+
 
 def test_run_11(topology):
     """

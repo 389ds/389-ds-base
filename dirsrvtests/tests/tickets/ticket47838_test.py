@@ -127,6 +127,7 @@ def test_47838_init(topology):
     noisewdfd = open(noisefile, "w")
     noisewdfd.write(noise.readline())
     noisewdfd.close()
+    time.sleep(1)
 
     log.info("\n######################### Create key3.db and cert8.db database ######################\n")
     os.system("ls %s" % pwdfile)
@@ -137,7 +138,8 @@ def test_47838_init(topology):
     os.system('certutil -G -d %s -z %s -f %s' % (conf_dir, noisefile, pwdfile))
 
     log.info("\n######################### Creating self-signed CA certificate ######################\n")
-    os.system('( echo y ; echo ; echo y ) | certutil -S -n "CA certificate" -s "cn=CAcert" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' % (conf_dir, noisefile, pwdfile))
+    os.system('( echo y ; echo ; echo y ) | certutil -S -n "CA certificate" -s "cn=CAcert" -x -t "CT,," -m 1000 -v 120 -d %s -z %s -f %s -2' %
+              (conf_dir, noisefile, pwdfile))
 
     log.info("\n######################### Exporting the CA certificate to cacert.asc ######################\n")
     cafile = '%s/cacert.asc' % conf_dir
@@ -161,6 +163,7 @@ def test_47838_init(topology):
     pinfd = open(pinfile, "w")
     pinfd.write(pintxt)
     pinfd.close()
+    time.sleep(1)
 
     log.info("\n######################### enable SSL in the directory server with all ciphers ######################\n")
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -213,7 +216,6 @@ def test_47838_run_0(topology):
     time.sleep(5)
     log.info("\n######################### Restarting the server ######################\n")
     topology.standalone.restart(timeout=120)
-
     enabled = os.popen('egrep "SSL alert:" %s | egrep \": enabled\" | wc -l' % topology.standalone.errlog)
     disabled = os.popen('egrep "SSL alert:" %s | egrep \": disabled\" | wc -l' % topology.standalone.errlog)
     ecount = int(enabled.readline().rstrip())
@@ -250,7 +252,7 @@ def test_47838_run_1(topology):
 
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
     topology.standalone.modify_s(CONFIG_DN, [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', '64')])
-    time.sleep(5)
+    time.sleep(1)
     # Make sure allowWeakCipher is not set.
     topology.standalone.modify_s(ENCRYPTION_DN, [(ldap.MOD_DELETE, 'allowWeakCipher', None)])
 

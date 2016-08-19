@@ -181,6 +181,7 @@ def enable_ssl(server, ldapsport, mycert):
                                  'nsSSLToken': 'internal (software)',
                                  'nsSSLActivation': 'on'})))
 
+
 def doAndPrintIt(cmdline, filename):
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if filename is None:
@@ -206,6 +207,7 @@ def doAndPrintIt(cmdline, filename):
 
     if filename is not None:
         fd.close()
+    time.sleep(1)
 
 
 def create_keys_certs(topology):
@@ -245,6 +247,7 @@ def create_keys_certs(topology):
     noisewdfd = open(noisefile, "w")
     noisewdfd.write(noise.readline())
     noisewdfd.close()
+    time.sleep(1)
 
     cmdline = ['certutil', '-N', '-d', m1confdir, '-f', pwdfile]
     log.info("##### Create key3.db and cert8.db database (master1): %s" % cmdline)
@@ -332,7 +335,6 @@ def create_keys_certs(topology):
 
     log.info("##### restart master1")
     topology.master1.restart(timeout=10)
-
 
     log.info("\n######################### Creating SSL Keys and Certs Done ######################\n")
 

@@ -584,6 +584,7 @@ def restore_master4(topology):
     topology.master4.start(timeout=30)
     topology.master1.agreement.init(SUFFIX, HOST_MASTER_4, PORT_MASTER_4)
     topology.master1.waitForReplInit(topology.m1_m4_agmt)
+    time.sleep(5)
 
     #
     # Test Replication is working
@@ -594,6 +595,7 @@ def restore_master4(topology):
     else:
         log.fatal('restore_master4: Replication is not working from m1 -> m2.')
         assert False
+    time.sleep(1)
 
     # Check replication is working from master 1 to  master 4...
     if topology.master1.testReplication(DEFAULT_SUFFIX, topology.master4):
@@ -601,6 +603,7 @@ def restore_master4(topology):
     else:
         log.fatal('restore_master4: Replication is not working from m1 -> m4.')
         assert False
+    time.sleep(1)
 
     # Check replication is working from master 4 to master1...
     if topology.master4.testReplication(DEFAULT_SUFFIX, topology.master1):
@@ -608,6 +611,7 @@ def restore_master4(topology):
     else:
         log.fatal('restore_master4: Replication is not working from m4 -> 1.')
         assert False
+    time.sleep(5)
 
     log.info('Master 4 has been successfully restored.')
 

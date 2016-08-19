@@ -139,17 +139,20 @@ def test_ticket47819(topology):
         exportTask.exportLDIF(DEFAULT_SUFFIX, None, ldif_file, args)
     except ValueError:
         assert False
+    time.sleep(1)
 
     # open the ldif file, get the lines, then rewrite the file
     ldif = open(ldif_file, "r")
     lines = ldif.readlines()
     ldif.close()
+    time.sleep(1)
 
     ldif = open(ldif_file, "w")
     for line in lines:
         if not line.lower().startswith('nstombstonecsn'):
             ldif.write(line)
     ldif.close()
+    time.sleep(1)
 
     # import the new ldif file
     log.info('Import replication LDIF file...')
@@ -161,6 +164,7 @@ def test_ticket47819(topology):
     except ValueError:
         os.remove(ldif_file)
         assert False
+    time.sleep(1)
 
     # Search for the tombstone again
     log.info('Search for tombstone entries...')
@@ -190,6 +194,7 @@ def test_ticket47819(topology):
         fixupTombTask.fixupTombstones(DEFAULT_BENAME, args)
     except:
         assert False
+    time.sleep(1)
 
     # Search for tombstones with nsTombstoneCSN - better not find any
     log.info('Search for tombstone entries...')
@@ -211,7 +216,6 @@ def test_ticket47819(topology):
         fixupTombTask.fixupTombstones(DEFAULT_BENAME, args)
     except:
         assert False
-
     time.sleep(1)
 
     # Search for tombstones with nsTombstoneCSN - better find some
@@ -244,7 +248,7 @@ def test_ticket47819(topology):
 
     # Wait for the interval to pass
     log.info('Wait for tombstone purge interval to pass...')
-    time.sleep(6)
+    time.sleep(10)
 
     # Add an entry to trigger replication
     log.info('Perform an update to help trigger tombstone purging...')
