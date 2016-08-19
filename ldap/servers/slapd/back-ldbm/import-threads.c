@@ -2845,6 +2845,11 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         return -1;
     }
 
+    /* The import is aborted, just ignore that entry */
+    if(job->flags & FLAG_ABORT) {
+        return -1;
+    }
+
     PR_Lock(job->wire_lock);
     /* Let's do this inside the lock !*/
     id = job->lead_ID + 1;
