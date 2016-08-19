@@ -766,8 +766,8 @@ int slapi_log_access( int level, char *fmt, ... )
 #else
         ;
 #endif
-int slapd_log_audit(char *buffer, int buf_len);
-int slapd_log_audit_internal(char *buffer, int buf_len);
+int slapd_log_audit(char *buffer, int buf_len, int sourcelog);
+int slapd_log_audit_internal(char *buffer, int buf_len, int state);
 int slapd_log_auditfail(char *buffer, int buf_len);
 int slapd_log_auditfail_internal(char *buffer, int buf_len);
 void log_access_flush();

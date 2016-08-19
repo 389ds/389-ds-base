@@ -33,7 +33,7 @@ static int audit_hide_unhashed_pw = 1;
 static int auditfail_hide_unhashed_pw = 1;
 
 /* Forward Declarations */
-static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc );
+static void write_audit_file(int logtype, int optype, const char *dn, void *change, int flag, time_t curtime, int rc, int sourcelog );
 
 static const char *modrdn_changes[4];
 
@@ -98,7 +98,7 @@ write_audit_log_entry( Slapi_PBlock *pb )
     curtime = current_time();
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
-    write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS);
+    write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, LDAP_SUCCESS, SLAPD_AUDIT_LOG);
 }
 
 void
@@ -169,10 +169,10 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
     auditfail_config = config_get_auditfaillog();
     if (auditfail_config == NULL || strlen(auditfail_config) == 0) {
         /* If no auditfail log write to audit log */
-        write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc);
+        write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     } else {
         /* If we have our own auditfail log path */
-        write_audit_file(SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc);
+        write_audit_file(SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     }
     slapi_ch_free_string(&auditfail_config);
 }
@@ -181,6 +181,7 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
 /*
  * Function: write_audit_file
  * Arguments: 
+ *            logtype - Destination where the message will go.
  *            optype - type of LDAP operation being logged
  *            dn     - distinguished name of entry being changed
  *            change - pointer to the actual change operation
@@ -188,6 +189,7 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
  *            flag   - only used by modrdn operations - value of deleteoldrdn flag
  *            curtime - the current time
  *            rc     - The ldap result code. Used in conjunction with auditfail
+ *            sourcelog - The source of the message (audit or auditfail)
  * Returns: nothing
  */
 static void
@@ -198,7 +200,8 @@ write_audit_file(
     void        *change,
     int         flag,
     time_t      curtime,
-    int         rc
+    int         rc,
+    int         sourcelog
 )
 {
     LDAPMod **mods;
@@ -359,7 +362,7 @@ write_audit_file(
     switch (logtype)
     {
     case SLAPD_AUDIT_LOG:
-        slapd_log_audit (l->ls_buf, l->ls_len);
+        slapd_log_audit (l->ls_buf, l->ls_len, sourcelog);
         break;
     case SLAPD_AUDITFAIL_LOG:
         slapd_log_auditfail (l->ls_buf, l->ls_len);
