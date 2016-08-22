@@ -367,7 +367,6 @@ int config_set_accesslogbuffering(const char *attrname, char *value, char *error
 int config_set_csnlogging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_force_sasl_external(const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_entryusn_global( const char *attrname, char *value, char *errorbuf, int apply );
-int config_set_allowed_to_delete_attrs( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_entryusn_import_init( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_default_naming_context( const char *attrname, char *value, char *errorbuf, int apply );
 int config_set_disk_monitoring( const char *attrname, char *value, char *errorbuf, int apply );
@@ -539,10 +538,8 @@ int config_get_system_page_bits(void);
 #endif
 int config_get_force_sasl_external(void);
 int config_get_entryusn_global(void);
-char *config_get_allowed_to_delete_attrs(void);
 char *config_get_entryusn_import_init(void);
 char *config_get_default_naming_context(void);
-int config_allowed_to_delete_attrs(const char *attr_type);
 void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
@@ -812,7 +809,7 @@ int audit_log_openf( char *pathname, int locked);
 int auditfail_log_openf( char *pathname, int locked);
 
 void g_set_detached(int);
-void g_log_init(int log_enabled);
+void g_log_init(void);
 char *g_get_access_log(void);
 char *g_get_error_log(void);
 char *g_get_audit_log(void);

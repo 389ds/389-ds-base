@@ -2078,7 +2078,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                "Authentication status. No nsslclientauth in %s ("
                 SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                configDN, errorCode, slapd_pr_strerror(errorCode));
-        switch( SLAPD_SSLCLIENTAUTH_DEFAULT ) {
+        switch( SLAPD_DEFAULT_SSLCLIENTAUTH ) {
             case SLAPD_SSLCLIENTAUTH_OFF:
                 default_val = "off";
                 break;

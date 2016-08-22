@@ -669,7 +669,7 @@ main( int argc, char **argv)
 #endif
 
 	slapd_init();
-	g_log_init(1);
+	g_log_init();
 	vattr_init();
 
 	if (slapd_exemode == SLAPD_EXEMODE_REFERRAL) {

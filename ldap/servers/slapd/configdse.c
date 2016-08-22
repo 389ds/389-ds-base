@@ -92,6 +92,34 @@ ignore_attr_type(const char *attr_type)
 	return 0;
 }
 
+
+/* These trigger rejections for config modify! */
+/*
+ * So why does this function exist? Well, when we run modify_config_dse, this
+ * is about intercepting the change and reloading values live. It actually has
+ * nothing to do with the operation on the back-ldif, dse.ldif.
+ * When a change occurs to modify_config_dse, this happens *before* the write
+ * to dse.ldif. Sometimes, because of the extensibleObject, we can't really
+ * validate the schema. We need to protect certain attributes.
+ *
+ * Take CN. If we ignore_attr_type cn, we skip over it in modify_config_dse, but
+ * we still delete it from cn=config in dse.ldif. The server then explodes!
+ * So this is a barrier to *reject* changes that would trash your server, rather
+ * than allowing them to propogate into dse.ldif.
+ *
+ * SUMMARY: If it's an attribute that is structurally important to cn=config,
+ * and IS NOT a configuration in libglobs.c, PUT IT HERE.
+ */
+
+static int
+reject_attr_type(const char *attr_type)
+{
+    if ( !attr_type || (strcasecmp (attr_type, "cn") == 0)) {
+        return 1;
+    }
+    return 0;
+}
+
 int 
 read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
@@ -362,10 +390,24 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 		for (i = 0; mods && (mods[i] && (LDAP_SUCCESS == rc)); i++) {
 			/* send all aci modifications to the backend */
 			config_attr = (char *)mods[i]->mod_type;
-			if (ignore_attr_type(config_attr))
-				continue;
- 
-			if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
+
+			/*
+			 * See comments with function reject_attr_type for the important 
+			 * difference between "reject" and "ignore".
+			 *
+			 * Here it is important that REJECT is FIRST!!!!
+			 */
+
+			if (reject_attr_type(config_attr)) {
+					slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse",
+						"Modification of attribute \"%s\" is not allowed, REJECTING!\n",
+						config_attr);
+					rc = LDAP_UNWILLING_TO_PERFORM;
+			} else if (ignore_attr_type(config_attr)) {
+					slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse",
+						"Modification of attribute \"%s\" is not allowed, ignoring!\n",
+						config_attr);
+			} else if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 				if (apply_mods) { /* log warning once */
 					slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", 
 						"Adding configuration attribute \"%s\"\n",
@@ -380,26 +422,30 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 					rc = LDAP_UNWILLING_TO_PERFORM;
 				}
 			} else if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
-				/* Need to allow deleting some configuration attrs */
-			    if (config_allowed_to_delete_attrs(config_attr)) {
-					rc = config_set(config_attr, mods[i]->mod_bvalues, 
-									returntext, apply_mods);
-					if (apply_mods) { /* log warning once */
-						slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", 
-						  "Deleting configuration attribute \"%s\"\n",
-						  config_attr);
+				/*
+				 *  Check if this delete is followed by an add of the same attribute, as some
+				 *  clients do a replace by deleting and adding the attribute.
+				 *  In the future when we fix https://fedorahosted.org/389/ticket/49019
+				 *  This will be an important distinction as it will allow a reset to null
+				 *  rather than to a value.
+				 */
+			    if(is_delete_a_replace(mods, i)){
+					/* Just do it and allow the null (well, in the future allow null. For
+					 * now this is still going to fail :(
+					 */
+				    rc = config_set(config_attr, mods[i]->mod_bvalues, returntext, apply_mods);
+					if (rc != LDAP_SUCCESS && apply_mods) {
+						rc = LDAP_UNWILLING_TO_PERFORM;
+						slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", "Deleting configuration attribute \"%s\"\n", config_attr);
+						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Deleting attributes is not allowed");
 					}
 				} else {
-					/*
-					 *  Check if this delete is followed by an add of the same attribute, as some
-					 *  clients do a replace by deleting and adding the attribute.
-					 */
-					if(is_delete_a_replace(mods, i)){
-						rc = config_set(config_attr, mods[i]->mod_bvalues, returntext, apply_mods);
-					} else {
-						rc= LDAP_UNWILLING_TO_PERFORM;
-						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-							"Deleting attributes is not allowed");
+					/* Nope, this is really a delete. Let the value be reset! */
+					rc = config_set(config_attr, mods[i]->mod_bvalues, returntext, apply_mods);
+					if (rc != LDAP_SUCCESS && apply_mods) {
+						rc = LDAP_UNWILLING_TO_PERFORM;
+						slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", "Deleting configuration attribute \"%s\"\n", config_attr);
+						PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Deleting attributes is not allowed");
 					}
 				}
 			} else if (SLAPI_IS_MOD_REPLACE(mods[i]->mod_op)) {

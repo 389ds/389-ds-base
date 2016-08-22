@@ -242,28 +242,29 @@ void g_set_detached(int val)
 /******************************************************************************
 * Tell me whether logging begins or not 
 ******************************************************************************/ 
-void g_log_init(int log_enabled)
+void g_log_init()
 {
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    slapdFrontendConfig_t *cfg = getFrontendConfig();
+    CFG_LOCK_READ(cfg);
 
     /* ACCESS LOG */
-    loginfo.log_access_state = 0;
+    loginfo.log_access_state = cfg->accesslog_logging_enabled;
     loginfo.log_access_mode = SLAPD_DEFAULT_FILE_MODE;
-    loginfo.log_access_maxnumlogs = 1;
-    loginfo.log_access_maxlogsize = -1;
-    loginfo.log_access_rotationsync_enabled = 0;
-    loginfo.log_access_rotationsynchour = -1;
-    loginfo.log_access_rotationsyncmin = -1;
+    loginfo.log_access_maxnumlogs = cfg->accesslog_maxnumlogs;
+    loginfo.log_access_maxlogsize = cfg->accesslog_maxlogsize * LOG_MB_IN_BYTES;
+    loginfo.log_access_rotationsync_enabled = cfg->accesslog_rotationsync_enabled;
+    loginfo.log_access_rotationsynchour = cfg->accesslog_rotationsynchour;
+    loginfo.log_access_rotationsyncmin = cfg->accesslog_rotationsyncmin;
     loginfo.log_access_rotationsyncclock = -1;
-    loginfo.log_access_rotationtime = 1;                  /* default: 1 */
+    loginfo.log_access_rotationtime = cfg->accesslog_rotationtime; /* default: 1 */
     loginfo.log_access_rotationunit = LOG_UNIT_DAYS;      /* default: day */
     loginfo.log_access_rotationtime_secs = _SEC_PER_DAY;  /* default: 1 day */
-    loginfo.log_access_maxdiskspace =  -1;
-    loginfo.log_access_minfreespace =  -1;
-    loginfo.log_access_exptime =  -1;                     /* default: -1 */
+    loginfo.log_access_maxdiskspace =  cfg->accesslog_maxdiskspace * LOG_MB_IN_BYTES;
+    loginfo.log_access_minfreespace =  cfg->accesslog_minfreespace * LOG_MB_IN_BYTES;
+    loginfo.log_access_exptime =  cfg->accesslog_exptime; /* default: -1 */
     loginfo.log_access_exptimeunit =  LOG_UNIT_MONTHS;    /* default: month */
     loginfo.log_access_exptime_secs = -1;                 /* default: -1 */
-    loginfo.log_access_level = LDAP_DEBUG_STATS;
+    loginfo.log_access_level = cfg->accessloglevel;
     loginfo.log_access_ctime = 0L;
     loginfo.log_access_fdes = NULL;
     loginfo.log_access_file = NULL;
@@ -277,23 +278,22 @@ void g_log_init(int log_enabled)
     if ((loginfo.log_access_buffer->lock = PR_NewLock())== NULL ) {
         exit (-1);
     }
-    slapdFrontendConfig->accessloglevel = LDAP_DEBUG_STATS;
 
     /* ERROR LOG */
-    loginfo.log_error_state = 0;
+    loginfo.log_error_state = cfg->errorlog_logging_enabled;
     loginfo.log_error_mode = SLAPD_DEFAULT_FILE_MODE;
-    loginfo.log_error_maxnumlogs = 1;
-    loginfo.log_error_maxlogsize = -1;
-    loginfo.log_error_rotationsync_enabled = 0;
-    loginfo.log_error_rotationsynchour = -1;
-    loginfo.log_error_rotationsyncmin = -1;
+    loginfo.log_error_maxnumlogs = cfg->errorlog_maxnumlogs;
+    loginfo.log_error_maxlogsize = cfg->errorlog_maxlogsize * LOG_MB_IN_BYTES;
+    loginfo.log_error_rotationsync_enabled = cfg->errorlog_rotationsync_enabled;
+    loginfo.log_error_rotationsynchour = cfg->errorlog_rotationsynchour;
+    loginfo.log_error_rotationsyncmin = cfg->errorlog_rotationsyncmin;
     loginfo.log_error_rotationsyncclock = -1;
-    loginfo.log_error_rotationtime = 1;                   /* default: 1 */
+    loginfo.log_error_rotationtime = cfg->errorlog_rotationtime; /* default: 1 */
     loginfo.log_error_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
     loginfo.log_error_rotationtime_secs = 604800;         /* default: 1 week */
-    loginfo.log_error_maxdiskspace =  -1;
-    loginfo.log_error_minfreespace =  -1;
-    loginfo.log_error_exptime =  -1;                      /* default: -1 */
+    loginfo.log_error_maxdiskspace =  cfg->errorlog_maxdiskspace * LOG_MB_IN_BYTES;
+    loginfo.log_error_minfreespace =  cfg->errorlog_minfreespace * LOG_MB_IN_BYTES;
+    loginfo.log_error_exptime =  cfg->errorlog_exptime;   /* default: -1 */
     loginfo.log_error_exptimeunit =  LOG_UNIT_MONTHS;     /* default: month */
     loginfo.log_error_exptime_secs = -1;                  /* default: -1 */
     loginfo.log_error_ctime = 0L;
@@ -307,20 +307,20 @@ void g_log_init(int log_enabled)
     }
 
     /* AUDIT LOG */
-    loginfo.log_audit_state = 0;
+    loginfo.log_audit_state = cfg->auditlog_logging_enabled;
     loginfo.log_audit_mode = SLAPD_DEFAULT_FILE_MODE;
-    loginfo.log_audit_maxnumlogs = 1;
-    loginfo.log_audit_maxlogsize = -1;
-    loginfo.log_audit_rotationsync_enabled = 0;
-    loginfo.log_audit_rotationsynchour = -1;
-    loginfo.log_audit_rotationsyncmin = -1;
+    loginfo.log_audit_maxnumlogs = cfg->auditlog_maxnumlogs;
+    loginfo.log_audit_maxlogsize = cfg->auditlog_maxlogsize * LOG_MB_IN_BYTES;
+    loginfo.log_audit_rotationsync_enabled = cfg->auditlog_rotationsync_enabled;
+    loginfo.log_audit_rotationsynchour = cfg->auditlog_rotationsynchour;
+    loginfo.log_audit_rotationsyncmin = cfg->auditlog_rotationsyncmin;
     loginfo.log_audit_rotationsyncclock = -1;
-    loginfo.log_audit_rotationtime = 1;                   /* default: 1 */
+    loginfo.log_audit_rotationtime = cfg->auditlog_rotationtime; /* default: 1 */
     loginfo.log_audit_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
     loginfo.log_audit_rotationtime_secs = 604800;         /* default: 1 week */
-    loginfo.log_audit_maxdiskspace =  -1;
-    loginfo.log_audit_minfreespace =  -1;
-    loginfo.log_audit_exptime =  -1;                      /* default: -1 */
+    loginfo.log_audit_maxdiskspace =  cfg->auditlog_maxdiskspace * LOG_MB_IN_BYTES;
+    loginfo.log_audit_minfreespace =  cfg->auditlog_minfreespace * LOG_MB_IN_BYTES;
+    loginfo.log_audit_exptime =  cfg->auditlog_exptime;   /* default: -1 */
     loginfo.log_audit_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
     loginfo.log_audit_exptime_secs = -1;                  /* default: -1 */
     loginfo.log_audit_ctime = 0L;
@@ -334,20 +334,20 @@ void g_log_init(int log_enabled)
     }
 
     /* AUDIT LOG */
-    loginfo.log_auditfail_state = 0;
+    loginfo.log_auditfail_state = cfg->auditfaillog_logging_enabled;
     loginfo.log_auditfail_mode = SLAPD_DEFAULT_FILE_MODE;
-    loginfo.log_auditfail_maxnumlogs = 1;
-    loginfo.log_auditfail_maxlogsize = -1;
-    loginfo.log_auditfail_rotationsync_enabled = 0;
-    loginfo.log_auditfail_rotationsynchour = -1;
-    loginfo.log_auditfail_rotationsyncmin = -1;
+    loginfo.log_auditfail_maxnumlogs = cfg->auditfaillog_maxnumlogs;
+    loginfo.log_auditfail_maxlogsize = cfg->auditfaillog_maxlogsize * LOG_MB_IN_BYTES;
+    loginfo.log_auditfail_rotationsync_enabled = cfg->auditfaillog_rotationsync_enabled;
+    loginfo.log_auditfail_rotationsynchour = cfg->auditfaillog_rotationsynchour;
+    loginfo.log_auditfail_rotationsyncmin = cfg->auditfaillog_rotationsyncmin;
     loginfo.log_auditfail_rotationsyncclock = -1;
-    loginfo.log_auditfail_rotationtime = 1;                   /* default: 1 */
+    loginfo.log_auditfail_rotationtime = cfg->auditfaillog_rotationtime; /* default: 1 */
     loginfo.log_auditfail_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
     loginfo.log_auditfail_rotationtime_secs = 604800;         /* default: 1 week */
-    loginfo.log_auditfail_maxdiskspace =  -1;
-    loginfo.log_auditfail_minfreespace =  -1;
-    loginfo.log_auditfail_exptime =  -1;                      /* default: -1 */
+    loginfo.log_auditfail_maxdiskspace =  cfg->auditfaillog_maxdiskspace * LOG_MB_IN_BYTES;
+    loginfo.log_auditfail_minfreespace =  cfg->auditfaillog_minfreespace * LOG_MB_IN_BYTES;
+    loginfo.log_auditfail_exptime =  cfg->auditfaillog_exptime; /* default: -1 */
     loginfo.log_auditfail_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
     loginfo.log_auditfail_exptime_secs = -1;                  /* default: -1 */
     loginfo.log_auditfail_ctime = 0L;
@@ -360,6 +360,7 @@ void g_log_init(int log_enabled)
     if ((loginfo.log_auditfail_rwlock =slapi_new_rwlock())== NULL ) {
         exit (-1);
     }
+    CFG_UNLOCK_READ(cfg);
 }
 
 /******************************************************************************
@@ -998,8 +999,9 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 		 rv = LDAP_OPERATIONS_ERROR;
 	}
 
-	if ((max_logsize > mdiskspace) && (mdiskspace != -1)) 
-        rv = 2;
+	if ((max_logsize > mdiskspace) && (mdiskspace != -1)) {
+		rv = 2;
+	}
 
 	switch (logtype) {
 	   case SLAPD_ACCESS_LOG:

@@ -12,13 +12,95 @@
 #endif
 
 /*
- *
  *  libglobs.c -- SLAPD library global variables
+ *
+ *  !!!!!!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *
+ *  Process for adding new configuration items to libglobs.c
+ *
+ *  To understand the process of adding a new configuration item, you need to
+ *  know how values here are used, and their lifecycle.
+ *
+ *  First, the *initial* values are set from main.c when it calls
+ *  FrontendConfig_init(). This creates the global frontendConfig struct.
+ *
+ *  Logging is then initiated in g_log_init(), which sets a number of defaults.
+ *
+ *  During the startup, dse.ldif is read. Any value from dse.ldif now overrides
+ *  the value in cfg. These call the appropriate config_set_<type> function
+ *  so the checking and locking is performed.
+ *
+ *  The server is now running. Values from the cfg are read through the code
+ *  with config_get_<type>. For cn=config, these are read from configdse.c
+ *  and presented to the search.
+ *
+ *  When a value is modified, the appropriate config_set_<type> function is
+ *  simply called.
+ *
+ *  When a value is deleted, two things can happen. First, is that the value
+ *  does not define an initvalue, so the deletion is rejected will
+ *  LDAP_UNWILLING_TO_PERFORM. Second is that the value does have an initvalue
+ *  so the mod_delete actually acts as config_set_<type>(initvalue). Null is
+ *  never seen by the cfg struct. This is important as it prevents races!
+ *
+ *  A key note is if the value is in dse.ldif, it *always* overrides the value
+ *  that DS is providing. If the value is only in libglobs.c as a default, if
+ *  the default changes, any instance that does NOT define the config in dse.ldif
+ *  will automatically gain the new default.
+ *
+ *  ===== ADDING A NEW VALUE =====
+ *
+ *  With this in mind, you are here to add a new value.
+ *
+ *  First, add the appropriate type for the cfg struct in slap.h
+ *  struct _slapdFrontendConfig { }
+ *  Now, you *must* provide defaults for the type. In slap.h there is a section
+ *  of SLAPD_DEFAULT_* options. You want to add your option here. If it's an int
+ *  type you *must* provided
+ *  #define SLAPD_DEFAULT_OPTION <int>
+ *  #define SLAPD_DEFAULT_OPTION_STR "<int>"
+ *
+ *  Now the default is populated in libglobs.c. Add a line like:
+ *  cfg->option = SLAPD_DEFAULT_OPTION
+ *
+ *  Next you need to add the config_get_and_set struct. It is defined below
+ *  but important to note is:
+ *  {CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
+ *      log_set_expirationtime, SLAPD_ACCESS_LOG,
+ *      (void**)&global_slapdFrontendConfig.accesslog_exptime,
+ *      CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_EXPTIME_STR},
+ *  {CONFIG_LOCALUSER_ATTRIBUTE, config_set_localuser,
+ *      NULL, 0,
+ *      (void**)&global_slapdFrontendConfig.localuser,
+ *      CONFIG_STRING, NULL, NULL // deletion is not allowed 
+ *  },
+ *
+ *  The first struct takes an int. So here, you would use SLAPD_DEFAULT_OPTION_STR
+ *  for your initvalue. This allows the config item to be reset.
+ *  The second struct *does not* allow a reset, and it's initvalue is set to NULL.
+ *
+ *  You may now optionally add the config_get_<type> / config_set_<type>
+ *  functions. If you do not define these, ldap will not be able to modify the
+ *  value live or from dse.ldif. So you probably want these ;)
+ *
+ *  DO NOT add your new config type to template.dse.ldif.in. You will BREAK
+ *  transparent upgrades of the value.
+ *
+ *  Key notes:
+ *  - A value that does not allow reset, can still be modified. It just cannot
+ *      have a mod_delete performed on it.
+ *  - Logging defaults must go in libglobs.c, slap.h, and log.c (g_log_init())
+ *  - To allow a reset to "blank", init value of "" for a char * type is used.
+ *  - For int and onoff types, you must provide a int or a bool for reset to work.
+ *  - Int types must have a matching _STR define for the initvalue to allow reset
+ *  - define your values in pairs in slap.h. This way it's easy to spot mistakes.
+ *  - DO NOT add your new values to dse.ldif. ONLY in slap.h/libglobs.c. This
+ *      allows default upgrading!
+ *
+ *  Happy configuring
+ *      -- wibrown, 2016.
+ *
  */
-/* for windows only
-   we define slapd_ldap_debug here, so we don't want to declare
-   it in any header file which might conflict with our definition
-*/
 
 #include "ldap.h"
 #include <sslproto.h>
@@ -87,87 +169,7 @@ static int config_set_schemareplace ( const char *attrname, char *value,
 static void remove_commas(char *str);
 static int invalid_sasl_mech(char *str);
 
-/* Keeping the initial values */
-/* CONFIG_INT/CONFIG_LONG */
-#define DEFAULT_LOG_ROTATIONSYNCHOUR "0"
-#define DEFAULT_LOG_ROTATIONSYNCMIN "0"
-#define DEFAULT_LOG_ROTATIONTIME "1"
-#define DEFAULT_LOG_ACCESS_MAXNUMLOGS "10"
-#define DEFAULT_LOG_MAXNUMLOGS "1"
-#define DEFAULT_LOG_EXPTIME "1"
-#define DEFAULT_LOG_ACCESS_MAXDISKSPACE "500"
-#define DEFAULT_LOG_MAXDISKSPACE "100"
-#define DEFAULT_LOG_MAXLOGSIZE "100"
-#define DEFAULT_LOG_MINFREESPACE "5"
-#define DEFAULT_ACCESSLOGLEVEL "256"
-#define DEFAULT_SIZELIMIT "2000"
-#define DEFAULT_TIMELIMIT "3600"
-#define DEFAULT_PAGEDSIZELIMIT "0"
-#define DEFAULT_IDLE_TIMEOUT "0"
-#define DEFAULT_MAXDESCRIPTORS "1024"
-#define DEFAULT_RESERVE_FDS "64"
-#define DEFAULT_MAX_BERSIZE "0"
-#define DEFAULT_MAX_THREADS "30"
-#define DEFAULT_MAX_THREADS_PER_CONN "5"
-#define DEFAULT_IOBLOCK_TIMEOUT "1800000"
-#define DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT "300000"
-#define DEFAULT_MAX_FILTER_NEST_LEVEL "40"
-#define DEFAULT_GROUPEVALNESTLEVEL "0"
-#define DEFAULT_SNMP_INDEX "0"
-#define DEFAULT_MAX_SASLIO_SIZE "2097152"
-#define DEFAULT_DISK_THRESHOLD "2097152"
-#define DEFAULT_DISK_GRACE_PERIOD "60"
-#define DEFAULT_LOCAL_SSF "71"
-#define DEFAULT_MIN_SSF "0"
-#define DEFAULT_PW_INHISTORY "6"
-#define DEFAULT_PW_GRACELIMIT "0"
-#define DEFAULT_PW_MINLENGTH "0"
-#define DEFAULT_PW_MINDIGITS "0"
-#define DEFAULT_PW_MINALPHAS "0"
-#define DEFAULT_PW_MINUPPERS "0"
-#define DEFAULT_PW_MINLOWERS "0"
-#define DEFAULT_PW_MINSPECIALS "0"
-#define DEFAULT_PW_MIN8BIT "0"
-#define DEFAULT_PW_MAXREPEATS "0"
-#define DEFAULT_PW_MINCATEGORIES "3"
-#define DEFAULT_PW_MINTOKENLENGTH "3"
-#define DEFAULT_PW_MAXAGE "8640000"
-#define DEFAULT_PW_MINAGE "0"
-#define DEFAULT_PW_WARNING "86400"
-#define DEFAULT_PW_MAXFAILURE "3"
-#define DEFAULT_PW_RESETFAILURECOUNT "600"
-#define DEFAULT_PW_LOCKDURATION "3600"
-#define DEFAULT_NDN_SIZE "20971520"
-#define DEFAULT_MAXBERSIZE 2097152
-#define DEFAULT_SASL_MAXBUFSIZE "2097152"
-#define SLAPD_DEFAULT_SASL_MAXBUFSIZE 2097152
-#define DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
-#define DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
-#ifdef MEMPOOL_EXPERIMENTAL
-#define DEFAULT_MEMPOOL_MAXFREELIST "1024"
-#endif
 
-/* CONFIG_STRING... */
-#define INIT_ACCESSLOG_MODE "600"
-#define INIT_ERRORLOG_MODE "600"
-#define INIT_AUDITLOG_MODE "600"
-#define INIT_AUDITFAILLOG_MODE "600"
-#define INIT_ACCESSLOG_ROTATIONUNIT "day"
-#define INIT_ERRORLOG_ROTATIONUNIT "week"
-#define INIT_AUDITLOG_ROTATIONUNIT "week"
-#define INIT_AUDITFAILLOG_ROTATIONUNIT "week"
-#define INIT_ACCESSLOG_EXPTIMEUNIT "month"
-#define INIT_ERRORLOG_EXPTIMEUNIT "month"
-#define INIT_AUDITLOG_EXPTIMEUNIT "month"
-#define INIT_AUDITFAILLOG_EXPTIMEUNIT "month"
-#define DEFAULT_DIRECTORY_MANAGER "cn=Directory Manager"
-#define DEFAULT_UIDNUM_TYPE "uidNumber"
-#define DEFAULT_GIDNUM_TYPE "gidNumber"
-#define DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
-#define DEFAULT_LDAPI_AUTO_DN "cn=peercred,cn=external,cn=auth"
-#define ENTRYUSN_IMPORT_INIT "0"
-#define DEFAULT_ALLOWED_TO_DELETE_ATTRS "nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext nsslapd-snmp-index"
-#define INIT_LOGGING_BACKEND_INTERNAL "dirsrv-log"
 
 /* CONFIG_ON_OFF */
 slapi_onoff_t init_accesslog_rotationsync_enabled;
@@ -235,7 +237,6 @@ slapi_onoff_t init_enable_turbo_mode;
 slapi_onoff_t init_connection_nocanon;
 slapi_onoff_t init_plugin_logging;
 slapi_int_t init_connection_buffer;
-slapi_int_t init_listen_backlog_size;
 slapi_onoff_t init_ignore_time_skew;
 slapi_onoff_t init_dynamic_plugins;
 slapi_onoff_t init_cn_uses_dn_syntax_in_dns;
@@ -252,11 +253,7 @@ slapi_int_t init_malloc_mmap_threshold;
 slapi_onoff_t init_mempool_switch;
 #endif
 slapi_onoff_t init_extract_pem;
-
-#define DEFAULT_SSLCLIENTAPTH "off"
-#define DEFAULT_ALLOW_ANON_ACCESS "on"
-#define DEFAULT_VALIDATE_CERT "warn"
-#define DEFAULT_UNHASHED_PW_SWITCH "on"
+slapi_onoff_t init_ignore_vattrs;
 
 static int
 isInt(ConfigVarType type)
@@ -283,7 +280,7 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_mode,
-		CONFIG_STRING, NULL, INIT_AUDITLOG_MODE},
+		CONFIG_STRING, NULL, SLAPD_INIT_LOG_MODE},
 	{CONFIG_AUDITLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationsync_enabled,
@@ -291,27 +288,27 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationsynchour,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR},
 	{CONFIG_AUDITLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationsyncmin,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN_STR},
 	{CONFIG_AUDITLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationtime,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONTIME_STR},
 	{CONFIG_ACCESSLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_mode,
-		CONFIG_STRING, NULL, INIT_ACCESSLOG_MODE},
+		CONFIG_STRING, NULL, SLAPD_INIT_LOG_MODE},
 	{CONFIG_ACCESSLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_maxnumlogs,
-		CONFIG_INT, NULL, DEFAULT_LOG_ACCESS_MAXNUMLOGS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS_STR},
 	{CONFIG_LOGLEVEL_ATTRIBUTE, config_set_errorlog_level,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.errorloglevel,
-		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL, NULL},
+		CONFIG_SPECIAL_ERRORLOGLEVEL, NULL, SLAPD_DEFAULT_ERRORLOG_LEVEL_STR},
 	{CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_logging_enabled,
@@ -319,11 +316,11 @@ static struct config_get_and_set {
 	{CONFIG_ERRORLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_mode,
-		CONFIG_STRING, NULL, INIT_ERRORLOG_MODE},
+		CONFIG_STRING, NULL, SLAPD_INIT_LOG_MODE},
 	{CONFIG_ERRORLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_exptime,
-		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_EXPTIME_STR},
 	{CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_logging_enabled,
@@ -331,7 +328,7 @@ static struct config_get_and_set {
 	{CONFIG_PORT_ATTRIBUTE, config_set_port,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.port,
-		CONFIG_INT, NULL, NULL/* deletion is not allowed */},
+		CONFIG_INT, NULL, NULL},
 	{CONFIG_WORKINGDIR_ATTRIBUTE, config_set_workingdir,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.workingdir,
@@ -339,11 +336,11 @@ static struct config_get_and_set {
 	{CONFIG_MAXTHREADSPERCONN_ATTRIBUTE, config_set_maxthreadsperconn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxthreadsperconn,
-		CONFIG_INT, NULL, DEFAULT_MAX_THREADS_PER_CONN},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MAX_THREADS_PER_CONN_STR},
 	{CONFIG_ACCESSLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_exptime,
-		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_EXPTIME_STR},
 	{CONFIG_LOCALUSER_ATTRIBUTE, config_set_localuser,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.localuser,
@@ -355,19 +352,19 @@ static struct config_get_and_set {
 	{CONFIG_ERRORLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_rotationsynchour,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR},
 	{CONFIG_ERRORLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_rotationsyncmin,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN_STR},
 	{CONFIG_ERRORLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_rotationtime,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONTIME_STR},
 	{CONFIG_PW_INHISTORY_ATTRIBUTE, config_set_pw_inhistory,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_inhistory,
-		CONFIG_INT, NULL, DEFAULT_PW_INHISTORY},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_INHISTORY_STR},
 	{CONFIG_PW_STORAGESCHEME_ATTRIBUTE, config_set_pw_storagescheme,
 		NULL, 0, NULL,
 		CONFIG_STRING, (ConfigGetFunc)config_get_pw_storagescheme,
@@ -379,7 +376,7 @@ static struct config_get_and_set {
 	{CONFIG_PW_GRACELIMIT_ATTRIBUTE, config_set_pw_gracelimit,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_gracelimit,
-		CONFIG_INT, NULL, DEFAULT_PW_GRACELIMIT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_GRACELIMIT_STR},
 	{CONFIG_PW_ADMIN_DN_ATTRIBUTE, config_set_pw_admin_dn,
 		NULL, 0,
 		NULL,
@@ -391,15 +388,15 @@ static struct config_get_and_set {
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_rotationsynchour,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR},
 	{CONFIG_ACCESSLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_rotationsyncmin,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN_STR},
 	{CONFIG_ACCESSLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_rotationtime,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONTIME_STR},
 	{CONFIG_PW_MUSTCHANGE_ATTRIBUTE, config_set_pw_must_change,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_must_change,
@@ -415,19 +412,19 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_maxdiskspace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXDISKSPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR},
 	{CONFIG_SIZELIMIT_ATTRIBUTE, config_set_sizelimit,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.sizelimit,
-		CONFIG_INT, NULL, DEFAULT_SIZELIMIT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_SIZELIMIT_STR},
 	{CONFIG_AUDITLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_maxlogsize,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXLOGSIZE_STR},
 	{CONFIG_PW_WARNING_ATTRIBUTE, config_set_pw_warning,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_warning,
-		CONFIG_LONG, NULL, DEFAULT_PW_WARNING},
+		CONFIG_LONG, NULL, SLAPD_DEFAULT_PW_WARNING_STR},
 	{CONFIG_READONLY_ATTRIBUTE, config_set_readonly,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.readonly,
@@ -440,7 +437,7 @@ static struct config_get_and_set {
 	{CONFIG_THREADNUMBER_ATTRIBUTE, config_set_threadnumber,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.threadnumber,
-		CONFIG_INT, NULL, DEFAULT_MAX_THREADS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MAX_THREADS_STR},
 	{CONFIG_PW_LOCKOUT_ATTRIBUTE, config_set_pw_lockout,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_lockout,
@@ -456,55 +453,55 @@ static struct config_get_and_set {
 	{CONFIG_IOBLOCKTIMEOUT_ATTRIBUTE, config_set_ioblocktimeout,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ioblocktimeout,
-		CONFIG_INT, NULL, DEFAULT_IOBLOCK_TIMEOUT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR},
 	{CONFIG_MAX_FILTER_NEST_LEVEL_ATTRIBUTE, config_set_max_filter_nest_level,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.max_filter_nest_level,
-		CONFIG_INT, NULL, DEFAULT_MAX_FILTER_NEST_LEVEL},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL_STR},
 	{CONFIG_ERRORLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_maxdiskspace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXDISKSPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR},
 	{CONFIG_PW_MINLENGTH_ATTRIBUTE, config_set_pw_minlength,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlength,
-		CONFIG_INT, NULL, DEFAULT_PW_MINLENGTH},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINLENGTH_STR},
 	{CONFIG_PW_MINDIGITS_ATTRIBUTE, config_set_pw_mindigits,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_mindigits,
-		CONFIG_INT, NULL, DEFAULT_PW_MINDIGITS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINDIGITS_STR},
 	{CONFIG_PW_MINALPHAS_ATTRIBUTE, config_set_pw_minalphas,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minalphas,
-		CONFIG_INT, NULL, DEFAULT_PW_MINALPHAS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINALPHAS_STR},
 	{CONFIG_PW_MINUPPERS_ATTRIBUTE, config_set_pw_minuppers,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minuppers,
-		CONFIG_INT, NULL, DEFAULT_PW_MINUPPERS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINUPPERS_STR},
 	{CONFIG_PW_MINLOWERS_ATTRIBUTE, config_set_pw_minlowers,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minlowers,
-		CONFIG_INT, NULL, DEFAULT_PW_MINLOWERS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINLOWERS_STR},
 	{CONFIG_PW_MINSPECIALS_ATTRIBUTE, config_set_pw_minspecials,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minspecials,
-		CONFIG_INT, NULL, DEFAULT_PW_MINSPECIALS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINSPECIALS_STR},
 	{CONFIG_PW_MIN8BIT_ATTRIBUTE, config_set_pw_min8bit,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_min8bit,
-		CONFIG_INT, NULL, DEFAULT_PW_MIN8BIT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MIN8BIT_STR},
 	{CONFIG_PW_MAXREPEATS_ATTRIBUTE, config_set_pw_maxrepeats,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxrepeats,
-		CONFIG_INT, NULL, DEFAULT_PW_MAXREPEATS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MAXREPEATS_STR},
 	{CONFIG_PW_MINCATEGORIES_ATTRIBUTE, config_set_pw_mincategories,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_mincategories,
-		CONFIG_INT, NULL, DEFAULT_PW_MINCATEGORIES},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINCATEGORIES_STR},
 	{CONFIG_PW_MINTOKENLENGTH_ATTRIBUTE, config_set_pw_mintokenlength,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_mintokenlength,
-		CONFIG_INT, NULL, DEFAULT_PW_MINTOKENLENGTH},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MINTOKENLENGTH_STR},
 	{CONFIG_ERRORLOG_ATTRIBUTE, config_set_errorlog,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.errorlog,
@@ -512,7 +509,7 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_exptime,
-		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_EXPTIME_STR},
 	{CONFIG_SCHEMACHECK_ATTRIBUTE, config_set_schemacheck,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.schemacheck,
@@ -547,7 +544,7 @@ static struct config_get_and_set {
 	{CONFIG_ACCESSLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_maxdiskspace,
-		CONFIG_INT, NULL, DEFAULT_LOG_ACCESS_MAXDISKSPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE_STR},
 	{CONFIG_REFERRAL_ATTRIBUTE, (ConfigSetFunc)config_set_defaultreferral,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.defaultreferral,
@@ -555,7 +552,7 @@ static struct config_get_and_set {
 	{CONFIG_PW_MAXFAILURE_ATTRIBUTE, config_set_pw_maxfailure,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxfailure,
-		CONFIG_INT, NULL, DEFAULT_PW_MAXFAILURE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PW_MAXFAILURE_STR},
 	{CONFIG_ACCESSLOG_ATTRIBUTE, config_set_accesslog,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.accesslog,
@@ -579,15 +576,15 @@ static struct config_get_and_set {
 	{CONFIG_PW_MAXAGE_ATTRIBUTE, config_set_pw_maxage,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_maxage,
-		CONFIG_LONG, NULL, DEFAULT_PW_MAXAGE},
+		CONFIG_LONG, NULL, SLAPD_DEFAULT_PW_MAXAGE_STR},
 	{CONFIG_AUDITLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_rotationunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITLOG_ROTATIONUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_AUDITLOG_ROTATIONUNIT},
 	{CONFIG_PW_RESETFAILURECOUNT_ATTRIBUTE, config_set_pw_resetfailurecount,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_resetfailurecount,
-		CONFIG_LONG, NULL, DEFAULT_PW_RESETFAILURECOUNT},
+		CONFIG_LONG, NULL, SLAPD_DEFAULT_PW_RESETFAILURECOUNT_STR},
 	{CONFIG_PW_ISGLOBAL_ATTRIBUTE, config_set_pw_is_global_policy,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_is_global_policy,
@@ -603,11 +600,11 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_maxnumlogs,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXNUMLOGS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR},
 	{CONFIG_ERRORLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_ERRORLOG_EXPTIMEUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_LOG_EXPTIMEUNIT},
 	/* errorlog list is read only, so no set func and no config var addr */
 	{CONFIG_ERRORLOG_LIST_ATTRIBUTE, NULL,
 		NULL, 0, NULL,
@@ -615,11 +612,11 @@ static struct config_get_and_set {
 	{CONFIG_GROUPEVALNESTLEVEL_ATTRIBUTE, config_set_groupevalnestlevel,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.groupevalnestlevel,
-		CONFIG_INT, NULL, DEFAULT_GROUPEVALNESTLEVEL},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_GROUPEVALNESTLEVEL_STR},
 	{CONFIG_ACCESSLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_ACCESSLOG_EXPTIMEUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_LOG_EXPTIMEUNIT},
 	{CONFIG_ROOTPW_ATTRIBUTE, config_set_rootpw,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.rootpw,
@@ -631,15 +628,15 @@ static struct config_get_and_set {
 	{CONFIG_ACCESSLOGLEVEL_ATTRIBUTE, config_set_accesslog_level,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.accessloglevel,
-		CONFIG_INT, NULL, DEFAULT_ACCESSLOGLEVEL},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR},
 	{CONFIG_ERRORLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_rotationunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_ERRORLOG_ROTATIONUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_ERRORLOG_ROTATIONUNIT},
 	{CONFIG_SECUREPORT_ATTRIBUTE, config_set_secureport,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.secureport,
-		CONFIG_INT, NULL, NULL/* deletion is not allowed */},
+		CONFIG_INT, NULL, NULL},
 	{CONFIG_BASEDN_ATTRIBUTE, config_set_basedn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.certmap_basedn,
@@ -647,15 +644,15 @@ static struct config_get_and_set {
 	{CONFIG_TIMELIMIT_ATTRIBUTE, config_set_timelimit,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.timelimit,
-		CONFIG_INT, NULL, DEFAULT_TIMELIMIT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_TIMELIMIT_STR},
 	{CONFIG_ERRORLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_maxlogsize,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXLOGSIZE_STR},
 	{CONFIG_RESERVEDESCRIPTORS_ATTRIBUTE, config_set_reservedescriptors,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.reservedescriptors,
-		CONFIG_INT, NULL, DEFAULT_RESERVE_FDS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_RESERVE_FDS_STR},
 	/* access log list is read only, no set func, no config var addr */
 	{CONFIG_ACCESSLOG_LIST_ATTRIBUTE, NULL,
 		NULL, 0, NULL,
@@ -682,19 +679,19 @@ static struct config_get_and_set {
 	{CONFIG_ACCESSLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_rotationunit,
-		CONFIG_STRING, NULL, INIT_ACCESSLOG_ROTATIONUNIT},
+		CONFIG_STRING, NULL, SLAPD_INIT_ACCESSLOG_ROTATIONUNIT},
 	{CONFIG_PW_LOCKDURATION_ATTRIBUTE, config_set_pw_lockduration,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_lockduration,
-		CONFIG_LONG, NULL, DEFAULT_PW_LOCKDURATION},
+		CONFIG_LONG, NULL, SLAPD_DEFAULT_PW_LOCKDURATION_STR},
 	{CONFIG_ACCESSLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_maxlogsize,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXLOGSIZE_STR},
 	{CONFIG_IDLETIMEOUT_ATTRIBUTE, config_set_idletimeout,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.idletimeout,
-		CONFIG_INT, NULL, DEFAULT_IDLE_TIMEOUT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_IDLE_TIMEOUT_STR},
 	{CONFIG_NAGLE_ATTRIBUTE, config_set_nagle,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.nagle,
@@ -702,7 +699,7 @@ static struct config_get_and_set {
 	{CONFIG_ERRORLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_minfreespace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MINFREESPACE_STR},
 	{CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE, NULL,
 		log_set_logging, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_logging_enabled,
@@ -722,7 +719,7 @@ static struct config_get_and_set {
 	{CONFIG_AUDITLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITLOG_EXPTIMEUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_LOG_EXPTIMEUNIT},
 	{CONFIG_ALLOW_HASHED_PW_ATTRIBUTE, config_set_allow_hashed_pw, 
 		NULL, 0, 
 		(void**)&global_slapdFrontendConfig.allow_hashed_pw, 
@@ -734,11 +731,11 @@ static struct config_get_and_set {
 	{CONFIG_LISTENHOST_ATTRIBUTE, config_set_listenhost,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listenhost,
-		CONFIG_STRING, NULL, NULL/* NULL value is allowed */},
+		CONFIG_STRING, NULL, "" /* Empty value is allowed */},
 	{CONFIG_SNMP_INDEX_ATTRIBUTE, config_set_snmp_index,
 		NULL, 0,
 		(void**) &global_slapdFrontendConfig.snmp_index,
-		CONFIG_INT, NULL, DEFAULT_SNMP_INDEX},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_SNMP_INDEX_STR},
 	{CONFIG_LDAPI_FILENAME_ATTRIBUTE, config_set_ldapi_filename,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_filename,
@@ -754,7 +751,7 @@ static struct config_get_and_set {
 	{CONFIG_LDAPI_ROOT_DN_ATTRIBUTE, config_set_ldapi_root_dn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_root_dn,
-		CONFIG_STRING, NULL, DEFAULT_DIRECTORY_MANAGER},
+		CONFIG_STRING, NULL, SLAPD_DEFAULT_DIRECTORY_MANAGER},
 	{CONFIG_LDAPI_MAP_ENTRIES_ATTRIBUTE, config_set_ldapi_map_entries,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_map_entries,
@@ -762,20 +759,20 @@ static struct config_get_and_set {
 	{CONFIG_LDAPI_UIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_uidnumber_type,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_uidnumber_type,
-		CONFIG_STRING, NULL, DEFAULT_UIDNUM_TYPE},
+		CONFIG_STRING, NULL, SLAPD_DEFAULT_UIDNUM_TYPE},
 	{CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE, config_set_ldapi_gidnumber_type,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_gidnumber_type,
-		CONFIG_STRING, NULL, DEFAULT_GIDNUM_TYPE},
+		CONFIG_STRING, NULL, SLAPD_DEFAULT_GIDNUM_TYPE},
 	{CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE, config_set_ldapi_search_base_dn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_search_base_dn,
-		CONFIG_STRING, NULL, DEFAULT_LDAPI_SEARCH_BASE},
+		CONFIG_STRING, NULL, SLAPD_DEFAULT_LDAPI_SEARCH_BASE},
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 	{CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE, config_set_ldapi_auto_dn_suffix,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ldapi_auto_dn_suffix,
-		CONFIG_STRING, NULL, DEFAULT_LDAPI_AUTO_DN},
+		CONFIG_STRING, NULL, SLAPD_DEFAULT_LDAPI_AUTO_DN},
 #endif
 	{CONFIG_ANON_LIMITS_DN_ATTRIBUTE, config_set_anon_limits_dn,
 		NULL, 0,
@@ -789,27 +786,27 @@ static struct config_get_and_set {
 	{CONFIG_ACCESSLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_ACCESS_LOG,
 		(void**)&global_slapdFrontendConfig.accesslog_minfreespace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MINFREESPACE_STR},
 	{CONFIG_ERRORLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_ERROR_LOG,
 		(void**)&global_slapdFrontendConfig.errorlog_maxnumlogs,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXNUMLOGS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR},
 	{CONFIG_SECURELISTENHOST_ATTRIBUTE, config_set_securelistenhost,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.securelistenhost,
-		CONFIG_STRING, NULL, NULL/* NULL value is allowed */},
+		CONFIG_STRING, NULL, "" /* Empty value is allowed */},
 	{CONFIG_AUDITLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_AUDIT_LOG,
 		(void**)&global_slapdFrontendConfig.auditlog_minfreespace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MINFREESPACE_STR},
 	{CONFIG_ROOTDN_ATTRIBUTE, config_set_rootdn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.rootdn,
-		CONFIG_STRING, NULL, DEFAULT_DIRECTORY_MANAGER},
+		CONFIG_STRING, NULL, SLAPD_DEFAULT_DIRECTORY_MANAGER},
 	{CONFIG_PW_MINAGE_ATTRIBUTE, config_set_pw_minage,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pw_policy.pw_minage,
-		CONFIG_LONG, NULL, DEFAULT_PW_MINAGE},
+		CONFIG_LONG, NULL, SLAPD_DEFAULT_PW_MINAGE_STR},
 	{CONFIG_AUDITFILE_ATTRIBUTE, config_set_auditlog,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.auditlog,
@@ -838,11 +835,11 @@ static struct config_get_and_set {
 	{CONFIG_MAXBERSIZE_ATTRIBUTE, config_set_maxbersize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxbersize,
-		CONFIG_INT, NULL, STRINGIFYDEFINE(DEFAULT_MAXBERSIZE)},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MAXBERSIZE_STR},
 	{CONFIG_MAXSASLIOSIZE_ATTRIBUTE, config_set_maxsasliosize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxsasliosize,
-		CONFIG_INT, NULL, DEFAULT_MAX_SASLIO_SIZE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MAX_SASLIO_SIZE_STR},
 	{CONFIG_VERSIONSTRING_ATTRIBUTE, config_set_versionstring,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.versionstring,
@@ -854,7 +851,7 @@ static struct config_get_and_set {
 	{CONFIG_MAXDESCRIPTORS_ATTRIBUTE, config_set_maxdescriptors,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxdescriptors,
-		CONFIG_INT, NULL, DEFAULT_MAXDESCRIPTORS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MAXDESCRIPTORS_STR},
 	{CONFIG_CONNTABLESIZE_ATTRIBUTE, config_set_conntablesize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.conntablesize,
@@ -862,7 +859,7 @@ static struct config_get_and_set {
 	{CONFIG_SSLCLIENTAUTH_ATTRIBUTE, config_set_SSLclientAuth,
 		NULL, 0,
 		(void **)&global_slapdFrontendConfig.SSLclientAuth,
-		CONFIG_SPECIAL_SSLCLIENTAUTH, NULL, DEFAULT_SSLCLIENTAPTH},
+		CONFIG_SPECIAL_SSLCLIENTAUTH, NULL, SLAPD_DEFAULT_SSLCLIENTAUTH_STR},
 	{CONFIG_SSL_CHECK_HOSTNAME_ATTRIBUTE, config_set_ssl_check_hostname,
 		NULL, 0, NULL,
 		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ssl_check_hostname,
@@ -912,7 +909,7 @@ static struct config_get_and_set {
 	{CONFIG_BAKDIR_ATTRIBUTE, config_set_bakdir,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.bakdir,
-		CONFIG_STRING, (ConfigGetFunc)config_get_bakdir, 
+		CONFIG_STRING, (ConfigGetFunc)config_get_bakdir,
 		NULL/* deletion is not allowed */},
 	/* parameterizing sasl plugin path */
 	{CONFIG_SASLPATH_ATTRIBUTE, config_set_saslpath,
@@ -934,7 +931,7 @@ static struct config_get_and_set {
 		config_set_outbound_ldap_io_timeout,
 		NULL, 0,
 		(void **)&global_slapdFrontendConfig.outbound_ldap_io_timeout,
-		CONFIG_INT, NULL, DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT_STR},
 	{CONFIG_UNAUTH_BINDS_ATTRIBUTE, config_set_unauth_binds_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allow_unauth_binds,
@@ -950,15 +947,15 @@ static struct config_get_and_set {
 		(void**)&global_slapdFrontendConfig.allow_anon_access,
 		CONFIG_SPECIAL_ANON_ACCESS_SWITCH,
 		(ConfigGetFunc)config_get_anon_access_switch,
-		DEFAULT_ALLOW_ANON_ACCESS},
+		SLAPD_DEFAULT_ALLOW_ANON_ACCESS_STR},
 	{CONFIG_LOCALSSF_ATTRIBUTE, config_set_localssf,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.localssf,
-		CONFIG_INT, NULL, DEFAULT_LOCAL_SSF},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOCAL_SSF_STR},
 	{CONFIG_MINSSF_ATTRIBUTE, config_set_minssf,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.minssf,
-		CONFIG_INT, NULL, DEFAULT_MIN_SSF},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_MIN_SSF_STR},
 	{CONFIG_MINSSF_EXCLUDE_ROOTDSE, config_set_minssf_exclude_rootdse,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.minssf_exclude_rootdse,
@@ -978,21 +975,16 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.entryusn_import_init,
 		CONFIG_STRING, (ConfigGetFunc)config_get_entryusn_import_init,
-		ENTRYUSN_IMPORT_INIT},
-	{CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, config_set_allowed_to_delete_attrs,
-		NULL, 0,
-		(void**)&global_slapdFrontendConfig.allowed_to_delete_attrs,
-		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_to_delete_attrs, 
-		DEFAULT_ALLOWED_TO_DELETE_ATTRS },
+		SLAPD_ENTRYUSN_IMPORT_INIT},
 	{CONFIG_VALIDATE_CERT_ATTRIBUTE, config_set_validate_cert_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.validate_cert,
 		CONFIG_SPECIAL_VALIDATE_CERT_SWITCH,
-		(ConfigGetFunc)config_get_validate_cert_switch, DEFAULT_VALIDATE_CERT},
+		(ConfigGetFunc)config_get_validate_cert_switch, SLAPD_DEFAULT_VALIDATE_CERT_STR},
 	{CONFIG_PAGEDSIZELIMIT_ATTRIBUTE, config_set_pagedsizelimit,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.pagedsizelimit,
-		CONFIG_INT, NULL, DEFAULT_PAGEDSIZELIMIT},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_PAGEDSIZELIMIT_STR},
 	{CONFIG_DEFAULT_NAMING_CONTEXT, config_set_default_naming_context,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.default_naming_context,
@@ -1006,12 +998,12 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_threshold,
 		CONFIG_LONG_LONG, (ConfigGetFunc)config_get_disk_threshold,
-		DEFAULT_DISK_THRESHOLD},
+		SLAPD_DEFAULT_DISK_THRESHOLD_STR},
 	{CONFIG_DISK_GRACE_PERIOD, config_set_disk_grace_period,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_grace_period,
 		CONFIG_INT, (ConfigGetFunc)config_get_disk_grace_period,
-		DEFAULT_DISK_GRACE_PERIOD},
+		SLAPD_DEFAULT_DISK_GRACE_PERIOD_STR},
 	{CONFIG_DISK_LOGGING_CRITICAL, config_set_disk_logging_critical,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.disk_logging_critical,
@@ -1025,26 +1017,27 @@ static struct config_get_and_set {
 	{CONFIG_NDN_CACHE_SIZE, config_set_ndn_cache_max_size,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ndn_cache_max_size,
-		CONFIG_INT, (ConfigGetFunc)config_get_ndn_cache_size, DEFAULT_NDN_SIZE},
+		CONFIG_INT, (ConfigGetFunc)config_get_ndn_cache_size, SLAPD_DEFAULT_NDN_SIZE_STR},
+    /* The issue here is that we probably need "empty string" to be valid, rather than NULL for reset purposes */
 	{CONFIG_ALLOWED_SASL_MECHS, config_set_allowed_sasl_mechs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.allowed_sasl_mechs,
-		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_sasl_mechs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
+		CONFIG_STRING, (ConfigGetFunc)config_get_allowed_sasl_mechs, ""},
 	{CONFIG_IGNORE_VATTRS, config_set_ignore_vattrs,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.ignore_vattrs,
-		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_vattrs, DEFAULT_ALLOWED_TO_DELETE_ATTRS},
+		CONFIG_ON_OFF, (ConfigGetFunc)config_get_ignore_vattrs, &init_ignore_vattrs},
 	{CONFIG_UNHASHED_PW_SWITCH_ATTRIBUTE, config_set_unhashed_pw_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.unhashed_pw_switch,
 		CONFIG_SPECIAL_UNHASHED_PW_SWITCH,
 		(ConfigGetFunc)config_get_unhashed_pw_switch, 
-		DEFAULT_UNHASHED_PW_SWITCH},
+		SLAPD_DEFAULT_UNHASHED_PW_SWITCH_STR},
 	{CONFIG_SASL_MAXBUFSIZE, config_set_sasl_maxbufsize,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.sasl_max_bufsize,
 		CONFIG_INT, (ConfigGetFunc)config_get_sasl_maxbufsize,
-		DEFAULT_SASL_MAXBUFSIZE},
+		SLAPD_DEFAULT_SASL_MAXBUFSIZE_STR},
 	{CONFIG_SEARCH_RETURN_ORIGINAL_TYPE, config_set_return_orig_type_switch,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.return_orig_type,
@@ -1068,7 +1061,7 @@ static struct config_get_and_set {
 	{CONFIG_LISTEN_BACKLOG_SIZE, config_set_listen_backlog_size,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.listen_backlog_size, CONFIG_INT,
-		(ConfigGetFunc)config_get_listen_backlog_size, &init_listen_backlog_size},
+		(ConfigGetFunc)config_get_listen_backlog_size, DAEMON_LISTEN_SIZE_STR},
 	{CONFIG_DYNAMIC_PLUGINS, config_set_dynamic_plugins,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.dynamic_plugins, CONFIG_ON_OFF,
@@ -1105,7 +1098,7 @@ static struct config_get_and_set {
 	{CONFIG_MAXSIMPLEPAGED_PER_CONN_ATTRIBUTE, config_set_maxsimplepaged_per_conn,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.maxsimplepaged_per_conn,
-		CONFIG_INT, (ConfigGetFunc)config_get_maxsimplepaged_per_conn, DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
+		CONFIG_INT, (ConfigGetFunc)config_get_maxsimplepaged_per_conn, SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR},
 #ifdef ENABLE_NUNC_STANS
 	{CONFIG_ENABLE_NUNC_STANS, config_set_enable_nunc_stans,
 		NULL, 0,
@@ -1122,13 +1115,13 @@ static struct config_get_and_set {
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.mempool_maxfreelist,
 		CONFIG_INT, (ConfigGetFunc)config_get_mempool_maxfreelist,
-		DEFAULT_MEMPOOL_MAXFREELIST},
+		SLAPD_DEFAULT_MEMPOOL_MAXFREELIST_STR},
 #endif /* MEMPOOL_EXPERIMENTAL */
     /* Audit fail log configuration */
 	{CONFIG_AUDITFAILLOG_MODE_ATTRIBUTE, NULL,
 		log_set_mode, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_mode,
-		CONFIG_STRING, NULL, INIT_AUDITFAILLOG_MODE},
+		CONFIG_STRING, NULL, SLAPD_INIT_LOG_MODE},
 	{CONFIG_AUDITFAILLOG_LOGROTATIONSYNCENABLED_ATTRIBUTE, NULL,
 		log_set_rotationsync_enabled, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_rotationsync_enabled,
@@ -1136,31 +1129,31 @@ static struct config_get_and_set {
 	{CONFIG_AUDITFAILLOG_LOGROTATIONSYNCHOUR_ATTRIBUTE, NULL,
 		log_set_rotationsynchour, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_rotationsynchour,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCHOUR},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR},
 	{CONFIG_AUDITFAILLOG_LOGROTATIONSYNCMIN_ATTRIBUTE, NULL,
 		log_set_rotationsyncmin, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_rotationsyncmin,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONSYNCMIN},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN_STR},
 	{CONFIG_AUDITFAILLOG_LOGROTATIONTIME_ATTRIBUTE, NULL,
 		log_set_rotationtime, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_rotationtime,
-		CONFIG_INT, NULL, DEFAULT_LOG_ROTATIONTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_ROTATIONTIME_STR},
 	{CONFIG_AUDITFAILLOG_MAXLOGDISKSPACE_ATTRIBUTE, NULL,
 		log_set_maxdiskspace, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_maxdiskspace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXDISKSPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR},
 	{CONFIG_AUDITFAILLOG_MAXLOGSIZE_ATTRIBUTE, NULL,
 		log_set_logsize, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_maxlogsize,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXLOGSIZE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXLOGSIZE_STR},
 	{CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
 		log_set_expirationtime, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_exptime,
-		CONFIG_INT, NULL, DEFAULT_LOG_EXPTIME},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_EXPTIME_STR},
 	{CONFIG_AUDITFAILLOG_MAXNUMOFLOGSPERDIR_ATTRIBUTE, NULL,
 		log_set_numlogsperdir, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_maxnumlogs,
-		CONFIG_INT, NULL, DEFAULT_LOG_MAXNUMLOGS},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR},
 	{CONFIG_AUDITFAILLOG_LIST_ATTRIBUTE, NULL,
 		NULL, 0, NULL,
 		CONFIG_CHARRAY, (ConfigGetFunc)config_get_auditfaillog_list, NULL},
@@ -1175,19 +1168,19 @@ static struct config_get_and_set {
 	{CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_expirationtimeunit, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_exptimeunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITFAILLOG_EXPTIMEUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_LOG_EXPTIMEUNIT},
 	{CONFIG_AUDITFAILLOG_MINFREEDISKSPACE_ATTRIBUTE, NULL,
 		log_set_mindiskspace, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_minfreespace,
-		CONFIG_INT, NULL, DEFAULT_LOG_MINFREESPACE},
+		CONFIG_INT, NULL, SLAPD_DEFAULT_LOG_MINFREESPACE_STR},
 	{CONFIG_AUDITFAILLOG_LOGROTATIONTIMEUNIT_ATTRIBUTE, NULL,
 		log_set_rotationtimeunit, SLAPD_AUDITFAIL_LOG,
 		(void**)&global_slapdFrontendConfig.auditfaillog_rotationunit,
-		CONFIG_STRING_OR_UNKNOWN, NULL, INIT_AUDITFAILLOG_ROTATIONUNIT},
+		CONFIG_STRING_OR_UNKNOWN, NULL, SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT},
 	{CONFIG_AUDITFAILFILE_ATTRIBUTE, config_set_auditfaillog,
 		NULL, 0,
 		(void**)&global_slapdFrontendConfig.auditfaillog,
-		CONFIG_STRING_OR_EMPTY, NULL, NULL/* deletion is not allowed */},
+		CONFIG_STRING_OR_EMPTY, NULL, "" /* prevents deletion when null */},
     /* End audit fail log configuration */
     /* warning: initialization makes pointer from integer without a cast [enabled by default]. Why do we get this? */
 #ifdef HAVE_CLOCK_GETTIME
@@ -1203,7 +1196,7 @@ static struct config_get_and_set {
     {CONFIG_LOGGING_BACKEND, NULL,
         log_set_backend, 0,
         (void**)&global_slapdFrontendConfig.logging_backend,
-        CONFIG_STRING_OR_EMPTY, NULL, INIT_LOGGING_BACKEND_INTERNAL}
+        CONFIG_STRING_OR_EMPTY, NULL, SLAPD_INIT_LOGGING_BACKEND_INTERNAL}
 };
 
 /*
@@ -1451,18 +1444,18 @@ FrontendConfig_init(void) {
     cfg->ldapi_filename = slapi_ch_strdup(SLAPD_LDAPI_DEFAULT_FILENAME);
     init_ldapi_switch = cfg->ldapi_switch = LDAP_OFF;
     init_ldapi_bind_switch = cfg->ldapi_bind_switch = LDAP_OFF;
-    cfg->ldapi_root_dn = slapi_ch_strdup(DEFAULT_DIRECTORY_MANAGER);
+    cfg->ldapi_root_dn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
     init_ldapi_map_entries = cfg->ldapi_map_entries = LDAP_OFF;
-    cfg->ldapi_uidnumber_type = slapi_ch_strdup(DEFAULT_UIDNUM_TYPE);
-    cfg->ldapi_gidnumber_type = slapi_ch_strdup(DEFAULT_GIDNUM_TYPE);
+    cfg->ldapi_uidnumber_type = slapi_ch_strdup(SLAPD_DEFAULT_UIDNUM_TYPE);
+    cfg->ldapi_gidnumber_type = slapi_ch_strdup(SLAPD_DEFAULT_GIDNUM_TYPE);
     /* These DNs are no need to be normalized. */
-    cfg->ldapi_search_base_dn = slapi_ch_strdup(DEFAULT_LDAPI_SEARCH_BASE);
+    cfg->ldapi_search_base_dn = slapi_ch_strdup(SLAPD_DEFAULT_LDAPI_SEARCH_BASE);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
-    cfg->ldapi_auto_dn_suffix = slapi_ch_strdup(DEFAULT_LDAPI_AUTO_DN);
+    cfg->ldapi_auto_dn_suffix = slapi_ch_strdup(SLAPD_DEFAULT_LDAPI_AUTO_DN);
 #endif
     init_allow_unauth_binds = cfg->allow_unauth_binds = LDAP_OFF;
     init_require_secure_binds = cfg->require_secure_binds = LDAP_OFF;
-    cfg->allow_anon_access = SLAPD_ANON_ACCESS_ON;
+    cfg->allow_anon_access = SLAPD_DEFAULT_ALLOW_ANON_ACCESS;
     init_slapi_counters = cfg->slapi_counters = LDAP_ON;
     cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
     cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
@@ -1476,7 +1469,12 @@ FrontendConfig_init(void) {
     cfg->minssf = SLAPD_DEFAULT_MIN_SSF;
     /* minssf is applied to rootdse, by default */
     init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
-    cfg->validate_cert = SLAPD_VALIDATE_CERT_WARN;
+    cfg->validate_cert = SLAPD_DEFAULT_VALIDATE_CERT;
+    cfg->maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
+    cfg->groupevalnestlevel = SLAPD_DEFAULT_GROUPEVALNESTLEVEL;
+    cfg->snmp_index = SLAPD_DEFAULT_SNMP_INDEX;
+
+    cfg->SSLclientAuth = SLAPD_DEFAULT_SSLCLIENTAUTH;
 
 #ifdef USE_SYSCONF
     cfg->conntablesize  = sysconf( _SC_OPEN_MAX );
@@ -1509,12 +1507,12 @@ FrontendConfig_init(void) {
     cfg->slapd_type = 0;
     cfg->versionstring = SLAPD_VERSION_STR;
     cfg->sizelimit = SLAPD_DEFAULT_SIZELIMIT;
-    cfg->pagedsizelimit = 0;
+    cfg->pagedsizelimit = SLAPD_DEFAULT_PAGEDSIZELIMIT;
     cfg->timelimit = SLAPD_DEFAULT_TIMELIMIT;
     cfg->anon_limits_dn = slapi_ch_strdup("");
     init_schemacheck = cfg->schemacheck = LDAP_ON;
     init_schemamod = cfg->schemamod = LDAP_ON;
-    init_syntaxcheck = cfg->syntaxcheck = LDAP_OFF;
+    init_syntaxcheck = cfg->syntaxcheck = LDAP_ON;
     init_plugin_track = cfg->plugin_track = LDAP_OFF;
     init_moddn_aci = cfg->moddn_aci = LDAP_ON;
     init_syntaxlogging = cfg->syntaxlogging = LDAP_OFF;
@@ -1540,31 +1538,27 @@ FrontendConfig_init(void) {
     init_pw_syntax = cfg->pw_policy.pw_syntax = LDAP_OFF;
     init_pw_exp = cfg->pw_policy.pw_exp = LDAP_OFF;
     init_pw_send_expiring = cfg->pw_policy.pw_send_expiring = LDAP_OFF;
-    cfg->pw_policy.pw_minlength = 8;
-    cfg->pw_policy.pw_mindigits = 0;
-    cfg->pw_policy.pw_minalphas = 0;
-    cfg->pw_policy.pw_minuppers = 0;
-    cfg->pw_policy.pw_minlowers = 0;
-    cfg->pw_policy.pw_minspecials = 0;
-    cfg->pw_policy.pw_min8bit = 0;
-    cfg->pw_policy.pw_maxrepeats = 0;
-    cfg->pw_policy.pw_mincategories = 3;
-    cfg->pw_policy.pw_mintokenlength = 3;
-#if defined(CPU_x86_64)
-    cfg->pw_policy.pw_maxage = 8639913600; /* 99999 days     */
-#else
-    cfg->pw_policy.pw_maxage = 8640000; /* 100 days     */
-#endif
-    cfg->pw_policy.pw_minage = 0;
-    cfg->pw_policy.pw_warning = _SEC_PER_DAY; /* 1 day */
+    cfg->pw_policy.pw_minlength = SLAPD_DEFAULT_PW_MINLENGTH;
+    cfg->pw_policy.pw_mindigits = SLAPD_DEFAULT_PW_MINDIGITS;
+    cfg->pw_policy.pw_minalphas = SLAPD_DEFAULT_PW_MINALPHAS;
+    cfg->pw_policy.pw_minuppers = SLAPD_DEFAULT_PW_MINUPPERS;
+    cfg->pw_policy.pw_minlowers = SLAPD_DEFAULT_PW_MINLOWERS;
+    cfg->pw_policy.pw_minspecials = SLAPD_DEFAULT_PW_MINSPECIALS;
+    cfg->pw_policy.pw_min8bit = SLAPD_DEFAULT_PW_MIN8BIT;
+    cfg->pw_policy.pw_maxrepeats = SLAPD_DEFAULT_PW_MAXREPEATS;
+    cfg->pw_policy.pw_mincategories = SLAPD_DEFAULT_PW_MINCATEGORIES;
+    cfg->pw_policy.pw_mintokenlength = SLAPD_DEFAULT_PW_MINTOKENLENGTH;
+    cfg->pw_policy.pw_maxage = SLAPD_DEFAULT_PW_MAXAGE;
+    cfg->pw_policy.pw_minage = SLAPD_DEFAULT_PW_MINAGE;
+    cfg->pw_policy.pw_warning = SLAPD_DEFAULT_PW_WARNING;
     init_pw_history = cfg->pw_policy.pw_history = LDAP_OFF;
-    cfg->pw_policy.pw_inhistory = 6;
+    cfg->pw_policy.pw_inhistory = SLAPD_DEFAULT_PW_INHISTORY;
     init_pw_lockout = cfg->pw_policy.pw_lockout = LDAP_OFF;
-    cfg->pw_policy.pw_maxfailure = 3;
+    cfg->pw_policy.pw_maxfailure = SLAPD_DEFAULT_PW_MAXFAILURE;
     init_pw_unlock = cfg->pw_policy.pw_unlock = LDAP_ON;
-    cfg->pw_policy.pw_lockduration = 3600;     /* 60 minutes   */
-    cfg->pw_policy.pw_resetfailurecount = 600; /* 10 minutes   */ 
-    cfg->pw_policy.pw_gracelimit = 0;
+    cfg->pw_policy.pw_lockduration = SLAPD_DEFAULT_PW_LOCKDURATION;
+    cfg->pw_policy.pw_resetfailurecount = SLAPD_DEFAULT_PW_RESETFAILURECOUNT;
+    cfg->pw_policy.pw_gracelimit = SLAPD_DEFAULT_PW_GRACELIMIT;
     cfg->pw_policy.pw_admin = NULL;
     cfg->pw_policy.pw_admin_user = NULL;
     init_pw_is_legacy = cfg->pw_policy.pw_is_legacy = LDAP_ON;
@@ -1572,70 +1566,70 @@ FrontendConfig_init(void) {
     init_pw_is_global_policy = cfg->pw_is_global_policy = LDAP_OFF;
 
     init_accesslog_logging_enabled = cfg->accesslog_logging_enabled = LDAP_ON;
-    cfg->accesslog_mode = slapi_ch_strdup(INIT_ACCESSLOG_MODE);
-    cfg->accesslog_maxnumlogs = 10;
-    cfg->accesslog_maxlogsize = 100;
-    cfg->accesslog_rotationtime = 1;
-    cfg->accesslog_rotationunit = slapi_ch_strdup(INIT_ACCESSLOG_ROTATIONUNIT);
+    cfg->accesslog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
+    cfg->accesslog_maxnumlogs = SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS;
+    cfg->accesslog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
+    cfg->accesslog_rotationtime = SLAPD_DEFAULT_LOG_ROTATIONTIME;
+    cfg->accesslog_rotationunit = slapi_ch_strdup(SLAPD_INIT_ACCESSLOG_ROTATIONUNIT);
     init_accesslog_rotationsync_enabled =
         cfg->accesslog_rotationsync_enabled = LDAP_OFF;
-    cfg->accesslog_rotationsynchour = 0;
-    cfg->accesslog_rotationsyncmin = 0;
-    cfg->accesslog_maxdiskspace = 500;
-    cfg->accesslog_minfreespace = 5;
-    cfg->accesslog_exptime = 1;
-    cfg->accesslog_exptimeunit = slapi_ch_strdup(INIT_ACCESSLOG_EXPTIMEUNIT);
-    cfg->accessloglevel = 256;
+    cfg->accesslog_rotationsynchour = SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR;
+    cfg->accesslog_rotationsyncmin = SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN;
+    cfg->accesslog_maxdiskspace = SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE;
+    cfg->accesslog_minfreespace = SLAPD_DEFAULT_LOG_MINFREESPACE;
+    cfg->accesslog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
+    cfg->accesslog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
+    cfg->accessloglevel = SLAPD_DEFAULT_ACCESSLOG_LEVEL;
     init_accesslogbuffering = cfg->accesslogbuffering = LDAP_ON;
     init_csnlogging = cfg->csnlogging = LDAP_ON;
 
     init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
-    cfg->errorlog_mode = slapi_ch_strdup(INIT_ERRORLOG_MODE);
-    cfg->errorlog_maxnumlogs = 1;
-    cfg->errorlog_maxlogsize = 100;
-    cfg->errorlog_rotationtime = 1;
-    cfg->errorlog_rotationunit = slapi_ch_strdup (INIT_ERRORLOG_ROTATIONUNIT);
+    cfg->errorlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
+    cfg->errorlog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
+    cfg->errorlog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
+    cfg->errorlog_rotationtime = SLAPD_DEFAULT_LOG_ROTATIONTIME;
+    cfg->errorlog_rotationunit = slapi_ch_strdup (SLAPD_INIT_ERRORLOG_ROTATIONUNIT);
     init_errorlog_rotationsync_enabled =
         cfg->errorlog_rotationsync_enabled = LDAP_OFF;
-    cfg->errorlog_rotationsynchour = 0;
-    cfg->errorlog_rotationsyncmin = 0;
-    cfg->errorlog_maxdiskspace = 100;
-    cfg->errorlog_minfreespace = 5;
-    cfg->errorlog_exptime = 1;
-    cfg->errorlog_exptimeunit = slapi_ch_strdup(INIT_ERRORLOG_EXPTIMEUNIT);
+    cfg->errorlog_rotationsynchour = SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR;
+    cfg->errorlog_rotationsyncmin = SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN;
+    cfg->errorlog_maxdiskspace = SLAPD_DEFAULT_LOG_MAXDISKSPACE;
+    cfg->errorlog_minfreespace = SLAPD_DEFAULT_LOG_MINFREESPACE;
+    cfg->errorlog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
+    cfg->errorlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     cfg->errorloglevel = SLAPD_DEFAULT_ERRORLOG_LEVEL;
 
     init_auditlog_logging_enabled = cfg->auditlog_logging_enabled = LDAP_OFF;
-    cfg->auditlog_mode = slapi_ch_strdup(INIT_AUDITLOG_MODE);
-    cfg->auditlog_maxnumlogs = 1;
-    cfg->auditlog_maxlogsize = 100;
-    cfg->auditlog_rotationtime = 1;
-    cfg->auditlog_rotationunit = slapi_ch_strdup(INIT_AUDITLOG_ROTATIONUNIT);
+    cfg->auditlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
+    cfg->auditlog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
+    cfg->auditlog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
+    cfg->auditlog_rotationtime = SLAPD_DEFAULT_LOG_ROTATIONTIME;
+    cfg->auditlog_rotationunit = slapi_ch_strdup(SLAPD_INIT_AUDITLOG_ROTATIONUNIT);
     init_auditlog_rotationsync_enabled =
         cfg->auditlog_rotationsync_enabled = LDAP_OFF;
-    cfg->auditlog_rotationsynchour = 0;
-    cfg->auditlog_rotationsyncmin = 0;
-    cfg->auditlog_maxdiskspace = 100;
-    cfg->auditlog_minfreespace = 5;
-    cfg->auditlog_exptime = 1;
-    cfg->auditlog_exptimeunit = slapi_ch_strdup(INIT_AUDITLOG_EXPTIMEUNIT);
-    init_auditlog_logging_hide_unhashed_pw = 
-    cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
+    cfg->auditlog_rotationsynchour = SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR;
+    cfg->auditlog_rotationsyncmin = SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN;
+    cfg->auditlog_maxdiskspace = SLAPD_DEFAULT_LOG_MAXDISKSPACE;
+    cfg->auditlog_minfreespace = SLAPD_DEFAULT_LOG_MINFREESPACE;
+    cfg->auditlog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
+    cfg->auditlog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
+    init_auditlog_logging_hide_unhashed_pw =
+        cfg->auditlog_logging_hide_unhashed_pw = LDAP_ON;
 
     init_auditfaillog_logging_enabled = cfg->auditfaillog_logging_enabled = LDAP_OFF;
-    cfg->auditfaillog_mode = slapi_ch_strdup(INIT_AUDITFAILLOG_MODE);
-    cfg->auditfaillog_maxnumlogs = 1;
-    cfg->auditfaillog_maxlogsize = 100;
-    cfg->auditfaillog_rotationtime = 1;
-    cfg->auditfaillog_rotationunit = slapi_ch_strdup(INIT_AUDITFAILLOG_ROTATIONUNIT);
+    cfg->auditfaillog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
+    cfg->auditfaillog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
+    cfg->auditfaillog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
+    cfg->auditfaillog_rotationtime = SLAPD_DEFAULT_LOG_ROTATIONTIME;
+    cfg->auditfaillog_rotationunit = slapi_ch_strdup(SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT);
     init_auditfaillog_rotationsync_enabled =
         cfg->auditfaillog_rotationsync_enabled = LDAP_OFF;
-    cfg->auditfaillog_rotationsynchour = 0;
-    cfg->auditfaillog_rotationsyncmin = 0;
-    cfg->auditfaillog_maxdiskspace = 100;
-    cfg->auditfaillog_minfreespace = 5;
-    cfg->auditfaillog_exptime = 1;
-    cfg->auditfaillog_exptimeunit = slapi_ch_strdup(INIT_AUDITFAILLOG_EXPTIMEUNIT);
+    cfg->auditfaillog_rotationsynchour = SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR;
+    cfg->auditfaillog_rotationsyncmin = SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN;
+    cfg->auditfaillog_maxdiskspace = SLAPD_DEFAULT_LOG_MAXDISKSPACE;
+    cfg->auditfaillog_minfreespace = SLAPD_DEFAULT_LOG_MINFREESPACE;
+    cfg->auditfaillog_exptime = SLAPD_DEFAULT_LOG_EXPTIME;
+    cfg->auditfaillog_exptimeunit = slapi_ch_strdup(SLAPD_INIT_LOG_EXPTIMEUNIT);
     init_auditfaillog_logging_hide_unhashed_pw = 
         cfg->auditfaillog_logging_hide_unhashed_pw = LDAP_ON;
 
@@ -1643,35 +1637,36 @@ FrontendConfig_init(void) {
     init_logging_hr_timestamps =
         cfg->logging_hr_timestamps = LDAP_ON;
 #endif
-
     init_entryusn_global = cfg->entryusn_global = LDAP_OFF;
-    cfg->entryusn_import_init = slapi_ch_strdup(ENTRYUSN_IMPORT_INIT);
-    cfg->allowed_to_delete_attrs = slapi_ch_strdup("passwordadmindn nsslapd-listenhost nsslapd-securelistenhost nsslapd-defaultnamingcontext");
+    cfg->entryusn_import_init = slapi_ch_strdup(SLAPD_ENTRYUSN_IMPORT_INIT);
     cfg->default_naming_context = NULL; /* store normalized dn */
     cfg->allowed_sasl_mechs = NULL;
 
     init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
-    cfg->disk_threshold = 2097152;  /* 2 mb */
-    cfg->disk_grace_period = 60; /* 1 hour */
+    cfg->disk_threshold = SLAPD_DEFAULT_DISK_THRESHOLD;
+    cfg->disk_grace_period = SLAPD_DEFAULT_DISK_GRACE_PERIOD;
     init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
     init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_ON;
-    cfg->ndn_cache_max_size = NDN_DEFAULT_SIZE;
+    cfg->ndn_cache_max_size = SLAPD_DEFAULT_NDN_SIZE;
     init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
-    cfg->ignore_vattrs = LDAP_OFF;
+    init_ignore_vattrs =
+        cfg->ignore_vattrs = LDAP_OFF;
     cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
-    cfg->unhashed_pw_switch = SLAPD_UNHASHED_PW_ON;
+    cfg->unhashed_pw_switch = SLAPD_DEFAULT_UNHASHED_PW_SWITCH;
     init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
     init_enable_turbo_mode = cfg->enable_turbo_mode = LDAP_ON;
     init_connection_buffer = cfg->connection_buffer = CONNECTION_BUFFER_ON;
     init_connection_nocanon = cfg->connection_nocanon = LDAP_ON;
     init_plugin_logging = cfg->plugin_logging = LDAP_OFF;
-    init_listen_backlog_size = cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
+    cfg->listen_backlog_size = DAEMON_LISTEN_SIZE;
     init_ignore_time_skew = cfg->ignore_time_skew = LDAP_OFF;
     init_dynamic_plugins = cfg->dynamic_plugins = LDAP_OFF;
     init_cn_uses_dn_syntax_in_dns = cfg->cn_uses_dn_syntax_in_dns = LDAP_OFF;
     init_global_backend_local = LDAP_OFF;
-    cfg->maxsimplepaged_per_conn = DEFAULT_MAXSIMPLEPAGED_PER_CONN;
-    cfg->maxbersize = DEFAULT_MAXBERSIZE;
+    cfg->maxsimplepaged_per_conn = SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN;
+    cfg->maxbersize = SLAPD_DEFAULT_MAXBERSIZE;
+    cfg->logging_backend = slapi_ch_strdup(SLAPD_INIT_LOGGING_BACKEND_INTERNAL);
+    cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
 #ifdef ENABLE_NUNC_STANS
     init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_ON;
 #endif
@@ -1683,7 +1678,7 @@ FrontendConfig_init(void) {
 
 #ifdef MEMPOOL_EXPERIMENTAL
     init_mempool_switch = cfg->mempool_switch = LDAP_ON;
-    cfg->mempool_maxfreelist = 1024;
+    cfg->mempool_maxfreelist = SLAPD_DEFAULT_MEMPOOL_MAXFREELIST;
     cfg->system_page_size = sysconf(_SC_PAGE_SIZE);	/* not to get every time; no set, get only */
     {
         long sc_size = cfg->system_page_size;
@@ -1986,7 +1981,7 @@ config_set_sasl_maxbufsize(const char *attrname, char *value, char *errorbuf, in
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     int retVal = LDAP_SUCCESS;
-    long default_size = atol(DEFAULT_SASL_MAXBUFSIZE);
+    long default_size = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
     long size;
     char *endp;
 
@@ -2194,7 +2189,7 @@ config_set_snmp_index(const char *attrname, char *value, char *errorbuf, int app
 
         slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-        snmp_index_disable = atol(DEFAULT_SNMP_INDEX); /* if snmp index is disabled, use the nsslapd-port instead */;
+        snmp_index_disable = SLAPD_DEFAULT_SNMP_INDEX; /* if snmp index is disabled, use the nsslapd-port instead */;
         
         if (config_value_is_null(attrname, value, errorbuf, 0)) {
                 snmp_index = snmp_index_disable;
@@ -4337,21 +4332,19 @@ config_set_auditfaillog( const char *attrname, char *value, char *errorbuf, int 
   int retVal = LDAP_SUCCESS;
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-  if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
-	return LDAP_OPERATIONS_ERROR;
+  /* Dont block the update to null */
+  if ( ! config_value_is_null( attrname, value, errorbuf, 1 )) {
+      retVal = log_update_auditfaillogdir ( value, apply );
+      if (retVal != LDAP_SUCCESS) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot open auditfaillog directory \"%s\"", value);
+      }
   }
-  
-  retVal = log_update_auditfaillogdir ( value, apply );
-  
-  if (retVal != LDAP_SUCCESS) {
-	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Cannot open auditfaillog directory \"%s\"", value);
-  }
-  
+
   if ( apply ) {
-	CFG_LOCK_WRITE(slapdFrontendConfig);
-	slapi_ch_free ( (void **) &(slapdFrontendConfig->auditfaillog) );
-	slapdFrontendConfig->auditfaillog = slapi_ch_strdup ( value );
-	CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    CFG_LOCK_WRITE(slapdFrontendConfig);
+    slapi_ch_free ( (void **) &(slapdFrontendConfig->auditfaillog) );
+    slapdFrontendConfig->auditfaillog = slapi_ch_strdup ( value );
+    CFG_UNLOCK_WRITE(slapdFrontendConfig);
   }
   return retVal;
 }
@@ -5930,7 +5923,7 @@ config_set_maxbersize( const char *attrname, char *value, char *errorbuf, int ap
   }
 
   if (size == 0) {
-    size = DEFAULT_MAXBERSIZE;
+    size = SLAPD_DEFAULT_MAXBERSIZE;
   }
   CFG_LOCK_WRITE(slapdFrontendConfig);
 
@@ -5948,7 +5941,7 @@ config_get_maxbersize()
 
     maxbersize = slapdFrontendConfig->maxbersize;
     if (maxbersize == 0) {
-        maxbersize = DEFAULT_MAXBERSIZE;
+        maxbersize = SLAPD_DEFAULT_MAXBERSIZE;
     }
 
     return maxbersize;
@@ -7085,83 +7078,6 @@ config_set_entryusn_import_init( const char *attrname, char *value,
 }
 
 char *
-config_get_allowed_to_delete_attrs(void)
-{
-    char *retVal;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    CFG_LOCK_READ(slapdFrontendConfig);
-    retVal = slapi_ch_strdup(slapdFrontendConfig->allowed_to_delete_attrs);
-    CFG_UNLOCK_READ(slapdFrontendConfig);
-
-    return retVal;
-}
-
-int
-config_set_allowed_to_delete_attrs( const char *attrname, char *value,
-                                    char *errorbuf, int apply )
-{
-    int retVal = LDAP_SUCCESS;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-
-    if ( config_value_is_null( attrname, value, errorbuf, 1 )) {
-        return LDAP_OPERATIONS_ERROR;
-    }
-
-    if (apply) {
-        char *vcopy = slapi_ch_strdup(value);
-        char **allowed = NULL, **s, *d;
-        struct config_get_and_set *cgas = 0;
-        int needcopy = 0;
-        allowed = slapi_str2charray_ext(vcopy, " ", 0);
-        for (s = allowed; s && *s; s++) ;
-        for (--s; s && (s >= allowed) && *s; s--) {
-            cgas = (struct config_get_and_set *)PL_HashTableLookup(confighash,
-                                                                   *s);
-            if (!cgas && PL_strcasecmp(*s, "aci") /* aci is an exception */) {
-                slapi_log_err(SLAPI_LOG_ERR, "config_set_allowed_to_delete_attrs",
-                        "%s: Unknown attribute %s will be ignored\n",
-                        CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, *s);
-                charray_remove(allowed, *s, 1);
-                needcopy = 1;
-                s--;
-            }
-        }
-        if (needcopy) {
-            /* given value included unknown attribute,
-             * we need to re-create a value. */
-            /* reuse the duplicated string for the new attr value. */
-            if (allowed && (NULL == *allowed)) {
-                /* all the values to allow to delete are invalid */
-                slapi_log_err(SLAPI_LOG_ERR, "config_set_allowed_to_delete_attrs",
-                        "%s: Given attributes are all invalid.  No effects.\n",
-                        CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE);
-                slapi_ch_array_free(allowed);
-                return LDAP_NO_SUCH_ATTRIBUTE;
-            } else {
-                for (s = allowed, d = vcopy; s && *s; s++) {
-                    size_t slen = strlen(*s);
-                    memmove(d, *s, slen);
-                    d += slen;
-                    memmove(d, " ", 1);
-                    d++;
-                }
-                *(d-1) = '\0';
-                strcpy(value, vcopy); /* original value needs to be refreshed */
-            }
-        } else {
-            slapi_ch_free_string(&vcopy);
-            vcopy = slapi_ch_strdup(value);
-        }
-        slapi_ch_array_free(allowed);
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapi_ch_free_string(&(slapdFrontendConfig->allowed_to_delete_attrs));
-        slapdFrontendConfig->allowed_to_delete_attrs = vcopy;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
-    }
-    return retVal;
-}
-
-char *
 config_get_allowed_sasl_mechs()
 {
     char *retVal;
@@ -7609,8 +7525,8 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 		break;
 
 	default:
-		if ((NULL == values) &&
-			config_allowed_to_delete_attrs(cgas->attr_name)) {
+		if (values == NULL && cgas->initvalue != NULL) {
+            /* We are deleting all our values and reset to defaults */
 			char initvalbuf[64];
 			void *initval = cgas->initvalue;
 			if (cgas->config_var_type == CONFIG_ON_OFF) {
@@ -7624,23 +7540,26 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 				slapi_log_err(SLAPI_LOG_ERR, "config_set",
 					"The attribute %s is read only; ignoring setting NULL value\n", attr);
 			}
-		}
-		for (ii = 0; !retval && values && values[ii]; ++ii)
-		{
-			if (cgas->setfunc) {
-				retval = (cgas->setfunc)(cgas->attr_name,
-							(char *)values[ii]->bv_val, errorbuf, apply);
-			} else if (cgas->logsetfunc) {
-				retval = (cgas->logsetfunc)(cgas->attr_name,
-							(char *)values[ii]->bv_val, cgas->whichlog,
-							errorbuf, apply);
-			} else {
-				slapi_log_err(SLAPI_LOG_ERR, "config_set",
-					"The attribute %s is read only; ignoring new value %s\n",
-					attr, values[ii]->bv_val);
+		} else if (values != NULL) {
+			for (ii = 0; !retval && values && values[ii]; ++ii)
+			{
+				if (cgas->setfunc) {
+					retval = (cgas->setfunc)(cgas->attr_name,
+								(char *)values[ii]->bv_val, errorbuf, apply);
+				} else if (cgas->logsetfunc) {
+					retval = (cgas->logsetfunc)(cgas->attr_name,
+								(char *)values[ii]->bv_val, cgas->whichlog,
+								errorbuf, apply);
+				} else {
+					slapi_log_err(SLAPI_LOG_ERR, "config_set",
+						"The attribute %s is read only; ignoring new value %s\n",
+						attr, values[ii]->bv_val);
+				}
+				values[ii]->bv_len = strlen((char *)values[ii]->bv_val);
 			}
-			values[ii]->bv_len = strlen((char *)values[ii]->bv_val);
-		}
+		} else {
+            retval = LDAP_UNWILLING_TO_PERFORM;
+        }
 		break;
 	} 
 
@@ -7922,27 +7841,6 @@ config_set_entry(Slapi_Entry *e)
     }
 
     return 1;
-}
-
-/* these attr types are allowed to delete */
-int
-config_allowed_to_delete_attrs(const char *attr_type)
-{
-	int rc = 0;
-	if (attr_type) {
-		char *delattrs = config_get_allowed_to_delete_attrs();
-		char **allowed = slapi_str2charray_ext(delattrs, " ", 0);
-		char **ap;
-		for (ap = allowed; ap && *ap; ap++) {
-			if (strcasecmp (attr_type, *ap) == 0) {
-				rc = 1;
-				break;
-			}
-		}
-		slapi_ch_array_free(allowed);
-		slapi_ch_free_string(&delattrs);
-	}
-	return rc;
 }
 
 void
@@ -8292,7 +8190,7 @@ invalid_sasl_mech(char *str)
     }
     if(strlen(str) < 1){
         /* ignore empty values */
-        return 1;
+        return 0;
     }
 
     /*

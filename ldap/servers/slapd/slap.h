@@ -95,7 +95,6 @@ typedef struct symbol_t {
 #define SLAPD_SSLCLIENTAUTH_OFF      0
 #define SLAPD_SSLCLIENTAUTH_ALLOWED  1 /* server asks for cert, but client need not send one */
 #define SLAPD_SSLCLIENTAUTH_REQUIRED 2 /* server will refuse SSL session unless client sends cert */
-#define SLAPD_SSLCLIENTAUTH_DEFAULT  SLAPD_SSLCLIENTAUTH_ALLOWED
 
 #define NUM_SNMP_INT_TBL_ROWS 5
 #define SNMP_FIELD_LENGTH 100
@@ -224,35 +223,180 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_INVALID_SOCKET_INDEX	(-1)
 
+/* ============================================================================
+ *       CONFIGURATION DEFAULTS
+ *
+ * All our server defaults are defined here. Sometimes these are in pairs of a
+ * type and a str type. These are largely consumed in libglobs.c
+ * The reason for their inclusion here is cleanliness of libglobs, centralisation
+ * There were a few values that differed between the libglobs and the define,
+ * so this also helps to eliminate that.
+ */
+
+#define SLAPD_DEFAULT_FILE_MODE             S_IRUSR | S_IWUSR
+#define SLAPD_DEFAULT_DIR_MODE              S_IRWXU
+#define SLAPD_DEFAULT_IDLE_TIMEOUT          0       /* seconds - 0 == never */
+#define SLAPD_DEFAULT_IDLE_TIMEOUT_STR      "0"
+#define SLAPD_DEFAULT_SIZELIMIT             2000    /* use -1 for no limit */
+#define SLAPD_DEFAULT_SIZELIMIT_STR         "2000"
+#define SLAPD_DEFAULT_TIMELIMIT             3600    /* use -1 for no limit */
+#define SLAPD_DEFAULT_TIMELIMIT_STR             "3600"
+#define SLAPD_DEFAULT_LOOKTHROUGHLIMIT      5000    /* use -1 for no limit */
+#define SLAPD_DEFAULT_GROUPNESTLEVEL        5
+#define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL 40      /* use -1 for no limit */
+#define SLAPD_DEFAULT_MAX_SASLIO_SIZE       2097152 /* 2MB in bytes.  Use -1 for no limit */
+#define SLAPD_DEFAULT_MAX_SASLIO_SIZE_STR   "2097152"
+#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT       1800000 /* half hour in ms */
+#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR   "1800000"
+#define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT  300000 /* 5 minutes in ms */
+#define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT_STR "300000"
+#define SLAPD_DEFAULT_RESERVE_FDS           64
+#define SLAPD_DEFAULT_RESERVE_FDS_STR       "64"
+#define SLAPD_DEFAULT_MAX_THREADS           30      /* connection pool threads */
+#define SLAPD_DEFAULT_MAX_THREADS_STR       "30"
+#define SLAPD_DEFAULT_MAX_THREADS_PER_CONN  5       /* allowed per connection */
+#define SLAPD_DEFAULT_MAX_THREADS_PER_CONN_STR "5"
+#define SLAPD_DEFAULT_MAX_BERSIZE_STR       "0"
+#define SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES LDAP_OFF
+#define SLAPD_DEFAULT_LOCAL_SSF         71  /* assume local connections are secure */
+#define SLAPD_DEFAULT_LOCAL_SSF_STR     "71"
+#define SLAPD_DEFAULT_MIN_SSF           0   /* allow unsecured connections (no privacy or integrity) */
+#define SLAPD_DEFAULT_MIN_SSF_STR       "0"
+#define SLAPD_DEFAULT_SASL_MAXBUFSIZE   2097152
+#define SLAPD_DEFAULT_SASL_MAXBUFSIZE_STR   "2097152"
+#define SLAPD_DEFAULT_MAXBERSIZE        2097152
+#define SLAPD_DEFAULT_MAXBERSIZE_STR    "2097152"
+#define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN (-1)
+#define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
+/* We'd like this number to be prime for the hash into the Connection table */
+#define SLAPD_DEFAULT_CONNTABLESIZE     4093    /* connection table size */
+
+#define SLAPD_DEFAULT_NDN_SIZE 20971520
+#define SLAPD_DEFAULT_NDN_SIZE_STR "20971520"
+#ifdef MEMPOOL_EXPERIMENTAL
+#define SLAPD_DEFAULT_MEMPOOL_MAXFREELIST 1024
+#define SLAPD_DEFAULT_MEMPOOL_MAXFREELIST_STR "1024"
+#endif
+
+#define SLAPD_DEFAULT_DIRECTORY_MANAGER "cn=Directory Manager"
+#define SLAPD_DEFAULT_UIDNUM_TYPE "uidNumber"
+#define SLAPD_DEFAULT_GIDNUM_TYPE "gidNumber"
+#define SLAPD_ENTRYUSN_IMPORT_INIT "0"
+#define SLAPD_INIT_LOGGING_BACKEND_INTERNAL "dirsrv-log"
+
+#define SLAPD_DEFAULT_SSLCLIENTAUTH  SLAPD_SSLCLIENTAUTH_ALLOWED
+#define SLAPD_DEFAULT_SSLCLIENTAUTH_STR "allowed"
+
+#define SLAPD_DEFAULT_ALLOW_ANON_ACCESS SLAPD_ANON_ACCESS_ON
+#define SLAPD_DEFAULT_ALLOW_ANON_ACCESS_STR "on"
+
+#define SLAPD_DEFAULT_VALIDATE_CERT SLAPD_VALIDATE_CERT_WARN
+#define SLAPD_DEFAULT_VALIDATE_CERT_STR "warn"
+
+#define SLAPD_DEFAULT_UNHASHED_PW_SWITCH SLAPD_UNHASHED_PW_ON
+#define SLAPD_DEFAULT_UNHASHED_PW_SWITCH_STR "on"
+
+#define SLAPD_DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
+#define SLAPD_DEFAULT_LDAPI_AUTO_DN "cn=peercred,cn=external,cn=auth"
+
+#define SLAPD_MONITOR_DN        "cn=monitor"
+#define SLAPD_SCHEMA_DN         "cn=schema"
+#define SLAPD_CONFIG_DN         "cn=config"
+
+#define SLAPD_INIT_LOG_MODE "600"
+#define SLAPD_INIT_ACCESSLOG_ROTATIONUNIT "day"
+#define SLAPD_INIT_ERRORLOG_ROTATIONUNIT "week"
+#define SLAPD_INIT_AUDITLOG_ROTATIONUNIT "week"
+#define SLAPD_INIT_AUDITFAILLOG_ROTATIONUNIT "week"
+#define SLAPD_INIT_LOG_EXPTIMEUNIT "month"
+
+#define SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR 0
+#define SLAPD_DEFAULT_LOG_ROTATIONSYNCHOUR_STR "0"
+#define SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN 0
+#define SLAPD_DEFAULT_LOG_ROTATIONSYNCMIN_STR "0"
+#define SLAPD_DEFAULT_LOG_ROTATIONTIME 1
+#define SLAPD_DEFAULT_LOG_ROTATIONTIME_STR "1"
+#define SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS 10
+#define SLAPD_DEFAULT_LOG_ACCESS_MAXNUMLOGS_STR "10"
+#define SLAPD_DEFAULT_LOG_MAXNUMLOGS 1
+#define SLAPD_DEFAULT_LOG_MAXNUMLOGS_STR "1"
+#define SLAPD_DEFAULT_LOG_EXPTIME 1
+#define SLAPD_DEFAULT_LOG_EXPTIME_STR "1"
+/* This is in MB */
+#define SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE 500
+#define SLAPD_DEFAULT_LOG_ACCESS_MAXDISKSPACE_STR "500"
+#define SLAPD_DEFAULT_LOG_MAXDISKSPACE 100
+#define SLAPD_DEFAULT_LOG_MAXDISKSPACE_STR "100"
+#define SLAPD_DEFAULT_LOG_MAXLOGSIZE 100
+#define SLAPD_DEFAULT_LOG_MAXLOGSIZE_STR "100"
+#define SLAPD_DEFAULT_LOG_MINFREESPACE 5
+#define SLAPD_DEFAULT_LOG_MINFREESPACE_STR "5"
+
 /* The default log levels:
  * (LDAP_DEBUG_ANY | LDAP_DEBUG_EMERG | LDAP_DEBUG_ALERT | LDAP_DEBUG_CRIT | LDAP_DEBUG_ERR | 
  *  LDAP_DEBUG_WARNING | LDAP_DEBUG_NOTICE | LDAP_DEBUG_INFO)
  */
-#define SLAPD_DEFAULT_ERRORLOG_LEVEL			266354688
+#define SLAPD_DEFAULT_ERRORLOG_LEVEL            266354688
+#define SLAPD_DEFAULT_ERRORLOG_LEVEL_STR        "266354688"
+#define SLAPD_DEFAULT_ACCESSLOG_LEVEL           256
+#define SLAPD_DEFAULT_ACCESSLOG_LEVEL_STR       "256"
 
-#define SLAPD_DEFAULT_FILE_MODE				S_IRUSR | S_IWUSR
-#define SLAPD_DEFAULT_DIR_MODE				S_IRWXU
-#define SLAPD_DEFAULT_IDLE_TIMEOUT			0		/* seconds - 0 == never */
-#define SLAPD_DEFAULT_SIZELIMIT				2000	/* use -1 for no limit */
-#define SLAPD_DEFAULT_TIMELIMIT				3600	/* use -1 for no limit */
-#define SLAPD_DEFAULT_LOOKTHROUGHLIMIT		5000	/* use -1 for no limit */
-#define SLAPD_DEFAULT_GROUPNESTLEVEL		5
-#define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL	40		/* use -1 for no limit */
-#define SLAPD_DEFAULT_MAX_SASLIO_SIZE		2097152 /* 2MB in bytes.  Use -1 for no limit */
-#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT		1800000 /* half hour in ms */
-#define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT	300000 /* 5 minutes in ms */
-#define SLAPD_DEFAULT_RESERVE_FDS			64
-#define SLAPD_DEFAULT_MAX_THREADS			30		/* connection pool threads */
-#define SLAPD_DEFAULT_MAX_THREADS_PER_CONN	5		/* allowed per connection */
-#define SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES	LDAP_OFF
-#define SLAPD_DEFAULT_LOCAL_SSF			71	/* assume local connections are secure */
-#define SLAPD_DEFAULT_MIN_SSF			0	/* allow unsecured connections (no privacy or integrity) */
-/* We'd like this number to be prime for the hash into the Connection table */
-#define SLAPD_DEFAULT_CONNTABLESIZE		4093	/* connection table size */
+#define SLAPD_DEFAULT_DISK_THRESHOLD 2097152
+#define SLAPD_DEFAULT_DISK_THRESHOLD_STR "2097152"
+#define SLAPD_DEFAULT_DISK_GRACE_PERIOD 60
+#define SLAPD_DEFAULT_DISK_GRACE_PERIOD_STR "60"
 
-#define SLAPD_MONITOR_DN		"cn=monitor"
-#define SLAPD_SCHEMA_DN			"cn=schema"
-#define SLAPD_CONFIG_DN			"cn=config"
+#define SLAPD_DEFAULT_PAGEDSIZELIMIT 0
+#define SLAPD_DEFAULT_PAGEDSIZELIMIT_STR "0"
+#define SLAPD_DEFAULT_MAXDESCRIPTORS 1024
+#define SLAPD_DEFAULT_MAXDESCRIPTORS_STR "1024"
+#define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL 40
+#define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL_STR "40"
+#define SLAPD_DEFAULT_GROUPEVALNESTLEVEL 0
+#define SLAPD_DEFAULT_GROUPEVALNESTLEVEL_STR "0"
+#define SLAPD_DEFAULT_SNMP_INDEX 0
+#define SLAPD_DEFAULT_SNMP_INDEX_STR "0"
+
+#define SLAPD_DEFAULT_PW_INHISTORY 6
+#define SLAPD_DEFAULT_PW_INHISTORY_STR "6"
+#define SLAPD_DEFAULT_PW_GRACELIMIT 0
+#define SLAPD_DEFAULT_PW_GRACELIMIT_STR "0"
+#define SLAPD_DEFAULT_PW_MINLENGTH 8
+#define SLAPD_DEFAULT_PW_MINLENGTH_STR "8"
+#define SLAPD_DEFAULT_PW_MINDIGITS 0
+#define SLAPD_DEFAULT_PW_MINDIGITS_STR "0"
+#define SLAPD_DEFAULT_PW_MINALPHAS 0
+#define SLAPD_DEFAULT_PW_MINALPHAS_STR "0"
+#define SLAPD_DEFAULT_PW_MINUPPERS 0
+#define SLAPD_DEFAULT_PW_MINUPPERS_STR "0"
+#define SLAPD_DEFAULT_PW_MINLOWERS 0
+#define SLAPD_DEFAULT_PW_MINLOWERS_STR "0"
+#define SLAPD_DEFAULT_PW_MINSPECIALS 0
+#define SLAPD_DEFAULT_PW_MINSPECIALS_STR "0"
+#define SLAPD_DEFAULT_PW_MIN8BIT 0
+#define SLAPD_DEFAULT_PW_MIN8BIT_STR "0"
+#define SLAPD_DEFAULT_PW_MAXREPEATS 0
+#define SLAPD_DEFAULT_PW_MAXREPEATS_STR "0"
+#define SLAPD_DEFAULT_PW_MINCATEGORIES 3
+#define SLAPD_DEFAULT_PW_MINCATEGORIES_STR "3"
+#define SLAPD_DEFAULT_PW_MINTOKENLENGTH 3
+#define SLAPD_DEFAULT_PW_MINTOKENLENGTH_STR "3"
+#define SLAPD_DEFAULT_PW_MAXAGE 8640000
+#define SLAPD_DEFAULT_PW_MAXAGE_STR "8640000"
+#define SLAPD_DEFAULT_PW_MINAGE 0
+#define SLAPD_DEFAULT_PW_MINAGE_STR "0"
+#define SLAPD_DEFAULT_PW_WARNING 86400
+#define SLAPD_DEFAULT_PW_WARNING_STR "86400"
+#define SLAPD_DEFAULT_PW_MAXFAILURE 3
+#define SLAPD_DEFAULT_PW_MAXFAILURE_STR "3"
+#define SLAPD_DEFAULT_PW_RESETFAILURECOUNT 600
+#define SLAPD_DEFAULT_PW_RESETFAILURECOUNT_STR "600"
+#define SLAPD_DEFAULT_PW_LOCKDURATION 3600
+#define SLAPD_DEFAULT_PW_LOCKDURATION_STR "3600"
+
+/* Default password values. */
+
+/* ================ END CONFIGURATION DEFAULTS ============================ */
 
 #define EGG_OBJECT_CLASS		"directory-team-extensible-object"
 #define EGG_FILTER				"(objectclass=directory-team-extensible-object)"
@@ -2126,7 +2270,6 @@ typedef struct _slapdEntryPoints {
 #define CONFIG_FORCE_SASL_EXTERNAL_ATTRIBUTE "nsslapd-force-sasl-external"
 #define CONFIG_ENTRYUSN_GLOBAL	"nsslapd-entryusn-global"
 #define CONFIG_ENTRYUSN_IMPORT_INITVAL	"nsslapd-entryusn-import-initval"
-#define CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE	"nsslapd-allowed-to-delete-attrs"
 #define CONFIG_DEFAULT_NAMING_CONTEXT "nsslapd-defaultnamingcontext"
 #define CONFIG_DISK_MONITORING "nsslapd-disk-monitoring"
 #define CONFIG_DISK_THRESHOLD "nsslapd-disk-monitoring-threshold"
@@ -2171,6 +2314,7 @@ typedef struct _slapdEntryPoints {
  */
 #ifndef DAEMON_LISTEN_SIZE
 #define DAEMON_LISTEN_SIZE 128
+#define DAEMON_LISTEN_SIZE_STR "128"
 #endif
 #define CONFIG_IGNORE_TIME_SKEW "nsslapd-ignore-time-skew"
 
@@ -2182,6 +2326,9 @@ typedef struct _slapdEntryPoints {
 /* flag used to indicate that the change to the config parameter should be saved */
 #define CONFIG_APPLY 1
 
+/* This should be cleaned up and REMOVED.
+ * Apparently it's SLOWER than just straight lock.
+ */
 #define SLAPI_CFG_USE_RWLOCK 0
 #if SLAPI_CFG_USE_RWLOCK == 0
 #define CFG_LOCK_READ(cfg)    PR_Lock(cfg->cfg_lock)
@@ -2416,7 +2563,6 @@ typedef struct _slapdFrontendConfig {
 #endif /* MEMPOOL_EXPERIMENTAL */
   slapi_onoff_t force_sasl_external;      /* force SIMPLE bind to be SASL/EXTERNAL if client cert credentials were supplied */
   slapi_onoff_t entryusn_global;          /* Entry USN: Use global counter */
-  char *allowed_to_delete_attrs;/* list of config attrs allowed to delete */
   char *entryusn_import_init;   /* Entry USN: determine the initital value of import */
   int pagedsizelimit;
   char *default_naming_context; /* Default naming context (normalized) */
