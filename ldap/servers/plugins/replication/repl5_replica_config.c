@@ -1244,7 +1244,7 @@ replica_execute_cleanruv_task (Object *r, ReplicaId rid, char *returntext /* not
 	/*
 	 * Now purge the changelog
 	 */
-	trigger_cl_purging(rid);
+	trigger_cl_purging(replica);
 
 	if (rc != RUV_SUCCESS){
 		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "cleanruv_task: task failed(%d)\n",rc);
