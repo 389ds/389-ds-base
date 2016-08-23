@@ -729,7 +729,7 @@ check_pw_minage ( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals)
 	pwpolicy = new_passwdPolicy(pb, dn);
 	slapi_pblock_get ( pb, SLAPI_PWPOLICY, &pwresponse_req );
 
-	if (!pb->pb_op->o_isroot && !pwpolicy->pw_minage) {
+	if (!pb->pb_op->o_isroot && pwpolicy->pw_minage) {
 
 		Slapi_Entry     *e;
 		char *passwordAllowChangeTime;
