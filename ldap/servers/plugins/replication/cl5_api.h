@@ -496,6 +496,6 @@ int cl5WriteRUV();
 int cl5DeleteRUV();
 void cl5CleanRUV(ReplicaId rid);
 void cl5NotifyCleanup(int rid);
-void trigger_cl_purging(ReplicaId rid);
+void trigger_cl_purging(Replica *replica);
 
 #endif
