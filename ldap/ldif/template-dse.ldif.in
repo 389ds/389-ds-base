@@ -53,6 +53,7 @@ nsslapd-auditlog-maxlogsize: 100
 nsslapd-auditlog-logrotationtime: 1
 nsslapd-auditlog-logrotationtimeunit: day
 nsslapd-auditlog-logging-enabled: off
+nsslapd-auditfaillog: %log_dir%/audit
 nsslapd-auditfaillog-logging-enabled: off
 nsslapd-rootdn: %rootdn%
 nsslapd-rootpw: %ds_passwd%

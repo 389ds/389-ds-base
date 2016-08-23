@@ -112,6 +112,7 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
     Operation *op;
     int pbrc = 0;
     char *auditfail_config = NULL;
+    char *audit_config = NULL;
 
     /* if the audit log is not enabled, just skip all of
        this stuff */
@@ -167,8 +168,9 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
     /* log the raw, unnormalized DN */
     dn = slapi_sdn_get_udn(sdn);
     auditfail_config = config_get_auditfaillog();
-    if (auditfail_config == NULL || strlen(auditfail_config) == 0) {
-        /* If no auditfail log write to audit log */
+    audit_config = config_get_auditlog();
+    if (auditfail_config == NULL || strlen(auditfail_config) == 0 || PL_strcasecmp(auditfail_config, audit_config) == 0) {
+        /* If no auditfail log or "auditfaillog" == "auditlog", write to audit log */
         write_audit_file(SLAPD_AUDIT_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     } else {
         /* If we have our own auditfail log path */
