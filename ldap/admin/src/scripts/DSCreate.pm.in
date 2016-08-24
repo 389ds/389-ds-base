@@ -1039,7 +1039,7 @@ sub updateSelinuxPolicy {
 
         # label the selected port as ldap_port_t
         # We should be doing this for secure port too .....
-        if ($inf->{slapd}->{ServerPort} != 0) {
+        if ($inf->{slapd}->{ServerPort} != 0 and not $ENV{DS_SKIP_LABEL}) {
             my $port_query_cmd = ("$inf->{slapd}->{sbindir}/ds_selinux_port_query $inf->{slapd}->{ServerPort} ldap_port_t 2> $mydevnull");
             my $need_label = 0;
             my $result = system($port_query_cmd);
@@ -1462,7 +1462,7 @@ sub removeDSInstance {
 
     # remove the selinux label from the ports if needed
     my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
-    if ((getLogin() eq 'root') and "@with_selinux@" and system("@sbindir@/ds_selinux_enabled") == 256 ) {
+    if ((getLogin() eq 'root') and "@with_selinux@" and system("@sbindir@/ds_selinux_enabled") == 256 and not $ENV{DS_SKIP_UNLABEL}) {
         foreach my $port (@{$entry->{"nsslapd-port"}}) 
         {
 
