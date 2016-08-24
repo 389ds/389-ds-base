@@ -161,9 +161,9 @@ def password_policy(topology, test_user):
 
 
 @pytest.mark.parametrize('subtree_pwchange,user_pwchange,exception',
-                         [('off', 'on', None), ('on', 'on', None),
-                          ('on', 'off', ldap.UNWILLING_TO_PERFORM),
-                          ('off', 'off', ldap.UNWILLING_TO_PERFORM)])
+                         [('on', 'off', ldap.UNWILLING_TO_PERFORM),
+                          ('off', 'off', ldap.UNWILLING_TO_PERFORM),
+                          ('off', 'on', None), ('on', 'on', None)])
 def test_change_pwd(topology, test_user, password_policy,
                     subtree_pwchange, user_pwchange, exception):
     """Verify that 'passwordChange' attr works as expected
@@ -221,6 +221,105 @@ def test_change_pwd(topology, test_user, password_policy,
             topology.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
                                                         'userPassword',
                                                         'new_pass')])
+    except ldap.LDAPError as e:
+        log.error('Failed to change userpassword for {}: error {}'.format(
+            TEST_USER_DN, e.message['info']))
+        raise e
+    finally:
+        log.info('Bind as DM')
+        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topology.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
+                                                     'userPassword',
+                                                     TEST_USER_PWD)])
+
+
+def test_pwd_min_age(topology, test_user, password_policy):
+    """If we set passwordMinAge to some value, for example to 10, then it
+    should not allow the user to change the password within 10 seconds after
+    his previous change.
+
+    :Feature: Password policy
+
+    :Setup: Standalone instance, test user,
+            password policy entries for a user and a subtree
+
+    :Steps: 1. Set passwordMinAge to 10 on the user pwpolicy entry
+            2. Set passwordMinAge to 10 on the subtree pwpolicy entry
+            3. Set passwordMinAge to 10 on the cn=config entry
+            4. Bind as test user
+            5. Try to change password two times in a row
+            6. Wait 12 seconds
+            7. Try to change password
+
+    :Assert: User should be not allowed to change the password
+             right after previous change - CONSTRAINT_VIOLATION
+             User should be not allowed to change the password
+             after 12 seconds passed
+    """
+
+    num_seconds = '10'
+
+    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, PW_POLICY_CONT_PEOPLE))
+    try:
+        topology.standalone.modify_s(PW_POLICY_CONT_PEOPLE, [(ldap.MOD_REPLACE,
+                                                             'passwordminage',
+                                                             num_seconds)])
+    except ldap.LDAPError as e:
+        log.error('Failed to set passwordminage '\
+                  'policy for {}: error {}'.format(PW_POLICY_CONT_PEOPLE,
+                                                   e.message['desc']))
+        raise e
+
+    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, PW_POLICY_CONT_USER))
+    try:
+        topology.standalone.modify_s(PW_POLICY_CONT_USER, [(ldap.MOD_REPLACE,
+                                                            'passwordminage',
+                                                            num_seconds)])
+    except ldap.LDAPError as e:
+        log.error('Failed to set passwordminage '\
+                  'policy for {}: error {}'.format(PW_POLICY_CONT_USER,
+                                                   e.message['desc']))
+        raise e
+
+    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, DN_CONFIG))
+    try:
+        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
+                                                  'passwordminage',
+                                                  num_seconds)])
+    except ldap.LDAPError as e:
+        log.error('Failed to set passwordminage '\
+                  'policy for {}: error {}'.format(DN_CONFIG,
+                                                   e.message['desc']))
+        raise e
+
+    try:
+        log.info('Bind as user and modify userPassword')
+        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
+                                                     'userPassword',
+                                                     'new_pass')])
+    except ldap.LDAPError as e:
+        log.error('Failed to change userpassword for {}: error {}'.format(
+            TEST_USER_DN, e.message['info']))
+        raise e
+
+
+    log.info('Bind as user and modify userPassword straight away after previous change')
+    topology.standalone.simple_bind_s(TEST_USER_DN, 'new_pass')
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        topology.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
+                                                     'userPassword',
+                                                     'new_new_pass')])
+
+    log.info('Wait {} second'.format(int(num_seconds) + 2))
+    time.sleep(int(num_seconds) + 2)
+
+    try:
+        log.info('Bind as user and modify userPassword')
+        topology.standalone.simple_bind_s(TEST_USER_DN, 'new_pass')
+        topology.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
+                                                     'userPassword',
+                                                     TEST_USER_PWD)])
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
