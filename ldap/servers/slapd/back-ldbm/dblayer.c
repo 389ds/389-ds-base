@@ -7124,7 +7124,6 @@ dblayer_restore_file_init(struct ldbminfo *li)
 void
 dblayer_import_file_update(ldbm_instance *inst)
 {
-    int rc;
     PRFileDesc *prfd;
     char *fname = dblayer_import_file_name(inst);
     dblayer_file_open(fname, PR_RDWR, inst->inst_li->li_mode, &prfd);
@@ -7196,7 +7195,6 @@ dblayer_restore_file_check(struct ldbminfo *li)
 void
 dblayer_restore_file_update(struct ldbminfo *li, char *directory)
 {
-    int rc;
     PRFileDesc *prfd;
     char *fname = dblayer_restore_file_name(li);
     dblayer_file_open(fname, PR_RDWR, li->li_mode, &prfd);
