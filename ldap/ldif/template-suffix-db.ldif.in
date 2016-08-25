@@ -5,6 +5,7 @@ objectclass: top
 objectclass: extensibleObject
 objectclass: nsBackendInstance
 nsslapd-suffix: %ds_suffix%
+nsslapd-directory: %db_dir%/%ds_bename%
 cn: %ds_bename%
 
 dn: cn=encrypted attribute keys,cn=%ds_bename%,cn=ldbm database,cn=plugins,cn=config
