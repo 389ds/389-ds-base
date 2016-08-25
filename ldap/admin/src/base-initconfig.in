@@ -7,44 +7,43 @@
 
 @preamble@
 
-# In order to make more file descriptors available
-# to the directory server, first make sure the system
-# hard limits are raised, then use ulimit - uncomment
-# out the following line and change the value to the
-# desired value
-# ulimit -n 8192
-# note - if using systemd, ulimit won't work -  you must edit
-# the systemd unit file for directory server to add the 
-# LimitNOFILE option - see man systemd.exec for more info
+# In order to make more file descriptors available to the directory server,
+# first make sure the system hard limits are raised, then use ulimit -
+# uncomment out the following line and change the value to the desired value
+#ulimit -n 8192
+# note - if using systemd, ulimit won't work -  you must edit the systemd unit
+# file for directory server to add the LimitNOFILE option - see "man
+# systemd.exec" for more info
 
-# A per instance keytab does not make much sense for servers.
-# Kerberos clients use the machine FQDN to obtain a ticket like ldap/FQDN, there
-# is nothing that can make a client understand how to get a per-instance ticket.
-# Therefore by default a keytab should be considered a per server option.
-
-# Also this file is sourced for all instances, so again all
-# instances would ultimately get the same keytab.
-
+# A per instance keytab does not make much sense for servers.  Kerberos clients
+# use the machine FQDN to obtain a ticket like ldap/FQDN, there is nothing that
+# can make a client understand how to get a per-instance ticket.  Therefore by
+# default a keytab should be considered a per server option.
+#
+# Also this file is sourced for all instances, so again all instances would
+# ultimately get the same keytab.
+#
 # Finally a keytab is normally named either krb5.keytab or <service>.keytab
+#
+# In order to use SASL/GSSAPI (Kerberos) the directory server needs to know
+# where to find its keytab file - uncomment the following line and set the
+# path and filename appropriately.
+# If using systemd, omit the "; export VARNAME" at the end.
+#KRB5_KTNAME=@instconfigdir@/myname.keytab ; export KRB5_KTNAME
 
-# In order to use SASL/GSSAPI (Kerberos) the directory
-# server needs to know where to find its keytab
-# file - uncomment the following line and set
-# the path and filename appropriately
-# if using systemd, omit the "; export VARNAME" at the end
-# KRB5_KTNAME=@instconfigdir@/myname.keytab ; export KRB5_KTNAME
-
-# how many seconds to wait for the startpid file to show
-# up before we assume there is a problem and fail to start
-# if using systemd, omit the "; export VARNAME" at the end
+# How many seconds to wait for the startpid file to show up before we assume
+# there is a problem and fail to start.
+# If using systemd, omit the "; export STARTPID_TIME" at the end.
 #STARTPID_TIME=10 ; export STARTPID_TIME
-# how many seconds to wait for the pid file to show
-# up before we assume there is a problem and fail to start
-# if using systemd, omit the "; export VARNAME" at the end
+
+# How many seconds to wait for the pid file to show up before we assume there
+# is a problem and fail to start.
+# If using systemd, omit the "; export PID_TIME" at the end.
 #PID_TIME=600 ; export PID_TIME
 
 # The tcmalloc memory allocator has been shown to have a positive impact on
 # the Directory Server's virtual & resident memory size/growth.  tcmalloc is
-# available on RHEL/Fedora in the gperftools package (this could be different
-# on other platforms).  Here is an example of preloading tcmalloc:
+# available on RHEL/Fedora in the gperftools-libs package (this could be
+# different on other platforms).
+# If using systemd, omit the "; export LD_PRELOAD" at the end.
 #LD_PRELOAD=@libdir@/libtcmalloc.so.4 ; export LD_PRELOAD
