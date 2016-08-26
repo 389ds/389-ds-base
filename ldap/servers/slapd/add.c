@@ -643,21 +643,6 @@ static void op_shared_add (Slapi_PBlock *pb)
     }
 
 	slapi_pblock_set(pb, SLAPI_BACKEND, be);
-	/* we set local password policy ACI for non-replicated operations only */
-	if (!repl_op &&
-		!operation_is_flag_set(operation, OP_FLAG_REPL_FIXUP) &&
-		!operation_is_flag_set(operation, OP_FLAG_LEGACY_REPLICATION_DN) &&
-		!slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA) &&
-		!slapi_be_private(be) &&
-		slapi_be_issuffix (be, slapi_entry_get_sdn_const(e)))
-	{
-		/* this is a suffix. update the pw aci */
-		slapdFrontendConfig_t *slapdFrontendConfig;
-		slapdFrontendConfig = getFrontendConfig();
-		pw_add_allowchange_aci(e, !slapdFrontendConfig->pw_policy.pw_change &&
-							   !slapdFrontendConfig->pw_policy.pw_must_change);
-	}
-
 
 	if (!repl_op)
 	{

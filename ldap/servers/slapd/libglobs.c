@@ -2451,13 +2451,6 @@ config_set_pw_change( const char *attrname, char *value, char *errorbuf, int app
 							  errorbuf,
 							  apply);
   
-  if (retVal == LDAP_SUCCESS) {
-	  /* LP: Update ACI to reflect the value ! */
-	  if (apply)
-		  pw_mod_allowchange_aci(!slapdFrontendConfig->pw_policy.pw_change &&
-								 !slapdFrontendConfig->pw_policy.pw_must_change);
-  }
-  
   return retVal;
 }
 
@@ -2488,13 +2481,6 @@ config_set_pw_must_change( const char *attrname, char *value, char *errorbuf, in
 							  &(slapdFrontendConfig->pw_policy.pw_must_change),
 							  errorbuf,
 							  apply);
-  
-  if (retVal == LDAP_SUCCESS) {
-	  /* LP: Update ACI to reflect the value ! */
-	  if (apply)
-		  pw_mod_allowchange_aci(!slapdFrontendConfig->pw_policy.pw_change &&
-								 !slapdFrontendConfig->pw_policy.pw_must_change);
-  }
   
   return retVal;
 }
