@@ -639,8 +639,8 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	}
 
 done:
-    if (mtnode_ext->replica)
-        object_release (mtnode_ext->replica);
+	if (mtnode_ext->replica)
+		object_release (mtnode_ext->replica);
 
 	/* slapi_ch_free accepts NULL pointer */
 	slapi_ch_free_string(&replica_root);

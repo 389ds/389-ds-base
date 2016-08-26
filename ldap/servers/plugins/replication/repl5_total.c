@@ -533,8 +533,9 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 		goto loser;
 	}
 	
-    if (attrval)
-        ber_bvfree(attrval); 
+	if (attrval)
+		ber_bvfree(attrval);
+
 	return 0;
 
 loser:

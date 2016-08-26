@@ -91,11 +91,16 @@
 #define NSDS50_REPL_BELOW_PURGEPOINT 0x07 /* Supplier provided a CSN below the consumer's purge point */
 #define NSDS50_REPL_INTERNAL_ERROR 0x08 /* Something bad happened on consumer */
 #define NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED 0x09 /* Replica released successfully */
-#define NSDS50_REPL_LEGACY_CONSUMER 0x0A    /* replica is a legacy consumer */
-#define NSDS50_REPL_REPLICAID_ERROR 0x0B	/* replicaID doesn't seem to be unique */
-#define NSDS50_REPL_DISABLED 0x0C	/* replica suffix is disabled */
-#define NSDS50_REPL_UPTODATE 0x0D	/* replica is uptodate */
-#define NSDS50_REPL_BACKOFF 0x0E        /* replica wants master to go into backoff mode */
+#define NSDS50_REPL_LEGACY_CONSUMER 0x0A /* replica is a legacy consumer */
+#define NSDS50_REPL_REPLICAID_ERROR 0x0B /* replicaID doesn't seem to be unique */
+#define NSDS50_REPL_DISABLED 0x0C /* replica suffix is disabled */
+#define NSDS50_REPL_UPTODATE 0x0D /* replica is uptodate */
+#define NSDS50_REPL_BACKOFF 0x0E /* replica wants master to go into backoff mode */
+#define NSDS50_REPL_CL_ERROR 0x0F /* Problem reading changelog */
+#define NSDS50_REPL_CONN_ERROR 0x10 /* Problem with replication connection*/
+#define NSDS50_REPL_CONN_TIMEOUT 0x11 /* Connection timeout */
+#define NSDS50_REPL_TRANSIENT_ERROR 0x12 /* Transient error */
+#define NSDS50_REPL_RUV_ERROR 0x13 /* Problem with the RUV */
 #define NSDS50_REPL_REPLICA_NO_RESPONSE 0xff /* No response received */
 
 /* Protocol status */

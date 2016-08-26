@@ -2460,9 +2460,9 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 					replmsg = NULL;
 				}
 			}
-			PR_snprintf(ra->last_update_status, STATUS_LEN, "%d %s%sLDAP error: %s%s%s",
+			PR_snprintf(ra->last_update_status, STATUS_LEN, "Error (%d) %s%s - LDAP error: %s%s%s%s",
 				ldaprc, message?message:"",message?"":" - ",
-				slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "");
+				slapi_err2string(ldaprc), replmsg ? " (" : "", replmsg ? replmsg : "", replmsg ? ")" : "");
 		}
 		/* ldaprc == LDAP_SUCCESS */
 		else if (replrc != 0)
@@ -2470,16 +2470,15 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 			if (replrc == NSDS50_REPL_REPLICA_BUSY)
 			{
 				PR_snprintf(ra->last_update_status, STATUS_LEN,
-					"%d Can't acquire busy replica", replrc ); 
+					"Error (%d) Can't acquire busy replica", replrc );
 			}
 			else if (replrc == NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED)
 			{
-				PR_snprintf(ra->last_update_status, STATUS_LEN, "%d %s",
-					ldaprc, "Replication session successful");
+				PR_snprintf(ra->last_update_status, STATUS_LEN, "Error (0) Replication session successful");
 			}
 			else if (replrc == NSDS50_REPL_DISABLED)
 			{
-				PR_snprintf(ra->last_update_status, STATUS_LEN, "%d Incremental update aborted: "
+				PR_snprintf(ra->last_update_status, STATUS_LEN, "Error (%d) Incremental update aborted: "
 					"Replication agreement for %s\n can not be updated while the replica is disabled.\n"
 					"(If the suffix is disabled you must enable it then restart the server for replication to take place).",
 					replrc, ra->long_name ? ra->long_name : "a replica");
@@ -2493,20 +2492,18 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 			else
 			{
 				PR_snprintf(ra->last_update_status, STATUS_LEN,
-					"%d Replication error acquiring replica: %s%s%s",
-					replrc, protocol_response2string(replrc),
-					message?" - ":"",message?message:"");
+					"Error (%d) Replication error acquiring replica: %s%s(%s)",
+					replrc, message?message:"", message?" ":"", protocol_response2string(replrc));
 			}
 		}
 		else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
 		{
-			PR_snprintf(ra->last_update_status, STATUS_LEN, 
-						"%d Replica acquired successfully: %s",
-						ldaprc, message);
+			PR_snprintf(ra->last_update_status, STATUS_LEN,
+				"Error (0) Replica acquired successfully: %s", message);
 		}
 		else
 		{ /* agmt_set_last_update_status(0,0,NULL) to reset agmt */
-			PR_snprintf(ra->last_update_status, STATUS_LEN, "%d", ldaprc);
+			ra->last_update_status[0] = '\0';
 		}
 	}
 }
@@ -2737,7 +2734,8 @@ get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter,
 		slapi_entry_add_string(e, "nsds5replicaChangesSentSinceStartup", changecount_string);
 		if (ra->last_update_status[0] == '\0')
 		{
-			slapi_entry_add_string(e, "nsds5replicaLastUpdateStatus", "0 No replication sessions started since server startup");
+			slapi_entry_add_string(e, "nsds5replicaLastUpdateStatus",
+			                       "Error (0) No replication sessions started since server startup");
 		}
 		else
 		{

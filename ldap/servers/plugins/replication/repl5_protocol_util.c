@@ -140,10 +140,18 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 	crc = conn_connect(conn);
 	if (CONN_OPERATION_FAILED == crc)
 	{
+		int operation, error;
+		conn_get_error(conn, &operation, &error);
+		agmt_set_last_update_status(prp->agmt, error, NSDS50_REPL_CONN_ERROR,
+			"Problem connecting to replica");
 		return_value = ACQUIRE_TRANSIENT_ERROR;
 	}
 	else if (CONN_SSL_NOT_ENABLED == crc)
 	{
+		int operation, error;
+		conn_get_error(conn, &operation, &error);
+		agmt_set_last_update_status(prp->agmt, error, NSDS50_REPL_CONN_ERROR,
+			"Problem connecting to replica (SSL not enabled)");
 		return_value = ACQUIRE_FATAL_ERROR;
 	}
 	else
@@ -295,6 +303,9 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 								"an internal error occurred on the remote replica. "
 								"Replication is aborting.\n",
 								agmt_get_long_name(prp->agmt));
+							agmt_set_last_update_status(prp->agmt, 0, extop_result,
+								"Failed to acquire replica: "
+								"Internal error occurred on the remote replica");
 							return_value = ACQUIRE_FATAL_ERROR;
 							break;
 					case NSDS50_REPL_PERMISSION_DENIED:
@@ -307,6 +318,11 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 								"supply replication updates to the replica. "
 								"Will retry later.\n",
 								agmt_get_long_name(prp->agmt), repl_binddn);
+							agmt_set_last_update_status(prp->agmt, 0, extop_result,
+								"Unable to acquire replica: permission denied. "
+								"The bind dn does not have permission to "
+								"supply replication updates to the replica. "
+								"Will retry later.");
 							slapi_ch_free((void **)&repl_binddn);
 							return_value = ACQUIRE_TRANSIENT_ERROR;
 							break;
@@ -321,6 +337,10 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 								"Replication is aborting.\n",
 								agmt_get_long_name(prp->agmt),
 								slapi_sdn_get_dn(repl_root));
+							agmt_set_last_update_status(prp->agmt, 0, extop_result,
+								"Unable to acquire replica: there is no "
+								"replicated area on the consumer server. "
+								"Replication is aborting.");
 							slapi_sdn_free(&repl_root);
 							return_value = ACQUIRE_FATAL_ERROR;
 							break;
@@ -342,6 +362,11 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							"startReplicationRequest extended operation sent by the "
 							"supplier. Replication is aborting.\n",
 							agmt_get_long_name(prp->agmt));
+						agmt_set_last_update_status(prp->agmt, 0, extop_result,
+							"Unable to acquire replica: "
+							"the consumer was unable to decode the "
+							"startReplicationRequest extended operation sent "
+							"by the supplier. Replication is aborting.");
 						return_value = ACQUIRE_FATAL_ERROR;
 						break;
 					case NSDS50_REPL_REPLICA_BUSY:
@@ -365,6 +390,10 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 								"by another supplier. Will try later\n",
 								agmt_get_long_name(prp->agmt));
 						}
+						agmt_set_last_update_status(prp->agmt, 0, extop_result,
+							"Unable to acquire replica: "
+							"the replica is currently being updated by another "
+							"supplier.");
 						return_value = ACQUIRE_REPLICA_BUSY;
 						break;
 					case NSDS50_REPL_LEGACY_CONSUMER:
@@ -373,6 +402,9 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							"%s: Unable to acquire replica: the replica "
 							"is supplied by a legacy supplier. "
 							"Replication is aborting.\n", agmt_get_long_name(prp->agmt));
+						agmt_set_last_update_status(prp->agmt, 0, extop_result,
+							"Unable to acquire replica: the replica is supplied "
+							"by a legacy supplier.  Replication is aborting.");
 						return_value = ACQUIRE_FATAL_ERROR;
 						break;
 					case NSDS50_REPL_REPLICAID_ERROR:
@@ -382,6 +414,9 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							"has the same Replica ID as this one. "
 							"Replication is aborting.\n",
 							agmt_get_long_name(prp->agmt));
+						agmt_set_last_update_status(prp->agmt, 0, 0,
+							"Unable to aquire replica: the replica has the same "
+							"Replica ID as this one. Replication is aborting.");
 						return_value = ACQUIRE_FATAL_ERROR;
 						break;
 					case NSDS50_REPL_BACKOFF:
@@ -392,6 +427,9 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
                                                         "the replica instructed us to go into "
                                                         "backoff mode. Will retry later.\n",
                                                         agmt_get_long_name(prp->agmt));
+						agmt_set_last_update_status(prp->agmt, 0, extop_result,
+							"Unable to acquire replica: the replica instructed "
+							"us to go into backoff mode. Will retry later.");
 						return_value = ACQUIRE_TRANSIENT_ERROR;
 						break;
 					case NSDS50_REPL_REPLICA_READY:
@@ -450,6 +488,8 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						return_value = ACQUIRE_SUCCESS;
 						break;
 					default:
+						agmt_set_last_update_status(prp->agmt, 0, extop_result,
+							"Unable to acquire replica");
 						return_value = ACQUIRE_FATAL_ERROR;
 					}
 				}
@@ -461,6 +501,10 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						"startReplication extended operation. "
 						"Replication is aborting.\n", 
 						agmt_get_long_name(prp->agmt));
+					agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_DECODING_ERROR,
+						"Unable to parse the response to the "
+						"startReplication extended operation. "
+						"Replication is aborting.");
 					prp->last_acquire_response_code = NSDS50_REPL_INTERNAL_ERROR;
 					return_value = ACQUIRE_FATAL_ERROR;
 				}
@@ -477,6 +521,9 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 					"extended operation to consumer (%s). Will retry later.\n",
 					agmt_get_long_name(prp->agmt),
 					error ? ldap_err2string(error) : "unknown error");
+				agmt_set_last_update_status(prp->agmt, error, NSDS50_REPL_CONN_ERROR,
+					"Unable to receive the response for a startReplication "
+					"extended operation to consumer. Will retry later.");
 			}
 		}
 		else
@@ -486,6 +533,9 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 				"%s: Unable to obtain current CSN. "
 				"Replication is aborting.\n",
 				agmt_get_long_name(prp->agmt));
+			agmt_set_last_update_status(prp->agmt, 0, 0,
+				"Unable to obtain current CSN. "
+				"Replication is aborting.");
 			return_value = ACQUIRE_FATAL_ERROR;
 		}
 	}
@@ -535,8 +585,8 @@ release_replica(Private_Repl_Protocol *prp)
 	PR_ASSERT(NULL != prp);
 	PR_ASSERT(NULL != prp->conn);
 
-    if (!prp->replica_acquired)
-        return;
+	if (!prp->replica_acquired)
+		return;
     
 	replarea_sdn = agmt_get_replarea(prp->agmt);
 	payload = NSDS50EndReplicationRequest_new((char *)slapi_sdn_get_dn(replarea_sdn)); /* XXXggood had to cast away const */
@@ -650,9 +700,14 @@ protocol_response2string (int response)
         case NSDS50_REPL_BELOW_PURGEPOINT:          return "csn below purge point";
         case NSDS50_REPL_INTERNAL_ERROR:            return "internal error";
         case NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED: return "replica released";
-        case NSDS50_REPL_LEGACY_CONSUMER:           return "replica is a legacy consumer";						
-		case NSDS50_REPL_REPLICAID_ERROR:			return "duplicate replica ID detected";
-		case NSDS50_REPL_UPTODATE:					return "no change to send";
+        case NSDS50_REPL_LEGACY_CONSUMER:           return "replica is a legacy consumer";
+        case NSDS50_REPL_REPLICAID_ERROR:           return "duplicate replica ID detected";
+        case NSDS50_REPL_UPTODATE:                  return "no change to send";
+        case NSDS50_REPL_CL_ERROR:                  return "changelog error";
+        case NSDS50_REPL_CONN_ERROR:                return "connection error";
+        case NSDS50_REPL_CONN_TIMEOUT:              return "connection timeout";
+        case NSDS50_REPL_TRANSIENT_ERROR:           return "transient error";
+        case NSDS50_REPL_RUV_ERROR:                 return "RUV error";
         default:                                    return "unknown error";
     }
 }
