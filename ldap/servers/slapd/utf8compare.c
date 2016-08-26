@@ -1132,7 +1132,7 @@ UpperLowerTbl_t Lower2UpperTbl21[] = {
     {"\304\271", "\304\272", 2},
     {"\304\273", "\304\274", 2},
     {"\304\275", "\304\276", 2},
-    {NULL, NULL}
+    {NULL, NULL, 0}
 };
 
 UpperLowerTbl_t Lower2UpperTbl22[] = {

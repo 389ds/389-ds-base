@@ -585,9 +585,10 @@ release_replica(Private_Repl_Protocol *prp)
 	PR_ASSERT(NULL != prp);
 	PR_ASSERT(NULL != prp->conn);
 
-	if (!prp->replica_acquired)
-		return;
-    
+    if (!prp->replica_acquired) {
+        return;
+    }
+
 	replarea_sdn = agmt_get_replarea(prp->agmt);
 	payload = NSDS50EndReplicationRequest_new((char *)slapi_sdn_get_dn(replarea_sdn)); /* XXXggood had to cast away const */
 	slapi_sdn_free(&replarea_sdn);

@@ -213,7 +213,7 @@ static windows_attribute_map user_attribute_map[] =
 	{ "name", "cn", fromwindowsonly, always, normal},
 	{ "manager", "manager", bidirectional, always, dnmap},
 	{ "seealso", "seealso", bidirectional, always, dnmap},
-	{NULL, NULL, -1}
+	{NULL, NULL, -1, 0, 0}
 };
 
 static windows_attribute_map group_attribute_map[] = 
@@ -224,7 +224,7 @@ static windows_attribute_map group_attribute_map[] =
 	{ "streetAddress", "street", towindowsonly, always, normal},
 	{ FAKE_STREET_ATTR_NAME, "street", fromwindowsonly, always, normal},
 	{ "member", "uniquemember", bidirectional, always, dnmap},
-	{NULL, NULL, -1}
+	{NULL, NULL, -1, 0, 0}
 };
 
 /* 

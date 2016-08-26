@@ -184,120 +184,122 @@ void g_set_detached(int val)
 ******************************************************************************/ 
 void g_log_init(int log_enabled)
 {
-	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-	/* ACCESS LOG */
-	loginfo.log_access_state = 0;
-	loginfo.log_access_mode = SLAPD_DEFAULT_FILE_MODE;
-	loginfo.log_access_maxnumlogs = 1;
-	loginfo.log_access_maxlogsize = -1;
-	loginfo.log_access_rotationsync_enabled = 0;
-	loginfo.log_access_rotationsynchour = -1;
-	loginfo.log_access_rotationsyncmin = -1;
-	loginfo.log_access_rotationsyncclock = -1;
-	loginfo.log_access_rotationtime = 1;                  /* default: 1 */
-	loginfo.log_access_rotationunit = LOG_UNIT_DAYS;      /* default: day */
-	loginfo.log_access_rotationtime_secs = _SEC_PER_DAY;  /* default: 1 day */
-	loginfo.log_access_maxdiskspace =  -1;
-	loginfo.log_access_minfreespace =  -1;
-	loginfo.log_access_exptime =  -1;                     /* default: -1 */
-	loginfo.log_access_exptimeunit =  LOG_UNIT_MONTHS;    /* default: month */
-	loginfo.log_access_exptime_secs = -1;                 /* default: -1 */
-	loginfo.log_access_level = LDAP_DEBUG_STATS;
-	loginfo.log_access_ctime = 0L;
-	loginfo.log_access_fdes = NULL;
-	loginfo.log_access_file = NULL;
-	loginfo.log_accessinfo_file = NULL;
-	loginfo.log_numof_access_logs = 1;
-	loginfo.log_access_logchain = NULL;
+    /* ACCESS LOG */
+    loginfo.log_access_state = 0;
+    loginfo.log_access_mode = SLAPD_DEFAULT_FILE_MODE;
+    loginfo.log_access_maxnumlogs = 1;
+    loginfo.log_access_maxlogsize = -1;
+    loginfo.log_access_rotationsync_enabled = 0;
+    loginfo.log_access_rotationsynchour = -1;
+    loginfo.log_access_rotationsyncmin = -1;
+    loginfo.log_access_rotationsyncclock = -1;
+    loginfo.log_access_rotationtime = 1;                  /* default: 1 */
+    loginfo.log_access_rotationunit = LOG_UNIT_DAYS;      /* default: day */
+    loginfo.log_access_rotationtime_secs = _SEC_PER_DAY;  /* default: 1 day */
+    loginfo.log_access_maxdiskspace =  -1;
+    loginfo.log_access_minfreespace =  -1;
+    loginfo.log_access_exptime =  -1;                     /* default: -1 */
+    loginfo.log_access_exptimeunit =  LOG_UNIT_MONTHS;    /* default: month */
+    loginfo.log_access_exptime_secs = -1;                 /* default: -1 */
+    loginfo.log_access_level = LDAP_DEBUG_STATS;
+    loginfo.log_access_ctime = 0L;
+    loginfo.log_access_fdes = NULL;
+    loginfo.log_access_file = NULL;
+    loginfo.log_accessinfo_file = NULL;
+    loginfo.log_numof_access_logs = 1;
+    loginfo.log_access_logchain = NULL;
     loginfo.log_access_buffer = log_create_buffer(LOG_BUFFER_MAXSIZE);
-    if (loginfo.log_access_buffer == NULL)
+    if (loginfo.log_access_buffer == NULL) {
         exit(-1);
-	if ((loginfo.log_access_buffer->lock = PR_NewLock())== NULL ) 
-		exit (-1);
-	slapdFrontendConfig->accessloglevel = LDAP_DEBUG_STATS;
+    }
+    if ((loginfo.log_access_buffer->lock = PR_NewLock())== NULL ) {
+        exit (-1);
+    }
+    slapdFrontendConfig->accessloglevel = LDAP_DEBUG_STATS;
 
-	/* ERROR LOG */
-	loginfo.log_error_state = 0;
-	loginfo.log_error_mode = SLAPD_DEFAULT_FILE_MODE;
-	loginfo.log_error_maxnumlogs = 1;
-	loginfo.log_error_maxlogsize = -1;
-	loginfo.log_error_rotationsync_enabled = 0;
-	loginfo.log_error_rotationsynchour = -1;
-	loginfo.log_error_rotationsyncmin = -1;
-	loginfo.log_error_rotationsyncclock = -1;
-	loginfo.log_error_rotationtime = 1;                   /* default: 1 */
-	loginfo.log_error_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
-	loginfo.log_error_rotationtime_secs = 604800;         /* default: 1 week */
-	loginfo.log_error_maxdiskspace =  -1;
-	loginfo.log_error_minfreespace =  -1;
-	loginfo.log_error_exptime =  -1;                      /* default: -1 */
-	loginfo.log_error_exptimeunit =  LOG_UNIT_MONTHS;     /* default: month */
-	loginfo.log_error_exptime_secs = -1;                  /* default: -1 */
-	loginfo.log_error_ctime = 0L;
-	loginfo.log_error_file = NULL;
-	loginfo.log_errorinfo_file = NULL;
-	loginfo.log_error_fdes = NULL;
-	loginfo.log_numof_error_logs = 1;
-	loginfo.log_error_logchain = NULL;
-	if ((loginfo.log_error_rwlock =slapi_new_rwlock())== NULL ) {
-		exit (-1);
-	}
+    /* ERROR LOG */
+    loginfo.log_error_state = 0;
+    loginfo.log_error_mode = SLAPD_DEFAULT_FILE_MODE;
+    loginfo.log_error_maxnumlogs = 1;
+    loginfo.log_error_maxlogsize = -1;
+    loginfo.log_error_rotationsync_enabled = 0;
+    loginfo.log_error_rotationsynchour = -1;
+    loginfo.log_error_rotationsyncmin = -1;
+    loginfo.log_error_rotationsyncclock = -1;
+    loginfo.log_error_rotationtime = 1;                   /* default: 1 */
+    loginfo.log_error_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
+    loginfo.log_error_rotationtime_secs = 604800;         /* default: 1 week */
+    loginfo.log_error_maxdiskspace =  -1;
+    loginfo.log_error_minfreespace =  -1;
+    loginfo.log_error_exptime =  -1;                      /* default: -1 */
+    loginfo.log_error_exptimeunit =  LOG_UNIT_MONTHS;     /* default: month */
+    loginfo.log_error_exptime_secs = -1;                  /* default: -1 */
+    loginfo.log_error_ctime = 0L;
+    loginfo.log_error_file = NULL;
+    loginfo.log_errorinfo_file = NULL;
+    loginfo.log_error_fdes = NULL;
+    loginfo.log_numof_error_logs = 1;
+    loginfo.log_error_logchain = NULL;
+    if ((loginfo.log_error_rwlock =slapi_new_rwlock())== NULL ) {
+        exit (-1);
+    }
 
-	/* AUDIT LOG */
-	loginfo.log_audit_state = 0;
-	loginfo.log_audit_mode = SLAPD_DEFAULT_FILE_MODE;
-	loginfo.log_audit_maxnumlogs = 1;
-	loginfo.log_audit_maxlogsize = -1;
-	loginfo.log_audit_rotationsync_enabled = 0;
-	loginfo.log_audit_rotationsynchour = -1;
-	loginfo.log_audit_rotationsyncmin = -1;
-	loginfo.log_audit_rotationsyncclock = -1;
-	loginfo.log_audit_rotationtime = 1;                   /* default: 1 */
-	loginfo.log_audit_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
-	loginfo.log_audit_rotationtime_secs = 604800;         /* default: 1 week */
-	loginfo.log_audit_maxdiskspace =  -1;
-	loginfo.log_audit_minfreespace =  -1;
-	loginfo.log_audit_exptime =  -1;                      /* default: -1 */
-	loginfo.log_audit_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
-	loginfo.log_audit_exptime_secs = -1;                  /* default: -1 */
-	loginfo.log_audit_ctime = 0L;
-	loginfo.log_audit_file = NULL;
-	loginfo.log_auditinfo_file = NULL;
-	loginfo.log_numof_audit_logs = 1;
-	loginfo.log_audit_fdes = NULL;
-	loginfo.log_audit_logchain = NULL;
-	if ((loginfo.log_audit_rwlock =slapi_new_rwlock())== NULL ) {
-		exit (-1);
-	}
+    /* AUDIT LOG */
+    loginfo.log_audit_state = 0;
+    loginfo.log_audit_mode = SLAPD_DEFAULT_FILE_MODE;
+    loginfo.log_audit_maxnumlogs = 1;
+    loginfo.log_audit_maxlogsize = -1;
+    loginfo.log_audit_rotationsync_enabled = 0;
+    loginfo.log_audit_rotationsynchour = -1;
+    loginfo.log_audit_rotationsyncmin = -1;
+    loginfo.log_audit_rotationsyncclock = -1;
+    loginfo.log_audit_rotationtime = 1;                   /* default: 1 */
+    loginfo.log_audit_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
+    loginfo.log_audit_rotationtime_secs = 604800;         /* default: 1 week */
+    loginfo.log_audit_maxdiskspace =  -1;
+    loginfo.log_audit_minfreespace =  -1;
+    loginfo.log_audit_exptime =  -1;                      /* default: -1 */
+    loginfo.log_audit_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
+    loginfo.log_audit_exptime_secs = -1;                  /* default: -1 */
+    loginfo.log_audit_ctime = 0L;
+    loginfo.log_audit_file = NULL;
+    loginfo.log_auditinfo_file = NULL;
+    loginfo.log_numof_audit_logs = 1;
+    loginfo.log_audit_fdes = NULL;
+    loginfo.log_audit_logchain = NULL;
+    if ((loginfo.log_audit_rwlock =slapi_new_rwlock())== NULL ) {
+        exit (-1);
+    }
 
-	/* AUDIT LOG */
-	loginfo.log_auditfail_state = 0;
-	loginfo.log_auditfail_mode = SLAPD_DEFAULT_FILE_MODE;
-	loginfo.log_auditfail_maxnumlogs = 1;
-	loginfo.log_auditfail_maxlogsize = -1;
-	loginfo.log_auditfail_rotationsync_enabled = 0;
-	loginfo.log_auditfail_rotationsynchour = -1;
-	loginfo.log_auditfail_rotationsyncmin = -1;
-	loginfo.log_auditfail_rotationsyncclock = -1;
-	loginfo.log_auditfail_rotationtime = 1;                   /* default: 1 */
-	loginfo.log_auditfail_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
-	loginfo.log_auditfail_rotationtime_secs = 604800;         /* default: 1 week */
-	loginfo.log_auditfail_maxdiskspace =  -1;
-	loginfo.log_auditfail_minfreespace =  -1;
-	loginfo.log_auditfail_exptime =  -1;                      /* default: -1 */
-	loginfo.log_auditfail_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
-	loginfo.log_auditfail_exptime_secs = -1;                  /* default: -1 */
-	loginfo.log_auditfail_ctime = 0L;
-	loginfo.log_auditfail_file = NULL;
-	loginfo.log_auditfailinfo_file = NULL;
-	loginfo.log_numof_auditfail_logs = 1;
-	loginfo.log_auditfail_fdes = NULL;
-	loginfo.log_auditfail_logchain = NULL;
+    /* AUDIT LOG */
+    loginfo.log_auditfail_state = 0;
+    loginfo.log_auditfail_mode = SLAPD_DEFAULT_FILE_MODE;
+    loginfo.log_auditfail_maxnumlogs = 1;
+    loginfo.log_auditfail_maxlogsize = -1;
+    loginfo.log_auditfail_rotationsync_enabled = 0;
+    loginfo.log_auditfail_rotationsynchour = -1;
+    loginfo.log_auditfail_rotationsyncmin = -1;
+    loginfo.log_auditfail_rotationsyncclock = -1;
+    loginfo.log_auditfail_rotationtime = 1;                   /* default: 1 */
+    loginfo.log_auditfail_rotationunit =  LOG_UNIT_WEEKS;     /* default: week */
+    loginfo.log_auditfail_rotationtime_secs = 604800;         /* default: 1 week */
+    loginfo.log_auditfail_maxdiskspace =  -1;
+    loginfo.log_auditfail_minfreespace =  -1;
+    loginfo.log_auditfail_exptime =  -1;                      /* default: -1 */
+    loginfo.log_auditfail_exptimeunit =  LOG_UNIT_WEEKS;      /* default: week */
+    loginfo.log_auditfail_exptime_secs = -1;                  /* default: -1 */
+    loginfo.log_auditfail_ctime = 0L;
+    loginfo.log_auditfail_file = NULL;
+    loginfo.log_auditfailinfo_file = NULL;
+    loginfo.log_numof_auditfail_logs = 1;
+    loginfo.log_auditfail_fdes = NULL;
+    loginfo.log_auditfail_logchain = NULL;
     loginfo.log_backend = LOGGING_BACKEND_INTERNAL;
-	if ((loginfo.log_auditfail_rwlock =slapi_new_rwlock())== NULL ) {
-		exit (-1);
-	}
+    if ((loginfo.log_auditfail_rwlock =slapi_new_rwlock())== NULL ) {
+        exit (-1);
+    }
 }
 
 /******************************************************************************

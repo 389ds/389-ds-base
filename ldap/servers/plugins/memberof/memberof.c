@@ -2634,7 +2634,7 @@ typedef struct _task_data
 
 void memberof_fixup_task_thread(void *arg)
 {
-	MemberOfConfig configCopy = {0, 0, 0, 0};
+	MemberOfConfig configCopy = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	Slapi_Task *task = (Slapi_Task *)arg;
 	task_data *td = NULL;
 	int rc = 0;

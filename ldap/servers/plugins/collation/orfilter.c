@@ -55,7 +55,7 @@ or_filter_get (Slapi_PBlock* pb)
 {
     auto void* obj = NULL;
     if ( ! slapi_pblock_get (pb, SLAPI_PLUGIN_OBJECT, &obj)) {
-	return (or_filter_t*)obj;
+        return (or_filter_t*)obj;
     }
     return NULL;
 }

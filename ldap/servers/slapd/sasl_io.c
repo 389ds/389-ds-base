@@ -161,7 +161,7 @@ sasl_io_finished_packet(sasl_io_private *sp)
 static const char* const sasl_LayerName = "SASL";
 static PRDescIdentity sasl_LayerID;
 static PRIOMethods sasl_IoMethods;
-static PRCallOnceType sasl_callOnce = {0,0};
+static PRCallOnceType sasl_callOnce = {0,0,0};
 
 static sasl_io_private *
 sasl_get_io_private(PRFileDesc *fd)

@@ -48,7 +48,7 @@ static int memberof_search (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_En
 /* This is the main configuration which is updated from dse.ldif.  The
  * config will be copied when it is used by the plug-in to prevent it
  * being changed out from under a running memberOf operation. */
-static MemberOfConfig theConfig = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static MemberOfConfig theConfig = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static Slapi_RWLock *memberof_config_lock = 0;
 static int inited = 0;
 

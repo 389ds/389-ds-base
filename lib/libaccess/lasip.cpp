@@ -71,16 +71,17 @@ dotdecimal(char *ipstr, const char *netmaskstr, int *ip, int *netmask)
         return LAS_EVAL_INVALID;
 
     /* IP can only have digits, periods and "*" */
-    if (strcspn(ipstr, "0123456789.*"))
+    if (strcspn(ipstr, "0123456789.*")) {
         return LAS_EVAL_INVALID;
+    }
 
-	if (strlen(netmaskstr) >= sizeof(token)) {
+    if (strlen(netmaskstr) >= sizeof(token)) {
         return LAS_EVAL_INVALID;
-	}
+    }
 
-	if (strlen(ipstr) >= sizeof(token)) {
+    if (strlen(ipstr) >= sizeof(token)) {
         return LAS_EVAL_INVALID;
-	}
+    }
 
     *netmask = *ip = 0;    /* Start with "don't care"    */
 

@@ -195,23 +195,26 @@ int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
 
 /* uuid_cleanup -- saves state, destroys generator data */
 void uuid_cleanup ()
-{	
-	if (_state.initialized)
-	{
-		_state.genstate.last_update = 1;
-		write_state (PR_FALSE);
-	}
-	
-    if (_state.lock)
+{
+    if (_state.initialized)
+    {
+        _state.genstate.last_update = 1;
+        write_state (PR_FALSE);
+    }
+
+    if (_state.lock) {
         PR_DestroyLock (_state.lock);
+    }
 
-    if (_state.fd)
+    if (_state.fd) {
         PR_Close (_state.fd);
-	
-	if (_state.configDN)
-		slapi_sdn_free(&_state.configDN);
+    }
 
-	memset (&_state, 0, sizeof (_state));
+    if (_state.configDN) {
+        slapi_sdn_free(&_state.configDN);
+    }
+
+    memset (&_state, 0, sizeof (_state));
 }
 
 /* uuid_create - main generating function */

@@ -639,21 +639,22 @@ replica_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	}
 
 done:
-	if (mtnode_ext->replica)
-		object_release (mtnode_ext->replica);
+    if (mtnode_ext->replica) {
+        object_release (mtnode_ext->replica);
+    }
 
-	/* slapi_ch_free accepts NULL pointer */
-	slapi_ch_free_string(&replica_root);
+    /* slapi_ch_free accepts NULL pointer */
+    slapi_ch_free_string(&replica_root);
 
-	PR_Unlock (s_configLock);
+    PR_Unlock (s_configLock);
 
-	if (*returncode != LDAP_SUCCESS)
-	{
-		return SLAPI_DSE_CALLBACK_ERROR;
-	}
-	else
+    if (*returncode != LDAP_SUCCESS)
     {
-	    return SLAPI_DSE_CALLBACK_OK;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+    else
+    {
+        return SLAPI_DSE_CALLBACK_OK;
     }
 }
 
@@ -969,12 +970,12 @@ replica_config_change_type_and_id (Replica *r, const char *new_type,
         }
     }
 
-	/* disallow changing type to itself just to permit a replica ID change */
-	if (oldtype == type)
-	{
-            PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "replica type is already %d - not changing", type);
-            return LDAP_OPERATIONS_ERROR;
-	}
+    /* disallow changing type to itself just to permit a replica ID change */
+    if (oldtype == type)
+    {
+        PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "replica type is already %d - not changing", type);
+        return LDAP_OPERATIONS_ERROR;
+    }
 
 	if (type == REPLICA_TYPE_READONLY)
 	{

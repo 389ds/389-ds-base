@@ -54,38 +54,98 @@ static const char *numericStringSubstringsMatch_names[] = {"numericStringSubstri
 static char *numericStringSubstringsMatch_syntaxes[] = {NUMERICSTRING_SYNTAX_OID,NULL};
 
 static struct mr_plugin_def mr_plugin_table[] = {
-{{NUMERICSTRINGMATCH_OID, NULL /* no alias? */,
-  "numericStringMatch", "The rule evaluates to TRUE if and only if the prepared "
-  "attribute value character string and the prepared assertion value character "
-  "string have the same number of characters and corresponding characters have "
-  "the same code point.",
-  NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */, NULL /* numstr syntax only for now */ },
- {"numericStringMatch-mr", VENDOR, DS_PACKAGE_VERSION, "numericStringMatch matching rule plugin"}, /* plugin desc */
- numericStringMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, numstr_filter_ava, NULL, numstr_values2keys,
- numstr_assertion2keys, NULL, numstr_compare},
-{{NUMERICSTRINGORDERINGMATCH_OID, NULL /* no alias? */,
-  "numericStringOrderingMatch", "The rule evaluates to TRUE if and only if, "
-  "in the code point collation order, the prepared attribute value character "
-  "string appears earlier than the prepared assertion value character string; "
-  "i.e., the attribute value is less than the assertion value.",
-  NUMERICSTRING_SYNTAX_OID, 0 /* not obsolete */, NULL /* numstr syntax only for now */ },
- {"numericStringOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "numericStringOrderingMatch matching rule plugin"}, /* plugin desc */
- numericStringOrderingMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, numstr_filter_ava, NULL, numstr_values2keys,
- numstr_assertion2keys, NULL, numstr_compare},
-{{NUMERICSTRINGSUBSTRINGSMATCH_OID, NULL /* no alias? */,
-  "numericStringSubstringsMatch", "The rule evaluates to TRUE if and only if (1) "
-  "the prepared substrings of the assertion value match disjoint portions of "
-  "the prepared attribute value, (2) an initial substring, if present, matches "
-  "the beginning of the prepared attribute value character string, and (3) a "
-  "final substring, if present, matches the end of the prepared attribute value "
-  "character string.",
-  "1.3.6.1.4.1.1466.115.121.1.58", 0 /* not obsolete */, numericStringSubstringsMatch_syntaxes}, /* matching rule desc */
- {"numericStringSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "numericStringSubstringsMatch matching rule plugin"}, /* plugin desc */
- numericStringSubstringsMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, NULL, numstr_filter_sub, numstr_values2keys,
- NULL, numstr_assertion2keys_sub, numstr_compare},
+    {
+        {
+            NUMERICSTRINGMATCH_OID,
+            NULL /* no alias? */,
+            "numericStringMatch",
+            "The rule evaluates to TRUE if and only if the prepared "
+                  "attribute value character string and the prepared assertion value character "
+                  "string have the same number of characters and corresponding characters have "
+                  "the same code point.",
+            NUMERICSTRING_SYNTAX_OID,
+            0 /* not obsolete */,
+            NULL /* numstr syntax only for now */
+        },
+        {
+            "numericStringMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "numericStringMatch matching rule plugin"
+        }, /* plugin desc */
+        numericStringMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        numstr_filter_ava,
+        NULL,
+        numstr_values2keys,
+        numstr_assertion2keys,
+        NULL,
+        numstr_compare,
+        NULL /* mr_normalise */
+    },
+    {
+        {
+            NUMERICSTRINGORDERINGMATCH_OID,
+            NULL /* no alias? */,
+            "numericStringOrderingMatch",
+            "The rule evaluates to TRUE if and only if, "
+                  "in the code point collation order, the prepared attribute value character "
+                  "string appears earlier than the prepared assertion value character string; "
+                  "i.e., the attribute value is less than the assertion value.",
+            NUMERICSTRING_SYNTAX_OID,
+            0 /* not obsolete */,
+            NULL /* numstr syntax only for now */
+        },
+        {
+            "numericStringOrderingMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "numericStringOrderingMatch matching rule plugin"
+        }, /* plugin desc */
+        numericStringOrderingMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        numstr_filter_ava,
+        NULL,
+        numstr_values2keys,
+        numstr_assertion2keys,
+        NULL,
+        numstr_compare,
+        NULL /* mr_normalise */
+    },
+    {
+        {
+            NUMERICSTRINGSUBSTRINGSMATCH_OID,
+            NULL /* no alias? */,
+            "numericStringSubstringsMatch",
+            "The rule evaluates to TRUE if and only if (1) "
+                  "the prepared substrings of the assertion value match disjoint portions of "
+                  "the prepared attribute value, (2) an initial substring, if present, matches "
+                  "the beginning of the prepared attribute value character string, and (3) a "
+                  "final substring, if present, matches the end of the prepared attribute value "
+                  "character string.",
+            "1.3.6.1.4.1.1466.115.121.1.58",
+            0 /* not obsolete */,
+            numericStringSubstringsMatch_syntaxes
+        }, /* matching rule desc */
+        {
+            "numericStringSubstringsMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "numericStringSubstringsMatch matching rule plugin"
+        }, /* plugin desc */
+        numericStringSubstringsMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        NULL,
+        numstr_filter_sub,
+        numstr_values2keys,
+        NULL,
+        numstr_assertion2keys_sub,
+        numstr_compare,
+        NULL /* mr_normalise */
+    },
 };
 
 static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);

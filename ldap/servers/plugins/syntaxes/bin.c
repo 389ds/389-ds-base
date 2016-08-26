@@ -81,35 +81,78 @@ static const char *octetStringOrderingMatch_names[] = {"octetStringOrderingMatch
 static char *octetStringCompat_syntaxes[] = {BINARY_SYNTAX_OID, JPEG_SYNTAX_OID, FAX_SYNTAX_OID, CERTIFICATE_SYNTAX_OID, CERTIFICATELIST_SYNTAX_OID, CERTIFICATEPAIR_SYNTAX_OID, SUPPORTEDALGORITHM_SYNTAX_OID, NULL};
 
 static struct mr_plugin_def mr_plugin_table[] = {
-{{"2.5.13.17", NULL, "octetStringMatch", "The octetStringMatch rule compares an assertion value of the Octet "
-"String syntax to an attribute value of a syntax (e.g., the Octet "
-"String or JPEG syntax) whose corresponding ASN.1 type is the OCTET "
-"STRING ASN.1 type.  "
-"The rule evaluates to TRUE if and only if the attribute value and the "
-"assertion value are the same length and corresponding octets (by "
-"position) are the same.", OCTETSTRING_SYNTAX_OID, 0, octetStringCompat_syntaxes}, /* matching rule desc */
- {"octetStringMatch-mr", VENDOR, DS_PACKAGE_VERSION, "octetStringMatch matching rule plugin"}, /* plugin desc */
-   octetStringMatch_names, /* matching rule name/oid/aliases */
-   NULL, NULL, bin_filter_ava, NULL, bin_values2keys,
-   bin_assertion2keys_ava, NULL, bin_compare},
-{{"2.5.13.18", NULL, "octetStringOrderingMatch", "The octetStringOrderingMatch rule compares an assertion value of the "
-"Octet String syntax to an attribute value of a syntax (e.g., the "
-"Octet String or JPEG syntax) whose corresponding ASN.1 type is the "
-"OCTET STRING ASN.1 type.  "
-"The rule evaluates to TRUE if and only if the attribute value appears "
-"earlier in the collation order than the assertion value.  The rule "
-"compares octet strings from the first octet to the last octet, and "
-"from the most significant bit to the least significant bit within the "
-"octet.  The first occurrence of a different bit determines the "
-"ordering of the strings.  A zero bit precedes a one bit.  If the "
-"strings contain different numbers of octets but the longer string is "
-"identical to the shorter string up to the length of the shorter "
-"string, then the shorter string precedes the longer string.",
-OCTETSTRING_SYNTAX_OID, 0, octetStringCompat_syntaxes}, /* matching rule desc */
- {"octetStringOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "octetStringOrderingMatch matching rule plugin"}, /* plugin desc */
- octetStringOrderingMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, bin_filter_ava, NULL, bin_values2keys,
- bin_assertion2keys_ava, NULL, bin_compare}
+    {
+        {
+            "2.5.13.17",
+            NULL,
+            "octetStringMatch",
+            "The octetStringMatch rule compares an assertion value of the Octet "
+                "String syntax to an attribute value of a syntax (e.g., the Octet "
+                "String or JPEG syntax) whose corresponding ASN.1 type is the OCTET "
+                "STRING ASN.1 type.  "
+                "The rule evaluates to TRUE if and only if the attribute value and the "
+                "assertion value are the same length and corresponding octets (by "
+                "position) are the same.",
+            OCTETSTRING_SYNTAX_OID,
+            0,
+            octetStringCompat_syntaxes
+        }, /* matching rule desc */
+        {
+            "octetStringMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "octetStringMatch matching rule plugin"
+        }, /* plugin desc */
+        octetStringMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        bin_filter_ava,
+        NULL,
+        bin_values2keys,
+        bin_assertion2keys_ava,
+        NULL,
+        bin_compare,
+        NULL /* mr_normalize */
+    },
+    {
+        {
+            "2.5.13.18",
+            NULL,
+            "octetStringOrderingMatch",
+            "The octetStringOrderingMatch rule compares an assertion value of the "
+                "Octet String syntax to an attribute value of a syntax (e.g., the "
+                "Octet String or JPEG syntax) whose corresponding ASN.1 type is the "
+                "OCTET STRING ASN.1 type.  "
+                "The rule evaluates to TRUE if and only if the attribute value appears "
+                "earlier in the collation order than the assertion value.  The rule "
+                "compares octet strings from the first octet to the last octet, and "
+                "from the most significant bit to the least significant bit within the "
+                "octet.  The first occurrence of a different bit determines the "
+                "ordering of the strings.  A zero bit precedes a one bit.  If the "
+                "strings contain different numbers of octets but the longer string is "
+                "identical to the shorter string up to the length of the shorter "
+                "string, then the shorter string precedes the longer string.",
+            OCTETSTRING_SYNTAX_OID,
+            0,
+            octetStringCompat_syntaxes
+        }, /* matching rule desc */
+        {
+            "octetStringOrderingMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "octetStringOrderingMatch matching rule plugin"
+        }, /* plugin desc */
+        octetStringOrderingMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        bin_filter_ava,
+        NULL,
+        bin_values2keys,
+        bin_assertion2keys_ava,
+        NULL,
+        bin_compare,
+        NULL /* mr_normalize */
+    }
 };
 /*
 certificateExactMatch

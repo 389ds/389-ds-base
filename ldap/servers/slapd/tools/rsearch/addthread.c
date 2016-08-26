@@ -147,7 +147,7 @@ static void at_disconnect(AddThread *at)
 
 #if defined(USE_OPENLDAP)
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
-static PRCallOnceType ol_init_callOnce = {0,0};
+static PRCallOnceType ol_init_callOnce = {0,0,0};
 static PRLock *ol_init_lock = NULL;
 
 static PRStatus

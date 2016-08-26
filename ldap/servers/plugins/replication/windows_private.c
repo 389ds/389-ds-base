@@ -1570,7 +1570,7 @@ windows_private_set_move_action(const Repl_Agmt *ra, int value)
 	LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= windows_private_set_move_action\n" );
 }
 
-static PRCallOnceType winsync_callOnce = {0,0};
+static PRCallOnceType winsync_callOnce = {0,0,0};
 
 struct winsync_plugin {
     struct winsync_plugin *next; /* see PRCList - declare here to avoid lots of casting */

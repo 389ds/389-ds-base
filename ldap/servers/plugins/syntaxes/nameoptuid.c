@@ -45,28 +45,49 @@ static Slapi_PluginDesc pdesc = { "nameoptuid-syntax", VENDOR, DS_PACKAGE_VERSIO
 
 static const char *uniqueMemberMatch_names[] = {"uniqueMemberMatch", "2.5.13.23", NULL};
 static struct mr_plugin_def mr_plugin_table[] = {
-{{"2.5.13.23", NULL, "uniqueMemberMatch", "The uniqueMemberMatch rule compares an assertion value of the Name "
-"And Optional UID syntax to an attribute value of a syntax (e.g., the "
-"Name And Optional UID syntax) whose corresponding ASN.1 type is "
-"NameAndOptionalUID.  "
-"The rule evaluates to TRUE if and only if the <distinguishedName> "
-"components of the assertion value and attribute value match according "
-"to the distinguishedNameMatch rule and either, (1) the <BitString> "
-"component is absent from both the attribute value and assertion "
-"value, or (2) the <BitString> component is present in both the "
-"attribute value and the assertion value and the <BitString> component "
-"of the assertion value matches the <BitString> component of the "
-"attribute value according to the bitStringMatch rule.  "
-"Note that this matching rule has been altered from its description in "
-"X.520 [X.520] in order to make the matching rule commutative.  Server "
-"implementors should consider using the original X.520 semantics "
-"(where the matching was less exact) for approximate matching of "
-"attributes with uniqueMemberMatch as the equality matching rule.",
-NAMEANDOPTIONALUID_SYNTAX_OID, 0, NULL /* no other syntaxes supported */}, /* matching rule desc */
- {"uniqueMemberMatch-mr", VENDOR, DS_PACKAGE_VERSION, "uniqueMemberMatch matching rule plugin"}, /* plugin desc */
- uniqueMemberMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, nameoptuid_filter_ava, NULL, nameoptuid_values2keys,
- nameoptuid_assertion2keys_ava, NULL, nameoptuid_compare},
+    {
+        {
+            "2.5.13.23",
+            NULL,
+            "uniqueMemberMatch",
+            "The uniqueMemberMatch rule compares an assertion value of the Name "
+                "And Optional UID syntax to an attribute value of a syntax (e.g., the "
+                "Name And Optional UID syntax) whose corresponding ASN.1 type is "
+                "NameAndOptionalUID.  "
+                "The rule evaluates to TRUE if and only if the <distinguishedName> "
+                "components of the assertion value and attribute value match according "
+                "to the distinguishedNameMatch rule and either, (1) the <BitString> "
+                "component is absent from both the attribute value and assertion "
+                "value, or (2) the <BitString> component is present in both the "
+                "attribute value and the assertion value and the <BitString> component "
+                "of the assertion value matches the <BitString> component of the "
+                "attribute value according to the bitStringMatch rule.  "
+                "Note that this matching rule has been altered from its description in "
+                "X.520 [X.520] in order to make the matching rule commutative.  Server "
+                "implementors should consider using the original X.520 semantics "
+                "(where the matching was less exact) for approximate matching of "
+                "attributes with uniqueMemberMatch as the equality matching rule.",
+            NAMEANDOPTIONALUID_SYNTAX_OID,
+            0,
+            NULL /* no other syntaxes supported */
+        }, /* matching rule desc */
+        {
+            "uniqueMemberMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "uniqueMemberMatch matching rule plugin"
+        }, /* plugin desc */
+        uniqueMemberMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        nameoptuid_filter_ava,
+        NULL,
+        nameoptuid_values2keys,
+        nameoptuid_assertion2keys_ava,
+        NULL,
+        nameoptuid_compare,
+        NULL /* mr_normalise */
+    },
 };
 
 static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);

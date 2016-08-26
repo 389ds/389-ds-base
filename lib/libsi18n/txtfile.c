@@ -36,11 +36,11 @@ TEXTFILE * OpenTextFile(char *filename, int access)
 
     if (access == TEXT_OPEN_FOR_WRITE) {
         status = TEXT_FILE_WRITING;
-	    file = fopen(filename, "w+");
+        file = fopen(filename, "w+");
     }
     else {
         status = TEXT_FILE_READING;
-	    file = fopen(filename, "r");
+        file = fopen(filename, "r");
     }
 
     if (file == NULL)
@@ -87,29 +87,30 @@ int FillTextBuffer(TEXTFILE *txtfile)
 
 int ReadTextLine(TEXTFILE *txtfile, char *linebuf)
 {
-	char *p, *q;
+    char *p, *q;
 
-    if (txtfile->fbStatus == TEXT_FILE_DONE)
+    if (txtfile->fbStatus == TEXT_FILE_DONE) {
         return -1;
+    }
 
-	p = txtfile->fbCurrent;
-	q = strchr(p, '\n');
-	if (q)
-	{
-		*q = '\0';
-		strcpy(linebuf, p);
-		txtfile->fbCurrent = q + 1;
-		return strlen(linebuf);
-	}
-	else
-	{
-		if (FillTextBuffer(txtfile) == 0)
-		{   /* Done with file reading,
+    p = txtfile->fbCurrent;
+    q = strchr(p, '\n');
+    if (q)
+    {
+        *q = '\0';
+        strcpy(linebuf, p);
+        txtfile->fbCurrent = q + 1;
+        return strlen(linebuf);
+    }
+    else
+    {
+        if (FillTextBuffer(txtfile) == 0)
+        {   /* Done with file reading,
                return last line
              */
             txtfile->fbStatus = TEXT_FILE_DONE;
             if (*txtfile->fbCurrent) {
-			    strcpy(linebuf, txtfile->fbCurrent);
+                strcpy(linebuf, txtfile->fbCurrent);
                 CloseTextFile(txtfile);
                 return strlen(linebuf);
             }
@@ -117,22 +118,22 @@ int ReadTextLine(TEXTFILE *txtfile, char *linebuf)
                 CloseTextFile(txtfile);
                 return -1;
             }
-		}
-        else { 
-		    p = txtfile->fbCurrent;
-		    q = strchr(p, '\n');
-		    if (q)
-		    {
-			    *q = '\0';
-			    strcpy(linebuf, p);
-			    txtfile->fbCurrent = q + 1;
-		    }
-		    else
-		    {
-			    strcpy(linebuf, txtfile->fbCurrent);
-			    txtfile->fbCurrent = txtfile->fbCurrent + strlen(linebuf);
-		    }
         }
-		return strlen(linebuf);
-	}
+        else {
+            p = txtfile->fbCurrent;
+            q = strchr(p, '\n');
+            if (q)
+            {
+                *q = '\0';
+                strcpy(linebuf, p);
+                txtfile->fbCurrent = q + 1;
+            }
+            else
+            {
+                strcpy(linebuf, txtfile->fbCurrent);
+                txtfile->fbCurrent = txtfile->fbCurrent + strlen(linebuf);
+            }
+        }
+        return strlen(linebuf);
+    }
 }

@@ -533,10 +533,10 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 		goto loser;
 	}
 	
-	if (attrval)
-		ber_bvfree(attrval);
-
-	return 0;
+    if (attrval) {
+        ber_bvfree(attrval);
+    }
+    return 0;
 
 loser:
 	/* Free any stuff we allocated */

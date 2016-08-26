@@ -49,45 +49,87 @@ static const char *telephoneNumberSubstringsMatch_names[] = {"telephoneNumberSub
 static char *telephoneNumberSubstringsMatch_syntaxes[] = {TELEPHONE_SYNTAX_OID, NULL};
 
 static struct mr_plugin_def mr_plugin_table[] = {
-{{"2.5.13.20", NULL, "telephoneNumberMatch", "The telephoneNumberMatch rule compares an assertion value of the "
-"Telephone Number syntax to an attribute value of a syntax (e.g., the "
-"Telephone Number syntax) whose corresponding ASN.1 type is a "
-"PrintableString representing a telephone number. "
-"The rule evaluates to TRUE if and only if the prepared attribute "
-"value character string and the prepared assertion value character "
-"string have the same number of characters and corresponding "
-"characters have the same code point. "
-"In preparing the attribute value and assertion value for comparison, "
-"characters are case folded in the Map preparation step, and only "
-"telephoneNumber Insignificant Character Handling is applied in the "
-"Insignificant Character Handling step.",
-TELEPHONE_SYNTAX_OID, 0, NULL /* tel syntax only */}, /* matching rule desc */
- {"telephoneNumberMatch-mr", VENDOR, DS_PACKAGE_VERSION, "telephoneNumberMatch matching rule plugin"}, /* plugin desc */
- telephoneNumberMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, tel_filter_ava, NULL, tel_values2keys,
- tel_assertion2keys_ava, NULL, tel_compare},
-{{"2.5.13.21", NULL, "telephoneNumberSubstringsMatch", "The telephoneNumberSubstringsMatch rule compares an assertion value "
-"of the Substring Assertion syntax to an attribute value of a syntax "
-"(e.g., the Telephone Number syntax) whose corresponding ASN.1 type is "
-"a PrintableString representing a telephone number. "
-"The rule evaluates to TRUE if and only if (1) the prepared substrings "
-"of the assertion value match disjoint portions of the prepared "
-"attribute value character string in the order of the substrings in "
-"the assertion value, (2) an <initial> substring, if present, matches "
-"the beginning of the prepared attribute value character string, and "
-"(3) a <final> substring, if present, matches the end of the prepared "
-"attribute value character string.  A prepared substring matches a "
-"portion of the prepared attribute value character string if "
-"corresponding characters have the same code point. "
-"In preparing the attribute value and assertion value substrings for "
-"comparison, characters are case folded in the Map preparation step, "
-"and only telephoneNumber Insignificant Character Handling is applied "
-"in the Insignificant Character Handling step.",
-"1.3.6.1.4.1.1466.115.121.1.58", 0, telephoneNumberSubstringsMatch_syntaxes}, /* matching rule desc */
- {"telephoneNumberSubstringsMatch-mr", VENDOR, DS_PACKAGE_VERSION, "telephoneNumberSubstringsMatch matching rule plugin"}, /* plugin desc */
- telephoneNumberSubstringsMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, NULL, tel_filter_sub, tel_values2keys,
- NULL, tel_assertion2keys_sub, tel_compare},
+    {
+        {
+            "2.5.13.20",
+            NULL,
+            "telephoneNumberMatch",
+            "The telephoneNumberMatch rule compares an assertion value of the "
+                "Telephone Number syntax to an attribute value of a syntax (e.g., the "
+                "Telephone Number syntax) whose corresponding ASN.1 type is a "
+                "PrintableString representing a telephone number. "
+                "The rule evaluates to TRUE if and only if the prepared attribute "
+                "value character string and the prepared assertion value character "
+                "string have the same number of characters and corresponding "
+                "characters have the same code point. "
+                "In preparing the attribute value and assertion value for comparison, "
+                "characters are case folded in the Map preparation step, and only "
+                "telephoneNumber Insignificant Character Handling is applied in the "
+                "Insignificant Character Handling step.",
+            TELEPHONE_SYNTAX_OID,
+            0,
+            NULL /* tel syntax only */
+        }, /* matching rule desc */
+        {
+            "telephoneNumberMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "telephoneNumberMatch matching rule plugin"
+        }, /* plugin desc */
+        telephoneNumberMatch_names, /* matching rule name/oid/aliases */
+        NULL, /* mr_filter_create */
+        NULL, /* mr_indexer_create */
+        tel_filter_ava, /* mr_filter_ava */
+        NULL, /* mr_filter_sub */
+        tel_values2keys, /* mr_values2keys */
+        tel_assertion2keys_ava, /* mr_assertion2keys_ava */
+        NULL, /* mr_assertion2keys_sub */
+        tel_compare, /* mr_compare */
+        NULL /* mr_normalize */
+    },
+    {
+        {
+            "2.5.13.21",
+            NULL,
+            "telephoneNumberSubstringsMatch",
+            "The telephoneNumberSubstringsMatch rule compares an assertion value "
+                "of the Substring Assertion syntax to an attribute value of a syntax "
+                "(e.g., the Telephone Number syntax) whose corresponding ASN.1 type is "
+                "a PrintableString representing a telephone number. "
+                "The rule evaluates to TRUE if and only if (1) the prepared substrings "
+                "of the assertion value match disjoint portions of the prepared "
+                "attribute value character string in the order of the substrings in "
+                "the assertion value, (2) an <initial> substring, if present, matches "
+                "the beginning of the prepared attribute value character string, and "
+                "(3) a <final> substring, if present, matches the end of the prepared "
+                "attribute value character string.  A prepared substring matches a "
+                "portion of the prepared attribute value character string if "
+                "corresponding characters have the same code point. "
+                "In preparing the attribute value and assertion value substrings for "
+                "comparison, characters are case folded in the Map preparation step, "
+                "and only telephoneNumber Insignificant Character Handling is applied "
+                "in the Insignificant Character Handling step.",
+            "1.3.6.1.4.1.1466.115.121.1.58",
+            0,
+            telephoneNumberSubstringsMatch_syntaxes
+        }, /* matching rule desc */
+        {
+            "telephoneNumberSubstringsMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "telephoneNumberSubstringsMatch matching rule plugin"
+        }, /* plugin desc */
+        telephoneNumberSubstringsMatch_names, /* matching rule name/oid/aliases */
+        NULL, /* IFP mr_filter_create; */
+        NULL, /* IFP mr_indexer_create; */
+        NULL, /* mr_filter_ava */
+        tel_filter_sub, /* mr_filter_sub */
+        tel_values2keys, /* mr_values2keys */
+        NULL, /*mr_assertion2keys_ava */
+        tel_assertion2keys_sub, /* mr_assertion2keys_sub */
+        tel_compare, /* mr_compare */
+        NULL /* mr_normalize */
+    },
 };
 
 static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);

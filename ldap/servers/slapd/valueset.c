@@ -209,20 +209,21 @@ valuearray_init_bervalarray(struct berval **bvals, Slapi_Value ***cvals)
 {
     int n;
     for(n=0; bvals != NULL && bvals[n] != NULL; n++);
-	if(n==0)
-	{
-	    *cvals = NULL;
-	}
-	else
-	{
-		int i;
-	    *cvals = (Slapi_Value **) slapi_ch_malloc((n + 1) * sizeof(Slapi_Value *));
-	    for(i=0;i<n;i++)
-	    {
-			(*cvals)[i] = slapi_value_new_berval(bvals[i]);
-	    }
-	    (*cvals)[i] = NULL;
-	}
+
+    if(n==0)
+    {
+        *cvals = NULL;
+    }
+    else
+    {
+        int i;
+        *cvals = (Slapi_Value **) slapi_ch_malloc((n + 1) * sizeof(Slapi_Value *));
+        for(i=0;i<n;i++)
+        {
+            (*cvals)[i] = slapi_value_new_berval(bvals[i]);
+        }
+        (*cvals)[i] = NULL;
+    }
     return n;
 }
 

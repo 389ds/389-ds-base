@@ -45,12 +45,13 @@ cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
                LDAPControl ***resctrlsp ,int *status)
 {
     int         rc;
- 
+
     do {
          /* check to see if operation has been abandoned...*/
 
-    if (LDAP_AUTH_SIMPLE!=method)
-        return LDAP_AUTH_METHOD_NOT_SUPPORTED;
+        if (LDAP_AUTH_SIMPLE!=method) {
+            return LDAP_AUTH_METHOD_NOT_SUPPORTED;
+        }
 
         if ( slapi_op_abandoned( pb )) {
             rc = LDAP_USER_CANCELLED;
@@ -59,7 +60,7 @@ cb_sasl_bind_s(Slapi_PBlock * pb, cb_conn_pool *pool, int tries,
                      matcheddnp, errmsgp, refurlsp, resctrlsp ,status);
         }
     } while ( CB_LDAP_CONN_ERROR( rc ) && --tries > 0 );
-       
+
     return( rc );
 }
 

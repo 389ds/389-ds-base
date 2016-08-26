@@ -67,7 +67,7 @@
 #include <ldappr.h>
 #else
 /* need mutex around ldap_initialize - see https://fedorahosted.org/389/ticket/348 */
-static PRCallOnceType ol_init_callOnce = {0,0};
+static PRCallOnceType ol_init_callOnce = {0,0,0};
 static PRLock *ol_init_lock = NULL;
 
 #if defined(USE_OPENLDAP)
@@ -1799,7 +1799,7 @@ cleanup:
     return myrc;
 }
 
-static PRCallOnceType krb5_callOnce = {0,0};
+static PRCallOnceType krb5_callOnce = {0,0,0};
 static PRLock *krb5_lock = NULL;
 
 static PRStatus

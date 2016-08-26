@@ -1256,7 +1256,7 @@ static int cos_cache_add_dn_tmpls(char *dn, cosAttrValue *pCosSpecifier, cosAttr
 {
 	void *plugin_id;
 	int scope;
-	struct tmpl_info	info = {NULL, 0, 0};
+	struct tmpl_info	info = {NULL, 0, 0, 0};
 	Slapi_PBlock *pDnSearch = 0;
 
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_add_dn_tmpls\n",0,0,0);

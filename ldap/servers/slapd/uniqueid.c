@@ -227,10 +227,11 @@ int slapi_uniqueIDScan (Slapi_UniqueID *uId, const char *buff){
    Note: LPXXX - This call is not used currently. Keep it ???
  */
 int slapi_uniqueIDIsUUID (const Slapi_UniqueID *uId){
-    if (uId == NULL)
-        return UID_BADDATA;    
-	/* Shortening Slapi_UniqueID: This call does nothing */
-	return (0);
+    if (uId == NULL) {
+        return UID_BADDATA;
+    }
+    /* Shortening Slapi_UniqueID: This call does nothing */
+    return (0);
 }
 
 /* Name:		slapi_uniqueIDSize

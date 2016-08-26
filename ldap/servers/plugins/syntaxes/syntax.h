@@ -128,27 +128,69 @@ static const char *keywordMatch_names[] = {"keywordMatch", "2.5.13.33", NULL};
 static const char *wordMatch_names[] = {"wordMatch", "2.5.13.32", NULL};
 /* table of matching rule plugin defs for mr register and plugin register */
 static struct mr_plugin_def mr_plugin_table[] = {
-{{"2.5.13.33", NULL, "keywordMatch", "The keywordMatch rule compares an assertion value of the Directory"
-"String syntax to an attribute value of a syntax (e.g., the Directory"
-"String syntax) whose corresponding ASN.1 type is DirectoryString."
-"The rule evaluates to TRUE if and only if the assertion value"
-"character string matches any keyword in the attribute value.  The"
-"identification of keywords in the attribute value and the exactness"
-"of the match are both implementation specific.", "1.3.6.1.4.1.1466.115.121.1.15", 0}, /* matching rule desc */
- {"keywordMatch-mr", VENDOR, DS_PACKAGE_VERSION, "keywordMatch matching rule plugin"}, /* plugin desc */
-   keywordMatch_names, /* matching rule name/oid/aliases */
-   NULL, NULL, mr_filter_ava, mr_filter_sub, mr_values2keys,
-   mr_assertion2keys_ava, mr_assertion2keys_sub, mr_compare, keywordMatch_syntaxes},,
-{{"2.5.13.32", NULL, "wordMatch", "The wordMatch rule compares an assertion value of the Directory"
-"String syntax to an attribute value of a syntax (e.g., the Directory"
-"String syntax) whose corresponding ASN.1 type is DirectoryString."
-"The rule evaluates to TRUE if and only if the assertion value word"
-"matches, according to the semantics of caseIgnoreMatch, any word in"
-"the attribute value.  The precise definition of a word is"
-"implementation specific.", "1.3.6.1.4.1.1466.115.121.1.15", 0}, /* matching rule desc */
- {"wordMatch-mr", VENDOR, DS_PACKAGE_VERSION, "wordMatch matching rule plugin"}, /* plugin desc */
-   wordMatch_names, /* matching rule name/oid/aliases */
-   NULL, NULL, mr_filter_ava, mr_filter_sub, mr_values2keys,
-   mr_assertion2keys_ava, mr_assertion2keys_sub, mr_compare, wordMatch_syntaxes},
+    {
+        {
+            "2.5.13.33",
+            NULL,
+            "keywordMatch",
+            "The keywordMatch rule compares an assertion value of the Directory"
+                "String syntax to an attribute value of a syntax (e.g., the Directory"
+                "String syntax) whose corresponding ASN.1 type is DirectoryString."
+                "The rule evaluates to TRUE if and only if the assertion value"
+                "character string matches any keyword in the attribute value.  The"
+                "identification of keywords in the attribute value and the exactness"
+                "of the match are both implementation specific.",
+            "1.3.6.1.4.1.1466.115.121.1.15",
+            0
+        }, /* matching rule desc */
+        {
+            "keywordMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "keywordMatch matching rule plugin"
+        }, /* plugin desc */
+        keywordMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        mr_filter_ava,
+        mr_filter_sub,
+        mr_values2keys,
+        mr_assertion2keys_ava,
+        mr_assertion2keys_sub,
+        mr_compare,
+        keywordMatch_syntaxes
+    },
+    {
+        {
+            "2.5.13.32",
+            NULL,
+            "wordMatch",
+            "The wordMatch rule compares an assertion value of the Directory"
+                "String syntax to an attribute value of a syntax (e.g., the Directory"
+                "String syntax) whose corresponding ASN.1 type is DirectoryString."
+                "The rule evaluates to TRUE if and only if the assertion value word"
+                "matches, according to the semantics of caseIgnoreMatch, any word in"
+                "the attribute value.  The precise definition of a word is"
+                "implementation specific.",
+            "1.3.6.1.4.1.1466.115.121.1.15",
+            0
+        }, /* matching rule desc */
+        {
+            "wordMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "wordMatch matching rule plugin"
+        }, /* plugin desc */
+        wordMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        mr_filter_ava,
+        mr_filter_sub,
+        mr_values2keys,
+        mr_assertion2keys_ava,
+        mr_assertion2keys_sub,
+        mr_compare,
+        wordMatch_syntaxes
+    },
 };
 #endif /* UNSUPPORTED_MATCHING_RULES */

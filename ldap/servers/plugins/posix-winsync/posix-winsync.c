@@ -100,21 +100,21 @@ static windows_attribute_map user_attribute_map[] = {
 };
 
 static windows_attribute_map user_mssfu_attribute_map[] =
-    { { "msSFU30homedirectory", "homeDirectory" },
-      { "msSFU30loginshell", "loginShell" },
-      { "msSFU30uidnumber", "uidNumber" },
-      { "msSFU30gidnumber", "gidNumber" },
-      { "msSFU30gecos", "gecos" },
-      { NULL, NULL } };
+    { { "msSFU30homedirectory", "homeDirectory", 1 },
+      { "msSFU30loginshell", "loginShell", 0 },
+      { "msSFU30uidnumber", "uidNumber", 1 },
+      { "msSFU30gidnumber", "gidNumber", 1 },
+      { "msSFU30gecos", "gecos", 0 },
+      { NULL, NULL, 0 } };
 
 /* memberUid must be first element or fixup in pre_ad_mod/add_group is required */
-static windows_attribute_map group_attribute_map[] = { { "memberUid", "memberUid" },
-                                                       { "gidNumber", "gidNumber" },
-                                                       { NULL, NULL } };
+static windows_attribute_map group_attribute_map[] = { { "memberUid", "memberUid", 0 },
+                                                       { "gidNumber", "gidNumber", 1 },
+                                                       { NULL, NULL, 0 } };
 
-static windows_attribute_map group_mssfu_attribute_map[] = { { "msSFU30memberUid", "memberUid" },
-                                                             { "msSFU30gidNumber", "gidNumber" },
-                                                             { NULL, NULL } };
+static windows_attribute_map group_mssfu_attribute_map[] = { { "msSFU30memberUid", "memberUid", 0 },
+                                                             { "msSFU30gidNumber", "gidNumber", 1 },
+                                                             { NULL, NULL, 0 } };
 
 static char *posix_winsync_plugin_name = POSIX_WINSYNC_PLUGIN_NAME;
 static PRUint64 g_plugin_started = 0;

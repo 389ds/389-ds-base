@@ -933,25 +933,26 @@ static char * isHttpReq(const char *url, int *sslOn)
 {
     static const char http_protopol_header[] = "http://"; 
     static const char https_protopol_header[] = "https://"; 
-	char *newstr = NULL;
+    char *newstr = NULL;
     /* skip leading white space */
-    while (isAsciiSpace(*url))
+    while (isAsciiSpace(*url)) {
         url++;
+    }
 
-	if (strncmp(url, http_protopol_header, strlen(http_protopol_header)) == 0) {
-		newstr = (char *)PR_Calloc(1, (strlen(url)-strlen(http_protopol_header) + 1));				
-		strcpy(newstr, url+7);
-		strcat(newstr,"\0");
-		*sslOn = 0;
-	}
-	else if (strncmp(url, https_protopol_header, strlen(https_protopol_header)) == 0) {
-		newstr = (char *)PR_Calloc(1, (strlen(url)-strlen(https_protopol_header) + 1));				
-		strcpy(newstr, url+8);
-		strcat(newstr,"\0");
-		*sslOn = 1;
-	}
+    if (strncmp(url, http_protopol_header, strlen(http_protopol_header)) == 0) {
+        newstr = (char *)PR_Calloc(1, (strlen(url)-strlen(http_protopol_header) + 1));
+        strcpy(newstr, url+7);
+        strcat(newstr,"\0");
+        *sslOn = 0;
+    }
+    else if (strncmp(url, https_protopol_header, strlen(https_protopol_header)) == 0) {
+        newstr = (char *)PR_Calloc(1, (strlen(url)-strlen(https_protopol_header) + 1));
+        strcpy(newstr, url+8);
+        strcat(newstr,"\0");
+        *sslOn = 1;
+    }
 
-	return newstr;
+    return newstr;
 }
 
 PRFileDesc* setupSSLSocket(PRFileDesc* fd)

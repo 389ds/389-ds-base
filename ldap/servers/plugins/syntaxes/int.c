@@ -50,36 +50,97 @@ static const char *integerFirstComponentMatch_names[] = {"integerFirstComponentM
 static char *integerFirstComponentMatch_syntaxes[] = {DIRSTRING_SYNTAX_OID, NULL};
 
 static struct mr_plugin_def mr_plugin_table[] = {
-{{INTEGERMATCH_OID, NULL /* no alias? */,
-  "integerMatch", "The rule evaluates to TRUE if and only if the attribute value and the assertion value are the same integer value.",
-  INTEGER_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other compatible syntaxes */ },
- {"integerMatch-mr", VENDOR, DS_PACKAGE_VERSION, "integerMatch matching rule plugin" },
- integerMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, int_filter_ava, NULL, int_values2keys,
- int_assertion2keys, NULL, int_compare},
-{{INTEGERORDERINGMATCH_OID, NULL /* no alias? */,
-  "integerOrderingMatch", "The rule evaluates to TRUE if and only if the integer value of the attribute value is less than the integer value of the assertion value.",
-  INTEGER_SYNTAX_OID, 0 /* not obsolete */, NULL /* no other compatible syntaxes */ },
- {"integerOrderingMatch-mr", VENDOR, DS_PACKAGE_VERSION, "integerOrderingMatch matching rule plugin" },
- integerOrderingMatch_names, /* matching rule name/oid/aliases */
- NULL, NULL, int_filter_ava, NULL, int_values2keys,
- int_assertion2keys, NULL, int_compare},
-/* NOTE: THIS IS BROKEN - WE DON'T SUPPORT THE FIRSTCOMPONENT match */
-{{"2.5.13.29", NULL, "integerFirstComponentMatch", "The integerFirstComponentMatch rule compares an assertion value of "
-"the Integer syntax to an attribute value of a syntax (e.g., the DIT "
-"Structure Rule Description syntax) whose corresponding ASN.1 type is "
-"a SEQUENCE with a mandatory first component of the INTEGER ASN.1 "
-"type.  "
-"Note that the assertion syntax of this matching rule differs from the "
-"attribute syntax of attributes for which this is the equality "
-"matching rule.  "
-"The rule evaluates to TRUE if and only if the assertion value and the "
-"first component of the attribute value are the same integer value.",
-INTEGER_SYNTAX_OID, 0, integerFirstComponentMatch_syntaxes}, /* matching rule desc */
- {"integerFirstComponentMatch-mr", VENDOR, DS_PACKAGE_VERSION, "integerFirstComponentMatch matching rule plugin"}, /* plugin desc */
-   integerFirstComponentMatch_names, /* matching rule name/oid/aliases */
-   NULL, NULL, int_filter_ava, NULL, int_values2keys,
-   int_assertion2keys, NULL, int_compare},
+    {
+        {
+            INTEGERMATCH_OID,
+            NULL /* no alias? */,
+            "integerMatch",
+            "The rule evaluates to TRUE if and only if the attribute value and the assertion value are the same integer value.",
+            INTEGER_SYNTAX_OID,
+            0 /* not obsolete */,
+            NULL /* no other compatible syntaxes */
+        },
+        {
+            "integerMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "integerMatch matching rule plugin"
+        },
+        integerMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        int_filter_ava,
+        NULL,
+        int_values2keys,
+        int_assertion2keys,
+        NULL,
+        int_compare,
+        NULL /* mr_normalise */
+    },
+    {
+        {
+            INTEGERORDERINGMATCH_OID,
+            NULL /* no alias? */,
+            "integerOrderingMatch",
+            "The rule evaluates to TRUE if and only if the integer value of the attribute value is less than the integer value of the assertion value.",
+            INTEGER_SYNTAX_OID,
+            0 /* not obsolete */,
+            NULL /* no other compatible syntaxes */
+        },
+        {
+            "integerOrderingMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "integerOrderingMatch matching rule plugin"
+        },
+        integerOrderingMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        int_filter_ava,
+        NULL,
+        int_values2keys,
+        int_assertion2keys,
+        NULL,
+        int_compare,
+        NULL /* mr_normalise */
+    },
+    /* NOTE: THIS IS BROKEN - WE DON'T SUPPORT THE FIRSTCOMPONENT match */
+    {
+        {
+            "2.5.13.29",
+            NULL,
+            "integerFirstComponentMatch",
+            "The integerFirstComponentMatch rule compares an assertion value of "
+                "the Integer syntax to an attribute value of a syntax (e.g., the DIT "
+                "Structure Rule Description syntax) whose corresponding ASN.1 type is "
+                "a SEQUENCE with a mandatory first component of the INTEGER ASN.1 "
+                "type.  "
+                "Note that the assertion syntax of this matching rule differs from the "
+                "attribute syntax of attributes for which this is the equality "
+                "matching rule.  "
+                "The rule evaluates to TRUE if and only if the assertion value and the "
+                "first component of the attribute value are the same integer value.",
+            INTEGER_SYNTAX_OID,
+            0,
+            integerFirstComponentMatch_syntaxes
+        }, /* matching rule desc */
+        {
+            "integerFirstComponentMatch-mr",
+            VENDOR,
+            DS_PACKAGE_VERSION,
+            "integerFirstComponentMatch matching rule plugin"
+        }, /* plugin desc */
+        integerFirstComponentMatch_names, /* matching rule name/oid/aliases */
+        NULL,
+        NULL,
+        int_filter_ava,
+        NULL,
+        int_values2keys,
+        int_assertion2keys,
+        NULL,
+        int_compare,
+        NULL /* mr_normalise */
+    },
 };
 
 static size_t mr_plugin_table_size = sizeof(mr_plugin_table)/sizeof(mr_plugin_table[0]);
