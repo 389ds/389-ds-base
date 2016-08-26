@@ -182,7 +182,7 @@ class ReplTools(object):
         @return - True if all the agreements are idle, otherwise False
         """
 
-        IDLE_MSG = ('0 Replica acquired successfully: Incremental ' +
+        IDLE_MSG = ('Replica acquired successfully: Incremental ' +
                     'update succeeded')
         STATUS_ATTR = 'nsds5replicaLastUpdateStatus'
         FILTER = ('(&(nsDS5ReplicaRoot=' + suffix +
@@ -195,7 +195,7 @@ class ReplTools(object):
                     ldap.SCOPE_SUBTREE, FILTER, [STATUS_ATTR])
                 if entries:
                     for entry in entries:
-                        if entry.getValue(STATUS_ATTR) != IDLE_MSG:
+                        if IDLE_MSG not in entry.getValue(STATUS_ATTR):
                             repl_idle = False
                             break
 
