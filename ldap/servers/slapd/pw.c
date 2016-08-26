@@ -1337,69 +1337,6 @@ slapi_add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
 }
 
 void
-pw_mod_allowchange_aci(int pw_prohibit_change)
-{
-	const Slapi_DN *base;
-	char		*values_mod[2];
-	LDAPMod		mod;
-	LDAPMod		*mods[2];
-	Slapi_Backend *be;
-	char *cookie = NULL;
-
-	mods[0] = &mod;
-	mods[1] = NULL;
-	mod.mod_type = "aci";
-	mod.mod_values = values_mod;
-
-	if (pw_prohibit_change) {
-		mod.mod_op = LDAP_MOD_ADD;
-	}
-	else
-	{
-		/* Allow change password by default  */
-		/* remove the aci if it is there.  it is ok to fail */
-		mod.mod_op = LDAP_MOD_DELETE;
-	}
-
-	be = slapi_get_first_backend (&cookie);
-	/* Foreach backend... */
-    while (be)
-    {
-		/* Don't add aci on a chaining backend holding remote entries */
-        if((!be->be_private) && (!slapi_be_is_flag_set(be,SLAPI_BE_FLAG_REMOTE_DATA)))
-        {
-			/* There's only One suffix per DB now. No need to loop */
-			base = slapi_be_getsuffix(be, 0);
-			if (base != NULL)
-			{
-				Slapi_PBlock pb;
-				int rc;
-				
-				pblock_init (&pb);
-				values_mod[0] = DENY_PW_CHANGE_ACI;
-				values_mod[1] = NULL;
-				slapi_modify_internal_set_pb_ext(&pb, base, mods, NULL, NULL,
-				                                 pw_get_componentID(), 0);
-				slapi_modify_internal_pb(&pb);
-				slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-				if (rc == LDAP_SUCCESS){
-					/* 
-					** Since we modified the acl 
-					** successfully, let's update the 
-					** in-memory acl list
-					*/
-					slapi_pblock_set(&pb, SLAPI_TARGET_SDN, (void *)base);
-					plugin_call_acl_mods_update (&pb, LDAP_REQ_MODIFY );
-				}
-				pblock_done(&pb);
-			}
-        }
-		be = slapi_get_next_backend (cookie);
-    }
-	slapi_ch_free((void **) &cookie);
-}
-
-void
 add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 {
 	struct berval   bv;
@@ -1581,24 +1518,6 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 	/* Free valueset */
 	slapi_valueset_free( vs );
 	return ( 0 );
-}
-
-
-void
-pw_add_allowchange_aci(Slapi_Entry *e, int pw_prohibit_change) {
-	char		*aci_pw = NULL;
-	const char *aciattr = "aci";
-
-	aci_pw = slapi_ch_strdup(DENY_PW_CHANGE_ACI);
-
-	if (pw_prohibit_change) {
-		/* Add ACI */
-		slapi_entry_add_string(e, aciattr, aci_pw);
-	} else {
-		/* Remove ACI */
-		slapi_entry_delete_string(e, aciattr, aci_pw);
-	}
-	slapi_ch_free((void **) &aci_pw);
 }
 
 int
