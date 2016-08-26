@@ -295,13 +295,8 @@ skip:
 void
 pw_init ( void )
 {
-	slapdFrontendConfig_t *slapdFrontendConfig;
-
 	pw_set_componentID(generate_componentid(NULL, COMPONENT_PWPOLICY));
-	
-	slapdFrontendConfig = getFrontendConfig();
-	pw_mod_allowchange_aci (!slapdFrontendConfig->pw_policy.pw_change && 
-                            !slapdFrontendConfig->pw_policy.pw_must_change);
+
 #if defined(USE_OLD_UNHASHED)
 	slapi_add_internal_attr_syntax( PSEUDO_ATTR_UNHASHEDUSERPASSWORD,
 	                                PSEUDO_ATTR_UNHASHEDUSERPASSWORD_OID,
@@ -312,5 +307,3 @@ pw_init ( void )
 	                                SLAPI_ATTR_FLAG_NOEXPOSE);
 #endif
 }
-
-

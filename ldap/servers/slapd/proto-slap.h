@@ -950,9 +950,6 @@ void get_old_pw( Slapi_PBlock *pb, const Slapi_DN *sdn, char **old_pw);
 int check_account_lock( Slapi_PBlock *pb, Slapi_Entry * bind_target_entry, int pwresponse_req, int account_inactivation_only /*no wire/no pw policy*/);
 int check_pw_minage( Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals) ;
 void add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e );
-void mod_allowchange_aci(char *val);
-void pw_mod_allowchange_aci(int pw_prohibit_change);
-void pw_add_allowchange_aci(Slapi_Entry *e, int pw_prohibit_change);
 
 /*
  * pw_retry.c
