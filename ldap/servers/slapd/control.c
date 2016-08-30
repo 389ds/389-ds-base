@@ -176,7 +176,8 @@ get_ldapmessage_controls_ext(
 {
 	LDAPControl		**ctrls, *new;
 	ber_tag_t		tag;
-	ber_len_t		len = -1;
+    /* ber_len_t is uint, cannot be -1 */
+	ber_len_t		len = LBER_ERROR;
 	int			rc, maxcontrols, curcontrols;
 	char			*last;
 	int			managedsait, pwpolicy_ctrl;
@@ -340,6 +341,7 @@ get_ldapmessage_controls_ext(
                 slapi_log_error(SLAPI_LOG_CONNS, "connection", "Warning: conn=%" NSPRIu64 " op=%d contains an empty list of controls\n",
                         pb->pb_conn->c_connid, pb->pb_op->o_opid);
         } else {
+                /* len, ber_len_t is uint, not int, cannot be != -1, may be better to remove this check.  */
                 if ((tag != LBER_END_OF_SEQORSET) && (len != -1)) {
                         goto free_and_return;
                 }

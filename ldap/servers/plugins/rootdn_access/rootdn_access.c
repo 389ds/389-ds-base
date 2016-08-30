@@ -691,7 +691,7 @@ rootdn_check_host_wildcard(char *host, char *client_host)
 static int
 rootdn_check_ip_wildcard(char *ip, char *client_ip)
 {
-    int ip_len = strlen(ip);
+    size_t ip_len = strlen(ip);
     int i;
     /*
      *  Start at the beginning of the string and move forward, and skip the last char "*"
@@ -711,7 +711,7 @@ rootdn_check_ip_wildcard(char *ip, char *client_ip)
 
 char *
 strToLower(char *str){
-    int i;
+    size_t i;
 
     for(i = 0; str && i < strlen(str); i++){
         str[i] = tolower(str[i]);

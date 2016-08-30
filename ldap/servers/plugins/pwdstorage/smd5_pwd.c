@@ -36,7 +36,7 @@ smd5_pw_cmp( const char *userpwd, const char *dbpwd )
    PK11Context *ctx=NULL;
    unsigned int outLen;
    unsigned char userhash[MD5_LENGTH];
-   int hash_len;
+   PRUint32 hash_len;
    char quick_dbhash[MD5_LENGTH + MD5_DEFAULT_SALT_LENGTH + 1];
    char *dbhash = quick_dbhash;
    struct berval salt;

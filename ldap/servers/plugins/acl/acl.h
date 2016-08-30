@@ -649,7 +649,7 @@ typedef struct {
 
 
 /* reasons why the subject allowed/denied access--good for logs */
-
+/* This is a uint by default */
 typedef enum{
 ACL_REASON_NO_ALLOWS,
 ACL_REASON_RESULT_CACHED_DENY,

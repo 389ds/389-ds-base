@@ -141,8 +141,8 @@ void db_printfln(char *fmt, ...)
     fprintf(stdout, "\n");
 }
 
-int MAX_BUFFER = 4096;
-int MIN_BUFFER = 20;
+size_t MAX_BUFFER = 4096;
+size_t MIN_BUFFER = 20;
 
 static IDL *idl_make(DBT *data)
 {

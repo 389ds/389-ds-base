@@ -1894,7 +1894,8 @@ static char *
 notes2str( unsigned int notes, char *buf, size_t buflen )
 {
 	char *p;
-	int i;
+	/* SLAPI_NOTEMAP_COUNT uses sizeof, size_t is unsigned. Was int */
+	uint i;
 	size_t len;
 
 	*buf = '\0';

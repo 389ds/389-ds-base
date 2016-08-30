@@ -23,8 +23,8 @@ dbverify_ext( ldbm_instance *inst, int verbose )
     PRDir *dirhandle      = NULL;
     PRDirEntry *direntry  = NULL;
     DB *dbp               = NULL;
-    int tmplen            = 0;
-    int filelen           = 0;
+    size_t tmplen            = 0;
+    size_t filelen           = 0;
     int rval              = 1;
     int rval_main         = 0;
     struct ldbminfo *li   = inst->inst_li;

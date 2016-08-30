@@ -54,7 +54,7 @@ do_add( Slapi_PBlock *pb )
 	Slapi_Operation *operation;
 	BerElement		*ber;
 	char			*last;
-	ber_len_t		len = -1;
+	ber_len_t		len = LBER_ERROR;
 	ber_tag_t		tag;
 	Slapi_Entry		*e = NULL;
 	int			err;
@@ -197,6 +197,7 @@ do_add( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
+    /* len, is ber_len_t, which is uint. Can't be -1. May be better to remove (len != 0) check */
 	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) ) {
 		op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,

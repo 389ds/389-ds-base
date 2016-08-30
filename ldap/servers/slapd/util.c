@@ -258,7 +258,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 #endif
     char *buf = (char *)val;
     int extra_space;
-    int filter_len = slen;
+    int filter_len = (int)slen;
 
     /* look at val - if val is one of our special keywords, and make a note of it for the next pass */
     if (strcmp(val, ESC_NEXT_VAL) == 0){
@@ -381,7 +381,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
         return filter_len;
     } else { /* process arg as is */
         /* check if we have enough room in our buffer */
-        if (ctx->buf_size + slen >= ctx->buf_len){
+        if (ctx->buf_size + (int)slen >= ctx->buf_len){
             /* increase buffer for this filter */
             extra_space = (ctx->buf_len + slen + BUF_INCR);
             ctx->buf = slapi_ch_realloc((char *)ctx->buf, sizeof(char) * extra_space);
@@ -1145,18 +1145,19 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
         int fd = -1;
         struct stat statbuf;
         int result = 1;
-        if (!filename)
-                return result;
+        if (!filename) {
+            return result;
+        }
 
         fd = open(filename, O_RDONLY);
         if (fd == -1) {
-                return result;
+            return result;
         }
         memset(&statbuf, '\0', sizeof(statbuf));
         if (!(result = fstat(fd, &statbuf)))
         {
                 if (((uid != -1) && (uid != statbuf.st_uid)) ||
-                        ((gid != -1) && (gid != statbuf.st_gid)))
+                    ((gid != -1) && (gid != statbuf.st_gid)))
                 {
                         result = fchown(fd, uid, gid);
                 }
@@ -1377,7 +1378,8 @@ slapi_get_plugin_name(const char *path, const char *lib)
     char *ptr = PL_strrstr(fullname, lib);
 
     /* see if /lib was added */
-    if (ptr && ((ptr - fullname) >= libstrlen)) {
+    /* This check is ridiculous and hard to comprehend ... */
+    if (ptr && ((ptr - fullname) >= (int)libstrlen)) {
         /* ptr is at the libname in fullname, and there is something before it */
         ptr -= libstrlen; /* ptr now points at the "/" in "/lib" if it is there */
         if (0 == PL_strncmp(ptr, libstr, libstrlen)) {
@@ -1421,7 +1423,7 @@ slapi_is_special_rdn(const char *rdn, int flag)
 		return 0; /* not a special rdn/dn */
 	}
 
-	if (strlen(rdn) < util_uniqueidlen) {
+	if (strlen(rdn) < (size_t)util_uniqueidlen) {
 		return 0; /* not a special rdn/dn */
 	}
 	rp = (char *)rdn;

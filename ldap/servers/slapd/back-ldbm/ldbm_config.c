@@ -1042,7 +1042,7 @@ static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int 
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     int retval = LDAP_SUCCESS;
-    size_t val = (size_t) ((uintptr_t)value);
+    int val = ((uintptr_t)value);
     size_t delta = 0;
 
     /* There is an error here. We check the new val against our current mem-alloc 
@@ -1060,7 +1060,7 @@ static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int 
             delta = val - li->li_dblayer_private->dblayer_cache_config;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: db cachesize value is too large");
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,"Error: db cachesize value is too large.\n", val);
+                LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: db cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }

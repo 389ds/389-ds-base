@@ -516,6 +516,7 @@ slapi_ldap_create_proxyauth_control (
         ctrloid = LDAP_CONTROL_PROXYAUTH;
     }
 
+    /* Curiously, LBER_ERROR is uint, but set to -1 (0xffffffffU), even though ber_printf is int ... */
     if (LBER_ERROR == ber_printf(ber, berfmtstr, dn)) {
         ber_free(ber, 1);
         return LDAP_ENCODING_ERROR;

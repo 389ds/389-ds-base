@@ -20,7 +20,7 @@ syntax_register_matching_rule_plugins(
 )
 {
 	int rc = -1;
-	int ii;
+	size_t ii;
 
 	for (ii = 0; ii < mr_plugin_table_size; ++ii) {
 		char *argv[2];
@@ -44,7 +44,7 @@ syntax_matching_rule_plugin_init(
 	size_t mr_plugin_table_size
 )
 {
-	int ii;
+	size_t ii;
 	char **argv = NULL;
 	int rc = -1;
 	struct mr_plugin_def *mrpd = NULL;

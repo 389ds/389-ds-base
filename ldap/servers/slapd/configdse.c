@@ -101,7 +101,7 @@ read_config_dse (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int 
 	slapdFrontendConfig_t *slapdFrontendConfig;
 	struct slapdplugin *pPlugin;
 	char *cookie;
-	int i;
+	size_t i;
 
 	slapdFrontendConfig = getFrontendConfig();
    

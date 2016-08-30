@@ -2039,7 +2039,8 @@ moddn_rename_children(
     struct ldbminfo *li = (struct ldbminfo *) be->be_database->plg_private;
     Slapi_Operation *operation;
     CSN *opcsn;
-    int retval= -1, i;
+    int retval= -1;
+    uint i = 0;
     char **newsuperiordns = NULL;
     int newsuperiordncomps= 0;
     int parentdncomps= 0;

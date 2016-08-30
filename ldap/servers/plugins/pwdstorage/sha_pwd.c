@@ -50,7 +50,7 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     char quick_dbhash[MAX_SHA_HASH_SIZE + SHA_SALT_LENGTH + 3];
     char *dbhash = quick_dbhash;
     struct berval salt;
-    int hash_len;   /* must be a signed valued -- see below */
+    PRUint32 hash_len;
     unsigned int secOID;
     char *schemeName;
     char *hashresult = NULL;

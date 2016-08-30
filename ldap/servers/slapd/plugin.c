@@ -641,7 +641,7 @@ plugin_get_pwd_storage_scheme(char *name, int len, int index)
 	struct slapdplugin *p;
 
 	for ( p = global_plugin_list[index]; p != NULL; p = p->plg_next ) {
-		if (strlen(p->plg_pwdstorageschemename) == len) {
+		if ((int)strlen(p->plg_pwdstorageschemename) == len) {
 			if (strncasecmp(p->plg_pwdstorageschemename, name, len) == 0) {
 				return( p );
 			}
@@ -3155,7 +3155,7 @@ get_dep_plugin_list(char **plugins)
 {
     char output[1024];
     int first_plugin = 1;
-    int len = 0;
+    PRUint32 len = 0;
     int i ;
 
     for(i = 0; plugins && plugins[i]; i++){

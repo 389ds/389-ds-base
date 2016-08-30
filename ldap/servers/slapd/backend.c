@@ -245,7 +245,11 @@ slapi_be_getsuffix(Slapi_Backend *be,int n)
         return NULL;
 
     if(be->be_state != BE_STATE_DELETED) {
-        if (be->be_suffixlist !=NULL && n < slapi_counter_get_value(be->be_suffixcounter)) {
+        /* slapi_counter_get_value returns a PRUint64, not an int. cast it to the int to avoid loss,
+         * may wish to change slapi_be_getsuffix to take PRUint64 in function def.
+         * Somehow I don't see us having greater than 0xFFFFFFFE databases on a deployment though ...
+         */
+        if (be->be_suffixlist !=NULL && n < (int)slapi_counter_get_value(be->be_suffixcounter)) {
             int i = 0;
 
             list = be->be_suffixlist;

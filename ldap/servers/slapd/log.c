@@ -131,14 +131,14 @@ slapd_log_error_proc_internal(
 	(((fd) = PR_Open((filename), PR_WRONLY | PR_TRUNCATE | \
 		PR_CREATE_FILE, mode)) != NULL)
 #define LOG_WRITE(fd, buffer, size, headersize) \
-	if ( slapi_write_buffer((fd), (buffer), (size)) != (size) ) \
+	if ( slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size) ) \
 	{ \
 		PRErrorCode prerr = PR_GetError(); \
 		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(headersize) ); \
 	}
 #define LOG_WRITE_NOW(fd, buffer, size, headersize, err) do {\
 	(err) = 0; \
-	if ( slapi_write_buffer((fd), (buffer), (size)) != (size) ) \
+	if ( slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size) ) \
 	{ \
 		PRErrorCode prerr = PR_GetError(); \
 		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(headersize) ); \
@@ -148,7 +148,7 @@ slapd_log_error_proc_internal(
 	PR_Sync(fd); \
 	} while (0)
 #define LOG_WRITE_NOW_NO_ERR(fd, buffer, size, headersize) do {\
-	if ( slapi_write_buffer((fd), (buffer), (size)) != (size) ) \
+	if ( slapi_write_buffer((fd), (buffer), (PRInt32)(size)) != (PRInt32)(size) ) \
 	{ \
 		PRErrorCode prerr = PR_GetError(); \
 		syslog(LOG_ERR, "Failed to write log, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s): %s\n", prerr, slapd_pr_strerror(prerr), (buffer)+(headersize) ); \

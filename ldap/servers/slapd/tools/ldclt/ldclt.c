@@ -927,7 +927,8 @@ parseFilter (
 	char	**tail,
 	int	 *ndigits)
 {
-  int	 i, j;
+  size_t i;
+  size_t j;
 
   if (!src) {
     printf ("Error: NULL source string is passed.\n");
@@ -975,7 +976,7 @@ int
 basicInit (void)
 {
   struct rlimit	 rlp;	/* For setrlimit() */
-  int		 i;	/* For the loops */			/*JLS 21-11-00*/
+  size_t		 i;	/* For the loops */			/*JLS 21-11-00*/
   int		 ret;	/* Return value */
   int		 oflags;/* open() flags */			/*JLS 05-04-01*/
   struct stat file_st ; /* file status checker for attreplacefile option */
@@ -1726,8 +1727,8 @@ int
 addAttrToList (
 	char	*list)
 {
-  int	 start;	/* Start of the attr name */
-  int	 end;	/* End of the attr name */
+  size_t	 start;	/* Start of the attr name */
+  size_t	 end;	/* End of the attr name */
 
   /*
    * Sanity check

@@ -155,8 +155,8 @@ agt_mopen_stats (char * statsfile, int mode, int *hdl)
 		       }
 
                sz = sizeof (struct agt_stats_t);
-
-               if (fileinfo.st_size < sz)
+                /* st_size is an off_t, which is signed. sz, size_t is unsigned. */
+               if (fileinfo.st_size < (off_t)sz)
                {
                    /* Without this we will get segv when we try to read/write later */
                    buf = calloc (1, sz);

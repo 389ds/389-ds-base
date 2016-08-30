@@ -866,7 +866,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 
 			/* check for the minimum password length */
 			if ( pwpolicy->pw_minlength >
-				ldap_utf8characters((char *)slapi_value_get_string( vals[i] )) )
+				(int)ldap_utf8characters((char *)slapi_value_get_string( vals[i] )) )
 			{
 				PR_snprintf( errormsg, sizeof(errormsg) - 1, "invalid password syntax - password must be at least %d characters long",
 				    pwpolicy->pw_minlength );
@@ -1492,7 +1492,7 @@ check_trivial_words (Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Value **vals, char 
 		{
 			/* If the value is smaller than the max token length,
 			 * we don't need to check the password */
-			if ( ldap_utf8characters(slapi_value_get_string( valp )) < toklen )
+			if ( (int)ldap_utf8characters(slapi_value_get_string( valp )) < toklen )
 				continue;
 
 			/* See if the password contains the value */
@@ -2441,7 +2441,8 @@ slapi_pwpolicy_is_locked(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e, time_t *unloc
     if (pwpolicy && e) {
         /* Check if account is locked */
         if ( pwpolicy->pw_lockout == 1) {
-            if (slapi_entry_attr_get_uint(e, "passwordRetryCount") >= pwpolicy->pw_maxfailure) {
+            /* Despite get_uint, we still compare to an int ... */
+            if ((int)slapi_entry_attr_get_uint(e, "passwordRetryCount") >= pwpolicy->pw_maxfailure) {
                 is_locked = 1;
             }
         }

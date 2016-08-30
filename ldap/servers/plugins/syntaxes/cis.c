@@ -1324,30 +1324,30 @@ exit:
 }
 
 static int printable_validate(
-	struct berval *val
+    struct berval *val
 )
 {
-	int rc = 0;    /* assume the value is valid */
-        int i = 0;
+    int rc = 0;    /* assume the value is valid */
+    uint i = 0;
 
-	/* Per RFC4517:
-	 *
-	 * PrintableString = 1*PrintableCharacter
-	 */
-	if ((val != NULL) && (val->bv_len > 0)) {
-		/* Make sure all chars are a PrintableCharacter */
-		for (i=0; i < val->bv_len; i++) {
-			if (!IS_PRINTABLE(val->bv_val[i])) {
-				rc = 1;
-				goto exit;
-			}
-		}
-	} else {
-		rc = 1;
-	}
+    /* Per RFC4517:
+     *
+     * PrintableString = 1*PrintableCharacter
+     */
+    if ((val != NULL) && (val->bv_len > 0)) {
+        /* Make sure all chars are a PrintableCharacter */
+        for (i=0; i < val->bv_len; i++) {
+            if (!IS_PRINTABLE(val->bv_val[i])) {
+                rc = 1;
+                goto exit;
+            }
+        }
+    } else {
+        rc = 1;
+    }
 
 exit:
-	return( rc );
+    return( rc );
 }
 
 static void cis_normalize(

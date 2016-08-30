@@ -312,7 +312,7 @@ int main(int argc, char **argv)
                     (double)total/(double)numThreads, val, 
                     (double)1000.0/val, ntotal, numThreads);
         }
-        if (lmtCount && ntotal >= lmtCount) {
+        if (lmtCount && (int)ntotal >= lmtCount) {
             if (!quiet) {
                 tmpv = (double)ntotal*1000.0/(counter*sampleInterval);
                 fprintf(stdout,

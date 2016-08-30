@@ -272,7 +272,7 @@ tel_validate(
 )
 {
 	int     rc = 0;    /* assume the value is valid */
-	int	i = 0;
+	uint i = 0;
 
 	/* Per RFC4517:
 	 *

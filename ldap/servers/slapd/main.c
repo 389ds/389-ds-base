@@ -175,6 +175,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
   char file[MAXPATHLEN + 1];
   char *log=NULL, *ptr=NULL;
   int rc=0;
+  gid_t gid = -1;
 
   log=slapi_ch_strdup(name);
   if(strip_fn) 
@@ -200,9 +201,14 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
     while( (entry = PR_ReadDir(dir , PR_SKIP_BOTH )) !=NULL ) 
     {
       PR_snprintf(file,MAXPATHLEN+1,"%s/%s",log,entry->name);
-      if(slapd_chown_if_not_owner( file, pw->pw_uid, both?pw->pw_gid:-1 )){
-    	  LDAPDebug(LDAP_DEBUG_ANY, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
-    			  file, errno, slapd_system_strerror(errno));
+      if (both) {
+        gid = pw->pw_gid;
+      } else {
+        gid = -1;
+      }
+      if(slapd_chown_if_not_owner( file, pw->pw_uid, gid )){
+        LDAPDebug(LDAP_DEBUG_ANY, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
+                  file, errno, slapd_system_strerror(errno));
       }
     }
     PR_CloseDir( dir );

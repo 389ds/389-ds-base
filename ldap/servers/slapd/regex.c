@@ -128,7 +128,8 @@ slapi_re_subs_ext( Slapi_Regex *re_handle, const char *subject,
                const char *src, char **dst, unsigned long dstlen, int filter )
 {
     int  thislen = 0;
-    int  len = 0;
+    /* was int, should match the type we compare to in the end! */
+    unsigned long len = 0;
     int  pin;
     int  *ovector;
     char *mydst;

@@ -384,7 +384,7 @@ get_filter_list( Connection *conn, BerElement *ber,
 	struct slapi_filter	**new;
 	int		err;
 	ber_tag_t	tag;
-	ber_len_t	len = -1;
+	ber_len_t	len = LBER_ERROR;
 	char		*last;
 
 	LDAPDebug( LDAP_DEBUG_FILTER, "=> get_filter_list\n", 0, 0, 0 );

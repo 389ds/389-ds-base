@@ -449,8 +449,8 @@ ia5_validate(
     struct berval *val
 )
 {
-	int	rc = 0;    /* assume the value is valid */
-	int	i = 0;
+	int rc = 0;    /* assume the value is valid */
+	uint i = 0;
 
 	if (val == NULL) {
 		rc = 1;

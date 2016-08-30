@@ -84,7 +84,7 @@ NameTable *nt_new(int capacity)
 /* destroy nametable */
 void nt_destroy(NameTable *nt)
 {
-    int i;
+    PRUint32 i;
 
     if (nt->size) {
 	for (i = 0; i < nt->size; i++)
@@ -136,7 +136,7 @@ int nt_load(NameTable *nt, const char *filename)
 int nt_save(NameTable *nt, const char *filename)
 {
     PRFileDesc *fd;
-    int i;
+    PRUint32 i;
 
     fd = PR_Open(filename, PR_WRONLY|PR_CREATE_FILE, 0644);
     if (!fd) return 0;
@@ -152,7 +152,7 @@ int nt_save(NameTable *nt, const char *filename)
 /* painstakingly determine if a given entry is already in the list */
 int nt_cis_check(NameTable *nt, const char *name)
 {
-    int i;
+    PRUint32 i;
     
     for (i = 0; i < nt->size; i++)
 	if (strcasecmp(nt->data[i], name) == 0)

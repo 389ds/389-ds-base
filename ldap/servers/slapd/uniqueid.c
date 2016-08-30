@@ -265,19 +265,21 @@ static size_t format_len = 35;
    format (specified above). */
 static int isValidFormat (const char * buff)
 {
-	int i;
+    size_t i;
 
-	if (strlen (buff) != strlen (format))
-		return UID_BADDATA;
+    if (strlen (buff) != strlen (format)) {
+        return UID_BADDATA;
+    }
 
-	for (i = 0; i < format_len; i++)
-	{
-		if (format[i] == '-' && buff [i] != '-')
-			return 0;
-		else if (format[i] == 'X' && ! isxdigit (buff[i]))
-			return 0;
-	}
+    for (i = 0; i < format_len; i++)
+    {
+        if (format[i] == '-' && buff [i] != '-') {
+            return 0;
+        } else if (format[i] == 'X' && ! isxdigit (buff[i])) {
+            return 0;
+        }
+    }
 
-	return 1;
+    return 1;
 }
 

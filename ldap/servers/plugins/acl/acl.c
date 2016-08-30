@@ -660,7 +660,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 									aclResultReason_t *acl_reason)
 {
 	struct codebook {
-		int   code;
+		aclReasonCode_t code;
 		char *text;
 	};
 
@@ -693,7 +693,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 	char acl_info[ BUFSIZ ];
 	Slapi_Operation *op = NULL;
 	int loglevel; 
-	int	i;
+	size_t i;
 	PRUint64 o_connid = 0xffffffffffffffff; /* no op */
 	int o_opid = -1; /* no op */
 

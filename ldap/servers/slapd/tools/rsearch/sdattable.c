@@ -57,7 +57,7 @@ SDatTable *sdt_new(int capacity)
 /* destroy searchdata table */
 void sdt_destroy(SDatTable *sdt)
 {
-    int i;
+    PRUint32 i;
 
     if (sdt->size) {
 	for (i = 0; i < sdt->size; i++) {
@@ -159,7 +159,7 @@ out:
 int sdt_save(SDatTable *sdt, const char *filename)
 {
     PRFileDesc *fd;
-    int i;
+    PRUint32 i;
 
     fd = PR_Open(filename, PR_WRONLY|PR_CREATE_FILE, 0644);
     if (!fd) return 0;
@@ -183,7 +183,7 @@ int sdt_save(SDatTable *sdt, const char *filename)
 /* painstakingly determine if a given entry is already in the list */
 int sdt_cis_check(SDatTable *sdt, const char *name)
 {
-    int i;
+    PRUint32 i;
     
     for (i = 0; i < sdt->size; i++) {
 	if (strcasecmp(sdt->dns[i], name) == 0)

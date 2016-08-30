@@ -559,7 +559,7 @@ idl_new_range_fetch(
                     /* Otherwise, keep the {key,id} in leftover array */
                     if (!leftover) {
                         leftover = (idl_range_id_pair *)slapi_ch_calloc(leftoverlen, sizeof(idl_range_id_pair));
-                    } else if (leftovercnt == leftoverlen) {
+                    } else if (leftovercnt == (int)leftoverlen) {
                         leftover = (idl_range_id_pair *)slapi_ch_realloc((char *)leftover, 2 * leftoverlen * sizeof(idl_range_id_pair));
                         memset(leftover + leftovercnt, 0, leftoverlen);
                         leftoverlen *= 2;

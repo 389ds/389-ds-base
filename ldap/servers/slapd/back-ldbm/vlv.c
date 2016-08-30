@@ -885,7 +885,7 @@ determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 i
     else
     {
         /* Make sure we don't run off the start */
-        if(index < vlv_request_control->beforeCount)
+        if((ber_int_t)index < vlv_request_control->beforeCount)
         {
             *pstart= 0;
         }
@@ -894,7 +894,11 @@ determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 i
             *pstart= index - vlv_request_control->beforeCount;
         }
         /* Make sure we don't run off the end */
-        if(UINT_MAX - index > vlv_request_control->afterCount)
+        /*
+         * if(UINT_MAX - index > vlv_request_control->afterCount), but after is int,
+         * so right now, it could overflow before this condition ....
+         */
+        if(INT_MAX - (ber_int_t)index > vlv_request_control->afterCount)
         {
             *pstop= index + vlv_request_control->afterCount;
         }

@@ -197,7 +197,7 @@ struct _import_worker_info {
 
 
 /* import.c */
-int import_fifo_validate_capacity_or_expand(ImportJob *job, int entrysize);
+int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
 FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_free_job(ImportJob *job);
 void import_log_notice(ImportJob *job, char *format, ...)

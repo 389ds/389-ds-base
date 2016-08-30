@@ -81,7 +81,7 @@ static int import_fifo_init(ImportJob *job)
  *
  * \return int: If able to hold the entry, returns 0. If unable to, but resize was sucessful, so now able to hold the entry, 0. If unable to hold the entry and unable to resize, 1.
  */
-int import_fifo_validate_capacity_or_expand(ImportJob *job, int entrysize) {
+int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize) {
     int result = 1;
     /* We shoot for four times as much to start with. */
     size_t request = entrysize * 4;

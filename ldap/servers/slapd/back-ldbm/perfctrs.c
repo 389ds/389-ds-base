@@ -287,25 +287,25 @@ static SlapiLDBMPerfctrATMap perfctr_at_map[] = {
 void
 perfctrs_as_entry( Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env )
 {
-	performance_counters *perf;
-	int	i;
+    performance_counters *perf;
+    size_t i;
 
-        if (priv == NULL) return;
+    if (priv == NULL) return;
 
-        perf = (performance_counters*)priv->memory;
+    perf = (performance_counters*)priv->memory;
 
-	/*
-	 * First, update the values so they are current.
-	 */
-	perfctrs_update( priv, db_env );
+    /*
+     * First, update the values so they are current.
+     */
+    perfctrs_update( priv, db_env );
 
-	/*
-	 * Then convert all the counters to attribute values.
-	 */
-	for ( i = 0; i < SLAPI_LDBM_PERFCTR_AT_MAP_COUNT; ++i ) {
-		perfctr_add_to_entry( e, perfctr_at_map[i].pam_type,
-			*((PRUint32 *)((char *)perf + perfctr_at_map[i].pam_offset)));
-	}
+    /*
+     * Then convert all the counters to attribute values.
+     */
+    for ( i = 0; i < SLAPI_LDBM_PERFCTR_AT_MAP_COUNT; ++i ) {
+        perfctr_add_to_entry( e, perfctr_at_map[i].pam_type,
+            *((PRUint32 *)((char *)perf + perfctr_at_map[i].pam_offset)));
+    }
 }
 
 

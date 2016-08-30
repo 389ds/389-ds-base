@@ -3457,7 +3457,7 @@ decrypt_guid(char *guid)
 		20,21,22,23,24,25,26,27,28,29,30,31};
 
 	char *p = guid;
-	int i = 0;
+	size_t i = 0;
 	char *cpy = slapi_ch_strdup(guid);
 
 	while (*p && i < (sizeof(decrypt_offsets)/sizeof(int)))

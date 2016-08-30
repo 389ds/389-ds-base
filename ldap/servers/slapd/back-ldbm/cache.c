@@ -146,7 +146,8 @@ Hashtable *new_hash(u_long size, u_long offset, HashFn hfn,
 {
     static u_long prime[] = { 3, 5, 7, 11, 13, 17, 19 };
     Hashtable *ht;
-    int ok = 0, i;
+    int ok = 0;
+    size_t i = 0;
 
     if (size < MINHASHSIZE)
        size = MINHASHSIZE;
