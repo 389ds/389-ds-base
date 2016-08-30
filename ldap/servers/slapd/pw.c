@@ -234,8 +234,8 @@ void free_pw_scheme(struct pw_scheme *pwsp)
 {
 	if ( pwsp != NULL )
 	{
-		slapi_ch_free( (void**)&pwsp->pws_name );
-		slapi_ch_free( (void**)&pwsp );
+		slapi_ch_free_string(&pwsp->pws_name);
+		slapi_ch_free((void**)&pwsp);
 	}
 }
 
