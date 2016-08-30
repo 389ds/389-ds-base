@@ -827,7 +827,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 				for ( i = 0; pw_mod->mod_bvalues != NULL && pw_mod->mod_bvalues[i] != NULL; i++ ) {
 					password = slapi_ch_strdup(pw_mod->mod_bvalues[i]->bv_val);
 					pwsp = pw_val2scheme( password, &valpwd, 1 );
-					if(strcmp(pwsp->pws_name, "CLEAR") == 0){
+					if(pwsp == NULL || strcmp(pwsp->pws_name, "CLEAR") == 0){
 						/*
 						 *  CLEAR password
 						 *
@@ -851,7 +851,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 								const char *userpwd = slapi_value_get_string(present_values[ii]);
 
 								pass_scheme = pw_val2scheme( (char *)userpwd, &pval, 1 );
-								if(strcmp(pass_scheme->pws_name,"CLEAR")){
+								if(pass_scheme && strcmp(pass_scheme->pws_name,"CLEAR")){
 									/* its encoded, so compare it */
 									if((*(pass_scheme->pws_cmp))( valpwd, pval ) == 0 ){
 									    /*
@@ -912,7 +912,7 @@ static void op_shared_modify (Slapi_PBlock *pb, int pw_change, char *old_pw)
 								 *  provided by the client.
 								 */
 								unhashed_pwsp = pw_val2scheme( (char *)unhashed_pwd, NULL, 1 );
-								if(strcmp(unhashed_pwsp->pws_name, "CLEAR") == 0){
+								if(unhashed_pwsp == NULL || strcmp(unhashed_pwsp->pws_name, "CLEAR") == 0){
 									if((*(pwsp->pws_cmp))((char *)unhashed_pwd , valpwd) == 0 ){
 										/* match, add the delete mod for this particular unhashed userpassword */
 										if (SLAPD_UNHASHED_PW_OFF != config_get_unhashed_pw_switch()) {
@@ -1156,7 +1156,7 @@ valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***
 		*cvals = (Slapi_Value **) slapi_ch_malloc((n + 1) * sizeof(Slapi_Value *));
 		for(i=0,p=0;i<n;i++){
 			pwsp = pw_val2scheme( bvals[i]->bv_val, NULL, 1 );
-			if(strcmp(pwsp->pws_name, "CLEAR") == 0){
+			if(pwsp == NULL || strcmp(pwsp->pws_name, "CLEAR") == 0){
 				(*cvals)[p++] = slapi_value_new_berval(bvals[i]);
 			}
 			free_pw_scheme( pwsp );
