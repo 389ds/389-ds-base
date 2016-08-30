@@ -63,7 +63,7 @@ static void
 indexer_free (indexer_t* ix)
 {
     if (ix->ix_destroy != NULL) {
-	ix->ix_destroy (ix);
+        ix->ix_destroy (ix);
     }
     slapi_ch_free((void**)&ix);
 }
@@ -250,23 +250,28 @@ op_filter_match (or_filter_t* or, struct berval** vals)
     auto indexer_t* ix = or->or_indexer;
     auto struct berval** v = ix->ix_index (ix, vals, NULL);
     if (v != NULL) for (; *v; ++v) {
-	auto struct berval** k = or->or_match_keys;
-	if (k != NULL) for (; *k; ++k) {
-	    switch (or->or_op) {
-	      case SLAPI_OP_LESS:
-		if (slapi_berval_cmp (*v, *k) <  0) return 0; break;
-	      case SLAPI_OP_LESS_OR_EQUAL:
-		if (slapi_berval_cmp (*v, *k) <= 0) return 0; break;
-	      case SLAPI_OP_EQUAL:
-		if (SLAPI_BERVAL_EQ  (*v, *k))      return 0; break;
-	      case SLAPI_OP_GREATER_OR_EQUAL:
-		if (slapi_berval_cmp (*v, *k) >= 0) return 0; break;
-	      case SLAPI_OP_GREATER:
-		if (slapi_berval_cmp (*v, *k) >  0) return 0; break;
-	      default:
-		break;
-	    }
-	}
+        auto struct berval** k = or->or_match_keys;
+        if (k != NULL) for (; *k; ++k) {
+            switch (or->or_op) {
+                case SLAPI_OP_LESS:
+                    if (slapi_berval_cmp (*v, *k) <  0) return 0;
+                    break;
+                case SLAPI_OP_LESS_OR_EQUAL:
+                    if (slapi_berval_cmp (*v, *k) <= 0) return 0;
+                    break;
+                case SLAPI_OP_EQUAL:
+                    if (SLAPI_BERVAL_EQ  (*v, *k)) return 0;
+                    break;
+                case SLAPI_OP_GREATER_OR_EQUAL:
+                    if (slapi_berval_cmp (*v, *k) >= 0) return 0;
+                    break;
+                case SLAPI_OP_GREATER:
+                    if (slapi_berval_cmp (*v, *k) >  0) return 0;
+                    break;
+                default:
+                    break;
+            }
+        }
     }
     return -1;
 }
@@ -599,7 +604,9 @@ op_indexer_destroy (Slapi_PBlock* pb)
     auto indexer_t* ix = op_indexer_get (pb);
     LDAPDebug (LDAP_DEBUG_FILTER, "op_indexer_destroy(%p)\n", (void*)ix, 0, 0);
     if (ix != NULL) {
-	indexer_free (ix);
+        indexer_free (ix);
+        /* The keys were freed, but we need to reset the pblock pointer */
+        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, NULL);
     }
     return 0;
 }
@@ -652,10 +659,10 @@ typedef struct ss_indexer_t {
 static void
 ss_indexer_free (ss_indexer_t* ss)
 {
-	slapi_ch_free((void**)&ss->ss_oid);
+    slapi_ch_free_string(&ss->ss_oid);
     if (ss->ss_indexer != NULL) {
-	indexer_free (ss->ss_indexer);
-	ss->ss_indexer = NULL;
+        indexer_free (ss->ss_indexer);
+        ss->ss_indexer = NULL;
     }
     slapi_ch_free((void**)&ss);
 }
@@ -676,7 +683,9 @@ ss_indexer_destroy (Slapi_PBlock* pb)
     auto ss_indexer_t* ss = ss_indexer_get (pb);
     LDAPDebug (LDAP_DEBUG_FILTER, "ss_indexer_destroy(%p)\n", (void*)ss, 0, 0);
     if (ss) {
-	ss_indexer_free (ss);
+        ss_indexer_free(ss);
+        /* The keys were freed, but we need to reset the pblock pointer */
+        slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, NULL);
     }
 }
 

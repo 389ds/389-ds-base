@@ -61,15 +61,11 @@ static int print_out_sort_spec(char* buffer,sort_spec *s,int *size);
 
 static void sort_spec_thing_free(sort_spec_thing *s)
 {
-	if (NULL != s->type) {
-		slapi_ch_free((void **)&s->type);
-	}
-	if (NULL != s->matchrule) {
-		slapi_ch_free( (void**)&s->matchrule);
-	}
+	slapi_ch_free_string(&s->type);
+	slapi_ch_free_string(&s->matchrule);
 	if (NULL != s->mr_pb) {
 		destroy_matchrule_indexer(s->mr_pb);
-	    slapi_pblock_destroy (s->mr_pb);
+		slapi_pblock_destroy (s->mr_pb);
 	}
 	attr_done(&s->sattr);
 	slapi_ch_free( (void**)&s);
@@ -145,7 +141,7 @@ void sort_log_access(Slapi_PBlock *pb,sort_spec_thing *s,IDList *candidates)
 	/* Now output it */
 	ldbm_log_access_message(pb,buffer);
 	if (buffer != stack_buffer) {
-		slapi_ch_free( (void**)&buffer);
+		slapi_ch_free_string(&buffer);
 	}
 }
 
