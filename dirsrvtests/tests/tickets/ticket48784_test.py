@@ -180,6 +180,7 @@ def enable_ssl(server, ldapsport, mycert):
                                  'nsSSLPersonalitySSL': mycert,
                                  'nsSSLToken': 'internal (software)',
                                  'nsSSLActivation': 'on'})))
+    time.sleep(1)
 
 
 def doAndPrintIt(cmdline, filename):
@@ -229,6 +230,7 @@ def create_keys_certs(topology):
     pwdfd = open(pwdfile, "w")
     pwdfd.write(passwd)
     pwdfd.close()
+    time.sleep(1)
 
     log.info("##### create the pin file")
     m1pinfile = '%s/pin.txt' % (m1confdir)
@@ -297,6 +299,7 @@ def create_keys_certs(topology):
     cmd = 'pk12util -o %s -n "%s" -d %s -w %s -k %s' % (m2pk12file, M2SERVERCERT, m1confdir, pwdfile, pwdfile)
     log.info("##### Extract PK12 file for master2: %s" % cmd)
     os.system(cmd)
+    time.sleep(1)
 
     log.info("##### Check PK12 files")
     if os.path.isfile(m2pk12file):
@@ -323,6 +326,7 @@ def create_keys_certs(topology):
     log.info('copy %s to %s' % (m1pinfile, m2pinfile))
     os.system('cp %s %s' % (m1pinfile, m2pinfile))
     os.system('chmod 400 %s' % m2pinfile)
+    time.sleep(1)
 
     log.info("##### start master2")
     topology.master2.start(timeout=10)
@@ -331,10 +335,10 @@ def create_keys_certs(topology):
     enable_ssl(topology.master2, M2LDAPSPORT, M2SERVERCERT)
 
     log.info("##### restart master2")
-    topology.master2.restart(timeout=10)
+    topology.master2.restart(timeout=30)
 
     log.info("##### restart master1")
-    topology.master1.restart(timeout=10)
+    topology.master1.restart(timeout=30)
 
     log.info("\n######################### Creating SSL Keys and Certs Done ######################\n")
 
@@ -418,7 +422,7 @@ def test_ticket48784(topology):
     log.info("##### replication from master_2 to master_1 should fail.")
     add_entry(topology.master2, 'master2', 'uid=m2user', 10, 1)
 
-    time.sleep(2)
+    time.sleep(10)
 
     log.info('##### Searching for entries on master1...')
     entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')

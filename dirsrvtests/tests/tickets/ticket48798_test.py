@@ -84,24 +84,39 @@ def test_ticket48798(topology):
 
     # Check if the db exists. Should be false.
     assert(topology.standalone.nss_ssl._db_exists() is False)
+    time.sleep(0.5)
+
     # Create it. Should work.
     assert(topology.standalone.nss_ssl.reinit() is True)
+    time.sleep(0.5)
+
     # Check if the db exists. Should be true
     assert(topology.standalone.nss_ssl._db_exists() is True)
+    time.sleep(0.5)
 
     # Check if ca exists. Should be false.
     assert(topology.standalone.nss_ssl._rsa_ca_exists() is False)
+    time.sleep(0.5)
+
     # Create it. Should work.
     assert(topology.standalone.nss_ssl.create_rsa_ca() is True)
+    time.sleep(0.5)
+
     # Check if ca exists. Should be true
     assert(topology.standalone.nss_ssl._rsa_ca_exists() is True)
+    time.sleep(0.5)
 
     # Check if we have a server cert / key. Should be false.
     assert(topology.standalone.nss_ssl._rsa_key_and_cert_exists() is False)
+    time.sleep(0.5)
+
     # Create it. Should work.
     assert(topology.standalone.nss_ssl.create_rsa_key_and_cert() is True)
+    time.sleep(0.5)
+
     # Check if server cert and key exist. Should be true.
     assert(topology.standalone.nss_ssl._rsa_key_and_cert_exists() is True)
+    time.sleep(0.5)
 
     topology.standalone.config.enable_ssl(secport=DEFAULT_SECURE_PORT, secargs={'nsSSL3Ciphers': '+all'} )
 
