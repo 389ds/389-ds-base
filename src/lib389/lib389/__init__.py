@@ -1119,6 +1119,19 @@ class DirSrv(SimpleLDAPObject):
         # whatever the initial state, the instance is now Offline
         self.state = DIRSRV_STATE_OFFLINE
 
+    def status(self):
+        """
+        Determine if an instance is running or not.
+
+        Will update the self.state parameter.
+        """
+        status_prog = os.path.join(self.prefix, 'sbin', 'status-dirsrv')
+        try:
+            subprocess.check_call([status_prog, self.serverid])
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def restart(self, timeout=120):
         '''
             It restarts an instance and rebind it. Its final state after rebind

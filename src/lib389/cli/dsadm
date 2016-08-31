@@ -12,6 +12,7 @@ import argparse
 import logging
 import sys
 
+from lib389.cli_base import _get_arg
 from lib389 import DirSrv
 from lib389.cli_adm import instance as cli_instance
 from lib389.cli_base import disconnect_instance
@@ -66,12 +67,24 @@ if __name__ == '__main__':
     inst = DirSrv(verbose=args.verbose)
 
     result = True
+
+    # we allocate an instance in all cases unless we are CREATING the server.
+    if not (hasattr(args, 'noinst') and args.noinst is True):
+        # Get the instance name if needed.
+        inst_id = _get_arg( args.instance, msg="Directory Server instance name")
+
+        # Allocate the instance based on name
+        insts = inst.list(serverid=inst_id)
+        if len(insts) != 1:
+            raise ValueError("No such instance %s" % inst_id)
+
+        inst.allocate(insts[0])
+        log.debug('Instance allocated')
+
     if args.verbose:
-        # inst = connect_instance(args.ldapurl, args.binddn, args.verbose, args.starttls)
         result = args.func(inst, log, args)
     else:
         try:
-            # inst = connect_instance(args.ldapurl, args.binddn, args.verbose, args.starttls)
             result = args.func(inst, log, args)
         except Exception as e:
             log.debug(e, exc_info=True)

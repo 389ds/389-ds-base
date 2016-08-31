@@ -250,9 +250,11 @@ class DirSrvTools(object):
         if cmd == 'start':
             fullCmd = os.path.join(sbinDir, 'start-dirsrv %s' % self.serverid)
             cmdPat = 'slapd started.'
-        else:
+        elif cmd == 'stop':
             fullCmd = os.path.join(sbinDir, 'stop-dirsrv %s' % self.serverid)
             cmdPat = 'slapd stopped.'
+        else:
+            raise Exception('Invalid cmd passed!')
 
         if "USE_GDB" in os.environ or "USE_VALGRIND" in os.environ:
             timeout = timeout * 3
@@ -284,7 +286,7 @@ class DirSrvTools(object):
             else:
                 done = True
 
-        log.warn("Running command: %r - timeout(%d)" % (fullCmd, timeout))
+        log.info("Running command: %r - timeout(%d)" % (fullCmd, timeout))
         rc = runCmd("%s" % fullCmd, timeout)
         while rc == 0 and not done and int(time.time()) < full_timeout:
             line = logfp.readline()
@@ -292,7 +294,7 @@ class DirSrvTools(object):
                 lastLine = line
                 if verbose:
                     log.debug("current line: %r" % line.strip())
-                if line.find(cmdPat) >= 0:
+                if cmdPat is not None and line.find(cmdPat) >= 0:
                     started += 1
                     if started == 2:
                         done = True

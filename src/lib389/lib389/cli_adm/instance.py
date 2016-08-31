@@ -7,7 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389._constants import *
-from lib389.cli_base import _get_arg
 
 from lib389.tools import DirSrvTools
 from lib389.instance.setup import SetupDs
@@ -31,25 +30,19 @@ def instance_list(inst, log, args):
         log.info(e)
         log.info("Perhaps you need to be a different user?")
 
-def instance_action(inst, log, args, act):
-    # Get the instance name if needed.
-    inst_id = _get_arg( args.instance, msg="Directory Server instance name to %s" % act)
-
-    # Allocate the instance based on name
-    insts = inst.list(serverid=inst_id)
-    if len(insts) != 1:
-        raise ValueError("No such instance %s" % inst_id)
-
-    inst.allocate(insts[0])
-
-    # Start it!
-    DirSrvTools.serverCmd(inst, act, True)
-
 def instance_start(inst, log, args):
-    instance_action(inst, log, args, "start")
+    if inst.status() is False:
+        inst.start()
 
 def instance_stop(inst, log, args):
-    instance_action(inst, log, args, "stop")
+    if inst.status() is True:
+        inst.stop()
+
+def instance_status(inst, log, args):
+    if inst.status() is True:
+        log.info("Instance is running")
+    else:
+        log.info("Instance is not running")
 
 def instance_create(inst, log, args):
     if not args.ack:
@@ -124,12 +117,16 @@ def create_parser(subparsers):
     list_parser.set_defaults(func=instance_list)
 
     start_parser = subcommands.add_parser('start', help="Start an instance of Directory Server, if it is not currently running")
-    start_parser.add_argument('instance', nargs=1, help="The name of the instance to start.")
+    # start_parser.add_argument('instance', nargs=1, help="The name of the instance to start.")
     start_parser.set_defaults(func=instance_start)
 
     stop_parser = subcommands.add_parser('stop', help="Stop an instance of Directory Server, if it is currently running")
-    stop_parser.add_argument('instance', nargs=1, help="The name of the instance to stop.")
+    # stop_parser.add_argument('instance', nargs=1, help="The name of the instance to stop.")
     stop_parser.set_defaults(func=instance_stop)
+
+    status_parser = subcommands.add_parser('status', help="Check running status of an instance of Directory Server")
+    # status_parser.add_argument('instance', nargs=1, help="The name of the instance to check.")
+    status_parser.set_defaults(func=instance_status)
 
     create_parser = subcommands.add_parser('create', help="Create an instance of Directory Server. Can be interactive or silent with an inf answer file")
     create_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.", action='store_true', default=False)
@@ -140,7 +137,9 @@ By setting this value you acknowledge and take responsibility for the fact this 
 """,
                         action='store_true', default=False)
     create_parser.set_defaults(func=instance_create)
+    create_parser.set_defaults(noinst=True)
 
     example_parser = subcommands.add_parser('example', help="Display an example ini answer file, with comments")
     example_parser.set_defaults(func=instance_example)
+    create_parser.set_defaults(noinst=True)
 
