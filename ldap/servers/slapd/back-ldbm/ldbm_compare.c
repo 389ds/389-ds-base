@@ -78,7 +78,7 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	/* get the namespace dn */
 	namespace_dn = (Slapi_DN*)slapi_be_getsuffix(be, 0);
 
-	if ( (e = find_entry( pb, be, addr, &txn )) == NULL ) {
+	if ((e = find_entry(pb, be, addr, &txn, NULL)) == NULL) {
 		return( -1 );	/* error result sent by find_entry() */
 	}
 

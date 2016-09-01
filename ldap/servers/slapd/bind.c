@@ -470,8 +470,8 @@ do_bind( Slapi_PBlock *pb )
              * to an LDAP DN, fail and return an invalidCredentials error.
              */
             if ( NULL == pb->pb_conn->c_external_dn ) {
-                send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL,
-                                  "client certificate mapping failed", 0, NULL );
+                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Client certificate mapping failed");
+                send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
                 /* call postop plugins */
                 plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
                 goto free_and_return;
@@ -588,33 +588,32 @@ do_bind( Slapi_PBlock *pb )
         /* Check if simple binds are allowed over an insecure channel.  We only check
          * this for authenticated binds. */
         } else if (config_get_require_secure_binds() == 1) {
-                Connection *conn = NULL;
-                int sasl_ssf = 0;
-                int local_ssf = 0;
+            Connection *conn = NULL;
+            int sasl_ssf = 0;
+            int local_ssf = 0;
 
-                /* Allow simple binds only for SSL/TLS established connections
-                 * or connections using SASL privacy layers */
-                conn = pb->pb_conn;
-                if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
-                    slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
-                                     "Could not get SASL SSF from connection\n" );
-                    sasl_ssf = 0;
-                }
+            /* Allow simple binds only for SSL/TLS established connections
+             * or connections using SASL privacy layers */
+            conn = pb->pb_conn;
+            if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
+                slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
+                                 "Could not get SASL SSF from connection\n" );
+                sasl_ssf = 0;
+            }
 
-                if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
-                    slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
-                                     "Could not get local SSF from connection\n" );
-                    local_ssf = 0;
-                }
+            if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
+                slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
+                                 "Could not get local SSF from connection\n" );
+                local_ssf = 0;
+            }
 
-                if (((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
-                    (sasl_ssf <= 1) && (local_ssf <= 1)) {
-                        send_ldap_result(pb, LDAP_CONFIDENTIALITY_REQUIRED, NULL,
-                                         "Operation requires a secure connection",
-                                         0, NULL);
-                        slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
-                        goto free_and_return;
-                }
+            if (((conn->c_flags & CONN_FLAG_SSL) != CONN_FLAG_SSL) &&
+                (sasl_ssf <= 1) && (local_ssf <= 1)) {
+                send_ldap_result(pb, LDAP_CONFIDENTIALITY_REQUIRED, NULL,
+                                 "Operation requires a secure connection", 0, NULL);
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+                goto free_and_return;
+            }
         }
         break;
     default:
@@ -659,6 +658,7 @@ do_bind( Slapi_PBlock *pb )
                 /*
                  *  right dn, wrong passwd - reject with invalid credentials
                  */
+                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
                 send_ldap_result( pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL );
                 /* increment BindSecurityErrorcount */
                 slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
@@ -681,6 +681,7 @@ do_bind( Slapi_PBlock *pb )
             /* call postop plugins */
             plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
         } else {
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Pre-bind plug-in failed");
             send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
         }
         goto free_and_return;
@@ -713,31 +714,11 @@ do_bind( Slapi_PBlock *pb )
         if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN )
              == 0 )  {
             rc = 0;
-
-            /*
-             * Is this account locked ?
-             *	could be locked through the account inactivation
-             *	or by the password policy
-             *
-             * rc=0: account not locked
-             * rc=1: account locked, can not bind, result has been sent
-             * rc!=0 and rc!=1: error. Result was not sent, lets be_bind
-             * 		deal with it.
-             *
-             */
-
-            /* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
-            if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-                bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(sdn));
-                rc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
-            }
-
             slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
             set_db_default_result_handlers(pb);
-            if ( (rc != 1) && 
-                 (auto_bind || 
-                  (((rc = (*be->be_bind)( pb )) == SLAPI_BIND_SUCCESS) ||
-                   (rc == SLAPI_BIND_ANONYMOUS))) ) {
+            if (auto_bind || 
+                (((rc = (*be->be_bind)( pb )) == SLAPI_BIND_SUCCESS) ||
+                 (rc == SLAPI_BIND_ANONYMOUS))) {
                 long t;
                 char* authtype = NULL;
                 /* rc is SLAPI_BIND_SUCCESS or SLAPI_BIND_ANONYMOUS */
@@ -770,6 +751,28 @@ do_bind( Slapi_PBlock *pb )
 
                 if ( rc == SLAPI_BIND_SUCCESS ) {
                     int myrc = 0;
+                    /*
+                     * Is this account locked ?
+                     *	could be locked through the account inactivation
+                     *	or by the password policy
+                     *
+                     * rc=0: account not locked
+                     * rc=1: account locked, can not bind, result has been sent
+                     * rc!=0 and rc!=1: error. Result was not sent, lets be_bind
+                     * 		deal with it.
+                     *
+                     */
+
+                    /* get the entry now, so that we can give it to slapi_check_account_lock and reslimit_update_from_dn */
+                    if (! slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+                        bind_target_entry = get_entry(pb,  slapi_sdn_get_ndn(sdn));
+                        myrc = slapi_check_account_lock ( pb, bind_target_entry, pw_response_requested, 1, 1);
+                        if (1 == myrc) { /* account is locked */
+                            rc = myrc;
+                            goto account_locked;
+                        }
+                        myrc = 0;                        
+                    }
                     if (!auto_bind) {
                         /* 
                          * There could be a race that bind_target_entry was not added 
@@ -780,14 +783,9 @@ do_bind( Slapi_PBlock *pb )
                         if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && 
                             !bind_target_entry) {
                             bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
-                            if (bind_target_entry) {
-                                myrc = slapi_check_account_lock(pb, bind_target_entry,
-                                                              pw_response_requested, 1, 1);
-                                if (1 == myrc) { /* account is locked */
-                                    goto account_locked;
-                                }
-                            } else {
-                                send_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, "", 0, NULL);
+                            if (!bind_target_entry) {
+                                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
+                                send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
                                 goto free_and_return;
                             }
                         }
@@ -847,8 +845,7 @@ account_locked:
              * the front end.
              */
             if ( rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
-                send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL,
-                                  0, NULL );
+                send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
             }
 
             slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &rc );
@@ -871,8 +868,7 @@ free_and_return:;
     slapi_sdn_free(&sdn);
     slapi_ch_free_string( &saslmech );
     slapi_ch_free( (void **)&cred.bv_val );
-    if ( bind_target_entry != NULL )
-        slapi_entry_free(bind_target_entry);
+    slapi_entry_free(bind_target_entry);
 }
 
 

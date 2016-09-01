@@ -1815,14 +1815,26 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag,
 		} else {
 			if ( !internal_op )
 			{
+				char *pbtxt = NULL;
+				char *ext_str = NULL;
+				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &pbtxt);
+				if (pbtxt) {
+					ext_str = slapi_ch_smprintf(" - %s", pbtxt);
+				} else {
+					ext_str = "";
+				}
 				slapi_log_access( LDAP_DEBUG_STATS,
 								  "conn=%" NSPRIu64 " op=%d RESULT err=%d"
-								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s\n",
+								  " tag=%" BERTAG_T " nentries=%d etime=%s%s%s%s\n",
 								  op->o_connid, 
 								  op->o_opid,
 								  err, tag, nentries, 
 								  etime, 
-								  notes_str, csn_str );
+								  notes_str, csn_str, ext_str );
+				if (pbtxt) {
+					/* if !pbtxt ==> ext_str == "".  Don't free ext_str. */
+					slapi_ch_free_string(&ext_str);
+				}
 			}
 			else
 			{

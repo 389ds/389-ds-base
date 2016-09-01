@@ -100,6 +100,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	int free_delete_existing_entry = 0;
 	ID ep_id = 0;
 	ID tomb_ep_id = 0;
+	int result_sent = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -188,7 +189,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 	 * deleted.  That is, the entry 'e' found with "addr" is a tomb-
 	 * stone.  If it is the case, we need to back off.
 	 */
-	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL )
+	if ((e = find_entry2modify(pb, be, addr, &txn, &result_sent)) == NULL)
 	{
 		ldap_result_code= LDAP_NO_SUCH_OBJECT; 
 		/* retval is -1 */
@@ -398,7 +399,7 @@ ldbm_back_delete( Slapi_PBlock *pb )
 				parent_addr.uniqueid = NULL;
 			}
 			parent_addr.sdn = &parentsdn;
-			parent = find_entry2modify_only_ext(pb, be, &parent_addr, TOMBSTONE_INCLUDED, &txn);
+			parent = find_entry2modify_only_ext(pb, be, &parent_addr, TOMBSTONE_INCLUDED, &txn, &result_sent);
 		}
 		if (parent) {
 			int isglue;
@@ -1324,7 +1325,9 @@ common_return:
 diskfull_return:
 	if(ldap_result_code!=-1)
 	{
-		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		if (!result_sent) {
+			slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
+		}
 	}
 	modify_term(&parent_modify_c, be);
 	if(dblock_acquired)

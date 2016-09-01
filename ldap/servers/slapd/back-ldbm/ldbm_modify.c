@@ -388,6 +388,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	int opreturn = 0;
 	int mod_count = 0;
 	int ec_locked = 0;
+	int result_sent = 0;
 
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be);
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
@@ -447,7 +448,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	}
 
 	/* find and lock the entry we are about to modify */
-	if ( (e = find_entry2modify( pb, be, addr, &txn )) == NULL ) {
+	if ( (e = find_entry2modify( pb, be, addr, &txn, &result_sent )) == NULL ) {
 		ldap_result_code= -1;
 		goto error_return;	  /* error result sent by find_entry2modify() */
 	}
@@ -890,7 +891,7 @@ common_return:
 	{
 		dblayer_unlock_backend(be);
 	}
-	if(ldap_result_code!=-1)
+	if ((ldap_result_code!=-1) && !result_sent)
 	{
 		slapi_send_ldap_result( pb, ldap_result_code, NULL, ldap_result_message, 0, NULL );
 	}

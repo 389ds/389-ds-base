@@ -118,6 +118,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	int parent_switched = 0;
 	int noabort = 1;
 	const char *dn = NULL;
+	int result_sent = 0;
 
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 	slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e );
@@ -302,7 +303,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		addr.sdn = &parentsdn;
 		addr.udn = NULL;
 		addr.uniqueid = operation->o_params.p.p_add.parentuniqueid;
-		parententry = find_entry2modify_only(pb,be,&addr,&txn);
+		parententry = find_entry2modify_only(pb, be, &addr, &txn, &result_sent);
 		if (parententry && parententry->ep_entry) {
 			if (!operation->o_params.p.p_add.parentuniqueid){
 				/* Set the parentuniqueid now */
@@ -356,6 +357,14 @@ ldbm_back_add( Slapi_PBlock *pb )
 				/* The entry already exists */ 
 				ldap_result_code = LDAP_ALREADY_EXISTS;
 			}
+			if ((LDAP_ALREADY_EXISTS == ldap_result_code) && !isroot && !is_replicated_operation) {
+				int myrc = plugin_call_acl_plugin(pb, e, NULL, NULL, SLAPI_ACL_ADD,
+				                                  ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
+				if (myrc) {
+					ldap_result_code = myrc;
+					ldap_result_message = errbuf;
+				}
+			}
 			goto error_return;
 		} 
 		else 
@@ -372,7 +381,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				Slapi_DN ancestorsdn;
 				struct backentry *ancestorentry;
 				slapi_sdn_init(&ancestorsdn);
-				ancestorentry= dn2ancestor(pb->pb_backend,sdn,&ancestorsdn,&txn,&err);
+				ancestorentry = dn2ancestor(pb->pb_backend, sdn, &ancestorsdn, &txn, &err, 0);
 				slapi_sdn_done(&ancestorsdn);
 				if ( ancestorentry != NULL )
 				{
@@ -419,7 +428,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		addr.udn = NULL;
 		addr.sdn = NULL;
 		addr.uniqueid = (char *)slapi_entry_get_uniqueid(e); /* jcm - cast away const */
-		tombstoneentry = find_entry2modify( pb, be, &addr, &txn );
+		tombstoneentry = find_entry2modify(pb, be, &addr, &txn, &result_sent);
 		if ( tombstoneentry==NULL )
 		{
 			ldap_result_code= -1;
@@ -617,7 +626,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			              "It might be a conflict entry.\n", slapi_sdn_get_dn(&parentsdn));
 
 			slapi_sdn_init(&ancestorsdn);
-			ancestorentry = dn2ancestor(be, &parentsdn, &ancestorsdn, &txn, &err );
+			ancestorentry = dn2ancestor(be, &parentsdn, &ancestorsdn, &txn, &err, 1);
 			CACHE_RETURN( &inst->inst_cache, &ancestorentry );
 
 			ldap_result_code= LDAP_NO_SUCH_OBJECT;
@@ -1258,7 +1267,9 @@ common_return:
 	}
 	if(ldap_result_code!=-1)
 	{
-		slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
+		if (!result_sent) {
+			slapi_send_ldap_result( pb, ldap_result_code, ldap_result_matcheddn, ldap_result_message, 0, NULL );
+		}
 	}
 	backentry_free(&originalentry);
 	backentry_free(&tmpentry);

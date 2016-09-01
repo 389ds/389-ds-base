@@ -180,14 +180,15 @@ struct backentry *
 dn2ancestor(
     Slapi_Backend *be,
     const Slapi_DN	*sdn,
-	Slapi_DN *ancestordn,
+    Slapi_DN *ancestordn,
     back_txn		*txn,
-    int			*err
+    int			*err,
+    int allow_suffix
 )
 {
-	struct backentry *e = NULL;
+    struct backentry *e = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2ancestor \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
+    LDAPDebug( LDAP_DEBUG_TRACE, "=> dn2ancestor \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
 
     /* first, check to see if the given sdn is empty or a root suffix of the
        given backend - if so, it has no parent */
@@ -219,7 +220,13 @@ dn2ancestor(
         */
 
         /* stop when we get to "", or a backend suffix point */
-        while (!e && !slapi_sdn_isempty(&ancestorndn) && !slapi_be_issuffix( be, &ancestorndn )) {
+        while (!e && !slapi_sdn_isempty(&ancestorndn)) {
+            if (!allow_suffix) {
+                /* Original behavior. */
+                if (slapi_be_issuffix(be, &ancestorndn)) {
+                    break;
+                }
+            }
             /* find the entry - it uses the ndn, so no further conversion is necessary */
             e= dn2entry(be,&ancestorndn,txn,err);
             if (!e) {

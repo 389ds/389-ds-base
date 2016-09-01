@@ -603,7 +603,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     }
     else
     {
-        if ( ( e = find_entry( pb, be, addr, &txn )) == NULL )
+        if ((e = find_entry(pb, be, addr, &txn, NULL)) == NULL)
         {
             /* error or referral sent by find_entry */
             return ldbm_back_search_cleanup(pb, li, sort_control, 
