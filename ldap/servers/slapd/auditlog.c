@@ -177,6 +177,7 @@ write_auditfail_log_entry( Slapi_PBlock *pb )
         write_audit_file(SLAPD_AUDITFAIL_LOG, operation_get_type(op), dn, change, flag, curtime, pbrc, SLAPD_AUDITFAIL_LOG);
     }
     slapi_ch_free_string(&auditfail_config);
+    slapi_ch_free_string(&audit_config);
 }
 
 
