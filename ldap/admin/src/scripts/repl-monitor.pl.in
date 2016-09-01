@@ -877,7 +877,7 @@ sub print_consumers
 			}   
 			my $redfontstart = "";
 			my $redfontend = "";
-			if ($status =~ /error/i) {
+			if ($status !~ /Error \(0\)/i) {
 			  $redfontstart = "<font color='red'>";
 			  $redfontend = "</font>";
 			}
