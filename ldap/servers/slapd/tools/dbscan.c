@@ -1069,8 +1069,7 @@ static void usage(char *argv0)
     printf("  index file options:\n");
     printf("    -k <key>        lookup only a specific key\n");
     printf("    -l <size>       max length of dumped id list\n");
-    printf("                    (default %d; 40 bytes <= size <= 1048576 bytes)\n",
-           MAX_BUFFER);
+    printf("                    (default %lu; 40 bytes <= size <= 1048576 bytes)\n", MAX_BUFFER);
     printf("    -G <n>          only display index entries with more than <n> ids\n");
     printf("    -n              display ID list lengths\n");
     printf("    -r              display the conents of ID list\n");
