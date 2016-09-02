@@ -72,7 +72,7 @@ char * sha512_pw_enc( const char *pwd );
 char * salted_sha512_pw_enc( const char *pwd );
 int clear_pw_cmp( const char *userpwd, const char *dbpwd );
 char *clear_pw_enc( const char *pwd );
-void crypt_init();
+void crypt_init(void);
 int crypt_pw_cmp( const char *userpwd, const char *dbpwd );
 char *crypt_pw_enc( const char *pwd );
 int ns_mta_md5_pw_cmp( const char *userpwd, const char *dbpwd );

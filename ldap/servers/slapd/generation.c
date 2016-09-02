@@ -21,7 +21,7 @@
  * Create a new data version string.
  */
 static const char *
-new_dataversion()
+new_dataversion(void)
 {
     struct tm t;
     char* dataversion;

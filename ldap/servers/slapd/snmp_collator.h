@@ -29,7 +29,7 @@
 *
 ******************************************************************************/
 
-    int snmp_collator_start();
-    int snmp_collator_stop();
+    int snmp_collator_start(void);
+    int snmp_collator_stop(void);
     void set_snmp_interaction_row(char *host, int port, int error);
     void snmp_collator_update(time_t, void *);

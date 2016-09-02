@@ -893,7 +893,7 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
     /* if using global password policy, chain the bind request so that the 
        master can update and replicate the password policy op attrs */
 	if (op_type == SLAPI_OPERATION_BIND) {
-        extern int config_get_pw_is_global_policy();
+        extern int config_get_pw_is_global_policy(void);
         if (!config_get_pw_is_global_policy()) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
             if (is_internal) {

@@ -151,7 +151,7 @@ typedef PRUint16 ReplicaId;
 #define MAX_REPLICA_ID 65535
 /* we will use this value for the replica ID of read only replicas */
 #define READ_ONLY_REPLICA_ID MAX_REPLICA_ID
-CSN *csn_new();
+CSN *csn_new(void);
 CSN *csn_new_by_string(const char *s);
 void csn_init_by_csn(CSN *csn1,const CSN *csn2);
 void csn_init_by_string(CSN *csn, const char *s);
@@ -170,7 +170,7 @@ int csn_compare(const CSN *csn1, const CSN *csn2);
 int csn_compare_ext(const CSN *csn1, const CSN *csn2, unsigned int flags);
 #define CSN_COMPARE_SKIP_SUBSEQ 0x1
 time_t csn_time_difference(const CSN *csn1, const CSN *csn2);
-size_t csn_string_size();
+size_t csn_string_size(void);
 char *csn_as_attr_option_string(CSNType t,const CSN *csn,char *ss);
 const CSN *csn_max(const CSN *csn1,const CSN *csn2);
 /* this function allows to expand a csn into a set of csns. 
@@ -254,13 +254,13 @@ void csngen_unregister_callbacks(CSNGen *gen, void *cookie);
 
 /* this functions is periodically called from daemon.c to
    update time used by all generators */
-void csngen_update_time ();
+void csngen_update_time(void);
 
 /* debugging function */
 void csngen_dump_state (const CSNGen *gen);
 
 /* this function tests csn generator */
-void csngen_test ();
+void csngen_test(void);
 
 /*
  * State storage management routines
@@ -364,9 +364,9 @@ Slapi_DN *slapi_sdn_init_normdn_ndn_passin(Slapi_DN *sdn, const char *dn);
 Slapi_DN *slapi_sdn_init_normdn_passin(Slapi_DN *sdn, const char *dn);
 char *slapi_dn_normalize_original( char *dn );
 char *slapi_dn_normalize_case_original( char *dn );
-void ndn_cache_init();
-void ndn_cache_destroy();
-int ndn_cache_started();
+void ndn_cache_init(void);
+void ndn_cache_destroy(void);
+int ndn_cache_started(void);
 void ndn_cache_get_stats(PRUint64 *hits, PRUint64 *tries, size_t *size, size_t *max_size, long *count);
 #define NDN_DEFAULT_SIZE 20971520 /* 20mb - size of normalized dn cache */
 
@@ -446,7 +446,7 @@ typedef struct datalist DataList;
 
 typedef int (*CMPFN) (const void *el1, const void *el2);
 typedef void (*FREEFN) (void **);
-DataList* dl_new ();
+DataList* dl_new(void);
 void dl_free (DataList **dl);
 void dl_init (DataList *dl, int init_alloc);
 void dl_cleanup (DataList *dl, FREEFN freefn);
@@ -496,8 +496,8 @@ int slapi_entry_vattrcache_findAndTest(const Slapi_Entry *e, const char *type,
 										int *rc);
 
 int slapi_vattrcache_iscacheable( const char * type );
-void slapi_vattrcache_cache_all();
-void slapi_vattrcache_cache_none();
+void slapi_vattrcache_cache_all(void);
+void slapi_vattrcache_cache_none(void);
 
 int vattr_test_filter( Slapi_PBlock *pb, 
 						/* Entry we're interested in */ Slapi_Entry *e,
@@ -596,7 +596,7 @@ typedef struct slapi_operation_parameters
 	} p;
 } slapi_operation_parameters;
 
-struct slapi_operation_parameters *operation_parameters_new();
+struct slapi_operation_parameters *operation_parameters_new(void);
 struct slapi_operation_parameters *operation_parameters_dup(struct slapi_operation_parameters *sop);
 void operation_parameters_done(struct slapi_operation_parameters *sop);
 void operation_parameters_free(struct slapi_operation_parameters **sop);
@@ -613,10 +613,10 @@ const char *slapd_versatile_strerror( const PRErrorCode prerrno );
 /*
  * localhost.c
  */
-char* get_localhost_DNS();
+char* get_localhost_DNS(void);
 /* Return the fully-qualified DNS name of this machine.
    The caller should _not_ free this pointer. */
-char* get_localhost_DN();
+char* get_localhost_DN(void);
 
 /*
  * Reference-counted objects
@@ -672,7 +672,7 @@ mapping_tree_node *slapi_get_mapping_tree_node_by_dn(const Slapi_DN *dn);
 char* slapi_get_mapping_tree_node_configdn(const Slapi_DN *root);
 Slapi_DN* slapi_get_mapping_tree_node_configsdn(const Slapi_DN *root);
 const Slapi_DN* slapi_get_mapping_tree_node_root(const mapping_tree_node *node);
-const char* slapi_get_mapping_tree_config_root ();
+const char* slapi_get_mapping_tree_config_root(void);
 Slapi_Backend *slapi_mapping_tree_find_backend_for_sdn(Slapi_DN *sdn);
 /* possible flags to check for */
 #define SLAPI_MTN_LOCAL     0x1
@@ -717,7 +717,7 @@ struct slapi_componentid {
 struct slapi_componentid *
 generate_componentid ( struct slapdplugin * pp , char * name );
 void release_componentid ( struct slapi_componentid * id );
-struct slapi_componentid * plugin_get_default_component_id();
+struct slapi_componentid * plugin_get_default_component_id(void);
 
 /* interface for component mgmt */
 /* Well-known components DNs    */
@@ -735,7 +735,7 @@ struct slapi_componentid * plugin_get_default_component_id();
 #define SLAPI_COMPONENT_NAME_LDAPSDK	"LDAP sdk"
 
 /* loads the policies related to the replication of the schema */
-int slapi_schema_load_repl_policies();
+int slapi_schema_load_repl_policies(void);
 void slapi_schema_get_repl_entries(char **repl_schema_top, char ** repl_schema_supplier, char **repl_schema_consumer, char **default_supplier_policy, char **default_consumer_policy);
 /* return the list of attr defined in the schema matching the attr flags */
 char ** slapi_schema_list_attribute_names(unsigned long flag);
@@ -744,13 +744,13 @@ char ** slapi_schema_list_objectclass_attributes(const char *ocname_or_oid,
                                                  PRUint32 flags);
 char * slapi_schema_get_superior_name(const char *ocname_or_oid);
 
-CSN *dup_global_schema_csn();
+CSN *dup_global_schema_csn(void);
 
 /* misc function for the chaining backend */
 #define CHAIN_ROOT_UPDATE_REJECT	0
 #define CHAIN_ROOT_UPDATE_LOCAL		1
 #define CHAIN_ROOT_UPDATE_REFERRAL	2
-char * slapi_get_rootdn();	/* return the directory manager dn in use */
+char * slapi_get_rootdn(void);       /* return the directory manager dn in use */
 
 /* plugin interface to bulk import */
 /* This function initiates bulk import. The pblock must contain 
@@ -801,8 +801,8 @@ int pw_rever_decode(char *cipher, char **plain, const char * attr_name);
 
 /* config routines */
 
-int slapi_config_get_readonly();
-int slapi_config_get_unhashed_pw_switch();
+int slapi_config_get_readonly(void);
+int slapi_config_get_unhashed_pw_switch(void);
 
 /*
  * charray.c
@@ -1196,15 +1196,24 @@ char* get_localhost_DNS( void );
 /* GGOODREPL get_data_source definition should move into repl DLL */
 struct berval **get_data_source(Slapi_PBlock *pb, const Slapi_DN *sdn, int orc, void *cf_refs);
 
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
+
 /* JCMREPL - IFP and CFP should be defined centrally */
 #ifndef _IFP
 #define _IFP
-typedef int	(*IFP)();
+typedef int (*IFP)(); /* takes undefined arguments */
+#endif
+
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic pop
 #endif
 
 #ifndef _CFP
 #define _CFP
-typedef char*(*CFP)();
+typedef char*(*CFP)(void);
 #endif
 
 void bervalarray_add_berval_fast(struct berval ***vals, const struct berval *addval, int nvals, int *maxvals);
@@ -1285,10 +1294,10 @@ int slapi_plugin_call_postop_be_plugins(Slapi_PBlock *pb, int operation);
 /* is_slapd_running()
  * returns 1 if slapd is running, 0 if not, -1 on error
  */
-int is_slapd_running();
+int is_slapd_running(void);
 
 /* schema.c */
-void schema_destroy_dse_lock();
+void schema_destroy_dse_lock(void);
 
 /* attrsyntax.c */
 int slapi_add_internal_attr_syntax( const char *name, const char *oid, const char *syntax, const char *mr_equality, unsigned long extraflags );
@@ -1305,7 +1314,7 @@ void modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods);
 void add_internal_modifiersname(Slapi_PBlock *pb, Slapi_Entry *e);
 
 /* ldaputil.c */
-char *ldaputil_get_saslpath();
+char *ldaputil_get_saslpath(void);
 int slapi_client_uses_non_nss(LDAP *ld);
 int slapi_client_uses_openssl(LDAP *ld);
 

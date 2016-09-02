@@ -20,7 +20,7 @@ typedef void IndexEntryList;
 typedef unsigned int	IndexEntryID;
 
 typedef int (*index_search_callback)(Slapi_Filter *filter, IndexEntryList **results, void *user_data );
-typedef int (*index_validate_callback)();
+typedef int (*index_validate_callback)(void);
 
 typedef struct __indexed_item
 {

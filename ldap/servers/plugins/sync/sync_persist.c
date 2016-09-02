@@ -28,10 +28,10 @@ static int plugin_closing = 0;
 static PRUint64 thread_count = 0;
 static int sync_add_request( SyncRequest *req );
 static void sync_remove_request( SyncRequest *req );
-static SyncRequest *sync_request_alloc();
+static SyncRequest *sync_request_alloc(void);
 void sync_queue_change( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype );
 static void sync_send_results( void *arg );
-static void sync_request_wakeup_all();
+static void sync_request_wakeup_all(void);
 static void sync_node_free( SyncQueueNode **node );
 
 static int sync_acquire_connection (Slapi_Connection *conn);
@@ -383,7 +383,7 @@ sync_persist_terminate_all ()
  * Allocate and initialize an empty Sync node.
  */
 static SyncRequest *
-sync_request_alloc()
+sync_request_alloc(void)
 {
 	SyncRequest *req;
 
@@ -466,7 +466,7 @@ sync_remove_request( SyncRequest *req )
 }
 
 static void
-sync_request_wakeup_all()
+sync_request_wakeup_all(void)
 {
 	if ( SYNC_IS_INITIALIZED()) {
 		PR_Lock( sync_request_list->sync_req_cvarlock );

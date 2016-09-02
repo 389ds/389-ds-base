@@ -68,8 +68,8 @@ static int replica_cleanallruv_send_abort_extop(Repl_Agmt *ra, Slapi_Task *task,
 static int replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *basedn, char *rid_text, char *maxcsn, Slapi_Task *task);
 static int replica_cleanallruv_replica_alive(Repl_Agmt *agmt);
 static int replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *ra, char *rid_text, Slapi_Task *task, char *force);
-static int get_cleanruv_task_count();
-static int get_abort_cleanruv_task_count();
+static int get_cleanruv_task_count(void);
+static int get_abort_cleanruv_task_count(void);
 static int replica_cleanup_task (Object *r, const char *task_name, char *returntext, int apply_mods);
 static int replica_task_done(Replica *replica);
 static void delete_cleaned_rid_config(cleanruv_data *data);
@@ -3540,7 +3540,7 @@ replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, 
 }
 
 static int
-get_cleanruv_task_count()
+get_cleanruv_task_count(void)
 {
    int i, count = 0;
 
@@ -3556,7 +3556,7 @@ get_cleanruv_task_count()
 }
 
 static int
-get_abort_cleanruv_task_count()
+get_abort_cleanruv_task_count(void)
 {
    int i, count = 0;
 

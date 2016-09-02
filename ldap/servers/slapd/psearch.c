@@ -82,7 +82,7 @@ static PSearch_List	*psearch_list = NULL;
 
 /* Forward declarations */
 static void ps_send_results( void *arg );
-static PSearch *psearch_alloc();
+static PSearch *psearch_alloc(void);
 static void ps_add_ps( PSearch *ps );
 static void ps_remove( PSearch *dps );
 static void pe_ch_free( PSEQNode **pe );
@@ -430,7 +430,7 @@ ps_send_results( void *arg )
  * Allocate and initialize an empty PSearch node.
  */
 static PSearch *
-psearch_alloc()
+psearch_alloc(void)
 {
     PSearch 	*ps;
 

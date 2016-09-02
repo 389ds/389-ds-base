@@ -215,13 +215,13 @@ check_missing_suffix_flag(int val) {
 	return PR_FALSE;
 }
 
-static char *get_missing_suffix_values()
+static char *get_missing_suffix_values(void)
 {
 	return PAMPT_MISSING_SUFFIX_ERROR_STRING ", " PAMPT_MISSING_SUFFIX_ALLOW_STRING ", "
 		PAMPT_MISSING_SUFFIX_IGNORE_STRING;
 }
 
-static char *get_map_method_values()
+static char *get_map_method_values(void)
 {
 	return PAMPT_MAP_METHOD_DN_STRING " or " PAMPT_MAP_METHOD_RDN_STRING " or " PAMPT_MAP_METHOD_ENTRY_STRING;
 }
@@ -333,7 +333,7 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 }
 
 static void
-print_suffixes()
+print_suffixes(void)
 {
 	void *cookie = NULL;
 	Slapi_DN *sdn = NULL;

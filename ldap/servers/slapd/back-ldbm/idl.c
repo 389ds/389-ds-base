@@ -42,7 +42,7 @@ void idl_old_set_tune(int val)
 	idl_tune = val;
 }
 
-int idl_old_get_tune() {
+int idl_old_get_tune(void) {
   return idl_tune;
 }
 

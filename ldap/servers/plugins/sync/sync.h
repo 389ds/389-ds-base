@@ -101,13 +101,13 @@ void sync_send_modified_entries (Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg
 int sync_persist_initialize (int argc, char **argv);
 PRThread *sync_persist_add (Slapi_PBlock *pb);
 int sync_persist_startup (PRThread *tid, Sync_Cookie *session_cookie);
-int sync_persist_terminate_all ();
+int sync_persist_terminate_all(void);
 int sync_persist_terminate (PRThread *tid);
 
 Slapi_PBlock *sync_pblock_copy(Slapi_PBlock *src);
 
 /* prototype for functions not in slapi-plugin.h */
-Slapi_ComponentId *plugin_get_default_component_id();
+Slapi_ComponentId *plugin_get_default_component_id(void);
 
 
 /*

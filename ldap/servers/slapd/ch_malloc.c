@@ -49,7 +49,7 @@ static const char* const oom_advice =
   "Can't recover; calling exit(1).\n";
 
 static void
-create_counters()
+create_counters(void)
 {
 	PR_CREATE_COUNTER(slapi_ch_counter_malloc,"slapi_ch","malloc","");
 	PR_CREATE_COUNTER(slapi_ch_counter_calloc,"slapi_ch","calloc","");

@@ -19,7 +19,7 @@
 #define POSIX_WINSYNC_LOWER_CASE "posixWinsyncLowerCaseUID"
 #define POSIX_WINSYNC_MAP_NESTED_GROUPING "posixWinsyncMapNestedGrouping"
 
-void * posix_winsync_get_plugin_identity();
+void * posix_winsync_get_plugin_identity(void);
 
 typedef struct posix_winsync_config_struct {
     Slapi_Mutex *lock; /* for config access */
@@ -34,25 +34,25 @@ typedef struct posix_winsync_config_struct {
 } POSIX_WinSync_Config;
 
 int posix_winsync_config(Slapi_Entry *config_e);
-void posix_winsync_config_free();
-POSIX_WinSync_Config *posix_winsync_get_config();
-PRBool posix_winsync_config_get_mapMemberUid();
-PRBool posix_winsync_config_get_msSFUSchema();
-PRBool posix_winsync_config_get_lowercase();
-PRBool posix_winsync_config_get_createMOFTask();
-Slapi_DN *posix_winsync_config_get_suffix();
-void posix_winsync_config_reset_MOFTaskCreated();
-void posix_winsync_config_set_MOFTaskCreated();
-PRBool posix_winsync_config_get_MOFTaskCreated();
-PRBool posix_winsync_config_get_mapNestedGrouping();
+void posix_winsync_config_free(void);
+POSIX_WinSync_Config *posix_winsync_get_config(void);
+PRBool posix_winsync_config_get_mapMemberUid(void);
+PRBool posix_winsync_config_get_msSFUSchema(void);
+PRBool posix_winsync_config_get_lowercase(void);
+PRBool posix_winsync_config_get_createMOFTask(void);
+Slapi_DN *posix_winsync_config_get_suffix(void);
+void posix_winsync_config_reset_MOFTaskCreated(void);
+void posix_winsync_config_set_MOFTaskCreated(void);
+PRBool posix_winsync_config_get_MOFTaskCreated(void);
+PRBool posix_winsync_config_get_mapNestedGrouping(void);
 
 int posix_group_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
     Slapi_Entry *eAfter, int *returncode, char *returntext,
     void *arg);
 
-PRUint64 get_plugin_started();
-void plugin_op_started();
-void plugin_op_finished();
-void posix_winsync_plugin_op_all_finished();
+PRUint64 get_plugin_started(void);
+void plugin_op_started(void);
+void plugin_op_finished(void);
+void posix_winsync_plugin_op_all_finished(void);
 
 #endif

@@ -42,8 +42,8 @@
 #define SLAPI_ROLE_DEFINITION_ALREADY_EXIST -5
 
 /* From roles_cache.c */
-int roles_cache_init();
-void roles_cache_stop();
+int roles_cache_init(void);
+void roles_cache_stop(void);
 void roles_cache_change_notify(Slapi_PBlock *pb);
 int roles_cache_listroles(Slapi_Entry *entry, int return_value, Slapi_ValueSet **valueset_out);
 int roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_value, Slapi_ValueSet **valueset_out);
@@ -58,6 +58,6 @@ int roles_sp_compare_value(vattr_sp_handle *handle, vattr_context *c, Slapi_Entr
 
 int roles_sp_list_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_context *type_context,int flags);
 
-void * roles_get_plugin_identity();
+void * roles_get_plugin_identity(void);
 
 #endif /* _ROLES_CACHE_H */

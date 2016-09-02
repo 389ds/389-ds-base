@@ -267,7 +267,7 @@ aclplugin_init (Slapi_PBlock *pb )
 {
 
 	int rc = 0; /* OK */
-	rc = aclinit_main ( pb );
+       rc = aclinit_main();
 
 	return  rc;
 

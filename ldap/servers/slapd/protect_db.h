@@ -15,7 +15,7 @@
 
 int add_new_slapd_process(int exec_mode, int r_flag, int skip_flag);
 /* int is_slapd_running(); */
-void remove_slapd_process();
+void remove_slapd_process(void);
 
 /*
  * These are the format strings used in the error messages in protect_db.c.  

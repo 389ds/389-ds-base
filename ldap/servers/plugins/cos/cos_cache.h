@@ -18,8 +18,8 @@
 
 typedef void cos_cache;
 
-int cos_cache_init();
-void cos_cache_stop();
+int cos_cache_init(void);
+void cos_cache_stop(void);
 int cos_cache_getref(cos_cache **ppCache);
 int cos_cache_addref(cos_cache *pCache);
 int cos_cache_release(cos_cache *pCache);

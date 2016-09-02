@@ -49,7 +49,7 @@ static int legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* e, Slap
 static int legacy_consumer_config_delete (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg);
 
 static int legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext);
-static int legacy_consumer_read_config ();
+static int legacy_consumer_read_config(void);
 static void legacy_consumer_encode_pw (Slapi_Entry *e);
 static void set_legacy_purl (Slapi_PBlock *pb, const char *purl);
 static int get_legacy_referral (Slapi_Entry *e, char **referral, char **state);
@@ -428,7 +428,7 @@ legacy_consumer_extract_config(Slapi_Entry* entry, char *returntext)
 
 
 static int 
-legacy_consumer_read_config ()
+legacy_consumer_read_config(void)
 {
     int rc = LDAP_SUCCESS;
     int scope= LDAP_SCOPE_BASE;

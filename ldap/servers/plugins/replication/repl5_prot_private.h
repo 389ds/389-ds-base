@@ -48,12 +48,12 @@ typedef struct private_repl_protocol
 	int repl90consumer; /* Flag to tell us if this is a 9.0-style consumer we're talking to */
 } Private_Repl_Protocol;
 
-extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new();
-extern Private_Repl_Protocol *Repl_5_Tot_Protocol_new();
+extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new(Repl_Protocol *rp);
+extern Private_Repl_Protocol *Repl_5_Tot_Protocol_new(Repl_Protocol *rp);
 extern int repl5_tot_last_rcv_msgid(Repl_Connection *conn);
 extern int repl5_tot_flowcontrol_detection(Repl_Connection *conn, int increment);
-extern Private_Repl_Protocol *Windows_Inc_Protocol_new();
-extern Private_Repl_Protocol *Windows_Tot_Protocol_new();
+extern Private_Repl_Protocol *Windows_Inc_Protocol_new(Repl_Protocol *rp);
+extern Private_Repl_Protocol *Windows_Tot_Protocol_new(Repl_Protocol *rp);
 
 #define PROTOCOL_TERMINATION_NORMAL 301
 #define PROTOCOL_TERMINATION_ABNORMAL 302

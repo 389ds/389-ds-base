@@ -24,7 +24,7 @@ int http_impl_get_text(char *url, char **data, int *bytesRead);
 int http_impl_get_binary(char *url, char **data, int *bytesRead);
 int http_impl_get_redirected_uri(char *url, char **data, int *bytesRead);
 int http_impl_post(char *url, httpheader **httpheaderArray, char *body, char **data, int *bytesRead);
-void http_impl_shutdown();
+void http_impl_shutdown(void);
 
 #ifdef __cplusplus
 }

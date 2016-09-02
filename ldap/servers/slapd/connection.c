@@ -74,7 +74,7 @@ static PRInt32 op_shutdown= 0;		/* if non-zero, server is shutting down */
 #define LDAP_SOCKET_IO_BUFFER_SIZE 512 /* Size of the buffer we give to the I/O system for reads */
 
 static struct Slapi_work_q *
-create_work_q()
+create_work_q(void)
 {
 	struct Slapi_work_q *work_q = (struct Slapi_work_q *)PR_StackPop(work_q_stack);
 	if (!work_q) {

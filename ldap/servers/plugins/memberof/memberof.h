@@ -71,22 +71,22 @@ typedef struct memberofconfig {
 int memberof_config(Slapi_Entry *config_e, Slapi_PBlock *pb);
 void memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src);
 void memberof_free_config(MemberOfConfig *config);
-MemberOfConfig *memberof_get_config();
-void memberof_lock();
-void memberof_unlock();
-void memberof_rlock_config();
-void memberof_wlock_config();
-void memberof_unlock_config();
-int memberof_config_get_all_backends();
+MemberOfConfig *memberof_get_config(void);
+void memberof_lock(void);
+void memberof_unlock(void);
+void memberof_rlock_config(void);
+void memberof_wlock_config(void);
+void memberof_unlock_config(void);
+int memberof_config_get_all_backends(void);
 void memberof_set_config_area(Slapi_DN *sdn);
-Slapi_DN * memberof_get_config_area();
+Slapi_DN * memberof_get_config_area(void);
 void memberof_set_plugin_area(Slapi_DN *sdn);
-Slapi_DN * memberof_get_plugin_area();
+Slapi_DN * memberof_get_plugin_area(void);
 int memberof_shared_config_validate(Slapi_PBlock *pb);
 int memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e,
 	int *returncode, char *returntext, void *arg);
-void *memberof_get_plugin_id();
-void memberof_release_config();
-PRUint64 get_plugin_started();
+void *memberof_get_plugin_id(void);
+void memberof_release_config(void);
+PRUint64 get_plugin_started(void);
 
 #endif	/* _MEMBEROF_H_ */

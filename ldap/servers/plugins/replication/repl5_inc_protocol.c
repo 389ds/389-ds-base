@@ -203,7 +203,7 @@ repl5_inc_op_free(repl5_inc_operation *op)
 	slapi_ch_free((void**)&op);
 }
 
-static repl5_inc_operation *repl5_inc_operation_new()
+static repl5_inc_operation *repl5_inc_operation_new(void)
 {
 	repl5_inc_operation *ret = NULL;
 	ret = (repl5_inc_operation *) slapi_ch_calloc(1,sizeof(repl5_inc_operation));

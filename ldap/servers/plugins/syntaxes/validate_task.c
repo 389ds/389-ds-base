@@ -48,7 +48,7 @@ static int syntax_validate_task_callback(Slapi_Entry *e, void *callback_data);
 static const char *fetch_attr(Slapi_Entry *e, const char *attrname,
                               const char *default_val);
 static void syntax_validate_set_plugin_id(void * plugin_id);
-static void *syntax_validate_get_plugin_id();
+static void *syntax_validate_get_plugin_id(void);
 
 
 /*
@@ -286,7 +286,7 @@ syntax_validate_set_plugin_id(void * plugin_id)
 }
 
 static void *
-syntax_validate_get_plugin_id()
+syntax_validate_get_plugin_id(void)
 {
         return _PluginID;
 }

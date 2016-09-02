@@ -79,7 +79,7 @@ static int readsignalpipe = SLAPD_INVALID_SOCKET;
 static PRThread *disk_thread_p = NULL;
 static PRCondVar *diskmon_cvar = NULL;
 static PRLock *diskmon_mutex = NULL;
-void disk_monitoring_stop();
+void disk_monitoring_stop(void);
 
 typedef struct listener_info {
 #ifdef ENABLE_NUNC_STANS
@@ -102,7 +102,7 @@ static int enable_nunc_stans = 0; /* if nunc-stans is set to enabled, set to 1 i
 
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
-static int get_configured_connection_table_size();
+static int get_configured_connection_table_size(void);
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
 static void get_loopback_by_addr( void );
 #endif
@@ -125,7 +125,7 @@ static void* catch_signals();
 static int createsignalpipe( void );
 
 static char *
-get_pid_file()
+get_pid_file(void)
 {
     return(pid_file);
 }
@@ -161,8 +161,8 @@ static void ns_handle_new_connection(struct ns_job_t *job);
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
 static int clear_signal(struct POLL_STRUCT *fds);
 static void unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
-static int write_pid_file();
-static int init_shutdown_detect();
+static int write_pid_file(void);
+static int init_shutdown_detect(void);
 
 /*
  * NSPR has different implementations for PRMonitor, depending
@@ -758,7 +758,7 @@ handle_listeners(Connection_Table *ct)
  * these attributes and convert them to AES if they are DES encoded.
  */
 static void
-convert_pbe_des_to_aes()
+convert_pbe_des_to_aes(void)
 {
     Slapi_PBlock *pb = NULL;
     Slapi_Entry **entries = NULL;
@@ -1314,7 +1314,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	be_flushall();
 	op_thread_cleanup();
 	housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
-	disk_monitoring_stop(disk_thread_p);
+       disk_monitoring_stop();
 
 	threads = g_get_active_threadcnt();
 	if ( threads > 0 ) {
@@ -2660,7 +2660,7 @@ ns_handle_new_connection(struct ns_job_t *job)
 }
 #endif
 
-static int init_shutdown_detect()
+static int init_shutdown_detect(void)
 {
   /* First of all, we must reset the signal mask to get rid of any blockages
    * the process may have inherited from its parent (such as the console), which
@@ -2794,7 +2794,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 
 /* On UNIX, we create a file with our PID in it */
 static int
-write_pid_file()
+write_pid_file(void)
 {
 	FILE *fp = NULL;
 	/* 
@@ -3243,7 +3243,7 @@ catch_signals()
 #endif /* HPUX */
  
 static int
-get_configured_connection_table_size()
+get_configured_connection_table_size(void)
 {
 	int size = config_get_conntablesize();
 	int maxdesc = config_get_maxdescriptors();
@@ -3421,7 +3421,7 @@ get_loopback_by_addr( void )
 #endif /* RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS */
 
 void
-disk_monitoring_stop()
+disk_monitoring_stop(void)
 {
 	if ( disk_thread_p ) {
 		PR_Lock( diskmon_mutex );

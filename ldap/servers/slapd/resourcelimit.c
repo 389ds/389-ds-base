@@ -152,7 +152,7 @@ static void reslimit_connext_destructor( void *extension, void *object,
 		void *parent );
 static int reslimit_get_ext( Slapi_Connection *conn, const char *logname,
 		SLAPIResLimitConnData **rlcdpp );
-static char ** reslimit_get_registered_attributes();
+static char ** reslimit_get_registered_attributes(void);
 
 
 /*
@@ -440,7 +440,7 @@ log_and_return:
 
 /* return the list of registered attributes */
 
-static char ** reslimit_get_registered_attributes() 
+static char ** reslimit_get_registered_attributes(void)
 {
 
 	int 		i;

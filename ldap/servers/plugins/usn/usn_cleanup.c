@@ -32,7 +32,7 @@ usn_cleanup_start(Slapi_PBlock *pb)
 }
 
 int
-usn_cleanup_close()
+usn_cleanup_close(void)
 {
     int rc = slapi_plugin_task_unregister_handler("USN tombstone cleanup task",
                                          usn_cleanup_add);

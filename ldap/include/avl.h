@@ -39,6 +39,20 @@ typedef struct avlnode {
 	struct avlnode	*avl_right;
 } Avlnode;
 
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
+
+#ifndef _IFP
+#define _IFP
+typedef int (*IFP)(); /* takes undefined arguments */
+#endif
+
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic pop
+#endif
+
 #define NULLAVL	((Avlnode *) NULL)
 
 /* balance factor values */
@@ -49,14 +63,14 @@ typedef struct avlnode {
 /* avl routines */
 #define avl_getone(x)	(x == 0 ? 0 : (x)->avl_data)
 #define avl_onenode(x)	(x == 0 || ((x)->avl_left == 0 && (x)->avl_right == 0))
-extern int		avl_insert();
-extern caddr_t		avl_delete();
-extern caddr_t		avl_find();
-extern caddr_t		avl_getfirst();
-extern caddr_t		avl_getnext();
-extern int		avl_dup_error();
-extern int		avl_apply();
-extern int		avl_free();
+extern int avl_insert(Avlnode **root, void *data, IFP fcmp, IFP fdup);
+extern caddr_t avl_delete(Avlnode **root, void *data, IFP fcmp );
+extern caddr_t avl_find(Avlnode *root, void *data, IFP fcmp );
+extern caddr_t avl_getfirst(Avlnode *root );
+extern caddr_t avl_getnext(void);
+extern int avl_dup_error(void);
+extern int avl_apply(Avlnode *root, IFP fn, void *arg, int stopflag, int type);
+extern int avl_free(Avlnode *root, IFP dfree);
 
 /* apply traversal types */
 #define AVL_PREORDER	1
@@ -64,11 +78,6 @@ extern int		avl_free();
 #define AVL_POSTORDER	3
 /* what apply returns if it ran out of nodes */
 #define AVL_NOMORE	-6
-
-#ifndef _IFP
-#define _IFP
-typedef int	(*IFP)();
-#endif
 
 caddr_t avl_find_lin( Avlnode *root, caddr_t data, IFP fcmp );
 

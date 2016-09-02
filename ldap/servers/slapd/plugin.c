@@ -54,7 +54,7 @@ static void plugin_config_init (struct pluginconfig *config);
 static void plugin_config_cleanup (struct pluginconfig *config);
 static int plugin_config_set_action (int *action, char *value);
 static struct pluginconfig* plugin_get_config (struct slapdplugin *plugin);
-static void default_plugin_init();
+static void default_plugin_init(void);
 static void ptd_init (PluginTargetData *ptd);
 static void ptd_cleanup (PluginTargetData *ptd);
 static void ptd_add_subtree (PluginTargetData *ptd, Slapi_DN *subtree);
@@ -68,7 +68,7 @@ static PRBool plugin_is_global (const PluginTargetData *ptd);
 static void plugin_set_default_access (struct pluginconfig *config);
 static int plugin_delete_check_dependency(struct slapdplugin *plugin_entry, int flag, char *returntext);
 static char *plugin_get_type_str( int type );
-static void plugin_cleanup_list();
+static void plugin_cleanup_list(void);
 static int plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type);
 static void plugin_remove_from_shutdown(struct slapdplugin *plugin_entry);
 static void plugin_free(struct slapdplugin *plugin);
@@ -1890,7 +1890,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
  *
  */
 void
-plugin_dependency_closeall()
+plugin_dependency_closeall(void)
 {
 	Slapi_PBlock pb;
 	int plugins_closed = 0;
@@ -3389,7 +3389,7 @@ plugin_remove_from_shutdown(struct slapdplugin *plugin_entry)
  * Free the plugins that have been set to be removed.
  */
 static void
-plugin_cleanup_list()
+plugin_cleanup_list(void)
 {
     struct slapdplugin *plugin = NULL;
     entry_and_plugin_t *ep = dep_plugin_entries;
@@ -3993,7 +3993,7 @@ int plugin_build_operation_action_bitmap (int input_actions, const struct slapdp
 }
 
 const struct slapdplugin*
-plugin_get_server_plg()
+plugin_get_server_plg(void)
 {
 	if(!global_server_plg_initialised)
 	{
@@ -4009,7 +4009,7 @@ plugin_get_server_plg()
 	return &global_server_plg;
 }
 
-struct slapi_componentid * plugin_get_default_component_id() {
+struct slapi_componentid * plugin_get_default_component_id(void) {
 
         if(!global_server_plg_id_initialised) {
                 global_server_id_plg.sci_plugin=plugin_get_server_plg();
@@ -4021,7 +4021,7 @@ struct slapi_componentid * plugin_get_default_component_id() {
 }
 
 static void
-default_plugin_init()
+default_plugin_init(void)
 {
 	global_default_plg.plg_name = "old plugin";
 	plugin_config_init (&global_default_plg.plg_conf);

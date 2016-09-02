@@ -37,8 +37,6 @@
 
 int slapd_log_error_proc( char *subsystem, char *fmt, ... );
 
-char *config_get_instancedir();
-
 /*** from ldaplog.h ***/
 
 /* edited ldaplog.h for LDAPDebug()*/
@@ -132,7 +130,7 @@ int http_impl_get_text(char *url, char **data, int *bytesRead);
 int http_impl_get_binary(char *url, char **data, int *bytesRead);
 int http_impl_get_redirected_uri(char *url, char **data, int *bytesRead);
 int http_impl_post(char *url, httpheader **httpheaderArray, char *body, char **data, int *bytesRead);
-void http_impl_shutdown();
+void http_impl_shutdown(void);
 
 /**
  * Http handling functions
@@ -1270,7 +1268,7 @@ int http_impl_post(char *url, httpheader **httpheaderArray, char *body, char **d
 	return status;
 }
 
-void http_impl_shutdown()
+void http_impl_shutdown(void)
 {
 	/**
 	 * Put cleanup code here

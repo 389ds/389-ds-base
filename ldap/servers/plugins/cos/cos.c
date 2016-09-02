@@ -75,12 +75,12 @@ void cos_set_plugin_identity(void * identity)
 	cos_plugin_identity=identity;
 }
 
-void * cos_get_plugin_identity()
+void * cos_get_plugin_identity(void)
 {
 	return cos_plugin_identity;
 }
 
-int cos_version()
+int cos_version(void)
 {
 	return COS_VERSION;
 }

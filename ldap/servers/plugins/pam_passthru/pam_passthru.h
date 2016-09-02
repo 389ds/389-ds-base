@@ -107,25 +107,25 @@ typedef struct pam_passthruconfig {
  */
 
 void pam_passthruauth_set_plugin_identity(void * identity);
-void * pam_passthruauth_get_plugin_identity();
+void * pam_passthruauth_get_plugin_identity(void);
 void pam_passthruauth_set_plugin_sdn(const Slapi_DN *plugin_sdn);
-const Slapi_DN *pam_passthruauth_get_plugin_sdn();
-const char *pam_passthruauth_get_plugin_dn();
-void pam_passthru_read_lock();
-void pam_passthru_write_lock();
-void pam_passthru_unlock();
+const Slapi_DN *pam_passthruauth_get_plugin_sdn(void);
+const char *pam_passthruauth_get_plugin_dn(void);
+void pam_passthru_read_lock(void);
+void pam_passthru_write_lock(void);
+void pam_passthru_unlock(void);
 
 /*
  * pam_ptconfig.c:
  */
 int pam_passthru_load_config(int skip_validate);
-void pam_passthru_delete_config();
+void pam_passthru_delete_config(void);
 Pam_PassthruConfig *pam_passthru_get_config( Slapi_DN *bind_sdn );
 int pam_passthru_validate_config (Slapi_Entry* e, char *returntext);
 int pam_passthru_dn_is_config(Slapi_DN *sdn);
 void pam_passthru_set_config_area(Slapi_DN *sdn);
-Slapi_DN* pam_passthru_get_config_area();
-void pam_passthru_free_config_area();
+Slapi_DN* pam_passthru_get_config_area(void);
+void pam_passthru_free_config_area(void);
 
 /*
  * pam_ptimpl.c

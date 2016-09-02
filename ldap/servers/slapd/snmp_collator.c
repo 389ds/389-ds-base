@@ -51,15 +51,15 @@ static char *make_ds_url(char *host, int port);
 static void print_snmp_interaction_table();
 #endif /* DEBUG_SNMP_INTERACTION */
 static int search_interaction_table(char *dsURL, int *isnew);
-static void loadConfigStats();
+static void loadConfigStats(void);
 static Slapi_Entry *getConfigEntry( Slapi_Entry **e );
 static void freeConfigEntry( Slapi_Entry **e );
-static void snmp_update_ops_table();
-static void snmp_update_entries_table();
-static void snmp_update_interactions_table();
-static void snmp_update_cache_stats();
-static void snmp_collator_create_semaphore();
-static void snmp_collator_sem_wait();
+static void snmp_update_ops_table(void);
+static void snmp_update_entries_table(void);
+static void snmp_update_interactions_table(void);
+static void snmp_update_cache_stats(void);
+static void snmp_collator_create_semaphore(void);
+static void snmp_collator_sem_wait(void);
 
 /* snmp stats stuff */
 struct agt_stats_t *stats=NULL;
@@ -88,7 +88,7 @@ static sem_t		*stats_sem = NULL;
 ************************************************************************************/
 
 static int 
-snmp_collator_init()
+snmp_collator_init(void)
 {
 	int i;
 
@@ -449,7 +449,7 @@ int snmp_collator_stop()
  * for semaphores, so we just use POSIX semaphores directly.
  */
 static void
-snmp_collator_create_semaphore()
+snmp_collator_create_semaphore(void)
 {
     /* First just try to create the semaphore.  This should usually just work. */
     if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
@@ -488,7 +488,7 @@ snmp_collator_create_semaphore()
  * semaphore is help by the sub-agent.
  */
 static void
-snmp_collator_sem_wait()
+snmp_collator_sem_wait(void)
 {
     int i = 0;
     int got_sem = 0;
@@ -565,7 +565,7 @@ snmp_collator_update(time_t start_time, void *arg)
  * should be acquired before you call this.
  */
 static void
-snmp_update_ops_table()
+snmp_update_ops_table(void)
 {
     stats->ops_stats.dsAnonymousBinds = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsAnonymousBinds);
     stats->ops_stats.dsUnAuthBinds = slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
@@ -604,7 +604,7 @@ snmp_update_ops_table()
  * be acquired before you call this.
  */
 static void
-snmp_update_entries_table()
+snmp_update_entries_table(void)
 {
     stats->entries_stats.dsMasterEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsMasterEntries);
     stats->entries_stats.dsCopyEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCopyEntries);
@@ -620,7 +620,7 @@ snmp_update_entries_table()
  * be acquired before you call this.
  */
 static void
-snmp_update_interactions_table()
+snmp_update_interactions_table(void)
 {
     int i;
 
@@ -647,7 +647,7 @@ snmp_update_interactions_table()
  * the SNMP monitor entry.
  */
 static void
-snmp_update_cache_stats()
+snmp_update_cache_stats(void)
 {
     Slapi_Backend       *be, *be_next;
     char                *cookie = NULL;
@@ -757,7 +757,7 @@ snmp_as_entry(Slapi_Entry *e)
  * file.  This should be done only when the semaphore is held.
  */
 static void
-loadConfigStats() {
+loadConfigStats(void) {
 	Slapi_Entry *entry = NULL;
 	char *name = NULL;
 	char *desc = NULL;

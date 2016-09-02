@@ -61,7 +61,7 @@ NSAPI_PUBLIC int ADM_Init(void);
 
 /* Since everyone seems to be doing this independently, at least centralize
    the code.  Useful for onClicks and automatic help */
-NSAPI_PUBLIC char *helpJavaScript();
+NSAPI_PUBLIC char *helpJavaScript(void);
 NSAPI_PUBLIC char *helpJavaScriptForTopic( char *topic );
 
 /* Report an error.  Takes 3 args: 1. Category of error 

@@ -1234,7 +1234,7 @@ hashNocaseCompare(const void *v1, const void *v2)
 static PLHashTable *confighash = 0;
 
 static void
-init_config_get_and_set()
+init_config_get_and_set(void)
 {
 	if (!confighash) {
 		int ii = 0;
@@ -1365,19 +1365,19 @@ strarray2bervalarray(const char **strarray)
 static PRInt32 active_threads = 0;
 
 void
-g_incr_active_threadcnt()
+g_incr_active_threadcnt(void)
 {
     PR_AtomicIncrement(&active_threads);
 }
 
 void
-g_decr_active_threadcnt()
+g_decr_active_threadcnt(void)
 {
     PR_AtomicDecrement(&active_threads);
 }
 
 int
-g_get_active_threadcnt()
+g_get_active_threadcnt(void)
 {
     return (int)active_threads;
 }
@@ -1392,12 +1392,12 @@ void g_set_shutdown( int reason )
     slapd_shutdown = reason;
 }
 
-int g_get_shutdown()
+int g_get_shutdown(void)
 {
     return slapd_shutdown;
 }
 
-int slapi_is_shutting_down()
+int slapi_is_shutting_down(void)
 {
 	return slapd_shutdown;
 }
@@ -1405,18 +1405,18 @@ int slapi_is_shutting_down()
 
 static int cmd_shutdown;
 
-void c_set_shutdown()
+void c_set_shutdown(void)
 {
    cmd_shutdown = SLAPI_SHUTDOWN_SIGNAL;
 }
 
-int c_get_shutdown()
+int c_get_shutdown(void)
 {
    return cmd_shutdown;
 }
 
 slapdFrontendConfig_t *
-getFrontendConfig()
+getFrontendConfig(void)
 {
 	return &global_slapdFrontendConfig;
 }
@@ -1428,7 +1428,7 @@ getFrontendConfig()
  */
 
 void 
-FrontendConfig_init () {
+FrontendConfig_init(void) {
   slapdFrontendConfig_t *cfg = getFrontendConfig();
 
 #if SLAPI_CFG_USE_RWLOCK == 1
@@ -1695,18 +1695,18 @@ FrontendConfig_init () {
 }
 
 int 
-g_get_global_lastmod()
+g_get_global_lastmod(void)
 {
   return  config_get_lastmod();
 }
 
-int g_get_slapd_security_on(){
+int g_get_slapd_security_on(void){
   return config_get_security();
 }
 
 static struct snmp_vars_t global_snmp_vars;
 
-struct snmp_vars_t * g_get_global_snmp_vars(){
+struct snmp_vars_t * g_get_global_snmp_vars(void){
     return &global_snmp_vars;
 }
 
@@ -3446,7 +3446,7 @@ config_set_dynamic_plugins( const char *attrname, char *value, char *errorbuf, i
 }
 
 int
-config_get_dynamic_plugins() {
+config_get_dynamic_plugins(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -3766,7 +3766,7 @@ config_set_rootpwstoragescheme( const char *attrname, char *value, char *errorbu
 /*
  * kexcoff: to replace default initialization in FrontendConfig_init()
  */
-int config_set_storagescheme() {
+int config_set_storagescheme(void) {
 
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	struct pw_scheme *new_scheme = NULL;
@@ -4766,7 +4766,7 @@ int config_get_slapi_counters()
 }
 
 char *
-config_get_workingdir() {
+config_get_workingdir(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -4778,7 +4778,7 @@ config_get_workingdir() {
 }
 
 char *
-config_get_versionstring() {
+config_get_versionstring(void) {
 
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
@@ -4799,7 +4799,7 @@ config_get_buildnum(void)
 }
 
 int
-config_get_secureport() {
+config_get_secureport(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -4812,7 +4812,7 @@ config_get_secureport() {
 						  
 
 int 
-config_get_SSLclientAuth() {
+config_get_SSLclientAuth(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -4825,7 +4825,7 @@ config_get_SSLclientAuth() {
 
 
 int
-config_get_ssl_check_hostname()
+config_get_ssl_check_hostname(void)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	return (int)slapdFrontendConfig->ssl_check_hostname;
@@ -4833,7 +4833,7 @@ config_get_ssl_check_hostname()
 
 
 char *
-config_get_localhost() {
+config_get_localhost(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
   
@@ -4846,7 +4846,7 @@ config_get_localhost() {
 } 
 
 char *
-config_get_listenhost() {
+config_get_listenhost(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
  
@@ -4858,7 +4858,7 @@ config_get_listenhost() {
 }
 
 char *
-config_get_securelistenhost() {
+config_get_securelistenhost(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -4870,7 +4870,7 @@ config_get_securelistenhost() {
 }
 
 char * 
-config_get_srvtab() {
+config_get_srvtab(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -4882,7 +4882,7 @@ config_get_srvtab() {
 }
 
 int
-config_get_sizelimit() {
+config_get_sizelimit(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 	
@@ -4894,7 +4894,7 @@ config_get_sizelimit() {
 }
 
 int
-config_get_pagedsizelimit() {
+config_get_pagedsizelimit(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 	
@@ -4906,7 +4906,7 @@ config_get_pagedsizelimit() {
 }
 
 char *
-config_get_pw_admin_dn()
+config_get_pw_admin_dn(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     char *retVal;
@@ -4919,7 +4919,7 @@ config_get_pw_admin_dn()
 }
 
 char *
-config_get_pw_storagescheme() {
+config_get_pw_storagescheme(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal = 0;
 
@@ -4932,7 +4932,7 @@ config_get_pw_storagescheme() {
 	
 
 int
-config_get_pw_change() {
+config_get_pw_change(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -4945,7 +4945,7 @@ config_get_pw_change() {
 
 
 int
-config_get_pw_history() {
+config_get_pw_history(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -4959,7 +4959,7 @@ config_get_pw_history() {
 
 
 int
-config_get_pw_must_change() {
+config_get_pw_must_change(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -4971,7 +4971,7 @@ config_get_pw_must_change() {
 }
 
 int
-config_get_allow_hashed_pw()
+config_get_allow_hashed_pw(void)
 {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
@@ -4984,7 +4984,7 @@ config_get_allow_hashed_pw()
 }
 
 int
-config_get_pw_syntax() {
+config_get_pw_syntax(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -4998,7 +4998,7 @@ config_get_pw_syntax() {
 
 
 int
-config_get_pw_minlength() {
+config_get_pw_minlength(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5010,7 +5010,7 @@ config_get_pw_minlength() {
 }
 
 int
-config_get_pw_mindigits() {
+config_get_pw_mindigits(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5022,7 +5022,7 @@ config_get_pw_mindigits() {
 }
 
 int
-config_get_pw_minalphas() {
+config_get_pw_minalphas(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5034,7 +5034,7 @@ config_get_pw_minalphas() {
 }
 
 int
-config_get_pw_minuppers() {
+config_get_pw_minuppers(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5046,7 +5046,7 @@ config_get_pw_minuppers() {
 }
 
 int
-config_get_pw_minlowers() {
+config_get_pw_minlowers(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5058,7 +5058,7 @@ config_get_pw_minlowers() {
 }
 
 int
-config_get_pw_minspecials() {
+config_get_pw_minspecials(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5070,7 +5070,7 @@ config_get_pw_minspecials() {
 }
 
 int
-config_get_pw_min8bit() {
+config_get_pw_min8bit(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5082,7 +5082,7 @@ config_get_pw_min8bit() {
 }
 
 int
-config_get_pw_maxrepeats() {
+config_get_pw_maxrepeats(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5094,7 +5094,7 @@ config_get_pw_maxrepeats() {
 }
 
 int
-config_get_pw_mincategories() {
+config_get_pw_mincategories(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5106,7 +5106,7 @@ config_get_pw_mincategories() {
 }
 
 int
-config_get_pw_mintokenlength() {
+config_get_pw_mintokenlength(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5118,7 +5118,7 @@ config_get_pw_mintokenlength() {
 }
 
 int 
-config_get_pw_maxfailure() {
+config_get_pw_maxfailure(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5130,7 +5130,7 @@ config_get_pw_maxfailure() {
 }
 
 int
-config_get_pw_inhistory() {
+config_get_pw_inhistory(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5142,7 +5142,7 @@ config_get_pw_inhistory() {
 }
 
 long
-config_get_pw_lockduration() {
+config_get_pw_lockduration(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   long retVal;
   
@@ -5155,7 +5155,7 @@ config_get_pw_lockduration() {
 }
 
 long
-config_get_pw_resetfailurecount() {
+config_get_pw_resetfailurecount(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   long retVal;
   
@@ -5167,7 +5167,7 @@ config_get_pw_resetfailurecount() {
 }
 
 int
-config_get_pw_is_global_policy() {
+config_get_pw_is_global_policy(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5179,7 +5179,7 @@ config_get_pw_is_global_policy() {
 }
 
 int
-config_get_pw_is_legacy_policy() {
+config_get_pw_is_legacy_policy(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5191,7 +5191,7 @@ config_get_pw_is_legacy_policy() {
 }
 
 int
-config_get_pw_exp() {
+config_get_pw_exp(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5204,7 +5204,7 @@ config_get_pw_exp() {
 
 
 int
-config_get_pw_unlock() {
+config_get_pw_unlock(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5228,7 +5228,7 @@ config_get_pw_lockout(){
 }
 
 int
-config_get_pw_gracelimit() {
+config_get_pw_gracelimit(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal=0;
   
@@ -5265,7 +5265,7 @@ config_get_enquote_sup_oc(){
 }
 
 int
-config_get_nagle() {
+config_get_nagle(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5276,7 +5276,7 @@ config_get_nagle() {
 }
 
 int
-config_get_accesscontrol() {
+config_get_accesscontrol(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5288,7 +5288,7 @@ config_get_accesscontrol() {
 }
 
 int
-config_get_return_exact_case() {
+config_get_return_exact_case(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5298,7 +5298,7 @@ config_get_return_exact_case() {
 }
 
 int
-config_get_result_tweak() {
+config_get_result_tweak(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5310,7 +5310,7 @@ config_get_result_tweak() {
 }
 
 int
-config_get_moddn_aci() {
+config_get_moddn_aci(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5322,7 +5322,7 @@ config_get_moddn_aci() {
 }
 
 int
-config_get_security() {
+config_get_security(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5334,7 +5334,7 @@ config_get_security() {
 }
 			 
 int
-slapi_config_get_readonly() {
+slapi_config_get_readonly(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5346,7 +5346,7 @@ slapi_config_get_readonly() {
 }
 
 int
-config_get_schemacheck() {
+config_get_schemacheck(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5358,7 +5358,7 @@ config_get_schemacheck() {
 }
 
 int
-config_get_schemamod() {
+config_get_schemamod(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5370,7 +5370,7 @@ config_get_schemamod() {
 }
 
 int
-config_get_syntaxcheck() {
+config_get_syntaxcheck(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5382,7 +5382,7 @@ config_get_syntaxcheck() {
 }
 
 int
-config_get_syntaxlogging() {
+config_get_syntaxlogging(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5394,7 +5394,7 @@ config_get_syntaxlogging() {
 }
 
 int
-config_get_dn_validate_strict() {
+config_get_dn_validate_strict(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
 
@@ -5406,7 +5406,7 @@ config_get_dn_validate_strict() {
 }
 
 int
-config_get_ds4_compatible_schema() {
+config_get_ds4_compatible_schema(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5418,7 +5418,7 @@ config_get_ds4_compatible_schema() {
 }
 
 int
-config_get_schema_ignore_trailing_spaces() {
+config_get_schema_ignore_trailing_spaces(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5430,7 +5430,7 @@ config_get_schema_ignore_trailing_spaces() {
 }
 
 char *
-config_get_rootdn() {
+config_get_rootdn(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -5441,12 +5441,12 @@ config_get_rootdn() {
   return retVal;
 }
 
-char * slapi_get_rootdn() {
+char * slapi_get_rootdn(void) {
 	return config_get_rootdn();
 }
 
 char *
-config_get_rootpw() {
+config_get_rootpw(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -5459,7 +5459,7 @@ config_get_rootpw() {
 
 
 char *
-config_get_rootpwstoragescheme() {
+config_get_rootpwstoragescheme(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 	
@@ -5471,7 +5471,7 @@ config_get_rootpwstoragescheme() {
 }
 
 char *
-config_get_localuser() {
+config_get_localuser(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
   
@@ -5486,7 +5486,7 @@ config_get_localuser() {
 /* calls to psetFullCreate() and psetGetAttrSingleValue(). See ssl.c, */
 /* where this function is still used to set the global variable */
 char *
-config_get_encryptionalias() {
+config_get_encryptionalias(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -5498,7 +5498,7 @@ config_get_encryptionalias() {
 }
 
 int
-config_get_threadnumber() {
+config_get_threadnumber(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5524,7 +5524,7 @@ config_get_maxthreadsperconn(){
 }
 
 int
-config_get_maxdescriptors() {
+config_get_maxdescriptors(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   int retVal;
   
@@ -5588,7 +5588,7 @@ config_get_groupevalnestlevel(){
 }
 
 struct berval **
-config_get_defaultreferral() {
+config_get_defaultreferral(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   struct berval **refs;
   int nReferrals = 0;
@@ -5704,7 +5704,7 @@ config_get_auditfaillog(  ){
 }
 
 long long
-config_get_pw_maxage() {
+config_get_pw_maxage(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   long long retVal;
 
@@ -5728,7 +5728,7 @@ config_get_pw_minage(){
 }
 
 long long
-config_get_pw_warning() {
+config_get_pw_warning(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   long retVal;
 
@@ -6221,7 +6221,7 @@ config_get_return_orig_type_switch()
 }
 
 char *
-config_get_basedn() {
+config_get_basedn(void) {
   slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
   char *retVal;
 
@@ -6291,7 +6291,7 @@ config_set_configdir(const char *attrname, char *value, char *errorbuf, int appl
 }
 
 char *
-config_get_instancedir()
+config_get_instancedir(void)
 {
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	char *retVal;

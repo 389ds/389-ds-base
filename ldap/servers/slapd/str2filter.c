@@ -19,8 +19,10 @@
 #include <sys/socket.h>
 #include "slap.h"
 
-static struct slapi_filter	*str2list();
-static int		str2subvals();
+static struct slapi_filter *
+str2list(char *str, unsigned long ftype);
+static int
+str2subvals(char *val, struct slapi_filter *f, int unescape_filter);
 
 struct slapi_filter *
 slapi_str2filter( char *str )

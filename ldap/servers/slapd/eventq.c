@@ -274,7 +274,7 @@ eq_dequeue(time_t now)
  * by calling the function repeatedly.
  */
 static void
-eq_call_all()
+eq_call_all(void)
 {
 	slapi_eq_context *p;
 

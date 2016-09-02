@@ -206,7 +206,7 @@ static struct factory_type* factory_type_store[MAX_TYPES];
 static int number_of_types= 0;
 
 static void
-factory_type_store_init()
+factory_type_store_init(void)
 {
 	int i= 0;
     factory_type_store_lock= PR_NewLock(); /* JCM - Should really free this at shutdown */

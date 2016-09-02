@@ -131,7 +131,7 @@ deref_set_plugin_id(void *pluginID)
 }
 
 void *
-deref_get_plugin_id()
+deref_get_plugin_id(void)
 {
     return _PluginID;
 }
@@ -143,7 +143,7 @@ deref_set_plugin_dn(char *pluginDN)
 }
 
 char *
-deref_get_plugin_dn()
+deref_get_plugin_dn(void)
 {
     return _PluginDN;
 }

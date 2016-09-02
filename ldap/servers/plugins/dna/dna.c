@@ -221,7 +221,7 @@ static int dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq);
 static int dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply);
 static void dna_delete_config(PRCList *list);
 static void dna_free_config_entry(struct configEntry ** entry);
-static int dna_load_host_port();
+static int dna_load_host_port(void);
 
 /**
  *
@@ -263,10 +263,10 @@ static void dna_create_valcheck_filter(struct configEntry *config_entry, PRUint6
 static int dna_isrepl(Slapi_PBlock *pb);
 static int dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bind_passwd,
                                        char **bind_method, int *is_ssl, int *port);
-static int dna_load_shared_servers();
-static void dna_delete_global_servers();
+static int dna_load_shared_servers(void);
+static void dna_delete_global_servers(void);
 static int dna_get_shared_config_attr_val(struct configEntry *config_entry, char *attr, char *value);
-static PRCList *dna_config_copy();
+static PRCList *dna_config_copy(void);
 /**
  *
  * the ops (where the real work is done)
@@ -285,7 +285,7 @@ static int dna_be_txn_mod_pre_op(Slapi_PBlock *pb);
 /**
  * debug functions - global, for the debugger
  */
-void dna_dump_config();
+void dna_dump_config(void);
 void dna_dump_config_entry(struct configEntry *);
 
 /*
@@ -295,7 +295,7 @@ void dna_dump_config_entry(struct configEntry *);
  * hold the read lock while starting a transaction(potential deadlock).
  */
 static PRCList *
-dna_config_copy()
+dna_config_copy(void)
 {
     PRCList *copy = (PRCList *)slapi_ch_calloc(1, sizeof(struct configEntry));
     PRCList *config_list;
@@ -361,32 +361,32 @@ dna_config_copy()
  * Deal with cache locking
  *
  */
-void dna_read_lock()
+void dna_read_lock(void)
 {
     slapi_rwlock_rdlock(g_dna_cache_lock);
 }
 
-void dna_write_lock()
+void dna_write_lock(void)
 {
     slapi_rwlock_wrlock(g_dna_cache_lock);
 }
 
-void dna_unlock()
+void dna_unlock(void)
 {
     slapi_rwlock_unlock(g_dna_cache_lock);
 }
 
-void dna_server_read_lock()
+void dna_server_read_lock(void)
 {
     slapi_rwlock_rdlock(g_dna_cache_server_lock);
 }
 
-void dna_server_write_lock()
+void dna_server_write_lock(void)
 {
     slapi_rwlock_wrlock(g_dna_cache_server_lock);
 }
 
-void dna_server_unlock()
+void dna_server_unlock(void)
 {
     slapi_rwlock_unlock(g_dna_cache_server_lock);
 }
@@ -396,7 +396,7 @@ void dna_server_unlock()
  * Get the dna plug-in version
  *
  */
-int dna_version()
+int dna_version(void)
 {
     return DNA_PLUGIN_VERSION;
 }
@@ -409,7 +409,7 @@ void setPluginID(void *pluginID)
     _PluginID = pluginID;
 }
 
-void *getPluginID()
+void *getPluginID(void)
 {
     return _PluginID;
 }
@@ -419,7 +419,7 @@ void setPluginDN(const char *pluginDN)
     _PluginDN = pluginDN;
 }
 
-const char *getPluginDN()
+const char *getPluginDN(void)
 {
     return _PluginDN;
 }
@@ -764,7 +764,7 @@ out:
  * Free the global linkedl ist of shared servers
  */
 static void
-dna_delete_global_servers()
+dna_delete_global_servers(void)
 {
     struct dnaServer *server, *next;
 
@@ -784,7 +784,7 @@ dna_delete_global_servers()
  * shared server config list.
  */
 static int
-dna_load_shared_servers()
+dna_load_shared_servers(void)
 {
     struct configEntry *config_entry = NULL;
     struct dnaServer *server = NULL, *global_servers = NULL;
@@ -1521,7 +1521,7 @@ dna_delete_shared_servers(PRCList **servers)
 }
 
 static int
-dna_load_host_port()
+dna_load_host_port(void)
 {
     int status = DNA_SUCCESS;
     Slapi_Entry *e = NULL;
@@ -4663,7 +4663,7 @@ bail:
 /**
  * debug functions to print config
  */
-void dna_dump_config()
+void dna_dump_config(void)
 {
     PRCList *list;
 

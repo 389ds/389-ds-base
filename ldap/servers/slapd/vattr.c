@@ -78,12 +78,12 @@ struct _vattr_context {
 typedef  vattr_sp_handle vattr_sp_handle_list;
 
 /* Local prototypes */
-static int vattr_map_create();
-static void vattr_map_destroy();
+static int vattr_map_create(void);
+static void vattr_map_destroy(void);
 int vattr_map_sp_insert(char *type_to_add, vattr_sp_handle *sp, void *hint);
 vattr_sp_handle_list *vattr_map_sp_getlist(char *type_to_find);
 vattr_sp_handle_list *vattr_map_namespace_sp_getlist(Slapi_DN *dn, const char *type_to_find);
-vattr_sp_handle_list *vattr_map_sp_get_complete_list();
+vattr_sp_handle_list *vattr_map_sp_get_complete_list(void);
 vattr_sp_handle *vattr_map_sp_first(vattr_sp_handle_list *list,void **hint);
 vattr_sp_handle *vattr_map_sp_next(vattr_sp_handle_list *list,void **hint);
 vattr_sp_handle *vattr_list_sp_first(vattr_sp_handle_list *list);
@@ -1578,7 +1578,7 @@ int slapi_vattrspi_register_internal(vattr_sp_handle **h, vattr_get_fn_type get_
 	return 0;
 }
 
-vattr_sp_handle_list *vattr_map_sp_get_complete_list()
+vattr_sp_handle_list *vattr_map_sp_get_complete_list(void)
 {
 	return vattr_sp_list;
 }
@@ -1813,7 +1813,7 @@ static PLHashNumber vattr_hash_fn(const void *type_name)
     return result;
 }
 
-static int vattr_map_create()
+static int vattr_map_create(void)
 {
 	the_map = (vattr_map*)slapi_ch_calloc(1, sizeof(vattr_map));
 	if (NULL == the_map) {
@@ -1838,7 +1838,7 @@ static int vattr_map_create()
 	return 0;
 }
 
-static void vattr_map_destroy()
+static void vattr_map_destroy(void)
 {
 	if (the_map) {
 		if (the_map->hashtable) {

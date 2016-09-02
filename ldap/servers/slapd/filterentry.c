@@ -19,11 +19,24 @@
 #include <sys/socket.h>
 #include "slap.h"
 
-static int	test_filter_list();
-static int	test_extensible_filter();
+static int test_filter_list(Slapi_PBlock *pb, Slapi_Entry *e,
+                            struct slapi_filter *flist, int ftype,
+                            int verify_access, int only_check_access,
+                            int *access_check_done);
+static int test_extensible_filter(Slapi_PBlock *callers_pb, Slapi_Entry *e,
+                                  mr_filter_t *mrf, int verify_access,
+                                  int only_check_access,
+                                  int *access_check_done);
 
-static int	vattr_test_filter_list_and();
-static int	vattr_test_filter_list_or();
+static int vattr_test_filter_list_and(Slapi_PBlock *pb, Slapi_Entry *e,
+                                      struct slapi_filter *flist, int ftype,
+                                      int verify_access, int only_check_access,
+                                      int *access_check_done);
+static int vattr_test_filter_list_or(Slapi_PBlock *pb, Slapi_Entry *e,
+                                     struct slapi_filter *flist, int ftype,
+                                     int verify_access, int only_check_access,
+                                     int *access_check_done);
+
 static int test_filter_access( Slapi_PBlock	*pb, Slapi_Entry*e,
 								char * attr_type, struct berval *attr_val);
 static int slapi_vattr_filter_test_ext_internal( Slapi_PBlock *pb, Slapi_Entry *e,
@@ -32,7 +45,7 @@ static int slapi_vattr_filter_test_ext_internal( Slapi_PBlock *pb, Slapi_Entry *
 static char *opt_str = 0;
 static int opt = 0;
 
-static int optimise_filter_acl_tests()
+static int optimise_filter_acl_tests(void)
 {
 	if(!opt_str)
 	{

@@ -32,7 +32,7 @@ int rever_cmp( char *userpwd, char *dbpwd );
 char *rever_enc( char *pwd );
 char *rever_dec( char *pwd );
 int rever_init( Slapi_PBlock *pb );
-void init_pbe_plugin();
+void init_pbe_plugin(void);
 
 int encode(char *inPlain, char **outCipher, int mech);
 int decode(char *inCipher, char **outPlain, int mech, char *algid);

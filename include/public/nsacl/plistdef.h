@@ -45,7 +45,7 @@ typedef struct PListStruct_s *PList_t;
 #ifdef __cplusplus
 typedef void (PListFunc_t)(char*, const void*, void*);
 #else
-typedef void (PListFunc_t)();
+typedef void (PListFunc_t)(void);
 #endif
 
 #ifndef INTNSACL

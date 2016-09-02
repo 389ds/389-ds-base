@@ -43,7 +43,7 @@
 #endif
 
 static char*
-find_localhost_DNS()
+find_localhost_DNS(void)
 {
     /* This implementation could (and should) be entirely replaced by:
        dns_ip2host ("127.0.0.1", 1); defined in ldapserver/lib/base/dns.c
@@ -186,7 +186,7 @@ get_localhost_DNS()
 }
 
 static void
-set_localhost_DN()
+set_localhost_DN(void)
 {
     char *localhost_DNS = config_get_localhost();
 

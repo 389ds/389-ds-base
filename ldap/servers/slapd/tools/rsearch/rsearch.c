@@ -39,7 +39,7 @@
 #define DEFAULT_THREADS		1
 #define DEFAULT_INTERVAL	10000
 
-void usage()
+void usage(void)
 {
     printf("\nUsage: rsearch -D binddn -w bindpw -s suffix -f filter [options]\n"
 	   "-\\?       -- print Usage (this message)\n"
@@ -85,7 +85,7 @@ void usage()
 	exit(1);
 }
 
-void usage_B()
+void usage_B(void)
 {
     printf("\nFormat of the file for the '-B <file>' option:\n"
 	   "(Assuming each passwd is identical to its corresponding UID.)\n"
@@ -103,7 +103,7 @@ void usage_B()
 	   "\n");
 }
 
-void usage_A()
+void usage_A(void)
 {
 	
 	printf("\nNote: -A and -a are mutually exclusive options\n");

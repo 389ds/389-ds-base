@@ -61,17 +61,17 @@ union semun {
 #endif
 
 /* Forward Declarations */
-static void register_objects();
+static void register_objects(void);
 static void process_command_line(int argc, char **argv, char *myname, char **extraname);
-static int slapd_exemode_ldif2db();
+static int slapd_exemode_ldif2db(void);
 static int slapd_exemode_db2ldif(int argc, char **argv);
-static int slapd_exemode_db2index();
-static int slapd_exemode_archive2db();
-static int slapd_exemode_db2archive();
-static int slapd_exemode_upgradedb();
-static int slapd_exemode_upgradednformat();
-static int slapd_exemode_dbverify();
-static int slapd_exemode_suffix2instance();
+static int slapd_exemode_db2index(void);
+static int slapd_exemode_archive2db(void);
+static int slapd_exemode_db2archive(void);
+static int slapd_exemode_upgradedb(void);
+static int slapd_exemode_upgradednformat(void);
+static int slapd_exemode_dbverify(void);
+static int slapd_exemode_suffix2instance(void);
 static int slapd_debug_level_string2level( const char *s );
 static void slapd_debug_level_log( int level );
 static void slapd_debug_level_usage( void );
@@ -82,7 +82,7 @@ static void cmd_set_shutdown(int);
 
 static int slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
 
-static int init_cmd_shutdown_detect()
+static int init_cmd_shutdown_detect(void)
 {
 
   /* First of all, we must reset the signal mask to get rid of any blockages
@@ -221,7 +221,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
 */
 
 static void
-fix_ownership() 
+fix_ownership(void)
 {
 	struct passwd* pw=NULL;
 
@@ -543,7 +543,7 @@ static void slapd_print_version(int verbose)
 
 /* On UNIX, we create a file with our PID in it */
 static int
-write_start_pid_file()
+write_start_pid_file(void)
 {
 	FILE *fp = NULL;
 	/*
@@ -1183,7 +1183,7 @@ signal2sigaction( int s, void *a )
 #endif /* hpux */
 
 static void
-register_objects()
+register_objects(void)
 {
 	get_operation_object_type();
     daemon_register_connection();
@@ -2004,7 +2004,7 @@ static struct slapdplugin *lookup_plugin_by_instance_name(const char *name)
 }
 
 static int
-slapd_exemode_ldif2db()
+slapd_exemode_ldif2db(void)
 {
     int return_value= 0;
     Slapi_PBlock pb;
@@ -2325,7 +2325,7 @@ slapd_exemode_db2ldif(int argc, char** argv)
 }
 
 static int
-slapd_exemode_suffix2instance()
+slapd_exemode_suffix2instance(void)
 {
     int return_value = 0;
 	char **instances = NULL;
@@ -2355,7 +2355,7 @@ slapd_exemode_suffix2instance()
 	return (return_value);
 }
 
-static int slapd_exemode_db2index()
+static int slapd_exemode_db2index(void)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
@@ -2448,7 +2448,7 @@ static int slapd_exemode_db2index()
 
 
 static int 
-slapd_exemode_db2archive()
+slapd_exemode_db2archive(void)
 {
     int return_value= 0;
 	Slapi_PBlock pb;
@@ -2502,7 +2502,7 @@ slapd_exemode_db2archive()
 }
 
 static int
-slapd_exemode_archive2db()
+slapd_exemode_archive2db(void)
 {
 	int return_value= 0;
 	Slapi_PBlock pb;
@@ -2561,7 +2561,7 @@ slapd_exemode_archive2db()
  * (604921) Support a database uprev process any time post-install
  */
 static int
-slapd_exemode_upgradedb()
+slapd_exemode_upgradedb(void)
 {
     int return_value= 0;
     Slapi_PBlock pb;
@@ -2631,7 +2631,7 @@ slapd_exemode_upgradedb()
 
 /* Command to upgrade the old dn format to the new style */
 static int
-slapd_exemode_upgradednformat()
+slapd_exemode_upgradednformat(void)
 {
     int rc = -1; /* error, by default */
     Slapi_PBlock pb;
@@ -2708,7 +2708,7 @@ bail:
  * function to perform DB verify
  */
 static int
-slapd_exemode_dbverify()
+slapd_exemode_dbverify(void)
 {
     int return_value = 0;
     Slapi_PBlock pb;

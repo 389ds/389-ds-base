@@ -765,7 +765,7 @@ extern int DS_LASSSFEval(NSErr_t *errp, char *attribute,
 		PList_t global_auth);
 
 /* other function declaration */
-int 		aclinit_main();
+int               aclinit_main(void);
 int			acl_match_substring (struct slapi_filter *f, char *str, int match);
 void		acl_print_acllib_err(NSErr_t *errp, char * str);
 void		acl_initBlock ( Slapi_PBlock *pb );
@@ -798,8 +798,8 @@ int		acl_verify_syntax(Slapi_PBlock *pb, const Slapi_DN *e_sdn,
 int		acllist_insert_aci_needsLock_ext( Slapi_PBlock *pb, const Slapi_DN *e_sdn,
 			const struct berval* aci_attr);
 char *		acl_access2str ( int access );
-int 		acl_init_ext ();
-void		acl_remove_ext ();
+int               acl_init_ext(void);
+void              acl_remove_ext(void);
 void * 		acl_get_ext (ext_type type, void *object);
 void  		acl_set_ext (ext_type type, void *object, void *data);
 void		acl_reset_ext_status (ext_type type, void *object);
@@ -813,19 +813,19 @@ void        acl_copyEval_context ( struct acl_pblock *aclpb, aclEvalContext *src
                         aclEvalContext *dest , int copy_attr_only );
 struct acl_pblock *	acl_get_aclpb ( Slapi_PBlock *pb, int type );
 int 		acl_client_anonymous ( Slapi_PBlock *pb );
-short		acl_get_aclsignature();
+short              acl_get_aclsignature(void);
 void		acl_set_aclsignature( short value);
-void		acl_regen_aclsignature();
+void              acl_regen_aclsignature(void);
 struct acl_pblock * acl_new_proxy_aclpb( Slapi_PBlock *pb );
 void 		acl_set_authorization_dn( Slapi_PBlock *pb, char *dn, int type );
 void 		acl_init_aclpb ( Slapi_PBlock *pb , Acl_PBlock *aclpb, 
 								const char *dn, int copy_from_aclcb);
-int 		acl_create_aclpb_pool ();
-void        acl_destroy_aclpb_pool ();
+int               acl_create_aclpb_pool(void);
+void        acl_destroy_aclpb_pool(void);
 int		acl_skip_access_check ( Slapi_PBlock *pb,  Slapi_Entry *e, int access );
 
-int			aclext_alloc_lockarray ();
-void		aclext_free_lockarray();
+int                     aclext_alloc_lockarray(void);
+void              aclext_free_lockarray(void);
 
 int			aclutil_str_append(char **str1, const char *str2);
 void		aclutil_print_err (int rv , const Slapi_DN *sdn,
@@ -839,7 +839,7 @@ char *		aclutil_expand_paramString ( char *str, Slapi_Entry *e );
 void		acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base);
 aci_t * 	acllist_get_first_aci (Acl_PBlock *aclpb, PRUint32 *cookie );
 aci_t * 	acllist_get_next_aci ( Acl_PBlock *aclpb, aci_t *curraci, PRUint32 *cookie );
-aci_t *		acllist_get_aci_new ();
+aci_t *              acllist_get_aci_new(void);
 void		acllist_free_aci (aci_t *item);
 void		acllist_acicache_READ_UNLOCK(void);
 void		acllist_acicache_READ_LOCK(void);
@@ -847,13 +847,13 @@ void		acllist_acicache_WRITE_UNLOCK(void);
 void		acllist_acicache_WRITE_LOCK(void);
 void		acllist_aciscan_update_scan ( Acl_PBlock *aclpb, char *edn );
 int 		acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr );
-void		free_acl_avl_list();
+void              free_acl_avl_list(void);
 int		acllist_insert_aci_needsLock( const Slapi_DN *e_sdn, const struct berval* aci_attr);
-int 		acllist_init ();
-void		acllist_free();
+int               acllist_init(void);
+void              acllist_free(void);
 int			acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn );
 void		acllist_print_tree ( Avlnode *root, int *depth, char *start, char *side);
-AciContainer *acllist_get_aciContainer_new ( );
+AciContainer *acllist_get_aciContainer_new(void);
 void		acllist_free_aciContainer (  AciContainer **container);
 void 		acllist_done_aciContainer (  AciContainer *);
 void		free_targetattrfilters( Targetattrfilter ***attrFilterArray);
@@ -863,9 +863,9 @@ void 		aclg_regen_ugroup_signature( aclUserGroup *ugroup);
 void		aclg_markUgroupForRemoval ( aclUserGroup *u_group );
 void		aclg_reader_incr_ugroup_refcnt(aclUserGroup* u_group);
 int			aclg_numof_usergroups(void);
-int 		aclgroup_init ();
-void		aclgroup_free();
-void		aclg_regen_group_signature ();
+int               aclgroup_init(void);
+void              aclgroup_free(void);
+void              aclg_regen_group_signature(void);
 void		aclg_reset_userGroup ( struct acl_pblock *aclpb );
 void     	aclg_init_userGroup ( struct acl_pblock *aclpb, const char *dn , int got_lock);
 aclUserGroup * aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn);
@@ -873,11 +873,11 @@ aclUserGroup * aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn);
 void		aclg_lock_groupCache (int type );
 void		aclg_unlock_groupCache (int type );
 
-int			aclanom_init();
+int                     aclanom_init(void);
 int 		aclanom_match_profile (Slapi_PBlock *pb,  struct acl_pblock *aclpb, 
 									Slapi_Entry *e, char *attr, int access);
 void		aclanom_get_suffix_info(Slapi_Entry *e, struct acl_pblock *aclpb );
-void		aclanom_invalidateProfile();
+void              aclanom_invalidateProfile(void);
 void		aclanom__del_profile (int closing);
 
 typedef enum{
@@ -888,7 +888,7 @@ typedef enum{
 }acl_lock_flag_t;
 void 		aclanom_gen_anomProfile (acl_lock_flag_t lock_flag);
 int 		aclanom_is_client_anonymous ( Slapi_PBlock *pb );
-int 		aclinit_main ();
+int               aclinit_main(void);
 typedef struct aclinit_handler_callback_data {
 #define		ACL_ADD_ACIS 	1
 #define		ACL_REMOVE_ACIS 0

@@ -36,6 +36,6 @@ char *nt_get(NameTable *nt, int entry);
 char **nt_get_all(NameTable *nt );
 char *nt_getrand(NameTable *nt);
 int PR_GetLine(PRFileDesc *fd, char *s, unsigned int n);
-int get_large_random_number();
+int get_large_random_number(void);
 
 #endif

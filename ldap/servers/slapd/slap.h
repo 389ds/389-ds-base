@@ -169,7 +169,17 @@ typedef struct symbol_t {
 typedef void	(*VFP)(void *);
 typedef void	(*VFPP)(void **);
 typedef void	(*VFP0)(void);
+
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
 typedef void	(*VFPV)(); /* takes undefined arguments */
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic pop
+#endif
+
+
 #define LDAPI_INTERNAL	1
 #include "slapi-private.h"
 #include "pw.h"
@@ -1883,7 +1893,7 @@ struct snmp_vars_t{
 
 typedef void (*ps_wakeup_all_fn_ptr)( void );
 typedef void (*ps_service_fn_ptr)(Slapi_Entry *, Slapi_Entry *, int, int );
-typedef char *(*get_config_dn_fn_ptr)();
+typedef char *(*get_config_dn_fn_ptr)(void);
 typedef void (*get_disconnect_server_fn_ptr)(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 typedef int (*modify_config_dse_fn_ptr)( Slapi_PBlock *pb );
 typedef int (*slapd_ssl_init_fn_ptr)( void );
@@ -2490,7 +2500,7 @@ typedef struct _slapdFrontendConfig {
 #define CONNECTION_BUFFER_ADAPT 2
 
  
-slapdFrontendConfig_t *getFrontendConfig();
+slapdFrontendConfig_t *getFrontendConfig(void);
 
 int slapd_bind_local_user(Connection *conn);
 

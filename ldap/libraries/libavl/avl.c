@@ -218,14 +218,14 @@ ravl_insert(
 int
 avl_insert(
     Avlnode	**root,
-    caddr_t	data,
+    void       *data,
     IFP		fcmp,
     IFP		fdup
 )
 {
 	int	taller;
 
-	return( ravl_insert( root, data, &taller, fcmp, fdup, 0 ) );
+       return ravl_insert( root, (caddr_t)data, &taller, fcmp, fdup, 0 );
 }
 
 /* 
@@ -458,11 +458,11 @@ ravl_delete(
  */
 
 caddr_t
-avl_delete( Avlnode **root, caddr_t data, IFP fcmp )
+avl_delete( Avlnode **root, void *data, IFP fcmp )
 {
 	int	shorter;
 
-	return( ravl_delete( root, data, fcmp, &shorter ) );
+       return ravl_delete( root, (caddr_t)data, fcmp, &shorter );
 }
 
 static int
@@ -536,18 +536,18 @@ int
 avl_apply(
     Avlnode	*root,
     IFP		fn,
-    caddr_t	arg,
+    void       *arg,
     int		stopflag,
     int		type
 )
 {
 	switch ( type ) {
 	case AVL_INORDER:
-		return( avl_inapply( root, fn, arg, stopflag ) );
+              return avl_inapply( root, fn, (caddr_t)arg, stopflag);
 	case AVL_PREORDER:
-		return( avl_preapply( root, fn, arg, stopflag ) );
+              return avl_preapply( root, fn, (caddr_t)arg, stopflag);
 	case AVL_POSTORDER:
-		return( avl_postapply( root, fn, arg, stopflag ) );
+              return avl_postapply( root, fn, (caddr_t)arg, stopflag);
 	default:
 		fprintf( stderr, "Invalid traversal type %d\n", type );
 		return( -1 );
@@ -649,11 +649,11 @@ avl_free( Avlnode *root, IFP dfree )
  */
 
 caddr_t
-avl_find( Avlnode *root, caddr_t data, IFP fcmp )
+avl_find(Avlnode *root, void *data, IFP fcmp)
 {
 	int	cmp;
 
-	while ( root != 0 && (cmp = (*fcmp)( data, root->avl_data )) != 0 ) {
+       while ( root != 0 && (cmp = (*fcmp)( (caddr_t)data, root->avl_data )) != 0 ) {
 		if ( cmp < 0 )
 			root = root->avl_left;
 		else
@@ -753,7 +753,7 @@ avl_getfirst( Avlnode *root )
 }
 
 caddr_t
-avl_getnext()
+avl_getnext(void)
 {
 	if ( avl_list == 0 )
 		return( 0 );
@@ -767,12 +767,12 @@ avl_getnext()
 	return( avl_list[ avl_nextlist++ ] );
 }
 
-int avl_dup_error()
+int avl_dup_error(void)
 {
 	return( -1 );
 }
 
-int avl_dup_ok()
+int avl_dup_ok(void)
 {
 	return( 0 );
 }

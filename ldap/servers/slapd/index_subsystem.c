@@ -92,17 +92,17 @@ static int index_subsys_index_matches_associated(indexEntry *index, Slapi_Filter
 #define INDEX_MATCH_COMPLEX		4
 static int index_subsys_index_matches_filter(indexEntry *index, Slapi_Filter *f);
 
-static void index_subsys_read_lock()
+static void index_subsys_read_lock(void)
 {
 	slapi_rwlock_rdlock(theCache->cache_lock);
 }
 
-static void index_subsys_write_lock()
+static void index_subsys_write_lock(void)
 {
 	slapi_rwlock_wrlock(theCache->cache_lock);
 }
 
-static void index_subsys_unlock()
+static void index_subsys_unlock(void)
 {
 	slapi_rwlock_unlock(theCache->cache_lock);
 }

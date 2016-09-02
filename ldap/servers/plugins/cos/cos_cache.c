@@ -89,14 +89,14 @@ struct objclass {
 
 /*** from proto-slap.h ***/
 
-int config_get_schemacheck();
+int config_get_schemacheck(void);
 void oc_lock_read( void );
 void oc_unlock( void );
-struct objclass* g_get_global_oc_nolock();
+struct objclass* g_get_global_oc_nolock(void);
 int slapd_log_error_proc( char *subsystem, char *fmt, ... );
 
 /* defined in cos.c */
-void * cos_get_plugin_identity();
+void * cos_get_plugin_identity(void);
 
 /*** end secrets ***/
 
@@ -199,7 +199,7 @@ typedef struct _cos_cache cosCache;
 static cosCache *pCache; /* always the current global cache, only use getref to get */
 
 /* the place to start if you want a new cache */
-static int cos_cache_create();
+static int cos_cache_create(void);
 
 /* cache index related functions */
 static int cos_cache_index_all(cosCache *pCache);
@@ -284,7 +284,7 @@ static Slapi_CondVar *start_cond = NULL;
 	fires off the cache re-creation when one is detected
 	also registers vattr callbacks
 */
-int cos_cache_init()
+int cos_cache_init(void)
 {
 	int ret = 0;
 
@@ -439,7 +439,7 @@ static void cos_cache_wait_on_change(void *arg)
 	releasing its refcount to the old cache and allowing it
 	to be destroyed.
 */
-static int cos_cache_create()
+static int cos_cache_create(void)
 {
 	int ret = -1;
 	cosCache *pNewCache;
@@ -3384,7 +3384,7 @@ bail:
 	--------------
 	notifies the cache thread we are stopping
 */
-void cos_cache_stop()
+void cos_cache_stop(void)
 {
 	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_cache_stop\n",0,0,0);
 

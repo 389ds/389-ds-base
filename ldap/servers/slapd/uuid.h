@@ -91,7 +91,7 @@ enum
 int  uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen);
 
 /* uuid_cleanup -- cleanup of uuid layer */
-void uuid_cleanup ();
+void uuid_cleanup(void);
 
 /* uuid_create -- generate a UUID */
 int uuid_create(guid_t *uuid);

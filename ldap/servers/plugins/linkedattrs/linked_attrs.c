@@ -55,8 +55,8 @@ static int linked_attrs_add_pre_op(Slapi_PBlock *pb);
 /*
  * Config cache management functions
  */
-static int linked_attrs_load_config();
-static void linked_attrs_delete_config();
+static int linked_attrs_load_config(void);
+static void linked_attrs_delete_config(void);
 static int linked_attrs_parse_config_entry(Slapi_Entry * e, int apply);
 static void linked_attrs_insert_config_index(struct configEntry *entry);
 static void linked_attrs_free_config_entry(struct configEntry ** entry);
@@ -380,7 +380,7 @@ linked_attrs_get_config()
  * --- cn=etc
  */
 static int
-linked_attrs_load_config()
+linked_attrs_load_config(void)
 {
     int status = 0;
     int result;
@@ -783,7 +783,7 @@ linked_attrs_delete_configEntry(PRCList *entry)
 }
 
 static void
-linked_attrs_delete_config()
+linked_attrs_delete_config(void)
 {
     PRCList *list;
 

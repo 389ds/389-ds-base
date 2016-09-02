@@ -204,7 +204,7 @@ done:
 
 /*******************************************************************************/
 
-int main()
+int main(void)
 {
 #if 0
     return XP_MakeStringDatabase();

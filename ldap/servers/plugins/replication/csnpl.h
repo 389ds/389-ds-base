@@ -20,7 +20,7 @@
 
 typedef struct csnpl CSNPL;
 
-CSNPL* csnplNew ();
+CSNPL* csnplNew(void);
 void csnplFree (CSNPL **csnpl);
 int csnplInsert (CSNPL *csnpl, const CSN *csn);
 int csnplRemove (CSNPL *csnpl, const CSN *csn);

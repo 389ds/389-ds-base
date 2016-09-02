@@ -73,7 +73,7 @@
 Slapi_Value **
 valueset_get_valuearray(const Slapi_ValueSet *vs); /* stolen from proto-slap.h */
 void *
-posix_winsync_get_plugin_identity();
+posix_winsync_get_plugin_identity(void);
 void *
 posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree);
 
@@ -1995,7 +1995,7 @@ posix_winsync_set_plugin_identity(void * identity)
 }
 
 void *
-posix_winsync_get_plugin_identity()
+posix_winsync_get_plugin_identity(void)
 {
     return posix_winsync_plugin_id;
 }

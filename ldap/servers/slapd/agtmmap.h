@@ -39,8 +39,6 @@ extern "C" {
 #define NUM_SNMP_INT_TBL_ROWS 5
 #define SNMP_FIELD_LENGTH 100
 
-extern int			errno;
-
 #if !defined(_MAX_PATH)
 #define _MAX_PATH 256
 #endif

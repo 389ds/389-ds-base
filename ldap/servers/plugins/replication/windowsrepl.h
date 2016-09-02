@@ -19,7 +19,7 @@ typedef struct subtreepair {
 	Slapi_DN *DSsubtree;
 } subtreePair;
 
-Dirsync_Private* windows_private_new();
+Dirsync_Private* windows_private_new(void);
 void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn );
 const Slapi_DN* windows_private_get_windows_subtree (const Repl_Agmt *ra);
 void windows_private_set_directory_subtree (const Repl_Agmt *ra,Slapi_DN* sdn );

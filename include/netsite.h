@@ -104,7 +104,7 @@ NSAPI_PUBLIC char *INTdns_guess_domain(char * hname);
 
 #ifdef INTNSAPI
 
-NSAPI_PUBLIC char *INTsystem_version();
+NSAPI_PUBLIC char *INTsystem_version(void);
 
 /*
    Depending on the system, memory allocated via these macros may come from 

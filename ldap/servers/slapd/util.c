@@ -1464,7 +1464,7 @@ slapi_is_special_rdn(const char *rdn, int flag)
 }
 
 int
-slapi_uniqueIDRdnSize()
+slapi_uniqueIDRdnSize(void)
 {
 	if (!util_uniqueidlen) {
 		util_uniqueidlen = SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/;
@@ -1478,7 +1478,7 @@ slapi_uniqueIDRdnSize()
  *
  * \return size_t bytes available
  */
-static size_t util_getvirtualmemsize()
+static size_t util_getvirtualmemsize(void)
 {
     struct rlimit rl;
     /* the maximum size of a process's total available memory, in bytes */

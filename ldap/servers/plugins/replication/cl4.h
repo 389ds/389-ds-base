@@ -44,8 +44,8 @@ char *get_changelog_dataversion(const chglog4Info* cl4);
 void set_changelog_dataversion(chglog4Info* cl4, const char *dataversion);
 
 /* In cl4_config.c */
-int changelog4_config_init();
-void changelog4_config_destroy();
+int changelog4_config_init(void);
+void changelog4_config_destroy(void);
 
 /*
  * backend configuration information

@@ -164,7 +164,7 @@ typedef struct repl {
 /* Functions */
 
 /* repl_rootdse.c */
-int repl_rootdse_init();
+int repl_rootdse_init(void);
 
 /* In repl.c */
 Slapi_Entry *get_changerecord(const chglog4Info *cl4, changeNumber cnum, int *err);
@@ -173,7 +173,7 @@ changeNumber replog_get_lastchangenum(const chglog4Info *cl4, int *err);
 void changelog_housekeeping(time_t cur_time );
 
 /* In repl_config.c */
-int repl_config_init ();
+int repl_config_init(void);
 
 /* Legacy Plugin Functions */
 
@@ -233,11 +233,19 @@ extern char	*filter_objectclass;
 extern char	*type_cn;
 extern char	*type_objectclass;
 
-/* JCMREPL - IFP should be defined centrally */
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#endif
 
+/* JCMREPL - IFP should be defined centrally */
 #ifndef _IFP
 #define _IFP
-typedef int	(*IFP)();
+typedef int (*IFP)(); /* takes undefined arguments */
+#endif
+
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC diagnostic pop
 #endif
 
 /* In cl4.c */
@@ -268,8 +276,8 @@ void ldapi_initialize_changenumbers(chglog4Info *cl4, changeNumber first, change
 /* #define REPL_PROTOCOL_71_TOTALUPDATE 4 */
 
 /* In repl_globals.c */
-int decrement_repl_active_threads();
-int increment_repl_active_threads();
+int decrement_repl_active_threads(void);
+int increment_repl_active_threads(void);
 
 /* operation extensions */
 
@@ -285,8 +293,8 @@ typedef enum
 } ext_type;
 
 /* general extension functions - repl_ext.c */
-void repl_sup_init_ext ();	/* initializes registrations - must be called first */
-void repl_con_init_ext ();	/* initializes registrations - must be called first */
+void repl_sup_init_ext(void);       /* initializes registrations - must be called first */
+void repl_con_init_ext(void);       /* initializes registrations - must be called first */
 int repl_sup_register_ext (ext_type type); /* registers an extension of the specified type */
 int repl_con_register_ext (ext_type type); /* registers an extension of the specified type */
 void* repl_sup_get_ext (ext_type type, void *object); /* retireves the extension from the object */
@@ -352,7 +360,7 @@ void  multimaster_mtnode_extension_destructor (void* ext,void *object,void *pare
 
 /* In repl_init.c */
 
-int get_legacy_stop();
+int get_legacy_stop(void);
 
 /* In repl_entry.c */
 void repl_entry_init(int argc, char** argv);
@@ -370,8 +378,8 @@ int legacy_postop( Slapi_PBlock *pb, const char* caller, int operation_type);
 #endif
 
 void profile_log(char *file,int line);
-void profile_open();
-void profile_close();
+void profile_open(void);
+void profile_close(void);
 
 /* in repl_controls.c */
 void add_repl_control_mods( Slapi_PBlock *pb, Slapi_Mods *smods );
@@ -388,7 +396,7 @@ int modrdn2reple( Slapi_Entry *e, char *newrdn, int deloldrdn, LDAPMod **ldm );
 void process_legacy_cf(Slapi_PBlock *pb);
 int legacy_consumer_is_replicationdn(const char *dn);
 int legacy_consumer_is_replicationpw(struct berval *creds);
-int legacy_consumer_config_init();
+int legacy_consumer_config_init(void);
 
 /* function that gets called when a backend state is changed */
 void legacy_consumer_be_state_change (void *handle, char *be_name,

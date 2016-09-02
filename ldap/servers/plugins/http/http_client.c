@@ -105,7 +105,7 @@ static void _http_shutdown( void );
  * Get the presence plug-in version
  *
  */
-int http_client_version()
+int http_client_version(void)
 {
 	return HTTP_PLUGIN_VERSION;
 }

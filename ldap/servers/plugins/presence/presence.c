@@ -186,7 +186,7 @@ static int presence_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_typ
  * Local operation functions
  *
  */
-static int loadPluginConfig();
+static int loadPluginConfig(void);
 static int parseConfigEntry(Slapi_Entry *e);
 static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _ConfigEntry **entry);
 static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **buf, int *size);
@@ -194,7 +194,7 @@ static char * replaceIdWithValue(char *str, char *id, char *value);
 static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info, char *returnedBUF, int size, Slapi_ValueSet **results);
 static int setTypes(PLHashEntry *he, PRIntn i, void *arg);
 
-static void deleteMapTables();
+static void deleteMapTables(void);
 static PRIntn destroyHashEntry(PLHashEntry *he, PRIntn index, void *arg);
 static void logGraphicAttributeValue( Slapi_Attr *attr, const char *attrname );
 static void toLowerCase(char* str);
@@ -202,7 +202,7 @@ static void toLowerCase(char* str);
 /**
  * utility function
  */
-void printMapTable();
+void printMapTable(void);
 PRIntn printIdVattrMapTable(PLHashEntry *he, PRIntn i, void *arg);
 PRIntn printIdConfigMapTable(PLHashEntry *he, PRIntn i, void *arg);
 
@@ -211,7 +211,7 @@ PRIntn printIdConfigMapTable(PLHashEntry *he, PRIntn i, void *arg);
  * Get the presence plug-in version
  *
  */
-int presence_version()
+int presence_version(void)
 {
 	return PRESENCE_PLUGIN_VERSION;
 }
@@ -224,7 +224,7 @@ void setPluginID(void * pluginID)
 	_PluginID=pluginID;
 }
 
-void * getPluginID()
+void * getPluginID(void)
 {
 	return _PluginID;
 }
@@ -234,7 +234,7 @@ void setPluginDN(char *pluginDN)
 	_PluginDN = pluginDN;
 }
 
-char * getPluginDN()
+char * getPluginDN(void)
 {
 	return _PluginDN;
 }
@@ -490,7 +490,7 @@ static int presence_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_typ
 	return status;
 }
 
-static int loadPluginConfig()
+static int loadPluginConfig(void)
 {
 	int status = PRESENCE_SUCCESS;
 	int result;
@@ -1107,7 +1107,7 @@ logGraphicAttributeValue( Slapi_Attr *attr, const char *attrname )
 }
 
 
-static void deleteMapTables()
+static void deleteMapTables(void)
 {
 	PL_HashTableEnumerateEntries(_IdConfigMapTable, destroyHashEntry, 0);
 	if (_IdConfigMapTable)
@@ -1152,7 +1152,7 @@ static void toLowerCase(char* str)
 /**
  * utility function to print the array
  */
-void printMapTable()
+void printMapTable(void)
 {
 	PL_HashTableEnumerateEntries(_IdVattrMapTable, printIdVattrMapTable, 0);				
 	PL_HashTableEnumerateEntries(_IdConfigMapTable, printIdConfigMapTable, 0);				

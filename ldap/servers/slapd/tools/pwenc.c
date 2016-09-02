@@ -45,8 +45,7 @@ static int slapd_config(const char *configdir, const char *configfile);
 static int entry_has_attr_and_value(Slapi_Entry *e, const char *attrname, char *value);
 
 static void
-usage( name )
-char	*name;
+usage(char *name)
 {
     fprintf( stderr, "usage: %s -D config-dir [-H] [-s scheme | -c comparepwd ] password...\n", name );
     exit( 1 );
@@ -123,9 +122,7 @@ init_config(char *configdir)
 
 
 int
-main( argc, argv )
-    int		argc;
-    char	*argv[];
+main(int argc, char *argv[])
 {
     int			i, rc;
     char		*enc, *cmp, *name;

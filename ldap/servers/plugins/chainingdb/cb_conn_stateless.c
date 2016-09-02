@@ -62,14 +62,14 @@ PRUint32 PR_GetThreadID(PRThread *thread);
 
 /* returns the threadId of the current thread modulo MAX_CONN_ARRAY 
 => gives the position of the thread in the array of secure connections */
-static int PR_ThreadSelf() {
+static int PR_ThreadSelf(void) {
 	PRThread *thr = PR_GetCurrentThread();
 	PRUint32 myself = PR_GetThreadID(thr);
 	myself &= 0x000007FF ;
 	return myself;
 }
 
-static int PR_MyThreadId() {
+static int PR_MyThreadId(void) {
 	PRThread *thr = PR_GetCurrentThread();
 	PRUint32 myself = PR_GetThreadID(thr);
 	return myself;

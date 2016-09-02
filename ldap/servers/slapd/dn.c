@@ -72,8 +72,8 @@ static int ndn_cache_lookup(char *dn, size_t dn_len, char **result, char **udn, 
 static void ndn_cache_update_lru(struct ndn_cache_lru **node);
 static void ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len);
 static void ndn_cache_delete(char *dn);
-static void ndn_cache_flush();
-static void ndn_cache_free();
+static void ndn_cache_flush(void);
+static void ndn_cache_free(void);
 static int ndn_started = 0;
 static PRLock *lru_lock = NULL;
 static Slapi_RWLock *ndn_cache_lock = NULL;
@@ -1820,7 +1820,7 @@ PR_DEFINE_COUNTER(slapi_sdn_counter_udn_deleted);
 PR_DEFINE_COUNTER(slapi_sdn_counter_udn_exist);
 
 static void
-sdn_create_counters()
+sdn_create_counters(void)
 {
 	PR_CREATE_COUNTER(slapi_sdn_counter_created,"Slapi_DN","created","");
 	PR_CREATE_COUNTER(slapi_sdn_counter_deleted,"Slapi_DN","deleted","");
@@ -1843,7 +1843,7 @@ sdn_create_counters()
 #define FLAG_UDN 3
 
 Slapi_DN *
-slapi_sdn_new()
+slapi_sdn_new(void)
 {
     Slapi_DN *sdn= (Slapi_DN *)slapi_ch_malloc(sizeof(Slapi_DN));    
     slapi_sdn_init(sdn);
@@ -3024,7 +3024,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
  *  cache is full, remove the least used dn's.  lru_lock/ndn_cache write lock are already taken
  */
 static void
-ndn_cache_flush()
+ndn_cache_flush(void)
 {
     struct ndn_cache_lru *node, *next, *flush_node;
     int i;
@@ -3048,7 +3048,7 @@ ndn_cache_flush()
 }
 
 static void
-ndn_cache_free()
+ndn_cache_free(void)
 {
     struct ndn_cache_lru *node, *next, *flush_node;
 

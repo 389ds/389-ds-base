@@ -314,7 +314,7 @@ int roles_sp_list_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_type_list_c
 }
 
 /* What do we do on shutdown ? */
-int roles_sp_cleanup()
+int roles_sp_cleanup(void)
 {
 	return 0;
 }

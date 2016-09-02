@@ -86,7 +86,7 @@ rootdn_set_plugin_id(void *pluginID)
 }
 
 void *
-rootdn_get_plugin_id()
+rootdn_get_plugin_id(void)
 {
     return _PluginID;
 }
@@ -98,7 +98,7 @@ rootdn_set_plugin_dn(char *pluginDN)
 }
 
 char *
-rootdn_get_plugin_dn()
+rootdn_get_plugin_dn(void)
 {
     return _PluginDN;
 }
@@ -182,7 +182,7 @@ rootdn_start(Slapi_PBlock *pb)
 }
 
 static void
-rootdn_free()
+rootdn_free(void)
 {
     slapi_ch_free_string(&daysAllowed);
     daysAllowed = NULL;

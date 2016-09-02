@@ -109,9 +109,9 @@ static int extension_type = -1;    /* type returned from the factory */
 #define MAPPING_TREE_BASE_DN "cn=mapping tree,cn=config"
 #define MAPPING_TREE_PARENT_ATTRIBUTE "nsslapd-parent-suffix"
 
-void mtn_wlock();
-void mtn_lock();
-void mtn_unlock();
+void mtn_wlock(void);
+void mtn_lock(void);
+void mtn_unlock(void);
 
 static mapping_tree_node * mtn_get_mapping_tree_node_by_entry(
     mapping_tree_node* node, const Slapi_DN *dn);
@@ -160,7 +160,7 @@ void slapi_register_backend_state_change(void * handle, slapi_backend_state_chan
 }
 
 /* To unregister all the state change callbacks registered on the mapping tree */
-int slapi_unregister_backend_state_change_all()
+int slapi_unregister_backend_state_change_all(void)
 {
     struct mtn_be_ch_list *cur_be_ch_plg;
     while (mtn_plug_list)
@@ -3752,7 +3752,7 @@ slapi_mtn_be_set_readonly(Slapi_Backend *be, int readonly)
 static int lock_count = 0;
 #endif
 
-void mtn_wlock()
+void mtn_wlock(void)
 {
     slapi_rwlock_wrlock(myLock);
 #ifdef DEBUG
@@ -3761,7 +3761,7 @@ void mtn_wlock()
 #endif
 }
 
-void mtn_lock()
+void mtn_lock(void)
 {
     slapi_rwlock_rdlock(myLock);
 #ifdef DEBUG
@@ -3770,7 +3770,7 @@ void mtn_lock()
 #endif
 }
 
-void mtn_unlock()
+void mtn_unlock(void)
 {
     
 #ifdef DEBUG

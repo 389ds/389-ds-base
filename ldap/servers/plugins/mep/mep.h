@@ -82,20 +82,20 @@ struct configEntry {
 /*
  * Config fetch function
  */
-PRCList *mep_get_config();
+PRCList *mep_get_config(void);
 
 /*
  * Config cache locking functions
  */
-void mep_config_read_lock();
-void mep_config_write_lock();
-void mep_config_unlock();
+void mep_config_read_lock(void);
+void mep_config_write_lock(void);
+void mep_config_unlock(void);
 
 /*
  * Plugin identity functions
  */
 void mep_set_plugin_id(void *pluginID);
-void *mep_get_plugin_id();
+void *mep_get_plugin_id(void);
 void mep_set_plugin_dn(char *pluginDN);
-char *mep_get_plugin_dn();
+char *mep_get_plugin_dn(void);
 

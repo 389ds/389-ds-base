@@ -59,7 +59,7 @@ unsigned long firstUID = 0;
 NameTable *given_names = NULL, *family_names = NULL;
 
 
-void usage()
+void usage(void)
 {
     fprintf(stdout,
 	   "Usage: infadd -s suffix -u bindDN -w password [options]\n"

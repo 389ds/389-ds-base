@@ -158,7 +158,7 @@ static void berval_set_string(struct berval *bv, const char* string);
 static void roles_cache_role_def_delete(roles_cache_def *role_def);
 static void roles_cache_role_def_free(roles_cache_def *role_def);
 static void roles_cache_role_object_free(role_object *this_role);
-static void roles_cache_role_object_nested_free(role_object_nested *this_role);
+static int roles_cache_role_object_nested_free(role_object_nested *this_role);
 static int roles_cache_dump( caddr_t data, caddr_t arg );
 static int roles_cache_add_entry_cb(Slapi_Entry* e, void *callback_data);
 static void roles_cache_result_cb( int rc, void *callback_data);
@@ -601,10 +601,8 @@ static int roles_cache_update(roles_cache_def *suffix_to_update)
 		if ( (operation == SLAPI_OPERATION_MODIFY) ||
 			 (operation == SLAPI_OPERATION_DELETE) )
 		{
-			/* delete it */
-			int dummy;
 
-			to_delete = (role_object *)avl_delete(&(suffix_to_update->avl_tree), dn, roles_cache_find_node, &dummy);
+                     to_delete = (role_object *)avl_delete(&(suffix_to_update->avl_tree), dn, roles_cache_find_node);
 			roles_cache_role_object_free(to_delete);
 			to_delete = NULL;
 			if ( slapi_is_loglevel_set(SLAPI_LOG_PLUGIN) ) 
@@ -2162,14 +2160,14 @@ static void roles_cache_role_object_free(role_object *this_role)
 /* roles_cache_role_object_nested_free
    ------------------------------------
 */
-static void roles_cache_role_object_nested_free(role_object_nested *this_role)
+static int roles_cache_role_object_nested_free(role_object_nested *this_role)
 {
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_role_object_nested_free\n");
 
 	if ( this_role == NULL )
 	{
-		return;
+              return 0;
 	}
 
 	slapi_sdn_free(&this_role->dn);
@@ -2179,6 +2177,8 @@ static void roles_cache_role_object_nested_free(role_object_nested *this_role)
 
 	slapi_log_error(SLAPI_LOG_PLUGIN, 
 					ROLES_PLUGIN_SUBSYSTEM, "<-- roles_cache_role_object_nested_free\n");
+
+       return 0;
 }
 
 static int roles_cache_dump( caddr_t data, caddr_t arg )

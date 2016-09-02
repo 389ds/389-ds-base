@@ -18,11 +18,11 @@ static void acl__done_aclpb ( struct acl_pblock *aclpb );
 static void	acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type);
 static char * acl__get_aclpb_type ( Acl_PBlock *aclpb );
 #endif
-static Acl_PBlock * acl__get_aclpb_from_pool ( );
+static Acl_PBlock * acl__get_aclpb_from_pool(void);
 static int acl__put_aclpb_back_to_pool ( Acl_PBlock *aclpb );
-static Acl_PBlock * acl__malloc_aclpb ( );
+static Acl_PBlock * acl__malloc_aclpb(void);
 static void acl__free_aclpb ( Acl_PBlock **aclpb_ptr);
-static PRLock *aclext_get_lock ();
+static PRLock *aclext_get_lock(void);
 
 
 struct acl_pbqueue {
@@ -179,7 +179,7 @@ aclext_free_lockarray()
 static PRUint32 slot_id =0;
 
 static PRLock *
-aclext_get_lock ()
+aclext_get_lock(void)
 {
 
 	PRUint16 slot = slot_id % ACLEXT_MAX_LOCKS;
@@ -545,7 +545,7 @@ acl_destroy_aclpb_pool ()
  *
  */
 static Acl_PBlock *
-acl__get_aclpb_from_pool ( )
+acl__get_aclpb_from_pool(void)
 {
 	Acl_PBlock		*aclpb = NULL;
 	Acl_PBlock		*t_aclpb = NULL;
@@ -626,7 +626,7 @@ acl__put_aclpb_back_to_pool ( Acl_PBlock *aclpb )
  *
  */
 static Acl_PBlock *
-acl__malloc_aclpb ( )
+acl__malloc_aclpb(void)
 {
 	Acl_PBlock		*aclpb = NULL;
 

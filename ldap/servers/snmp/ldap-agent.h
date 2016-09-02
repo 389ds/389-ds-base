@@ -94,7 +94,7 @@ typedef struct stats_table_context_s {
 /*************************************************************
  * Function Declarations
  */
-    void	exit_usage();
+    void       exit_usage(void);
     void	load_config(char *);
     void        init_ldap_agent(void);
     void        initialize_stats_table(void);

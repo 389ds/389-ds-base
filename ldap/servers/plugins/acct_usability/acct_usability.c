@@ -53,7 +53,7 @@ auc_set_plugin_id(void *pluginID)
 }
 
 void *
-auc_get_plugin_id()
+auc_get_plugin_id(void)
 {
     return _PluginID;
 }
@@ -65,7 +65,7 @@ auc_set_plugin_dn(char *pluginDN)
 }
 
 char *
-auc_get_plugin_dn()
+auc_get_plugin_dn(void)
 {
     return _PluginDN;
 }

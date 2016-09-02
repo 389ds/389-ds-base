@@ -114,7 +114,7 @@ static int dse_permission_to_write(struct dse* pdse, int loglevel);
 static int dse_write_file_nolock(struct dse* pdse);
 static int dse_apply_nolock(struct dse* pdse, IFP fp, caddr_t arg);
 static int dse_replace_entry( struct dse* pdse, Slapi_Entry *e, int write_file, int use_lock );
-static dse_search_set* dse_search_set_new ();
+static dse_search_set* dse_search_set_new(void);
 static void dse_search_set_delete (dse_search_set *ss);
 static void dse_search_set_clean (dse_search_set *ss);
 static void dse_free_entry (void **data);
@@ -2722,7 +2722,7 @@ dse_unset_dont_ever_write_dse_files()
 }
 
 static dse_search_set* 
-dse_search_set_new ()
+dse_search_set_new(void)
 {
 	dse_search_set *ss;
 

@@ -103,7 +103,7 @@ struct vlvIndex
     struct vlvIndex* vlv_next;
 };
 
-struct vlvSearch* vlvSearch_new();
+struct vlvSearch* vlvSearch_new(void);
 void vlvSearch_init(struct vlvSearch*, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm_instance *inst);
 void vlvSearch_reinit(struct vlvSearch* p, const struct backentry *base);
 void vlvSearch_delete(struct vlvSearch** ppvs);
@@ -123,7 +123,7 @@ int vlvSearch_isVlvSearchEntry(Slapi_Entry *e);
 void vlvSearch_addIndex(struct vlvSearch *pSearch, struct vlvIndex *pIndex);
 
 
-struct vlvIndex* vlvIndex_new();
+struct vlvIndex* vlvIndex_new(void);
 void vlvIndex_init(struct vlvIndex* p, backend *be, struct vlvSearch* pSearch, const Slapi_Entry *e);
 void vlvIndex_delete(struct vlvIndex** ppvs);
 PRUint32 vlvIndex_get_indexlength(struct vlvIndex* p, DB *db, back_txn *txn);

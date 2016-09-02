@@ -121,7 +121,7 @@ NSAPI_PUBLIC void *ldapu_realloc (void *ptr, int size);
 NSAPI_PUBLIC void ldapu_free (void *ptr);
 
 
-NSAPI_PUBLIC int ldaputil_exit ();
+NSAPI_PUBLIC int ldaputil_exit(void);
 
 #ifdef __cplusplus
 }

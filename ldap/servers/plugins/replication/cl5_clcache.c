@@ -144,11 +144,11 @@ static int	clcache_skip_change ( CLC_Buffer *buf );
 static int	clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag );
 static int	clcache_open_cursor ( DB_TXN *txn, CLC_Buffer *buf, DBC **cursor );
 static int	clcache_cursor_get ( DBC *cursor, CLC_Buffer *buf, int flag );
-static struct csn_seq_ctrl_block *clcache_new_cscb ();
+static struct csn_seq_ctrl_block *clcache_new_cscb(void);
 static void	clcache_free_cscb ( struct csn_seq_ctrl_block ** cscb );
 static CLC_Buffer	*clcache_new_buffer ( ReplicaId consumer_rid );
 static void	clcache_delete_buffer ( CLC_Buffer **buf );
-static CLC_Busy_List *clcache_new_busy_list ();
+static CLC_Busy_List *clcache_new_busy_list(void);
 static void	clcache_delete_busy_list ( CLC_Busy_List **bl );
 static int	clcache_enqueue_busy_list( DB *db, CLC_Buffer *buf );
 static void csn_dup_or_init_by_csn ( CSN **csn1, CSN *csn2 );
@@ -886,7 +886,7 @@ clcache_skip_change ( CLC_Buffer *buf )
 }
 
 static struct csn_seq_ctrl_block *
-clcache_new_cscb ()
+clcache_new_cscb(void)
 {
 	struct csn_seq_ctrl_block *cscb;
 
@@ -978,7 +978,7 @@ clcache_delete_buffer ( CLC_Buffer **buf )
 }
 
 static CLC_Busy_List *
-clcache_new_busy_list ()
+clcache_new_busy_list(void)
 {
 	CLC_Busy_List *bl;
 	int welldone = 0;

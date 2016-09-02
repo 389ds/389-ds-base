@@ -39,7 +39,7 @@ typedef void (*api_http_init)(Slapi_ComponentId *plugin_id);
 typedef int (*api_http_get_text)(char *url, char **data, int *bytesRead);
 typedef int (*api_http_get_binary)(char *url, char **data, int *bytesRead);
 typedef int (*api_http_get_redirected_uri)(char *url, char **data, int *bytesRead);
-typedef void (*api_http_shutdown)();
+typedef void (*api_http_shutdown)(void);
 typedef int (*api_http_post)(char *url, httpheader **httpheaderArray, char *body, char **data, int *bytesRead);
 
 /* API ID for http_apib_get_interface */

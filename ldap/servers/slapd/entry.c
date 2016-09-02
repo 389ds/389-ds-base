@@ -668,13 +668,14 @@ entry_attrs_new(entry_attrs **pea)
 /*
  * Delete an attribute type tree node.
  */
-static void
+static int
 attr_type_node_free( caddr_t data )
 {
 	entry_attr_data	*ea = (entry_attr_data *)data;
 	if ( NULL != ea && ea->ead_allocated ) {
 		slapi_ch_free( (void **)&ea );
 	}
+       return 0;
 }
 
 

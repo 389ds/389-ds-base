@@ -24,7 +24,8 @@ static int
 get_filter_list( Connection *conn, BerElement *ber,
 		struct slapi_filter **f, char **fstr, int maxdepth, int curdepth,
 		int *subentry_dont_rewrite, int *has_tombstone_filter, int *has_ruv_filter);
-static int	get_substring_filter();
+static int
+get_substring_filter(Connection *conn, BerElement *ber, struct slapi_filter *f, char **fstr);
 static int	get_extensible_filter( BerElement *ber, mr_filter_t* );
 
 static int get_filter_internal( Connection *conn, BerElement *ber,

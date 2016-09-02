@@ -19,7 +19,7 @@
 /*
  * attr.c
  */
-struct attrinfo * attrinfo_new();
+struct attrinfo * attrinfo_new(void);
 void attrinfo_delete(struct attrinfo **pp);
 void ainfo_get( backend *be, char *type, struct attrinfo **at );
 void attr_masks( backend *be, char *type, int *indexmask,
@@ -28,7 +28,7 @@ void attr_masks_ex( backend *be, char *type, int *indexmask,
  int *syntaxmask, struct attrinfo **at );
 int attr_index_config( backend *be, char *fname, int lineno,
  Slapi_Entry *e, int init, int none );
-int ldbm_compute_init();
+int ldbm_compute_init(void);
 void attrinfo_deletetree(ldbm_instance *inst);
 void attr_create_empty(backend *be,char *type,struct attrinfo **ai);
 
@@ -268,9 +268,9 @@ ID idl_iterator_dereference_decrement(idl_iterator *i, const IDList *idl);
 size_t idl_sizeof(IDList *idl);
 int idl_store_block(backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,struct attrinfo *a);
 void idl_set_tune(int val);
-int idl_get_tune();
+int idl_get_tune(void);
 size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
-int idl_get_idl_new();
+int idl_get_idl_new(void);
 int idl_new_compare_dups(
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 3200
     DB *db,
@@ -333,7 +333,7 @@ int import_subcount_mother_count(import_subcount_stuff *mothers,ID parent_id);
 void import_subcount_stuff_init(import_subcount_stuff *stuff);
 void import_subcount_stuff_term(import_subcount_stuff *stuff);
 void import_configure_index_buffer_size(size_t size);
-size_t import_get_index_buffer_size();
+size_t import_get_index_buffer_size(void);
 int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include,
                   char ***exclude);
 void ldbm_back_free_incl_excl(char **include, char **exclude);
@@ -404,7 +404,7 @@ void get_both_ids( struct ldbminfo *li, ID *nextid, ID *nextid2index );
  * backentry.c
  */
 struct backentry *backentry_init( Slapi_Entry *e );
-struct backentry *backentry_alloc();
+struct backentry *backentry_alloc(void);
 void backentry_free( struct backentry **bep );
 struct backentry *backentry_dup( struct backentry * );
 void backentry_clear_entry( struct backentry * );
@@ -499,7 +499,7 @@ int ldbm_back_entry_release( Slapi_PBlock *pb, void *backend_info_ptr );
 void ldbm_back_search_results_release( void **search_results );
 int ldbm_back_init( Slapi_PBlock *pb ); 
 void ldbm_back_prev_search_results( Slapi_PBlock *pb );
-int ldbm_back_isinitialized();
+int ldbm_back_isinitialized(void);
 
 /*
  * monitor.c
@@ -535,10 +535,10 @@ struct vlv_response
 int vlv_init(ldbm_instance *inst);
 void vlv_close(ldbm_instance *inst);
 int vlv_remove_callbacks(ldbm_instance *inst);
-const Slapi_Entry **vlv_get_search_entries();
+const Slapi_Entry **vlv_get_search_entries(void);
 struct vlvIndex* vlv_find_searchname(const char * name, backend *be);
 struct vlvIndex* vlv_find_indexname(const char * name, backend *be);
-char *vlv_getindexnames();
+char *vlv_getindexnames(backend *be);
 int vlv_search_build_candidate_list(Slapi_PBlock *pb, const Slapi_DN *base, int *rc, const sort_spec* sort_control, 
                     const struct vlv_request *vlv_request_control, IDList** candidates, struct vlv_response *vlv_response_control);
 int vlv_update_index(struct vlvIndex* p, back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct backentry* oldEntry, struct backentry* newEntry);
@@ -570,7 +570,7 @@ int indexfile_primary_modifyall(backend *be, LDAPMod **mods_to_perform,char **in
  * bedse.c
  */
 #if 0
-int bedse_init();
+int bedse_init(void);
 int bedse_search(Slapi_PBlock *pb);
 struct dse_callback *bedse_register_callback(int operation, const Slapi_DN *base, int scope, const char *filter, int (*fn)(Slapi_PBlock *,Slapi_Entry *,Slapi_Entry *,int*,char*,void *), void *fn_arg);
 void bedse_remove_callback(int operation, const Slapi_DN *base, int scope, const char *filter, int (*fn)(Slapi_PBlock *,Slapi_Entry *,Slapi_Entry *,int*,char*,void *));
@@ -694,9 +694,9 @@ int ldbm_set_last_usn(Slapi_Backend *be);
  * ldbm_entryrdn.c
  */
 void entryrdn_set_switch(int val);
-int entryrdn_get_switch();
+int entryrdn_get_switch(void);
 void entryrdn_set_noancestorid(int val);
-int entryrdn_get_noancestorid();
+int entryrdn_get_noancestorid(void);
 int entryrdn_compare_dups(DB *db, const DBT *a, const DBT *b);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);

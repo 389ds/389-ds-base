@@ -65,7 +65,7 @@ void nssasl_free(void *ptr)
 
 static Slapi_ComponentId *sasl_component_id = NULL;
 
-static void generate_component_id()
+static void generate_component_id(void)
 {
     if (NULL == sasl_component_id) {
         sasl_component_id = generate_componentid(NULL /* Not a plugin */,
@@ -73,7 +73,7 @@ static void generate_component_id()
     }
 }
 
-static Slapi_ComponentId *sasl_get_component_id()
+static Slapi_ComponentId *sasl_get_component_id(void)
 {
     return sasl_component_id;
 }

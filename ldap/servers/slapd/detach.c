@@ -45,7 +45,7 @@
 #endif /* USE_SYSCONF */
 
 static int
-set_workingdir()
+set_workingdir(void)
 {
 	int rc = 0;
 	char *workingdir = config_get_workingdir();

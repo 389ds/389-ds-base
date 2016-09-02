@@ -136,7 +136,7 @@ enum
 				CL5_BAD_DATA if invalid directory is passed;
 				CL5_SYSTEM error if NSPR call fails.
  */
-int cl5Init ();
+int cl5Init(void);
 
 /* Name:		cl5Cleanup
    Description:	performs cleanup of the changelog module. Must be called by a single
@@ -144,7 +144,7 @@ int cl5Init ();
    Parameters:  none
    Return:      none
  */
-void cl5Cleanup ();
+void cl5Cleanup(void);
 
 /* Name:		cl5Open 
    Description:	opens changelog ; must be called after changelog is
@@ -170,7 +170,7 @@ int cl5Open (const char *dir, const CL5DBConfig *config);
 				CL5_BAD_STATE if db is not in the open state;
 				CL5_SYSTEM_ERROR if NSPR call fails
  */
-int cl5Close ();
+int cl5Close(void);
 
 /* Name:		cl5Delete
    Description:	removes changelog
@@ -238,7 +238,7 @@ int cl5ImportLDIF (const char *clDir, const char *ldifFile, Object **replicas);
    Return:		changelog state
  */
 
-int cl5GetState ();
+int cl5GetState(void);
 
 /* Name:		cl5ConfigTrimming
    Description:	sets changelog trimming parameters
@@ -398,7 +398,7 @@ void cl5DeleteOnClose (PRBool rm);
    Return:		copy of the directory; caller needs to free the string
  */
  
-char *cl5GetDir ();
+char *cl5GetDir(void);
 
 /* Name: cl5Exist
    Description: checks if a changelog exists in the specified directory
@@ -440,8 +440,8 @@ PRBool cl5HelperEntry (const char *csnstr, CSN *csn);
 CSN** cl5BuildCSNList (const RUV *consRuv, const RUV *supRuv);
 void cl5DestroyCSNList (CSN*** csns);
 
-int cl5_is_diskfull();
-int cl5_diskspace_is_available();
+int cl5_is_diskfull(void);
+int cl5_diskspace_is_available(void);
 
 /* Name: cl5DbDirIsEmpty
    Description: See if the given cldb directory is empty or doesn't yet exist.
@@ -457,14 +457,14 @@ int cl5DbDirIsEmpty(const char *dir);
    Parameters:	none
    Return:		TRUE
 */
-int cl5WriteRUV();
+int cl5WriteRUV(void);
 
 /* Name: cl5DeleteRUV
    Description: Read and delete RUVs from changelog db's.  Called after backup.
    Parameters:	none
    Return:		TRUE
 */
-int cl5DeleteRUV();
+int cl5DeleteRUV(void);
 void cl5CleanRUV(ReplicaId rid);
 void cl5NotifyCleanup(int rid);
 void trigger_cl_purging(Replica *replica);

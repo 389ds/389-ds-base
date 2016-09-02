@@ -75,7 +75,7 @@ acct_policy_set_plugin_id(void *pluginID)
 }
 
 void *
-acct_policy_get_plugin_id()
+acct_policy_get_plugin_id(void)
 {
     return _PluginID;
 }

@@ -198,10 +198,10 @@ static PRLock *sync_txn_log_flush = NULL;
 static PRCondVar *sync_txn_log_flush_done = NULL;
 static PRCondVar *sync_txn_log_do_flush = NULL;
 static int dblayer_db_remove_ex(dblayer_private_env *env, char const path[], char const dbName[], PRBool use_lock);
-static void dblayer_init_pvt_txn();
+static void dblayer_init_pvt_txn(void);
 static void dblayer_push_pvt_txn(back_txn *txn);
-static back_txn *dblayer_get_pvt_txn();
-static void dblayer_pop_pvt_txn();
+static back_txn *dblayer_get_pvt_txn(void);
+static void dblayer_pop_pvt_txn(void);
 
 static int dblayer_post_restore = 0;
 
@@ -620,7 +620,7 @@ static int dblayer_ioinfo_large(const char *path, int fd, u_int32_t *mbytesp,
 /* Helper function to tell if a file exists */
 /* On Solaris, if you use stat() on a file >4Gbytes, it fails with EOVERFLOW, 
    causing us to think that the file does not exist when it in fact does */
-static int dblayer_exists_large(char *path, int *isdirp)
+static int dblayer_exists_large(const char *path, int *isdirp)
 {
     struct stat64 sb;
 
@@ -657,11 +657,11 @@ static int dblayer_override_libdb_functions(DB_ENV *pEnv, dblayer_private *priv)
     db_env_set_func_open((int (*)(const char *, int, ...))dblayer_open_large);
 #endif  /* !irix */
     db_env_set_func_ioinfo(dblayer_ioinfo_large);
-    db_env_set_func_exists((int (*)())dblayer_exists_large);
+    db_env_set_func_exists(dblayer_exists_large);
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4300
-    db_env_set_func_seek((int (*)())dblayer_seek43_large);
+    db_env_set_func_seek((int (*)(int, off_t, int))dblayer_seek43_large);
 #else
-    db_env_set_func_seek((int (*)())dblayer_seek24_large);
+    db_env_set_func_seek((int (*)(int, off_t, int))dblayer_seek24_large);
 #endif
 
     LDAPDebug(LDAP_DEBUG_TRACE, "Enabled 64-bit files\n", 0, 0, 0);
@@ -7596,7 +7596,7 @@ dblayer_cleanup_txn_stack(void *arg)
 }
 
 static void
-dblayer_init_pvt_txn()
+dblayer_init_pvt_txn(void)
 {
     PR_NewThreadPrivateIndex(&thread_private_txn_stack, dblayer_cleanup_txn_stack);
 }
@@ -7617,7 +7617,7 @@ dblayer_push_pvt_txn(back_txn *txn)
 }
 
 static back_txn *
-dblayer_get_pvt_txn()
+dblayer_get_pvt_txn(void)
 {
     back_txn *txn = NULL;
     dblayer_txn_stack *txn_stack = PR_GetThreadPrivate(thread_private_txn_stack);
@@ -7628,7 +7628,7 @@ dblayer_get_pvt_txn()
 }
 
 static void
-dblayer_pop_pvt_txn()
+dblayer_pop_pvt_txn(void)
 {
     dblayer_txn_stack *elem = NULL;
     dblayer_txn_stack *txn_stack = PR_GetThreadPrivate(thread_private_txn_stack);

@@ -93,10 +93,10 @@ extern char *windows_repl_plugin_name;
 extern char *repl_plugin_name_cl;
 
 /* repl_monitor.c */
-int repl_monitor_init();
+int repl_monitor_init(void);
 
 /* In replutil.c */
-char ** get_cleattrs();
+char ** get_cleattrs(void);
 unsigned long strntoul( char *from, size_t len, int base );
 void freepmods( LDAPMod **pmods );
 char *copy_berval (struct berval* from);

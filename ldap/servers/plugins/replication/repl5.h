@@ -229,9 +229,9 @@ int multimaster_be_betxnpostop_modify (Slapi_PBlock *pb);
 
 /* In repl5_init.c */
 extern int repl5_is_betxn;
-char* get_thread_private_agmtname ();
+char* get_thread_private_agmtname(void);
 void  set_thread_private_agmtname (const char *agmtname);
-void* get_thread_private_cache ();
+void* get_thread_private_cache(void);
 void  set_thread_private_cache (void *buf);
 char* get_repl_session_id (Slapi_PBlock *pb, char *id, CSN **opcsn);
 
@@ -274,9 +274,9 @@ void replsupplier_notify(Repl_Supplier *rs, PRUint32 eventmask);
 PRUint32 replsupplier_get_status(Repl_Supplier *rs);
 
 /* In repl5_plugins.c */
-int multimaster_set_local_purl();
-const char *multimaster_get_local_purl();
-PRBool multimaster_started();
+int multimaster_set_local_purl(void);
+const char *multimaster_get_local_purl(void);
+PRBool multimaster_started(void);
 
 /* In repl5_schedule.c */
 typedef struct schedule Schedule;
@@ -395,8 +395,8 @@ int agmt_maxcsn_to_smod (Replica *r, Slapi_Mod *smod);
 int agmt_set_WaitForAsyncResults(Repl_Agmt *ra, const Slapi_Entry *e);
 
 /* In repl5_agmtlist.c */
-int agmtlist_config_init();
-void agmtlist_shutdown();
+int agmtlist_config_init(void);
+void agmtlist_shutdown(void);
 void agmtlist_notify_all(Slapi_PBlock *pb);
 Object* agmtlist_get_first_agreement_for_replica (Replica *r);
 Object* agmtlist_get_next_agreement_for_replica (Replica *r, Object *prev);
@@ -571,8 +571,8 @@ Object *replica_get_replica_from_dn (const Slapi_DN *dn);
 int replica_update_ruv(Replica *replica, const CSN *csn, const char *replica_purl);
 Object *replica_get_replica_for_op (Slapi_PBlock *pb);
 /* the functions below manipulate replica hash */
-int replica_init_name_hash ();
-void replica_destroy_name_hash ();
+int replica_init_name_hash(void);
+void replica_destroy_name_hash(void);
 int replica_add_by_name (const char *name, Object *replica);
 int replica_delete_by_name (const char *name);
 Object* replica_get_by_name (const char *name);
@@ -588,8 +588,8 @@ void replica_enumerate_replicas (FNEnumReplica fn, void *arg);
 int replica_reload_ruv (Replica *r);
 int replica_check_for_data_reload (Replica *r, void *arg);
 /* the functions below manipulate replica dn hash */
-int replica_init_dn_hash ();
-void replica_destroy_dn_hash ();
+int replica_init_dn_hash(void);
+void replica_destroy_dn_hash(void);
 int replica_add_by_dn (const char *dn);
 int replica_delete_by_dn (const char *dn);
 int replica_is_being_configured (const char *dn);
@@ -652,15 +652,15 @@ CSN* replica_generate_next_csn ( Slapi_PBlock *pb, const CSN *basecsn );
 int replica_get_attr ( Slapi_PBlock *pb, const char *type, void *value );
 
 /* mapping tree extensions manipulation */
-void multimaster_mtnode_extension_init ();
-void multimaster_mtnode_extension_destroy ();
-void multimaster_mtnode_construct_replicas ();
+void multimaster_mtnode_extension_init(void);
+void multimaster_mtnode_extension_destroy(void);
+void multimaster_mtnode_construct_replicas(void);
 
 void multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_state);
 
 /* In repl5_replica_config.c */
-int replica_config_init();
-void replica_config_destroy ();
+int replica_config_init(void);
+void replica_config_destroy(void);
 int get_replica_type(Replica *r);
 int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
 void add_cleaned_rid(ReplicaId rid, Replica *r, char *maxcsn, char *forcing);
@@ -668,8 +668,8 @@ int is_cleaned_rid(ReplicaId rid);
 int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                                int *returncode, char *returntext, void *arg);
 void replica_cleanallruv_thread_ext(void *arg);
-void stop_ruv_cleaning();
-int task_aborted();
+void stop_ruv_cleaning(void);
+int task_aborted(void);
 void replica_abort_task_thread(void *arg);
 void remove_cleaned_rid(ReplicaId rid);
 int process_repl_agmts(Replica *replica, int *agmt_info, char *oid, Slapi_Task *task, struct berval *payload, int op);
@@ -701,7 +701,7 @@ typedef struct _cleanruv_data
 } cleanruv_data;
 
 /* replutil.c */
-LDAPControl* create_managedsait_control ();
+LDAPControl* create_managedsait_control(void);
 LDAPControl* create_backend_control(Slapi_DN *sdn);
 void repl_set_mtn_state_and_referrals(const Slapi_DN *sdn, const char *mtn_state,
 									  const RUV *ruv, char **ruv_referrals,
@@ -739,7 +739,7 @@ ReplicaId agmt_get_consumerRID(Repl_Agmt *ra);
 /* For replica release tuning */
 int agmt_get_WaitForAsyncResults(Repl_Agmt *ra);
 
-PRBool ldif_dump_is_running();
+PRBool ldif_dump_is_running(void);
 
 void windows_init_agreement_from_entry(Repl_Agmt *ra, Slapi_Entry *e);
 int windows_handle_modify_agreement(Repl_Agmt *ra, const char *type, Slapi_Entry *e);
@@ -749,7 +749,7 @@ void windows_conn_delete(Repl_Connection *conn);
 void windows_update_done(Repl_Agmt *ra, int is_total);
 
 /* repl_session_plugin.c */
-void repl_session_plugin_init();
+void repl_session_plugin_init(void);
 void repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra);
 int repl_session_plugin_call_pre_acquire_cb(const Repl_Agmt *ra, int is_total,
         char **data_guid, struct berval **data);

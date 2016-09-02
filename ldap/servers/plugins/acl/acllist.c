@@ -68,7 +68,7 @@ static int		__acllist_aciContainer_node_dup ( caddr_t d1, caddr_t d2 );
 void my_print( Avlnode	*root );
 
 int
-acllist_init ()
+acllist_init(void)
 {
 
 	if (( aci_rwlock = slapi_new_rwlock() ) == NULL ) {
@@ -86,7 +86,7 @@ acllist_init ()
 }
 
 void
-acllist_free()
+acllist_free(void)
 {
    if(aci_rwlock){
        slapi_destroy_rwlock(aci_rwlock);
@@ -470,7 +470,7 @@ acllist_done_aciContainer ( AciContainer *head )
 	head->acic_list = NULL;
 }
 
-static void
+static int
 free_aci_avl_container(AciContainer *data)
 {
 	aci_t *head, *next = NULL;
@@ -485,17 +485,18 @@ free_aci_avl_container(AciContainer *data)
 	data->acic_list = NULL;
 
 	acllist_free_aciContainer(&data);
+       return 0;
 }
 
 void
-free_acl_avl_list()
+free_acl_avl_list(void)
 {
 	avl_free(acllistRoot,free_aci_avl_container);
 	acllistRoot = NULL;
 }
 
 aci_t *
-acllist_get_aci_new ()
+acllist_get_aci_new(void)
 {
 	aci_t	*aci_item;
 
@@ -862,14 +863,14 @@ start:
 }
 
 void
-acllist_acicache_READ_UNLOCK( )
+acllist_acicache_READ_UNLOCK(void)
 {
 	ACILIST_UNLOCK_READ ();
 
 }
 
 void
-acllist_acicache_READ_LOCK()
+acllist_acicache_READ_LOCK(void)
 {
 	/* get a reader lock */
 	ACILIST_LOCK_READ ();	
@@ -877,14 +878,14 @@ acllist_acicache_READ_LOCK()
 }
 
 void
-acllist_acicache_WRITE_UNLOCK( )
+acllist_acicache_WRITE_UNLOCK(void)
 {
 	ACILIST_UNLOCK_WRITE ();
 
 }
 
 void
-acllist_acicache_WRITE_LOCK( )
+acllist_acicache_WRITE_LOCK(void)
 {
 	ACILIST_LOCK_WRITE ();
 

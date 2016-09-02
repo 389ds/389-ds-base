@@ -610,7 +610,7 @@ check_for_ldif_dump(Slapi_PBlock *pb)
  * returns 0 if success
  */
 static int
-create_repl_schema_policy()
+create_repl_schema_policy(void)
 {
 	/* DN part of this entry_string: no need to be optimized. */
         char entry_string[1024];

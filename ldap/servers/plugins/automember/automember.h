@@ -86,20 +86,20 @@ struct configEntry {
 /*
  * Config fetch function
  */
-PRCList *automember_get_config();
+PRCList *automember_get_config(void);
 
 /*
  * Config cache locking functions
  */
-void automember_config_read_lock();
-void automember_config_write_lock();
-void automember_config_unlock();
+void automember_config_read_lock(void);
+void automember_config_write_lock(void);
+void automember_config_unlock(void);
 
 /*
  * Plugin identity functions
  */
 void automember_set_plugin_id(void *pluginID);
-void *automember_get_plugin_id();
+void *automember_get_plugin_id(void);
 void automember_set_plugin_dn(char *pluginDN);
-char *automember_get_plugin_dn();
+char *automember_get_plugin_dn(void);
 

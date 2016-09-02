@@ -54,8 +54,8 @@ static int automember_add_pre_op(Slapi_PBlock *pb);
 /*
  * Config cache management functions
  */
-static int automember_load_config();
-static void automember_delete_config();
+static int automember_load_config(void);
+static void automember_delete_config(void);
 static int automember_parse_config_entry(Slapi_Entry * e, int apply);
 static void automember_free_config_entry(struct configEntry ** entry);
 
@@ -63,7 +63,7 @@ static void automember_free_config_entry(struct configEntry ** entry);
  * helpers
  */
 static Slapi_DN *automember_get_sdn(Slapi_PBlock *pb);
-static Slapi_DN *automember_get_config_area();
+static Slapi_DN *automember_get_config_area(void);
 static void automember_set_config_area(Slapi_DN *sdn);
 static int automember_dn_is_config(Slapi_DN *sdn);
 static int automember_oktodo(Slapi_PBlock *pb);
@@ -140,7 +140,7 @@ automember_set_plugin_sdn(Slapi_DN *pluginDN)
 }
 
 Slapi_DN *
-automember_get_plugin_sdn()
+automember_get_plugin_sdn(void)
 {
     return _PluginDN;
 }
@@ -405,7 +405,7 @@ automember_get_config()
  * Parse and load the config entries.
  */
 static int
-automember_load_config()
+automember_load_config(void)
 {
     int status = 0;
     int result;
@@ -829,7 +829,7 @@ automember_delete_configEntry(PRCList *entry)
 }
 
 static void
-automember_delete_config()
+automember_delete_config(void)
 {
     PRCList *list;
 
@@ -865,7 +865,7 @@ automember_set_config_area(Slapi_DN *sdn)
 }
 
 Slapi_DN *
-automember_get_config_area()
+automember_get_config_area(void)
 {
     return _ConfigAreaDN;
 }

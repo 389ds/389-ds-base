@@ -458,19 +458,19 @@ void chainingdb_prev_search_results ( Slapi_PBlock *pb );
 long cb_atol(char *str);
 
 Slapi_Entry * cb_LDAPMessage2Entry(LDAP * ctx, LDAPMessage * msg, int attrsonly);
-char * cb_get_rootdn();
+char * cb_get_rootdn(void);
 struct berval ** referrals2berval(char ** referrals);
 cb_backend_instance * cb_get_instance(Slapi_Backend * be);
-cb_backend * cb_get_backend_type();
-int cb_debug_on();
+cb_backend * cb_get_backend_type(void);
+int cb_debug_on(void);
 void cb_set_debug(int on);
 int cb_ping_farm(cb_backend_instance *cb,cb_outgoing_conn * cnx,time_t end);
 void cb_update_failed_conn_cpt ( cb_backend_instance *cb ) ;
 void cb_reset_conn_cpt( cb_backend_instance *cb ) ;
 int  cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) ;
 
-time_t current_time();
-char* get_localhost_DNS();
+time_t current_time(void);
+char* get_localhost_DNS(void);
 
 /* this function is called when state of a backend changes */
 void cb_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_state);

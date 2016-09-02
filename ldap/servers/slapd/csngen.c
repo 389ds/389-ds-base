@@ -95,7 +95,7 @@ static int _csngen_adjust_local_time (CSNGen *gen, time_t cur_time);
  */
 
 static int _csngen_start_test_threads (CSNGen *gen);
-static void _csngen_stop_test_threads ();
+static void _csngen_stop_test_threads(void);
 static void _csngen_gen_tester_main (void *data); 
 static void _csngen_local_tester_main (void *data); 
 static void _csngen_remote_tester_main (void *data); 
@@ -290,7 +290,7 @@ int csngen_adjust_time(CSNGen *gen, const CSN* csn)
     time_t remote_time, remote_offset, cur_time;
 	PRUint16 remote_seqnum;
     int rc;
-    extern int config_get_ignore_time_skew();
+    extern int config_get_ignore_time_skew(void);
     int ignore_time_skew = config_get_ignore_time_skew();
 
     if (gen == NULL || csn == NULL)
@@ -500,7 +500,7 @@ void csngen_test ()
         DS_Sleep(PR_SecondsToInterval(TEST_TIME));
     }
     
-    _csngen_stop_test_threads(gen);
+    _csngen_stop_test_threads();
     csngen_dump_state (gen);    
     slapi_log_error(SLAPI_LOG_FATAL, NULL, "csn generator test is complete...");
 }
@@ -617,7 +617,7 @@ _csngen_cmp_callbacks (const void *el1, const void *el2)
 static int 
 _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 {
-    extern int config_get_ignore_time_skew();
+    extern int config_get_ignore_time_skew(void);
     int ignore_time_skew = config_get_ignore_time_skew();
     time_t time_diff = cur_time - gen->state.sampled_time;
 
@@ -779,7 +779,7 @@ _csngen_start_test_threads(CSNGen *gen)
     return 0;
 }
 
-static void _csngen_stop_test_threads ()
+static void _csngen_stop_test_threads(void)
 {
 	s_must_exit = 1;
 

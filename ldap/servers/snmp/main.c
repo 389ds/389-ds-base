@@ -523,7 +523,7 @@ close_and_exit:
  * Prints usage message and exits program.
  */
 void
-exit_usage()
+exit_usage(void)
 {
     printf("Usage: ldap-agent [-D] configfile\n");
     printf("       -D    Enable debug logging\n");

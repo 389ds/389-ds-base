@@ -32,13 +32,13 @@ typedef struct changelog5Config
 }changelog5Config;
 
 /* initializes changelog*/
-int changelog5_init();
+int changelog5_init(void);
 /* cleanups changelog data */
-void changelog5_cleanup();
+void changelog5_cleanup(void);
 /* initializes changelog configurationd */
-int changelog5_config_init();
+int changelog5_config_init(void);
 /* cleanups config data */
-void changelog5_config_cleanup();
+void changelog5_config_cleanup(void);
 /* reads changelog configuration */
 int changelog5_read_config (changelog5Config *config); 
 /* cleanups the content of the config structure */

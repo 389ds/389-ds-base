@@ -43,8 +43,8 @@
 #include "fe.h"
 #include <pwd.h>
 
-extern char ** getSupportedCiphers();
-extern char ** getEnabledCiphers();
+extern char ** getSupportedCiphers(void);
+extern char ** getEnabledCiphers(void);
 extern int getSSLVersionInfo(int *ssl2, int *ssl3, int *tls1);
 extern int getSSLVersionRange(char **min, char **max);
 
@@ -1588,7 +1588,7 @@ init_dse_file(const char *configdir, Slapi_DN *config)
     return rc;
 }
 
-void add_internal_entries()
+void add_internal_entries(void)
 {
 	/* add the internal only entries */
 	int i;
@@ -1629,7 +1629,7 @@ egg_decode( char *s )
 }
 
 static
-void add_easter_egg_entry()
+void add_easter_egg_entry(void)
 {
    	Slapi_Entry* e= NULL;
 	char *src;

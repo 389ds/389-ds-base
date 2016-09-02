@@ -631,7 +631,7 @@ usn_set_identity(void *identity)
 }
 
 void *
-usn_get_identity()
+usn_get_identity(void)
 {
     return _usn_identity;
 }

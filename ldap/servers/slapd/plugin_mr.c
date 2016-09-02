@@ -48,7 +48,7 @@ static PRLock* global_mr_oids_lock = NULL;
 static int default_mr_indexer_create(Slapi_PBlock* pb);
 
 static void
-init_global_mr_lock()
+init_global_mr_lock(void)
 {
 	if(global_mr_oids_lock==NULL)
 	{
@@ -57,7 +57,7 @@ init_global_mr_lock()
 }
 
 struct slapdplugin *
-slapi_get_global_mr_plugins()
+slapi_get_global_mr_plugins(void)
 {
 	return get_plugin_list(PLUGIN_LIST_MATCHINGRULE);
 }

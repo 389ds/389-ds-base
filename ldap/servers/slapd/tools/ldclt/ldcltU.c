@@ -116,7 +116,7 @@
  * 	 -W  Wait between two operations.          Default 0 seconds.
  * 	 -Z  certfile. Turn on SSL and use certfile as the certificate DB
  */
-void usage ()
+void usage(void)
 {
   (void) printf ("\n");
   (void) printf ("usage: ldclt [-qQvV] [-E <max errors>]\n");

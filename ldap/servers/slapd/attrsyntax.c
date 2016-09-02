@@ -68,7 +68,7 @@ static void attr_syntax_insert_tmp( struct asyntaxinfo *asip );
 static void attr_syntax_remove( struct asyntaxinfo *asip );
 
 #ifdef ATTR_LDAP_DEBUG
-static void attr_syntax_print();
+static void attr_syntax_print(void);
 #endif
 static int attr_syntax_init(void);
 
@@ -206,7 +206,7 @@ attr_syntax_free( struct asyntaxinfo *a )
 }
 
 static struct asyntaxinfo *
-attr_syntax_new()
+attr_syntax_new(void)
 {
 	return (struct asyntaxinfo *)slapi_ch_calloc(1, sizeof(struct asyntaxinfo));
 }
@@ -1243,7 +1243,7 @@ attr_syntax_printnode(PLHashEntry *he, PRIntn i, void *arg)
 }
 
 void
-attr_syntax_print()
+attr_syntax_print(void)
 {
 	printf( "*** attr_syntax_print ***\n" );
 	PL_HashTableEnumerateEntries(name2asi, attr_syntax_printnode, 0);

@@ -79,29 +79,29 @@ typedef struct _task_data
 /*
  * Debug functions - global, for the debugger
  */
-void linked_attrs_dump_config();
-void linked_attrs_dump_config_index();
+void linked_attrs_dump_config(void);
+void linked_attrs_dump_config_index(void);
 void linked_attrs_dump_config_entry(struct configEntry *);
 
 /*
  * Config fetch function
  */
-PRCList *linked_attrs_get_config();
+PRCList *linked_attrs_get_config(void);
 
 /*
  * Config cache locking functions
  */
-void linked_attrs_read_lock();
-void linked_attrs_write_lock();
-void linked_attrs_unlock();
+void linked_attrs_read_lock(void);
+void linked_attrs_write_lock(void);
+void linked_attrs_unlock(void);
 
 /*
  * Plugin identity functions
  */
 void linked_attrs_set_plugin_id(void *pluginID);
-void *linked_attrs_get_plugin_id();
+void *linked_attrs_get_plugin_id(void);
 void linked_attrs_set_plugin_dn(const char *pluginDN);
-char *linked_attrs_get_plugin_dn();
+char *linked_attrs_get_plugin_dn(void);
 
 /*
  * Fixup task callback

@@ -77,10 +77,10 @@ static int	log__open_errorlogfile(int logfile_type, int locked);
 static int	log__open_auditlogfile(int logfile_type, int locked);
 static int	log__open_auditfaillogfile(int logfile_type, int locked);
 static int	log__needrotation(LOGFD fp, int logtype);
-static int	log__delete_access_logfile();
+static int       log__delete_access_logfile(void);
 static int	log__delete_error_logfile(int locked);
-static int	log__delete_audit_logfile();
-static int	log__delete_auditfail_logfile();
+static int       log__delete_audit_logfile(void);
+static int       log__delete_auditfail_logfile(void);
 static int 	log__access_rotationinfof(char *pathname);
 static int 	log__error_rotationinfof(char *pathname);
 static int 	log__audit_rotationinfof(char *pathname);
@@ -2832,7 +2832,7 @@ log_rotate:
 ******************************************************************************/ 
 
 static int
-log__delete_access_logfile()
+log__delete_access_logfile(void)
 {
 
 	struct logfileinfo *logp = NULL;
@@ -3765,7 +3765,7 @@ delete_logfile:
 ******************************************************************************/ 
 
 static int
-log__delete_audit_logfile()
+log__delete_audit_logfile(void)
 {
 	struct logfileinfo *logp = NULL;
 	struct logfileinfo *delete_logp = NULL;
@@ -3932,7 +3932,7 @@ delete_logfile:
 ******************************************************************************/ 
 
 static int
-log__delete_auditfail_logfile()
+log__delete_auditfail_logfile(void)
 {
 	struct logfileinfo *logp = NULL;
 	struct logfileinfo *delete_logp = NULL;

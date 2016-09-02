@@ -107,7 +107,7 @@ struct asyntaxinfo *attr_syntax_get_by_oid ( const char *oid, PRUint32 schema_fl
 struct asyntaxinfo *attr_syntax_get_by_name ( const char *name, PRUint32 schema_flags );
 struct asyntaxinfo *attr_syntax_get_by_name_with_default ( const char *name );
 struct asyntaxinfo *attr_syntax_get_by_name_locking_optional ( const char *name, PRBool use_lock, PRUint32 schema_flags );
-struct asyntaxinfo *attr_syntax_get_global_at();
+struct asyntaxinfo *attr_syntax_get_global_at(void);
 struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 void attr_syntax_swap_ht(void);
 /*
@@ -184,10 +184,10 @@ void be_addsuffix(Slapi_Backend *be,const Slapi_DN *suffix);
 Slapi_DN *be_getconfigdn(Slapi_Backend *be,Slapi_DN *dn);
 Slapi_DN *be_getmonitordn(Slapi_Backend *be,Slapi_DN *dn);
 int be_writeconfig (Slapi_Backend *be);
-void global_backend_lock_init();
-int global_backend_lock_requested();
-void global_backend_lock_lock();
-void global_backend_lock_unlock();
+void global_backend_lock_init(void);
+int global_backend_lock_requested(void);
+void global_backend_lock_lock(void);
+void global_backend_lock_unlock(void);
 
 /*
  * backend_manager.c
@@ -195,19 +195,19 @@ void global_backend_lock_unlock();
 Slapi_Backend *be_new_internal(struct dse *pdse, const char *type, const char *name);
 void be_replace_dse_internal(Slapi_Backend *be, struct dse *pdse);
 int fedse_create_startOK(char *filename,  char *startokfilename, const char *configdir);
-void be_cleanupall();
-void be_flushall();
+void be_cleanupall(void);
+void be_flushall(void);
 int be_remove( Slapi_Backend *be );
 void g_set_defsize(int val);
 void g_set_deftime(int val);
 Slapi_Backend *g_get_user_backend( int n );
-int g_get_defsize();
-int g_get_deftime();
+int g_get_defsize(void);
+int g_get_deftime(void);
 void be_unbindall( Connection *conn, Operation *op); 
-int be_nbackends_public();
-void g_incr_active_threadcnt();
-void g_decr_active_threadcnt();
-int g_get_active_threadcnt();
+int be_nbackends_public(void);
+void g_incr_active_threadcnt(void);
+void g_decr_active_threadcnt(void);
+int g_get_active_threadcnt(void);
 
 /*
  * bind.c
@@ -225,18 +225,18 @@ void do_compare( Slapi_PBlock *pb );
  * computed.c
  */
 int compute_attribute(char *type, Slapi_PBlock *pb,BerElement *ber,Slapi_Entry *e,int attrsonly,char *requested_type);
-int compute_init();
-int compute_terminate();
-void compute_plugins_started();
+int compute_init(void);
+int compute_terminate(void);
+void compute_plugins_started(void);
 
 
 /*
  * config.c
  */
 int slapd_bootstrap_config(const char *configdir);
-int config_set_storagescheme();
+int config_set_storagescheme(void);
 int get_netsite_root_path(char *pathname);
-int slapd_write_config ();
+int slapd_write_config(void);
 int config_set_port( const char *attrname, char *port, char *errorbuf, int apply );
 int config_set_secureport( const char *attrname, char *port, char *errorbuf, int apply );
 int config_set_SSLclientAuth( const char *attrname, char *value, char *errorbuf, int apply );
@@ -403,125 +403,125 @@ int log_set_backend(const char *attrname, char *value, int logtype, char *errorb
 
 #ifdef HAVE_CLOCK_GETTIME
 int config_set_logging_hr_timestamps(const char *attrname, char *value, char *errorbuf, int apply);
-void log_enable_hr_timestamps();
-void log_disable_hr_timestamps();
+void log_enable_hr_timestamps(void);
+void log_disable_hr_timestamps(void);
 #endif
 
-int config_get_SSLclientAuth();
-int config_get_ssl_check_hostname();
-char *config_get_SSL3ciphers();
-char *config_get_localhost();
-char *config_get_listenhost();
-char *config_get_securelistenhost();
-char *config_get_ldapi_filename();
-int config_get_ldapi_switch(); 
-int config_get_ldapi_bind_switch();
-char *config_get_ldapi_root_dn(); 
-int config_get_ldapi_map_entries(); 
-char *config_get_ldapi_uidnumber_type(); 
-char *config_get_ldapi_gidnumber_type(); 
-char *config_get_ldapi_search_base_dn(); 
+int config_get_SSLclientAuth(void);
+int config_get_ssl_check_hostname(void);
+char *config_get_SSL3ciphers(void);
+char *config_get_localhost(void);
+char *config_get_listenhost(void);
+char *config_get_securelistenhost(void);
+char *config_get_ldapi_filename(void);
+int config_get_ldapi_switch(void);
+int config_get_ldapi_bind_switch(void);
+char *config_get_ldapi_root_dn(void);
+int config_get_ldapi_map_entries(void);
+char *config_get_ldapi_uidnumber_type(void);
+char *config_get_ldapi_gidnumber_type(void);
+char *config_get_ldapi_search_base_dn(void);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
-char *config_get_ldapi_auto_dn_suffix(); 
+char *config_get_ldapi_auto_dn_suffix(void);
 #endif
-char *config_get_anon_limits_dn();
-int config_get_slapi_counters(); 
-char *config_get_srvtab();
-int config_get_sizelimit();
-int config_get_pagedsizelimit();
-char *config_get_pw_storagescheme();
-int config_get_pw_change();
-int config_get_pw_history();
-int config_get_pw_must_change();
-int config_get_allow_hashed_pw();
-int config_get_pw_syntax();
-int config_get_pw_minlength();
-int config_get_pw_mindigits();
-int config_get_pw_minalphas();
-int config_get_pw_minuppers();
-int config_get_pw_minlowers();
-int config_get_pw_minspecials();
-int config_get_pw_min8bit();
-int config_get_pw_maxrepeats();
-int config_get_pw_mincategories();
-int config_get_pw_mintokenlength();
-int config_get_pw_maxfailure();
-int config_get_pw_inhistory();
-long config_get_pw_lockduration();
-long config_get_pw_resetfailurecount();
-int config_get_pw_exp();
-int config_get_pw_unlock();
-int config_get_pw_lockout();
-int config_get_pw_gracelimit();
-int config_get_pwpolicy_inherit_global();
-int config_get_lastmod();
-int config_get_nagle();
-int config_get_accesscontrol();
-int config_get_return_exact_case();
-int config_get_result_tweak();
-int config_get_moddn_aci();
-int config_get_security();
-int config_get_schemacheck();
-int config_get_syntaxcheck();
-int config_get_syntaxlogging();
-int config_get_dn_validate_strict();
-int config_get_ds4_compatible_schema();
-int config_get_schema_ignore_trailing_spaces();
-char *config_get_rootdn();
-char *config_get_rootpw();
-char *config_get_rootpwstoragescheme();
-char *config_get_localuser();
-char *config_get_workingdir();
-char *config_get_encryptionalias();
-int config_get_threadnumber();
-int config_get_maxthreadsperconn();
-int config_get_maxdescriptors();
-int config_get_reservedescriptors();
-int config_get_ioblocktimeout();
-int config_get_idletimeout();
-int config_get_max_filter_nest_level();
-int config_get_groupevalnestlevel();
-struct berval **config_get_defaultreferral();
-char *config_get_userat();
-int config_get_timelimit();
-char *config_get_pw_admin_dn();
-char* config_get_useroc();
-char *config_get_accesslog();
-char *config_get_errorlog();
-char *config_get_auditlog();
-char *config_get_auditfaillog();
-long long config_get_pw_maxage();
-long long config_get_pw_minage();
-long long config_get_pw_warning();
-int config_get_errorlog_level();
-int config_get_accesslog_level();
-int config_get_auditlog_logging_enabled();
-int config_get_auditfaillog_logging_enabled();
+char *config_get_anon_limits_dn(void);
+int config_get_slapi_counters(void);
+char *config_get_srvtab(void);
+int config_get_sizelimit(void);
+int config_get_pagedsizelimit(void);
+char *config_get_pw_storagescheme(void);
+int config_get_pw_change(void);
+int config_get_pw_history(void);
+int config_get_pw_must_change(void);
+int config_get_allow_hashed_pw(void);
+int config_get_pw_syntax(void);
+int config_get_pw_minlength(void);
+int config_get_pw_mindigits(void);
+int config_get_pw_minalphas(void);
+int config_get_pw_minuppers(void);
+int config_get_pw_minlowers(void);
+int config_get_pw_minspecials(void);
+int config_get_pw_min8bit(void);
+int config_get_pw_maxrepeats(void);
+int config_get_pw_mincategories(void);
+int config_get_pw_mintokenlength(void);
+int config_get_pw_maxfailure(void);
+int config_get_pw_inhistory(void);
+long config_get_pw_lockduration(void);
+long config_get_pw_resetfailurecount(void);
+int config_get_pw_exp(void);
+int config_get_pw_unlock(void);
+int config_get_pw_lockout(void);
+int config_get_pw_gracelimit(void);
+int config_get_pwpolicy_inherit_global(void);
+int config_get_lastmod(void);
+int config_get_nagle(void);
+int config_get_accesscontrol(void);
+int config_get_return_exact_case(void);
+int config_get_result_tweak(void);
+int config_get_moddn_aci(void);
+int config_get_security(void);
+int config_get_schemacheck(void);
+int config_get_syntaxcheck(void);
+int config_get_syntaxlogging(void);
+int config_get_dn_validate_strict(void);
+int config_get_ds4_compatible_schema(void);
+int config_get_schema_ignore_trailing_spaces(void);
+char *config_get_rootdn(void);
+char *config_get_rootpw(void);
+char *config_get_rootpwstoragescheme(void);
+char *config_get_localuser(void);
+char *config_get_workingdir(void);
+char *config_get_encryptionalias(void);
+int config_get_threadnumber(void);
+int config_get_maxthreadsperconn(void);
+int config_get_maxdescriptors(void);
+int config_get_reservedescriptors(void);
+int config_get_ioblocktimeout(void);
+int config_get_idletimeout(void);
+int config_get_max_filter_nest_level(void);
+int config_get_groupevalnestlevel(void);
+struct berval **config_get_defaultreferral(void);
+char *config_get_userat(void);
+int config_get_timelimit(void);
+char *config_get_pw_admin_dn(void);
+char* config_get_useroc(void);
+char *config_get_accesslog(void);
+char *config_get_errorlog(void);
+char *config_get_auditlog(void);
+char *config_get_auditfaillog(void);
+long long config_get_pw_maxage(void);
+long long config_get_pw_minage(void);
+long long config_get_pw_warning(void);
+int config_get_errorlog_level(void);
+int config_get_accesslog_level(void);
+int config_get_auditlog_logging_enabled(void);
+int config_get_auditfaillog_logging_enabled(void);
 char *config_get_referral_mode(void);
 int config_get_conntablesize(void);
 int config_check_referral_mode(void);
-ber_len_t config_get_maxbersize();
-size_t config_get_maxsasliosize();
-char *config_get_versionstring();
+ber_len_t config_get_maxbersize(void);
+size_t config_get_maxsasliosize(void);
+char *config_get_versionstring(void);
 char *config_get_buildnum(void);
-int config_get_enquote_sup_oc();
-char *config_get_basedn();
-char *config_get_configdir();
-char *config_get_schemadir();
-char *config_get_lockdir();
-char *config_get_tmpdir();
-char *config_get_certdir();
-char *config_get_ldifdir();
-char *config_get_bakdir();
-char *config_get_rundir();
-char *config_get_saslpath();
-char **config_get_errorlog_list();
-char **config_get_accesslog_list();
-char **config_get_auditlog_list();
-char **config_get_auditfaillog_list();
-int config_get_attrname_exceptions();
-int config_get_hash_filters();
-int config_get_rewrite_rfc1274();
+int config_get_enquote_sup_oc(void);
+char *config_get_basedn(void);
+char *config_get_configdir(void);
+char *config_get_schemadir(void);
+char *config_get_lockdir(void);
+char *config_get_tmpdir(void);
+char *config_get_certdir(void);
+char *config_get_ldifdir(void);
+char *config_get_bakdir(void);
+char *config_get_rundir(void);
+char *config_get_saslpath(void);
+char **config_get_errorlog_list(void);
+char **config_get_accesslog_list(void);
+char **config_get_auditlog_list(void);
+char **config_get_auditfaillog_list(void);
+int config_get_attrname_exceptions(void);
+int config_get_hash_filters(void);
+int config_get_rewrite_rfc1274(void);
 int config_get_outbound_ldap_io_timeout(void);
 int config_get_unauth_binds_switch(void);
 int config_get_require_secure_binds(void);
@@ -530,14 +530,14 @@ int config_get_localssf(void);
 int config_get_minssf(void);
 int config_get_minssf_exclude_rootdse(void);
 int config_get_validate_cert_switch(void);
-int config_get_csnlogging();
+int config_get_csnlogging(void);
 #ifdef MEMPOOL_EXPERIMENTAL
-int config_get_mempool_switch();
-int config_get_mempool_maxfreelist();
-long config_get_system_page_size();
-int config_get_system_page_bits();
+int config_get_mempool_switch(void);
+int config_get_mempool_maxfreelist(void);
+long config_get_system_page_size(void);
+int config_get_system_page_bits(void);
 #endif
-int config_get_force_sasl_external();
+int config_get_force_sasl_external(void);
 int config_get_entryusn_global(void);
 char *config_get_allowed_to_delete_attrs(void);
 char *config_get_entryusn_import_init(void);
@@ -546,37 +546,37 @@ int config_allowed_to_delete_attrs(const char *attr_type);
 void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
-int config_get_accesslog_logging_enabled();
-int config_get_disk_monitoring();
-PRInt64 config_get_disk_threshold();
-int config_get_disk_grace_period();
-int config_get_disk_logging_critical();
-int config_get_ndn_cache_count();
-size_t config_get_ndn_cache_size();
-int config_get_ndn_cache_enabled();
-int config_get_return_orig_type_switch();
-char *config_get_allowed_sasl_mechs();
+int config_get_accesslog_logging_enabled(void);
+int config_get_disk_monitoring(void);
+PRInt64 config_get_disk_threshold(void);
+int config_get_disk_grace_period(void);
+int config_get_disk_logging_critical(void);
+int config_get_ndn_cache_count(void);
+size_t config_get_ndn_cache_size(void);
+int config_get_ndn_cache_enabled(void);
+int config_get_return_orig_type_switch(void);
+char *config_get_allowed_sasl_mechs(void);
 int config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_schemamod();
+int config_get_schemamod(void);
 int config_set_ignore_vattrs(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_ignore_vattrs();
+int config_get_ignore_vattrs(void);
 int config_set_sasl_mapping_fallback(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_sasl_mapping_fallback();
-int config_get_unhashed_pw_switch();
-int config_get_sasl_maxbufsize();
-int config_get_enable_turbo_mode();
+int config_get_sasl_mapping_fallback(void);
+int config_get_unhashed_pw_switch(void);
+int config_get_sasl_maxbufsize(void);
+int config_get_enable_turbo_mode(void);
 int config_set_enable_turbo_mode(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_connection_buffer();
+int config_get_connection_buffer(void);
 int config_set_connection_buffer(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_connection_nocanon();
-int config_get_plugin_logging();
+int config_get_connection_nocanon(void);
+int config_get_plugin_logging(void);
 int config_set_connection_nocanon(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_plugin_logging(const char *attrname, char *value, char *errorbuf, int apply);
 int config_get_listen_backlog_size(void);
 int config_set_dynamic_plugins(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_dynamic_plugins();
+int config_get_dynamic_plugins(void);
 int config_set_cn_uses_dn_syntax_in_dns(const char *attrname, char *value, char *errorbuf, int apply);
-int config_get_cn_uses_dn_syntax_in_dns();
+int config_get_cn_uses_dn_syntax_in_dns(void);
 #ifdef ENABLE_NUNC_STANS
 int config_get_enable_nunc_stans(void);
 int config_set_enable_nunc_stans(const char *attrname, char *value, char *errorbuf, int apply);
@@ -585,17 +585,17 @@ int config_set_extract_pem(const char *attrname, char *value, char *errorbuf, in
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);
-int config_get_ignore_time_skew();
-int config_get_global_backend_lock();
+int config_get_ignore_time_skew(void);
+int config_get_global_backend_lock(void);
 
 #if defined(LINUX)
-int config_get_malloc_mxfast();
-int config_get_malloc_trim_threshold();
-int config_get_malloc_mmap_threshold();
+int config_get_malloc_mxfast(void);
+int config_get_malloc_trim_threshold(void);
+int config_get_malloc_mmap_threshold(void);
 #endif
 
-int config_get_maxsimplepaged_per_conn();
-int config_get_extract_pem();
+int config_get_maxsimplepaged_per_conn(void);
+int config_get_extract_pem(void);
 
 int is_abspath(const char *);
 char* rel2abspath( char * );
@@ -692,8 +692,8 @@ char *filter_strcpy_special_ext( char *d, char *s, int flags );
  * entry.c
  */
 int is_rootdse( const char *dn );
-int get_entry_object_type();
-int entry_computed_attr_init();
+int get_entry_object_type(void);
+int entry_computed_attr_init(void);
 void send_referrals_from_entry(Slapi_PBlock *pb, Slapi_Entry *referral);
 
 /*
@@ -731,7 +731,7 @@ void dse_prev_search_results (void *pb);
  * fedse.c
  */
 
-int setup_internal_backends();
+int setup_internal_backends(char *configdir);
 
 
 /*
@@ -746,7 +746,7 @@ void do_extended( Slapi_PBlock *pb );
  * house.c
  */
 PRThread* housekeeping_start(time_t cur_time, void *arg);
-void housekeeping_stop();
+void housekeeping_stop(void);
 
 /*
  * lock.c
@@ -770,7 +770,7 @@ int slapd_log_audit(char *buffer, int buf_len, int sourcelog);
 int slapd_log_audit_internal(char *buffer, int buf_len, int state);
 int slapd_log_auditfail(char *buffer, int buf_len);
 int slapd_log_auditfail_internal(char *buffer, int buf_len);
-void log_access_flush();
+void log_access_flush(void);
 
 
 int access_log_openf( char *pathname, int locked);
@@ -780,10 +780,10 @@ int auditfail_log_openf( char *pathname, int locked);
 
 void g_set_detached(int);
 void g_log_init(int log_enabled);
-char *g_get_access_log();
-char *g_get_error_log();
-char *g_get_audit_log();
-char *g_get_auditfail_log();
+char *g_get_access_log(void);
+char *g_get_error_log(void);
+char *g_get_audit_log(void);
+char *g_get_auditfail_log(void);
 void g_set_accesslog_level(int val);
 
 int log_set_mode(const char *attrname, char *mode_str, int logtype, char *errorbuf, int apply);
@@ -814,7 +814,7 @@ int check_log_max_size(
  
 
 void g_set_accesslog_level(int val);
-void log__delete_rotated_logs();
+void log__delete_rotated_logs(void);
 
 /*
  * util.c
@@ -862,8 +862,8 @@ Slapi_Operation *operation_new(int flags);
 void operation_done( Slapi_Operation **op, Connection *conn );
 void operation_free( Slapi_Operation **op, Connection *conn );
 int slapi_op_abandoned( Slapi_PBlock *pb );
-void operation_out_of_disk_space();
-int get_operation_object_type();
+void operation_out_of_disk_space(void);
+int get_operation_object_type(void);
 Slapi_DN* operation_get_target_spec (Slapi_Operation *op);
 void operation_set_target_spec (Slapi_Operation *op, const Slapi_DN *target_spec);
 void operation_set_target_spec_str (Slapi_Operation *op, const char *target_spec);
@@ -875,7 +875,7 @@ void operation_set_type(Slapi_Operation *op, unsigned long type);
 /*
  * plugin.c
  */
-void global_plugin_init();
+void global_plugin_init(void);
 int plugin_call_plugins( Slapi_PBlock *, int );
 int plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	slapi_plugin_init_fnptr initfunc, int add_to_dit, char *returntext);
@@ -884,7 +884,7 @@ int plugin_call_exop_plugins( Slapi_PBlock *pb, struct slapdplugin *p );
 Slapi_Backend * plugin_extended_op_getbackend( Slapi_PBlock *pb, struct slapdplugin *p);
 const char *plugin_extended_op_oid2string( const char *oid );
 void plugin_closeall(int close_backends, int close_globals);
-void plugin_dependency_freeall();
+void plugin_dependency_freeall(void);
 void plugin_startall(int argc, char **argv, char **plugin_list);
 void plugin_get_plugin_dependencies(char *plugin_name, char ***names);
 struct slapdplugin *get_plugin_list(int plugin_list_index);
@@ -911,14 +911,14 @@ void plugin_set_started(struct slapdplugin *p);
 /*
  * plugin_mr.c
  */
-struct slapdplugin *slapi_get_global_mr_plugins();
+struct slapdplugin *slapi_get_global_mr_plugins(void);
 int plugin_mr_filter_create (mr_filter_t* f);
 struct slapdplugin *plugin_mr_find( const char *nameoroid );
 
 /*
  * plugin_syntax.c
  */
-struct slapdplugin *slapi_get_global_syntax_plugins();
+struct slapdplugin *slapi_get_global_syntax_plugins(void);
 int plugin_call_syntax_filter_ava( const Slapi_Attr *a, int ftype, struct ava *ava );
 int plugin_call_syntax_filter_ava_sv( const Slapi_Attr *a, int ftype, struct ava *ava, Slapi_Value **retVal, int useDeletedValues );
 int plugin_call_syntax_filter_sub( Slapi_PBlock *pb, Slapi_Attr *a, struct subfilt *fsub );
@@ -960,12 +960,12 @@ int add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e);
 int update_pw_retry ( Slapi_PBlock *pb );
 void pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods);
 void pw_set_componentID(struct slapi_componentid * cid);
-struct slapi_componentid * pw_get_componentID();
+struct slapi_componentid * pw_get_componentID(void);
 
 /*
  * referral.c
  */
-void referrals_free ();
+void referrals_free(void);
 struct berval **ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refcontainerdn, int is_reference );
 /* GGOODREPL temporarily in slapi-plugin.h struct berval **get_data_source( char *dn, int orc, Ref_Array * ); */
 
@@ -982,11 +982,11 @@ void reslimit_cleanup( void );
  * result.c
  */
 void g_set_num_entries_sent( Slapi_Counter *counter );
-PRUint64 g_get_num_entries_sent();
+PRUint64 g_get_num_entries_sent(void);
 void g_set_num_bytes_sent( Slapi_Counter *counter );
-PRUint64 g_get_num_bytes_sent();
+PRUint64 g_get_num_bytes_sent(void);
 void g_set_default_referral( struct berval **ldap_url );
-struct berval	**g_get_default_referral();
+struct berval       **g_get_default_referral(void);
 void disconnect_server( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 int send_ldap_search_entry( Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **ectrls,
 	char **attrs, int attrsonly );
@@ -1005,11 +1005,11 @@ int send_ldapv3_referral( Slapi_PBlock *pb, struct berval **urls );
 int set_db_default_result_handlers(Slapi_PBlock *pb);
 void disconnect_server_nomutex( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error );
 void disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error, int schedule_closure_job );
-long g_get_current_conn_count();
-void g_increment_current_conn_count();
-void g_decrement_current_conn_count();
+long g_get_current_conn_count(void);
+void g_increment_current_conn_count(void);
+void g_decrement_current_conn_count(void);
 void g_set_current_conn_count_mutex( PRLock *plock );
-PRLock *g_get_current_conn_count_mutex();
+PRLock *g_get_current_conn_count_mutex(void);
 int encode_attr(Slapi_PBlock *pb,BerElement *ber,Slapi_Entry *e,Slapi_Attr *a,int attrsonly,char *type);
 
 
@@ -1025,11 +1025,11 @@ void oc_lock_read( void );
 void oc_lock_write( void );
 void oc_unlock( void );
 /* Note: callers of g_get_global_oc_nolock() must hold a read or write lock */
-struct objclass* g_get_global_oc_nolock();
+struct objclass* g_get_global_oc_nolock(void);
 /* Note: callers of g_set_global_oc_nolock() must hold a write lock */
 void g_set_global_oc_nolock(struct objclass *newglobaloc);
 /* Note: callers of g_get_global_schema_csn() must hold a read lock */
-const CSN *g_get_global_schema_csn();
+const CSN *g_get_global_schema_csn(void);
 /* Note: callers of g_set_global_schema_csn() must hold a write lock. */
 /* csn is consumed. */
 void g_set_global_schema_csn(CSN *csn);
@@ -1062,10 +1062,10 @@ void do_search( Slapi_PBlock *pb );
  * ssl.c
  */
 int slapd_nss_init(int init_ssl, int config_available);
-int slapd_ssl_init();
+int slapd_ssl_init(void);
 int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
-int slapd_security_library_is_initialized();
-int slapd_ssl_listener_is_initialized();
+int slapd_security_library_is_initialized(void);
+int slapd_ssl_listener_is_initialized(void);
 int slapd_SSL_client_auth (LDAP* ld);
 SECKEYPrivateKey *slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg);
 
@@ -1101,11 +1101,11 @@ PK11Context * slapd_pk11_createContextBySymKey(CK_MECHANISM_TYPE type,
 SECStatus slapd_pk11_cipherOp(PK11Context *context, unsigned char * out, int *outlen,
 			      int maxout, unsigned char *in, int inlen);
 SECStatus slapd_pk11_finalize(PK11Context *context);
-PK11SlotInfo *slapd_pk11_getInternalKeySlot();
-PK11SlotInfo *slapd_pk11_getInternalSlot();
+PK11SlotInfo *slapd_pk11_getInternalKeySlot(void);
+PK11SlotInfo *slapd_pk11_getInternalSlot(void);
 SECStatus slapd_pk11_authenticate(PK11SlotInfo *slot, PRBool loadCerts, void *wincx);
 void slapd_pk11_setSlotPWValues(PK11SlotInfo *slot,int askpw, int timeout);
-PRBool slapd_pk11_isFIPS();
+PRBool slapd_pk11_isFIPS(void);
 CERTCertificate *slapd_pk11_findCertFromNickname(char *nickname, void *wincx);
 SECKEYPrivateKey *slapd_pk11_findKeyByAnyCert(CERTCertificate *cert, void *wincx);
 PRBool slapd_pk11_fortezzaHasKEA(CERTCertificate *cert);
@@ -1138,18 +1138,18 @@ CK_MECHANISM_TYPE slapd_PK11_GetPBECryptoMechanism(SECAlgorithmID *algid, SECIte
  */
 int start_tls( Slapi_PBlock *pb );
 int start_tls_graceful_closure( Connection *conn, Slapi_PBlock *pb, int is_initiator );
-int start_tls_register_plugin();
+int start_tls_register_plugin(void);
 int start_tls_init( Slapi_PBlock *pb );
 
 /* passwd_extop.c */
-int passwd_modify_register_plugin();
+int passwd_modify_register_plugin(void);
 
 /*
  * slapi_str2filter.c
  */
 struct slapi_filter *slapi_str2filter( char *str );
 char   *slapi_find_matching_paren( const char *str);
-struct slapi_filter    *str2simple();
+struct slapi_filter *str2simple(char *str , int unescape_filter);
 
 
 /*
@@ -1157,8 +1157,8 @@ struct slapi_filter    *str2simple();
  */
 char *get_timestring(time_t *t);
 void free_timestring(char *timestr);
-time_t current_time();
-time_t poll_current_time();
+time_t current_time(void);
+time_t poll_current_time(void);
 char* format_localTime (time_t from);
 int format_localTime_log(time_t t, int initsize, char *buf, int *bufsize);
 int format_localTime_hr_log(time_t t, long nsec, int initsize, char *buf, int *bufsize);
@@ -1199,15 +1199,15 @@ void bind_credentials_clear( Connection *conn, PRBool lock_conn,
  * libglobs.c
  */
 void g_set_shutdown( int reason );
-int g_get_shutdown();
-void c_set_shutdown();
-int c_get_shutdown();
-int	  g_get_global_lastmod();
+int g_get_shutdown(void);
+void c_set_shutdown(void);
+int c_get_shutdown(void);
+int         g_get_global_lastmod(void);
 /* Ref_Array *g_get_global_referrals(void); */
-struct snmp_vars_t * g_get_global_snmp_vars();
-void FrontendConfig_init();
-int g_get_slapd_security_on();
-char *config_get_versionstring();
+struct snmp_vars_t * g_get_global_snmp_vars(void);
+void FrontendConfig_init(void);
+int g_get_slapd_security_on(void);
+char *config_get_versionstring(void);
 
 void libldap_init_debug_level(int *);
 int get_entry_point( int, caddr_t* );
@@ -1226,10 +1226,10 @@ int modify_root_dse( Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, 
 /*
  * psearch.c
  */
-void ps_init_psearch_system();
-void ps_stop_psearch_system();
+void ps_init_psearch_system(void);
+void ps_stop_psearch_system(void);
 void ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls );
-void ps_wakeup_all();
+void ps_wakeup_all(void);
 void ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype,
 	ber_int_t chgnum );
 int ps_parse_control_value( struct berval *psbvp, ber_int_t *changetypesp,
@@ -1238,7 +1238,7 @@ int ps_parse_control_value( struct berval *psbvp, ber_int_t *changetypesp,
 /*
  * globals.c
  */
-void set_entry_points();
+void set_entry_points(void);
 
 /*
  * defbackend.c
@@ -1254,12 +1254,12 @@ void do_disconnect_server( Connection *conn, PRUint64 opconnid, int opid );
 /*
  * secpwd.c
  */
-char* getPassword();
+char* getPassword(void);
 
 /*
  * match.c
  */
-struct matchingRuleList *g_get_global_mrl();
+struct matchingRuleList *g_get_global_mrl(void);
 void g_set_global_mrl(struct matchingRuleList *newglobalmrl);
 
 /*
@@ -1279,19 +1279,19 @@ void factory_destroy_extension(int type,void *object,void *parent,void **extensi
  */
 
 void write_audit_log_entry( Slapi_PBlock *pb);
-void auditlog_hide_unhashed_pw();
-void auditlog_expose_unhashed_pw();
+void auditlog_hide_unhashed_pw(void);
+void auditlog_expose_unhashed_pw(void);
 
 void write_auditfail_log_entry( Slapi_PBlock *pb);
-void auditfaillog_hide_unhashed_pw();
-void auditfaillog_expose_unhashed_pw();
+void auditfaillog_hide_unhashed_pw(void);
+void auditfaillog_expose_unhashed_pw(void);
 
 /*
  * eventq.c
  */
-void eq_init();
-void eq_start();
-void eq_stop();
+void eq_init(void);
+void eq_start(void);
+void eq_stop(void);
 
 /* 
  * uniqueidgen.c
@@ -1313,12 +1313,12 @@ int uniqueIDGenInit (const char *configDir, const Slapi_DN *configDN, PRBool mtG
    Parameters:  none
    Return:      none
 */
-void uniqueIDGenCleanup (); 
+void uniqueIDGenCleanup(void);
 
 /*
  * init.c
  */
-void slapd_init();
+void slapd_init(void);
 
 /*
  * plugin.c
@@ -1355,7 +1355,7 @@ char* plugin_get_dn (const struct slapdplugin *plugin);
 PRBool plugin_allow_internal_op (Slapi_DN *target, struct slapdplugin *plugin);
 /* build operation action bitmap based on plugin configuration and actions specified for the operation */
 int plugin_build_operation_action_bitmap (int input_actions, const struct slapdplugin *plugin);
-const struct slapdplugin* plugin_get_server_plg ();
+const struct slapdplugin* plugin_get_server_plg(void);
 
 /* opshared.c - functions shared between regular and internal operations */
 void op_shared_search (Slapi_PBlock *pb, int send_result);
@@ -1402,8 +1402,8 @@ void subentry_create_filter(Slapi_Filter** filter);
 /*
  * vattr.c
  */
-void vattr_init();
-void vattr_cleanup();
+void vattr_init(void);
+void vattr_cleanup(void);
 
 /*
  * slapd_plhash.c - supplement to NSPR plhash
@@ -1415,9 +1415,9 @@ void *PL_HashTableLookup_const(
 /*
  * mapping_tree.c
  */
-int mapping_tree_init();
-void mapping_tree_free ();
-int mapping_tree_get_extension_type ();
+int mapping_tree_init(void);
+void mapping_tree_free(void);
+int mapping_tree_get_extension_type(void);
 
 /*
  * connection.c

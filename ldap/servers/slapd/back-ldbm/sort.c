@@ -42,7 +42,7 @@ static void sort_spec_thing_free(sort_spec_thing *s)
 	slapi_ch_free( (void**)&s);
 }
 
-static sort_spec_thing *sort_spec_thing_allocate()
+static sort_spec_thing *sort_spec_thing_allocate(void)
 {
 	return (sort_spec_thing *) slapi_ch_calloc(1,sizeof (sort_spec_thing));
 }

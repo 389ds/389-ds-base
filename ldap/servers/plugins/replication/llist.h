@@ -17,7 +17,7 @@
 #define LLIST_H
 typedef struct llist LList;
 
-LList* llistNew ();
+LList* llistNew(void);
 void   llistDestroy (LList **list, FNFree fnFree);
 void*  llistGetFirst(LList *list, void **iterator);
 void*  llistGetNext (LList *list, void **iterator);

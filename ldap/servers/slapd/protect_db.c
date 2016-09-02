@@ -38,7 +38,7 @@
 #include "slap.h"
 
 static int
-grab_lockfile()
+grab_lockfile(void)
 {
     pid_t pid, owning_pid;
     char lockfile[MAXPATHLEN];
@@ -124,7 +124,7 @@ grab_lockfile()
 }
 
 static void
-release_lockfile()
+release_lockfile(void)
 {
     char lockfile[MAXPATHLEN];
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -311,7 +311,7 @@ remove_and_update(char *dir_name)
  * pids.  It also removes the files for this process. 
  */
 void
-remove_slapd_process()
+remove_slapd_process(void)
 {
     char import_dir[MAXPATHLEN];
     char export_dir[MAXPATHLEN];
@@ -495,7 +495,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
  * returns 1 if slapd is running, 0 if not, -1 on error
  */
 int
-is_slapd_running() {
+is_slapd_running(void) {
   char server_dir[MAXPATHLEN];
   slapdFrontendConfig_t *cfg = getFrontendConfig();
   int running = 0;

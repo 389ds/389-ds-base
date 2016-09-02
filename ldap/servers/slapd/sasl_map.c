@@ -33,14 +33,14 @@ static char * configDN = "cn=mapping,cn=sasl,cn=config";
 static sasl_map_private *sasl_map_static_priv = NULL;
 
 static 
-sasl_map_private *sasl_map_get_global_priv()
+sasl_map_private *sasl_map_get_global_priv(void)
 {
 	/* ASSERT(sasl_map_static_priv) */
 	return sasl_map_static_priv;
 }
 
 static 
-sasl_map_private *sasl_map_new_private()
+sasl_map_private *sasl_map_new_private(void)
 {
 	Slapi_RWLock *new_lock =  slapi_new_rwlock();
 	sasl_map_private *new_priv = NULL;

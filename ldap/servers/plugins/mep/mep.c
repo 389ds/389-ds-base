@@ -57,8 +57,8 @@ static int mep_modrdn_pre_op(Slapi_PBlock *pb);
 /*
  * Config cache management functions
  */
-static int mep_load_config();
-static void mep_delete_config();
+static int mep_load_config(void);
+static void mep_delete_config(void);
 static int mep_parse_config_entry(Slapi_Entry * e, int apply);
 static void mep_free_config_entry(struct configEntry ** entry);
 
@@ -66,7 +66,7 @@ static void mep_free_config_entry(struct configEntry ** entry);
  * helpers
  */
 static Slapi_DN *mep_get_sdn(Slapi_PBlock * pb);
-static Slapi_DN *mep_get_config_area();
+static Slapi_DN *mep_get_config_area(void);
 static void mep_set_config_area(Slapi_DN *sdn);
 static int mep_dn_is_config(Slapi_DN *sdn);
 static int mep_dn_is_template(Slapi_DN *dn);
@@ -136,7 +136,7 @@ mep_set_plugin_sdn(Slapi_DN *pluginDN)
 }
 
 Slapi_DN *
-mep_get_plugin_sdn()
+mep_get_plugin_sdn(void)
 {
     return _PluginDN;
 }
@@ -390,7 +390,7 @@ mep_get_config()
  * --- cn=etc,...
  */
 static int
-mep_load_config()
+mep_load_config(void)
 {
     int status = 0;
     int result;
@@ -749,7 +749,7 @@ mep_delete_configEntry(PRCList *entry)
 }
 
 static void
-mep_delete_config()
+mep_delete_config(void)
 {
     PRCList *list;
 
@@ -990,7 +990,7 @@ mep_set_config_area(Slapi_DN *sdn)
 }
 
 static Slapi_DN *
-mep_get_config_area()
+mep_get_config_area(void)
 {
     return _ConfigAreaDN;
 }

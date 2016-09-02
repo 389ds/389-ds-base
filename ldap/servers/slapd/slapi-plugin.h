@@ -6273,7 +6273,7 @@ int slapi_ldap_bind(
  * 
  * \return the full path of PEM format CA Cert
  */
-const char * slapi_get_cacertfile();
+const char * slapi_get_cacertfile(void);
 
 /**
  * Set the full path of PEM format CA Cert

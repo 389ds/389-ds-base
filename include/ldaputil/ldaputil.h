@@ -74,7 +74,7 @@ extern void ldapu_certmap_listinfo_free (void *certmap_listinfo);
 
 extern void ldapu_propval_list_free (void *propval_list);
 
-NSAPI_PUBLIC extern int ldaputil_exit ();
+NSAPI_PUBLIC extern int ldaputil_exit(void);
 
 NSAPI_PUBLIC extern int ldapu_cert_to_user (void *cert, LDAP *ld,
 					    const char *basedn,

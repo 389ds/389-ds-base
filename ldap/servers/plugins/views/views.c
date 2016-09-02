@@ -91,10 +91,10 @@ static Slapi_Counter *op_counter = NULL;
 int views_init( Slapi_PBlock *pb ); 
 static int views_start( Slapi_PBlock *pb );
 static int views_close( Slapi_PBlock *pb );
-static int views_cache_create();
+static int views_cache_create(void);
 static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Slapi_PBlock *pb, void *caller_data );
 static int views_cache_build_view_list(viewEntry **pViews);
-static int views_cache_index();
+static int views_cache_index(void);
 static int 	views_dn_views_cb (Slapi_Entry* e, void *callback_data);
 static int views_cache_add_dn_views(char *dn, viewEntry **pViews);
 static void views_cache_add_ll_entry(void** attrval, void *theVal);
@@ -110,7 +110,7 @@ static int view_search_rewrite_callback(Slapi_PBlock *pb);
 static void views_cache_backend_state_change(void *handle, char *be_name, int old_be_state, int new_be_state); 
 static void views_cache_act_on_change_thread(void *arg);
 static viewEntry *views_cache_find_view(char *view);
-static void views_cache_free();
+static void views_cache_free(void);
 
 /* our api broker published api */
 static void *api[3];
@@ -136,7 +136,7 @@ void view_set_plugin_identity(void * identity)
 	view_plugin_identity=identity;
 }
 
-void * view_get_plugin_identity()
+void * view_get_plugin_identity(void)
 {
 	return view_plugin_identity;
 }
@@ -179,17 +179,17 @@ int views_init( Slapi_PBlock *pb )
     return ret;
 }
 
-void views_read_lock()
+void views_read_lock(void)
 {
 	slapi_rwlock_rdlock(g_views_cache_lock);
 }
 
-void views_write_lock()
+void views_write_lock(void)
 {
 	slapi_rwlock_wrlock(g_views_cache_lock);
 }
 
-void views_unlock()
+void views_unlock(void)
 {
 	slapi_rwlock_unlock(g_views_cache_lock);
 }
@@ -379,7 +379,7 @@ static int views_close( Slapi_PBlock *pb )
 	return SLAPI_PLUGIN_SUCCESS;
 }
 
-static void views_cache_free()
+static void views_cache_free(void)
 {
 	viewEntry *head = theCache.pCacheViews;
 	viewEntry *current;
@@ -421,7 +421,7 @@ static void views_cache_free()
 	---------------------
 	Walks the views in the DIT and populates the cache.
 */
-static int views_cache_create()
+static int views_cache_create(void)
 {
 	int ret = SLAPI_PLUGIN_FAILURE;
 
@@ -538,7 +538,7 @@ int views_cache_dn_compare(const void *e1, const void *e2)
  * ----------------
  * indexes the cache for fast look up of views
  */
-static int views_cache_index()
+static int views_cache_index(void)
 {
 	int ret = SLAPI_PLUGIN_FAILURE;
 	int i;

@@ -98,7 +98,7 @@ static char **mozldap_ldap_explode_dn( const char *dn, const int notypes );
 static char **mozldap_ldap_explode_rdn( const char *rdn, const int notypes );
 
 #ifdef HAVE_KRB5
-static void clear_krb5_ccache();
+static void clear_krb5_ccache(void);
 #endif
 
 #ifdef MEMPOOL_EXPERIMENTAL
@@ -2172,7 +2172,7 @@ cleanup:
 }
 
 static void
-clear_krb5_ccache()
+clear_krb5_ccache(void)
 {
     krb5_context ctx = NULL;
     krb5_ccache cc = NULL;

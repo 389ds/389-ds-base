@@ -6103,14 +6103,14 @@ schema_expand_objectclasses_nolock( Slapi_Entry *e )
 
 /* lock to protect both objectclass and schema_dse */
 static void
-reload_schemafile_lock()
+reload_schemafile_lock(void)
 {
 	oc_lock_write();
 	schema_dse_lock_write();
 }
 
 static void
-reload_schemafile_unlock()
+reload_schemafile_unlock(void)
 {
 	schema_dse_unlock();
 	oc_unlock();

@@ -23,7 +23,7 @@ struct vlv_key
     DBT key;
 };
 
-struct vlv_key *vlv_key_new();
+struct vlv_key *vlv_key_new(void);
 void vlv_key_delete(struct vlv_key **p);
 void vlv_key_addattr(struct vlv_key *p,struct berval *val);
 

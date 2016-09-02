@@ -56,17 +56,17 @@ int my_fgetc(PRFileDesc *stream);
 void referint_thread_func(void *arg);
 void writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn, char *newrdn, Slapi_DN *newsuperior, Slapi_DN *requestorsdn);
 int load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply);
-int referint_get_delay();
-int referint_get_logchanges();
-char *referint_get_logfile();
-char **referint_get_attrs();
+int referint_get_delay(void);
+int referint_get_logchanges(void);
+char *referint_get_logfile(void);
+char **referint_get_attrs(void);
 int referint_postop_modify(Slapi_PBlock *pb);
 int referint_validate_config(Slapi_PBlock *pb);
 static int referint_preop_init(Slapi_PBlock *pb);
 void referint_set_config_area(Slapi_DN *dn);
-Slapi_DN *referint_get_config_area();
+Slapi_DN *referint_get_config_area(void);
 void referint_set_plugin_area(Slapi_DN *sdn);
-Slapi_DN *referint_get_plugin_area();
+Slapi_DN *referint_get_plugin_area(void);
 int referint_sdn_config_cmp(Slapi_DN *sdn);
 void referint_get_config(int *delay, int *logchanges, char **logfile);
 
@@ -91,7 +91,7 @@ static int premodfn = SLAPI_PLUGIN_PRE_MODIFY_FN;
 
 
 static void
-referint_lock()
+referint_lock(void)
 {
     if (use_txn) { /* no lock if betxn is enabled */
         return;
@@ -105,7 +105,7 @@ referint_lock()
 }
 
 static void
-referint_unlock()
+referint_unlock(void)
 {
     if (use_txn) { /* no lock if betxn is enabled */
         return;
@@ -129,7 +129,7 @@ referint_set_config_area(Slapi_DN *dn)
  * which does take the lock.
  */
 Slapi_DN *
-referint_get_config_area()
+referint_get_config_area(void)
 {
     return _ConfigAreaDN;
 }
@@ -143,7 +143,7 @@ referint_set_plugin_area(Slapi_DN *sdn)
 }
 
 Slapi_DN *
-referint_get_plugin_area()
+referint_get_plugin_area(void)
 {
     return _pluginDN;
 }
@@ -488,7 +488,7 @@ bail:
 }
 
 int
-referint_get_delay()
+referint_get_delay(void)
 {
     int delay;
 
@@ -500,7 +500,7 @@ referint_get_delay()
 }
 
 int
-referint_get_logchanges()
+referint_get_logchanges(void)
 {
     int log_changes;
 
@@ -512,7 +512,7 @@ referint_get_logchanges()
 }
 
 char *
-referint_get_logfile()
+referint_get_logfile(void)
 {
     char *log_file;
 
@@ -543,7 +543,7 @@ referint_get_config(int *delay, int *logchanges, char **logfile)
  * might need to find an alternate option instead of copying
  */
 char **
-referint_get_attrs()
+referint_get_attrs(void)
 {
     char **attrs = NULL;
 

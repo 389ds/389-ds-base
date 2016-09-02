@@ -152,7 +152,7 @@ matching_rule_plugin_init(Slapi_PBlock *pb)
 }
 
 static int
-register_matching_rule_plugins()
+register_matching_rule_plugins(void)
 {
 	return syntax_register_matching_rule_plugins(mr_plugin_table, mr_plugin_table_size, matching_rule_plugin_init);
 }

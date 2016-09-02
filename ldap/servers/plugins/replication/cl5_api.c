@@ -246,19 +246,19 @@ static CL5Desc s_cl5Desc;
 static int _cl5Open (const char *dir, const CL5DBConfig *config, CL5OpenMode openMode);
 static int _cl5AppInit (void);
 static int _cl5DBOpen (void);
-static void _cl5SetDefaultDBConfig ();
+static void _cl5SetDefaultDBConfig(void);
 static void _cl5SetDBConfig (const CL5DBConfig *config);
-static int _cl5CheckDBVersion ();
+static int _cl5CheckDBVersion(void);
 static int _cl5ReadDBVersion (const char *dir, char *clVersion, int buflen);
-static int _cl5WriteDBVersion ();
-static void _cl5Close ();
+static int _cl5WriteDBVersion(void);
+static void _cl5Close(void);
 static int  _cl5Delete (const char *dir, PRBool rmDir);
-static void _cl5DBClose ();
+static void _cl5DBClose(void);
 
 /* thread management */
-static int _cl5DispatchDBThreads ();
-static int _cl5AddThread ();
-static void _cl5RemoveThread ();
+static int _cl5DispatchDBThreads(void);
+static int _cl5AddThread(void);
+static void _cl5RemoveThread(void);
 
 /* functions that work with individual changelog files */
 static int _cl5NewDBFile (const char *replName, const char *replGen, CL5DBFile** dbFile);
@@ -314,11 +314,11 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
 static int _cl5CheckMissingCSN (const CSN *minCsn, const RUV *supplierRUV, CL5DBFile *file);
 
 /* changelog trimming */
-static int _cl5TrimInit ();
-static void _cl5TrimCleanup ();
+static int _cl5TrimInit(void);
+static void _cl5TrimCleanup(void);
 static int _cl5TrimMain (void *param);
-static void _cl5DoTrimming ();
-static void _cl5CompactDBs();
+static void _cl5DoTrimming(void);
+static void _cl5CompactDBs(void);
 static void _cl5PurgeRID(Object *obj,  ReplicaId cleaned_rid);
 static int _cl5PurgeGetFirstEntry (Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid, int rid, DBT *key);
 static int _cl5PurgeGetNextEntry (CL5Entry *entry, void *iterator, DBT *key);
@@ -349,8 +349,8 @@ static int _cl5FileEndsWith(const char *filename, const char *ext);
 static PRLock *cl5_diskfull_lock = NULL;
 static int cl5_diskfull_flag = 0;
 
-static void cl5_set_diskfull();
-static void cl5_set_no_diskfull();
+static void cl5_set_diskfull(void);
+static void cl5_set_no_diskfull(void);
 
 /***** Module APIs *****/
 
@@ -361,7 +361,7 @@ static void cl5_set_no_diskfull();
    Return:		CL5_SUCCESS if function is successful;
 				CL5_SYSTEM_ERROR error if NSPR call fails.
  */
-int cl5Init ()
+int cl5Init(void)
 {
 	s_cl5Desc.stLock = slapi_new_rwlock();
 	if (s_cl5Desc.stLock == NULL)
@@ -2369,7 +2369,7 @@ cl5DBData2Entry (const char *data, PRUint32 len, CL5Entry *entry)
 }
 
 /* thread management functions */
-static int _cl5DispatchDBThreads ()
+static int _cl5DispatchDBThreads(void)
 {
 	PRThread *pth = NULL;
 
@@ -2387,7 +2387,7 @@ static int _cl5DispatchDBThreads ()
 	return CL5_SUCCESS;
 }
 
-static int _cl5AddThread ()
+static int _cl5AddThread(void)
 {
 	/* lock the state lock so that nobody can change the state
 	   while backup is in progress 
@@ -2412,7 +2412,7 @@ static int _cl5AddThread ()
 	return CL5_SUCCESS;
 }
 
-static void _cl5RemoveThread ()
+static void _cl5RemoveThread(void)
 {
 	PR_ASSERT (s_cl5Desc.threadCount > 0);
 	PR_AtomicDecrement (&s_cl5Desc.threadCount);
@@ -2991,7 +2991,7 @@ static int _cl5UpgradeMinor(char *fromVersion, char *toVersion)
 	return rc;
 }
 
-static int _cl5CheckDBVersion ()
+static int _cl5CheckDBVersion(void)
 {
 	char clVersion [VERSION_SIZE + 1];
 	char dbVersion [VERSION_SIZE + 1];
@@ -3142,7 +3142,7 @@ static int _cl5ReadDBVersion (const char *dir, char *clVersion, int buflen)
 	return CL5_SUCCESS;		
 }
 
-static int _cl5WriteDBVersion ()
+static int _cl5WriteDBVersion(void)
 {
 	int rc;
 	PRFileDesc *file;
@@ -3190,7 +3190,7 @@ static int _cl5WriteDBVersion ()
 }
 
 /* must be called under the state lock */
-static void _cl5Close ()
+static void _cl5Close(void)
 {
 	PRIntervalTime interval;
 
@@ -3237,7 +3237,7 @@ static void _cl5Close ()
 	}
 }
 
-static void _cl5DBClose ()
+static void _cl5DBClose(void)
 {
 	if (NULL != s_cl5Desc.dbFiles)
 	{
@@ -3365,7 +3365,7 @@ static int  _cl5Delete (const char *clDir, int rmDir)
 	return CL5_SUCCESS;
 }
 
-static void _cl5SetDefaultDBConfig ()
+static void _cl5SetDefaultDBConfig(void)
 {
   s_cl5Desc.dbConfig.maxConcurrentWrites= CL5_DEFAULT_CONFIG_MAX_CONCURRENT_WRITES;
   s_cl5Desc.dbConfig.fileMode           = FILE_CREATE_MODE;
@@ -3380,7 +3380,7 @@ static void _cl5SetDBConfig (const CL5DBConfig *config)
 }
 
 /* Trimming helper functions */
-static int _cl5TrimInit ()
+static int _cl5TrimInit(void)
 {
 	/* just create the lock while we are singlethreaded */
 	s_cl5Desc.dbTrim.lock = PR_NewLock();
@@ -3398,7 +3398,7 @@ static int _cl5TrimInit ()
 	}
 }
 
-static void _cl5TrimCleanup ()
+static void _cl5TrimCleanup(void)
 {
 	if (s_cl5Desc.dbTrim.lock)
 		PR_DestroyLock (s_cl5Desc.dbTrim.lock);
@@ -3421,7 +3421,7 @@ static int _cl5TrimMain (void *param)
 		{
 			/* time to trim */
 			timePrev = timeNow; 
-			_cl5DoTrimming (0 /* there's no cleaned rid */);
+                     _cl5DoTrimming();
 		}
 		if ((s_cl5Desc.dbTrim.compactInterval > 0) &&
 		    (timeNow - timeCompactPrev >= s_cl5Desc.dbTrim.compactInterval))
@@ -3461,7 +3461,7 @@ static int _cl5TrimMain (void *param)
  *   change sent to the consumer in the changelog and will fail because the
  *   change was removed.
  */
-static void _cl5DoTrimming ()
+static void _cl5DoTrimming(void)
 {
 	Object *obj;
 	long numToTrim;
@@ -3528,7 +3528,7 @@ static void _cl5DoPurging (Replica *replica)
 
 /* clear free page files to reduce changelog */
 static void
-_cl5CompactDBs()
+_cl5CompactDBs(void)
 {
 #if 1000*DB_VERSION_MAJOR + 100*DB_VERSION_MINOR >= 4400
 	int rc;
@@ -6674,7 +6674,7 @@ cl5_is_diskfull()
 }
 
 static void
-cl5_set_diskfull()
+cl5_set_diskfull(void)
 {
 	PR_Lock(cl5_diskfull_lock);
     cl5_diskfull_flag = 1;
@@ -6682,7 +6682,7 @@ cl5_set_diskfull()
 }
 
 static void
-cl5_set_no_diskfull()
+cl5_set_no_diskfull(void)
 {
 	PR_Lock(cl5_diskfull_lock);
     cl5_diskfull_flag = 0;

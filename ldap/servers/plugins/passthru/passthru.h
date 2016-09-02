@@ -136,6 +136,6 @@ void passthru_free_bervals( struct berval **bvs );
 /*
  * ptpreop.c
  */
-void passthru_free_config();
+void passthru_free_config(void);
 
 #endif	/* _PASSTHRU_H_ */

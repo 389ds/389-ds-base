@@ -159,7 +159,7 @@ typedef struct {
 } cipherstruct;
 
 static cipherstruct *_conf_ciphers = NULL;
-static void _conf_init_ciphers();
+static void _conf_init_ciphers(void);
 /* 
  * This lookup table is for supporting the old cipher name.
  * Once swtiching to the NSS cipherSuiteName is done,
@@ -291,7 +291,7 @@ slapd_SSL_warn(char *fmt, ...)
 }
 
 char **
-getSupportedCiphers()
+getSupportedCiphers(void)
 {
 	SSLCipherSuiteInfo info;
 	char *sep = "::";
@@ -348,7 +348,7 @@ get_allow_weak_dh_param(Slapi_Entry *e)
 
 
 char **
-getEnabledCiphers()
+getEnabledCiphers(void)
 {
     SSLCipherSuiteInfo info;
     char *sep = "::";
@@ -533,7 +533,7 @@ getSSLVersionRangeOL(int *min, int *max)
 #endif /* USE_OPENLDAP */
 
 static void
-_conf_init_ciphers()
+_conf_init_ciphers(void)
 {
     int x;
     SECStatus rc;
@@ -641,7 +641,7 @@ charray2str(char **ary, const char *delim)
 }
 
 void
-_conf_dumpciphers()
+_conf_dumpciphers(void)
 {
     int x;
     PRBool enabled;
@@ -1283,7 +1283,7 @@ slapd_nss_init(int init_ssl, int config_available)
 }
 
 static int
-svrcore_setup()
+svrcore_setup(void)
 {
     PRErrorCode errorCode;
     int rv = 0;

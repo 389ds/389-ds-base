@@ -55,10 +55,11 @@ add_file_to_list(caddr_t data, caddr_t arg)
 	return -1;
 }
 
-static void
+static int
 free_string(caddr_t data)
 {
 	slapi_ch_free((void **)&data);
+       return 0;
 }
 
 static int

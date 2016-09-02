@@ -19,7 +19,7 @@ static int idl_new = 0; /* non-zero if we're doing new IDL style */
 
 
 void idl_old_set_tune(int val);
-int idl_old_get_tune();
+int idl_old_get_tune(void);
 int idl_old_init_private(backend *be, struct attrinfo *a);
 int idl_old_release_private(struct attrinfo *a);
 size_t idl_old_get_allidslimit(struct attrinfo *a);
@@ -30,7 +30,7 @@ int idl_old_store_block( backend *be,DB *db,DBT *key,IDList *idl,DB_TXN *txn,str
 
 
 void idl_new_set_tune(int val);
-int idl_new_get_tune();
+int idl_new_get_tune(void);
 int idl_new_init_private(backend *be, struct attrinfo *a);
 int idl_new_release_private(struct attrinfo *a);
 size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit);
@@ -59,7 +59,7 @@ void idl_set_tune(int val)
 	}
 }
 
-int idl_get_tune()
+int idl_get_tune(void)
 {
 	if (idl_new) {
 		return idl_new_get_tune();

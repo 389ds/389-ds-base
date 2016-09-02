@@ -24,8 +24,8 @@ char* client_auth_config_file = NULL;
 
 /* forward declarations */
 
-static void generate_id();
-static Slapi_ComponentId * auth_get_component_id();
+static void generate_id(void);
+static Slapi_ComponentId * auth_get_component_id(void);
 
 #define internal_ld NULL
 
@@ -312,14 +312,14 @@ client_auth_init ()
 
 static Slapi_ComponentId * auth_component_id=NULL;
 
-static void generate_id() 
+static void generate_id(void)
 {
 	if (auth_component_id == NULL ) {
 	    	auth_component_id=generate_componentid (NULL /* Not a plugin */ , COMPONENT_CERT_AUTH);
 	}
 }
 
-static Slapi_ComponentId * auth_get_component_id() {
+static Slapi_ComponentId * auth_get_component_id(void) {
 	return auth_component_id;
 }
 

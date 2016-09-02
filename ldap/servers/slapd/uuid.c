@@ -74,15 +74,15 @@ static int read_state_from_entry (const Slapi_DN *configDN);
 /* writes state to persistent store: file or dit */
 static int write_state(PRBool newState);
 /* writes state to a file */
-static int write_state_to_file();
+static int write_state_to_file(void);
 /* writes state to dit */
 static int write_state_to_entry(PRBool newState);
 /* add state entry to the dit */
-static int add_state_entry ();
+static int add_state_entry(void);
 /* modify state entry in the dit */
-static int modify_state_entry ();
+static int modify_state_entry(void);
 /* generates timestamp for the next uuid - single threaded */
-static uuid_time_t update_time();
+static uuid_time_t update_time(void);
 /* generates timestamp for the next uuid - multithreaded threaded */  
 static int update_time_mt(uuid_time_t *timestamp, unsigned16 *clock_seq);
 /* retrieves or generates nodeid */
@@ -194,7 +194,7 @@ int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
 }
 
 /* uuid_cleanup -- saves state, destroys generator data */
-void uuid_cleanup ()
+void uuid_cleanup(void)
 {
     if (_state.initialized)
     {
@@ -578,7 +578,7 @@ static int write_state (PRBool newState)
 
 /* write_state_to_file -- stores state to state file
 */
-static int write_state_to_file() 
+static int write_state_to_file(void)
 {
 	int rt;
 
@@ -616,7 +616,7 @@ static int write_state_to_entry(PRBool newState) {
 }
 
 /* add_state_entry -- add state entry to the dit */
-static int add_state_entry ()
+static int add_state_entry(void)
 {
 	struct berval	*vals[2];
 	struct berval	val;
@@ -673,7 +673,7 @@ static int add_state_entry ()
 }
 
 /* modify_state_entry -- modify state entry in the dit */
-static int modify_state_entry ()
+static int modify_state_entry(void)
 {
 	int res;
 	Slapi_Mods mods;
@@ -718,7 +718,7 @@ static int modify_state_entry ()
 /* update_time -- updates time portion of the generators state
 				  for singlethreaded generation
 */
-static uuid_time_t update_time() 
+static uuid_time_t update_time(void)
 {
 	uuid_time_t         time_now;
 

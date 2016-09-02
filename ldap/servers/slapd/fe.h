@@ -42,23 +42,23 @@ extern char	*configfile;
  * auth.c
  *
  */
-void client_auth_init();
+void client_auth_init(void);
 void handle_handshake_done (PRFileDesc *prfd, void* clientData);
 int handle_bad_certificate (void* clientData, PRFileDesc *prfd);
 
 /*
  * connection.c
  */
-void op_thread_cleanup();
+void op_thread_cleanup(void);
 /* do this after all worker threads have terminated */
-void connection_post_shutdown_cleanup();
+void connection_post_shutdown_cleanup(void);
 
 /*
  * connection.c
  */
 void connection_abandon_operations( Connection *conn );
 int connection_activity( Connection *conn, int maxthreads );
-void init_op_threads();
+void init_op_threads(void);
 int connection_new_private(Connection *conn);
 void connection_remove_operation( Connection *conn, Operation *op );
 void connection_remove_operation_ext( Slapi_PBlock *pb, Connection *conn, Operation *op );
@@ -114,16 +114,16 @@ int connection_table_iterate_active_connections(Connection_Table *ct, void* arg,
 /*
  * daemon.c
  */
-int signal_listner();
+int signal_listner(void);
 int daemon_pre_setuid_init(daemon_ports_t *ports);
 void slapd_daemon( daemon_ports_t *ports );
-void daemon_register_connection();
+void daemon_register_connection(void);
 int slapd_listenhost2addr( const char *listenhost, PRNetAddr ***addr );
 int daemon_register_reslimits( void );
-PRFileDesc * get_ssl_listener_fd();
+PRFileDesc * get_ssl_listener_fd(void);
 int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local );
 void configure_ns_socket( int * ns );
-void ns_enable_listeners();
+void ns_enable_listeners(void);
 
 /*
  * sasl_io.c
@@ -154,9 +154,9 @@ int sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry*
 int sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 int sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, int *returncode, char *returntext, void *arg);
 int sasl_map_domap(sasl_map_data **map, char *sasl_user, char *sasl_realm, char **ldap_search_base, char **ldap_search_filter);
-int sasl_map_init();
-int sasl_map_done();
-void sasl_map_read_lock();
-void sasl_map_read_unlock();
+int sasl_map_init(void);
+int sasl_map_done(void);
+void sasl_map_read_lock(void);
+void sasl_map_read_unlock(void);
 
 #endif
