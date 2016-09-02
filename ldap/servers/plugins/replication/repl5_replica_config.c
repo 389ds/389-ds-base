@@ -82,6 +82,7 @@ static void preset_cleaned_rid(ReplicaId rid);
 static multimaster_mtnode_extension * _replica_config_get_mtnode_ext (const Slapi_Entry *e);
 static void replica_cleanall_ruv_destructor(Slapi_Task *task);
 static void replica_cleanall_ruv_abort_destructor(Slapi_Task *task);
+static void remove_keep_alive_entry(Slapi_Task *task, ReplicaId rid, const char *repl_root);
 
 /*
  * Note: internal add/modify/delete operations should not be run while
@@ -1980,9 +1981,17 @@ done:
      *  If the replicas are cleaned, release the rid
      */
     if(!aborted && !slapi_is_shutting_down()){
+        /*
+         * Success - the rid has been cleaned!
+         *
+         * Delete the cleaned rid config.
+         * Make sure all the replicas have been "pre_cleaned"
+         * Remove the keep alive entry if present
+         * Remove the rid from the internal clean list
+         */
         delete_cleaned_rid_config(data);
-        /* make sure all the replicas have been "pre_cleaned" before finishing */
         check_replicas_are_done_cleaning(data);
+        remove_keep_alive_entry(data->task, data->rid, data->repl_root);
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
         remove_cleaned_rid(data->rid);
     } else {
@@ -2015,6 +2024,41 @@ done:
     slapi_ch_free_string(&data->force);
     slapi_ch_free_string(&rid_text);
     slapi_ch_free((void **)&data);
+}
+
+/*
+ * Remove the "Keep-Alive" replication entry.
+ */
+static void
+remove_keep_alive_entry(Slapi_Task *task, ReplicaId rid, const char *repl_root)
+{
+    Slapi_PBlock *delete_pb = NULL;
+    char *keep_alive_dn = NULL;
+    int rc = 0;
+
+    /* Construct the repl keep alive dn from the rid and replication suffix */
+    keep_alive_dn = PR_smprintf("cn=repl keep alive %d,%s", (int)rid, repl_root);
+
+    delete_pb = slapi_pblock_new();
+    slapi_delete_internal_set_pb(delete_pb, keep_alive_dn ,NULL, NULL,
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_delete_internal_pb(delete_pb);
+    slapi_pblock_get(delete_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc == LDAP_NO_SUCH_OBJECT) {
+        /* No problem, it's not always there */
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "No Keep-Alive entry to remove (%s)",
+                     keep_alive_dn);
+    } else if (rc != LDAP_SUCCESS){
+        /* Failed to delete the entry */
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "Failed to delete Keep-Alive entry (%s) "
+                     "Error (%d) This entry will need to be manually removed",
+                     keep_alive_dn, rc);
+    } else {
+        /* Success */
+        cleanruv_log(task, rid, CLEANALLRUV_ID, "Removed Keep-Alive entry (%s)", keep_alive_dn);
+    }
+    slapi_pblock_destroy(delete_pb);
+    slapi_ch_free_string(&keep_alive_dn);
 }
 
 static void
