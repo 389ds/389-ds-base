@@ -29,7 +29,7 @@ static int num_counters= 0;
 static struct counter *counters= NULL;
 
 static int
-count_counters()
+count_counters(void)
 {
 	int i= 0;
 	PR_DEFINE_COUNTER(qh);
@@ -51,7 +51,7 @@ count_counters()
 }
 
 static int
-do_fetch_counters()
+do_fetch_counters(void)
 {
 	int i= 0;
 	PR_DEFINE_COUNTER(qh);
@@ -79,7 +79,7 @@ do_fetch_counters()
 }
 
 static void
-fetch_counters()
+fetch_counters(void)
 {
 	int i;
 	if(counters==NULL)

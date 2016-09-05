@@ -44,7 +44,7 @@ static Slapi_Counter *slapi_csn_counter_exist;
 
 #ifdef DEBUG
 static void
-csn_create_counters()
+csn_create_counters(void)
 {
 	slapi_csn_counter_created = slapi_counter_new();
 	slapi_csn_counter_deleted = slapi_counter_new();
@@ -53,7 +53,7 @@ csn_create_counters()
 }
 #endif
 
-CSN *csn_new()
+CSN *csn_new(void)
 {
 #ifdef DEBUG
 	if(!counters_created)
