@@ -49,7 +49,6 @@ SVRCORE_CreateStdSystemdPinObj(
     PRBool systemdPINs, uint64_t timeout)
 {
 #ifdef HAVE_SYSTEMD
-#ifndef _WIN32
     SVRCOREError err = SVRCORE_Success;
     SVRCOREStdSystemdPinObj *obj = 0;
 
@@ -147,7 +146,6 @@ SVRCORE_CreateStdSystemdPinObj(
     }
 
     return err;
-#endif // win32
 #else // systemd
     return SVRCORE_MissingFeature;
 #endif // Systemd
@@ -158,7 +156,6 @@ SVRCORE_DestroyStdSystemdPinObj(
   SVRCOREStdSystemdPinObj *obj)
 {
 #ifdef HAVE_SYSTEMD
-#ifndef _WIN32
     if (!obj) return;
 
     if (obj->user) SVRCORE_DestroyUserPinObj(obj->user);
@@ -169,7 +166,6 @@ SVRCORE_DestroyStdSystemdPinObj(
     if (obj->systemdalt) SVRCORE_DestroyAltPinObj(obj->systemdalt);
 
     free(obj);
-#endif // win32
 #endif // Systemd
 }
 
@@ -179,9 +175,7 @@ void
 SVRCORE_SetStdSystemdPinInteractive(SVRCOREStdSystemdPinObj *obj, PRBool i)
 {
 #ifdef HAVE_SYSTEMD
-#ifndef _WIN32
     SVRCORE_SetUserPinInteractive(obj->user, i);
-#endif // win32
 #endif // Systemd
 }
 
@@ -194,7 +188,6 @@ SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
   const char *tokenName)
 {
 #ifdef HAVE_SYSTEMD
-#ifndef _WIN32
 #ifdef DEBUG
     printf("std-systemd:stdsystem-getpin() -> starting \n");
 #endif
@@ -206,7 +199,6 @@ SVRCORE_StdSystemdPinGetPin(char **pin, SVRCOREStdSystemdPinObj *obj,
     }
 
     return SVRCORE_CachedPinGetPin(pin, obj->cache, tokenName);
-#endif // win32
 #else // systemd
     return SVRCORE_MissingFeature;
 #endif // Systemd

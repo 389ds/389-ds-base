@@ -14,6 +14,7 @@ Requires:         nss >= %{nss_version}
 BuildRequires:    nspr-devel >= %{nspr_version}
 BuildRequires:    nss-devel >= %{nss_version}
 BuildRequires:    pkgconfig
+BuildRequires:    pkgconfig(systemd)
 
 Source0:            http://www.port389.org/binaries/%{name}-%{version}.tar.bz2
 

@@ -22,7 +22,19 @@ AC_ARG_WITH(systemd, AS_HELP_STRING([--with-systemd],[Enable Systemd native inte
 AC_MSG_RESULT(no))
 
 if test "$with_systemd" = yes; then
-    SYSTEMD_CFLAGS="-DHAVE_SYSTEMD"
+    AC_MSG_CHECKING(for systemd with pkg-config)
+    AC_PATH_PROG(PKG_CONFIG, pkg-config)
+    if test -n "$PKG_CONFIG"; then
+        if $PKG_CONFIG --exists systemd; then
+            AC_MSG_CHECKING([systemd found, enabling.])
+            SYSTEMD_CFLAGS="-DHAVE_SYSTEMD"
+        else
+            AC_MSG_CHECKING([systemd not found, disabling.])
+            SYSTEMD_CFLAGS=""
+        fi
+    else
+      AC_MSG_ERROR([pkg-config not found.])
+    fi
 else
     SYSTEMD_CFLAGS=""
 fi
