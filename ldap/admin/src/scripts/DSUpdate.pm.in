@@ -416,7 +416,7 @@ sub updateDSInstance {
 
     push @errs, updateTmpfilesDotD($inf);
 
-    push @errs, updateSystemD($inf);
+    push @errs, updateSystemD(1, $inf);
 
     return @errs;
 }

@@ -196,12 +196,26 @@ nsslapd-plugininitfunc: ns_mta_md5_pwd_storage_scheme_init
 nsslapd-plugintype: pwdstoragescheme
 nsslapd-pluginenabled: on
 
+dn: cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config
+objectclass: top
+objectclass: nsSlapdPlugin
+objectclass: extensibleObject
+cn: AES
+nsslapd-pluginpath: libpbe-plugin
+nsslapd-plugininitfunc: aes_init
+nsslapd-plugintype: reverpwdstoragescheme
+nsslapd-pluginenabled: on
+nsslapd-pluginarg0: nsmultiplexorcredentials
+nsslapd-pluginarg1: nsds5ReplicaCredentials
+nsslapd-pluginid: aes-storage-scheme
+nsslapd-pluginprecedence: 1
+
 dn: cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin
 objectclass: extensibleObject
 cn: DES
-nsslapd-pluginpath: libdes-plugin
+nsslapd-pluginpath: libpbe-plugin
 nsslapd-plugininitfunc: des_init
 nsslapd-plugintype: reverpwdstoragescheme
 nsslapd-pluginenabled: on

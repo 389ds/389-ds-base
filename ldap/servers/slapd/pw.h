@@ -55,35 +55,13 @@
 #define PWD_HASH_PREFIX_END	'}'
 
 /*
- * 
- * structure for holding password scheme info.
- */
-struct pw_scheme {
-	/* case-insensitive name used in prefix of passwords that use scheme */
-	char	*pws_name;
-
-	/* length of pws_name */
-	int	pws_len;
-
-	/* thread-safe comparison function; returns 0 for positive matches */
-	/* userpwd is value sent over LDAP bind; dbpwd is from the database */
-	int	(*pws_cmp)( char *userpwd, char *dbpwd );
-
-	/* thread-safe encoding function (returns pointer to malloc'd string) */
-	char	*(*pws_enc)( char *pwd );
-
-	/* thread-safe decoding function (returns pointer to malloc'd string) */
-	char	*(*pws_dec)( char *pwd );
-};
-
-/*
  * Public functions from pw.c:
  */
 struct pw_scheme *pw_name2scheme( char *name );
 struct pw_scheme *pw_val2scheme( char *val, char **valpwdp, int first_is_default );
 int pw_encodevals( Slapi_Value **vals );
 int pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals );
-int checkPrefix(char *cipher, char *schemaName, char **encrypt);
+int checkPrefix(char *cipher, char *schemaName, char **encrypt, char **algid);
 struct passwordpolicyarray *new_passwdPolicy ( Slapi_PBlock *pb, const char *dn );
 void delete_passwdPolicy( struct passwordpolicyarray **pwpolicy);
 int pw_is_pwp_admin(Slapi_PBlock *pb, struct passwordpolicyarray *pwp);

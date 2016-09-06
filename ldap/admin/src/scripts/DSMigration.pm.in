@@ -1161,7 +1161,7 @@ sub migrateDS {
         }
 
 	# do the systemd stuff
-        @errs = DSCreate::updateSystemD($inf);
+        @errs = DSCreate::updateSystemD(0, $inf);
         if (@errs) {
             $mig->msg(@errs);
             goto cleanup;

@@ -21,6 +21,6 @@ nsslapd-plugininitfunc: replication_multimaster_plugin_init
 nsslapd-plugintype: object
 nsslapd-pluginenabled: on
 nsslapd-plugin-depends-on-named: ldbm database
-nsslapd-plugin-depends-on-named: DES
+nsslapd-plugin-depends-on-named: AES
 nsslapd-plugin-depends-on-named: Class of Service
 

@@ -53,9 +53,9 @@
 
  
 /* Used by SSL and DES plugin */
-#ifdef NEED_TOK_DES
-static char  tokDes[34] = "Communicator Generic Crypto Svcs";
-static char ptokDes[34] = "Internal (Software) Token        ";
+#ifdef NEED_TOK_PBE
+static char  tokPBE[34] = "Communicator Generic Crypto Svcs";
+static char ptokPBE[34] = "Internal (Software) Token        ";
 #endif
 
 /*
@@ -305,6 +305,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define	REPL_DBTAG		"repl"
 
 #define ATTR_NETSCAPEMDSUFFIX "netscapemdsuffix"
+
+#define PWD_PBE_DELIM '-'
 
 #define REFERRAL_REMOVE_CMD "remove"
 
@@ -1517,6 +1519,60 @@ struct slapi_task {
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 
+/*
+ * structure for holding password scheme info.
+ */
+struct pw_scheme {
+    /* case-insensitive name used in prefix of passwords that use scheme */
+   char    *pws_name;
+
+   /* length of pws_name */
+   int     pws_len;
+
+   /* thread-safe comparison function; returns 0 for positive matches */
+   /* userpwd is value sent over LDAP bind; dbpwd is from the database */
+   int     (*pws_cmp)( char *userpwd, char *dbpwd );
+
+   /* thread-safe encoding function (returns pointer to malloc'd string) */
+   char    *(*pws_enc)( char *pwd );
+
+   /* thread-safe decoding function (returns pointer to malloc'd string) */
+   char    *(*pws_dec)( char *pwd, char *algid);
+};
+
+typedef struct passwordpolicyarray {
+  slapi_onoff_t pw_change;        /* 1 - indicates that users are allowed to change the pwd */
+  slapi_onoff_t pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
+  slapi_onoff_t pw_syntax;
+  int pw_minlength;
+  int pw_mindigits;
+  int pw_minalphas;
+  int pw_minuppers;
+  int pw_minlowers;
+  int pw_minspecials;
+  int pw_min8bit;
+  int pw_maxrepeats;
+  int pw_mincategories;
+  int pw_mintokenlength;
+  slapi_onoff_t pw_exp;
+  long pw_maxage;
+  long pw_minage;
+  long pw_warning;
+  slapi_onoff_t pw_history;
+  int pw_inhistory;
+  slapi_onoff_t pw_lockout;
+  int pw_maxfailure;
+  slapi_onoff_t pw_unlock;
+  long pw_lockduration;
+  long pw_resetfailurecount;
+  int pw_gracelimit;
+  slapi_onoff_t pw_is_legacy;
+  slapi_onoff_t pw_track_update_time;
+  struct pw_scheme *pw_storagescheme;
+  Slapi_DN *pw_admin;
+  Slapi_DN **pw_admin_user;
+} passwdPolicy;
+
 typedef struct slapi_pblock {
 	/* common */
 	Slapi_Backend		*pb_backend;
@@ -2059,39 +2115,6 @@ typedef struct _slapdEntryPoints {
 #define REFER_MODE_ON 1
 
 #define MAX_ALLOWED_TIME_IN_SECS	2147483647
-
-typedef struct passwordpolicyarray {
-  int pw_change;        /* 1 - indicates that users are allowed to change the pwd */
-  int pw_must_change;   /* 1 - indicates that users must change pwd upon reset */
-  int pw_syntax;
-  int pw_minlength;
-  int pw_mindigits;
-  int pw_minalphas;
-  int pw_minuppers;
-  int pw_minlowers;
-  int pw_minspecials;
-  int pw_min8bit;
-  int pw_maxrepeats;
-  int pw_mincategories;
-  int pw_mintokenlength;
-  int pw_exp;
-  long pw_maxage;
-  long pw_minage;
-  long pw_warning;
-  int pw_history;
-  int pw_inhistory;
-  int pw_lockout;
-  int pw_maxfailure;
-  int pw_unlock;
-  long pw_lockduration;
-  long pw_resetfailurecount;
-  int pw_gracelimit;
-  int pw_is_legacy;
-  int pw_track_update_time;
-  struct pw_scheme *pw_storagescheme;
-  Slapi_DN *pw_admin;
-  Slapi_DN **pw_admin_user;
-} passwdPolicy;
 
 typedef struct _slapdFrontendConfig {
   Slapi_RWLock     *cfg_rwlock;       /* read/write lock to serialize access */

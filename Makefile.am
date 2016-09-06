@@ -205,7 +205,7 @@ endif
 serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
 	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
-	libdes-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
+	libpbe-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libreferint-plugin.la libreplication-plugin.la libretrocl-plugin.la \
@@ -936,14 +936,14 @@ libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
-# libdes-plugin
+# libpbe-plugin
 #-----------------------
-libdes_plugin_la_SOURCES = ldap/servers/plugins/rever/des.c \
+libpbe_plugin_la_SOURCES = ldap/servers/plugins/rever/pbe.c \
 	ldap/servers/plugins/rever/rever.c
 
-libdes_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
-libdes_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
-libdes_plugin_la_LDFLAGS = -avoid-version
+libpbe_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS) @svrcore_inc@
+libpbe_plugin_la_LIBADD = libslapd.la $(NSS_LINK)
+libpbe_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libdistrib-plugin

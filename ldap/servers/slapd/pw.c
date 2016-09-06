@@ -386,9 +386,8 @@ pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals )
 		if ((!enc) && (( enc = (*pws_enc)( (char*)slapi_value_get_string(vals[ i ]) )) == NULL )) {
 			return( -1 );
 		}
-
-                slapi_value_free(&vals[ i ]);
-                vals[ i ] = slapi_value_new_string_passin(enc);
+		slapi_value_free(&vals[ i ]);
+		vals[ i ] = slapi_value_new_string_passin(enc);
 	}
 
 	return( 0 );
@@ -398,28 +397,57 @@ pw_encodevals_ext( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals )
  * Check if the prefix of the cipher is the one that is supposed to be 
  * Extract from the whole cipher the encrypted password (remove the prefix)
  */
-int checkPrefix(char *cipher, char *schemaName, char **encrypt)
+int checkPrefix(char *cipher, char *schemaName, char **encrypt, char **algid)
 {
 	int namelen;
 	/* buf contains the extracted schema name */
 	char *end, buf[ 3*PWD_MAX_NAME_LEN + 1 ];
+	char *delim = NULL;
 
 	if ( (*cipher == PWD_HASH_PREFIX_START) &&
-		 ((end = strchr(cipher, PWD_HASH_PREFIX_END)) != NULL) &&
-		 ((namelen = end - cipher - 1 ) <= (3*PWD_MAX_NAME_LEN)) )
+		 (end = strchr(cipher, PWD_HASH_PREFIX_END)) != NULL)
 	{
-		memcpy( buf, cipher + 1, namelen );
-		buf[ namelen ] = '\0';
-		if ( strcasecmp( buf, schemaName) != 0 )
-		{
-			/* schema names are different, error */
-			return 1;
-		}
-		else
-		{
-			/* extract the encrypted password */
-			*encrypt = cipher + strlen(schemaName) + 2;
-			return 0;
+		if((delim = strchr(cipher, PWD_PBE_DELIM)) != NULL){
+			/*
+			 * We have an algid in the prefix:
+			 *
+			 * {AES-<BASE64_ALG_ID>}<ENCODED PASSWORD>
+			 */
+			if((namelen = delim - cipher - 1) <= (3*PWD_MAX_NAME_LEN)){
+				memcpy( buf, cipher + 1, namelen );
+				buf[ namelen ] = '\0';
+
+				if ( strcasecmp( buf, schemaName) != 0 ){
+					/* schema names are different, error */
+					return 1;
+				} else {
+					char algid_buf[256];
+
+					/* extract the algid (length is never greater than 216 */
+					memcpy(algid_buf, delim + 1 , (end - delim));
+					algid_buf[end - delim - 1] = '\0';
+					*algid = strdup(algid_buf);
+
+					/* extract the encrypted password */
+					*encrypt = cipher + strlen(*algid) + strlen (schemaName) + 3;
+					return 0;
+				}
+			}
+		} else if ((namelen = end - cipher - 1 ) <= (3*PWD_MAX_NAME_LEN)){
+			/* no delimiter - must be old school DES */
+			memcpy( buf, cipher + 1, namelen );
+			buf[ namelen ] = '\0';
+			if ( strcasecmp( buf, schemaName) != 0 )
+			{
+				/* schema names are different, error */
+				return 1;
+			}
+			else
+			{
+				/* extract the encrypted password */
+				*encrypt = cipher + strlen(schemaName) + 2;
+				return 0;
+			}
 		}
 	}
 	/* cipher is not prefixed, already in clear ? */
@@ -445,6 +473,7 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 		char *L_attr = NULL;
 		int i = 0;
 		char *encrypt = NULL;
+		char *algid = NULL;
 		int prefixOK = -1;
 
 		/* Get the appropriate decoding function */
@@ -452,10 +481,9 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{
-				typedef char * (*ENCFP)(char *);
+				typedef char * (*ENCFP)(char *, char *);
 
 				pwsp =  (struct pw_scheme *) slapi_ch_calloc (1, sizeof(struct pw_scheme));
-
 				pwsp->pws_dec = (ENCFP)p->plg_pwdstorageschemedec;
 				pwsp->pws_name = slapi_ch_strdup( p->plg_pwdstorageschemename );
 				pwsp->pws_len = strlen(pwsp->pws_name) ;
@@ -463,7 +491,7 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 				{
 					/* check that the prefix of the cipher is the same name
 						as the scheme name */
-					prefixOK = checkPrefix(cipher, pwsp->pws_name, &encrypt);
+					prefixOK = checkPrefix(cipher, pwsp->pws_name, &encrypt, &algid);
 					if ( prefixOK == -1 )
 					{
 						/* no prefix, already in clear ? */
@@ -473,13 +501,15 @@ pw_rever_decode(char *cipher, char **plain, const char * attr_name)
 					}
 					else if ( prefixOK == 1 )
 					{
-						/* scheme names are different */
+						/* scheme names are different, try the next plugin */
 						ret_code = -1;
-						goto free_and_return;
+						free_pw_scheme( pwsp );
+						pwsp = NULL;
+						continue;
 					}
 					else
 					{
-						if ( ( *plain = (pwsp->pws_dec)( encrypt )) == NULL ) 
+						if ( ( *plain = (pwsp->pws_dec)( encrypt, algid )) == NULL )
 						{
 							/* pb during decoding */
 							ret_code = -1;
@@ -520,10 +550,10 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 	for ( p = get_plugin_list(PLUGIN_LIST_REVER_PWD_STORAGE_SCHEME); p != NULL; p = p->plg_next )
 	{
 		char *L_attr = NULL;
-		int i = 0;
+		int i = 0, ii = 0;
 
 		/* Get the appropriate encoding function */
-		for ( L_attr = p->plg_argv[i]; i<p->plg_argc; L_attr = p->plg_argv[++i] )
+		for ( L_attr = p->plg_argv[ii]; ii<p->plg_argc; L_attr = p->plg_argv[++ii] )
 		{
 			if (slapi_attr_types_equivalent(L_attr, attr_name))
 			{
@@ -538,11 +568,13 @@ pw_rever_encode(Slapi_Value **vals, char * attr_name)
 					for ( i = 0; vals[i] != NULL; ++i ) 
 					{
 						char *encrypt = NULL;
+						char *algid = NULL;
 						int prefixOK;
 
 						prefixOK = checkPrefix((char*)slapi_value_get_string(vals[i]), 
 												pwsp->pws_name,
-												&encrypt);
+												&encrypt, &algid);
+						slapi_ch_free_string(&algid);
 						if ( prefixOK == 0 )
 						{
 							/* Don't touch already encoded value */

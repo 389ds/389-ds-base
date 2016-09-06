@@ -1088,6 +1088,7 @@ sub updateTmpfilesDotD {
 }
 
 sub updateSystemD {
+    my $noservicelink = shift;
     my $inf = shift;
     my $unitdir = "@systemdsystemunitdir@";
     my $confbasedir = "@systemdsystemconfdir@";
@@ -1119,7 +1120,7 @@ sub updateSystemD {
             next;
         } else {
             my $servicelink = "$confdir/$pkgname\@$inst.service";
-            if (! -l $servicelink) {
+            if (! -l $servicelink && ! $noservicelink) {
                 if (!symlink($servicefile, $servicelink)) {
                     debug(1, "error updating link $servicelink to $servicefile - $!\n");
                     push @errs, [ 'error_linking_file', $servicefile, $servicelink, $! ];
@@ -1206,7 +1207,7 @@ sub createDSInstance {
         return @errs;
     }
 
-    if (@errs = updateSystemD($inf)) {
+    if (@errs = updateSystemD(0, $inf)) {
         return @errs;
     }
 
