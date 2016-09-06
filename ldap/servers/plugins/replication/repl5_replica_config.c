@@ -83,6 +83,7 @@ static multimaster_mtnode_extension * _replica_config_get_mtnode_ext (const Slap
 static void replica_cleanall_ruv_destructor(Slapi_Task *task);
 static void replica_cleanall_ruv_abort_destructor(Slapi_Task *task);
 static void remove_keep_alive_entry(Slapi_Task *task, ReplicaId rid, const char *repl_root);
+static void clean_agmts(cleanruv_data *data);
 
 /*
  * Note: internal add/modify/delete operations should not be run while
@@ -1987,13 +1988,15 @@ done:
          * Delete the cleaned rid config.
          * Make sure all the replicas have been "pre_cleaned"
          * Remove the keep alive entry if present
+         * Clean the agreements' RUV
          * Remove the rid from the internal clean list
          */
         delete_cleaned_rid_config(data);
         check_replicas_are_done_cleaning(data);
         remove_keep_alive_entry(data->task, data->rid, data->repl_root);
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
+        clean_agmts(data);
         remove_cleaned_rid(data->rid);
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Successfully cleaned rid(%d).", data->rid);
     } else {
         /*
          *  Shutdown or abort
@@ -2024,6 +2027,34 @@ done:
     slapi_ch_free_string(&data->force);
     slapi_ch_free_string(&rid_text);
     slapi_ch_free((void **)&data);
+}
+
+/*
+ * Clean the RUV attributes from all the agreements
+ */
+static void
+clean_agmts(cleanruv_data *data)
+{
+    Object *agmt_obj = NULL;
+    Repl_Agmt *agmt = NULL;
+
+    agmt_obj = agmtlist_get_first_agreement_for_replica (data->replica);
+    if(agmt_obj == NULL){
+        return;
+    }
+    while (agmt_obj && !slapi_is_shutting_down()){
+        agmt = (Repl_Agmt*)object_get_data (agmt_obj);
+        if(!agmt_is_enabled(agmt) || get_agmt_agreement_type(agmt) == REPLICA_TYPE_WINDOWS){
+            agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
+            continue;
+        }
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Cleaning agmt...");
+        agmt_stop(agmt);
+        agmt_update_consumer_ruv(agmt);
+        agmt_start(agmt);
+        agmt_obj = agmtlist_get_next_agreement_for_replica (data->replica, agmt_obj);
+    }
+    cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, "Cleaned replication agreements.");
 }
 
 /*
