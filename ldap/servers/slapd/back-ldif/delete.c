@@ -38,7 +38,7 @@ ldif_back_delete( Slapi_PBlock *pb )
   char			*dn;         /*Storage for the dn*/
   int rc;
 
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> ldif_back_delete\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldif_back_delete\n", 0, 0, 0 );
 
   prev = NULL;
   
@@ -56,7 +56,7 @@ ldif_back_delete( Slapi_PBlock *pb )
   bye = (ldif_Entry *) ldif_find_entry(pb, db, dn, &prev);
   if (bye == NULL) {
     slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-    LDAPDebug( LDAP_DEBUG_TRACE, "entry for delete does not exist\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "entry for delete does not exist\n", 0, 0, 0 );
     PR_Unlock( db->ldif_lock );
     return(-1);
   }
@@ -87,7 +87,7 @@ ldif_back_delete( Slapi_PBlock *pb )
   /*Success*/
   slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
   PR_Unlock( db->ldif_lock );
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= ldif_back_delete\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldif_back_delete\n", 0, 0, 0 );
   return( 0 );
 }
 
@@ -106,7 +106,7 @@ has_children(LDIF *db, ldif_Entry *p)
   ldif_Entry *cur;  /*Used to walk down the list*/
   int  has_kid = 0; /*Flag to return*/
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> has_children\n", 0, 0, 0);
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> has_children\n", 0, 0, 0);
 
   /*If there is no p or db, then there can be no children*/
   if (p == NULL || db == NULL){
@@ -135,7 +135,7 @@ has_children(LDIF *db, ldif_Entry *p)
 
   free( (void *) parentdn );
     
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= has_children %d\n", has_kid, 0, 0);
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= has_children %d\n", has_kid, 0, 0);
   return( has_kid );
 }
 

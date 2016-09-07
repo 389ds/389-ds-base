@@ -54,7 +54,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 	struct slapdplugin *p;
 	static int interface_published = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> ldbm_back_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldbm_back_init\n", 0, 0, 0 );
 
    	slapi_pblock_get(pb, SLAPI_PLUGIN, &p);
 	
@@ -76,7 +76,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 	
 	/* initialize dblayer  */
 	if (dblayer_init(li)) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: dblayer_init failed\n",0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: dblayer_init failed\n",0, 0, 0 );
 		goto fail;
 	}
 
@@ -90,7 +90,7 @@ ldbm_back_init( Slapi_PBlock *pb )
         if (slapi_register_object_extension(p->plg_name, SLAPI_EXT_CONNECTION,
             factory_constructor, factory_destructor,
             &li->li_bulk_import_object, &li->li_bulk_import_handle) != 0) {
-            LDAPDebug(LDAP_DEBUG_ANY, "ldbm_back_init: "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: "
                       "slapi_register_object_extension failed.\n", 0, 0, 0);
             goto fail;
         }
@@ -102,25 +102,25 @@ ldbm_back_init( Slapi_PBlock *pb )
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_PRIVATE, (void *) li );
 	
 	if ((li->li_dbcache_mutex = PR_NewLock()) == NULL ) {
-            LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewLock failed\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: PR_NewLock failed\n",
 		0, 0, 0 );
             goto fail;
         }
 
 	if ((li->li_shutdown_mutex = PR_NewLock()) == NULL ) {
-            LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewLock failed\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: PR_NewLock failed\n",
 		0, 0, 0 );
             goto fail;
         }
 
 	if ((li->li_config_mutex = PR_NewLock()) == NULL ) {
-            LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewLock failed\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: PR_NewLock failed\n",
 		0, 0, 0 );
             goto fail;
         }
 
 	if ((li->li_dbcache_cv = PR_NewCondVar( li->li_dbcache_mutex )) == NULL ) {
-            LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: PR_NewCondVar failed\n", 0, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: PR_NewCondVar failed\n", 0, 0, 0 );
             goto fail;
         }
 
@@ -208,7 +208,7 @@ ldbm_back_init( Slapi_PBlock *pb )
 	    (void *) ldbm_back_ctrl_info );
 
 	if ( rc != 0 ) {
-		LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init failed\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init failed\n", 0, 0, 0 );
 		goto fail;
 	}
 	
@@ -221,14 +221,14 @@ ldbm_back_init( Slapi_PBlock *pb )
 
 		if( slapi_apib_register(IDL_v1_0_GUID, IDL_api) )
 		{
-			LDAPDebug( LDAP_DEBUG_ANY, "ldbm_back_init: failed to publish IDL interface\n", 0, 0, 0);
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_init: failed to publish IDL interface\n", 0, 0, 0);
 			goto fail;
 		}
 
 		interface_published = 1;
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= ldbm_back_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldbm_back_init\n", 0, 0, 0 );
 
 	return( 0 );
 

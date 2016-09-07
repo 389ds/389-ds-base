@@ -765,7 +765,7 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	/* we know it's got a $(dn) */
 	tmp_ptr = PL_strcasestr(macro_prefix, ACL_TARGET_MACRO_DN_KEY);	
 	if (!tmp_ptr) {
-		LDAPDebug(LDAP_DEBUG_ACL,"acl_match_macro_in_target: "
+		LDAPDebug(LDAP_DEBUG_ACL, LOG_DEBUG,"acl_match_macro_in_target: "
 				"Target macro DN key \"%s\" not found in \"%s\".\n",
 				ACL_TARGET_MACRO_DN_KEY, macro_prefix, 0);
 		slapi_ch_free_string(&macro_prefix);
@@ -1463,7 +1463,7 @@ acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg)
 	PLHashNumber aci_index = (PLHashNumber)he->key;
     char *matched_val = (char *)he->value;
 	
-	LDAPDebug(LDAP_DEBUG_ACL,"macro ht entry: key='%d' matched_val='%s'"
+	LDAPDebug(LDAP_DEBUG_ACL, LOG_DEBUG,"macro ht entry: key='%d' matched_val='%s'"
 								"keyhash='%d'\n", 
 				aci_index, (matched_val ? matched_val: "NULL"),
 				(PLHashNumber)he->keyHash);

@@ -30,7 +30,7 @@ slapi_str2filter( char *str )
 	struct slapi_filter	*f = NULL;
 	char		*end;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "slapi_str2filter \"%s\"\n", str, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "slapi_str2filter \"%s\"\n", str, 0, 0 );
 
 	if ( str == NULL || *str == '\0' ) {
 		return( NULL );
@@ -98,7 +98,7 @@ str2list( char *str, unsigned long ftype )
 	char		*next;
 	char		save;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "str2list \"%s\"\n", str, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "str2list \"%s\"\n", str, 0, 0 );
 
 	f = (struct slapi_filter *) slapi_ch_calloc( 1, sizeof(struct slapi_filter) );
 	f->f_choice = ftype;
@@ -312,7 +312,7 @@ str2simple( char *str , int unescape_filter)
 	char		*s;
 	char		*value, savechar;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "str2simple \"%s\"\n", str, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "str2simple \"%s\"\n", str, 0, 0 );
 
 	PR_ASSERT(str);
 
@@ -433,7 +433,7 @@ str2subvals( char *val, struct slapi_filter *f, int unescape_filter )
 	int	gotstar;
 	size_t  len, outlen;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "str2subvals \"%s\"\n", val, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "str2subvals \"%s\"\n", val, 0, 0 );
 
 	gotstar = 0;
 	while ( val != NULL && *val ) {

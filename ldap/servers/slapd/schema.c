@@ -745,7 +745,7 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 
   /* find the object class attribute - could error out here */
   if ( (aoc = attrlist_find( e->e_attrs, "objectclass" )) == NULL ) {
-    LDAPDebug( LDAP_DEBUG_ANY,
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 	       "Entry \"%s\" required attribute \"objectclass\" missing\n",
 	       slapi_entry_get_dn_const(e), 0, 0 );
 	if (pb) {
@@ -782,7 +782,7 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
     ocname = slapi_value_get_string(v);
 
     if ( !ocname ) {
-	LDAPDebug( LDAP_DEBUG_ANY,
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 	       "Entry \"%s\" \"objectclass\" value missing\n",
 	       slapi_entry_get_dn_const(e), 0, 0 );
 	if (pb) {
@@ -820,7 +820,7 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 		}
 	  }
 
-      LDAPDebug( LDAP_DEBUG_ANY,
+      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		 "Entry \"%s\" has unknown object class \"%s\"%s\n",
 		 slapi_entry_get_dn_const(e),
 		 escape_string(ocname, ebuf), extra_msg );
@@ -883,7 +883,7 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 	if ( slapi_attr_flag_is_set( a, SLAPI_ATTR_FLAG_SINGLE ) ) {
 	  if (slapi_valueset_count(&a->a_present_values) > 1)
 	    {
-          LDAPDebug( LDAP_DEBUG_ANY,
+          LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 	         "Entry \"%s\" single-valued attribute \"%s\" has multiple values\n",
 			 slapi_entry_get_dn_const(e),
 			 a->a_type, 0 );
@@ -937,7 +937,7 @@ oc_check_required( Slapi_PBlock *pb, Slapi_Entry *e, struct objclass *oc )
         /* not there => schema violation */
         if ( a == NULL ) {
             char errtext[ BUFSIZ ];
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                        "Entry \"%s\" missing attribute \"%s\" required"
                        " by object class \"%s\"\n",
                        slapi_entry_get_dn_const(e),
@@ -1008,7 +1008,7 @@ oc_check_allowed_sv(Slapi_PBlock *pb, Slapi_Entry *e, const char *type, struct o
     if ( 0 != rc ) {
       char errtext[ BUFSIZ ];
       char ebuf[ BUFSIZ ];
-      LDAPDebug( LDAP_DEBUG_ANY,
+      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
          "Entry \"%s\" -- attribute \"%s\" not allowed\n",
          slapi_entry_get_dn_const(e),
          escape_string( type, ebuf ),
@@ -1558,7 +1558,7 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 	vals[0] = &val;
 
 	if (!asip) {
-		LDAPDebug(LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"Error: no attribute types in schema_attr_enum_callback\n",
 				0, 0, 0);
 		return ATTR_SYNTAX_ENUM_NEXT;
@@ -1719,7 +1719,7 @@ schema_syntax_enum_callback(char **names, Slapi_PluginDesc *plugindesc,
 	}
 
 	if ( oid == NULL ) {	/* must have an OID */
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: no OID found in"
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: no OID found in"
 				" schema_syntax_enum_callback for syntax %s\n",
 				( names == NULL ) ? "unknown" : names[0], 0, 0);
 		return 1;
@@ -1781,7 +1781,7 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
         struct listargs *aew = (struct listargs *)arg;
 
         if (!asi) {
-                LDAPDebug(LDAP_DEBUG_ANY, "Error: no attribute types in schema_list_attributes_callback\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: no attribute types in schema_list_attributes_callback\n",
                                   0, 0, 0);
                 return ATTR_SYNTAX_ENUM_NEXT;
         }
@@ -2941,7 +2941,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		if ( NULL == ( oldasip =
 					attr_syntax_get_by_oid( newasip->asi_oid, 0 ))) {
 			/* new attribute type */
-			LDAPDebug( LDAP_DEBUG_TRACE, "schema_replace_attributes:"
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_attributes:"
 					" new type %s (OID %s)\n",
 					newasip->asi_name, newasip->asi_oid, 0 );
 		} else {
@@ -2953,7 +2953,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				newasip = NULL;
 			} else {
 				/* modified attribute type */
-				LDAPDebug( LDAP_DEBUG_TRACE, "schema_replace_attributes:"
+				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_attributes:"
 						" replacing type %s (OID %s)\n",
 						newasip->asi_name, newasip->asi_oid, 0 );
 				/* flag for deletion */
@@ -3115,7 +3115,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				} else {
 					/* some differences: discard old and keep the new one */
 					oc_free( &tmpocp );
-					LDAPDebug( LDAP_DEBUG_TRACE, "schema_replace_objectclasses:"
+					LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_objectclasses:"
 							" replacing object class %s (OID %s)\n", 
 							newocp->oc_name, newocp->oc_oid, 0 );
 					addocp = newocp;
@@ -3127,7 +3127,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		}
 
 		if ( NULL == addocp ) {
-			LDAPDebug( LDAP_DEBUG_TRACE, "schema_replace_objectclasses:"
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_objectclasses:"
 					" new object class %s (OID %s)\n", 
 					newocp->oc_name, newocp->oc_oid, 0 );
 			addocp = newocp;
@@ -3382,7 +3382,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 	
 	schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, NULL,
 			"One or more values are required for the objectClasses attribute" );
-	LDAPDebug ( LDAP_DEBUG_ANY, "NULL args passed to read_oc_ldif\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL args passed to read_oc_ldif\n",0,0,0);
 	return read_oc_ldif_return( LDAP_OPERATIONS_ERROR, pOcOid, psbOcName,
 			pOcSup, pOcDesc );
   }
@@ -3921,7 +3921,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         asi_parent = attr_syntax_get_by_name(pSuperior, schema_flags);
         /* if we find no match then server won't start or add the attribute type */
         if (asi_parent == NULL) {
-            LDAPDebug (LDAP_DEBUG_PARSE,
+            LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG,
                 "Cannot find parent attribute type \"%s\"\n",pSuperior,
                 NULL,NULL);
             schema_create_errormsg( errorbuf, errorbufsize,
@@ -3936,7 +3936,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
             
             if (pso && (NULL == pSyntax)) {
                 pSyntax = slapi_ch_strdup(pso);
-                LDAPDebug (LDAP_DEBUG_TRACE,
+                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                     "Inheriting syntax %s from parent type %s\n",
                     pSyntax, pSuperior,NULL);
             } else if (NULL == pSyntax) {
@@ -4171,7 +4171,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     if(input == NULL || '\0' == input[0]){
         schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, NULL,
             "One or more values are required for the attributeTypes attribute" );
-        LDAPDebug ( LDAP_DEBUG_ANY, "NULL args passed to parse_attr_str\n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL args passed to parse_attr_str\n",0,0,0);
         return invalid_syntax_error;
     }
     /*
@@ -4243,7 +4243,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         asi_parent = attr_syntax_get_by_name(atype->at_sup_oid, schema_flags);
         /* if we find no match then server won't start or add the attribute type */
         if (asi_parent == NULL) {
-            LDAPDebug (LDAP_DEBUG_ANY, "Cannot find parent attribute type \"%s\"\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Cannot find parent attribute type \"%s\"\n",
                 atype->at_sup_oid, NULL, NULL);
             schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, first_attr_name,
                 "Missing parent attribute syntax OID");
@@ -4261,7 +4261,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 
             if (pso && (NULL == atype->at_syntax_oid)) {
                 atype->at_syntax_oid = slapi_ch_strdup(pso);
-                LDAPDebug (LDAP_DEBUG_TRACE,
+                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                     "Inheriting syntax %s from parent type %s\n",
                     atype->at_syntax_oid, atype->at_sup_oid,NULL);
             } else if (NULL == atype->at_syntax_oid) {
@@ -4550,7 +4550,7 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
     if ( NULL == input || '\0' == input[0] ) {
         schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, NULL,
             "One or more values are required for the objectClasses attribute" );
-        LDAPDebug ( LDAP_DEBUG_ANY, "NULL args passed to read_oc_ldif\n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL args passed to read_oc_ldif\n",0,0,0);
         return LDAP_OPERATIONS_ERROR;
     }
     /*
@@ -4795,7 +4795,7 @@ schema_check_oc_attrs ( struct objclass *poc,
 
 	if ( errorbuf == NULL || poc == NULL || poc->oc_name == NULL) {
 		/* error */
-		LDAPDebug (LDAP_DEBUG_PARSE,  
+		LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG,  
 				   "Null args passed to schema_check_oc_attrs\n",
 				   NULL, NULL, NULL);
 		return -1;
@@ -4929,7 +4929,7 @@ schema_check_oid( const char *name, const char *oid, PRBool isAttribute,
 
   if ( name == NULL || oid == NULL) {
 	/* this is bad */
-	LDAPDebug (LDAP_DEBUG_ANY, "NULL passed to schema_check_oid\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL passed to schema_check_oid\n",0,0,0);
 	return 0;
   }
   
@@ -5062,7 +5062,7 @@ strip_oc_options( struct objclass *poc ) {
 
   for ( i = 0; poc->oc_allowed && poc->oc_allowed[i]; i++ ) {
 	if ( (mod = stripOption( poc->oc_allowed[i] )) != NULL ){
-	  LDAPDebug (LDAP_DEBUG_ANY, 
+	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 				 "Removed option \"%s\" from allowed attribute type "
 				 "\"%s\" in object class \"%s\".\n",
 				 mod, poc->oc_allowed[i], poc->oc_name );
@@ -5072,7 +5072,7 @@ strip_oc_options( struct objclass *poc ) {
     
   for ( i = 0; poc->oc_required && poc->oc_required[i]; i++ ) {
 	if ( (mod = stripOption( poc->oc_required[i] )) != NULL ){
-	  LDAPDebug (LDAP_DEBUG_ANY, 
+	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 				 "Removed option \"%s\" from required attribute type "
 				 "\"%s\" in object class \"%s\".\n",
 				 mod, poc->oc_required[i], poc->oc_name );
@@ -5476,7 +5476,7 @@ parse_xstring_list( const char *schema_value, const char *name, size_t namelen, 
 
 /* for debugging
 if ( xvals == NULL || xvals[0] == NULL ) {
-    LDAPDebug( LDAP_DEBUG_ANY, "no xstring values for xstring (%s) in (%s)\n", name, schema_value, 0 );
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "no xstring values for xstring (%s) in (%s)\n", name, schema_value, 0 );
 }
 */
 
@@ -6040,7 +6040,7 @@ va_expand_one_oc( const char *dn, const Slapi_Attr *a, Slapi_ValueSet *vs, const
   
   	slapi_valueset_add_attr_value_ext(a, vs, slapi_value_new_string(sup_oc->oc_name), SLAPI_VALUE_FLAG_PASSIN);
 
-	LDAPDebug( LDAP_DEBUG_TRACE,
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 			"Entry \"%s\": added missing objectClass value %s\n",
 			dn, sup_oc->oc_name, 0 );
 }

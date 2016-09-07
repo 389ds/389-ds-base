@@ -59,7 +59,7 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
         slapi_sdn_free(&sdn);
         return err;
     }
-    LDAPDebug (LDAP_DEBUG_TRACE, "=> slapu_search_s (\"%s\", %i, %s)\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapu_search_s (\"%s\", %i, %s)\n",
                baseDN, scope, filter);
     if (filter == NULL) filter = "objectclass=*";
 
@@ -86,18 +86,18 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
             pb = NULL;
             if (scope == LDAP_SCOPE_SUBTREE) {
                 char fbuf[ BUFSIZ ];
-                LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", subtree, %s) err %i\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapi_search_internal (\"%s\", subtree, %s) err %i\n",
                            baseDN, escape_string( (char*)filter, fbuf ), err);
             }
         }
     } else {
         char fbuf[ BUFSIZ ];
-        LDAPDebug (LDAP_DEBUG_ANY, "slapi_search_internal (\"%s\", %i, %s) NULL\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapi_search_internal (\"%s\", %i, %s) NULL\n",
                    baseDN, scope, escape_string( (char*)filter, fbuf ));
     }
     slapi_sdn_free(&sdn);
     *result = (LDAPMessage*)pb;
-    LDAPDebug (LDAP_DEBUG_TRACE, "<= slapu_search_s %i\n", err, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapu_search_s %i\n", err, 0, 0);
     return err;
 }
 
@@ -260,14 +260,14 @@ client_auth_init ()
     if (client_auth_config_file == NULL) {
 	char *confdir = config_get_configdir();
 	if (NULL == confdir) {
-	    LDAPDebug (LDAP_DEBUG_ANY,
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		"client_auth_init: failed to get configdir\n",
 		0, 0, 0);
 	    return;
 	}
 	client_auth_config_file = PR_smprintf("%s/certmap.conf", confdir);
 	if (NULL == client_auth_config_file) {
-	    LDAPDebug (LDAP_DEBUG_ANY,
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		"client_auth_init: failed to duplicate \"%s/certmap\"\n",
 		confdir, 0, 0);
 	    slapi_ch_free_string(&confdir);
@@ -277,7 +277,7 @@ client_auth_init ()
     }
     err = ldaputil_init (client_auth_config_file, "", NULL, "slapd", NULL);
     if (err != LDAPU_SUCCESS) {
-	LDAPDebug (LDAP_DEBUG_TRACE, "ldaputil_init(%s,...) %i\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldaputil_init(%s,...) %i\n",
 		client_auth_config_file, err, 0);
     } else {
 	LDAPUVTable_t vtable = {
@@ -331,7 +331,7 @@ subject_of (CERTCertificate* cert)
     if (cert != NULL) {
 	int err = ldapu_get_cert_subject_dn (cert, &dn);
 	if (err != LDAPU_SUCCESS) {
-	    LDAPDebug (LDAP_DEBUG_ANY, "ldapu_get_cert_subject_dn(%p) %i (%s)\n",
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldapu_get_cert_subject_dn(%p) %i (%s)\n",
 		       (void*)cert, err, ldapu_err2string (err));
 	}
     }
@@ -345,7 +345,7 @@ issuer_of (CERTCertificate* cert)
     if (cert != NULL) {
 	int err = ldapu_get_cert_issuer_dn (cert, &dn);
 	if (err != LDAPU_SUCCESS) {
-	    LDAPDebug (LDAP_DEBUG_ANY, "ldapu_get_cert_issuer_dn(%p) %i (%s)\n",
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldapu_get_cert_issuer_dn(%p) %i (%s)\n",
 		       (void*)cert, err, ldapu_err2string (err));
 	}
     }
@@ -487,12 +487,12 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 		} else {
 		  
 		    extraErrorMsg = "no entry";
-		    LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %s\n",
+		    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldapu_cert_to_ldap_entry() %s\n",
 			       extraErrorMsg, 0, 0);
 		}
 	    } else {
 		extraErrorMsg = ldapu_err2string(err);
-	        LDAPDebug (LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
+	        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
 			   err, extraErrorMsg, chain ? "" : " NULL");
 	    }
 		slapi_ch_free_string(&basedn);

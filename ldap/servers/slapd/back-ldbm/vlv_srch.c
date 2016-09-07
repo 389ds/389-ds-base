@@ -896,7 +896,7 @@ vlvIndex_createfilename(struct vlvIndex* pIndex, char **ppc)
     *p= '\0';
     if(strlen(filename)==0)
     {
-        LDAPDebug( LDAP_DEBUG_ANY, "Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", pIndex->vlv_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Couldn't generate valid filename from Virtual List View Index Name (%s).  Need some alphabetical characters.\n", pIndex->vlv_name, 0, 0);
         filenameValid= 0;
     }
     /* JCM: Check if this file clashes with another VLV Index filename */

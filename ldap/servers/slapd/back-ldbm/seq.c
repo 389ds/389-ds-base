@@ -87,11 +87,11 @@ ldbm_back_seq( Slapi_PBlock *pb )
 	/* get a database */
 
 	ainfo_get( be, attrname, &ai );
-	LDAPDebug( LDAP_DEBUG_ARGS,
+	LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
 	    "   seq: indextype: %s indexmask: 0x%x seek type: %d\n",
 	    ai->ai_type, ai->ai_indexmask, type );
 	if ( ! (INDEX_EQUALITY & ai->ai_indexmask) ) {
-		LDAPDebug( LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		    "seq: caller specified un-indexed attribute %s\n",
 			   attrname ? attrname : "", 0, 0 );
 		slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
@@ -100,7 +100,7 @@ ldbm_back_seq( Slapi_PBlock *pb )
 	}
 
 	if ( (return_value = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "<= ldbm_back_seq NULL (could not open index file for attribute %s)\n",
 		    attrname, 0, 0 );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
@@ -275,9 +275,9 @@ retry:
 		    {
 				if ( err != LDAP_SUCCESS )
 				{
-				    LDAPDebug( LDAP_DEBUG_ANY, "seq id2entry err %d\n", err, 0, 0 );
+				    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "seq id2entry err %d\n", err, 0, 0 );
 				}
-				LDAPDebug( LDAP_DEBUG_ARGS,
+				LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
 					"ldbm_back_seq: candidate %lu not found\n",
 					(u_long)id, 0, 0 );
 				continue;

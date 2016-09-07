@@ -340,7 +340,7 @@ substr_dn_normalize_orig( char *dn, char *end )
 			} else if ( *s == '"' ) {
 				state = B4SEPARATOR;
 				if (!value) {
-					LDAPDebug( LDAP_DEBUG_ANY,
+					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 						"slapi_dn_normalize - missing value\n", 0, 0, 0 );
 					break;
 				}
@@ -390,7 +390,7 @@ substr_dn_normalize_orig( char *dn, char *end )
 			}
 			break;
 		default:
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"slapi_dn_normalize - unknown state %d\n", state, 0, 0 );
 			break;
 		}
@@ -1073,7 +1073,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
             }
             break;
         default:
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "slapi_dn_normalize_ext - unknown state %d\n", state, 0, 0 );
             break;
         }
@@ -1365,9 +1365,9 @@ rdn_av_swap( struct berval *av1, struct berval *av2, int escape )
 char *
 slapi_dn_normalize_original( char *dn )
 {
-	/* LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 	*(substr_dn_normalize_orig( dn, dn + strlen( dn ))) = '\0';
-	/* LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 
 	return( dn );
 }
@@ -1376,9 +1376,9 @@ slapi_dn_normalize_original( char *dn )
 char *
 slapi_dn_normalize_case_original( char *dn )
 {
-	/* LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 	*(substr_dn_normalize_orig( dn, dn + strlen( dn ))) = '\0';
-	/* LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 
 	/* normalize case */
 	return( slapi_dn_ignore_case( dn ));
@@ -1392,9 +1392,9 @@ slapi_dn_normalize_case_original( char *dn )
 char *
 slapi_dn_normalize( char *dn )
 {
-	/* LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
     *(substr_dn_normalize( dn, dn + strlen( dn ))) = '\0';
-	/* LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
     return dn;
 }
 
@@ -2730,7 +2730,7 @@ slapi_moddn_get_newdn(Slapi_DN *dn_olddn, const char *newrdn, const char *newsup
 static void
 sdn_dump( const Slapi_DN *sdn, const char *text)
 {
-    LDAPDebug( LDAP_DEBUG_ANY, "SDN %s ptr=%lx dn=%s\n", text, sdn, (sdn->dn==NULL?"NULL":sdn->dn));
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "SDN %s ptr=%lx dn=%s\n", text, sdn, (sdn->dn==NULL?"NULL":sdn->dn));
 }
 #endif
 

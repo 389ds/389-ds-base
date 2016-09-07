@@ -469,7 +469,7 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
 
         if (ldbm_config_set((void *) inst, attr_name, config_array, bval,
             err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            LDAPDebug(LDAP_DEBUG_ANY, "Error with config attribute %s : %s\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error with config attribute %s : %s\n",
                       attr_name, err_buf, 0);
             return 1;
         }
@@ -521,7 +521,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
 
     search_pb = slapi_pblock_new();
     if (!search_pb) {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_config_load_dse_info: Out of memory\n",
                        0, 0, 0);
         rval = 1;
@@ -535,7 +535,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
 
     if (rval != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Error accessing the config DSE\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error accessing the config DSE\n", 0, 0, 0);
         rval = 1;
         goto bail;
     } else {
@@ -544,14 +544,14 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                          &entries);
         if ((!entries) || (!entries[0])) {
-            LDAPDebug(LDAP_DEBUG_ANY, "Error accessing the config DSE\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error accessing the config DSE\n",
                       0, 0, 0);
             rval = 1;
             goto bail;
         }
         if (0 != parse_ldbm_instance_config_entry(inst, entries[0],
                                          ldbm_instance_config)) {
-            LDAPDebug(LDAP_DEBUG_ANY, "Error parsing the config DSE\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error parsing the config DSE\n",
                       0, 0, 0);
             rval = 1;
             goto bail;
@@ -759,7 +759,7 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
 
     if (!returntext) {
         rc = LDAP_OPERATIONS_ERROR;
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                   "ldbm_instance_modify_config_entry_callback: "
                   "NULL return text\n",
                   0, 0, 0);
@@ -781,7 +781,7 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
                 rc = LDAP_UNWILLING_TO_PERFORM;
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                             "Can't change the root suffix of a backend");
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "ldbm: modify attempted to change the root suffix "
                           "of a backend (which is not allowed)\n",
                           0, 0, 0);
@@ -836,7 +836,7 @@ ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *val
 
     if (ldbm_config_set((void *) inst, attrname, ldbm_instance_config, &bval, 
         err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, 
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
             "Internal Error: Error setting instance config attr %s to %s: %s\n", 
             attrname, value, err_buf);
         exit(1);
@@ -902,7 +902,7 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* ent
     parse_ldbm_instance_entry(entryBefore, &instance_name);
     rval = ldbm_instance_generate(li, instance_name, &be);
     if (rval) {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
             "ldbm_instance_postadd_instance_entry_callback: "
             "ldbm_instance_generate (%s) failed (%d)\n",
             instance_name, rval, 0);
@@ -922,7 +922,7 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* ent
     rval = ldbm_instance_start(be);
     if (0 != rval)
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
             "ldbm_instance_postadd_instance_entry_callback: "
             "ldbm_instnace_start (%s) failed (%d)\n",
             instance_name, rval, 0);
@@ -949,7 +949,7 @@ ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBe
     /* Make sure we don't create two instances with the same name. */
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (inst != NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: ldbm instance %s already exists\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: ldbm instance %s already exists\n",
                   instance_name, 0, 0);
         if (returntext != NULL)
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "An ldbm instance with the name %s already exists\n",
@@ -1092,7 +1092,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
     inst = ldbm_instance_find_by_name(li, instance_name);
 
     if (inst == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, "ldbm: instance '%s' does not exist! (2)\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: instance '%s' does not exist! (2)\n",
                   instance_name, 0, 0);
         if (returntext) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s' (2)\n",
@@ -1105,7 +1105,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    LDAPDebug(LDAP_DEBUG_ANY, "ldbm: removing '%s'.\n", instance_name, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: removing '%s'.\n", instance_name, 0, 0);
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) { /* subtree-rename: on */
@@ -1140,7 +1140,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
 
                         dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
                         if (NULL == dbp) {
-                            LDAPDebug (LDAP_DEBUG_ANY,
+                            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                             "ldbm_instance_post_delete_instance_entry_callback:"
                             " failed to generate db path: %s/%s\n",
                             inst_dirp, direntry->name, 0);
@@ -1201,7 +1201,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     parse_ldbm_instance_entry(entryBefore, &instance_name);
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (inst == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, "ldbm: instance '%s' does not exist!\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: instance '%s' does not exist!\n",
                   instance_name, 0, 0);
         if (returntext) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s'\n",
@@ -1217,7 +1217,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     /* check if some online task is happening */
     if ((instance_set_busy(inst) != 0) ||
         (slapi_counter_get_value(inst->inst_ref_count) > 0)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "ldbm: '%s' is in the middle of a task. "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: '%s' is in the middle of a task. "
                   "Cancel the task or wait for it to finish, "
                   "then try again.\n", instance_name, 0, 0);
         if (returntext) {
@@ -1233,7 +1233,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     }
 
     /* okay, we're gonna delete this database instance.  take it offline. */
-    LDAPDebug(LDAP_DEBUG_ANY, "ldbm: Bringing %s offline...\n",
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: Bringing %s offline...\n",
               instance_name, 0, 0);
     slapi_mtn_be_stopping(inst->inst_be);
     dblayer_instance_close(inst->inst_be);

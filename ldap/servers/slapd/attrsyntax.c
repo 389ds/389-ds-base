@@ -119,14 +119,14 @@ check_oid( const char *oid ) {
 
   if ( oid == NULL) {
 	/* this is bad */
-	LDAPDebug (LDAP_DEBUG_ANY, "NULL passed to check_oid\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL passed to check_oid\n",0,0,0);
 	return 0;
   }
   
   length_oid = strlen(oid);
   if (length_oid < 4) {
 	/* this is probably bad */
-	LDAPDebug (LDAP_DEBUG_ANY, "Bad oid %s passed to check_oid\n",oid,0,0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Bad oid %s passed to check_oid\n",oid,0,0);
 	return 0;
   }
 
@@ -141,14 +141,14 @@ check_oid( const char *oid ) {
   
   if ( !isdigit(oid[0]) || 
 	   !isdigit(oid[length_oid-1]) ) {
-	LDAPDebug (LDAP_DEBUG_ANY, "Non numeric oid %s passed to check_oid\n",oid,0,0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Non numeric oid %s passed to check_oid\n",oid,0,0);
 	return 0;
   }
 
   /* check to see that it contains only digits and dots */
   for ( i = 0; i < length_oid; i++ ) {
 	if ( !isdigit(oid[i]) && oid[i] != '.'  ){
-	  LDAPDebug (LDAP_DEBUG_ANY, "Non numeric oid %s passed to check_oid\n",oid,0,0);
+	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Non numeric oid %s passed to check_oid\n",oid,0,0);
 	  return 0;
 	}
   }
@@ -174,7 +174,7 @@ attr_syntax_check_oids()
 		PLHashEntry *he = oid2asi->buckets[ii-1];
 		for (; he; he = he->next) {
 			if (!check_oid(he->key)) {
-				LDAPDebug(LDAP_DEBUG_ANY, "Error: bad oid %s in bucket %d\n",
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: bad oid %s in bucket %d\n",
 						  he->key, ii-1, 0);
 				nbad++;
 			}
@@ -670,7 +670,7 @@ int default_dirstring_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,Slapi_V
 	case LDAP_FILTER_SUBSTRINGS:
 	default:
 		/* default plugin only handles equality so far */
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "default_dirstring_values2keys: unsupported ftype 0x%x\n",
 		    ftype, 0, 0 );
 		break;

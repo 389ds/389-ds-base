@@ -113,7 +113,7 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
     struct slapi_componentid *cid = NULL;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "modify_update_last_modified_attr\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "modify_update_last_modified_attr\n", 0, 0, 0);
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     bvals[0] = &bv;
@@ -1379,7 +1379,7 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 if ( rc != LDAP_SUCCESS ) {
                     /* Send error result and 
                        abort op if the control is critical */
-                     LDAPDebug( LDAP_DEBUG_ANY,
+                     LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "Failed to get effective rights for entry (%s), rc=%d\n",
                     slapi_entry_get_dn_const(e), rc, 0 );
                     send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
@@ -1669,7 +1669,7 @@ compute_limits (Slapi_PBlock *pb)
     }
     slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
 
-    LDAPDebug( LDAP_DEBUG_TRACE,
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
             "=> compute_limits: sizelimit=%d, timelimit=%d\n",
             sizelimit, timelimit, 0 );
 }

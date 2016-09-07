@@ -43,7 +43,7 @@ do_delete( Slapi_PBlock *pb )
 	char	    *rawdn = NULL;
 	int			err = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "do_delete\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "do_delete\n", 0, 0, 0 );
 	
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
@@ -58,7 +58,7 @@ do_delete( Slapi_PBlock *pb )
 	 */
 
 	if ( ber_scanf( pb->pb_op->o_ber, "a", &rawdn ) == LBER_ERROR ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "ber_scanf failed (op=Delete; params=DN)\n", 0, 0, 0 );
 		op_shared_log_error_access (pb, "DEL", "???", "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,

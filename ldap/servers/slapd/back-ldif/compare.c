@@ -39,7 +39,7 @@ ldif_back_compare( Slapi_PBlock *pb )
   Slapi_Attr	*attr;
   int rc;
 
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> ldif_back_compare\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldif_back_compare\n", 0, 0, 0 );
   prev = NULL;
 
   if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &db ) < 0 ||
@@ -84,7 +84,7 @@ ldif_back_compare( Slapi_PBlock *pb )
   
   slapi_send_ldap_result( pb, LDAP_COMPARE_FALSE, NULL, NULL, 0, NULL );
   PR_Unlock( db->ldif_lock );
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= ldif_back_compare\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldif_back_compare\n", 0, 0, 0 );
   return( 0 );
 }
 

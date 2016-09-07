@@ -68,7 +68,7 @@ static int import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
         if (rc == UID_SUCCESS) {
             slapi_entry_set_uniqueid (e, newuniqueid);
         } else {
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                        "import_generate_uniqueid: failed to generate "
                        "uniqueid for %s; error=%d.\n", 
                        slapi_entry_get_dn_const(e), rc, 0 );
@@ -930,7 +930,7 @@ index_producer(void *param)
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
     if ( db_rval || !dbc ) {
-        LDAPDebug( LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                    "Failed to get cursor for reindexing\n", 0, 0, 0 );
         dblayer_release_id2entry(be, db);
         goto error;
@@ -966,7 +966,7 @@ index_producer(void *param)
         
         if (0 != db_rval) {
             if (DB_NOTFOUND != db_rval) {
-                LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to read database, "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: Failed to read database, "
                     "errno=%d (%s)\n", inst->inst_name, db_rval,
                     dblayer_strerror(db_rval));
                 if (job->task) {
@@ -1090,7 +1090,7 @@ index_producer(void *param)
                         "%s: WARNING: skipping badly formatted entry (id %lu)",
                         inst->inst_name, (u_long)temp_id);
                 }
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "%s: WARNING: skipping badly formatted entry (id %lu)\n",
                     inst->inst_name, (u_long)temp_id, 0);
                 continue;
@@ -1528,7 +1528,7 @@ upgradedn_producer(void *param)
                         "%s: Finished to read database", inst->inst_name);
                 }
             } else {
-                LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to read database, "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: Failed to read database, "
                     "errno=%d (%s)\n", inst->inst_name, db_rval,
                     dblayer_strerror(db_rval));
                 if (job->task) {
@@ -1662,7 +1662,7 @@ upgradedn_producer(void *param)
                         "%s: WARNING: skipping badly formatted entry (id %lu)",
                         inst->inst_name, (u_long)temp_id);
             }
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                       "%s: WARNING: skipping badly formatted entry (id %lu)\n",
                       inst->inst_name, (u_long)temp_id, 0);
             continue;
@@ -1782,7 +1782,7 @@ upgradedn_producer(void *param)
                         char *newrdn = slapi_create_dn_string("%s %u", rdn, temp_id);
                         char *parentdn = slapi_dn_parent(normdn);
                         /* This entry is a conflict of alt_id */
-                        LDAPDebug(LDAP_DEBUG_ANY,
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                                   "Entry %s (%lu) is a conflict of (%lu)\n",
                                   normdn, temp_id, alt_id);
                         LDAPDebug2Args(LDAP_DEBUG_ANY, "Renaming \"%s\" to \"%s\"\n",
@@ -1804,7 +1804,7 @@ upgradedn_producer(void *param)
                                           slapi_ch_strdup(rdn), 0);
                     rc = slapi_entry_add_rdn_values(e);
                     if (rc) {
-                        LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to add rdn values"
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: Failed to add rdn values"
                                   " to an entry: %s (id %lu)\n",
                                   inst->inst_name, normdn, (u_long)temp_id);
                         goto error;
@@ -1834,7 +1834,7 @@ upgradedn_producer(void *param)
 
             rdnp = PL_strchr(rdn, '=');
             if (NULL == rdnp) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "%s: WARNING: skipping an entry with corrupted RDN \"%s\" "
                     "(id %lu)\n",
                     inst->inst_name, rdn, (u_long)temp_id);
@@ -1865,7 +1865,7 @@ upgradedn_producer(void *param)
                  */
                 rc = slapi_entry_add_rdn_values(e);
                 if (rc) {
-                    LDAPDebug(LDAP_DEBUG_ANY, "%s: Failed to add rdn values "
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: Failed to add rdn values "
                               "to an entry: %s (id %lu)\n",
                               inst->inst_name, normdn, (u_long)temp_id);
                     slapi_entry_free(e); e = NULL;
@@ -1928,7 +1928,7 @@ upgradedn_producer(void *param)
                                                   slapi_ch_strdup(a->a_type),
                                                   slapi_ch_strdup(*ud_valp),
                                                   isentrydn?0:OLD_DN_NORMALIZE);
-                            LDAPDebug(LDAP_DEBUG_TRACE,
+                            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                     "%s: Found upgradedn candidate: %s (id %lu)\n", 
                                     inst->inst_name, valueptr, (u_long)temp_id);
                             if (!entryrdn_get_switch() && isentrydn) {
@@ -1940,7 +1940,7 @@ upgradedn_producer(void *param)
                                  */
                                 rc = slapi_entry_add_rdn_values(e);
                                 if (rc) {
-                                    LDAPDebug(LDAP_DEBUG_ANY,
+                                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                                               "%s: Failed to add rdn values "
                                               "to an entry: %s (id %lu)\n",
                                               inst->inst_name, normdn, (u_long)temp_id);
@@ -1969,7 +1969,7 @@ upgradedn_producer(void *param)
                 charray_free(ud_vals);
                 ud_vals = NULL;
                 if (skipit) {
-                    LDAPDebug(LDAP_DEBUG_ANY, "%s: WARNING: skipping an entry "
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: WARNING: skipping an entry "
                                   "with a corrupted dn (syntax value): %s "
                                   "(id %lu)\n",
                                   inst->inst_name, 
@@ -3034,7 +3034,7 @@ import_worker(void *param)
 
 error:
     if (ret == DB_RUNRECOVERY) {
-        LDAPDebug(LDAP_DEBUG_ANY,"cannot import; database recovery needed\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"cannot import; database recovery needed\n",
                   0,0,0);
     } else if (ret == DB_LOCK_DEADLOCK) {
         /* can this occur? */
@@ -3082,7 +3082,7 @@ static int bulk_import_start(Slapi_PBlock *pb)
     PR_Lock(job->inst->inst_config_mutex);
     if (job->inst->inst_flags & INST_FLAG_BUSY) {
         PR_Unlock(job->inst->inst_config_mutex);
-        LDAPDebug(LDAP_DEBUG_ANY, "ldbm: '%s' is already in the middle of "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: '%s' is already in the middle of "
                   "another task and cannot be disturbed.\n",
                   job->inst->inst_name, 0, 0);
         FREE(job);
@@ -3152,7 +3152,7 @@ static int bulk_import_start(Slapi_PBlock *pb)
                              SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         PRErrorCode prerr = PR_GetError();
-        LDAPDebug(LDAP_DEBUG_ANY, "unable to spawn import thread, "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "unable to spawn import thread, "
                                   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                                   prerr, slapd_pr_strerror(prerr), 0);
         PR_Unlock(job->wire_lock);
@@ -3381,7 +3381,7 @@ void factory_destructor(void *extension, void *object, void *parent)
      * aborted!
      */
     thread = job->main_thread;
-    LDAPDebug(LDAP_DEBUG_ANY, "ERROR bulk import abandoned\n",
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR bulk import abandoned\n",
               0, 0, 0);
     import_abort_all(job, 1);
     /* wait for import_main to finish... */
@@ -3468,7 +3468,7 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     }
 
     /* ??? unknown state */
-    LDAPDebug(LDAP_DEBUG_ANY,
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
               "ERROR: ldbm_back_wire_import: unknown state %d\n",
               state, 0, 0);
     return -1;
@@ -3508,14 +3508,14 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     {
         filename = slapi_ch_smprintf("%s/%s", dest_dir, file_name);
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, "dse_conf_backup(%s): backup file %s\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "dse_conf_backup(%s): backup file %s\n",
               filter, filename, 0);
 
     /* Open the file to write */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL)
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "dse_conf_backup(%s): open %s failed: (%s)\n",
                 filter, filename, slapd_pr_strerror(PR_GetError()));
         rval = -1;
@@ -3524,7 +3524,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
 
     srch_pb = slapi_pblock_new();
     if (!srch_pb) {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "dse_conf_backup(%s): out of memory\n",
                 filter, 0, 0);
         rval = -1;
@@ -3538,7 +3538,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     for (ep = entries; ep != NULL && *ep != NULL; ep++)
     {
         size_t l = strlen(slapi_entry_get_dn_const(*ep)) + 5 /* "dn: \n" */;
-        LDAPDebug(LDAP_DEBUG_TRACE, "\ndn: %s\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "\ndn: %s\n", 
                  slapi_entry_get_dn_const(*ep), 0, 0);
 
         if (l <= sizeof(tmpbuf))
@@ -3549,7 +3549,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
         prrval = PR_Write(prfd, tp, l);
         if ((size_t)prrval != l)
         {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "dse_conf_backup(%s): write %s failed: %d (%s)\n",
                 filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
@@ -3578,7 +3578,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
             {
                 attr_val = slapi_value_get_berval(sval);
                 l = strlen(attr_val->bv_val) + attr_name_len + 3; /* : \n" */
-                LDAPDebug(LDAP_DEBUG_TRACE, "%s: %s\n", attr_name,
+                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "%s: %s\n", attr_name,
                             attr_val->bv_val, 0);
                 if (l <= sizeof(tmpbuf))
                     tp = tmpbuf;
@@ -3588,7 +3588,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
                 prrval = PR_Write(prfd, tp, l);
                 if ((size_t)prrval != l)
                 {
-                    LDAPDebug(LDAP_DEBUG_ANY,
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                         "dse_conf_backup(%s): write %s failed: %d (%s)\n",
                         filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                     rval = -1;
@@ -3605,7 +3605,7 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
             prrval = PR_Write(prfd, "\n", 1);
             if ((int)prrval != 1)
             {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "dse_conf_backup(%s): write %s failed: %d (%s)\n",
                     filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                 rval = -1;
@@ -3631,7 +3631,7 @@ out:
         prrval = PR_Close(prfd);
         if (PR_SUCCESS != prrval)
         {
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "Fatal Error---Failed to back up dse indexes %d (%s)\n",
                 PR_GetError(), slapd_pr_strerror(PR_GetError()), 0);
             rval = -1;
@@ -3677,7 +3677,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
     if (PR_SUCCESS != PR_Access(filename, PR_ACCESS_READ_OK))
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
             "Warning: config backup file %s not found in backup\n",
             file_name, 0, 0);
         rval = 0;
@@ -3687,7 +3687,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     fd = dblayer_open_huge_file(filename, O_RDONLY, 0);
     if (fd < 0)
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
             "Warning: can't open config backup file: %s\n", filename, 0, 0);
         rval = -1;
         goto out;
@@ -3717,7 +3717,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         e = slapi_str2entry(estr, 0);
         slapi_ch_free_string(&estr);
         if (!e) {
-            LDAPDebug(LDAP_DEBUG_ANY, "WARNING: skipping bad LDIF entry "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: skipping bad LDIF entry "
                 "ending line %d of file \"%s\"", curr_lineno, filename, 0);
             continue;
         }
@@ -3753,7 +3753,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, 1 /* force_update */, li->li_identity))
     {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING!!: current %s is "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING!!: current %s is "
                   "different from backed up configuration; "
                   "The backup is restored.\n", log_str, 0, 0);
     }

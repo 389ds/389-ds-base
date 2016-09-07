@@ -46,7 +46,7 @@ g_get_global_referrals(void)
         global_referrals.ra_rwlock = slapi_new_rwlock();
       
         if (global_referrals.ra_rwlock == NULL) {
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
     		   "ref_array_init: new lock creation failed\n", 0, 0, 0);
         	exit (-1);
         }
@@ -238,7 +238,7 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
      */
 	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_ARGS )) {
 	for ( i = 0; urlscopy[i] != NULL; ++i ) {
-	    LDAPDebug( LDAP_DEBUG_ARGS, "ref_adjust: \"%s\" -> \"%s\"\n",
+	    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "ref_adjust: \"%s\" -> \"%s\"\n",
 		urls[i]->bv_val, urlscopy[i]->bv_val, 0 );
 	}
     }

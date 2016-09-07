@@ -2332,7 +2332,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     if(dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, e,
                          NULL, &returncode, returntext)!=SLAPI_DSE_CALLBACK_OK) {
         if (!returncode) {
-            LDAPDebug( LDAP_DEBUG_ANY, "dse_add: DSE PREOP callback returned error but did not set returncode\n", 0, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dse_add: DSE PREOP callback returned error but did not set returncode\n", 0, 0, 0 );
             returncode = LDAP_OPERATIONS_ERROR;
         }
         rc = returncode;

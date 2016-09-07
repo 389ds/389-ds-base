@@ -80,7 +80,7 @@ debug_print_layers(PRFileDesc *fd)
         LDAPDebug2Args( LDAP_DEBUG_CONNS,
                        "debug_print_layers: fd %d sasl_io_recv = %p\n",
                         PR_FileDesc2NativeHandle(fd), sasl_io_recv );
-        LDAPDebug( LDAP_DEBUG_CONNS,
+        LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                    "debug_print_layers: fd name %s type = %d recv = %p\n",
                    PR_GetNameForIdentity(fd->identity),
                    PR_GetDescType(fd),
@@ -197,7 +197,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     debug_print_layers(fd);
     /* first we need the length bytes */
     ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
-    LDAPDebug( LDAP_DEBUG_CONNS,
+    LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
            "sasl_io_start_packet: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
            ret, c->c_connid, 0 );
     if (ret <= 0) {
@@ -207,7 +207,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                    "sasl_io_start_packet: connection closed while reading sasl packet length on connection %" NSPRIu64 "\n",
                    c->c_connid );
         } else {
-            LDAPDebug( LDAP_DEBUG_CONNS,
+            LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                    "sasl_io_start_packet: error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n",
                    c->c_connid, *err, slapd_pr_strerror(*err) );
         }
@@ -303,7 +303,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
                 return PR_FAILURE;
             } else if (ret > 0) {
-                LDAPDebug( LDAP_DEBUG_CONNS,
+                LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                         "Continued: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
                         ret, c->c_connid, 0 );
                 if((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size){
@@ -313,7 +313,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 sp->encrypted_buffer_offset += ret;
             } else if (ret < 0){
                 *err = PR_GetError();
-                LDAPDebug( LDAP_DEBUG_CONNS, "sasl_io_start_packet: error reading sasl packet length on connection "
+                LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "sasl_io_start_packet: error reading sasl packet length on connection "
                         "%" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
                 return ret;
             }
@@ -440,7 +440,7 @@ sasl_io_read_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt3
             LDAPDebug1Arg( LDAP_DEBUG_CONNS,
                        "sasl_io_read_packet: connection closed while reading sasl packet on connection %" NSPRIu64 "\n", c->c_connid );
         } else {
-            LDAPDebug( LDAP_DEBUG_CONNS,
+            LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                        "sasl_io_read_packet: error reading sasl packet on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
         }
         return ret;
@@ -461,9 +461,9 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
 
     /* Do we have decrypted data buffered from 'before' ? */
     bytes_in_buffer = sp->decrypted_buffer_count - sp->decrypted_buffer_offset;
-    LDAPDebug( LDAP_DEBUG_CONNS,
+    LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                "sasl_io_recv for connection %" NSPRIu64 " len %d bytes_in_buffer %d\n", c->c_connid, len, bytes_in_buffer );
-    LDAPDebug( LDAP_DEBUG_CONNS,
+    LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                "sasl_io_recv for connection %" NSPRIu64 " len %d encrypted buffer count %d\n", c->c_connid, len, sp->encrypted_buffer_count );
     if (0 == bytes_in_buffer) {
         /* If there wasn't buffered decrypted data, we need to get some... */
@@ -497,7 +497,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
          * when more data arrives
          */
         if (!sasl_io_finished_packet(sp)) {
-            LDAPDebug( LDAP_DEBUG_CONNS,
+            LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                        "sasl_io_recv for connection %" NSPRIu64 " - not finished reading packet yet\n", c->c_connid, 0, 0 );
 #if defined(EWOULDBLOCK)
             errno = EWOULDBLOCK;
@@ -551,7 +551,7 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
                        "sasl_io_recv all decrypted data returned for connection %" NSPRIu64 "\n", c->c_connid );
         } else {
             sp->decrypted_buffer_offset += bytes_to_return;
-            LDAPDebug( LDAP_DEBUG_CONNS,
+            LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                        "sasl_io_recv returning %d bytes to caller %d bytes left to return for connection %" NSPRIu64 "\n",
                        bytes_to_return,
                        sp->decrypted_buffer_count - sp->decrypted_buffer_offset,
@@ -769,10 +769,10 @@ sasl_io_enable(Connection *c, void *data /* UNUSED */)
         sp->conn = c;
         rv = PR_PushIOLayer(c->c_prfd, PR_TOP_IO_LAYER, layer);
         if (rv) {
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                        "sasl_io_enable: error enabling sasl io on connection %" NSPRIu64 " %d:%s\n", c->c_connid, rv, slapd_pr_strerror(rv) );
         } else {
-            LDAPDebug( LDAP_DEBUG_CONNS,
+            LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                        "sasl_io_enable: enabled sasl io on connection %" NSPRIu64 " \n", c->c_connid, 0, 0 );
             debug_print_layers(c->c_prfd);
         }
@@ -790,7 +790,7 @@ sasl_io_cleanup(Connection *c, void *data /* UNUSED */)
 {
     int ret = 0;
 
-    LDAPDebug( LDAP_DEBUG_CONNS,
+    LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                "sasl_io_cleanup for connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
 
     ret = sasl_pop_IO_layer(c->c_prfd, 0 /* do not close */);

@@ -107,7 +107,7 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
     
     if (instance_set_busy(inst) != 0)
     {
-        LDAPDebug( LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
             "Backend instance: '%s' is already in the middle of "
             "another task and cannot be disturbed.\n",
             inst->inst_name, 0, 0);
@@ -118,7 +118,7 @@ int vlv_DeleteSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
     p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {
-        LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
         vlvSearch_removefromlist((struct vlvSearch **)&be->vlvSearchList,p->vlv_dn);
         vlvSearch_delete(&p);
     }
@@ -134,13 +134,13 @@ int vlv_DeleteIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 {
     ldbm_instance *inst = (ldbm_instance*)arg;
     if (inst && is_instance_busy(inst)) {
-        LDAPDebug( LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                        "Backend instance: '%s' is already in the middle of "
                        "another task and cannot be disturbed.\n",
                        inst->inst_name, 0, 0);
         return SLAPI_DSE_CALLBACK_ERROR;
     } else {
-        LDAPDebug( LDAP_DEBUG_ANY, 
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
                        "Deleted Virtual List View Index.\n", 0, 0, 0);
         return SLAPI_DSE_CALLBACK_OK;
     }
@@ -158,7 +158,7 @@ int vlv_ModifySearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
     p= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {
-       	LDAPDebug( LDAP_DEBUG_ANY, "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name, 0, 0);
+       	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name, 0, 0);
     }
 	slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
@@ -169,7 +169,7 @@ int vlv_ModifySearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
 int vlv_ModifyIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {
-   	LDAPDebug( LDAP_DEBUG_ANY, "Modified Virtual List View Index.\n", 0, 0, 0);
+   	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Modified Virtual List View Index.\n", 0, 0, 0);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
@@ -185,7 +185,7 @@ int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_E
     p= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if(p!=NULL)
     {
-       	LDAPDebug( LDAP_DEBUG_ANY, "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name, 0, 0);
+       	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Modified Virtual List View Search (%s), which will be enabled when the database is rebuilt.\n", p->vlv_name, 0, 0);
     }
 	slapi_rwlock_unlock(be->vlvSearchList_lock);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
@@ -196,7 +196,7 @@ int vlv_ModifyRDNSearchEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_E
 
 int vlv_ModifyRDNIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* entryAfter, int *returncode, char *returntext, void *arg)
 {   
-   	LDAPDebug( LDAP_DEBUG_ANY, "Modified Virtual List View Index.\n", 0, 0, 0);
+   	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Modified Virtual List View Index.\n", 0, 0, 0);
     return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
 }
 
@@ -244,7 +244,7 @@ vlv_init_index_entry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* en
         slapi_sdn_get_parent(slapi_entry_get_sdn(entryBefore),&parentdn);
         pSearch= vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
 		if (pSearch == NULL) { 
-			LDAPDebug( LDAP_DEBUG_ANY, "Parent doesn't exist for entry %s.\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Parent doesn't exist for entry %s.\n",
 				slapi_entry_get_dn(entryBefore), 0, 0); 
 			vlvIndex_delete(&newVlvIndex);
 		} 
@@ -339,7 +339,7 @@ vlv_init(ldbm_instance *inst)
     backend *be = NULL;
 
     if (!inst) {
-        LDAPDebug(LDAP_DEBUG_ANY, "vlv_init: invalid instance.\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_init: invalid instance.\n", 0, 0, 0);
         return_value = LDAP_OPERATIONS_ERROR;
         goto out;
     }
@@ -738,7 +738,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
     rc = dblayer_get_index_file(be, pIndex->vlv_attrinfo, &db, DBOPEN_CREATE);
     if (rc != 0) {
       if(rc != DB_LOCK_DEADLOCK)
-        LDAPDebug(LDAP_DEBUG_ANY, "VLV: can't get index file '%s' (err %d)\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "VLV: can't get index file '%s' (err %d)\n",
                   pIndex->vlv_attrinfo->ai_type, rc, 0);
         return rc;
     }
@@ -756,7 +756,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
         data.data = &entry->ep_id;
         rc = db->put(db, db_txn, &key->key, &data, 0);
         if (rc == 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE,
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                       "vlv_update_index: %s Insert %s ID=%lu\n",
                       pIndex->vlv_name, key->key.data, (u_long)entry->ep_id);
             vlvIndex_increment_indexlength(pIndex, db, txn);
@@ -765,12 +765,12 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
 	} else if(rc != DB_LOCK_DEADLOCK)  {
             /* jcm: This error is valid if the key already exists.
              * Identical multi valued attr values could do this. */
-            LDAPDebug(LDAP_DEBUG_TRACE,
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                       "vlv_update_index: %s Insert %s ID=%lu FAILED\n",
                       pIndex->vlv_name, key->key.data, (u_long)entry->ep_id);
         }
     } else {
-        LDAPDebug(LDAP_DEBUG_TRACE,
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                   "vlv_update_index: %s Delete %s\n",
                   pIndex->vlv_name, key->key.data, 0);
         rc = db->del(db, db_txn, &key->key, 0);
@@ -779,7 +779,7 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
 	} else if (rc == DB_RUNRECOVERY) {
 	    ldbm_nasty(pIndex->vlv_name,78,rc);
 	} else if (rc != DB_LOCK_DEADLOCK) {
-            LDAPDebug(LDAP_DEBUG_TRACE,
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                       "vlv_update_index: %s Delete %s FAILED\n",
                       pIndex->vlv_name, key->key.data, 0);
         }
@@ -916,7 +916,7 @@ determine_result_range(const struct vlv_request *vlv_request_control, PRUint32 i
             *pstop= length - 1;
         }
     }
-    LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_determine_result_range: Result Range %lu-%lu\n", *pstart, *pstop, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_determine_result_range: Result Range %lu-%lu\n", *pstart, *pstop, 0 );
 }
 
 /*
@@ -1016,7 +1016,7 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
             /* Records are numbered from one. */
             si--;
             slapi_ch_free(&(data.data));
-        	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_build_candidate_list_byvalue: Found. Index=%lu\n",si,0,0);
+        	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_build_candidate_list_byvalue: Found. Index=%lu\n",si,0,0);
         }
         else
         {
@@ -1037,7 +1037,7 @@ vlv_build_candidate_list_byvalue( struct vlvIndex* p, DBC *dbc, PRUint32 length,
         {
             si = length - 1;
         }
-        LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_build_candidate_list_byvalue: Not Found. Index=%lu\n",si,0,0);
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_build_candidate_list_byvalue: Not Found. Index=%lu\n",si,0,0);
     }
     if (key.data != typedown_value[0]->bv_val) { /* in case new key is set 
                                                   in dbc->c_get(DB_SET_RANGE) */
@@ -1086,10 +1086,10 @@ int vlv_build_idl(PRUint32 start, PRUint32 stop, DB *db, DBC *dbc,
     }
     if (err != 0) {
         /* some db error...? */
-        LDAPDebug(LDAP_DEBUG_ANY, "vlv_build_idl: can't follow db cursor "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_build_idl: can't follow db cursor "
                   "(err %d)\n", err, 0, 0);
         if (err == ENOMEM)
-            LDAPDebug(LDAP_DEBUG_ANY, "   nomem: wants %d key, %d data\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "   nomem: wants %d key, %d data\n",
                       key.size, data.size, 0);
         rc = LDAP_OPERATIONS_ERROR;
         goto error;
@@ -1195,7 +1195,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     int do_trim= 1;
     DB_TXN *db_txn = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE,
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
               "=> vlv_build_candidate_list: %s %s Using VLV Index %s\n",
               slapi_sdn_get_dn(vlvIndex_getBase(p)), p->vlv_search->vlv_filter,
               vlvIndex_getName(p));
@@ -1208,7 +1208,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     rc = dblayer_get_index_file(be, p->vlv_attrinfo, &db, 0);
     if (rc != 0) {
         /* shouldn't happen */
-        LDAPDebug(LDAP_DEBUG_ANY, "VLV: can't get index file '%s' (err %d)\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "VLV: can't get index file '%s' (err %d)\n",
                   p->vlv_attrinfo->ai_type, rc, 0);
         if (is_srchlist_locked) {
             slapi_rwlock_unlock(be->vlvSearchList_lock);
@@ -1230,7 +1230,7 @@ vlv_build_candidate_list( backend *be, struct vlvIndex* p, const struct vlv_requ
     err = db->cursor(db, db_txn, &dbc, 0);
     if (err != 0) {
         /* shouldn't happen */
-        LDAPDebug(LDAP_DEBUG_ANY, "VLV: couldn't get cursor (err %d)\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "VLV: couldn't get cursor (err %d)\n",
                   rc, 0, 0);
         return -1;
     }
@@ -1304,7 +1304,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> vlv_filter_candidates: Filtering %lu Candidates\n",(u_long)candidates->b_nids, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> vlv_filter_candidates: Filtering %lu Candidates\n",(u_long)candidates->b_nids, 0, 0 );
 
 	if (0 == return_value && candidates->b_nids>0)
 	{
@@ -1335,7 +1335,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
                      */
                     if(!(ALLIDS(candidates) && err==DB_NOTFOUND))
                     {
-                	    LDAPDebug( LDAP_DEBUG_ANY, "vlv_filter_candidates: Candidate %lu not found err=%d\n", (u_long)id, err, 0 );
+                	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_filter_candidates: Candidate %lu not found err=%d\n", (u_long)id, err, 0 );
                     }
             	}
             	else
@@ -1346,7 +1346,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
                 	    if ( slapi_filter_test( pb, e->ep_entry, filter, 0 /* No ACL Check */) == 0 )
                 	    {
                             /* The entry passed the filter test, add the id to the list */
-                    	    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_filter_candidates: Candidate %lu Passed Filter\n", (u_long)id, 0, 0 );
+                    	    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_filter_candidates: Candidate %lu Passed Filter\n", (u_long)id, 0, 0 );
                             idl_append(resultIdl,id);
                 		}
                     }
@@ -1377,7 +1377,7 @@ vlv_filter_candidates(backend *be, Slapi_PBlock *pb, const IDList *candidates, c
 	}
 
         *filteredCandidates= resultIdl;
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_filter_candidates: Filtering done\n",0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_filter_candidates: Filtering done\n",0, 0, 0 );
 
 	return return_value;
 }
@@ -1449,12 +1449,12 @@ vlv_trim_candidates_txn(backend *be, const IDList *candidates, const sort_spec* 
             PRUint32 cursor= 0;
             for(cursor=start;cursor<=stop;cursor++)
             {
-            	LDAPDebug( LDAP_DEBUG_TRACE, "vlv_trim_candidates: Include ID %lu\n",(u_long)candidates->b_ids[cursor], 0, 0 );
+            	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_trim_candidates: Include ID %lu\n",(u_long)candidates->b_ids[cursor], 0, 0 );
                 idl_append(resultIdl,candidates->b_ids[cursor]);
             }
         }
     }
-   	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates: Trimmed list contains %lu entries.\n", (u_long)(resultIdl ? resultIdl->b_nids : 0), 0, 0 );
+   	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_trim_candidates: Trimmed list contains %lu entries.\n", (u_long)(resultIdl ? resultIdl->b_nids : 0), 0, 0 );
     *trimmedCandidates= resultIdl;
     return return_value;
 }
@@ -1476,7 +1476,7 @@ static PRUint32
 vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_request_control)
 {
     PRUint32 si= 0; /* The Selected Index */
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> vlv_trim_candidates_byindex: length=%u index=%d size=%d\n",length, vlv_request_control->index, vlv_request_control->contentCount );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> vlv_trim_candidates_byindex: length=%u index=%d size=%d\n",length, vlv_request_control->index, vlv_request_control->contentCount );
     if(vlv_request_control->index==0)
     {
         /* Always select the first entry in the list */
@@ -1523,7 +1523,7 @@ vlv_trim_candidates_byindex(PRUint32 length, const struct vlv_request *vlv_reque
             }
         }
     }
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byindex: Selected Index %lu\n",si, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_trim_candidates_byindex: Selected Index %lu\n",si, 0, 0 );
     return si;
 }
 
@@ -1565,7 +1565,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
             invalue[1]= NULL;
             slapi_attr_values2keys(&sort_control->sattr,invalue,&typedown_value,LDAP_FILTER_EQUALITY); /* JCM SLOW FUNCTION */
             if (compare_fn == NULL) {
-                LDAPDebug(LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_trim_candidates_byvalue: "
                           "attempt to compare an unordered attribute",
                           0, 0, 0);
                 compare_fn = slapi_berval_cmp;
@@ -1582,7 +1582,7 @@ retry:
      * Perform a binary search over the candidate list
      */
     if (0 == candidates->b_nids) { /* idlist is empty */
-        LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: Candidate ID List is empty.\n", 0, 0, 0 );
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_trim_candidates_byvalue: Candidate ID List is empty.\n", 0, 0, 0 );
         ber_bvecfree((struct berval**)typedown_value);
         return candidates->b_nids; /* not found */
     }
@@ -1604,7 +1604,7 @@ retry:
         if ( e == NULL )
         {
             int rval;
-            LDAPDebug( LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_trim_candidates_byvalue: "
                     "Candidate ID %lu not found err=%d\n", (u_long)id, err, 0 );
             rval = idl_delete((IDList **)&candidates, id);
             if (0 == rval || 1 == rval || 2 == rval) {
@@ -1698,12 +1698,12 @@ retry:
                 if(si==candidates->b_nids && !match)
                 {
                     /* Couldn't find an entry which matches the value, so return contentCount */
-                    LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Not Found. Index %lu\n",si, 0, 0 );
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_trim_candidates_byvalue: Not Found. Index %lu\n",si, 0, 0 );
                     si= candidates->b_nids;
                 }
                 else
                 {
-                    LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_trim_candidates_byvalue: Found. Index %lu\n",si, 0, 0 );
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_trim_candidates_byvalue: Found. Index %lu\n",si, 0, 0 );
                 }
             }
             CACHE_RETURN(&(((ldbm_instance *)be->be_instance_info)->inst_cache),
@@ -1771,7 +1771,7 @@ vlv_make_response_control (Slapi_PBlock *pb, const struct vlv_response* vlvp)
         ber_bvfree(bvp);
     }
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= vlv_make_response_control: Index=%d Size=%d Result=%d\n", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= vlv_make_response_control: Index=%d Size=%d Result=%d\n", vlvp->targetPosition, vlvp->contentCount, vlvp->result );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }
@@ -1877,7 +1877,7 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
     }
     else
     {
-        LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Before=%d After=%d\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_parse_request_control: Before=%d After=%d\n",
                    vlvp->beforeCount, vlvp->afterCount, 0 );
         if (ber_scanf(ber,"t",&vlvp->tag) == LBER_ERROR)
         {
@@ -1905,7 +1905,7 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
                     {
                         vlvp->index--;
                     }
-                    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Index=%d Content=%d\n", vlvp->index, vlvp->contentCount, 0 );
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_parse_request_control: Index=%d Content=%d\n", vlvp->index, vlvp->contentCount, 0 );
                 }
                 break;
             case LDAP_TAG_VLV_BY_VALUE:
@@ -1924,7 +1924,7 @@ vlv_parse_request_control( backend *be, struct berval *vlv_spec_ber,struct vlv_r
                     char *p= slapi_ch_malloc(vlvp->value.bv_len+1);
                     strncpy(p,vlvp->value.bv_val,vlvp->value.bv_len);
                     p[vlvp->value.bv_len]= '\0';
-                    LDAPDebug( LDAP_DEBUG_TRACE, "vlv_parse_request_control: Value=%s\n", p, 0, 0 );
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_parse_request_control: Value=%s\n", p, 0, 0 );
                     slapi_ch_free( (void**)&p);
                 }
                 break;
@@ -1988,7 +1988,7 @@ IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base,
 			}
 			if (!vi) {
 				/* no match */
-				LDAPDebug(LDAP_DEBUG_TRACE, "vlv: no index online for %s\n",
+				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv: no index online for %s\n",
 					t->vlv_filter, 0, 0);
 				slapi_rwlock_unlock(be->vlvSearchList_lock);
 				return NULL;
@@ -2001,7 +2001,7 @@ IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base,
 				if (err == 0) {
 					if (length == 0) /* 609377: index size could be 0 */
 					{
-						LDAPDebug(LDAP_DEBUG_TRACE, "vlv: index %s is empty\n",
+						LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv: index %s is empty\n",
 								t->vlv_filter, 0, 0);
 						idl = NULL;
 					}
@@ -2015,7 +2015,7 @@ IDList *vlv_find_index_by_filter_txn(struct backend *be, const char *base,
 				if (err == 0) {
 					return idl;
 				} else {
-					LDAPDebug(LDAP_DEBUG_ANY, "vlv find index: err %d\n",
+					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv find index: err %d\n",
 						err, 0, 0);
 					return NULL;
 				}
@@ -2077,7 +2077,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 
 	if (instance_set_busy(inst) != 0)
 	{
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			"Backend instance: '%s' is already in the middle of "
 			"another task and cannot be disturbed.\n",
 			inst->inst_name, 0, 0);
@@ -2087,7 +2087,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	base1 = slapi_create_dn_string("cn=MCC %s,cn=%s,cn=%s,cn=plugins,cn=config",
 					tag1, inst->inst_name, inst->inst_li->li_plugin->plg_name);
 	if (NULL == base1) {
-		LDAPDebug(LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				  "vlv_delete_search_entry: "
 				  "failed to craete vlv search entry dn (rdn: cn=MCC %s) for "
 				  "plugin %s, instance %s\n",
@@ -2101,11 +2101,11 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 	p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, newdn);
 	if(p!=NULL)
 	{
-		LDAPDebug( LDAP_DEBUG_ANY, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Deleted Virtual List View Search (%s).\n", p->vlv_name, 0, 0);
 		tag2=create_vlv_search_tag(dn);
 		base2 = slapi_create_dn_string("cn=by MCC %s,%s", tag2, base1);
 		if (NULL == base2) {
-			LDAPDebug(LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 					  "vlv_delete_search_entry: failed to create "
 					  "vlv search entry dn (rdn: cn=by MCC %s) for "
 					  "plugin %s, instance %s\n",
@@ -2125,7 +2125,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 		slapi_delete_internal_pb(tmppb);
 		slapi_pblock_get (tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc); 
 		if(rc != LDAP_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_ANY, "vlv_delete_search_entry:can't delete dse entry '%s'\n", base2, 0, 0);			
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_delete_search_entry:can't delete dse entry '%s'\n", base2, 0, 0);			
 		}
 		pblock_done(tmppb);
 		pblock_init(tmppb);
@@ -2134,7 +2134,7 @@ int vlv_delete_search_entry(Slapi_PBlock *pb, Slapi_Entry* e, ldbm_instance *ins
 		slapi_delete_internal_pb(tmppb);
 		slapi_pblock_get (tmppb, SLAPI_PLUGIN_INTOP_RESULT, &rc); 
 		if(rc != LDAP_SUCCESS) {
-			  LDAPDebug(LDAP_DEBUG_ANY, "vlv_delete_search_entry:can't delete dse entry '%s'\n", base1, 0, 0);
+			  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "vlv_delete_search_entry:can't delete dse entry '%s'\n", base1, 0, 0);
 		}
 		slapi_pblock_destroy(tmppb);
 		slapi_ch_free((void **)&tag2);
@@ -2153,13 +2153,13 @@ bail:
 void
 vlv_acquire_lock(backend *be)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, "vlv_acquire_lock => trying to acquire the lock\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_acquire_lock => trying to acquire the lock\n", 0, 0, 0);
 	slapi_rwlock_wrlock(be->vlvSearchList_lock);
 }
 
 void
 vlv_release_lock(backend *be)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, "vlv_release_lock => trying to release the lock\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_release_lock => trying to release the lock\n", 0, 0, 0);
 	slapi_rwlock_unlock(be->vlvSearchList_lock);
 }

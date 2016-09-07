@@ -260,7 +260,7 @@ windows_ignore_error_and_keep_going(int error)
 {
 	int return_value = PR_FALSE;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_ignore_error_and_keep_going\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_ignore_error_and_keep_going\n", 0, 0, 0 );
 
 	switch (error)
 	{
@@ -331,15 +331,15 @@ windows_ignore_error_and_keep_going(int error)
 		return_value = PR_FALSE;
 		break;
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_ignore_error_and_keep_going\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_ignore_error_and_keep_going\n", 0, 0, 0 );
 	return return_value;
 }
 
 static const char*
 op2string(int op)
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> op2string\n", 0, 0, 0 );
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= op2string\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> op2string\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= op2string\n", 0, 0, 0 );
 	switch (op) {
 	case SLAPI_OPERATION_ADD:
 		return "add";
@@ -581,7 +581,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 	PRBool is_newer = PR_FALSE;
 	RUV *r = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_acquire_replica\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_acquire_replica\n", 0, 0, 0 );
 
 	if (NULL == ruv)
 	{
@@ -597,7 +597,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
 						"%s: Remote replica already acquired\n",
 						agmt_get_long_name(prp->agmt));
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_acquire_replica\n", 0, 0, 0 );
         return ACQUIRE_SUCCESS;
     }
 
@@ -636,7 +636,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
 	/* Once we get here we have a valid ruv */
  	if (is_newer == PR_FALSE && check_ruv) { 
  		prp->last_acquire_response_code = NSDS50_REPL_UPTODATE;
-		LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica - ACQUIRE_CONSUMER_WAS_UPTODATE\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_acquire_replica - ACQUIRE_CONSUMER_WAS_UPTODATE\n", 0, 0, 0 );
  		return ACQUIRE_CONSUMER_WAS_UPTODATE; 
  	} 
 
@@ -705,7 +705,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         prp->replica_acquired = PR_TRUE;
     }
 done:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_acquire_replica\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_acquire_replica\n", 0, 0, 0 );
 
 	return return_value;
 }
@@ -713,7 +713,7 @@ done:
 void
 windows_release_replica(Private_Repl_Protocol *prp)
 {
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_release_replica\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_release_replica\n", 0, 0, 0 );
 
   PR_ASSERT(NULL != prp);
   PR_ASSERT(NULL != prp->conn);
@@ -725,7 +725,7 @@ windows_release_replica(Private_Repl_Protocol *prp)
 
   prp->replica_acquired = PR_FALSE;
 
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_release_replica\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_release_replica\n", 0, 0, 0 );
 
 }
 
@@ -1545,7 +1545,7 @@ windows_replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op
 	Slapi_Entry *local_entry = NULL;
 	Slapi_Entry *remote_entry = NULL;
 		
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_replay_update\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_replay_update\n", 0, 0, 0 );
 
 	local_dn = slapi_sdn_dup( op->target_address.sdn );
 
@@ -2039,7 +2039,7 @@ windows_create_remote_entry(Private_Repl_Protocol *prp,Slapi_Entry *original_ent
 		"objectclass:top\n"
 		"objectclass:group\n";
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_create_remote_entry\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_create_remote_entry\n", 0, 0, 0 );
 
 	if (NULL == password) {
 		retval = LDAP_PARAM_ERROR;
@@ -2286,7 +2286,7 @@ error:
 	{
 		windows_dump_entry("Created new remote entry:\n",new_entry);
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_create_remote_entry: %d\n", retval, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_create_remote_entry: %d\n", retval, 0, 0 );
 	return retval;
 }
 
@@ -2301,12 +2301,12 @@ windows_entry_already_exists(Slapi_Entry *e){
 	Slapi_DN *sdn = NULL;
 	Slapi_Entry *entry = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_entry_already_exists\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_entry_already_exists\n", 0, 0, 0 );
 
 	sdn = slapi_entry_get_sdn(e);
 	rc  = slapi_search_internal_get_entry( sdn, NULL, &entry, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION));
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_entry_already_exists\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_entry_already_exists\n", 0, 0, 0 );
 
 	if (rc == LDAP_SUCCESS)
 	{
@@ -2326,7 +2326,7 @@ windows_delete_local_entry(Slapi_DN *sdn){
 	Slapi_PBlock *pb = NULL;
 	int return_value = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_delete_local_entry\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_delete_local_entry\n", 0, 0, 0 );
 
 	pb = slapi_pblock_new();
 	slapi_delete_internal_set_pb(pb, slapi_sdn_get_dn(sdn), NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
@@ -2338,7 +2338,7 @@ windows_delete_local_entry(Slapi_DN *sdn){
 		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"delete operation on local entry %s returned: %d\n", slapi_sdn_get_dn(sdn), return_value);
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_delete_local_entry: %d\n", return_value, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_delete_local_entry: %d\n", return_value, 0, 0 );
 
 	return return_value;
 }
@@ -2634,7 +2634,7 @@ windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original
 	Slapi_Mod *smod = slapi_mod_new();
 	Slapi_Mod *last_smod = smod;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_check_mods_for_rdn_change\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_check_mods_for_rdn_change\n", 0, 0, 0 );
 
 	/* Iterate through the original mods, looking for a modification to the RDN attribute */
 	slapi_mods_init_byref(&smods, original_mods);
@@ -2786,7 +2786,7 @@ done:
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_check_mods_for_rdn_change: %d\n", ret, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_check_mods_for_rdn_change: %d\n", ret, 0, 0 );
 
 	return ret;
 }
@@ -2809,16 +2809,16 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,
 	const Slapi_DN *windows_subtree = NULL;
 	const subtreePair* subtree_pairs = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_map_mods_for_replay\n", 0, 0, 0 );
 	if (NULL == prp) {
-		LDAPDebug(LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		          "<= windows_map_mods_for_replay; NULL protocol; NOOP\n", 0, 0, 0);
 		return;
 	}
 	windows_subtree = windows_private_get_windows_subtree(prp->agmt);
 	subtree_pairs = windows_private_get_subtreepairs(prp->agmt);
 	if ((NULL == windows_subtree) && (NULL == subtree_pairs)) {
-		LDAPDebug(LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		          "<= windows_map_mods_for_replay; NULL agreement subtree; NOOP\n", 0, 0, 0);
 		return;
 	}
@@ -3068,7 +3068,7 @@ windows_map_mods_for_replay(Private_Repl_Protocol *prp,
 	slapi_mods_done (&smods);
 	/* Extract the mods for the caller */
 	*returned_mods = slapi_mods_get_ldapmods_passout(&mapped_smods);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_map_mods_for_replay\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_map_mods_for_replay\n", 0, 0, 0 );
 }
 
 
@@ -4479,7 +4479,7 @@ windows_create_local_entry(Private_Repl_Protocol *prp,Slapi_Entry *remote_entry,
 		"ntGroupDeleteGroup:true\n"
    		"cn:%s\n";
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_create_local_entry\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_create_local_entry\n", 0, 0, 0 );
 
 	windows_is_remote_entry_user_or_group(remote_entry,&is_user,&is_group);
 	user_entry_template = is_nt4 ? local_nt4_user_entry_template : local_user_entry_template;
@@ -4606,7 +4606,7 @@ error:
 	{
 		slapi_ch_free_string(&username);
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_create_local_entry\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_create_local_entry\n", 0, 0, 0 );
 	return retval;
 }
 
@@ -4676,7 +4676,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,
 	Slapi_Entry *target_entry = NULL;
 
 	/* Iterate over the attributes on the remote entry, updating the local entry where appropriate */
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_generate_update_mods\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_generate_update_mods\n", 0, 0, 0 );
 
 	*do_modify = 0;
 
@@ -5149,7 +5149,7 @@ windows_generate_update_mods(Private_Repl_Protocol *prp,
 		slapi_mods_dump(smods,"windows sync");
 	}
 bail:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_generate_update_mods: %d\n", retval, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_generate_update_mods: %d\n", retval, 0, 0 );
 	return retval;
 }
 
@@ -6022,7 +6022,7 @@ windows_dirsync_inc_run(Private_Repl_Protocol *prp)
 	int rc = 0;
 	int done = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> windows_dirsync_inc_run\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_dirsync_inc_run\n", 0, 0, 0 );
 	while (!done) {
 
 		Slapi_Entry *e = NULL;
@@ -6049,6 +6049,6 @@ windows_dirsync_inc_run(Private_Repl_Protocol *prp)
 		}
 	} /* While !done */
 error:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= windows_dirsync_inc_run\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_dirsync_inc_run\n", 0, 0, 0 );
 }
 

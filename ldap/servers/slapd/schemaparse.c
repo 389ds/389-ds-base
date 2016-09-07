@@ -206,7 +206,7 @@ normalize_oc( void )
 	oc_lock_write();
 
 	for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	  LDAPDebug (LDAP_DEBUG_PARSE, 
+	  LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG, 
 				 "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
 	  /* required attributes */
 	  normalize_list( oc->oc_required );
@@ -226,7 +226,7 @@ normalize_oc_nolock( void )
 	struct objclass	*oc;
 
 	for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	  LDAPDebug (LDAP_DEBUG_PARSE, 
+	  LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG, 
 				 "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
 	  /* required attributes */
 	  normalize_list( oc->oc_required );

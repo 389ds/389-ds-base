@@ -101,17 +101,17 @@ ps_init_psearch_system()
     if ( !PS_IS_INITIALIZED()) {
 	psearch_list = (PSearch_List *) slapi_ch_calloc( 1, sizeof( PSearch_List ));
 	if (( psearch_list->pl_rwlock = slapi_new_rwlock()) == NULL ) {
-	    LDAPDebug( LDAP_DEBUG_ANY, "init_psearch_list: cannot initialize lock structure. "
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "init_psearch_list: cannot initialize lock structure. "
 		    "The server is terminating.\n", 0, 0, 0 );
 	    exit( -1 );
 	}
 	if (( psearch_list->pl_cvarlock = PR_NewLock()) == NULL ) {
-	    LDAPDebug( LDAP_DEBUG_ANY, "init_psearch_list: cannot create new lock.  "
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "init_psearch_list: cannot create new lock.  "
 		    "The server is terminating.\n", 0, 0, 0 );
 	    exit( -1 );
 	}
 	if (( psearch_list->pl_cvar = PR_NewCondVar( psearch_list->pl_cvarlock )) == NULL ) {
-	    LDAPDebug( LDAP_DEBUG_ANY, "init_psearch_list: cannot create new condition variable.  "
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "init_psearch_list: cannot create new condition variable.  "
 		    "The server is terminating.\n", 0, 0, 0 );
 	    exit( -1 );
 	}
@@ -182,7 +182,7 @@ ps_add( Slapi_PBlock *pb, ber_int_t changetypes, int send_entchg_controls )
        if(NULL == ps_tid){
             int prerr;
             prerr = PR_GetError(); 
-            LDAPDebug(LDAP_DEBUG_ANY,"persistent search PR_CreateThread()failed in the " 
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"persistent search PR_CreateThread()failed in the " 
                      "ps_add function: " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					 prerr, slapd_pr_strerror(prerr), 0); 
    
@@ -438,7 +438,7 @@ psearch_alloc(void)
 
     ps->ps_pblock = NULL;
     if (( ps->ps_lock = PR_NewLock()) == NULL ) {
-	LDAPDebug( LDAP_DEBUG_ANY, "psearch_add: cannot create new lock.  "
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "psearch_add: cannot create new lock.  "
 		"Persistent search abandoned.\n", 0, 0, 0 );
 	slapi_ch_free((void **)&ps);
 	return( NULL );
@@ -582,7 +582,7 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 							eprev ? slapi_entry_get_dn_const(eprev) : NULL,
 							&ctrl );
 					if ( rc != LDAP_SUCCESS ) {
-		   				LDAPDebug( LDAP_DEBUG_ANY, "ps_service_persistent_searches:"
+		   				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ps_service_persistent_searches:"
 						" unable to create EntryChangeNotification control for"
 						" entry \"%s\" -- control won't be sent.\n",
 						slapi_entry_get_dn_const(e), 0, 0 );
@@ -614,10 +614,10 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 		ldap_control_free( ctrl );
 		/* Turn 'em loose */
 		ps_wakeup_all();
-		LDAPDebug( LDAP_DEBUG_TRACE, "ps_service_persistent_searches: enqueued entry "
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ps_service_persistent_searches: enqueued entry "
 			"\"%s\" on %d persistent search lists\n", slapi_entry_get_dn_const(e), matched, 0 );
 	} else {
-		LDAPDebug( LDAP_DEBUG_TRACE, "ps_service_persistent_searches: entry "
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ps_service_persistent_searches: entry "
 			"\"%s\" not enqueued on any persistent search lists\n", slapi_entry_get_dn_const(e), 0, 0 );
 	}
 

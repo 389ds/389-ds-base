@@ -39,7 +39,7 @@ ldif_back_init( Slapi_PBlock *pb )
   LDIF *db;    /*This will hold the ldif file in memory*/
   int rc;
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> ldif_back_init\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldif_back_init\n", 0, 0, 0 );
   
   /*
    * Allocate and initialize db with everything we
@@ -52,7 +52,7 @@ ldif_back_init( Slapi_PBlock *pb )
   /*Allocate memory for our database and check if success*/
   db = (LDIF *) malloc( sizeof(LDIF) );
   if (db == NULL) {
-    LDAPDebug(LDAP_DEBUG_ANY, "Ldif Backend: unable to initialize; out of memory\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to initialize; out of memory\n", 0, 0, 0);
     return(-1);
   }
   
@@ -64,7 +64,7 @@ ldif_back_init( Slapi_PBlock *pb )
   db->ldif_file = NULL;
   db->ldif_lock = PR_NewLock();
   if (&db->ldif_lock == NULL) {
-    LDAPDebug(LDAP_DEBUG_ANY, "Ldif Backend: Lock creation failed\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: Lock creation failed\n", 0, 0, 0);
     return(-1);
   }
 
@@ -102,11 +102,11 @@ ldif_back_init( Slapi_PBlock *pb )
   rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
       (void *) ldif_back_start );
   if (rc != 0) {
-    LDAPDebug(LDAP_DEBUG_ANY, "Ldif Backend: unable to pass database information to front end\n",0 ,0 ,0);
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to pass database information to front end\n",0 ,0 ,0);
     return(-1);
   }
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= ldif_back_init\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldif_back_init\n", 0, 0, 0 );
   
   return( 0 );
 }

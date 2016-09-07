@@ -207,7 +207,7 @@ idl_new_fetch(
         if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
             if (ret == DB_BUFFER_SMALL) {
-                LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
                           "data item for key %s is too large for our buffer "
                           "(need=%d actual=%d)\n",
                           key.data, data.size, data.ulen);
@@ -238,7 +238,7 @@ idl_new_fetch(
                 break;
             }
             if (dataret.size != sizeof(ID)) {
-                LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
                           "key %s has a data item with the wrong size (%d)\n", 
                           key.data, dataret.size, 0);
                 goto error;
@@ -255,7 +255,7 @@ idl_new_fetch(
             /* we got another ID, add it to our IDL */
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
-                LDAPDebug(LDAP_DEBUG_ANY, "unable to extend id list (err=%d)\n", idl_rc, 0, 0);
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "unable to extend id list (err=%d)\n", idl_rc, 0, 0);
                 idl_free(&idl);
                 goto error;
             }
@@ -263,7 +263,7 @@ idl_new_fetch(
             count++;
         }
 
-        LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "bulk fetch buffer nids=%d\n", count, 0, 0); 
 #if defined(DB_ALLIDS_ON_READ)	
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
@@ -271,7 +271,7 @@ idl_new_fetch(
         	idl->b_nids = 1;
         	idl->b_ids[0] = ALLID;
         	ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-        	LDAPDebug(LDAP_DEBUG_BACKLDBM, "search for key for attribute index %s "
+        	LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG, "search for key for attribute index %s "
         		  "exceeded allidslimit %d - count is %d\n",
         		  a->ai_type, allidslimit, count);
         	break;
@@ -321,10 +321,10 @@ idl_new_fetch(
     if (idl != NULL && idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
         idl_free(&idl);
         idl = idl_allids(be);
-        LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns allids\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "idl_new_fetch %s returns allids\n", 
                   key.data, 0, 0);
     } else {
-        LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_fetch %s returns nids=%lu\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "idl_new_fetch %s returns nids=%lu\n", 
                   key.data, (u_long)IDL_NIDS(idl), 0);
     }
 
@@ -465,7 +465,7 @@ idl_new_range_fetch(
         if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
             if (ret == DB_BUFFER_SMALL) {
-                LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
                           "data item for key %s is too large for our buffer "
                           "(need=%d actual=%d)\n",
                           cur_key.data, data.size, data.ulen);
@@ -532,7 +532,7 @@ idl_new_range_fetch(
                 break;
             }
             if (dataret.size != sizeof(ID)) {
-                LDAPDebug(LDAP_DEBUG_ANY, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
                           "key %s has a data item with the wrong size (%d)\n", 
                           cur_key.data, dataret.size, 0);
                 goto error;
@@ -580,7 +580,7 @@ idl_new_range_fetch(
             count++;
         }
 
-        LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "bulk fetch buffer nids=%d\n", count, 0, 0); 
 #if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && ai && (idl != NULL) &&
@@ -827,12 +827,12 @@ int idl_new_insert_key(
     } else {
         /* check for allidslimit exceeded in database */
         if (cursor->c_count(cursor, &count, 0) != 0) {
-            LDAPDebug(LDAP_DEBUG_ANY, "could not obtain count for key %s\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "could not obtain count for key %s\n",
                       key->data, 0, 0);
             goto error;
         }
         if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "allidslimit exceeded for key %s\n",
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "allidslimit exceeded for key %s\n",
                       key->data, 0, 0);
             cursor->c_close(cursor);
             cursor = NULL;
@@ -987,7 +987,7 @@ static int idl_new_store_allids(backend *be, DB *db, DBT *key, DB_TXN *txn)
         goto error;
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "key %s has been set to allids\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "key %s has been set to allids\n",
               key->data, 0, 0);
 
 error:
@@ -1082,12 +1082,12 @@ int idl_new_store_block(
 #if defined(DB_ALLIDS_ON_WRITE)
     /* check for allidslimit exceeded in database */
     if (cursor->c_count(cursor, &count, 0) != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "could not obtain count for key %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "could not obtain count for key %s\n",
                   key->data, 0, 0);
         goto error;
     }
     if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "allidslimit exceeded for key %s\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "allidslimit exceeded for key %s\n",
                   key->data, 0, 0);
         cursor->c_close(cursor);
         cursor = NULL;

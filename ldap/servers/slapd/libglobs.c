@@ -1434,13 +1434,13 @@ FrontendConfig_init(void) {
 #if SLAPI_CFG_USE_RWLOCK == 1
   /* initialize the read/write configuration lock */
   if ( (cfg->cfg_rwlock = slapi_new_rwlock()) == NULL ) {
-	LDAPDebug ( LDAP_DEBUG_ANY, "FrontendConfig_init: "
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "FrontendConfig_init: "
 	  "failed to initialize cfg_rwlock. Exiting now.",0,0,0);
 	exit(-1);
   }
 #else
   if ((cfg->cfg_lock = PR_NewLock()) == NULL){
-	LDAPDebug(LDAP_DEBUG_ANY, "FrontendConfig_init: "
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "FrontendConfig_init: "
 	  "failed to initialize cfg_lock. Exiting now.",0,0,0);
 	exit(-1);
   }
@@ -2037,7 +2037,7 @@ config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
   }
 
   if ( nPort == 0 ) {
-      LDAPDebug( LDAP_DEBUG_ANY, "Information: Non-Secure Port Disabled\n", 0, 0, 0 );
+      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Information: Non-Secure Port Disabled\n", 0, 0, 0 );
   }
   
   if ( apply ) {
@@ -7181,7 +7181,7 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf,
     remove_commas(value);
 
     if(invalid_sasl_mech(value)){
-        LDAPDebug(LDAP_DEBUG_ANY,"Invalid value/character for sasl mechanism (%s).  Use ASCII "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Invalid value/character for sasl mechanism (%s).  Use ASCII "
                                  "characters, upto 20 characters, that are upper-case letters, "
                                  "digits, hyphens, or underscores\n", value, 0, 0);
         return LDAP_UNWILLING_TO_PERFORM;
@@ -7628,7 +7628,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 							(char *)values[ii]->bv_val, cgas->whichlog,
 							errorbuf, apply);
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY, 
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 						  "config_set: the attribute %s is read only; ignoring new value %s\n",
 						  attr, values[ii]->bv_val, 0);
 			}

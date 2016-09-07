@@ -46,7 +46,7 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
 
 	url=(struct berval **) slapi_ch_malloc((numValues + 1) * sizeof(struct berval*));
 	if (!url) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			"check_entry_for_referral: Out of memory\n",
 			0, 0, 0);
 		goto out;
@@ -62,7 +62,7 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
 	slapi_send_ldap_result( pb, LDAP_REFERRAL, matched, NULL, 0, refscopy );
 	rc= 1;
 
-	LDAPDebug( LDAP_DEBUG_TRACE,
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		"<= %s sent referral to (%s) for (%s)\n",
 		callingfn,
 		refscopy ? refscopy[0]->bv_val : "",
@@ -133,7 +133,7 @@ find_entry_internal_dn(
 
 		/* wait for entry modify lock */
 		if ( !lock || cache_lock_entry( &inst->inst_cache, e ) == 0 ) {
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 			    "<= find_entry_internal_dn found (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
 			return( e );
 		}
@@ -141,13 +141,13 @@ find_entry_internal_dn(
 		 * this entry has been deleted - see if it was actually
 		 * replaced with a new copy, and try the whole thing again.
 		 */
-		LDAPDebug( LDAP_DEBUG_ARGS,
+		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
 		    "   find_entry_internal_dn retrying (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
 		CACHE_RETURN( &inst->inst_cache, &e );
 		tries++;
 	}
 	if (tries >= LDBM_CACHE_RETRY_COUNT) {
-		LDAPDebug( LDAP_DEBUG_ANY,"find_entry_internal_dn retry count exceeded (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"find_entry_internal_dn retry count exceeded (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
 	}
 	/*
 	 * there is no such entry in this server. see how far we
@@ -243,7 +243,7 @@ find_entry_internal_dn(
 	}
 
 	slapi_ch_free_string(&errbuf);
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= find_entry_internal_dn not found (%s)\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= find_entry_internal_dn not found (%s)\n",
 	    slapi_sdn_get_dn(sdn), 0, 0 );
 	return( NULL );
 }
@@ -277,7 +277,7 @@ find_entry_internal_uniqueid(
 
 		/* wait for entry modify lock */
 		if ( !lock || cache_lock_entry( &inst->inst_cache, e ) == 0 ) {
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 			    "<= find_entry_internal_uniqueid found; uniqueid = (%s)\n", 
 			uniqueid, 0, 0 );
 			return( e );
@@ -286,14 +286,14 @@ find_entry_internal_uniqueid(
 		 * this entry has been deleted - see if it was actually
 		 * replaced with a new copy, and try the whole thing again.
 		 */
-		LDAPDebug( LDAP_DEBUG_ARGS,
+		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
 			"   find_entry_internal_uniqueid retrying; uniqueid = (%s)\n", 
 			uniqueid, 0, 0 );
 		CACHE_RETURN( &inst->inst_cache, &e );
 		tries++;
 	}
 	if (tries >= LDBM_CACHE_RETRY_COUNT) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			"find_entry_internal_uniqueid retry count exceeded; uniqueid = (%s)\n", 
 			uniqueid , 0, 0 );
 	}
@@ -302,7 +302,7 @@ find_entry_internal_uniqueid(
 	slapi_send_ldap_result( pb, ( 0 == err || DB_NOTFOUND == err ) ?
 		LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
 		0, NULL );
-	LDAPDebug( LDAP_DEBUG_TRACE, 
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
 		"<= find_entry_internal_uniqueid not found; uniqueid = (%s)\n",
 	    uniqueid, 0, 0 );
 	return( NULL );
@@ -322,7 +322,7 @@ find_entry_internal(
 	/* check if we should search based on uniqueid or dn */
 	if (addr->uniqueid!=NULL)
 	{
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> find_entry_internal (uniqueid=%s) lock %d\n",
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> find_entry_internal (uniqueid=%s) lock %d\n",
 		    addr->uniqueid, lock, 0 );
 		return (find_entry_internal_uniqueid (pb, be, addr->uniqueid, lock, txn));
 	}
@@ -330,7 +330,7 @@ find_entry_internal(
 	{
 		struct backentry *entry = NULL;
 
-		LDAPDebug( LDAP_DEBUG_TRACE, "=> find_entry_internal (dn=%s) lock %d\n",
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> find_entry_internal (dn=%s) lock %d\n",
 		           slapi_sdn_get_dn(addr->sdn), lock, 0 );
 		if (addr->sdn) {
 			entry = find_entry_internal_dn (pb, be, addr->sdn, lock, txn, flags, rc);

@@ -294,7 +294,7 @@ static int trim_changelog(void)
 	    }
 	}
     } else {
-       LDAPDebug(LDAP_DEBUG_PLUGIN, "not yet time to trim: %ld < (%d+%d)\n",
+       LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "not yet time to trim: %ld < (%d+%d)\n",
                  now, lt, trim_interval);
     }
     PR_Lock( ts.ts_s_trim_mutex );
@@ -372,7 +372,7 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 		 * But a client might have deleted it over protocol.
 		 */
 		first_time = retrocl_getchangetime( SLAPI_SEQ_FIRST, &ldrc );
-		LDAPDebug(LDAP_DEBUG_PLUGIN,
+		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
 			  "cltrim: ldrc=%d, first_time=%ld, cur_time=%ld\n",
 			  ldrc,first_time,cur_time);
 		if ( LDAP_SUCCESS == ldrc && first_time > (time_t) 0L &&

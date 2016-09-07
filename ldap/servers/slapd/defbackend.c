@@ -60,7 +60,7 @@ defbackend_init( void )
     char		*errmsg;
     Slapi_PBlock	pb;
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_init\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "defbackend_init\n", 0, 0, 0 );
 
     /*
      * create a new backend
@@ -119,7 +119,7 @@ defbackend_init( void )
 
 cleanup_and_return:
     if ( rc != 0 ) {
-	LDAPDebug( LDAP_DEBUG_ANY, "defbackend_init: failed (%s)\n",
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "defbackend_init: failed (%s)\n",
 		errmsg, 0, 0 );
 	exit( 1 );
     }
@@ -144,7 +144,7 @@ defbackend_get_backend( void )
 static int
 defbackend_default( Slapi_PBlock *pb )
 {
-    LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_default\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "defbackend_default\n", 0, 0, 0 );
 
     send_nobackend_ldap_result( pb );
 
@@ -155,7 +155,7 @@ defbackend_default( Slapi_PBlock *pb )
 static int
 defbackend_noop( Slapi_PBlock *pb )
 {
-    LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_noop\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "defbackend_noop\n", 0, 0, 0 );
 
     return( DEFBACKEND_OP_HANDLED );
 }
@@ -164,7 +164,7 @@ defbackend_noop( Slapi_PBlock *pb )
 static int
 defbackend_abandon( Slapi_PBlock *pb )
 {
-    LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_abandon\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "defbackend_abandon\n", 0, 0, 0 );
 
     /* nothing to do */
     return( DEFBACKEND_OP_HANDLED );
@@ -223,7 +223,7 @@ defbackend_bind( Slapi_PBlock *pb )
     ber_tag_t		method;
     struct berval	*cred;
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_bind\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "defbackend_bind\n", 0, 0, 0 );
 
     /*
      * Accept simple binds that do not contain passwords (but do not
@@ -277,7 +277,7 @@ defbackend_bind( Slapi_PBlock *pb )
 static int
 defbackend_next_search_entry( Slapi_PBlock *pb )
 {
-    LDAPDebug( LDAP_DEBUG_TRACE, "defbackend_next_search_entry\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "defbackend_next_search_entry\n", 0, 0, 0 );
 
     return( 0 );	/* no entries and no error */
 }

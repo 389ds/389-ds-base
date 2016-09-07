@@ -257,12 +257,12 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
         p = bigpat ? bigpat : pat;
         re = slapi_re_comp(p, &re_result);
         if (NULL == re) {
-            LDAPDebug(LDAP_DEBUG_ANY, "ldbm_search_compile_filter: re_comp (%s) failed (%s): %s\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_search_compile_filter: re_comp (%s) failed (%s): %s\n",
                       pat, p, re_result?re_result:"unknown" );
             rc = SLAPI_FILTER_SCAN_ERROR;
         } else {
             char ebuf[BUFSIZ];
-            LDAPDebug(LDAP_DEBUG_TRACE, "ldbm_search_compile_filter: re_comp (%s)\n",
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldbm_search_compile_filter: re_comp (%s)\n",
                       escape_string(p, ebuf), 0, 0);
             f->f_un.f_un_sub.sf_private = (void *)re;
         }
@@ -406,7 +406,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                     slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
                     slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
-                    LDAPDebug(LDAP_DEBUG_ANY,
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                             "Warning: Sort control ignored for conn=%d op=%d\n",
                             conn_id, op_id, 0);                    
                 }
@@ -441,7 +441,7 @@ ldbm_back_search( Slapi_PBlock *pb )
                         slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
                         slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
-                        LDAPDebug(LDAP_DEBUG_ANY,
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                                 "Warning: VLV control ignored for conn=%d op=%d\n",
                                 conn_id, op_id, 0);             
                     }
@@ -511,7 +511,7 @@ ldbm_back_search( Slapi_PBlock *pb )
 
         if (print_once)
         {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "ERROR: %s "
                     "when more than one backend is involved. "
                     "VLV indexes that will never be used should be removed.\n",
@@ -1021,7 +1021,7 @@ build_candidate_list( Slapi_PBlock *pb, backend *be, struct backentry *e,
         r = SLAPI_FAIL_GENERAL;
     }
     if ( 0 != err && DB_NOTFOUND != err ) {
-        LDAPDebug( LDAP_DEBUG_ANY, "database error %d\n", err, 0, 0 );
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database error %d\n", err, 0, 0 );
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL,
                     0, NULL );
         if (LDBM_OS_ERR_IS_DISKFULL(err)) r = return_on_disk_full(li);
@@ -1044,7 +1044,7 @@ bail:
         }
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "candidate list has %lu ids\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "candidate list has %lu ids\n",
                   *candidates ? (*candidates)->b_nids : 0L, 0, 0);
 
     return r;
@@ -1632,7 +1632,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         {
             if ( err != 0 && err != DB_NOTFOUND )
             {
-                LDAPDebug( LDAP_DEBUG_ANY, "next_search_entry db err %d\n", err, 0, 0 );
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "next_search_entry db err %d\n", err, 0, 0 );
                 if (LDBM_OS_ERR_IS_DISKFULL(err))
                 {
                     /* disk full in the middle of returning search results
@@ -1643,7 +1643,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                     goto bail;
                 }
             }
-            LDAPDebug( LDAP_DEBUG_ARGS, "candidate %lu not found\n", (u_long)id, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "candidate %lu not found\n", (u_long)id, 0, 0 );
             if ( err == DB_NOTFOUND )
             {
                 /* Since we didn't really look at this entry, we should
@@ -1670,7 +1670,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             Slapi_Value **refs= attr_get_present_values(attr);
             if ( refs == NULL || refs[0] == NULL )
             {
-                LDAPDebug( LDAP_DEBUG_ANY, "null ref in (%s)\n", backentry_get_ndn(e), 0, 0 );
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "null ref in (%s)\n", backentry_get_ndn(e), 0, 0 );
             }
             else if ( slapi_sdn_scope_test( backentry_get_sdn(e), basesdn, scope ))
             {
@@ -1721,7 +1721,7 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* it's a regular entry, check if it matches the filter, and passes the ACL check */
              if ( 0 != ( sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST )) {
                   /* Since we do access control checking in the filter test (?Why?) we need to check access now */
-                  LDAPDebug( LDAP_DEBUG_FILTER, "Bypassing filter test\n", 0, 0, 0 );
+                  LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "Bypassing filter test\n", 0, 0, 0 );
                   if ( ACL_CHECK_FLAG ) {
                       filter_test = slapi_vattr_filter_test_ext( pb, e->ep_entry, filter, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
                   } else {
@@ -1730,12 +1730,12 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                   if (li->li_filter_bypass_check) {
                       int    ft_rc;
   
-                      LDAPDebug( LDAP_DEBUG_FILTER, "Checking bypass\n", 0, 0, 0 );
+                      LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "Checking bypass\n", 0, 0, 0 );
                       ft_rc = slapi_vattr_filter_test( pb, e->ep_entry, filter,
                               ACL_CHECK_FLAG );
                       if (filter_test != ft_rc) {
                           /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                          LDAPDebug( LDAP_DEBUG_ANY, "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e), 0, 0 );
+                          LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e), 0, 0 );
                           filter_test = ft_rc; /* Fix the error */
                       }
                   }

@@ -32,7 +32,7 @@ ldbm_back_rmdb( Slapi_PBlock *pb )
 
 	if (be->be_state != BE_STATE_STOPPED)
 	{
-		LDAPDebug( LDAP_DEBUG_TRACE, 
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
 				  "ldbm_back_cleanup: warning - backend is in a wrong state - %d\n", 
 				  be->be_state, 0, 0 );
 		return 0;
@@ -42,7 +42,7 @@ ldbm_back_rmdb( Slapi_PBlock *pb )
 
 	if (be->be_state != BE_STATE_STOPPED)
 	{
-		LDAPDebug( LDAP_DEBUG_TRACE, 
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
 				  "ldbm_back_cleanup: warning - backend is in a wrong state - %d\n", 
 				  be->be_state, 0, 0 );
 		PR_Unlock (be->be_state_lock);

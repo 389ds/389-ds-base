@@ -90,7 +90,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         /* task does not support restore old idl onto new idl server */
         if (is_old_to_new)
         {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                       "backup has old idl format; "
                       "to restore old formated backup onto the new server, "
                       "please use command line utility \"bak2db\" .\n",
@@ -111,7 +111,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 
             /* check if an import/restore is already ongoing... */
             if (instance_set_busy(inst) != 0) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "ldbm: '%s' is already in the middle of "
                           "another task and cannot be disturbed.\n",
                           inst->inst_name, 0, 0);
@@ -142,7 +142,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
-            LDAPDebug(LDAP_DEBUG_ANY, "Bringing %s offline...\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Bringing %s offline...\n",
                       inst->inst_name, 0, 0);
             if (task) {
                 slapi_task_log_notice(task, "Bringing %s offline...",
@@ -165,7 +165,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     /* tell the database to restore */
     return_value = dblayer_restore(li, directory, task, backendname);
     if (0 != return_value) {
-        LDAPDebug( LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                   "archive2db: Failed to read backup file set. "
                   "Either the directory specified doesn't exist, "
                   "or it exists but doesn't contain a valid backup set, "
@@ -206,7 +206,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
                 *p = '\0';
             }
             bakup_dir = slapi_ch_smprintf("%s%ctmp_%010ld", directory, c, time(0));
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                       "archive2db: backup dir: %s\n", bakup_dir, 0, 0);
             if (p) *p = c;
 
@@ -241,7 +241,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
             inst = (ldbm_instance *)object_get_data(inst_obj);
             ret = dblayer_instance_start(inst->inst_be, DBLAYER_NORMAL_MODE);
             if (ret != 0) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "archive2db: Unable to restart '%s'\n",
                           inst->inst_name, 0, 0);
                 if (task) {
@@ -282,7 +282,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
     slapi_pblock_get( pb, SLAPI_BACKEND_TASK, &task );
 
     if ( !rawdirectory || !*rawdirectory ) {
-        LDAPDebug( LDAP_DEBUG_ANY, "db2archive: no archive name\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "db2archive: no archive name\n",
                    0, 0, 0 );
         return -1;
     }
@@ -295,7 +295,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         if (0 != (return_value = 
                   dblayer_start(li,
                             DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE))) {
-            LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to init database\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "db2archive: Failed to init database\n",
                       0, 0, 0);
             if (task) {
                 slapi_task_log_notice(task, "Failed to init database");
@@ -309,7 +309,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 
     if (stat(directory, &sbuf) == 0) {
         if (slapd_comp_path(directory, li->li_directory) == 0) {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "db2archive: Cannot archive to the db directory.\n", 0, 0, 0);
             if (task) {
                 slapi_task_log_notice(task, 
@@ -320,7 +320,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         }
 
         dir_bak = slapi_ch_smprintf("%s.bak", directory);
-        LDAPDebug(LDAP_DEBUG_ANY, "db2archive: %s exists. Renaming to %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "db2archive: %s exists. Renaming to %s\n",
                                   directory, dir_bak, 0);
         if (task) {
             slapi_task_log_notice(task, "%s exists. Renaming to %s",
@@ -329,7 +329,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         if (stat(dir_bak, &sbuf) == 0) {
             return_value = ldbm_delete_dirs(dir_bak);
             if (0 != return_value) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                             "db2archive: %s exists and failed to delete it.\n",
                             dir_bak, 0, 0);
                 if (task) {
@@ -343,10 +343,10 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
         return_value = PR_Rename(directory, dir_bak);
         if (return_value != PR_SUCCESS) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                             "db2archive: Failed to rename \"%s\" to \"%s\".\n",
                             directory, dir_bak, 0);
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                             SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                             prerr, slapd_pr_strerror(prerr), 0);
             if (task) {
@@ -364,7 +364,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
     if (0 != MKDIR(directory,SLAPD_DEFAULT_DIR_MODE) && EEXIST != errno) {
         char *msg = dblayer_strerror(errno);
 
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                   "db2archive: mkdir(%s) failed; errno %i (%s)\n",
                   directory, errno, msg ? msg : "unknown");
         if (task) {
@@ -387,7 +387,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 
             /* check if an import/restore is already ongoing... */
             if (instance_set_busy(inst) != 0 || dblayer_in_import(inst) != 0) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "ldbm: '%s' is already in the middle of "
                           "another task and cannot be disturbed.\n",
                           inst->inst_name, 0, 0);
@@ -490,7 +490,7 @@ out:
     /* close the database down again */
     if (run_from_cmdline &&
         0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE|DBLAYER_NO_DBTHREADS_MODE)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "db2archive: Failed to close database\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "db2archive: Failed to close database\n",
                   0, 0, 0);
         if (task) {
             slapi_task_log_notice(task, "Failed to close database");

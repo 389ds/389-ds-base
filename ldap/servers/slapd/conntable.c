@@ -146,7 +146,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 			{
 				c->c_mutex = NULL;
 				c->c_pdumutex = NULL;
-				LDAPDebug( LDAP_DEBUG_ANY,"PR_NewLock failed\n",0, 0, 0 );
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"PR_NewLock failed\n",0, 0, 0 );
 				exit(1);
 			}
 		}
@@ -164,7 +164,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
     else
     {
         /* couldn't find a Connection */
-        LDAPDebug( LDAP_DEBUG_CONNS, "max open connections reached\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "max open connections reached\n", 0, 0, 0);
     }
 	return c;
 }
@@ -473,7 +473,7 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 				int r = ct->fd[j].out_flags & SLAPD_POLL_FLAGS;
 				if ( r )
 				{
-					LDAPDebug( LDAP_DEBUG_CONNS,"activity on %d%s\n", i, r ? "r" : "",0 );
+					LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,"activity on %d%s\n", i, r ? "r" : "",0 );
 				}
 			}
 			PR_ExitMonitor(c->c_mutex);

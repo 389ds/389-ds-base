@@ -249,7 +249,7 @@ int presence_init( Slapi_PBlock *pb )
 	int status = PRESENCE_SUCCESS;
 	char * plugin_identity=NULL;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_init -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> presence_init -- BEGIN\n",0,0,0);
 
 	/**
 	 * Store the plugin identity for later use.
@@ -274,7 +274,7 @@ int presence_init( Slapi_PBlock *pb )
 		status = PRESENCE_FAILURE;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- presence_init -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- presence_init -- END\n",0,0,0);
     return status;
 }
 
@@ -289,7 +289,7 @@ int presence_start( Slapi_PBlock *pb )
 {
 	char * plugindn = NULL;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_start -- begin\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> presence_start -- begin\n",0,0,0);
 
     if(slapi_apib_get_interface(HTTP_v1_0_GUID, &_HttpAPI))
 	{
@@ -345,8 +345,8 @@ int presence_start( Slapi_PBlock *pb )
 		return PRESENCE_FAILURE;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "presence: ready for service\n",0,0,0);
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- presence_start -- end\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "presence: ready for service\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- presence_start -- end\n",0,0,0);
 
 	return PRESENCE_SUCCESS;
 }
@@ -358,11 +358,11 @@ int presence_start( Slapi_PBlock *pb )
 */
 int presence_close( Slapi_PBlock *pb )
 {
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_close\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> presence_close\n",0,0,0);
 
 	deleteMapTables();
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- presence_close\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- presence_close\n",0,0,0);
 
 	return PRESENCE_SUCCESS;
 }
@@ -386,9 +386,9 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 	_Vmap *map = NULL;
 	_ConfigEntry *info = NULL;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_vattr_get \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> presence_vattr_get \n",0,0,0);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Type=[%s] \n",type,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Type=[%s] \n",type,0,0);
 
 	if (imIDExists(e, type, &id, &map, &info) != PRESENCE_SUCCESS)
 	{
@@ -400,7 +400,7 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 		status = PRESENCE_FAILURE;		
 		goto cleanup;
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> ID=[%s] \n",id,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> ID=[%s] \n",id,0,0);
 
 	/**
 	 * Now since we got a valid id we do a quick schema check
@@ -417,8 +417,8 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 
 	status = makeHttpRequest(id, map, info, &returnedBUF, &size);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> size=[%d] \n",size,0,0);
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> buffer=[%s]\n",(returnedBUF) ? returnedBUF : "NULL",0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> size=[%d] \n",size,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> buffer=[%s]\n",(returnedBUF) ? returnedBUF : "NULL",0,0);
 
 
 	if(status == PRESENCE_SUCCESS)
@@ -451,14 +451,14 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 	}
 	
 cleanup:
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Processed ID=[%s] \n",id,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Processed ID=[%s] \n",id,0,0);
 	if (id != NULL ) {
 		slapi_ch_free((void **)&id);
 	}
 	if (returnedBUF != NULL ) {
 		PR_Free(returnedBUF);
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- presence_vattr_get \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- presence_vattr_get \n",0,0,0);
 	return status;
 }
 
@@ -469,8 +469,8 @@ static int presence_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Sla
 	/**
 	 * not yet implemented ???
 	 */
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_vattr_compare \n",0,0,0);
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- presence_vattr_compare \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> presence_vattr_compare \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- presence_vattr_compare \n",0,0,0);
 
 	return status;
 }
@@ -482,11 +482,11 @@ static int presence_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_typ
 	args.entry = e;
 	args.context = type_context;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> presence_vattr_types\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> presence_vattr_types\n",0,0,0);
 	
 	PL_HashTableEnumerateEntries(_IdVattrMapTable, setTypes, &args);	
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- presence_vattr_types\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- presence_vattr_types\n",0,0,0);
 	return status;
 }
 
@@ -498,7 +498,7 @@ static int loadPluginConfig(void)
 	Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> loadPluginConfig\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> loadPluginConfig\n",0,0,0);
 
     search_pb = slapi_pblock_new();
 
@@ -541,7 +541,7 @@ static int loadPluginConfig(void)
 										NULL
 										);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> parseConfigEntry \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> parseConfigEntry \n",0,0,0);
 
 	for (i = 0; (entries[i] != NULL); i++)
 	{
@@ -552,9 +552,9 @@ static int loadPluginConfig(void)
 			goto cleanup;
 		}
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- parseConfigEntry \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- parseConfigEntry \n",0,0,0);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- loadPluginConfig\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- loadPluginConfig\n",0,0,0);
 
 cleanup:
     slapi_free_search_results_internal(search_pb);
@@ -579,7 +579,7 @@ static int parseConfigEntry(Slapi_Entry *e)
 	   */
 		return PRESENCE_FAILURE;
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> key [%s] \n",key,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> key [%s] \n",key,0,0);
 	/**
 	 * Now create the config entry which will hold all the 
 	 * attributes of a presence vendor
@@ -602,7 +602,7 @@ static int parseConfigEntry(Slapi_Entry *e)
 		toLowerCase(value);
 		PL_HashTableAdd(_IdVattrMapTable, value, map);
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMStatusText [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMStatusText [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_STATUS_GRAPHIC);
 	if (value) {
@@ -614,35 +614,35 @@ static int parseConfigEntry(Slapi_Entry *e)
 		PL_HashTableAdd(_IdVattrMapTable, value, map);
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMStatusGraphic [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMStatusGraphic [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_TEXT);
 	if (value) {
 		entry->textURL = value;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMURLText [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMURLText [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_GRAPHIC);
 	if (value) {
 		entry->graphicURL = value;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMStatusGraphic [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMStatusGraphic [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_ON_VALUE_MAP_TEXT);
 	if (value) {
 		entry->onTextMap = value;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMOnValueMapText [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMOnValueMapText [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_OFF_VALUE_MAP_TEXT);
 	if (value) {
 		entry->offTextMap = value;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMOffValueMapText [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMOffValueMapText [%s] \n",value,0,0);
 
 	/**
 	 * Next 3 are binary syntax types so needs special handling
@@ -670,20 +670,20 @@ static int parseConfigEntry(Slapi_Entry *e)
 		entry->requestMethod = value;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMRequestMethod [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMRequestMethod [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_TEXT_RETURN_TYPE);
 	if (value) {
 		entry->textReturnType = value;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMURLTextReturnType [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMURLTextReturnType [%s] \n",value,0,0);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_GRAPHIC_RETURN_TYPE);
 	if (value) {
 		entry->graphicReturnType = value;
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> nsIMURLGraphicReturnType [%s] \n",value,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> nsIMURLGraphicReturnType [%s] \n",value,0,0);
 
 	/**
 	 * Finally add the entry to the map table
@@ -705,8 +705,8 @@ static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _Co
 	_ConfigEntry *tEntry = NULL;
 	_Vmap *tMap = NULL;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> imIDExists \n",0,0,0);	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Type [%s] \n",type,0,0);	
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> imIDExists \n",0,0,0);	
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Type [%s] \n",type,0,0);	
 
 	/**
 	 * The public function PL_HashTableLookup modifies the 
@@ -739,14 +739,14 @@ static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _Co
 		status = PRESENCE_FAILURE;
 		goto bail;
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Value [%s] \n",tValue,0,0);	
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Value [%s] \n",tValue,0,0);	
 
 	tEntry = PL_HashTableLookupConst(_IdConfigMapTable, tMap->imID);
 	*value	= tValue;
 	*entry	= tEntry;
 	*map	= tMap;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- imIDExists \n",0,0,0);	
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- imIDExists \n",0,0,0);	
 
 bail:
 	return status;
@@ -760,7 +760,7 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	char *urltosend = NULL;
 	int bytesRead;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> makeHttpRequest:: \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> makeHttpRequest:: \n",0,0,0);
 
 	if (map->syntax == PRESENCE_STRING) {
 		url = info->textURL;
@@ -773,14 +773,14 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	}
 	urltosend = replaceIdWithValue(url, map->imID, id);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> URL [%s] \n",urltosend,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> URL [%s] \n",urltosend,0,0);
 	/**
 	 * make an actual HTTP call now
 	 */
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> RequestMethod [%s] \n", info->requestMethod,0,0);
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Syntax [%d] \n", map->syntax,0,0);
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> TextReturnType [%s] \n", info->textReturnType,0,0);
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> GraphicReturnType [%s] \n", info->graphicReturnType,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> RequestMethod [%s] \n", info->requestMethod,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Syntax [%d] \n", map->syntax,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> TextReturnType [%s] \n", info->textReturnType,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> GraphicReturnType [%s] \n", info->graphicReturnType,0,0);
 	if (!strcasecmp(info->requestMethod, PRESENCE_REQUEST_METHOD_GET)) {
 		if (map->syntax == PRESENCE_STRING) {
 			if (!strcasecmp(info->textReturnType, PRESENCE_TEXT_RETURN_TYPE)) {
@@ -817,7 +817,7 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	}
 
 bail:
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- makeHttpRequest:: <%d>\n",status,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- makeHttpRequest:: <%d>\n",status,0,0);
 
 	slapi_ch_free((void**)&urltosend);
 	return status;
@@ -889,7 +889,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 	Slapi_Attr *attr = NULL;
 	const struct berval *tmp = NULL;
 	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> setIMStatus \n", 0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> setIMStatus \n", 0,0,0);
 	/**
 	 * we got some data back so lets try to map it to 
 	 * the existing set of on/off data
@@ -932,15 +932,15 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 			bval.bv_val = returnedBUF;
 			value1 = slapi_value_new_berval(&bval);
 
-			LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> returned size  [%d] \n", bval.bv_len,0,0);
-			LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> returned value [%s] \n", bval.bv_val,0,0);
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> returned size  [%d] \n", bval.bv_len,0,0);
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> returned value [%s] \n", bval.bv_val,0,0);
 			
 			attr = info->onGraphicMap;
 			if (attr) {
 				slapi_attr_first_value(attr, &value2);
 				tmp = slapi_value_get_berval(value2);
-				LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Stored size  [%d] \n", tmp->bv_len,0,0);
-				LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Stored value [%s] \n", tmp->bv_val,0,0);
+				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Stored size  [%d] \n", tmp->bv_len,0,0);
+				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Stored value [%s] \n", tmp->bv_val,0,0);
 				if (!slapi_value_compare(attr, value1, value2)) {
 					value = slapi_value_new_string(PRESENCE_RETURNED_ON_TEXT);
 				}
@@ -973,7 +973,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 		   */
 			value = slapi_value_new_string(PRESENCE_RETURNED_ERROR_TEXT);
 		}
-		LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> value [%s] \n", returnedBUF,0,0);
+		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> value [%s] \n", returnedBUF,0,0);
 	} else {
 	  /**
 		* we had send a request for image
@@ -981,7 +981,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 		* return instead of analyzing it
 		*/
 		if (!strcasecmp(info->graphicReturnType, PRESENCE_TEXT_RETURN_TYPE)) {
-			LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> value [%s] \n", returnedBUF,0,0);
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> value [%s] \n", returnedBUF,0,0);
 			if (!strcasecmp(info->requestMethod, PRESENCE_REQUEST_METHOD_REDIRECT)) {
 			  /**
 			   * a redirect case in which we should probably have a 
@@ -1016,7 +1016,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 			   */
 			}
 		} else {
-			LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> value [%s] \n", returnedBUF,0,0);
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> value [%s] \n", returnedBUF,0,0);
 			bval.bv_len = size;
 			bval.bv_val = returnedBUF;
 			value = slapi_value_new_berval(&bval);
@@ -1037,7 +1037,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 	if (value && map->syntax == PRESENCE_STRING) {
 		slapi_value_free(&value);
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- setIMStatus \n", 0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- setIMStatus \n", 0,0,0);
 	
 	return status;
 }
@@ -1056,7 +1056,7 @@ static int setTypes(PLHashEntry *he, PRIntn i, void *arg)
 	_Vmap *map  = (_Vmap *)he->value;
 	char *id = map->imID;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> setTypes \n", 0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> setTypes \n", 0,0,0);
 
 	status = slapi_vattr_values_get_sp(NULL, args->entry, id, &results, &type_name_disposition, &actual_type_name, 0, &free_flags);
 	if(status == PRESENCE_SUCCESS)
@@ -1071,9 +1071,9 @@ static int setTypes(PLHashEntry *he, PRIntn i, void *arg)
 
 		slapi_vattr_values_free(&results, &actual_type_name, free_flags);
 
-		LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> ID [%s] Type[%s]\n", actual_type_name,type,0);
+		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> ID [%s] Type[%s]\n", actual_type_name,type,0);
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- setTypes \n", 0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- setTypes \n", 0,0,0);
 
 	return HT_ENUMERATE_NEXT;
 }
@@ -1091,14 +1091,14 @@ logGraphicAttributeValue( Slapi_Attr *attr, const char *attrname )
 		if (v) {
 			char	*ldifvalue;
 
-			LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> %s size [%d] \n",
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> %s size [%d] \n",
 					attrname,v->bv_len,0);
 
 			ldifvalue = ldif_type_and_value_with_options(
 					(char *)attrname,	/* XXX: had to cast away const */
 					v->bv_val, v->bv_len, 0 );
 			if ( NULL != ldifvalue ) {
-				LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> %s value [\n%s]\n",
+				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> %s value [\n%s]\n",
 						attrname,ldifvalue,0);
 				slapi_ch_free_string( &ldifvalue );
 			}

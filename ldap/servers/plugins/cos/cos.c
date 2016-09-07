@@ -143,7 +143,7 @@ int cos_init( Slapi_PBlock *pb )
 	int ret = 0;
 	void * plugin_identity=NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_init\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_init\n",0,0,0);
 
 	/*
 	** Store the plugin identity for later use.
@@ -178,7 +178,7 @@ int cos_init( Slapi_PBlock *pb )
 	                      plugin_identity);
 
 bailout:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_init\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_init\n",0,0,0);
 	return ret;
 }
 
@@ -193,22 +193,22 @@ int cos_start( Slapi_PBlock *pb )
 {
 	int ret = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_start\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_start\n",0,0,0);
 
 	if( !cos_cache_init() )
 	{
-		LDAPDebug( LDAP_DEBUG_PLUGIN, "cos: ready for service\n",0,0,0);
+		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos: ready for service\n",0,0,0);
 	}
 	else
 	{
 
 		/* problems we are hosed */
 		cos_cache_stop();
-		LDAPDebug( LDAP_DEBUG_ANY, "cos_start: failed to initialise\n",0,0,0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_start: failed to initialise\n",0,0,0);
 		ret = -1;
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_start\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_start\n",0,0,0);
 	return ret;
 }
 
@@ -219,11 +219,11 @@ int cos_start( Slapi_PBlock *pb )
 */
 int cos_close( Slapi_PBlock *pb )
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_close\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_close\n",0,0,0);
 
 	cos_cache_stop();
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_close\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_close\n",0,0,0);
 
 	return 0;
 }
@@ -260,11 +260,11 @@ int cos_compute(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_compute
 */
 int cos_post_op( Slapi_PBlock *pb )
 {
-	LDAPDebug( LDAP_DEBUG_TRACE, "--> cos_post_op\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_post_op\n",0,0,0);
 
 	cos_cache_change_notify(pb);
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<-- cos_post_op\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_post_op\n",0,0,0);
 
 	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }

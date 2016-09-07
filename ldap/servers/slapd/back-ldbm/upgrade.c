@@ -147,7 +147,7 @@ check_db_version( struct ldbminfo *li, int *action )
     value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION );
     if ( !value )
     {
-        LDAPDebug( LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
            "ERROR: Database version mismatch (expecting "
            "'%s' but found '%s' in directory %s)\n",
             LDBM_VERSION, ldbmversion, li->li_directory );
@@ -231,7 +231,7 @@ check_db_inst_version( ldbm_instance *inst )
     value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION );
     if ( !value )
     {
-        LDAPDebug( LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
            "ERROR: Database version mismatch (expecting "
            "'%s' but found '%s' in directory %s)\n",
             LDBM_VERSION, ldbmversion, inst->inst_dir_name );
@@ -307,7 +307,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (!idl_get_idl_new())   /* config: old idl */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "new", li);
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "Warning: Dbversion %s does not meet nsslapd-idl-switch: \"old\"; "
                 "nsslapd-idl-switch is updated to \"new\"\n", ldbmversion, 0, 0);
         }
@@ -320,7 +320,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (idl_get_idl_new())   /* config: new */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "old", li);
-            LDAPDebug(LDAP_DEBUG_ANY, 
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
                 "Warning: Dbversion %s does not meet nsslapd-idl-switch: \"new\"; "
                 "nsslapd-idl-switch is updated to \"old\"\n",
                 ldbmversion, 0, 0);
@@ -328,7 +328,7 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
     }
     else
     {
-         LDAPDebug(LDAP_DEBUG_ANY, 
+         LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
                    "Warning: Dbversion %s is not supported\n", 
                    ldbmversion, 0, 0);
          rval = -1;
@@ -357,7 +357,7 @@ int ldbm_upgrade(ldbm_instance *inst, int action)
         rval = dblayer_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
         if (0 == rval)
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "ldbm_upgrade: "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_upgrade: "
                       "Upgrading instance %s supporting bdb %d.%d "
                       "was successfully done.\n",
                       inst->inst_name, DB_VERSION_MAJOR, DB_VERSION_MINOR);
@@ -390,7 +390,7 @@ static int upgrade_db_3x_40(backend *be)
 
     static char* indexes_modified[] = {"parentid", "numsubordinates", NULL};
 
-    LDAPDebug( LDAP_DEBUG_ANY, "WARNING: Detected a database older than this server, upgrading data...\n",0,0,0);
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: Detected a database older than this server, upgrading data...\n",0,0,0);
 
     dblayer_txn_init(li,&txn);
     ret = dblayer_txn_begin(li,NULL,&txn);
@@ -430,9 +430,9 @@ error:
         }
     }
     if (0 == ret) {
-        LDAPDebug( LDAP_DEBUG_ANY, "...upgrade complete.\n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "...upgrade complete.\n",0,0,0);
     } else {
-        LDAPDebug( LDAP_DEBUG_ANY, "ERROR: Attempt to upgrade the older database FAILED.\n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: Attempt to upgrade the older database FAILED.\n",0,0,0);
     }
     return ret;
 }

@@ -181,7 +181,7 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 	if (0 != rc) {
 		rc = -1;
 	}
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= string_filter_approx %d\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= string_filter_approx %d\n",
 	    rc, 0, 0 );
 
 	return( rc );
@@ -208,7 +208,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	int free_re = 1;
 	struct subfilt *sf = NULL;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> string_filter_sub\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> string_filter_sub\n", 0, 0, 0 );
 	if (pb) {
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 	}
@@ -322,13 +322,13 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		tmpbuf = NULL;
 		re = slapi_re_comp( p, &re_result );
 		if (NULL == re) {
-			LDAPDebug( LDAP_DEBUG_ANY, "re_comp (%s) failed (%s): %s\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "re_comp (%s) failed (%s): %s\n",
 					   pat, p, re_result?re_result:"unknown" );
 			rc = LDAP_OPERATIONS_ERROR;
 			goto bailout;
 		} else if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
 			char ebuf[BUFSIZ];
-			LDAPDebug(LDAP_DEBUG_TRACE, "re_comp (%s)\n", escape_string(p, ebuf), 0, 0);
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "re_comp (%s)\n", escape_string(p, ebuf), 0, 0);
 		}
 	}
 
@@ -376,7 +376,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 
 		if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
 			char ebuf[BUFSIZ];
-			LDAPDebug(LDAP_DEBUG_TRACE, "re_exec (%s) %i\n", escape_string(realval, ebuf), tmprc, 0);
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "re_exec (%s) %i\n", escape_string(realval, ebuf), tmprc, 0);
 		}
 		if ( tmprc == 1 ) {
 			rc = 0;
@@ -393,7 +393,7 @@ bailout:
 	slapi_ch_free((void**)&tmpbuf );	/* NULL is fine */
 	slapi_ch_free((void**)&bigpat );	/* NULL is fine */
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= string_filter_sub %d\n",
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= string_filter_sub %d\n",
 	    rc, 0, 0 );
 	return( rc );
 }
@@ -738,7 +738,7 @@ string_assertion2keys_ava(
 		}
 		break;
 	default:
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "string_assertion2keys_ava: unknown ftype 0x%x\n",
 		    ftype, 0, 0 );
 		break;
@@ -920,7 +920,7 @@ substring_comp_keys(
 	PR_ASSERT(NULL != comp_buf);
 	PR_ASSERT(NULL != substrlens);
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "=> substring_comp_keys (%s) %d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> substring_comp_keys (%s) %d\n",
         str, prepost, 0 );
 
     /* prepend ^ for initial substring */
@@ -963,5 +963,5 @@ substring_comp_keys(
 		(*nsubs)++;
     }
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "<= substring_comp_keys\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= substring_comp_keys\n", 0, 0, 0 );
 }

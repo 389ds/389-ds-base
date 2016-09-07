@@ -52,7 +52,7 @@ do_modrdn( Slapi_PBlock *pb )
 	Slapi_DN	snewdn;
 	Slapi_DN	*snewsuperior = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "do_modrdn\n", 0, 0, 0 );
 
 	/* count the modrdn request */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
@@ -75,7 +75,7 @@ do_modrdn( Slapi_PBlock *pb )
 	 */
 
 	if (ber_scanf(ber, "{aab", &rawdn, &newrdn, &deloldrdn) == LBER_ERROR) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "ber_scanf failed (op=ModRDN; params=DN,newRDN,deleteOldRDN)\n",
 		    0, 0, 0 );
 		op_shared_log_error_access (pb, "MODRDN", "???", "decoding error");
@@ -88,7 +88,7 @@ do_modrdn( Slapi_PBlock *pb )
 	if ( ber_peek_tag( ber, &len ) == LDAP_TAG_NEWSUPERIOR ) {
 		/* This "len" is not used... */
 		if ( pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			    "got newSuperior in LDAPv2 modrdn op\n", 0, 0, 0 );
 			op_shared_log_error_access (pb, "MODRDN",
 										rawdn?rawdn:"", "decoding error");
@@ -99,7 +99,7 @@ do_modrdn( Slapi_PBlock *pb )
 			goto free_and_return;
 		}
 		if ( ber_scanf( ber, "a", &rawnewsuperior ) == LBER_ERROR ) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			    "ber_scanf failed (op=ModRDN; params=newSuperior)\n",
 			    0, 0, 0 );
 			op_shared_log_error_access (pb, "MODRDN", rawdn, "decoding error");
@@ -209,7 +209,7 @@ do_modrdn( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	LDAPDebug( LDAP_DEBUG_ARGS,
+	LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
 			   "do_modrdn: dn (%s) newrdn (%s) deloldrdn (%d)\n", dn, newrdn,
 			   deloldrdn );
 
@@ -552,7 +552,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 
 	if (newsuperior != NULL) 
 	{
-		LDAPDebug(LDAP_DEBUG_ARGS, "do_moddn: newsuperior (%s)\n", newsuperior, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "do_moddn: newsuperior (%s)\n", newsuperior, 0, 0);
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
@@ -718,14 +718,14 @@ static int check_rdn_for_created_attrs(const char *newrdn)
 		slapi_rdn_init_dn(rdn, newrdn);
 		for (i = 0; type[i] != NULL; i++) {
 			if (slapi_rdn_contains_attr(rdn, type[i], &value)) {
-				LDAPDebug(LDAP_DEBUG_TRACE, "Invalid DN. RDN contains %s attribute\n", type[i], 0, 0);
+				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "Invalid DN. RDN contains %s attribute\n", type[i], 0, 0);
 				rc = 1;
 				break;
 			}
 		}
 		slapi_rdn_free(&rdn);
 	} else {
-		LDAPDebug(LDAP_DEBUG_TRACE, "check_rdn_for_created_attrs: Error allocating RDN\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "check_rdn_for_created_attrs: Error allocating RDN\n", 0, 0, 0);
 		rc = -1;
 	}
 

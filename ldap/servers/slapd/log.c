@@ -474,7 +474,7 @@ log_update_accesslogdir(char *pathname, int apply)
 
 	/* try to open the file, we may have a incorrect path */
 	if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_access_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
 				"errno %d (%s)\n",
 				pathname, errno, slapd_system_strerror(errno));
 		/* stay with the current log file */
@@ -495,7 +495,7 @@ log_update_accesslogdir(char *pathname, int apply)
 	if (loginfo.log_access_fdes) {
 		LogFileInfo	*logp, *d_logp;
 
-		LDAPDebug(LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		   	"LOGINFO:Closing the access log file. "
 			"Moving to a new access log file (%s)\n", pathname,0,0);
 
@@ -629,7 +629,7 @@ log_update_auditlogdir(char *pathname, int apply)
 
 	/* try to open the file, we may have a incorrect path */
 	if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_audit_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
 				"errno %d (%s)\n",
 				pathname, errno, slapd_system_strerror(errno));
 		/* stay with the current log file */
@@ -649,7 +649,7 @@ log_update_auditlogdir(char *pathname, int apply)
 	LOG_AUDIT_LOCK_WRITE ();
 	if (loginfo.log_audit_fdes) {
 		LogFileInfo	*logp, *d_logp;
-		LDAPDebug(LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		   	"LOGINFO:Closing the audit log file. "
 			"Moving to a new audit file (%s)\n", pathname,0,0);
 
@@ -707,7 +707,7 @@ log_update_auditfaillogdir(char *pathname, int apply)
 
     /* try to open the file, we may have a incorrect path */
     if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_auditfail_mode)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
                 "errno %d (%s)\n",
                 pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
@@ -727,7 +727,7 @@ log_update_auditfaillogdir(char *pathname, int apply)
     LOG_AUDITFAIL_LOCK_WRITE ();
     if (loginfo.log_auditfail_fdes) {
         LogFileInfo *logp, *d_logp;
-        LDAPDebug(LDAP_DEBUG_TRACE,
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
             "LOGINFO:Closing the auditfail log file. "
             "Moving to a new auditfail file (%s)\n", pathname,0,0);
 
@@ -880,7 +880,7 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
 	  break;
 	default:
 	  rv = LDAP_OPERATIONS_ERROR;
-	  LDAPDebug( LDAP_DEBUG_ANY, 
+	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 				 "log_set_numlogsperdir: invalid log type %d", logtype,0,0 );
 	}
   }
@@ -976,7 +976,7 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 	}
 	/* logsize is in MB */
 	if (rv == 2) {
-		LDAPDebug (LDAP_DEBUG_ANY, 
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 			   "Invalid value for Maximum log size:"
 			   "Maxlogsize:%d (MB) exceeds Maxdisksize:%d (MB)\n", 
 			    logsize, mdiskspace/LOG_MB_IN_BYTES,0);
@@ -2013,7 +2013,7 @@ slapd_log_audit_internal (
         if (log__needrotation(loginfo.log_audit_fdes,
                     SLAPD_AUDIT_LOG) == LOG_ROTATE) {
             if (log__open_auditlogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "LOGINFO: Unable to open audit file:%s\n",
                     loginfo.log_audit_file,0,0);
                 LOG_AUDIT_UNLOCK_WRITE();
@@ -2072,7 +2072,7 @@ slapd_log_auditfail_internal (
         if (log__needrotation(loginfo.log_auditfail_fdes,
                     SLAPD_AUDITFAIL_LOG) == LOG_ROTATE) {
             if (log__open_auditfaillogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "LOGINFO: Unable to open auditfail file:%s\n",
                           loginfo.log_auditfail_file,0,0);
                 LOG_AUDITFAIL_UNLOCK_WRITE();
@@ -2650,7 +2650,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 		int oserr = errno;
 		loginfo.log_access_fdes = NULL;
 		if (!locked)  LOG_ACCESS_UNLOCK_WRITE();
-		LDAPDebug(LDAP_DEBUG_ANY, "access file open %s failed errno %d (%s)\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "access file open %s failed errno %d (%s)\n",
 				  loginfo.log_access_file, oserr, slapd_system_strerror(oserr));
 		return LOG_UNABLE_TO_OPENFILE;
 	}
@@ -2667,7 +2667,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 	if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_accessinfo_file, loginfo.log_access_mode)) {
 		int oserr = errno;
 		if (!locked) LOG_ACCESS_UNLOCK_WRITE();
-		LDAPDebug( LDAP_DEBUG_ANY, "accessinfo file open %s failed errno %d (%s)\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "accessinfo file open %s failed errno %d (%s)\n",
 					    loginfo.log_accessinfo_file,
 				            oserr, slapd_system_strerror(oserr));
 		return LOG_UNABLE_TO_OPENFILE;
@@ -2820,12 +2820,12 @@ log_rotate:
 	if (logtype!=SLAPD_ERROR_LOG)
 	{
 		if (type == LOG_SIZE_EXCEEDED) {
-			LDAPDebug (LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 				   "LOGINFO:End of Log because size exceeded(Max:%" 
 				   NSPRI64 "d bytes) (Is:%" NSPRI64 "d bytes)\n",
 				   maxlogsize, f_size, 0);
 		} else  if ( type == LOG_EXPIRED) {
-			LDAPDebug(LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 				   "LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%ld secs)\n",
 					rotationtime_secs, curr_time - log_createtime,0);
 		}
@@ -3024,7 +3024,7 @@ log__delete_rotated_logs()
 		log_convert_time (logp->l_ctime, tbuf, 1);
 		PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
 
-		LDAPDebug(LDAP_DEBUG_ANY,"Deleted Rotated Log: %s\n",buffer,0,0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Deleted Rotated Log: %s\n",buffer,0,0);
 
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			logp = logp->l_next;
@@ -3737,7 +3737,7 @@ delete_logfile:
 	if (!locked) {
 		/* if locked, we should not call LDAPDebug, 
 		   which tries to get a lock internally. */
-		LDAPDebug(LDAP_DEBUG_TRACE, 
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
 			   "LOGINFO:Removing file:%s.%s because of (%s)\n",
 					loginfo.log_error_file, tbuf,
 					logstr);
@@ -4633,7 +4633,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 
 	/* open a new log file */
 	if (! LOG_OPEN_APPEND(fp, loginfo.log_audit_file, loginfo.log_audit_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
 				"errno %d (%s)\n",
 				loginfo.log_audit_file, errno, slapd_system_strerror(errno));
 		if (!locked) LOG_AUDIT_UNLOCK_WRITE();
@@ -4654,7 +4654,7 @@ log__open_auditlogfile(int logfile_state, int locked)
 	loginfo.log_audit_state |= LOGGING_NEED_TITLE;
 
 	if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_auditinfo_file, loginfo.log_audit_mode)) {
-		LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
 				"errno %d (%s)\n",
 				loginfo.log_auditinfo_file, errno, slapd_system_strerror(errno));
 		if (!locked) LOG_AUDIT_UNLOCK_WRITE();
@@ -4759,7 +4759,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
 
     /* open a new log file */
     if (! LOG_OPEN_APPEND(fp, loginfo.log_auditfail_file, loginfo.log_auditfail_mode)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
                   "errno %d (%s)\n",
                   loginfo.log_auditfail_file, errno, slapd_system_strerror(errno));
         if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
@@ -4780,7 +4780,7 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     loginfo.log_auditfail_state |= LOGGING_NEED_TITLE;
 
     if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_auditfailinfo_file, loginfo.log_auditfail_mode)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: can't open file %s. "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: can't open file %s. "
                   "errno %d (%s)\n",
                   loginfo.log_auditfailinfo_file, errno, slapd_system_strerror(errno));
         if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
@@ -4927,7 +4927,7 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
         if (log__needrotation(loginfo.log_access_fdes,
 				SLAPD_ACCESS_LOG) == LOG_ROTATE) {
     		if (log__open_accesslogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-    			LDAPDebug(LDAP_DEBUG_ANY,
+    			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
     				"LOGINFO: Unable to open access file:%s\n",
     				loginfo.log_access_file,0,0);
 			lbi->current = lbi->top; /* reset counter to prevent overwriting rest of lbi struct */

@@ -24,7 +24,7 @@ void ldbm_nasty(const char* str, int c, int err)
     char buffer[200];
     if (err == DB_LOCK_DEADLOCK) {
         PR_snprintf(buffer,200,"%s WARNING %d",str,c);
-        LDAPDebug(LDAP_DEBUG_BACKLDBM,"%s, err=%d %s\n",
+        LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,"%s, err=%d %s\n",
                   buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
    } else if (err == DB_RUNRECOVERY) {
         LDAPDebug2Args(LDAP_DEBUG_ANY, "FATAL ERROR at %s (%d); "
@@ -32,7 +32,7 @@ void ldbm_nasty(const char* str, int c, int err)
         exit(1);
     } else {
         PR_snprintf(buffer,200,"%s BAD %d",str,c);
-        LDAPDebug(LDAP_DEBUG_ANY, "%s, err=%d %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s, err=%d %s\n",
                   buffer, err, (msg = dblayer_strerror( err )) ? msg : "");
     }
 }
@@ -328,7 +328,7 @@ mkdir_p(char *dir, unsigned int mode)
             PR_Delete(dir);
             if (PR_SUCCESS != PR_MkDir(dir, mode))
             {
-                LDAPDebug(LDAP_DEBUG_ANY, "mkdir_p %s: error %d (%s)\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "mkdir_p %s: error %d (%s)\n",
                     dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
                 return -1;
             }
@@ -364,7 +364,7 @@ mkdir_p(char *dir, unsigned int mode)
             return rval;
         if (PR_SUCCESS != PR_MkDir(dir, mode))
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "mkdir_p %s: error %d (%s)\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "mkdir_p %s: error %d (%s)\n",
                     dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
             return -1;
         }
@@ -416,7 +416,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
 
     if (NULL == bentry) {
         /* Uh oh, we couldn't find and lock the RUV entry! */
-        LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to retrieve and lock RUV entry\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: ldbm_txn_ruv_modify_context failed to retrieve and lock RUV entry\n",
             0, 0, 0 );
         rc = -1;
         goto done;
@@ -425,7 +425,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
     modify_init( mc, bentry );
 
     if (modify_apply_mods_ignore_error( mc, smods, LDAP_TYPE_OR_VALUE_EXISTS )) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Error: ldbm_txn_ruv_modify_context failed to apply updates to RUV entry\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: ldbm_txn_ruv_modify_context failed to apply updates to RUV entry\n",
             0, 0, 0 );
         rc = -1;
         modify_term( mc, be );

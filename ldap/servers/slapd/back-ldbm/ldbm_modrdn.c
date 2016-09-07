@@ -586,7 +586,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                         CACHE_RETURN( &inst->inst_cache, &ancestorentry );
                         ldap_result_matcheddn= slapi_ch_strdup((char *) slapi_sdn_get_dn(&ancestorsdn));
                         ldap_result_code= LDAP_NO_SUCH_OBJECT;
-                        LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_back_modrdn: New superior "
+                        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldbm_back_modrdn: New superior "
                                     "does not exist matched %s, newsuperior = %s\n", 
                                     ldap_result_matcheddn == NULL ? "NULL" :
                                     ldap_result_matcheddn,
@@ -603,7 +603,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     ldap_result_code = plugin_call_acl_plugin(pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_MODDN, ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
                     if (ldap_result_code != LDAP_SUCCESS) {
                             ldap_result_message = errbuf;
-                            LDAPDebug(LDAP_DEBUG_TRACE, "No 'moddn' access to new superior.\n", 0, 0, 0);
+                            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "No 'moddn' access to new superior.\n", 0, 0, 0);
                             goto error_return;
                     }
                 } else {
@@ -611,7 +611,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     ldap_result_code = plugin_call_acl_plugin (pb, newparententry->ep_entry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
                     if (ldap_result_code != LDAP_SUCCESS) {
                                 ldap_result_message = errbuf;
-                                LDAPDebug(LDAP_DEBUG_TRACE, "No 'add' access to new superior.\n", 0, 0, 0);
+                                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "No 'add' access to new superior.\n", 0, 0, 0);
                                 goto error_return;
                         }
                 }
@@ -626,7 +626,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     /* Here means that we didn't find the parent */
                     ldap_result_matcheddn = "NULL";
                     ldap_result_code= LDAP_NO_SUCH_OBJECT;
-                    LDAPDebug( LDAP_DEBUG_TRACE, "Parent does not exist matched %s, parentdn = %s\n", 
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "Parent does not exist matched %s, parentdn = %s\n", 
                         ldap_result_matcheddn, slapi_sdn_get_ndn(&dn_parentdn), 0 );
                     goto error_return;
                 }
@@ -687,7 +687,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 slapi_entry_delete_string(ec->ep_entry, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE);
                 /* Now also remove the nscpEntryDN */
                 if (slapi_entry_attr_delete(ec->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN) != 0){
-                    LDAPDebug(LDAP_DEBUG_REPL, "Resurrection of %s - Couldn't remove %s\n", 
+                    LDAPDebug(LDAP_DEBUG_REPL, LOG_DEBUG, "Resurrection of %s - Couldn't remove %s\n", 
                               slapi_entry_get_dn(ec->ep_entry), SLAPI_ATTR_NSCP_ENTRYDN, 0);
                 }
                 
@@ -808,7 +808,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             if ( entry_apply_mods( ec->ep_entry, slapi_mods_get_ldapmods_byref(&smods_generated) ) != 0 )
             {
                 ldap_result_code= LDAP_OPERATIONS_ERROR;
-                LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods failed for entry %s\n",
+                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldbm_modrdn: entry_apply_mods failed for entry %s\n",
                            slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
                 goto error_return;
             }
@@ -821,7 +821,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 if (entry_apply_mods_wsi(ec->ep_entry, &smods_generated_wsi, operation_get_csn(operation), is_replicated_operation)!=0)
                 {
                     ldap_result_code= LDAP_OPERATIONS_ERROR;
-                    LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi failed for entry %s\n",
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldbm_modrdn: entry_apply_mods_wsi failed for entry %s\n",
                                slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
                     goto error_return;
                 }
@@ -839,7 +839,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 if (entry_apply_mods_wsi(ec->ep_entry, &smods_operation_wsi, operation_get_csn(operation), is_replicated_operation)!=0)
                 {
                     ldap_result_code= LDAP_OPERATIONS_ERROR;
-                    LDAPDebug( LDAP_DEBUG_TRACE, "ldbm_modrdn: entry_apply_mods_wsi (operational attributes) failed for entry %s\n",
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldbm_modrdn: entry_apply_mods_wsi (operational attributes) failed for entry %s\n",
                                slapi_entry_get_dn_const(ec->ep_entry), 0, 0);
                     goto error_return;
                 }
@@ -939,7 +939,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                                 }
                             }
                         }
-                        LDAPDebug(LDAP_DEBUG_ANY, "parent_update_on_childchange parent %s of %s numsub=%d\n",
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "parent_update_on_childchange parent %s of %s numsub=%d\n",
                                   slapi_entry_get_dn_const(parent_modify_context.old_entry->ep_entry),
                                   slapi_entry_get_dn_const(e->ep_entry), sub_count);
 #endif
@@ -1016,7 +1016,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         }
         if (retval)
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "modrdn_rename_entry_update_indexes %s --> %s failed, err=%d\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "modrdn_rename_entry_update_indexes %s --> %s failed, err=%d\n",
                       slapi_entry_get_dn(e->ep_entry), slapi_entry_get_dn(ec->ep_entry), retval);
             if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
             MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -1039,7 +1039,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     memset(&sv,0,sizeof(Slapi_Value));
                     if ( slapi_rdn2typeval( rdns[i], &type, &sv.bv ) != 0 ) 
                     {
-                        LDAPDebug( LDAP_DEBUG_ANY, "modrdn: rdn2typeval (%s) failed\n",
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "modrdn: rdn2typeval (%s) failed\n",
                                     rdns[i], 0, 0 );
                         if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
                         MOD_SET_ERROR(ldap_result_code, 
@@ -1056,7 +1056,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                     }
                     else if (retval != 0 )
                     {
-                        LDAPDebug( LDAP_DEBUG_ANY, "modrdn: could not add new value to index, err=%d %s\n",
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "modrdn: could not add new value to index, err=%d %s\n",
                                    retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
                         if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
                         MOD_SET_ERROR(ldap_result_code, 
@@ -1083,7 +1083,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
             }
             else if (0 != retval)
             {
-                LDAPDebug( LDAP_DEBUG_ANY, "modrdn: "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "modrdn: "
                            "could not update parent, err=%d %s\n", retval,
                            (msg = dblayer_strerror( retval )) ? msg : "", 0 );
                 if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -1105,7 +1105,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 }
                 if (0 != retval)
                 {
-                    LDAPDebug( LDAP_DEBUG_ANY, "modrdn: "
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "modrdn: "
                                "could not update parent, err=%d %s\n", retval,
                                (msg = dblayer_strerror( retval )) ? msg : "",
                                0 );
@@ -1179,7 +1179,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
         if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
             ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
             if (-1 == ruv_c_init) {
-                LDAPDebug( LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "ldbm_back_modrdn: ldbm_txn_ruv_modify_context "
                     "failed to construct RUV modify context\n",
                     0, 0, 0);
@@ -1196,7 +1196,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 continue;
             }
             if (0 != retval) {
-                LDAPDebug( LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "modify_update_all failed, err=%d %s\n", retval,
                     (msg = dblayer_strerror( retval )) ? msg : "", 0 );
                 if (LDBM_OS_ERR_IS_DISKFULL(retval)) {
@@ -1212,7 +1212,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     if (retry_count == RETRY_TIMES)
     {
         /* Failed */
-        LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in modrdn\n", 0, 0, 0 );
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Retry count exceeded in modrdn\n", 0, 0, 0 );
         ldap_result_code= LDAP_BUSY;
         goto error_return;
     }
@@ -1310,7 +1310,7 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     if (ruv_c_init) {
         if (modify_switch_entries(&ruv_c, be) != 0 ) {
             ldap_result_code= LDAP_OPERATIONS_ERROR;
-            LDAPDebug( LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "ldbm_back_modrdn: modify_switch_entries failed\n", 0, 0, 0);
             goto error_return;
         }
@@ -1736,7 +1736,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     
     if ( baddn || badrdn )
     {
-        LDAPDebug( LDAP_DEBUG_TRACE, "moddn_newrdn_mods failed: olddn=%s baddn=%d badrdn=%d\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "moddn_newrdn_mods failed: olddn=%s baddn=%d badrdn=%d\n",
                    olddn, baddn, badrdn);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -1766,7 +1766,7 @@ moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Sla
     }
     else
     {
-        LDAPDebug( LDAP_DEBUG_TRACE, "moddn_newrdn_mods failed: could not parse new rdn %s\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "moddn_newrdn_mods failed: could not parse new rdn %s\n",
                    newrdn, 0, 0);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -1817,7 +1817,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
      */
     retval = id2entry_add_ext(be, *ec, ptxn, 1, &cache_rc);
     if (cache_rc) {
-        LDAPDebug(LDAP_DEBUG_CACHE,
+        LDAPDebug(LDAP_DEBUG_CACHE, LOG_DEBUG,
                   "modrdn_rename_entry_update_indexes: adding %s failed to add to the cache (rc: %d, cache_rc: %d)\n",
                   slapi_entry_get_dn(e->ep_entry), retval, cache_rc);
     }
@@ -1829,7 +1829,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
     }
     if (retval != 0)
     {
-        LDAPDebug( LDAP_DEBUG_ANY, "modrdn_rename_entry_update_indexes: id2entry_add failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "modrdn_rename_entry_update_indexes: id2entry_add failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
         goto error_return;
     }
     if(smods1!=NULL && slapi_mods_get_num_mods(smods1)>0)
@@ -1846,7 +1846,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         }
         if (retval != 0)
         {
-            LDAPDebug( LDAP_DEBUG_TRACE, "index_add_mods 1 failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "index_add_mods 1 failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
             goto error_return;
         }
     }
@@ -1870,7 +1870,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         }
         if (retval != 0)
         {
-            LDAPDebug( LDAP_DEBUG_TRACE, "index_add_mods 2 failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "index_add_mods 2 failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
             goto error_return;
         }
     }
@@ -1888,7 +1888,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         }
         if (retval != 0)
         {
-            LDAPDebug( LDAP_DEBUG_TRACE, "index_add_mods 3 failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "index_add_mods 3 failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
             goto error_return;
         }
     }
@@ -1908,7 +1908,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         }
         if (retval != 0)
         {
-            LDAPDebug( LDAP_DEBUG_TRACE, "vlv_update_all_indexes failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "vlv_update_all_indexes failed, err=%d %s\n", retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
             goto error_return;
         }
     }

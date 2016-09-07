@@ -344,12 +344,12 @@ ces_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> ces_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> ces_init\n", 0, 0, 0 );
 
 	rc = register_ces_like_plugin(pb,&ia5_pdesc,ia5_names,IA5STRING_SYNTAX_OID, ia5_validate);
 	rc |= register_matching_rule_plugins();
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= ces_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= ces_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -358,12 +358,12 @@ uri_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> uri_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> uri_init\n", 0, 0, 0 );
 
 	rc = register_ces_like_plugin(pb,&uri_pdesc,uri_names,
 				      "1.3.6.1.4.1.4401.1.1.1", NULL);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= uri_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= uri_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 

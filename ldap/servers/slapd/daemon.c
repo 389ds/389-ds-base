@@ -140,7 +140,7 @@ accept_and_configure(int s, PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr,
 	(*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
 	if( !(*pr_clonefd) ) {
 		PRErrorCode prerr = PR_GetError();
-		LDAPDebug( LDAP_DEBUG_ANY, "PR_Accept() failed, "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "PR_Accept() failed, "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				prerr, slapd_pr_strerror(prerr), 0 );
 		return(SLAPD_INVALID_SOCKET);
@@ -570,7 +570,7 @@ disk_monitoring_thread(void *nothing)
              */
             if(passed_threshold){
             	if(logs_disabled){
-            		LDAPDebug(LDAP_DEBUG_ANY, "Disk space is now within acceptable levels.  "
+            		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is now within acceptable levels.  "
                         "Restoring the log settings.\n",0,0,0);
                     if(using_accesslog){
                         config_set_accesslog_enabled(LOGGING_ON);
@@ -582,7 +582,7 @@ disk_monitoring_thread(void *nothing)
                         config_set_auditfaillog_enabled(LOGGING_ON);
                     }
                 } else {
-                	LDAPDebug(LDAP_DEBUG_ANY, "Disk space is now within acceptable levels.\n",0,0,0);
+                	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is now within acceptable levels.\n",0,0,0);
                 }
             	deleted_rotated_logs = 0;
             	passed_threshold = 0;
@@ -597,7 +597,7 @@ disk_monitoring_thread(void *nothing)
          *  Check if we are already critical
          */
         if(disk_space < 4096){ /* 4 k */
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %" NSPRIu64 " Kb.  "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is critically low on disk (%s), remaining space: %" NSPRIu64 " Kb.  "
                 "Signaling slapd for shutdown...\n", dirstr , (disk_space / 1024), 0);
             g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
             return;
@@ -607,7 +607,7 @@ disk_monitoring_thread(void *nothing)
          *  if logging is not critical
          */
         if(verbose_logging != 0 && verbose_logging != LDAP_DEBUG_ANY){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
                 "temporarily setting error loglevel to the default level(%d).\n", dirstr,
                 (disk_space / 1024), SLAPD_DEFAULT_ERRORLOG_LEVEL);
             /* Setting the log level back to zero, actually sets the value to LDAP_DEBUG_ANY */
@@ -621,7 +621,7 @@ disk_monitoring_thread(void *nothing)
          *  access/audit logs, log another error, and continue.
          */
         if(!logs_disabled && !logging_critical){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
                 "disabling access and audit logging.\n", dirstr, (disk_space / 1024), 0);
             config_set_accesslog_enabled(LOGGING_OFF);
             config_set_auditlog_enabled(LOGGING_OFF);
@@ -634,7 +634,7 @@ disk_monitoring_thread(void *nothing)
          *  access/audit logging, then delete the rotated logs, log another error, and continue.
          */
         if(!deleted_rotated_logs && !logging_critical){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb, "
                 "deleting rotated logs.\n", dirstr, (disk_space / 1024), 0);
             log__delete_rotated_logs();
             deleted_rotated_logs = 1;
@@ -644,7 +644,7 @@ disk_monitoring_thread(void *nothing)
          *  Ok, we've done what we can, log a message if we continue to lose available disk space
          */
         if(disk_space < previous_mark){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is too low on disk (%s), remaining space: %" NSPRIu64 " Kb\n",
                 dirstr, (disk_space / 1024), 0);
         }
         /*
@@ -656,7 +656,7 @@ disk_monitoring_thread(void *nothing)
          *
          */
         if(disk_space < halfway){
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space on (%s) is too far below the threshold(%" NSPRIu64 " bytes).  "
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space on (%s) is too far below the threshold(%" NSPRIu64 " bytes).  "
                 "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
                 dirstr, threshold, (grace_period / 60));
             time(&start);
@@ -678,7 +678,7 @@ disk_monitoring_thread(void *nothing)
                     /*
                      *  Excellent, we are back to acceptable levels, reset everything...
                      */
-                    LDAPDebug(LDAP_DEBUG_ANY, "Available disk space is now acceptable (%" NSPRIu64 " bytes).  Aborting"
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Available disk space is now acceptable (%" NSPRIu64 " bytes).  Aborting"
                                               " shutdown, and restoring the log settings.\n",disk_space,0,0);
                     if(logs_disabled && using_accesslog){
                         config_set_accesslog_enabled(LOGGING_ON);
@@ -701,7 +701,7 @@ disk_monitoring_thread(void *nothing)
                     /*
                      *  Disk space is critical, log an error, and shut it down now!
                      */
-                    LDAPDebug(LDAP_DEBUG_ANY, "Disk space is critically low on disk (%s), remaining space: %" NSPRIu64 " Kb."
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is critically low on disk (%s), remaining space: %" NSPRIu64 " Kb."
                         "  Signaling slapd for shutdown...\n", dirstr, (disk_space / 1024), 0);
                     g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
                     return;
@@ -718,7 +718,7 @@ disk_monitoring_thread(void *nothing)
             /*
              *  If disk space was freed up we would of detected in the above while loop.  So shut it down.
              */
-            LDAPDebug(LDAP_DEBUG_ANY, "Disk space is still too low (%" NSPRIu64 " Kb).  Signaling slapd for shutdown...\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Disk space is still too low (%" NSPRIu64 " Kb).  Signaling slapd for shutdown...\n",
                 (disk_space / 1024), 0, 0);
             g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
 
@@ -1051,7 +1051,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		(i_unix == NULL) &&
 #endif /* ENABLE_LDAPI */
 	    (s_tcps == NULL) ) {	/* nothing to do */
-	    LDAPDebug( LDAP_DEBUG_ANY,
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		"no port to listen on\n", 0, 0, 0 );
 	    exit( 1 );
 	}
@@ -1066,7 +1066,7 @@ void slapd_daemon( daemon_ports_t *ports )
         SLAPD_DEFAULT_THREAD_STACKSIZE);
     if ( NULL == time_thread_p ) {
 		PRErrorCode errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ANY, "Unable to create time thread - Shutting Down ("
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Unable to create time thread - Shutting Down ("
 				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
 				errorCode, slapd_pr_strerror(errorCode), 0);
 		g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
@@ -1101,7 +1101,7 @@ void slapd_daemon( daemon_ports_t *ports )
                 SLAPD_DEFAULT_THREAD_STACKSIZE);
             if ( NULL == disk_thread_p ) {
                 PRErrorCode errorCode = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY, "Unable to create disk monitoring thread - Shutting Down ("
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Unable to create disk monitoring thread - Shutting Down ("
                     SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                     errorCode, slapd_pr_strerror(errorCode), 0);
                 g_set_shutdown( SLAPI_SHUTDOWN_EXIT );
@@ -1227,7 +1227,7 @@ void slapd_daemon( daemon_ports_t *ports )
 
 #ifdef ENABLE_NUNC_STANS
 	if (enable_nunc_stans && ns_thrpool_wait(tp)) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			   "ns_thrpool_wait failed errno %d (%s)\n", errno,
 			   slapd_system_strerror(errno), 0 );
 	}
@@ -1246,7 +1246,7 @@ void slapd_daemon( daemon_ports_t *ports )
 			break;
 		case -1: /* Error */
 			prerr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_TRACE, "PR_Poll() failed, "
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "PR_Poll() failed, "
 				   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				   prerr, slapd_system_strerror(prerr), 0 );
 			break;
@@ -1318,7 +1318,7 @@ void slapd_daemon( daemon_ports_t *ports )
 
 	threads = g_get_active_threadcnt();
 	if ( threads > 0 ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			"slapd shutting down - waiting for %d thread%s to terminate\n",
 			threads, ( threads > 1 ) ? "s" : "", 0 );
 	}
@@ -1340,14 +1340,14 @@ void slapd_daemon( daemon_ports_t *ports )
 				spe = PR_Read(signalpipe[0], &x, 1);
 				if (spe < 0) {
 					PRErrorCode prerr = PR_GetError();
-					LDAPDebug( LDAP_DEBUG_ANY, "listener could not clear signal pipe, "
+					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "listener could not clear signal pipe, "
 							SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 							prerr, slapd_system_strerror(prerr), 0 );
 					break;
 				}
 			} else if (spe == -1) {
 				PRErrorCode prerr = PR_GetError();
-				LDAPDebug( LDAP_DEBUG_ANY, "PR_Poll() failed, "
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "PR_Poll() failed, "
 						SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 						prerr, slapd_system_strerror(prerr), 0 );
 				break;
@@ -1357,21 +1357,21 @@ void slapd_daemon( daemon_ports_t *ports )
 		}
 		DS_Sleep(PR_INTERVAL_NO_WAIT);
 		if ( threads != g_get_active_threadcnt() )  {
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 					"slapd shutting down - waiting for %d threads to terminate\n",
 					g_get_active_threadcnt(), 0, 0 );
 			threads = g_get_active_threadcnt();
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_ANY,
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 	    "slapd shutting down - closing down internal subsystems and plugins\n",
 	    0, 0, 0 );
 
     log_access_flush();
 
 	/* let backends do whatever cleanup they need to do */
-	LDAPDebug( LDAP_DEBUG_TRACE,"slapd shutting down - waiting for backends to close down\n", 0, 0,0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"slapd shutting down - waiting for backends to close down\n", 0, 0,0 );
 
 	eq_stop();
 	if ( ! in_referral_mode ) {
@@ -1412,7 +1412,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	be_cleanupall ();
 	plugin_dependency_freeall();
 	connection_post_shutdown_cleanup();
-	LDAPDebug( LDAP_DEBUG_TRACE, "slapd shutting down - backends closed down\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "slapd shutting down - backends closed down\n",
 			0, 0, 0 );
 	referrals_free();
 	schema_destroy_dse_lock();
@@ -1424,7 +1424,7 @@ void slapd_daemon( daemon_ports_t *ports )
 	if ( g_get_shutdown() == SLAPI_SHUTDOWN_DISKFULL ){
 		/* This is a server-induced shutdown, we need to manually remove the pid file */
 		if( unlink(get_pid_file()) ){
-			LDAPDebug( LDAP_DEBUG_ANY, "Failed to remove pid file %s\n", get_pid_file(), 0, 0 );
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to remove pid file %s\n", get_pid_file(), 0, 0 );
 		}
 	}
 }
@@ -1439,7 +1439,7 @@ int signal_listner()
 		/* this now means that the pipe is full
 		 * this is not a problem just go-on
 		 */
-		LDAPDebug( LDAP_DEBUG_CONNS,
+		LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
 			"listener could not write to signal pipe %d\n",
 			errno, 0, 0 );
 	}
@@ -1454,9 +1454,9 @@ static int clear_signal(struct POLL_STRUCT *fds)
 	if ( fds[FDS_SIGNAL_PIPE].out_flags & SLAPD_POLL_FLAGS ) {
 		char	buf[200];
 
-		LDAPDebug( LDAP_DEBUG_CONNS, "listener got signaled\n",	0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "listener got signaled\n",	0, 0, 0 );
 		if ( read( readsignalpipe, buf, 200 ) < 1 ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "listener could not clear signal pipe\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "listener could not clear signal pipe\n",
 				0, 0, 0 );
 		}
 	} 
@@ -1483,7 +1483,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 		> slapdFrontendConfig->reservedescriptors);
 	if ( ! accept_new_connections ) {
 		if ( last_accept_new_connections ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "Not listening for new "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Not listening for new "
 				"connections - too many fds open\n", 0, 0, 0 );
 			/* reinitialize n_tcps and s_tcps to the pds */
 			first_time_setup_pr_read_pds = 1;
@@ -1491,7 +1491,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 	} else {
 		if ( ! last_accept_new_connections &&
 			last_accept_new_connections != -1 ) {
-			LDAPDebug( LDAP_DEBUG_ANY, "Listening for new "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Listening for new "
 				"connections again\n", 0, 0, 0 );
 			/* reinitialize n_tcps and s_tcps to the pds */
 			first_time_setup_pr_read_pds = 1;
@@ -1529,7 +1529,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				listener_idxs[n_listeners].listenfd = *fdesc;
 				listener_idxs[n_listeners].idx = count;
 				n_listeners++;
-				LDAPDebug( LDAP_DEBUG_HOUSE, 
+				LDAPDebug(LDAP_DEBUG_HOUSE, LOG_DEBUG, 
 					"listening for connections on %d\n", socketdesc, 0, 0 );
 			}
 		} else {
@@ -1551,7 +1551,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				listener_idxs[n_listeners].idx = count;
 				listener_idxs[n_listeners].secure = 1;
 				n_listeners++;
-				LDAPDebug( LDAP_DEBUG_HOUSE, 
+				LDAPDebug(LDAP_DEBUG_HOUSE, LOG_DEBUG, 
 					"listening for SSL connections on %d\n", socketdesc, 0, 0 );
 			}
 		} else {
@@ -1575,7 +1575,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
 				listener_idxs[n_listeners].idx = count;
 				listener_idxs[n_listeners].local = 1;
 				n_listeners++;
-				LDAPDebug( LDAP_DEBUG_HOUSE,
+				LDAPDebug(LDAP_DEBUG_HOUSE, LOG_DEBUG,
 					"listening for LDAPI connections on %d\n", socketdesc, 0, 0 );
 			}
 		} else {
@@ -1770,7 +1770,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 				if ( !readready && out_flags )
 				{
 					/* some error occured */
-					LDAPDebug( LDAP_DEBUG_CONNS,
+					LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
 					    "POLL_FN() says connection on sd %d is bad "
 					    "(closing)\n", c->c_sd, 0, 0 );
 					disconnect_server_nomutex( c, c->c_connid, -1,
@@ -1779,7 +1779,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 				else if ( readready )
 				{
 					/* read activity */
-					LDAPDebug( LDAP_DEBUG_CONNS,
+					LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
 					    "read activity on %d\n", c->c_ci, 0, 0 );
 					c->c_idlesince = curtime;
 
@@ -1789,7 +1789,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 						/* This might happen as a result of
 						 * trying to acquire a closing connection
 						 */
-						LDAPDebug (LDAP_DEBUG_ANY,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 							"connection_activity: abandoning conn %" NSPRIu64 " as fd=%d is already closing\n",
 							c->c_connid,c->c_sd,0);
 						/* The call disconnect_server should do nothing,
@@ -1967,7 +1967,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket has no data available conn %" NSPRIu64 " for fd=%d\n",
 				       c->c_connid, c->c_sd);
 		} else {
-			LDAPDebug(LDAP_DEBUG_CONNS, "socket has error [%d] conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "socket has error [%d] conn %" NSPRIu64 " for fd=%d\n",
 				  errno, c->c_connid, c->c_sd);
 		}
 	}
@@ -2032,7 +2032,7 @@ slapd_poll( void *handle, int output )
 
     if (rc < 0) {
         PRErrorCode prerr = PR_GetError();
-        LDAPDebug(LDAP_DEBUG_ANY, "slapd_poll(%d) "
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd_poll(%d) "
             SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
             handle, prerr, slapd_pr_strerror(prerr));
         if ( prerr == PR_PENDING_INTERRUPT_ERROR ||
@@ -2043,7 +2043,7 @@ slapd_poll( void *handle, int output )
     } else if (rc == 0 && ioblock_timeout > 0) {
         PRIntn ihandle;
         ihandle = PR_FileDesc2NativeHandle((PRFileDesc *)handle);
-        LDAPDebug(LDAP_DEBUG_ANY, "slapd_poll(%d) timed out\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd_poll(%d) timed out\n",
                 ihandle, 0, 0);
         PR_SetError(PR_IO_TIMEOUT_ERROR, EAGAIN); /* timeout */
         rc = -1;
@@ -2080,18 +2080,18 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                 sentbytes += bytes;
             } else if (bytes < 0) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_CONNS, "PR_Write(%d) "
+                LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "PR_Write(%d) "
                           SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           fd, prerr, slapd_pr_strerror( prerr ));
                 if ( !SLAPD_PR_WOULD_BLOCK_ERROR(prerr)) {
                     if (prerr != PR_CONNECT_RESET_ERROR) {
                         /* 'TCP connection reset by peer': no need to log */
-                        LDAPDebug(LDAP_DEBUG_ANY, "PR_Write(%d) "
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "PR_Write(%d) "
                                   SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                                   fd, prerr, slapd_pr_strerror( prerr ));
                     }
                     if (sentbytes < count) {
-                        LDAPDebug(LDAP_DEBUG_CONNS,
+                        LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                                   "PR_Write(%d) - wrote only %d bytes (expected %d bytes) - 0 (EOF)\n", /* disconnected */
                                   fd, sentbytes, count);
                     }
@@ -2099,7 +2099,7 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
                 }
             } else if (bytes == 0) { /* disconnect */
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_CONNS,
+                LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
                           "PR_Write(%d) - 0 (EOF) %d:%s\n", /* disconnected */
                           fd, prerr, slapd_pr_strerror(prerr));
                 PR_SetError(PR_PIPE_ERROR, EPIPE);
@@ -2109,7 +2109,7 @@ write_function( int ignore, const void *buffer, int count, struct lextiof_socket
             if (sentbytes == count) { /* success */
                 return count;
             } else if (sentbytes > count) { /* too many bytes */
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "PR_Write(%d) overflow - sent %d bytes (expected %d bytes) - error\n",
                           fd, sentbytes, count);
                 PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
@@ -2560,7 +2560,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
         
 		if (rv < 0) {
 			PRErrorCode prerr = PR_GetError();
-			LDAPDebug (LDAP_DEBUG_ANY, "SSL_HandshakeCallback() %d "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "SSL_HandshakeCallback() %d "
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					rv, prerr, slapd_pr_strerror( prerr ));
 		}
@@ -2568,7 +2568,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 
 		if (rv < 0) {
 			PRErrorCode prerr = PR_GetError();
-			LDAPDebug (LDAP_DEBUG_ANY, "SSL_BadCertHook(%i) %i "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "SSL_BadCertHook(%i) %i "
 					SLAPI_COMPONENT_NAME_NSPR " error %d\n",
 					conn->c_sd, rv, prerr);
 		}
@@ -2641,7 +2641,7 @@ ns_handle_new_connection(struct ns_job_t *job)
 			 */
 			ns_disable_listener(li);
 		} else {
-			LDAPDebug(LDAP_DEBUG_CONNS, "Error accepting new connection listenfd=%d [%d:%s]\n",
+			LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "Error accepting new connection listenfd=%d [%d:%s]\n",
 				  PR_FileDesc2NativeHandle(li->listenfd), prerr,
 				  slapd_pr_strerror(prerr));
 		}
@@ -2671,10 +2671,10 @@ static int init_shutdown_detect(void)
     int rc;
     sigset_t proc_mask;
         
-    LDAPDebug( LDAP_DEBUG_TRACE, "Reseting signal mask....\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "Reseting signal mask....\n", 0, 0, 0);
     (void)sigemptyset( &proc_mask );
     rc = pthread_sigmask( SIG_SETMASK, &proc_mask, NULL );
-    LDAPDebug( LDAP_DEBUG_TRACE, " %s \n", 
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, " %s \n", 
 	       rc ? "Failed to reset signal mask":"....Done (signal mask reset)!!", 0, 0 );
   }
   
@@ -2722,7 +2722,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 	int			isfirsttime = 1;
 
 	if ( ct->size <= slapdFrontendConfig->reservedescriptors ) {
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "ERROR: Not enough descriptors to accept any connections. "
 		    "This may be because the maxdescriptors configuration "
 		    "directive is too small, the hard limit on descriptors is "
@@ -2748,13 +2748,13 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 
 		for (nap = ports->n_listenaddr; nap && *nap; nap++) {
 			if (isfirsttime) {
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"slapd started.  Listening on %s port %d for LDAP requests\n",
 					netaddr2string(*nap, addrbuf, sizeof(addrbuf)),
 					ports->n_port, 0 );
 				isfirsttime = 0;
 			} else {
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"Listening on %s port %d for LDAP requests\n",
 					netaddr2string(*nap, addrbuf, sizeof(addrbuf)),
 					ports->n_port, 0 );
@@ -2767,13 +2767,13 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 
 		for (sap = ports->s_listenaddr; sap && *sap; sap++) {
 			if (isfirsttime) {
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 					"slapd started.  Listening on %s port %d for LDAPS requests\n",
 					netaddr2string(*sap, addrbuf, sizeof(addrbuf)),
 					ports->s_port, 0 );
 				isfirsttime = 0;
 			} else {
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 					"Listening on %s port %d for LDAPS requests\n",
 					netaddr2string(*sap, addrbuf, sizeof(addrbuf)),
 					ports->s_port, 0 );
@@ -2785,7 +2785,7 @@ unfurl_banners(Connection_Table *ct,daemon_ports_t *ports, PRFileDesc **n_tcps, 
 	if ( i_unix != NULL ) {                                 /* LDAPI */
 		PRNetAddr   **iap = ports->i_listenaddr;
 
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			"%sListening on %s for LDAPI requests\n", isfirsttime?"slapd started.  ":"",
 			(*iap)->local.path, 0 );
 	}
@@ -2823,7 +2823,7 @@ set_shutdown (int sig)
      * yourself).
      */
 #if 0
-    LDAPDebug( LDAP_DEBUG_ANY, "slapd got shutdown signal\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd got shutdown signal\n", 0, 0, 0 );
 #endif
 	g_set_shutdown( SLAPI_SHUTDOWN_SIGNAL );
 #ifndef LINUX
@@ -2868,7 +2868,7 @@ slapd_do_nothing (int sig)
      * yourself).
      */
 #if 0
-	LDAPDebug( LDAP_DEBUG_TRACE, "slapd got SIGUSR1\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "slapd got SIGUSR1\n", 0, 0, 0 );
 #endif
 	(void) SIGNAL( SIGUSR1, slapd_do_nothing );
 
@@ -2893,7 +2893,7 @@ slapd_wait4child(int sig)
      * yourself).
      */
 #if 0
-        LDAPDebug( LDAP_DEBUG_ARGS, "listener: catching SIGCHLD\n", 0, 0, 0 );
+        LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "listener: catching SIGCHLD\n", 0, 0, 0 );
 #endif
 #ifdef USE_WAITPID
         while (waitpid ((pid_t) -1, 0, WAIT_FLAGS) > 0)
@@ -3168,7 +3168,7 @@ createsignalpipe( void )
 	}
 	if ( PR_CreatePipe( &signalpipe[0], &signalpipe[1] ) != 0 ) {
 		PRErrorCode prerr = PR_GetError();
-		LDAPDebug( LDAP_DEBUG_ANY, "PR_CreatePipe() failed, "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "PR_CreatePipe() failed, "
 			SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 		    prerr, slapd_pr_strerror(prerr), SLAPD_DEFAULT_THREAD_STACKSIZE );
 		return( -1 );
@@ -3176,11 +3176,11 @@ createsignalpipe( void )
 	writesignalpipe = PR_FileDesc2NativeHandle(signalpipe[1]);
 	readsignalpipe = PR_FileDesc2NativeHandle(signalpipe[0]);
 	if(fcntl(writesignalpipe, F_SETFD, O_NONBLOCK) == -1){
-		LDAPDebug( LDAP_DEBUG_ANY,"createsignalpipe: failed to set FD for write pipe (%d).\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"createsignalpipe: failed to set FD for write pipe (%d).\n",
 				errno, 0, 0 );
 	}
 	if(fcntl(readsignalpipe, F_SETFD, O_NONBLOCK) == -1){
-		LDAPDebug( LDAP_DEBUG_ANY,"createsignalpipe: failed to set FD for read pipe (%d).\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"createsignalpipe: failed to set FD for read pipe (%d).\n",
 				errno, 0, 0);
 	}
 	return( 0 );
@@ -3215,11 +3215,11 @@ catch_signals()
         (void)sigprocmask( SIG_BLOCK, &caught_signals, NULL );
  
         if (( sig = sigwait( &caught_signals )) < 0 ) {
-            LDAPDebug( LDAP_DEBUG_ANY, "catch_signals: sigwait returned -1\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "catch_signals: sigwait returned -1\n",
                     0, 0, 0 );
             continue;
         } else {
-            LDAPDebug( LDAP_DEBUG_TRACE, "catch_signals: detected signal %d\n",
+            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "catch_signals: detected signal %d\n",
                     sig, 0, 0 );
             switch ( sig ) {
             case SIGUSR1:
@@ -3233,7 +3233,7 @@ catch_signals()
                 slapd_wait4child( sig );
                 break;
             default:
-                LDAPDebug( LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "catch_signals: unknown signal (%d) received\n",
                     sig, 0, 0 );
             }
@@ -3316,7 +3316,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 	pr_socketoption.value.keep_alive = 1;
 	if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
 		PRErrorCode prerr = PR_GetError();
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"PR_SetSocketOption(PR_SockOpt_Keepalive failed, "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				prerr, slapd_pr_strerror(prerr), 0 );
@@ -3327,7 +3327,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 		pr_socketoption.value.non_blocking = 0;
 		if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
 			PRErrorCode prerr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 					"PR_SetSocketOption(PR_SockOpt_Nonblocking) failed, "
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					prerr, slapd_pr_strerror(prerr), 0 );
@@ -3338,7 +3338,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 		pr_socketoption.value.non_blocking = 1;
 		if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE ) {
 			PRErrorCode prerr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"PR_SetSocketOption(PR_SockOpt_Nonblocking) failed, "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				prerr, slapd_pr_strerror(prerr), 0 );
@@ -3350,7 +3350,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 		 pr_socketoption.value.no_delay = 1;
 		 if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE) {
 			PRErrorCode prerr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				   "PR_SetSocketOption(PR_SockOpt_NoDelay) failed, "
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					prerr, slapd_pr_strerror( prerr ), 0 );
@@ -3360,7 +3360,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 		pr_socketoption.value.no_delay = 0;
 		if ( PR_SetSocketOption( *pr_socket, &pr_socketoption ) == PR_FAILURE) {
 			PRErrorCode prerr = PR_GetError();
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"PR_SetSocketOption(PR_SockOpt_NoDelay) failed, "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				prerr, slapd_pr_strerror( prerr ), 0 );
@@ -3389,7 +3389,7 @@ void configure_ns_socket( int * ns )
 	}
 	/* check for errors */
 	if((rc = setsockopt( *ns, IPPROTO_TCP, TCP_NODELAY, (char * ) &on, sizeof(on) ) != 0)){
-		LDAPDebug( LDAP_DEBUG_ANY,"configure_ns_socket: Failed to configure socket (%d).\n", rc, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"configure_ns_socket: Failed to configure socket (%d).\n", rc, 0, 0);
 	}
 
 	return;

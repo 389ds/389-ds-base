@@ -35,7 +35,7 @@ slapd_init()
 
 	if ( g_get_current_conn_count_mutex() == NULL )
 	{
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "init: PR_NewLock failed\n", 0, 0, 0 );
 		exit( -1 );
 	}
@@ -44,7 +44,7 @@ slapd_init()
 	set_attr_to_protected_list(PSEUDO_ATTR_UNHASHEDUSERPASSWORD, 0);
 #ifndef HAVE_TIME_R
 	if ((time_func_mutex = PR_NewLock()) == NULL ) {
-                LDAPDebug( LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "init: PR_NewLock failed\n", 0, 0, 0 );
                 exit(-1);
         }

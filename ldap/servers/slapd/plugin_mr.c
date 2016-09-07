@@ -122,11 +122,11 @@ plugin_mr_find_registered (char* oid)
 	{
 	    if (!strcasecmp (oid, i->oi_oid))
 	    {
-			LDAPDebug (LDAP_DEBUG_FILTER, "plugin_mr_find_registered(%s) != NULL\n", oid, 0, 0);
+			LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "plugin_mr_find_registered(%s) != NULL\n", oid, 0, 0);
 			return i->oi_plugin;
 	    }
 	}
-    LDAPDebug (LDAP_DEBUG_FILTER, "plugin_mr_find_registered(%s) == NULL\n", oid, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "plugin_mr_find_registered(%s) == NULL\n", oid, 0, 0);
     return NULL;
 }
 
@@ -134,7 +134,7 @@ static void
 plugin_mr_bind (char* oid, struct slapdplugin* plugin)
 {
 	oid_item_t* i = (oid_item_t*) slapi_ch_malloc (sizeof (oid_item_t));
-    LDAPDebug (LDAP_DEBUG_FILTER, "=> plugin_mr_bind(%s)\n", oid, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> plugin_mr_bind(%s)\n", oid, 0, 0);
 	init_global_mr_lock();
 	i->oi_oid = slapi_ch_strdup (oid);
 	i->oi_plugin = plugin;
@@ -142,7 +142,7 @@ plugin_mr_bind (char* oid, struct slapdplugin* plugin)
 	i->oi_next = global_mr_oids;
 	global_mr_oids = i;
 	PR_Unlock (global_mr_oids_lock);        
-	LDAPDebug (LDAP_DEBUG_FILTER, "<= plugin_mr_bind\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= plugin_mr_bind\n", 0, 0, 0);
 }
 
 int /* an LDAP error code, hopefully LDAP_SUCCESS */
@@ -529,7 +529,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 		slapi_pblock_set(pb, SLAPI_PLUGIN_DESTROY_FN, default_mr_filter_destroy);
 		rc = 0; /* success */
 	} else {
-		LDAPDebug(LDAP_DEBUG_FILTER,
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG,
 				  "default_mr_filter_create: missing parameter: %s%s%s\n",
 				  mrOID ? "" : " oid",
 				  mrTYPE ? "" : " attribute type",

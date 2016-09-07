@@ -210,7 +210,7 @@ slapd_bootstrap_config(const char *configdir)
 							SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF);
 				if (e == NULL)
 				{
-					  LDAPDebug(LDAP_DEBUG_ANY, "The entry [%s] in the configfile %s was empty or could not be parsed\n",
+					  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "The entry [%s] in the configfile %s was empty or could not be parsed\n",
 								entrystr, configfile, 0);
 					continue;
 				}
@@ -224,7 +224,7 @@ slapd_bootstrap_config(const char *configdir)
 									maxdescriptors, errorbuf, CONFIG_APPLY)
 						!= LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_MAXDESCRIPTORS_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -240,7 +240,7 @@ slapd_bootstrap_config(const char *configdir)
 						logenabled, SLAPD_ERROR_LOG, errorbuf, CONFIG_APPLY)
 						!= LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -253,7 +253,7 @@ slapd_bootstrap_config(const char *configdir)
 					if (config_set_localuser(CONFIG_LOCALUSER_ATTRIBUTE,
 						_localuser, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 								  CONFIG_LOCALUSER_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -267,7 +267,7 @@ slapd_bootstrap_config(const char *configdir)
 					if (config_set_errorlog(CONFIG_ERRORLOG_ATTRIBUTE,
 						workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 								  CONFIG_ERRORLOG_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -281,13 +281,13 @@ slapd_bootstrap_config(const char *configdir)
 						if (config_set_errorlog_level(CONFIG_LOGLEVEL_ATTRIBUTE,
 							loglevel, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 						{
-							LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+							LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 									  CONFIG_LOGLEVEL_ATTRIBUTE, errorbuf);
 						}
 					}
 					else
 					{
-						LDAPDebug(LDAP_DEBUG_ANY,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 								  "%s: ignoring %s (since -d %d was given on "
 								  "the command line)\n",
 								  CONFIG_LOGLEVEL_ATTRIBUTE, loglevel,
@@ -303,7 +303,7 @@ slapd_bootstrap_config(const char *configdir)
 					if (config_set_certdir(CONFIG_CERTDIR_ATTRIBUTE,
 							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 									  CONFIG_CERTDIR_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -316,7 +316,7 @@ slapd_bootstrap_config(const char *configdir)
 					if (config_set_saslpath(CONFIG_SASLPATH_ATTRIBUTE,
 							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 									  CONFIG_SASLPATH_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -329,7 +329,7 @@ slapd_bootstrap_config(const char *configdir)
 					if (config_set_ldapi_filename(CONFIG_LDAPI_FILENAME_ATTRIBUTE,
 							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 									  CONFIG_LDAPI_FILENAME_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -342,7 +342,7 @@ slapd_bootstrap_config(const char *configdir)
 					if (config_set_ldapi_switch(CONFIG_LDAPI_SWITCH_ATTRIBUTE,
 							workpath, errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s. \n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s. \n", configfile,
 									  CONFIG_LDAPI_SWITCH_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -361,7 +361,7 @@ slapd_bootstrap_config(const char *configdir)
 						/* add the syntax/matching scheme rule plugin */
 						if (plugin_setup(e, 0, 0, 1, returntext))
 						{
-							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid. %s\n",
+							LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "The plugin entry [%s] in the configfile %s was invalid. %s\n",
 							          slapi_entry_get_dn(e), configfile, returntext);
 							rc = 0;
 							slapi_sdn_done(&plug_dn);
@@ -384,7 +384,7 @@ slapd_bootstrap_config(const char *configdir)
 						/* add the pwd storage scheme rule plugin */
 						if (plugin_setup(e, 0, 0, 1, returntext))
 						{
-							LDAPDebug(LDAP_DEBUG_ANY, "The plugin entry [%s] in the configfile %s was invalid. %s\n",
+							LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "The plugin entry [%s] in the configfile %s was invalid. %s\n",
 							          slapi_entry_get_dn(e), configfile, returntext);
 							rc = 0;
 							slapi_sdn_done(&plug_dn);
@@ -402,7 +402,7 @@ slapd_bootstrap_config(const char *configdir)
 								schemacheck, errorbuf, CONFIG_APPLY)
 								!= LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_SCHEMACHECK_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -416,7 +416,7 @@ slapd_bootstrap_config(const char *configdir)
 							plugintracking, errorbuf, CONFIG_APPLY)
 								!= LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								CONFIG_PLUGIN_BINDDN_TRACKING_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -430,7 +430,7 @@ slapd_bootstrap_config(const char *configdir)
 								moddn_aci, errorbuf, CONFIG_APPLY)
 								!= LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_MODDN_ACI_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -444,7 +444,7 @@ slapd_bootstrap_config(const char *configdir)
 					                           syntaxcheck, errorbuf, CONFIG_APPLY)
 						                   != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 						          CONFIG_SYNTAXCHECK_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -458,7 +458,7 @@ slapd_bootstrap_config(const char *configdir)
 					                          syntaxlogging, errorbuf, CONFIG_APPLY)
 					                          != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 						          CONFIG_SYNTAXLOGGING_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -472,7 +472,7 @@ slapd_bootstrap_config(const char *configdir)
 					                           dn_validate_strict, errorbuf, CONFIG_APPLY)
 					                           != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 						          CONFIG_DN_VALIDATE_STRICT_ATTRIBUTE, errorbuf);
 					}
 				}
@@ -485,7 +485,7 @@ slapd_bootstrap_config(const char *configdir)
 								CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, val, errorbuf, 
 								CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, errorbuf);
 					}
 					val[0] = 0;
@@ -499,7 +499,7 @@ slapd_bootstrap_config(const char *configdir)
 								CONFIG_RETURN_EXACT_CASE_ATTRIBUTE, val,
 								errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_RETURN_EXACT_CASE_ATTRIBUTE, errorbuf);
 					}
 					val[0] = 0;
@@ -514,7 +514,7 @@ slapd_bootstrap_config(const char *configdir)
 								CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE, val,
 								errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_ATTRIBUTE_NAME_EXCEPTION_ATTRIBUTE,
 								  errorbuf);
 					}
@@ -529,7 +529,7 @@ slapd_bootstrap_config(const char *configdir)
 								CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE, val,
 								errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_DS4_COMPATIBLE_SCHEMA_ATTRIBUTE,
 								  errorbuf);
 					}
@@ -544,7 +544,7 @@ slapd_bootstrap_config(const char *configdir)
 								CONFIG_SCHEMA_IGNORE_TRAILING_SPACES, val,
 								errorbuf, CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_SCHEMA_IGNORE_TRAILING_SPACES,
 								  errorbuf);
 					}
@@ -558,7 +558,7 @@ slapd_bootstrap_config(const char *configdir)
 				  if (config_set_rewrite_rfc1274(
 								 CONFIG_REWRITE_RFC1274_ATTRIBUTE, val, 
 								 errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
-				    LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", 
+				    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", 
 					      configfile,
 					      CONFIG_REWRITE_RFC1274_ATTRIBUTE, 
 					      errorbuf);
@@ -574,7 +574,7 @@ slapd_bootstrap_config(const char *configdir)
 								CONFIG_LOCALHOST_ATTRIBUTE, val, errorbuf, 
 								CONFIG_APPLY) != LDAP_SUCCESS)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, "%s: %s: %s\n", configfile,
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: %s: %s\n", configfile,
 								  CONFIG_LOCALHOST_ATTRIBUTE, errorbuf);
 					}
 					val[0] = 0;

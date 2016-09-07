@@ -115,7 +115,7 @@ slapi_filter_test_ext_internal(
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> slapi_filter_test_ext\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> slapi_filter_test_ext\n", 0, 0, 0 );
 
 	/*
 	 * RJP: Not sure if this is semantically right, but we have to
@@ -128,58 +128,58 @@ slapi_filter_test_ext_internal(
 
 	switch ( f->f_choice ) {
 	case LDAP_FILTER_EQUALITY:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    EQUALITY\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    EQUALITY\n", 0, 0, 0 );
 		rc = test_ava_filter( pb, e, e->e_attrs, &f->f_ava, LDAP_FILTER_EQUALITY,
 					verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_SUBSTRINGS:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    SUBSTRINGS\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    SUBSTRINGS\n", 0, 0, 0 );
 		rc = test_substring_filter( pb, e, f, verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_GE:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    GE\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    GE\n", 0, 0, 0 );
 		rc = test_ava_filter( pb, e, e->e_attrs, &f->f_ava, LDAP_FILTER_GE,
 					verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_LE:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    LE\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    LE\n", 0, 0, 0 );
 		rc = test_ava_filter( pb, e, e->e_attrs, &f->f_ava, LDAP_FILTER_LE,
 					verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_PRESENT:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    PRESENT\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    PRESENT\n", 0, 0, 0 );
 		rc = test_presence_filter( pb, e, f->f_type, verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_APPROX:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    APPROX\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    APPROX\n", 0, 0, 0 );
 		rc = test_ava_filter( pb, e, e->e_attrs, &f->f_ava, LDAP_FILTER_APPROX,
 					verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_EXTENDED:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    EXTENDED\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    EXTENDED\n", 0, 0, 0 );
 		rc = test_extensible_filter( pb, e, &f->f_mr, verify_access , only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_AND:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    AND\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    AND\n", 0, 0, 0 );
 		rc = test_filter_list( pb, e, f->f_and, 
 					LDAP_FILTER_AND , verify_access, only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_OR:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    OR\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    OR\n", 0, 0, 0 );
 		rc = test_filter_list( pb, e, f->f_or, 
 					LDAP_FILTER_OR , verify_access, only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_NOT:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    NOT\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    NOT\n", 0, 0, 0 );
 		rc = slapi_filter_test_ext_internal( pb, e, f->f_not , verify_access, only_check_access, access_check_done);
 		if(!(verify_access && only_check_access))  /* dont play with access control return codes */
 		{
@@ -202,12 +202,12 @@ slapi_filter_test_ext_internal(
 		break;
 
 	default:
-		LDAPDebug( LDAP_DEBUG_ANY, "    unknown filter type 0x%lX\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "    unknown filter type 0x%lX\n",
 		    f->f_choice, 0, 0 );
 		rc = -1;
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= slapi_filter_test %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= slapi_filter_test %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -275,7 +275,7 @@ int test_ava_filter(
 {
 	int			rc;
 	
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> test_ava_filter\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> test_ava_filter\n", 0, 0, 0 );
 
 	*access_check_done = 0;
 
@@ -314,7 +314,7 @@ int test_ava_filter(
 								SLAPI_ACL_SEARCH, ACLPLUGIN_ACCESS_DEFAULT, NULL );
 			*access_check_done = -1;
 			if ( only_check_access || rc != LDAP_SUCCESS ) {
-				LDAPDebug( LDAP_DEBUG_FILTER, "<= test_ava_filter %d\n",
+				LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_ava_filter %d\n",
 					rc, 0, 0 );
 				return( rc );
 			}
@@ -331,7 +331,7 @@ int test_ava_filter(
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_ava_filter %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_ava_filter %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -462,7 +462,7 @@ test_extensible_filter(
      */
     int	rc;
 		
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> test_extensible_filter\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> test_extensible_filter\n", 0, 0, 0 );
 
 	*access_check_done = 0;
 
@@ -580,7 +580,7 @@ test_extensible_filter(
 		}
 	}
 
-    LDAPDebug( LDAP_DEBUG_FILTER, "<= test_extensible_filter %d\n", rc, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_extensible_filter %d\n", rc, 0, 0 );
     return( rc );
 }
 
@@ -600,7 +600,7 @@ test_filter_list(
 	struct slapi_filter	*f;
 	int access_check_tmp = -1;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> test_filter_list\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> test_filter_list\n", 0, 0, 0 );
 
 	*access_check_done = -1;
 
@@ -627,7 +627,7 @@ test_filter_list(
 			*access_check_done = 0;
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_filter_list %d\n", nomatch, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_filter_list %d\n", nomatch, 0, 0 );
 	return( nomatch );
 }
 
@@ -683,7 +683,7 @@ int test_substring_filter(
 	Slapi_Attr	*a;
 	int		rc;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> test_substring_filter\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> test_substring_filter\n", 0, 0, 0 );
 
 	*access_check_done = 0;
 
@@ -737,7 +737,7 @@ int test_substring_filter(
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_substring_filter %d\n",
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_substring_filter %d\n",
 	    rc, 0, 0 );
 	return( rc );
 }
@@ -844,7 +844,7 @@ slapi_vattr_filter_test_ext_internal(
 {
 	int	rc = LDAP_SUCCESS;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> slapi_vattr_filter_test_ext\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> slapi_vattr_filter_test_ext\n", 0, 0, 0 );
 
 	/*
 	 * RJP: Not sure if this is semantically right, but we have to
@@ -855,11 +855,11 @@ slapi_vattr_filter_test_ext_internal(
 	  return(0);
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> test_substring_filter\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> test_substring_filter\n", 0, 0, 0 );
 
 	switch ( f->f_choice ) {
 	case LDAP_FILTER_EQUALITY:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    EQUALITY\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    EQUALITY\n", 0, 0, 0 );
 		if ( verify_access ) {
 			rc = test_filter_access( pb, e, f->f_ava.ava_type,
 											&f->f_ava.ava_value);
@@ -872,7 +872,7 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	case LDAP_FILTER_SUBSTRINGS:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    SUBSTRINGS\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    SUBSTRINGS\n", 0, 0, 0 );
 		if ( verify_access ) {
 			rc = test_filter_access( pb, e, f->f_sub_type, NULL);
 			*access_check_done = 1;
@@ -884,7 +884,7 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	case LDAP_FILTER_GE:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    GE\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    GE\n", 0, 0, 0 );
 		if ( verify_access ) {
 			rc = test_filter_access( pb, e, f->f_ava.ava_type,
 										&f->f_ava.ava_value);
@@ -897,7 +897,7 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	case LDAP_FILTER_LE:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    LE\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    LE\n", 0, 0, 0 );
 		if ( verify_access ) {
 			rc = test_filter_access( pb, e, f->f_ava.ava_type,
 										&f->f_ava.ava_value);
@@ -910,7 +910,7 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	case LDAP_FILTER_PRESENT:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    PRESENT\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    PRESENT\n", 0, 0, 0 );
 		if ( verify_access ) {
 			rc = test_filter_access( pb, e, f->f_type, NULL);
 			*access_check_done = 1;
@@ -922,7 +922,7 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	case LDAP_FILTER_APPROX:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    APPROX\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    APPROX\n", 0, 0, 0 );
 		if ( verify_access ) {
 			rc = test_filter_access( pb, e, f->f_ava.ava_type,
 										&f->f_ava.ava_value);
@@ -935,25 +935,25 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	case LDAP_FILTER_EXTENDED:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    EXTENDED\n", 0, 0, 0 );		
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    EXTENDED\n", 0, 0, 0 );		
 		rc = test_extensible_filter( pb, e, &f->f_mr, verify_access ,
 											only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_AND:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    AND\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    AND\n", 0, 0, 0 );
 		rc = vattr_test_filter_list_and( pb, e, f->f_and,
 					LDAP_FILTER_AND , verify_access, only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_OR:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    OR\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    OR\n", 0, 0, 0 );
 		rc = vattr_test_filter_list_or( pb, e, f->f_or,
 					LDAP_FILTER_OR , verify_access, only_check_access, access_check_done);
 		break;
 
 	case LDAP_FILTER_NOT:
-		LDAPDebug( LDAP_DEBUG_FILTER, "    NOT\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "    NOT\n", 0, 0, 0 );
 		rc = slapi_vattr_filter_test_ext_internal( pb, e, f->f_not , verify_access, only_check_access, access_check_done);
 		if(verify_access && only_check_access) 
 		{
@@ -993,13 +993,13 @@ slapi_vattr_filter_test_ext_internal(
 		break;
 
 	default:
-		LDAPDebug( LDAP_DEBUG_ANY, "    unknown filter type 0x%lX\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "    unknown filter type 0x%lX\n",
 		    f->f_choice, 0, 0 );
 		rc = -1;
 	}
 
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= slapi_vattr_filter_test %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= slapi_vattr_filter_test %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -1037,7 +1037,7 @@ vattr_test_filter_list_and(
 	int rc = 0;
 	struct slapi_filter	*f;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> vattr_test_filter_list_and\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> vattr_test_filter_list_and\n", 0, 0, 0 );
 
 	for ( f = flist; f != NULL; f = f->f_next ) {
 		rc = slapi_vattr_filter_test_ext_internal( pb, e, f, verify_access, only_check_access, access_check_done );
@@ -1058,7 +1058,7 @@ vattr_test_filter_list_and(
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_filter_list_and %d\n", nomatch, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_filter_list_and %d\n", nomatch, 0, 0 );
 	if (undefined) return undefined;
 	return( nomatch );
 }
@@ -1079,7 +1079,7 @@ vattr_test_filter_list_or(
 	int rc = 0;
 	struct slapi_filter	*f;
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "=> vattr_test_filter_list_or\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> vattr_test_filter_list_or\n", 0, 0, 0 );
 
 	for ( f = flist; f != NULL; f = f->f_next ) {
 		if ( verify_access) {
@@ -1107,7 +1107,7 @@ vattr_test_filter_list_or(
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_FILTER, "<= test_filter_list_or %d\n", nomatch, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= test_filter_list_or %d\n", nomatch, 0, 0 );
 
 	if (nomatch == 1) return undefined;
 	return( nomatch );

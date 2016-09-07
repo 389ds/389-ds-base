@@ -194,7 +194,7 @@ plugin_call_acl_verify_syntax ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf 
 	}
 
 	if ( !plugin_called ) {
-		LDAPDebug ( LDAP_DEBUG_ANY, "The ACL plugin is not initialized. The aci syntax cannot be verified\n",0,0,0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "The ACL plugin is not initialized. The aci syntax cannot be verified\n",0,0,0);
 	}
 	return rc;
 }

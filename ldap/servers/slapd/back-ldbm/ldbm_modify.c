@@ -88,7 +88,7 @@ int modify_switch_entries(modify_context *mc,backend *be)
 	if (mc->old_entry && mc->new_entry) {
 		ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
 		if (ret) {
-			LDAPDebug(LDAP_DEBUG_CACHE, "modify_switch_entries: replacing %s with %s failed (%d)\n",
+			LDAPDebug(LDAP_DEBUG_CACHE, LOG_DEBUG, "modify_switch_entries: replacing %s with %s failed (%d)\n",
 			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
 			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
 		}
@@ -133,7 +133,7 @@ modify_unswitch_entries(modify_context *mc,backend *be)
 			cache_unlock_entry(&inst->inst_cache, mc->new_entry);
 			cache_lock_entry(&inst->inst_cache, mc->old_entry);
 		} else {
-			LDAPDebug(LDAP_DEBUG_CACHE, "modify_unswitch_entries: replacing %s with %s failed (%d)\n",
+			LDAPDebug(LDAP_DEBUG_CACHE, LOG_DEBUG, "modify_unswitch_entries: replacing %s with %s failed (%d)\n",
 			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
 			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
 		}
@@ -708,7 +708,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			continue;
 		}
 		if (0 != retval) {
-			LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add failed, err=%d %s\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "id2entry_add failed, err=%d %s\n",
 				   retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -721,7 +721,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			continue;
 		}
 		if (0 != retval) {
-			LDAPDebug( LDAP_DEBUG_ANY, "index_add_mods failed, err=%d %s\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "index_add_mods failed, err=%d %s\n",
 				  retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -740,7 +740,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_ANY, 
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 					"vlv_update_index failed, err=%d %s\n",
 					retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
@@ -754,7 +754,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
 			ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
 			if (-1 == ruv_c_init) {
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 					"ldbm_back_modify: ldbm_txn_ruv_modify_context "
 					"failed to construct RUV modify context\n",
 					0, 0, 0);
@@ -771,7 +771,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug( LDAP_DEBUG_ANY,
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 					"modify_update_all failed, err=%d %s\n", retval,
 					(msg = dblayer_strerror( retval )) ? msg : "", 0 );
 				if (LDBM_OS_ERR_IS_DISKFULL(retval))
@@ -786,7 +786,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 	}
 	if (retry_count == RETRY_TIMES) {
-		LDAPDebug( LDAP_DEBUG_ANY, "Retry count exceeded in modify\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Retry count exceeded in modify\n", 0, 0, 0 );
 	   	ldap_result_code= LDAP_BUSY;
 		goto error_return;
 	}
@@ -794,7 +794,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	if (ruv_c_init) {
 		if (modify_switch_entries(&ruv_c, be) != 0 ) {
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"ldbm_back_modify: modify_switch_entries failed\n", 0, 0, 0);
 			goto error_return;
 		}

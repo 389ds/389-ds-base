@@ -157,7 +157,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_ID:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_ID \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -170,7 +170,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		 * a pointer that could be freed out from under them.
 		 */
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_DN \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -181,7 +181,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_AUTHTYPE:/* deprecated */
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_AUTHTYPE \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -208,7 +208,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_CONN_AUTHMETHOD:
                 /* returns a copy */
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_AUTHMETHOD \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -296,7 +296,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_IS_REPLICATION_SESSION:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_IS_REPLICATION_SESSION \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -306,7 +306,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_IS_SSL_SESSION:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_IS_SSL_SESSION \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -316,7 +316,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_SASL_SSF:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			  "Connection is NULL and hence cannot access SLAPI_CONN_SASL_SSF \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -326,7 +326,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_SSL_SSF:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			  "Connection is NULL and hence cannot access SLAPI_CONN_SSL_SSF \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -336,7 +336,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_LOCAL_SSF:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 			    "Connection is NULL and hence cannot access SLAPI_CONN_LOCAL_SSF \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -346,7 +346,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_CERT:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_CERT \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -357,7 +357,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_OPERATION_TYPE:
 		if (pblock->pb_op == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Operation is NULL and hence cannot access SLAPI_OPERATION_TYPE \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -365,7 +365,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_OPINITIATED_TIME:
 		if (pblock->pb_op == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Operation is NULL and hence cannot access SLAPI_OPINITIATED_TIME \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -1830,7 +1830,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 
 	case SLAPI_CLIENT_DNS:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CLIENT_DNS \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -1972,7 +1972,7 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 
 	default:
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "Unknown parameter block argument %d\n", arg, 0, 0 );
 		return( -1 );
 	}
@@ -2021,7 +2021,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_ID:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_ID \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -2034,7 +2034,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
              * free the current authtype.
              */
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_DN \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -2046,7 +2046,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_CONN_AUTHTYPE: /* deprecated */
 	case SLAPI_CONN_AUTHMETHOD:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_AUTHMETHOD \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -2057,7 +2057,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CONN_IS_REPLICATION_SESSION:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CONN_IS_REPLICATION_SESSION \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -3452,7 +3452,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 	case SLAPI_CLIENT_DNS:
 		if (pblock->pb_conn == NULL) {
-			LDAPDebug( LDAP_DEBUG_ANY,
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		          "Connection is NULL and hence cannot access SLAPI_CLIENT_DNS \n", 0, 0, 0 );
 			return (-1);
 		}
@@ -3587,7 +3587,7 @@ slapi_pblock_set( Slapi_PBlock *pblock, int arg, void *value )
 		break;
 
 	default:
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "Unknown parameter block argument %d\n", arg, 0, 0 );
 		return( -1 );
 	}

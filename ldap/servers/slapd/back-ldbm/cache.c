@@ -43,12 +43,12 @@
 #ifdef LDAP_CACHE_DEBUG
 #define ASSERT(_x) do { \
     if (!(_x)) { \
-       LDAPDebug(LDAP_DEBUG_ANY, "BAD CACHE ASSERTION at %s/%d: %s\n", \
+       LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "BAD CACHE ASSERTION at %s/%d: %s\n", \
                 __FILE__, __LINE__, #_x); \
        *(char *)0L = 23; \
     } \
 } while (0)
-#define LOG(_a, _x1, _x2, _x3)  LDAPDebug(LDAP_DEBUG_CACHE, _a, _x1, _x2, _x3)
+#define LOG(_a, _x1, _x2, _x3)  LDAPDebug(LDAP_DEBUG_CACHE, LOG_DEBUG, _a, _x1, _x2, _x3)
 #else
 #define ASSERT(_x) ;
 #define LOG(_a, _x1, _x2, _x3)  ;
@@ -489,7 +489,7 @@ static void cache_make_hashes(struct cache *cache, int type)
 /* initialize the cache */
 int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
 {
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> cache_init\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> cache_init\n", 0, 0, 0);
     cache->c_maxsize = maxsize;
     cache->c_maxentries = maxentries;
     cache->c_curentries = 0;
@@ -521,7 +521,7 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
        LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm: cache_init: PR_NewMonitor failed\n");
        return 0;
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= cache_init\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= cache_init\n", 0, 0, 0);
     return 1;
 }
 
@@ -561,7 +561,7 @@ entrycache_flush(struct cache *cache)
         ASSERT(e->ep_refcnt == 0);
         e->ep_refcnt++;
         if (entrycache_remove_int(cache, e) < 0) {
-           LDAPDebug(LDAP_DEBUG_ANY,
+           LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                      "entry cache flush: unable to delete entry\n", 0, 0, 0);
            break;
         }
@@ -655,7 +655,7 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
 
     if (bytes < MINCACHESIZE) {
        bytes = MINCACHESIZE;
-       LDAPDebug(LDAP_DEBUG_ANY,
+       LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "WARNING -- Minimum cache size is %lu -- rounding up\n",
                 MINCACHESIZE, 0, 0);
     }
@@ -683,7 +683,7 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
      * ldbm_instance_config
      */
     if (! util_is_cachesize_sane(&bytes)) {
-       LDAPDebug(LDAP_DEBUG_ANY,
+       LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "WARNING -- Possible CONFIGURATION ERROR -- cachesize "
                 "(%lu) may be configured to use more than the available "
                 "physical memory.\n", bytes, 0, 0);
@@ -1604,7 +1604,7 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
 
     if (bytes < MINCACHESIZE) {
        bytes = MINCACHESIZE;
-       LDAPDebug(LDAP_DEBUG_ANY,
+       LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "WARNING -- Minimum cache size is %lu -- rounding up\n",
                 MINCACHESIZE, 0, 0);
     }
@@ -1968,7 +1968,7 @@ dncache_flush(struct cache *cache)
         ASSERT(dn->ep_refcnt == 0);
         dn->ep_refcnt++;
         if (dncache_remove_int(cache, dn) < 0) {
-           LDAPDebug(LDAP_DEBUG_ANY, "dn cache flush: unable to delete entry\n",
+           LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dn cache flush: unable to delete entry\n",
                     0, 0, 0);
            break;
         }

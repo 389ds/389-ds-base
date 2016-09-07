@@ -25,7 +25,7 @@ static int entryrdn_noancestorid = 0;
 #ifdef ENTRYRDN_DEBUG
 #define ASSERT(_x) do { \
     if (!(_x)) { \
-        LDAPDebug(LDAP_DEBUG_ANY, "BAD ASSERTION at %s/%d: %s\n", \
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "BAD ASSERTION at %s/%d: %s\n", \
         __FILE__, __LINE__, #_x); \
         *(char *)0L = 23; \
     } \

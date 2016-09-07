@@ -120,7 +120,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJo
     /* Return the idlist */
     if (ret == 0) {
         *idl = nodes;
-        LDAPDebug(LDAP_DEBUG_TRACE, "found %lu nodes for ancestorid\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "found %lu nodes for ancestorid\n", 
                   (u_long)IDL_NIDS(nodes), 0, 0);
     } else {
         idl_free(&nodes);
@@ -207,7 +207,7 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
 
     /* Maybe nothing to do */
     if (nodes == NULL || nodes->b_nids == 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Nothing to do to build ancestorid index\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Nothing to do to build ancestorid index\n",
                   0, 0, 0);
         goto out;
     }
@@ -268,7 +268,7 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
             descendants = idl_union_allids(be, ai_aid, ididl->idl, children);
             idl_free(&children);
             if (id2idl_hash_remove(ht, &id) == 0) {
-                LDAPDebug(LDAP_DEBUG_ANY, "ancestorid hash_remove failed\n", 0,0,0);
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ancestorid hash_remove failed\n", 0,0,0);
             } else {
                 id2idl_free(&ididl);
             }
@@ -302,7 +302,7 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
             ididl->keyid = parentid;
             ididl->idl = descendants;
             if (id2idl_hash_add(ht, &parentid, ididl, NULL) == 0) {
-                LDAPDebug(LDAP_DEBUG_ANY, "ancestorid hash_add failed\n", 0,0,0);
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ancestorid hash_add failed\n", 0,0,0);
             }
         }
 
@@ -384,7 +384,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
 	/* Bail now if we did not get here honestly. */
 	if (!idl_get_idl_new()) {
-		LDAPDebug(LDAP_DEBUG_ANY, "Cannot create ancestorid index.  " 
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Cannot create ancestorid index.  " 
 			"New IDL version called but idl_new is false!\n", 0,0,0);
 		return 1;
 	}
@@ -408,7 +408,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
     /* Maybe nothing to do */
     if (nodes == NULL || nodes->b_nids == 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Nothing to do to build ancestorid index\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Nothing to do to build ancestorid index\n",
                   0, 0, 0);
         goto out;
     }
@@ -523,7 +523,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
         }
         import_log_notice(job, "Created ancestorid index (new idl).");
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, "Failed to create ancestorid index\n", 0,0,0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to create ancestorid index\n", 0,0,0);
     }
 
     /* Free any leftover idlists */
@@ -632,7 +632,7 @@ static int check_cache(id2idl_hash *ht)
     }
 
     if (found > 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "ERROR: parentid index is not complete (%lu extra keys in ancestorid cache)\n", found,0,0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: parentid index is not complete (%lu extra keys in ancestorid cache)\n", found,0,0);
         ret = -1;
     }
 
@@ -699,13 +699,13 @@ static int ancestorid_addordel(
 
     if (flags & BE_INDEX_ADD) {
 #if 1
-        LDAPDebug(LDAP_DEBUG_TRACE, "insert ancestorid %lu:%lu\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "insert ancestorid %lu:%lu\n", 
                   (u_long)node_id, (u_long)id, 0);
 #endif
         ret = idl_insert_key(be, db, &key, id, txn, ai, allids);
     } else {
 #if 1
-        LDAPDebug(LDAP_DEBUG_TRACE, "delete ancestorid %lu:%lu\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "delete ancestorid %lu:%lu\n", 
                   (u_long)node_id, (u_long)id, 0);
 #endif
         ret = idl_delete_key(be, db, &key, id, txn, ai);
@@ -958,14 +958,14 @@ _sdn_suffix_cmp(
     /* return the DN */
     slapi_sdn_set_dn_passin(common, ndnstr);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "common suffix <%s>\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "common suffix <%s>\n",
               slapi_sdn_get_dn(common), 0, 0);
 
 out:
     slapi_ldap_value_free(rdns1);
     slapi_ldap_value_free(rdns2);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "_sdn_suffix_cmp(<%s>, <%s>) => %d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "_sdn_suffix_cmp(<%s>, <%s>) => %d\n",
               slapi_sdn_get_dn(left), slapi_sdn_get_dn(right), ret);
 
     return ret;

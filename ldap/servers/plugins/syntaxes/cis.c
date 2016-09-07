@@ -724,11 +724,11 @@ cis_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> cis_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> cis_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &dirstring_pdesc, dirstring_names,
 		 	DIRSTRING_SYNTAX_OID, dirstring_validate );
 	rc |= register_matching_rule_plugins();
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= cis_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= cis_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -738,10 +738,10 @@ boolean_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> boolean_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> boolean_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &boolean_pdesc, boolean_names,
 			BOOLEAN_SYNTAX_OID, boolean_validate );
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= boolean_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= boolean_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -750,10 +750,10 @@ time_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> time_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> time_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &time_pdesc, time_names,
 			GENERALIZEDTIME_SYNTAX_OID, time_validate );
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= time_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= time_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -762,10 +762,10 @@ country_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> country_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> country_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &country_pdesc, country_names,
 				       COUNTRYSTRING_SYNTAX_OID, country_validate );
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= country_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= country_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -774,10 +774,10 @@ postal_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> postal_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> postal_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &postal_pdesc, postal_names,
 				       POSTALADDRESS_SYNTAX_OID, postal_validate );
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= postal_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= postal_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -787,9 +787,9 @@ oid_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> oid_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> oid_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &oid_pdesc, oid_names, OID_SYNTAX_OID, oid_validate );
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= oid_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= oid_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 
@@ -798,10 +798,10 @@ printable_init( Slapi_PBlock *pb )
 {
 	int     rc;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> printable_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> printable_init\n", 0, 0, 0 );
 	rc = register_cis_like_plugin( pb, &printable_pdesc, printable_names,
 					PRINTABLESTRING_SYNTAX_OID, printable_validate );
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= printable_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= printable_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 

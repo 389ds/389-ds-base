@@ -429,7 +429,7 @@ mtn_state_to_int(const char * state_string, Slapi_Entry *entry)
     } else if (!strcasecmp(state_string, "container")) {
         return MTN_CONTAINER;
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "Warning: Unknown state, %s, for mapping tree node %s."
                 " Defaulting to DISABLED\n",
                 state_string, slapi_entry_get_dn(entry), 0);
@@ -452,7 +452,7 @@ mtn_get_referral_from_entry(Slapi_Entry * entry)
     slapi_attr_get_numvalues(attr, &nb);
     hint = slapi_attr_first_value(attr, &val);
     if (NULL == val) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-referral attribute has no value for the mapping tree node %s\n", slapi_entry_get_dn(entry), 0, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: The nsslapd-referral attribute has no value for the mapping tree node %s\n", slapi_entry_get_dn(entry), 0, 0);
     return NULL;
     }
 
@@ -517,7 +517,7 @@ get_backends_from_attr(Slapi_Attr *attr, backend ***be_list, char ***be_names,
             tmp_backend_name);
         if (new_node && (new_node != node))
         {
-                   LDAPDebug(LDAP_DEBUG_ANY,
+                   LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                    "ERROR: backend %s is already pointed to by a mapping tree"
                 " node.  Only one mapping tree node can point to a backend\n",
                    tmp_backend_name, 0, 0);
@@ -613,7 +613,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     subtree = get_subtree_from_entry(entry);
     /* Make sure we know the root dn of the subtree for this node. */
     if (NULL == subtree) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Warning: Unable to determine the subtree represented by the mapping tree node %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: Unable to determine the subtree represented by the mapping tree node %s\n",
             slapi_entry_get_dn(entry), 0, 0);
         return lderr;
     }
@@ -633,7 +633,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     /* Make sure a node does not already exist for this subtree */
     if (  parent_node != NULL && NULL != mtn_get_mapping_tree_node_by_entry(mapping_tree_root,
                 subtree)) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Warning: a mapping tree node for the"
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: a mapping tree node for the"
             " subtree %s already exists; unable to add the node %s\n",
             slapi_sdn_get_dn(subtree), slapi_entry_get_dn(entry), 0);
         slapi_sdn_free(&subtree);
@@ -665,7 +665,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
 
             if (NULL == be_list)
             {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "Warning: The nsslapd-backend attribute has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entry), 0, 0);
                 continue;
@@ -679,7 +679,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
             
             slapi_attr_first_value(attr, &val);
             if (NULL == val) {
-                LDAPDebug(LDAP_DEBUG_ANY, "Warning: Can't determine the state of the mapping tree node %s\n", 
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: Can't determine the state of the mapping tree node %s\n", 
                     slapi_entry_get_dn(entry), 0, 0);
                 continue;
             }
@@ -690,7 +690,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         } else if (!strcasecmp(type, "nsslapd-distribution-plugin")) {
             slapi_attr_first_value(attr, &val);
             if (NULL == val) {
-                LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entry), 0, 0);
                 continue;
             }
@@ -698,7 +698,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         } else if (!strcasecmp(type, "nsslapd-distribution-funct")) {
             slapi_attr_first_value(attr, &val);
             if (NULL == val) {
-                LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entry), 0, 0);
                 continue;
             }
@@ -707,7 +707,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
             const char *sval;
             slapi_attr_first_value(attr, &val);
             if (NULL == val) {
-                LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: The nsslapd-distribution-plugin attribute has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entry), 0, 0);
                 continue;
             }
@@ -719,7 +719,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
 	    else if (strcmp(sval,"referral") == 0)
 		plugin_rootmode = CHAIN_ROOT_UPDATE_REFERRAL;
 	    else 
-                LDAPDebug(LDAP_DEBUG_ANY, "Warning: The nsslapd-distribution-root-update attribute has undefined value (%s) for the mapping tree node %s\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: The nsslapd-distribution-root-update attribute has undefined value (%s) for the mapping tree node %s\n",
                     sval, slapi_entry_get_dn(entry), 0);
         } else if (!strcasecmp(type, MAPPING_TREE_PARENT_ATTRIBUTE)) {
             Slapi_DN *parent_node_dn = get_parent_from_entry(entry);
@@ -729,7 +729,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
             if (parent_node == NULL)
             {
                 parent_node = mapping_tree_root;
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "Warning: could not find parent for %s defaulting to root\n",
                      slapi_entry_get_dn(entry), 0, 0);
             }
@@ -745,7 +745,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         be = defbackend_get_backend();
         if(be == NULL)
         {
-             LDAPDebug(LDAP_DEBUG_ANY,
+             LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                         "ERROR: default container has not been created for the NULL SUFFIX node.\n",
                          0, 0, 0);
              slapi_sdn_free(&subtree);
@@ -778,7 +778,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     if (((state == MTN_BACKEND) || (state == MTN_REFERRAL_ON_UPDATE))
          && (be_names == NULL))
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
         "ERROR: node %s must define a backend\n",
         slapi_entry_get_dn(entry), 0, 0);
         slapi_sdn_free(&subtree);
@@ -788,7 +788,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     if (((state == MTN_REFERRAL) || (state == MTN_REFERRAL_ON_UPDATE))
         && (referral == NULL))
     {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
         "ERROR: node %s must define referrals to be in referral state\n",
         slapi_entry_get_dn(entry), 0, 0);
         slapi_sdn_free(&subtree);
@@ -802,7 +802,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
                                            "Entry Distribution", 1);
         if (plugin == NULL)
         {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "ERROR: node %s cannot find distribution plugin. "
                 SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                 slapi_entry_get_dn(entry), PR_GetError(), slapd_pr_strerror(PR_GetError()));
@@ -821,7 +821,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
     else
     {
         /* only one parameter configured -> ERROR */
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
             "ERROR: node %s must define both lib and funct"
             " for distribution plugin\n",
             slapi_entry_get_dn(entry), 0, 0);
@@ -930,7 +930,7 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 
     if (res != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: Mapping tree unable to read %s: %d\n", 
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: Mapping tree unable to read %s: %d\n", 
             MAPPING_TREE_BASE_DN, res, 0);
         result = -1;
         goto done;
@@ -940,7 +940,7 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
      * of the target's children. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (NULL == entries) {
-        LDAPDebug(LDAP_DEBUG_ANY, "WARNING: No mapping tree node entries found under %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: No mapping tree node entries found under %s\n",
             MAPPING_TREE_BASE_DN, 0, 0);
         result = -1;
         goto done;
@@ -950,7 +950,7 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
         mapping_tree_node *child = NULL;
 
         if (LDAP_SUCCESS != mapping_tree_entry_add(entries[x], &child)) {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
              "ERROR: could not add mapping tree node %s\n",
             slapi_entry_get_dn(entries[x]), 0, 0);
             result = -1;
@@ -1009,7 +1009,7 @@ mapping_tree_node_validate(mapping_tree_node *node)
 
     if (node->mtn_parent) {
         if (!slapi_sdn_issuffix(node->mtn_subtree, node->mtn_parent->mtn_subtree)) {
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                 "Warning: Invalid mapping tree.  %s can not be a child of %s\n",
                 slapi_sdn_get_ndn(node->mtn_subtree), 
                 slapi_sdn_get_ndn(node->mtn_parent->mtn_subtree), 0);
@@ -1099,7 +1099,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 if (parent_node == NULL)
                 {
                     parent_node = mapping_tree_root;
-                    LDAPDebug(LDAP_DEBUG_ANY,
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                           "Error: could not find parent for %s\n",
                           slapi_entry_get_dn(entryAfter), 0, 0);
                     slapi_sdn_free(&subtree);
@@ -1300,7 +1300,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 slapi_attr_first_value(attr, &val);
                 slapi_ch_free_string(&plugin_fct);
                 if (NULL == val) {
-                    LDAPDebug(LDAP_DEBUG_ANY,
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "Warning: The nsslapd-distribution-funct attribute"
                     " has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entryAfter), 0, 0);
@@ -1324,7 +1324,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                 slapi_attr_first_value(attr, &val);
                 slapi_ch_free_string(&plugin_lib);
                 if (NULL == val) {
-                    LDAPDebug(LDAP_DEBUG_ANY,
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                         "Warning: The nsslapd-distribution-plugin attribute"
                         " has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entryAfter), 0, 0);
@@ -1348,7 +1348,7 @@ int mapping_tree_entry_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefor
                              "nsslapd-distribution-root-update", &attr);
                 slapi_attr_first_value(attr, &val);
                 if (NULL == val) {
-                    LDAPDebug(LDAP_DEBUG_ANY,
+                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "Warning: The nsslapd-distribution-root-update attribute"
                     " has no value for the mapping tree node %s\n",
                     slapi_entry_get_dn(entryAfter), 0, 0);
@@ -1483,7 +1483,7 @@ int mapping_tree_entry_add_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, 
                                               CONFIG_DEFAULT_NAMING_CONTEXT,
                                               escaped);
             if (rc) {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "mapping_tree_entry_add_callback: "
                     "setting %s to %s failed: RC=%d\n",
                     escaped, CONFIG_DEFAULT_NAMING_CONTEXT, rc);
@@ -2572,7 +2572,7 @@ mtn_get_be_distributed(Slapi_PBlock *pb, mapping_tree_node * target_node,
         /* paranoid check, never trust another programmer */
         else if ((index >= target_node->mtn_be_count) || (index < 0))
         {
-                LDAPDebug(LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                     "Warning: distribution plugin returned wrong backend"
                     " : %d for entry %s at node %s\n",
                      index, slapi_sdn_get_ndn(target_sdn),
@@ -2592,7 +2592,7 @@ mtn_get_be_distributed(Slapi_PBlock *pb, mapping_tree_node * target_node,
         /* there is several backends but no distribution function
          * return the first backend 
          */
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
         "Warning: distribution plugin not configured at node : %s\n",
         slapi_sdn_get_ndn(target_node->mtn_subtree), 0, 0);
         index = 0;
@@ -2712,7 +2712,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                                 target_node->mtn_backend_names[*index]);
                         *be = target_node->mtn_be[*index];
                         if(*be==NULL) {
-                            LDAPDebug(LDAP_DEBUG_BACKLDBM,
+                            LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
                                 "Warning: Mapping tree node entry for %s "
                                 "point to an unknown backend : %s\n",
                                 slapi_sdn_get_dn(target_node->mtn_subtree),
@@ -2727,7 +2727,7 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
                 }
                 if ((target_node->mtn_be_states) &&
                     (target_node->mtn_be_states[*index] == SLAPI_BE_STATE_OFFLINE)) {
-                    LDAPDebug(LDAP_DEBUG_TRACE,
+                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
                         "Warning: Operation attempted on backend in OFFLINE "
                         "state : %s\n",
                          target_node->mtn_backend_names[*index], 0, 0);
@@ -3596,7 +3596,7 @@ mtn_internal_be_set_state(Slapi_Backend *be, int state)
     node = get_mapping_tree_node_by_name(mapping_tree_root, be_name);
     if (node == NULL)
     {
-        LDAPDebug(LDAP_DEBUG_TRACE,
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
             "Warning: backend %s is not declared in mapping tree\n",
              be_name, 0 ,0);
         goto done;
@@ -3619,7 +3619,7 @@ mtn_internal_be_set_state(Slapi_Backend *be, int state)
         /* backend is not declared in the mapping tree node
          * print out a warning
          */
-        LDAPDebug(LDAP_DEBUG_TRACE,
+        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
             "Warning: backend %s is not declared in mapping node entry\n",
              be_name, 0 ,0);
         goto done;
@@ -3757,7 +3757,7 @@ void mtn_wlock(void)
     slapi_rwlock_wrlock(myLock);
 #ifdef DEBUG
     lock_count--;
-    LDAPDebug(LDAP_DEBUG_ARGS, "mtn_wlock : lock count : %d\n", lock_count, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "mtn_wlock : lock count : %d\n", lock_count, 0, 0);
 #endif
 }
 
@@ -3766,7 +3766,7 @@ void mtn_lock(void)
     slapi_rwlock_rdlock(myLock);
 #ifdef DEBUG
     lock_count++;
-    LDAPDebug(LDAP_DEBUG_ARGS, "mtn_lock : lock count : %d\n", lock_count, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "mtn_lock : lock count : %d\n", lock_count, 0, 0);
 #endif
 }
 
@@ -3780,7 +3780,7 @@ void mtn_unlock(void)
         lock_count++;
     else
         lock_count = (int) 11111111;   /* this happening means problems */
-    LDAPDebug(LDAP_DEBUG_ARGS, "mtn_unlock : lock count : %d\n", lock_count, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "mtn_unlock : lock count : %d\n", lock_count, 0, 0);
 #endif
     slapi_rwlock_unlock(myLock);
 }
@@ -3820,7 +3820,7 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
 
     if (depth == 0)
     {
-        LDAPDebug(LDAP_DEBUG_ANY, "dump_mapping_tree\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dump_mapping_tree\n", 0, 0, 0);
     }
     dump_indent[0] = '\0';
     for (i = 0; i < depth; i++)
@@ -3830,12 +3830,12 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
     {
         if (strlen(current->mtn_subtree->dn) == 0)
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "MT_DUMP: %s%s (0x%x)\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "MT_DUMP: %s%s (0x%x)\n",
                 dump_indent, "none", current);
         }
         else
         {
-            LDAPDebug(LDAP_DEBUG_ANY, "MT_DUMP: %s%s (0x%x)\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "MT_DUMP: %s%s (0x%x)\n",
                 dump_indent, current->mtn_subtree->dn, current);
         }
         dump_mapping_tree(current, depth+1);

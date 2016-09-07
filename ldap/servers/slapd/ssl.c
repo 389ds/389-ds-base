@@ -267,7 +267,7 @@ slapd_SSL_report(int degree, char *fmt, va_list args)
 {
     char buf[2048];
     PR_vsnprintf( buf, sizeof(buf), fmt, args );
-    LDAPDebug( LDAP_DEBUG_ANY, "SSL %s: %s\n",
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "SSL %s: %s\n",
 	       (degree == LOG_FAILURE) ? "failure" : "alert",
 	       buf, 0 );
 }
@@ -1260,15 +1260,15 @@ slapd_nss_init(int init_ssl, int config_available)
 		keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
 		secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
 		if(chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			LDAPDebug(LDAP_DEBUG_ANY, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
 					certdb_file_name, errno, slapd_system_strerror(errno));
 		}
 		if(chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			LDAPDebug(LDAP_DEBUG_ANY, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
 					keydb_file_name, errno, slapd_system_strerror(errno));
 		}
 		if(chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			LDAPDebug(LDAP_DEBUG_ANY, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
 					secmoddb_file_name, errno, slapd_system_strerror(errno));
 		}
 	}
@@ -2168,7 +2168,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #ifdef SSL_REQUIRE_CERTIFICATE    /* new feature */
             if ((err = SSL_OptionSet (pr_sock, SSL_REQUIRE_CERTIFICATE, PR_FALSE)) < 0) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug (LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                  "SSL_OptionSet(SSL_REQUIRE_CERTIFICATE,PR_FALSE) %d "
                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                  err, prerr, slapd_pr_strerror(prerr));
@@ -2178,7 +2178,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
           case SLAPD_SSLCLIENTAUTH_REQUIRED:
             if ((err = SSL_OptionSet (pr_sock, SSL_REQUEST_CERTIFICATE, PR_TRUE)) < 0) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug (LDAP_DEBUG_ANY,
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                  "SSL_OptionSet(SSL_REQUEST_CERTIFICATE,PR_TRUE) %d "
                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                  err, prerr, slapd_pr_strerror(prerr));
@@ -2454,7 +2454,7 @@ slapd_SSL_client_auth (LDAP* ld)
     slapi_ch_free_string(&pw);
     slapi_ch_free_string(&finalpersonality);
 
-    LDAPDebug (LDAP_DEBUG_TRACE, "slapd_SSL_client_auth() %i\n", rc, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "slapd_SSL_client_auth() %i\n", rc, 0, 0);
     return rc;
 }
 

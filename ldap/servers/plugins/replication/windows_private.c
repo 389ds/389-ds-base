@@ -1698,7 +1698,7 @@ windows_plugin_callonce(void)
             int idx;
             for (idx = 0; theapis && theapis[idx]; ++idx) {
                 if (windows_plugin_add(theapis[idx], maxapi)) {
-                    LDAPDebug(LDAP_DEBUG_PLUGIN,
+                    LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
                               "<-- windows_plugin_callonce -- already added windows plugin API "
                               "[%d][0x%p] for GUID [%s] -- end\n",
                               idx, theapis[idx], guid);

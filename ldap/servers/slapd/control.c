@@ -197,10 +197,10 @@ get_ldapmessage_controls_ext(
 	 *	}
 	 */
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> get_ldapmessage_controls\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> get_ldapmessage_controls\n", 0, 0, 0 );
 
 	if (!pb) {
-		LDAPDebug( LDAP_DEBUG_ANY, "<= get_ldapmessage_controls NULL PBlock\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "<= get_ldapmessage_controls NULL PBlock\n", 0, 0, 0 );
 		return( LDAP_OPERATIONS_ERROR );	/* unexpected error */
 	}
 
@@ -215,19 +215,19 @@ get_ldapmessage_controls_ext(
          * check to see if controls were included
 	 */
 	if ( ber_get_option( ber, LBER_OPT_REMAINING_BYTES, &len ) != 0 ) {
-		LDAPDebug( LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		    "<= get_ldapmessage_controls LDAP_OPERATIONS_ERROR\n",
 		    0, 0, 0 );
 		return( LDAP_OPERATIONS_ERROR );	/* unexpected error */
 	}
 	if ( len == 0 ) {
-		LDAPDebug( LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		    "<= get_ldapmessage_controls no controls\n", 0, 0, 0 );
 		return( LDAP_SUCCESS );			/* no controls */
 	}
 	if (( tag = ber_peek_tag( ber, &len )) != LDAP_TAG_CONTROLS ) {
 		if ( tag == LBER_ERROR ) {
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 			    "<= get_ldapmessage_controls LDAP_PROTOCOL_ERROR\n",
 			    0, 0, 0 );
 			return( LDAP_PROTOCOL_ERROR );	/* decoding error */
@@ -237,7 +237,7 @@ get_ldapmessage_controls_ext(
 		 * happen in LDAPv3, but we don't treat this is a hard error --
 		 * we just ignore the extra stuff.
 		 */
-		LDAPDebug( LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		    "<= get_ldapmessage_controls ignoring unrecognized data in request (tag 0x%x)\n",
 		    tag, 0, 0 );
 		return( LDAP_SUCCESS );
@@ -376,13 +376,13 @@ get_ldapmessage_controls_ext(
 	}
 #endif /* SLAPD_ECHO_CONTROL */
 
-	LDAPDebug( LDAP_DEBUG_TRACE,
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 	    "<= get_ldapmessage_controls %d controls\n", curcontrols, 0, 0 );
 	return( LDAP_SUCCESS );
 
 free_and_return:;
 	ldap_controls_free( ctrls );
-	LDAPDebug( LDAP_DEBUG_TRACE,
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 	    "<= get_ldapmessage_controls %i\n", rc, 0, 0 );
 	return( rc );
 }
@@ -402,7 +402,7 @@ slapi_control_present( LDAPControl **controls, char *oid, struct berval **val, i
 {
 	int	i;
 
-	LDAPDebug( LDAP_DEBUG_TRACE,
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 	    "=> slapi_control_present (looking for %s)\n", oid, 0, 0 );
 
 	if ( val != NULL ) {
@@ -410,7 +410,7 @@ slapi_control_present( LDAPControl **controls, char *oid, struct berval **val, i
 	}
 
 	if ( controls == NULL ) {
-		LDAPDebug( LDAP_DEBUG_TRACE,
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 		    "<= slapi_control_present 0 (NO CONTROLS)\n", 0, 0, 0 );
 		return( 0 );
 	}
@@ -423,13 +423,13 @@ slapi_control_present( LDAPControl **controls, char *oid, struct berval **val, i
 					*iscritical = (int) controls[i]->ldctl_iscritical;
 				}
 			}
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 			    "<= slapi_control_present 1 (FOUND)\n", 0, 0, 0 );
 			return( 1 );
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE,
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 	    "<= slapi_control_present 0 (NOT FOUND)\n", 0, 0, 0 );
 	return( 0 );
 }

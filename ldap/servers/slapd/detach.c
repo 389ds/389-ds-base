@@ -225,7 +225,7 @@ static void raise_process_fd_limits(void)
 	if ( getrlimit( RLIMIT_NOFILE, &rl ) != 0 ) {
 		int oserr = errno;
 
-		LDAPDebug( LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		    "getrlimit of descriptor limit failed - error %d (%s)\n",
 		    oserr, slapd_system_strerror( oserr ), 0 );
 		return;
@@ -247,7 +247,7 @@ static void raise_process_fd_limits(void)
 		if ( setrlimit( RLIMIT_NOFILE, &setrl ) != 0 ) {
 			int oserr = errno;
 
-			LDAPDebug( LDAP_DEBUG_ANY, "setrlimit of descriptor "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "setrlimit of descriptor "
 			    "limit to %d failed - error %d (%s)\n",
 			    setrl.rlim_cur, oserr,
 			    slapd_system_strerror(oserr));
@@ -256,7 +256,7 @@ static void raise_process_fd_limits(void)
 	}
 		    
 	(void)getrlimit( RLIMIT_NOFILE, &rl );
-	LDAPDebug( LDAP_DEBUG_TRACE, "descriptor limit changed from %d to %d\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "descriptor limit changed from %d to %d\n",
 	    curlim, rl.rlim_cur, 0 );
 }
 
@@ -274,11 +274,11 @@ raise_process_limits()
 	if (getrlimit(RLIMIT_DATA,&rl) == 0) {
 	    rl.rlim_cur = rl.rlim_max;
 	    if (setrlimit(RLIMIT_DATA,&rl) != 0) {
-	        LDAPDebug(LDAP_DEBUG_TRACE,"setrlimit(RLIMIT_DATA) failed %d\n",
+	        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"setrlimit(RLIMIT_DATA) failed %d\n",
 			  errno,0,0);
 	    }
 	} else {
-	    LDAPDebug(LDAP_DEBUG_TRACE,"getrlimit(RLIMIT_DATA) failed %d\n",
+	    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"getrlimit(RLIMIT_DATA) failed %d\n",
 		      errno,0,0);
 	}
 #endif
@@ -287,11 +287,11 @@ raise_process_limits()
 	if (getrlimit(RLIMIT_VMEM,&rl) == 0) {
 	    rl.rlim_cur = rl.rlim_max;
 	    if (setrlimit(RLIMIT_VMEM,&rl) != 0) {
-	        LDAPDebug(LDAP_DEBUG_TRACE,"setrlimit(RLIMIT_VMEM) failed %d\n",
+	        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"setrlimit(RLIMIT_VMEM) failed %d\n",
 			  errno,0,0);
 	    }
 	} else {
-	    LDAPDebug(LDAP_DEBUG_TRACE,"getrlimit(RLIMIT_VMEM) failed %d\n",
+	    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"getrlimit(RLIMIT_VMEM) failed %d\n",
 		      errno,0,0);
 	}
 #endif /* RLIMIT_VMEM */

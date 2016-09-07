@@ -55,7 +55,7 @@ do_search( Slapi_PBlock *pb )
 	int minssf_exclude_rootdse = 0;
 	int filter_normalized = 0;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "do_search\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "do_search\n", 0, 0, 0 );
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;

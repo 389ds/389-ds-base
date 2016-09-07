@@ -562,7 +562,7 @@ value_size(const Slapi_Value *v)
 static void
 value_dump( const Slapi_Value *value, const char *text)
 {
-    LDAPDebug( LDAP_DEBUG_ANY, "Slapi_Value %s ptr=%lx\n", text, value, 0);
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Slapi_Value %s ptr=%lx\n", text, value, 0);
 	/* JCM - Dump value contents... */
 }
 #endif

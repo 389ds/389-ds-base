@@ -36,11 +36,11 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
     struct backentry *encrypted_entry = NULL;
     char *entrydn = NULL;
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "=> id2entry_add( %lu, \"%s\" )\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> id2entry_add( %lu, \"%s\" )\n",
                                  (u_long)e->ep_id, backentry_get_ndn(e), 0 );
 
     if ( (rc = dblayer_get_id2entry( be, &db )) != 0 ) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Could not open/create id2entry\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not open/create id2entry\n",
             0, 0, 0 );
         rc = -1;
         goto done;
@@ -56,7 +56,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
     if (encrypt) {
         rc = attrcrypt_encrypt_entry(be, e, &encrypted_entry);
         if (rc) {
-            LDAPDebug( LDAP_DEBUG_ANY, "attrcrypt_encrypt_entry failed in id2entry_add\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "attrcrypt_encrypt_entry failed in id2entry_add\n",
                 0, 0, 0 );
             rc = -1;
             goto done;
@@ -82,7 +82,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
                     if (cache_replace( &inst->inst_dncache, oldbdn, bdn ) != 0) {
                         /* The entry was not in the cache for some reason (this
                          * should not happen since CACHE_ADD said it existed above). */
-                        LDAPDebug( LDAP_DEBUG_ANY, "id2entry_add_ext(): Entry disappeared "
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "id2entry_add_ext(): Entry disappeared "
                                    "from cache (%s)\n", oldbdn->dn_sdn, 0, 0 );
                     }
                 }
@@ -189,7 +189,7 @@ done:
         backentry_free(&encrypted_entry);
     }
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry_add %d\n", rc, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= id2entry_add %d\n", rc, 0, 0 );
     return( rc );
 }
 
@@ -211,11 +211,11 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
     int    rc;
     char temp_id[sizeof(ID)];
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "=> id2entry_delete( %lu, \"%s\" )\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> id2entry_delete( %lu, \"%s\" )\n",
         (u_long)e->ep_id, backentry_get_ndn(e), 0 );
 
     if ( (rc = dblayer_get_id2entry( be, &db )) != 0 ) {
-        LDAPDebug( LDAP_DEBUG_ANY, "Could not open/create id2entry\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not open/create id2entry\n",
             0, 0, 0 );
         return( -1 );
     }
@@ -245,7 +245,7 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
     rc = db->del( db,db_txn,&key,0 );
     dblayer_release_id2entry( be, db );
 
-    LDAPDebug( LDAP_DEBUG_TRACE, "<= id2entry_delete %d\n", rc, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= id2entry_delete %d\n", rc, 0, 0 );
     return( rc );
 }
 

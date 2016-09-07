@@ -163,7 +163,7 @@ bitwise_filter_create (Slapi_PBlock* pb)
 	} else if (strcmp(mrOID, "1.2.840.113556.1.4.804") == 0) {
 	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_MATCH_FN, (void*)bitwise_filter_match_or);
 	} else { /* this oid not handled by this plugin */
-	    LDAPDebug (LDAP_DEBUG_FILTER, "=> bitwise_filter_create OID (%s) not handled\n", mrOID, 0, 0);
+	    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> bitwise_filter_create OID (%s) not handled\n", mrOID, 0, 0);
 	    return rc;
 	}
 	bmc = new_bitwise_match_cb(mrTYPE, mrVALUE);
@@ -171,9 +171,9 @@ bitwise_filter_create (Slapi_PBlock* pb)
 	slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)bitwise_filter_destroy);
 	rc = LDAP_SUCCESS;
     } else {
-	LDAPDebug (LDAP_DEBUG_FILTER, "=> bitwise_filter_create missing parameter(s)\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> bitwise_filter_create missing parameter(s)\n", 0, 0, 0);
     }
-    LDAPDebug (LDAP_DEBUG_FILTER, "<= bitwise_filter_create %i\n", rc, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= bitwise_filter_create %i\n", rc, 0, 0);
     return LDAP_SUCCESS;
 }
 
@@ -189,6 +189,6 @@ bitwise_init (Slapi_PBlock* pb)
     if ( rc == 0 ) {
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc );
     }
-    LDAPDebug (LDAP_DEBUG_FILTER, "bitwise_init %i\n", rc, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "bitwise_init %i\n", rc, 0, 0);
     return rc;
 }

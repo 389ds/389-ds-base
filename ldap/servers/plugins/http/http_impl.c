@@ -182,14 +182,14 @@ static int doRequestRetry(const char *url, httpheader **httpheaderArray, char *b
 	retrycnt = httpConfig->retryCount;
 	
 	if (retrycnt == 0) {
-		  LDAPDebug( LDAP_DEBUG_PLUGIN, "doRequestRetry: Retry Count cannot be read. Setting to default value of 3 \n", 0,0,0);
+		  LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "doRequestRetry: Retry Count cannot be read. Setting to default value of 3 \n", 0,0,0);
 	   	  retrycnt = 3;
 	}
         status = doRequest(url, httpheaderArray, body, buf, bytesRead, reqType);
 	if (status != HTTP_IMPL_SUCCESS) {
-	       LDAPDebug( LDAP_DEBUG_PLUGIN, "doRequestRetry: Failed to perform http request \n", 0,0,0);
+	       LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "doRequestRetry: Failed to perform http request \n", 0,0,0);
        	 while (retrycnt > 0) {
-       	         LDAPDebug( LDAP_DEBUG_PLUGIN, "doRequestRetry: Retrying http request %d.\n", i,0,0);
+       	         LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "doRequestRetry: Retrying http request %d.\n", i,0,0);
        	         status = doRequest(url, httpheaderArray, body, buf, bytesRead, reqType);
        	         if (status == HTTP_IMPL_SUCCESS) {
                         break;
@@ -198,8 +198,8 @@ static int doRequestRetry(const char *url, httpheader **httpheaderArray, char *b
        	         i++;
         }
         if (status != HTTP_IMPL_SUCCESS) {
-                LDAPDebug( LDAP_DEBUG_ANY, "doRequestRetry: Failed to perform http request after %d attempts.\n", i,0,0);
-	LDAPDebug( LDAP_DEBUG_ANY, "doRequestRetry:  Verify plugin URI configuration and contact Directory Administrator.\n",0,0,0);
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "doRequestRetry: Failed to perform http request after %d attempts.\n", i,0,0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "doRequestRetry:  Verify plugin URI configuration and contact Directory Administrator.\n",0,0,0);
         }
 
 	}
@@ -219,9 +219,9 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	PRInt32 http_connection_time_out = 0;
 	PRInt32 sslOn = 0;
 	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> doRequest -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> doRequest -- BEGIN\n",0,0,0);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> url=[%s] \n",url,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> url=[%s] \n",url,0,0);
 
 	/* Parse the URL and initialize the host, port, path */
 	if (parseURI(url, &host, &port, &path, &sslOn) == PR_FAILURE) {
@@ -231,7 +231,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		goto bail;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> host=[%s] port[%d] path[%s] \n",host,port,path);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> host=[%s] port[%d] path[%s] \n",host,port,path);
 
 	/* Initialize the Net Addr */
     if (PR_StringToNetAddr(host, &addr) == PR_FAILURE) {
@@ -251,7 +251,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		addr.inet.port = (PRUint16)port;
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Successfully created NetAddr \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Successfully created NetAddr \n",0,0,0);
 
 	/* open a TCP connection to the server */
     fd = PR_NewTCPSocket();
@@ -262,7 +262,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		goto bail;
     }
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Successfully created New TCP Socket \n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Successfully created New TCP Socket \n",0,0,0);
 
 	/* immediately send the response */
     setTCPNoDelay(fd);
@@ -297,7 +297,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		goto bail;
     }
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Successfully connected to host [%s] \n",host,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Successfully connected to host [%s] \n",host,0,0);
 
 	/* send the request to the server */
 	if (reqType == HTTP_REQ_TYPE_POST) {
@@ -317,7 +317,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Successfully sent the request [%s] \n",path,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Successfully sent the request [%s] \n",path,0,0);
 
 	/* read the response */
 	if (processResponse(fd, buf, bytesRead, reqType) == PR_FAILURE) {
@@ -326,7 +326,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
         status = HTTP_CLIENT_ERROR_BAD_RESPONSE;
 		goto bail;
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Successfully read the response\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Successfully read the response\n",0,0,0);
 bail:
 	if (host) {
 		PR_Free(host);
@@ -338,7 +338,7 @@ bail:
 		PR_Close(fd);
 		fd = NULL;
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- doRequest -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- doRequest -- END\n",0,0,0);
 	return status;
 }
 
@@ -368,7 +368,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 	 * the HTTP_DEFAULT_BUFFER_SIZE, it will cause the server to crash. A 4k
 	 * buffer should be good enough.
 	 */
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> processResponse -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> processResponse -- BEGIN\n",0,0,0);
 
 	headers = (char *)PR_Calloc(1, 4 * HTTP_DEFAULT_BUFFER_SIZE);
     /* Get protocol string */
@@ -390,7 +390,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
     tmp[index] = '\0';
     protocol = PL_strdup(tmp);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> protocol=[%s] \n",protocol,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> protocol=[%s] \n",protocol,0,0);
 
     /* Get status num */
     index = 0;
@@ -412,7 +412,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
     statusNum = PL_strdup(tmp);
 	retcode=atoi(tmp);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> statusNum=[%s] \n",statusNum,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> statusNum=[%s] \n",statusNum,0,0);
 
 	if (HTTP_RESPONSE_REDIRECT && (reqType == HTTP_REQ_TYPE_REDIRECT)) {
 		isRedirect = PR_TRUE;
@@ -433,7 +433,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 		}
 		tmp[index] = '\0';
         statusString = PL_strdup(tmp);
-		LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> statusString [%s] \n",statusString,0,0);
+		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> statusString [%s] \n",statusString,0,0);
     }
 
     /**
@@ -507,7 +507,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 				value[index] = '\0';
 				index = 0;
 				inName = PR_TRUE;
-				LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> name=[%s] value=[%s]\n",name,value,0);
+				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> name=[%s] value=[%s]\n",name,value,0);
 				if (isRedirect && !PL_strcasecmp(name,"location")) {
 				  location = PL_strdup(value);
 				}
@@ -530,7 +530,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 		*resBUF = PL_strdup(location);
 		*bytesRead = strlen(location);
 	}
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "----------> Response Buffer=[%s] bytesRead=[%d] \n",*resBUF,*bytesRead,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "----------> Response Buffer=[%s] bytesRead=[%d] \n",*resBUF,*bytesRead,0);
 
 bail:
 
@@ -550,7 +550,7 @@ bail:
 		PL_strfree(location);
 	}
 	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- processResponse -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- processResponse -- END\n",0,0,0);
     return status;
 }
 
@@ -605,7 +605,7 @@ static PRStatus sendFullData( PRFileDesc *fd, char *buf, int timeOut)
 		slapi_log_error( SLAPI_LOG_FATAL, HTTP_PLUGIN_SUBSYSTEM,
 			"sendFullData: dataSent=%d bufLen=%d -> NSPR Error code (%d)\n",
 			dataSent, bufLen, errcode);
-		LDAPDebug( LDAP_DEBUG_PLUGIN, "---------->NSPR Error code (%d) \n", errcode,0,0);
+		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "---------->NSPR Error code (%d) \n", errcode,0,0);
 		return PR_FAILURE;
 	}
 }
@@ -675,7 +675,7 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 	}
 	strcat(reqBUF, "\0");
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "---------->reqBUF is %s \n",reqBUF,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "---------->reqBUF is %s \n",reqBUF,0,0);
 	http_connection_time_out = httpConfig->connectionTimeOut;
 
 	status = sendFullData( fd, reqBUF, http_connection_time_out);
@@ -1343,7 +1343,7 @@ static int parseHTTPConfigEntry(Slapi_Entry *e)
             httpConfig->connectionTimeOut = value;
     }
    	else {
-                 LDAPDebug( LDAP_DEBUG_PLUGIN, "parseHTTPConfigEntry: HTTP Connection Time Out cannot be read. Setting to default value of 5000 ms \n", 0,0,0);
+                 LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "parseHTTPConfigEntry: HTTP Connection Time Out cannot be read. Setting to default value of 5000 ms \n", 0,0,0);
                  httpConfig->connectionTimeOut = 5000;
    	}
 
@@ -1353,7 +1353,7 @@ static int parseHTTPConfigEntry(Slapi_Entry *e)
             httpConfig->readTimeOut = value;
     }
     else {
-                 LDAPDebug( LDAP_DEBUG_PLUGIN, "parseHTTPConfigEntry: HTTP Read Time Out cannot be read. Setting to default value of 5000 ms \n", 0,0,0);
+                 LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "parseHTTPConfigEntry: HTTP Read Time Out cannot be read. Setting to default value of 5000 ms \n", 0,0,0);
                  httpConfig->readTimeOut = 5000;
    	}
 	

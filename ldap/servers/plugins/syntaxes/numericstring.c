@@ -167,7 +167,7 @@ numstr_init( Slapi_PBlock *pb )
 {
 	int	rc, flags;
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "=> numstr_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> numstr_init\n", 0, 0, 0 );
 
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    (void *) SLAPI_PLUGIN_VERSION_01 );
@@ -194,7 +194,7 @@ numstr_init( Slapi_PBlock *pb )
 	    (void *) numstr_normalize );
 
 	rc |= register_matching_rule_plugins();
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<= numstr_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= numstr_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 

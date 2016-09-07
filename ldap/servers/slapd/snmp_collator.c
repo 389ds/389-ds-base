@@ -457,20 +457,20 @@ snmp_collator_create_semaphore(void)
             /* It appears that we didn't exit cleanly last time and left the semaphore
              * around.  Recreate it since we don't know what state it is in. */
             if (sem_unlink(stats_sem_name) != 0) {
-                LDAPDebug( LDAP_DEBUG_ANY, "Failed to delete old semaphore for stats file (%s). "
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to delete old semaphore for stats file (%s). "
                           "Error %d (%s).\n", szStatsFile, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
 
             if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
                 /* No dice */
-                LDAPDebug( LDAP_DEBUG_ANY, "Failed to create semaphore for stats file (%s). Error %d (%s).\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to create semaphore for stats file (%s). Error %d (%s).\n",
                          szStatsFile, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
         } else {
             /* Some other problem occurred creating the semaphore. */
-            LDAPDebug( LDAP_DEBUG_ANY, "Failed to create semaphore for stats file (%s). Error %d.(%s)\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to create semaphore for stats file (%s). Error %d.(%s)\n",
                      szStatsFile, errno, slapd_system_strerror(errno) );
             exit(1);
         }

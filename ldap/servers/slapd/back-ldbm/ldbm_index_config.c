@@ -34,7 +34,7 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     /* Get the name of the attribute to index which will be the value
      * of the cn attribute. */
     if (slapi_entry_attr_find(e, "cn", &attr) != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Warning: malformed index entry %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: malformed index entry %s\n",
                   slapi_entry_get_dn(e), 0, 0);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -42,7 +42,7 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     slapi_attr_first_value(attr, &sval);
     attrValue = slapi_value_get_berval(sval);
     if (NULL == attrValue->bv_val || 0 == attrValue->bv_len) {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                   "Warning: malformed index entry %s -- empty index name\n",
                    slapi_entry_get_dn(e), 0, 0);
         return LDAP_OPERATIONS_ERROR;
@@ -58,7 +58,7 @@ static int ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     	attrValue = slapi_value_get_berval(sval);
     	if (NULL == attrValue->bv_val || attrValue->bv_len == 0) {
     		/* missing the index type, error out */
-            LDAPDebug(LDAP_DEBUG_ANY,
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                      "Warning: malformed index entry %s -- empty nsIndexType\n",
                      slapi_entry_get_dn(e), 0, 0);
             slapi_ch_free_string(index_name);
@@ -198,7 +198,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     *returncode = LDAP_SUCCESS;
 
     if(slapi_entry_attr_find(entryAfter, "cn", &attr) != 0){
-    	 LDAPDebug(LDAP_DEBUG_ANY,
+    	 LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
     			 "Warning: malformed index entry %s - missing cn attribute\n",
     			 slapi_entry_get_dn(entryAfter), 0, 0);
     	 *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -208,7 +208,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     attrValue = slapi_value_get_berval(sval);
 
     if (NULL == attrValue->bv_val || 0 == attrValue->bv_len) {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
         		"Warning: malformed index entry %s, missing index name\n",
         		slapi_entry_get_dn(e), 0, 0);
         *returncode =  LDAP_UNWILLING_TO_PERFORM;
@@ -217,7 +217,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
 
     ainfo_get(inst->inst_be, attrValue->bv_val, &ainfo);
     if (NULL == ainfo) {
-    	LDAPDebug(LDAP_DEBUG_ANY,
+    	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
     			"Warning: malformed index entry %s - missing cn attribute info\n",
     			slapi_entry_get_dn(e), 0, 0);
     	*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -225,7 +225,7 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e,
     }
 
     if(slapi_entry_attr_find(entryAfter, "nsIndexType", &attr) != 0){
-    	 LDAPDebug(LDAP_DEBUG_ANY,
+    	 LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
     			 "Warning: malformed index entry %s - missing nsIndexType attribute\n",
     			 slapi_entry_get_dn(entryAfter), 0, 0);
     	 *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -259,7 +259,7 @@ int ldbm_instance_config_add_index_entry(
 
     /* get the cn value */
     if (slapi_entry_attr_find(e, "cn", &attr) != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Warning: malformed index entry %s, missing cn attrbiute\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: malformed index entry %s, missing cn attrbiute\n",
                   slapi_entry_get_dn(e), 0, 0);
         return -1;
     }
@@ -267,7 +267,7 @@ int ldbm_instance_config_add_index_entry(
     slapi_attr_first_value(attr, &sval);
     attrValue = slapi_value_get_berval(sval);
     if (NULL == attrValue->bv_val || 0 == attrValue->bv_len) {
-        LDAPDebug(LDAP_DEBUG_ANY,
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                   "Warning: malformed index entry %s, missing index name\n",
                   slapi_entry_get_dn(e), 0, 0);
         return -1;
@@ -277,7 +277,7 @@ int ldbm_instance_config_add_index_entry(
 	dn = slapi_create_dn_string("cn=%s,cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                             basetype, inst->inst_name, li->li_plugin->plg_name);
 	if (NULL == dn) {
-		LDAPDebug(LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"ldbm_instance_config_add_index_entry: "
 				"failed create index dn with type %s for plugin %s, "
 				"instance %s\n",
@@ -304,7 +304,7 @@ int ldbm_instance_config_add_index_entry(
 			eBuf = PR_sprintf_append(eBuf, "nsIndexType: %s\n", attrValue->bv_val);
 		}
 	} else {
-		LDAPDebug(LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				"ldbm_instance_config_add_index_entry: "
 				"failed create index dn with type %s for plugin %s, "
 				"instance %s.  Missing nsIndexType\n",
@@ -377,7 +377,7 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
     int flags = LDBM_INSTANCE_CONFIG_DONT_WRITE;
 
     if (NULL == inst) {
-        LDAPDebug(LDAP_DEBUG_ANY, 
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 		"Warning: can't initialize default user indexes (invalid instance).\n", 0,0,0);
         return -1;
     }
@@ -409,7 +409,7 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
                  * of the cn attribute.
                  */
                 if (slapi_entry_attr_find(entries[i], "cn", &attr) != 0) {
-                        LDAPDebug(LDAP_DEBUG_ANY,"Warning: malformed index entry %s. Index ignored.\n",
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Warning: malformed index entry %s. Index ignored.\n",
                                 slapi_entry_get_dn(entries[i]), 0, 0);
                         continue;
                 }

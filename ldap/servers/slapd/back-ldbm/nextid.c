@@ -26,7 +26,7 @@ next_id(backend *be)
 
 	/*Test if nextid hasn't been initialized. */
 	if (inst->inst_nextid < 1) {
-	  LDAPDebug( LDAP_DEBUG_ANY, 
+	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 		    "ldbm backend instance: nextid not initialized... exiting.\n", 0,0,0);
 	  exit(1);
 	}
@@ -42,13 +42,13 @@ next_id(backend *be)
 	/* if ID is above the threshold, the database may need rebuilding soon */
 	if (id >= ID_WARNING_THRESHOLD) {
 	  if ( id >= MAXID ) {
-	    LDAPDebug( LDAP_DEBUG_ANY,
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		       "ldbm backend instance: FATAL ERROR: backend '%s' has no"
 		       "IDs left. DATABASE MUST BE REBUILT.\n", be->be_name, 0,
 		       0);
 	    id = MAXID;
 	  } else {
-	    LDAPDebug( LDAP_DEBUG_ANY,
+	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 		       "ldbm backend instance: WARNING: backend '%s' may run out "
 		       "of IDs. Please, rebuild database.\n", be->be_name, 0, 0);
 	  }
@@ -66,7 +66,7 @@ next_id_return( backend *be, ID id )
 
 	/*Test if nextid hasn't been initialized. */
 	if (inst->inst_nextid < 1) {
-	  LDAPDebug( LDAP_DEBUG_ANY, 
+	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 		    "ldbm backend instance: nextid not initialized... exiting\n", 0,0,0);
 	  exit(1);
 	}
@@ -94,7 +94,7 @@ next_id_get( backend *be )
 
   /*Test if nextid hasn't been initialized.*/
   if (inst->inst_nextid < 1) {
-    LDAPDebug( LDAP_DEBUG_ANY, 
+    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 	      "ldbm backend instance: nextid not initialized... exiting\n", 0,0,0);
     exit(1);
   }

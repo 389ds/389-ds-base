@@ -66,7 +66,7 @@ ldbm_attrcrypt_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
     /* Get the name of the attribute to index which will be the value
      * of the cn attribute. */
     if (slapi_entry_attr_find(e, "cn", &attr) != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, "Warning: malformed attribute encryption entry %s\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: malformed attribute encryption entry %s\n",
                   slapi_entry_get_dn(e), 0, 0);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -82,7 +82,7 @@ ldbm_attrcrypt_parse_entry(ldbm_instance *inst, Slapi_Entry *e,
             attrValue = slapi_value_get_berval(sval);
 			*cipher = ldbm_attrcrypt_parse_cipher(attrValue->bv_val);  
 			if (0 == *cipher)
-				LDAPDebug(LDAP_DEBUG_ANY, "Warning: attempt to configure unrecognized cipher %s in encrypted attribute config entry %s\n",
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: attempt to configure unrecognized cipher %s in encrypted attribute config entry %s\n",
 					attrValue->bv_val, slapi_entry_get_dn(e), 0);        
 		}
     }
@@ -161,7 +161,7 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Sl
 				/* Remember that we have some encryption enabled, so we can be intelligent about warning when SSL is not enabled */
 				inst->attrcrypt_configured = 1;
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY, "Warning: attempt to encryption on a non-existent attribute: %s\n",
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: attempt to encryption on a non-existent attribute: %s\n",
 					  attribute_name, 0, 0);
 				returntext = "attribute does not exist";
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -215,7 +215,7 @@ ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry* e,
 
         ainfo_get(inst->inst_be, attribute_name, &ai);
         if (ai == NULL || (0 == strcmp(LDBM_PSEUDO_ATTR_DEFAULT, ai->ai_type)) ) {
-			LDAPDebug(LDAP_DEBUG_ANY, "Warning: attempt to delete encryption for non-existant attribute: %s\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Warning: attempt to delete encryption for non-existant attribute: %s\n",
 				attribute_name, 0, 0);
 		} else {
 			ldbm_instance_attrcrypt_disable(ai);

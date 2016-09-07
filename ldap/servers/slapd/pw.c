@@ -112,7 +112,7 @@ slapi_pw_find_sv(
 	char			*valpwd;
     int     		i;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_pw_find value: \"%s\"\n", slapi_value_get_string(v), 0, 0 ); /* JCM Innards */
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_pw_find value: \"%s\"\n", slapi_value_get_string(v), 0, 0 ); /* JCM Innards */
 
     for ( i = 0; vals && vals[i]; i++ )
     {
@@ -120,7 +120,7 @@ slapi_pw_find_sv(
 		if ( pwsp != NULL && 
 			(*(pwsp->pws_cmp))( (char*)slapi_value_get_string(v), valpwd ) == 0 ) /* JCM Innards*/
 		{
-			LDAPDebug( LDAP_DEBUG_TRACE,
+			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
 			    "<= slapi_pw_find matched \"%s\" using scheme \"%s\"\n",
 			    valpwd, pwsp->pws_name, 0 );
 			free_pw_scheme( pwsp );
@@ -129,7 +129,7 @@ slapi_pw_find_sv(
 		free_pw_scheme( pwsp );
 	}
  
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_pw_find no matching password\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_pw_find no matching password\n", 0, 0, 0 );
 
     return( 1 );	/* no match */
 }
@@ -1324,7 +1324,7 @@ slapi_add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
 	LDAPControl	new_ctrl;
 	char		buf[12];
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_add_pwd_control\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_add_pwd_control\n", 0, 0, 0 );
 	
 	sprintf( buf, "%ld", time );
 	new_ctrl.ldctl_oid = arg;
@@ -1597,7 +1597,7 @@ pw_get_admin_users(passwdPolicy *pwp)
 	if (res != LDAP_SUCCESS) {
 		slapi_free_search_results_internal(pb);
 		slapi_pblock_destroy(pb);
-		LDAPDebug(LDAP_DEBUG_ANY, "pw_get_admin_users: search failed for %s: error %d - "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "pw_get_admin_users: search failed for %s: error %d - "
 		        "Password Policy Administrators can not be set\n",
 		        slapi_sdn_get_dn(sdn), res, 0);
 		return;
@@ -2077,7 +2077,7 @@ slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins,
 			passwordInHistory     (8) } }
 	*/
 	
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> slapi_pwpolicy_make_response_control", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_pwpolicy_make_response_control", 0, 0, 0 );
 	if ( ( ber = ber_alloc()) == NULL )
 	{
 		return rc;
@@ -2123,7 +2123,7 @@ slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins,
 		ber_bvfree(bvp);
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= slapi_pwpolicy_make_response_control (%d)", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_pwpolicy_make_response_control (%d)", rc, 0, 0 );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }

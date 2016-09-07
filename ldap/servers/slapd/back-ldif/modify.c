@@ -53,7 +53,7 @@ ldif_back_modify( Slapi_PBlock *pb )
   char	     *dn;                   /*Storage for the dn*/
   char	     *errbuf = NULL;	    /* To get error back */
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> ldif_back_modify\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldif_back_modify\n", 0, 0, 0 );
   prev = NULL;
 
   /*Get the database, the dn and the mods*/
@@ -134,7 +134,7 @@ ldif_back_modify( Slapi_PBlock *pb )
 
   slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
   PR_Unlock( db->ldif_lock );
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= ldif_back_modify\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldif_back_modify\n", 0, 0, 0 );
   return( 0 );
   
  error_return:;
@@ -528,27 +528,27 @@ apply_mods( Slapi_Entry *e, LDAPMod **mods )
 {
   int     err, i, j;
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "=> apply_mods\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> apply_mods\n", 0, 0, 0 );
   
   err = LDAP_SUCCESS;
   for ( j = 0; (mods != NULL) && (mods[j] != NULL); j++ ) {
     switch ( mods[j]->mod_op & ~LDAP_MOD_BVALUES ) {
     case LDAP_MOD_ADD:
-      LDAPDebug( LDAP_DEBUG_ARGS, "   add: %s\n",
+      LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   add: %s\n",
 		mods[j]->mod_type, 0, 0 );
       err = slapi_entry_add_values( e, mods[j]->mod_type,
 			     mods[j]->mod_bvalues );
       break;
       
     case LDAP_MOD_DELETE:
-      LDAPDebug( LDAP_DEBUG_ARGS, "   delete: %s\n",
+      LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   delete: %s\n",
 		mods[j]->mod_type, 0, 0 );
       err = slapi_entry_delete_values( e, mods[j]->mod_type,
 				mods[j]->mod_bvalues );
       break;
       
     case LDAP_MOD_REPLACE:
-      LDAPDebug( LDAP_DEBUG_ARGS, "   replace: %s\n",
+      LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   replace: %s\n",
 		mods[j]->mod_type, 0, 0 );
       err = entry_replace_values( e, mods[j]->mod_type,
 				 mods[j]->mod_bvalues );
@@ -556,17 +556,17 @@ apply_mods( Slapi_Entry *e, LDAPMod **mods )
     }
     for ( i = 0; mods[j]->mod_bvalues != NULL &&
 	 mods[j]->mod_bvalues[i] != NULL; i++ ) {
-      LDAPDebug( LDAP_DEBUG_ARGS, "   %s: %s\n",
+      LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   %s: %s\n",
 		mods[j]->mod_type, mods[j]->mod_bvalues[i]->bv_val,
 		0 );
     }
-    LDAPDebug( LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   -\n", 0, 0, 0 );
     
     if ( err != LDAP_SUCCESS ) {
       break;
     }
   }
   
-  LDAPDebug( LDAP_DEBUG_TRACE, "<= apply_mods %d\n", err, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= apply_mods %d\n", err, 0, 0 );
   return( err );
 }

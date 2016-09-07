@@ -41,10 +41,10 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 	int mode = 0;
 	char *p = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_keybykey\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> dblayer_copy_file_keybykey\n", 0, 0, 0 );
 
 	if (!env) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Out of memory\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Out of memory\n", 0, 0, 0);
 		goto error;
 	}
 
@@ -55,28 +55,28 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 	/* Open the source file */
 	retval = db_create(&source_file, env, 0);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Create error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Create error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	retval = (source_file->open)(source_file, NULL, source_file_name, NULL, DB_UNKNOWN, DB_RDONLY, 0);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	/* Get the info we need from the source file */
 	retval = source_file->get_flags(source_file, &dbflags);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, get_flags error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, get_flags error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	retval = source_file->get_type(source_file, &dbtype);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, get_type error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, get_type error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	retval = source_file->get_pagesize(source_file, &dbpagesize);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, get_pagesize error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, get_pagesize error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	/* Open the destination file
@@ -84,17 +84,17 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 	 */
 	retval = db_create(&destination_file, env, 0);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Create error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Create error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	retval = destination_file->set_flags(destination_file,dbflags);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, set_flags error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, set_flags error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	retval = destination_file->set_pagesize(destination_file,dbpagesize);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, set_pagesize error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, set_pagesize error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 
@@ -139,13 +139,13 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 
 	retval = (destination_file->open)(destination_file, NULL, destination_file_name, NULL, dbtype, DB_CREATE | DB_EXCL, mode);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Open error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	/* Open a cursor on the source file */
 	retval = source_file->cursor(source_file,NULL,&source_cursor,0);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Create cursor error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Create cursor error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	/* Seek to the first key */
@@ -160,7 +160,7 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 			 * In either case, set finished=1 so we can hop down and close the cursor. */
 			if ( DB_NOTFOUND != retval )
 			{
-				LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, c_get error %d: %s\n", retval, db_strerror(retval), 0);
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, c_get error %d: %s\n", retval, db_strerror(retval), 0);
 				goto error;
 			}
 			retval = 0; /* DB_NOTFOUND was OK... */
@@ -169,7 +169,7 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 			/* For each key, insert into the destination file */
 			retval = destination_file->put(destination_file, NULL, &key, &data, 0);
 			if (retval) {
-				LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, put error %d: %s\n", retval, db_strerror(retval), 0);
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, put error %d: %s\n", retval, db_strerror(retval), 0);
 				goto error;
 			}
 			cursor_flag = DB_NEXT;
@@ -181,7 +181,7 @@ error:
 	if (source_cursor) {
 		retval_cleanup = source_cursor->c_close(source_cursor);
 		if (retval_cleanup) {
-			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Close cursor error %d: %s\n", retval_cleanup, db_strerror(retval_cleanup), 0);
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Close cursor error %d: %s\n", retval_cleanup, db_strerror(retval_cleanup), 0);
 			retval += retval_cleanup;
 		}
 	}
@@ -190,7 +190,7 @@ error:
 		retval_cleanup = source_file->close(source_file,0);
 		source_file = NULL;
 		if (retval_cleanup) {
-			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Close error %d: %s\n", retval_cleanup, db_strerror(retval_cleanup), 0); 
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Close error %d: %s\n", retval_cleanup, db_strerror(retval_cleanup), 0); 
 			retval += retval_cleanup;
 		}
 	}
@@ -199,12 +199,12 @@ error:
 		retval_cleanup = destination_file->close(destination_file,0);
 		destination_file = NULL;
 		if (retval_cleanup) {
-			LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_keybykey, Close error %d: %s\n", retval_cleanup, db_strerror(retval_cleanup), 0);
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_keybykey, Close error %d: %s\n", retval_cleanup, db_strerror(retval_cleanup), 0);
 			retval += retval_cleanup;
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dblayer_copy_file_keybykey\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= dblayer_copy_file_keybykey\n", 0, 0, 0 );
 	return retval;
 }
 
@@ -219,19 +219,19 @@ dblayer_copy_file_resetlsns(char *home_dir,
 	int retval = 0;
 	DB_ENV *env = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_copy_file_resetlsns\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> dblayer_copy_file_resetlsns\n", 0, 0, 0 );
 	/* Make the environment */
 
 	retval = dblayer_make_private_simple_env(home_dir,&env);
 	if (retval || !env) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns: Call to dblayer_make_private_simple_env failed!\n" 
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_resetlsns: Call to dblayer_make_private_simple_env failed!\n" 
 			"Unable to open an environment.", 0, 0, 0);
 		goto out;
 	}
 	/* Do the copy */
 	retval = dblayer_copy_file_keybykey(env, source_file_name, destination_file_name, overwrite, priv, inst);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns: Copy not completed successfully.", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_resetlsns: Copy not completed successfully.", 0, 0, 0);
 	}
 out:
 	/* Close the environment */
@@ -241,12 +241,12 @@ out:
 		if (retval2) {
 			if (0 == retval) {
 				retval = retval2;
-				LDAPDebug(LDAP_DEBUG_ANY, "dblayer_copy_file_resetlsns, error %d: %s\n", retval, db_strerror(retval), 0);
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_copy_file_resetlsns, error %d: %s\n", retval, db_strerror(retval), 0);
 			}
 		}
 	}
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dblayer_copy_file_resetlsns\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= dblayer_copy_file_resetlsns\n", 0, 0, 0 );
 	return retval;
 }
 
@@ -275,16 +275,16 @@ int dblayer_make_private_recovery_env(char *db_home_dir, dblayer_private *priv, 
 	int retval = 0;
 	DB_ENV *ret_env = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_make_private_recovery_env\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> dblayer_make_private_recovery_env\n", 0, 0, 0 );
 	if (NULL == env) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_make_private_recovery_env: Null environment.  Cannot continue.", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_make_private_recovery_env: Null environment.  Cannot continue.", 0, 0, 0);
 		return -1;
 	}
 	*env = NULL;
 
 	retval = db_env_create(&ret_env,0);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_make_private_recovery_env, Create error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_make_private_recovery_env, Create error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 	dblayer_set_env_debugging(ret_env, priv);
@@ -293,12 +293,12 @@ int dblayer_make_private_recovery_env(char *db_home_dir, dblayer_private *priv, 
 	if (0 == retval) {
 		*env = ret_env;
 	} else {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_make_private_recovery_env, Open error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_make_private_recovery_env, Open error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 
 error:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dblayer_make_private_recovery_env\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= dblayer_make_private_recovery_env\n", 0, 0, 0 );
 	return retval;
 }
 
@@ -308,16 +308,16 @@ int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env)
 	int retval = 0;
 	DB_ENV *ret_env = NULL;
 
-	LDAPDebug( LDAP_DEBUG_TRACE, "=> dblayer_make_private_simple_env\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> dblayer_make_private_simple_env\n", 0, 0, 0 );
 	if (NULL == env) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_make_private_simple_env: Null environment.  Cannot continue.", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_make_private_simple_env: Null environment.  Cannot continue.", 0, 0, 0);
 		return -1;
 	}
 	*env = NULL;
 
 	retval = db_env_create(&ret_env,0);
 	if (retval) {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_make_private_simple_env, error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_make_private_simple_env, error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 
@@ -325,11 +325,11 @@ int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env)
 	if (0 == retval) {
 		*env = ret_env;
 	} else {
-		LDAPDebug(LDAP_DEBUG_ANY, "dblayer_make_private_simple_env, error %d: %s\n", retval, db_strerror(retval), 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dblayer_make_private_simple_env, error %d: %s\n", retval, db_strerror(retval), 0);
 		goto error;
 	}
 
 error:
-	LDAPDebug( LDAP_DEBUG_TRACE, "<= dblayer_make_private_simple_env\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= dblayer_make_private_simple_env\n", 0, 0, 0 );
 	return retval;
 }

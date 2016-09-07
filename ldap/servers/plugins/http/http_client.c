@@ -113,7 +113,7 @@ int http_client_version(void)
 int http_client_init(Slapi_PBlock *pb)
 {
 	int status = HTTP_SUCCESS;
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> http_client_init -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> http_client_init -- BEGIN\n",0,0,0);
 
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    	SLAPI_PLUGIN_VERSION_01 ) != 0 ||
@@ -137,7 +137,7 @@ int http_client_init(Slapi_PBlock *pb)
          return HTTP_FAILURE;
         }
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- http_client_init -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- http_client_init -- END\n",0,0,0);
     return status;
 }
 
@@ -147,7 +147,7 @@ static int http_client_start(Slapi_PBlock *pb)
 	/**
 	 * do some init work here
 	 */
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> http_client_start -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> http_client_start -- BEGIN\n",0,0,0);
 
 	api[0] = 0; /* reserved for api broker use, must be zero */
 	api[1] = (void *)_http_init;
@@ -165,7 +165,7 @@ static int http_client_start(Slapi_PBlock *pb)
 	
 	_http_init(plugin_id);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- http_client_start -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- http_client_start -- END\n",0,0,0);
 	return status;
 }
 
@@ -175,11 +175,11 @@ static int http_client_close(Slapi_PBlock *pb)
 	/**
 	 * do cleanup 
 	 */
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> http_client_close -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> http_client_close -- BEGIN\n",0,0,0);
 
 	slapi_apib_unregister(HTTP_v1_0_GUID);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- http_client_close -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- http_client_close -- END\n",0,0,0);
 
 	return status;
 }
@@ -189,11 +189,11 @@ static int http_client_close(Slapi_PBlock *pb)
  */
 static void _http_init(Slapi_ComponentId *plugin_id)
 {
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> _http_init -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> _http_init -- BEGIN\n",0,0,0);
 	
 	http_impl_init(plugin_id);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- _http_init -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- _http_init -- END\n",0,0,0);
 }
 
 /**
@@ -203,11 +203,11 @@ static void _http_init(Slapi_ComponentId *plugin_id)
 static int _http_get_text(char *url, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> _http_get_text -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> _http_get_text -- BEGIN\n",0,0,0);
 
 	status = http_impl_get_text(url, data, bytesRead);
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- _http_get_text -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- _http_get_text -- END\n",0,0,0);
 	return status;
 }
 
@@ -218,11 +218,11 @@ static int _http_get_text(char *url, char **data, int *bytesRead)
 static int _http_get_binary(char *url, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> _http_get_binary -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> _http_get_binary -- BEGIN\n",0,0,0);
 
 	status = http_impl_get_binary(url, data, bytesRead);
 	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- _http_get_binary -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- _http_get_binary -- END\n",0,0,0);
 	return status;
 }
 
@@ -233,11 +233,11 @@ static int _http_get_binary(char *url, char **data, int *bytesRead)
 static int _http_get_redirected_uri(char *url, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> _http_get_redirected_uri -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> _http_get_redirected_uri -- BEGIN\n",0,0,0);
 
 	status = http_impl_get_redirected_uri(url, data, bytesRead);
 	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- _http_get_redirected_uri -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- _http_get_redirected_uri -- END\n",0,0,0);
 	return status;
 }
 
@@ -247,11 +247,11 @@ static int _http_get_redirected_uri(char *url, char **data, int *bytesRead)
 static int _http_post(char *url, httpheader ** httpheaderArray, char *body, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> _http_post -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> _http_post -- BEGIN\n",0,0,0);
 
 	status = http_impl_post(url, httpheaderArray, body, data, bytesRead);
 	
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- _http_post -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- _http_post -- END\n",0,0,0);
 	return status;
 }
 
@@ -260,10 +260,10 @@ static int _http_post(char *url, httpheader ** httpheaderArray, char *body, char
  */
 static void _http_shutdown( void )
 {
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "--> _http_shutdown -- BEGIN\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> _http_shutdown -- BEGIN\n",0,0,0);
 	
 	http_impl_shutdown();
 
-	LDAPDebug( LDAP_DEBUG_PLUGIN, "<-- _http_shutdown -- END\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- _http_shutdown -- END\n",0,0,0);
 }
 

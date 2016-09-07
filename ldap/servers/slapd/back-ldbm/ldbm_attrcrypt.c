@@ -153,12 +153,12 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 	char *instance_name =  li->inst_name;
 	char *dn_string = NULL;
 	
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_keymgmt_get_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_keymgmt_get_key\n", 0, 0, 0);
 	dn_string = slapi_create_dn_string(dn_template,
 								acs->ace->cipher_display_name, instance_name,
 								li->inst_li->li_plugin->plg_name);
 	if (NULL == dn_string) {
-		LDAPDebug(LDAP_DEBUG_ANY,
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
 				  "attrcrypt_keymgmt_get_key: "
 				  "failed create attrcrypt key dn for plugin %s, "
 				  "instance %s, cypher %s\n", 
@@ -171,7 +171,7 @@ attrcrypt_keymgmt_get_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECKEY
 	                                  (const char *)dn_string);
 bail:
 	slapi_ch_free_string(&dn_string);
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_keymgmt_get_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_keymgmt_get_key\n", 0, 0, 0);
 	return ret;
 }
 
@@ -181,7 +181,7 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
 {
 	int ret = 0;
 	SECItem wrapped_symmetric_key = {0};
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_keymgmt_store_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_keymgmt_store_key\n", 0, 0, 0);
 	/* Wrap the key and then store it in the right place in dse.ldif */
 	ret = attrcrypt_wrap_key(acs, key_to_store, public_key, &wrapped_symmetric_key);
 	if (!ret) {
@@ -214,13 +214,13 @@ attrcrypt_keymgmt_store_key(ldbm_instance *li, attrcrypt_cipher_state *acs, SECK
 		if (rc != LDAP_SUCCESS) {
 			char *resulttext = NULL;
 			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &resulttext);
-			LDAPDebug(LDAP_DEBUG_ANY, "attrcrypt_keymgmt_store_key: failed to add config key entries to the DSE: %d: %s: %s\n", rc, ldap_err2string(rc), resulttext ? resulttext : "unknown");
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "attrcrypt_keymgmt_store_key: failed to add config key entries to the DSE: %d: %s: %s\n", rc, ldap_err2string(rc), resulttext ? resulttext : "unknown");
 			ret = -1;
 		}
 		slapi_ch_free((void**)&entry_string);
 		slapi_pblock_destroy(pb);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_keymgmt_store_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_keymgmt_store_key\n", 0, 0, 0);
 	return ret;
 }
 
@@ -238,13 +238,13 @@ attrcrypt_wrap_key(attrcrypt_cipher_state *acs, PK11SymKey *symmetric_key, SECKE
 	SECKEYPublicKey *wrapping_key = public_key;
 	wrapped_symmetric_key->len = slapd_SECKEY_PublicKeyStrength(public_key);
 	wrapped_symmetric_key->data = (unsigned char *)slapi_ch_malloc(wrapped_symmetric_key->len);
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_wrap_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_wrap_key\n", 0, 0, 0);
 	s = slapd_pk11_PubWrapSymKey(wrap_mechanism, wrapping_key, symmetric_key, wrapped_symmetric_key);
 	if (SECSuccess != s) {
 		ret = -1;
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_wrap_key: failed to wrap key for cipher %s\n", acs->ace->cipher_display_name, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"attrcrypt_wrap_key: failed to wrap key for cipher %s\n", acs->ace->cipher_display_name, 0, 0);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_wrap_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_wrap_key\n", 0, 0, 0);
 	return ret;
 }
 
@@ -337,7 +337,7 @@ attrcrypt_fetch_public_key(SECKEYPublicKey **public_key)
 	PRErrorCode errorCode = 0;
 	char *default_cert_name = "server-cert";
 	char *cert_name = NULL;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_fetch_public_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_fetch_public_key\n", 0, 0, 0);
 	*public_key = NULL;
 	/* Try to grok the server cert name from the SSL config */
 	ret = attrcrypt_get_ssl_cert_name(&cert_name);
@@ -348,14 +348,14 @@ attrcrypt_fetch_public_key(SECKEYPublicKey **public_key)
 	cert = slapd_pk11_findCertFromNickname(cert_name, NULL);
 	if (cert == NULL) {
 		errorCode = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY,"Can't find certificate %s in attrcrypt_fetch_public_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Can't find certificate %s in attrcrypt_fetch_public_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
 	}
 	if( cert != NULL ) {
 		key = slapd_CERT_ExtractPublicKey(cert);
 	}
 	if (key == NULL) {
                 errorCode = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY,"Can't get private key from cert %s in attrcrypt_fetch_public_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Can't get private key from cert %s in attrcrypt_fetch_public_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
 				ret = -1;
 	}
 	if (cert) {
@@ -369,7 +369,7 @@ attrcrypt_fetch_public_key(SECKEYPublicKey **public_key)
 	if (cert_name != default_cert_name) {
 		slapi_ch_free_string(&cert_name);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_fetch_public_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_fetch_public_key\n", 0, 0, 0);
 	return ret;
 }
 
@@ -382,7 +382,7 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
 	PRErrorCode errorCode = 0;
 	char *default_cert_name = "server-cert";
 	char *cert_name = NULL;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_fetch_private_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_fetch_private_key\n", 0, 0, 0);
 	*private_key = NULL;
 	/* Try to grok the server cert name from the SSL config */
 	ret = attrcrypt_get_ssl_cert_name(&cert_name);
@@ -393,14 +393,14 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
 	cert = slapd_pk11_findCertFromNickname(cert_name, NULL);
 	if (cert == NULL) {
 		errorCode = PR_GetError();
-        LDAPDebug(LDAP_DEBUG_ANY,"Can't find certificate %s in attrcrypt_fetch_private_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Can't find certificate %s in attrcrypt_fetch_private_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
 	}
 	if( cert != NULL ) {
 		key = slapd_get_unlocked_key_for_cert(cert, NULL);
 	}
 	if (key == NULL) {
                 errorCode = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY,"Can't get private key from cert %s in attrcrypt_fetch_private_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Can't get private key from cert %s in attrcrypt_fetch_private_key: %d - %s\n", cert_name, errorCode, slapd_pr_strerror(errorCode));
 				ret = -1;
 	}
 	if (cert) {
@@ -414,7 +414,7 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
 	if (cert_name != default_cert_name) {
 		slapi_ch_free_string(&cert_name);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_fetch_private_key\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_fetch_private_key\n", 0, 0, 0);
 	return ret;
 }
 
@@ -510,7 +510,7 @@ attrcrypt_init(ldbm_instance *li)
 	attrcrypt_cipher_entry *ace = NULL;
 	SECKEYPrivateKey *private_key = NULL;
 	SECKEYPublicKey *public_key = NULL;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_init\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_init\n", 0, 0, 0);
 	if (slapd_security_library_is_initialized()) {
 		/* In case the backend instance is restarted, 
 		 * inst_attrcrypt_state_private in li could have memory containing
@@ -561,10 +561,10 @@ attrcrypt_init(ldbm_instance *li)
 		private_key = NULL;
 	} else {
 		if (li->attrcrypt_configured) {
-			LDAPDebug(LDAP_DEBUG_ANY,"Warning: encryption is configured in backend %s, but because SSL is not enabled, database encryption is not available and the configuration will be overridden.\n", li->inst_name, 0, 0);
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Warning: encryption is configured in backend %s, but because SSL is not enabled, database encryption is not available and the configuration will be overridden.\n", li->inst_name, 0, 0);
 		}
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_init : %d\n", ret, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_init : %d\n", ret, 0, 0);
 	return ret;
 }
 
@@ -578,22 +578,22 @@ attrcrypt_init(ldbm_instance *li)
 int attrcrypt_check_enable_cipher(attrcrypt_cipher_entry *ace)
 {
 	int ret = 0;
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_check_enable_cipher\n", 0, 0, 0);
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_check_enable_cipher\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_check_enable_cipher\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_check_enable_cipher\n", 0, 0, 0);
 	return ret;
 }
 
 int
 attrcrypt_cleanup(attrcrypt_cipher_state *acs)
 {
-    LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_cleanup\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_cleanup\n", 0, 0, 0);
     if (acs->key) {
 		slapd_pk11_FreeSymKey(acs->key);
 	}
     if (acs->slot) {
 		slapd_pk11_FreeSlot(acs->slot);
 	}
-    LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_cleanup\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_cleanup\n", 0, 0, 0);
 	return 0;
 }
 
@@ -604,11 +604,11 @@ attrcrypt_cleanup(attrcrypt_cipher_state *acs)
 int
 attrcrypt_cleanup_private(ldbm_instance *li)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, "-> attrcrypt_cleanup_private\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "-> attrcrypt_cleanup_private\n", 0, 0, 0);
 	if (li && li->inst_attrcrypt_state_private) {
         _back_crypt_cleanup_private(&(li->inst_attrcrypt_state_private));
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, "<- attrcrypt_cleanup_private\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<- attrcrypt_cleanup_private\n", 0, 0, 0);
 	return 0;
 }
 
@@ -647,7 +647,7 @@ static void log_bytes(char* format_string, unsigned char *bytes, size_t length)
 		print_ptr += sprintf(print_ptr, "%02x ", bytes[x]);
 	}
 
-	LDAPDebug(LDAP_DEBUG_ANY,format_string, print_buffer, length, 0);
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,format_string, print_buffer, length, 0);
 
 	slapi_ch_free((void**)&print_buffer);
 }
@@ -660,7 +660,7 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 	int ret = -1;
 	attrcrypt_cipher_state *acs = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_crypto_op\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_crypto_op\n", 0, 0, 0);
 	acs = attrcrypt_get_acs(be,ai->ai_attrcrypt);
 	if (NULL == acs) {
 		/* This happens if SSL/NSS has not been enabled */
@@ -668,14 +668,14 @@ attrcrypt_crypto_op(attrcrypt_private *priv, backend *be, struct attrinfo *ai, c
 	}
 #if defined(DEBUG_ATTRCRYPT)
 	if (encrypt) {
-		LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_crypto_op encrypt '%s' (%d)\n", in_data, in_size, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"attrcrypt_crypto_op encrypt '%s' (%d)\n", in_data, in_size, 0);
 	} else {
 		log_bytes("attrcrypt_crypto_op decrypt '%s' (%d)\n", (unsigned char *)in_data, in_size);
 	}
 #endif
 	ret = _back_crypt_crypto_op(priv, acs, in_data, in_size,
 	                            out_data, out_size, encrypt, be, ai);
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_crypto_op\n", 0, 0, 0);
 	return ret;
 }
 
@@ -689,7 +689,7 @@ attrcrypt_crypto_op_value(attrcrypt_private *priv, backend *be, struct attrinfo 
 	size_t out_size = 0;
 	struct berval *bval = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_crypto_op_value\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_crypto_op_value\n", 0, 0, 0);
 	
 	bval = (struct berval *) slapi_value_get_berval(invalue);
 	in_data = bval->bv_val;
@@ -706,7 +706,7 @@ attrcrypt_crypto_op_value(attrcrypt_private *priv, backend *be, struct attrinfo 
 		slapi_ch_free((void**)&out_data);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op_value: %d\n", ret, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_crypto_op_value: %d\n", ret, 0, 0);
 	return ret;
 }
 
@@ -720,7 +720,7 @@ attrcrypt_crypto_op_value_replace(attrcrypt_private *priv, backend *be, struct a
 	size_t out_size = 0;
 	struct berval *bval = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_crypto_op_value_replace\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_crypto_op_value_replace\n", 0, 0, 0);
 	
 	bval = (struct berval *) slapi_value_get_berval(inoutvalue);
 	in_data = bval->bv_val;
@@ -737,7 +737,7 @@ attrcrypt_crypto_op_value_replace(attrcrypt_private *priv, backend *be, struct a
 		slapi_ch_free((void**)&out_data);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op_value_replace: %d\n", ret, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_crypto_op_value_replace: %d\n", ret, 0, 0);
 	return ret;
 }
 
@@ -748,7 +748,7 @@ attrcrypt_crypto_op_values(attrcrypt_private *priv,  backend *be, struct attrinf
 	int i = 0;
 	Slapi_Value **encrypted_values = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_crypto_op_values\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_crypto_op_values\n", 0, 0, 0);
 	encrypted_values = (Slapi_Value **) slapi_ch_calloc(sizeof(Slapi_Value *),local_valuearray_count(invalues) + 1);
 	for ( i = 0; (invalues[i] != NULL) && (ret == 0); i++ ) {
 		Slapi_Value *encrypted_value = NULL;
@@ -762,7 +762,7 @@ attrcrypt_crypto_op_values(attrcrypt_private *priv,  backend *be, struct attrinf
 		}
 	}
 	*outvalues = encrypted_values;
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op_values: %d\n", ret, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_crypto_op_values: %d\n", ret, 0, 0);
 	return ret;
 }
 
@@ -772,7 +772,7 @@ attrcrypt_crypto_op_values_replace(attrcrypt_private *priv,  backend *be, struct
 	int ret = 0;
 	int i = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_crypto_op_values_replace\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_crypto_op_values_replace\n", 0, 0, 0);
 	for ( i = 0; (invalues[i] != NULL) && (ret == 0); i++ ) {
 
 		ret = attrcrypt_crypto_op_value_replace(priv,be,ai,invalues[i],encrypt);
@@ -780,7 +780,7 @@ attrcrypt_crypto_op_values_replace(attrcrypt_private *priv,  backend *be, struct
 			break;
 		}
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_crypto_op_values_replace\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_crypto_op_values_replace\n", 0, 0, 0);
 	return ret;
 }
 
@@ -802,7 +802,7 @@ attrcrypt_decrypt_entry(backend *be, struct backentry *e)
 		return ret;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_decrypt_entry\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_decrypt_entry\n", 0, 0, 0);
 	/* Scan through the entry's attributes, looking to see if any are configured for crypto */
 	for ( rc = slapi_entry_first_attr( e->ep_entry, &attr ); rc == 0 && attr ; rc = slapi_entry_next_attr( e->ep_entry, attr, &attr )) {
 
@@ -820,7 +820,7 @@ attrcrypt_decrypt_entry(backend *be, struct backentry *e)
 				/* Now decrypt the attribute values in place on the original entry */
 				ret = attrcrypt_crypto_op_value_replace(ai->ai_attrcrypt,be,ai,value,0);
 				if (ret) {
-					LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_decrypt_entry: FAILING because decryption operation failed\n", 0, 0, 0);
+					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"attrcrypt_decrypt_entry: FAILING because decryption operation failed\n", 0, 0, 0);
 					return ret;
 				}
 				i = slapi_attr_next_value(attr,i,&value);
@@ -832,14 +832,14 @@ attrcrypt_decrypt_entry(backend *be, struct backentry *e)
 				/* Now decrypt the attribute values in place on the original entry */
 				ret = attrcrypt_crypto_op_value_replace(ai->ai_attrcrypt,be,ai,value,0);
 				if (ret) {
-					LDAPDebug(LDAP_DEBUG_ANY,"attrcrypt_decrypt_entry: FAILING because decryption operation failed\n", 0, 0, 0);
+					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"attrcrypt_decrypt_entry: FAILING because decryption operation failed\n", 0, 0, 0);
 					return ret;
 				}
 				i = attr_next_deleted_value(attr,i,&value);
 			} 
 		}
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_decrypt_entry\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_decrypt_entry\n", 0, 0, 0);
 	return ret;
 }
 
@@ -863,7 +863,7 @@ attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout)
 		return ret;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_entry_inplace\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_encrypt_entry_inplace\n", 0, 0, 0);
 	/* Scan the entry's attributes looking for any that are configured for encryption */
 	for ( rc = slapi_entry_first_attr( inout->ep_entry, &attr ); rc == 0;
 		rc = slapi_entry_next_attr( inout->ep_entry, attr, &attr ) ) {
@@ -882,7 +882,7 @@ attrcrypt_encrypt_entry_inplace(backend *be, const struct backentry *inout)
 			}
 		}
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_encrypt_entry_inplace\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_encrypt_entry_inplace\n", 0, 0, 0);
 	return ret;
 }
 
@@ -908,7 +908,7 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 		return ret;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_entry\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_encrypt_entry\n", 0, 0, 0);
 	*out = NULL;
 	/* Scan the entry's attributes looking for any that are configured for encryption */
 	for ( rc = slapi_entry_first_attr( in->ep_entry, &attr ); rc == 0;
@@ -932,7 +932,7 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 				/* Now encrypt the attribute values in place on the new entry */
 				ret = attrcrypt_crypto_op_values(ai->ai_attrcrypt,be,ai,svals,&new_vals,1);
 				if (ret) {
-					LDAPDebug(LDAP_DEBUG_ANY,"Error: attrcrypt_crypto_op_values failed in attrcrypt_encrypt_entry\n", 0, 0, 0);
+					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"Error: attrcrypt_crypto_op_values failed in attrcrypt_encrypt_entry\n", 0, 0, 0);
 					break;
 				}
 				/* DBDB does this call free the old value memory ? */
@@ -943,7 +943,7 @@ attrcrypt_encrypt_entry(backend *be, const struct backentry *in, struct backentr
 		}
 	}
 	*out = new_entry;
-	LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_encrypt_entry\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_encrypt_entry\n", 0, 0, 0);
 	return ret;
 }
 
@@ -968,7 +968,7 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
 	}
 
 	if (ai->ai_attrcrypt) {
-		LDAPDebug(LDAP_DEBUG_TRACE,"-> attrcrypt_encrypt_index_key\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"-> attrcrypt_encrypt_index_key\n", 0, 0, 0);
 		ret = attrcrypt_crypto_op(ai->ai_attrcrypt,be,ai, in_data,in_size,&out_data,&out_size, 1);
 		if (0 == ret) {
 			out_berval = (struct berval *)ber_alloc();
@@ -981,7 +981,7 @@ attrcrypt_encrypt_index_key(backend *be, struct attrinfo *ai, const struct berva
 			out_berval->bv_val = out_data;
 			*out = out_berval;
 		}
-		LDAPDebug(LDAP_DEBUG_TRACE,"<- attrcrypt_encrypt_index_key\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"<- attrcrypt_encrypt_index_key\n", 0, 0, 0);
 	}
 	return ret;
 }

@@ -29,7 +29,7 @@ void *PT_Lock( PRLock *x_mutex )
 
 int lcache_init(LDAP *ld, void *arg)
 {
-	LDAPDebug(LDAP_DEBUG_ANY, 
+	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
 		"lcache_init: Shouldn't have been called\n", 0,0,0);
 	return -1;
 }

@@ -774,7 +774,7 @@ slapi_send_ldap_result( Slapi_PBlock *pb, int err, char *matched, char *text,
 		{
 			if (urls || nentries)
 			{
-				LDAPDebug( LDAP_DEBUG_ANY, "ERROR : urls or nentries set"
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR : urls or nentries set"
 					"in sendldap_result while NO_SUCH_OBJECT returned\n",0,0,0);
 			}
 
@@ -1281,7 +1281,7 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 				if (enabled){
 				    if(plugin_index == plugin_idx){
 						/* finally, perform the op on the plugin */
-						LDAPDebug( LDAP_DEBUG_PLUGIN, "Starting %s plugin %s\n" ,
+						LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Starting %s plugin %s\n" ,
 								   config[plugin_index].type, config[plugin_index].name, 0 );
 						/*
 						 * Put the plugin into the temporary pblock so the startup functions have
@@ -1297,7 +1297,7 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 							 * Delete the plugin(undo everything), as we don't know how far the start
 							 * function got.
 							 */
-							LDAPDebug( LDAP_DEBUG_ANY, "Failed to start %s plugin %s\n" ,
+							LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to start %s plugin %s\n" ,
 							           config[plugin_index].type, config[plugin_index].name, 0 );
 							PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Failed to start plugin \"%s\".  See errors log.",
 							             config[plugin_index].name);
@@ -1343,14 +1343,14 @@ plugin_start(Slapi_Entry *entry, char *returntext)
 
 	if(plugins_started == 0){
 		/* a dependency was not resolved - error */
-		LDAPDebug( LDAP_DEBUG_ANY, "Error: Failed to resolve plugin dependencies\n" , 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: Failed to resolve plugin dependencies\n" , 0, 0, 0 );
 		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Failed to resolve plugin dependencies.");
 
 		/* list the plugins yet to perform op */
 		i = 0;
 		while(i < total_plugins){
 			if(config[i].op_done == 0){
-				LDAPDebug( LDAP_DEBUG_ANY, "Error: %s plugin %s is not started\n" , config[i].type, config[i].name, 0 );
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: %s plugin %s is not started\n" , config[i].type, config[i].name, 0 );
 				plugin_remove_plugins(config[i].plugin, config[i].type);
 			}
 			i++;
@@ -1774,7 +1774,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 				{
 					/* finally, perform the op on the plugin */
 			
-					LDAPDebug( LDAP_DEBUG_PLUGIN, "Starting %s plugin %s\n" , config[plugin_index].type, config[plugin_index].name, 0 );
+					LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Starting %s plugin %s\n" , config[plugin_index].type, config[plugin_index].name, 0 );
 					/*
 					 * Put the plugin into the temporary pblock so the startup functions have
 					 * access to the real plugin for registering callbacks, tasks, etc.
@@ -1793,7 +1793,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 						 * problem then the plugin will never start and eventually it will
 						 * trigger an exit anyway.
 						 */
-						LDAPDebug( LDAP_DEBUG_ANY, "Failed to start %s plugin %s\n" , config[plugin_index].type, config[plugin_index].name, 0 );
+						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to start %s plugin %s\n" , config[plugin_index].type, config[plugin_index].name, 0 );
 						continue;
 					} else {
 						/* now set the plugin and all its registered plugin functions as started */
@@ -1841,7 +1841,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 	if(plugins_started == 0)
 	{
 		/* a dependency was not resolved - error */
-		LDAPDebug( LDAP_DEBUG_ANY, "Error: Failed to resolve plugin dependencies\n" , 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: Failed to resolve plugin dependencies\n" , 0, 0, 0 );
 
 		/* list the plugins yet to perform op */
 		i = 0;
@@ -1849,7 +1849,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 		{
 			if(config[i].op_done == 0)
 			{
-				LDAPDebug( LDAP_DEBUG_ANY, "Error: %s plugin %s is not started\n" , config[i].type, config[i].name, 0 );
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: %s plugin %s is not started\n" , config[i].type, config[i].name, 0 );
 			}
 			i++;
 		}
@@ -2422,7 +2422,7 @@ plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
 	 * be allowed
 	 */
 	if(plugin_is_critical(pentryBefore)){
-		LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) is critical "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_restart: Plugin (%s) is critical "
 			"to server operation.  Server requires restart for changes to "
 			"take effect.\n", slapi_entry_get_dn(pentryBefore),0,0);
 		return 0;
@@ -2433,21 +2433,21 @@ plugin_restart(Slapi_Entry *pentryBefore, Slapi_Entry *pentryAfter)
 
 	if(plugin_delete(pentryBefore, returntext, 1) == LDAP_SUCCESS){
 		if(plugin_add(pentryAfter, returntext, 1) == LDAP_SUCCESS){
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_restart: Plugin (%s) has been successfully "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "plugin_restart: Plugin (%s) has been successfully "
 				"restarted after configuration change.\n",
 				slapi_entry_get_dn(pentryAfter),0,0);
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to restart after "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_restart: Plugin (%s) failed to restart after "
 				"configuration change (%s).  Reverting to original plugin entry.\n",
 				slapi_entry_get_dn(pentryAfter), returntext, 0);
 			if(plugin_add(pentryBefore, returntext, 1) != LDAP_SUCCESS){
-				LDAPDebug(LDAP_DEBUG_ANY, "plugin_restart: Plugin (%s) failed to reload "
+				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_restart: Plugin (%s) failed to reload "
 					"original plugin (%s)\n",slapi_entry_get_dn(pentryBefore), returntext, 0);
 			}
 			rc = 1;
 		}
 	} else {
-		LDAPDebug(LDAP_DEBUG_ANY,"plugin_restart: failed to disable/stop the plugin (%s): %s\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"plugin_restart: failed to disable/stop the plugin (%s): %s\n",
 			slapi_entry_get_dn(pentryBefore), returntext, 0);
 		rc = 1;
 	}
@@ -2504,7 +2504,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_config_set_action(&config->plgc_schema_check, value))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", value, ATTR_PLUGIN_SCHEMA_CHECK,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2517,7 +2517,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_config_set_action(&config->plgc_log_access, value))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", value, ATTR_PLUGIN_LOG_ACCESS,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2530,7 +2530,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_config_set_action(&config->plgc_log_audit, value))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", value, ATTR_PLUGIN_LOG_AUDIT,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2543,7 +2543,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_config_set_action(&config->plgc_invoke_for_replop, value))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", value, ATTR_PLUGIN_INVOKE_FOR_REPLOP,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2557,7 +2557,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_set_subtree_config(&(config->plgc_target_subtrees), values[i]))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", values[i], ATTR_PLUGIN_TARGET_SUBTREE,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2576,7 +2576,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_set_subtree_config(&(config->plgc_excluded_target_subtrees), values[i]))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", values[i], ATTR_PLUGIN_EXCLUDE_TARGET_SUBTREE,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2591,7 +2591,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_set_subtree_config(&(config->plgc_bind_subtrees), values[i]))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", values[i], ATTR_PLUGIN_BIND_SUBTREE,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2610,7 +2610,7 @@ set_plugin_config_from_entry(
 	{
 		if (plugin_set_subtree_config(&(config->plgc_excluded_bind_subtrees), values[i]))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: invalid value %s for attribute %s "
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: invalid value %s for attribute %s "
 					  "from entry %s\n", values[i], ATTR_PLUGIN_EXCLUDE_BIND_SUBTREE,
 					  slapi_entry_get_dn_const(plugin_entry));
 			status = 1;
@@ -2650,7 +2650,7 @@ add_plugin_description(Slapi_Entry *e, const char *attrname, char *val)
 	newval[0] = &desc;
 	if ((status = entry_replace_values(e, attrname, newval)) != 0)
 	{
-        LDAPDebug(LDAP_DEBUG_PLUGIN, "Error: failed to add value %s to "
+        LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Error: failed to add value %s to "
 				  "attribute %s of entry %s\n", val, attrname,
 				  slapi_entry_get_dn_const(e));
 		status = 1;
@@ -2697,7 +2697,7 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 			/* This can happen for things such as disabled syntax plug-ins.  We
 			 * just treat this as a warning to allow the description attributes
 			 * to be set to a default value to avoid an objectclass violation. */
-			LDAPDebug(LDAP_DEBUG_PLUGIN,
+			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
 					"Warning: couldn't find plugin %s in global list. "
 					"Adding default descriptive values.\n",
 					slapi_entry_get_dn_const(e), 0, 0 );
@@ -2835,7 +2835,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 	if ((existname = plugin_exists(slapi_entry_get_sdn_const(plugin_entry))) != NULL)
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, "plugin_setup: the plugin named %s already exists, "
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_setup: the plugin named %s already exists, "
 		        "or is already setup.\n", existname, 0, 0);
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 		        "the plugin named %s already exists, or is already setup.", existname);
@@ -2856,7 +2856,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 											   ATTR_PLUGIN_TYPE)))
 	{
 		/* error: required attribute %s missing */
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: required attribute %s is missing from entry \"%s\"\n",
 		          ATTR_PLUGIN_TYPE, slapi_entry_get_dn_const(plugin_entry), 0);
 		PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"required attribute %s is missing from entry",
 		             ATTR_PLUGIN_TYPE);
@@ -2870,7 +2870,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 		if ( status != 0 ) {
 			/* error: unknown plugin type */
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: unknown plugin type \"%s\" in entry \"%s\"\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: unknown plugin type \"%s\" in entry \"%s\"\n",
 					value, slapi_entry_get_dn_const(plugin_entry), 0);
 			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "unknown plugin type \"%s\" in entry", value);
 			slapi_ch_free_string(&value);
@@ -2884,7 +2884,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		!(value = slapi_entry_attr_get_charptr(plugin_entry, "cn")))
 	{
 		/* error: required attribute %s missing */
-		LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: required attribute %s is missing from entry \"%s\"\n",
 		          "cn", slapi_entry_get_dn_const(plugin_entry), 0);
 		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "required attribute \"cn\" is missing from entry");
 		status = -1;
@@ -2916,7 +2916,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		if ((*value == '\0') || (*endptr != '\0') ||
 			(precedence < PLUGIN_MIN_PRECEDENCE) || (precedence > PLUGIN_MAX_PRECEDENCE))
 		{
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: value for attribute %s must be "
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: value for attribute %s must be "
 				"an integer between %d and %d\n", ATTR_PLUGIN_PRECEDENCE,
 				PLUGIN_MIN_PRECEDENCE, PLUGIN_MAX_PRECEDENCE);
 			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "value for attribute %s must be "
@@ -2938,7 +2938,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		if (!initfunc)
 		{
 			/* error: required attribute %s missing */
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: required attribute %s is missing from entry \"%s\"\n",
 			          ATTR_PLUGIN_INITFN, slapi_entry_get_dn_const(plugin_entry), 0);
 			PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"required attribute %s is missing from entry.",
 			          ATTR_PLUGIN_INITFN);
@@ -2960,7 +2960,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 												   ATTR_PLUGIN_PATH)))
 		{
 			/* error: required attribute %s missing */
-			LDAPDebug(LDAP_DEBUG_ANY, "Error: required attribute %s is missing from entry \"%s\"\n",
+			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: required attribute %s is missing from entry \"%s\"\n",
 			          ATTR_PLUGIN_PATH, slapi_entry_get_dn_const(plugin_entry), 0);
 			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "required attribute %s is missing from entry.",
 			            ATTR_PLUGIN_PATH);
@@ -3071,7 +3071,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 	if (enabled && (*initfunc)(&pb) != 0)
 	{
-        LDAPDebug(LDAP_DEBUG_ANY, "Init function \"%s\" for \"%s\" plugin in library \"%s\" failed\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Init function \"%s\" for \"%s\" plugin in library \"%s\" failed\n",
 				  plugin->plg_initfunc, plugin->plg_name, plugin->plg_libpath);
         PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Init function \"%s\" for \"%s\" plugin in "
                      "library \"%s\" failed.",plugin->plg_initfunc, plugin->plg_name, plugin->plg_libpath);
@@ -3132,12 +3132,12 @@ plugin_add(Slapi_Entry *entry, char *returntext, int locked)
     }
 
     if((rc = plugin_setup(entry, 0, 0, 1, returntext)) != LDAP_SUCCESS){
-        LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_add: plugin_setup failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
+        LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "plugin_add: plugin_setup failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
         goto done;
     }
 
     if((rc = plugin_start(entry, returntext)) != LDAP_SUCCESS){
-       LDAPDebug(LDAP_DEBUG_PLUGIN, "plugin_add: plugin_start failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
+       LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "plugin_add: plugin_start failed for (%s)\n",slapi_entry_get_dn(entry), rc, 0);
        goto done;
     }
 
@@ -3275,7 +3275,7 @@ next:
                 for(i = 0; list && list[i]; i++){
                     if(strcasecmp(list[i], plugin_name) == 0){
                         /* We have a dependency, we can not disable this pluign */
-                        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete_check_dependency: can not disable plugin(%s) due "
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete_check_dependency: can not disable plugin(%s) due "
                                   "to dependency name issues with plugin (%s)\n",
                                   plugin_name, config[index].plugin->plg_name, 0);
                         rc = -1;
@@ -3331,7 +3331,7 @@ next:
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin (%s) type (%s) is needed "
                     "by other plugins(%s), it can not be dynamically disabled/removed at this time.",
                     plugin_name, plugin_type, plugins);
-            LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete_check_dependency: %s\n",
+            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete_check_dependency: %s\n",
                     returntext, 0, 0);
 
             slapi_ch_free_string(&plugins);
@@ -3506,7 +3506,7 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
 
     /* Critical server plugins can not be disabled */
     if(plugin_is_critical(plugin_entry)){
-        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: plugin \"%s\" is critical to server operations, and can not be disabled\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete: plugin \"%s\" is critical to server operations, and can not be disabled\n",
                   slapi_entry_get_dn_const(plugin_entry), 0, 0);
         PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin \"%s\" is critical to server operations, and can not "
                    "be disabled.\n",slapi_entry_get_dn_const(plugin_entry));
@@ -3516,7 +3516,7 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
 
     if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_TYPE))){
         /* error: required attribute %s missing */
-        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: required attribute %s is missing from entry \"%s\"\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete: required attribute %s is missing from entry \"%s\"\n",
                   ATTR_PLUGIN_TYPE, slapi_entry_get_dn_const(plugin_entry), 0);
         PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: required attribute %s "
                      "is missing from entry.",ATTR_PLUGIN_TYPE);
@@ -3533,7 +3533,7 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
             rc = plugin_get_type_and_list(value, &type, &plugin_list);
             if ( rc != 0 ) {
                 /* error: unknown plugin type */
-                LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: unknown plugin type \"%s\" in entry \"%s\"\n",
+                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete: unknown plugin type \"%s\" in entry \"%s\"\n",
                           value, slapi_entry_get_dn_const(plugin_entry), 0);
                 PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: unknown plugin type "
                          "\"%s\" in entry.",value);
@@ -3560,7 +3560,7 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
                      * Make sure there are no other plugins that depend on this one before removing it
                      */
                     if(plugin_delete_check_dependency(plugin, CHECK_ALL, returntext) != LDAP_SUCCESS){
-                        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: failed to disable/delete plugin (%s)\n",
+                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete: failed to disable/delete plugin (%s)\n",
                                   plugin->plg_dn,0,0);
                         rc = -1;
                         break;
@@ -3583,7 +3583,7 @@ done:
     if(!removed && rc == 0){
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Plugin delete failed: could not find plugin "
                     "in the global list.");
-        LDAPDebug(LDAP_DEBUG_ANY, "plugin_delete: did not find plugin(%s) in the global list.\n",
+        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_delete: did not find plugin(%s) in the global list.\n",
                   slapi_entry_get_dn_const(plugin_entry),0,0);
         rc = -1;
     }
@@ -3724,7 +3724,7 @@ plugin_invoke_plugin_sdn (struct slapdplugin *plugin, int operation, Slapi_PBloc
 
 	PR_ASSERT (plugin);
 	if (!pb) {
-		LDAPDebug(LDAP_DEBUG_ANY, "plugin_invoke_plugin_sdn: NULL pblock.\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "plugin_invoke_plugin_sdn: NULL pblock.\n", 0, 0, 0);
 		return PR_FALSE;
 	}
 
