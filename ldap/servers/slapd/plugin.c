@@ -99,7 +99,7 @@ void
 global_plugin_init()
 {
     if((global_rwlock = slapi_new_rwlock()) == NULL){
-        slapi_log_error( SLAPI_LOG_FATAL, "startup", "Failed to create global plugin rwlock.\n" );
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup", "Failed to create global plugin rwlock.\n" );
         exit (1);
     }
 }
@@ -310,7 +310,7 @@ slapi_register_plugin_ext(
 	if ((found_precedence == PLUGIN_DEFAULT_PRECEDENCE) && group_identity) {
 		struct slapi_componentid * cid = (struct slapi_componentid *) group_identity;
 		if (cid->sci_plugin && (cid->sci_plugin->plg_precedence != PLUGIN_DEFAULT_PRECEDENCE)) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, NULL,
 			        "Plugin precedence (%s) reset to group precedence (%s): %d \n",
 			        name ? name : "",
 			        cid->sci_plugin->plg_name ? cid->sci_plugin->plg_name : "",
@@ -2030,7 +2030,8 @@ plugin_call_func (struct slapdplugin *list, int operation, Slapi_PBlock *pb, int
 		{
 			char *n = list->plg_name;
 
-			LDAPDebug( LDAP_DEBUG_TRACE , "Calling plugin '%s' #%d type %d\n", (n==NULL?"noname":n), count, operation );
+			LDAPDebug( LDAP_DEBUG_TRACE , LOG_DEBUG, "Calling plugin '%s' #%d type %d\n", 
+			           (n==NULL?"noname":n), count, operation );
 			/* counters_to_errors_log("before plugin call"); */
 
 			/*
@@ -2142,7 +2143,7 @@ slapi_register_supported_saslmechanism( char *mechanism )
 			supported_saslmechanisms_lock = slapi_new_rwlock();
 			if (NULL == supported_saslmechanisms_lock) {
 				/* Out of resources */
-				slapi_log_error(SLAPI_LOG_FATAL, "startup",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
 					"slapi_register_supported_saslmechanism: failed to create lock.\n");
 				exit (1);
 			}
@@ -2192,7 +2193,7 @@ ldapi_init_extended_ops( void )
 	extended_ops_lock = slapi_new_rwlock();
 	if (NULL == extended_ops_lock) {
 		/* Out of resources */
-		slapi_log_error(SLAPI_LOG_FATAL, "startup",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
 			"ldapi_init_extended_ops: failed to create lock.\n");
 		exit (1);
 	}
@@ -2739,7 +2740,7 @@ plugin_add_descriptive_attributes( Slapi_Entry *e, struct slapdplugin *plugin )
 static void
 plugin_free(struct slapdplugin *plugin)
 {
-	slapi_log_error(SLAPI_LOG_TRACE, "plugin_free", "Freeing %s \n", plugin->plg_name );
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "plugin_free", "Freeing %s \n", plugin->plg_name );
 	charray_free(plugin->plg_argv);
 	slapi_ch_free_string(&plugin->plg_libpath);
 	slapi_ch_free_string(&plugin->plg_initfunc);
@@ -2828,7 +2829,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 
 	if (!slapi_entry_get_sdn_const(plugin_entry))
 	{
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "plugin_setup: DN is missing from the plugin.\n");
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "plugin_setup: DN is missing from the plugin.\n");
 		PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Plugin is missing dn.");
 		return -1;
 	}
@@ -3632,7 +3633,7 @@ plugin_config_set_action (int *action, char *value)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
 						"plugin_config_set_action: invalid action %s\n", value);
 		return -1;
 	}
@@ -3807,7 +3808,7 @@ char* plugin_get_dn (const struct slapdplugin *plugin)
 	/* plg_name is normalized in plugin_setup. So, we can use smprintf */
 	plugindn = slapi_ch_smprintf(pattern, plugin->plg_name);
 	if (NULL == plugindn) {
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
 					"plugin_get_dn: failed to create plugin dn "
 					"(plugin name: %s)\n", plugin->plg_name);
 		return NULL;
@@ -4036,7 +4037,7 @@ static void trace_plugin_invocation (Slapi_DN *target_spec, PluginTargetData *pt
 	Slapi_DN *sdn;
 
 	
-	slapi_log_error (SLAPI_LOG_FATAL, NULL,
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
 					 "Invocation parameters: target_spec = %s, bindop = %d, isroot=%d, islocal=%d\n"
 					 "Plugin configuration: local_data=%d, remote_data=%d, anonymous_bind=%d, root_bind=%d\n",
 					 slapi_sdn_get_ndn (target_spec), bindop, isroot, islocal, ptd->special_data[0],
@@ -4045,11 +4046,11 @@ static void trace_plugin_invocation (Slapi_DN *target_spec, PluginTargetData *pt
 	sdn = ptd_get_first_subtree (ptd, &cookie);
 	while (sdn)
 	{
-		slapi_log_error (SLAPI_LOG_FATAL, NULL, "target_subtree%d: %s\n", i, slapi_sdn_get_ndn (sdn));
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "target_subtree%d: %s\n", i, slapi_sdn_get_ndn (sdn));
 		sdn = ptd_get_next_subtree (ptd, &cookie);					 	
 	}
    
-	slapi_log_error (SLAPI_LOG_FATAL, NULL, invoked ? "Plugin is invoked\n" : "Plugin is not invoked\n");
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, invoked ? "Plugin is invoked\n" : "Plugin is not invoked\n");
 }
 #endif
 
@@ -4240,11 +4241,11 @@ void plugin_print_lists(void)
 	for (i = 0; i < PLUGIN_LIST_GLOBAL_MAX; i++) {
 		if ((list = get_plugin_list(i)))
 		{
-			slapi_log_error(SLAPI_LOG_PLUGIN, NULL,
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, NULL,
 				"---- Plugin List (type %d) ----\n", i);
 			for ( tmp = list; tmp; tmp = tmp->plg_next )
 			{
-				slapi_log_error(SLAPI_LOG_PLUGIN, NULL, "  %s (precedence: %d)\n",
+				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, NULL, "  %s (precedence: %d)\n",
 					tmp->plg_name, tmp->plg_precedence);
 			}
 		}
@@ -4566,7 +4567,7 @@ slapi_plugin_call_preop_be_plugins(Slapi_PBlock *pb, int function)
             break;
         default:
             /* invalid function */
-            slapi_log_error(SLAPI_LOG_FATAL, "slapi_plugin_call_preop_betxn_plugins",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_plugin_call_preop_betxn_plugins",
                 "Invalid function specified - backend plugins will not be called.\n");
             return 0;
     }
@@ -4613,7 +4614,7 @@ slapi_plugin_call_postop_be_plugins(Slapi_PBlock *pb, int function)
             break;
         default:
             /* invalid function */
-            slapi_log_error(SLAPI_LOG_FATAL, "slapi_plugin_call_postop_betxn_plugins",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_plugin_call_postop_betxn_plugins",
                 "Invalid function specified - backend plugins will not be called.\n");
             return 0;
     }

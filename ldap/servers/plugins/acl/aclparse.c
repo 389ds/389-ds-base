@@ -148,7 +148,7 @@ acl_parse(Slapi_PBlock *pb, char * str, aci_t *aci_item, char **errbuf)
 					slapi_search_internal_pb(temppb);
 					slapi_pblock_get(temppb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 					if (rc != LDAP_SUCCESS) {
-						slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 							"The ACL target %s does not exist\n", slapi_sdn_get_dn(&targdn));
 					}
 	
@@ -183,7 +183,7 @@ acl_parse(Slapi_PBlock *pb, char * str, aci_t *aci_item, char **errbuf)
 
 	if (!(aci_item->aci_type & ACI_TARGET_MACRO_DN) &&
 		(aci_item->aci_ruleType & ACI_PARAM_DNRULE)) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 		"acl_parse: A macro in a subject ($dn) must have a macro in the target.\n");
 		return(ACL_INVALID_TARGET);
 	}
@@ -294,7 +294,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			
 				/* Must have a targetmacro */
 				if ( !(aci_item->aci_type & ACI_TARGET_MACRO_DN)) {
-					slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 						"acl_parse: A macro in a targetfilter ($dn) must have a macro in the target.\n");
 					return(ACL_SYNTAX_ERR);
 				}
@@ -468,7 +468,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			filterChoice = slapi_filter_get_choice ( f );
 			if ( (type & (ACI_TARGET_DN | ACI_TARGET_MODDN)) &&
 				( filterChoice == LDAP_FILTER_PRESENT)) {
-					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 					"acl__parse_aci: Unsupported filter type:%d\n", filterChoice);
 				return(ACL_SYNTAX_ERR);
 			} else if (( filterChoice == LDAP_FILTER_SUBSTRINGS) &&
@@ -489,7 +489,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			(type & ACI_TARGET_PATTERN)) {
 			if (aci_item->target) {
 				/* There is something already. ERROR */
-				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 					 "Multiple targets in the ACL syntax\n");
 				slapi_filter_free(f, 1);
 				return(ACL_SYNTAX_ERR);
@@ -498,7 +498,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 			}
 		} else if ( type & ACI_TARGET_FILTER) {
 			if (aci_item->targetFilter) {
-				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 				       "Multiple target Filters in the ACL Syntax\n");
 				slapi_filter_free(f, 1);
 				return(ACL_SYNTAX_ERR);
@@ -509,7 +509,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
                         if (is_target_to) {
                                 if (aci_item->target_to) {
                                         /* There is something already. ERROR */
-                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                        slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
                                                 "Multiple targets (target_to) in the ACL syntax\n");
                                         slapi_filter_free(f, 1);
                                         return(ACL_SYNTAX_ERR);
@@ -519,7 +519,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
                         } else {
                                 if (aci_item->target_from) {
                                         /* There is something already. ERROR */
-                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                        slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 					 "Multiple targets (target_from) in the ACL syntax\n");
                                         slapi_filter_free(f, 1);
                                         return(ACL_SYNTAX_ERR);
@@ -531,7 +531,7 @@ __aclp__parse_aci(char *str, aci_t  *aci_item, char **errbuf)
 		break; /* 't' */
 		default:
 			/* Here the keyword did not start with 'v' ot 't' so error */
-			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 				       "Unknown keyword at \"%s\"\n Expecting"
 						" \"target\", \"targetattr\", \"targetfilter\", \"targattrfilters\""						
 						" or \"version\"\n", str);
@@ -649,7 +649,7 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 	if ((newstr = __aclp__normalize_acltxt (aci_item,  str )) == NULL) {
 		return ACL_SYNTAX_ERR;
 	}
-	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Normalized String:%s\n", newstr);
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Normalized String:%s\n", newstr);
 
 	/* check for acl syntax error */ 
 	if ((handle = (ACLListHandle_t *) ACL_ParseString(&errp, newstr)) == NULL) {
@@ -1514,7 +1514,7 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf)
 			char *errstr = 
 					slapi_ch_smprintf("The statement does not begin and end "
 					                  "with a \": [%s]. ", attr_val);
-			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 							"__aclp__init_targetattr: %s\n", errstr);
 			if (errbuf) {
 				aclutil_str_append(errbuf, errstr);
@@ -1591,7 +1591,7 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf)
 				if (f == NULL)  {
 					char *errstr = slapi_ch_smprintf("Unable to generate filter"
 					                                 " (%s). ", lineptr);
-					slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 							"__aclp__init_targetattr: %s\n", errstr);
 					if (errbuf) {
 						aclutil_str_append(errbuf, errstr);
@@ -1617,7 +1617,7 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf)
 				char *errstr = slapi_ch_smprintf("targetattr \"%s\" does not "
 				                  "exist in schema. Please add attributeTypes "
 				                  "\"%s\" to schema if necessary. ", str, str);
-				slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 				                "__aclp__init_targetattr: %s\n", errstr);
 				if (errbuf) {
 					aclutil_str_append(errbuf, errstr);
@@ -1845,7 +1845,7 @@ acl_check_for_target_macro( aci_t *aci_item, char *value)
 		/* Macro dn needs to normalize. E.g., "ou=Groups, ($dN), dn=example,dn=com" */
 		aci_item->aci_macro->match_this = slapi_create_dn_string_case("%s", value);
 		if (NULL == aci_item->aci_macro->match_this) {
-			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 			                "acl_check_for_target_macro: Error: Invalid macro target dn: \"%s\"\n", value);
 			aci_item->aci_type &= ~ACI_TARGET_MACRO_DN;
 			slapi_ch_free((void **)&aci_item->aci_macro);
@@ -1986,7 +1986,7 @@ static int __acl__init_targetattrfilters( aci_t *aci, char *input_str) {
 		s[len-1] = '\0';
 		s++;						/* skip the first " */
 	} else {						/* No matching quotes */
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 						"__aclp__init_targetattrfilters: Error: The statement does not begin and end with a \": [%s]\n",
 						s);
     	return (ACL_SYNTAX_ERR);
@@ -2214,7 +2214,7 @@ static int __acl_init_targetattrfilter( Targetattrfilter *attrfilter,
     
     if ( (tmp_ptr = strstr( str, ":")) == NULL ) {
 		/* No :, syntax error */
-  		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+  		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
                                 "Bad targetattrfilter %s:%s\n",
                                 str,"Expecting \":\"");
 
@@ -2228,7 +2228,7 @@ static int __acl_init_targetattrfilter( Targetattrfilter *attrfilter,
     /* s should be the attribute name-make sure it's non-empty. */
     
 	if ( *s == '\0' ) {
-		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
                                 "No attribute name in targattrfilters\n");
 		return(ACL_SYNTAX_ERR);
 	}
@@ -2245,7 +2245,7 @@ static int __acl_init_targetattrfilter( Targetattrfilter *attrfilter,
 	tmp_ptr = __acl_trim_filterstr(filter_ptr);
 
 	if ((f = slapi_str2filter(tmp_ptr)) == NULL) {
-  		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+  		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
                                 "Bad targetattr filter for attribute %s:%s\n",
                                 attrfilter->attr_str,tmp_ptr);
         slapi_ch_free( (void **) &attrfilter->attr_str);
@@ -2260,7 +2260,7 @@ static int __acl_init_targetattrfilter( Targetattrfilter *attrfilter,
 
 	if (acl_verify_exactly_one_attribute( attrfilter->attr_str, f) != 
 				SLAPI_FILTER_SCAN_NOMORE) {
-  		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+  		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
               "Exactly one attribute type per filter allowed in targattrfilters (%s)\n",
 				attrfilter->attr_str);
         slapi_ch_free( (void **) &attrfilter->attr_str);

@@ -301,7 +301,7 @@ mapping_tree_node_new(Slapi_DN *dn, Slapi_Backend **be, char **backend_names, in
     node->mtn_dstr_plg_rootmode = plg_rootmode;
     node->mtn_dstr_plg = plg;
 
-    slapi_log_error(SLAPI_LOG_TRACE, "mapping_tree",
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "mapping_tree",
                     "Created new mapping tree node for suffix [%s] backend [%s] [%p]\n",
                     slapi_sdn_get_dn(dn),
                     backend_names && backend_names[0] ? backend_names[0] : "null",
@@ -625,7 +625,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
         * a special case (no parent; will replace the internal root
         * node (mapping_tree_root) with data from this entry).
         */
-        slapi_log_error( SLAPI_LOG_ARGS, "mapping_tree_entry_add", "NULL suffix\n" );
+        slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, "mapping_tree_entry_add", "NULL suffix\n" );
         parent_node = NULL;
     }
 
@@ -848,7 +848,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep )
          * node hold pointers to it in their mtn_parent field).
          */
 
-        slapi_log_error( SLAPI_LOG_ARGS, "mapping_tree_entry_add", "fix up NULL suffix\n" );
+        slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, "mapping_tree_entry_add", "fix up NULL suffix\n" );
 
         node->mtn_children = mapping_tree_root->mtn_children;
         node->mtn_brother = mapping_tree_root->mtn_brother;
@@ -1594,7 +1594,7 @@ done:
                                                   CONFIG_DEFAULT_NAMING_CONTEXT,
                                                   NULL);
                 if (rc) {
-                    LDAPDebug2Args(LDAP_DEBUG_ANY,
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                                    "mapping_tree_entry_delete_callback: "
                                    "deleting config param %s failed: RC=%d\n",
                                    CONFIG_DEFAULT_NAMING_CONTEXT, rc);
@@ -1607,7 +1607,7 @@ done:
                     if (config_set_default_naming_context(
                                                 CONFIG_DEFAULT_NAMING_CONTEXT,
                                                 NULL, errorbuf, CONFIG_APPLY)) {
-                        slapi_log_error(SLAPI_LOG_FATAL, "mapping_tree", 
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "mapping_tree", 
                             "mapping_tree_entry_delete_callback: setting NULL to %s failed. %s\n",
                              CONFIG_DEFAULT_NAMING_CONTEXT, errorbuf);
                     }
@@ -2268,7 +2268,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
     /* get the operational parameters */
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
     if (NULL == sdn) {
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "Error: Null target DN");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "Error: Null target DN");
         return LDAP_OPERATIONS_ERROR;
     }
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
@@ -2324,7 +2324,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
             if (be && !be_isdeleted(be))
             {
                 /* wrong backend or referall, ignore it */
-                slapi_log_error(SLAPI_LOG_ARGS, NULL,
+                slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
                      "mapping tree release backend : %s\n",
                      slapi_be_get_name(be));
                 slapi_be_Unlock(be);
@@ -2337,7 +2337,7 @@ int slapi_mapping_tree_select_all(Slapi_PBlock *pb, Slapi_Backend **be_list,
                 if (be_index == BE_LIST_SIZE) { /* error - too many backends */
                     slapi_create_errormsg(errorbuf, ebuflen,
                             "Error: too many backends match search request - cannot proceed");
-                    slapi_log_error(SLAPI_LOG_FATAL, "mapping_tree",
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "mapping_tree",
                         "Error: too many backends match search request - cannot proceed");
                     ret_code = LDAP_ADMINLIMIT_EXCEEDED;
                     break;
@@ -2404,7 +2404,7 @@ void slapi_mapping_tree_free_all(Slapi_Backend **be_list, Slapi_Entry **referral
     
         while ((be = be_list[index++]))
         {
-            slapi_log_error(SLAPI_LOG_ARGS, NULL, "mapping tree release backend : %s\n", slapi_be_get_name(be));
+            slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL, "mapping tree release backend : %s\n", slapi_be_get_name(be));
             slapi_be_Unlock(be);
         }
     }
@@ -2778,12 +2778,12 @@ static int mtn_get_be(mapping_tree_node *target_node, Slapi_PBlock *pb,
 
     if (result == LDAP_SUCCESS) {
         if (*be && !be_isdeleted(*be)) {
-            slapi_log_error(SLAPI_LOG_ARGS, NULL,
+            slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
                 "mapping tree selected backend : %s\n",
                 slapi_be_get_name(*be));
             slapi_be_Rlock(*be);
         } else if (referral && *referral) {
-            slapi_log_error(SLAPI_LOG_ARGS, NULL,
+            slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
                 "mapping tree selected referral at node : %s\n",
                 slapi_sdn_get_dn(target_node->mtn_subtree));
         }
@@ -2979,7 +2979,7 @@ slapi_get_mapping_tree_node_configdn (const Slapi_DN *root)
     dn = slapi_create_dn_string("cn=\"%s\",%s", 
                                 slapi_sdn_get_udn(root), MAPPING_TREE_BASE_DN);
     if (NULL == dn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                       "slapi_get_mapping_tree_node_configdn: "
                       "failed to crate mapping tree dn for %s\n", 
                       slapi_sdn_get_dn(root));
@@ -3006,7 +3006,7 @@ slapi_get_mapping_tree_node_configsdn (const Slapi_DN *root)
     dn = slapi_create_dn_string("cn=\"%s\",%s", 
                                 slapi_sdn_get_udn(root), MAPPING_TREE_BASE_DN);
     if (NULL == dn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                       "slapi_get_mapping_tree_node_configsdn: "
                       "failed to crate mapping tree dn for %s\n", 
                       slapi_sdn_get_dn(root));
@@ -3092,7 +3092,7 @@ slapi_be_select_exact(const Slapi_DN *sdn)
     mapping_tree_node *node = NULL;
 
     if (!sdn) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "slapi_be_select_exact: Empty Slapi_DN is given.\n");
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "slapi_be_select_exact: Empty Slapi_DN is given.\n");
         return NULL;
     }
     node = slapi_get_mapping_tree_node_by_dn(sdn);
@@ -3788,7 +3788,7 @@ void mtn_unlock(void)
 #ifdef TEST_FOR_REGISTER_CHANGE
 void my_test_fnct1(void *handle, char *be_name, int old_state, int new_state)
 {
-        slapi_log_error(SLAPI_LOG_ARGS, NULL,
+        slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
         "my_test_fnct1 : handle %d, be %s, old state %d, new state %d\n",
         handle,be_name, old_state, new_state);
 
@@ -3798,7 +3798,7 @@ void my_test_fnct1(void *handle, char *be_name, int old_state, int new_state)
 
 void my_test_fnct2(void *handle, char *be_name, int old_state, int new_state)
 {
-        slapi_log_error(SLAPI_LOG_ARGS, NULL,
+        slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
         "my_test_fnct2 : handle %d, be %s, old state %d, new state %d\n",
         handle, be_name, old_state, new_state);
 }

@@ -7111,7 +7111,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
             cgas = (struct config_get_and_set *)PL_HashTableLookup(confighash,
                                                                    *s);
             if (!cgas && PL_strcasecmp(*s, "aci") /* aci is an exception */) {
-                slapi_log_error(SLAPI_LOG_FATAL, "config",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config",
                         "%s: Unknown attribute %s will be ignored\n",
                         CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, *s);
                 charray_remove(allowed, *s, 1);
@@ -7125,7 +7125,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
             /* reuse the duplicated string for the new attr value. */
             if (allowed && (NULL == *allowed)) {
                 /* all the values to allow to delete are invalid */
-                slapi_log_error(SLAPI_LOG_FATAL, "config",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config",
                         "%s: Given attributes are all invalid.  No effects.\n",
                         CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE);
                 slapi_ch_array_free(allowed);
@@ -7578,7 +7578,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 		debugHashTable(attr);
 #endif
 		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored", attr);
-		slapi_log_error(SLAPI_LOG_FATAL, "config_set", "Unknown attribute %s will be ignored", attr);
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config_set", "Unknown attribute %s will be ignored", attr);
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
 
@@ -7613,7 +7613,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 			} else if (cgas->logsetfunc) {
 				retval = (cgas->logsetfunc)(cgas->attr_name, initval, cgas->whichlog, errorbuf, apply);
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
 				              "config_set: the attribute %s is read only; "
 				              "ignoring setting NULL value\n", attr);
 			}
@@ -7954,7 +7954,7 @@ config_set_accesslog_enabled(int value)
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 	if (errorbuf[0] != '\0') {
-        slapi_log_error(SLAPI_LOG_FATAL, "config", "config_set_accesslog_enabled: %s\n", errorbuf);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config", "config_set_accesslog_enabled: %s\n", errorbuf);
     }
 }
 
@@ -7973,7 +7973,7 @@ config_set_auditlog_enabled(int value){
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 	if (errorbuf[0] != '\0') {
-        slapi_log_error(SLAPI_LOG_FATAL, "config", "config_set_auditlog_enabled: %s\n", errorbuf);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config", "config_set_auditlog_enabled: %s\n", errorbuf);
     }
 }
 
@@ -7992,7 +7992,7 @@ config_set_auditfaillog_enabled(int value){
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 	if (errorbuf[0] != '\0') {
-        slapi_log_error(SLAPI_LOG_FATAL, "config", "config_set_auditfaillog_enabled: %s\n", errorbuf);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config", "config_set_auditfaillog_enabled: %s\n", errorbuf);
     }
 }
 
@@ -8083,7 +8083,7 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
     if ((mxfast >= 0) && (mxfast <= max)) {
         mallopt(M_MXFAST, mxfast);
     } else if (DEFAULT_MALLOC_UNSET != mxfast) {
-        slapi_log_error(SLAPI_LOG_FATAL, "config",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config",
                         "%s: Invalid value %d will be ignored\n",
                         CONFIG_MALLOC_MXFAST, mxfast);
     }
@@ -8125,7 +8125,7 @@ config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorb
     if (trim_threshold >= -1) {
         mallopt(M_TRIM_THRESHOLD, trim_threshold);
     } else if (DEFAULT_MALLOC_UNSET != trim_threshold) {
-        slapi_log_error(SLAPI_LOG_FATAL, "config",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config",
                         "%s: Invalid value %d will be ignored\n",
                         CONFIG_MALLOC_TRIM_THRESHOLD, trim_threshold);
     }
@@ -8174,7 +8174,7 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
     if ((mmap_threshold >= 0) && (mmap_threshold <= max)) {
         mallopt(M_MMAP_THRESHOLD, mmap_threshold);
     } else if (DEFAULT_MALLOC_UNSET != mmap_threshold) {
-        slapi_log_error(SLAPI_LOG_FATAL, "config",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config",
                         "%s: Invalid value %d will be ignored\n",
                         CONFIG_MALLOC_MMAP_THRESHOLD, mmap_threshold);
     }

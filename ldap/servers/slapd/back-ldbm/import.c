@@ -1460,14 +1460,14 @@ error:
         /* initialize the entry cache */
         if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
                          DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, "import_main_offline: "
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "import_main_offline: "
                         "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
         if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
                      DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, "import_main_offline: "
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "import_main_offline: "
                         "dn cache_init failed.  Server should be restarted.\n");
         }
     }
@@ -1621,7 +1621,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_ldif2ldbm_deluxe: backend is not set\n");
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_ldif2ldbm_deluxe: backend is not set\n");
         return -1;
     }
     job = CALLOC(ImportJob);
@@ -1673,7 +1673,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
                 if (entryrdn_get_switch()) {
                     job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
                 } else {
-                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                   "DN to RDN option is specified, "
                                   "but %s is not enabled\n",
                                   CONFIG_ENTRYRDN_SWITCH);

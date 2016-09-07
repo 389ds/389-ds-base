@@ -29,7 +29,7 @@
 
 /*** from proto-slap.h ***/
 
-int slapd_log_error_proc( char *subsystem, char *fmt, ... );
+int slapd_log_error_proc( char *subsystem, int sev_level, char *fmt, ... );
 
 /*** from ldaplog.h ***/
 
@@ -47,10 +47,10 @@ extern "C" {
 
 /* debugging stuff */
 extern int	slapd_ldap_debug;
-#define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
+#define LDAPDebug( level, sev_level, fmt, arg1, arg2, arg3 )	\
        { \
 		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
+		        slapd_log_error_proc( NULL, sev_level, fmt, arg1, arg2, arg3 ); \
 	    } \
        }
 
@@ -124,7 +124,7 @@ int http_client_init(Slapi_PBlock *pb)
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
              (void *)&pdesc ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "http_client_init: failed to register plugin\n" );
 		status = HTTP_FAILURE;
 	}
@@ -132,7 +132,7 @@ int http_client_init(Slapi_PBlock *pb)
         /* Retrieve and save the plugin identity to later pass to
         internal operations */
         if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &plugin_id) != 0) {
-         slapi_log_error(SLAPI_LOG_FATAL, HTTP_PLUGIN_SUBSYSTEM,
+         slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                         "http_client_init: Failed to retrieve SLAPI_PLUGIN_IDENTITY\n");
          return HTTP_FAILURE;
         }
@@ -158,7 +158,7 @@ static int http_client_start(Slapi_PBlock *pb)
 	api[6] = (void *)_http_post;
 
 	if( slapi_apib_register(HTTP_v1_0_GUID, api) ) {
-		slapi_log_error( SLAPI_LOG_FATAL, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "http_client_start: failed to register functions\n" );
 		status = HTTP_FAILURE;
 	}

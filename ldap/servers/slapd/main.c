@@ -681,7 +681,7 @@ main( int argc, char **argv)
 		 * Process the config files.
 		 */
 		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, "startup",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
 			exit(1);
@@ -742,7 +742,7 @@ main( int argc, char **argv)
 		 * Process the config files.
 		 */
 		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, "startup",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
 			exit(1);
@@ -763,7 +763,7 @@ main( int argc, char **argv)
 		entry_computed_attr_init();
 
 		if (0 == setup_internal_backends(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, "startup",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
 			exit(1);
@@ -2639,7 +2639,7 @@ slapd_exemode_upgradednformat(void)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( archive_name == NULL ) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "ERROR: Required argument "
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: Required argument "
                        "\"-a <path to work db instance dir>\" is missing\n");
         usage( myname, extraname );
         goto bail;
@@ -2651,7 +2651,7 @@ slapd_exemode_upgradednformat(void)
     mapping_tree_init();
 
     if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY,
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ERROR: Could not find the ldbm backend plugin.\n");
         goto bail;
     }
@@ -2663,13 +2663,13 @@ slapd_exemode_upgradednformat(void)
      */
     if (add_new_slapd_process(slapd_exemode, 0, skip_db_protect_check) 
                                                                         == -1) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "Shutting down due to possible "
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Shutting down due to possible "
                                       "conflicts with other slapd processes\n");
         goto bail;
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                       "ERROR: %s is too old to upgrade dn format.\n",
                       backend_plugin->plg_name);
         goto bail;
@@ -2885,7 +2885,7 @@ slapd_debug_level_log( int level )
                 }
         }
 
-		slapi_log_error( SLAPI_LOG_FATAL, SLAPD_VERSION_STR,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_VERSION_STR,
 				"%s: %s (%d)\n", "debug level", msg, level );
 		slapi_ch_free( (void **)&msg );
 }
@@ -2928,12 +2928,12 @@ force_to_disable_security(const char *what, int *init_ssl, daemon_ports_t *ports
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	errorbuf[0] = '\0';
 
-    LDAPDebug2Args(LDAP_DEBUG_ANY, "ERROR: %s Initialization Failed.  Disabling %s.\n", what, what);
+    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: %s Initialization Failed.  Disabling %s.\n", what, what);
     ports_info->s_socket = SLAPD_INVALID_SOCKET;
     ports_info->s_port = 0;
     *init_ssl = 0;
     if (config_set_security(CONFIG_SECURITY_ATTRIBUTE, "off", errorbuf, 1)) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, "ERROR: Failed to disable %s: \"%s\".\n", 
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: Failed to disable %s: \"%s\".\n", 
                        CONFIG_SECURITY_ATTRIBUTE, errorbuf[0]?errorbuf:"no error message");
         return 1;
     }

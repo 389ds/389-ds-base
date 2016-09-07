@@ -347,7 +347,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 				char *s = NULL;
 		
 				rc = slapi_ldap_get_lderrno(conn->ld, NULL, &s);
-				slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 						"%s: Received error %d: %s for %s operation\n",
 						agmt_get_long_name(conn->agmt),
 						rc, s ? s : "NULL", op_string);
@@ -433,7 +433,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 				 * enough information to allow them to fix the problem
 				 * and retry - bug 170350 */
 				if (conn->last_ldap_error == LDAP_CONSTRAINT_VIOLATION) {
-					slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 						"%s: Received error [%s] when attempting to %s"
 						" entry [%s]: Please correct the attribute specified "
 						"in the error message.  Refer to the Windows Active "
@@ -441,7 +441,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 						agmt_get_long_name(conn->agmt),
 						errmsg, op_string, dn);
 				} else {
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 						"%s: Received result code %d (%s) for %s operation %s%s\n",
 						agmt_get_long_name(conn->agmt),
 						conn->last_ldap_error, errmsg,
@@ -465,7 +465,7 @@ windows_perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		}
 		else
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 					"%s: Failed to send %s operation: LDAP error %d (%s)\n",
 					agmt_get_long_name(conn->agmt),
 					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
@@ -728,7 +728,7 @@ next:
 			&conn->timeout, 0 /* sizelimit */, &res);
 
 		if ((LDAP_SUCCESS != ldap_rc) && !IS_DISCONNECT_ERROR(ldap_rc)) {
-			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 							"Could not retrieve entry from Windows using search "
 							"base [%s] scope [%d] filter [%s]: error %d:%s\n",
 							searchbase_copy, scope, filter_copy, ldap_rc,
@@ -857,7 +857,7 @@ send_dirsync_search(Repl_Connection *conn)
 		}
 		else
 		{
-            slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 					"%s: Failed to get %s operation: LDAP error %d (%s)\n",
 					agmt_get_long_name(conn->agmt),
 					op_string, rc, ldap_err2string(rc));
@@ -980,7 +980,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 		case 0:
 		case -1:
 		case LDAP_RES_SEARCH_REFERENCE:
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, "error in windows_conn_get_search_result, rc=%d\n", rc);
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, "error in windows_conn_get_search_result, rc=%d\n", rc);
 			break;
 		case LDAP_RES_SEARCH_RESULT:
 			{
@@ -988,7 +988,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 				int code = 0;
 				/* Purify says this is a leak : */
 				if (LDAP_SUCCESS != (rc = ldap_parse_result( conn->ld, res, &code,  NULL, NULL,  NULL, &returned_controls, 0 ))) {
-					slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 									"error reading search result in windows_conn_get_search_result, rc=%d:%s\n", rc, ldap_err2string(rc));
 				}
 				if (returned_controls)
@@ -997,7 +997,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 					ldap_controls_free(returned_controls);
 				}
 				if (windows_private_dirsync_has_more(conn->agmt)) {
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received hasmore from dirsync\n");
+					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,"received hasmore from dirsync\n");
 				}
 			} 
 			break;
@@ -1005,7 +1005,7 @@ Slapi_Entry * windows_conn_get_search_result(Repl_Connection *conn)
 			{
 				if (( dn = ldap_get_dn( conn->ld, res )) != NULL ) 
 				{
-					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
+					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,"received entry from dirsync: %s\n", dn);
 					lm = ldap_first_entry( conn->ld, res );
 					/* 
 					 * we don't have to retrieve all the members here.
@@ -1140,7 +1140,7 @@ windows_conn_cancel_linger(Repl_Connection *conn)
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 			"%s: Cancelling linger on the connection\n",
 			agmt_get_long_name(conn->agmt));
 		conn->linger_active = PR_FALSE;
@@ -1153,7 +1153,7 @@ windows_conn_cancel_linger(Repl_Connection *conn)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 			"%s: No linger to cancel on the connection\n",
 			agmt_get_long_name(conn->agmt));
 	}
@@ -1177,7 +1177,7 @@ linger_timeout(time_t event_time, void *arg)
 	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> linger_timeout\n", 0, 0, 0 );
 
 	PR_ASSERT(NULL != conn);
-	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 		"%s: Linger timeout has expired on the connection\n",
 		agmt_get_long_name(conn->agmt));
 	PR_Lock(conn->lock);
@@ -1209,12 +1209,12 @@ windows_conn_start_linger(Repl_Connection *conn)
 	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_conn_start_linger\n", 0, 0, 0 );
 
 	PR_ASSERT(NULL != conn);
-	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 		"%s: Beginning linger on the connection\n",
 		agmt_get_long_name(conn->agmt));
 	if (!windows_conn_connected(conn))
 	{
-		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 			"%s: No linger on the closed conn\n",
 			agmt_get_long_name(conn->agmt));
 		return;
@@ -1223,7 +1223,7 @@ windows_conn_start_linger(Repl_Connection *conn)
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 			"%s: Linger already active on the connection\n",
 			agmt_get_long_name(conn->agmt));
 	}
@@ -1293,7 +1293,7 @@ windows_conn_connect(Repl_Connection *conn)
 		/* Pb occured in decryption: stop now, binding will fail */
 		if ( pw_ret == -1 )
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 				"%s: Decoding of the credentials failed.\n",
 				agmt_get_long_name(conn->agmt));
 		
@@ -1320,7 +1320,7 @@ windows_conn_connect(Repl_Connection *conn)
  
 	if (secure > 0) {
 		if (!NSS_IsInitialized()) {
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 							"%s: SSL Not Initialized, Replication over SSL FAILED\n",
 							agmt_get_long_name(conn->agmt));
 			return_value = CONN_SSL_NOT_ENABLED;
@@ -1336,7 +1336,7 @@ windows_conn_connect(Repl_Connection *conn)
 #endif
 		/* Now we initialize the LDAP Structure and set options */
 		
-		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 			"%s: Trying %s%s slapi_ldap_init_ext\n",
 			agmt_get_long_name(conn->agmt),
 			secure ? "secure" : "non-secure",
@@ -1349,7 +1349,7 @@ windows_conn_connect(Repl_Connection *conn)
 			conn->state = STATE_DISCONNECTED;
 			conn->last_operation = CONN_INIT;
 			conn->last_ldap_error = LDAP_LOCAL_ERROR;
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 				"%s: Failed to establish %s%sconnection to the consumer\n",
 				agmt_get_long_name(conn->agmt),
 				secure ? "secure " : "",
@@ -1360,7 +1360,7 @@ windows_conn_connect(Repl_Connection *conn)
 		/* slapi_ch_strdup is OK with NULL strings */
 		binddn = slapi_ch_strdup(conn->binddn);
 
-		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 			"%s: binddn = %s,  passwd = %s\n",
 			agmt_get_long_name(conn->agmt),
 			binddn?binddn:"NULL", creds->bv_val?creds->bv_val:"NULL");
@@ -1462,7 +1462,7 @@ close_connection_internal(Repl_Connection *conn)
 	conn->state = STATE_DISCONNECTED;
 	conn->status = STATUS_DISCONNECTED;
 	conn->supports_ds50_repl = -1;
-	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 		"%s: Disconnected from the consumer\n", agmt_get_long_name(conn->agmt));
 	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= close_connection_internal\n", 0, 0, 0 );
 }
@@ -1843,7 +1843,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 		if (conn->last_ldap_error != rc)
 		{
 			conn->last_ldap_error = rc;
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 							"%s: Replication bind with %s auth resumed\n",
 							agmt_get_long_name(conn->agmt),
 							mech ? mech : "SIMPLE");
@@ -1857,7 +1857,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 				if ( !(strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_PWEXPIRED)) )
 				{
 					/* Bind is successfull but password has expired */
-					slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, 
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, 
 						"%s: Successfully bound %s to consumer, "
 						"but password has expired on consumer.\n",
 						agmt_get_long_name(conn->agmt), binddn);
@@ -1869,7 +1869,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 						 (ctrls[ i ]->ldctl_value.bv_len > 0) )
 					{
 						int password_expiring = atoi( ctrls[ i ]->ldctl_value.bv_val );
-						slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, 
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, 
 							"%s: Successfully bound %s to consumer, "
 							"but password is expiring on consumer in %d seconds.\n",
 							agmt_get_long_name(conn->agmt), binddn, password_expiring);
@@ -1894,7 +1894,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			conn->last_ldap_error = rc;
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 							agmt_get_long_name(conn->agmt),
 							mech ? mech : "SIMPLE", rc,
@@ -1903,7 +1903,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			char *errmsg = NULL;
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
-			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
 							"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 							agmt_get_long_name(conn->agmt),
 							mech ? mech : "SIMPLE", rc,
@@ -1939,13 +1939,13 @@ windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *password
 	rc = ldap_result(conn->ld, msgid, LDAP_MSG_ALL, NULL, &res);
 	if (0 > rc) { /* error */
 		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
-		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 						"Error reading bind response for id "
 						"[%s]: error %d (%s)\n",
 						binddn ? binddn : "(anon)",
 						rc, ldap_err2string(rc));
 	} else if (rc == 0) { /* timeout */
-		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 						"Error: timeout reading "
 						"bind response for [%s]\n",
 						binddn ? binddn : "(anon)");
@@ -1953,7 +1953,7 @@ windows_check_user_password(Repl_Connection *conn, Slapi_DN *sdn, char *password
 	} else {
 		parse_rc = ldap_parse_result( conn->ld, res, &rc, NULL, NULL, NULL, NULL, 1 /* Free res */);
 		if (parse_rc != LDAP_SUCCESS) {
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 						"Error: unable to parse "
 						"bind result for [%s]: "
 						"error %d\n",
@@ -1987,7 +1987,7 @@ do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 		if (conn->last_ldap_error != ldaperr)
 		{
 			conn->last_ldap_error = ldaperr;
-			slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, 
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, 
 				"%s: Simple bind failed, " 
 				SLAPI_COMPONENT_NAME_LDAPSDK " error %d (%s) (%s), "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
@@ -2000,7 +2000,7 @@ do_simple_bind (Repl_Connection *conn, LDAP *ld, char * binddn, char *password)
 	else if (conn->last_ldap_error != LDAP_SUCCESS)
 	{
 		conn->last_ldap_error = LDAP_SUCCESS;
-		slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
 			"%s: Simple bind resumed\n",
 			agmt_get_long_name(conn->agmt));
 	}
@@ -2058,7 +2058,7 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	sprintf(buf, "%d", s_debug_level);
 	config_set_errorlog_level("nsslapd-errorlog-level", buf, NULL, 1);
 
-	slapi_log_error(SLAPI_LOG_FATAL, windows_repl_plugin_name, 
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, 
 		"repl5_debug_timeout_callback: set debug level to %d at %ld\n",
 		s_debug_level, when);
 

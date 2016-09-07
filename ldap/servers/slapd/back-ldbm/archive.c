@@ -39,7 +39,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     if ( !rawdirectory || !*rawdirectory ) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "archive2db: no archive name\n");
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "archive2db: no archive name\n");
         return -1;
     }
 
@@ -47,11 +47,11 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
     return_value = dbversion_read(li, directory, &dbversion, &dataversion);
     if (return_value) {
         if (ENOENT == return_value) {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, "archive2db: no back up \"%s\" exists.\n",
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "archive2db: no back up \"%s\" exists.\n",
                           directory);
             return -1;
         }
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, "Warning: Unable to read dbversion file in %s\n",
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "Warning: Unable to read dbversion file in %s\n",
                       directory);
     }
 
@@ -72,14 +72,14 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
 
         /* initialize a restore file to be able to detect a startup after restore */
         if (dblayer_restore_file_init(li)) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, "archive2db: failed to write restore file.\n");
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "archive2db: failed to write restore file.\n");
             return -1;
         }
     } 
     if (backendname) {
         inst = ldbm_instance_find_by_name(li, backendname);
         if (NULL == inst) {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, "archive2db: backend \"%s\" does not exist.\n",
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "archive2db: backend \"%s\" does not exist.\n",
                           backendname);
             return -1;
         }
@@ -225,7 +225,7 @@ int ldbm_back_archive2ldbm( Slapi_PBlock *pb )
             /* error case (607331)
              * just to go back to the previous state if possible */
             if ((return_value = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                           "archive2db: Unable to to start database in [%s]\n", li->li_directory);
                 if (task) {
                     slapi_task_log_notice(task, "Failed to start the database in "
@@ -417,10 +417,10 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 
     return_value = plugin_call_plugins (pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN);
     if (return_value) {
-        LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+        LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
             "db2archive: pre-backup-plugin failed (%d).\n", return_value);
         if (is_slapd_running() && run_from_cmdline) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY,
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                            "ERROR: Standalone db2bak is not supported when a "
                            "multimaster replication enabled server is "
                            "coexisting.\nPlease use db2bak.pl, instead.\n");
@@ -433,7 +433,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 
     return_value = plugin_call_plugins (pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN);
     if (return_value) {
-        LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+        LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
                 "db2archive: post-backup-plugin failed (%d).\n", return_value);
     }
 
@@ -451,7 +451,7 @@ int ldbm_back_ldbm2archive( Slapi_PBlock *pb )
 err:
     if (return_value) {
         if (dir_bak) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                            "db2archive failed: renaming %s back to %s\n",
                            dir_bak, directory);
             if (task) {
@@ -460,7 +460,7 @@ err:
                                 dir_bak, directory);
             }
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                           "db2archive failed: removing %s\n", directory);
             if (task) {
                 slapi_task_log_notice(task, "db2archive failed: removing %s",
@@ -470,10 +470,10 @@ err:
         ldbm_delete_dirs(directory);
         if (dir_bak && (PR_SUCCESS != PR_Rename(dir_bak, directory))) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                             "db2archive: Failed to rename \"%s\" to \"%s\".\n",
                             dir_bak, directory);
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                             SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                             prerr, slapd_pr_strerror(prerr));
             if (task) {

@@ -776,7 +776,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                     break;
                 line[0] = '\0';
                 if (NULL == fgets(line, sizeof(line), edf1->fp)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, "readrec: failed to read line\n");
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "readrec: failed to read line\n");
                     break;
                 }
                 len = strlen(line);
@@ -815,7 +815,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 if (lookahead != ' ')
                     break;
                 if (NULL == fgets(line, sizeof(line), edf1->fp)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, "readrec: failed to read line\n");
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "readrec: failed to read line\n");
                     break;
                 }
                 len = strlen(line);

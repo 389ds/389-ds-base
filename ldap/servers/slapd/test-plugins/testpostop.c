@@ -83,13 +83,13 @@ testpostop_add( Slapi_PBlock *pb )
 	   that entry. */
 	if ( slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testpostop_add", "Could not get parameters\n" );
 		return( -1 );
 	}
 
 	/* Log the DN of the newly added entry in the server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpostop_add",
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpostop_add",
 		"Added entry (%s)\n", dn );
 
 	/* Log the DN and the entry to the change log file. */
@@ -108,13 +108,13 @@ testpostop_mod( Slapi_PBlock *pb )
 	/* Get the DN of the modified entry and the modifications made. */
 	if ( slapi_pblock_get( pb, SLAPI_MODIFY_TARGET, &dn ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_MODIFY_MODS, &mods ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testpostop_mod", "Could not get parameters\n" );
 		return( -1 );
 	}
 
 	/* Log the DN of the modified entry to the server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpostop_mod", 
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpostop_mod", 
 		"Modified entry (%s)\n", dn );
 
 	/* Log the DN and the modifications made to the change log file. */
@@ -131,13 +131,13 @@ testpostop_del( Slapi_PBlock *pb )
 
 	/* Get the DN of the entry that was removed from the directory. */
 	if ( slapi_pblock_get( pb, SLAPI_DELETE_TARGET, &dn ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testpostop_del", "Could not get parameters\n" );
 		return( -1 );
 	}
 
 	/* Log the DN of the deleted entry to the server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpostop_del",
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpostop_del",
 		"Deleted entry (%s)\n", dn );
 
 	/* Log the DN of the deleted entry to the change log. */
@@ -160,13 +160,13 @@ testpostop_modrdn( Slapi_PBlock *pb )
 	if ( slapi_pblock_get( pb, SLAPI_MODRDN_TARGET, &dn ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_MODRDN_NEWRDN, &newrdn ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_MODRDN_DELOLDRDN, &dflag ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testpostop_modrdn", "Could not get parameters\n" );
 		return( -1 );
 	}
 
 	/* Log the DN of the renamed entry to the server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpostop_modrdn", 
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpostop_modrdn", 
 		"modrdn entry (%s)\n", dn );
 
 	/* Log the DN of the renamed entry, its new RDN, and the
@@ -185,14 +185,14 @@ testpostop_abandon( Slapi_PBlock *pb )
 
 	/* Get the LDAP message ID of the abandoned operation */
 	if ( slapi_pblock_get( pb, SLAPI_ABANDON_MSGID, &msgid ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		"testpostop_abandon", "Could not get parameters\n" );
 		return( -1 );
 	}
 
 	/* Log information about the abandon operation to the
 	   server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpostop_abandon",  
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpostop_abandon",  
 		"Postoperation abandon function called.\n" 
 		"\tTarget MsgID: %d\n",
 		msgid );
@@ -220,7 +220,7 @@ testpostop_init( Slapi_PBlock *pb )
                                 (void *) testpostop_modrdn ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_ABANDON_FN,
                                 (void *) testpostop_abandon ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "testpostop_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpostop_init",
 			 "Failed to set version and functions\n" );
 		return( -1 );
 	}
@@ -285,7 +285,7 @@ write_changelog(
 		return;
 	}
 	if ( (fp = fopen( changelogfile, "ab" )) == NULL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "write_changelog", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "write_changelog", 
 			"Could not open log file %s\n", changelogfile );
 		return;
 	}

@@ -70,7 +70,7 @@ aes_init( Slapi_PBlock *pb)
 {
        int rc;
 
-       slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> aes_init\n" );
+       slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "=> aes_init\n" );
 
        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01 );
        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc_aes );
@@ -81,7 +81,7 @@ aes_init( Slapi_PBlock *pb)
 
        init_pbe_plugin();
 
-       slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= aes_init %d\n", rc );
+       slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "<= aes_init %d\n", rc );
 
        return( rc );
 }
@@ -131,7 +131,7 @@ des_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "=> des_init\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "=> des_init\n" );
 
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01 );
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc_des );
@@ -142,7 +142,7 @@ des_init( Slapi_PBlock *pb )
 
 	init_pbe_plugin();
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, plugin_name, "<= des_init %d\n", rc );
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "<= des_init %d\n", rc );
 
 	return( rc );
 }

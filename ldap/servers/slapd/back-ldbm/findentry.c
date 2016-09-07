@@ -335,10 +335,10 @@ find_entry_internal(
 		if (addr->sdn) {
 			entry = find_entry_internal_dn (pb, be, addr->sdn, lock, txn, flags, rc);
 		} else {
-			LDAPDebug0Args( LDAP_DEBUG_ANY, "find_entry_internal: Null target dn\n" );
+			LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "find_entry_internal: Null target dn\n" );
 		}
 
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "<= find_entry_internal\n" );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_ERR, "<= find_entry_internal\n" );
 		return entry;
 	}
 }

@@ -101,13 +101,13 @@ static int retrocl_create_be(const char *bedir)
     slapi_pblock_destroy(pb);
     
     if (rc == 0) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "created changelog database node\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "changelog database node already existed\n");
     } else {
-        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "Changelog LDBM backend could not be created (%d)\n", rc);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "Changelog LDBM backend could not be created (%d)\n", rc);
 	return rc;
     }
 
@@ -152,13 +152,13 @@ static int retrocl_create_be(const char *bedir)
     slapi_pblock_destroy(pb);
     
     if (rc == 0) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "created changenumber index node\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "changelog index node already existed\n");
     } else {
-        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "Changelog LDBM backend changenumber index could not be created (%d)\n", rc);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "Changelog LDBM backend changenumber index could not be created (%d)\n", rc);
 	return rc;
     }
 
@@ -196,7 +196,7 @@ int retrocl_create_config(void)
     /* This function converts the old DN style to the new one. */
     mappingtree_dn = slapi_create_dn_string("%s", RETROCL_MAPPINGTREE_DN);
     if (NULL == mappingtree_dn) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
                          "retrocl_create_config: failed to normalize "
                          "mappingtree dn %s\n", RETROCL_MAPPINGTREE_DN);
         return LDAP_PARAM_ERROR;
@@ -240,13 +240,13 @@ int retrocl_create_config(void)
     slapi_pblock_destroy(pb);
     
     if (rc == 0) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "created changelog mapping tree node\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "changelog mapping tree node already existed\n");
     } else {
-        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "cn=\"cn=changelog\",cn=mapping tree,cn=config could not be created (%d)\n", rc);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "cn=\"cn=changelog\",cn=mapping tree,cn=config could not be created (%d)\n", rc);
 	return rc;
     }
 
@@ -324,13 +324,13 @@ void retrocl_create_cle (void)
     slapi_pblock_destroy(pb);
     
     if (rc == 0) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "created cn=changelog\n");
     } else if (rc == LDAP_ALREADY_EXISTS) {
-        slapi_log_error (SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
 			 "cn=changelog already existed\n");
     } else {
-        slapi_log_error( SLAPI_LOG_FATAL, RETROCL_PLUGIN_NAME, "cn=changelog could not be created (%d)\n", rc);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "cn=changelog could not be created (%d)\n", rc);
     }
 }
 

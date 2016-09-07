@@ -212,7 +212,7 @@ cb_update_monitor_info(Slapi_PBlock * pb, cb_backend_instance * inst,int op)
 			inst->monitor.searchsubtreecount++;
 		break;
 	default:
-	        slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"cb_update_monitor_info: invalid op type <%d>\n",op);
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,"cb_update_monitor_info: invalid op type <%d>\n",op);
 	}
 	slapi_unlock_mutex(inst->monitor.mutex);
 }

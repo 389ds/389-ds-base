@@ -106,13 +106,13 @@ get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
 	/* Return success and NULL policy */
 	policy_dn = get_attr_string_val( target_entry, cfg->spec_attr_name );
 	if( policy_dn == NULL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
 				"\"%s\" is not governed by an account inactivity "
 				"policy subentry\n", slapi_entry_get_ndn( target_entry ) );
 		if (cfg->inactivitylimit != ULONG_MAX) {
 			goto dopolicy;
 		}
-		slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
 				"\"%s\" is not governed by an account inactivity "
 				"global policy\n", slapi_entry_get_ndn( target_entry ) );
 		config_unlock();
@@ -127,10 +127,10 @@ get_acctpolicy( Slapi_PBlock *pb, Slapi_Entry *target_entry, void *plugin_id,
 	/* There should be a policy but it can't be retrieved; fatal error */
 	if( policy_entry == NULL ) {
 		if( ldrc != LDAP_NO_SUCH_OBJECT ) {
-			slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PLUGIN_NAME,
 				"Error retrieving policy entry \"%s\": %d\n", policy_dn, ldrc );
 		} else {
-			slapi_log_error( SLAPI_LOG_PLUGIN, PLUGIN_NAME,
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
 				"Policy entry \"%s\" is missing: %d\n", policy_dn, ldrc );
 		}
 		rc = -1;

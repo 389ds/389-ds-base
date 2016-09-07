@@ -47,28 +47,28 @@ slapi_str2filter( char *str )
 		str++;
 		switch ( *str ) {
 		case '&':
-			LDAPDebug0Args(LDAP_DEBUG_FILTER, "slapi_str2filter: AND\n");
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "slapi_str2filter: AND\n");
 
 			str++;
 			f = str2list( str, LDAP_FILTER_AND );
 			break;
 
 		case '|':
-			LDAPDebug0Args(LDAP_DEBUG_FILTER, "put_filter: OR\n");
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "put_filter: OR\n");
 
 			str++;
 			f = str2list( str, LDAP_FILTER_OR );
 			break;
 
 		case '!':
-			LDAPDebug0Args(LDAP_DEBUG_FILTER, "put_filter: NOT\n");
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "put_filter: NOT\n");
 
 			str++;
 			f = str2list( str, LDAP_FILTER_NOT );
 			break;
 
 		default:
-			LDAPDebug0Args(LDAP_DEBUG_FILTER, "slapi_str2filter: simple\n");
+			LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "slapi_str2filter: simple\n");
 
 			f = str2simple( str , 1 /* unescape_filter */);
 			break;
@@ -77,7 +77,7 @@ slapi_str2filter( char *str )
 		break;
 
 	default:	/* assume it's a simple type=value filter */
-		LDAPDebug0Args(LDAP_DEBUG_FILTER, "slapi_str2filter: default\n");
+		LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "slapi_str2filter: default\n");
 
 		f = str2simple( str , 1 /* unescape_filter */);
 		break;

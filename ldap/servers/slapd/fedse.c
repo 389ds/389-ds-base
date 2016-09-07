@@ -1580,7 +1580,7 @@ init_dse_file(const char *configdir, Slapi_DN *config)
 		slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
         if(!(rc = dse_read_file(pfedse, &pb)))
         {
-			slapi_log_error( SLAPI_LOG_FATAL, "dse",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
 							 "Could not load config file [%s]\n",
 							 DSE_FILENAME );
         }
@@ -1864,7 +1864,7 @@ setup_internal_backends(char *configdir)
 		slapi_sdn_done(&saslmapping);
 		slapi_sdn_done(&plugins);
 	} else {
-		slapi_log_error( SLAPI_LOG_FATAL, "dse",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
 				"Please edit the file to correct the reported problems"
 				" and then restart the server.\n" );
 		exit( 1 );
@@ -1914,7 +1914,7 @@ int fedse_create_startOK(char *filename,  char *startokfilename, const char *con
         rc = slapi_copy(dse_filename, dse_filestartOK);
         if ( rc != 0 )
         {
-            slapi_log_error( SLAPI_LOG_FATAL, "dse", "Cannot copy"
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse", "Cannot copy"
                     " DSE file \"%s\" to \"%s\" OS error %d (%s)\n",
                     dse_filename, dse_filestartOK,
                     rc, slapd_system_strerror(rc) );

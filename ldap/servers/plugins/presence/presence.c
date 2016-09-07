@@ -269,7 +269,7 @@ int presence_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
              (void *)&pdesc ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
                      "presence_init: failed to register plugin\n" );
 		status = PRESENCE_FAILURE;
 	}
@@ -307,7 +307,7 @@ int presence_start( Slapi_PBlock *pb )
                                 presence_vattr_compare, 
                                 presence_vattr_types) != 0)
     {
-		slapi_log_error( SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
 		   "presence_start: cannot register as service provider\n" );
 		return PRESENCE_FAILURE;
     }
@@ -340,7 +340,7 @@ int presence_start( Slapi_PBlock *pb )
 	 */
 	if (loadPluginConfig() != PRESENCE_SUCCESS)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
     	   "presence_start: unable to load plug-in configuration\n" );
 		return PRESENCE_FAILURE;
 	}
@@ -509,7 +509,7 @@ static int loadPluginConfig(void)
 
 	if (status != PRESENCE_SUCCESS)
 	{
-        slapi_log_error(SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM, 
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"Error getting level1 presence configurations<%s>\n", getPluginDN());
 		status = PRESENCE_FAILURE;
 		goto cleanup;
@@ -518,7 +518,7 @@ static int loadPluginConfig(void)
 	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 	if (NULL == entries || entries[0] == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"No entries found for <%s>\n", getPluginDN());
 
 		status = PRESENCE_FAILURE;
@@ -722,7 +722,7 @@ static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _Co
 	   * this should not happen but no harm we just return
 	   */
 		status = PRESENCE_FAILURE;
-		slapi_log_error(SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"No hashtable for vattr types\n");
 		goto bail;
 	}
@@ -805,7 +805,7 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	   * properly checked and throw warning/errors in case
 	   * of any invalid entry
 	   */
-		slapi_log_error(SLAPI_LOG_FATAL, PRESENCE_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"Unknown request type <%s>\n", info->requestMethod);
 		status = PRESENCE_FAILURE;
 		goto bail;

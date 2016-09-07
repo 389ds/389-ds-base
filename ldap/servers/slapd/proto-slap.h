@@ -758,7 +758,7 @@ int lock_fclose( FILE *fp, FILE *lfp );
 /*
  * log.c
  */
-int slapd_log_error_proc( char *subsystem, char *fmt, ... );
+int slapd_log_error_proc( char *subsystem, int sev_level, char *fmt, ... );
 
 int slapi_log_access( int level, char *fmt, ... )
 #ifdef __GNUC__ 

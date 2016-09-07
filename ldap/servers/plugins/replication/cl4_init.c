@@ -84,7 +84,7 @@ int changelog4_init ()
     
 	if(rc != 0)
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, 
 						"An error occurred configuring the changelog database\n" );
     }
 
@@ -107,7 +107,7 @@ changelog4_close()
 	rc = slapi_be_getentrypoint (rbe, SLAPI_PLUGIN_CLOSE_FN, (void**)&closefn, pb);
 	if (rc != 0)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Error: backend close entry point is missing. "
                         "Replication subsystem disabled.\n");
 		slapi_pblock_destroy (pb);
@@ -120,7 +120,7 @@ changelog4_close()
 	if (rc != 0)
 	{
 		
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Error: the changelog database could "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Error: the changelog database could "
     		"not be closed.  Replication subsystem disabled.\n");
 		set_repl_backend( NULL );
 		rc = -1;
@@ -142,7 +142,7 @@ changelog4_remove()
 	rc = slapi_be_getentrypoint (rbe, SLAPI_PLUGIN_DB_RMDB_FN, (void**)&rmdbfn, pb);
 	if (rc != 0)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Error: backend rmdb entry point is missing. "
                         "Replication subsystem disabled.\n");
 		slapi_pblock_destroy (pb);
@@ -155,13 +155,13 @@ changelog4_remove()
 	if (rc != 0)
 	{
 		
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, "Error: the changelog database could "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Error: the changelog database could "
     		"not be removed.  Replication subsystem disabled.\n");
 		rc = -1;
 	}
 	else
 	{
-    	slapi_log_error( SLAPI_LOG_REPL, repl_plugin_name, "New database generation computed. "
+    	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "New database generation computed. "
     		"Changelog database removed.\n");
 	}
 
@@ -222,7 +222,7 @@ changelog4_create_be()
 	char *cl_suffix;
 
     if ( cl_dir == NULL ) {
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Error: no directory specified for changelog database.\n");
         return -1;
     }
@@ -231,7 +231,7 @@ changelog4_create_be()
 
     if ( cl_suffix == NULL ) {
 		slapi_ch_free ((void **)&cl_dir);
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Error: no suffix specified for changelog database.\n");
         return -1;
     }
@@ -298,7 +298,7 @@ changelog4_create_be()
  
 	if (rbe == NULL)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Error: failed to create changelog backend. "
 						"Replication disabled.\n");
 		return -1;
@@ -331,7 +331,7 @@ changelog4_start_be ()
 		rc = slapi_be_getentrypoint(rbe, SLAPI_PLUGIN_START_FN, (void**)&startfn, pb);
 		if (rc != 0)
 		{
-			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 							"Error: backend start entry point is missing. "
 							"Replication subsystem disabled.\n");
 			slapi_pblock_destroy (pb);
@@ -344,7 +344,7 @@ changelog4_start_be ()
 
 		if (rc != 0)
 		{
-			slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Error: Failed to start changelog backend. "
                         "Replication subsystem disabled.\n");
 			set_repl_backend( NULL );

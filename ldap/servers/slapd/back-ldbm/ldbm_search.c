@@ -365,7 +365,7 @@ ldbm_back_search( Slapi_PBlock *pb )
     if (inst && inst->inst_ref_count) {
         slapi_counter_increment(inst->inst_ref_count);
     } else {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                       "ldbm_search: instance \"%s\" does not exist.\n",
                       inst ? inst->inst_name : "null instance");
         return( -1 );
@@ -954,7 +954,7 @@ vlv_bail:
         rc = slapi_filter_apply(sr->sr_norm_filter, ldbm_search_compile_filter,
                                 NULL, &filt_errs);
         if (rc != SLAPI_FILTER_SCAN_NOMORE) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                            "ERROR: could not pre-compile the search filter - error %d %d\n",
                            rc, filt_errs);
             if (rc == SLAPI_FILTER_SCAN_ERROR) {
@@ -1853,13 +1853,13 @@ ldbm_back_prev_search_results( Slapi_PBlock *pb )
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     if (!be) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY,
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_back_prev_search_results: no backend\n");
         return;
     }
     inst = (ldbm_instance *) be->be_instance_info;
     if (!inst) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY,
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_back_prev_search_results: no backend instance\n");
         return;
     }
@@ -1867,7 +1867,7 @@ ldbm_back_prev_search_results( Slapi_PBlock *pb )
     if (sr) {
         if (sr->sr_entry) {
             /* The last entry should be returned to cache */
-            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
                           "ldbm_back_prev_search_results: returning: %s\n",
                           slapi_entry_get_dn_const(sr->sr_entry->ep_entry));
             CACHE_RETURN (&inst->inst_cache, &(sr->sr_entry));
@@ -1913,7 +1913,7 @@ delete_search_result_set( Slapi_PBlock *pb, back_search_result_set **sr )
     rc = slapi_filter_apply((*sr)->sr_norm_filter, ldbm_search_free_compiled_filter,
                             NULL, &filt_errs);
     if (rc != SLAPI_FILTER_SCAN_NOMORE) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ERROR: could not free the pre-compiled regexes in the search filter - error %d %d\n",
                        rc, filt_errs);
     }

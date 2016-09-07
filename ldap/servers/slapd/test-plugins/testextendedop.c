@@ -76,16 +76,16 @@ testexop_babs( Slapi_PBlock *pb )
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_OID, &oid ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_VALUE, &bval ) != 0 ) {
 		msg = "Could not get OID and value from request.";
-		slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_babs", "%s\n",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_babs", "%s\n",
 			 msg );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 			 msg, 0, NULL );
 		return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 	} else {
-	    slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_babs", 
+	    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_babs", 
 			"Received extended operation request with OID %s\n",
 			oid );
-	    slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_babs",
+	    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_babs",
 			"Value from client: %s\n", bval->bv_val );
 	}
 
@@ -107,7 +107,7 @@ testexop_babs( Slapi_PBlock *pb )
 	    slapi_pblock_set( pb, SLAPI_EXT_OP_RET_VALUE, &retbval ) != 0 ) {
 		slapi_ch_free( ( void ** ) &retval );
 		msg = "Could not set return values";
-		slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_babs", "%s\n",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_babs", "%s\n",
 			    msg );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 			    msg, 0, NULL );
@@ -118,9 +118,9 @@ testexop_babs( Slapi_PBlock *pb )
 	   back to the client. */
 	slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL,
 	    "operation babs successful!", 0, NULL );
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_babs", 
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_babs", 
 		"OID sent to client: %s\n", "5.6.7.8" );
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_babs",
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_babs",
 		"Value sent to client: %s\n", retval );
 		
 	/* Free any memory allocated by this plug-in. */
@@ -145,7 +145,7 @@ testexop_init( Slapi_PBlock *pb )
 	*/ 
 
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testexop_init", "Could not get argv\n" );
 		return( -1 );
 	}
@@ -154,12 +154,12 @@ testexop_init( Slapi_PBlock *pb )
 	   against the OID supported by this plug-in function. */
 
 	if ( argv == NULL || strcmp( argv[0], MY_OID ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testexop_init", "OID is missing or is not %s\n", MY_OID );
 		return( -1 );
 	} else {
 		oid = slapi_ch_strdup( argv[0] );
-		slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_init",
 			"Registering plug-in for extended op %s.\n", oid );
 	}
 
@@ -183,7 +183,7 @@ testexop_init( Slapi_PBlock *pb )
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, oidlist ) ||
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, namelist ) != 0 ) {
 
-		slapi_log_error( SLAPI_LOG_PLUGIN, "testexop_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testexop_init",
 			"Failed to set plug-in version, function, and OID.\n" );
 		return( -1 );
 	}

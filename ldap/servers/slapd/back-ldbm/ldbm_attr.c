@@ -707,7 +707,7 @@ attr_index_config(
 				}
 				a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, "attr_index_config",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_index_config",
 					"%s: line %d: unknown index type \"%s\" (ignored) in entry (%s), "
 					"valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
 					fname, lineno, attrValue->bv_val, slapi_entry_get_dn(e));

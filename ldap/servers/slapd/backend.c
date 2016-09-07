@@ -29,21 +29,21 @@ be_init( Slapi_Backend *be, const char *type, const char *name, int isprivate, i
     be->be_basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                            name, type);
     if (NULL == be->be_basedn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "be_init: failed create instance dn for plugin %s, "
                        "instance %s\n", type, name);
     }
     be->be_configdn = slapi_create_dn_string("cn=config,cn=%s,cn=%s,cn=plugins,cn=config",
                                              name, type);
     if (NULL == be->be_configdn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "be_init: failed create instance config dn for "
                        "plugin %s, instance %s\n", type, name);
     }
     be->be_monitordn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                              name, type);
     if (NULL == be->be_configdn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "be_init: failed create instance monitor dn for "
                        "plugin %s, instance %s\n", type, name);
     }
@@ -465,7 +465,7 @@ slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slap
 		*ret_fnptr = (void*)be->be_cleanup;
 		break;
 	default:
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
 			"slapi_be_getentrypoint: unknown entry point %d\n", entrypoint);
 		return -1;
 	}
@@ -576,7 +576,7 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
         be->be_cleanup=(IFP)ret_fnptr;
         break;
 	default:
-        slapi_log_error(SLAPI_LOG_FATAL, NULL,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
                 "slapi_be_setentrypoint: unknown entry point %d\n", entrypoint);
         return -1;
 	}

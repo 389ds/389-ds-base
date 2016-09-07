@@ -20,7 +20,7 @@ int sync_init( Slapi_PBlock *pb )
 	char *plugin_identity = NULL;
 	int rc = 0;
 
-	slapi_log_error(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, SYNC_PLUGIN_SUBSYSTEM,
                     "--> sync_init\n");
 
 	/**
@@ -39,7 +39,7 @@ int sync_init( Slapi_PBlock *pb )
                          (void *) sync_close) != 0 ||
         	slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
                          (void *) &pdesc) != 0 ) {
-        		slapi_log_error(SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM,
+        		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
                 	        "sync_init: failed to register plugin\n");
 			rc = 1;
 	}
@@ -55,7 +55,7 @@ int sync_init( Slapi_PBlock *pb )
 				SYNC_PREOP_DESC,/* plugin desc */
 				NULL, 
 				plugin_identity)) {
-           				slapi_log_error(SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM,
+           				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
                             			"sync_init: failed to register preop plugin\n");
 					rc = 1;
 		}
@@ -71,7 +71,7 @@ int sync_init( Slapi_PBlock *pb )
                                   SYNC_POSTOP_DESC,      /* plugin desc */
                                   NULL,
                                   plugin_identity )) {
-            				slapi_log_error(SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM,
+            				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
                             			"sync_init: failed to register postop plugin\n");
 					rc = 1;
 		}
@@ -119,12 +119,12 @@ sync_start(Slapi_PBlock * pb)
 
 	slapi_register_supported_control( LDAP_CONTROL_SYNC,
         	SLAPI_OPERATION_SEARCH );
-	slapi_log_error(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, SYNC_PLUGIN_SUBSYSTEM,
 		"--> sync_start\n");
 
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0 ||
 	     slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
 			"unable to get arguments\n" );
 		return( -1 );
 	}

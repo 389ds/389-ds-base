@@ -564,13 +564,13 @@ do_bind( Slapi_PBlock *pb )
              * or connections using SASL privacy layers */
             conn = pb->pb_conn;
             if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
+                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "do_bind",
                                  "Could not get SASL SSF from connection\n" );
                 sasl_ssf = 0;
             }
 
             if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, "do_bind",
+                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "do_bind",
                                  "Could not get local SSF from connection\n" );
                 local_ssf = 0;
             }

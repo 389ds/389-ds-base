@@ -89,7 +89,7 @@ memberof_config(Slapi_Entry *config_e, Slapi_PBlock *pb)
 	char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
 
 	if ( inited ) {
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 				 "only one memberOf plugin instance can be used\n" );
 		return( LDAP_PARAM_ERROR );
 	}
@@ -130,7 +130,7 @@ memberof_config(Slapi_Entry *config_e, Slapi_PBlock *pb)
 	inited = 1;
 
 	if (returncode != LDAP_SUCCESS) {
-		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 				"Error %d: %s\n", returncode, returntext);
         }
 
@@ -297,7 +297,7 @@ memberof_validate_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
 
 		rc = slapi_dn_syntax_check(pb, config_dn, 1);
 		if (rc) { /* syntax check failed */
-			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_validate_config: "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_validate_config: "
 					"%s does not contain a valid DN (%s)\n",
 					SLAPI_PLUGIN_SHARED_CONFIG_AREA, config_dn);
 			*returncode = LDAP_INVALID_DN_SYNTAX;
@@ -483,7 +483,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 				PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					"memberof_apply_config: Failed to locate shared config entry (%s)",
 					sharedcfg);
-				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,"%s\n",returntext);
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,"%s\n",returntext);
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
 				goto done;
 			}
@@ -586,7 +586,7 @@ memberof_apply_config (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		 */
 		if ((theConfig.group_filter = slapi_str2filter(filter_str)) == NULL)
 		{
-			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 				"Unable to create the group check filter.  The memberOf "
 				"plug-in will not operate on changes to groups.  Please check "
 				"your %s configuration settings. (filter: %s)\n",
@@ -988,7 +988,7 @@ bail:
 	if (ret){
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
 		slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, returntext);
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate: %s/n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_shared_config_validate: %s/n",
 			returntext);
 	}
 	slapi_sdn_free(&config_sdn);

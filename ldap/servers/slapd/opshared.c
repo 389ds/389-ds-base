@@ -1087,7 +1087,7 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
         slapi_attr_get_numvalues(a, &numValues );
         if (numValues == 0) 
         {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, "null ref in (%s)\n",
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "null ref in (%s)\n",
                           slapi_entry_get_dn_const(e));
         }
         else 

@@ -900,7 +900,7 @@ index_read_ext_allids(
 	if (unindexed != NULL) *unindexed = 0;
 	prefix = index_index2prefix( indextype );
 	if (prefix == NULL) {
-		LDAPDebug0Args( LDAP_DEBUG_ANY, "index_read_ext: NULL prefix\n" );
+		LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_DEBUG, "index_read_ext: NULL prefix\n" );
 		return NULL;
 	}
 	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> index_read( \"%s\" %s \"%s\" )\n",
@@ -971,7 +971,7 @@ index_read_ext_allids(
 	    (allidslimit == 0)) {
 		idl = idl_allids( be );
 		if (unindexed != NULL) *unindexed = 1;
-		LDAPDebug1Arg( LDAP_DEBUG_BACKLDBM, "<= index_read %lu candidates "
+		LDAPDebug1Arg( LDAP_DEBUG_BACKLDBM, LOG_DEBUG, "<= index_read %lu candidates "
 		    "(do not use index)\n", (u_long)IDL_NIDS(idl) );
 		LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG, "<= index_read index attr %s type %s "
 		    "for value %s does not use index\n", basetype, indextype,
@@ -1244,7 +1244,7 @@ index_range_read_ext(
 
     prefix = index_index2prefix( indextype );
     if (prefix == NULL) {
-        LDAPDebug0Args( LDAP_DEBUG_ANY, "index_range_read: NULL prefix\n" );
+        LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "index_range_read: NULL prefix\n" );
         return( NULL );
     }
 
@@ -1276,7 +1276,7 @@ index_range_read_ext(
         }
     }
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "index_range_read lookthrough_limit=%d\n",
+    LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "index_range_read lookthrough_limit=%d\n",
                   lookthrough_limit);
 
     switch( coreop ) {
@@ -1490,13 +1490,13 @@ index_range_read_ext(
                     (idl->b_nids > (ID)lookthrough_limit)) {
                     idl_free(&idl);
                     idl = idl_allids( be );
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                "index_range_read lookthrough_limit exceeded\n");
                     *err = LDAP_ADMINLIMIT_EXCEEDED;
                     break;
                 }
                 if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                    "index_range_read sizelimit exceeded\n");
                     *err = LDAP_SIZELIMIT_EXCEEDED;
                     break;
@@ -1506,7 +1506,7 @@ index_range_read_ext(
             if (timelimit != -1) {
                 curtime = current_time();
                 if (curtime >= stoptime) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                    "index_range_read timelimit exceeded\n");
                     *err = LDAP_TIMELIMIT_EXCEEDED;
                     break;
@@ -1520,7 +1520,7 @@ index_range_read_ext(
                     idl_free(&idl);
                     idl = NULL;
                 }
-                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                "index_range_read - operation abandoned\n");
                 break;    /* clean up happens outside the while() loop */
             }
@@ -1549,7 +1549,7 @@ index_range_read_ext(
             if (!tmp) {
                 if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
                     char encbuf[BUFSIZ];
-                    LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                    LDAPDebug2Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                    "index_range_read_ext: cur_key=%s(%li bytes) was deleted - skipping\n",
                                    encoded(&cur_key, encbuf), (long)cur_key.dsize);
                 }
@@ -1572,7 +1572,7 @@ index_range_read_ext(
                     idl_free(&tmp);
                 }
                 if (ALLIDS(idl)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                    "index_range_read hit an allids value\n");
                     break;
                 }
@@ -1597,22 +1597,22 @@ index_range_read_ext(
         }
     }
     if (*err) {
-        LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+        LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG,
                       "   dbc->c_get(...DB_NEXT) == %i\n", *err);
     }
 #ifdef LDAP_DEBUG
     /* this is for debugging only */
     if (idl != NULL) {
         if (ALLIDS(idl)) {
-            LDAPDebug0Args(LDAP_DEBUG_FILTER, "   idl=ALLIDS\n");
+            LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "   idl=ALLIDS\n");
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+            LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG,
                           "   idl->b_nids=%d\n", idl->b_nids);
-            LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+            LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG,
                           "   idl->b_nmax=%d\n", idl->b_nmax);
 
             for (i = 0; i < idl->b_nids; i++) {
-                LDAPDebug2Args(LDAP_DEBUG_FILTER,
+                LDAPDebug2Args(LDAP_DEBUG_FILTER, LOG_DEBUG,
                                "   idl->b_ids[%d]=%d\n", i, idl->b_ids[i]);
             }
         }
@@ -1825,7 +1825,7 @@ addordel_values_sv(
 
     prefix = index_index2prefix( indextype );
     if (prefix == NULL) {
-        LDAPDebug0Args( LDAP_DEBUG_ANY, "addordel_values_sv: NULL prefix\n" );
+        LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "addordel_values_sv: NULL prefix\n" );
         return( -1 );
     }
 

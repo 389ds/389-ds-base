@@ -81,7 +81,7 @@ int vlv_AddIndexEntry(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e
         char *name = slapi_entry_attr_get_charptr(entryBefore, type_vlvName);
         if (vlvSearch_findname(parent, name)) {
             /* The vlvindex is already in the vlvSearchList. Skip adding it. */
-            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
+            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
                           "vlv_AddIndexEntry: %s is already in vlvSearchList\n",
                           slapi_entry_get_dn_const(entryBefore));
         } else {
@@ -372,7 +372,7 @@ vlv_init(ldbm_instance *inst)
         basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                            inst->inst_name, inst->inst_li->li_plugin->plg_name);
         if (NULL == basedn) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                "vlv_init: failed to create vlv dn for plugin %s, instance %s\n",
                inst->inst_name, inst->inst_li->li_plugin->plg_name);
             return_value = LDAP_PARAM_ERROR;
@@ -447,7 +447,7 @@ vlv_remove_callbacks(ldbm_instance *inst)
         basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                            inst->inst_name, inst->inst_li->li_plugin->plg_name);
         if (NULL == basedn) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                  "vlv_remove_callbacks: failed to create vlv dn for plugin %s, "
                  "instance %s\n",
                  inst->inst_name, inst->inst_li->li_plugin->plg_name);
@@ -1553,7 +1553,7 @@ vlv_trim_candidates_byvalue(backend *be, const IDList *candidates, const sort_sp
     {
         attr_get_value_cmp_fn(&sort_control->sattr, &compare_fn);
         if (compare_fn == NULL) {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, "vlv_trim_candidates_byvalue: "
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "vlv_trim_candidates_byvalue: "
                           "attempt to compare an unordered attribute [%s]\n",
                           sort_control->type);
             compare_fn = slapi_berval_cmp;

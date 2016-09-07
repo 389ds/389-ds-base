@@ -230,7 +230,7 @@ legacy_consumer_config_init()
 	int rc;
 
 	if ((legacy_consumer_config_lock = slapi_new_rwlock()) == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 				"Failed to create legacy_consumer config read-write lock\n");
 		exit(1);
 	}
@@ -238,7 +238,7 @@ legacy_consumer_config_init()
 	rc = legacy_consumer_read_config ();
 	if (rc != LDAP_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 			"Failed to initialize legacy replication configuration\n");
 		return 1;
 	}
@@ -260,13 +260,13 @@ legacy_consumer_config_add (Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* entry
 	if (rc != LDAP_SUCCESS)
 	{
 		*returncode = rc;
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Failed to configure legacy replication\n");
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Failed to configure legacy replication\n");
 		return SLAPI_DSE_CALLBACK_ERROR;
 	}
     /* make sure that the password is encoded */
     legacy_consumer_encode_pw(e);
 
-    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "legacy_consumer_config_add: "
+    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "legacy_consumer_config_add: "
                     "successfully configured legacy consumer credentials\n");
 
 	return SLAPI_DSE_CALLBACK_OK;
@@ -328,7 +328,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
 						if (legacy_consumer_replicationdn != NULL)
 						{
 							not_allowed = 1;
-							slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+							slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 									"Multiple replicationdns not permitted." );
 						}
 						else
@@ -354,7 +354,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
                         if (legacy_consumer_replicationpw != NULL)
                         {
                             not_allowed = 1;
-                            slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name,
+                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 								"Multiple replicationpws not permitted." );
                         }
                         else
@@ -373,7 +373,7 @@ legacy_consumer_config_modify (Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi
 
 	if (not_allowed)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"Failed to modify legacy replication configuration\n" );
 		*returncode= LDAP_CONSTRAINT_VIOLATION;
 		return SLAPI_DSE_CALLBACK_ERROR;
@@ -586,7 +586,7 @@ get_legacy_referral (Slapi_Entry *e, char **referral, char **state)
         if (rc != 0)
         {
             const char *target_dn = slapi_entry_get_dn_const(e);
-		    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: a copiedFrom "
+		    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: a copiedFrom "
 			"or copyingFrom attribute was added to or removed from an "
 			"entry that is not the root of a replicated area. It is possible "
 			"that a legacy replication supplier is incorrectly configured "
@@ -653,7 +653,7 @@ legacy_consumer_init_referrals (Replica *r)
         if (rc == LDAP_REFERRAL)
         {
             /* We are in referral mode, probably because ORC failed */
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "legacy_consumer_init_referrals "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "legacy_consumer_init_referrals "
                             "data for replica %s is in referral mode due to failed "
                             "initialization. Replica need to be reinitialized\n",
                             root_dn);
@@ -661,7 +661,7 @@ legacy_consumer_init_referrals (Replica *r)
         }
         else
         {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "legacy_consumer_init_referrals "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "legacy_consumer_init_referrals "
                             "failed to obtain root entry for replica %s; LDAP error - %d\n",
                             root_dn, rc);
             rc = -1;

@@ -172,36 +172,36 @@ agmt_is_valid(Repl_Agmt *ra)
 
 	if (NULL == ra->hostname)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 			"is malformed: missing host name.\n", slapi_sdn_get_dn(ra->dn));
 		return_value = 0;
 	}
 	if (ra->port <= 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 			"is malformed: invalid port number %d.\n", slapi_sdn_get_dn(ra->dn), ra->port);
 		return_value = 0;
 	}
 	if (ra->timeout < 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 			"is malformed: invalid timeout %ld.\n", slapi_sdn_get_dn(ra->dn), ra->timeout);
 		return_value = 0;
 	}
 	if (ra->busywaittime < 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 			"is malformed: invalid busy wait time %ld.\n", slapi_sdn_get_dn(ra->dn), ra->busywaittime);
 		return_value = 0;
 	}
 	if (ra->pausetime < 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 			"is malformed: invalid pausetime %ld.\n", slapi_sdn_get_dn(ra->dn), ra->pausetime);
 		return_value = 0;
 	}
 	if ((0 == ra->transport_flags) && (BINDMETHOD_SSL_CLIENTAUTH == ra->bindmethod)) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 						" is malformed: cannot use SSLCLIENTAUTH if using plain LDAP - please "
 						"change %s to SSL or TLS before changing %s to use SSLCLIENTAUTH\n",
 						slapi_sdn_get_dn(ra->dn), type_nsds5TransportInfo, type_nsds5ReplicaBindMethod);
@@ -221,7 +221,7 @@ agmt_is_valid(Repl_Agmt *ra)
 			} else {
 				auth_mech = "Unknown";
 			}
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Replication agreement \"%s\" "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Replication agreement \"%s\" "
 				"is malformed: a bind DN and password must be supplied for authentication "
 				"method \"%s\"\n", slapi_sdn_get_dn(ra->dn), auth_mech);
 			return_value = 0;
@@ -244,14 +244,14 @@ agmt_new_from_entry(Slapi_Entry *e)
 	ra = (Repl_Agmt *)slapi_ch_calloc(1, sizeof(repl5agmt));
 	if ((ra->lock = PR_NewLock()) == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to create new lock "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Unable to create new lock "
 			"for replication agreement \"%s\" - agreement ignored.\n",
 			slapi_entry_get_dn_const(e));
 		goto loser;
 	}
 	if ((ra->attr_lock = slapi_new_rwlock()) == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to create new attr lock "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Unable to create new attr lock "
 			"for replication agreement \"%s\" - agreement ignored.\n",
 			slapi_entry_get_dn_const(e));
 		goto loser;
@@ -382,7 +382,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 		} else if(strcasecmp(tmpstr, "on") == 0){
 			ra->is_enabled = PR_TRUE;
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning invalid value "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning invalid value "
 			    "for nsds5ReplicaEnabled (%s), value must be \"on\" or \"off\".  Ignoring "
 			    "this repl agreement.\n",tmpstr);
 			slapi_ch_free_string(&tmpstr);
@@ -474,7 +474,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	 * could be a default excluded attr list in cn=plugin default config */
 	if (agmt_set_replicated_attributes_from_attr(ra, sattr) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 						"agmtlist_add_callback: failed to parse "
 						"replicated attributes for agreement %s\n",
 						agmt_get_long_name(ra));
@@ -484,7 +484,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	if (denied_attrs)
 	{
 		/* Report the error to the client */
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"WARNING: Attempt to exclude illegal attributes "
 						"from a fractional agreement\n");
 		/* Free the list */
@@ -496,7 +496,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeListTotal, &sattr);
 	if (sattr && agmt_set_replicated_attributes_total_from_attr(ra, sattr) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 						"agmtlist_add_callback: failed to parse total "
 						"update replicated attributes for agreement %s\n",
 						agmt_get_long_name(ra));
@@ -506,7 +506,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 	if (denied_attrs)
 	{
 		/* Report the error to the client */
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 						"WARNING: Attempt to exclude illegal attributes "
 						"from a fractional agreement for total update protocol\n");
 		/* Free the list */
@@ -531,7 +531,7 @@ agmt_new_from_entry(Slapi_Entry *e)
 
 	/* Now that the agreement is done, just check if changelog is configured */
 	if (cl5GetState() != CL5_STATE_OPEN) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "WARNING: "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "WARNING: "
 						"Replication agreement added but there is no changelog configured. "
 						"No change will be replicated until a changelog is configured.\n");
 	}
@@ -697,7 +697,7 @@ agmt_start(Repl_Agmt *ra)
      */
     repl_sdn = agmt_get_replarea(ra);
     if (!repl_sdn) {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                         "agmt_start: failed to get repl area.  Please check agreement.\n");
         prot_free(&prot);
         return -1;
@@ -723,7 +723,7 @@ agmt_start(Repl_Agmt *ra)
     if (rc == LDAP_SUCCESS){
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         if (NULL == entries || NULL == entries[0]){
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                 "agmt_start: replica ruv tombstone entry for "
                 "replica %s not found\n",
             slapi_sdn_get_dn(ra->replarea));
@@ -739,7 +739,7 @@ agmt_start(Repl_Agmt *ra)
 
     /* Check that replication is not already started */
     if (ra->protocol != NULL) {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
         prot_free(&prot);
         goto done;
     }
@@ -831,7 +831,7 @@ windows_agmt_start(Repl_Agmt *ra)
 
     /* Check that replication is not already started */
     if (ra->protocol != NULL) {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "replication already started for agreement \"%s\"\n", agmt_get_long_name(ra));
         PR_Unlock(ra->lock);
         prot_free(&prot);
         return 0;
@@ -1515,7 +1515,7 @@ _agmt_set_default_fractional_attrs(Repl_Agmt *ra)
 				rc = agmt_parse_excluded_attrs_config_attr(val,
 														   &(ra->frac_attrs));
 				if (0 != rc) {
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 							"_agmt_set_default_fractional_attrs: failed to "
 							"parse default config (%s) attribute %s value: %s\n",
 							SLAPI_PLUGIN_DEFAULT_CONFIG,
@@ -2264,7 +2264,7 @@ agmt_replica_init_done (const Repl_Agmt *agmt)
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_replica_init_done: "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmt_replica_init_done: "
                         "failed to remove (%s) attribute from (%s) entry; LDAP error - %d\n",
                         type_nsds5ReplicaInitialize, slapi_sdn_get_ndn (agmt->dn), rc);   
     }
@@ -2300,7 +2300,7 @@ agmt_set_consumer_ruv (Repl_Agmt *ra, RUV *ruv)
 {
     if (ra == NULL || ruv == NULL)
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_set_consumer_ruv: invalid argument" 
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmt_set_consumer_ruv: invalid argument" 
                         " agmt - %p, ruv - %p\n", ra, ruv); 
         return -1;
     }
@@ -2357,7 +2357,7 @@ agmt_update_consumer_ruv (Repl_Agmt *ra)
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE)
         {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "%s: agmt_update_consumer_ruv: "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: agmt_update_consumer_ruv: "
                             "failed to update consumer's RUV; LDAP error - %d\n",
 							ra->long_name, rc);
         }
@@ -2483,10 +2483,10 @@ agmt_set_last_update_status (Repl_Agmt *ra, int ldaprc, int replrc, const char *
 					"(If the suffix is disabled you must enable it then restart the server for replication to take place).",
 					replrc, ra->long_name ? ra->long_name : "a replica");
 				/* Log into the errors log, as "ra->long_name" is not accessible from the caller */
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 					"Incremental update aborted: Replication agreement for \"%s\" "
 					"can not be updated while the replica is disabled\n", ra->long_name ? ra->long_name : "a replica");
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 					"(If the suffix is disabled you must enable it then restart the server for replication to take place).\n");
 			}
 			else
@@ -2551,7 +2551,7 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, int connrc, co
 			else if (replrc == NSDS50_REPL_DISABLED)
 			{
 				if(agmt_is_enabled(ra)){
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Total update aborted: "
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Total update aborted: "
 							"Replication agreement for \"%s\" can not be updated while the suffix is disabled.\n"
 							"You must enable it then restart the server for replication to take place).\n",
 							ra->long_name ? ra->long_name : "a replica");
@@ -2561,7 +2561,7 @@ agmt_set_last_init_status (Repl_Agmt *ra, int ldaprc, int replrc, int connrc, co
 							replrc, ra->long_name ? ra->long_name : "a replica");
 				} else {
 					/* You do not need to restart the server after enabling the agreement */
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Total update aborted: "
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Total update aborted: "
 							"Replication agreement for \"%s\" can not be updated while the agreement is disabled\n",
 							ra->long_name ? ra->long_name : "a replica");
 					PR_snprintf(ra->last_init_status, STATUS_LEN, "%d Total update aborted: "
@@ -2792,7 +2792,7 @@ agmt_get_consumer_rid ( Repl_Agmt *agmt, void *conn )
 		slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
 							   slapi_sdn_get_dn (agmt->replarea) );
 		if (NULL == mapping_tree_node) {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 							"agmt_get_consumer_rid: failed to normalize "
 							"replica dn for %s\n", 
 							slapi_sdn_get_dn (agmt->replarea));
@@ -2895,7 +2895,7 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext){
 		} else if(strcasecmp(attr_val,"on") == 0){
 			is_enabled = PR_TRUE;
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_enabled_from_entry: invalid "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmt_set_enabled_from_entry: invalid "
 			    "value for nsds5ReplicaEnabled (%s), the value must be \"on\" or \"off\".\n", attr_val);
 			PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for nsds5ReplicaEnabled, "
 			    "the value must be \"on\" or \"off\".\n");
@@ -2907,7 +2907,7 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext){
 		if(is_enabled){
 			if(!ra->is_enabled){
 				ra->is_enabled = PR_TRUE;
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_set_enabled_from_entry: "
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmt_set_enabled_from_entry: "
 					"agreement is now enabled (%s)\n",ra->long_name);
 				PR_Unlock(ra->lock);
 				agmt_start(ra);
@@ -2916,7 +2916,7 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext){
 		} else {
 			if(ra->is_enabled){
 				ra->is_enabled = PR_FALSE;
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_set_enabled_from_entry: "
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmt_set_enabled_from_entry: "
 					"agreement is now disabled (%s)\n",ra->long_name);
 				PR_Unlock(ra->lock);
 				agmt_stop(ra);
@@ -3195,7 +3195,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
 
     pb = slapi_pblock_new();
     if (!pb) {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmt_set_maxcsn: Out of memory\n");
         goto done;
     }
 
@@ -3204,7 +3204,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         r = (Replica *)object_get_data(repl_obj);
         tombstone_sdn = replica_get_root(r);
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_set_maxcsn: Failed to get repl object.\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmt_set_maxcsn: Failed to get repl object.\n");
         goto done;
     }
     slapi_ch_free_string(&ra->maxcsn);
@@ -3237,7 +3237,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         if (NULL == entries || NULL == entries[0]){
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                 "agmt_set_maxcsn: replica ruv tombstone entry for "
                 "replica %s not found\n", slapi_sdn_get_dn(ra->replarea));
             goto done;
@@ -3290,7 +3290,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
                         slapi_modify_internal_pb(modpb);
                         slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
                         if (rc != LDAP_SUCCESS){
-                            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                     "agmt_set_maxcsn: failed to remove agmt maxcsn (%s), error(%d)\n",maxcsns[i], rc);
                         }
                         slapi_mod_done(&smod);

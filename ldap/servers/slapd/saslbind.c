@@ -185,7 +185,7 @@ static int ids_sasl_log(
 {
     switch (level) {
     case SASL_LOG_ERR:          /* log unusual errors (default) */
-        slapi_log_error(SLAPI_LOG_FATAL, "sasl", "%s\n", message);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "sasl", "%s\n", message);
         break;
 
     case SASL_LOG_FAIL:         /* log all authentication failures */
@@ -384,7 +384,7 @@ static int ids_sasl_canon_user(
 
     sasl_getprop(conn, SASL_MECHNAME, (const void**)&mech);
     if (mech == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "Unable to read SASL mechanism while "
+        LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "Unable to read SASL mechanism while "
               "canonifying user.\n")
         goto fail;
     }
@@ -548,7 +548,7 @@ int ids_sasl_init(void)
 
     PR_ASSERT(inited == 0);
     if (inited != 0) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "ids_sasl_init is called more than once.\n");
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ids_sasl_init is called more than once.\n");
     }
     inited = 1;
 
@@ -834,7 +834,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     if ((pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
         Slapi_Operation *operation;
         slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
-        slapi_log_error(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+        slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "ids_sasl_check_bind",
                         "cleaning up sasl IO conn=%" NSPRIu64 " op=%d complete=%d continuing=%d\n",
                         pb->pb_conn->c_connid, operation->o_opid,
                         (pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE), continuing);

@@ -225,13 +225,13 @@ agmtlist_add_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter,
 	int *returncode, char *returntext, void *arg)
 {
 	int rc;
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmt_add: begin\n");
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmt_add: begin\n");
 
 	rc = add_new_agreement(e);
 	if (0 != rc) {
 		Slapi_DN *sdn = NULL;
 		slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_add_callback: "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmtlist_add_callback: "
 			"Can't start agreement \"%s\"\n", slapi_sdn_get_dn(sdn));
 		*returncode = LDAP_UNWILLING_TO_PERFORM;
 		return SLAPI_DSE_CALLBACK_ERROR;
@@ -271,14 +271,14 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     if (NULL == sdn) {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
                         "agmtlist_modify_callback: NULL target dn\n");
         goto done;
     }
 	agmt = agmtlist_get_by_agmt_name(sdn);
 	if (NULL == agmt)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_modify_callback: received "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmtlist_modify_callback: received "
 			"a modification for unknown replication agreement \"%s\"\n", 
 			slapi_sdn_get_dn(sdn));
 		goto done;
@@ -297,7 +297,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                the replication plugin - handled above */
             if (mods[i]->mod_op & LDAP_MOD_DELETE)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "deletion of %s attribute is not allowed\n", type_nsds5ReplicaInitialize);	
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -306,7 +306,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
             else
             {
                 if(val == NULL){
-                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "no value provided for %s attribute\n", type_nsds5ReplicaInitialize);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -331,7 +331,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                     PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, 
                                  "Invalid value (%s) value supplied for attr (%s); Ignoring ...", 
                                  val, mods[i]->mod_type);
-                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: %s\n", errortext);
+                    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: %s\n", errortext);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     rc = SLAPI_DSE_CALLBACK_ERROR;
                 }
@@ -352,7 +352,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica credentials */
 			if (agmt_set_credentials_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update credentials for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -365,7 +365,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica timeout */
 			if (agmt_set_timeout_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update timeout for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -378,7 +378,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica timeout */
 			if (agmt_set_flowcontrolwindow_from_entry(agmt, e) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
 						"failed to update the flow control window for agreement %s\n",
 						agmt_get_long_name(agmt));	
 				*returncode = LDAP_OPERATIONS_ERROR;
@@ -391,7 +391,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica timeout */
 			if (agmt_set_flowcontrolpause_from_entry(agmt, e) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
 						"failed to update the flow control pause for agreement %s\n",
 						agmt_get_long_name(agmt));	
 				*returncode = LDAP_OPERATIONS_ERROR;
@@ -404,7 +404,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica busywaittime */
 			if (agmt_set_busywaittime_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update busy wait time for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -417,7 +417,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica pausetime */
 			if (agmt_set_pausetime_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update session pause time for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -430,7 +430,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica Bind DN */
 			if (agmt_set_binddn_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update bind DN for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -442,7 +442,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica host */
 			if (agmt_set_host_from_entry(agmt, e) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 				                "agmtlist_modify_callback: "
 				                "failed to update host for agreement %s\n",
 				                agmt_get_long_name(agmt));
@@ -462,7 +462,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New replica port */
 			if (agmt_set_port_from_entry(agmt, e) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 				                "agmtlist_modify_callback: " 
 				                "failed to update port for agreement %s\n",
 				                agmt_get_long_name(agmt));	
@@ -482,7 +482,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New Transport info */
 			if (agmt_set_transportinfo_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update transport info for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -494,7 +494,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 		{
 			if (agmt_set_bind_method_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update bind method for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -508,7 +508,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New set of excluded attributes */
 			if (agmt_set_replicated_attributes_from_entry(agmt, e) != 0)
             {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                                 "failed to update replicated attributes for agreement %s\n",
                                 agmt_get_long_name(agmt));	
                 *returncode = LDAP_OPERATIONS_ERROR;
@@ -520,7 +520,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			{
 				/* Report the error to the client */
 				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attempt to exclude an illegal attribute in a fractional agreement");
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                             "attempt to exclude an illegal attribute in a fractional agreement\n");
 
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -537,7 +537,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			/* New set of excluded attributes */
 			if (agmt_set_replicated_attributes_total_from_entry(agmt, e) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: "
 								"failed to update total update replicated attributes for agreement %s\n",
 								agmt_get_long_name(agmt));
 				*returncode = LDAP_OPERATIONS_ERROR;
@@ -550,7 +550,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 				/* Report the error to the client */
 				PR_snprintf (errortext, SLAPI_DSE_RETURNTEXT_SIZE, "attempt to exclude an illegal total update "
 						"attribute in a fractional agreement");
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: "
 						"attempt to exclude an illegal total update attribute in a fractional agreement\n");
 
 				*returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -576,7 +576,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
         else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaEnabled))
         {
             if(agmt_set_enabled_from_entry(agmt, e, returntext) != 0){
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: "
                     "failed to set replica agmt state \"enabled/disabled\" for %s\n",agmt_get_long_name(agmt));
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -585,7 +585,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
         else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaStripAttrs))
         {
             if(agmt_set_attrs_to_strip(agmt, e) != 0){
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: "
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: "
                     "failed to set replica agmt attributes to strip for %s\n",agmt_get_long_name(agmt));
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -609,7 +609,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
                     PR_snprintf (returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                                  "attribute %s value (%s) is invalid, must be a number greater than zero.\n",
                                  type_replicaProtocolTimeout, val ? val : "");
-                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "attribute %s value (%s) is invalid, "
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "attribute %s value (%s) is invalid, "
                                     "must be a number greater than zero.\n",
                                     type_replicaProtocolTimeout, val ? val : "");
                     rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -629,7 +629,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
         else if ((0 == windows_handle_modify_agreement(agmt, mods[i]->mod_type, e)) &&
                  (0 == id_extended_agreement(agmt, mods, e)))
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                             "modification of %s attribute is not allowed\n", mods[i]->mod_type);
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -664,7 +664,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
     {
 		if (agmt_set_schedule_from_entry(agmt, e) != 0)
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_modify_callback: " 
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_modify_callback: " 
                             "failed to update replication schedule for agreement %s\n",
                             agmt_get_long_name(agmt));	
             *returncode = LDAP_OPERATIONS_ERROR;
@@ -689,12 +689,12 @@ agmtlist_delete_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
 	Repl_Agmt *ra;
 	Object *ro;
 
-	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_delete: begin\n");
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmt_delete: begin\n");
 	ro = objset_find(agmt_set, agmt_dn_cmp, (const void *)slapi_entry_get_sdn_const(e));
 	ra = (NULL == ro) ? NULL : (Repl_Agmt *)object_get_data(ro);
 	if (NULL == ra)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmtlist_delete: "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmtlist_delete: "
 			"Tried to delete replication agreement \"%s\", but no such "
 			"agreement was configured.\n", slapi_sdn_get_dn(slapi_entry_get_sdn_const(e)));
 	}
@@ -713,7 +713,7 @@ static int
 agmtlist_rename_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e,
 	int *returncode, char *returntext, void *arg)
 {
-	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_rename: begin\n");
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "agmt_rename: begin\n");
 
 	*returncode = LDAP_SUCCESS;
 	return SLAPI_DSE_CALLBACK_OK;
@@ -726,7 +726,7 @@ handle_agmt_search(Slapi_Entry *e, void *callback_data)
 	int *agmtcount = (int *)callback_data;
 	int rc;
 
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 		"Found replication agreement named \"%s\".\n",
 		slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
 	rc = add_new_agreement(e);
@@ -736,7 +736,7 @@ handle_agmt_search(Slapi_Entry *e, void *callback_data)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "The replication "
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "The replication "
 			"agreement named \"%s\" could not be correctly parsed. No "
 			"replication will occur with this replica.\n",
 			slapi_sdn_get_dn(slapi_entry_get_sdn(e)));
@@ -784,7 +784,7 @@ agmtlist_config_init()
 		NULL /* referral callback */);
 	slapi_pblock_destroy(pb);
 
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "agmtlist_config_init: found %d replication agreements in DIT\n", agmtcount);
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "agmtlist_config_init: found %d replication agreements in DIT\n", agmtcount);
 
 	return 0;
 }

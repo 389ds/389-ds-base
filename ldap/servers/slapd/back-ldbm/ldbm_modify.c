@@ -431,7 +431,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
 		              "ldbm_modify: instance \"%s\" does not exist.\n",
 		              inst ? inst->inst_name : "null instance");
 		goto error_return;
@@ -519,7 +519,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				ruv_c_init = 0;
 			}
 
-			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
+			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
 			               "Modify Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
@@ -568,7 +568,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				{
 					ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
                 			ldap_result_message = "Operation not allowed on tombstone entry.";
-					slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_modify",
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldbm_back_modify",
 						"Attempt to modify a tombstone entry %s\n",
 						slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
 					goto error_return;
@@ -617,7 +617,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
 				if (!ldap_result_code) {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm_back_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN "
+					LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN "
 						       "returned error but did not set SLAPI_RESULT_CODE\n");
 					ldap_result_code = LDAP_OPERATIONS_ERROR;
 				}
@@ -659,7 +659,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		/* call the transaction pre modify plugins just after creating the transaction */
 		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN);
 		if (retval) {
-			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
 						   "returned error code %d\n", retval );
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
@@ -683,7 +683,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		slapi_mods_init_byref(&smods,mods);
 		new_mod_count = slapi_mods_get_num_mods(&smods);
 		if (new_mod_count < mod_count) {
-			LDAPDebug2Args( LDAP_DEBUG_ANY, "Error: BE_TXN_PRE_MODIFY plugin has removed "
+			LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR, "Error: BE_TXN_PRE_MODIFY plugin has removed "
 							"mods from the original list - mod count was [%d] now [%d] "
 							"mods will not be applied - mods list changes must be done "
 							"in the BE_PRE_MODIFY plugin, not the BE_TXN_PRE_MODIFY\n",
@@ -830,7 +830,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	
 	/* call the transaction post modify plugins just before the commit */
 	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
-		LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
+		LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
 					   "returned error code %d\n", retval );
 		if (!ldap_result_code) {
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -895,7 +895,7 @@ error_return:
 			   keep track of a counter (usn, dna) may want to "rollback" the counter
 			   in this case */
 			if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
-				LDAPDebug1Arg( LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
+				LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
 							   "returned error code %d\n", retval );
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
@@ -922,7 +922,7 @@ error_return:
 		/* if ec was in cache, e was not - add back e */
 		if (e) {
 			if (CACHE_ADD( &inst->inst_cache, e, NULL ) < 0) {
-				LDAPDebug1Arg(LDAP_DEBUG_CACHE, "ldbm_modify: CACHE_ADD %s failed\n",
+				LDAPDebug1Arg(LDAP_DEBUG_CACHE, LOG_DEBUG, "ldbm_modify: CACHE_ADD %s failed\n",
 				              slapi_entry_get_dn(e->ep_entry));
 			}
 		}

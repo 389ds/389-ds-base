@@ -32,7 +32,7 @@
 /*
  * macros
  */
-#define MEMBEROF_PLUGIN_SUBSYSTEM   "memberof-plugin"   /* used for logging */
+#define MEMBEROF_PLUGIN_SUBSYSTEM "memberof-plugin"   /* used for logging */
 #define MEMBEROF_INT_PREOP_DESC "memberOf internal postop plugin"
 #define MEMBEROF_PREOP_DESC "memberof preop plugin"
 #define MEMBEROF_GROUP_ATTR "memberOfGroupAttr"

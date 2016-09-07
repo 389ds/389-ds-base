@@ -98,7 +98,7 @@ acl_get_ext (ext_type type, void *object)
 		void			*data;
 
 		if ( type >= ACL_EXT_ALL ) {
-			slapi_log_error ( SLAPI_LOG_ACL, plugin_name, 
+			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
 								"Invalid extension type:%d\n", type );
 			return NULL;
 		} 
@@ -147,7 +147,7 @@ aclext_alloc_lockarray ( )
 
 	for ( i = 0; i < ACLEXT_MAX_LOCKS; i++) {
 		if (NULL == (lock = PR_NewLock()) ) {
-			slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 			   "Unable to allocate locks used for private extension\n");
 			return 1;
 		}
@@ -196,7 +196,7 @@ acl_conn_ext_constructor ( void *object, void *parent )
 	struct acl_cblock *ext = NULL;
 	ext = (struct acl_cblock * ) slapi_ch_calloc (1, sizeof (struct acl_cblock ) );
 	if (( ext->aclcb_lock = aclext_get_lock () ) == NULL ) {
- 		slapi_log_error( SLAPI_LOG_FATAL, plugin_name,
+ 		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
               		"Unable to get Read/Write lock for CONNECTION extension\n");
 		slapi_ch_free ( (void **) &ext );
 		return NULL;
@@ -252,7 +252,7 @@ acl_operation_ext_constructor ( void *object, void *parent )
 
 	aclpb = acl__get_aclpb_from_pool();
 	if ( NULL == aclpb ) {
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 						"Operation extension allocation Failed\n");
 	}
 
@@ -286,7 +286,7 @@ acl_operation_ext_destructor ( void *ext, void *object, void *parent )
 		goto clean_aclpb;
 
 	if ( NULL == aclpb->aclpb_authorization_sdn ) {
-		slapi_log_error (SLAPI_LOG_FATAL, plugin_name, "NULL aclcb_autorization_sdn\n");
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "NULL aclcb_autorization_sdn\n");
 		goto clean_aclpb;
 	}
 
@@ -311,7 +311,7 @@ acl_operation_ext_destructor ( void *ext, void *object, void *parent )
 			goto clean_aclpb;
 		}
 		if ( !aclcb->aclcb_lock ) {
-			slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 			        "aclcb lock released! aclcb cache can't be refreshed\n");
 			PR_Unlock ( shared_lock );
 			goto clean_aclpb;
@@ -395,7 +395,7 @@ acl_get_aclpb (  Slapi_PBlock *pb, int type )
 	else if ( type == ACLPB_PROXYDN_PBLOCK )
 		return aclpb->aclpb_proxy;
 	else
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 						"acl_get_aclpb: Invalid aclpb type %d\n", type );
 	return NULL;
 }
@@ -565,7 +565,7 @@ acl__get_aclpb_from_pool(void)
 
 		aclQueue->aclq_nfree--;		
 	} else {
-		slapi_log_error ( SLAPI_LOG_ACL, plugin_name,
+		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 				"Unable to find a free aclpb\n");
 		aclpb = acl__malloc_aclpb ();
 	}
@@ -635,38 +635,38 @@ acl__malloc_aclpb(void)
 	
 	/* Now set the propert we need  for ACL evaluations */
 	if ((aclpb->aclpb_proplist = PListNew(NULL)) == NULL) {
-		 slapi_log_error (SLAPI_LOG_FATAL, plugin_name,
+		 slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 			    "Unable to allocate the aclprop PList\n");
 			goto error;
 	}
 
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_PROP_ACLPB, aclpb, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 					"Unable to set the ACL PBLOCK in the Plist\n");
 		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_USERDN, aclpb, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 					"Unable to set the USER DN in the Plist\n");
 		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_AUTHTYPE, aclpb, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 					"Unable to set the AUTH TYPE in the Plist\n");
 		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_LDAPI, aclpb, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 					"Unable to set the AUTH TYPE in the Plist\n");
 		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_ENTRY, aclpb, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 					"Unable to set the ENTRY TYPE in the Plist\n");
 		goto error;
 	}
 	if (PListInitProp(aclpb->aclpb_proplist, 0, DS_ATTR_SSF, aclpb, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 					"Unable to set the SSF in the Plist\n");
 		goto error;
 	}
@@ -681,7 +681,7 @@ acl__malloc_aclpb(void)
 	/* allocate the acleval struct */
 	aclpb->aclpb_acleval = (ACLEvalHandle_t *) ACL_EvalNew(NULL, NULL);
 	if (aclpb->aclpb_acleval == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 							"Unable to allocate the acleval block\n");
 		goto error;
 	}
@@ -807,7 +807,7 @@ acl_init_aclpb ( Slapi_PBlock *pb, Acl_PBlock *aclpb, const char *ndn, int copy_
 	
 
 	if ( NULL == aclpb ) {
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, "acl_init_aclpb:No ACLPB\n");
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "acl_init_aclpb:No ACLPB\n");
 		return;
 	}
 
@@ -834,26 +834,26 @@ acl_init_aclpb ( Slapi_PBlock *pb, Acl_PBlock *aclpb, const char *ndn, int copy_
 
 	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_USERDN,
 					slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn), 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 						"Unable to set the USER DN in the Plist\n");
 		return;
 	}
 	slapi_pblock_get ( pb, SLAPI_OPERATION_AUTHTYPE, &authType );
 	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_AUTHTYPE, authType, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 				"Unable to set the AUTH TYPE in the Plist\n");
 		return;
 	}
 	if(slapi_is_ldapi_conn(pb)){
 		if(PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_LDAPI, "yes", 0) < 0){
-			slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 					"Unable to set the AUTH TYPE in the Plist\n");
 			return;
 		}
 	}
 	slapi_pblock_get ( pb, SLAPI_OPERATION_SSF, &ssf);
 	if (PListAssignValue(aclpb->aclpb_proplist, DS_ATTR_SSF, (const void *)ssf, 0) < 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 				"Unable to set the SSF in the Plist\n");
 		return;
 	}
@@ -890,7 +890,7 @@ acl_init_aclpb ( Slapi_PBlock *pb, Acl_PBlock *aclpb, const char *ndn, int copy_
 		/* This could happen if the client is dead and we are in
 		** process of abondoning this operation
 		*/
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name,
+		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
 					"No CONNECTION extension\n");
 
 	} else if ( aclcb->aclcb_state == -1 ) {
@@ -959,7 +959,7 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 
 	/* Check the state */
 	if (aclpb->aclpb_state & ~ACLPB_STATE_ALL) {
-		slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 			   "The aclpb.state value (%d) is incorrect. Exceeded the limit (%d)\n",
 			   aclpb->aclpb_state, ACLPB_STATE_ALL);
 		dump_aclpb_info = 1;
@@ -974,7 +974,7 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 	aclg_reset_userGroup ( aclpb );
 
 	if ( aclpb->aclpb_res_type & ~ACLPB_RESTYPE_ALL ) {
-		slapi_log_error( SLAPI_LOG_FATAL, plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
 			   "The aclpb res_type value (%d) has exceeded. Limit is (%d)\n",
 				aclpb->aclpb_res_type, ACLPB_RESTYPE_ALL );
 		dump_aclpb_info = 1;
@@ -982,16 +982,16 @@ acl__done_aclpb ( struct acl_pblock *aclpb )
 
 	if ( dump_aclpb_info ) {
 		const char *ndn;
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
 							"ACLPB value is:%p\n", aclpb );
 	
 		ndn = slapi_sdn_get_ndn ( aclpb->aclpb_curr_entry_sdn );	
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, "curr_entry:%p  num_entries:%d curr_dn:%p\n", 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "curr_entry:%p  num_entries:%d curr_dn:%p\n", 
 				aclpb->aclpb_curr_entry ? (char *) aclpb->aclpb_curr_entry : "NULL", 
 				aclpb->aclpb_num_entries, 
 				ndn ? ndn : "NULL");
 
-		slapi_log_error ( SLAPI_LOG_FATAL, plugin_name, "Last attr:%p, Plist:%p acleval: %p\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Last attr:%p, Plist:%p acleval: %p\n",
 					aclpb->aclpb_Evalattr ? aclpb->aclpb_Evalattr : "NULL",
 					aclpb->aclpb_proplist ? (char *) aclpb->aclpb_proplist : "NULL",
 					aclpb->aclpb_acleval  ? (char *) aclpb->aclpb_acleval : "NULL" );
@@ -1162,24 +1162,24 @@ acl__dump_stats ( struct acl_pblock *aclpb , const char *block_type)
 	}
 
 	/* DUMP STAT INFO */
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
 			"**** ACL OPERATION STAT BEGIN ( aclpb:%p Block type: %s): Conn:%" PRIu64 " Operation:%d  *******\n",
 			aclpb, block_type, connid, opid );
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of entries scanned: %d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of entries scanned: %d\n",
 					aclpb->aclpb_stat_total_entries);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of times ACL List scanned: %d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of times ACL List scanned: %d\n",
 					aclpb->aclpb_stat_acllist_scanned);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of ACLs with target matched:%d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of ACLs with target matched:%d\n",
 					aclpb->aclpb_stat_num_tmatched_acls);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of times acl resource matched:%d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of times acl resource matched:%d\n",
 					aclpb->aclpb_stat_aclres_matched);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of times ANOM list scanned:%d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of times ANOM list scanned:%d\n",
 					aclpb->aclpb_stat_anom_list_scanned);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of times Context was copied:%d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of times Context was copied:%d\n",
 					aclpb->aclpb_stat_num_copycontext);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, "\tNumber of times Attrs was copied:%d\n",
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "\tNumber of times Attrs was copied:%d\n",
 					aclpb->aclpb_stat_num_copy_attrs);
-	slapi_log_error( SLAPI_LOG_ACL, plugin_name, " **** ACL OPERATION STAT END  *******\n");
+	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, " **** ACL OPERATION STAT END  *******\n");
 }
 #endif
 /****************************************************************************/

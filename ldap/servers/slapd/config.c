@@ -83,7 +83,7 @@ entry_has_attr_and_value(Slapi_Entry *e, const char *attrname,
 					}
 					else
 					{
-						slapi_log_error( SLAPI_LOG_FATAL, "bootstrap config",
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "bootstrap config",
 								"Ignoring extremely large value for"
 								" configuration attribute %s"
 								" (length=%ld, value=%40.40s...)\n",
@@ -129,7 +129,7 @@ slapd_bootstrap_config(const char *configdir)
 	char tmpfile[MAXPATHLEN+1];
 
 	if (NULL == configdir) {
-		slapi_log_error(SLAPI_LOG_FATAL,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
 						"startup", "Passed null config directory\n");
 		return rc; /* Fail */
 	}
@@ -146,7 +146,7 @@ slapd_bootstrap_config(const char *configdir)
 	if ( (rc = PR_GetFileInfo64( configfile, &prfinfo )) != PR_SUCCESS )
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, "config", "The given config file %s could not be accessed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config", "The given config file %s could not be accessed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 						configfile, prerr, slapd_pr_strerror(prerr));
 		return rc;
 	}
@@ -154,7 +154,7 @@ slapd_bootstrap_config(const char *configdir)
 							   SLAPD_DEFAULT_FILE_MODE )) == NULL )
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, "config", "The given config file %s could not be opened for reading, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config", "The given config file %s could not be opened for reading, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 						configfile, prerr, slapd_pr_strerror(prerr));
 		return rc; /* Fail */
 	}
@@ -164,7 +164,7 @@ slapd_bootstrap_config(const char *configdir)
 		buf = slapi_ch_malloc( prfinfo.size + 1 );
 		if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, "config", "Could only read %d of %ld bytes from config file %s\n",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "config", "Could only read %d of %ld bytes from config file %s\n",
 							nr, (long int)prfinfo.size, configfile);
 			rc = 0; /* Fail */
 			done= 1;
@@ -587,7 +587,7 @@ slapd_bootstrap_config(const char *configdir)
 			 *			if not explicilty set in the config file
 			 */
 			if ( config_set_storagescheme() ) {		/* default scheme plugin not loaded */
-				slapi_log_error(SLAPI_LOG_FATAL, "startup",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
 								"The default password storage scheme SSHA could not be read or was not found in the file %s. It is mandatory.\n",
 								configfile);
 				exit (1);

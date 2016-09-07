@@ -110,7 +110,7 @@ ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, in
             delta = val - inst->inst_cache.c_maxsize;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: cachememsize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY, "Error: cachememsize value is too large.\n");
+                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: cachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -152,7 +152,7 @@ ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, 
             delta = val - inst->inst_dncache.c_maxsize;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: dncachememsize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY,"Error: dncachememsize value is too large.\n");
+                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,"Error: dncachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -350,7 +350,7 @@ read_instance_index_entries(ldbm_instance *inst)
     basedn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                           inst->inst_name, inst->inst_li->li_plugin->plg_name); 
     if (NULL == basedn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "read_instance_index_entries: "
                        "failed create index dn for plugin %s, instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name); 
@@ -394,7 +394,7 @@ read_instance_attrcrypt_entries(ldbm_instance *inst)
     basedn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
                           inst->inst_name, inst->inst_li->li_plugin->plg_name); 
     if (NULL == basedn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "read_instance_attrcrypt_entries: "
                        "failed create encrypted attributes dn for plugin %s, "
                        "instance %s\n",
@@ -511,7 +511,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_config_load_dse_info: "
                        "failed create instance dn %s for plugin %s\n",
                        inst->inst_name, inst->inst_li->li_plugin->plg_name);
@@ -591,7 +591,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_config_load_dse_info: "
                        "failed create monitor instance dn for plugin %s, "
                        "instance %s\n",
@@ -616,7 +616,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_config_load_dse_info: "
                        "failed create index instance dn for plugin %s, "
                        "instance %s\n",
@@ -639,7 +639,7 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_config_load_dse_info: "
                        "failed create encrypted attribute instance dn "
                        "for plugin %s, instance %s\n",
@@ -992,7 +992,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_unregister_callbacks: "
                        "failed create instance dn for plugin %s, "
                        "instance %s\n",
@@ -1017,7 +1017,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_unregister_callbacks: "
                        "failed create monitor instance dn for plugin %s, "
                        "instance %s\n",
@@ -1036,7 +1036,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_unregister_callbacks: "
                        "failed create index dn for plugin %s, "
                        "instance %s\n",
@@ -1058,7 +1058,7 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_unregister_callbacks: "
                        "failed create encrypted attributes dn for plugin %s, "
                        "instance %s\n",
@@ -1156,7 +1156,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
                         }
                         PR_ASSERT(rc == 0);
                         if (rc != 0) {
-                            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                 "ldbm_instance_post_delete_instance_entry_callback:"
                                 " failed to delete %s\n", dbp);
                         }

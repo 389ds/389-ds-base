@@ -40,7 +40,7 @@ CSNPL* csnplNew ()
 	csnpl = (CSNPL *)slapi_ch_malloc (sizeof (CSNPL));
 	if (csnpl == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"csnplNew: failed to allocate pending list\n");
 		return NULL;
 	}
@@ -48,7 +48,7 @@ CSNPL* csnplNew ()
 	csnpl->csnList = llistNew ();
 	if (csnpl->csnList == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"csnplNew: failed to allocate pending list\n");
 		slapi_ch_free ((void**)&csnpl);
 		return NULL;	
@@ -59,7 +59,7 @@ CSNPL* csnplNew ()
 
 	if (csnpl->csnLock == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"csnplNew: failed to create lock; NSPR error - %d\n",
 						PR_GetError ());
 		slapi_ch_free ((void**)&(csnpl->csnList));
@@ -111,7 +111,7 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
 
 	if (csnpl == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 			"csnplInsert: invalid argument\n");
 		return -1;
 	}
@@ -143,7 +143,7 @@ int csnplInsert (CSNPL *csnpl, const CSN *csn)
 	{
 		char s[CSN_STRSIZE];		
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
                             "csnplInsert: failed to insert csn (%s) into pending list\n", csn_as_string(csn,PR_FALSE,s));
         }
 		return -1;
@@ -159,7 +159,7 @@ int csnplRemove (CSNPL *csnpl, const CSN *csn)
 
     if (csnpl == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 			"csnplRemove: invalid argument\n");
 		return -1;
 	}
@@ -193,7 +193,7 @@ int csnplCommit (CSNPL *csnpl, const CSN *csn)
 
     if (csnpl == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 			"csnplCommit: invalid argument\n");
 		return -1;
 	}
@@ -218,7 +218,7 @@ int csnplCommit (CSNPL *csnpl, const CSN *csn)
 		ReplicaId rid = csn_get_replicaid (csn);
 		if (rid < MAX_REPLICA_ID)
 		{
-	        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+	        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 			            "csnplCommit: can't find csn %s\n", csn_str);
 		}
 		slapi_rwlock_unlock (csnpl->csnLock);
@@ -329,12 +329,12 @@ static void _csnplDumpContentNoLock(CSNPL *csnpl, const char *caller)
     
     data = (csnpldata *)llistGetFirst(csnpl->csnList, &iterator);
 	if (data) {
-	    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s: CSN Pending list content:\n",
+	    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "%s: CSN Pending list content:\n",
                     caller ? caller : "");
 	}
     while (data)
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s, %s\n",                        
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "%s, %s\n",                        
                         csn_as_string(data->csn, PR_FALSE, csn_str),
                         data->committed ? "committed" : "not committed");
         data = (csnpldata *)llistGetNext (csnpl->csnList, &iterator);

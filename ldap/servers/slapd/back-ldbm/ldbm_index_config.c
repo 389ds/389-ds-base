@@ -388,7 +388,7 @@ int ldbm_instance_create_default_user_indexes(ldbm_instance *inst)
 	basedn = slapi_create_dn_string("cn=default indexes,cn=config,cn=%s,cn=plugins,cn=config", 
 										li->li_plugin->plg_name);
 	if (NULL == basedn) {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY,
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
 				      "ldbm_instance_create_default_user_indexes: "
 				      "failed create default index dn for plugin %s\n",
 				      inst->inst_li->li_plugin->plg_name);

@@ -111,7 +111,7 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 		/* entryrdn.db */
 		struct attrinfo *ai = NULL;
 		if (NULL == inst) {
-			LDAPDebug0Args(LDAP_DEBUG_ANY,
+			LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
 			               "dblayer_copy_file_keybykey(entryrdn), "
 			               "dup_cmp_fn cannot be retrieved since inst is NULL.\n");
 			goto error;
@@ -121,7 +121,7 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 			/* If set, use the special dup compare callback */
 			retval = destination_file->set_dup_compare(destination_file, ai->ai_dup_cmp_fn);
 			if (retval) {
-				LDAPDebug2Args(LDAP_DEBUG_ANY,
+				LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
 				               "dblayer_copy_file_keybykey(entryrdn), set_dup_compare error %d: %s\n",
 				               retval, db_strerror(retval));
 				goto error;
@@ -130,7 +130,7 @@ dblayer_copy_file_keybykey(DB_ENV *env,
 	} else if (idl_get_idl_new() && (dbflags & DB_DUP) && (dbflags & DB_DUPSORT)) {
 		retval = destination_file->set_dup_compare(destination_file, idl_new_compare_dups); 
 		if (retval) {
-			LDAPDebug2Args(LDAP_DEBUG_ANY,
+			LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
 			               "dblayer_copy_file_keybykey, set_dup_compare error %d: %s\n",
 			               retval, db_strerror(retval));
 			goto error;

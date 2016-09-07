@@ -178,7 +178,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         
         /* We are going to fill tmp_config in a first phase */
         if ((tmp_config = (attr_uniqueness_config_t *) slapi_ch_calloc(1, sizeof (attr_uniqueness_config_t))) == NULL) {
-                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "load_config failed to allocate configuration\n");
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "load_config failed to allocate configuration\n");
                 rc = SLAPI_PLUGIN_FAILURE;
                 goto done;
         } else {
@@ -209,7 +209,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                         tmp_config->attrs = (const char **) slapi_ch_calloc(i + 1, sizeof(char *));
                         for (i = 0; values && values[i]; i++) {
                                 tmp_config->attrs[i] = slapi_ch_strdup(values[i]);
-                                slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "Adding attribute %s to uniqueness set\n", tmp_config->attrs[i]);
+                                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "Adding attribute %s to uniqueness set\n", tmp_config->attrs[i]);
                         }
                         slapi_ch_array_free(values);
                         values = NULL;
@@ -224,7 +224,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                         /* copy the valid subtree DN into the config */
                         for (i = 0, nb_subtrees = 0; values && values[i]; i++) {
                                 if (slapi_dn_syntax_check(pb, values[i], 1)) { /* syntax check failed */
-                                        slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Invalid DN (skipped): %s\n", values[i]);
+                                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: Invalid DN (skipped): %s\n", values[i]);
                                         continue;
                                 }
                                 tmp_config->subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(values[i]);
@@ -245,7 +245,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                         /* copy the valid subtree DN into the config */
                         for (i = 0, nb_subtrees = 0; values && values[i]; i++) {
                                 if (slapi_dn_syntax_check(pb, values[i], 1)) { /* syntax check failed */
-                                        slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Invalid DN (skipped): %s\n", values[i]);
+                                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: Invalid DN (skipped): %s\n", values[i]);
                                         continue;
                                 }
                                 tmp_config->exclude_subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(values[i]);
@@ -275,7 +275,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                 /* using the old style of configuration */
                 result = getArguments(pb, &attrName, &markerObjectClass, &requiredObjectClass);
                 if (LDAP_OPERATIONS_ERROR == result) {
-                        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "Config fail: unable to parse old style\n");
+                        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "Config fail: unable to parse old style\n");
                         rc = SLAPI_PLUGIN_FAILURE;
                         goto done;
                 
@@ -293,7 +293,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                          */
                         
                         if (slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc) || slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv)) {
-                                slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "Config fail: Only attribute name is valid\n");
+                                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "Config fail: Only attribute name is valid\n");
                                 rc = SLAPI_PLUGIN_FAILURE;
                                 goto done;
                         }
@@ -307,7 +307,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                         /* Store the subtrees */
                         nb_subtrees = 0;
                         if ((tmp_config->subtrees = (Slapi_DN **) slapi_ch_calloc(argc + 1, sizeof (Slapi_DN *))) == NULL) {
-                                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Fail to allocate subtree array\n");
+                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: Fail to allocate subtree array\n");
                                 rc = SLAPI_PLUGIN_FAILURE;
                                 goto done;
                         }
@@ -315,7 +315,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
 
                         for (; argc > 0; argc--, argv++) {
                                 if (slapi_dn_syntax_check(pb, *argv, 1)) { /* syntax check failed */
-                                        slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: Invalid DN  (skipped): %s\n", *argv);
+                                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: Invalid DN  (skipped): %s\n", *argv);
                                         continue;
                                 }
                                 tmp_config->subtrees[nb_subtrees] = slapi_sdn_new_dn_byval(*argv);
@@ -360,7 +360,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         /* Time to check that the new configuration is valid */
         /* Check that we have 1 or more value */
         if (tmp_config->attrs == NULL) {
-                slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "Config info: attribute name not defined \n");
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: attribute name not defined \n");
                 rc = SLAPI_PLUGIN_FAILURE;
                 goto done;
         }
@@ -381,13 +381,13 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         if (tmp_config->subtrees == NULL) {
                 /* Uniqueness is enforced on entries matching objectclass */
                 if (tmp_config->subtree_entries_oc == NULL) {
-                        slapi_log_error( SLAPI_LOG_FATAL, plugin_name, "Config info: objectclass for subtree entries is not defined\n");
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: objectclass for subtree entries is not defined\n");
                         rc = SLAPI_PLUGIN_FAILURE;
                         goto done;
                 }
         } else if (tmp_config->subtrees[0] == NULL) {
                 /* Uniqueness is enforced on subtrees but none are defined */
-                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "Config info: No valid subtree is defined \n");
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Config info: No valid subtree is defined \n");
                 rc = SLAPI_PLUGIN_FAILURE;
                 goto done;
         }
@@ -424,9 +424,10 @@ static int
 uid_op_error(int internal_error)
 {
   slapi_log_error(
-	SLAPI_LOG_PLUGIN, 
-	plugin_name, 
-	"Internal error: %d\n", 
+	SLAPI_LOG_PLUGIN,
+	LOG_DEBUG,
+	plugin_name,
+	"Internal error: %d\n",
 	internal_error);
 
   return LDAP_OPERATIONS_ERROR;
@@ -577,7 +578,7 @@ search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
 
 #ifdef DEBUG
     /* Fix this later to print all the attr names */
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
                     "SEARCH baseDN=%s attr=%s target=%s\n", slapi_sdn_get_dn(baseDN), attrNames[0], 
                     target?slapi_sdn_get_dn(target):"None");
 #endif
@@ -619,7 +620,7 @@ search(Slapi_DN *baseDN, const char **attrNames, Slapi_Attr *attr,
   }
 
 #ifdef DEBUG
-  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
     "SEARCH result = %d\n", result);
 #endif
 
@@ -655,7 +656,7 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames,
       filter = create_filter(attrNames, value, requiredObjectClass);
 
 #ifdef DEBUG
-      slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+      slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
         "SEARCH filter=%s\n", filter);
 #endif
 
@@ -687,7 +688,7 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames,
       for(;*entries;entries++)
       {
 #ifdef DEBUG
-        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
                         "SEARCH entry dn=%s\n", slapi_entry_get_dn(*entries));
 #endif
 
@@ -723,7 +724,7 @@ search_one_berval(Slapi_DN *baseDN, const char **attrNames,
       }
 
 #ifdef DEBUG
-      slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+      slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
         "SEARCH complete result=%d\n", result);
 #endif
     END
@@ -947,7 +948,7 @@ preop_add(Slapi_PBlock *pb)
   char * attr_friendly = NULL;
 
 #ifdef DEBUG
-  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD begin\n");
+  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "ADD begin\n");
 #endif
 
   result = LDAP_SUCCESS;
@@ -978,7 +979,7 @@ preop_add(Slapi_PBlock *pb)
         }
         slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
         if (config == NULL) {
-                slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "preop_modrdn fail to retrieve the config\n");
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "preop_modrdn fail to retrieve the config\n");
                 result = LDAP_OPERATIONS_ERROR;
                 break;
         }            
@@ -998,7 +999,7 @@ preop_add(Slapi_PBlock *pb)
     if (err) { result = uid_op_error(51); break; }
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "ADD target=%s\n", slapi_sdn_get_dn(sdn));
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "ADD target=%s\n", slapi_sdn_get_dn(sdn));
 #endif
 
        /*
@@ -1049,7 +1050,7 @@ preop_add(Slapi_PBlock *pb)
 
   if (result)
   {
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
       "ADD result %d\n", result);
 
     if (result == LDAP_CONSTRAINT_VIOLATION) {
@@ -1100,7 +1101,7 @@ preop_modify(Slapi_PBlock *pb)
   char *attr_friendly = NULL;
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
       "MODIFY begin\n");
 #endif
 
@@ -1128,7 +1129,7 @@ preop_modify(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
     if (config == NULL) {
-            slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "preop_modrdn fail to retrieve the config\n");
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "preop_modrdn fail to retrieve the config\n");
             result = LDAP_OPERATIONS_ERROR;
             break;
     }    
@@ -1216,7 +1217,7 @@ preop_modify(Slapi_PBlock *pb)
   freePblock(spb);
  if (result)
   {
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
       "MODIFY result %d\n", result);
 
     if (result == LDAP_CONSTRAINT_VIOLATION) {
@@ -1252,7 +1253,7 @@ preop_modrdn(Slapi_PBlock *pb)
   struct attr_uniqueness_config *config = NULL;
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
       "MODRDN begin\n");
 #endif
 
@@ -1280,7 +1281,7 @@ preop_modrdn(Slapi_PBlock *pb)
 
        slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &config);
        if (config == NULL) {
-               slapi_log_error(SLAPI_LOG_FATAL, plugin_name, "preop_modrdn fail to retrieve the config\n");
+               slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "preop_modrdn fail to retrieve the config\n");
                result = LDAP_OPERATIONS_ERROR;
                break;
        }
@@ -1316,7 +1317,7 @@ preop_modrdn(Slapi_PBlock *pb)
     err = slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &rdn);
     if (err) { result = uid_op_error(33); break; }
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
       "MODRDN newrdn=%s\n", rdn);
 #endif
 
@@ -1383,7 +1384,7 @@ preop_modrdn(Slapi_PBlock *pb)
 
   if (result)
   {
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
       "MODRDN result %d\n", result);
 
     if (result == LDAP_CONSTRAINT_VIOLATION) {
@@ -1498,11 +1499,11 @@ NSUniqueAttr_Init(Slapi_PBlock *pb)
   END
 
   if (err) {
-    slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init", "Error: %d\n", err);
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "NSUniqueAttr_Init", "Error: %d\n", err);
     err = -1;
   }
   else
-    slapi_log_error(SLAPI_LOG_PLUGIN, "NSUniqueAttr_Init", "plugin loaded\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "NSUniqueAttr_Init", "plugin loaded\n");
 
   return err;
 }

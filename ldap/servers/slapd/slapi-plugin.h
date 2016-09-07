@@ -31,6 +31,7 @@ extern "C" {
 #include "ldap.h"
 #include "prprf.h"
 #include "nspr.h"
+#include <syslog.h>
 NSPR_API(PRUint32) PR_snprintf(char *out, PRUint32 outlen, const char *fmt, ...)
 #ifdef __GNUC__ 
         __attribute__ ((format (printf, 3, 4)));
@@ -6061,9 +6062,9 @@ int slapi_register_plugin_ext( const char *plugintype, int enabled,
 /*
  * logging
  */
-int slapi_log_error( int severity, char *subsystem, char *fmt, ... )
+int slapi_log_error( int loglevel, int severity, char *subsystem, char *fmt, ... )
 #ifdef __GNUC__ 
-        __attribute__ ((format (printf, 3, 4)));
+        __attribute__ ((format (printf, 4, 5)));
 #else
         ;
 #endif

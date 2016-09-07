@@ -441,7 +441,7 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 
 	uniqueid = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_UNIQUEID);
 	if (uniqueid == NULL) {
-		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, 
 			"Retro Changelog does not provied nsuniquedid."
 			"Check RCL plugin configuration.\n" );
 		return(1);
@@ -449,14 +449,14 @@ sync_read_entry_from_changelog( Slapi_Entry *cl_entry, void *cb_data)
 	chgnr = sync_get_attr_value_from_entry (cl_entry, CL_ATTR_CHANGENUMBER);
 	chgnum = sync_number2ulong(chgnr);
 	if (SYNC_INVALID_CHANGENUM == chgnum) {
-		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, 
 			"Change number provided by Retro Changelog is invalid: %s\n", chgnr);
 		slapi_ch_free_string(&chgnr);
 		slapi_ch_free_string(&uniqueid);
 		return(1);
 	}
 	if (chgnum < cb->change_start) {
-		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, 
 			"Change number provided by Retro Changelog %s is less than the initial number %lu\n",
 			chgnr, cb->change_start);
 		slapi_ch_free_string(&chgnr);

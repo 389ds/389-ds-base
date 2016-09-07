@@ -51,7 +51,7 @@ syntax_matching_rule_plugin_init(
 
 	slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv);
 	if (!argv || !argv[0]) {
-		slapi_log_error(SLAPI_LOG_FATAL, "syntax_matching_rule_plugin_init",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "syntax_matching_rule_plugin_init",
 						"Error: matching rule plugin name not specified\n");
 		return rc;
 	}
@@ -77,7 +77,7 @@ syntax_matching_rule_plugin_init(
 	}
 
 	if (!mrpd) {
-		slapi_log_error(SLAPI_LOG_FATAL, "syntax_matching_rule_plugin_init",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "syntax_matching_rule_plugin_init",
 						"Error: matching rule plugin name [%s] not found\n",
 						argv[0]);
 	} else {

@@ -339,7 +339,7 @@ int slapi_add_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **attrs
 
 	if (pb == NULL || dn == NULL || attrs == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, NULL, "slapi_add_internal_set_pb: invalid argument\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, NULL, "slapi_add_internal_set_pb: invalid argument\n");
 		return LDAP_PARAM_ERROR;
 	}
 
@@ -361,7 +361,7 @@ void slapi_add_entry_internal_set_pb (Slapi_PBlock *pb, Slapi_Entry *e, LDAPCont
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || e == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, NULL, "slapi_add_entry_internal_set_pb: invalid argument\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, NULL, "slapi_add_entry_internal_set_pb: invalid argument\n");
 		return;
 	}
 

@@ -37,7 +37,7 @@ acct_policy_dn_is_config(Slapi_DN *sdn)
 {
     int ret = 0;
 
-    slapi_log_error(SLAPI_LOG_TRACE, PLUGIN_NAME,
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, PLUGIN_NAME,
                     "--> automember_dn_is_config\n");
 
     if (sdn == NULL) {
@@ -61,7 +61,7 @@ acct_policy_dn_is_config(Slapi_DN *sdn)
     }
 
 bail:
-    slapi_log_error(SLAPI_LOG_TRACE, PLUGIN_NAME,
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, PLUGIN_NAME,
                     "<-- automember_dn_is_config\n");
 
     return ret;
@@ -83,17 +83,17 @@ acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, a
 	cfg = get_config();
 	if( ( lasttimestr = get_attr_string_val( target_entry,
 		cfg->state_attr_name ) ) != NULL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 			"\"%s\" login timestamp is %s\n", dn, lasttimestr );
 	} else if( cfg->alt_state_attr_name && (( lasttimestr = get_attr_string_val( target_entry,
 		cfg->alt_state_attr_name ) ) != NULL) ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 			"\"%s\" alternate timestamp is %s\n", dn, lasttimestr );
 	} else {
 		/* the primary or alternate attribute might not yet exist eg. 
 		 * if only lastlogintime is specified and it id the first login
 		 */
-		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 			"\"%s\" has no value for stateattr or altstateattr \n", dn );
 		goto done;
 	}
@@ -104,13 +104,13 @@ acct_inact_limit( Slapi_PBlock *pb, const char *dn, Slapi_Entry *target_entry, a
 
 	/* Finally do the time comparison */
 	if( cur_t > last_t + lim_t ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 			"\"%s\" has exceeded inactivity limit  (%ld > (%ld + %ld))\n",
 			dn, cur_t, last_t, lim_t );
 		rc = 1;
 		goto done;
 	} else {
-		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 			"\"%s\" is within inactivity limit (%ld < (%ld + %ld))\n",
 			dn, cur_t, last_t, lim_t );
 	}
@@ -184,13 +184,13 @@ acct_record_login( const char *dn )
 	slapi_pblock_get( modpb, SLAPI_PLUGIN_INTOP_RESULT, &ldrc );
 
 	if (ldrc != LDAP_SUCCESS) {
-		slapi_log_error( SLAPI_LOG_FATAL, POST_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, POST_PLUGIN_NAME,
 			"Recording %s=%s failed on \"%s\" err=%d\n", cfg->always_record_login_attr,
 			timestr, dn, ldrc );
 		rc = -1;
 		goto done;
 	} else {
-		slapi_log_error( SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, POST_PLUGIN_NAME,
 			"Recorded %s=%s on \"%s\"\n", cfg->always_record_login_attr, timestr, dn );
 	}
 
@@ -216,14 +216,14 @@ acct_bind_preop( Slapi_PBlock *pb )
 	acctPolicy *policy = NULL;
 	void *plugin_id;
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 		"=> acct_bind_preop\n" );
 
 	plugin_id = get_identity();
 
 	/* This does not give a copy, so don't free it */
 	if( slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &sdn ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRE_PLUGIN_NAME,
 			"Error retrieving target DN\n" );
 		rc = -1;
 		goto done;
@@ -242,7 +242,7 @@ acct_bind_preop( Slapi_PBlock *pb )
 	if( ldrc != LDAP_SUCCESS ) {
 		if( ldrc != LDAP_NO_SUCH_OBJECT ) {
 			/* The problem is not a bad bind or virtual entry; halt bind */
-			slapi_log_error( SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRE_PLUGIN_NAME,
 				"Failed to retrieve entry \"%s\": %d\n", dn, ldrc );
 			rc = -1;
 		}
@@ -250,7 +250,7 @@ acct_bind_preop( Slapi_PBlock *pb )
 	}
 
 	if( get_acctpolicy( pb, target_entry, plugin_id, &policy ) ) {
-		slapi_log_error( SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRE_PLUGIN_NAME,
 			"Account Policy object for \"%s\" is missing\n", dn );
 		rc = -1;
 		goto done;
@@ -258,7 +258,7 @@ acct_bind_preop( Slapi_PBlock *pb )
 
 	/* Null policy means target isnt's under the influence of a policy */
 	if( policy == NULL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 			"\"%s\" is not governed by an account policy\n", dn);
 		goto done;
 	}
@@ -278,7 +278,7 @@ done:
 
 	free_acctpolicy( &policy );
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 		"<= acct_bind_preop\n" );
 
 	return( rc == 0 ? CALLBACK_OK : CALLBACK_ERR );
@@ -300,14 +300,14 @@ acct_bind_postop( Slapi_PBlock *pb )
 	acctPluginCfg *cfg;
 	void *plugin_id;
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, POST_PLUGIN_NAME,
 		"=> acct_bind_postop\n" );
 
 	plugin_id = get_identity();
 
 	/* Retrieving SLAPI_CONN_DN from the pb gives a copy */
 	if( slapi_pblock_get( pb, SLAPI_CONN_DN, &dn ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, POST_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, POST_PLUGIN_NAME,
 			"Error retrieving bind DN\n" );
 		rc = -1;
 		goto done;
@@ -330,7 +330,7 @@ acct_bind_postop( Slapi_PBlock *pb )
 			plugin_id );
 
 		if( ldrc != LDAP_SUCCESS ) {
-			slapi_log_error( SLAPI_LOG_FATAL, POST_PLUGIN_NAME,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, POST_PLUGIN_NAME,
 				"Failed to retrieve entry \"%s\": %d\n", dn, ldrc );
 			rc = -1;
 			goto done;
@@ -360,7 +360,7 @@ done:
 
 	slapi_ch_free_string( &dn );
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, POST_PLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, POST_PLUGIN_NAME,
 		"<= acct_bind_postop\n" );
 
 	return( rc == 0 ? CALLBACK_OK : CALLBACK_ERR );
@@ -376,7 +376,7 @@ static int acct_pre_op( Slapi_PBlock *pb, int modop )
 	char *errstr = NULL;
 	int ret = SLAPI_PLUGIN_SUCCESS;
 
-	slapi_log_error(SLAPI_LOG_TRACE, PRE_PLUGIN_NAME, "--> acct_pre_op\n");
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, PRE_PLUGIN_NAME, "--> acct_pre_op\n");
 
 	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
 
@@ -421,7 +421,7 @@ static int acct_pre_op( Slapi_PBlock *pb, int modop )
 			}
 		} else if (modop == LDAP_CHANGETYPE_DELETE){
 				ret = LDAP_UNWILLING_TO_PERFORM;
-				slapi_log_error(SLAPI_LOG_FATAL, PRE_PLUGIN_NAME,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRE_PLUGIN_NAME,
 					"acct_pre_op: can not delete plugin config entry [%d]\n", ret);
 		} else {
 			errstr = slapi_ch_smprintf("acct_pre_op: invalid op type %d", modop);
@@ -441,7 +441,7 @@ static int acct_pre_op( Slapi_PBlock *pb, int modop )
 		slapi_entry_free(e);
 
 	if (ret) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PRE_PLUGIN_NAME,
 						"acct_pre_op: operation failure [%d]\n", ret);
 		slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
 		slapi_ch_free((void **)&errstr);
@@ -449,7 +449,7 @@ static int acct_pre_op( Slapi_PBlock *pb, int modop )
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, PRE_PLUGIN_NAME, "<-- acct_pre_op\n");
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, PRE_PLUGIN_NAME, "<-- acct_pre_op\n");
 
 	return ret;
 }
@@ -477,19 +477,19 @@ acct_post_op(Slapi_PBlock *pb)
 {
 	Slapi_DN *sdn = NULL;
 
-	slapi_log_error(SLAPI_LOG_TRACE, POST_PLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, POST_PLUGIN_NAME,
 		"--> acct_policy_post_op\n");
 
 	slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
 	if (acct_policy_dn_is_config(sdn)){
 		if( acct_policy_load_config_startup( pb, get_identity() ) ) {
-			slapi_log_error( SLAPI_LOG_FATAL, PLUGIN_NAME,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PLUGIN_NAME,
 				"acct_policy_start failed to load configuration\n" );
 			return( CALLBACK_ERR );
 		}
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, POST_PLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, POST_PLUGIN_NAME,
 		"<-- acct_policy_mod_post_op\n");
 
 	return SLAPI_PLUGIN_SUCCESS;

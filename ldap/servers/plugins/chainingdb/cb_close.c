@@ -72,7 +72,7 @@ int cb_back_close( Slapi_PBlock *pb )
 	{
 		const char *betype = slapi_be_gettype(be);
 		if (!betype || strcasecmp(betype,CB_CHAINING_BACKEND_TYPE)) {
-			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM, "Wrong database type.\n");
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, "Wrong database type.\n");
 			free_cb_backend(cb);
 			return 0;
 		}
@@ -81,7 +81,7 @@ int cb_back_close( Slapi_PBlock *pb )
 	inst = cb_get_instance(be);
 	CB_ASSERT( inst != NULL );
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"Stopping chaining database instance %s\n",
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,"Stopping chaining database instance %s\n",
 			inst->configDn);
 	/*
 	 * emulate a backend instance deletion to clean up everything

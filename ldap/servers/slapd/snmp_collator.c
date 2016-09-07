@@ -369,7 +369,7 @@ int snmp_collator_start()
   {
     if (err != EEXIST)      /* Ignore if file already exists */
     {
-      slapi_log_error(SLAPI_LOG_FATAL, "snmp collator", "Failed to open stats file (%s) "
+      slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "snmp collator", "Failed to open stats file (%s) "
                       "(error %d): %s.\n", szStatsFile, err, slapd_system_strerror(err));
       exit(1);
     }
@@ -494,7 +494,7 @@ snmp_collator_sem_wait(void)
     int got_sem = 0;
 
     if (SEM_FAILED == stats_sem) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
            "semaphore for stats file (%s) is not available.\n", szStatsFile);
         return;
     }

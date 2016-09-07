@@ -25,7 +25,7 @@ init_features( void )
 {
     supported_features_lock = slapi_new_rwlock();
     if (supported_features_lock == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, "startup",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
             "init_features: failed to create lock.\n");
         exit(1);
     }

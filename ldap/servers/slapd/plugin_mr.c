@@ -78,7 +78,7 @@ plugin_mr_find( const char *nameoroid )
 	}
 
 	if (nameoroid && !pi) {
-		slapi_log_error(SLAPI_LOG_CONFIG, "plugin_mr_find",
+		slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, "plugin_mr_find",
 						"Error: matching rule plugin for [%s] not found\n", nameoroid);
 	}
 
@@ -281,9 +281,9 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock* pb)
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals); /* make sure output is cleared */
 	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
 	if (!pi) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "mr_wrap_mr_index_sv_fn: error - no plugin specified\n");
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "mr_wrap_mr_index_sv_fn: error - no plugin specified\n");
 	} else if (!pi->plg_mr_values2keys) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "mr_wrap_mr_index_sv_fn: error - plugin has no plg_mr_values2keys function\n");
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "mr_wrap_mr_index_sv_fn: error - plugin has no plg_mr_values2keys function\n");
 	} else {
 		struct mr_private *mrpriv = NULL;
 		int ftype = plugin_mr_get_type(pi);
@@ -412,7 +412,7 @@ default_mr_filter_index(Slapi_PBlock *pb)
 		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID);
 		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
 
-		slapi_log_error(SLAPI_LOG_FATAL, "default_mr_filter_index",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "default_mr_filter_index",
 				"Failure because mrpriv is NULL : %s %s\n",
 				mrOID ? "" : " oid",
 				mrTYPE ? "" : " attribute type");
@@ -443,7 +443,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 	struct berval* mrVALUE = NULL;
 	struct slapdplugin* pi = NULL;
 
-	LDAPDebug0Args(LDAP_DEBUG_FILTER, "=> default_mr_filter_create\n");
+	LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> default_mr_filter_create\n");
 
 	if (!slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID) && mrOID != NULL &&
 		!slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE) && mrTYPE != NULL &&
@@ -453,13 +453,13 @@ default_mr_filter_create(Slapi_PBlock *pb)
 		struct mr_private *mrpriv = NULL;
 		int ftype = 0;
 
-		LDAPDebug2Args(LDAP_DEBUG_FILTER, "=> default_mr_filter_create(oid %s; type %s)\n",
+		LDAPDebug2Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> default_mr_filter_create(oid %s; type %s)\n",
 					   mrOID, mrTYPE);
 
 		/* check to make sure this create function is supposed to be used with the
 		   given oid */
 		if (!charray_inlist(pi->plg_mr_names, mrOID)) {
-			LDAPDebug2Args(LDAP_DEBUG_FILTER,
+			LDAPDebug2Args(LDAP_DEBUG_FILTER, LOG_DEBUG,
 						   "=> default_mr_filter_create: cannot use matching rule %s with plugin %s\n",
 						   mrOID, pi->plg_name);
 			goto done;
@@ -484,7 +484,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 			   reason is that the API provides no way to pass in the search time limit
 			   required by the syntax filter substring match functions
 			*/
-			LDAPDebug1Arg(LDAP_DEBUG_FILTER, "<= default_mr_filter_create - unsupported filter type %d\n",
+			LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= default_mr_filter_create - unsupported filter type %d\n",
 						  ftype);
 			goto done;
 		}
@@ -537,7 +537,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 	}
 
 done:
-	LDAPDebug1Arg(LDAP_DEBUG_FILTER, "=> default_mr_filter_create: %d\n", rc);
+	LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> default_mr_filter_create: %d\n", rc);
 
 	return rc;
 }
@@ -659,7 +659,7 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 
 	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
 	if (NULL == pi) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "default_mr_indexer_create: error - no plugin specified\n");
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "default_mr_indexer_create: error - no plugin specified\n");
 		goto done;
 	}
 	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &oid);
@@ -667,14 +667,14 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 	 * MR plugin. We need to check the selected plugin handle the expected OID
 	 */
 	if ( oid == NULL || !charray_inlist(pi->plg_mr_names, oid)) {
-	    LDAPDebug2Args(LDAP_DEBUG_ANY, "default_mr_indexer_create: warning - plugin [%s] does not handle %s\n",
+	    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "default_mr_indexer_create: warning - plugin [%s] does not handle %s\n",
 		    pi->plg_name,
 		    oid ? oid : "unknown oid");
 	    goto done;
 	}
 
 	if (NULL == pi->plg_mr_values2keys) {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY, "default_mr_indexer_create: error - plugin [%s] has no plg_mr_values2keys function\n",
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "default_mr_indexer_create: error - plugin [%s] has no plg_mr_values2keys function\n",
 					  pi->plg_name);
 		goto done;
 	}

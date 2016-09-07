@@ -194,7 +194,7 @@ static PRBool MY_TestAndEnterMonitor(MY_PRMonitor *mon)
     PR_ASSERT(mon != NULL);
     rv = pthread_mutex_lock(&mon->lock);
     if (rv != 0) {
-	slapi_log_error(SLAPI_LOG_FATAL ,"TestAndEnterMonitor",
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "TestAndEnterMonitor",
                         "Failed to acquire monitor mutex, error (%d)\n", rv);
 	return rc;
     }
@@ -203,7 +203,7 @@ static PRBool MY_TestAndEnterMonitor(MY_PRMonitor *mon)
             goto done;
         rv = pthread_mutex_unlock(&mon->lock);
 	if (rv != 0) {
-	    slapi_log_error(SLAPI_LOG_FATAL ,"TestAndEnterMonitor",
+	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"TestAndEnterMonitor",
                         "Failed to release monitor mutex, error (%d)\n", rv);
 	}
         return PR_FALSE;
@@ -219,7 +219,7 @@ done:
     if (rv == PR_SUCCESS) {
 	rc = PR_TRUE;
     } else {
-	slapi_log_error(SLAPI_LOG_FATAL ,"TestAndEnterMonitor",
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"TestAndEnterMonitor",
                         "Failed to release monitor mutex, error (%d)\n", rv);
 	rc = PR_FALSE;
     }
@@ -741,7 +741,7 @@ handle_listeners(Connection_Table *ct)
 				/* accept() the new connection, put it on the active list for handle_pr_read_ready */
 				int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local, NULL);
 				if (rc) {
-					LDAPDebug1Arg(LDAP_DEBUG_CONNS, "Error accepting new connection listenfd=%d\n",
+					LDAPDebug1Arg(LDAP_DEBUG_CONNS, LOG_DEBUG, "Error accepting new connection listenfd=%d\n",
 					              PR_FileDesc2NativeHandle(listenfd));
 					continue;
 				}
@@ -806,7 +806,7 @@ convert_pbe_des_to_aes(void)
          * Find any entries in cn=config that contain DES passwords and convert
          * them to AES
          */
-        slapi_log_error(SLAPI_LOG_HOUSE,  "convert_pbe_des_to_aes",
+        slapi_log_error(SLAPI_LOG_HOUSE, LOG_DEBUG,  "convert_pbe_des_to_aes",
                 "Converting DES passwords to AES...\n");
 
         for (i = 0; attrs && attrs[i]; i++){
@@ -835,7 +835,7 @@ convert_pbe_des_to_aes(void)
 
                         /* decode the DES password */
                         if(pw_rever_decode(val, &passwd, attrs[i]) == -1){
-                            slapi_log_error(SLAPI_LOG_FATAL ,"convert_pbe_des_to_aes",
+                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"convert_pbe_des_to_aes",
                                     "Failed to decode existing DES password for (%s)\n",
                                     slapi_entry_get_dn(entries[ii]));
                             rc = -1;
@@ -845,7 +845,7 @@ convert_pbe_des_to_aes(void)
                         if (rc == 0){
                             sval = slapi_value_new_string(passwd);
                             if(pw_rever_encode(&sval, attrs[i]) == -1){
-                                slapi_log_error(SLAPI_LOG_FATAL, "convert_pbe_des_to_aes",
+                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "convert_pbe_des_to_aes",
                                         "failed to encode AES password for (%s)\n",
                                         slapi_entry_get_dn(entries[ii]));
                                 rc = -1;
@@ -869,11 +869,11 @@ convert_pbe_des_to_aes(void)
 
                             slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
                             if (LDAP_SUCCESS != result) {
-                                slapi_log_error(SLAPI_LOG_FATAL, "convert_pbe_des_to_aes"
+                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "convert_pbe_des_to_aes"
                                         "Failed to convert password for (%s) error (%d)\n",
                                         slapi_entry_get_dn(entries[ii]), result);
                             } else {
-                                slapi_log_error(SLAPI_LOG_HOUSE, "convert_pbe_des_to_aes",
+                                slapi_log_error(SLAPI_LOG_HOUSE, LOG_DEBUG, "convert_pbe_des_to_aes",
                                         "Successfully converted password for (%s)\n",
                                          slapi_entry_get_dn(entries[ii]));
                                 converted_des_passwd = 1;
@@ -892,7 +892,7 @@ convert_pbe_des_to_aes(void)
             slapi_ch_free_string(&filter);
         }
         if (!converted_des_passwd){
-            slapi_log_error(SLAPI_LOG_HOUSE, "convert_pbe_des_to_aes",
+            slapi_log_error(SLAPI_LOG_HOUSE, LOG_DEBUG, "convert_pbe_des_to_aes",
                 "No DES passwords found to convert.\n");
         }
     }
@@ -914,7 +914,7 @@ ns_disable_listener(listener_info *listener)
 	/* add the listener to our list of disabled listeners */
 	PR_StackPush(ns_disabled_listeners, (PRStackElem *)listener);
 	PR_AtomicIncrement(&num_disabled_listeners);
-	LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_disable_listener: "
+	LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ns_disable_listener: "
 	               "disabling listener for fd [%d]: [%d] now disabled\n",
 	               PR_FileDesc2NativeHandle(listener->listenfd),
 	               num_disabled_listeners);
@@ -937,7 +937,7 @@ ns_enable_listeners()
 		num_enabled++;
 	}
 	if (num_enabled) {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY, "ns_enable_listeners: "
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "ns_enable_listeners: "
 		              "enabled [%d] listeners\n", num_enabled);
 	}
 #endif
@@ -1078,7 +1078,7 @@ void slapd_daemon( daemon_ports_t *ports )
      */
     if( config_get_disk_monitoring() ){
         if ( ( diskmon_mutex = PR_NewLock() ) == NULL ) {
-            slapi_log_error(SLAPI_LOG_FATAL, NULL,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
                 "Cannot create new lock for disk space monitoring. "
                 SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                 PR_GetError(), slapd_pr_strerror( PR_GetError() ));
@@ -1086,7 +1086,7 @@ void slapd_daemon( daemon_ports_t *ports )
         }
         if ( diskmon_mutex ){
             if(( diskmon_cvar = PR_NewCondVar( diskmon_mutex )) == NULL ) {
-                slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
                     "Cannot create new condition variable for disk space monitoring. "
                     SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                     PR_GetError(), slapd_pr_strerror( PR_GetError() ));
@@ -1118,7 +1118,7 @@ void slapd_daemon( daemon_ports_t *ports )
 				PRErrorCode prerr = PR_GetError();
 				char		addrbuf[ 256 ];
 
-				slapi_log_error(SLAPI_LOG_FATAL, "slapd_daemon",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_daemon",
 					"PR_Listen() on %s port %d failed: %s error %d (%s)\n",
 					netaddr2string(*nap, addrbuf, sizeof(addrbuf)),
 					ports->n_port, SLAPI_COMPONENT_NAME_NSPR, prerr,
@@ -1137,7 +1137,7 @@ void slapd_daemon( daemon_ports_t *ports )
 				PRErrorCode prerr = PR_GetError();
 				char		addrbuf[ 256 ];
 
-				slapi_log_error(SLAPI_LOG_FATAL, "slapd_daemon",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_daemon",
 					"PR_Listen() on %s port %d failed: %s error %d (%s)\n",
 					netaddr2string(*sap, addrbuf, sizeof(addrbuf)),
 					ports->s_port, SLAPI_COMPONENT_NAME_NSPR, prerr,
@@ -1155,7 +1155,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		for (fdesp = i_unix; fdesp && *fdesp; fdesp++, iap++) {
 			if ( PR_Listen(*fdesp, config_get_listen_backlog_size()) == PR_FAILURE) {
 				PRErrorCode prerr = PR_GetError();
-				slapi_log_error(SLAPI_LOG_FATAL, "slapd_daemon",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_daemon",
 					"listen() on %s failed: error %d (%s)\n",
 					(*iap)->local.path,
 					prerr,
@@ -1848,7 +1848,7 @@ ns_handle_closure(struct ns_job_t *job)
 #else
     /* This doesn't actually confirm it's in the event loop thread, but it's a start */
 	if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
-		LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_handle_closure: Attempt to close outside of event loop thread %" NSPRIu64 " for fd=%d\n",
+		LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ns_handle_closure: Attempt to close outside of event loop thread %" NSPRIu64 " for fd=%d\n",
 			c->c_connid, c->c_sd);
 		return;
 	}
@@ -1887,7 +1887,7 @@ ns_connection_post_io_or_closing(Connection *conn)
 		/* there should only ever be 0 or 1 active closure jobs */
 		PR_ASSERT((conn->c_ns_close_jobs == 0) || (conn->c_ns_close_jobs == 1));
 		if (conn->c_ns_close_jobs) {
-			LDAPDebug2Args(LDAP_DEBUG_CONNS, "already a close job in progress on conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "already a close job in progress on conn %" NSPRIu64 " for fd=%d\n",
 				       conn->c_connid, conn->c_sd);
 			return;
 		} else {
@@ -1898,7 +1898,7 @@ ns_connection_post_io_or_closing(Connection *conn)
 			connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
 			ns_add_timeout_job(conn->c_tp, &tv, NS_JOB_TIMER,
 					   ns_handle_closure, conn, NULL);
-			LDAPDebug2Args(LDAP_DEBUG_CONNS, "post closure job for conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "post closure job for conn %" NSPRIu64 " for fd=%d\n",
 				       conn->c_connid, conn->c_sd);
 		}
 	} else {
@@ -1920,7 +1920,7 @@ ns_connection_post_io_or_closing(Connection *conn)
 		ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
 				      NS_JOB_READ|NS_JOB_PRESERVE_FD,
 				      ns_handle_pr_read_ready, conn, NULL);
-		LDAPDebug2Args(LDAP_DEBUG_CONNS, "post I/O job for conn %" NSPRIu64 " for fd=%d\n",
+		LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "post I/O job for conn %" NSPRIu64 " for fd=%d\n",
 			       conn->c_connid, conn->c_sd);
 	}
 #endif
@@ -1943,14 +1943,14 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 #else
     /* This doesn't actually confirm it's in the event loop thread, but it's a start */
 	if (NS_JOB_IS_THREAD(ns_job_get_type(job)) != 0) {
-		LDAPDebug2Args(LDAP_DEBUG_ANY, "ns_handle_pr_read_ready: Attempt to handle read ready outside of event loop thread %" NSPRIu64 " for fd=%d\n",
+		LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ns_handle_pr_read_ready: Attempt to handle read ready outside of event loop thread %" NSPRIu64 " for fd=%d\n",
 			c->c_connid, c->c_sd);
 		return;
 	}
 #endif
 
 	PR_EnterMonitor(c->c_mutex);
-	LDAPDebug2Args(LDAP_DEBUG_CONNS, "activity on conn %" NSPRIu64 " for fd=%d\n",
+	LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "activity on conn %" NSPRIu64 " for fd=%d\n",
 		       c->c_connid, c->c_sd);
 	/* if we were called due to some i/o event, see what the state of the socket is */
 	if (slapi_is_loglevel_set(SLAPI_LOG_CONNS) && !NS_JOB_IS_TIMER(ns_job_get_output_type(job)) && c && c->c_sd) {
@@ -1958,13 +1958,13 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 		char buf[1];
 		ssize_t rc = recv(c->c_sd, buf, sizeof(buf), MSG_PEEK);
 		if (!rc) {
-			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket is closed conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "socket is closed conn %" NSPRIu64 " for fd=%d\n",
 				       c->c_connid, c->c_sd);
 		} else if (rc > 0) {
-			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket read data available for conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "socket read data available for conn %" NSPRIu64 " for fd=%d\n",
 				       c->c_connid, c->c_sd);
 		} else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-			LDAPDebug2Args(LDAP_DEBUG_CONNS, "socket has no data available conn %" NSPRIu64 " for fd=%d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "socket has no data available conn %" NSPRIu64 " for fd=%d\n",
 				       c->c_connid, c->c_sd);
 		} else {
 			LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "socket has error [%d] conn %" NSPRIu64 " for fd=%d\n",
@@ -1984,7 +1984,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 		/* This might happen as a result of
 		 * trying to acquire a closing connection
 		 */
-		LDAPDebug2Args(LDAP_DEBUG_ANY, "connection_activity: abandoning conn %" NSPRIu64
+		LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "connection_activity: abandoning conn %" NSPRIu64
 			       " as fd=%d is already closing\n", c->c_connid, c->c_sd);
 		/* The call disconnect_server should do nothing,
 		 * as the connection c should be already set to CLOSING */
@@ -1993,7 +1993,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
 				              0 /* do not schedule closure, do it next */);
 		ns_handle_closure_nomutex(c);
 	} else {
-		LDAPDebug2Args(LDAP_DEBUG_CONNS, "queued conn %" NSPRIu64 " for fd=%d\n",
+		LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "queued conn %" NSPRIu64 " for fd=%d\n",
 			       c->c_connid, c->c_sd);
 	}
 	PR_ExitMonitor(c->c_mutex);
@@ -2932,7 +2932,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 	}
 
 	if (0 == sockcnt) {
-		slapi_log_error(SLAPI_LOG_FATAL, logname,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 						"There is no address to listen\n");
 		goto failed;	
 	}
@@ -2954,7 +2954,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 		}
 		if ((sock[i] = PR_OpenTCPSocket(socktype)) == SLAPD_INVALID_SOCKET) {
 			prerr = PR_GetError();
-			slapi_log_error(SLAPI_LOG_FATAL, logname,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 		    	"PR_OpenTCPSocket(%s) failed: %s error %d (%s)\n",
 		    	socktype_str,
 		    	SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
@@ -2963,7 +2963,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 
 		if ( PR_SetSocketOption(sock[i], &pr_socketoption ) == PR_FAILURE) {
 			prerr = PR_GetError();
-			slapi_log_error(SLAPI_LOG_FATAL, logname,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 				"PR_SetSocketOption(PR_SockOpt_Reuseaddr) failed: %s error %d (%s)\n",
 		    	SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror( prerr ));
 			goto failed;	
@@ -2979,7 +2979,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 			prerr = PR_GetError();
 			if(!local)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, logname,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 					"PR_Bind() on %s port %d failed: %s error %d (%s)\n",
 					netaddr2string(&sa_server, addrbuf, sizeof(addrbuf)), port,
 					SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
@@ -2987,7 +2987,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 #if defined(ENABLE_LDAPI)
 			else
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, logname,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 					"PR_Bind() on %s file %s failed: %s error %d (%s)\n",
 					netaddr2string(&sa_server, addrbuf, sizeof(addrbuf)),
 					sa_server.local.path,
@@ -3003,7 +3003,7 @@ createprlistensockets(PRUint16 port, PRNetAddr **listenaddr,
 		if(chmod((*listenaddr)->local.path,
 			S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH))
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, logname, "err: %d", errno);
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname, "err: %d", errno);
 		}
 	}
 #endif /* ENABLE_LDAPI */
@@ -3037,7 +3037,7 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 		/* listen on all interfaces */
 		if ( PR_SUCCESS != PR_SetNetAddr(PR_IpAddrAny, PR_AF_INET6, 0, netaddr)) {
 			prerr = PR_GetError();
-			slapi_log_error( SLAPI_LOG_FATAL, logname,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 					"PR_SetNetAddr(PR_IpAddrAny) failed - %s error %d (%s)\n",
 					SLAPI_COMPONENT_NAME_NSPR, prerr, slapd_pr_strerror(prerr));
 			rval = -1;
@@ -3063,7 +3063,7 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 				addrcnt++;
 			}
 			if ( 0 == addrcnt ) {
-				slapi_log_error( SLAPI_LOG_FATAL, logname,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 					"PR_EnumerateAddrInfo for %s failed - %s error %d (%s)\n",
 					listenhost, SLAPI_COMPONENT_NAME_NSPR, prerr,
 					slapd_pr_strerror(prerr));
@@ -3096,12 +3096,12 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 						}
 					}
 					if (charray_inlist(strnetaddrs, abp)) {
-						LDAPDebug2Args(LDAP_DEBUG_ANY, 
+						LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
 						               "slapd_listenhost2addr: "
 						               "detected duplicated address %s "
 						               "[%s]\n", abuf, abp);
 					} else {
-						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 						              "slapd_listenhost2addr: "
 						              "registering address %s\n", abp);
 						slapi_ch_array_add(&strnetaddrs, slapi_ch_strdup(abp));
@@ -3115,7 +3115,7 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 			}
 			PR_FreeAddrInfo( infop );
 		} else {
-			slapi_log_error( SLAPI_LOG_FATAL, logname,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
 					"PR_GetAddrInfoByName(%s) failed - %s error %d (%s)\n",
 					listenhost, SLAPI_COMPONENT_NAME_NSPR, prerr,
 					slapd_pr_strerror(prerr));
@@ -3292,7 +3292,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 			PRFileDesc	*nspr_layer_fd = PR_GetIdentitiesLayer( *pr_socket,
 															PR_NSPR_IO_LAYER );
 			if ( NULL == nspr_layer_fd ) {
-				slapi_log_error( SLAPI_LOG_FATAL, "configure_pr_socket",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "configure_pr_socket",
 						"Unable to move socket file descriptor %d above %d:"
 						" PR_GetIdentitiesLayer( %p, PR_NSPR_IO_LAYER )"
 						" failed\n", ns, reservedescriptors, *pr_socket );
@@ -3304,7 +3304,7 @@ int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local )
 			}
 		} else {
 			int oserr = errno;
-			slapi_log_error(SLAPI_LOG_FATAL, "configure_pr_socket",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "configure_pr_socket",
 				"Unable to move socket file descriptor %d above %d:"
 				" OS error %d (%s)\n", ns, reservedescriptors, oserr,
 				slapd_system_strerror( oserr ) );

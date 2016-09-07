@@ -26,7 +26,7 @@ void* supplier_operation_extension_constructor (void *object, void *parent)
 	supplier_operation_extension *ext = (supplier_operation_extension*) slapi_ch_calloc (1, sizeof (supplier_operation_extension));
 	if (ext == NULL)
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "unable to create replication supplier operation extension - out of memory\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "unable to create replication supplier operation extension - out of memory\n" );
 	}
 	else
 	{
@@ -57,7 +57,7 @@ void* consumer_operation_extension_constructor (void *object, void *parent)
 	consumer_operation_extension *ext = (consumer_operation_extension*) slapi_ch_calloc (1, sizeof (consumer_operation_extension));
 	if (ext == NULL)
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "unable to create replication consumer operation extension - out of memory\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "unable to create replication consumer operation extension - out of memory\n" );
 	}
 	if(object!=NULL && parent!=NULL)
 	{

@@ -62,7 +62,7 @@ multimaster_mtnode_construct_replicas ()
 			mtnode = slapi_get_mapping_tree_node_by_dn(root);    
 			if (mtnode == NULL)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 								"multimaster_mtnode_construct_replicas: "
 								"failed to locate mapping tree node for %s\n",
 								slapi_sdn_get_dn (root));	        
@@ -72,7 +72,7 @@ multimaster_mtnode_construct_replicas ()
 			ext = (multimaster_mtnode_extension *)repl_con_get_ext (REPL_CON_EXT_MTNODE, mtnode);
 			if (ext == NULL)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_mtnode_construct_replicas: "
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "multimaster_mtnode_construct_replicas: "
 								"failed to locate replication extension of mapping tree node for %s\n",
 								slapi_sdn_get_dn (root));	        
 				continue;
@@ -147,7 +147,7 @@ replica_get_replica_from_dn (const Slapi_DN *dn)
     mtnode = slapi_get_mapping_tree_node_by_dn(dn);    
     if (mtnode == NULL)
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_get_replica_from_dn: "
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "replica_get_replica_from_dn: "
                         "failed to locate mapping tree node for %s\n",
                         slapi_sdn_get_dn (dn));	        
         return NULL;
@@ -156,7 +156,7 @@ replica_get_replica_from_dn (const Slapi_DN *dn)
     ext = (multimaster_mtnode_extension *)repl_con_get_ext (REPL_CON_EXT_MTNODE, mtnode);
     if (ext == NULL)
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_get_replica_from_dn: "
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "replica_get_replica_from_dn: "
                         "failed to locate replication extension of mapping tree node for %s\n",
                         slapi_sdn_get_dn (dn));	        
         return NULL;

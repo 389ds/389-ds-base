@@ -61,10 +61,10 @@ set_workingdir(void)
 			rc = chdir("/");
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 				}
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: failed to chdir to %s\n", "/");
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: failed to chdir to %s\n", "/");
 			}
 		} else {
 			ptr = strrchr(errorlog, '/');
@@ -74,25 +74,25 @@ set_workingdir(void)
 			rc = chdir(errorlog);
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 					rc = chdir("/");
 					if (0 == rc) {
 						if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-							LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+							LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 						}
 					} else {
-						LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: failed to chdir to %s\n", "/");
+						LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: failed to chdir to %s\n", "/");
 					}
 				}
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: failed to chdir to %s\n", errorlog);
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: failed to chdir to %s\n", errorlog);
 				rc = chdir("/");
 				if (0 == rc) {
 					if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-						LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+						LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 					}
 				} else {
-					LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: failed to chdir to %s\n", "/");
+					LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: failed to chdir to %s\n", "/");
 				}
 			}
 			slapi_ch_free_string(&errorlog);
@@ -100,19 +100,19 @@ set_workingdir(void)
 	} else {
 		/* calling config_set_workingdir to check for validity of directory, don't apply */
 		if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, errorbuf, 0) == LDAP_OPERATIONS_ERROR) {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 			rc = chdir("/");
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 				}
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: failed to chdir to %s\n", "/");
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: failed to chdir to %s\n", "/");
 			}
 		} else {
 			rc = chdir(workingdir);
 			if (rc) {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, "detach: failed to chdir to %s\n", workingdir);
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "detach: failed to chdir to %s\n", workingdir);
 			}
 		}
 		slapi_ch_free_string(&workingdir);
@@ -152,7 +152,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 		}
 
 		if (set_workingdir()) {
-			LDAPDebug0Args(LDAP_DEBUG_ANY, "detach: set_workingdir failed.\n");
+			LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "detach: set_workingdir failed.\n");
 		}
 
 		if ( (sd = open( "/dev/null", O_RDWR )) == -1 ) {
@@ -179,7 +179,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 			return 1;
 		}
 		if (set_workingdir()) {
-			LDAPDebug0Args(LDAP_DEBUG_ANY, "detach: set_workingdir failed.\n");
+			LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "detach: set_workingdir failed.\n");
 		}
 	}
 

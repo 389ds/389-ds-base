@@ -612,7 +612,7 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
         valuearray_free(&vals);
         if (rc != LDAP_SUCCESS)
         {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                 "slapi_mods2entry: add_values for type %s failed (rc: %d)\n",
                 normtype, rc );
             slapi_entry_free (*e);
@@ -1415,11 +1415,11 @@ slapi_is_special_rdn(const char *rdn, int flag)
 	}
 
 	if ((RDN_IS_TOMBSTONE != flag) && (RDN_IS_CONFLICT != flag)) {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY, "slapi_is_special_rdn: invalid flag %d\n", flag);
+		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "slapi_is_special_rdn: invalid flag %d\n", flag);
 		return 0; /* not a special rdn/dn */
 	}
 	if (!rdn) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "slapi_is_special_rdn: NULL rdn\n");
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "slapi_is_special_rdn: NULL rdn\n");
 		return 0; /* not a special rdn/dn */
 	}
 
@@ -1490,7 +1490,7 @@ static size_t util_getvirtualmemsize(void)
          * memory.
          */
         int errsrv = errno;
-        slapi_log_error(SLAPI_LOG_FATAL,"util_getvirtualmemsize", "ERROR: getrlimit returned non-zero. errno=%u\n", errsrv);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"util_getvirtualmemsize", "ERROR: getrlimit returned non-zero. errno=%u\n", errsrv);
         return 0;
     }
     return rl.rlim_cur;
@@ -1503,7 +1503,7 @@ static size_t util_getvirtualmemsize(void)
 int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages)
 {
     if ((NULL == pagesize) || (NULL == pages) || (NULL == procpages) || (NULL == availpages)) {
-        slapi_log_error(SLAPI_LOG_FATAL, "util_info_sys_pages",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "util_info_sys_pages",
                         "ERROR: Null return variables are passed.  Skip getting the system info.\n");
         return 1;
     }
@@ -1590,7 +1590,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         if (!f) {    /* fopen failed */
             /* We should probably make noise here! */
             int errsrv = errno;
-            slapi_log_error(SLAPI_LOG_FATAL,"util_info_sys_pages", "ERROR: Unable to open file /proc/%d/status. errno=%u\n", getpid(), errsrv);
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"util_info_sys_pages", "ERROR: Unable to open file /proc/%d/status. errno=%u\n", getpid(), errsrv);
             return 1;
         }
         while (! feof(f)) {
@@ -1614,7 +1614,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         fm = fopen(fmn, "r");
         if (!fm) {
             int errsrv = errno;
-            slapi_log_error(SLAPI_LOG_FATAL,"util_info_sys_pages", "ERROR: Unable to open file /proc/meminfo. errno=%u\n", errsrv);
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"util_info_sys_pages", "ERROR: Unable to open file /proc/meminfo. errno=%u\n", errsrv);
             return 1;
         }
         while (! feof(fm)) {
@@ -1743,7 +1743,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
     /* This is stupid. If you set %u to %zu to print a size_t, you get literal %zu in your logs 
      * So do the filthy cast instead.
      */
-    slapi_log_error(SLAPI_LOG_TRACE,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
         (unsigned long)*pages, (unsigned long)*procpages, (unsigned long)*availpages);
     return 0;
 
@@ -1799,8 +1799,8 @@ int util_is_cachesize_sane(size_t *cachesize)
         /* These are now trace warnings, because it was to confusing to log this *then* kill the request anyway.
          * Instead, we will let the caller worry about the notification, and we'll just use this in debugging and tracing.
          */
-        slapi_log_error(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
-        slapi_log_error(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
     }
 #else
     size_t freepages = 0;
@@ -1814,13 +1814,13 @@ int util_is_cachesize_sane(size_t *cachesize)
 
     if (!issane) {
         *cachesize = (size_t)((pages - procpages) * pagesize);
-        slapi_log_error(SLAPI_LOG_FATAL, "util_is_cachesize_sane", "util_is_cachesize_sane WARNING adjusted cachesize to %lu\n",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "util_is_cachesize_sane", "util_is_cachesize_sane WARNING adjusted cachesize to %lu\n",
             (unsigned long )*cachesize);
     }
 #endif
 out:
     if (!issane) {
-        slapi_log_error(SLAPI_LOG_TRACE,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
     }
 
     return issane;

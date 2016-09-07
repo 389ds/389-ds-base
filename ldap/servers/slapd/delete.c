@@ -89,7 +89,7 @@ do_delete( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	LDAPDebug1Arg( LDAP_DEBUG_ARGS, "do_delete: dn (%s)\n", rawdn );
+	LDAPDebug1Arg( LDAP_DEBUG_ARGS, LOG_DEBUG, "do_delete: dn (%s)\n", rawdn );
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn);
@@ -166,7 +166,7 @@ slapi_delete_internal_set_pb (Slapi_PBlock *pb,
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || rawdn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
 						"slapi_delete_internal_set_pb: NULL parameter\n");
 		return;
 	}

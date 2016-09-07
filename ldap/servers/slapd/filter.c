@@ -78,14 +78,14 @@ get_filter( Connection *conn, BerElement *ber, int scope,
 		logbufsize = strlen(*fstr) + 1;
 		logbuf = slapi_ch_malloc(logbufsize);
 		*logbuf = '\0';
-		slapi_log_error( SLAPI_LOG_FATAL, "get_filter", "before optimize: %s\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "get_filter", "before optimize: %s\n",
 				slapi_filter_to_string(*filt, logbuf, logbufsize));
 	}
 
 	filter_optimize(*filt);
 
 	if (NULL != logbuf) {
-		slapi_log_error( SLAPI_LOG_FATAL, "get_filter", " after optimize: %s\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "get_filter", " after optimize: %s\n",
 				slapi_filter_to_string(*filt, logbuf, logbufsize));
 		slapi_ch_free_string( &logbuf );
 	}
@@ -718,7 +718,7 @@ slapi_filter_dup(Slapi_Filter *f)
 		out->f_mr_dnAttrs = f->f_mr_dnAttrs;
 		if (f->f_mr.mrf_match) {
 			int rc = plugin_mr_filter_create(&out->f_mr);
-			LDAPDebug1Arg( LDAP_DEBUG_FILTER, "slapi_filter_dup plugin_mr_filter_create returned %d\n", rc );
+			LDAPDebug1Arg( LDAP_DEBUG_FILTER, LOG_DEBUG, "slapi_filter_dup plugin_mr_filter_create returned %d\n", rc );
 		}
 		break;
 

@@ -435,7 +435,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
 				/* must not access conn->ld if disconnected in another thread */
 				/* the other thread that actually did the conn_disconnect() */
 				/* will set the status and error info */
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 								"%s: Connection disconnected by another thread\n",
 								agmt_get_long_name(conn->agmt));
 			}
@@ -557,7 +557,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 
 	/* get the sockbuf */
 	if ((ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd) != LDAP_OPT_SUCCESS) || (fd <= 0)) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 						"%s: invalid connection insee_if_write_available \n",
 						agmt_get_long_name(conn->agmt));
 		conn->last_ldap_error = LDAP_PARAM_ERROR;
@@ -578,13 +578,13 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 
 	/* check */
 	if (rc == 0) { /* timeout */
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 						"%s: poll timed out - poll interval [%d]\n",
 						agmt_get_long_name(conn->agmt),
 						timeout);
 		return CONN_TIMEOUT;
 	} else if ((rc < 0) || (!(polldesc.out_flags&PR_POLL_WRITE))) { /* error */
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 						"%s: error during poll attempt [%d:%s]\n",
 						agmt_get_long_name(conn->agmt),
 						PR_GetError(), slapd_pr_strerror(PR_GetError()));
@@ -615,7 +615,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	iofns.lextiof_size = LDAP_X_EXTIO_FNS_SIZE;
 	if (ldap_get_option(conn->ld, LDAP_X_OPT_EXTIO_FN_PTRS, &iofns) < 0) {
 		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 						"%s: Failed call to ldap_get_option to get extiofns in "
 						"see_if_write_available: LDAP error %d (%s)\n",
 						agmt_get_long_name(conn->agmt),
@@ -628,7 +628,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	/* set up the poll structure */
 	if (ldap_get_option(conn->ld, LDAP_OPT_DESC, &pollstr.lpoll_fd) < 0) {
 		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 						"%s: Failed call to ldap_get_option for poll_fd in "
 						"see_if_write_available: LDAP error %d (%s)\n",
 						agmt_get_long_name(conn->agmt),
@@ -640,7 +640,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	if (ldap_get_option(conn->ld, LDAP_X_OPT_SOCKETARG,
 						&pollstr.lpoll_socketarg) < 0) {
 		rc = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 						"%s: Failed call to ldap_get_option for socketarg in "
 						"see_if_write_available: LDAP error %d (%s)\n",
 						agmt_get_long_name(conn->agmt),
@@ -654,7 +654,7 @@ see_if_write_available(Repl_Connection *conn, PRIntervalTime timeout)
 	private = iofns.lextiof_session_arg;
 
 	if (0 == (*ldap_poll)(&pollstr, nfds, timeout, private)) {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 						"%s: poll timed out - poll interval [%d]\n",
 						agmt_get_long_name(conn->agmt),
 						timeout);
@@ -687,12 +687,12 @@ check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop
          */
         rcv_msgid = repl5_tot_last_rcv_msgid(conn);
         if (rcv_msgid == -1) {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                             "%s: check_flow_control_tot_init no callback data [ msgid sent: %d]\n",
                             agmt_get_long_name(conn->agmt),
                             sent_msgid);
         } else if (sent_msgid < rcv_msgid) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                             "%s: check_flow_control_tot_init invalid message ids [ msgid sent: %d, rcv: %d]\n",
                             agmt_get_long_name(conn->agmt),
                             sent_msgid,
@@ -713,7 +713,7 @@ check_flow_control_tot_init(Repl_Connection *conn, int optype, const char *extop
                      * Log it at least once to inform administrator there is
                      * a potential configuration issue here
                      */
-                    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                             "%s: Total update flow control gives time (%d msec) to the consumer before sending more entries [ msgid sent: %d, rcv: %d])\n"
                             "If total update fails you can try to increase %s and/or decrease %s in the replica agreement configuration\n",
                             agmt_get_long_name(conn->agmt),
@@ -775,7 +775,7 @@ conn_is_available(Repl_Connection *conn)
             } else {
                 /* Else give connection to others threads */
                 PR_Unlock(conn->lock);
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                         "%s: perform_operation transient timeout. retry)\n",
                         agmt_get_long_name(conn->agmt));
                 DS_Sleep(PR_MillisecondsToInterval(yield_delay_msec));
@@ -836,7 +836,7 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		return_value = conn_is_available(conn);
 		if (return_value != CONN_OPERATION_SUCCESS) {
 			PR_Unlock(conn->lock);
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 							"%s: perform_operation connection is not available (%d)\n",
 							agmt_get_long_name(conn->agmt),
 							return_value);
@@ -886,7 +886,7 @@ perform_operation(Repl_Connection *conn, int optype, const char *dn,
 		}
 		else
 		{
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 					"%s: Failed to send %s operation: LDAP error %d (%s)\n",
 					agmt_get_long_name(conn->agmt),
 					op_string ? op_string : "NULL", rc, ldap_err2string(rc));
@@ -1073,7 +1073,7 @@ conn_cancel_linger(Repl_Connection *conn)
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: Cancelling linger on the connection\n",
 			agmt_get_long_name(conn->agmt));
 		conn->linger_active = PR_FALSE;
@@ -1086,7 +1086,7 @@ conn_cancel_linger(Repl_Connection *conn)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: No linger to cancel on the connection\n",
 			agmt_get_long_name(conn->agmt));
 	}
@@ -1106,7 +1106,7 @@ linger_timeout(time_t event_time, void *arg)
 	Repl_Connection *conn = (Repl_Connection *)arg;
 
 	PR_ASSERT(NULL != conn);
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 		"%s: Linger timeout has expired on the connection\n",
 		agmt_get_long_name(conn->agmt));
 	PR_Lock(conn->lock);
@@ -1134,12 +1134,12 @@ conn_start_linger(Repl_Connection *conn)
 	time_t now;
 
 	PR_ASSERT(NULL != conn);
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 		"%s: Beginning linger on the connection\n",
 		agmt_get_long_name(conn->agmt));
 	if (!conn_connected(conn))
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: No linger on the closed conn\n",
 			agmt_get_long_name(conn->agmt));
 		return;
@@ -1148,7 +1148,7 @@ conn_start_linger(Repl_Connection *conn)
 	PR_Lock(conn->lock);
 	if (conn->linger_active)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: Linger already active on the connection\n",
 			agmt_get_long_name(conn->agmt));
 	}
@@ -1215,7 +1215,7 @@ conn_connect(Repl_Connection *conn)
 		/* Pb occured in decryption: stop now, binding will fail */
 		if ( pw_ret == -1 )
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 				"%s: Decoding of the credentials failed.\n",
 				agmt_get_long_name(conn->agmt));
 		
@@ -1241,7 +1241,7 @@ conn_connect(Repl_Connection *conn)
 
 	if (secure > 0) {
 		if (!NSS_IsInitialized()) {
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 							"%s: SSL Not Initialized, Replication over SSL FAILED\n",
 							agmt_get_long_name(conn->agmt));
 			conn->last_ldap_error = LDAP_INAPPROPRIATE_AUTH;
@@ -1257,7 +1257,7 @@ conn_connect(Repl_Connection *conn)
 #endif
 		/* Now we initialize the LDAP Structure and set options */
 		
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: Trying %s%s slapi_ldap_init_ext\n",
 			agmt_get_long_name(conn->agmt),
 			secure ? "secure" : "non-secure",
@@ -1275,7 +1275,7 @@ conn_connect(Repl_Connection *conn)
 			conn->state = STATE_DISCONNECTED;
 			conn->last_operation = CONN_INIT;
 			conn->last_ldap_error = LDAP_LOCAL_ERROR;
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 				"%s: Failed to establish %s%sconnection to the consumer\n",
 				agmt_get_long_name(conn->agmt),
 				secure ? "secure " : "",
@@ -1286,7 +1286,7 @@ conn_connect(Repl_Connection *conn)
 		/* slapi_ch_strdup is OK with NULL strings */
 		binddn = slapi_ch_strdup(conn->binddn);
 
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: binddn = %s,  passwd = %s\n",
 			agmt_get_long_name(conn->agmt),
 			binddn?binddn:"NULL", creds->bv_val?creds->bv_val:"NULL");
@@ -1364,7 +1364,7 @@ close_connection_internal(Repl_Connection *conn)
 		slapi_ldap_unbind(conn->ld);
 	}
 	conn->ld = NULL;
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 		"%s: Disconnected from the consumer\n", agmt_get_long_name(conn->agmt));
 }
 
@@ -1698,12 +1698,12 @@ supplier_read_consumer_definitions(Repl_Connection *conn, struct berval ***remot
                 if (return_value == CONN_OPERATION_SUCCESS) {
                         *remote_attributetypes = remote_schema_attributetypes_bervals;
                 } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                                 "%s: Fail to retrieve the remote schema attributetypes\n",
                                 agmt_get_long_name(conn->agmt));
                 }
         } else {
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                         "%s: Fail to retrieve the remote schema objectclasses\n",
                         agmt_get_long_name(conn->agmt));
         }
@@ -1738,7 +1738,7 @@ update_consumer_schema(Repl_Connection *conn)
 
                         /* The consumer contains definitions that needs to be learned */
                         supplier_learn_new_definitions(remote_schema_objectclasses_bervals, remote_schema_attributetypes_bervals);
-                        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                                 "[S] Schema %s must not be overwritten (set replication log for additional info)\n",
                                 agmt_get_long_name(conn->agmt));
                         ok_to_send_schema = PR_FALSE;
@@ -1781,12 +1781,12 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 	if (!remotecsn)
 	{
 		return_value = CONN_OPERATION_FAILED;
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "NULL remote CSN\n");
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "NULL remote CSN\n");
 	}
 	else if (!conn_connected_locked(conn, 0 /* not locked */))
 	{
 		return_value = CONN_NOT_CONNECTED;
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			"%s: Schema replication update failed: not connected to consumer\n",
 			agmt_get_long_name(conn->agmt));
 	}
@@ -1808,11 +1808,11 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
                         if (*remotecsn) {
                             csn_as_string (*remotecsn, PR_FALSE, remotecnsstr);
                             csn_as_string (localcsn, PR_FALSE, localcsnstr);
-                            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                                         "[S] Checking consumer schema localcsn:%s / remotecsn:%s\n", localcsnstr, remotecnsstr);
                         } else {
                             csn_as_string (localcsn, PR_FALSE, localcsnstr);
-                            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                                         "[S] Checking consumer schema localcsn:%s / remotecsn:NULL\n", localcsnstr);
                         }
                         if (!update_consumer_schema(conn)) {
@@ -1823,10 +1823,10 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
                                  * So it could be possible that a second attempt (right now) of update_consumer_schema
                                  * would be successful
                                  */
-                                slapi_log_error(SLAPI_LOG_REPL, "schema",
+                                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema",
                                                         "[S] schema definitions may have been learned\n");
                                 if (!update_consumer_schema(conn)) {
-                                        slapi_log_error(SLAPI_LOG_REPL, "schema",
+                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema",
                                                         "[S] learned definitions are not suffisant to try to push the schema \n");
                                         return_value = CONN_OPERATION_FAILED;
                                 }
@@ -1843,7 +1843,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
                                                 memcpy(remotecsnstr, remote_schema_csn_bervals[0]->bv_val,
                                                         remote_schema_csn_bervals[0]->bv_len);
                                                 remotecsnstr[remote_schema_csn_bervals[0]->bv_len] = '\0';
-                                                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                                         "[S] Reread remotecsn:%s\n", remotecsnstr);
                                                 *remotecsn = csn_new_by_string(remotecsnstr);
                                                 if (*remotecsn && (csn_compare(localcsn, *remotecsn) <= 0)) {
@@ -1853,7 +1853,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
                                                 ber_bvecfree(remote_schema_csn_bervals);
                                         }
                                         if (return_value == CONN_OPERATION_SUCCESS) {
-                                                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                                         "Schema checking successful: ok to push the schema (%s)\n", agmt_get_long_name(conn->agmt));
                                         }
 
@@ -1898,7 +1898,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 		if (NULL == entries || NULL == entries[0])
 		{
 			/* Whoops - couldn't read our own schema! */
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 				"%s: Error: unable to read local schema definitions.\n",
 				agmt_get_long_name(conn->agmt));
 			return_value = CONN_OPERATION_FAILED;
@@ -1942,7 +1942,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 						{
 						int ldaperr = -1, optype = -1;
 						conn_get_error(conn, &optype, &ldaperr);
-						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 							"%s: Schema replication update failed: %s\n",
 							agmt_get_long_name(conn->agmt),
 							ldaperr == -1 ? "Unknown Error" : ldap_err2string(ldaperr));
@@ -1962,7 +1962,7 @@ conn_push_schema(Repl_Connection *conn, CSN **remotecsn)
 			}
 			else
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 					"%s: Schema replication update failed: "
 					"unable to prepare schema entry for transmission.\n",
 					agmt_get_long_name(conn->agmt));
@@ -2081,7 +2081,8 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 				log_level = SLAPI_LOG_REPL;
 			}
 			conn->last_ldap_error = rc;
-			slapi_log_error(log_level, repl_plugin_name,
+			slapi_log_error(log_level, log_level==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR,
+				repl_plugin_name, 
 				"%s: Replication bind with %s auth resumed\n",
 				agmt_get_long_name(conn->agmt),
 				mech ? mech : "SIMPLE");
@@ -2095,7 +2096,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 				if ( !(strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_PWEXPIRED)) )
 				{
 					/* Bind is successfull but password has expired */
-					slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 						"%s: Successfully bound %s to consumer, "
 						"but password has expired on consumer.\n",
 						agmt_get_long_name(conn->agmt), binddn);
@@ -2107,7 +2108,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 						 (ctrls[ i ]->ldctl_value.bv_len > 0) )
 					{
 						int password_expiring = atoi( ctrls[ i ]->ldctl_value.bv_val );
-						slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 							"%s: Successfully bound %s to consumer, "
 							"but password is expiring on consumer in %d seconds.\n",
 							agmt_get_long_name(conn->agmt), binddn, password_expiring);
@@ -2131,6 +2132,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
 			slapi_log_error(rc == LDAP_LOCAL_ERROR ? SLAPI_LOG_REPL : SLAPI_LOG_FATAL,
+				rc == LDAP_LOCAL_ERROR ? LOG_DEBUG : LOG_ERR,
 				repl_plugin_name,
 				"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 				agmt_get_long_name(conn->agmt),
@@ -2140,7 +2142,7 @@ bind_and_check_pwp(Repl_Connection *conn, char * binddn, char *password)
 			char *errmsg = NULL;
 			/* errmsg is a pointer directly into the ld structure - do not free */
 			rc = slapi_ldap_get_lderrno( ld, NULL, &errmsg );
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 				"%s: Replication bind with %s auth failed: LDAP error %d (%s) (%s)\n",
 				agmt_get_long_name(conn->agmt),
 				mech ? mech : "SIMPLE", rc,
@@ -2222,7 +2224,7 @@ repl5_debug_timeout_callback(time_t when, void *arg)
 	sprintf(buf, "%d", s_debug_level);
 	config_set_errorlog_level("nsslapd-errorlog-level", buf, NULL, 1);
 
-	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, 
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
 		"repl5_debug_timeout_callback: set debug level to %d at %ld\n",
 		s_debug_level, when);
 }

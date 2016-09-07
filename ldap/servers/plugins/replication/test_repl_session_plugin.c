@@ -40,14 +40,14 @@ test_repl_session_plugin_agmt_init_cb(const Slapi_DN *repl_subtree)
 {
     char *cookie = NULL;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_init_cb() called for suffix \"%s\".\n",
         slapi_sdn_get_ndn(repl_subtree));
 
     /* allocate a string and set as the cookie */
     cookie = slapi_ch_smprintf("cookie test");
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_init_cb(): Setting cookie: \"%s\".\n",
         cookie);
 
@@ -72,7 +72,7 @@ test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtr
 {
     int rc = 0;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_pre_acquire_cb() called for suffix \"%s\", "
         "is_total: \"%s\", cookie: \"%s\".\n", slapi_sdn_get_ndn(repl_subtree),
         is_total ? "TRUE" : "FALSE", cookie ? (char *)cookie : "NULL");
@@ -83,7 +83,7 @@ test_repl_session_plugin_pre_acquire_cb(void *cookie, const Slapi_DN *repl_subtr
     (*data)->bv_val = slapi_ch_smprintf("test-data");
     (*data)->bv_len = strlen((*data)->bv_val) + 1;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_pre_acquire_cb() sending data: guid: \"%s\" data: \"%s\".\n",
 	*data_guid, (*data)->bv_val);
 
@@ -108,7 +108,7 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
 {
     int rc = 0;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_reply_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
         repl_subtree, is_total ? "TRUE" : "FALSE");
 
@@ -118,7 +118,7 @@ test_repl_session_plugin_reply_acquire_cb(const char *repl_subtree, int is_total
     (*data)->bv_val = slapi_ch_smprintf("test-reply-data");
     (*data)->bv_len = strlen((*data)->bv_val) + 1;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_reply_acquire_cb() sending data: guid: \"%s\" data: \"%s\".\n",
         *data_guid, (*data)->bv_val);
 
@@ -145,14 +145,14 @@ test_repl_session_plugin_post_acquire_cb(void *cookie, const Slapi_DN *repl_subt
 {
     int rc = 0;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_post_acquire_cb() called for suffix \"%s\", "
         "is_total: \"%s\" cookie: \"%s\".\n", slapi_sdn_get_ndn(repl_subtree),
         is_total ? "TRUE" : "FALSE", cookie ? (char *)cookie : "NULL");
 
     /* log any extra data that was sent from the replica */
     if (data_guid && data) {
-        slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
             "test_repl_session_plugin_post_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
             data_guid, data->bv_val);
     }
@@ -179,13 +179,13 @@ test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total,
 {
     int rc = 0;
 
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_recv_acquire_cb() called for suffix \"%s\", is_total: \"%s\".\n",
         repl_subtree, is_total ? "TRUE" : "FALSE");
 
     /* log any extra data that was sent from the master */
     if (data_guid && data) {
-        slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
             "test_repl_session_plugin_recv_acquire_cb() received data: guid: \"%s\" data: \"%s\".\n",
             data_guid, data->bv_val);
     }
@@ -201,7 +201,7 @@ test_repl_session_plugin_recv_acquire_cb(const char *repl_subtree, int is_total,
 static void
 test_repl_session_plugin_destroy_cb(void *cookie, const Slapi_DN *repl_subtree)
 {
-    slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
         "test_repl_session_plugin_destroy_cb() called for suffix \"%s\".\n",
         slapi_sdn_get_ndn(repl_subtree));
 
@@ -230,10 +230,10 @@ static void *test_repl_session_api[] = {
 static int
 test_repl_session_plugin_start(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_repl_session_plugin_name,
                     "--> test_repl_session_plugin_start -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_repl_session_plugin_name,
                     "<-- test_repl_session_plugin_start -- end\n");
     return 0;
 }
@@ -241,19 +241,19 @@ test_repl_session_plugin_start(Slapi_PBlock *pb)
 static int
 test_repl_session_plugin_close(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_repl_session_plugin_name,
                     "--> test_repl_session_plugin_close -- begin\n");
 
     slapi_apib_unregister(REPL_SESSION_v1_0_GUID);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_repl_session_plugin_name,
                     "<-- test_repl_session_plugin_close -- end\n");
     return 0;
 }
 
 int test_repl_session_plugin_init(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_repl_session_plugin_name,
                     "--> test_repl_session_plugin_init -- begin\n");
 
     if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
@@ -265,13 +265,13 @@ int test_repl_session_plugin_init(Slapi_PBlock *pb)
          slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
                            (void *)&test_repl_session_pdesc ) != 0 )
     {
-        slapi_log_error( SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
                          "<-- test_repl_session_plugin_init -- failed to register plugin -- end\n");
         return -1;
     }
 
     if( slapi_apib_register(REPL_SESSION_v1_0_GUID, test_repl_session_api) ) {
-        slapi_log_error( SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
                          "<-- test_repl_session_plugin_start -- failed to register repl_session api -- end\n");
         return -1;
     }
@@ -280,12 +280,12 @@ int test_repl_session_plugin_init(Slapi_PBlock *pb)
     /* Retrieve and save the plugin identity to later pass to
        internal operations */
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &test_repl_session_plugin_id) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, test_repl_session_plugin_name,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_repl_session_plugin_name,
                          "<-- test_repl_session_plugin_init -- failed to retrieve plugin identity -- end\n");
         return -1;
     }
 
-    slapi_log_error( SLAPI_LOG_PLUGIN, test_repl_session_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_repl_session_plugin_name,
                      "<-- test_repl_session_plugin_init -- end\n");
     return 0;
 }

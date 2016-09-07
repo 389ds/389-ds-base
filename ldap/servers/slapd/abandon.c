@@ -116,7 +116,7 @@ do_abandon( Slapi_PBlock *pb )
 			suppressed_by_plugin = 1;
 		}
 	} else {
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, "do_abandon: op not found\n");
+		LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "do_abandon: op not found\n");
 	}
 
 	if ( 0 == pagedresults_free_one_msgid_nolock(pb->pb_conn, id) ) {

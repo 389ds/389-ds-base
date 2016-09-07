@@ -66,7 +66,7 @@ dn2entry_ext(
 			{
 				if (DB_NOTFOUND != *err)
 				{
-					LDAPDebug2Args( LDAP_DEBUG_ANY,
+					LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR,
 									"dn2entry_ext: Failed to get id for %s "
 									"from entryrdn index (%d)\n",
 									slapi_sdn_get_dn(sdn), *err);

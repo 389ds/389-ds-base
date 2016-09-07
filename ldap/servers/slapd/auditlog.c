@@ -372,7 +372,7 @@ write_audit_file(
         break;
     default:
         /* Unsupported log type, we should make some noise */
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, "write_audit_log: Invalid log type specified. logtype %d\n", logtype);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "write_audit_log: Invalid log type specified. logtype %d\n", logtype);
         break;
     }
 

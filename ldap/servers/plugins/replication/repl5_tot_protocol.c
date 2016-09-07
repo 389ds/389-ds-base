@@ -92,7 +92,7 @@ static void repl5_tot_delete(Private_Repl_Protocol **prp);
 static void 
 repl5_tot_log_operation_failure(int ldap_error, char* ldap_error_string, const char *agreement_name)
 {
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 						"%s: Received error %d (%s): %s for total update operation\n",
 						agreement_name,
 						ldap_error, ldap_err2string(ldap_error), ldap_error_string ? ldap_error_string : "");
@@ -203,7 +203,7 @@ static int repl5_tot_create_async_result_thread(callback_data *cb_data)
 				SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (NULL == tid) 
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, NULL,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
 					"repl5_tot_create_async_result_thread failed. "
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					PR_GetError(), slapd_pr_strerror( PR_GetError() ));
@@ -262,7 +262,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 		/* Lock the structure to force memory barrier */
 		PR_Lock(cb_data->lock);
 		/* Are we caught up ? */
-		slapi_log_error(SLAPI_LOG_REPL, NULL,
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL,
 					"repl5_tot_waitfor_async_results: %d %d\n",
 					cb_data->last_message_id_received, cb_data->last_message_id_sent);
 		if (cb_data->last_message_id_received >= cb_data->last_message_id_sent) 
@@ -290,7 +290,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
 		if (!done && (loops > 30))
 		{
 			/* Log a warning */
-			slapi_log_error(SLAPI_LOG_FATAL, NULL,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
 					"repl5_tot_waitfor_async_results timed out waiting for responses: %d %d\n",
 					cb_data->last_message_id_received, cb_data->last_message_id_sent);
 			done = 1;
@@ -338,7 +338,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
 
 	area_sdn = agmt_get_replarea(prp->agmt);
 	if (!area_sdn) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
 		                "get repl area.  Please check agreement.\n");
 		goto done;
 	}
@@ -362,7 +362,7 @@ retry:
         conn_get_error(prp->conn, &optype, &ldaprc);
         if (rc == ACQUIRE_TRANSIENT_ERROR && INIT_RETRY_MAX > init_retry++) {
             wait_retry = init_retry * INIT_RETRY_INT;
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
                         "acquire replica for total update, error: %d,"
                                                 " retrying in %d seconds.\n",
                          ldaprc, wait_retry);
@@ -393,7 +393,7 @@ retry:
 
 	if (CONN_SCHEMA_UPDATED != rc && CONN_SCHEMA_NO_UPDATE_NEEDED != rc)
 	{
-	    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
 						"replicate schema to host %s, port %d. Continuing with "
 						"total update session.\n",
 						hostname, portnum);
@@ -413,7 +413,7 @@ retry:
 
     agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update in progress");
 
-    slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Beginning total update of replica "
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Beginning total update of replica "
                     "\"%s\".\n", agmt_get_long_name(prp->agmt));
 
     /* RMREPL - need to send schema here */
@@ -427,13 +427,13 @@ retry:
      */
     rc = slapi_lookup_instance_name_by_suffix((char *)slapi_sdn_get_dn(area_sdn), NULL, &instances, 1);
     if (rc || !instances) {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
                         "get the instance name for the suffix \"%s\".\n", slapi_sdn_get_dn(area_sdn));
         goto done;
     }
     be = slapi_be_select_by_instance_name(instances[0]);
     if (!be) {
-        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
                         "get the instance for the suffix \"%s\".\n", slapi_sdn_get_dn(area_sdn));
         goto done;
     }
@@ -446,7 +446,7 @@ retry:
         /* Get suffix */
         rc = slapi_search_internal_get_entry(area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
                             "get the suffix entry \"%s\".\n", slapi_sdn_get_dn(area_sdn));
             goto done;
         }
@@ -467,7 +467,7 @@ retry:
         /* Send suffix first. */
         rc = send_entry(suffix, (void *)&cb_data);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
                             "send the suffix entry \"%s\" to the consumer.\n", slapi_sdn_get_dn(area_sdn));
             goto done;
         }
@@ -533,7 +533,7 @@ retry:
 	{
 		rc = repl5_tot_create_async_result_thread(&cb_data);
 		if (rc) {
-			slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "%s: repl5_tot_run: "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: repl5_tot_run: "
 							 "repl5_tot_create_async_result_thread failed; error - %d\n", 
 							 agmt_get_long_name(prp->agmt), rc);
 			goto done;
@@ -563,7 +563,7 @@ retry:
 		}
 		rc = repl5_tot_destroy_async_result_thread(&cb_data);
 		if (rc) {
-			slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "%s: repl5_tot_run: "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: repl5_tot_run: "
 							 "repl5_tot_destroy_async_result_thread failed; error - %d\n", 
 							 agmt_get_long_name(prp->agmt), rc);
 		}
@@ -583,11 +583,11 @@ retry:
 	
 	if (rc != CONN_OPERATION_SUCCESS)
 	{
-		slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "Total update failed for replica \"%s\", "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Total update failed for replica \"%s\", "
 				         "error (%d)\n", agmt_get_long_name(prp->agmt), rc);
 		agmt_set_last_init_status(prp->agmt, 0, 0, rc, "Total update aborted");
 	} else {
-		slapi_log_error (SLAPI_LOG_FATAL, repl_plugin_name, "Finished total update of replica "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Finished total update of replica "
 		                 "\"%s\". Sent %lu entries.\n",
 		                 agmt_get_long_name(prp->agmt), cb_data.num_entries);
 		agmt_set_last_init_status(prp->agmt, 0, 0, 0, "Total update succeeded");
@@ -599,7 +599,7 @@ done:
 	slapi_ch_free_string(&hostname);
 	if (cb_data.flowcontrol_detection > 1)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 			"%s: Total update flow control triggered %d times\n"
 			"You may increase %s and/or decrease %s in the replica agreement configuration\n",
 			agmt_get_long_name(prp->agmt),
@@ -645,7 +645,7 @@ repl5_tot_stop(Private_Repl_Protocol *prp)
 	if (!prp->stopped)
 	{
 		/* Isn't listening. Disconnect from the replica. */
-        slapi_log_error (SLAPI_LOG_REPL, repl_plugin_name, "repl5_tot_run: "
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl5_tot_run: "
                          "protocol not stopped after waiting for %d seconds "
 						 "for agreement %s\n", PR_IntervalToSeconds(now-start),
 						 agmt_get_long_name(prp->agmt));
@@ -843,7 +843,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 
     if (bere == NULL)
     {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s: send_entry: Encoding Error\n",
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "%s: send_entry: Encoding Error\n",
 				agmt_get_long_name(prp->agmt));
 		((callback_data*)cb_data)->rc = -1;
         retval = -1;
@@ -890,7 +890,7 @@ int send_entry (Slapi_Entry *e, void *cb_data)
 	}
 	*last_busyp = now;
 
-	slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 		"Replica \"%s\" is busy. Waiting %lds while"
 		" it finishes processing its current import queue\n", 
 		agmt_get_long_name(prp->agmt), *sleep_on_busyp);

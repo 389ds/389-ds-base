@@ -93,7 +93,7 @@ int config_get_schemacheck(void);
 void oc_lock_read( void );
 void oc_unlock( void );
 struct objclass* g_get_global_oc_nolock(void);
-int slapd_log_error_proc( char *subsystem, char *fmt, ... );
+int slapd_log_error_proc( char *subsystem, int sev_level, char *fmt, ... );
 
 /* defined in cos.c */
 void * cos_get_plugin_identity(void);
@@ -308,7 +308,7 @@ int cos_cache_init(void)
                 start_cond == NULL ||
                 something_changed == NULL)
         {
-		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 			   "cos_cache_init: cannot create mutexes\n" );
                 ret = -1;
 		goto out;
@@ -326,7 +326,7 @@ int cos_cache_init(void)
                                     cos_cache_vattr_compare, 
                                     cos_cache_vattr_types) != 0)
         {
-		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 			   "cos_cache_init: cannot register as service provider\n" );
                 ret = -1;
 		goto out;
@@ -340,7 +340,7 @@ int cos_cache_init(void)
 					PR_UNJOINABLE_THREAD, 
 					SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL )
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 			   "cos_cache_init: PR_CreateThread failed\n" );
 		ret = -1;
 		goto out;
@@ -869,7 +869,7 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			parent = slapi_create_dn_string("%s", orig);
 			if (!parent) {
 				parent = orig;
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
 				              "cos_dn_defs_cb: "
 				              "failed to normalize parent dn %s. "
 				              "Adding the pre normalized dn.\n", 
@@ -886,18 +886,18 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			}
 			slapi_ch_free_string(&orig);
 		} else {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, 
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
 			              "cos_dn_defs_cb: "
 			              "failed to get parent dn of cos definition %s.\n",
 			              pDn->val);
 			if (!pCosTemplateDn) {
 				if (!pCosTargetTree) {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTargetTree and cosTemplateDn are not set.\n");
+					LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cosTargetTree and cosTemplateDn are not set.\n");
 				} else {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTemplateDn is not set.\n");
+					LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cosTemplateDn is not set.\n");
 				}
 			} else if (!pCosTargetTree) {
-				LDAPDebug0Args(LDAP_DEBUG_ANY, "cosTargetTree is not set.\n");
+				LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cosTargetTree is not set.\n");
 			}
 		}
 	}
@@ -3306,7 +3306,7 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 
 	/* need to work out if a cache rebuild is necessary */
 	if(slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn )) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "cos_cache_change_notify: "
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_change_notify: "
 		                               "failed to get dn of changed entry\n");
 		goto bail;
 	}
@@ -3361,7 +3361,7 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 	 * stays lean in the face of errors.
 	*/
 	if( !do_update && cos_cache_template_index_bsearch(dn)) {
-			LDAPDebug1Arg(LDAP_DEBUG_PLUGIN, "cos_cache_change_notify: "
+			LDAPDebug1Arg(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_change_notify: "
 			              "updating due to indirect template change(%s)\n", dn);
 		do_update = 1;
 	}
@@ -3568,14 +3568,14 @@ static int cos_cache_entry_is_cos_related( Slapi_Entry *e) {
 	Slapi_Attr *pObjclasses = NULL;
 
 	if ( e == NULL ) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, "cos_cache_change_notify: "
+		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_change_notify: "
 		               "modified entry is NULL--updating cache just in case\n");
 		rc = 1;
 	} else {
 
 		if(slapi_entry_attr_find( e, "objectclass", &pObjclasses ))
 		{
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, "cos_cache_change_notify: "
+			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,  "cos_cache_change_notify: "
 			              " failed to get objectclass from %s\n",
 			              slapi_entry_get_dn(e));
 			rc = 0;

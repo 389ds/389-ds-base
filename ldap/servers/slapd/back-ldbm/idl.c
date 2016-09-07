@@ -398,6 +398,7 @@ idl_store(
         operation_out_of_disk_space();
       }
       LDAPDebug( ((DB_LOCK_DEADLOCK == rc) ? LDAP_DEBUG_TRACE : LDAP_DEBUG_ANY),
+    		     ((DB_LOCK_DEADLOCK == rc) ? LOG_DEBUG : LOG_ERR),   		  
                  "idl_store(%s) returns %d %s\n",
                  ((char*)key->dptr)[ key->dsize - 1 ] ? "" : (char*)key->dptr,
                  rc, (msg = dblayer_strerror( rc )) ? msg : "" );

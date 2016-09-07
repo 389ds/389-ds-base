@@ -70,7 +70,7 @@ testpreop_bind( Slapi_PBlock *pb )
 	   of authentication used. */
 	if ( slapi_pblock_get( pb, SLAPI_BIND_TARGET, &dn ) != 0 || 
 	     slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		"testpreop_bind", "Could not get parameters\n" );
 		return( -1 );
 	}
@@ -92,7 +92,7 @@ testpreop_bind( Slapi_PBlock *pb )
 
 	/* Log information about the bind operation to the
 	   server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpreop_bind",  
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpreop_bind",  
 		"Preoperation bind function called.\n" 
 		"\tTarget DN: %s\n\tAuthentication method: %s\n",
 		dn, auth );
@@ -114,7 +114,7 @@ testpreop_add( Slapi_PBlock *pb )
 
 	/* Get the entry that is about to be added. */
 	if ( slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &e ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		    "testpreop_add", "Could not get entry\n" );
 		return( -1 );
 	}
@@ -142,15 +142,15 @@ testpreop_search( Slapi_PBlock *pb )
 {
   char *base;
   /* Log a message to indicate when the plug-in function starts */
-  slapi_log_error( SLAPI_LOG_FATAL, "testpreop_search",
+  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "testpreop_search",
     "*** PREOPERATION SEARCH PLUGIN ***\n");
   /* Get and log the base DN of the search criteria */
   if ( slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &base ) == 0 )
-    slapi_log_error( SLAPI_LOG_FATAL, "SLAPI_SEARCH_TARGET",
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SLAPI_SEARCH_TARGET",
       "%s\n", base );
   /* Get and log the original base DN */
   if ( slapi_pblock_get( pb, SLAPI_ORIGINAL_TARGET_DN, &base ) == 0 )
-    slapi_log_error( SLAPI_LOG_FATAL, "SLAPI_ORIGINAL_TARGET_DN",
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SLAPI_ORIGINAL_TARGET_DN",
       "%s\n", base );
 
   return( 0 );	/* allow the operation to continue */
@@ -165,14 +165,14 @@ testpreop_abandon( Slapi_PBlock *pb )
 
 	/* Get the LDAP message ID of the abandon target */
 	if ( slapi_pblock_get( pb, SLAPI_ABANDON_MSGID, &msgid ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 		"testpreop_abandon", "Could not get parameters\n" );
 		return( -1 );
 	}
 
 	/* Log information about the abandon operation to the
 	   server error log. */
-	slapi_log_error( SLAPI_LOG_PLUGIN, "testpreop_bind",  
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testpreop_bind",  
 		"Preoperation abandon function called.\n" 
 		"\tTarget MsgID: %d\n",
 		msgid );
@@ -234,7 +234,7 @@ testpreop_init( Slapi_PBlock *pb )
 	    (void *) testpreop_search ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ABANDON_FN,
 	    (void *) testpreop_abandon ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, "testpreop_init",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "testpreop_init",
 			"Failed to set version and function\n" );
 		return( -1 );
 	}

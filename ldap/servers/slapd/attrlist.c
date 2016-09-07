@@ -284,7 +284,7 @@ int attrlist_replace(Slapi_Attr **alist, const char *type, struct berval **vals)
         }
         rc = attr_replace(*a, values); /* values is consumed */
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "attrlist_replace",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attrlist_replace",
                             "attr_replace (%s, %s) failed.\n",
                             type, vals[0]->bv_val);
             if (created) {
@@ -319,7 +319,7 @@ int attrlist_replace_with_flags(Slapi_Attr **alist, const char *type, struct ber
         }
         rc = attr_replace(*a, values);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "attrlist_replace",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attrlist_replace",
                             "attr_replace (%s, %s) failed.\n",
                             type, vals[0]->bv_val);
             if (created) {

@@ -109,7 +109,7 @@ rootdn_init(Slapi_PBlock *pb){
     int status = 0;
     char *plugin_identity = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, ROOTDN_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM,
                     "--> rootdn_init\n");
 
     /* Store the plugin identity for later use.  Used for internal operations. */
@@ -123,7 +123,7 @@ rootdn_init(Slapi_PBlock *pb){
        slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) rootdn_close) != 0 ||
        slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *) &pdesc) != 0 )
     {
-        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_init: failed to register plugin\n");
         status = -1;
     }
 
@@ -139,7 +139,7 @@ rootdn_init(Slapi_PBlock *pb){
                               NULL,                              /* ? */
                               plugin_identity                    /* access control */
         )) {
-        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
                         "rootdn_init: failed to register rootdn preoperation plugin\n");
         status = -1;
     }
@@ -148,12 +148,12 @@ rootdn_init(Slapi_PBlock *pb){
      *  Load the config
      */
     if(rootdn_load_config(pb) != 0){
-        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
             "rootdn_start: unable to load plug-in configuration\n");
         return -1;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM,"<-- rootdn_init\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM,"<-- rootdn_init\n");
     return status;
 }
 
@@ -161,7 +161,7 @@ static int
 rootdn_preop_bind_init(Slapi_PBlock *pb)
 {
     if(slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN, (void *) rootdn_check_access) != 0){
-        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM,"rootdn_preop_bind_init: "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,"rootdn_preop_bind_init: "
             "failed to register function\n");
         return -1;
     }
@@ -172,11 +172,11 @@ rootdn_preop_bind_init(Slapi_PBlock *pb)
 static int
 rootdn_start(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_start\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_start\n");
 
     rootdn_set_plugin_dn(ROOTDN_PLUGIN_DN);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_start\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_start\n");
 
     return 0;
 }
@@ -221,7 +221,7 @@ rootdn_load_config(Slapi_PBlock *pb)
     int time;
     int i;
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_load_config\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_load_config\n");
 
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &e) == 0) && e){
         /*
@@ -241,7 +241,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             daysAllowed_tmp = strToLower(daysAllowed_tmp);
             end = strspn(daysAllowed_tmp, "abcdefghijklmnopqrstuvwxyz ,");
             if(!end || daysAllowed_tmp[end] != '\0'){
-                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-days-allowed value (%s), must be all letters, and comma separators\n", daysAllowed_tmp);
                 slapi_ch_free_string(&daysAllowed_tmp);
                 result = -1;
@@ -252,7 +252,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             token = ldap_utf8strtok_r(copy, ", ", &iter);
             while(token){
                 if(strstr("mon tue wed thu fri sat sun",token) == 0){
-                    slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                         "invalid rootdn-days-allowed day value(%s), must be \"Mon, Tue, Wed, Thu, Fri, Sat, or Sun\".\n", token);
                     slapi_ch_free_string(&daysAllowed_tmp);
                     slapi_ch_free_string(&copy);
@@ -266,20 +266,20 @@ rootdn_load_config(Slapi_PBlock *pb)
         if(openTime){
             end = strspn(openTime, "0123456789");
             if (!end || openTime[end] != '\0'){
-                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-open-time value (%s), must be all digits\n", openTime);
                 result = -1;
                 goto free_and_return;
             }
             time = atoi(openTime);
             if(time > 2359 || time < 0){
-                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid value for rootdn-open-time value (%s), value must be between 0000-2359\n", openTime);
                 result = -1;
                 goto free_and_return;
             }
             if(strlen(openTime) != 4){
-                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid format for rootdn-open-time value (%s).  Should be HHMM\n", openTime);
                 result = -1;
                 goto free_and_return;
@@ -294,20 +294,20 @@ rootdn_load_config(Slapi_PBlock *pb)
         if(closeTime){
             end = strspn(closeTime, "0123456789");
             if (!end || closeTime[end] != '\0'){
-                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid rootdn-close-time value (%s), must be all digits, and should be HHMM\n",closeTime);
                 result = -1;
                 goto free_and_return;
             }
             time = atoi(closeTime);
             if(time > 2359 || time < 0){
-            	slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+            	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid value for rootdn-close-time value (%s), value must be between 0000-2359\n", closeTime);
                 result = -1;
                 goto free_and_return;
             }
             if(strlen(closeTime) != 4){
-                slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                     "invalid format for rootdn-close-time value (%s), should be HHMM\n", closeTime);
                 result = -1;
                 goto free_and_return;
@@ -321,7 +321,7 @@ rootdn_load_config(Slapi_PBlock *pb)
         }
         if((openTime && closeTime == NULL) || (openTime == NULL && closeTime)){
             /* If you are using TOD access control, you must have a open and close time */
-            slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                 "there must be a open and a close time.  Ignoring time based settings.\n");
             slapi_ch_free_string(&closeTime);
             slapi_ch_free_string(&openTime);
@@ -332,7 +332,7 @@ rootdn_load_config(Slapi_PBlock *pb)
         }
         if(close_time && open_time && close_time <= open_time){
             /* Make sure the closing time is greater than the open time */
-            slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                 "the close time must be greater than the open time\n");
             result = -1;
             goto free_and_return;
@@ -341,7 +341,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             for(i = 0; hosts_tmp[i] != NULL; i++){
                 end = strspn(hosts_tmp[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
                 if(!end || hosts_tmp[i][end] != '\0'){
-                    slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                         "hostname (%s) contains invalid characters, skipping\n",hosts_tmp[i]);
                     slapi_ch_array_free(hosts_tmp);
                     result = -1;
@@ -353,7 +353,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             for(i = 0; hosts_to_deny_tmp[i] != NULL; i++){
                 end = strspn(hosts_to_deny_tmp[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
                 if(!end || hosts_to_deny_tmp[i][end] != '\0'){
-                    slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                         "hostname (%s) contains invalid characters, skipping\n",hosts_to_deny_tmp[i]);
                     slapi_ch_array_free(hosts_to_deny_tmp);
                     result = -1;
@@ -365,7 +365,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             for(i = 0; ips_tmp[i] != NULL; i++){
                 end = strspn(ips_tmp[i], "0123456789:ABCDEFabcdef.");
                 if(!end || ips_tmp[i][end] != '\0'){
-                    slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                         "IP address contains invalid characters (%s), skipping\n", ips_tmp[i]);
                     slapi_ch_array_free(ips_tmp);
                     result = -1;
@@ -377,7 +377,7 @@ rootdn_load_config(Slapi_PBlock *pb)
                      */
                     end = strspn(ips_tmp[i], "0123456789.*");
                     if(!end || ips_tmp[i][end] != '\0'){
-                        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                             "IPv4 address contains invalid characters (%s), skipping\n", ips_tmp[i]);
                         slapi_ch_array_free(ips_tmp);
                         result = -1;
@@ -390,7 +390,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             for(i = 0; ips_to_deny_tmp[i] != NULL; i++){
                 end = strspn(ips_to_deny_tmp[i], "0123456789:ABCDEFabcdef.*");
                 if(!end || ips_to_deny_tmp[i][end] != '\0'){
-                    slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                         "IP address contains invalid characters (%s), skipping\n", ips_to_deny_tmp[i]);
                     slapi_ch_array_free(ips_to_deny_tmp);
                     result = -1;
@@ -402,7 +402,7 @@ rootdn_load_config(Slapi_PBlock *pb)
                      */
                     end = strspn(ips_to_deny_tmp[i], "0123456789.*");
                     if(!end || ips_to_deny_tmp[i][end] != '\0'){
-                        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                             "IPv4 address contains invalid characters (%s), skipping\n", ips_to_deny_tmp[i]);
                         slapi_ch_array_free(ips_to_deny_tmp);
                         result = -1;
@@ -413,7 +413,7 @@ rootdn_load_config(Slapi_PBlock *pb)
         }
     } else {
         /* failed to get the plugin entry */
-        slapi_log_error(SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config: "
                 "Failed to get plugin entry\n");
         result = -1;
     }
@@ -433,7 +433,7 @@ free_and_return:
     slapi_ch_free_string(&openTime);
     slapi_ch_free_string(&closeTime);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
 
     return result;
 }
@@ -473,7 +473,7 @@ rootdn_check_access(Slapi_PBlock *pb){
         curr_total = (timeinfo->tm_hour * 3600) + (timeinfo->tm_min * 60);
 
         if((curr_total < open_time) || (curr_total >= close_time)){
-            slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not in the "
+            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not in the "
                 "allowed time window\n");
             return -1;
         }
@@ -493,7 +493,7 @@ rootdn_check_access(Slapi_PBlock *pb){
         daysAllowed = strToLower(daysAllowed);
 
         if(!strstr(daysAllowed, today)){
-            slapi_log_error(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not allowed for today(%s), "
+            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: bind not allowed for today(%s), "
                 "only allowed on days: %s\n", today, daysAllowed);
             return -1;
         }
@@ -510,7 +510,7 @@ rootdn_check_access(Slapi_PBlock *pb){
          */
         client_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
         if ( slapi_pblock_get( pb, SLAPI_CONN_CLIENTNETADDR, client_addr ) != 0 ) {
-            slapi_log_error( SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get client address for hosts.\n" );
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get client address for hosts.\n" );
             rc = -1;
             goto free_and_return;
         }
@@ -524,12 +524,12 @@ rootdn_check_access(Slapi_PBlock *pb){
                 dnsName = slapi_ch_strdup( host_entry->h_name );
             } else {
                 /* no hostname */
-                slapi_log_error( SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: client address missing hostname\n");
+                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: client address missing hostname\n");
                 rc = -1;
                 goto free_and_return;
             }
         } else {
-            slapi_log_error( SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: client IP address could not be resolved\n");
+            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: client IP address could not be resolved\n");
             rc = -1;
             goto free_and_return;
         }
@@ -588,7 +588,7 @@ rootdn_check_access(Slapi_PBlock *pb){
         if(client_addr == NULL){
             client_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
             if ( slapi_pblock_get( pb, SLAPI_CONN_CLIENTNETADDR, client_addr ) != 0 ) {
-                slapi_log_error( SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get client address for IP.\n" );
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get client address for IP.\n" );
                 rc = -1;
                 goto free_and_return;
             }
@@ -602,13 +602,13 @@ rootdn_check_access(Slapi_PBlock *pb){
    	        v4addr.inet.family = PR_AF_INET;
    	        v4addr.inet.ip = client_addr->ipv6.ip.pr_s6_addr32[3];
    	        if( PR_NetAddrToString( &v4addr, ip_str, sizeof( ip_str )) != PR_SUCCESS){
-   	            slapi_log_error( SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get IPv4 from client address.\n" );
+   	            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get IPv4 from client address.\n" );
                 rc = -1;
                 goto free_and_return;
    	        }
         } else {
             if( PR_NetAddrToString(client_addr, ip_str, sizeof(ip_str)) != PR_SUCCESS){
-                slapi_log_error( SLAPI_LOG_FATAL, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get IPv6 from client address.\n" );
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access: Could not get IPv6 from client address.\n" );
                 rc = -1;
                 goto free_and_return;
             }

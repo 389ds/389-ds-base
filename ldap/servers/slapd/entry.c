@@ -274,7 +274,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 		}
 
 		if ( slapi_ldif_parse_line( s, &type, &value, &freeval ) < 0 ) {
-			LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= str2entry_fast NULL (parse_line)\n");
+			LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= str2entry_fast NULL (parse_line)\n");
 			continue;
 		}
 
@@ -325,7 +325,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 					} else {
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
-							LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+							LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 							     "str2entry_fast: Invalid DN: %s\n", rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&value.bv_val);
@@ -354,7 +354,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 						} else {
 							normdn = slapi_create_dn_string("%s", rawdn);
 							if (NULL == normdn) {
-								LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+								LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 								    "str2entry_fast: Invalid DN: %s\n", rawdn);
 								slapi_entry_free( e );
 								if (freeval) 
@@ -392,7 +392,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			}
 			if (NULL == normdn) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+				LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 							  "str2entry_fast: Invalid DN: %s\n",
                               escape_string( value.bv_val, ebuf ));
 				slapi_entry_free( e );
@@ -490,7 +490,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 					/* check that the dn is formatted correctly */
 					rc = slapi_dn_syntax_check(NULL, value.bv_val, 1);
 					if (rc) { /* syntax check failed */
-						LDAPDebug2Args(LDAP_DEBUG_TRACE, 
+						LDAPDebug2Args(LDAP_DEBUG_TRACE,  LOG_DEBUG,
 							"str2entry_fast: strict: Invalid DN value: %s: %s\n",
 							type.bv_val, value.bv_val);
 						slapi_entry_free( e );
@@ -580,7 +580,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
 		/* tombstone */
 		if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
-			LDAPDebug1Arg( LDAP_DEBUG_TRACE, "str2entry_fast: "
+			LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "str2entry_fast: "
 			               "tombstone entry has badly formatted dn: %s\n",
 			               slapi_entry_get_dn_const(e) );
 			slapi_entry_free( e ); e = NULL;
@@ -798,7 +798,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     /* Check if we should be performing strict validation. */
     strict = config_get_dn_validate_strict();
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> str2entry_dupcheck\n");
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> str2entry_dupcheck\n");
 
     e = slapi_entry_alloc();
     slapi_entry_init(e,NULL,NULL);
@@ -864,7 +864,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				} else {
 					normdn = slapi_create_dn_string("%s", rawdn);
 					if (NULL == normdn) {
-						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 						    "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -887,7 +887,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					} else {
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
-						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 							     "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -919,7 +919,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			normdn = slapi_create_dn_string("%s", valuecharptr);
 			if (NULL == normdn) {
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
+				LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
 						"str2entry_dupcheck: Invalid DN: %s\n", valuecharptr);
 				slapi_entry_free( e ); e = NULL;
 				if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -1076,7 +1076,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				/* check that the dn is formatted correctly */
 				rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
 				if (rc) { /* syntax check failed */
-					LDAPDebug2Args(LDAP_DEBUG_ANY, 
+					LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
 						"str2entry_dupcheck: strict: Invalid DN value: %s: %s\n",
 						type, valuecharptr);
 					slapi_entry_free( e ); e = NULL;
@@ -1238,7 +1238,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
         /* tombstone */
         if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
-            LDAPDebug1Arg( LDAP_DEBUG_TRACE, "str2entry_dupcheck: "
+            LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "str2entry_dupcheck: "
                            "tombstone entry has badly formatted dn: %s\n",
                            slapi_entry_get_dn_const(e) );
             slapi_entry_free( e ); e = NULL;
@@ -1766,7 +1766,7 @@ entry2str_internal( Slapi_Entry *e, int *len, int entry2str_ctrl )
     *ecur = '\0';
     if ( (size_t)(ecur - ebuf + 1) > elen )
     {
-        slapi_log_error (SLAPI_LOG_FATAL, NULL,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
             "entry2str_internal: array boundary wrote: bufsize=%ld wrote=%ld\n",
             (long int)elen, (long int)(ecur - ebuf + 1));
     }
@@ -1860,7 +1860,7 @@ entry2str_internal_ext( Slapi_Entry *e, int *len, int entry2str_ctrl)
         if ((size_t)(ecur - ebuf + 1) > elen)
         {
             /* this should not happen */
-            slapi_log_error (SLAPI_LOG_FATAL, NULL,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
                 "entry2str_internal_ext: array boundary wrote: "
                 "bufsize=%ld wrote=%ld\n",
                 (long int)elen, (long int)(ecur - ebuf + 1));
@@ -2439,7 +2439,7 @@ static Slapi_Vattr *entry_vattr_lookup_nolock(const Slapi_Entry *e, const char *
                 } else if (vattr->attr != NULL) {
                         name = vattr->attr->a_type;
                 } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, "entry_vattr_lookup_nolock", "unable to retrieve attribute name %s\n", attr_name);
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_vattr_lookup_nolock", "unable to retrieve attribute name %s\n", attr_name);
                         continue;
                 }
                 if (slapi_attr_type_cmp( (const char *) name , attr_name, SLAPI_TYPE_CMP_EXACT) == 0) {
@@ -2734,7 +2734,7 @@ slapi_entry_vattrcache_merge_sv(Slapi_Entry *e, const char *type,
                                  * returns a non NULL value.
                                  * Possibly watermark should have been updated to clear the cache 
                                  */
-                                slapi_log_error(SLAPI_LOG_FATAL, "slapi_entry_vattrcache_merge_sv",
+                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_entry_vattrcache_merge_sv",
                                         "Virtual attribute %s already cached with empty value, unwilling to cache a different value (%s) \n",
                                         type, slapi_entry_get_dn(e));
                         }
@@ -3342,7 +3342,7 @@ slapi_entry_has_children_ext(const Slapi_Entry *entry, int include_tombstone)
 				/* The entry has the attribute, and it's non-zero */
 				count = strtol(bval->bv_val, (char **)NULL, 10);
 				if (count > 0) {
-					LDAPDebug1Arg( LDAP_DEBUG_TRACE, "<= slapi_has_children %d\n", count);
+					LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_has_children %d\n", count);
 					return count;
 				}
 			}
@@ -3361,7 +3361,7 @@ slapi_entry_has_children_ext(const Slapi_Entry *entry, int include_tombstone)
 				/* The entry has the attribute, and it's non-zero */
 				count = strtol(bval->bv_val, (char **)NULL, 10);
 				if (count > 0) {
-					LDAPDebug1Arg( LDAP_DEBUG_TRACE, "<= slapi_has_tombstone_children %d\n", count);
+					LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_has_tombstone_children %d\n", count);
 					return count;
 				}
 			}
@@ -3548,14 +3548,14 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                         /* vals is consumed if successful. */
                         err = aiep->ext_set(e, vals, SLAPI_EXT_SET_ADD);
                         if (err) {
-                            slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
                                             "ADD: Failed to set %s to extension\n",
                                             aiep->ext_type);
                             valuearray_free(&vals);
                             goto bail;
                         }
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
                                         "ADD: %s has no values\n", 
                                         aiep->ext_type);
                         goto bail;
@@ -3566,7 +3566,7 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                 if (modcnt > 0) {
                     err = aiep->ext_get(e, &vals);
                     if (err) {
-                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
                                         "DEL: Failed to get %s from extension\n",
                                         aiep->ext_type);
                         goto bail;
@@ -3585,7 +3585,7 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                             /* myvals is consumed if successful. */
                             err = aiep->ext_set(e, myvals, SLAPI_EXT_SET_REPLACE);
                             if (err) {
-                                slapi_log_error(SLAPI_LOG_FATAL,
+                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
                                                 "entry_apply_mod",
                                                 "DEL: Failed to set %s "
                                                 "to extension\n",
@@ -3599,7 +3599,7 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                     /* ext_set replaces the existing value with NULL */
                     err = aiep->ext_set(e, NULL, SLAPI_EXT_SET_REPLACE);
                     if (err) {
-                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
                                         "DEL: Failed to set %s to extension\n",
                                         aiep->ext_type);
                         goto bail;
@@ -3614,14 +3614,14 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                         /* vals is consumed if successful. */
                         err = aiep->ext_set(e, vals, SLAPI_EXT_SET_REPLACE);
                         if (err) {
-                            slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
                                             "REPLACE: Failed to set %s to extension\n",
                                             aiep->ext_type);
                             valuearray_free(&vals);
                             goto bail;
                         }
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
                                         "REPLACE: %s has no values\n", 
                                         aiep->ext_type);
                         goto bail;
@@ -4319,7 +4319,7 @@ _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn)
             Slapi_RDN mysrdn = {0};
             rc = slapi_rdn_init_all_dn(&mysrdn, sepp + 1);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "_entry_set_tombstone_rdn",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "_entry_set_tombstone_rdn",
                                 "Failed to convert DN %s to RDN\n", sepp + 1);
                 slapi_rdn_done(&mysrdn);
                 goto bail;

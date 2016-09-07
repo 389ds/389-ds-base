@@ -55,19 +55,19 @@ start_tls_io_enable(Connection *c, void *data /* UNUSED */)
 
 	       ssl_listensocket = get_ssl_listener_fd();
 	       if ( ssl_listensocket == (PRFileDesc *) NULL ) {
-		       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+		       slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "start_tls",
 					"SSL listener socket not found.\n" );
 		       goto done;
 	       }
 	       newsocket = slapd_ssl_importFD( ssl_listensocket, c->c_prfd );
 	       if ( newsocket == (PRFileDesc *) NULL ) {
-		       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+		       slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "start_tls",
 					"SSL socket import failed.\n" );
 		       goto done;
 	       }
 	} else {
 	       if ( slapd_ssl_init2( &c->c_prfd, 1 ) != 0 ) {
-		       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+		       slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "start_tls",
 					"SSL socket import or configuration failed.\n" );
 		       goto done;
 	       }
@@ -77,7 +77,7 @@ start_tls_io_enable(Connection *c, void *data /* UNUSED */)
 
 	rv = slapd_ssl_resetHandshake( newsocket, 1 );
 	if ( rv != SECSuccess ) {
-	       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+	       slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "start_tls",
 				"Unable to set socket ready for SSL handshake.\n" );
 	       goto done;
 	}
@@ -100,7 +100,7 @@ start_tls_io_enable(Connection *c, void *data /* UNUSED */)
 
 	if ( rv < 0 ) {
 	       PRErrorCode prerr = PR_GetError();
-	       slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+	       slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "start_tls",
 			  "SSL_HandshakeCallback() %d " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 			  rv, prerr, slapd_pr_strerror( prerr ) );
 	}
@@ -109,7 +109,7 @@ start_tls_io_enable(Connection *c, void *data /* UNUSED */)
 	       rv = slapd_ssl_badCertHook (c->c_prfd, (void *)handle_bad_certificate, c);
 	       if ( rv < 0 ) {
 		        PRErrorCode prerr = PR_GetError();
-			slapi_log_error( SLAPI_LOG_FATAL, "start_tls",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "start_tls",
 					 "SSL_BadCertHook(%i) %i " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					 c->c_sd, rv, prerr, slapd_pr_strerror( prerr ) );
 	       }
@@ -134,7 +134,7 @@ start_tls( Slapi_PBlock *pb )
 	 * The only requirement is to set the LDAP OID of the extended response to the START_TLS_OID. */
 
 	if ( slapi_pblock_set( pb, SLAPI_EXT_OP_RET_OID, START_TLS_OID ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Could not set extended response oid.\n" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
 					"Could not set extended response oid.", 0, NULL );
@@ -147,24 +147,24 @@ start_tls( Slapi_PBlock *pb )
 	 * match this very plugin's OID: START_TLS_OID. */
 
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_OID, &oid ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Could not get OID value from request.\n" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
 					"Could not get OID value from request.", 0, NULL );
 		return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 	} else {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Received extended operation request with OID %s\n", oid );
 	}
 	
 	if ( strcasecmp( oid, START_TLS_OID ) != 0) {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Request OID does not match Start TLS OID.\n" );
 	        slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, 
 					"Request OID does not match Start TLS OID.", 0, NULL ); 
 		return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 	} else {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Start TLS extended operation request confirmed.\n" );
 	}      
 
@@ -175,7 +175,7 @@ start_tls( Slapi_PBlock *pb )
 	PR_EnterMonitor(conn->c_mutex);
 	/* cannot call slapi_send_ldap_result with mutex locked - will deadlock if ber_flush returns error */
 	if ( conn->c_prfd == (PRFileDesc *) NULL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls",
 		                 "Connection socket not available.\n" );
 		ldaprc = LDAP_UNAVAILABLE;
 		ldapmsg = "Connection socket not available.";
@@ -185,7 +185,7 @@ start_tls( Slapi_PBlock *pb )
 	/* Check whether the Start TLS request can be accepted. */
 	if ( connection_operations_pending( conn, pb->pb_op,
 				1 /* check for ops where result not yet sent */ )) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Other operations are still pending on the connection.\n" );
 		ldaprc = LDAP_OPERATIONS_ERROR;
 		ldapmsg = "Other operations are still pending on the connection.";
@@ -196,7 +196,7 @@ start_tls( Slapi_PBlock *pb )
 	if ( !config_get_security() ) {
 	        /* if any, here is where the referral to another SSL supporting server should be done: */
 	        /* slapi_send_ldap_result( pb, LDAP_REFERRAL, NULL, msg, 0, url ); */
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "SSL not supported by this server.\n" );
 		ldaprc = LDAP_PROTOCOL_ERROR;
 		ldapmsg = "SSL not supported by this server.";
@@ -205,7 +205,7 @@ start_tls( Slapi_PBlock *pb )
 
 
 	if ( conn->c_flags & CONN_FLAG_SSL ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "SSL connection already established.\n" );
 		ldaprc = LDAP_OPERATIONS_ERROR;
 		ldapmsg = "SSL connection already established.";
@@ -213,7 +213,7 @@ start_tls( Slapi_PBlock *pb )
 	}
 
 	if ( conn->c_flags & CONN_FLAG_SASL_CONTINUE ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "SASL multi-stage bind in progress.\n" );
 		ldaprc = LDAP_OPERATIONS_ERROR;
 		ldapmsg = "SASL multi-stage bind in progress.";
@@ -221,7 +221,7 @@ start_tls( Slapi_PBlock *pb )
 	}
 
 	if ( conn->c_flags & CONN_FLAG_CLOSING ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 				 "Connection being closed at this moment.\n" );
 		ldaprc = LDAP_UNAVAILABLE;
 		ldapmsg = "Connection being closed at this moment.";
@@ -232,7 +232,7 @@ start_tls( Slapi_PBlock *pb )
 	 * So, we may as well try initialising SSL. */
 
 	if ( slapd_security_library_is_initialized() == 0 ) {	  
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls",
 		                 "NSS libraries not initialised.\n" );
 		ldaprc = LDAP_UNAVAILABLE;
 		ldapmsg = "NSS libraries not initialised.";
@@ -279,7 +279,7 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	       pblock->pb_op = c->c_ops;
 	       set_db_default_result_handlers( pblock );
 	       if ( slapi_pblock_set( pblock, SLAPI_EXT_OP_RET_OID, START_TLS_OID ) != 0 ) {
-		       slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls", 
+		       slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls", 
 					"Could not set extended response oid.\n" );
 		       slapi_send_ldap_result( pblock, LDAP_OPERATIONS_ERROR, NULL, 
 					"Could not set extended response oid.", 0, NULL );
@@ -293,12 +293,12 @@ start_tls_graceful_closure( Connection *c, Slapi_PBlock * pb, int is_initiator )
 	 */
 	while ( connection_operations_pending( c, pblock->pb_op,
 				0 /* wait for all other ops to full complete */ )) {
-	  slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls",
+	  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls",
 			   "Still %d operations to be completed before closing the SSL connection.\n",
 			   c->c_refcnt - 1 );
 	}
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls_graceful_closure", "SSL_CLOSE_NOTIFY_ALERT\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls_graceful_closure", "SSL_CLOSE_NOTIFY_ALERT\n" );
 
 	/* An SSL close_notify alert should be sent to the client. However, the NSS API
 	 * doesn't provide us with anything alike.
@@ -380,19 +380,19 @@ int start_tls_init( Slapi_PBlock *pb )
 	 */ 
 
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls_init", "Could not get argv\n" );
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls_init", "Could not get argv\n" );
 		return( -1 );
 	}
 
 	/* Compare the OID specified in the configuration file against the Start TLS OID. */
 
 	if ( argv == NULL || strcmp( argv[0], START_TLS_OID ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls_init", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls_init", 
 				 "OID is missing or is not %s\n", START_TLS_OID );
 		return( -1 );
 	} else {
 		oid = slapi_ch_strdup( argv[0] );
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls_init", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls_init", 
 				 "Registering plug-in for Start TLS extended op %s.\n", oid );
 		slapi_ch_free_string( &oid );
 	}
@@ -407,7 +407,7 @@ int start_tls_init( Slapi_PBlock *pb )
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, start_tls_oid_list ) != 0 ||
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, start_tls_name_list ) != 0 ) {
 
-		slapi_log_error( SLAPI_LOG_PLUGIN, "start_tls_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "start_tls_init",
 				 "Failed to set plug-in version, function, and OID.\n" );
 		return( -1 );
 	}

@@ -646,7 +646,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			retVal = LDAP_SUCCESS;
 		} else {
 			if (!urp) {
-				LDAPDebug1Arg(LDAP_DEBUG_ARGS, "could not find attribute %s\n",
+				LDAPDebug1Arg(LDAP_DEBUG_ARGS, LOG_DEBUG, "could not find attribute %s\n",
 				              type);
 			}
 			retVal = LDAP_NO_SUCH_ATTRIBUTE;

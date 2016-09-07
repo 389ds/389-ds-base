@@ -467,7 +467,7 @@ slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn,
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || dn == NULL || mods == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
 						"slapi_modify_internal_set_pb: NULL parameter\n");
 		return;
 	}
@@ -496,7 +496,7 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn,
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || sdn == NULL || mods == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
 						"slapi_modify_internal_set_pb_ext: NULL parameter\n");
 		return;
 	}

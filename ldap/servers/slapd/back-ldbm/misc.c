@@ -27,7 +27,7 @@ void ldbm_nasty(const char* str, int c, int err)
         LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,"%s, err=%d %s\n",
                   buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
    } else if (err == DB_RUNRECOVERY) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, "FATAL ERROR at %s (%d); "
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "FATAL ERROR at %s (%d); "
                   "server stopping as database recovery needed.\n", str, c);
         exit(1);
     } else {
@@ -224,7 +224,7 @@ allinstance_set_busy(struct ldbminfo *li)
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (instance_set_busy(inst)) {
-            LDAPDebug1Arg(LDAP_DEBUG_TRACE, "could not set instance [%s] as busy, probably already busy\n",
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "could not set instance [%s] as busy, probably already busy\n",
                       inst->inst_name);
         }
     }
@@ -538,7 +538,7 @@ get_value_from_string(const char *string, char *type, char **value)
         rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
         if (0 > rc || NULL == tmptype.bv_val ||
             NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
-            slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "parse "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "get_value_from_string", "parse "
                                              "failed: %d\n", rc);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
@@ -547,7 +547,7 @@ get_value_from_string(const char *string, char *type, char **value)
             goto bail;
         }
         if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
-            slapi_log_error(SLAPI_LOG_FATAL, "get_value_from_string", "type "
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "get_value_from_string", "type "
                                              "does not match: %s != %s\n", 
                                              type, tmptype.bv_val);
             if (freeval) {
@@ -626,7 +626,7 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
             char *p = PL_strchr(tmptype.bv_val, ';'); /* subtype ? */
             if (p) {
                 if (0 != strncasecmp(type, tmptype.bv_val, p - tmptype.bv_val)) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "get_values_from_string", 
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "get_values_from_string", 
                                     "type does not match: %s != %s\n", 
                                     type, tmptype.bv_val);
                     if (freeval) {
@@ -635,7 +635,7 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
                     goto bail;
                 }
             } else {
-                slapi_log_error(SLAPI_LOG_FATAL, "get_values_from_string", 
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "get_values_from_string", 
                                 "type does not match: %s != %s\n", 
                                 type, tmptype.bv_val);
                 if (freeval) {

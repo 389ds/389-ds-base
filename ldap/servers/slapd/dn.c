@@ -2797,7 +2797,7 @@ ndn_cache_init()
     ndn_started = 1;
     if ( NULL == ( lru_lock = PR_NewLock()) ||  NULL == ( ndn_cache_lock = slapi_new_rwlock())) {
         ndn_cache_destroy();
-        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n" );
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n" );
     }
 }
 
@@ -2951,7 +2951,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
      */
     new_node = (struct ndn_cache_lru *)slapi_ch_malloc(sizeof(struct ndn_cache_lru));
     if(new_node == NULL){
-        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_add", "Failed to allocate new lru node.\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ndn_cache_add", "Failed to allocate new lru node.\n");
         return;
     }
     new_node->prev = NULL;
@@ -2974,7 +2974,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
     ht_entry = (struct ndn_hash_val *)slapi_ch_malloc(sizeof(struct ndn_hash_val));
     if(ht_entry == NULL){
         slapi_rwlock_unlock(ndn_cache_lock);
-        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_add", "Failed to allocate new hash entry.\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ndn_cache_add", "Failed to allocate new hash entry.\n");
         slapi_ch_free_string(&new_node->key);
         slapi_ch_free((void **)&new_node);
         return;
@@ -3012,7 +3012,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
      */
     he = PL_HashTableAdd(ndn_cache_hashtable, new_node->key, (void *)ht_entry);
     if(he == NULL){
-        slapi_log_error( SLAPI_LOG_FATAL, "ndn_cache_add", "Failed to add new entry to hash(%s)\n",dn);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ndn_cache_add", "Failed to add new entry to hash(%s)\n",dn);
     } else {
         ndn_cache->cache_count++;
         ndn_cache->cache_size += size;
@@ -3044,7 +3044,7 @@ ndn_cache_flush(void)
         slapi_ch_free((void **)&flush_node);
     }
 
-    slapi_log_error( SLAPI_LOG_CACHE, "ndn_cache_flush","Flushed cache.\n");
+    slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "ndn_cache_flush","Flushed cache.\n");
 }
 
 static void

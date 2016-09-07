@@ -78,13 +78,13 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
 
     if (pb == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "process_bulk_import_op: NULL pblock\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "process_bulk_import_op: NULL pblock\n");
         return LDAP_OPERATIONS_ERROR;
     }
 
     if (state == SLAPI_BI_STATE_ADD && e == NULL)
     {
-       slapi_log_error(SLAPI_LOG_FATAL, NULL, "process_bulk_import_op: NULL entry\n");
+       slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "process_bulk_import_op: NULL entry\n");
        return LDAP_OPERATIONS_ERROR;
     }
 
@@ -100,7 +100,7 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
         {
             slapi_pblock_get (pb, SLAPI_TARGET_SDN, &target_sdn);
             if (NULL == target_sdn) {
-                slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
                                 "process_bulk_import_op: NULL target sdn\n");
                 return LDAP_OPERATIONS_ERROR;
             }
@@ -111,7 +111,7 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
         {
             if (state == SLAPI_BI_STATE_START && (!slapi_be_issuffix(be, target_sdn)))
             {
-                slapi_log_error(SLAPI_LOG_FATAL, NULL,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
                      "process_bulk_import_op: wrong backend suffix\n");
                 return LDAP_OPERATIONS_ERROR;    
             }
@@ -119,14 +119,14 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
         }
         else
         {
-            slapi_log_error(SLAPI_LOG_FATAL, NULL, "process_bulk_import_op: NULL backend\n");
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "process_bulk_import_op: NULL backend\n");
             return LDAP_OPERATIONS_ERROR;    
         }        
     }
 
     if (be->be_wire_import == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "slapi_start_bulk_import: "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "slapi_start_bulk_import: "
                         "bulk import is not supported by this (%s) backend\n",
                         be->be_type);
         return LDAP_NOT_SUPPORTED;   
@@ -142,7 +142,7 @@ process_bulk_import_op (Slapi_PBlock *pb, int state, Slapi_Entry *e)
     {
         /* The caller will free the entry (e), so we just
          * leave it alone here. */
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, "slapi_start_bulk_import: "
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "slapi_start_bulk_import: "
                         "failed; error = %d\n", rc);
         return LDAP_OPERATIONS_ERROR;
     }

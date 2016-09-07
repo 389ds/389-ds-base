@@ -50,7 +50,7 @@ int ldbm_instance_create(backend *be, char *name)
      */
     if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
                      DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY,
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                        "ldbm_instance_create: dn cache_init failed\n");
         rc = -1;
         goto error;

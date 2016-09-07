@@ -693,7 +693,7 @@ int connection_release_nolock_ext (Connection *conn, int release_only)
 {
     if (conn->c_refcnt <= 0)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, "connection",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 		                conn->c_connid, conn->c_sd);
         PR_ASSERT (PR_FALSE);
@@ -725,7 +725,7 @@ int connection_acquire_nolock_ext (Connection *conn, int allow_when_closing)
     if (!allow_when_closing && (conn->c_flags & CONN_FLAG_CLOSING))
     {
 	/* This may happen while other threads are still working on this connection */
-        slapi_log_error(SLAPI_LOG_FATAL, "connection",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 		                conn->c_connid, conn->c_sd);
         return -1;
@@ -961,11 +961,11 @@ int connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
 	}
 
 	if ( op_shutdown ) {
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "connection_wait_for_new_work: shutdown\n" );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "connection_wait_for_new_work: shutdown\n" );
 		ret = CONN_SHUTDOWN;
 	} else if ( NULL == ( wqitem = get_work_q( &op_stack_obj ) ) ) {
 		/* not sure how this can happen */
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "connection_wait_for_new_work: no work to do\n" );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "connection_wait_for_new_work: no work to do\n" );
 		ret = CONN_NOWORK;
 	} else {
 		/* make new pb */
@@ -1352,7 +1352,7 @@ void connection_make_readable(Connection *conn)
 void connection_make_readable_nolock(Connection *conn)
 {
 	conn->c_gettingber = 0;
-	LDAPDebug2Args(LDAP_DEBUG_CONNS, "making readable conn %" NSPRIu64 " fd=%d\n",
+	LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "making readable conn %" NSPRIu64 " fd=%d\n",
 		       conn->c_connid, conn->c_sd);
 	if (!(conn->c_flags & CONN_FLAG_CLOSING)) {
 		/* if the connection is closing, try the close in connection_release_nolock */
@@ -1573,7 +1573,7 @@ connection_threadmain()
 						slapi_ch_free_string( &anon_dn );
 					}
 					if (connection_call_io_layer_callbacks(pb->pb_conn)) {
-						LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
+						LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "Error: could not add/remove IO layers from connection\n" );
 					}
 				default:
 					break;
@@ -1589,7 +1589,7 @@ connection_threadmain()
 			/* Make our own pb in turbo mode */
 			connection_make_new_pb(pb,conn);
 			if (connection_call_io_layer_callbacks(conn)) {
-				LDAPDebug0Args( LDAP_DEBUG_ANY, "Error: could not add/remove IO layers from connection\n" );
+				LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "Error: could not add/remove IO layers from connection\n" );
 			}
 			PR_ExitMonitor(conn->c_mutex);
 			if (! config_check_referral_mode()) {
@@ -1604,12 +1604,12 @@ connection_threadmain()
 		more_data = 0;
 		ret = connection_read_operation(conn, op, &tag, &more_data);
 		if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
-			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
+			slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "connection_threadmain",
 					"conn %" NSPRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
 					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, ret, thread_turbo_flag, more_data,
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
 		} else if (ret == CONN_FOUND_WORK_TO_DO) {
-			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
+			slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "connection_threadmain",
 					"conn %" NSPRIu64 " read operation successfully - thread_turbo_flag %d more_data %d "
 					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, thread_turbo_flag, more_data,
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
@@ -1635,7 +1635,7 @@ connection_threadmain()
 		/* turn off turbo mode immediately if any pb waiting in global queue */
 		if (thread_turbo_flag && !WORK_Q_EMPTY) {
 			thread_turbo_flag = 0;
-			LDAPDebug2Args(LDAP_DEBUG_CONNS,"conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",
+			LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG,"conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",
 			               conn->c_connid,work_q_size);
 		}
 #endif
@@ -1923,9 +1923,9 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
 	struct Slapi_work_q  *tmp = NULL;
 	work_q_item *wqitem;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, "get_work_q \n" );
+	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "get_work_q \n" );
 	if (head_work_q == NULL) {
-		LDAPDebug0Args( LDAP_DEBUG_TRACE, "get_work_q: the work queue is empty.\n" );
+		LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "get_work_q: the work queue is empty.\n" );
 		return NULL;
 	}
 
@@ -1993,7 +1993,7 @@ connection_post_shutdown_cleanup()
 	}
 	PR_DestroyStack(op_stack);
 	op_stack = NULL;
-	LDAPDebug2Args( LDAP_DEBUG_ANY,
+	LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR,
 		   	"slapd shutting down - freed %d work q stack objects - freed %d op stack objects\n",
 		   	work_cnt, stack_cnt);
 }
@@ -2173,13 +2173,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 		maxbersize = config_get_maxbersize();
 	}
 	if (0 == ber_len) {
-		slapi_log_error( SLAPI_LOG_FATAL, "connection",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, maxbersize );
 	} else {
-		slapi_log_error( SLAPI_LOG_FATAL, "connection",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
@@ -2288,7 +2288,7 @@ disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PR
 		}
 
     } else {
-	    LDAPDebug2Args(LDAP_DEBUG_CONNS, "not setting conn %d to be disconnected: %s\n",
+	    LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG, "not setting conn %d to be disconnected: %s\n",
 			   conn->c_sd,
 			   (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" :
 			    ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :

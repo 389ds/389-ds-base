@@ -2126,7 +2126,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 				}
 				plugin_dn = plugin_get_dn(plugin);
 
-				slapi_log_error (SLAPI_LOG_FATAL, "Internal search" , "Unindexed search: source (%s) "
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Internal search" , "Unindexed search: source (%s) "
 						"search base=\"%s\" filter=\"%s\" etime=%s nentries=%d %s\n",
 						plugin_dn, base_dn, filter_str, etime, nentries, notes_str);
 

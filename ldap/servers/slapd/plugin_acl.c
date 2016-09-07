@@ -152,7 +152,7 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 	}
 	
 	if (NULL == sdn) {
-		LDAPDebug0Args ( LDAP_DEBUG_ANY, 
+		LDAPDebug0Args ( LDAP_DEBUG_ANY, LOG_ERR,
 		                 "plugin_call_acl_mods_update: Null target DN\n" );
 		return LDAP_INVALID_DN_SYNTAX;
 	}

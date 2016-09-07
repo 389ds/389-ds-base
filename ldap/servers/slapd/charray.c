@@ -462,7 +462,7 @@ charray_normdn_add(char ***chararray, char *dn, char *errstr)
     char *normdn = NULL;
     rc = slapi_dn_normalize_ext(dn, 0, &normdn, &len);
     if (rc < 0) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, "Invalid dn: \"%s\" %s\n",
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Invalid dn: \"%s\" %s\n",
                        dn, errstr?errstr:"");
         return rc;
     } else if (0 == rc) {

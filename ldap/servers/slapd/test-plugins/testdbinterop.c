@@ -55,7 +55,7 @@ void make_key(DBT *key)
     unsigned int seed = (unsigned int)time( (time_t*) 0);
     long int key_long = slapi_rand_r(&seed) % number_of_keys;
     sprintf(key_string,"key%ld",key_long);
-    slapi_log_error(SLAPI_LOG_PLUGIN, DB_PLUGIN_NAME,"generated key: %s\n", key_string);
+    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DB_PLUGIN_NAME,"generated key: %s\n", key_string);
     key->size = strlen(key_string);
 }
 
@@ -91,10 +91,10 @@ db_put_dn(char *data_dn)
     switch (ret =
 		dbp->put(dbp, NULL, &key, &data, DB_NOOVERWRITE)) {
 	case 0: 
-	   	slapi_log_error(SLAPI_LOG_PLUGIN, DB_PLUGIN_NAME, "db: %s: key stored.\n", (char *)key.data);
+	   	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DB_PLUGIN_NAME, "db: %s: key stored.\n", (char *)key.data);
 	break;
 	case DB_KEYEXIST:
-		slapi_log_error(SLAPI_LOG_PLUGIN, DB_PLUGIN_NAME, "db: %s: key previously stored.\n",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DB_PLUGIN_NAME, "db: %s: key previously stored.\n",
 			(char *)key.data);
 	break;
 	default:
@@ -104,7 +104,7 @@ db_put_dn(char *data_dn)
 
     err:
     if(ret){
-		slapi_log_error(SLAPI_LOG_PLUGIN, DB_PLUGIN_NAME, "db: Error detected in db_put \n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DB_PLUGIN_NAME, "db: Error detected in db_put \n");
     }
 	free(key.data);
 	if (dbp){
@@ -151,7 +151,7 @@ db_put_dn(char *data_dn)
 
 	/* open a file */
 	if ((prfd = PR_Open(db_path, PR_RDWR | PR_CREATE_FILE | PR_APPEND, 0600)) == NULL ) {
-		slapi_log_error(SLAPI_LOG_FATAL, DB_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DB_PLUGIN_NAME,
 				"db: Could not open file \"%s\" for read/write; %d (%s)\n",
 				db_path, PR_GetError(), slapd_pr_strerror(PR_GetError()));
 		return;
@@ -162,17 +162,17 @@ db_put_dn(char *data_dn)
 
 	ret = PR_Write(prfd, data_dnp, data_sz);
 	if (ret == data_sz) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, DB_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DB_PLUGIN_NAME,
 						"db: %s: key stored.\n", data_dn);
 		ret = 0;
 	} else  {
-		slapi_log_error(SLAPI_LOG_FATAL, DB_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DB_PLUGIN_NAME,
 				"db: Failed to store key \"%s\"; %d (%s)\n",
 				data_dn, PR_GetError(), slapd_pr_strerror(PR_GetError()));
 		ret = 1;
 	}
     if(ret) {
-		slapi_log_error(SLAPI_LOG_FATAL, DB_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DB_PLUGIN_NAME,
 						"db: Error detected in db_put_dn \n");
     }
 	slapi_ch_free_string(&data_dnp);

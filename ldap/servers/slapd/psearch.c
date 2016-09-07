@@ -282,7 +282,7 @@ ps_send_results( void *arg )
     PR_ExitMonitor(ps->ps_pblock->pb_conn->c_mutex);
 
 	if (conn_acq_flag) {
-		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
+		slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "Persistent Search",
 				"conn=%" NSPRIu64 " op=%d Could not acquire the connection - psearch aborted\n",
 				ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
 	}
@@ -292,7 +292,7 @@ ps_send_results( void *arg )
     while ( (conn_acq_flag == 0) && !ps->ps_complete ) {
 	/* Check for an abandoned operation */
 	if ( ps->ps_pblock->pb_op == NULL || slapi_op_abandoned( ps->ps_pblock ) ) {
-		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
+		slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "Persistent Search",
 				"conn=%" NSPRIu64 " op=%d The operation has been abandoned\n",
 				ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid);
 	    break;
@@ -350,7 +350,7 @@ ps_send_results( void *arg )
 	    	rc = send_ldap_search_entry( ps->ps_pblock, ec,
 										 ectrls, attrs, attrsonly );
 			if (rc) {
-				slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
+				slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "Persistent Search",
 								"conn=%" NSPRIu64 " op=%d Error %d sending entry %s with op status %d\n",
 								ps->ps_pblock->pb_conn->c_connid, ps->ps_pblock->pb_op->o_opid,
 								rc, slapi_entry_get_dn_const(ec), ps->ps_pblock->pb_op->o_status);
@@ -399,7 +399,7 @@ ps_send_results( void *arg )
     /* Clean up the connection structure */
     PR_EnterMonitor(conn->c_mutex);
 
-	slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
+	slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "Persistent Search",
 					"conn=%" NSPRIu64 " op=%d Releasing the connection and operation\n",
 					conn->c_connid, ps->ps_pblock->pb_op->o_opid);
     /* Delete this op from the connection's list */
@@ -534,7 +534,7 @@ ps_service_persistent_searches( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t ch
 			continue;
 		}
 
-		slapi_log_error(SLAPI_LOG_CONNS, "Persistent Search",
+		slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "Persistent Search",
 						"conn=%" NSPRIu64 " op=%d entry %s with chgtype %d "
 						"matches the ps changetype %d\n",
 						ps->ps_pblock->pb_conn->c_connid,

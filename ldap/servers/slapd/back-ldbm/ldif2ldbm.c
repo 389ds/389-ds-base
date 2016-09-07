@@ -250,7 +250,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
             }
             if (err) {
                 if (DB_NOTFOUND != err && 1 != err) {
-                    LDAPDebug1Arg( LDAP_DEBUG_ANY, "database error %d\n", err );
+                    LDAPDebug1Arg( LDAP_DEBUG_ANY, LOG_ERR, "database error %d\n", err );
                     slapi_ch_free_string( &pdn );
                     return( -1 );
                 }
@@ -270,7 +270,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep,
             } else {
                 /* empty idl */
                 if ( 0 != err && DB_NOTFOUND != err ) {
-                    LDAPDebug1Arg( LDAP_DEBUG_ANY, "database error %d\n", err );
+                    LDAPDebug1Arg( LDAP_DEBUG_ANY, LOG_ERR, "database error %d\n", err );
                     slapi_ch_free_string( &pdn );
                     return( -1 );
                 }
@@ -692,7 +692,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
         if (dblayer_import_file_init(inst)) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY,
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                     "ldbm_back_ldif2ldbm: failed to write import file\n");
             return -1;
         }
@@ -723,7 +723,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
             ret = dblayer_start(li,
                                  DBLAYER_NORMAL_MODE|DBLAYER_NO_DBTHREADS_MODE);
             if (ret) {
-                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                     "ldbm_back_ldif2ldbm: dblayer_start failed! %s (%d)\n",
                     dblayer_strerror(ret), ret);
                 goto fail;
@@ -732,7 +732,7 @@ int ldbm_back_ldif2ldbm( Slapi_PBlock *pb )
             ldbm_usn_init(li);
             ret = dblayer_close(li, DBLAYER_NORMAL_MODE);
             if (ret != 0) {
-                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                     "ldbm_back_ldif2ldbm: dblayer_close failed! %s (%d)\n",
                     dblayer_strerror(ret), ret);
             }
@@ -872,13 +872,13 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             *err = entryrdn_index_read(be, &sdn, &id, NULL);
             if (*err) {
                 if (DB_NOTFOUND == *err) {
-                    LDAPDebug2Args(LDAP_DEBUG_ANY,
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                         "info: entryrdn not indexed on '%s'; "
                         "entry %s may not be added to the database yet.\n",
                         include[i], include[i]);
                     *err = 0; /* not a problem */
                 } else {
-                    LDAPDebug2Args( LDAP_DEBUG_ANY,
+                    LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR,
                                    "Reading %s failed on entryrdn; %d\n",
                                    include[i], *err );
                 }
@@ -891,13 +891,13 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
             idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &bv, txn, err);
             if (idl == NULL) {
                 if (DB_NOTFOUND == *err) {
-                    LDAPDebug2Args(LDAP_DEBUG_ANY,
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                         "info: entrydn not indexed on '%s'; "
                         "entry %s may not be added to the database yet.\n",
                         include[i], include[i]);
                     *err = 0; /* not a problem */
                 } else {
-                    LDAPDebug2Args( LDAP_DEBUG_ANY,
+                    LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR,
                                    "Reading %s failed on entrydn; %d\n",
                                    include[i], *err );
                 }
@@ -919,7 +919,7 @@ static IDList *ldbm_fetch_subtrees(backend *be, char **include, int *err)
         slapi_sdn_done(&sdn);
         if (idl == NULL) {
             if (DB_NOTFOUND == *err) {
-                LDAPDebug2Args(LDAP_DEBUG_BACKLDBM, 
+                LDAPDebug2Args(LDAP_DEBUG_BACKLDBM, LOG_DEBUG,
                     "Info: Entry id %lu has no descendants according to %s. "
                     "Index file created by this reindex will be empty.\n",
                     id, entryrdn_get_noancestorid()?"entryrdn":"ancestorid");
@@ -1016,7 +1016,7 @@ export_one_entry(struct ldbminfo *li,
             rc = slapi_entry_attr_replace(expargs->ep->ep_entry,
                                           "userpassword", vals);
             if (rc) {
-                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                         "%s: Failed to add clear password storage scheme: %d\n",
                         slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
             }
@@ -1182,13 +1182,13 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
     } else {
         slapi_pblock_get(pb, SLAPI_BACKEND, &be);
         if (!be) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, "No backend\n");
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "No backend\n");
             return_value = -1;
             goto bye;
         }
         inst = (ldbm_instance *)be->be_instance_info;
         if (!inst) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, "Unknown ldbm instance\n");
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Unknown ldbm instance\n");
             return_value = -1;
             goto bye;
         }
@@ -1311,7 +1311,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         /* get a cursor to we can walk over the table */
         return_value = db->cursor(db,NULL,&dbc,0);
         if (0 != return_value || NULL == dbc) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                           "Failed to get cursor for db2ldif; %s (%d)\n",
                           dblayer_strerror(return_value), return_value);
             return_value = -1;
@@ -1336,13 +1336,13 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         if (NULL == idl) {
             if (err) {
                 /* most likely, indexes are bad. */
-                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                       "Failed to fetch subtree lists (error %d) %s\n",
                       err, dblayer_strerror(err));
-                LDAPDebug0Args(LDAP_DEBUG_ANY,
+                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                       "Possibly the entrydn/entryrdn or ancestorid index is "
                       "corrupted or does not exist.\n");
-                LDAPDebug0Args(LDAP_DEBUG_ANY,
+                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                       "Attempting direct unindexed export instead.\n");
             }
             ok_index = 0;
@@ -1508,7 +1508,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
-                        LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                        LDAPDebug2Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                    "ldbm2ldif: entryrdn is not available; "
                                    "composing dn (rdn: %s, ID: %d)\n", 
                                    rdn, temp_id);
@@ -1520,7 +1520,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                                                       &psrdn, NULL, 0,
                                                       run_from_cmdline, NULL);
                                 if (rc) {
-                                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                                 "ldbm2ldif: Skip ID %d\n", pid);
                                     slapi_ch_free_string(&rdn);
                                     slapi_rdn_done(&psrdn);
@@ -1531,7 +1531,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                             /* Generate DN string from Slapi_RDN */
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             if (rc) {
-                                LDAPDebug2Args( LDAP_DEBUG_ANY,
+                                LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR,
                                        "ldbm2ldif: Failed to compose dn for "
                                        "(rdn: %s, ID: %d) from Slapi_RDN\n",
                                        rdn, temp_id);
@@ -1554,12 +1554,12 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                     myrc = CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     if (myrc) {
                         backdn_free(&bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm2ldif",
+                        slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "ldbm2ldif",
                                         "%s is already in the dn cache (%d)\n",
                                         dn, myrc);
                     } else {
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm2ldif",
+                        slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "ldbm2ldif",
                                         "entryrdn_lookup_dn returned: %s, "
                                         "and set to dn cache\n", dn);
                     }
@@ -1576,7 +1576,7 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
         if ( (ep->ep_entry) != NULL ) {
             ep->ep_id = temp_id;
         } else {
-            LDAPDebug1Arg( LDAP_DEBUG_ANY, "ldbm_back_ldbm2ldif: skipping "
+            LDAPDebug1Arg( LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_ldbm2ldif: skipping "
                         "badly formatted entry with id %lu\n", (u_long)temp_id);
             backentry_free( &ep );
             continue;
@@ -1625,12 +1625,12 @@ bye:
 
     if (we_start_the_backends && NULL != li) {
         if (0 != dblayer_flush(li)) {
-            LDAPDebug0Args( LDAP_DEBUG_ANY, 
+            LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR,
                             "db2ldif: Failed to flush database\n" );
         }
 
         if (0 != dblayer_close(li,DBLAYER_EXPORT_MODE)) {
-            LDAPDebug0Args( LDAP_DEBUG_ANY,
+            LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR,
                             "db2ldif: Failed to close database\n" );
         }
     }
@@ -1826,7 +1826,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task, "%s: Indexing %s",
                                               inst->inst_name, LDBM_ANCESTORID_STR);
                     }
-                    LDAPDebug2Args(LDAP_DEBUG_ANY, "%s: Indexing %s\n",
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "%s: Indexing %s\n",
                                    inst->inst_name, LDBM_ANCESTORID_STR);
                     index_ext |= DB2INDEX_ANCESTORID;
                 } else if (strcasecmp(attrs[i]+1, LDBM_ENTRYRDN_STR) == 0) {
@@ -1835,7 +1835,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             slapi_task_log_notice(task, "%s: Indexing %s",
                                             inst->inst_name, LDBM_ENTRYRDN_STR);
                         }
-                        LDAPDebug2Args(LDAP_DEBUG_ANY, "%s: Indexing %s\n",
+                        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "%s: Indexing %s\n",
                                        inst->inst_name, LDBM_ENTRYRDN_STR);
                         index_ext |= DB2INDEX_ENTRYRDN;
                     } else {
@@ -1872,7 +1872,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                                   "%s: Indexing attribute: %s",
                                                   inst->inst_name, attrs[i]+1);
                         }
-                        LDAPDebug2Args(LDAP_DEBUG_ANY, 
+                        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                                        "%s: Indexing attribute: %s\n",
                                        inst->inst_name, attrs[i] + 1);
                     }
@@ -1886,7 +1886,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                       slapi_task_log_notice(task, "%s: Indexing attribute: %s",
                                             inst->inst_name, attrs[i]+1);
                     }
-                    LDAPDebug2Args(LDAP_DEBUG_ANY, 
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
                                    "%s: Indexing attribute: %s\n",
                                    inst->inst_name, attrs[i]+1);
                 }
@@ -1913,7 +1913,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_task_log_notice(task, "%s: Indexing VLV: %s",
                                               inst->inst_name, attrs[i]+1);
                     }
-                    LDAPDebug2Args(LDAP_DEBUG_ANY, "%s: Indexing VLV: %s\n",
+                    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "%s: Indexing VLV: %s\n",
                                    inst->inst_name, attrs[i]+1);
                 }
                 break;
@@ -1944,10 +1944,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                       "%s: WARNING: Failed to fetch subtree lists: (%d) %s\n",
                       inst->inst_name, err, dblayer_strerror(err));
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                       "%s: Possibly the entrydn/entryrdn or ancestorid index "
                       "is corrupted or does not exist.\n", inst->inst_name);
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                       "%s: Attempting brute-force method instead.\n",
                       inst->inst_name);
                 if (task) {
@@ -2093,7 +2093,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     if (rc) {
                         /* We cannot use the entryrdn index;
                          * Compose dn from the entries in id2entry */
-                        LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                        LDAPDebug2Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
                                    "ldbm2index: entryrdn is not available; "
                                    "composing dn (rdn: %s, ID: %d)\n", 
                                    rdn, temp_id);
@@ -2105,13 +2105,13 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                                       &psrdn, NULL, 0,
                                                       run_from_cmdline, NULL);
                                 if (rc) {
-                                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                         "ldbm2index: Skip ID %d\n", pid);
                                     LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
                                         "Parent entry (ID %d) of entry. "
                                         "(ID %d, rdn: %s) does not exist.\n",
                                         pid, temp_id, rdn);
-                                    LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                         "We recommend to export the backend "
                                         "instance %s and reimport it.\n",
                                         instance_name);
@@ -2124,7 +2124,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             /* Generate DN string from Slapi_RDN */
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             if (rc) {
-                                LDAPDebug2Args( LDAP_DEBUG_ANY,
+                                LDAPDebug2Args( LDAP_DEBUG_ANY, LOG_ERR,
                                        "ldbm2ldif: Failed to compose dn for "
                                        "(rdn: %s, ID: %d) from Slapi_RDN\n",
                                        rdn, temp_id);
@@ -2146,12 +2146,12 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     myrc = CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     if (myrc) {
                         backdn_free(&bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm2index",
+                        slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "ldbm2index",
                                         "%s is already in the dn cache (%d)\n",
                                         dn, myrc);
                     } else {
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE, "ldbm2index",
+                        slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "ldbm2index",
                                         "entryrdn_lookup_dn returned: %s, "
                                         "and set to dn cache\n", dn);
                     }
@@ -2197,7 +2197,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (!run_from_cmdline) {
                     rc = dblayer_txn_begin(be, NULL, &txn);
                     if (0 != rc) {
-                        slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_ldbm2index",
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldbm_back_ldbm2index",
                             "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)\n",
                             inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                         if (task) {
@@ -2215,7 +2215,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 rc = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
                                            ep->ep_id, BE_INDEX_ADD, &txn);
                 if (rc != 0) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_ldbm2index",
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldbm_back_ldbm2index",
                         "%s: ERROR: failed to update index '%s' (err %d: %s)\n",
                         inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                     if (task) {
@@ -2233,7 +2233,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (!run_from_cmdline) {
                     rc = dblayer_txn_commit(be, &txn);
                     if (0 != rc) {
-                        slapi_log_error(SLAPI_LOG_FATAL, "ldbm_back_ldbm2index",
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldbm_back_ldbm2index",
                             "%s: ERROR: failed to commit txn for update index '%s' (err %d: %s)\n",
                             inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                         if (task) {
@@ -2441,7 +2441,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (!run_from_cmdline) {
                     rc = dblayer_txn_begin(be, NULL, &txn);
                     if (0 != rc) {
-                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                     "%s: ERROR: failed to begin txn for update "
                                     "index 'entryrdn'\n",
                                     inst->inst_name);
@@ -2480,7 +2480,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 if (!run_from_cmdline) {
                     rc = dblayer_txn_commit(be, &txn);
                     if (0 != rc) {
-                        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                                     "%s: ERROR: failed to commit txn for "
                                     "update index 'entryrdn'\n",
                                     inst->inst_name);
@@ -2741,7 +2741,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     PRUint32 dbversion_flags = DBVERSION_ALL;
                                                                          
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &up_flags);
-    slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB", "Reindexing all...\n");
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "upgrade DB", "Reindexing all...\n");
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
@@ -2765,7 +2765,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         ldbm_instance *inst = NULL;
 
         /* server is up -- mark all backends busy */
-        slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "upgrade DB",
                         "server is up -- marking all LDBM backends busy\n");
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj))
@@ -2776,7 +2776,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                it should not cleared in this thread [610347] */
             if (instance_set_busy(inst) != 0)
             {
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                             "ldbm: '%s' is already in the middle of "
                             "another task and cannot be disturbed.\n",
                             inst->inst_name);
@@ -2810,7 +2810,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
          * DN2RDN option (-r) is given, but subtree-rename is off.
          * Print an error and back off.
          */
-        slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                         "DN2RDN option (-r) is given, but %s is off in "
                         "dse.ldif.  Please change the value to on.\n",
                         CONFIG_ENTRYRDN_SWITCH);
@@ -2838,7 +2838,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             }
             if (!need_upgrade)
             {
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                                 "Index version is up-to-date\n");
                 return 0;
             }
@@ -2846,7 +2846,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     }
     else
     {
-        slapi_log_error(SLAPI_LOG_FATAL,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
                         "upgrade DB", "No instance to be upgraded\n");
         return -1;
     }
@@ -2859,7 +2859,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     slapi_pblock_get( pb, SLAPI_SEQ_VAL, &dest_dir );
     if (NULL == dest_dir)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                         "Backup directory is not specified.\n");
         return -1;
     }
@@ -2898,7 +2898,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
                ldbm_back_ldif2ldbm_deluxe */
             if (0 != dblayer_start(li, DBLAYER_IMPORT_MODE))
             {
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                                   "upgradedb: Failed to init database\n");
                 goto fail1;
             }
@@ -2918,7 +2918,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             slapi_ch_free_string(&inst_dirp);
         if (backup_rval < 0)
         {
-            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
               "Warning: Failed to backup index files (instance %s).\n",
               inst_dirp);
             goto fail1;
@@ -2931,7 +2931,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             if (rval)
             {
                 upgrade_rval += rval;
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                     "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
             }
@@ -2942,7 +2942,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
             if (rval)
             {
                 upgrade_rval += rval;
-                slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                     "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
             }
@@ -2952,7 +2952,7 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
         if (rval)
         {
             upgrade_rval += rval;
-            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                             "upgradedb: Failed to upgrade database %s\n",
                             inst->inst_name);
             if (run_from_cmdline)
@@ -3005,12 +3005,12 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
     {
         if (0 != dblayer_flush(li))
         {
-            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                             "Failed to flush database\n");
         }
         if (0 != dblayer_close(li,DBLAYER_IMPORT_MODE))
         {
-            slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                             "Failed to close database\n");
             goto fail1;
         }
@@ -3030,14 +3030,14 @@ int ldbm_back_upgradedb(Slapi_PBlock *pb)
 
 fail1:
     if (0 != dblayer_flush(li))
-        slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                         "Failed to flush database\n");
 
     /* we started dblayer with DBLAYER_IMPORT_MODE
      * We just want not to generate a guardian file...
      */
     if (0 != dblayer_close(li,DBLAYER_ARCHIVE_MODE))
-        slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                         "Failed to close database\n");
 
     /* restore from the backup, if possible */
@@ -3092,12 +3092,12 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir,
         dest = destination_dir;
     }
     if (NULL == src || '\0' == *src) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "upgradedb_copy_logfiles: "
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "upgradedb_copy_logfiles: "
                                        "NULL src directory\n");
         return -1;
     }
     if (NULL == dest || '\0' == *dest) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "upgradedb_copy_logfiles: "
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "upgradedb_copy_logfiles: "
                                        "NULL dest directory\n");
         return -1;
     }
@@ -3173,12 +3173,12 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags)
     char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                                 inst_dir, MAXPATHLEN);
 
-    slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB",
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "upgrade DB",
                     "upgradedb_delete_indices_4cmd: %s\n", inst_dir);
     dirhandle = PR_OpenDir(inst_dirp);
     if (!dirhandle)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                         "upgradedb_delete_indices_4cmd: PR_OpenDir failed\n");
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
@@ -3207,7 +3207,7 @@ int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags)
         if (PR_SUCCESS == rval && PR_FILE_DIRECTORY != info.type)
         {
             PR_Delete(fullpathp);
-            slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB",
+            slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "upgrade DB",
                             "upgradedb_delete_indices_4cmd: %s deleted\n", fullpath);
         }
         if (fullpathp != fullpath)
@@ -3233,13 +3233,13 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     be = inst->inst_be;
-    slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                     "%s: Start upgradedb.\n", inst->inst_name);
 
     if (!run_from_cmdline)
     {
         /* shutdown this instance of the db */
-        slapi_log_error(SLAPI_LOG_TRACE, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "upgrade DB",
                     "Bringing %s offline...\n", inst->inst_name);
         slapi_mtn_be_disable(inst->inst_be);
 
@@ -3253,7 +3253,7 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     /* dblayer_instance_start will init the id2entry index. */
     if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE))
     {
-        slapi_log_error(SLAPI_LOG_FATAL, "upgrade DB",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
                     "upgradedb: Failed to init instance %s\n", inst->inst_name);
         return -1;
     }
@@ -3297,7 +3297,7 @@ _get_and_add_parent_rdns(backend *be,
     }
 
     if (NULL == be || NULL == srdn) {
-        slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                         "_get_and_add_parent_rdns: Empty %s\n",
                         NULL==be?"be":"srdn");
         return rc;
@@ -3314,7 +3314,7 @@ _get_and_add_parent_rdns(backend *be,
         if (slapi_rdn_get_rdn(srdn)) { /* srdn is already in use */
             rc = slapi_rdn_init_all_dn(&mysrdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                 "_get_and_add_parent_rdns: "
                                 "Failed to convert DN %s to RDN\n", 
                                 slapi_rdn_get_rdn(&mysrdn));
@@ -3324,7 +3324,7 @@ _get_and_add_parent_rdns(backend *be,
             }
             rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                 "_get_and_add_parent_rdns: "
                                 "Failed to merge Slapi_RDN %s to RDN\n",
                                 slapi_sdn_get_dn(bdn->dn_sdn));
@@ -3333,7 +3333,7 @@ _get_and_add_parent_rdns(backend *be,
         } else { /* srdn is empty */
             rc = slapi_rdn_init_all_dn(srdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                 "_get_and_add_parent_rdns: "
                                 "Failed to convert DN %s to RDN\n", 
                                 slapi_sdn_get_dn(bdn->dn_sdn));
@@ -3348,7 +3348,7 @@ _get_and_add_parent_rdns(backend *be,
         /* not in the dn cache or DB2LDIF or caller is expecting the parent ID;
          * read id2entry */
         if (NULL == db) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                             "_get_and_add_parent_rdns: Empty db\n");
             goto bail;
         }
@@ -3361,7 +3361,7 @@ _get_and_add_parent_rdns(backend *be,
         data.flags = DB_DBT_MALLOC;
         rc = db->get(db, NULL, &key, &data, 0);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                             "_get_and_add_parent_rdns: Failed to position "
                             "cursor at ID " ID_FMT "\n", id);
             goto bail;
@@ -3369,7 +3369,7 @@ _get_and_add_parent_rdns(backend *be,
         /* rdn is allocated in get_value_from_string */
         rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                             "_get_and_add_parent_rdns: "
                             "Failed to get rdn of entry " ID_FMT "\n", id);
             goto bail;
@@ -3377,7 +3377,7 @@ _get_and_add_parent_rdns(backend *be,
         /* rdn is going to be set to srdn */
         rc = slapi_rdn_init_all_dn(&mysrdn, rdn);
         if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                             "_get_and_add_parent_rdns: "
                             "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
@@ -3406,7 +3406,7 @@ _get_and_add_parent_rdns(backend *be,
         }
         rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                    "_get_and_add_parent_rdns: "
                                    "Failed to merge Slapi_RDN %s to RDN\n",
                                    slapi_rdn_get_rdn(&mysrdn));
@@ -3419,7 +3419,7 @@ _get_and_add_parent_rdns(backend *be,
         ep = backentry_alloc();
         rc = slapi_rdn_get_dn(srdn, &dn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                            "ldbm2index: Failed to compose dn for "
                            "(rdn: %s, ID: %d) from Slapi_RDN\n", rdn, id);
             goto bail;
@@ -3434,11 +3434,11 @@ _get_and_add_parent_rdns(backend *be,
         if (txn && !run_from_cmdline) {
             rc = dblayer_txn_begin(be, NULL, txn);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                     "%s: ERROR: failed to begin txn for update "
                                     "index 'entryrdn'\n",
                                     inst->inst_name);
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                 "%s: Error %d: %s\n", 
                                 inst->inst_name, rc, dblayer_strerror(rc));
                 goto bail;
@@ -3446,10 +3446,10 @@ _get_and_add_parent_rdns(backend *be,
         }
         rc = entryrdn_index_entry(be, ep, BE_INDEX_ADD, txn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                               "%s: ERROR: failed to update index 'entryrdn'\n",
                               inst->inst_name);
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                               "%s: Error %d: %s\n", inst->inst_name, rc,
                               dblayer_strerror(rc));
             if (txn && !run_from_cmdline) {
@@ -3460,11 +3460,11 @@ _get_and_add_parent_rdns(backend *be,
         if (txn && !run_from_cmdline) {
             rc = dblayer_txn_commit(be, txn);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                     "%s: ERROR: failed to commit txn for "
                                     "update index 'entryrdn'\n",
                                     inst->inst_name);
-                slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                                 "%s: Error %d: %s\n",
                                 inst->inst_name, rc, dblayer_strerror(rc));
                 goto bail;
@@ -3472,7 +3472,7 @@ _get_and_add_parent_rdns(backend *be,
         }
     } else if (index_ext & DB2LDIF_ENTRYRDN) {
         if (NULL == eargs) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                             "_get_and_add_parent_rdns: Empty export args\n");
                 rc = -1;
                 goto bail;
@@ -3480,7 +3480,7 @@ _get_and_add_parent_rdns(backend *be,
         eargs->ep = ep;
         rc = export_one_entry(li, inst, eargs);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                            "_get_and_add_parent_rdns: "
                            "Failed to export an entry %s\n",
                            slapi_sdn_get_dn(slapi_entry_get_sdn(ep->ep_entry)));
@@ -3488,7 +3488,7 @@ _get_and_add_parent_rdns(backend *be,
         }
         rc = idl_append_extend(&(eargs->pre_exported_idl), id);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "ldif2dbm",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldif2dbm",
                            "_get_and_add_parent_rdns: "
                            "Failed add %d to exported idl\n", id);
         }
@@ -3535,17 +3535,17 @@ _export_or_index_parents(ldbm_instance *inst,
         rc = _get_and_add_parent_rdns(be, db, txn, pid, psrdn, &ppid, 0,
                                       run_from_cmdline, NULL);
         if (rc) {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, "_export_or_index_parents: "
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "_export_or_index_parents: "
                           "Failed to get the DN of ID %d\n", pid);
             goto bail;
         }
         prdn = slapi_ch_strdup(slapi_rdn_get_rdn(psrdn));
     } else {  /* we have entryrdn */
         if (pid != temp_pid) {
-            LDAPDebug2Args(LDAP_DEBUG_ANY, "_export_or_index_parents: "
+            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "_export_or_index_parents: "
                            "parentid conflict found between entryrdn (%d) and "
                            "id2entry (%d)\n", temp_pid, pid);
-            LDAPDebug0Args(LDAP_DEBUG_ANY, "Ignoring entryrdn\n");
+            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Ignoring entryrdn\n");
         } else {
             struct backdn *bdn = NULL;
             char *pdn = NULL;
@@ -3564,13 +3564,13 @@ _export_or_index_parents(ldbm_instance *inst,
                     myrc = CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     if (myrc) {
                         backdn_free(&bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE,
+                        slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG,
                                         "_export_or_index_parents",
                                         "%s is already in the dn cache (%d)\n",
                                         pdn, myrc);
                     } else {
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
-                        slapi_log_error(SLAPI_LOG_CACHE,
+                        slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG,
                                         "_export_or_index_parents",
                                         "entryrdn_lookup_dn returned: %s, "
                                         "and set to dn cache\n", pdn);
@@ -3585,7 +3585,7 @@ _export_or_index_parents(ldbm_instance *inst,
         rc = entryrdn_get_parent(be, prdn, pid, &pprdn, &ppid, NULL);
         slapi_ch_free_string(&pprdn);
         if (rc) { /* entryrdn is not available */
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, "_export_or_index_parents: "
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "_export_or_index_parents: "
                           "Failed to get the parent of ID %d\n", pid);
             goto bail;
         }
@@ -3604,7 +3604,7 @@ _export_or_index_parents(ldbm_instance *inst,
     rc = _get_and_add_parent_rdns(be, db, txn, pid, psrdn, NULL,
                                   type, run_from_cmdline, eargs);
     if (rc) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                "_export_or_index_parents: Failed to get rdn for ID: %d\n", pid);
         slapi_rdn_done(psrdn);
     }
@@ -3676,7 +3676,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
             return -1;
         }
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         " Online mode is not supported. "
                         "Shutdown the server and run the tool\n");
         goto bail;
@@ -3685,11 +3685,11 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     /* Find the instance that the ldif2db will be done on. */
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (NULL == inst) {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         "Unknown ldbm instance %s\n", instance_name);
         goto bail;
     }
-    slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                     "%s: Start upgrade dn format.\n", inst->inst_name);
 
     slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
@@ -3698,7 +3698,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
 
     prst = PR_GetFileInfo64(rawworkdbdir, &prfinfo);
     if (PR_FAILURE == prst || PR_FILE_DIRECTORY != prfinfo.type) {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         "Working DB instance dir %s is not a directory\n",
                         rawworkdbdir);
         goto bail;
@@ -3706,7 +3706,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     dirhandle = PR_OpenDir(rawworkdbdir);
     if (!dirhandle)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         "Failed to open working DB instance dir %s\n",
                         rawworkdbdir);
         goto bail;
@@ -3723,7 +3723,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     PR_CloseDir(dirhandle);
 
     if (!found) {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         "Working DB instance dir %s does not include %s file\n",
                         rawworkdbdir, ID2ENTRY);
         goto bail;
@@ -3756,7 +3756,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
                 rc = 3; /* 0: need upgrade (dn norm sp, only) */
             } else {
                 /* DN format already takes care of the multiple spaces */
-                slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                                 "Instance %s in %s is up-to-date\n", 
                                 instance_name, workdbdir);
                 rc = 0; /* 0: up-to-date */
@@ -3769,7 +3769,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
             rc = 1; /* 0: need upgrade (both) */
         }
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         "Failed to get DBVERSION (Instance name: %s, dir %s)\n",
                         instance_name, workdbdir);
         rc = -1; /* error */
@@ -3778,7 +3778,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
 
     sep = PL_strrchr(workdbdir, '/');
     if (!sep) {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                         "Working DB instance dir %s does not include %s file\n",
                         workdbdir, ID2ENTRY);
         goto bail;
@@ -3790,7 +3790,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     
     if (run_from_cmdline) {
         if (0 != dblayer_start(li, DBLAYER_IMPORT_MODE)) {
-            slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                             "Failed to init database\n");
             goto bail;
         }
@@ -3800,7 +3800,7 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     be = inst->inst_be;
     if (0 != dblayer_instance_start(be, DBLAYER_IMPORT_MODE))
     {
-        slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DB Format",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DB Format",
                     "Failed to init instance %s\n", inst->inst_name);
         goto bail;
     }
@@ -3814,11 +3814,11 @@ int ldbm_back_upgradednformat(Slapi_PBlock *pb)
     /* close the database */
     if (run_from_cmdline) {
         if (0 != dblayer_flush(li)) {
-            slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                             "Failed to flush database\n");
         }
         if (0 != dblayer_close(li,DBLAYER_IMPORT_MODE)) {
-            slapi_log_error(SLAPI_LOG_FATAL, "Upgrade DN Format",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Upgrade DN Format",
                             "Failed to close database\n");
             goto bail;
         }

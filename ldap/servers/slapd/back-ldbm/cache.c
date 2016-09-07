@@ -270,7 +270,7 @@ dump_hash(Hashtable *ht)
             PR_snprintf(ep_id, 16, "%u-%u", ((struct backcommon *)e)->ep_id, ((struct backcommon *)e)->ep_refcnt);
             len = strlen(ep_id);
             if (ids_size < len + 1) {
-                LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "%s\n", ep_ids);
                 p = ep_ids; ids_size = 80;
             }
             PR_snprintf(p, ids_size, "%s:", ep_id);
@@ -278,7 +278,7 @@ dump_hash(Hashtable *ht)
         } while ((e = HASH_NEXT(ht, e)));
     }
     if (p != ep_ids) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, "%s\n", ep_ids);
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "%s\n", ep_ids);
     }
 }
 #endif
@@ -507,7 +507,7 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
         }
         cache->c_tries = slapi_counter_new();
     } else {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, 
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
                       "cache_init: slapi counter is not available.\n");
         cache->c_cursize = NULL;
         cache->c_hits = NULL;
@@ -518,7 +518,7 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
 
     if (((cache->c_mutex = PR_NewMonitor()) == NULL) ||
         ((cache->c_emutexalloc_mutex = PR_NewLock()) == NULL)) {
-       LDAPDebug0Args(LDAP_DEBUG_ANY, "ldbm: cache_init: PR_NewMonitor failed\n");
+       LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: cache_init: PR_NewMonitor failed\n");
        return 0;
     }
     LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= cache_init\n", 0, 0, 0);
@@ -593,11 +593,11 @@ static void entrycache_clear_int(struct cache *cache)
     }
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY,
+        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                      "entrycache_clear_int: there are still %ld entries "
                      "in the entry cache.\n", cache->c_curentries);
 #ifdef LDAP_CACHE_DEBUG
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "ID(s) in entry cache:\n");
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ID(s) in entry cache:\n");
         dump_hash(cache->c_idtable);
 #endif
     }
@@ -1120,7 +1120,7 @@ entrycache_return(struct cache *cache, struct backentry **bep)
 
     e = *bep;
     if (!e) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "entrycache_return e is NULL\n");
+        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "entrycache_return e is NULL\n");
         return;
     }
     LOG("=> entrycache_return (%s) entry count: %d, entry in cache:%ld\n",
@@ -1521,7 +1521,7 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
             if (!e->ep_mutexp) {
                 PR_Unlock(cache->c_emutexalloc_mutex);
                 LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                               "cache_lock_entry: failed to create a lock for %s\n",
                               backentry_get_ndn(e));
                 LOG("<= cache_lock_entry (FAILED)\n", 0, 0, 0);
@@ -1580,7 +1580,7 @@ dncache_clear_int(struct cache *cache)
     }
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
-       LDAPDebug1Arg(LDAP_DEBUG_ANY,
+       LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                      "dncache_clear_int: there are still %ld dn's "
                      "in the dn cache. :/\n", cache->c_curentries);
     }
@@ -1633,7 +1633,7 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
      * ldbm_instance_config
      */
     if (! util_is_cachesize_sane(&bytes)) {
-       LDAPDebug1Arg(LDAP_DEBUG_ANY,
+       LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                 "WARNING -- Possible CONFIGURATION ERROR -- cachesize "
                 "(%lu) may be configured to use more than the available "
                 "physical memory.\n", bytes);
@@ -2031,13 +2031,13 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache */
 			CACHE_RETURN(cache, &debug_e);
 			if ((e != debug_e) && !(e->ep_state & ENTRY_STATE_DELETED)) {
-				slapi_log_error(SLAPI_LOG_FATAL, "check_entry_cache",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "check_entry_cache",
 				                "entry 0x%p is not in dn cache but 0x%p having the same dn %s is "
 				                "although in_cache flag is set!!!\n",
 				                e, debug_e, slapi_sdn_get_dn(sdn));
 			}
 		} else if (!(e->ep_state & ENTRY_STATE_DELETED)) {
-			slapi_log_error(SLAPI_LOG_FATAL, "check_entry_cache",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "check_entry_cache",
 			                "%s (id %d) is not in dn cache although in_cache flag is set!!!\n",
 			                slapi_sdn_get_dn(sdn), e->ep_id);
 		}
@@ -2045,13 +2045,13 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache */
 			CACHE_RETURN(cache, &debug_e);
 			if ((e != debug_e) && !(e->ep_state & ENTRY_STATE_DELETED)) {
-				slapi_log_error(SLAPI_LOG_FATAL, "check_entry_cache",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "check_entry_cache",
 				                "entry 0x%p is not in id cache but 0x%p having the same id %d is "
 				                "although in_cache flag is set!!!\n",
 				                e, debug_e, e->ep_id);
 			}
 		} else {
-			slapi_log_error(SLAPI_LOG_CACHE, "check_entry_cache",
+			slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "check_entry_cache",
 			                "%s (id %d) is not in id cache although in_cache flag is set!!!\n",
 			                slapi_sdn_get_dn(sdn), e->ep_id);
 		}
@@ -2059,7 +2059,7 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache */
 			CACHE_RETURN(cache, &debug_e);
 			if (e == debug_e) {
-				slapi_log_error(SLAPI_LOG_FATAL, "check_entry_cache",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "check_entry_cache",
 				                "%s (id %d) is in dn cache although in_cache flag is not set!!!\n",
 				                slapi_sdn_get_dn(sdn), e->ep_id);
 			}
@@ -2068,7 +2068,7 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache: bad */
 			CACHE_RETURN(cache, &debug_e);
 			if (e == debug_e) {
-				slapi_log_error(SLAPI_LOG_CACHE, "check_entry_cache",
+				slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, "check_entry_cache",
 				                "%s (id %d) is in id cache although in_cache flag is not set!!!\n",
 				                slapi_sdn_get_dn(sdn), e->ep_id);
 			}

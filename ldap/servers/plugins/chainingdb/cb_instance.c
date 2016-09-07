@@ -502,7 +502,7 @@ cb_parse_instance_config_entry(cb_backend * cb, Slapi_Entry * e)
 		attrValue = slapi_value_get_berval(sval);
 		instname = attrValue->bv_val;
 	} else {
-		slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM, 
 			"Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME); 
 		return -1;
 	}
@@ -609,7 +609,7 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 
 		if (cb_instance_config_set((void *) inst, attr_name,
 			cb_the_instance_config, bval, err_buf, phase, apply ) != LDAP_SUCCESS) {
-			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,"Error with config attribute %s : %s\n",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,"Error with config attribute %s : %s\n",
 				attr_name, err_buf);
 			rc = -1;
 			break;
@@ -627,7 +627,7 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 
 	if (LDAP_SUCCESS == rc) {
 		if (!urlfound) {
-			slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 				"Malformed backend instance entry. Mandatory attr <%s> missing\n",CB_CONFIG_HOSTURL);
 			rc = -1;
 		}
@@ -650,7 +650,7 @@ cb_instance_config_initialize(cb_backend_instance * inst, Slapi_Entry * e , int 
 
 	if (inst->impersonate && inst->pool && inst->pool->binddn && 
 		!strcmp(inst->pool->binddn,rootdn)) {	/* UTF8 aware */
-		slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 			"Error with config attribute %s (%s: forbidden value)\n", CB_CONFIG_BINDUSER, rootdn);
 		rc= -1;
 	}
@@ -1563,7 +1563,7 @@ void cb_instance_config_get(void *arg, cb_instance_config_info *config, char *bu
                 }
                 break;
 	default:
-                slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
                         "Invalid attribute syntax.\n");
 	
         }
@@ -1755,7 +1755,7 @@ int cb_instance_add_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slap
                 instname=attrValue->bv_val;
         }
 	if ( instname == NULL ) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
                         "Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
 				*returncode = LDAP_LOCAL_ERROR;
                 return SLAPI_DSE_CALLBACK_ERROR;
@@ -1768,7 +1768,7 @@ int cb_instance_add_config_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slap
 	/* the default instance config and the specific entry specified */
 	if ((rc=cb_build_backend_instance_config(inst,e,0))
 		!= LDAP_SUCCESS) {
-                slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
                 	"Can't instantiate chaining backend instance %s.\n",inst->inst_name);
 		*returncode=rc;
                 cb_instance_free(inst);
@@ -1811,7 +1811,7 @@ int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entr
                 instname=attrValue->bv_val;
         }
 	if ( instname == NULL ) {
-                slapi_log_error( SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
                         "Malformed backend instance (<%s> missing)>\n", CB_CONFIG_INSTNAME);
 				*returncode = LDAP_LOCAL_ERROR;
                 return SLAPI_DSE_CALLBACK_ERROR;
@@ -1824,7 +1824,7 @@ int cb_instance_add_config_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entr
 	/* the default instance config and the specific entry specified */
 	if ((rc=cb_build_backend_instance_config(inst,e,0))
 		!= LDAP_SUCCESS) {
-                slapi_log_error( SLAPI_LOG_FATAL, CB_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
                 	"Can't instantiate chaining backend instance %s.\n",inst->inst_name);
 		*returncode=rc;
                 cb_instance_free(inst);
@@ -1939,7 +1939,7 @@ int cb_create_default_backend_instance_config(cb_backend * cb) {
 	slapi_add_internal_pb(pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 	if ( LDAP_SUCCESS != rc ) {
-	  slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+	  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
 			  "Add %s failed (%s)\n",defaultDn,ldap_err2string(rc));
 	}
 

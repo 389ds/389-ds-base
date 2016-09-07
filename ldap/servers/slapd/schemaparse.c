@@ -39,7 +39,7 @@ static PRStatus
 oc_init_lock( void )
 {
 	if ( NULL == ( oc_lock = slapi_new_rwlock())) {
-		slapi_log_error( SLAPI_LOG_FATAL, "oc_init_lock",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "oc_init_lock",
 				"slapi_new_rwlock() for objectclass lock failed\n" );
 		return PR_FAILURE;
 	}

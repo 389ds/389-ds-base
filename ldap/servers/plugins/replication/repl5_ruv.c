@@ -92,7 +92,7 @@ ruv_init_new(const char *replGen, ReplicaId rid, const char *purl, RUV **ruv)
 
 	if (ruv == NULL || replGen == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_init_new: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_init_new: NULL argument\n");
 		return RUV_BAD_DATA;
 	}	
 
@@ -160,7 +160,7 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 
 	if (NULL == ruv || NULL == attr)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 			"ruv_init_from_slapi_attr: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
@@ -200,7 +200,7 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 							(*ruv)->replGen = get_replgen_from_berval(bval);
 						} else {
 							/* Twice replicageneration is wrong, just log and ignore */
-							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+							slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 											"ruv_init_from_slapi_attr: %s is present more than once\n", 
 											prefix_replicageneration);
 						}
@@ -255,7 +255,7 @@ ruv_init_from_bervals(struct berval **vals, RUV **ruv)
 
 	if (NULL == ruv || NULL == vals)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 			"ruv_init_from_slapi_value: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
@@ -284,7 +284,7 @@ ruv_init_from_bervals(struct berval **vals, RUV **ruv)
 							(*ruv)->replGen = get_replgen_from_berval(vals[i]);
 						} else {
 							/* Twice replicageneration is wrong, just log and ignore */
-							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+							slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 											"ruv_init_from_slapi_value: %s is present more than once\n", 
 											prefix_replicageneration);
 						}
@@ -427,7 +427,7 @@ ruv_delete_replica (RUV *ruv, ReplicaId rid)
 	int return_value;
 	if (ruv == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_delete_replica: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_delete_replica: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}	
 	else
@@ -552,7 +552,7 @@ get_csn_internal(const RUV *ruv, ReplicaId rid, CSN **csn, int whichone)
 
 	if (ruv == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_get_largest_csn_for_replica: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_get_largest_csn_for_replica: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
 	else
@@ -669,7 +669,7 @@ set_max_csn_nolock_ext(RUV *ruv, const CSN *max_csn, const char *replica_purl, P
 		} else {
 			char csn1[CSN_STRSIZE+1];
 			char csn2[CSN_STRSIZE+1];
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
 			                "set_max_csn_nolock_ext: new CSN [%s] for replica ID [%d] "
 			                "is less than the existing max CSN [%s] - ignoring\n",
 			                csn_as_string(max_csn, PR_FALSE, csn1), rid,
@@ -716,7 +716,7 @@ ruv_set_csns(RUV *ruv, const CSN *csn, const char *replica_purl)
 	
 	if (ruv == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_set_csns: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_set_csns: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
 	else
@@ -783,7 +783,7 @@ ruv_set_csns_keep_smallest(RUV *ruv, const CSN *csn)
 	
 	if (ruv == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
                         "ruv_set_csns_keep_smallest: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
@@ -869,7 +869,7 @@ ruv_covers_csn_internal(const RUV *ruv, const CSN *csn, PRBool strict)
 
 	if (ruv == NULL || csn == NULL) 
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_covers_csn: NULL argument\n");
 		return_value = PR_FALSE;
 	}
 	else
@@ -887,10 +887,10 @@ ruv_covers_csn_internal(const RUV *ruv, const CSN *csn, PRBool strict)
 			 *  if strict is set.
 			 */
 			if(strict){
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn: replica for id %d not found.\n", rid);
+				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_covers_csn: replica for id %d not found.\n", rid);
 				return_value = PR_TRUE;
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "ruv_covers_csn: replica for id %d not found.\n", rid);
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "ruv_covers_csn: replica for id %d not found.\n", rid);
 				return_value = PR_FALSE;
 			}
 		}
@@ -947,7 +947,7 @@ ruv_covers_csn_cleanallruv(const RUV *ruv, const CSN *csn)
 	PRBool return_value;
 
 	if (ruv == NULL || csn == NULL){
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_covers_csn_cleanallruv: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_covers_csn_cleanallruv: NULL argument\n");
 		return_value = PR_FALSE;
 	} else {
 		rid = csn_get_replicaid(csn);
@@ -974,7 +974,7 @@ ruv_get_min_or_max_csn(const RUV *ruv, CSN **csn, int get_the_max, ReplicaId rid
 
 	if (ruv == NULL || csn == NULL) 
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_get_min_or_max_csn: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_get_min_or_max_csn: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
 	else
@@ -1140,7 +1140,7 @@ ruv_to_bervals(const RUV *ruv, struct berval ***bvals)
 	int return_value;
 	if (ruv == NULL || bvals == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_to_bervals: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_to_bervals: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
 	else
@@ -1269,7 +1269,7 @@ ruv_to_smod(const RUV *ruv, Slapi_Mod *smod)
 
 	if (ruv == NULL || smod == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_to_smod: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_to_smod: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
 	else
@@ -1309,7 +1309,7 @@ ruv_last_modified_to_smod(const RUV *ruv, Slapi_Mod *smod)
 
 	if (ruv == NULL || smod == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_last_modified_to_smod: NULL argument\n");
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_last_modified_to_smod: NULL argument\n");
 		return_value = RUV_BAD_DATA;
 	}
 	else
@@ -1400,14 +1400,16 @@ ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const ch
 
     /* compare replica generations first */
     if (ruv1->replGen == NULL || ruv2->replGen == NULL) {
-        slapi_log_error(loglevel, repl_plugin_name,
+        slapi_log_error(loglevel, loglevel==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR,
+                        repl_plugin_name,
                         "ruv_compare_ruv: RUV [%s] is missing the replica generation\n",
                         ruv1->replGen ? ruv2name : ruv1name);
         return RUV_COMP_NO_GENERATION;
     }
     
     if (strcasecmp (ruv1->replGen, ruv2->replGen)) {
-        slapi_log_error(loglevel, repl_plugin_name,
+        slapi_log_error(loglevel, loglevel==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR,
+                        repl_plugin_name,
                         "ruv_compare_ruv: RUV [%s] replica generation [%s] does not match RUV [%s] [%s]\n",
                         ruv1name, ruv1->replGen, ruv2name, ruv2->replGen);
         return RUV_COMP_GENERATION_DIFFERS;
@@ -1436,33 +1438,33 @@ ruv_compare_ruv(const RUV *ruv1, const char *ruv1name, const RUV *ruv2, const ch
                 csn_as_string(replicab->csn, PR_FALSE, csnstrb);
                 if (replicaa == NULL) {
                     (*missing)++;
-                    slapi_log_error(loglevel, repl_plugin_name,
+                    slapi_log_error(loglevel, loglevel==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR, repl_plugin_name,
                                     "ruv_compare_ruv: RUV [%s] does not contain element [%s] "
                                     "which is present in RUV [%s]\n",
                                     ruvaname, ruvelem, ruvbname);
                 } else if (strict && (csn_compare (replicab->csn, replicaa->csn) >= 0)) {
                     csn_as_string(replicaa->csn, PR_FALSE, csnstra);
-                    slapi_log_error(loglevel, repl_plugin_name,
+                    slapi_log_error(loglevel, loglevel==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR,repl_plugin_name,
                                     "ruv_compare_ruv: the max CSN [%s] from RUV [%s] is larger "
                                     "than or equal to the max CSN [%s] from RUV [%s] for element [%s]\n",
                                     csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
                     rc = RUV_COMP_CSN_DIFFERS;
                 } else if (csn_compare (replicab->csn, replicaa->csn) > 0) {
                     csn_as_string(replicaa->csn, PR_FALSE, csnstra);
-                    slapi_log_error(loglevel, repl_plugin_name,
+                    slapi_log_error(loglevel, loglevel==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR,repl_plugin_name,
                                     "ruv_compare_ruv: the max CSN [%s] from RUV [%s] is larger "
                                     "than the max CSN [%s] from RUV [%s] for element [%s]\n",
                                     csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
                     rc = RUV_COMP_CSN_DIFFERS;
                 } else {
                     csn_as_string(replicaa->csn, PR_FALSE, csnstra);
-                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                     "ruv_compare_ruv: the max CSN [%s] from RUV [%s] is less than "
                                     "or equal to the max CSN [%s] from RUV [%s] for element [%s]\n",
                                     csnstrb, ruvbname, csnstra, ruvaname, ruvelem);
                 }
             } else {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
                                 "ruv_compare_ruv: RUV [%s] has an empty CSN\n",
                                 ruvbname);
             }
@@ -1562,7 +1564,7 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s", buff);
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "%s", buff);
 	}
 	for (replica = dl_get_first (ruv->elements, &cookie); replica;
 		 replica = dl_get_next (ruv->elements, &cookie))
@@ -1587,7 +1589,7 @@ ruv_dump(const RUV *ruv, char *ruv_name, PRFileDesc *prFile)
 		}
 		else
 		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s", buff);
+			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "%s", buff);
 		}
 	}
 
@@ -1620,7 +1622,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
         if (replica == NULL)
         {
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to add replica"
+                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_add_csn_inprogress: failed to add replica"
                     " that created csn %s\n", csn_as_string (csn, PR_FALSE, csn_str));
             }
             rc = RUV_MEMORY_ERROR;
@@ -1632,7 +1634,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     if (ruv_covers_csn_internal(ruv, csn, PR_FALSE))
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_add_csn_inprogress: "
                             "the csn %s has already be seen - ignoring\n",
                             csn_as_string (csn, PR_FALSE, csn_str));
         }
@@ -1644,7 +1646,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     if (rc == 1)    /* we already seen this csn */
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: "
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_add_csn_inprogress: "
                             "the csn %s has already be seen - ignoring\n",
                             csn_as_string (csn, PR_FALSE, csn_str));
         }
@@ -1653,7 +1655,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     else if(rc != 0)
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: failed to insert csn %s"
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_add_csn_inprogress: failed to insert csn %s"
                             " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
         }
         rc = RUV_UNKNOWN_ERROR;
@@ -1661,7 +1663,7 @@ int ruv_add_csn_inprogress (RUV *ruv, const CSN *csn)
     else
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_add_csn_inprogress: successfully inserted csn %s"
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_add_csn_inprogress: successfully inserted csn %s"
                             " into pending list\n", csn_as_string (csn, PR_FALSE, csn_str));
         }
         rc = RUV_SUCCESS;
@@ -1717,14 +1719,14 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
     {
         /* we should have a ruv element at this point because it would have
            been added by ruv_add_inprogress function */
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: "
+        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_update_ruv: "
 			            "can't locate RUV element for replica %d\n", csn_get_replicaid (csn)); 
         goto done;
     } 
 
 	if (csnplCommit(replica->csnpl, csn) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "ruv_update_ruv: cannot commit csn %s\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "ruv_update_ruv: cannot commit csn %s\n",
 			            csn_as_string(csn, PR_FALSE, csn_str));
         rc = RUV_CSNPL_ERROR;
         goto done;
@@ -1732,7 +1734,7 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
     else
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: "
+            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_update_ruv: "
                             "successfully committed csn %s\n", csn_as_string(csn, PR_FALSE, csn_str));
         }
     }
@@ -1740,7 +1742,7 @@ int ruv_update_ruv (RUV *ruv, const CSN *csn, const char *replica_purl, PRBool i
 	if ((max_csn = csnplRollUp(replica->csnpl, &first_csn)) != NULL)
 	{
 #ifdef DEBUG
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "ruv_update_ruv: rolled up to csn %s\n",
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "ruv_update_ruv: rolled up to csn %s\n",
 			            csn_as_string(max_csn, PR_FALSE, csn_str)); /* XXXggood remove debugging */
 #endif
         /* replica object sets min csn for local replica */
@@ -1791,7 +1793,7 @@ ruvInit (RUV **ruv, int initCount)
 	(*ruv)->lock = slapi_new_rwlock();
 	if ((*ruv)->lock == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 						"ruvInit: failed to create lock\n");
 		dl_free(&(*ruv)->elements);
 		slapi_ch_free((void**)ruv);
@@ -1838,7 +1840,7 @@ ruvAddReplica (RUV *ruv, const CSN *csn, const char *replica_purl)
 	replica = (RUVElement *)slapi_ch_calloc (1, sizeof (RUVElement));
 	if (replica == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 						"ruvAddReplica: memory allocation failed\n");
 		return NULL;
 	}
@@ -1869,7 +1871,7 @@ ruvAddReplicaNoCSN (RUV *ruv, ReplicaId rid, const char *replica_purl)
 	replica = (RUVElement *)slapi_ch_calloc (1, sizeof (RUVElement));
 	if (replica == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 						"ruvAddReplicaNoCSN: memory allocation failed\n");
 		return NULL;
 	}
@@ -1894,7 +1896,7 @@ ruvAddIndexReplicaNoCSN (RUV *ruv, ReplicaId rid, const char *replica_purl, int 
 	replica = (RUVElement *)slapi_ch_calloc (1, sizeof (RUVElement));
 	if (replica == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 						"ruvAddIndexReplicaNoCSN: memory allocation failed\n");
 		return NULL;
 	}
@@ -1988,7 +1990,7 @@ get_ruvelement_from_berval(const struct berval *bval)
 		bval->bv_len <= strlen(prefix_ruvcsn) ||
 		strncasecmp(bval->bv_val, prefix_ruvcsn, strlen(prefix_ruvcsn)) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 				"get_ruvelement_from_berval: invalid berval\n");
 		goto loser;
 	} 
@@ -2080,7 +2082,7 @@ get_ruvelement_from_berval(const struct berval *bval)
     ret_ruve->csnpl = csnplNew ();
     if (ret_ruve->csnpl == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
 						"get_ruvelement_from_berval: failed to create csn pending list\n");
 		goto loser;
 	} 
@@ -2240,7 +2242,7 @@ ruv_is_newer (Object *sruvobj, Object *cruvobj)
 
 		if ( cruv->elements == NULL )
 			{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 			"ruv_is_newer, consumer RUV has no elements\n");
 			 is_newer=PR_FALSE;
 			 break;
@@ -2288,7 +2290,8 @@ ruv_force_csn_update_from_ruv(RUV *src_ruv, RUV *tgt_ruv, char *msg, int logLeve
 
             ruv_force_csn_update(tgt_ruv, replica->csn);
             csn_as_string(replica->csn, PR_FALSE, csnStr);
-            slapi_log_error(logLevel, repl_plugin_name, "%s %s\n",
+            slapi_log_error(logLevel, logLevel==SLAPI_LOG_REPL?LOG_DEBUG:LOG_ERR,
+                    repl_plugin_name, "%s %s\n",
                     msg, csnStr);
         }
     }

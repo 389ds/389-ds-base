@@ -56,7 +56,7 @@ passthru_simple_bind_s( Slapi_PBlock *pb, PassThruServer *srvr, int tries,
 	 * check to see if operation has been abandoned...
 	 */
 	if ( slapi_op_abandoned( pb )) {
-	    slapi_log_error( SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PASSTHRU_PLUGIN_SUBSYSTEM,
 		    "operation abandoned\n" );
 	    rc = LDAP_USER_CANCELLED;
 	} else {

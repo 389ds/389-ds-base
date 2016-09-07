@@ -85,7 +85,7 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
 	if (NULL == rp->replica_object)
 	{
 		/* Whoa, no local replica!?!? */
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 			"%s: Unable to locate replica object for local replica %s\n",
 			agmt_get_long_name(agmt),
 			slapi_sdn_get_dn(replarea_sdn));
@@ -246,7 +246,7 @@ prot_thread_main(void *arg)
 
 	agmt = rp->agmt;
 	if (!agmt) {
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "missing replication agreement\n");
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "missing replication agreement\n");
 		return;
 	}
 
@@ -281,7 +281,7 @@ prot_thread_main(void *arg)
 		    if (replica_is_state_flag_set(replica, REPLICA_TOTAL_EXCL_RECV))
 		    {
 		        object_release(replica_obj);
-                slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
                     "%s: total update on the replica is in progress.  Cannot initiate the total update.\n", agmt_get_long_name(rp->agmt));
 		        break;
 		    }
@@ -348,7 +348,7 @@ prot_start(Repl_Protocol *rp)
         {
             PRErrorCode prerr = PR_GetError();
 
-            slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 			"%s: Unable to create protocol thread; NSPR error - %d, %s\n",
 			agmt_get_long_name(rp->agmt),
 			prerr, slapd_pr_strerror(prerr));   
@@ -356,7 +356,7 @@ prot_start(Repl_Protocol *rp)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Unable to start "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Unable to start "
 			"protocol object - NULL protocol object passed to prot_start.\n");
 	}
 }
@@ -376,7 +376,7 @@ prot_stop(Repl_Protocol *rp)
 		{
 			if (rp->prp_incremental->stop(rp->prp_incremental) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 					"Warning: incremental protocol for replica \"%s\" "
 					"did not shut down properly.\n",
 					agmt_get_long_name(rp->agmt));
@@ -386,7 +386,7 @@ prot_stop(Repl_Protocol *rp)
 		{
 			if (rp->prp_total->stop(rp->prp_total) != 0)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 					"Warning: total protocol for replica \"%s\" "
 					"did not shut down properly.\n",
 					agmt_get_long_name(rp->agmt));
@@ -401,7 +401,7 @@ prot_stop(Repl_Protocol *rp)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Error: prot_stop() "
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Error: prot_stop() "
 			" called on NULL protocol instance.\n");
 	}
 }
@@ -433,7 +433,7 @@ prot_notify_agmt_changed(Repl_Protocol *rp, char * agmt_name)
 {
         /* MAB: rp might be NULL for disabled suffixes. Don't ASSERT on it */
         if (NULL == rp) {
-		slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
 			"Replication agreement for %s could not be updated. "
 			"For replication to take place, please enable the suffix "
 			"and restart the server\n", agmt_name);

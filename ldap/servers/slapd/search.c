@@ -240,7 +240,7 @@ do_search( Slapi_PBlock *pb )
 				char *dummyary[2]; /* need a char ** for charray_merge_nodup */
 				if ((*(p + 1) == '\0') || (p == attrs[i]) || (strchr(p+1, '@'))) /* e.g. "foo@" or "@objectclassname" or "foo@bar@baz" */
 				{
-					slapi_log_error( SLAPI_LOG_ARGS, "do_search",
+					slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, "do_search",
 					                 "invalid attribute [%s] in list - must be of the form "
 					                 "attributename@objectclassname where attributename is the "
 					                 "name of an attribute or \"*\" or \"+\" and objectclassname "
@@ -295,7 +295,7 @@ do_search( Slapi_PBlock *pb )
 			strarray2str( attrs, abuf, sizeof( abuf ), 1 /* include quotes */);
 			astr = abuf;
 		}
-		slapi_log_error( SLAPI_LOG_ARGS, NULL, "SRCH base=\"%s\" "
+		slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL, "SRCH base=\"%s\" "
 			"scope=%d deref=%d "
 			"sizelimit=%d timelimit=%d attrsonly=%d filter=\"%s\" "
 			"attrs=%s\n", base, scope, deref, sizelimit, timelimit,

@@ -312,7 +312,7 @@ slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
     PR_ASSERT (pb != NULL);
     if (pb == NULL || olddn == NULL || newrdn == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, NULL, 
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
                         "slapi_rename_internal_set_pb: NULL parameter\n");
         return;
     }
@@ -349,7 +349,7 @@ static int rename_internal_pb (Slapi_PBlock *pb)
 	if (!op) {
 		opresult = 1;
 		slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
-		slapi_log_error(SLAPI_LOG_FATAL, "rename_internal_pb",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "rename_internal_pb",
 			"Internal error: pblock was not properly initialized\n");
 		return -1;
 	}
@@ -500,13 +500,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	if ((rdns = slapi_ldap_explode_rdn(newrdn, 0)) == NULL) 
 	{
 		if ( !internal_op ) {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
+			slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL, 
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newrdn) ? "(null)" : newrdn);
 		} else {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
+			slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL, 
 				 "conn=%s op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
@@ -531,15 +531,15 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	err = slapi_dn_syntax_check(pb, newsuperior, 1);
 	if (err)
 	{
-		LDAPDebug0Args(LDAP_DEBUG_ARGS, "Syntax check of newSuperior failed\n");
+		LDAPDebug0Args(LDAP_DEBUG_ARGS, LOG_DEBUG, "Syntax check of newSuperior failed\n");
 		if (!internal_op) {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL,
+			slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 newsuperior ? newsuperior : "(null)");
 		} else {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL,
+			slapi_log_error(SLAPI_LOG_ARGS, LOG_DEBUG, NULL,
 				 "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,

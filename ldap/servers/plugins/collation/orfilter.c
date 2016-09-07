@@ -977,7 +977,7 @@ orderingRule_init (Slapi_PBlock* pb)
 #endif 
 
     if ( slapi_pblock_get( pb, SLAPI_CONFIG_DIRECTORY, &cfgpath ) != 0 ) {
-	slapi_log_error( SLAPI_LOG_FATAL, SLAPI_ORPLUGIN_NAME,
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_ORPLUGIN_NAME,
 		"Unable to retrieve slapd configuration pathname; using default\n" );
 	cfgpath = NULL;
     }

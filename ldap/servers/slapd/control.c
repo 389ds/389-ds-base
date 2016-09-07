@@ -39,7 +39,7 @@ init_controls( void )
 	supported_controls_lock = slapi_new_rwlock();
 	if (NULL == supported_controls_lock) {
 		/* Out of resources */
-		slapi_log_error(SLAPI_LOG_FATAL, "startup", 
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup", 
 			"init_controls: failed to create lock.\n");
 		exit (1);
 	}
@@ -249,7 +249,7 @@ get_ldapmessage_controls_ext(
 	 */
 	if ( pb->pb_conn != NULL
 			&& pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, "connection",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
 				"received control(s) on an LDAPv%d connection\n",
 				pb->pb_conn->c_ldapversion );
 		return( LDAP_PROTOCOL_ERROR );
@@ -338,7 +338,7 @@ get_ldapmessage_controls_ext(
                 slapi_pblock_set(pb, SLAPI_REQCONTROLS, NULL);
                 slapi_pblock_set(pb, SLAPI_MANAGEDSAIT, &ctrl_not_found);
                 slapi_pblock_set(pb, SLAPI_PWPOLICY, &ctrl_not_found);
-                slapi_log_error(SLAPI_LOG_CONNS, "connection", "Warning: conn=%" NSPRIu64 " op=%d contains an empty list of controls\n",
+                slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "connection", "Warning: conn=%" NSPRIu64 " op=%d contains an empty list of controls\n",
                         pb->pb_conn->c_connid, pb->pb_op->o_opid);
         } else {
                 /* len, ber_len_t is uint, not int, cannot be != -1, may be better to remove this check.  */

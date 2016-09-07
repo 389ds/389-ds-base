@@ -176,7 +176,7 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
          slapi_pblock_get( pb, SLAPI_OPERATION, &op ) != 0 || op == NULL ||
          ( operation_get_type(op) == SLAPI_OPERATION_SEARCH && slapi_pblock_get( pb,
         SLAPI_SEARCH_SCOPE, &scope ) != 0 )) {
-        LDAPDebug0Args( LDAP_DEBUG_ANY, "ref_adjust: referrals suppressed "
+        LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "ref_adjust: referrals suppressed "
                         "(could not get target DN, operation, "
                         "or scope from pblock)\n" );
         return( NULL );

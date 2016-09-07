@@ -46,7 +46,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
         /* check that the dn is formatted correctly */
         ret = slapi_dn_syntax_check(pb, orig, 1);
         if (ret) { /* syntax check failed */
-            LDAPDebug1Arg(LDAP_DEBUG_ANY,
+            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
                           "extop_handle_import_start: strict: invalid suffix\n",
                           orig);
             send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
@@ -336,14 +336,14 @@ do_extended( Slapi_PBlock *pb )
     slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
 
     rc = plugin_determine_exop_plugins( extoid, &p );
-    slapi_log_error(SLAPI_LOG_TRACE, NULL, "exendop.c plugin_determine_exop_plugins rc %d\n", rc);
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL, "exendop.c plugin_determine_exop_plugins rc %d\n", rc);
 
     if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_EXTOP_FN) != SLAPI_PLUGIN_SUCCESS) {
         goto free_and_return;
     }
 
     if (rc == SLAPI_PLUGIN_EXTENDEDOP && p != NULL) {
-        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling plugin ... \n");
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL, "extendop.c calling plugin ... \n");
         /*
          * Return values:
          *  SLAPI_PLUGIN_EXTENDED_SENT_RESULT: The result is already sent to the client. 
@@ -353,16 +353,16 @@ do_extended( Slapi_PBlock *pb )
          */
         rc = plugin_call_exop_plugins( pb, p);
 
-        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called exop, got %d \n", rc);
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL, "extendop.c called exop, got %d \n", rc);
 
     } else if (rc == SLAPI_PLUGIN_BETXNEXTENDEDOP && p != NULL) {
 
-        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c calling betxn plugin ... \n");
+        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL, "extendop.c calling betxn plugin ... \n");
         /* Look up the correct backend to use. */
         Slapi_Backend *be = plugin_extended_op_getbackend( pb, p );
 
         if ( be == NULL ) {
-            slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c plugin_extended_op_getbackend was unable to retrieve a backend!!!\n");
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "extendop.c plugin_extended_op_getbackend was unable to retrieve a backend!!!\n");
             rc = LDAP_OPERATIONS_ERROR;
         } else {
             /* We need to make a new be pb here because when you set SLAPI_BACKEND
@@ -375,7 +375,7 @@ do_extended( Slapi_PBlock *pb )
 
             int txn_rc = slapi_back_transaction_begin(be_pb);
             if (txn_rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, NULL, "exendop.c Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "exendop.c Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
             } else {
                 /*
                  * Return values:
@@ -385,19 +385,19 @@ do_extended( Slapi_PBlock *pb )
                  *  LDAP codes (e.g., LDAP_SUCCESS): The result is not sent yet. Call send_ldap_result.
                  */
                 rc = plugin_call_exop_plugins( pb, p );
-                slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c called betxn exop, got %d \n", rc);
+                slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL, "extendop.c called betxn exop, got %d \n", rc);
                 if (rc == LDAP_SUCCESS || rc == SLAPI_PLUGIN_EXTENDED_SENT_RESULT) {
                     /* commit */
                     txn_rc = slapi_back_transaction_commit(be_pb);
                     if (txn_rc == 0) {
-                        slapi_log_error(SLAPI_LOG_TRACE, NULL, "extendop.c commit with result %d \n", txn_rc);
+                        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL, "extendop.c commit with result %d \n", txn_rc);
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c Unable to commit commit with result %d \n", txn_rc);
+                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "extendop.c Unable to commit commit with result %d \n", txn_rc);
                     }
                 } else {
                     /* abort */
                     txn_rc = slapi_back_transaction_abort(be_pb);
-                    slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c abort with result %d \n", txn_rc);
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "extendop.c abort with result %d \n", txn_rc);
                 }
             } /* txn_rc */
             slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
@@ -414,7 +414,7 @@ do_extended( Slapi_PBlock *pb )
             errmsg = "unsupported extended operation";
         } else {
             if (rc != LDAP_SUCCESS) {
-                slapi_log_error(SLAPI_LOG_FATAL, NULL, "extendop.c failed with result %d \n", rc);
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "extendop.c failed with result %d \n", rc);
             }
             errmsg = NULL;
             lderr = rc;

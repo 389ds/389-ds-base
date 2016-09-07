@@ -549,7 +549,7 @@ _conf_init_ciphers(void)
     for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
         rc = SSL_GetCipherSuiteInfo(implementedCiphers[x], &info, sizeof info);
         if (SECFailure == rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SSL Initialization",
                             "Warning: failed to get the cipher suite info of cipher ID %d\n",
                             implementedCiphers[x]);
             continue;
@@ -600,7 +600,7 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
              */
             rc = SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &setme);
             if (SECFailure == rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SSL Initialization",
                     "Warning: failed to get the default state of cipher %s\n",
                     _conf_ciphers[x].name);
                 continue;
@@ -954,7 +954,7 @@ warn_if_no_cert_file(const char *dir, int no_log)
         if (PR_SUCCESS != status) {
             ret = 1;
             if (!no_log) {
-                slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SSL Initialization",
                     "Warning: certificate DB file cert8.db nor cert7.db exists in [%s] - "
                     "SSL initialization will likely fail\n", dir);
             }
@@ -976,7 +976,7 @@ warn_if_no_key_file(const char *dir, int no_log)
 	if (PR_SUCCESS != status) {
         ret = 1;
         if (!no_log) {
-            slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SSL Initialization",
                 "Warning: key DB file %s does not exist - SSL initialization will "
                 "likely fail\n", filename);
         }
@@ -1185,7 +1185,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	
 	(void) slapi_getSSLVersion_str(enabledNSSVersions.min, emin, sizeof(emin));
 	(void) slapi_getSSLVersion_str(enabledNSSVersions.max, emax, sizeof(emax));
-	slapi_log_error(SLAPI_LOG_CONFIG, "SSL Initialization",
+	slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, "SSL Initialization",
 	                "supported range by NSS: min: %s, max: %s\n",
 	                emin, emax);
 #endif
@@ -1211,7 +1211,7 @@ slapd_nss_init(int init_ssl, int config_available)
 			char *serveruser = "unknown";
 
 			serveruser = config_get_localuser();
-			slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SSL Initialization",
 				"Warning: The key/cert database directory [%s] is not writable by "
 				"the server uid [%s]: initialization likely to fail.\n",
 				certdir, serveruser);
@@ -1445,7 +1445,7 @@ slapd_ssl_init()
 #endif
             if (slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                 errorCode = PR_GetError();
-                slapi_log_error(SLAPI_LOG_FATAL, "slapd_ssl_init", 
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_ssl_init", 
                                 "Unable to authenticate (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                 errorCode, slapd_pr_strerror(errorCode));
                 freeChildren(family_list);
@@ -1778,7 +1778,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         if(slapd_pk11_isFIPS()) {
             if(slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                errorCode = PR_GetError();
-               slapi_log_error(SLAPI_LOG_FATAL, "slapd_ssl_init2", 
+               slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_ssl_init2", 
                                 "Unable to authenticate (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                                 errorCode, slapd_pr_strerror(errorCode));
                return -1;
@@ -1979,7 +1979,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     tmpDir = slapd_get_tmp_dir();
 
-    slapi_log_error(SLAPI_LOG_TRACE,
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG,
                     "slapd_ssl_init2", "tmp dir = %s\n", tmpDir);
 
     rv = SSL_ConfigServerSessionIDCache(0, stimeout, stimeout, tmpDir);
@@ -2125,7 +2125,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         restrict_SSLVersionRange();
         (void) slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
         (void) slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
-        slapi_log_error(SLAPI_LOG_FATAL, "SSL Initialization",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "SSL Initialization",
                         "Configured SSL version range: min: %s, max: %s\n",
                         mymin, mymax);
         sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
@@ -2495,6 +2495,7 @@ char* slapd_get_tmp_dir()
 	{
 		slapi_log_error(
 			 SLAPI_LOG_FATAL,
+			 LOG_ERR,
 			 "slapd_get_tmp_dir",
 			 "config_get_tmpdir returns NULL Setting tmp dir to default\n");
 
@@ -2507,12 +2508,14 @@ char* slapd_get_tmp_dir()
 		if (errno == EEXIST) {
 			slapi_log_error(
 			 SLAPI_LOG_TRACE,
+			 LOG_DEBUG,
 			 "slapd_get_tmp_dir",
 			 "mkdir(%s, 00770) - already exists\n",
 			 tmpdir);
 		} else {
 			slapi_log_error(
 			 SLAPI_LOG_FATAL,
+			 LOG_DEBUG,
 			 "slapd_get_tmp_dir",
 			 "mkdir(%s, 00770) Error: %s\n",
 			 tmpdir, strerror(errno));
@@ -2532,7 +2535,7 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 
 	if (!slotlist) {
 		PRErrorCode errcode = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_get_unlocked_key_for_cert",
 				"Error: cannot get slot list for certificate [%s] (%d: %s)\n",
 				certsubject, errcode, slapd_pr_strerror(errcode));
 		return key;
@@ -2543,25 +2546,25 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 		const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
 		const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
 		if (!slot) {
-			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "slapd_get_unlocked_key_for_cert",
 					"Missing slot for slot list element for certificate [%s]\n",
 					certsubject);
 		} else if (!PK11_NeedLogin(slot) || PK11_IsLoggedIn(slot, pin_arg)) {
 			key = PK11_FindKeyByDERCert(slot, cert, pin_arg);
-			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "slapd_get_unlocked_key_for_cert",
 					"Found unlocked slot [%s] token [%s] for certificate [%s]\n",
 					slotname, tokenname, certsubject);
 			break;
 		} else {
 			PRErrorCode errcode = PR_GetError();
-			slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_get_unlocked_key_for_cert",
 					"Skipping locked slot [%s] token [%s] for certificate [%s] (%d - %s)\n",
 					slotname, tokenname, certsubject, errcode, slapd_pr_strerror(errcode));
 		}
 	}
 
 	if (!key) {
-		slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_get_unlocked_key_for_cert",
 				"Error: could not find any unlocked slots for certificate [%s].  "
 		                "Please review your TLS/SSL configuration.  The following slots were found:\n",
 		                certsubject);
@@ -2569,7 +2572,7 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 			PK11SlotInfo *slot = sle->slot;
 			const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
 			const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
-			slapi_log_error(SLAPI_LOG_FATAL, "slapd_get_unlocked_key_for_cert",
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_get_unlocked_key_for_cert",
 					"Slot [%s] token [%s] was locked.\n",
 					slotname, tokenname);
 		}
@@ -2618,18 +2621,18 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
     char *name = NULL;
 
     if (!cert) {
-        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "No cert given\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "listCerts", "No cert given\n");
         return rv;
     }
     name = cert->nickname;
 
     if (!name) {
-        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "No cert nickname\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "listCerts", "No cert nickname\n");
         return rv;
     }
     the_cert = CERT_FindCertByNicknameOrEmailAddr(handle, name);
     if (!the_cert) {
-        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "Could not find cert: %s\n", name);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "listCerts", "Could not find cert: %s\n", name);
         return SECFailure;
     }
 
@@ -2644,7 +2647,7 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
                                        PR_Now(), PR_FALSE);
     CERT_DestroyCertificate(the_cert);
     if (!certs) {
-        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "problem printing certificates");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "listCerts", "problem printing certificates");
         return SECFailure;
     }
     for (node = CERT_LIST_HEAD(certs); !CERT_LIST_END(node,certs); node = CERT_LIST_NEXT(node)) {
@@ -2662,7 +2665,7 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
         CERT_DestroyCertList(certs);
     }
     if (rv) {
-        slapi_log_error(SLAPI_LOG_FATAL, "listCerts", "problem printing certificate nicknames");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "listCerts", "problem printing certificate nicknames");
         return SECFailure;
     }
 
@@ -2717,7 +2720,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
     char *personality = NULL;
 
     if (!entry) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert",
                         "No entry is given for %s Cert.\n", isCA?"CA":"Server");
         goto bail;
     }
@@ -2747,7 +2750,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                 (trust.sslFlags & (CERTDB_VALID_CA|CERTDB_TRUSTED_CA|CERTDB_TRUSTED_CLIENT_CA))) {
                 /* default token "internal" */
                 PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
-                slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
                     char buf[BUFSIZ];
                     certfile = slapi_ch_smprintf("%s/%s%s", certdir,
@@ -2759,14 +2762,14 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                     outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
                 }
                 if (!outFile) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert",
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert",
                                     "Unable to open \"%s\" for writing (%d, %d).\n",
                                     certfile, PR_GetError(), PR_GetOSError());
                     goto bail;
                 }
                 rv = listCerts(certHandle, cert, slot, outFile, NULL);
                 if (rv) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "listCerts failed\n");
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert", "listCerts failed\n");
                     break;
                 }
             }
@@ -2774,7 +2777,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
         default:
             if (!PL_strcmp(cert->nickname, personality)) {
                 PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
-                slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
                     char buf[BUFSIZ];
                     certfile = slapi_ch_smprintf("%s/%s%s", certdir,
@@ -2784,14 +2787,14 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                     outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
                 }
                 if (!outFile) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert",
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert",
                                     "Unable to open \"%s\" for writing (%d, %d).\n",
                                     certfile, PR_GetError(), PR_GetOSError());
                     goto bail;
                 }
                 rv = listCerts(certHandle, cert, slot, outFile, NULL);
                 if (rv) {
-                    slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_cert", "listCerts failed\n");
+                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_cert", "listCerts failed\n");
                 }
                 PR_Close(outFile);
                 outFile = NULL;
@@ -2842,7 +2845,7 @@ extractRSAKeysAndSubject(
     CERTCertificate *cert = PK11_FindCertFromNickname((char *)nickname, NULL);
     if (!cert) {
         rv = PR_GetError();
-        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "extractRSAKeysAndSubject",
                         "Failed extract cert with %s, (%d-%s, %d).\n",
                         nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         goto bail;
@@ -2851,7 +2854,7 @@ extractRSAKeysAndSubject(
     *pubkey = CERT_ExtractPublicKey(cert);
     if (!*pubkey) {
         rv = PR_GetError();
-        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "extractRSAKeysAndSubject",
                         "Could not get public key from cert for %s, (%d-%s, %d)\n",
                         nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         goto bail;
@@ -2860,13 +2863,13 @@ extractRSAKeysAndSubject(
     *privkey = PK11_FindKeyByDERCert(slot, cert, pwdata);
     if (!*privkey) {
         rv = PR_GetError();
-        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "extractRSAKeysAndSubject",
                         "Unable to find the key with PK11_FindKeyByDERCert for %s, (%d-%s, %d)\n",
                         nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         *privkey= PK11_FindKeyByAnyCert(cert, &pwdata);
         if (!*privkey) {
             rv = PR_GetError();
-            slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "extractRSAKeysAndSubject",
                             "Unable to find the key with PK11_FindKeyByAnyCert for %s, (%d-%s, %d)\n",
                             nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
             goto bail;
@@ -2877,7 +2880,7 @@ extractRSAKeysAndSubject(
     *subject = CERT_AsciiToName(cert->subjectName);
 
     if (!*subject) {
-        slapi_log_error(SLAPI_LOG_FATAL, "extractRSAKeysAndSubject",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "extractRSAKeysAndSubject",
                         "Improperly formatted name: \"%s\"\n",
                         cert->subjectName);
         goto bail;
@@ -2996,25 +2999,25 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
 #endif
 
     if (!entry) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "No entry is given for Server Key.\n");
         goto bail;
     }
 #if defined(ENCRYPTEDKEY)
     if (!token) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "No token is given.\n");
         goto bail;
     }
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     if (!StdPinObj) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "No entry is given for Server Key.\n");
         goto bail;
     }
     err =  SVRCORE_StdPinGetPin(&keyEncPwd, StdPinObj, token);
     if (err || !keyEncPwd) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "Failed to extract pw with token %s.\n", token);
         goto bail;
     }
@@ -3028,7 +3031,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
      */
     rv = PK11_GenerateRandom(randomPassword, sizeof(randomPassword) - 1);
     if (rv != SECSuccess) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key", "Failed to generate random.\n");
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key", "Failed to generate random.\n");
         goto bail;
     }
     pwitem.data = randomPassword;
@@ -3040,7 +3043,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     KeyExtractFile = slapi_entry_attr_get_charptr(entry, "ServerKeyExtractFile");
     personality = slapi_entry_attr_get_charptr(entry, "nsSSLPersonalitySSL" );
     if (!personality) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "nsSSLPersonalitySSL value not found.\n");
         goto bail;
     }
@@ -3053,7 +3056,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     }
     outFile = PR_Open(keyfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
     if (!outFile) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "Unable to open \"%s\" for writing (%d, %d).\n",
                         keyfile, PR_GetError(), PR_GetOSError());
         goto bail;
@@ -3061,10 +3064,10 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     rv = extractRSAKeysAndSubject(personality, slot, &pwdata, &privkey, &pubkey, &subject);
     if (rv != SECSuccess) {
 #if defined(ENCRYPTEDKEY)
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "Failed to extract keys for \"%s\".\n", token);
 #else
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key", "Failed to extract keys for %s.\n", personality);
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key", "Failed to extract keys for %s.\n", personality);
 #endif
         goto bail;
     }
@@ -3075,7 +3078,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
      */
     epki = PK11_ExportEncryptedPrivKeyInfo(NULL, SEC_OID_DES_EDE3_CBC, &pwitem, privkey, 1000, &pwdata);
     if (!epki) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "Unable to export encrypted private key (%d, %d).\n",
                         PR_GetError(), PR_GetOSError());
         goto bail;
@@ -3085,7 +3088,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     /* NULL dest to let it allocate memory for us */
     encryptedKeyDER = SEC_ASN1EncodeItem(arenaForEPKI, NULL, epki, SECKEY_EncryptedPrivateKeyInfoTemplate);
     if (!encryptedKeyDER) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "SEC_ASN1EncodeItem failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
         goto bail;
     }
@@ -3093,7 +3096,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     /* Make a decrypted key the one to write out. */
     arenaForPKI = PORT_NewArena(2048);
     if (!arenaForPKI) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "PORT_NewArena failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
         goto bail;
     }
@@ -3103,7 +3106,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
 
     rv = DecryptKey(epki, SEC_OID_DES_EDE3_CBC, &pwitem, &pwdata, &clearKeyDER);
     if (rv != SECSuccess) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "DekryptKey failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
         goto bail;
     }
@@ -3116,7 +3119,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     b64 = BTOA_ConvertItemToAscii(&clearKeyDER);
 #endif
     if (!b64) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "Failed to conver to the ASCII (%d, %d).\n",
                         PR_GetError(), PR_GetOSError());
         goto bail;
@@ -3131,7 +3134,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
 #endif
     numBytes = PR_Write(outFile, b64, total);
     if (numBytes != total) {
-        slapi_log_error(SLAPI_LOG_FATAL, "slapd_extract_key",
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapd_extract_key",
                         "Failed to write to the file (%d, %d).\n",
                         PR_GetError(), PR_GetOSError());
         goto bail;

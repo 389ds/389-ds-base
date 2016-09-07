@@ -171,14 +171,14 @@ reslimit_init( void )
 				reslimit_connext_destructor,
 				&reslimit_connext_objtype, &reslimit_connext_handle )
 				!= 0 ) {
-			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 					"reslimit_init: slapi_register_object_extension()"
 					" failed\n" );
 			return( -1 );
 		}
 
 		if (( reslimit_map_rwlock = slapi_new_rwlock()) == NULL ) {
-			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 					"reslimit_init: slapi_new_rwlock() failed\n" );
 			return( -1 );
 		}
@@ -232,7 +232,7 @@ reslimit_connext_constructor( void *object, void *parent )
 	Slapi_RWLock				*rwlock;
 
 	if (( rwlock = slapi_new_rwlock()) == NULL ) {
-		slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 				"reslimit_connext_constructor: slapi_new_rwlock() failed\n" );
 		return( NULL );
 	}
@@ -275,7 +275,7 @@ reslimit_get_ext( Slapi_Connection *conn, const char *logname,
 {
 	if ( !reslimit_inited && reslimit_init() != 0 ) {
 		if ( NULL != logname ) {
-			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 				"%s: reslimit_init() failed\n", logname );
 		}
 		return( SLAPI_RESLIMIT_STATUS_INIT_FAILURE );
@@ -285,7 +285,7 @@ reslimit_get_ext( Slapi_Connection *conn, const char *logname,
 			reslimit_connext_objtype, conn,
 			reslimit_connext_handle )) == NULL ) {
 		if ( NULL != logname ) {
-			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 					"%s: slapi_get_object_extension() returned NULL\n", logname );
 		}
 		return( SLAPI_RESLIMIT_STATUS_INTERNAL_ERROR );
@@ -351,7 +351,7 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 	int free_flags = 0;
 	int rc, i;
 
-	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "=> %s conn=0x%x, entry=0x%x\n",
+	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG, "=> %s conn=0x%x, entry=0x%x\n",
 			fnname, conn, e );
 
 	rc = SLAPI_RESLIMIT_STATUS_SUCCESS;		/* optimistic */
@@ -392,7 +392,7 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 			continue;
 		}
 
-		LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL,
+		LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG,
 				"%s: setting limit for handle %d (based on %s)\n",
 				fnname, i, reslimit_map[ i ].rlmap_at );
 
@@ -409,13 +409,13 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 				rlcdp->rlcd_integer_value[ i ] = slapi_value_get_int( v );
 				rlcdp->rlcd_integer_available[ i ] = PR_TRUE;
 
-				LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL,
+				LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG,
 						"%s: set limit based on %s to %d\n",
 						fnname, reslimit_map[ i ].rlmap_at,
 						rlcdp->rlcd_integer_value[ i ] );
 
 				if ( slapi_valueset_next_value( vs, index, &v ) != -1 ) {
-					slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 							"%s: ignoring multiple values for %s in entry %s\n",
 							fnname, reslimit_map[ i ].rlmap_at,
 							slapi_entry_get_dn_const( e ));
@@ -432,7 +432,7 @@ reslimit_update_from_entry( Slapi_Connection *conn, Slapi_Entry *e )
 	/* UNLOCKED -- map lock */
 
 log_and_return:
-	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "<= %s returning status %d\n",
+	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG, "<= %s returning status %d\n",
 			fnname, rc, 0 );
 
 	return( rc );
@@ -482,14 +482,14 @@ slapi_reslimit_register( int type, const char *attrname, int *handlep )
 	char	*fnname = "slapi_reslimit_register()";
 	int		i, rc;
 
-	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "=> %s attrname=%s\n",
+	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG, "=> %s attrname=%s\n",
 			fnname, attrname, 0 );
 
 	rc = SLAPI_RESLIMIT_STATUS_SUCCESS;		/* optimistic */
 
 	/* initialize if necessary */
 	if ( !reslimit_inited && reslimit_init() != 0 ) {
-		slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 				"%s: reslimit_init() failed\n", fnname );
 		rc = SLAPI_RESLIMIT_STATUS_INIT_FAILURE;
 		goto log_and_return;
@@ -498,7 +498,7 @@ slapi_reslimit_register( int type, const char *attrname, int *handlep )
 	/* sanity check parameters */
 	if ( type != SLAPI_RESLIMIT_TYPE_INT || attrname == NULL
 			|| handlep == NULL ) {
-		slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 				"%s: parameter error\n", fnname );
 		rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
 		goto log_and_return;
@@ -513,7 +513,7 @@ slapi_reslimit_register( int type, const char *attrname, int *handlep )
 	for ( i = 0; i < reslimit_map_count; ++i ) {
 		if ( 0 == slapi_attr_type_cmp( reslimit_map[ i ].rlmap_at,
 				attrname, SLAPI_TYPE_CMP_EXACT )) {
-			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 					"%s: parameter error (%s already registered)\n",
 					attrname, fnname );
 			rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
@@ -538,7 +538,7 @@ unlock_and_return:
 	/* UNLOCKED -- map lock */
 
 log_and_return:
-	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL,
+	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG,
 			"<= %s returning status=%d, handle=%d\n", fnname, rc,
 			(handlep == NULL) ? -1 : *handlep );
 
@@ -566,14 +566,14 @@ slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 	int						rc;
 	SLAPIResLimitConnData	*rlcdp;
 
-	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "=> %s conn=0x%x, handle=%d\n",
+	LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG, "=> %s conn=0x%x, handle=%d\n",
 			fnname, conn, handle );
 
 	rc = SLAPI_RESLIMIT_STATUS_SUCCESS;		/* optimistic */
 
 	/* sanity check parameters */
 	if ( limitp == NULL ) {
-		slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 				"%s: parameter error\n", fnname );
 		rc = SLAPI_RESLIMIT_STATUS_PARAM_ERROR;
 		goto log_and_return;
@@ -595,7 +595,7 @@ slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 		if(rlcdp->rlcd_integer_count==0) {
 			rc = SLAPI_RESLIMIT_STATUS_NOVALUE;
 		} else if ( handle < 0 || handle >= rlcdp->rlcd_integer_count ) {
-			slapi_log_error( SLAPI_LOG_FATAL, SLAPI_RESLIMIT_MODULE,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_RESLIMIT_MODULE,
 				"%s: unknown handle %d\n", fnname, handle );
 			rc = SLAPI_RESLIMIT_STATUS_UNKNOWN_HANDLE;
 		} else if ( rlcdp->rlcd_integer_available[ handle ] ) {
@@ -610,13 +610,13 @@ slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
 log_and_return:
 	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_TRACE )) {
 		if ( rc == SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-			LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL,
+			LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG,
 					"<= %s returning SUCCESS, value=%d\n", fnname, *limitp, 0 );
 		} else if ( rc == SLAPI_RESLIMIT_STATUS_NOVALUE ) {
-			LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "<= %s returning NO VALUE\n",
+			LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG, "<= %s returning NO VALUE\n",
 					fnname, 0, 0 );
 		} else {
-			LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, "<= %s returning ERROR %d\n",
+			LDAPDebug( SLAPI_RESLIMIT_TRACELEVEL, LOG_DEBUG, "<= %s returning ERROR %d\n",
 					fnname, rc, 0 );
 		}
 	}

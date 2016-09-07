@@ -33,7 +33,7 @@
 
 /*** from proto-slap.h ***/
 
-int slapd_log_error_proc( char *subsystem, char *fmt, ... );
+int slapd_log_error_proc( char *subsystem, int sev_level, char *fmt, ... );
 
 /*** end secrets ***/
 
@@ -103,7 +103,7 @@ cos_postop_init ( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *)cos_post_op ) != 0 ||
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *)cos_post_op ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 						 "cos_postop_init: failed to register plugin\n" );
 		rc = -1;
 	}
@@ -126,7 +126,7 @@ cos_internalpostop_init ( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
 							(void *) cos_post_op ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 					"cos_internalpostop_init: failed to register plugin\n" );
 		rc = -1;
 	}
@@ -159,7 +159,7 @@ int cos_init( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) cos_close ) != 0 ||
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 						 "cos_init: failed to register plugin\n" );
 		ret = -1;
 		goto bailout;

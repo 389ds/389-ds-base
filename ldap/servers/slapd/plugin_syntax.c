@@ -313,7 +313,7 @@ slapi_dn_syntax_check(
 			/* Validate the value. */
 			if (dn_plugin->plg_syntax_validate(&dn_bval) != 0) {
 				if (syntaxlogging) {
-					slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check",
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Syntax Check",
 						"DN value (%s) invalid per syntax\n", dn);
 				}
 
@@ -400,7 +400,7 @@ slapi_entry_syntax_check(
 					bval = slapi_value_get_berval(val);
 					if ((a->a_plugin->plg_syntax_validate( bval )) != 0) {
 						if (syntaxlogging) {
-							slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check",
+							slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Syntax Check",
 							                "\"%s\": (%s) value #%d invalid per syntax\n",
 							                slapi_entry_get_dn(e), a->a_type, hint );
 						}
@@ -502,7 +502,7 @@ slapi_mods_syntax_check(
 				for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
 					if (syntax_plugin->plg_syntax_validate(mod->mod_bvalues[j]) != 0) {
 						if (syntaxlogging) {
-							slapi_log_error( SLAPI_LOG_FATAL, "Syntax Check", "\"%s\": (%s) value #%d invalid per syntax\n", 
+							slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Syntax Check", "\"%s\": (%s) value #%d invalid per syntax\n", 
 							    dn ? dn : "NULL", mod->mod_type, j );
 						}
 

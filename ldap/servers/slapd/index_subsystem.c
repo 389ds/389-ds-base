@@ -195,7 +195,7 @@ int index_subsys_assign_filter_decoders(Slapi_PBlock *pb)
 
 	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_FILTER ) && NULL != f ) {
 		logbuf[0] = '\0';
-		slapi_log_error( SLAPI_LOG_FATAL, subsystem, "before: %s\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, subsystem, "before: %s\n",
 				slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
 	}
 
@@ -204,7 +204,7 @@ int index_subsys_assign_filter_decoders(Slapi_PBlock *pb)
 
 	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_FILTER ) && NULL != f ) {
 		logbuf[0] = '\0';
-		slapi_log_error( SLAPI_LOG_FATAL, subsystem, " after: %s\n",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, subsystem, " after: %s\n",
 				slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
 	}
 

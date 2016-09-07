@@ -87,17 +87,17 @@ derive_from_bind_entry(Slapi_PBlock *pb, const Slapi_DN *bindsdn,
 											 pam_passthruauth_get_plugin_identity());
 
 	if (rc != LDAP_SUCCESS) {
-		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Could not find BIND dn %s (error %d - %s)\n",
 						slapi_sdn_get_ndn(bindsdn), rc, ldap_err2string(rc));
 		init_my_str_buf(pam_id, NULL);
    	} else if (NULL == entry) {
-		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Could not find entry for BIND dn %s\n",
 						slapi_sdn_get_ndn(bindsdn));
 		init_my_str_buf(pam_id, NULL);
 	} else if (slapi_check_account_lock( pb, entry, 0, 0, 0 ) == 1) {
-		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Account %s inactivated.\n",
 						slapi_sdn_get_ndn(bindsdn));
 		init_my_str_buf(pam_id, NULL);
@@ -117,7 +117,7 @@ static void
 report_pam_error(char *str, int rc, pam_handle_t *pam_handle)
 {
 	if (rc != PAM_SUCCESS) {
-		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"Error from PAM %s (%d: %s)\n",
 						str, rc, pam_strerror(pam_handle, rc));
 	}
@@ -168,7 +168,7 @@ pam_conv_func(int num_msg, const struct pam_message **msg, struct pam_response *
 										  sizeof(struct pam_response));
 	slapi_pblock_get( my_data->pb, SLAPI_BIND_CREDENTIALS, &creds ); /* the password */
 	for (ii = 0; ii < num_msg; ++ii) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"pam msg [%d] = %d %s\n", ii, msg[ii]->msg_style,
 						msg[ii]->msg);
 		/* hard to tell what prompt is for . . . */
@@ -182,13 +182,13 @@ pam_conv_func(int num_msg, const struct pam_message **msg, struct pam_response *
 		} else if (msg[ii]->msg_style == PAM_PROMPT_ECHO_ON) { /* assume username */
 			reply[ii].resp = slapi_ch_strdup(my_data->pam_identity);
 		} else if (msg[ii]->msg_style == PAM_ERROR_MSG) {
-			slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 							"pam msg [%d] error [%s]\n", ii, msg[ii]->msg);
 		} else if (msg[ii]->msg_style == PAM_TEXT_INFO) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 							"pam msg [%d] text info [%s]\n", ii, msg[ii]->msg);
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 							"Error: unknown pam message type (%d: %s)\n",
 							msg[ii]->msg_style, msg[ii]->msg);
 			ret = PAM_CONV_ERR;
@@ -370,7 +370,7 @@ done:
 	}
 
 	if (retcode != LDAP_SUCCESS) {
-		slapi_log_error(SLAPI_LOG_FATAL, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
 						"%s\n", errmsg);
 		if (final_method && !fallback) {
 			slapi_send_ldap_result(pb, retcode, NULL, errmsg, 0, NULL);

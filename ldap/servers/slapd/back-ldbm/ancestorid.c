@@ -482,7 +482,7 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
         while (1) {
             ret = ldbm_parentid(be, txn, id, &parentid);
             if (ret != 0) {
-                slapi_log_error(SLAPI_LOG_FATAL, sourcefile,
+                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, sourcefile,
                                 "Error: ldbm_parentid on node index [" ID_FMT "] of [" ID_FMT "]\n",
                                 nids, nodes->b_nids);
                 idl_free(&children);
@@ -578,7 +578,7 @@ static int ldbm_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid)
     ret = db->get(db, txn, &key, &data, 0);
     if (ret != 0) {
         ldbm_nasty(sourcefile,13110,ret);
-        slapi_log_error(SLAPI_LOG_FATAL, sourcefile,
+        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, sourcefile,
                         "Error: unable to find entry id [" ID_FMT "] (original [" ID_FMT "])"
                         " in id2entry\n", stored_id, id);
         goto out;
@@ -788,7 +788,7 @@ static int ldbm_ancestorid_index_update(
             if (err) {
                 if (DB_NOTFOUND != err) {
                     ldbm_nasty(sourcefile,13141,err);
-                    LDAPDebug1Arg(LDAP_DEBUG_ANY, "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
+                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
                     ret = err;
                 }
                 break;

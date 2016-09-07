@@ -202,10 +202,10 @@ sync_queue_change( Slapi_Entry *e, Slapi_Entry *eprev, ber_int_t chgtype )
 	if ( matched ) {
 		/* Notify update threads */
 		sync_request_wakeup_all();
-		slapi_log_error (SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM, "sync search: enqueued entry "
+		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, SYNC_PLUGIN_SUBSYSTEM, "sync search: enqueued entry "
 			"\"%s\" on %d request listeners\n", slapi_entry_get_dn_const(e), matched );
 	} else {
-		slapi_log_error (SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM, "sync search: entry "
+		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, SYNC_PLUGIN_SUBSYSTEM, "sync search: entry "
 			"\"%s\" not enqueued on any request search listeners\n", slapi_entry_get_dn_const(e) );
 	}
 
@@ -220,15 +220,15 @@ sync_persist_initialize (int argc, char **argv)
 	if ( !SYNC_IS_INITIALIZED()) {
 		sync_request_list = (SyncRequestList *) slapi_ch_calloc( 1, sizeof( SyncRequestList ));
 		if (( sync_request_list->sync_req_rwlock = slapi_new_rwlock()) == NULL ) {
-			slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize: cannot initialize lock structure(1). ");
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize: cannot initialize lock structure(1). ");
 			return( -1 );
 		}
 		if (( sync_request_list->sync_req_cvarlock = PR_NewLock()) == NULL ) {
-			slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize: cannot initialize lock structure(2). ");
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize: cannot initialize lock structure(2). ");
 			return( -1 );
 		}
 		if (( sync_request_list->sync_req_cvar = PR_NewCondVar( sync_request_list->sync_req_cvarlock )) == NULL ) {
-			slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize: cannot initialize condition variable. ");
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize: cannot initialize condition variable. ");
 			return( -1 );
 		}
 		sync_request_list->sync_req_head = NULL;
@@ -284,7 +284,7 @@ sync_persist_add (Slapi_PBlock *pb)
 			if(NULL == (req->req_tid)){ 
 				int prerr;
 				prerr = PR_GetError(); 
-				slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Content Synchronization Search",
 					"sync_persist_add function: failed to create persitent thread, error %d (%s)\n",
 		 			prerr, slapi_pr_strerror(prerr)); 
 				/* Now remove the ps from the list so call the function ps_remove */ 
@@ -391,7 +391,7 @@ sync_request_alloc(void)
 
 	req->req_pblock = NULL;
 	if (( req->req_lock = PR_NewLock()) == NULL ) {
-		slapi_log_error (SLAPI_LOG_FATAL, SYNC_PLUGIN_SUBSYSTEM, "sync_request_alloc: cannot initialize lock structure. ");
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_request_alloc: cannot initialize lock structure. ");
 		slapi_ch_free((void **)&req);
 		return( NULL );
 	}
@@ -460,7 +460,7 @@ sync_remove_request( SyncRequest *req )
 		}
 		SYNC_UNLOCK_WRITE();
 		if (!removed) {
-			slapi_log_error (SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "attempt to remove nonexistent req");
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, SYNC_PLUGIN_SUBSYSTEM, "attempt to remove nonexistent req");
 		}
 	}
 }
@@ -546,14 +546,14 @@ sync_send_results( void *arg )
 	slapi_pblock_get(req->req_pblock, SLAPI_OPERATION_ID, &opid);
 	slapi_pblock_get(req->req_pblock, SLAPI_CONNECTION, &conn);
 	if (NULL == conn) {
-		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Null connection - aborted\n",
 						connid, opid);
 		return;
 	}
 	conn_acq_flag = sync_acquire_connection (conn);
 	if (conn_acq_flag) {
-		slapi_log_error(SLAPI_LOG_FATAL, "Content Synchronization Search",
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Could not acquire the connection - aborted\n",
 						connid, opid);
 		return;
@@ -564,7 +564,7 @@ sync_send_results( void *arg )
 	while ( (conn_acq_flag == 0) && !req->req_complete && !plugin_closing) {
 		/* Check for an abandoned operation */
 		if ( op == NULL || slapi_is_operation_abandoned( op ) ) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, "Content Synchronization Search",
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "Content Synchronization Search",
 						"conn=%" NSPRIu64 " op=%d Operation no longer active - terminating\n",
 						connid, opid);
 			break;
@@ -642,7 +642,7 @@ sync_send_results( void *arg )
 							ec, ectrls,
 							noattrs?noattrs:attrs, attrsonly );
 				if (rc) {
-					slapi_log_error(SLAPI_LOG_CONNS, SYNC_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, SYNC_PLUGIN_SUBSYSTEM,
 							"Error %d sending entry %s\n",
 							rc, slapi_entry_get_dn_const(ec));
 				}

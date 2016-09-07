@@ -120,9 +120,9 @@ find_localhost_DNS(void)
         /* No domain found. Try getdomainname. */
         line[0] = '\0';
         if (getdomainname(line, sizeof(line)) < 0) { /* failure */
-            slapi_log_error(SLAPI_LOG_FATAL, "localhost_DNS", "getdomainname failed\n");
+            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "localhost_DNS", "getdomainname failed\n");
         } else {
-            slapi_log_error(SLAPI_LOG_CONFIG, "localhost_DNS", "getdomainname(%s)\n", line);
+            slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, "localhost_DNS", "getdomainname(%s)\n", line);
         }
         if (line[0] != '\0') {
             domain = &line[0];

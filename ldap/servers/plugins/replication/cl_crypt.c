@@ -37,7 +37,7 @@ clcrypt_init(const CL5DBConfig *config, void **clcrypt_handle)
     Slapi_Backend *be = NULL;
     back_info_crypt_init crypt_init = {0};
 
-    slapi_log_error(SLAPI_LOG_TRACE, repl_plugin_name, "-> clcrypt_init\n");
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, repl_plugin_name, "-> clcrypt_init\n");
     /* Encryption is not specified */
     if (!config->encryptionAlgorithm || !clcrypt_handle) {
         goto bail;
@@ -64,7 +64,7 @@ clcrypt_init(const CL5DBConfig *config, void **clcrypt_handle)
         rc = 1;
     }
 bail:
-    slapi_log_error(SLAPI_LOG_TRACE, repl_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, repl_plugin_name,
                     "<- clcrypt_init : %d\n", rc);
     return rc;
 }
@@ -86,7 +86,7 @@ clcrypt_encrypt_value(void *clcrypt_handle,
     Slapi_Backend *be = NULL;
     back_info_crypt_value crypt_value = {0};
 
-    slapi_log_error(SLAPI_LOG_TRACE, repl_plugin_name, 
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, repl_plugin_name, 
                     "-> clcrypt_encrypt_value\n");
     if (NULL == out) {
         goto bail;
@@ -116,7 +116,7 @@ clcrypt_encrypt_value(void *clcrypt_handle,
         rc = -1;
     }
 bail:
-    slapi_log_error(SLAPI_LOG_TRACE, repl_plugin_name, 
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, repl_plugin_name, 
                     "<- clcrypt_encrypt_entry (returning %d)\n", rc);
     return rc;
 }
@@ -138,7 +138,7 @@ clcrypt_decrypt_value(void *clcrypt_handle,
     Slapi_Backend *be = NULL;
     back_info_crypt_value crypt_value = {0};
 
-    slapi_log_error(SLAPI_LOG_TRACE, repl_plugin_name, 
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, repl_plugin_name, 
                     "-> clcrypt_decrypt_value\n");
     if (NULL == out) {
         goto bail;
@@ -168,7 +168,7 @@ clcrypt_decrypt_value(void *clcrypt_handle,
         rc = -1;
     }
 bail:
-    slapi_log_error(SLAPI_LOG_TRACE, repl_plugin_name, 
+    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, repl_plugin_name, 
                     "<- clcrypt_decrypt_entry (returning %d)\n", rc);
     return rc;
 }

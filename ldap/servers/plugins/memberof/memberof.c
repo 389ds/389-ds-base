@@ -172,7 +172,7 @@ memberof_postop_init(Slapi_PBlock *pb)
 	int modfn = SLAPI_PLUGIN_POST_MODIFY_FN;
 	int addfn = SLAPI_PLUGIN_POST_ADD_FN;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"--> memberof_postop_init\n" );
 
 	/* get args */ 
@@ -227,13 +227,13 @@ memberof_postop_init(Slapi_PBlock *pb)
 			NULL,     /* ? */
 			memberof_plugin_identity   /* access control */))
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_postop_init failed\n" );
 		ret = -1;
 	}
 	else if (ret)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_postop_init failed\n" );
 		ret = -1;
 	}
@@ -248,18 +248,18 @@ memberof_postop_init(Slapi_PBlock *pb)
 			NULL,     /* ? */
 			memberof_plugin_identity   /* access control */))
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_preop_init failed\n" );
 		ret = -1;
 	}
 	else if (ret)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_preop_init failed\n");
 		ret = -1;
 	}
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"<-- memberof_postop_init\n" );
 
 	return ret;
@@ -274,7 +274,7 @@ memberof_preop_init(Slapi_PBlock *pb)
 		slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,	(void *) &pdesc) != 0 ||
 		slapi_pblock_set(pb, premodfn, (void *)memberof_shared_config_validate) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_internal_postop_init: failed to register plugin\n");
 		status = -1;
 	}
@@ -299,7 +299,7 @@ memberof_internal_postop_init(Slapi_PBlock *pb)
 			(void *) memberof_postop_modify ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN,
 			(void *) memberof_postop_add ) != 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_internal_postop_init: failed to register plugin\n");
 		status = -1;
 	}
@@ -322,7 +322,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 	int result = 0;
 	int rc = 0;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"--> memberof_postop_start\n" );
 
 	memberof_operation_lock = PR_NewMonitor();
@@ -350,7 +350,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 		if (LDAP_SUCCESS != result) {
 			if (result == LDAP_NO_SUCH_OBJECT) {
 				/* log an error and use the plugin entry for the config */
-				slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"memberof_postop_start: Config entry \"%s\" does "
 								"not exist.\n", config_area);
 				rc = -1;
@@ -361,7 +361,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 			if(entries && entries[0]){
 				config_e = entries[0];
 			} else {
-				slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"memberof_postop_start: Config entry \"%s\" was "
 								"not located.\n", config_area);
 				rc = -1;
@@ -371,7 +371,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 	} else {
 		/* The plugin entry itself contains the config */
 		if ( slapi_pblock_get( pb, SLAPI_ADD_ENTRY, &config_e ) != 0 ) {
-			slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 							"missing config entry\n" );
 			rc = -1;
 			goto bail;
@@ -380,7 +380,7 @@ int memberof_postop_start(Slapi_PBlock *pb)
 
 	memberof_set_config_area(slapi_entry_get_sdn(config_e));
 	if (( rc = memberof_config( config_e, pb )) != LDAP_SUCCESS ) {
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 				"configuration failed (%s)\n", ldap_err2string( rc ));
 		rc = -1;
 		goto bail;
@@ -406,7 +406,7 @@ bail:
 	slapi_free_search_results_internal(search_pb);
 	slapi_pblock_destroy(search_pb);
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"<-- memberof_postop_start\n" );
 
 	return rc;
@@ -420,7 +420,7 @@ bail:
  */
 int memberof_postop_close(Slapi_PBlock *pb)
 {
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_close\n" );
 
 	slapi_plugin_task_unregister_handler("memberof task", memberof_task_add);
@@ -432,7 +432,7 @@ int memberof_postop_close(Slapi_PBlock *pb)
 	PR_DestroyMonitor(memberof_operation_lock);
 	memberof_operation_lock = NULL;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_close\n" );
 	return 0;
 }
@@ -496,7 +496,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 	Slapi_DN *sdn;
 	void *caller_id = NULL;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_del\n" );
 
 	/* We don't want to process internal modify
@@ -529,7 +529,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 		 * membership lists of groups
 		 */
 		if((ret = memberof_del_dn_from_groups(pb, &configCopy, sdn))){
-			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			                "memberof_postop_del: error deleting dn (%s) from group. Error (%d)\n",
 			                slapi_sdn_get_dn(sdn),ret);
 			memberof_unlock();
@@ -548,7 +548,7 @@ int memberof_postop_del(Slapi_PBlock *pb)
 				if (0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
 					if((ret = memberof_del_attr_list(pb, &configCopy, sdn, attr))){
-						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 							"memberof_postop_del: error deleting attr list - dn (%s). Error (%d)\n",
 							slapi_sdn_get_dn(sdn),ret);
 					}
@@ -565,7 +565,7 @@ bail:
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_del\n" );
 	return ret;
 }
@@ -806,7 +806,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void *caller_id = NULL;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_modrdn\n" );
 
 	/* We don't want to process internal modify
@@ -866,7 +866,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 					if((ret = memberof_moddn_attr_list(pb, &configCopy, pre_sdn,
 					                                   post_sdn, attr) != 0))
 					{
-						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 							"memberof_postop_modrdn - update failed for (%s), error (%d)\n",
 							slapi_sdn_get_dn(pre_sdn), ret);
 						break;
@@ -881,7 +881,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 		if (ret == LDAP_SUCCESS && pre_sdn && post_sdn) {
 			if (!memberof_entry_in_scope(&configCopy, post_sdn)){
 				if((ret = memberof_del_dn_from_groups(pb, &configCopy, pre_sdn))){
-					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 						"memberof_postop_modrdn - delete dn failed for (%s), error (%d)\n",
 						slapi_sdn_get_dn(pre_sdn), ret);
 				}
@@ -896,7 +896,7 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 					for (i = 0; configCopy.groupattrs[i] && ret == LDAP_SUCCESS; i++) {
 						if (0 == slapi_entry_attr_find(pre_e, configCopy.groupattrs[i], &attr)) {
 							if((ret = memberof_del_attr_list(pb, &configCopy, pre_sdn, attr))){
-								slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+								slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"memberof_postop_modrdn: error deleting attr list - dn (%s). Error (%d)\n",
 								slapi_sdn_get_dn(pre_sdn),ret);
 							}
@@ -907,14 +907,14 @@ int memberof_postop_modrdn(Slapi_PBlock *pb)
 				if(ret == LDAP_SUCCESS) {
 					memberof_del_dn_data del_data = {0, configCopy.memberof_attr};
 					if((ret = memberof_del_dn_type_callback(post_e, &del_data))){
-						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 							"memberof_postop_modrdn - delete dn callback failed for (%s), error (%d)\n",
 							slapi_entry_get_dn(post_e), ret);
 					}
 				}
 			} else {
 				if((ret = memberof_replace_dn_from_groups(pb, &configCopy, pre_sdn, post_sdn))){
-					slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 						"memberof_postop_modrdn - replace dn failed for (%s), error (%d)\n",
 						slapi_sdn_get_dn(pre_sdn), ret);
 				}
@@ -929,7 +929,7 @@ bail:
 		slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_modrdn\n" );
 	return ret;
 }
@@ -1039,7 +1039,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 	Slapi_Mod *next_mod = 0;
 	void *caller_id = NULL;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_modify\n" );
 
 	/* We don't want to process internal modify
@@ -1061,7 +1061,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 		slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &entry);
 		if(entry){
 			if( SLAPI_DSE_CALLBACK_ERROR == memberof_apply_config (pb, NULL, entry, &result, returntext, NULL)){
-				slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "%s", returntext);
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM, "%s", returntext);
 				ret = SLAPI_PLUGIN_FAILURE;
 				goto done;
 			}
@@ -1134,7 +1134,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 					{
 						/* add group DN to targets */
 						if((ret = memberof_add_smod_list(pb, &configCopy, sdn, smod))){
-							slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+							slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"memberof_postop_modify: failed to add dn (%s) to target.  "
 								"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
 							slapi_mod_done(next_mod);
@@ -1153,7 +1153,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 						if (slapi_mod_get_num_values(smod) == 0)
 						{
 							if((ret = memberof_replace_list(pb, &configCopy, sdn))){
-								slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+								slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 									"memberof_postop_modify: failed to replace list (%s).  "
 									"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
 								slapi_mod_done(next_mod);
@@ -1165,7 +1165,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 						{
 							/* remove group DN from target values in smod*/
 							if((ret = memberof_del_smod_list(pb, &configCopy, sdn, smod))){
-								slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+								slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 									"memberof_postop_modify: failed to remove dn (%s).  "
 									"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
 								slapi_mod_done(next_mod);
@@ -1180,7 +1180,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 					{
 						/* replace current values */
 						if((ret = memberof_replace_list(pb, &configCopy, sdn))){
-							slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+							slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 								"memberof_postop_modify: failed to replace values in  dn (%s).  "
 								"Error (%d)\n", slapi_sdn_get_dn(sdn), ret );
 							slapi_mod_done(next_mod);
@@ -1194,6 +1194,7 @@ int memberof_postop_modify(Slapi_PBlock *pb)
 					{
 						slapi_log_error(
 							SLAPI_LOG_FATAL,
+							LOG_ERR,
 							MEMBEROF_PLUGIN_SUBSYSTEM,
 							"memberof_postop_modify: unknown mod type\n" );
 						ret = SLAPI_PLUGIN_FAILURE;
@@ -1223,7 +1224,7 @@ done:
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_modify\n" );
 	return ret;
 }
@@ -1242,7 +1243,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 	Slapi_DN *sdn = 0;
 	void *caller_id = NULL;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_add\n" );
 
 	/* We don't want to process internal modify
@@ -1289,7 +1290,7 @@ int memberof_postop_add(Slapi_PBlock *pb)
 				if(0 == slapi_entry_attr_find(e, configCopy.groupattrs[i], &attr))
 				{
 					if((ret = memberof_add_attr_list(pb, &configCopy, sdn, attr))){
-						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 							"memberof_postop_add: failed to add dn(%s), error (%d)\n",
 							slapi_sdn_get_dn(sdn), ret);
 						break;
@@ -1308,7 +1309,7 @@ bail:
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_add\n" );
 
 	return ret;
@@ -1331,7 +1332,7 @@ int memberof_oktodo(Slapi_PBlock *pb)
 	int ret = 1;
 	int oprc = 0;
 
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "--> memberof_postop_oktodo\n" );
 
 	if (!slapi_plugin_running(pb)) {
@@ -1341,7 +1342,7 @@ int memberof_oktodo(Slapi_PBlock *pb)
 
 	if(slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0) 
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_postop_oktodo: could not get parameters\n" );
 		ret = -1;
 	}
@@ -1353,7 +1354,7 @@ int memberof_oktodo(Slapi_PBlock *pb)
 	}
 
 bail:
-	slapi_log_error( SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_oktodo\n" );
 
 	return ret;
@@ -1468,14 +1469,14 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	}
 	if(to_dn_val == NULL){
 		const char *udn = op_to_sdn ? slapi_sdn_get_udn(op_to_sdn) : "";
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_modop_one_replace_r: failed to get DN value from "
 			"member value (%s)\n", udn);
 		goto bail;
 	}
 	if(this_dn_val == NULL){
 		const char *udn = op_this_sdn ? slapi_sdn_get_udn(op_this_sdn) : "";
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_modop_one_replace_r: failed to get DN value from"
 			"group (%s)\n", udn);
 		goto bail;
@@ -1485,7 +1486,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 	slapi_value_set_flags(to_dn_val, SLAPI_ATTR_FLAG_NORMALIZED_CIS);
 
 	if (config == NULL) {
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 				"memberof_modop_one_replace_r: NULL config parameter\n");
 		goto bail;
 	}
@@ -1546,7 +1547,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 						/* get result and log an error */
 						int res = 0;
 						slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
-						slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 						"memberof_modop_one_replace_r: error searching for members: %d\n", res);
 					} else {
 						slapi_pblock_get(search_pb, SLAPI_NENTRIES, &n_entries);
@@ -1592,7 +1593,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		op_str = "UNKNOWN";
 	}
 
-	slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"memberof_modop_one_replace_r: %s %s in %s\n"
 		,op_str, op_this, op_to);
 
@@ -1618,7 +1619,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 
 				/* 	someone set up infinitely
 					recursive groups - bail out */
-				slapi_log_error( SLAPI_LOG_PLUGIN,
+				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 					MEMBEROF_PLUGIN_SUBSYSTEM,
 					"memberof_modop_one_replace_r: group recursion"
 					" detected in %s\n"
@@ -1631,7 +1632,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 		}
 
 		/* do op on group */
-		slapi_log_error( SLAPI_LOG_PLUGIN,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 			MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_modop_one_replace_r: descending into group %s\n",
 			op_to);
@@ -1675,7 +1676,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config,
 			if (this_dn_val) {
 				strval = slapi_value_get_string(this_dn_val);
 			}
-			slapi_log_error( SLAPI_LOG_PLUGIN,
+			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,
 				MEMBEROF_PLUGIN_SUBSYSTEM,
 				"memberof_modop_one_replace_r: not processing memberOf "
 				"operations on self entry: %s\n", strval);
@@ -2074,7 +2075,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 
 	if (!groupvals || !group_norm_vals)
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_get_groups_callback: NULL groupvals or group_norm_vals\n");
 		rc = -1;
 		goto bail;
@@ -2092,7 +2093,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 		/* A recursive group caused us to find our original
 		 * entry we passed to memberof_get_groups().  We just
 		 * skip processing this entry. */
-		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_get_groups_callback: group recursion"
 			" detected in %s\n" ,group_ndn);
 		slapi_value_free(&group_ndn_val);
@@ -2111,7 +2112,7 @@ int memberof_get_groups_callback(Slapi_Entry *e, void *callback_data)
 		 * a member of a group through multiple paths.  Either
 		 * way, we can just skip processing this entry since we've
 		 * already gone through this part of the grouping hierarchy. */
-		slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"memberof_get_groups_callback: possible group recursion"
 			" detected in %s\n" ,group_ndn);
 		slapi_value_free(&group_ndn_val);
@@ -2644,7 +2645,7 @@ void memberof_fixup_task_thread(void *arg)
 		return; /* no task */
 	}
 	slapi_task_inc_refcount(task);
-	slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 	                "memberof_fixup_task_thread --> refcount incremented.\n" );
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
@@ -2655,7 +2656,7 @@ void memberof_fixup_task_thread(void *arg)
 	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Memberof task starts (arg: %s) ...\n", 
 	                      td->filter_str);
-	slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 	                "Memberof task starts (arg: %s) ...\n", td->filter_str);
 
 	/* We need to get the config lock first.  Trying to get the
@@ -2678,11 +2679,11 @@ void memberof_fixup_task_thread(void *arg)
 			slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
 			rc = slapi_back_transaction_begin(fixup_pb);
 			if (rc) {
-				slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 				  "memberof_fixup_task_thread: failed to start transaction\n");
 			}
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			  "memberof_fixup_task_thread: failed to get be backend from %s\n",
 			  td->dn);
 		}
@@ -2710,13 +2711,13 @@ void memberof_fixup_task_thread(void *arg)
 	slapi_task_log_notice(task, "Memberof task finished.");
 	slapi_task_log_status(task, "Memberof task finished.");
 	slapi_task_inc_progress(task);
-	slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 	                "Memberof task finished (arg: %s) ...\n", td->filter_str);
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
 	slapi_task_dec_refcount(task);
-	slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 	                "memberof_fixup_task_thread <-- refcount decremented.\n");
 }
 
@@ -2793,7 +2794,7 @@ int memberof_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (thread == NULL)
 	{
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"unable to create task thread!\n");
 		*returncode = LDAP_OPERATIONS_ERROR;
 		slapi_task_finish(task, *returncode);
@@ -2809,7 +2810,7 @@ out:
 void
 memberof_task_destructor(Slapi_Task *task)
 {
-	slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"memberof_task_destructor -->\n" );
 	if (task) {
 		task_data *mydata = (task_data *)slapi_task_get_data(task);
@@ -2825,7 +2826,7 @@ memberof_task_destructor(Slapi_Task *task)
 			slapi_ch_free((void **)&mydata);
 		}
 	}
-	slapi_log_error( SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MEMBEROF_PLUGIN_SUBSYSTEM,
 		"memberof_task_destructor <--\n" );
 }
 
@@ -2992,7 +2993,7 @@ memberof_add_objectclass(char *auto_add_oc, const char *dn)
 
 	slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 	if (rc){
-		slapi_log_error( SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
 			"Failed to add objectclass (%s) to entry (%s)\n",
 			auto_add_oc, dn);
 	}

@@ -23,6 +23,9 @@
 ** 	   As of DS 4.0, we support log rotation for the ACCESS/ERROR/AUDIT log. 
 */
 
+/* Use the syslog level names (prioritynames) */
+#define SYSLOG_NAMES 1
+
 #include "log.h"
 #include "fe.h"
 #include <pwd.h> /* getpwnam */
@@ -105,7 +108,7 @@ static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 static int
 slapd_log_error_proc_internal(
     char *subsystem,	/* omitted if NULL */
-    int *sev_level,
+    int sev_level,
     char *fmt,
     va_list ap_err, 
     va_list ap_file); 
@@ -2098,7 +2101,7 @@ slapd_log_auditfail_internal (
 int
 slapd_log_error_proc(
     char *subsystem, /* omitted if NULL */
-    int *sev_level,
+    int sev_level,
     char *fmt,
     ... )
 {
@@ -2142,7 +2145,7 @@ slapd_log_error_proc(
 static int
 slapd_log_error_proc_internal(
     char *subsystem, /* omitted if NULL */
-    int *sev_level,
+    int sev_level,
     char *fmt,
     va_list ap_err,
     va_list ap_file)
@@ -2230,16 +2233,41 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
     }
 }
 
+static void 
+strToUpper(char *str, char *upper)
+{
+    while(*str != '\0'){
+        *upper = toupper(*str);
+        upper++;
+        str++;
+    }
+}
+
+static char*
+get_log_sev_name(int sev_level, char *sev_name)
+{
+	int i;
+	for (i = 0; prioritynames[i].c_val != -1; i++){
+		if ( prioritynames[i].c_val == sev_level ){
+			memset(sev_name, '\0', 10);
+			strToUpper(prioritynames[i].c_name, sev_name);
+		    return sev_name;
+		}
+	}
+	return "";
+}
+
 static int
 vslapd_log_error(
     LOGFD	fp,
-    iont sev_level,
+    int sev_level,
     char	*subsystem,	/* omitted if NULL */
     char	*fmt,
     va_list	ap,
 	int     locked )
 {
     char      buffer[SLAPI_LOG_BUFSIZ];
+    char      sev_name[10];
     int       blen = TBUFSIZE;
     char      *vbuf;
     int       header_len = 0;
@@ -2295,11 +2323,11 @@ vslapd_log_error(
     /* blen = strlen(buffer); */
     /* This truncates again .... But we have the nice smprintf above! */
     if (subsystem == NULL) {
-        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s",
-                     vbuf, toupper(prioritynames[sev_level].c_name));
+        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "- %s - %s",
+                     get_log_sev_name(sev_level, sev_name), vbuf);
     } else {
         PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s - %s",
-                     subsystem, toupper(prioritynames[sev_level].c_name), vbuf);
+                     subsystem, get_log_sev_name(sev_level, sev_name), vbuf);
     }
 
     buffer[sizeof(buffer)-1] = '\0';
@@ -2351,7 +2379,7 @@ slapi_log_error( int loglevel, int severity, char *subsystem, char *fmt, ... )
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
     if ( loglevel < SLAPI_LOG_MIN || loglevel > SLAPI_LOG_MAX ) {
-        (void)slapd_log_error_proc( subsystem,
+        (void)slapd_log_error_proc( subsystem, severity,
                 "slapi_log_error: invalid severity %d (message %s)\n",
                 loglevel, fmt );
         return( -1 );
@@ -2401,14 +2429,14 @@ slapi_log_error_ext(int severity, char *subsystem, char *fmt, va_list varg1, va_
     int rc = 0;
 
     if ( severity < SLAPI_LOG_MIN || severity > SLAPI_LOG_MAX ) {
-        (void)slapd_log_error_proc( subsystem, "slapi_log_error: invalid severity %d (message %s)\n",
+        (void)slapd_log_error_proc( subsystem, severity, "slapi_log_error: invalid severity %d (message %s)\n",
             severity, fmt );
         return( -1 );
     }
 
     if ( slapd_ldap_debug & slapi_log_map[ severity ] )
     {
-	    rc = slapd_log_error_proc_internal( subsystem, fmt, varg1, varg2 );
+	    rc = slapd_log_error_proc_internal( subsystem, severity, fmt, varg1, varg2 );
     } else {
         rc = 0; /* nothing to be logged --> always return success */
     }
@@ -2868,9 +2896,9 @@ log__delete_access_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
 				                loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -2880,9 +2908,9 @@ log__delete_access_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
 				                loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -2988,13 +3016,13 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
 		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
 			                loginfo.log_access_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_access_file, tbuf, logstr);
+		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_access_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_access_logs--;
@@ -3623,9 +3651,9 @@ log__delete_error_logfile(int locked)
 				/* If locked, we should not call LDAPDebug, which tries to get a lock internally. */
 				PRErrorCode prerr = PR_GetError();
 				if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
+					slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
 				} else {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+					slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
 					                loginfo.log_error_file, prerr, slapd_pr_strerror(prerr));
 				}
 			}
@@ -3638,9 +3666,9 @@ log__delete_error_logfile(int locked)
 				/* If locked, we should not call LDAPDebug, which tries to get a lock internally. */
 				PRErrorCode prerr = PR_GetError();
 				if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
+					slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
 				} else {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
+					slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
 					                loginfo.log_error_file, prerr, slapd_pr_strerror(prerr));
 				}
 			}
@@ -3800,9 +3828,9 @@ log__delete_audit_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
 				                loginfo.log_audit_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -3812,9 +3840,9 @@ log__delete_audit_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
 				                loginfo.log_audit_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -3919,13 +3947,13 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
 		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
 			                loginfo.log_audit_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_audit_file, tbuf, logstr);
+		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_audit_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_audit_logs--;
@@ -3967,9 +3995,9 @@ log__delete_auditfail_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
 				                loginfo.log_auditfail_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -3979,9 +4007,9 @@ log__delete_auditfail_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
+				slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
 				                loginfo.log_auditfail_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -4086,13 +4114,13 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
 		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
 			                loginfo.log_auditfail_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
+		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_auditfail_logs--;

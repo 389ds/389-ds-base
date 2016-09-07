@@ -453,11 +453,11 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_OID, &oid ) != 0 ) {
 		errMesg = "Could not get OID value from request.\n";
 		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_extop", 
 				"%s", errMesg );
 		goto free_and_return;
 	} else {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_extop", 
 				 "Received extended operation request with OID %s\n", oid );
 	}
 	
@@ -466,7 +466,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		rc = LDAP_OPERATIONS_ERROR;
 		goto free_and_return;
 	} else {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_extop", 
 				 "Password Modify extended operation request confirmed.\n" );
 	}
 	
@@ -479,7 +479,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
 		errMesg = "Could not get SASL SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_extop",
 				"%s", errMesg );
 		goto free_and_return;
 	}
@@ -487,7 +487,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
 		errMesg = "Could not get local SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_extop",
 				"%s", errMesg );
 		goto free_and_return;
 	}
@@ -810,7 +810,7 @@ parse_req_done:
 	
 	/* Free anything that we allocated above */
 free_and_return:
-	slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_extop",
 		"%s", errMesg ? errMesg : "success" );
 
 	if ((rc == LDAP_REFERRAL) && (referrals)) {
@@ -880,18 +880,18 @@ int passwd_modify_init( Slapi_PBlock *pb )
 	 */ 
 
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) {
-	        slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_init", "Could not get argv\n" );
+	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_init", "Could not get argv\n" );
 		return( -1 );
 	}
 
 	/* Compare the OID specified in the configuration file against the Passwd OID. */
 
 	if ( argv == NULL || strcmp( argv[0], EXTOP_PASSWD_OID ) != 0 ) {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_init", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_init", 
 				 "OID is missing or is not %s\n", EXTOP_PASSWD_OID );
 		return( -1 );
 	} else {
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_init", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_init", 
 				 "Registering plug-in for Password Modify extended op %s.\n", argv[0] /* oid */);
 	}
 
@@ -905,7 +905,7 @@ int passwd_modify_init( Slapi_PBlock *pb )
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, passwd_oid_list ) != 0 ||
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, passwd_name_list ) != 0 ) {
 
-		slapi_log_error( SLAPI_LOG_PLUGIN, "passwd_modify_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "passwd_modify_init",
 				 "Failed to set plug-in version, function, and OID.\n" );
 		return( -1 );
 	}

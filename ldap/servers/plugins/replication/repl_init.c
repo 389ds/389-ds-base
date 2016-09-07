@@ -72,7 +72,7 @@ legacy_preop_init( Slapi_PBlock *pb )
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_COMPARE_FN, (void *) legacy_preop_compare ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ENTRY_FN, (void *) legacy_pre_entry ))
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "legacy_preop_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "legacy_preop_init failed\n" );
 		rc= -1;
 	}
 	return rc;
@@ -93,7 +93,7 @@ legacy_postop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *) legacy_postop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *) legacy_postop_modrdn ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "legacy_postop_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "legacy_postop_init failed\n" );
 		rc= -1;
 	}
 
@@ -115,7 +115,7 @@ legacy_internalpreop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN, (void *) legacy_preop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN, (void *) legacy_preop_modrdn ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "legacy_internalpreop_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "legacy_internalpreop_init failed\n" );
 		rc= -1;
 	}
 	return rc;
@@ -136,7 +136,7 @@ legacy_internalpostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN, (void *) legacy_postop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN, (void *) legacy_postop_modrdn ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "legacy_internalpostop_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "legacy_internalpostop_init failed\n" );
 		rc= -1;
 	}
 
@@ -155,7 +155,7 @@ legacy_entry_init( Slapi_PBlock *pb )
 	if( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,	SLAPI_PLUGIN_VERSION_01 ) != 0 || 
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&legacyentrydesc ) != 0 )
 	{
-		slapi_log_error( SLAPI_LOG_PLUGIN, repl_plugin_name, "legacy_entry_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "legacy_entry_init failed\n" );
 		rc= -1;
 	}
 	return rc;
@@ -217,7 +217,7 @@ legacy_start( Slapi_PBlock *pb )
 		ctrc = create_config_top();
 		if (ctrc != LDAP_SUCCESS && ctrc != LDAP_ALREADY_EXISTS)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "Warning: unable to "
+			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Warning: unable to "
 				"create configuration entry %s: %s\n", REPL_CONFIG_TOP,
 				ldap_err2string(ctrc));
 		}
