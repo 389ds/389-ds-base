@@ -91,7 +91,7 @@ static PRInt64 	log__getfilesize(LOGFD fp);
 static PRInt64  log__getfilesize_with_filename(char *filename);
 static int 	log__enough_freespace(char  *path);
 
-static int 	vslapd_log_error(LOGFD fp, char *subsystem, char *fmt, va_list ap, int locked );
+static int 	vslapd_log_error(LOGFD fp, int sev_level, char *subsystem, char *fmt, va_list ap, int locked );
 static int 	vslapd_log_access(char *fmt, va_list ap );
 static void	log_convert_time (time_t ctime, char *tbuf, int type);
 static time_t	log_reverse_convert_time (char *tbuf);
@@ -104,8 +104,9 @@ static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 
 static int
 slapd_log_error_proc_internal(
-    char	*subsystem,	/* omitted if NULL */
-    char	*fmt,
+    char *subsystem,	/* omitted if NULL */
+    int *sev_level,
+    char *fmt,
     va_list ap_err, 
     va_list ap_file); 
 
@@ -2096,8 +2097,9 @@ slapd_log_auditfail_internal (
 ******************************************************************************/ 
 int
 slapd_log_error_proc(
-    char	*subsystem,	/* omitted if NULL */
-    char	*fmt,
+    char *subsystem, /* omitted if NULL */
+    int *sev_level,
+    char *fmt,
     ... )
 {
     int rc = LDAP_SUCCESS;
@@ -2107,7 +2109,7 @@ slapd_log_error_proc(
     if (loginfo.log_backend & LOGGING_BACKEND_INTERNAL) {
         va_start( ap_err, fmt );
         va_start( ap_file, fmt );
-        rc = slapd_log_error_proc_internal( subsystem, fmt, ap_err, ap_file );
+        rc = slapd_log_error_proc_internal( subsystem, sev_level, fmt, ap_err, ap_file );
         va_end(ap_file);
         va_end(ap_err);
     }
@@ -2118,7 +2120,7 @@ slapd_log_error_proc(
         va_start( ap_err, fmt );
         /* va_start( ap_file, fmt ); */
         /* This returns void, so we hope it worked */
-        vsyslog(LOG_ERROR, fmt, ap_err);
+        vsyslog(sev_level, fmt, ap_err);
         /* vsyslog(LOG_ERROR, fmt, ap_file); */
         /* va_end(ap_file); */
         va_end(ap_err);
@@ -2128,7 +2130,7 @@ slapd_log_error_proc(
         va_start( ap_err, fmt );
         /* va_start( ap_file, fmt ); */
         /* This isn't handling RC nicely ... */
-        rc = sd_journal_printv(LOG_ERROR, fmt, ap_err);
+        rc = sd_journal_printv(sev_level, fmt, ap_err);
         /* rc = sd_journal_printv(LOG_ERROR, fmt, ap_file); */
         /* va_end(ap_file); */
         va_end(ap_err);
@@ -2139,8 +2141,9 @@ slapd_log_error_proc(
 
 static int
 slapd_log_error_proc_internal(
-    char	*subsystem,	/* omitted if NULL */
-    char	*fmt,
+    char *subsystem, /* omitted if NULL */
+    int *sev_level,
+    char *fmt,
     va_list ap_err,
     va_list ap_file)
 {
@@ -2162,19 +2165,19 @@ slapd_log_error_proc_internal(
 		}
 
 		if (!(detached)) { 
-			rc = vslapd_log_error( NULL, subsystem, fmt, ap_err, 1 ); 
+			rc = vslapd_log_error( NULL, sev_level, subsystem, fmt, ap_err, 1 );
 		} 
 		if ( loginfo.log_error_fdes != NULL ) { 
 			if (loginfo.log_error_state & LOGGING_NEED_TITLE) {
 				log_write_title(loginfo.log_error_fdes);
 				loginfo.log_error_state &= ~LOGGING_NEED_TITLE;
 			}
-			rc = vslapd_log_error( loginfo.log_error_fdes, subsystem, fmt, ap_file, 1 ); 
+			rc = vslapd_log_error( loginfo.log_error_fdes, sev_level, subsystem, fmt, ap_file, 1 );
 		} 
 		LOG_ERROR_UNLOCK_WRITE();
 	} else {
 		/* log the problem in the stderr */
-    	rc = vslapd_log_error( NULL, subsystem, fmt, ap_err, 0 ); 
+        rc = vslapd_log_error( NULL, sev_level, subsystem, fmt, ap_err, 0 );
 	}
 	return( rc );
 }
@@ -2230,6 +2233,7 @@ vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked)
 static int
 vslapd_log_error(
     LOGFD	fp,
+    iont sev_level,
     char	*subsystem,	/* omitted if NULL */
     char	*fmt,
     va_list	ap,
@@ -2291,9 +2295,11 @@ vslapd_log_error(
     /* blen = strlen(buffer); */
     /* This truncates again .... But we have the nice smprintf above! */
     if (subsystem == NULL) {
-        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s", vbuf);
+        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s",
+                     vbuf, toupper(prioritynames[sev_level].c_name));
     } else {
-        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s", subsystem, vbuf);
+        PR_snprintf (buffer+blen, sizeof(buffer)-blen, "%s - %s - %s",
+                     subsystem, toupper(prioritynames[sev_level].c_name), vbuf);
     }
 
     buffer[sizeof(buffer)-1] = '\0';
@@ -2330,26 +2336,32 @@ vslapd_log_error(
     return( 0 );
 }
 
+/*
+ * Log a message to the errors log
+ *
+ * loglevel - The logging level:  replication, plugin, etc
+ * severity - LOG_ERR, LOG_WARNING, LOG_INFO, etc
+ */
 int
-slapi_log_error( int severity, char *subsystem, char *fmt, ... )
+slapi_log_error( int loglevel, int severity, char *subsystem, char *fmt, ... )
 {
     va_list ap_err;
     va_list ap_file;
     int     rc = LDAP_SUCCESS;
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
-    if ( severity < SLAPI_LOG_MIN || severity > SLAPI_LOG_MAX ) {
+    if ( loglevel < SLAPI_LOG_MIN || loglevel > SLAPI_LOG_MAX ) {
         (void)slapd_log_error_proc( subsystem,
                 "slapi_log_error: invalid severity %d (message %s)\n",
-                severity, fmt );
+                loglevel, fmt );
         return( -1 );
     }
 
-    if ( slapd_ldap_debug & slapi_log_map[ severity ] ) {
+    if ( slapd_ldap_debug & slapi_log_map[ loglevel ] ) {
         if (lbackend & LOGGING_BACKEND_INTERNAL) {
             va_start( ap_err, fmt );
             va_start( ap_file, fmt );
-            rc = slapd_log_error_proc_internal( subsystem, fmt, ap_err, ap_file );
+            rc = slapd_log_error_proc_internal( subsystem, severity, fmt, ap_err, ap_file );
             va_end(ap_file);
             va_end(ap_err);
         }
@@ -2360,7 +2372,7 @@ slapi_log_error( int severity, char *subsystem, char *fmt, ... )
             va_start( ap_err, fmt );
             /* va_start( ap_file, fmt ); */
             /* This returns void, so we hope it worked */
-            vsyslog(LOG_ERROR, fmt, ap_err);
+            vsyslog(severity, fmt, ap_err);
             /* vsyslog(LOG_ERROR, fmt, ap_file); */
             /* va_end(ap_file); */
             va_end(ap_err);
@@ -2370,7 +2382,7 @@ slapi_log_error( int severity, char *subsystem, char *fmt, ... )
             va_start( ap_err, fmt );
             /* va_start( ap_file, fmt ); */
             /* This isn't handling RC nicely ... */
-            rc = sd_journal_printv(LOG_ERROR, fmt, ap_err);
+            rc = sd_journal_printv(severity, fmt, ap_err);
             /* rc = sd_journal_printv(LOG_ERROR, fmt, ap_file); */
             /* va_end(ap_file); */
             va_end(ap_err);

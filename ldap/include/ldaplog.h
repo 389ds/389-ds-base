@@ -44,11 +44,11 @@ extern "C" {
 
 /* debugging stuff */
 /* Disable by default */
-#define LDAPDebug( level, fmt, arg1, arg2, arg3 )
+#define LDAPDebug( level, sev, fmt, arg1, arg2, arg3 )
 #define LDAPDebugLevelIsSet( level ) (0)
-#define LDAPDebug0Args( level, fmt )
-#define LDAPDebug1Arg( level, fmt, arg )
-#define LDAPDebug2Args( level, fmt, arg1, arg2 )
+#define LDAPDebug0Args( level, sev, fmt )
+#define LDAPDebug1Arg( level, sev, fmt, arg )
+#define LDAPDebug2Args( level, sev, fmt, arg1, arg2 )
 
 #ifdef LDAP_DEBUG
 #  undef LDAPDebug
@@ -58,28 +58,28 @@ extern "C" {
 #  undef LDAPDebugLevelIsSet
 
        extern int	slapd_ldap_debug;
-#      define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
+#      define LDAPDebug( level, sev, fmt, arg1, arg2, arg3 )	\
        { \
 		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2, arg3 ); \
+		        slapd_log_error_proc( NULL, sev, fmt, arg1, arg2, arg3 ); \
 	    } \
        }
-#      define LDAPDebug0Args( level, fmt )	\
+#      define LDAPDebug0Args( level, sev, fmt )	\
        { \
 		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt ); \
+		        slapd_log_error_proc( NULL, sev, fmt ); \
 	    } \
        }
-#      define LDAPDebug1Arg( level, fmt, arg )      \
+#      define LDAPDebug1Arg( level, sev, fmt, arg )      \
        { \
 		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg ); \
+		        slapd_log_error_proc( NULL, sev, fmt, arg ); \
 	    } \
        }
-#      define LDAPDebug2Args( level, fmt, arg1, arg2 )    \
+#      define LDAPDebug2Args( level, sev, fmt, arg1, arg2 )    \
        { \
 		if ( slapd_ldap_debug & level ) { \
-		        slapd_log_error_proc( NULL, fmt, arg1, arg2 ); \
+		        slapd_log_error_proc( NULL, sev, fmt, arg1, arg2 ); \
 	    } \
        }
 #      define LDAPDebugLevelIsSet( level ) (0 != (slapd_ldap_debug & level))
