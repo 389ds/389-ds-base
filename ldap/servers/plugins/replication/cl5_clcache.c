@@ -747,24 +747,22 @@ clcache_adjust_anchorcsn ( CLC_Buffer *buf, int *flag )
 								curr, conmaxcsn);
 			}
 
-			if (csn_compare (cscb->local_maxcsn, cscb->prev_local_maxcsn) == 0 ||
-			    csn_compare (cscb->prev_local_maxcsn, buf->buf_current_csn) > 0 ) {
-				if (csn_compare (cscb->local_maxcsn, cscb->consumer_maxcsn) > 0 ) {
+			if (csn_compare(cscb->local_maxcsn, cscb->consumer_maxcsn) > 0) {
+				/* We have something to send for this RID */
+
+				if (csn_compare(cscb->local_maxcsn, cscb->prev_local_maxcsn) == 0 ||
+					csn_compare(cscb->prev_local_maxcsn, buf->buf_current_csn) > 0) {
+					/* No new changes or it remains, in the buffer, updates to send  */
 					rid_anchor = buf->buf_current_csn;
-				}
-			} else {
-				/* prev local max csn < csnBuffer AND different from local maxcsn */
-				if (cscb->prev_local_maxcsn == NULL) {
+				} else {
+					/* prev local max csn < csnBuffer AND different from local maxcsn */
 					if (cscb->consumer_maxcsn == NULL) {
 						/* the consumer hasn't seen changes for this RID */
 						rid_anchor = cscb->local_mincsn;
 						rid_flag = DB_SET;
-					} else if ( csn_compare (cscb->local_maxcsn, cscb->consumer_maxcsn) > 0 ) {
+					} else {
 						rid_anchor = cscb->consumer_maxcsn;
 					}
-				} else {
-					/* csnPrevMaxSup > 0 */
-					rid_anchor = cscb->consumer_maxcsn;
 				}
 			}
 
