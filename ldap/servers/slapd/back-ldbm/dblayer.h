@@ -148,6 +148,7 @@ struct dblayer_private
     PRLock *thread_count_lock;      /* lock for thread_count_cv */
     PRCondVar *thread_count_cv;     /* condition variable for housekeeping thread shutdown */
     int dblayer_lockdown;           /* use DB_LOCKDOWN */
+#define BDB_LOCK_NB_MIN 10000
     int dblayer_lock_config;
     int dblayer_previous_lock_config;/* Max lock count when we last shut down--
                                       * used to determine if we delete the mpool */

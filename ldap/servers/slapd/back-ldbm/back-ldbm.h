@@ -537,6 +537,7 @@ struct ldbminfo {
     char            *li_directory;
     int             li_reslimit_lookthrough_handle;
     size_t          li_dbcachesize;
+    int             li_dblock;
     int             li_dbncache;
     int             li_import_cache_autosize; /* % of free memory to use
                                                * for the import caches
@@ -566,11 +567,12 @@ struct ldbminfo {
     int             li_noparentcheck;         /* check if parent exists on 
                                                * add */
 
-    /* the next 2 fields are for the params that don't get changed until
+    /* the next 3 fields are for the params that don't get changed until
      * the server is restarted (used by the admin console)
      */
     char            *li_new_directory;
     size_t          li_new_dbcachesize;
+    int             li_new_dblock;
 
     int             li_new_dbncache;
     

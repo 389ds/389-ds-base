@@ -1009,7 +1009,7 @@ static void *ldbm_config_db_lock_get(void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *) arg;
     
-    return (void *) ((uintptr_t)li->li_dblayer_private->dblayer_lock_config);
+    return (void *) ((uintptr_t)li->li_new_dblock);
 }
 
 
@@ -1019,12 +1019,20 @@ static int ldbm_config_db_lock_set(void *arg, void *value, char *errorbuf, int p
     int retval = LDAP_SUCCESS;
     size_t val = (size_t) value;
 
+    if (val < BDB_LOCK_NB_MIN) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be greater than %d\n",
+            CONFIG_DB_LOCK, val, BDB_LOCK_NB_MIN);
+        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: Invalid value for %s (%d)\n",
+            CONFIG_DB_LOCK, val);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
     if (apply) {
         if (CONFIG_PHASE_RUNNING == phase) {
-            li->li_dblayer_private->dblayer_lock_config = val;
+            li->li_new_dblock = val;
             LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "New db max lock count will not take affect until the server is restarted\n", 0, 0, 0);
         } else {
-            li->li_dblayer_private->dblayer_lock_config = val;
+            li->li_new_dblock = val;
+            li->li_dblock = val;
         }
         
     }
@@ -1508,7 +1516,7 @@ static config_info ldbm_config[] = {
     {CONFIG_DB_VERBOSE, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_verbose_get, &ldbm_config_db_verbose_set, 0},
     {CONFIG_DB_DEBUG, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_debug_get, &ldbm_config_db_debug_set, 0},
     {CONFIG_DB_NAMED_REGIONS, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_named_regions_get, &ldbm_config_db_named_regions_set, 0},
-    {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, CONFIG_FLAG_ALWAYS_SHOW},
+    {CONFIG_DB_LOCK, CONFIG_TYPE_INT, "10000", &ldbm_config_db_lock_get, &ldbm_config_db_lock_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DB_PRIVATE_MEM, CONFIG_TYPE_ONOFF, "off", &ldbm_config_db_private_mem_get, &ldbm_config_db_private_mem_set, 0},
     {CONFIG_DB_PRIVATE_IMPORT_MEM, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_private_import_mem_get, &ldbm_config_db_private_import_mem_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONDIF_DB_ONLINE_IMPORT_ENCRYPT, CONFIG_TYPE_ONOFF, "on", &ldbm_config_db_online_import_encrypt_get, &ldbm_config_db_online_import_encrypt_set, 0},

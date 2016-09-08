@@ -1347,6 +1347,7 @@ dblayer_start(struct ldbminfo *li, int dbmode)
      * li_directory needs to live beyond dblayer. */
     priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory); 
     priv->dblayer_cachesize = li->li_dbcachesize;
+    priv->dblayer_lock_config = li->li_dblock;
     priv->dblayer_file_mode = li->li_mode;
     priv->dblayer_ncache = li->li_dbncache;
     PR_Unlock(li->li_config_mutex);
@@ -1482,13 +1483,13 @@ dblayer_start(struct ldbminfo *li, int dbmode)
         }
         if (priv->dblayer_lock_config != priv->dblayer_previous_lock_config) {
             /* 
-             * The default value of nsslapd-db-locks is 10000.
+             * The default value of nsslapd-db-locks is BDB_LOCKS_MIN.
              * We don't allow lower value than that.
              */
-            if (priv->dblayer_lock_config <= 10000) {
-                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "New max db lock count is too small.  "
-                               "Resetting it to the default value 10000.\n");
-                priv->dblayer_lock_config = 10000;
+            if (priv->dblayer_lock_config <= BDB_LOCK_NB_MIN) {
+                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "New max db lock count is too small.  "
+                              "Resetting it to the default value %d.\n", BDB_LOCK_NB_MIN);
+                priv->dblayer_lock_config = BDB_LOCK_NB_MIN;
             }
             if (priv->dblayer_lock_config != priv->dblayer_previous_lock_config) {
                 LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "resizing max db lock count: %d -> %d\n",
@@ -6658,6 +6659,7 @@ int dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *
     slapi_ch_free_string(&priv->dblayer_home_directory);
     priv->dblayer_home_directory = slapi_ch_strdup(li->li_directory);
     priv->dblayer_cachesize = li->li_dbcachesize;
+    priv->dblayer_lock_config = li->li_dblock;
     priv->dblayer_ncache = li->li_dbncache;
     priv->dblayer_file_mode = li->li_mode;
     PR_Unlock(li->li_config_mutex);
