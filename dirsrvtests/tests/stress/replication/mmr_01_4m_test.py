@@ -16,7 +16,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 DEBUGGING = False
-ADD_DEL_COUNT = 500
+ADD_DEL_COUNT = 5000
 MAX_LOOPS = 5
 TEST_CONVERGE_LATENCY = True
 CONVERGENCE_TIMEOUT = '60'
