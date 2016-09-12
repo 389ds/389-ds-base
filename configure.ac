@@ -239,6 +239,7 @@ m4_include(m4/fhs.m4)
 if test "$with_fhs_opt" = "yes"; then
   # Override sysconfdir and localstatedir if FHS optional
   # package was requested.
+  prefixdir=$prefix
   sysconfdir='/etc/opt'
   localstatedir='/var/opt'
   # relative to datadir
@@ -271,6 +272,7 @@ else
     dnl as opposed to the default /usr/var
     localstatedir='/var'
   fi
+  prefixdir=$prefix
   # relative to datadir
   sampledatadir=/$PACKAGE_NAME/data
   # relative to datadir
@@ -390,6 +392,7 @@ if test -n "$with_systemdsystemunitdir" -o -n "$with_systemdsystemconfdir" ; the
    AC_SUBST(with_systemdgroupname)
 fi
 
+AC_SUBST(prefixdir)
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
