@@ -175,6 +175,7 @@ selinux-built/dirsrv.fc: selinux-built
 #------------------------
 # Install Paths
 #------------------------
+prefixdir = @prefixdir@
 configdir = $(sysconfdir)@configdir@
 sampledatadir = $(datadir)@sampledatadir@
 propertydir = $(datadir)@propertydir@
@@ -724,7 +725,8 @@ endif
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
 	ldap/admin/src/scripts/dsupdate.map \
-	ldap/admin/src/scripts/dsorgentries.map
+	ldap/admin/src/scripts/dsorgentries.map \
+	ldap/admin/src/defaults.inf
 
 mib_DATA = ldap/servers/snmp/redhat-directory.mib
 
@@ -1837,7 +1839,8 @@ fixupcmd = sed \
 	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
 	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
 	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
-	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
+	-e 's,@systemdgroupname\@,$(systemdgroupname),g' \
+	-e 's,@prefixdir\@,$(prefixdir),g'
 else
 fixupcmd = sed \
 	-e 's,@bindir\@,$(bindir),g' \
@@ -1906,7 +1909,8 @@ fixupcmd = sed \
 	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
 	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
 	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
-	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
+	-e 's,@systemdgroupname\@,$(systemdgroupname),g' \
+	-e 's,@prefixdir\@,$(prefixdir),g'
 endif
 
 %: %.in

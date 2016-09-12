@@ -285,6 +285,7 @@ localrundir='/run'
 if test "$with_fhs_opt" = "yes"; then
   # Override sysconfdir and localstatedir if FHS optional
   # package was requested.
+  prefixdir=$prefix
   sysconfdir='/etc/opt'
   localstatedir='/var/opt'
   localrundir='/var/opt/run'
@@ -321,6 +322,7 @@ else
     localstatedir='/var'
     localrundir='/run'
   fi
+  prefixdir=$prefix
   # relative to datadir
   sampledatadir=/$PACKAGE_NAME/data
   # relative to datadir
@@ -414,6 +416,7 @@ else
   with_pythonexec=/usr/bin/python2
 fi
 
+AC_SUBST(prefixdir)
 AC_SUBST(configdir)
 AC_SUBST(sampledatadir)
 AC_SUBST(propertydir)
