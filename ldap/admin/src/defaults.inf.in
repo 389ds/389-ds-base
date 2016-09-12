@@ -1,0 +1,43 @@
+; --- BEGIN COPYRIGHT BLOCK ---
+; Copyright (C) 2016 Red Hat, Inc.
+; All rights reserved.
+;
+; License: GPL (version 3 or any later version).
+; See LICENSE for details.
+; --- END COPYRIGHT BLOCK ---
+
+; Author: firstyear at redhat.com
+
+; This is a set of default paths that tools consuming DS should search
+; for paths. This is the foundation of the version 2 ds setup inf
+;
+; All format strings should be in python syntax IE {key}
+
+[slapd]
+product = @capbrand@ Directory Server
+version = @PACKAGE_VERSION@
+user = dirsrv
+group = dirsrv
+root_dn = cn=Directory Manager
+prefix = @prefixdir@
+bin_dir = @bindir@
+sbin_dir = @sbindir@
+lib_dir = @libdir@
+data_dir = @datadir@
+tmp_dir = /tmp
+
+sysconf_dir = @sysconfdir@
+initconfigdir = @initconfigdir@
+config_dir = @instconfigdir@/slapd-{instance_name}
+schema_dir = @instconfigdir@/slapd-{instance_name}/schema
+cert_dir = @instconfigdir@/slapd-{instance_name}
+
+local_state_dir = @localstatedir@
+run_dir = @localstatedir@/run/dirsrv
+lock_dir = @localstatedir@/lock/dirsrv/slapd-{instance_name}
+log_dir = @localstatedir@/log/dirsrv/slapd-{instance_name}
+inst_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}
+db_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/db
+backup_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/bak
+ldif_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/ldif
+
