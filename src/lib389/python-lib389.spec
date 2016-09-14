@@ -1,6 +1,10 @@
-Summary: A library for accessing, testing, and configuring the 389 Directory Server
-Name: python-lib389
-Version: 1.0.2
+%global srcname lib389
+%global sum A library for accessing, testing, and configuring the 389 Directory Server
+%global vers 1.0.3
+
+Name: python-%{srcname}
+Summary:%{sum}
+Version: %{vers}
 Release: 1%{?dist}
 %global tarver %{version}-1
 Source0: http://www.port389.org/binaries/%{name}-%{tarver}.tar.bz2
@@ -8,45 +12,107 @@ License: GPLv3+
 Group: Development/Libraries
 BuildArch: noarch
 Url: http://port389.org/docs/389ds/FAQ/upstream-test-framework.html
-BuildRequires: python2-devel
-BuildRequires: python-ldap
-BuildRequires: krb5-devel
+%if 0%{?rhel}
+BuildRequires: python-devel
 BuildRequires: python-setuptools
-Requires: pytest
-Requires: python-ldap
-Requires: python-six
-Requires: python-pyasn1
-Requires: python-pyasn1-modules
-Requires: python2-dateutil
-
-%{?python_provide:%python_provide python2-lib389}
-
+%else
+BuildRequires: python2-devel
+BuildRequires: python2-setuptools
+BuildRequires: python%{python3_pkgversion}-devel
+BuildRequires: python%{python3_pkgversion}-setuptools
+%endif
 %description
 This module contains tools and libraries for accessing, testing, 
 and configuring the 389 Directory Server.
 
+
+%package -n python2-%{srcname}
+Summary:    %{sum}
+Requires: python-ldap
+Requires: krb5-workstation
+Requires: krb5-server
+# Conditional will need to change later.
+%if 0%{?rhel}
+Requires: pytest
+Requires: python-six
+Requires: python-pyasn1
+Requires: python-pyasn1-modules
+Requires: python-dateutil
+%else
+Requires: python2-pytest
+Requires: python2-six
+Requires: python2-pyasn1
+Requires: python2-pyasn1-modules
+Requires: python2-dateutil
+%endif
+%{?python_provide:%python_provide python2-%{srcname}}
+%description -n python2-%{srcname}
+This module contains tools and libraries for accessing, testing, 
+and configuring the 389 Directory Server.
+
+# Can't build on EL7! Python3 tooling is too broken :( 
+# We have to use >= 8, because <= 7 doesn't work ....
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+%package -n python%{python3_pkgversion}-%{srcname}
+Summary:    %{sum}
+Requires: python%{python3_pkgversion}-pytest
+Requires: python%{python3_pkgversion}-pyldap
+Requires: python%{python3_pkgversion}-six
+Requires: python%{python3_pkgversion}-pyasn1
+Requires: python%{python3_pkgversion}-pyasn1-modules
+Requires: python%{python3_pkgversion}-dateutil
+%{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
+%description -n python%{python3_pkgversion}-%{srcname}
+This module contains tools and libraries for accessing, testing, 
+and configuring the 389 Directory Server.
+%endif
+
 %prep
-%setup -q -n %{name}-%{tarver}
+%autosetup -n %{name}-%{tarver}
 
 %build
-CFLAGS="$RPM_OPT_FLAGS" %{__python2} setup.py build
+%py2_build
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+%py3_build
+%endif
 
 %install
-%{__python2} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
-for file in $RPM_BUILD_ROOT%{python2_sitelib}/lib389/clitools/*.py; do
-        chmod a+x $file
-done
+%py2_install
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+%py3_install
+%endif
 
-%check
-%{__python2} setup.py test
-
-%files
+%files -n python2-%{srcname}
 %license LICENSE
 %doc README
 %{python2_sitelib}/*
+# We don't provide the cli tools for python2
 %exclude %{_sbindir}/*
 
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+%files -n python%{python3_pkgversion}-%{srcname}
+%license LICENSE
+%doc README
+%{python3_sitelib}/*
+%{_sbindir}/*
+%endif
+
 %changelog
+* Thu Sep 22 2016 William Brown <wibrown@redhat.com> - 1.0.3-1
+- Bump version to 1.0.3 pre-release
+- Ticket 48952 - Restart command needs a sleep
+- Ticket 47957 - Update the replication "idle" status string
+- Ticket 48949 - Fix ups for style and correctness
+- Ticket 48951 - dsadm and dsconf base files
+- Ticket 48951 - dsadm dsconfig status and plugin
+- Ticket 48984 - Add lib389 paths module
+- Ticket 48991 - Fix lib389 spec for python2 and python3
+- Ticket 48949 - configparser fallback not python2 compatible
+- Ticket 48949 - os.makedirs() exist_ok not python2 compatible, added try/except
+- Ticket 48949 - change default file path generation - use os.path.join
+- Ticket 48949 - added copying slapd-collations.conf
+
+
 * Mon Aug 1 2016 Mark Reynolds <mreynolds@redhat.com> - 1.0.2-1
 - Bump version to 1.0.2
 - Ticket 48946 - openConnection should not fully popluate DirSrv object
