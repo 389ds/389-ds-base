@@ -922,9 +922,9 @@ class DirSrvTools(object):
         else:
             prog = ''
             if args['have_admin']:
-                prog = get_sbin_dir(sroot, prefix) + PATH_SETUP_DS_ADMIN
+                prog = get_sbin_dir(sroot, prefix) + '/' + PATH_SETUP_DS_ADMIN
             else:
-                prog = get_sbin_dir(sroot, prefix) + PATH_SETUP_DS
+                prog = get_sbin_dir(sroot, prefix) + '/' + PATH_SETUP_DS
 
             if not os.path.isfile(prog):
                 log.error("Can't find file: %r, removing extension" % prog)

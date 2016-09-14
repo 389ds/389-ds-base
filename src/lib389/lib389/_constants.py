@@ -73,8 +73,8 @@ DN_MONITOR_SNMP = "cn=snmp,cn=monitor"
 DN_MONITOR_LDBM = "cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 
 
-CMD_PATH_SETUP_DS = "/setup-ds.pl"
-CMD_PATH_REMOVE_DS = "/remove-ds.pl"
+CMD_PATH_SETUP_DS = "setup-ds.pl"
+CMD_PATH_REMOVE_DS = "remove-ds.pl"
 
 # State of an DirSrv object
 DIRSRV_STATE_INIT = 'initial'
@@ -96,8 +96,8 @@ DEFAULT_ENV_HEAD = 'dirsrv-'
 DEFAULT_CHANGELOG_NAME = "changelog5"
 DEFAULT_CHANGELOG_DB = 'changelogdb'
 
-CONF_DIR = 'etc/dirsrv'
-ENV_SYSCONFIG_DIR = '/etc/sysconfig'
+# CONF_DIR = 'etc/dirsrv'
+# ENV_SYSCONFIG_DIR = '/etc/sysconfig'
 ENV_LOCAL_DIR = '.dirsrv'
 
 # CONFIG file (<prefix>/etc/sysconfig/dirsrv-* or
@@ -132,12 +132,12 @@ DN_MBO_TASK = "cn=memberOf task,%s" % DN_TASKS
 DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 
 # Script Constants
-LDIF2DB = '/ldif2db'
-DB2LDIF = '/db2ldif'
-BAK2DB = '/bak2db'
-DB2BAK = '/db2bak'
-DB2INDEX = '/db2index'
-DBSCAN = '/dbscan'
+LDIF2DB = 'ldif2db'
+DB2LDIF = 'db2ldif'
+BAK2DB = 'bak2db'
+DB2BAK = 'db2bak'
+DB2INDEX = 'db2index'
+DBSCAN = 'dbscan'
 
 RDN_REPLICA = "cn=replica"
 

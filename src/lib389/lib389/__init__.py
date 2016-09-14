@@ -77,10 +77,9 @@ from lib389.utils import (
     escapeDNValue,
     update_newhost_with_fqdn,
     formatInfData,
-    get_sbin_dir,
-    get_bin_dir,
     ensure_bytes,
     ensure_str)
+from lib389.paths import Paths
 
 # mixin
 # from lib389.tools import DirSrvTools
@@ -99,7 +98,8 @@ RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 # My logger
 log = logging.getLogger(__name__)
 
-
+# Initiate the paths object here. Should this be part of the DirSrv class
+# for submodules?
 def wrapper(f, name):
     """
     Wrapper of all superclass methods using lib389.Entry.
@@ -403,10 +403,11 @@ class DirSrv(SimpleLDAPObject):
         self.timeout = timeout
         self.confdir = None
 
+        self.ds_paths = Paths()
+
         # Reset the args (py.test reuses the args_instance for each test case)
-        args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', '/')
-        args_instance[SER_BACKUP_INST_DIR] = os.environ.get('BACKUPDIR',
-                                                            DEFAULT_BACKUPDIR)
+        args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', self.ds_paths.prefix)
+        args_instance[SER_BACKUP_INST_DIR] = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
         args_instance[SER_ROOT_DN] = DN_DM
         args_instance[SER_ROOT_PW] = PW_DM
         args_instance[SER_HOST] = LOCALHOST
@@ -467,6 +468,10 @@ class DirSrv(SimpleLDAPObject):
             self.log.debug('SER_SERVERID_PROP not provided')
             # The lack of this value basically rules it out in most cases
             self.isLocal = False
+            self.ds_paths = Paths()
+        else:
+            self.ds_paths = Paths(args[SER_SERVERID_PROP])
+
 
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
@@ -747,7 +752,7 @@ class DirSrv(SimpleLDAPObject):
             sysconfig_head = confdir
             privconfig_head = None
         else:
-            sysconfig_head = prefix + ENV_SYSCONFIG_DIR
+            sysconfig_head = self.ds_paths.initconfig_dir
             privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
             if not os.path.isdir(sysconfig_head):
                 privconfig_head = None
@@ -838,7 +843,7 @@ class DirSrv(SimpleLDAPObject):
         """
 
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_sbin_dir(None, self.prefix) + CMD_PATH_SETUP_DS
+        prog = os.path.join(self.ds_paths.sbin_dir, CMD_PATH_SETUP_DS)
 
         if not os.path.isfile(prog):
             log.error("Can't find file: %r, removing extension" % prog)
@@ -866,12 +871,9 @@ class DirSrv(SimpleLDAPObject):
             # This may conflict in some tests, we may need to use /etc/host
             # aliases or we may need to use server id
             self.krb5_realm.create_principal(principal='ldap/%s' % self.host)
-            ktab = '%s/etc/dirsrv/slapd-%s/ldap.keytab' % (self.prefix,
-                                                           self.serverid)
-            self.krb5_realm.create_keytab(principal='ldap/%s' % self.host,
-                                          keytab=ktab)
-            with open('%s/etc/sysconfig/dirsrv-%s' %
-                      (self.prefix, self.serverid), 'a') as sfile:
+            ktab = '%s/etc/dirsrv/slapd-%s/ldap.keytab' % (self.prefix, self.serverid)
+            self.krb5_realm.create_keytab(principal='ldap/%s' % self.host, keytab=ktab)
+            with open('%s/dirsrv-%s' % (self.ds_paths.initconfig_dir, self.serverid), 'a') as sfile:
                 sfile.write("\nKRB5_KTNAME=%s/etc/dirsrv/slapd-%s/"
                             "ldap.keytab\nexport KRB5_KTNAME\n" %
                             (self.prefix, self.serverid))
@@ -943,10 +945,9 @@ class DirSrv(SimpleLDAPObject):
                              (self.serverid, self.host, self.port))
 
         # Now time to remove the instance
-        prog = get_sbin_dir(None, self.prefix) + CMD_PATH_REMOVE_DS
+        prog = os.path.join(self.ds_paths.sbin_dir, CMD_PATH_REMOVE_DS)
         if (not self.prefix or self.prefix == '/') and os.geteuid() != 0:
-            raise ValueError("Error: without prefix deployment it is " +
-                             "required to be root user")
+            raise ValueError("Error: without prefix deployment it is required to be root user")
         cmd = "%s -i %s%s" % (prog, DEFAULT_INST_HEAD, self.serverid)
         self.log.debug("running: %s " % cmd)
         try:
@@ -1446,21 +1447,35 @@ class DirSrv(SimpleLDAPObject):
 
     def get_ldif_dir(self):
         """Return the server instance ldif directory."""
-        try:
-            ldif_dir = self.getEntry(DN_CONFIG).__getattr__('nsslapd-ldifdir')
-        except:
-            ldif_dir = self.ldifdir
-
-        return ldif_dir
+        return self.ds_paths.ldif_dir
 
     def get_bak_dir(self):
         """Return the server instance ldif directory."""
-        try:
-            bak_dir = self.getEntry(DN_CONFIG).__getattr__('nsslapd-bakdir')
-        except:
-            bak_dir = self.bakdir
+        return self.ds_paths.backup_dir
 
-        return bak_dir
+    def get_local_state_dir(self):
+        return self.ds_paths.local_state_dir
+
+    def get_sysconf_dir(self):
+        return self.ds_paths.sysconf_dir
+
+    def get_initconfig_dir(self):
+        return self.ds_paths.initconfig_dir
+
+    def get_sbin_dir(self):
+        return self.ds_paths.sbin_dir
+
+    def get_bin_dir(self):
+        return self.ds_paths.bin_dir
+
+    def get_plugin_dir(self):
+        return self.ds_paths.plugin_dir
+
+    def get_tmp_dir(self):
+        return self.ds_paths.tmp_dir
+
+    def has_asan(self):
+        return self.ds_paths.asan_enabled
 
     #
     # Get entries
@@ -2428,7 +2443,7 @@ class DirSrv(SimpleLDAPObject):
         @return - True if import succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_sbin_dir(None, self.prefix) + LDIF2DB
+        prog = os.path.join(self.ds_paths.sbin_dir, LDIF2DB)
 
         if not bename and not suffixes:
             log.error("ldif2db: backend name or suffix missing")
@@ -2477,7 +2492,7 @@ class DirSrv(SimpleLDAPObject):
         @return - True if export succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_sbin_dir(None, self.prefix) + DB2LDIF
+        prog = os.path.join(self.ds_paths.sbin_dir, DB2LDIF)
 
         if not bename and not suffixes:
             log.error("db2ldif: backend name or suffix missing")
@@ -2518,7 +2533,7 @@ class DirSrv(SimpleLDAPObject):
         @return - True if the restore succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_sbin_dir(None, self.prefix) + BAK2DB
+        prog = os.path.join(self.ds_paths.sbin_dir, BAK2DB)
 
         if not archive_dir:
             log.error("bak2db: backup directory missing")
@@ -2546,7 +2561,7 @@ class DirSrv(SimpleLDAPObject):
         @return - True if the backup succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_sbin_dir(None, self.prefix) + DB2BAK
+        prog = os.path.join(self.ds_paths.sbin_dir, DB2BAK)
 
         if not archive_dir:
             log.error("db2bak: backup directory missing")
@@ -2575,7 +2590,7 @@ class DirSrv(SimpleLDAPObject):
         @return - True if reindexing succeeded
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_sbin_dir(None, self.prefix) + DB2INDEX
+        prog = os.path.join(self.ds_paths.sbin_dir, DB2INDEX)
 
         if not bename and not suffixes:
             log.error("db2index: missing required backend name or suffix")
@@ -2614,7 +2629,7 @@ class DirSrv(SimpleLDAPObject):
         @return - dumped string
         """
         DirSrvTools.lib389User(user=DEFAULT_USER)
-        prog = get_bin_dir(None, self.prefix) + DBSCAN
+        prog = os.path.join(self.ds_paths.bin_dir, DBSCAN)
 
         if not bename:
             log.error("dbscan: missing required backend name")
@@ -2843,7 +2858,7 @@ class DirSrv(SimpleLDAPObject):
            @raise - OSError
         """
         try:
-            os.system('dbgen.pl -s %s -n %d -o %s' % (suffix, num, ldif_file))
+            os.system('%s -s %s -n %d -o %s' % (os.path.join(self.ds_paths.bin_dir, 'dbgen.pl'), suffix, num, ldif_file))
             os.chmod(ldif_file, 0o644)
             if os.getuid() == 0:
                 # root user - chown the ldif to the server user

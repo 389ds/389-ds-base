@@ -115,6 +115,7 @@ def create_parser(subparsers):
 
     list_parser = subcommands.add_parser('list', help="List installed instances of Directory Server")
     list_parser.set_defaults(func=instance_list)
+    list_parser.set_defaults(noinst=True)
 
     start_parser = subcommands.add_parser('start', help="Start an instance of Directory Server, if it is not currently running")
     # start_parser.add_argument('instance', nargs=1, help="The name of the instance to start.")
@@ -141,5 +142,5 @@ By setting this value you acknowledge and take responsibility for the fact this 
 
     example_parser = subcommands.add_parser('example', help="Display an example ini answer file, with comments")
     example_parser.set_defaults(func=instance_example)
-    create_parser.set_defaults(noinst=True)
+    example_parser.set_defaults(noinst=True)
 

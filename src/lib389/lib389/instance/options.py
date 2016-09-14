@@ -9,6 +9,7 @@
 import socket
 import sys
 import os
+from lib389.paths import Paths
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -38,6 +39,7 @@ format_keys = [
     'tmp_dir',
 ]
 
+ds_paths = Paths()
 
 class Options2(object):
     # This stores the base options in a self._options dict.
@@ -135,15 +137,15 @@ class Slapd2Base(Options2):
         self._type['instance_name'] = str
         self._helptext['instance_name'] = "The name of the instance. Cannot be changed post installation."
 
-        self._options['user'] = 'dirsrv'
+        self._options['user'] = ds_paths.user
         self._type['user'] = str
         self._helptext['user'] = "The user account ns-slapd will drop privileges to during operation."
 
-        self._options['group'] = 'dirsrv'
+        self._options['group'] = ds_paths.group
         self._type['group'] = str
         self._helptext['group'] = "The group ns-slapd will drop privilleges to during operation."
 
-        self._options['root_dn'] = 'cn=Directory Manager'
+        self._options['root_dn'] = ds_paths.root_dn
         self._type['root_dn'] = str
         self._helptext['root_dn'] = "The Distinquished Name of the Administrator account. This is equivalent to root of your Directory Server."
 
@@ -151,7 +153,7 @@ class Slapd2Base(Options2):
         self._type['root_password'] = str
         self._helptext['root_password'] = "The password for the root_dn account. "
 
-        self._options['prefix'] = os.environ.get('PREFIX', "")
+        self._options['prefix'] = ds_paths.prefix
         self._type['prefix'] = str
         self._helptext['prefix'] = "The filesystem prefix for all other locations. Unless you are developing DS, you likely never need to set this. This value can be reffered to in other fields with {prefix}, and can be set with the environment variable PREFIX."
 
@@ -164,72 +166,76 @@ class Slapd2Base(Options2):
         self._helptext['secure_port'] = "The TCP port that Directory Server will listen on for TLS secured LDAP connections."
 
         # In the future, make bin and sbin /usr/[s]bin, but we may need autotools assistance from Ds
-        self._options['bin_dir'] = "{prefix}/bin"
+        self._options['bin_dir'] = ds_paths.bin_dir
         self._type['bin_dir'] = str
         self._helptext['bin_dir'] = "The location Directory Server can find binaries. You should not need to alter this value."
 
-        self._options['sbin_dir'] = "{prefix}/sbin"
+        self._options['sbin_dir'] = ds_paths.sbin_dir
         self._type['sbin_dir'] = str
         self._helptext['sbin_dir'] = "The location Directory Server can find systemd administration binaries. You should not need to alter this value."
 
-        self._options['sysconf_dir'] = "{prefix}/etc"
+        self._options['sysconf_dir'] = ds_paths.sysconf_dir
         self._type['sysconf_dir'] = str
         self._helptext['sysconf_dir'] = "The location of the system configuration directory. You should not need to alter this value."
 
+        self._options['initconfig_dir'] = ds_paths.initconfig_dir
+        self._type['initconfig_dir'] = str
+        self._helptext['initconfig_dir'] = "The location of the system rc configuration directory. You should not need to alter this value."
+
         # In the future, make bin and sbin /usr/[s]bin, but we may need autotools assistance from Ds
-        self._options['data_dir'] = "{prefix}/share"
+        self._options['data_dir'] = ds_paths.data_dir
         self._type['data_dir'] = str
         self._helptext['data_dir'] = "The location of shared static data. You should not need to alter this value."
 
-        self._options['local_state_dir'] = "{prefix}/var"
+        self._options['local_state_dir'] = ds_paths.local_state_dir
         self._type['local_state_dir'] = str
         self._helptext['local_state_dir'] = "The location prefix to variable data. You should not need to alter this value."
 
-        self._options['lib_dir'] = "{prefix}/usr/lib64/dirsrv"
+        self._options['lib_dir'] = ds_paths.lib_dir
         self._type['lib_dir'] = str
         self._helptext['lib_dir'] = "The location to Directory Server shared libraries. You should not need to alter this value."
 
-        self._options['cert_dir'] = "{sysconf_dir}/dirsrv/slapd-{instance_name}"
+        self._options['cert_dir'] = ds_paths.cert_dir
         self._type['cert_dir'] = str
         self._helptext['cert_dir'] = "The location where NSS will store certificates."
 
-        self._options['config_dir'] = "{sysconf_dir}/dirsrv/slapd-{instance_name}"
+        self._options['config_dir'] = ds_paths.config_dir
         self._type['config_dir'] = str
         self._helptext['config_dir'] = "The location where dse.ldif and other configuration will be stored. You should not need to alter this value."
 
-        self._options['inst_dir'] = "{local_state_dir}/lib/dirsrv/slapd-{instance_name}"
+        self._options['inst_dir'] = ds_paths.inst_dir
         self._type['inst_dir'] = str
         self._helptext['inst_dir'] = "The location of the Directory Server databases, ldif and backups. You should not need to alter this value."
 
-        self._options['backup_dir'] = "{inst_dir}/bak"
+        self._options['backup_dir'] = ds_paths.backup_dir
         self._type['backup_dir'] = str
         self._helptext['backup_dir'] = "The location where Directory Server will export and import backups from. You should not need to alter this value."
 
-        self._options['db_dir'] = "{inst_dir}/db"
+        self._options['db_dir'] = ds_paths.db_dir
         self._type['db_dir'] = str
         self._helptext['db_dir'] = "The location where Directory Server will store databases. You should not need to alter this value."
 
-        self._options['ldif_dir'] = "{inst_dir}/ldif"
+        self._options['ldif_dir'] = ds_paths.ldif_dir
         self._type['ldif_dir'] = str
         self._helptext['ldif_dir'] = "The location where Directory Server will export and import ldif from. You should not need to alter this value."
 
-        self._options['lock_dir'] = "{local_state_dir}/lock/dirsrv/slapd-{instance_name}"
+        self._options['lock_dir'] = ds_paths.lock_dir
         self._type['lock_dir'] = str
         self._helptext['lock_dir'] = "The location where Directory Server will store lock files. You should not need to alter this value."
 
-        self._options['log_dir'] = "{local_state_dir}/log/dirsrv/slapd-{instance_name}"
+        self._options['log_dir'] = ds_paths.log_dir
         self._type['log_dir'] = str
         self._helptext['log_dir'] = "The location where Directory Server will write log files. You should not need to alter this value."
 
-        self._options['run_dir'] = "{local_state_dir}/run/dirsrv"
+        self._options['run_dir'] = ds_paths.run_dir
         self._type['run_dir'] = str
         self._helptext['run_dir'] = "The location where Directory Server will create pid files. You should not need to alter this value."
 
-        self._options['schema_dir'] = "{config_dir}/schema"
+        self._options['schema_dir'] = ds_paths.schema_dir
         self._type['schema_dir'] = str
         self._helptext['schema_dir'] = "The location where Directory Server will store and write schema. You should not need to alter this value."
 
-        self._options['tmp_dir'] = "/tmp"
+        self._options['tmp_dir'] = ds_paths.tmp_dir
         self._type['tmp_dir'] = str
         self._helptext['tmp_dir'] = "The location where Directory Server will write temporary files. You should not need to alter this value."
 
