@@ -430,6 +430,8 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 		Slapi_Attr *a= NULL;
 		long a_flags_orig;
 		int attr_state= entry_attr_find_wsi(e, type, &a);
+		const CSN *adcsn = NULL;
+
 		if (ATTRIBUTE_NOTFOUND == attr_state)
 		{
 			/* Create a new attribute */
@@ -437,6 +439,17 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 			slapi_attr_init(a, type);
 			attrlist_add(&e->e_attrs, a);
 		}
+
+		adcsn = attr_get_deletion_csn(a);
+		if (csn_compare(csn, adcsn) < 0) {
+			/* the attribute was deleted with an adcsn
+			 * newer than the current csn.
+			 * Nothing to do.
+			 */
+			valuearray_free(&valuestoadd);
+			return retVal;
+		}
+
 		a_flags_orig = a->a_flags;
 		a->a_flags |= flags;
 		/* Check if the type of the to-be-added values has DN syntax or not. */
@@ -544,6 +557,14 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 		{
 			/* delete the entire attribute */
 			LDAPDebug( LDAP_DEBUG_ARGS, "removing entire attribute %s\n", type, 0, 0 );
+			const CSN *adcsn = attr_get_deletion_csn(a);
+			if (csn_compare(csn, adcsn) < 0) {
+				/* the attribute was deleted with an adcsn
+				 * newer than the current csn.
+				 * Nothing to do.
+				 */
+				return retVal;
+			}
 			attr_set_deletion_csn(a,csn);
 			if(urp)
 			{
