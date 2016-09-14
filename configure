@@ -745,6 +745,7 @@ schemadir
 propertydir
 sampledatadir
 configdir
+prefixdir
 with_tmpfiles_d
 with_fhs_opt
 enable_nunc_stans_FALSE
@@ -18146,6 +18147,7 @@ localrundir='/run'
 if test "$with_fhs_opt" = "yes"; then
   # Override sysconfdir and localstatedir if FHS optional
   # package was requested.
+  prefixdir=$prefix
   sysconfdir='/etc/opt'
   localstatedir='/var/opt'
   localrundir='/var/opt/run'
@@ -18180,6 +18182,7 @@ else
         localstatedir='/var'
     localrundir='/run'
   fi
+  prefixdir=$prefix
   # relative to datadir
   sampledatadir=/$PACKAGE_NAME/data
   # relative to datadir
@@ -18284,6 +18287,7 @@ $as_echo "$with_pythonexec" >&6; }
 else
   with_pythonexec=/usr/bin/python2
 fi
+
 
 
 

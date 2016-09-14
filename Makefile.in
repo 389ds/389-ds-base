@@ -1392,10 +1392,6 @@ build_os = @build_os@
 build_vendor = @build_vendor@
 builddir = @builddir@
 capbrand = @capbrand@
-
-#------------------------
-# Install Paths
-#------------------------
 configdir = $(sysconfdir)@configdir@
 datadir = @datadir@
 datarootdir = @datarootdir@
@@ -1473,6 +1469,11 @@ perldir = $(libdir)@perldir@
 perlexec = @perlexec@
 plainldif_opts = @plainldif_opts@
 prefix = @prefix@
+
+#------------------------
+# Install Paths
+#------------------------
+prefixdir = @prefixdir@
 program_transform_name = @program_transform_name@
 propertydir = $(datadir)@propertydir@
 psdir = @psdir@
@@ -2142,7 +2143,8 @@ task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
 inf_DATA = ldap/admin/src/slapd.inf \
 	ldap/admin/src/scripts/dscreate.map \
 	ldap/admin/src/scripts/dsupdate.map \
-	ldap/admin/src/scripts/dsorgentries.map
+	ldap/admin/src/scripts/dsorgentries.map \
+	ldap/admin/src/defaults.inf
 
 mib_DATA = ldap/servers/snmp/redhat-directory.mib
 pkgconfig_DATA = $(PACKAGE_NAME).pc
@@ -3157,7 +3159,8 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_FALSE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
 @BUNDLE_FALSE@	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
 @BUNDLE_FALSE@	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
-@BUNDLE_FALSE@	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
+@BUNDLE_FALSE@	-e 's,@systemdgroupname\@,$(systemdgroupname),g' \
+@BUNDLE_FALSE@	-e 's,@prefixdir\@,$(prefixdir),g'
 
 
 # these are for the config files and scripts that we need to generate and replace
@@ -3236,7 +3239,8 @@ rsearch_bin_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBS
 @BUNDLE_TRUE@	-e 's,@ldaplib_defs\@,$(ldaplib_defs),g' \
 @BUNDLE_TRUE@	-e 's,@systemdsystemunitdir\@,$(systemdsystemunitdir),g' \
 @BUNDLE_TRUE@	-e 's,@systemdsystemconfdir\@,$(systemdsystemconfdir),g' \
-@BUNDLE_TRUE@	-e 's,@systemdgroupname\@,$(systemdgroupname),g'
+@BUNDLE_TRUE@	-e 's,@systemdgroupname\@,$(systemdgroupname),g' \
+@BUNDLE_TRUE@	-e 's,@prefixdir\@,$(prefixdir),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
