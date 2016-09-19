@@ -20,8 +20,6 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 ACCT_POLICY_CONFIG_DN = ('cn=config,cn=%s,cn=plugins,cn=config' %
                          PLUGIN_ACCT_POLICY)
 ACCT_POLICY_DN = 'cn=Account Inactivation Policy,%s' % SUFFIX
@@ -44,11 +42,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

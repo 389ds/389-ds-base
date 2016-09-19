@@ -67,7 +67,7 @@ def test_ticket48005_setup(topology):
         prefix = topology.standalone.prefix
     else:
         prefix = None
-    sysconfig_dirsrv = prefix + ENV_SYSCONFIG_DIR + "/dirsrv"
+    sysconfig_dirsrv = os.path.join(topology.standalone.get_initconfig_dir(), 'dirsrv')
     cmdline = 'egrep "ulimit -c unlimited" %s' % sysconfig_dirsrv
     p = os.popen(cmdline, "r")
     ulimitc = p.readline()

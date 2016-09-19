@@ -21,8 +21,6 @@ from lib389.utils import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 # Assuming DEFAULT_SUFFIX is "dc=example,dc=com", otherwise it does not work... :(
 SUBTREE_CONTAINER = 'cn=nsPwPolicyContainer,' + DEFAULT_SUFFIX
 SUBTREE_PWPDN = 'cn=nsPwPolicyEntry,' + DEFAULT_SUFFIX
@@ -44,10 +42,6 @@ class TopologyStandalone(object):
 
 @pytest.fixture(scope="module")
 def topology(request):
-    global installation_prefix
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     # Creating standalone instance ...
     standalone = DirSrv(verbose=False)
     args_instance[SER_HOST] = HOST_STANDALONE

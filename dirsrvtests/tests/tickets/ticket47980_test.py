@@ -21,8 +21,6 @@ from lib389.tasks import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 BRANCH1 = 'ou=level1,' + DEFAULT_SUFFIX
 BRANCH2 = 'ou=level2,ou=level1,' + DEFAULT_SUFFIX
 BRANCH3 = 'ou=level3,ou=level2,ou=level1,' + DEFAULT_SUFFIX
@@ -90,11 +88,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

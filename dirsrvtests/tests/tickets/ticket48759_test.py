@@ -20,8 +20,6 @@ from lib389.tasks import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
 GROUP_DN = ("cn=group," + DEFAULT_SUFFIX)
 MEMBER_DN_COMP = "uid=member"
@@ -38,11 +36,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

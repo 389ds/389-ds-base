@@ -21,8 +21,6 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 CONFIG_DN = 'cn=config'
 ENCRYPTION_DN = 'cn=encryption,%s' % CONFIG_DN
 MY_SECURE_PORT = '36363'
@@ -53,11 +51,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

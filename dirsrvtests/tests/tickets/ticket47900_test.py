@@ -19,8 +19,6 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 CONFIG_DN  = 'cn=config'
 ADMIN_NAME = 'passwd_admin'
 ADMIN_DN   = 'cn=%s,%s' % (ADMIN_NAME, SUFFIX)
@@ -41,11 +39,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

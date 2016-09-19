@@ -21,8 +21,6 @@ from lib389.utils import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
-
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -32,10 +30,6 @@ class TopologyStandalone(object):
 
 @pytest.fixture(scope="module")
 def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
     # Creating standalone instance ...
     standalone = DirSrv(verbose=False)
     args_instance[SER_HOST] = HOST_STANDALONE
@@ -72,7 +66,7 @@ def test_clu_pwdhash(topology):
 
     log.info('Running test_clu_pwdhash...')
 
-    cmd = 'pwdhash -s ssha testpassword'
+    cmd = '%s -s ssha testpassword' % os.path.join(topology.standalone.get_bin_dir(), 'pwdhash')
 
     p = os.popen(cmd)
     result = p.readline()

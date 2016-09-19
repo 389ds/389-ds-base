@@ -76,15 +76,14 @@ def test_ticket47384(topology):
     os.system('setenforce 0')
 
     PLUGIN_DN = 'cn=%s,cn=plugins,cn=config' % PLUGIN_WHOAMI
-    tmp_dir = '/tmp'
-    plugin_dir = get_plugin_dir(topology.standalone.prefix)
+    tmp_dir = topology.standalone.get_tmp_dir()
+    plugin_dir = topology.standalone.get_plugin_dir()
 
     # Copy the library to our tmp directory
     try:
         shutil.copy('%s/libwhoami-plugin.so' % plugin_dir, tmp_dir)
     except IOError as e:
-        log.fatal('Failed to copy libwhoami-plugin.so to the tmp directory, error: '
-                  + e.strerror)
+        log.fatal('Failed to copy %s/libwhoami-plugin.so to the tmp directory %s, error: %s' % (plugin_dir, tmp_dir, e.strerror))
         assert False
     try:
         shutil.copy('%s/libwhoami-plugin.la' % plugin_dir, tmp_dir)

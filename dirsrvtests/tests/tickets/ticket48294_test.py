@@ -21,8 +21,6 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 LINKEDATTR_PLUGIN = 'cn=Linked Attributes,cn=plugins,cn=config'
 MANAGER_LINK = 'cn=Manager Link,' + LINKEDATTR_PLUGIN
 OU_PEOPLE = 'ou=People,' + DEFAULT_SUFFIX
@@ -41,11 +39,6 @@ def topology(request):
     '''
     This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

@@ -25,8 +25,6 @@ from lib389.properties import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 TEST_REPL_DN = "cn=test_repl, %s" % SUFFIX
 ENTRY_DN = "cn=test_entry, %s" % SUFFIX
 
@@ -54,11 +52,6 @@ def topology(request):
         This fixture is used to create a replicated topology for the 'module'.
         The replicated topology is MASTER -> Consumer.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     master   = DirSrv(verbose=False)
     consumer = DirSrv(verbose=False)
 

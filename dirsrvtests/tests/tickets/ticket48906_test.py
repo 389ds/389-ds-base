@@ -24,8 +24,6 @@ import fnmatch
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 CONFIG_DN = 'cn=config'
 RDN_VAL_SUFFIX = 'ticket48906.org'
 MYSUFFIX = 'dc=%s' % RDN_VAL_SUFFIX
@@ -63,11 +61,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=True)
 
     # Args for the standalone instance
@@ -349,9 +342,6 @@ def run_isolated():
             - set the installation prefix
             - run this program
     '''
-    global installation_prefix
-    installation_prefix = None
-
     topo = topology(True)
     test_ticket48906_setup(topo)
     test_ticket48906_dblock_default(topo)

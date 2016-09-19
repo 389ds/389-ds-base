@@ -21,8 +21,6 @@ from lib389.tasks import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 BRANCH = 'ou=people,' + DEFAULT_SUFFIX
 USER_DN = 'uid=user1,%s' % (BRANCH)
 BRANCH_CONTAINER = 'cn=nsPwPolicyContainer,ou=people,dc=example,dc=com'
@@ -46,11 +44,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

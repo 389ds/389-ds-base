@@ -88,7 +88,7 @@ def format_time(local_datetime):
     return formatted_time
 
 
-def execute_logconv(start_time_stamp, end_time_stamp, access_log):
+def execute_logconv(inst, start_time_stamp, end_time_stamp, access_log):
     '''
     This function will take start time and end time
     as input parameter and
@@ -97,7 +97,7 @@ def execute_logconv(start_time_stamp, end_time_stamp, access_log):
     '''
 
     log.info("Executing logconv.pl with -S current time and -E end time")
-    cmd = ['logconv.pl', '-S', start_time_stamp, '-E', end_time_stamp, access_log]
+    cmd = [os.path.join(inst.get_bin_dir(), 'logconv.pl'), '-S', start_time_stamp, '-E', end_time_stamp, access_log]
     log.info(" ".join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
@@ -125,7 +125,7 @@ def test_ticket47910_logconv_start_end_positive(topology, log_dir):
     formatted_end_time_stamp = format_time(end_time_stamp)
 
     log.info("Executing logconv.pl with -S and -E")
-    result = execute_logconv(formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
+    result = execute_logconv(topology.standalone, formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
     assert result == 0
 
 
@@ -151,7 +151,7 @@ def test_ticket47910_logconv_start_end_negative(topology, log_dir):
     formatted_end_time_stamp = format_time(end_time_stamp)
 
     log.info("Executing logconv.pl with -S and -E")
-    result = execute_logconv(formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
+    result = execute_logconv(topology.standalone, formatted_start_time_stamp, formatted_end_time_stamp, log_dir)
     assert result == 1
 
 
@@ -169,7 +169,7 @@ def test_ticket47910_logconv_start_end_invalid(topology, log_dir):
     end_time_stamp = "invalid"
 
     log.info("Executing logconv.pl with -S and -E")
-    result = execute_logconv(start_time_stamp, end_time_stamp, log_dir)
+    result = execute_logconv(topology.standalone, start_time_stamp, end_time_stamp, log_dir)
     assert result == 1
 
 
@@ -189,7 +189,7 @@ def test_ticket47910_logconv_noaccesslogs(topology, log_dir):
     time_stamp = (datetime.now() - timedelta(minutes=2))
     formatted_time_stamp = format_time(time_stamp)
     log.info("Executing logconv.pl with -S current time")
-    cmd = ['logconv.pl', '-S', formatted_time_stamp]
+    cmd = [os.path.join(topology.standalone.get_bin_dir(), 'logconv.pl'), '-S', formatted_time_stamp]
     log.info(" ".join(cmd))
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()

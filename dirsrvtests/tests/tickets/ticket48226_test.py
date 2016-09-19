@@ -113,8 +113,9 @@ def topology(request):
     def fin():
         master1.delete()
         master2.delete()
-        sbin_dir = get_sbin_dir(prefix=master2.prefix)
-        valgrind_disable(sbin_dir)
+        sbin_dir = master2.get_sbin_dir()
+        if not master2.has_asan():
+            valgrind_disable(sbin_dir)
     request.addfinalizer(fin)
 
     # Check replication is working...
@@ -181,10 +182,11 @@ def test_ticket48226_1(topology):
     topology.master1.stop(10)
 
     # Get the sbin directory so we know where to replace 'ns-slapd'
-    sbin_dir = get_sbin_dir(prefix=topology.master2.prefix)
+    sbin_dir = topology.master2.get_sbin_dir()
 
     # Enable valgrind
-    valgrind_enable(sbin_dir)
+    if not topology.master2.has_asan():
+        valgrind_enable(sbin_dir)
 
     # start M2 to do the next updates
     topology.master2.start()
@@ -207,31 +209,33 @@ def test_ticket48226_1(topology):
     # Restart master1
     #topology.master1.start(30)
 
-    results_file = valgrind_get_results_file(topology.master2)
+    if not topology.master2.has_asan():
+        results_file = valgrind_get_results_file(topology.master2)
 
     # Stop master2
     topology.master2.stop(30)
 
     # Check for leak
-    if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
-        log.info('Valgrind reported leak in csnset_dup!')
-        assert False
-    else:
-        log.info('Valgrind is happy!')
+    if not topology.master2.has_asan():
+        if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'csnset_dup'):
+            log.info('Valgrind reported leak in csnset_dup!')
+            assert False
+        else:
+            log.info('Valgrind is happy!')
 
-    # Check for invalid read/write
-    if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_dup'):
-        log.info('Valgrind reported invalid!')
-        assert False
-    else:
-        log.info('Valgrind is happy!')
+        # Check for invalid read/write
+        if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_dup'):
+            log.info('Valgrind reported invalid!')
+            assert False
+        else:
+            log.info('Valgrind is happy!')
 
-    # Check for invalid read/write
-    if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_free'):
-        log.info('Valgrind reported invalid!')
-        assert False
-    else:
-        log.info('Valgrind is happy!')
+        # Check for invalid read/write
+        if valgrind_check_file(results_file, VALGRIND_INVALID_STR, 'csnset_free'):
+            log.info('Valgrind reported invalid!')
+            assert False
+        else:
+            log.info('Valgrind is happy!')
 
     log.info('Testcase PASSED')
 

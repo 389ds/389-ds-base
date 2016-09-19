@@ -18,8 +18,6 @@ from lib389.tasks import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 USER_DN = 'uid=user1,%s' % (DEFAULT_SUFFIX)
 SCHEMA_RELOAD_COUNT = 10
 
@@ -35,11 +33,6 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

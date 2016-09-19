@@ -20,8 +20,6 @@ from ldap.controls.simple import ProxyAuthzControl
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 PROXY_USER_DN    = 'cn=proxy,ou=people,%s' % SUFFIX
 TEST_USER_DN    = 'cn=test,ou=people,%s' % SUFFIX
 USER_PW    = 'password'
@@ -41,11 +39,6 @@ class TopologyStandalone(object):
 
 @pytest.fixture(scope="module")
 def topology(request):
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
     standalone = DirSrv(verbose=False)
 
     # Args for the standalone instance

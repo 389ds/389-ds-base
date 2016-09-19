@@ -22,8 +22,6 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 PROVISIONING_CN = "provisioning"
 PROVISIONING_DN = "cn=%s,%s" % (PROVISIONING_CN, SUFFIX)
 
@@ -65,11 +63,7 @@ def topology(request):
     '''
         This fixture is used to standalone topology for the 'module'.
     '''
-    global installation_prefix
-
     standalone = DirSrv(verbose=False)
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
     # Args for the standalone instance
     args_instance[SER_HOST] = HOST_STANDALONE
     args_instance[SER_PORT] = PORT_STANDALONE

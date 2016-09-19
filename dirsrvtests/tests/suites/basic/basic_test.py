@@ -24,8 +24,6 @@ from lib389.utils import *
 
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 # Globals
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
@@ -48,11 +46,6 @@ class TopologyStandalone(object):
 @pytest.fixture(scope="module")
 def topology(request):
     """This fixture is used to standalone topology for the 'module'."""
-
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
 
     standalone = DirSrv(verbose=False)
 
@@ -688,10 +681,9 @@ def test_basic_ldapagent(topology, import_example_ldif):
 
     log.info('Running test_basic_ldapagent...')
 
-    var_dir = topology.standalone.prefix + '/var'
-    config_file = topology.standalone.prefix + '/etc/dirsrv/config/agent.conf'
-    cmd = 'sudo %s/ldap-agent %s' % (get_sbin_dir(prefix=topology.standalone.prefix),
-                                                  config_file)
+    var_dir = topology.standalone.get_local_state_dir()
+    config_file = os.path.join(topology.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
+    cmd = 'sudo %s %s' % (os.path.join(topology.standalone.get_sbin_dir(), 'ldap-agent'), config_file)
 
     agent_config_file = open(config_file, 'w')
     agent_config_file.write('agentx-master ' + var_dir + '/agentx/master\n')
@@ -701,7 +693,7 @@ def test_basic_ldapagent(topology, import_example_ldif):
 
     rc = os.system(cmd)
     if rc != 0:
-        log.fatal('test_basic_ldapagent: Failed to start snmp ldap agent: error %d' % rc)
+        log.fatal('test_basic_ldapagent: Failed to start snmp ldap agent %s: error %d' % (cmd, rc))
         assert False
 
     log.info('snmp ldap agent started')

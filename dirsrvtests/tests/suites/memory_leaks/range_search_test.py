@@ -56,8 +56,9 @@ def topology(request):
 
     def fin():
         standalone.delete()
-        sbin_dir = get_sbin_dir(prefix=standalone.prefix)
-        valgrind_disable(sbin_dir)
+        sbin_dir = standalone.get_sbin_dir()
+        if not standalone.has_asan():
+            valgrind_disable(sbin_dir)
     request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
@@ -81,7 +82,8 @@ def test_range_search_init(topology):
     sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
 
     # Enable valgrind
-    valgrind_enable(sbin_dir)
+    if not topology.standalone.has_asan():
+        valgrind_enable(sbin_dir)
 
     # Now start the server with a longer timeout
     topology.standalone.start()
@@ -119,7 +121,7 @@ def test_range_search(topology):
                       (RETROCL_SUFFIX, e.message('desc')))
             success = False
 
-    if success:
+    if success and not topology.standalone.has_asan():
         # Get the results file, stop the server, and check for the leak
         results_file = valgrind_get_results_file(topology.standalone)
         topology.standalone.stop(timeout=30)
@@ -127,7 +129,7 @@ def test_range_search(topology):
             log.fatal('test_range_search: Memory leak is still present!')
             assert False
 
-        log.info('test_range_search: PASSED')
+    log.info('test_range_search: PASSED')
 
 
 if __name__ == '__main__':

@@ -27,18 +27,9 @@ from lib389.properties import *
 
 log = logging.getLogger(__name__)
 
-global installation_prefix
-installation_prefix=os.getenv('PREFIX')
-
 def test_finalizer():
-    global installation_prefix
-
     # for each defined instance, remove it
     for args_instance in ALL_INSTANCES:
-        if installation_prefix:
-            # overwrite the environment setting
-            args_instance[SER_DEPLOYED_DIR] = installation_prefix
-
         instance = DirSrv(verbose=True)
         instance.allocate(args_instance)
         if instance.exists():
@@ -54,9 +45,6 @@ def run_isolated():
             - set the installation prefix
             - run this program
     '''
-    global installation_prefix
-    installation_prefix =  None
-
     test_finalizer()
 
 if __name__ == '__main__':

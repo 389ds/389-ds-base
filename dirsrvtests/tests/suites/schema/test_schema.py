@@ -29,8 +29,6 @@ from lib389.properties import *
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation_prefix = None
-
 attrclass = ldap.schema.models.AttributeType
 occlass = ldap.schema.models.ObjectClass
 syntax_len_supported = False
@@ -47,10 +45,6 @@ def topology(request):
     '''
         This fixture is used to create a DirSrv instance for the 'module'.
     '''
-    global installation_prefix
-
-    if installation_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation_prefix
     schemainst = DirSrv(verbose=False)
 
     # Args for the master instance
