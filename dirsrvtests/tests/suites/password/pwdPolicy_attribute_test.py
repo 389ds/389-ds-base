@@ -1,12 +1,10 @@
 import os
-import sys
 import time
 import subprocess
 import ldap
 import logging
 import pytest
-from lib389 import DirSrv, Entry, tools, tasks
-from lib389.tools import DirSrvTools
+from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -71,7 +69,6 @@ def topology(request):
             standalone.delete()
 
     request.addfinalizer(fin)
-
 
     return TopologyStandalone(standalone)
 
@@ -208,6 +205,7 @@ def test_change_pwd(topology, test_user, password_policy,
                   'policy for {}: error {}'.format(PW_POLICY_CONT_USER,
                                                    e.message['desc']))
         raise e
+    time.sleep(1)
 
     try:
         log.info('Bind as user and modify userPassword')
@@ -291,6 +289,7 @@ def test_pwd_min_age(topology, test_user, password_policy):
                   'policy for {}: error {}'.format(DN_CONFIG,
                                                    e.message['desc']))
         raise e
+    time.sleep(1)
 
     try:
         log.info('Bind as user and modify userPassword')
@@ -302,7 +301,7 @@ def test_pwd_min_age(topology, test_user, password_policy):
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
         raise e
-
+    time.sleep(1)
 
     log.info('Bind as user and modify userPassword straight away after previous change')
     topology.standalone.simple_bind_s(TEST_USER_DN, 'new_pass')
