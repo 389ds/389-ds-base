@@ -14,26 +14,33 @@
 ; All format strings should be in python syntax IE {key}
 
 [slapd]
+; These values should NOT be altered in an installation.
+; This is because the server itself depends on these locations and values
+; being known, and are set at compilation time.
 product = @capbrand@ Directory Server
 version = @PACKAGE_VERSION@
-user = dirsrv
-group = dirsrv
-root_dn = cn=Directory Manager
+asan_enabled = @enable_asan@
 prefix = @prefixdir@
 bin_dir = @bindir@
 sbin_dir = @sbindir@
 lib_dir = @libdir@
 data_dir = @datadir@
 tmp_dir = /tmp
-
 sysconf_dir = @sysconfdir@
-initconfigdir = @initconfigdir@
+initconfig_dir = @initconfigdir@
 config_dir = @instconfigdir@/slapd-{instance_name}
+local_state_dir = @localstatedir@
+run_dir = @localstatedir@/run/dirsrv
+plugin_dir = @serverplugindir@
+
+; These values can be altered in an installation of ds
+user = dirsrv
+group = dirsrv
+root_dn = cn=Directory Manager
+
 schema_dir = @instconfigdir@/slapd-{instance_name}/schema
 cert_dir = @instconfigdir@/slapd-{instance_name}
 
-local_state_dir = @localstatedir@
-run_dir = @localstatedir@/run/dirsrv
 lock_dir = @localstatedir@/lock/dirsrv/slapd-{instance_name}
 log_dir = @localstatedir@/log/dirsrv/slapd-{instance_name}
 inst_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}
