@@ -64,7 +64,7 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	dn = slapi_sdn_get_dn(sdn);
 
 	if (cb_debug_on()) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,"modify: target:<%s>\n",dn);
+		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"modify: target:<%s>\n",dn);
 	}
 
 	ctrls = serverctrls = NULL;
@@ -92,8 +92,8 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	if (LDAP_SUCCESS != rc) {
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-			                "cb_get_connection failed (%d) %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			                "chaining_back_modify - cb_get_connection failed (%d) %s\n",
 			                rc, ldap_err2string(rc));
 			warned_get_conn = 1;
 		}
@@ -131,7 +131,7 @@ chaining_back_modify ( Slapi_PBlock *pb )
 	 * Call the backend preoperation plugins
 	 */
 	if((rc = slapi_plugin_call_preop_be_plugins(pb, SLAPI_PLUGIN_MOD_OP))){
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, "modify (%s): pre betxn failed, error (%d)\n",dn,rc);
+		slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_modify - modify (%s): pre betxn failed, error (%d)\n",dn,rc);
 		cb_release_op_connection(cb->pool,ld,0);
 		ldap_controls_free(ctrls);
 		return -1;
@@ -185,8 +185,8 @@ chaining_back_modify ( Slapi_PBlock *pb )
 			if ( parse_rc != LDAP_SUCCESS ) {
 				static int warned_parse_rc = 0;
 				if (!warned_parse_rc) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-						"%s%s%s\n",
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+						"chaining_back_modify - %s%s%s\n",
 						matched_msg?matched_msg:"",
 						(matched_msg&&(*matched_msg!='\0'))?": ":"",
 						ldap_err2string(parse_rc));
@@ -206,8 +206,8 @@ chaining_back_modify ( Slapi_PBlock *pb )
 				struct berval ** refs =  referrals2berval(referrals); 
 				static int warned_rc = 0;
 				if (!warned_rc && error_msg) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-						"%s%s%s\n",
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+						"chaining_back_modify - %s%s%s\n",
 						matched_msg?matched_msg:"",
 						(matched_msg&&(*matched_msg!='\0'))?": ":"",
 						error_msg );
@@ -228,7 +228,7 @@ chaining_back_modify ( Slapi_PBlock *pb )
 
 			/* Call the backend postoperation plugins */
 			if((rc = slapi_plugin_call_postop_be_plugins(pb, SLAPI_PLUGIN_MOD_OP))){
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, "modify (%s): post betxn failed, error (%d)\n",dn,rc);
+				slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_modify - modify (%s): post betxn failed, error (%d)\n",dn,rc);
 			}
 
 			/* Add control response sent by the farm server */

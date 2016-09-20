@@ -157,7 +157,7 @@ deref_init(Slapi_PBlock *pb)
     int status = 0;
     char *plugin_identity = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_init\n");
 
     /* Store the plugin identity for later use.
@@ -181,8 +181,8 @@ deref_init(Slapi_PBlock *pb)
                          (void *) deref_pre_entry) != 0 ||
         deref_register_operation_extension()
         ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                        "deref_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
+                        "deref_init - Failed to register plugin\n");
         status = -1;
     }
 
@@ -190,7 +190,7 @@ deref_init(Slapi_PBlock *pb)
         slapi_register_supported_control(LDAP_CONTROL_X_DEREF, SLAPI_OPERATION_SEARCH);
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "<-- deref_init\n");
     return status;
 }
@@ -204,13 +204,13 @@ deref_init(Slapi_PBlock *pb)
 static int
 deref_start(Slapi_PBlock * pb)
 {
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_start\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                    "linked attributes plug-in: ready for service\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                    "deref_start - Ready for service\n");
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "<-- deref_start\n");
 
     return 0;
@@ -224,10 +224,10 @@ deref_start(Slapi_PBlock * pb)
 static int
 deref_close(Slapi_PBlock * pb)
 {
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_close\n");
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "<-- deref_close\n");
 
     return 0;
@@ -414,7 +414,7 @@ deref_pre_search(Slapi_PBlock *pb)
     int ii;
     int iscritical = 0;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
                     "--> deref_pre_search\n");
 
     /* see if the deref request control is in the list of 
@@ -424,26 +424,26 @@ deref_pre_search(Slapi_PBlock *pb)
         const LDAPControl *ctrl = reqctrls[ii];
         if (!strcmp(ctrl->ldctl_oid, LDAP_CONTROL_X_DEREF)) {
             if (derefctrl) { /* already specified */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "The dereference control was specified more than once - it must be specified only once in the search request\n");
+                slapi_log_error(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
+                                "deref_pre_search - The dereference control was specified more than once - it must be specified only once in the search request\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control cannot be specified more than once";
                 derefctrl = NULL;
             } else if (!ctrl->ldctl_value.bv_len) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "No control value specified for dereference control\n");
+                slapi_log_error(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
+                                "deref_pre_search - No control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a value";
                 iscritical = ctrl->ldctl_iscritical;
             } else if (!ctrl->ldctl_value.bv_val) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "No control value specified for dereference control\n");
+                slapi_log_error(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
+                                "deref_pre_search - No control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a value";
                 iscritical = ctrl->ldctl_iscritical;
             } else if (!ctrl->ldctl_value.bv_val[0] || !ctrl->ldctl_value.bv_len) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                                "Empty control value specified for dereference control\n");
+                slapi_log_error(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
+                                "deref_pre_search - Empty control value specified for dereference control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The dereference control must have a non-empty value";
                 iscritical = ctrl->ldctl_iscritical;
@@ -457,8 +457,8 @@ deref_pre_search(Slapi_PBlock *pb)
     }
 
     if (derefctrl && incompatible) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
-                        "Cannot use the dereference control and control [%s] for the same search operation\n",
+        slapi_log_error(SLAPI_LOG_ERR, DEREF_PLUGIN_SUBSYSTEM,
+                        "deref_pre_search - Cannot use the dereference control and control [%s] for the same search operation\n",
                         incompatible);
         /* not sure if this is a hard failure - the current spec says:
            The semantics of the criticality field are specified in [RFC4511].
@@ -495,8 +495,8 @@ deref_pre_search(Slapi_PBlock *pb)
         deref_set_operation_extension(pb, speclist);
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                    "<-- deref_pre_op\n");
+    slapi_log_error(SLAPI_LOG_TRACE, DEREF_PLUGIN_SUBSYSTEM,
+                    "<-- deref_pre_search\n");
 
     return ldapcode;
 }
@@ -529,8 +529,8 @@ deref_check_access(Slapi_PBlock *pb, const Slapi_Entry *ent, const char *entdn,
         /* first, check access control - see if client can read the requested attribute */
         int ret = slapi_access_allowed(pb, etest, (char *)attrname, NULL, rights);
         if (ret != LDAP_SUCCESS) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                            "The client does not have permission to read attribute %s in entry %s\n",
+            slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                            "deref_check_access - The client does not have permission to read attribute %s in entry %s\n",
                             attrname, slapi_entry_get_dn_const(etest));
         } else {
             slapi_ch_array_add(retattrs, (char *)attrname); /* retattrs and attrs share pointer to attrname */
@@ -589,16 +589,16 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
         if (entries) {
             if (entries[1]) {
                 /* too many entries */
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                                "More than one entry matching DN [%s]\n",
+                slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                                "deref_do_deref_attr - More than one entry matching DN [%s]\n",
                                 derefdn);
             } else {
                 int ii;
                 int needattrvals = 1; /* need attrvals sequence? */
                 if (deref_check_access(pb, entries[0], derefdn, attrs, &retattrs,
                           (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                             "The client does not have permission to read the requested "
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                             "deref_do_deref_attr - The client does not have permission to read the requested "
                              "attributes in entry %s\n", derefdn);
                 } else {
                     ber_printf(ctrlber, "{ss", derefattr, derefdn); /* begin DerefRes + derefAttr + derefVal */
@@ -615,8 +615,8 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
 
 #if defined(USE_OLD_UNHASHED)
                         if (is_type_forbidden(retattrs[ii])) {
-                            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                                "skip forbidden attribute [%s]\n", derefdn);
+                            slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                                "deref_do_deref_attr - skip forbidden attribute [%s]\n", derefdn);
                             continue;
                         }
 #endif
@@ -663,13 +663,13 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                 }
             }
         } else { /* nothing */
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                            "No entries matching [%s]\n", derefdn);
+            slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                            "deref_do_deref_attr - No entries matching [%s]\n", derefdn);
         }
     } else {
         /* handle error */
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                        "Could not read entry with DN [%s]: error %d:%s\n",
+        slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                        "deref_do_deref_attr - Could not read entry with DN [%s]: error %d:%s\n",
                         derefdn, rc, ldap_err2string(rc));
     }
     slapi_free_search_results_internal(derefpb);
@@ -715,8 +715,8 @@ deref_pre_entry(Slapi_PBlock *pb)
 
         if (deref_check_access(pb, ent, NULL, attrs, &retattrs,
                                (SLAPI_ACL_SEARCH|SLAPI_ACL_READ))) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DEREF_PLUGIN_SUBSYSTEM,
-                            "The client does not have permission to read attribute %s in entry %s\n",
+            slapi_log_error(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
+                            "deref_pre_entry - The client does not have permission to read attribute %s in entry %s\n",
                             spec->derefattr, slapi_entry_get_dn_const(ent));
             continue;
         }

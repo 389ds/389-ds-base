@@ -259,35 +259,35 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 	rv = ACL_GetAttribute(errp, DS_PROP_ACLPB, (void **)&aclpb, subject, resource, auth_info, global_auth);
 	if ( rv != LAS_EVAL_TRUE  || ( NULL == aclpb )) {
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 			"DS_LASIpGetter:Unable to get the ACLPB(%d)\n", rv);
 		return LAS_EVAL_FAIL;
 	}
 
 	client_praddr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
 	if(client_praddr == NULL){
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "DS_LASIpGetter: failed to allocate client_praddr\n");
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "DS_LASIpGetter - Failed to allocate client_praddr\n");
 		return( LAS_EVAL_FAIL );
 	}
 
 	if ( slapi_pblock_get( aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR, client_praddr ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "DS_LASIpGetter: Could not get client IP.\n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "DS_LASIpGetter - Could not get client IP.\n" );
 		slapi_ch_free((void **)&client_praddr);
 		return( LAS_EVAL_FAIL );
 	}
 	
 	rv = PListInitProp(subject, 0, ACL_ATTR_IP, (void *)client_praddr, NULL);
 	if (rv < 0) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "DS_LASIpGetter: "
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
 			"Couldn't set the client addr property(%d)\n", rv );
 		slapi_ch_free((void **)&client_praddr);
 		return LAS_EVAL_FAIL;
 	}
 	if( PR_NetAddrToString(client_praddr, ip_str, sizeof(ip_str)) == PR_SUCCESS){
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "DS_LASIpGetter: "
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
 			"Returning client ip address '%s'\n", ip_str);
 	} else {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "DS_LASIpGetter: "
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
 			"Returning client ip address 'unknown'\n");
 	}
 
@@ -317,13 +317,13 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 				subject, resource, auth_info, global_auth);
 	if ( rv != LAS_EVAL_TRUE  || ( NULL == aclpb )) {
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"DS_LASDnsGetter:Unable to get the ACLPB(%d)\n", rv);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"DS_LASDnsGetter - Unable to get the ACLPB(%d)\n", rv);
 		return LAS_EVAL_FAIL;
 	}
 	
 	if ( slapi_pblock_get( aclpb->aclpb_pblock, SLAPI_CLIENT_DNS, &clientDns ) != 0 ) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Could not get client IP.\n" );
+                slapi_log_error(SLAPI_LOG_ERR, plugin_name, "DS_LASDnsGetter - Could not get client IP.\n" );
                 return( LAS_EVAL_FAIL );
 	}
 
@@ -346,7 +346,7 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 
 		if ( slapi_pblock_get( aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR, &client_praddr ) != 0 ) {
 
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Could not get client IP.\n" );
+				slapi_log_error(SLAPI_LOG_ERR, plugin_name, "DS_LASDnsGetter - Could not get client IP.\n" );
                return( LAS_EVAL_FAIL );
         	}
 		hp = (PRHostEnt *)slapi_ch_malloc( sizeof(PRHostEnt) );
@@ -368,11 +368,11 @@ DS_LASDnsGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t
 
 	rv = PListInitProp(subject, 0, ACL_ATTR_DNS, dnsName, NULL);
         if (rv < 0) {
-                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"DS_LASDnsGetter:Couldn't set the DNS property(%d)\n", rv );
+                slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"DS_LASDnsGetter - Couldn't set the DNS property(%d)\n", rv );
                 return LAS_EVAL_FAIL;
         }
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "DNS name: %s\n", dnsName );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "DS_LASDnsGetter - DNS name: %s\n", dnsName );
 	return LAS_EVAL_TRUE;
 
 }
@@ -395,8 +395,8 @@ DS_LASUserEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		PList_t subject, PList_t resource, PList_t auth_info,
 		PList_t global_auth)
 {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-			"User LAS is not supported in the ACL\n");
+	slapi_log_error(SLAPI_LOG_ERR, plugin_name, 
+			"DS_LASUserEval - User LAS is not supported in the ACL\n");
 
 	return LAS_EVAL_INVALID;
 }
@@ -407,8 +407,8 @@ DS_LASGroupEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		PList_t subject, PList_t resource, PList_t auth_info,
 		PList_t global_auth)
 {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-			"Group LAS is not supported in the ACL\n");
+	slapi_log_error(SLAPI_LOG_ERR, plugin_name, 
+			"DS_LASGroupEval - Group LAS is not supported in the ACL\n");
 
 	return LAS_EVAL_INVALID;
 }
@@ -513,8 +513,8 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			user += LDAPS_URL_prefix_len;
 		} else {
 			char ebuf[ BUFSIZ ];
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-			 	"DS_LASUserDnEval:Syntax error(%s)\n", 
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+			 	"DS_LASUserDnEval - Syntax error(%s)\n", 
 				 escape_string_with_punctuation( user, ebuf ));
 			return LAS_EVAL_FAIL;
 		}
@@ -630,8 +630,8 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 				if (( filterChoice != LDAP_FILTER_SUBSTRINGS) &&
 			    		( filterChoice != LDAP_FILTER_PRESENT)) {
-			   		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			    			 "DS_LASUserDnEval:Error in gen. filter(%s)\n", user);
+			   		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			    			 "DS_LASUserDnEval - Error in gen. filter(%s)\n", user);
 				}
 				if ((rc = acl_match_substring( f, 
 							       lasinfo.clientDn,
@@ -642,8 +642,8 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					break;
 				}
 				if (rc == ACL_ERR) {
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							"DS_LASUserDnEval:Error in matching patteren(%s)\n",
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							"DS_LASUserDnEval - Error in matching patteren(%s)\n",
 							user);
 				}
 				slapi_filter_free(f,1);
@@ -651,8 +651,8 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				/* Must be a simple dn then */
 				char *normed = slapi_create_dn_string("%s", user);
 				if (NULL == normed) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"DS_LASUserDnEval:Error in normalizing dn(%s)\n", user);
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"DS_LASUserDnEval - Error in normalizing dn(%s)\n", user);
 					normed = user;
 				}
 				rc = slapi_utf8casecmp((ACLUCHP)lasinfo.clientDn, (ACLUCHP)normed);
@@ -689,8 +689,8 @@ DS_LASUserDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		}
 	} else {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Returning UNDEFINED for userdn evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"DS_LASUserDnEval - Returning UNDEFINED for userdn evaluation.\n");
 	} 
 
 	return rc;
@@ -773,8 +773,8 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			groupName += LDAP_URL_prefix_len;
 		} else {
 			char ebuf[ BUFSIZ ];
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-				  "DS_LASGroupDnEval:Syntax error(%s)\n",
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+				  "DS_LASGroupDnEval - Syntax error(%s)\n",
 				   escape_string_with_punctuation( groupName, ebuf ));
 		}
 	
@@ -822,8 +822,8 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			break;
 		} else if ( lasinfo.anomUser && 
 				(lasinfo.aclpb->aclpb_clientcert == NULL) && (!any_group)) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"Group not evaluated(%s)\n", groupName);
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"DS_LASGroupDnEval - Group not evaluated(%s)\n", groupName);
 			break;
 		} else {			
 			if ((PL_strcasestr (groupName, ACL_RULE_MACRO_DN_KEY) != NULL) ||
@@ -831,8 +831,8 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			    (PL_strcasestr (groupName, ACL_RULE_MACRO_ATTR_KEY) != NULL)) {
 				matched = aclutil_evaluate_macro( groupName, &lasinfo,
 													ACL_EVAL_GROUP);
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"DS_LASGroupDnEval: Param group name:%s\n",
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASGroupDnEval - Param group name:%s\n",
 						groupName);
 			} else {
 				LDAPURLDesc		*ludp = NULL;
@@ -882,8 +882,8 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	
 				} else {
 					if (urlerr) {
-						slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-										  "DS_LASGroupDnEval: Groupname [%s] not a valid ldap url: %d (%s)\n",
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+										  "DS_LASGroupDnEval - Groupname [%s] not a valid ldap url: %d (%s)\n",
 										  groupNameOrig, urlerr, slapi_urlparse_err2string(urlerr));
 					}
 					/* normal evaluation */
@@ -919,8 +919,8 @@ DS_LASGroupDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		}
 	} else {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Returning UNDEFINED for groupdn evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"DS_LASGroupDnEval - Returning UNDEFINED for groupdn evaluation.\n");
 	} 
 
 	slapi_ch_free ((void**) &groups);
@@ -999,8 +999,8 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			role += LDAP_URL_prefix_len;
 		} else {
 			char ebuf[ BUFSIZ ];
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-				  "DS_LASRoleDnEval:Syntax error(%s)\n",
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+				  "DS_LASRoleDnEval - Syntax error(%s)\n",
 				   escape_string_with_punctuation( role, ebuf ));
 		}
 	
@@ -1039,8 +1039,8 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			break;
 		} else if ( lasinfo.anomUser && 
 				(lasinfo.aclpb->aclpb_clientcert == NULL) && (!any_role)) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"Role not evaluated(%s) for anon user\n", role);
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"DS_LASRoleDnEval - Role not evaluated(%s) for anon user\n", role);
 			break;
 		} else {
 
@@ -1051,8 +1051,8 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				
 				matched = aclutil_evaluate_macro( role, &lasinfo,
 													ACL_EVAL_ROLE);
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"DS_LASRoleDnEval: Param role name:%s\n",
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASRoleDnEval - Param role name:%s\n",
 						role);
 			} else {/* normal evaluation */
 
@@ -1085,8 +1085,8 @@ DS_LASRoleDnEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		}
 	} else {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Returning UNDEFINED for roledn evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"DS_LASRoleDnEval - Returning UNDEFINED for roledn evaluation.\n");
 	} 
 
 	slapi_ch_free ((void**) &roles);
@@ -1144,8 +1144,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
         
         if (attr_name == NULL ||
                 (strcmp(DS_LAS_SELFDNATTR, attr_name) && strcmp(DS_LAS_USERDNATTR, attr_name))) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-                        "DS_LASUserDnattr: invalid attr_name (should be %s or %s)\n",
+                slapi_log_error(SLAPI_LOG_ERR, plugin_name, 
+                        "DS_LASUserDnAttrEval - Invalid attr_name (should be %s or %s)\n",
                         DS_LAS_SELFDNATTR, DS_LAS_USERDNATTR);
                 return LAS_EVAL_FAIL;
         }
@@ -1212,8 +1212,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					 * Here, ignore the extra levels..it's really
 					 * a syntax error which should have been ruled out at parse time
 					*/
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-						"DS_LASUserDnattr: Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name, 
+						"DS_LASUserDnAttrEval - Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
 									ACLLAS_MAX_LEVELS);
 				}
 			} else {
@@ -1243,7 +1243,7 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		return LAS_EVAL_FAIL;
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"Attr:%s\n" , attrName);
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,"Attr:%s\n" , attrName);
 	matched = ACL_FALSE;
 	for (i=0; i < numOflevels; i++) {
 		if ( levels[i] == 0 ) {
@@ -1262,11 +1262,11 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 			if ( lasinfo.aclpb->aclpb_optype == SLAPI_OPERATION_ADD) {
                                 if (selfdn) {
-                                        slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                                                "ACL info: %s DOES allow ADD permission at level 0.\n", attr_name);
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "DS_LASUserDnAttrEval - ACL info: %s DOES allow ADD permission at level 0.\n", attr_name);
                                 } else {
-                                        slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                                                "ACL info: %s does not allow ADD permission at level 0.\n", attr_name);
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "DS_LASUserDnAttrEval - ACL info: %s does not allow ADD permission at level 0.\n", attr_name);
                                         got_undefined = 1;
                                         continue;
                                 }
@@ -1280,8 +1280,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
                                  */
                                 slapi_attr_get_numvalues((const Slapi_Attr *) a, &numValues);
                                 if (numValues != 1) {
-                                        slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                                                "DS_LASSelfDnAttrEval: fail because the retrieved %s in resource has more than one value (%d)\n",
+                                        slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                                                "DS_LASUserDnAttrEval - Failed because the retrieved %s in resource has more than one value (%d)\n",
                                                 attrName, numValues);
                                         got_undefined = 1;
                                         continue;
@@ -1293,8 +1293,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				/* Here if atleast 1 value matches then we are done.*/
 				val = slapi_create_dn_string("%s", attrVal->bv_val);
 				if (NULL == val) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-							"DS_LASUserDnAttrEval: Invalid syntax: %s\n",
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+							"DS_LASUserDnAttrEval - Invalid syntax: %s\n",
 							attrVal->bv_val );
 					slapi_ch_free ( (void**) &s_attrName);
 					return LAS_EVAL_FAIL;
@@ -1303,8 +1303,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				if (slapi_utf8casecmp((ACLUCHP)val, (ACLUCHP)lasinfo.clientDn ) == 0) {
 					char	ebuf [ BUFSIZ ];
 					/* Wow it matches */
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"%s matches(%s, %s) level (%d)\n", attr_name,
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASUserDnAttrEval - %s matches(%s, %s) level (%d)\n", attr_name,
 						val, ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo.clientDn, ebuf), 0);
 					matched = ACL_TRUE;
 					slapi_ch_free ( (void **) &val);
@@ -1353,8 +1353,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			*/
 			if (info.result) {
 				matched = ACL_TRUE;
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"%s matches at level (%d)\n", attr_name, levels[i]);
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASUserDnAttrEval - %s matches at level (%d)\n", attr_name, levels[i]);
 			}
 		}
 		if (matched == ACL_TRUE) {				
@@ -1377,8 +1377,8 @@ DS_LASUserDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		}
 	} else {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Returning UNDEFINED for %s evaluation.\n", attr_name);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"DS_LASUserDnAttrEval - Returning UNDEFINED for %s evaluation.\n", attr_name);
 	} 
 
 	return rc;
@@ -1476,8 +1476,8 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 					 * Here, ignore the extra levels..it's really
 					 * a syntax error which should have been ruled out at parse time
 					*/
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-						"DS_LASLdapUrlattr: Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
+					slapi_log_error(SLAPI_LOG_WARNING, plugin_name, 
+						"DS_LASLdapUrlAttrEval - Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
 									ACLLAS_MAX_LEVELS);
 				}
 			} else {
@@ -1508,7 +1508,7 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		return LAS_EVAL_FAIL;
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"Attr:%s\n" , attrName);
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "DS_LASLdapUrlAttrEval - Attr:%s\n", attrName);
 	matched = ACL_FALSE;
 	for (i = 0; i < numOflevels; i++) {
 		if ( levels[i] == 0 ) { /* parent[0] or the target itself */
@@ -1583,8 +1583,8 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			*/
 			if (info.result) {
 				matched = ACL_TRUE;
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"userdnAttr matches at level (%d)\n", levels[i]);
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASLdapUrlAttrEval - userdnAttr matches at level (%d)\n", levels[i]);
 			}
 		}
 		if (matched == ACL_TRUE) {				
@@ -1607,8 +1607,8 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		}
 	} else {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Returning UNDEFINED for userdnattr evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"DS_LASLdapUrlAttrEval - Returning UNDEFINED for userdnattr evaluation.\n");
 	} 
 
 	return rc;
@@ -1676,8 +1676,8 @@ DS_LASAuthMethodEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		LDAP_UTF8DEC(ptr);
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"DS_LASAuthMethodEval:authtype:%s authmethod:%s\n", 
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"DS_LASAuthMethodEval - authtype:%s authmethod:%s\n", 
 				lasinfo.authType, attr);
 
 	/* None method means, we don't care -- otherwise we care */
@@ -1756,24 +1756,24 @@ DS_LASSSFEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	aclssf = (int) strtol(attr, &ptr, 10);
 	if (*ptr != '\0') {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Error parsing numeric SSF from bind rule.\n");
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Returning UNDEFINED for ssf evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"DS_LASSSFEval - Error parsing numeric SSF from bind rule.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"DS_LASSSFEval - Returning UNDEFINED for ssf evaluation.\n");
 	}
 
 	/* Check for negative values or a value overflow. */
 	if ((aclssf < 0) || (((aclssf == INT_MAX) || (aclssf == INT_MIN)) && (errno == ERANGE))){
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"SSF \"%s\" is invalid. Value must range from 0 to %d",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"DS_LASSSFEval - SSF \"%s\" is invalid. Value must range from 0 to %d",
 			attr, INT_MAX);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Returning UNDEFINED for ssf evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"DS_LASSSFEval - Returning UNDEFINED for ssf evaluation.\n");
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"DS_LASSSFEval: aclssf:%d, ssf:%d\n",
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"DS_LASSSFEval - aclssf:%d, ssf:%d\n",
 		aclssf, lasinfo.ssf);
 
 	switch ((int)comparator) {
@@ -1824,17 +1824,16 @@ DS_LASSSFEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			 * validated by __acllas_setup(), but better safe
 			 * than sorry. */
 			rc = LAS_EVAL_FAIL;
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"Invalid comparator \"%d\" evaluating SSF.\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"DS_LASSSFEval - Invalid comparator \"%d\" evaluating SSF.\n",
 				(int)comparator);
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"Returning UNDEFINED for ssf evaluation.\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"DS_LASSSFEval - Returning UNDEFINED for ssf evaluation.\n");
 	}
 
 	return rc;
 }
 
-
 /****************************************************************************
 * Struct to evaluate and keep the current members being evaluated
 *
@@ -1912,7 +1911,7 @@ dump_eval_info (char *caller, struct eval_info *info, int idx)
 			sprintf ( &buf[len], "\n  [%d]: ", i );
 			dump_member_info ( info, info->memberInfo[i], buf );
 		}
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "\n======== candidate member info in eval_info ========%s\n\n", buf );
+		slapi_log_error(SLAPI_LOG_DEBUG, plugin_name, "\n======== candidate member info in eval_info ========%s\n\n", buf );
 	}
 	else
 	{
@@ -1934,7 +1933,6 @@ dump_eval_info (char *caller, struct eval_info *info, int idx)
 				break;
 		}
 		dump_member_info ( info, info->memberInfo[idx], buf );
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "%s\n", buf );
 	}
 }
 #endif
@@ -1989,33 +1987,33 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	** a member of the cached list of groups.
 	*/
 	if ( (u_group = aclg_get_usersGroup ( aclpb , clientDN )) == NULL) {
-		 slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Failed to find/allocate a usergroup--aborting evaluation\n");
+		 slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acllas__user_ismember_of_group - Failed to find/allocate a usergroup--aborting evaluation\n");
 		return(ACL_DONT_KNOW);
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Evaluating user %s in group %s?\n",
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acllas__user_ismember_of_group - Evaluating user %s in group %s?\n",
 		clientDN, groupDN );
 
 	/* Before I start using, get a reader lock on the group cache */
 	aclg_lock_groupCache ( 1 /* reader */ );
 	for ( i= 0; i < u_group->aclug_numof_member_group; i++) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "-- In %s\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "-- In %s\n",
 		u_group->aclug_member_groups[i] );
 		if ( slapi_utf8casecmp((ACLUCHP)groupDN, (ACLUCHP)u_group->aclug_member_groups[i]) == 0){
 			aclg_unlock_groupCache ( 1 /* reader */ );
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Evaluated ACL_TRUE\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acllas__user_ismember_of_group - Evaluated ACL_TRUE\n");
 			return ACL_TRUE;
 		}
 	}
 
 	/* see if we know the client is not a member of a group. */
 	for ( i= 0; i < u_group->aclug_numof_notmember_group; i++) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "-- Not in %s\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "-- Not in %s\n",
 		u_group->aclug_notmember_groups[i] );
 		if ( slapi_utf8casecmp((ACLUCHP)groupDN, (ACLUCHP)u_group->aclug_notmember_groups[i]) == 0){
 			aclg_unlock_groupCache ( 1 /* reader */ );
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Evaluated ACL_FALSE\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acllas__user_ismember_of_group - Evaluated ACL_FALSE\n");
 			return ACL_FALSE;
 		}
 	}
@@ -2100,9 +2098,9 @@ eval_another_member:
 						  NULL /* referral_callback */); 
 
 		if ( info.result == ACL_TRUE )
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"-- In %s\n", info.memberInfo[info.c_idx]->member ); 
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,"acllas__user_ismember_of_group - In %s\n", info.memberInfo[info.c_idx]->member ); 
 		else if ( info.result == ACL_FALSE )
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"-- Not in %s\n", info.memberInfo[info.c_idx]->member ); 
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,"acllas__user_ismember_of_group - Not in %s\n", info.memberInfo[info.c_idx]->member ); 
 
 		slapi_pblock_destroy (aPb);
 	}
@@ -2113,7 +2111,7 @@ eval_another_member:
 		** group or one of the nested groups. We are done.
 		*/
 		result = ACL_TRUE;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Evaluated ACL_TRUE\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acllas__user_ismember_of_group - Evaluated ACL_TRUE\n");
 		goto free_and_return;
 	}
 	numOfMembersVisited++;
@@ -2134,8 +2132,8 @@ eval_another_member:
 	}
 
 	if ((nesting_level > max_nestlevel)) {
-		 slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"GroupEval:Member not found within the allowed nesting level (Allowed:%d Looked at:%d)\n", 
+		 slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acllas__user_ismember_of_group - Member not found within the allowed nesting level (Allowed:%d Looked at:%d)\n", 
 			max_nestlevel, nesting_level);
 
 		result = ACL_DONT_KNOW; /* don't try to cache info based on this result */
@@ -2145,8 +2143,8 @@ eval_another_member:
 	/* limit of -1 means "no limit */
 	if (info.c_idx > max_memberlimit && 
 			max_memberlimit != -1 ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"GroupEval:Looked at too many entries:(%d, %d)\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acllas__user_ismember_of_group - Looked at too many entries:(%d, %d)\n",
 				info.c_idx, info.lu_idx);
 		result = ACL_DONT_KNOW; /* don't try to cache info based on this result */
 		goto free_and_return;
@@ -2274,8 +2272,8 @@ free_and_return:
 							ACLUG_INCR_GROUPS_LIST;
 			} 
 			u_group->aclug_member_groups[ngr] = slapi_ch_strdup ( groupMember->member );
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"Adding Group (%s) ParentGroup (%s) to the IN GROUP List\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"acllas__user_ismember_of_group - Adding Group (%s) ParentGroup (%s) to the IN GROUP List\n",
 					groupMember->member , parentGroup ? parentGroup->member: "NULL");
 
 			groupMember = parentGroup;
@@ -2319,8 +2317,8 @@ free_and_return:
 							ACLUG_INCR_GROUPS_LIST;
 			} 
 			u_group->aclug_notmember_groups[ngr] = slapi_ch_strdup ( groupMember->member );
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"Adding Group (%s) ParentGroup (%s) to the NOT IN GROUP List\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"acllas__user_ismember_of_group - Adding Group (%s) ParentGroup (%s) to the NOT IN GROUP List\n",
 					groupMember->member , parentGroup ? parentGroup->member: "NULL");
 
 			groupMember = parentGroup;
@@ -2332,7 +2330,7 @@ free_and_return:
 		 * We terminated the search without reaching a conclusion--so
 		 * don't cache any info based on this evaluation.
 		*/
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Evaluated ACL_DONT_KNOW\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acllas__user_ismember_of_group - Evaluated ACL_DONT_KNOW\n");
 	} 
 
 	/* Unlock the group cache, we are done with updating */
@@ -2401,15 +2399,15 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 				attrVal = slapi_value_get_berval ( sval );
 				n_dn = slapi_create_dn_string( "%s", attrVal->bv_val );
 				if (NULL == n_dn) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"acllas__handle_group_entry: Invalid syntax: %s\n",
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"acllas__handle_group_entry - Invalid syntax: %s\n",
 						attrVal->bv_val );
 					return 0;
 				}
 				n = ++info->lu_idx;
 				if (n < 0) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						  "acllas__handle_group_entry: last member index lu_idx is overflown:%d: Too many group ACL members\n", n);
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						  "acllas__handle_group_entry - Last member index lu_idx is overflown:%d: Too many group ACL members\n", n);
 					slapi_ch_free_string(&n_dn);
 					return 0;
 				}
@@ -2420,8 +2418,8 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 							(n + ACLLAS_MAX_GRP_MEMBER) *
 							sizeof(struct member_info *));
 					if (!info->memberInfo) {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-										 "acllas__handle_group_entry: out of memory - could not allocate space for %d group members\n",
+						slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+										 "acllas__handle_group_entry - Out of memory - could not allocate space for %d group members\n",
 										 n + ACLLAS_MAX_GRP_MEMBER );
 						info->memberInfo = orig_memberInfo;
 						slapi_ch_free_string(&n_dn);
@@ -2465,13 +2463,13 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 					savURL = memberURL = 
 							slapi_create_dn_string("%s", attrVal->bv_val);
 					if (NULL == savURL) {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-							"acllas__handle_group_entry: Invalid syntax: %s\n",
+						slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+							"acllas__handle_group_entry - Invalid syntax: %s\n",
 							attrVal->bv_val );
 						return 0;
 					}
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						  "ACL Group Eval:MemberURL:%s\n", memberURL);
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						  "acllas__handle_group_entry - MemberURL:%s\n", memberURL);
 					info->result = acllas__client_match_URL (
 									info->aclpb, 
 									info->userDN,
@@ -2481,8 +2479,8 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 						return 0;
 				} else {
 					/* This means that the URL is ill-formed */
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"ACL Group Eval:Badly Formed MemberURL:%s\n", attrVal->bv_val);
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"acllas__handle_group_entry - Badly Formed MemberURL:%s\n", attrVal->bv_val);
 				}
 				i = slapi_attr_next_value ( currAttr, i, &sval );
 			}
@@ -2490,8 +2488,8 @@ acllas__handle_group_entry (Slapi_Entry* e, void *callback_data)
 		} else if ((strcasecmp (attrType, type_memberCert) == 0) ) {
 			/* Do we have the certificate around */
 			if (!info->clientCert) {
-			      slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				" acllas__handle_group_entry:Client Cert missing\n" );
+			      slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acllas__handle_group_entry - Client Cert missing\n" );
 				/* cannot evaulate cert membership without cert - go to next attribute */
 				goto nextattr;
 			}
@@ -2622,7 +2620,7 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			LDAP_UTF8DEC(ptr);
 		}
 
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"Attr:%s\n" , attrName);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"DS_LASGroupDnAttrEval - Attr:%s\n" , attrName);
 
 		/* See if we have a  parent[2].attr" rule */
 		if (strstr(attrName, "parent[") != NULL) {
@@ -2646,8 +2644,8 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 						 * Here, ignore the extra levels..it's really
 						 * a syntax error which should have been ruled out at parse time
 						*/
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-						"DS_LASGroupDnattr: Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
+						slapi_log_error(SLAPI_LOG_ERR, plugin_name, 
+						"DS_LASGroupDnAttrEval - Exceeded the ATTR LIMIT:%d: Ignoring extra levels\n",
 						ACLLAS_MAX_LEVELS);
 					}
 				} else {
@@ -2683,8 +2681,8 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				*/
 
 				if ( lasinfo.aclpb->aclpb_optype == SLAPI_OPERATION_ADD) {
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-					"ACL info: groupdnAttr does not allow ADD permission at level 0.\n");
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+					"DS_LASGroupDnAttrEval - ACL info: groupdnAttr does not allow ADD permission at level 0.\n");
 					got_undefined = 1;
 					continue;
 				}
@@ -2695,8 +2693,8 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			        attrVal = slapi_value_get_berval ( sval );
 					n_groupdn = slapi_create_dn_string("%s", attrVal->bv_val);
 					if (NULL == n_groupdn) {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-							"DS_LASGroupDnAttrEval: Invalid syntax: %s\n",
+						slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+							"DS_LASGroupDnAttrEval - Invalid syntax: %s\n",
 							attrVal->bv_val );
 						slapi_ch_free_string(&s_attrName);
 						return 0;
@@ -2707,8 +2705,8 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 										lasinfo.aclpb->aclpb_clientcert);
 					slapi_ch_free ( (void **) &n_groupdn);
 					if (matched == ACL_TRUE ) {
-						slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"groupdnattr matches at level (%d)\n", levels[i]);
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASGroupDnAttrEval - groupdnattr matches at level (%d)\n", levels[i]);
 						break;
 					} else if ( matched == ACL_DONT_KNOW ) {
                 		/* record this but keep going--maybe another group will evaluate to TRUE */
@@ -2784,8 +2782,8 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				slapi_ch_free ((void **) &info.member);
 			}
 			if (matched == ACL_TRUE) {
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"groupdnattr matches at level (%d)\n", levels[i]);
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"DS_LASGroupDnAttrEval - groupdnattr matches at level (%d)\n", levels[i]);
 				break;
 			} else if ( matched == ACL_DONT_KNOW ) {
 				/* record this but keep going--maybe another group at another level
@@ -2810,8 +2808,8 @@ DS_LASGroupDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		}
 	} else {
 		rc = LAS_EVAL_FAIL;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Returning UNDEFINED for groupdnattr evaluation.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"DS_LASGroupDnAttrEval - Returning UNDEFINED for groupdnattr evaluation.\n");
 	} 
 
 	return rc;
@@ -2867,8 +2865,8 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	}
 
 	if ( (u_group = aclg_get_usersGroup ( aclpb , n_clientdn )) == NULL) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Failed to find/allocate a usergroup--aborting evaluation\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acllas__eval_memberGroupDnAttr - Failed to find/allocate a usergroup--aborting evaluation\n");
 		slapi_ch_free ( (void **)&s_str );
 		return(ACL_DONT_KNOW);
 	}
@@ -2909,8 +2907,8 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 		}
 		normed = slapi_create_dn_string("%s", base);
 		if (NULL == normed) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"acllas__eval_memberGroupDnAttr: Invalid syntax: %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"acllas__eval_memberGroupDnAttr - Invalid syntax: %s\n",
 						base );
 			slapi_ch_free ( (void **)&s_str );
 			return ACL_FALSE;
@@ -2966,12 +2964,12 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 			if (slapi_is_loglevel_set(SLAPI_LOG_ACL)) {
 				char ebuf[BUFSIZ];
 				if (tt == info.lu_idx) {
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "currDn:(%s) \n\tNO MEMBER ADDED\n",
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acllas__eval_memberGroupDnAttr - currDn:(%s) \n\tNO MEMBER ADDED\n",
 					                ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf));
 				} else {
 					for (i=tt; i < info.lu_idx; i++) {
-						slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						                "currDn:(%s) \n\tADDED MEMBER[%d]=%s\n",
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						                "acllas__eval_memberGroupDnAttr - currDn:(%s) \n\tADDED MEMBER[%d]=%s\n",
 						                ACL_ESCAPE_STRING_WITH_PUNCTUATION (curMemberDn, ebuf), i, info.member[i]);
 					}
 				}
@@ -3022,8 +3020,8 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 	if (slapi_is_loglevel_set(SLAPI_LOG_ACL)) {
 		char ebuf[BUFSIZ];
 		for (j = 0; j < u_group->aclug_numof_member_group; j++) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			                "acllas__eval_memberGroupDnAttr:GROUP[%d] IN CACHE:%s\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			                "acllas__eval_memberGroupDnAttr - GROUP[%d] IN CACHE:%s\n",
 			                j, ACL_ESCAPE_STRING_WITH_PUNCTUATION (u_group->aclug_member_groups[j], ebuf));
 		}
 	}
@@ -3040,8 +3038,8 @@ acllas__eval_memberGroupDnAttr (char *attrName, Slapi_Entry *e,
 		attrVal = slapi_value_get_berval ( sval );
 		n_attrval = slapi_create_dn_string("%s", attrVal->bv_val);
 		if (NULL == n_attrval) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"acllas__eval_memberGroupDnAttr: Invalid syntax: %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"acllas__eval_memberGroupDnAttr - Invalid syntax: %s\n",
 						attrVal->bv_val );
 			slapi_ch_free ( (void **)&s_str );
 			return ACL_FALSE;
@@ -3202,8 +3200,8 @@ acllas__verify_client (Slapi_Entry* e, void *callback_data)
 		attrVal = slapi_value_get_berval ( sval );
 		val = slapi_create_dn_string("%s", attrVal->bv_val);
 		if (NULL == val) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-							"acllas__verify_client: Invalid syntax: %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+							"acllas__verify_client - Invalid syntax: %s\n",
 							attrVal->bv_val );
 			return 0;
 		}
@@ -3296,7 +3294,7 @@ acllas__get_members (Slapi_Entry* e, void *callback_data)
 	    attrVal =slapi_value_get_berval ( sval );
 	    info->member[i] = slapi_create_dn_string ("%s", attrVal->bv_val);
 		if (NULL == info->member[i]) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
 							"acllas__get_members: Invalid syntax: %s\n",
 							attrVal->bv_val );
 		}
@@ -3356,8 +3354,8 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	/* Which rule are we evaluating ? */
 	attrName = slapi_ch_strdup (attr_pattern );
 	if ( NULL  == (p = strchr ( attrName, '#' ))) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			  "DS_LASUserAttrEval:Invalid value(%s)\n", attr_pattern);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			  "DS_LASUserAttrEval - Invalid value(%s)\n", attr_pattern);
 		slapi_ch_free ( (void **) &attrName );
 		return LAS_EVAL_FAIL;
 	}
@@ -3422,8 +3420,8 @@ DS_LASUserAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 						
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"DS_LASUserAttrEval: AttrName:%s, attrVal:%s\n", attrName, attrValue );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"DS_LASUserAttrEval - AttrName:%s, attrVal:%s\n", attrName, attrValue );
 
 	/*
 	 * Here it's the userAttr = "OU#Directory Server" case.
@@ -3508,8 +3506,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	int result = ACL_FALSE;
 
 	if ( NULL == aclpb ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"acllas__client_match_URL: NULL acl pblock\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acllas__client_match_URL - NULL acl pblock\n");
 		return ACL_FALSE;
 	}
 
@@ -3544,8 +3542,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	}
 
 	if ( NULL == aclpb->aclpb_client_entry ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"acllas__client_match_URL: Unable to get client's entry\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acllas__client_match_URL - Unable to get client's entry\n");
 		goto done;
 	}
 
@@ -3559,8 +3557,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	} else if (strncasecmp (url, LDAPS_URL_prefix, LDAPS_URL_prefix_len) == 0) {
 		prefix_len = LDAPS_URL_prefix_len;
 	} else {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"acllas__client_match_URL: url %s does not have a recognized ldap protocol prefix\n", url);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acllas__client_match_URL - url %s does not have a recognized ldap protocol prefix\n", url);
 		goto done;
 	}
 	rawdn = url + prefix_len; /* ldap(s)://host:port/... or ldap(s):///... */
@@ -3573,8 +3571,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		rawdn = strchr(tmpp, '/');
 		size_t hostport_len = 0;
 		if (NULL == rawdn) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"acllas__client_match_URL: url %s does not have a valid ldap protocol prefix\n", url);
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"acllas__client_match_URL - url %s does not have a valid ldap protocol prefix\n", url);
 			goto done;
 		}
 		hostport_len = ++rawdn - tmpp; /* ldap(s)://host:port/... */
@@ -3590,8 +3588,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	}
 	dn = slapi_create_dn_string("%s", rawdn);
 	if (NULL == dn) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-		                 "acllas__client_match_URL: error normalizing dn [%s] part of URL [%s]\n",
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+		                 "acllas__client_match_URL - Error normalizing dn [%s] part of URL [%s]\n",
 		                 rawdn, url);
 		goto done;
 	}
@@ -3606,14 +3604,14 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	slapi_ch_free_string(&dn);
 	rc = slapi_ldap_url_parse(normed, &ludp, 1, NULL);
 	if (rc) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						 "acllas__client_match_URL: url [%s] is invalid: %d (%s)\n",
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						 "acllas__client_match_URL - url [%s] is invalid: %d (%s)\n",
 						 normed, rc, slapi_urlparse_err2string(rc));
 		goto done;
 	}
 	if ( ( NULL == ludp->lud_dn) || ( NULL == ludp->lud_filter) ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						 "acllas__client_match_URL: url [%s] has no base dn [%s] or filter [%s]\n",
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						 "acllas__client_match_URL - url [%s] has no base dn [%s] or filter [%s]\n",
 						 normed,
 						 NULL == ludp->lud_dn ? "null" : ludp->lud_dn,
 						 NULL == ludp->lud_filter ? "null" :  ludp->lud_filter );
@@ -3623,8 +3621,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	/* Check the scope */
 	if ( ludp->lud_scope == LDAP_SCOPE_SUBTREE ) {
 		if (!slapi_dn_issuffix(n_clientdn, ludp->lud_dn)) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-							 "acllas__client_match_URL: url [%s] scope is subtree but dn [%s] "
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+							 "acllas__client_match_URL - url [%s] scope is subtree but dn [%s] "
 							 "is not a suffix of [%s]\n",
 							 normed, ludp->lud_dn, n_clientdn );
 			goto done;
@@ -3633,8 +3631,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		char    *parent = slapi_dn_parent (n_clientdn);
 
 		if (slapi_utf8casecmp ((ACLUCHP)parent, (ACLUCHP)ludp->lud_dn) != 0 ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-							 "acllas__client_match_URL: url [%s] scope is onelevel but dn [%s] "
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+							 "acllas__client_match_URL - url [%s] scope is onelevel but dn [%s] "
 							 "is not a direct child of [%s]\n",
 							 normed, ludp->lud_dn, parent );
 			slapi_ch_free_string(&parent);
@@ -3643,8 +3641,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 		slapi_ch_free_string(&parent);
 	} else  { /* default */
 		if (slapi_utf8casecmp ( (ACLUCHP)n_clientdn, (ACLUCHP)ludp->lud_dn) != 0 ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-							 "acllas__client_match_URL: url [%s] scope is base but dn [%s] "
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+							 "acllas__client_match_URL - url [%s] scope is base but dn [%s] "
 							 "does not match [%s]\n",
 							 normed, ludp->lud_dn, n_clientdn );
 			goto done;
@@ -3656,8 +3654,8 @@ acllas__client_match_URL (struct acl_pblock *aclpb, char *n_clientdn, char *url 
 	f = slapi_str2filter ( ludp->lud_filter );
 
 	if (ludp->lud_filter && (f == NULL)) { /* bogus filter */
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"DS_LASUserAttrEval: The member URL [%s] search filter in entry [%s] is not valid: [%s]\n",
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"acllas__client_match_URL - The member URL [%s] search filter in entry [%s] is not valid: [%s]\n",
 						normed, n_clientdn, ludp->lud_filter);
 		goto done;
     }
@@ -3716,8 +3714,8 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
   	*LAS_cookie = (void *)0;
 
 	if (strcmp(attr_name, lasType) != 0) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			  "%s:Invalid LAS(%s)\n", lasName, attr_name);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			  "__acllas_setup - %s:Invalid LAS(%s)\n", lasName, attr_name);
 		return LAS_EVAL_INVALID;
 	}
 
@@ -3725,12 +3723,12 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	if (allow_range && (comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE) &&
 	    (comparator != CMP_OP_GT) && (comparator != CMP_OP_LT) &&
 	    (comparator != CMP_OP_GE) && (comparator != CMP_OP_LE)) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"%s:Invalid comparator(%d)\n", lasName, (int)comparator);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"__acllas_setup - %s:Invalid comparator(%d)\n", lasName, (int)comparator);
 		return LAS_EVAL_INVALID;
 	} else if (!allow_range && (comparator != CMP_OP_EQ) && (comparator != CMP_OP_NE)) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"%s:Invalid comparator(%d)\n", lasName, (int)comparator);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"__acllas_setup - %s:Invalid comparator(%d)\n", lasName, (int)comparator);
 		return LAS_EVAL_INVALID;
 	}
 
@@ -3741,8 +3739,8 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
 	if ( rc != LAS_EVAL_TRUE ) {
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-		    "%s:Unable to get the clientdn attribute(%d)\n",lasName, rc);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+		    "__acllas_setup - %s:Unable to get the clientdn attribute(%d)\n",lasName, rc);
 		return LAS_EVAL_FAIL;
 	}
 
@@ -3752,7 +3750,7 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		if (*(linfo->clientDn) == '\0') 
 			linfo->anomUser = ACL_TRUE;
 	} else {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 			   "%s: No user\n",lasName);
 		return LAS_EVAL_FAIL;
 	}
@@ -3760,8 +3758,8 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	if ((rc = PListFindValue(subject, DS_ATTR_ENTRY,
 					(void **)&linfo->resourceEntry, NULL)) < 0){
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-		          "%s:Unable to get the Slapi_Entry attr(%d)\n",lasName, rc);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+		          "__acllas_setup - %s:Unable to get the Slapi_Entry attr(%d)\n",lasName, rc);
 		return LAS_EVAL_FAIL;
 	}
 
@@ -3770,21 +3768,21 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 				subject, resource, auth_info, global_auth);
 	if ( rc != LAS_EVAL_TRUE ) {
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"%s:Unable to get the ACLPB(%d)\n", lasName, rc);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"__acllas_setup - %s:Unable to get the ACLPB(%d)\n", lasName, rc);
 		return LAS_EVAL_FAIL;
 	}
 
 	/* LDAPI? */
 	if ((rc = PListFindValue(subject, DS_ATTR_LDAPI, (void **)&linfo->ldapi, NULL)) < 0){
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		          "%s:Unable to get LDAPI value(%d)\n", lasName, rc);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		          "__acllas_setup - %s:Unable to get LDAPI value(%d)\n", lasName, rc);
 
 		return LAS_EVAL_FAIL;
 	}
 
 	if (NULL == attr_pattern ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 		          "%s:No rule value in the ACL\n", lasName);
 	
 		return LAS_EVAL_FAIL;
@@ -3793,8 +3791,8 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	if ((rc = PListFindValue(subject, DS_ATTR_AUTHTYPE, 
 					(void **)&linfo->authType, NULL)) < 0) {
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-		          "%s:Unable to get the auth type(%d)\n", lasName, rc);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+		          "__acllas_setup - %s:Unable to get the auth type(%d)\n", lasName, rc);
 		return LAS_EVAL_FAIL;
 	}
 
@@ -3802,8 +3800,8 @@ __acllas_setup ( NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 	if ((rc = PListFindValue(subject, DS_ATTR_SSF,
 					(void **)&linfo->ssf, NULL)) < 0) {
 		acl_print_acllib_err(errp, NULL);
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"%s:Unable to get the ssf(%d)\n", lasName, rc);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"__acllas_setup - %s:Unable to get the ssf(%d)\n", lasName, rc);
 	}
 	return 0;	
 }
@@ -3820,8 +3818,8 @@ static int acllas__user_has_role( struct acl_pblock *aclpb,
 	int present = 0;
 
 	if ( NULL == aclpb ) {
-		slapi_log_error (  SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"acllas__user_has_role: NULL acl pblock\n");
+		slapi_log_error (  SLAPI_LOG_ACL, plugin_name, 
+			"acllas__user_has_role - NULL acl pblock\n");
 		return ACL_FALSE;
 	}
 
@@ -3856,8 +3854,8 @@ static int acllas__user_has_role( struct acl_pblock *aclpb,
 	}
 
 	if ( NULL == aclpb->aclpb_client_entry ) {
-		slapi_log_error (  SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"acllas__user_has_role: Unable to get client's entry\n");
+		slapi_log_error (  SLAPI_LOG_ACL, plugin_name, 
+			"acllas__user_has_role - Unable to get client's entry\n");
 		return ACL_FALSE;
 	}
 
@@ -3930,8 +3928,8 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 		 *
 		 * 
 		*/
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"ACL info: userattr=XXX#ROLEDN does not allow ADD permission.\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"DS_LASRoleDnAttrEval - ACL info: userattr=XXX#ROLEDN does not allow ADD permission.\n");
 		got_undefined = 1;
 	} else {
 
@@ -3948,8 +3946,8 @@ DS_LASRoleDnAttrEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 			attrVal = slapi_value_get_berval ( sval );
 			n_attrval = slapi_create_dn_string("%s", attrVal->bv_val);
 			if (NULL == n_attrval) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-							"DS_LASRoleDnAttrEval: Invalid syntax: %s\n",
+				slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+							"DS_LASRoleDnAttrEval - Invalid syntax: %s\n",
 							attrVal->bv_val );
 				return LAS_EVAL_FAIL;
 			}
@@ -4025,8 +4023,8 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 	 * We have alredy done this matching once beofer at tasrget match time.
 	 */
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-	 				"aclutil_evaluate_macro for aci '%s' index '%d'\n",
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+	 				"aclutil_evaluate_macro - For aci '%s' index '%d'\n",
 					aci->aclName, aci->aci_index );
 	if ( aci->aci_macro == NULL ) {
 		/* No $dn in the target, it's a $attr type subject rule */
@@ -4040,14 +4038,14 @@ aclutil_evaluate_macro( char * rule, lasInfo *lasinfo,
 
 		if ( (matched_val = (char *)acl_ht_lookup( aclpb->aclpb_macro_ht,
 								(PLHashNumber)aci->aci_index)) == NULL) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"ACL info: failed to locate the calculated target"
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"aclutil_evaluate_macro - ACL info: failed to locate the calculated target"
 				"macro for aci '%s' index '%d'\n",
 				aci->aclName, aci->aci_index );
 			return(ACL_FALSE); /* Not a match */
 		} else {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"ACL info: found matched_val (%s) for aci index %d"
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"aclutil_evaluate_macro - ACL info: found matched_val (%s) for aci index %d"
 				"in macro ht\n", 
 				aci->aclName, aci->aci_index );
 		}
@@ -4311,8 +4309,8 @@ acllas_replace_attr_macro( char *rule, lasInfo *lasinfo)
 
 			str = strstr(macro_str, ".");
 			if (!str) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"acllas_replace_attr_macro: Invalid macro \"%s\".",
+				slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"acllas_replace_attr_macro - Invalid macro \"%s\".",
 						macro_str);
 				slapi_ch_free_string(&macro_str);
 				charray_free(working_list);
@@ -4491,12 +4489,12 @@ acllas_eval_one_role(char *role, lasInfo *lasinfo) {
 	if (slapi_is_loglevel_set(SLAPI_LOG_ACL)) {
 		char ebuf[BUFSIZ];
 		if (rc == ACL_TRUE ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			                "role evaluation: user '%s' does have role '%s'\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			                "acllas_eval_one_role - User '%s' does have role '%s'\n",
 			                ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo->clientDn, ebuf), role);
 		} else {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			                "role evaluation: user '%s' does NOT have role '%s'\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			                "acllas_eval_one_role - User '%s' does NOT have role '%s'\n",
 			                ACL_ESCAPE_STRING_WITH_PUNCTUATION (lasinfo->clientDn, ebuf), role);
 		}
 	}
@@ -4515,8 +4513,8 @@ static int acllas_eval_one_target_filter( char * str, Slapi_Entry *e) {
 	PR_ASSERT(str);
 
 	if ((f = slapi_str2filter(str)) == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-        	"Warning: Bad targetfilter(%s) in aci: does not match\n", str);       	
+		slapi_log_error(SLAPI_LOG_WARNING, plugin_name,
+        	"acllas_eval_one_target_filter - Bad targetfilter(%s) in aci: does not match\n", str);       	
 		return(ACL_DONT_KNOW);
 	}
 
@@ -4530,10 +4528,6 @@ static int acllas_eval_one_target_filter( char * str, Slapi_Entry *e) {
 	return(rc);
 
 }
-
-
-
-
 
 /***************************************************************************/
 /*				E	N	D			   */

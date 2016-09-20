@@ -52,7 +52,7 @@ pam_passthru_load_config(int skip_validate)
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthru_load_config\n");
 
     pam_passthru_write_lock();
@@ -100,13 +100,13 @@ pam_passthru_load_config(int skip_validate)
 
         if (skip_validate || (PAM_PASSTHRU_SUCCESS == pam_passthru_validate_config(entries[i], NULL))) {
             if (PAM_PASSTHRU_FAILURE == pam_passthru_apply_config(entries[i])) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                                 "pam_passthru_load_config: unable to apply config "
+                slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                                 "pam_passthru_load_config - Unable to apply config "
                                  "for entry \"%s\"\n", slapi_entry_get_ndn(entries[i]));
             }
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                             "pam_passthru_load_config: skipping invalid config "
+            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                             "pam_passthru_load_config - Skipping invalid config "
                              "entry \"%s\"\n", slapi_entry_get_ndn(entries[i]));
         }
     }
@@ -115,7 +115,7 @@ pam_passthru_load_config(int skip_validate)
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
     pam_passthru_unlock();
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "<= pam_passthru_load_config\n");
 
     return status;
@@ -279,8 +279,8 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 						"The map method in the string [%s] is invalid: must be "
 						"one of %s", map_method, get_map_method_values());
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"The map method in the string [%s] is invalid: must be "
+			slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"parse_map_method - The map method in the string [%s] is invalid: must be "
 						"one of %s\n", map_method, get_map_method_values());
 		}
 		err = PAM_PASSTHRU_FAILURE;
@@ -293,8 +293,8 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 						"The map method in the string [%s] is invalid: must be "
 						"one of %s", map_method, get_map_method_values());
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"The map method in the string [%s] is invalid: must be "
+			slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"parse_map_method - The map method in the string [%s] is invalid: must be "
 						"one of %s\n", map_method, get_map_method_values());
 		}
 		err = PAM_PASSTHRU_FAILURE;
@@ -307,8 +307,8 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 						"The map method in the string [%s] is invalid: must be "
 						"one of %s", map_method, get_map_method_values());
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"The map method in the string [%s] is invalid: must be "
+			slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"parse_map_method - The map method in the string [%s] is invalid: must be "
 						"one of %s\n", map_method, get_map_method_values());
 		}
 		err = PAM_PASSTHRU_FAILURE;
@@ -320,8 +320,8 @@ parse_map_method(char *map_method, int *one, int *two, int *three, char *returnt
 						"Invalid extra text [%s] after last map method",
 						((ptr && *ptr) ? *ptr : "(null)"));
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"Invalid extra text [%s] after last map method\n",
+			slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"parse_map_method - Invalid extra text [%s] after last map method\n",
 						((ptr && *ptr) ? *ptr : "(null)"));
 		}
 		err = PAM_PASSTHRU_FAILURE;
@@ -337,14 +337,14 @@ print_suffixes(void)
 {
 	void *cookie = NULL;
 	Slapi_DN *sdn = NULL;
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-					"The following is the list of valid suffixes to use with "
+	slapi_log_error(SLAPI_LOG_INFO, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+					"print_suffixes - The following is the list of valid suffixes to use with "
 					PAMPT_EXCLUDES_ATTR " and " PAMPT_INCLUDES_ATTR ":\n");
 	for (sdn = slapi_get_first_suffix(&cookie, 1);
 		 sdn && cookie;
 		 sdn = slapi_get_next_suffix(&cookie, 1)) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-						"\t%s\n", slapi_sdn_get_dn(sdn));
+		slapi_log_error(SLAPI_LOG_INFO, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+						"print_suffixes -\t%s\n", slapi_sdn_get_dn(sdn));
 	}
 }
 
@@ -376,8 +376,8 @@ pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
 					"Error: valid values for %s are %s",
 					PAMPT_MISSING_SUFFIX_ATTR, get_missing_suffix_values());
 		} else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-					"Error: valid values for %s are %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+					"pam_passthru_validate_config - Valid values for %s are %s\n",
 					PAMPT_MISSING_SUFFIX_ATTR, get_missing_suffix_values());
 		}
 		goto done;
@@ -422,8 +422,8 @@ pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
 					}
 				}
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"The suffixes listed in %s or %s are not present in "
+				slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+							"pam_passthru_validate_config - The suffixes listed in %s or %s are not present in "
 							"this server\n", PAMPT_EXCLUDES_ATTR, PAMPT_INCLUDES_ATTR);
 			}
 
@@ -432,8 +432,8 @@ pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
 			print_suffixes();
 			if (missing_suffix != PAMPT_MISSING_SUFFIX_ERROR) {
 				if (returntext) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-									"Warning: %s\n", returntext);
+					slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+									"pam_passthru_validate_config - Warning: %s\n", returntext);
 					*returntext = 0; /* log error, don't report back to user */
 				}
 			} else {
@@ -458,8 +458,8 @@ pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
 							" was specified, but no %s was given",
 							PAMPT_MAP_METHOD_ENTRY_STRING, PAMPT_PAM_IDENT_ATTR);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"Error: the %s method was specified, but no %s was given\n",
+				slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+							"pam_passthru_validate_config - The %s method was specified, but no %s was given\n",
 							PAMPT_MAP_METHOD_ENTRY_STRING, PAMPT_PAM_IDENT_ATTR);
 			}
 			rc = PAM_PASSTHRU_FAILURE;
@@ -472,8 +472,8 @@ pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
 							" specified for %s, should be one or more of %s",
 							PAMPT_MAP_METHOD_ATTR, get_map_method_values());
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"Error: no method(s) specified for %s, should be "
+				slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+							"pam_passthru_validate_config - No method(s) specified for %s, should be "
 							"one or more of %s\n", PAMPT_MAP_METHOD_ATTR,
 							get_map_method_values());
 			}
@@ -492,8 +492,8 @@ pam_passthru_validate_config (Slapi_Entry* e, char *returntext)
 							"filter specified for %s (filter: \"%s\")",
 							PAMPT_FILTER_ATTR, pam_filter_str);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-							"Error: invalid filter specified for %s "
+				slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+							"pam_passthru_validate_config - Invalid filter specified for %s "
 							"(filter: \"%s\")\n", PAMPT_FILTER_ATTR,
 							pam_filter_str);
 			}
@@ -658,8 +658,8 @@ pam_passthru_apply_config (Slapi_Entry* e)
             if (pam_passthru_global_config == list) {
                 /* add to tail */
                 PR_INSERT_BEFORE(&(entry->list), list);
-                slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                                "store [%s] at tail\n", entry->dn);
+                slapi_log_error(SLAPI_LOG_CONFIG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                                "pam_passthru_apply_config - store [%s] at tail\n", entry->dn);
                 inserted = 1;
                 break;
             }
@@ -667,8 +667,8 @@ pam_passthru_apply_config (Slapi_Entry* e)
     } else {
         /* first entry */
         PR_INSERT_LINK(&(entry->list), pam_passthru_global_config);
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
-                        "store [%s] at head \n", entry->dn);
+        slapi_log_error(SLAPI_LOG_CONFIG, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+                        "pam_passthru_apply_config - store [%s] at head \n", entry->dn);
         inserted = 1;
     }
 

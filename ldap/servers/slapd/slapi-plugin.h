@@ -6062,34 +6062,43 @@ int slapi_register_plugin_ext( const char *plugintype, int enabled,
 /*
  * logging
  */
-int slapi_log_error( int loglevel, int severity, char *subsystem, char *fmt, ... )
+int slapi_log_error( int loglevel, char *subsystem, char *fmt, ... )
 #ifdef __GNUC__ 
-        __attribute__ ((format (printf, 4, 5)));
+        __attribute__ ((format (printf, 3, 4)));
 #else
         ;
 #endif
-int slapi_log_error_ext( int severity, char *subsystem, char *fmt, va_list varg1, va_list varg2);
+int slapi_log_error_ext( int loglevel, char *subsystem, char *fmt, va_list varg1, va_list varg2);
 
 /* allowed values for the "severity" parameter */
-#define SLAPI_LOG_FATAL          	0
-#define SLAPI_LOG_TRACE			1
-#define SLAPI_LOG_PACKETS		2
-#define SLAPI_LOG_ARGS			3
-#define SLAPI_LOG_CONNS			4
-#define SLAPI_LOG_BER			5
-#define SLAPI_LOG_FILTER		6
-#define SLAPI_LOG_CONFIG		7
-#define SLAPI_LOG_ACL			8
-#define SLAPI_LOG_SHELL			9
-#define SLAPI_LOG_PARSE			10
-#define SLAPI_LOG_HOUSE			11
-#define SLAPI_LOG_REPL			12
-#define SLAPI_LOG_CACHE			13
-#define SLAPI_LOG_PLUGIN		14
-#define SLAPI_LOG_TIMING		15
-#define SLAPI_LOG_BACKLDBM		16
-#define SLAPI_LOG_ACLSUMMARY		17
-#define SLAPI_LOG_NUNCSTANS		18 /* The last level must be set in log.c: SLAPI_LOG_MAX */
+#define SLAPI_LOG_FATAL        0
+#define SLAPI_LOG_TRACE        1
+#define SLAPI_LOG_PACKETS      2
+#define SLAPI_LOG_ARGS         3
+#define SLAPI_LOG_CONNS        4
+#define SLAPI_LOG_BER          5
+#define SLAPI_LOG_FILTER       6
+#define SLAPI_LOG_CONFIG       7
+#define SLAPI_LOG_ACL          8
+#define SLAPI_LOG_SHELL        9
+#define SLAPI_LOG_PARSE       10
+#define SLAPI_LOG_HOUSE       11
+#define SLAPI_LOG_REPL        12
+#define SLAPI_LOG_CACHE       13
+#define SLAPI_LOG_PLUGIN      14
+#define SLAPI_LOG_TIMING      15
+#define SLAPI_LOG_BACKLDBM    16
+#define SLAPI_LOG_ACLSUMMARY  17
+#define SLAPI_LOG_NUNCSTANS   18
+/* Severity levels */
+#define SLAPI_LOG_EMERG       19
+#define SLAPI_LOG_ALERT       20
+#define SLAPI_LOG_CRIT        21
+#define SLAPI_LOG_ERR         22
+#define SLAPI_LOG_WARNING     23
+#define SLAPI_LOG_NOTICE      24
+#define SLAPI_LOG_INFO        25
+#define SLAPI_LOG_DEBUG       26 /* The last level must be set in log.c: SLAPI_LOG_MAX */
 
 int slapi_is_loglevel_set( const int loglevel );
 

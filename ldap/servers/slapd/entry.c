@@ -22,7 +22,6 @@
 #include <prcountr.h>
 #include "slap.h"
 
-
 #undef ENTRY_DEBUG
 
 #define DELETED_ATTR_STRING ";deletedattribute"
@@ -245,7 +244,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	 * In case an entry starts with rdn:, dn must be provided.
 	 */
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> str2entry_fast\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> str2entry_fast\n", 0, 0, 0 );
 
 	e = slapi_entry_alloc();
 	slapi_entry_init(e,NULL,NULL);
@@ -274,7 +273,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 		}
 
 		if ( slapi_ldif_parse_line( s, &type, &value, &freeval ) < 0 ) {
-			LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= str2entry_fast NULL (parse_line)\n");
+			LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= str2entry_fast NULL (parse_line)\n");
 			continue;
 		}
 
@@ -325,7 +324,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 					} else {
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
-							LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
+							LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 							     "str2entry_fast: Invalid DN: %s\n", rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&value.bv_val);
@@ -354,7 +353,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 						} else {
 							normdn = slapi_create_dn_string("%s", rawdn);
 							if (NULL == normdn) {
-								LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
+								LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 								    "str2entry_fast: Invalid DN: %s\n", rawdn);
 								slapi_entry_free( e );
 								if (freeval) 
@@ -375,7 +374,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 		if ( type.bv_len == SLAPI_ATTR_DN_LENGTH && PL_strncasecmp( type.bv_val, SLAPI_ATTR_DN, type.bv_len ) == 0 ) {
 			if ( slapi_entry_get_dn_const(e)!=NULL ) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+				LDAPDebug(LDAP_DEBUG_TRACE,
 					"str2entry_fast: entry has multiple dns \"%s\" and "
 					"\"%s\" (second ignored)\n",
 					slapi_entry_get_dn_const(e),
@@ -392,7 +391,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 			}
 			if (NULL == normdn) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
+				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 							  "str2entry_fast: Invalid DN: %s\n",
                               escape_string( value.bv_val, ebuf ));
 				slapi_entry_free( e );
@@ -427,7 +426,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 		/* retrieve uniqueid */
 		if ((type.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH) && (PL_strcasecmp (type.bv_val, SLAPI_ATTR_UNIQUEID) == 0)) {
 			if (e->e_uniqueid != NULL){
-				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
+				LDAPDebug(LDAP_DEBUG_TRACE, 
 						   "str2entry_fast: entry has multiple uniqueids %s "
 						   "and %s (second ignored)\n",
 						   e->e_uniqueid, value.bv_val, 0);
@@ -459,7 +458,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 				case ATTRIBUTE_PRESENT:
 					if(attrlist_append_nosyntax_init(&e->e_attrs, type.bv_val, &a)==0 /* Found */)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_fast: Error. Non-contiguous attribute values for %s\n", type.bv_val, 0, 0);
+						LDAPDebug(LDAP_DEBUG_ERR, "str2entry_fast - Non-contiguous attribute values for %s\n", type.bv_val, 0, 0);
 						PR_ASSERT(0);
 						continue;
 					}
@@ -467,13 +466,13 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 				case ATTRIBUTE_DELETED:
 					if(attrlist_append_nosyntax_init(&e->e_deleted_attrs, type.bv_val, &a)==0 /* Found */)
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_fast: Error. Non-contiguous deleted attribute values for %s\n", type.bv_val, 0, 0);
+						LDAPDebug(LDAP_DEBUG_ERR, "str2entry_fast - Non-contiguous deleted attribute values for %s\n", type.bv_val, 0, 0);
 						PR_ASSERT(0);
 						continue;
 					}
 					break;
 				case ATTRIBUTE_NOTFOUND:
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_fast: Error. Non-contiguous deleted attribute values for %s\n", type.bv_val, 0, 0);
+					LDAPDebug(LDAP_DEBUG_ERR, "str2entry_fast - Non-contiguous deleted attribute values for %s\n", type.bv_val, 0, 0);
 					PR_ASSERT(0);
 					continue;
 					/* break; ??? */
@@ -490,7 +489,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 					/* check that the dn is formatted correctly */
 					rc = slapi_dn_syntax_check(NULL, value.bv_val, 1);
 					if (rc) { /* syntax check failed */
-						LDAPDebug2Args(LDAP_DEBUG_TRACE,  LOG_DEBUG,
+						LDAPDebug2Args(LDAP_DEBUG_TRACE,
 							"str2entry_fast: strict: Invalid DN value: %s: %s\n",
 							type.bv_val, value.bv_val);
 						slapi_entry_free( e );
@@ -560,8 +559,8 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	slapi_ch_free_string(&ptype);
 	if ( attr_val_cnt >= ENTRY_MAX_ATTRIBUTE_VALUE_COUNT )
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		    "str2entry_fast: entry %s exceeded max attribute value cound %ld\n",
+		LDAPDebug(LDAP_DEBUG_ERR,
+		    "str2entry_fast - entry %s exceeded max attribute value cound %ld\n",
 			slapi_entry_get_dn_const(e)?slapi_entry_get_dn_const(e):"unknown",
 			attr_val_cnt, 0 );
 	}
@@ -580,7 +579,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
 		/* tombstone */
 		if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
-			LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "str2entry_fast: "
+			LDAPDebug1Arg(LDAP_DEBUG_TRACE, "str2entry_fast: "
 			               "tombstone entry has badly formatted dn: %s\n",
 			               slapi_entry_get_dn_const(e) );
 			slapi_entry_free( e ); e = NULL;
@@ -591,7 +590,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 	/* check to make sure there was a dn: line */
 	if ( slapi_entry_get_dn_const(e)==NULL ) {
 		if (!(SLAPI_STR2ENTRY_INCLUDE_VERSION_STR & flags))
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_fast: entry has no dn\n",
+			LDAPDebug(LDAP_DEBUG_ERR, "str2entry_fast - entry has no dn\n",
 									   0, 0, 0 );
 		slapi_entry_free( e );
 		e = NULL;
@@ -601,7 +600,7 @@ done:
 	csnset_free(&valuecsnset);
 	csn_free(&attributedeletioncsn);
 	csn_free(&maxcsn);
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= str2entry_fast 0x%x\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= str2entry_fast 0x%x\n",
 		e, 0, 0 );
 	return( e );
 }
@@ -798,7 +797,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     /* Check if we should be performing strict validation. */
     strict = config_get_dn_validate_strict();
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> str2entry_dupcheck\n");
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> str2entry_dupcheck\n");
 
     e = slapi_entry_alloc();
     slapi_entry_init(e,NULL,NULL);
@@ -825,8 +824,8 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		bvtype = bv_null;
 		bvvalue = bv_null;
 		if ( slapi_ldif_parse_line( s, &bvtype, &bvvalue, &freeval ) < 0 ) {
-		    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		                  "Warning: Entry (%s), ignoring invalid line \"%s\"...\n",
+		    LDAPDebug(LDAP_DEBUG_WARNING,
+		                  "Entry (%s), ignoring invalid line \"%s\"...\n",
 		                  rawdn ? rawdn : "", s, 0);
 		    continue;
 		}
@@ -864,7 +863,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				} else {
 					normdn = slapi_create_dn_string("%s", rawdn);
 					if (NULL == normdn) {
-						LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 						    "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -887,7 +886,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					} else {
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
-						LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
+						LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 							     "str2entry_dupcheck: Invalid DN: %s\n", rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -908,7 +907,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		if ( strcasecmp( type, "dn" ) == 0 ) {
 			if ( slapi_entry_get_dn_const(e)!=NULL ) {
 				char ebuf[ BUFSIZ ];
-				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+				LDAPDebug(LDAP_DEBUG_TRACE,
 					"str2entry_dupcheck: entry has multiple dns \"%s\" "
 					"and \"%s\" (second ignored)\n",
 					slapi_entry_get_dn_const(e),
@@ -919,7 +918,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			normdn = slapi_create_dn_string("%s", valuecharptr);
 			if (NULL == normdn) {
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG,
+				LDAPDebug1Arg(LDAP_DEBUG_TRACE,
 						"str2entry_dupcheck: Invalid DN: %s\n", valuecharptr);
 				slapi_entry_free( e ); e = NULL;
 				if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -951,7 +950,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		/* retrieve uniqueid */
 		if ((bvtype.bv_len == SLAPI_ATTR_UNIQUEID_LENGTH) && (PL_strcasecmp (type, SLAPI_ATTR_UNIQUEID) == 0)) {
 			if (e->e_uniqueid != NULL){
-				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
+				LDAPDebug(LDAP_DEBUG_TRACE, 
 						   "str2entry_dupcheck: entry has multiple uniqueids %s "
 						   "and %s (second ignored)\n", 
 						   e->e_uniqueid, valuecharptr, 0);
@@ -1076,8 +1075,8 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				/* check that the dn is formatted correctly */
 				rc = slapi_dn_syntax_check(NULL, valuecharptr, 1);
 				if (rc) { /* syntax check failed */
-					LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-						"str2entry_dupcheck: strict: Invalid DN value: %s: %s\n",
+					LDAPDebug2Args(LDAP_DEBUG_ERR,
+						"str2entry_dupcheck - strict: Invalid DN value: %s: %s\n",
 						type, valuecharptr);
 					slapi_entry_free( e ); e = NULL;
 					if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -1138,7 +1137,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		else
 		{
 		    /* Failure adding to value tree */
-		    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_dupcheck: unexpected failure %d adding value\n", rc, 0, 0 );
+		    LDAPDebug(LDAP_DEBUG_ERR, "str2entry_dupcheck - unexpected failure %d adding value\n", rc, 0, 0 );
 		    slapi_value_free(&value); /* value not consumed - free it */
 		    slapi_entry_free( e ); e = NULL;
 		    goto free_and_return;
@@ -1152,7 +1151,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     if ( slapi_entry_get_dn_const(e)==NULL )
     {
 		if (!(SLAPI_STR2ENTRY_INCLUDE_VERSION_STR & flags))
-	    	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_dupcheck: entry has no dn\n",
+	    	LDAPDebug(LDAP_DEBUG_ERR, "str2entry_dupcheck - entry has no dn\n",
 									   0, 0, 0 );
 	    slapi_entry_free( e ); e = NULL;
 	    goto free_and_return;
@@ -1173,11 +1172,11 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 		if ( sa->sa_numdups > 0 )
 		{
 		    if ( sa->sa_numdups > 1 ) {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_dupcheck: %d duplicate values for attribute "
+				LDAPDebug(LDAP_DEBUG_WARNING, "str2entry_dupcheck - %d duplicate values for attribute "
 					"type %s detected in entry %s. Extra values ignored.\n",
 					sa->sa_numdups, sa->sa_type, slapi_entry_get_dn_const(e) );
 		    } else {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "str2entry_dupcheck: Duplicate value for attribute "
+				LDAPDebug(LDAP_DEBUG_WARNING, "str2entry_dupcheck - Duplicate value for attribute "
 					"type %s detected in entry %s. Extra value ignored.\n",
 					sa->sa_type, slapi_entry_get_dn_const(e), 0 );
 		    }
@@ -1238,7 +1237,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
         /* tombstone */
         if (_entry_set_tombstone_rdn(e, slapi_entry_get_dn_const(e))) {
-            LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "str2entry_dupcheck: "
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE, "str2entry_dupcheck: "
                            "tombstone entry has badly formatted dn: %s\n",
                            slapi_entry_get_dn_const(e) );
             slapi_entry_free( e ); e = NULL;
@@ -1249,7 +1248,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
     /* Add the RDN values, if asked, and if not already present */
     if ( flags & SLAPI_STR2ENTRY_ADDRDNVALS ) {
         if ( slapi_entry_add_rdn_values( e ) != LDAP_SUCCESS ) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+            LDAPDebug(LDAP_DEBUG_TRACE,
                        "str2entry_dupcheck: entry has badly formatted dn\n",
                        0, 0, 0 );
             slapi_entry_free( e ); e = NULL;
@@ -1281,7 +1280,7 @@ free_and_return:
 	csn_free(&attributedeletioncsn);
 	csn_free(&maxcsn);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= str2entry_dupcheck 0x%x \"%s\"\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= str2entry_dupcheck 0x%x \"%s\"\n",
 		e, slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), 0 );
     return e;
 }
@@ -1332,7 +1331,7 @@ slapi_str2entry( char *s, int flags )
 	Slapi_Entry *e;
 	int read_stateinfo= ~( flags & SLAPI_STR2ENTRY_IGNORE_STATE );
 
-	LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
+	LDAPDebug(LDAP_DEBUG_ARGS,
 			"slapi_str2entry: flags=0x%x, entry=\"%.50s...\"\n",
 			flags, s, 0 );
 
@@ -1393,7 +1392,7 @@ slapi_str2entry_ext( const char *normdn, const Slapi_RDN *srdn, char *s, int fla
 		return slapi_str2entry( s, flags );
 	}
 
-	LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG,
+	LDAPDebug(LDAP_DEBUG_ARGS,
 			"slapi_str2entry_ext: flags=0x%x, dn=\"%s\", entry=\"%.50s...\"\n",
 			flags, normdn, s );
 
@@ -1766,7 +1765,7 @@ entry2str_internal( Slapi_Entry *e, int *len, int entry2str_ctrl )
     *ecur = '\0';
     if ( (size_t)(ecur - ebuf + 1) > elen )
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
+        slapi_log_error(SLAPI_LOG_NOTICE, "entry2str_internal",
             "entry2str_internal: array boundary wrote: bufsize=%ld wrote=%ld\n",
             (long int)elen, (long int)(ecur - ebuf + 1));
     }
@@ -1860,9 +1859,8 @@ entry2str_internal_ext( Slapi_Entry *e, int *len, int entry2str_ctrl)
         if ((size_t)(ecur - ebuf + 1) > elen)
         {
             /* this should not happen */
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
-                "entry2str_internal_ext: array boundary wrote: "
-                "bufsize=%ld wrote=%ld\n",
+            slapi_log_error(SLAPI_LOG_NOTICE, "entry2str_internal_ext", 
+                "Array boundary wrote: bufsize=%ld wrote=%ld\n",
                 (long int)elen, (long int)(ecur - ebuf + 1));
         }
     
@@ -2173,7 +2171,7 @@ static void
 entry_dump( const Slapi_Entry *e, const char *text)
 {
 	const char *dn= slapi_entry_get_dn_const(e);
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Entry %s ptr=%lx dn=%s\n", text, e, (dn==NULL?"NULL":dn));
+    LDAPDebug(LDAP_DEBUG_DEBUG, "Entry %s ptr=%lx dn=%s\n", text, e, (dn==NULL?"NULL":dn));
 }
 #endif
 
@@ -2439,7 +2437,8 @@ static Slapi_Vattr *entry_vattr_lookup_nolock(const Slapi_Entry *e, const char *
                 } else if (vattr->attr != NULL) {
                         name = vattr->attr->a_type;
                 } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_vattr_lookup_nolock", "unable to retrieve attribute name %s\n", attr_name);
+                        slapi_log_error(SLAPI_LOG_NOTICE, "entry_vattr_lookup_nolock",
+                                "unable to retrieve attribute name %s\n", attr_name);
                         continue;
                 }
                 if (slapi_attr_type_cmp( (const char *) name , attr_name, SLAPI_TYPE_CMP_EXACT) == 0) {
@@ -2734,7 +2733,7 @@ slapi_entry_vattrcache_merge_sv(Slapi_Entry *e, const char *type,
                                  * returns a non NULL value.
                                  * Possibly watermark should have been updated to clear the cache 
                                  */
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_entry_vattrcache_merge_sv",
+                                slapi_log_error(SLAPI_LOG_ERR, "slapi_entry_vattrcache_merge_sv",
                                         "Virtual attribute %s already cached with empty value, unwilling to cache a different value (%s) \n",
                                         type, slapi_entry_get_dn(e));
                         }
@@ -3281,7 +3280,7 @@ slapi_entry_add_rdn_values( Slapi_Entry *e )
                 if ((ava.ava_value.bv_len != bv->bv_len) ||
                     (memcmp(ava.ava_value.bv_val, bv->bv_val, bv->bv_len) != 0)) {
                     /* bytes not identical so reject */
-                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "RDN value is not identical to entry value for type %s in entry %s\n", 
+                    LDAPDebug(LDAP_DEBUG_TRACE, "RDN value is not identical to entry value for type %s in entry %s\n", 
                                type, dn ? dn : "<null>", 0 );
 #if 0
                     /* 
@@ -3327,7 +3326,7 @@ slapi_entry_has_children_ext(const Slapi_Entry *entry, int include_tombstone)
 	Slapi_Attr *attr;
 	int count = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_has_children( %s )\n", slapi_entry_get_dn_const(entry), 0, 0);
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_has_children( %s )\n", slapi_entry_get_dn_const(entry), 0, 0);
 
 	/*If the subordinatecount exists, and it's nonzero, then return 1.*/
 	if (slapi_entry_attr_find( entry, "numsubordinates", &attr) == 0)
@@ -3342,7 +3341,7 @@ slapi_entry_has_children_ext(const Slapi_Entry *entry, int include_tombstone)
 				/* The entry has the attribute, and it's non-zero */
 				count = strtol(bval->bv_val, (char **)NULL, 10);
 				if (count > 0) {
-					LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_has_children %d\n", count);
+					LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<= slapi_has_children %d\n", count);
 					return count;
 				}
 			}
@@ -3361,13 +3360,13 @@ slapi_entry_has_children_ext(const Slapi_Entry *entry, int include_tombstone)
 				/* The entry has the attribute, and it's non-zero */
 				count = strtol(bval->bv_val, (char **)NULL, 10);
 				if (count > 0) {
-					LDAPDebug1Arg( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_has_tombstone_children %d\n", count);
+					LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<= slapi_has_tombstone_children %d\n", count);
 					return count;
 				}
 			}
 		}
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_has_children 0\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_has_children 0\n", 0, 0, 0 );
 	return(0);
 }
 
@@ -3388,7 +3387,7 @@ slapi_entry_rename(Slapi_Entry *e, const char *newrdn, int deleteoldrdn, Slapi_D
     Slapi_Mods *smods = NULL;
     Slapi_DN newsrdn;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_entry_rename\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_entry_rename\n", 0, 0, 0 );
 
     slapi_sdn_init(&newsrdn);
     /* Check if entry or newrdn are NULL. */
@@ -3462,7 +3461,7 @@ done:
     slapi_mods_free(&smods);
     slapi_sdn_done(&newsrdn);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_entry_rename\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_entry_rename\n", 0, 0, 0 );
     return err;
 }
 
@@ -3495,7 +3494,7 @@ entry_apply_mods_ignore_error( Slapi_Entry *e, LDAPMod **mods, int ignore_error 
 	int	err;
 	LDAPMod **mp = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> entry_apply_mods\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> entry_apply_mods\n", 0, 0, 0 );
 
 	err = LDAP_SUCCESS;
 	for ( mp = mods; mp && *mp; mp++ )
@@ -3508,7 +3507,7 @@ entry_apply_mods_ignore_error( Slapi_Entry *e, LDAPMod **mods, int ignore_error 
 		}
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= entry_apply_mods %d\n", err, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= entry_apply_mods %d\n", err, 0, 0 );
 	return( err );
 }
 
@@ -3548,14 +3547,14 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                         /* vals is consumed if successful. */
                         err = aiep->ext_set(e, vals, SLAPI_EXT_SET_ADD);
                         if (err) {
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
+                            slapi_log_error(SLAPI_LOG_ERR, "entry_apply_mod",
                                             "ADD: Failed to set %s to extension\n",
                                             aiep->ext_type);
                             valuearray_free(&vals);
                             goto bail;
                         }
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_ERR, "entry_apply_mod",
                                         "ADD: %s has no values\n", 
                                         aiep->ext_type);
                         goto bail;
@@ -3566,7 +3565,7 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                 if (modcnt > 0) {
                     err = aiep->ext_get(e, &vals);
                     if (err) {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_ERR, "entry_apply_mod",
                                         "DEL: Failed to get %s from extension\n",
                                         aiep->ext_type);
                         goto bail;
@@ -3585,7 +3584,7 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                             /* myvals is consumed if successful. */
                             err = aiep->ext_set(e, myvals, SLAPI_EXT_SET_REPLACE);
                             if (err) {
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
+                                slapi_log_error(SLAPI_LOG_ERR,
                                                 "entry_apply_mod",
                                                 "DEL: Failed to set %s "
                                                 "to extension\n",
@@ -3599,7 +3598,7 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                     /* ext_set replaces the existing value with NULL */
                     err = aiep->ext_set(e, NULL, SLAPI_EXT_SET_REPLACE);
                     if (err) {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_ERR, "entry_apply_mod",
                                         "DEL: Failed to set %s to extension\n",
                                         aiep->ext_type);
                         goto bail;
@@ -3614,14 +3613,14 @@ slapi_entry_apply_mod_extension(Slapi_Entry *e, const LDAPMod *mod, int modcnt)
                         /* vals is consumed if successful. */
                         err = aiep->ext_set(e, vals, SLAPI_EXT_SET_REPLACE);
                         if (err) {
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
+                            slapi_log_error(SLAPI_LOG_ERR, "entry_apply_mod",
                                             "REPLACE: Failed to set %s to extension\n",
                                             aiep->ext_type);
                             valuearray_free(&vals);
                             goto bail;
                         }
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "entry_apply_mod",
+                        slapi_log_error(SLAPI_LOG_ERR, "entry_apply_mod",
                                         "REPLACE: %s has no values\n", 
                                         aiep->ext_type);
                         goto bail;
@@ -3660,7 +3659,7 @@ entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
 	  if((strcasecmp(mod->mod_type,"objectclass") == 0)  
               && (strncasecmp((const char *)mod->mod_bvalues[i]->bv_val,"ldapsubentry",mod->mod_bvalues[i]->bv_len) == 0)) 
 	    sawsubentry=PR_TRUE;
-	  LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   %s: %s\n", mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
+	  LDAPDebug(LDAP_DEBUG_ARGS, "   %s: %s\n", mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
 	}
 	bvcnt = i;
 
@@ -3682,24 +3681,24 @@ entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
 	switch ( mod->mod_op & ~LDAP_MOD_BVALUES )
 	{
 	case LDAP_MOD_ADD:
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   add: %s\n", mod->mod_type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   add: %s\n", mod->mod_type, 0, 0 );
 		if(sawsubentry) e->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
 		err = slapi_entry_add_values( e, mod->mod_type, mod->mod_bvalues );
 		break;
 
 	case LDAP_MOD_DELETE:
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   delete: %s\n", mod->mod_type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   delete: %s\n", mod->mod_type, 0, 0 );
 		if(sawsubentry) e->e_flags |= 0;
 		err = slapi_entry_delete_values( e, mod->mod_type, mod->mod_bvalues );
 		break;
 
 	case LDAP_MOD_REPLACE:
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   replace: %s\n", mod->mod_type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   replace: %s\n", mod->mod_type, 0, 0 );
 		err = entry_replace_values( e, mod->mod_type, mod->mod_bvalues );
 		break;
 	}
 done:
-	LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   -\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
 
 	return( err );
 }
@@ -3823,7 +3822,7 @@ delete_values_sv_internal(
 
 	/* delete the entire attribute */
 	if ( valuestodelete == NULL || valuestodelete[0] == NULL ){
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "removing entire attribute %s\n",
+		LDAPDebug(LDAP_DEBUG_ARGS, "removing entire attribute %s\n",
 		    type, 0, 0 );
 		retVal = attrlist_delete( &e->e_attrs, type);
 		if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
@@ -3835,7 +3834,7 @@ delete_values_sv_internal(
 	/* delete specific values - find the attribute first */
 	a= attrlist_find(e->e_attrs, type);
 	if ( a == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "could not find attribute %s\n",
+		LDAPDebug(LDAP_DEBUG_ARGS, "could not find attribute %s\n",
 		    type, 0, 0 );
 		if (flags & SLAPI_VALUE_FLAG_IGNOREERROR) {
 			return LDAP_SUCCESS;
@@ -3864,7 +3863,7 @@ delete_values_sv_internal(
 			 */
 			if ( retVal==LDAP_OPERATIONS_ERROR )
 			{
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Possible existing duplicate "
+				LDAPDebug(LDAP_DEBUG_ERR, "delete_values_sv_internal - Possible existing duplicate "
 					"value for attribute type %s found in "
 					"entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
 			}
@@ -4031,7 +4030,7 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
                                                slapi_value_get_berval(e1_val)))
                 {
                     /* attr-value e1_val not found in e2_attr; add it */
-                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                    LDAPDebug(LDAP_DEBUG_TRACE,
                         "slapi_entry_diff: attr-val of %s is not in e2; "
                         "add it\n",
                         e1_attr_name, 0, 0);
@@ -4043,7 +4042,7 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
         else
         {
             /* attr e1_attr_names not found in e2 */
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+            LDAPDebug(LDAP_DEBUG_TRACE,
                       "slapi_entry_diff: attr %s is not in e2; add it\n",
                       e1_attr_name, 0, 0);
             slapi_mods_add_mod_values(smods, LDAP_MOD_ADD,
@@ -4077,7 +4076,7 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
                                                slapi_value_get_berval(e2_val)))
                 {
                     /* attr-value e2_val not found in e1_attr; delete it */
-                    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                    LDAPDebug(LDAP_DEBUG_TRACE,
                         "slapi_entry_diff: attr-val of %s is not in e1; "
                         "delete it\n",
                         e2_attr_name, 0, 0);
@@ -4089,7 +4088,7 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
         else
         {
             /* attr e2_attr_names not in e1 */
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+            LDAPDebug(LDAP_DEBUG_TRACE,
                       "slapi_entry_diff: attr %s is not in e1; delete it\n",
                       e2_attr_name, 0, 0);
             slapi_mods_add_mod_values(smods, LDAP_MOD_DELETE, e2_attr_name, NULL);
@@ -4184,7 +4183,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                     rval = 1;
                     if (isfirst)
                     {
-                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%sEntry %s\n", my_logging_prestr,
+                        LDAPDebug(LDAP_DEBUG_INFO, "slapi_entries_diff - %sEntry %s\n", my_logging_prestr,
                                   slapi_entry_get_dn_const(*oep), 0);
                         isfirst = 0;
                     }
@@ -4192,24 +4191,24 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                     switch (mod->mod_op & ~LDAP_MOD_BVALUES)
                     {
                     case LDAP_MOD_DELETE:
-                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                                  "  Del Attribute %s Value %s\n",
+                        LDAPDebug(LDAP_DEBUG_INFO,
+                                  "slapi_entries_diff - Del Attribute %s Value %s\n",
                                   mod->mod_type, mod->mod_bvalues?
                                   mod->mod_bvalues[0]->bv_val:"N/A", 0);
                         break;
                     case LDAP_MOD_ADD:
-                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                                  "  Add Attribute %s Value %s\n",
+                        LDAPDebug(LDAP_DEBUG_INFO, 
+                                  "slapi_entries_diff - Add Attribute %s Value %s\n",
                                   mod->mod_type, mod->mod_bvalues[0]->bv_val, 0);
                         break;
                     case LDAP_MOD_REPLACE:
-                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                                  "  Rep Attribute %s Value %s\n",
+                        LDAPDebug(LDAP_DEBUG_INFO,
+                                  "slapi_entries_diff - Rep Attribute %s Value %s\n",
                                   mod->mod_type, mod->mod_bvalues[0]->bv_val, 0);
                         break;
                     default:
-                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                                  "  Unknown op %d Attribute %s\n",
+                        LDAPDebug(LDAP_DEBUG_ERR,
+                                  "slapi_entries_diff - Unknown op %d Attribute %s\n",
                                   mod->mod_op & ~LDAP_MOD_BVALUES,
                                   mod->mod_type, 0);
                         break;
@@ -4245,7 +4244,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
             slapi_entry_clear_flag(*oep, SLAPI_ENTRY_FLAG_DIFF_IN_BOTH);
         } else {
             rval = 1;
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Add %sEntry %s\n", 
+            LDAPDebug(LDAP_DEBUG_ERR, "slapi_entries_diff - Add %sEntry %s\n", 
                       my_logging_prestr, slapi_entry_get_dn_const(*oep), 0);
             if (testall)
             {
@@ -4274,7 +4273,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
         } else {
             rval = 1;
 
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Del %sEntry %s\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "slapi_entries_diff - Del %sEntry %s\n",
                       my_logging_prestr, slapi_entry_get_dn_const(*cep), 0);
 
             if (testall)
@@ -4319,7 +4318,7 @@ _entry_set_tombstone_rdn(Slapi_Entry *e, const char *normdn)
             Slapi_RDN mysrdn = {0};
             rc = slapi_rdn_init_all_dn(&mysrdn, sepp + 1);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "_entry_set_tombstone_rdn",
+                slapi_log_error(SLAPI_LOG_ERR, "_entry_set_tombstone_rdn",
                                 "Failed to convert DN %s to RDN\n", sepp + 1);
                 slapi_rdn_done(&mysrdn);
                 goto bail;

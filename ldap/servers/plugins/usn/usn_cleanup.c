@@ -59,16 +59,16 @@ usn_cleanup_thread(void *arg)
     if (!task) {
         return; /* no task */
     }
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_cleanup_thread\n");
     slapi_task_inc_refcount(task);
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM,
-                    "usn_cleanup_thread --> refcount incremented.\n" );
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread - refcount incremented.\n" );
 
     if (NULL == usn_get_identity()) { /* plugin is not initialized */
         slapi_task_log_notice(task, "USN plugin is not initialized\n");
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                      "USN tombstone cleanup: USN plugin is not initialized\n");
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                      "usn_cleanup_thread - USN plugin is not initialized\n");
         rv = -1;
         filter = NULL; /* so we don't try to free it */
         goto bail;
@@ -102,8 +102,8 @@ usn_cleanup_thread(void *arg)
         slapi_task_log_status(task,
                     "USN tombstone cleanup: no such suffix %s.\n",
                     cleanup_data->suffix);
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                    "USN tombstone cleanup: no such suffix %s.\n",
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread - No such suffix %s.\n",
                     cleanup_data->suffix);
         goto bail;
     } else if (LDAP_SUCCESS != rv) {
@@ -113,8 +113,8 @@ usn_cleanup_thread(void *arg)
         slapi_task_log_status(task,
                     "USN tombstone cleanup: searching tombstone entries in "
                     "%s failed; (%d).\n", cleanup_data->suffix, rv);
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                    "USN tombstone cleanup: searching tombstone entries in "
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread - Searching tombstone entries in "
                     "%s failed; (%d).\n", cleanup_data->suffix, rv);
         goto bail;
     }
@@ -122,8 +122,8 @@ usn_cleanup_thread(void *arg)
     slapi_task_log_notice(task,
             "USN tombstone cleanup task starts (suffix: %s) ...\n", 
             cleanup_data->suffix);
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-            "USN tombstone cleanup task starts (suffix: %s) ...\n", 
+    slapi_log_error(SLAPI_LOG_INFO, USN_PLUGIN_SUBSYSTEM,
+            "usn_cleanup_thread - USN tombstone cleanup task starts (suffix: %s) ...\n", 
             cleanup_data->suffix);
 
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
@@ -138,8 +138,8 @@ usn_cleanup_thread(void *arg)
         if(slapi_is_shutting_down()){
             slapi_task_log_notice(task, "USN tombstone cleanup task aborted due to shutdown.");
             slapi_task_log_status(task, "USN tombstone cleanup task aborted due to shutdown.");
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                            "USN tombstone cleanup task aborted due to shutdown.\n");
+            slapi_log_error(SLAPI_LOG_NOTICE, USN_PLUGIN_SUBSYSTEM,
+                            "usn_cleanup_thread - Task aborted due to shutdown.\n");
             goto bail;
         }
 
@@ -154,8 +154,8 @@ usn_cleanup_thread(void *arg)
             slapi_task_log_status(task,
                     "USN tombstone cleanup: deleting %s failed; (%d).\n",
                     slapi_sdn_get_dn(sdn), delrv);
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                    "USN tombstone cleanup: deleting %s failed; (%d).\n",
+            slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread - Deleting %s failed; (%d).\n",
                     slapi_sdn_get_dn(sdn), delrv);
             rv = delrv;
         }
@@ -165,8 +165,8 @@ usn_cleanup_thread(void *arg)
     }
     slapi_task_log_notice(task, "USN tombstone cleanup task finished.");
     slapi_task_log_status(task, "USN tombstone cleanup task finished.");
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                    "USN tombstone cleanup task finished.\n");
+    slapi_log_error(SLAPI_LOG_INFO, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread - USN tombstone cleanup task finished.\n");
 bail:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
@@ -178,9 +178,9 @@ bail:
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rv);
     slapi_task_dec_refcount(task);
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM,
-                    "usn_cleanup_thread <-- refcount decremented.\n");
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM,
+                    "usn_cleanup_thread - refcount decremented.\n");
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_cleanup_thread\n");
 }
 
@@ -198,8 +198,8 @@ _usn_cleanup_is_mmr_enabled(const char *suffix)
     base_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",%s",
                                      suffix, MAPPING_TREE_BASE_DN);
     if (NULL == base_dn) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                        "_usn_cleanup_is_mmr_enabled: failed to normalize "
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                        "_usn_cleanup_is_mmr_enabled - Failed to normalize "
                         "mappingtree dn for %s\n", suffix);
         return 1;
     }
@@ -240,7 +240,7 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     Slapi_Backend *be = NULL;
     const Slapi_DN *be_suffix = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "--> usn_cleanup_add\n");
 
     *returncode = LDAP_SUCCESS;
@@ -261,8 +261,8 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     maxusn = slapi_entry_attr_get_charptr(e, "maxusn_to_delete");
 
     if (!suffix && !backend) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-            "USN tombstone cleanup: Both suffix and backend are missing.\n");
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+            "usn_cleanup_add - Both suffix and backend are missing.\n");
         *returncode = LDAP_PARAM_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto bail;
@@ -275,8 +275,8 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
         if (be_suffix) {
             suffix = slapi_ch_strdup(slapi_sdn_get_ndn(be_suffix));
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                "USN tombstone cleanup: Backend %s is invalid.\n", backend);
+            slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                "usn_cleanup_add - Backend %s is invalid.\n", backend);
             *returncode = LDAP_PARAM_ERROR;
             rv = SLAPI_DSE_CALLBACK_ERROR;
             goto bail;
@@ -286,8 +286,8 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     /* The suffix is the target of replication, 
      * we don't want to clean up tombstones used by MMR */
     if (_usn_cleanup_is_mmr_enabled(suffix)) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-            "USN tombstone cleanup: Suffix %s is replicated. Unwilling to "
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+            "usn_cleanup_add - Suffix %s is replicated. Unwilling to "
             "perform cleaning up tombstones.\n", suffix);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rv = SLAPI_DSE_CALLBACK_ERROR;
@@ -297,8 +297,8 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     /* allocate new task now */
     task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     if (task == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-            "USN tombstone cleanup: unable to allocate new task.\n");
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+            "usn_cleanup_add - Unable to allocate new task.\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto bail;
@@ -323,8 +323,8 @@ usn_cleanup_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                           (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                           PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                "USN tombstone cleanup: unable to create task thread.\n");
+        slapi_log_error(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
+                "usn_cleanup_add - Unable to create task thread.\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_task_finish(task, *returncode);
@@ -337,7 +337,7 @@ bail:
     slapi_ch_free_string(&suffix);
     slapi_ch_free_string(&backend);
     slapi_ch_free_string(&maxusn);
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                     "<-- usn_cleanup_add\n");
     return rv;
 }
@@ -345,7 +345,7 @@ bail:
 static void
 usn_cleanup_task_destructor(Slapi_Task *task)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM, "usn_cleanup_task_destructor -->\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM, "usn_cleanup_task_destructor -->\n");
     if (task) {
         struct usn_cleanup_data *mydata = (struct usn_cleanup_data *)slapi_task_get_data(task);
         while (slapi_task_get_refcount(task) > 0) {
@@ -360,5 +360,5 @@ usn_cleanup_task_destructor(Slapi_Task *task)
             slapi_ch_free((void **)&mydata);
         }
     }
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, USN_PLUGIN_SUBSYSTEM, "usn_cleanup_task_destructor <--\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, USN_PLUGIN_SUBSYSTEM, "usn_cleanup_task_destructor <--\n");
 }

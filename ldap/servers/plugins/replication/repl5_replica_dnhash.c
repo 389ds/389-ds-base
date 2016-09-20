@@ -30,7 +30,7 @@ int replica_init_dn_hash ()
                              PL_CompareValues, NULL, NULL);
     if (s_hash == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_init_dn_hash: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_init_dn_hash: "
                         "failed to allocate hash table; NSPR error - %d\n",
                         PR_GetError ());	
         return -1;
@@ -40,7 +40,7 @@ int replica_init_dn_hash ()
     s_lock = slapi_new_rwlock();
     if (s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_init_dn_hash: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_init_dn_hash: "
                         "failed to create lock; NSPR error - %d\n",
                         PR_GetError ());
         replica_destroy_dn_hash ();
@@ -68,13 +68,13 @@ int replica_add_by_dn (const char *dn)
 
     if (dn == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_add_by_dn: NULL argument\n");
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_dn: NULL argument\n");
         return -1;
     }
 
     if (s_hash == NULL || s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_add_by_dn: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_dn: "
                         "replica hash is not initialized\n");
         return -1;
     }
@@ -84,7 +84,7 @@ int replica_add_by_dn (const char *dn)
     /* make sure that the dn is unique */
     if (PL_HashTableLookup(s_hash, dn) != NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_add_by_dn: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_dn: "
                         "replica with dn (%s) already in the hash\n", dn);
         slapi_rwlock_unlock (s_lock);
         return -1 ;    
@@ -94,7 +94,7 @@ int replica_add_by_dn (const char *dn)
 	dn_copy = slapi_ch_strdup(dn);
     if (PL_HashTableAdd(s_hash, dn_copy, dn_copy) == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_add_by_dn: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_dn: "
                         "failed to add dn (%s); NSPR error - %d\n",
                         dn_copy, PR_GetError ());
 		slapi_ch_free((void **)&dn_copy);
@@ -102,7 +102,7 @@ int replica_add_by_dn (const char *dn)
         return -1;
     }
 
-	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "replica_add_by_dn: "
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_add_by_dn: "
 					"added dn (%s)\n",
 					dn_copy);
     slapi_rwlock_unlock (s_lock);
@@ -115,14 +115,14 @@ int replica_delete_by_dn (const char *dn)
 
     if (dn == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_delete_by_dn: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_dn: "
                         "NULL argument\n");
         return -1;
     }
 
     if (s_hash == NULL || s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_delete_by_dn: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_dn: "
                         "replica hash is not initialized\n");
         return -1;
     }
@@ -132,7 +132,7 @@ int replica_delete_by_dn (const char *dn)
     /* locate object */
     if (NULL == (dn_copy = (char *)PL_HashTableLookup(s_hash, dn)))
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_delete_by_dn: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_dn: "
                         "dn (%s) is not in the hash.\n", dn);
         slapi_rwlock_unlock (s_lock);
         return -1;
@@ -142,7 +142,7 @@ int replica_delete_by_dn (const char *dn)
     PL_HashTableRemove(s_hash, dn);
 	slapi_ch_free((void **)&dn_copy);
 
-	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "replica_delete_by_dn: "
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_delete_by_dn: "
 					"removed dn (%s)\n",
 					dn);
     slapi_rwlock_unlock (s_lock);
@@ -154,14 +154,14 @@ int replica_is_being_configured (const char *dn)
 {
     if (dn == NULL)
     {
-         slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_is_dn_in_hash: "
+         slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_is_being_configured: "
                          "NULL argument\n");
         return 0;
     }
 
     if (s_hash == NULL || s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "replica_is_dn_in_hash: "
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_is_being_configured: "
                         "dn hash is not initialized\n");
         return 0;
     }

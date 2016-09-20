@@ -293,7 +293,7 @@ static PRStatus
 schema_dse_mandatory_init( void )
 {
 	if ( NULL == ( schema_dse_lock = slapi_new_rwlock())) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema_dse_mandatory_init",
+		slapi_log_error(SLAPI_LOG_ERR, "schema_dse_mandatory_init",
 				"slapi_new_rwlock() for schema DSE lock failed\n" );
 		return PR_FAILURE;
 	}
@@ -437,7 +437,7 @@ slapi_schema_load_repl_policies()
 {
         if (schema_policy_lock == NULL) {
                 if (NULL == (schema_policy_lock = slapi_new_rwlock())) {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_schema_load_repl_policies",
+                        slapi_log_error(SLAPI_LOG_ERR, "slapi_schema_load_repl_policies",
                                 "slapi_new_rwlock() for schema replication policy lock failed\n");
                         return -1;
                 }
@@ -745,8 +745,8 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 
   /* find the object class attribute - could error out here */
   if ( (aoc = attrlist_find( e->e_attrs, "objectclass" )) == NULL ) {
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-	       "Entry \"%s\" required attribute \"objectclass\" missing\n",
+    LDAPDebug(LDAP_DEBUG_ERR,
+	       "slapi_entry_schema_check_ext - Entry \"%s\" required attribute \"objectclass\" missing\n",
 	       slapi_entry_get_dn_const(e), 0, 0 );
 	if (pb) {
 		PR_snprintf( errtext, sizeof( errtext ),
@@ -782,8 +782,8 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
     ocname = slapi_value_get_string(v);
 
     if ( !ocname ) {
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-	       "Entry \"%s\" \"objectclass\" value missing\n",
+	LDAPDebug(LDAP_DEBUG_ERR,
+	       "slapi_entry_schema_check_ext - Entry \"%s\" \"objectclass\" value missing\n",
 	       slapi_entry_get_dn_const(e), 0, 0 );
 	if (pb) {
 		PR_snprintf( errtext, sizeof( errtext ),
@@ -820,8 +820,8 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 		}
 	  }
 
-      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		 "Entry \"%s\" has unknown object class \"%s\"%s\n",
+      LDAPDebug(LDAP_DEBUG_ERR,
+		 "slapi_entry_schema_check_ext - Entry \"%s\" has unknown object class \"%s\"%s\n",
 		 slapi_entry_get_dn_const(e),
 		 escape_string(ocname, ebuf), extra_msg );
 	  if (pb) {
@@ -883,8 +883,8 @@ slapi_entry_schema_check_ext( Slapi_PBlock *pb, Slapi_Entry *e, int repl_check )
 	if ( slapi_attr_flag_is_set( a, SLAPI_ATTR_FLAG_SINGLE ) ) {
 	  if (slapi_valueset_count(&a->a_present_values) > 1)
 	    {
-          LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-	         "Entry \"%s\" single-valued attribute \"%s\" has multiple values\n",
+          LDAPDebug(LDAP_DEBUG_ERR,
+	         "slapi_entry_schema_check_ext - Entry \"%s\" single-valued attribute \"%s\" has multiple values\n",
 			 slapi_entry_get_dn_const(e),
 			 a->a_type, 0 );
 		  if (pb) {
@@ -937,8 +937,8 @@ oc_check_required( Slapi_PBlock *pb, Slapi_Entry *e, struct objclass *oc )
         /* not there => schema violation */
         if ( a == NULL ) {
             char errtext[ BUFSIZ ];
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                       "Entry \"%s\" missing attribute \"%s\" required"
+            LDAPDebug(LDAP_DEBUG_ERR,
+                       "oc_check_required - Entry \"%s\" missing attribute \"%s\" required"
                        " by object class \"%s\"\n",
                        slapi_entry_get_dn_const(e),
                        oc->oc_required[i], oc->oc_name);
@@ -1008,8 +1008,8 @@ oc_check_allowed_sv(Slapi_PBlock *pb, Slapi_Entry *e, const char *type, struct o
     if ( 0 != rc ) {
       char errtext[ BUFSIZ ];
       char ebuf[ BUFSIZ ];
-      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-         "Entry \"%s\" -- attribute \"%s\" not allowed\n",
+      LDAPDebug(LDAP_DEBUG_ERR,
+         "oc_check_allowed_sv - Entry \"%s\" -- attribute \"%s\" not allowed\n",
          slapi_entry_get_dn_const(e),
          escape_string( type, ebuf ),
          0);
@@ -1558,8 +1558,8 @@ schema_attr_enum_callback(struct asyntaxinfo *asip, void *arg)
 	vals[0] = &val;
 
 	if (!asip) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-				"Error: no attribute types in schema_attr_enum_callback\n",
+		LDAPDebug(LDAP_DEBUG_ERR,
+				"schema_attr_enum_callback - Error: no attribute types in schema_attr_enum_callback\n",
 				0, 0, 0);
 		return ATTR_SYNTAX_ENUM_NEXT;
 	}
@@ -1719,7 +1719,7 @@ schema_syntax_enum_callback(char **names, Slapi_PluginDesc *plugindesc,
 	}
 
 	if ( oid == NULL ) {	/* must have an OID */
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: no OID found in"
+		LDAPDebug(LDAP_DEBUG_ERR, "schema_syntax_enum_callback - Error: no OID found in"
 				" schema_syntax_enum_callback for syntax %s\n",
 				( names == NULL ) ? "unknown" : names[0], 0, 0);
 		return 1;
@@ -1781,7 +1781,7 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
         struct listargs *aew = (struct listargs *)arg;
 
         if (!asi) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: no attribute types in schema_list_attributes_callback\n",
+                LDAPDebug(LDAP_DEBUG_ERR, "schema_list_attributes_callback - Error: no attribute types in schema_list_attributes_callback\n",
                                   0, 0, 0);
                 return ATTR_SYNTAX_ENUM_NEXT;
         }
@@ -2117,7 +2117,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
                   schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 			                  schema_errprefix_generic, attr_name,
 			                  "Replace is not possible, local consumer schema is a superset of the supplier" );
-                  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+                  slapi_log_error(SLAPI_LOG_ERR, "modify_schema_dse",
 			                  "[C] Local %s must not be overwritten (set replication log for additional info)\n",
 			                  attr_name);
                   *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -2197,7 +2197,7 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
 		  schema_create_errormsg( returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 					schema_errprefix_generic, mods[i]->mod_type, 
 					"Replace is not allowed on the subschema subentry" );
-                  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "modify_schema_dse: Replace is not allowed on the subschema subentry\n");
+                  slapi_log_error(SLAPI_LOG_REPL, "schema", "modify_schema_dse: Replace is not allowed on the subschema subentry\n");
 		  rc = SLAPI_DSE_CALLBACK_ERROR;
 	  } else {
 		  if (strcasecmp (mods[i]->mod_type, "attributetypes") == 0) {			  
@@ -2475,7 +2475,7 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
   
   if ( NULL == mod->mod_bvalues ) {
 	if (is_internal_operation) {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_objectclasses: Remove all objectclass in Internal op\n");
+		slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Remove all objectclass in Internal op\n");
 	} else {
 		schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_oc,
 			NULL, "Cannot remove all schema object classes");
@@ -2499,14 +2499,14 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
 		if (poc2->oc_superior &&  
 			(strcasecmp (poc2->oc_superior, delete_oc->oc_name) == 0)) {
 			if (is_internal_operation) {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_objectclasses: Should not delete object class (%s) which has child object classes"
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Should not delete object class (%s) which has child object classes"
 					". But accept it because it is internal operation\n",
 					delete_oc->oc_name);
 			} else {
 				schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_oc,
 					delete_oc->oc_name, "Cannot delete an object class"
 					" which has child object classes");
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_objectclasses: Cannot delete an object class (%s) which has child object classes\n",
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Cannot delete an object class (%s) which has child object classes\n",
 					delete_oc->oc_name);
 				rc = LDAP_UNWILLING_TO_PERFORM;
 				goto unlock_and_return;
@@ -2520,14 +2520,14 @@ schema_delete_objectclasses( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  
 	  else {
 		  if (is_internal_operation) {
-			  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_objectclasses: Should not delete a standard object class (%s)"
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Should not delete a standard object class (%s)"
 				  ". But accept it because it is internal operation\n",
 				  delete_oc->oc_name);
 			  oc_delete_nolock (poc->oc_name);
 		  } else {
 			  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc,
 				  delete_oc->oc_name, "Cannot delete a standard object class" );
-			  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_objectclasses: Cannot delete a standard object class (%s)\n",
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_objectclasses: Cannot delete a standard object class (%s)\n",
 				  delete_oc->oc_name);
 			  rc = LDAP_UNWILLING_TO_PERFORM;
 			  goto unlock_and_return;
@@ -2587,7 +2587,7 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 
   if (NULL == mod->mod_bvalues) {
 	  if (is_internal_operation) {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_attributes: Remove all attributetypes in Internal op\n");
+		slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Remove all attributetypes in Internal op\n");
 	  } else {
 		schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
 			NULL, "Cannot remove all schema attribute types" );
@@ -2620,14 +2620,14 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  /* only modify attrs which were user defined */
 	  if (a->asi_flags & SLAPI_ATTR_FLAG_STD_ATTR) {
 		  if (is_internal_operation) {
-			  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_attributes: Should not delete a standard attribute type (%s)"
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Should not delete a standard attribute type (%s)"
 				  ". But accept it because it is internal operation\n",
 				  psbAttrName->buffer);
 		  } else {
 			  schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at,
 				  psbAttrName->buffer,
 				  "Cannot delete a standard attribute type");
-			  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_attributes: Cannot delete a standard attribute type (%s)\n",
+			  slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Cannot delete a standard attribute type (%s)\n",
 				  psbAttrName->buffer);
 			  attr_syntax_return(a);
 			  return schema_return(LDAP_UNWILLING_TO_PERFORM, psbAttrOid, psbAttrName,
@@ -2663,14 +2663,14 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 
 		if (attr_in_use_by_an_oc) {
 			if (is_internal_operation) {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_attributes: Should not delete an attribute (%s) used in oc (%s)"
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Should not delete an attribute (%s) used in oc (%s)"
 					". But accept it because it is internal operation\n",
 					oc_list_type, oc->oc_name);
 			} else {
 				schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_at,
 					psbAttrName->buffer, "Is included in the %s list for object class %s.  Cannot delete.",
 					oc_list_type, oc->oc_name);
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_attributes: Could delete an attribute (%s) used in oc (%s)"
+				slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Could delete an attribute (%s) used in oc (%s)"
 					". But accept it because it is internal operation\n",
 					oc_list_type, oc->oc_name);
 				break;
@@ -2680,7 +2680,7 @@ schema_delete_attributes ( Slapi_Entry *entryBefore, LDAPMod *mod,
 	  oc_unlock();
 	  if (attr_in_use_by_an_oc) {
 		if (is_internal_operation) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_delete_attributes: Should not delete an attribute used in oc"
+			slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_delete_attributes: Should not delete an attribute used in oc"
 				". But accept it because it is internal operation\n");
 
 		} else {
@@ -2941,7 +2941,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		if ( NULL == ( oldasip =
 					attr_syntax_get_by_oid( newasip->asi_oid, 0 ))) {
 			/* new attribute type */
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_attributes:"
+			LDAPDebug(LDAP_DEBUG_TRACE, "schema_replace_attributes:"
 					" new type %s (OID %s)\n",
 					newasip->asi_name, newasip->asi_oid, 0 );
 		} else {
@@ -2953,7 +2953,7 @@ schema_replace_attributes ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				newasip = NULL;
 			} else {
 				/* modified attribute type */
-				LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_attributes:"
+				LDAPDebug(LDAP_DEBUG_TRACE, "schema_replace_attributes:"
 						" replacing type %s (OID %s)\n",
 						newasip->asi_name, newasip->asi_oid, 0 );
 				/* flag for deletion */
@@ -3115,7 +3115,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 				} else {
 					/* some differences: discard old and keep the new one */
 					oc_free( &tmpocp );
-					LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_objectclasses:"
+					LDAPDebug(LDAP_DEBUG_TRACE, "schema_replace_objectclasses:"
 							" replacing object class %s (OID %s)\n", 
 							newocp->oc_name, newocp->oc_oid, 0 );
 					addocp = newocp;
@@ -3127,7 +3127,7 @@ schema_replace_objectclasses ( Slapi_PBlock *pb, LDAPMod *mod, char *errorbuf,
 		}
 
 		if ( NULL == addocp ) {
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "schema_replace_objectclasses:"
+			LDAPDebug(LDAP_DEBUG_TRACE, "schema_replace_objectclasses:"
 					" new object class %s (OID %s)\n", 
 					newocp->oc_name, newocp->oc_oid, 0 );
 			addocp = newocp;
@@ -3382,7 +3382,7 @@ read_oc_ldif ( const char *input, struct objclass **oc, char *errorbuf,
 	
 	schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, NULL,
 			"One or more values are required for the objectClasses attribute" );
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL args passed to read_oc_ldif\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_ERR, "read_oc_ldif - NULL args passed to read_oc_ldif\n",0,0,0);
 	return read_oc_ldif_return( LDAP_OPERATIONS_ERROR, pOcOid, psbOcName,
 			pOcSup, pOcDesc );
   }
@@ -3921,7 +3921,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         asi_parent = attr_syntax_get_by_name(pSuperior, schema_flags);
         /* if we find no match then server won't start or add the attribute type */
         if (asi_parent == NULL) {
-            LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG,
+            LDAPDebug(LDAP_DEBUG_PARSE,
                 "Cannot find parent attribute type \"%s\"\n",pSuperior,
                 NULL,NULL);
             schema_create_errormsg( errorbuf, errorbufsize,
@@ -3936,7 +3936,7 @@ read_at_ldif(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
             
             if (pso && (NULL == pSyntax)) {
                 pSyntax = slapi_ch_strdup(pso);
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug(LDAP_DEBUG_TRACE,
                     "Inheriting syntax %s from parent type %s\n",
                     pSyntax, pSuperior,NULL);
             } else if (NULL == pSyntax) {
@@ -4130,7 +4130,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
         parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
         if (config_set_enquote_sup_oc(CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, "on", ebuf, CONFIG_APPLY)) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "Failed to enable %s: %s\n",
+            slapi_log_error(SLAPI_LOG_ERR, "parse_attr_str", "Failed to enable %s: %s\n",
                             CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, ebuf);
         }
     }
@@ -4171,7 +4171,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
     if(input == NULL || '\0' == input[0]){
         schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, NULL,
             "One or more values are required for the attributeTypes attribute" );
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL args passed to parse_attr_str\n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_ERR, "parse_attr_str - NULL args passed to parse_attr_str\n",0,0,0);
         return invalid_syntax_error;
     }
     /*
@@ -4243,7 +4243,7 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
         asi_parent = attr_syntax_get_by_name(atype->at_sup_oid, schema_flags);
         /* if we find no match then server won't start or add the attribute type */
         if (asi_parent == NULL) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Cannot find parent attribute type \"%s\"\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "parse_attr_str - Cannot find parent attribute type \"%s\"\n",
                 atype->at_sup_oid, NULL, NULL);
             schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_at, first_attr_name,
                 "Missing parent attribute syntax OID");
@@ -4261,8 +4261,8 @@ parse_attr_str(const char *input, struct asyntaxinfo **asipp, char *errorbuf,
 
             if (pso && (NULL == atype->at_syntax_oid)) {
                 atype->at_syntax_oid = slapi_ch_strdup(pso);
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                    "Inheriting syntax %s from parent type %s\n",
+                LDAPDebug(LDAP_DEBUG_TRACE,
+                    "parse_attr_str - Inheriting syntax %s from parent type %s\n",
                     atype->at_syntax_oid, atype->at_sup_oid,NULL);
             } else if (NULL == atype->at_syntax_oid) {
                 schema_create_errormsg( errorbuf, errorbufsize,
@@ -4515,7 +4515,7 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
         char ebuf[SLAPI_DSE_RETURNTEXT_SIZE];
         parser_flags |= LDAP_SCHEMA_ALLOW_QUOTED;
         if (config_set_enquote_sup_oc(CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, "on", ebuf, CONFIG_APPLY)) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "Failed to enable %s: %s\n",
+            slapi_log_error(SLAPI_LOG_ERR, "parse_objclass_str", "Failed to enable %s: %s\n",
                             CONFIG_ENQUOTE_SUP_OC_ATTRIBUTE, ebuf);
         }
     }
@@ -4550,7 +4550,7 @@ parse_objclass_str ( const char *input, struct objclass **oc, char *errorbuf,
     if ( NULL == input || '\0' == input[0] ) {
         schema_create_errormsg( errorbuf, errorbufsize, schema_errprefix_oc, NULL,
             "One or more values are required for the objectClasses attribute" );
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL args passed to read_oc_ldif\n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_ERR, "parse_objclass_str - NULL args passed to read_oc_ldif\n",0,0,0);
         return LDAP_OPERATIONS_ERROR;
     }
     /*
@@ -4795,7 +4795,7 @@ schema_check_oc_attrs ( struct objclass *poc,
 
 	if ( errorbuf == NULL || poc == NULL || poc->oc_name == NULL) {
 		/* error */
-		LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG,  
+		LDAPDebug(LDAP_DEBUG_PARSE,  
 				   "Null args passed to schema_check_oc_attrs\n",
 				   NULL, NULL, NULL);
 		return -1;
@@ -4929,7 +4929,7 @@ schema_check_oid( const char *name, const char *oid, PRBool isAttribute,
 
   if ( name == NULL || oid == NULL) {
 	/* this is bad */
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL passed to schema_check_oid\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_ERR, "schema_check_oid - NULL passed to schema_check_oid\n",0,0,0);
 	return 0;
   }
   
@@ -5062,8 +5062,8 @@ strip_oc_options( struct objclass *poc ) {
 
   for ( i = 0; poc->oc_allowed && poc->oc_allowed[i]; i++ ) {
 	if ( (mod = stripOption( poc->oc_allowed[i] )) != NULL ){
-	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				 "Removed option \"%s\" from allowed attribute type "
+	  LDAPDebug(LDAP_DEBUG_ERR, 
+				 "strip_oc_options - Removed option \"%s\" from allowed attribute type "
 				 "\"%s\" in object class \"%s\".\n",
 				 mod, poc->oc_allowed[i], poc->oc_name );
 	  numRemoved++;
@@ -5072,8 +5072,8 @@ strip_oc_options( struct objclass *poc ) {
     
   for ( i = 0; poc->oc_required && poc->oc_required[i]; i++ ) {
 	if ( (mod = stripOption( poc->oc_required[i] )) != NULL ){
-	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				 "Removed option \"%s\" from required attribute type "
+	  LDAPDebug(LDAP_DEBUG_ERR, 
+				 "strip_oc_options - Removed option \"%s\" from required attribute type "
 				 "\"%s\" in object class \"%s\".\n",
 				 mod, poc->oc_required[i], poc->oc_name );
 	  numRemoved++;
@@ -5282,7 +5282,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 	filelist = get_priority_filelist(myschemadir, ".*ldif$");
 	if (!filelist || !*filelist)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+		slapi_log_error(SLAPI_LOG_ERR, "init_schema_dse_ext",
 			"No schema files were found in the directory %s\n", myschemadir);
 		free_filelist(filelist);
 		rc = 0;
@@ -5359,7 +5359,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		}
 		if (rc)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "Could not add"
+			slapi_log_error(SLAPI_LOG_ERR, "init_schema_dse_ext", "Could not add"
 				" attribute type \"objectClass\" to the schema: %s\n",
 				errorbuf);
 		}
@@ -5407,7 +5407,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 					if (backend_plugin->plg_add_schema) {
 						(backend_plugin->plg_add_schema)( NULL );
 					} else {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "init_schema_dse",
+						slapi_log_error(SLAPI_LOG_ERR, "init_schema_dse_ext",
 							"backend has not set internal schema\n" );
 					}
 				}
@@ -5476,7 +5476,7 @@ parse_xstring_list( const char *schema_value, const char *name, size_t namelen, 
 
 /* for debugging
 if ( xvals == NULL || xvals[0] == NULL ) {
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "no xstring values for xstring (%s) in (%s)\n", name, schema_value, 0 );
+    LDAPDebug(LDAP_DEBUG_ERR, "no xstring values for xstring (%s) in (%s)\n", name, schema_value, 0 );
 }
 */
 
@@ -6040,7 +6040,7 @@ va_expand_one_oc( const char *dn, const Slapi_Attr *a, Slapi_ValueSet *vs, const
   
   	slapi_valueset_add_attr_value_ext(a, vs, slapi_value_new_string(sup_oc->oc_name), SLAPI_VALUE_FLAG_PASSIN);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+	LDAPDebug(LDAP_DEBUG_TRACE,
 			"Entry \"%s\": added missing objectClass value %s\n",
 			dn, sup_oc->oc_name, 0 );
 }
@@ -6128,8 +6128,8 @@ slapi_validate_schema_files(char *schemadir)
 	if (rc) {
 		return LDAP_SUCCESS;
 	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema_reload",
-		                 "schema file validation failed\n" );
+		slapi_log_error(SLAPI_LOG_ERR, "schema_reload",
+		                 "slapi_validate_schema_files failed\n" );
 		return LDAP_OBJECT_CLASS_VIOLATION;
 	}
 }
@@ -6153,8 +6153,8 @@ slapi_reload_schema_files(char *schemadir)
 
 	if (NULL == be)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema_reload",
-				"schema file reload failed\n" );
+		slapi_log_error(SLAPI_LOG_ERR, "schema_reload",
+				"slapi_reload_schema_files failed\n" );
 		return LDAP_LOCAL_ERROR;
 	}
 	slapi_be_Wlock(be);	/* be lock must be outer of schemafile lock */
@@ -6182,8 +6182,8 @@ slapi_reload_schema_files(char *schemadir)
 	} else {
 		reload_schemafile_unlock();
 		slapi_be_Unlock(be);
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema_reload",
-				"schema file reload failed\n" );
+		slapi_log_error(SLAPI_LOG_ERR, "schema_reload",
+				"slapi_reload_schema_files failed\n" );
 		return LDAP_LOCAL_ERROR;
 	}
 }
@@ -6224,7 +6224,7 @@ slapi_schema_list_objectclass_attributes(const char *ocname_or_oid,
 			charray_merge(&attrs, oc->oc_allowed, 1/*copy_strs*/);
 			break;
 		default:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "list objectclass attributes",
+			slapi_log_error(SLAPI_LOG_ERR, "slapi_schema_list_objectclass_attributes",
 				"flag 0x%x not supported\n", flags );
 			break;
 		}
@@ -6299,13 +6299,13 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                 repl_schema_policy = schema_check_policy(replica_role, REPL_SCHEMA_OBJECTCLASS, oc_1->oc_name, oc_1->oc_oid);
                 if (repl_schema_policy == REPL_SCHEMA_UPDATE_ACCEPT_VALUE) {
                         /* We are skipping the superset checking for that objectclass */
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Do not check if this OBJECTCLASS is missing on local/remote schema [%s or %s]\n", oc_1->oc_name, oc_1->oc_oid);
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Do not check if this OBJECTCLASS is missing on local/remote schema [%s or %s]\n", oc_1->oc_name, oc_1->oc_oid);
                         continue;
                 } else if (repl_schema_policy == REPL_SCHEMA_UPDATE_REJECT_VALUE) {
                         /* This objectclass being present, we need to fail as if it was a superset 
                          * keep evaluating to have all the objectclass checking
                          */
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s objectclass prevents replication of the schema\n", oc_1->oc_name);
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s objectclass prevents replication of the schema\n", oc_1->oc_name);
                         rc = 1;
                         if(debug_logging){
                             /* we continue to check all the objectclasses so we log what is wrong */
@@ -6326,10 +6326,10 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                                 rc = 1;
                                 if (debug_logging) {
                                         if (replica_role == REPL_SCHEMA_AS_CONSUMER) {
-                                                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Local %s schema objectclasses is a superset of"
+                                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Local %s schema objectclasses is a superset of"
                                                         " the received one.\n", oc_1->oc_name);
                                         } else {
-                                                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Remote %s schema objectclasses is a superset of"
+                                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Remote %s schema objectclasses is a superset of"
                                                         " the received one.\n", oc_1->oc_name);
                                         }
                                         continue;
@@ -6338,7 +6338,7 @@ schema_oc_superset_check(struct objclass *oc_list1, struct objclass *oc_list2, c
                                 }
                         }                 
                 } else {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Fail to retrieve in the %s schema [%s or %s]\n", 
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Fail to retrieve in the %s schema [%s or %s]\n", 
                                 description,
                                 oc_1->oc_name, 
                                 oc_1->oc_oid);
@@ -6440,7 +6440,7 @@ schema_oc_to_string(struct objclass *oc)
     }
     
     strcat(oc_str, " )");
-    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "schema_oc_to_string: replace (old[%d]=%s)\n",
+    slapi_log_error(SLAPI_LOG_REPL, "schema", "schema_oc_to_string: replace (old[%d]=%s)\n",
                                                 size, oc_str);
     
     return(oc_str);
@@ -6480,12 +6480,12 @@ schema_list_oc2learn(struct objclass *oc_remote_list, struct objclass *oc_local_
                 if ((oc_local == NULL) ||
                         (schema_oc_compare(oc_local, oc_remote, message) < 0)) {
                         /* This replica does not know this objectclass, It needs to be added */
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Add that unknown/extended objectclass %s (%s)\n",
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Add that unknown/extended objectclass %s (%s)\n",
                                 oc_remote->oc_name,
                                 oc_remote->oc_oid);
 
                         if ((mods_index = (struct schema_mods_indexes *) slapi_ch_calloc(1, sizeof (struct schema_mods_indexes))) == NULL) {
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "Fail to Add (no memory) objectclass %s (%s)\n",
+                                slapi_log_error(SLAPI_LOG_ERR, "schema_list_oc2learn", "Fail to Add (no memory) objectclass %s (%s)\n",
                                         oc_remote->oc_name,
                                         oc_remote->oc_oid);
                                 continue;
@@ -6543,12 +6543,12 @@ schema_list_attr2learn(struct asyntaxinfo *at_list_local, struct asyntaxinfo *at
                 if (((at_local = attr_syntax_find(at_remote, at_list_local)) == NULL) || 
                         (schema_at_compare(at_local, at_remote, message, debug_logging) < 0)) {
                         /* This replica does not know this attribute, It needs to be added */
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Add that unknown/extended attribute %s (%s)\n",
+                        slapi_log_error(SLAPI_LOG_REPL, "schema_list_attr2learn", "Add that unknown/extended attribute %s (%s)\n",
                                 at_remote->asi_name,
                                 at_remote->asi_oid);
 
                         if ((mods_index = (struct schema_mods_indexes *) slapi_ch_calloc(1, sizeof (struct schema_mods_indexes))) == NULL) {
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "Fail to Add (no memory) attribute %s (%s)\n",
+                                slapi_log_error(SLAPI_LOG_ERR, "schema_list_attr2learn", "Fail to Add (no memory) attribute %s (%s)\n",
                                         at_remote->asi_name,
                                         at_remote->asi_oid);
                                 continue;
@@ -6615,7 +6615,7 @@ schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, const cha
                                 }
                                 if (moved_must_to_may) {
                                         /* This is a special case where oc1 is actually NOT a superset of oc2 */
-                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Attribute %s is no longer 'required' in '%s' of the %s schema but is now 'allowed'\n",
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is no longer 'required' in '%s' of the %s schema but is now 'allowed'\n",
                                                 oc_1->oc_orig_required[i],
                                                 oc_1->oc_name,
                                                 description);
@@ -6623,7 +6623,7 @@ schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, const cha
                                         /* The required attribute in the oc1 
                                          * is not required in the oc2
                                          */
-                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Attribute %s is not required in '%s' of the %s schema\n",
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not required in '%s' of the %s schema\n",
                                                 oc_1->oc_orig_required[i],
                                                 oc_1->oc_name,
                                                 description);
@@ -6654,7 +6654,7 @@ schema_oc_compare_strict(struct objclass *oc_1, struct objclass *oc_2, const cha
                                 /* The allowed attribute in the remote schema (remote_oc->oc_orig_allowed[i])
                                  * is not allowed in the local schema
                                  */
-                                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Attribute %s is not allowed in '%s' of the %s schema\n",
+                                slapi_log_error(SLAPI_LOG_REPL, "schema", "Attribute %s is not allowed in '%s' of the %s schema\n",
                                         oc_1->oc_orig_allowed[i],
                                         oc_1->oc_name,
                                         description);
@@ -6723,7 +6723,7 @@ schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *mess
 
                 /* at_1 is a superset */
                 if (debug_logging) {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s schema attribute [%s] is not "
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] is not "
                                 "\"single-valued\" \n", message, at_1->asi_name);
                 }
                 return 1;
@@ -6731,7 +6731,7 @@ schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *mess
         if ((at_1->asi_flags & SLAPI_ATTR_FLAG_SINGLE) && !(at_2->asi_flags & SLAPI_ATTR_FLAG_SINGLE)) {
                 /* at_2 is a superset */
                 if (debug_logging) {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s schema attribute [%s] is not "
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] is not "
                                 "\"single-valued\" \n", message, at_1->asi_name);
                 }
                 return -1;
@@ -6743,7 +6743,7 @@ schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *mess
         if (schema_at_superset_check_syntax_oids(at_1->asi_syntax_oid, at_2->asi_syntax_oid)) {
                 /* at_1 is a superset */
                 if (debug_logging) {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s schema attribute [%s] syntax "
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] syntax "
                                 "can not be overwritten\n", message, at_1->asi_name);
                 }
                 return 1;
@@ -6751,7 +6751,7 @@ schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *mess
         if (schema_at_superset_check_syntax_oids(at_2->asi_syntax_oid, at_1->asi_syntax_oid)) {
                 /* at_2 is a superset */
                 if (debug_logging) {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s schema attribute [%s] syntax "
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] syntax "
                                 "can not be overwritten\n", message, at_2->asi_name);
                 }
                 return -1;
@@ -6764,14 +6764,14 @@ schema_at_compare(struct asyntaxinfo *at_1, struct asyntaxinfo *at_2, char *mess
          */
         if (schema_at_superset_check_mr(at_1, at_2, info)) {
                 if (debug_logging) {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s schema attribute [%s] matching "
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
                                 "rule can not be overwritten\n", message, at_1->asi_name);
                 }
                 return 1;
         }
         if (schema_at_superset_check_mr(at_2, at_1, info)) {
                 if (debug_logging) {
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s schema attribute [%s] matching "
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "%s schema attribute [%s] matching "
                                 "rule can not be overwritten\n", message, at_2->asi_name);
                 }
                 return -1;
@@ -6804,13 +6804,13 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
         repl_schema_policy = schema_check_policy(replica_role, REPL_SCHEMA_ATTRIBUTE, at_1->asi_name, at_1->asi_oid);
         if (repl_schema_policy == REPL_SCHEMA_UPDATE_ACCEPT_VALUE) {
                 /* We are skipping the superset checking for that attribute */
-                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Do not check if this ATTRIBUTE is missing on local/remote schema [%s or %s]\n", at_1->asi_name, at_1->asi_oid);
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "Do not check if this ATTRIBUTE is missing on local/remote schema [%s or %s]\n", at_1->asi_name, at_1->asi_oid);
                 continue;
         } else if (repl_schema_policy == REPL_SCHEMA_UPDATE_REJECT_VALUE) {
                 /* This attribute being present, we need to fail as if it was a superset 
                  * but keep evaluating to have all the attribute checking
                  */
-                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "%s attribute prevents replication of the schema\n", at_1->asi_name);
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "%s attribute prevents replication of the schema\n", at_1->asi_name);
                 rc = 1;
                 if (debug_logging) {
                         /* we continue to check all the objectclasses so we log what is wrong */
@@ -6826,10 +6826,10 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
                         rc = 1;
                         if (debug_logging) {
                                 if (replica_role == REPL_SCHEMA_AS_CONSUMER) {
-                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Local %s schema attributetypes is a superset of"
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Local %s schema attributetypes is a superset of"
                                                 " the received one.\n", at_1->asi_name);
                                 } else {
-                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Remote %s schema attributetypes is a superset of"
+                                        slapi_log_error(SLAPI_LOG_REPL, "schema", "Remote %s schema attributetypes is a superset of"
                                                 " the received one.\n", at_1->asi_name);
                                 }
                                 continue;
@@ -6841,7 +6841,7 @@ schema_at_superset_check(struct asyntaxinfo *at_list1, struct asyntaxinfo *at_li
             rc = 1;
             if(debug_logging){
                 /* we continue to check all attributes so we log what is wrong */
-                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "Fail to retrieve in the %s schema [%s or %s]\n",
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "Fail to retrieve in the %s schema [%s or %s]\n",
         	            message, at_1->asi_name, at_1->asi_oid);
                 continue;
             } else {
@@ -7194,7 +7194,7 @@ schema_berval_to_oclist(struct berval **oc_berval)
                         if (LDAP_SUCCESS != (rc = parse_oc_str(oc_berval[i]->bv_val, &oc,
                                 errorbuf, sizeof(errorbuf), DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0,
                                 schema_ds4x_compat, oc_list))) {
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+                                slapi_log_error(SLAPI_LOG_ERR, "schema_berval_to_oclist",
                                                 "parse_oc_str returned error: %s\n",
                                                 errorbuf[0]?errorbuf:"unknown");
                                 oc_free(&oc);
@@ -7236,8 +7236,8 @@ schema_berval_to_atlist(struct berval **at_berval)
             rc = parse_at_str(at_berval[i]->bv_val, &at, errorbuf, sizeof(errorbuf),
                     DSE_SCHEMA_NO_CHECK | DSE_SCHEMA_USE_PRIV_SCHEMA, 0, schema_ds4x_compat, 0);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
-                                "schema_berval_to_atlist: parse_at_str(%s) failed - %s\n",
+                slapi_log_error(SLAPI_LOG_ERR, "schema_berval_to_atlist",
+                                "parse_at_str(%s) failed - %s\n",
                                 at_berval[i]->bv_val, errorbuf[0]?errorbuf:"unknown");
                 attr_syntax_free(at);
                 break;
@@ -7383,7 +7383,7 @@ modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
 		} else {
 			type = "unknown";
 		}
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "modify_schema_internal_mod: successfully learn %s definitions\n", type);
+		slapi_log_error(SLAPI_LOG_REPL, "modify_schema_internal_mod", "Successfully learn %s definitions\n", type);
 		/* Update the schema csn if the operation succeeded */
 		schema_csn = csn_new();
 		if (NULL != schema_csn) {
@@ -7392,7 +7392,7 @@ modify_schema_internal_mod(Slapi_DN *sdn, Slapi_Mods *smods)
 			g_set_global_schema_csn(schema_csn);
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "modify_schema_internal_mod: fail to learn schema definitions (%d) \n", op_result);
+		slapi_log_error(SLAPI_LOG_ERR, "modify_schema_internal_mod", "Fail to learn schema definitions (%d) \n", op_result);
 	}
 
 	slapi_pblock_destroy(newpb);
@@ -7427,7 +7427,7 @@ modify_schema_prepare_mods(Slapi_Mods *smods, char *type, struct schema_mods_ind
                 bv->bv_val = (void*) object->old_value;
                 bvps_del[i] = bv;
                 i++;
-                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "MOD[%d] del (%s): %s\n", i, type, object->old_value);
+                slapi_log_error(SLAPI_LOG_REPL, "schema", "MOD[%d] del (%s): %s\n", i, type, object->old_value);
             }
         }
         bvps_del[nb_values_del] = NULL;
@@ -7445,7 +7445,7 @@ modify_schema_prepare_mods(Slapi_Mods *smods, char *type, struct schema_mods_ind
             bv->bv_len = strlen(object->new_value);
             bv->bv_val = (void*) object->new_value;
             bvps_add[i] = bv;
-            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "MOD[%d] add (%s): %s\n", i, type, object->new_value);
+            slapi_log_error(SLAPI_LOG_REPL, "schema", "MOD[%d] add (%s): %s\n", i, type, object->new_value);
         }
         bvps_add[nb_values_add] = NULL;
     }
@@ -7496,7 +7496,7 @@ modify_schema_apply_new_definitions(char *attr_name, struct schema_mods_indexes 
         /* Then the sdn */
         sdn = slapi_sdn_new();
 	if (!sdn) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema", "modify_schema_apply_new_definitions Out of memory \n");
+		slapi_log_error(SLAPI_LOG_ERR, "modify_schema_apply_new_definitions", "Out of memory\n");
 		goto done;
 	}
         slapi_sdn_set_dn_byval(sdn, SLAPD_SCHEMA_DN);
@@ -7581,7 +7581,7 @@ modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schem
                                         /* If we can not build an attributes list from the mods, just skip
                                          * it and look for objectclasses
                                          */
-                                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+                                        slapi_log_error(SLAPI_LOG_ERR, "modify_schema_get_new_definitions",
                                                 "Not able to build an attributes list (%s) from the schema received from the supplier\n",
                                                 mods[i]->mod_type);
                                         continue;
@@ -7598,7 +7598,7 @@ modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schem
                                         at2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
                                         memcpy(at2learn->new_value, bv->bv_val, bv->bv_len);
                                         at2learn->new_value[bv->bv_len] = '\0';
-                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "take attributetypes: %s\n", at2learn->new_value);
+                                        slapi_log_error(SLAPI_LOG_REPL, "modify_schema_get_new_definitions", "take attributetypes: %s\n", at2learn->new_value);
                                 }
                                                                        
                                 /* Free the remote schema list */
@@ -7612,7 +7612,7 @@ modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schem
                                         /* If we can not build an objectclasses list from the mods, just skip
                                          * it and look for attributes
                                          */
-                                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+                                        slapi_log_error(SLAPI_LOG_ERR, "modify_schema_get_new_definitions",
                                                 "Not able to build an objectclasses list (%s) from the schema received from the supplier\n",
                                                 mods[i]->mod_type);
                                         continue;
@@ -7629,7 +7629,7 @@ modify_schema_get_new_definitions(Slapi_PBlock *pb, LDAPMod **mods, struct schem
                                         oc2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
                                         memcpy(oc2learn->new_value, bv->bv_val, bv->bv_len);
                                         oc2learn->new_value[bv->bv_len] = '\0';
-                                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "take objectclass: %s\n", oc2learn->new_value);
+                                        slapi_log_error(SLAPI_LOG_REPL, "modify_schema_get_new_definitions", "take objectclass: %s\n", oc2learn->new_value);
                                 }
                                 
                                 /* Free the remote schema list*/
@@ -7763,14 +7763,14 @@ supplier_get_new_definitions(struct berval **objectclasses, struct berval **attr
                         oc2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
                         memcpy(oc2learn->new_value, bv->bv_val, bv->bv_len);
                         oc2learn->new_value[bv->bv_len] = '\0';
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "supplier takes objectclass: %s\n", oc2learn->new_value);
+                        slapi_log_error(SLAPI_LOG_REPL, "supplier_get_new_definitions", "supplier takes objectclass: %s\n", oc2learn->new_value);
                 }
 
                 /* Free the remote schema list*/
                 schema_oclist_free(remote_oc_list);
         } else {
                 /* If we can not build an objectclasses list */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+                slapi_log_error(SLAPI_LOG_ERR, "supplier_get_new_definitions",
                         "Not able to build an objectclasses list from the consumer schema\n");
         }
 
@@ -7792,7 +7792,7 @@ supplier_get_new_definitions(struct berval **objectclasses, struct berval **attr
                         at2learn->new_value = (char *) slapi_ch_malloc(bv->bv_len + 1);
                         memcpy(at2learn->new_value, bv->bv_val, bv->bv_len);
                         at2learn->new_value[bv->bv_len] = '\0';
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "schema", "supplier takes attributetypes: %s\n", at2learn->new_value);
+                        slapi_log_error(SLAPI_LOG_REPL, "schema", "supplier takes attributetypes: %s\n", at2learn->new_value);
                 }
 
                 /* Free the remote schema list */
@@ -7801,7 +7801,7 @@ supplier_get_new_definitions(struct berval **objectclasses, struct berval **attr
                 /* If we can not build an attributes list from the mods, just skip
                  * it and look for objectclasses
                  */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schema",
+                slapi_log_error(SLAPI_LOG_ERR, "schema",
                         "Not able to build an attributes list from the consumer schema");
         }
         schema_dse_unlock();

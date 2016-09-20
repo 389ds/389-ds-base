@@ -111,7 +111,7 @@ cb_forward_operation(Slapi_PBlock * pb)
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &op);
 	if (NULL == op) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM, "No operation is set.\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, "cb_forward_operation - No operation is set.\n");
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 
@@ -133,8 +133,8 @@ cb_forward_operation(Slapi_PBlock * pb)
 			BerElement 	*ber = NULL;
 
 			if ((ber = ber_init(ctl_value)) == NULL) {
-			        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-					"cb_forward_operation: ber_init: Memory allocation failed");
+			        slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					"cb_forward_operation - ber_init: Memory allocation failed");
                                 if (iscritical)
                                     return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
                                 else
@@ -142,8 +142,8 @@ cb_forward_operation(Slapi_PBlock * pb)
 			}
 			rc = ber_scanf(ber,"i",&hops);
 			if (LBER_ERROR == rc) {
-       				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-					"Loop detection control badly encoded.");
+       				slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					"cb_forward_operation - Loop detection control badly encoded.");
         			ber_free(ber,1);
 				if (iscritical)
                                     return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
@@ -152,8 +152,8 @@ cb_forward_operation(Slapi_PBlock * pb)
 			}
 				
 			if (hops <= 0) {
-       				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-					"Max hop count exceeded. Loop detected.\n");
+       				slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					"cb_forward_operation - Max hop count exceeded. Loop detected.\n");
         			ber_free(ber,1);
 				if (iscritical)
                                     return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
@@ -170,15 +170,15 @@ cb_forward_operation(Slapi_PBlock * pb)
         slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
 	if ( cid == NULL ) {
 		/* programming error in the front-end */
-       		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-			"NULL component identity in an internal operation.");
+       		slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			"cb_forward_operation - NULL component identity in an internal operation.");
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 	pname=cid->sci_component_name;
 
 	if (cb_debug_on()) {
-       		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-			"internal op received from %s component \n",pname ? pname : "NULL");
+       		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			"cb_forward_operation - internal op received from %s component \n",pname ? pname : "NULL");
 	}
 
 	/* First, make sure chaining is not denied */
@@ -352,7 +352,7 @@ cb_be_state_change (void *handle, char *be_name, int old_be_state, int new_be_st
 					if (cbinst) {
 						/* the backend is disabled if the state is not ON */
 						cbinst->associated_be_is_disabled = (new_be_state != SLAPI_BE_STATE_ON);
-						slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "chainbe", "cb_be_state_change: set the "
+						slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, "cb_be_state_change - Set the "
 										"state of chainbe for %s to %d\n",
 										slapi_sdn_get_dn(cbsuffix), (new_be_state != SLAPI_BE_STATE_ON));
 					}

@@ -81,7 +81,7 @@ internal_ol_init_init(void)
     PR_ASSERT(NULL == ol_init_lock);
     if ((ol_init_lock = PR_NewLock()) == NULL) {
         PRErrorCode errorCode = PR_GetError();
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "internal_ol_init_init", "PR_NewLock failed %d:%s\n",
+        slapi_log_error(SLAPI_LOG_ERR, "internal_ol_init_init", "PR_NewLock failed %d:%s\n",
                         errorCode, slapd_pr_strerror(errorCode));
         return PR_FAILURE;
     }
@@ -163,12 +163,12 @@ convert_to_openldap_uri(const char *hostname_or_uri, int port, const char *proto
             proto = my_copy;
             start += 3;
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "convert_to_openldap_uri",
+            slapi_log_error(SLAPI_LOG_ERR, "convert_to_openldap_uri",
                 "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
             goto end;
         }
     } else if (!proto) {
-	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "convert_to_openldap_uri",
+	    slapi_log_error(SLAPI_LOG_ERR, "convert_to_openldap_uri",
             "The given LDAP URI [%s] is not valid\n", hostname_or_uri);
         goto end;
     } else {
@@ -586,7 +586,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     }
 
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &ssl_strength))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+        slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                         "failed: unable to set REQUIRE_CERT option to %d\n", ssl_strength);
     }
     if (slapi_client_uses_non_nss(ld)) {
@@ -595,7 +595,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
             /* CA Cert PEM file exists.  Set the path to openldap option. */
             rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTFILE, cacert);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+                slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                                 "Could not set CA cert path [%s]: %d:%s\n",
                                 cacert, rc, ldap_err2string(rc));
             }
@@ -605,7 +605,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
             /* Sets the CRL evaluation strategy. */
             rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CRLCHECK, &crlcheck);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+                slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                                 "Could not set CRLCHECK [%d]: %d:%s\n",
                                 crlcheck, rc, ldap_err2string(rc));
             }
@@ -613,7 +613,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     }
     /* tell it where our cert db/file is */
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_CACERTDIR, certdir))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+        slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                         "failed: unable to set CACERTDIR option to %s\n", certdir);
     }
     slapi_ch_free_string(&certdir);
@@ -622,7 +622,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_PROTOCOL_MIN, &optval))) {
         char *minstr = NULL;
         (void)getSSLVersionRange(&minstr, NULL);
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+        slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                         "failed: unable to set minimum TLS protocol level to %s\n", minstr);
         slapi_ch_free_string(&minstr);
     }
@@ -630,7 +630,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
     if (clientauth) {
         rc = slapd_SSL_client_auth(ld);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+            slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                             "failed: unable to setup connection for TLS/SSL EXTERNAL client cert authentication - %d\n", rc);
         }
     }
@@ -640,7 +640,7 @@ setup_ol_tls_conn(LDAP *ld, int clientauth)
        that optval is zero, meaning create a context for a client */
     optval = 0;
     if ((rc = ldap_set_option(ld, LDAP_OPT_X_TLS_NEWCTX, &optval))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "setup_ol_tls_conn",
+        slapi_log_error(SLAPI_LOG_ERR, "setup_ol_tls_conn",
                         "failed: unable to create new TLS context - %d\n", rc);
     }
 
@@ -693,7 +693,7 @@ slapi_ldap_init_ext(
     char *pp = NULL;
 
     if (NULL == pluginpath || (*pluginpath == '\0')) {
-        slapi_log_error(SLAPI_LOG_SHELL, LOG_DEBUG, "slapi_ldap_init_ext",
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
                         "config_get_saslpath returns NULL\n");
         pluginpath = ldaputil_get_saslpath();
     }
@@ -702,14 +702,14 @@ slapi_ldap_init_ext(
         (0 != strcmp(++pp, pluginpath)) /* sasl_path has been updated */ )
     {
         PR_snprintf(util_sasl_path, sizeof(util_sasl_path), "SASL_PATH=%s", pluginpath);
-        slapi_log_error(SLAPI_LOG_SHELL, LOG_DEBUG, "slapi_ldap_init_ext", "putenv(%s)\n", util_sasl_path);
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext", "putenv(%s)\n", util_sasl_path);
         putenv(util_sasl_path);
     }
     slapi_ch_free_string(&configpluginpath);
 
     /* if ldapurl is given, parse it */
     if (ldapurl && ((rc = slapi_ldap_url_parse(ldapurl, &ludp, 0, &secureurl)) || !ludp)) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+        slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
             "Could not parse given LDAP URL [%s] : error [%s]\n",
             ldapurl, /* ldapurl cannot be NULL here */
             slapi_urlparse_err2string(rc));
@@ -768,7 +768,7 @@ slapi_ldap_init_ext(
 #if defined(USE_OPENLDAP)
     if (ldapurl) {
         if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                "Could not perform internal ol_init init\n");
             rc = -1;
             goto done;
@@ -778,7 +778,7 @@ slapi_ldap_init_ext(
         rc = ldap_initialize(&ld, ldapurl);
         PR_Unlock(ol_init_lock);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                "Could not initialize LDAP connection to [%s]: %d:%s\n",
                ldapurl, rc, ldap_err2string(rc));
             goto done;
@@ -793,7 +793,7 @@ slapi_ldap_init_ext(
                                               (secure == SLAPI_LDAP_INIT_FLAG_SSL ? "ldaps" : "ldap"));
         }
         if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                 "Could not perform internal ol_init init\n");
             rc = -1;
             goto done;
@@ -803,7 +803,7 @@ slapi_ldap_init_ext(
         rc = ldap_initialize(&ld, makeurl);
         PR_Unlock(ol_init_lock);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                 "Could not initialize LDAP connection to [%s]: %d:%s\n",
                 makeurl, rc, ldap_err2string(rc));
             slapi_ch_free_string(&makeurl);
@@ -821,7 +821,7 @@ slapi_ldap_init_ext(
          * hostname (such as localhost.localdomain).
          */
         if((rc = ldap_set_option(ld, LDAP_OPT_X_SASL_NOCANON, LDAP_OPT_ON))){
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                 "Could not set ldap option LDAP_OPT_X_SASL_NOCANON for (%s), error %d (%s)\n",
                 ldapurl, rc, ldap_err2string(rc) );
         }
@@ -866,7 +866,7 @@ slapi_ldap_init_ext(
             tv.tv_sec = io_timeout_ms / 1000;
             tv.tv_usec = (io_timeout_ms % 1000) * 1000;
             if (LDAP_OPT_SUCCESS != ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tv)) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                     "failed: unable to set outbound I/O timeout to %dms\n", io_timeout_ms);
                 slapi_ldap_unbind(ld);
                 ld = NULL;
@@ -874,7 +874,7 @@ slapi_ldap_init_ext(
             }
 #else /* !USE_OPENLDAP */
             if (prldap_set_session_option(ld, NULL, PRLDAP_OPT_IO_MAX_TIMEOUT, io_timeout_ms) != LDAP_SUCCESS) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                     "failed: unable to set outbound I/O timeout to %dms\n", io_timeout_ms);
                 slapi_ldap_unbind(ld);
                 ld = NULL;
@@ -889,7 +889,7 @@ slapi_ldap_init_ext(
         if (secure > 0) {
 #if defined(USE_OPENLDAP)
             if (setup_ol_tls_conn(ld, 0)) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                     "failed: unable to set SSL/TLS options\n");
             }
 #else
@@ -920,7 +920,7 @@ slapi_ldap_init_ext(
             {
                 int prerr = PR_GetError();
 
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_init_ext",
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                     "failed: unable to set SSL options ("
                     SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                     prerr, slapd_pr_strerror(prerr));
@@ -960,7 +960,7 @@ slapi_ldap_init_ext(
         ldap_controls_free(clientctrls); /* free the copy */
     }
 
-    slapi_log_error(SLAPI_LOG_SHELL, LOG_DEBUG, "slapi_ldap_init_ext",
+    slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_init_ext",
             "Success: set up conn to [%s:%d]%s\n",
             hostname, port,
             (secure == SLAPI_LDAP_INIT_FLAG_startTLS) ? " using startTLS" :
@@ -1089,13 +1089,13 @@ slapi_ldap_bind(
         rc = slapd_SSL_client_auth(ld);
 #endif
         if (rc != 0) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
                     "Error: could not configure the server for cert "
                     "auth - error %d - make sure the server is "
                     "correctly configured for SSL/TLS\n", rc);
             goto done;
         } else {
-            slapi_log_error(SLAPI_LOG_SHELL, LOG_DEBUG, "slapi_ldap_bind",
+            slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
                 "Set up conn to use client auth\n");
         }
         bvcreds.bv_val = NULL; /* ignore username and passed in creds */
@@ -1109,13 +1109,22 @@ slapi_ldap_bind(
     if (secure == SLAPI_LDAP_INIT_FLAG_startTLS) { /* send start tls */
         rc = ldap_start_tls_s(ld, NULL /* serverctrls?? */, NULL);
         if (LDAP_SUCCESS != rc) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
-                    "Error: could not send startTLS request: "
-                    "error %d (%s) errno %d (%s)\n",
-                    rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+            if (errno != 0){
+            	/* Log the system errno */
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                        "Error: could not send startTLS request: "
+                        "error %d (%s) errno %d (%s)\n",
+                        rc, ldap_err2string(rc), errno,
+                        slapd_system_strerror(errno));
+            } else {
+            	/* Only LDAP error, no system error */
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                        "Error: could not send startTLS request: "
+                        "error %d (%s)\n", rc, ldap_err2string(rc));
+            }
             goto done;
         }
-        slapi_log_error(SLAPI_LOG_SHELL, LOG_DEBUG, "slapi_ldap_bind",
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
                 "startTLS started on connection\n");
     }
 
@@ -1125,7 +1134,7 @@ slapi_ldap_bind(
         !strcmp(mech, LDAP_SASL_EXTERNAL)) {
         int mymsgid = 0;
 
-        slapi_log_error(SLAPI_LOG_SHELL, LOG_DEBUG, "slapi_ldap_bind",
+        slapi_log_error(SLAPI_LOG_SHELL, "slapi_ldap_bind",
                 "attempting %s bind with id [%s] creds [%s]\n",
                 mech ? mech : "SIMPLE",
                 bindid, creds);
@@ -1154,8 +1163,8 @@ slapi_ldap_bind(
                 }
             }
 
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
-                    "Error: could not send bind request for id "
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                    "Could not send bind request for id "
                     "[%s] authentication mechanism [%s]: error %d (%s), system error %d (%s), "
                     "network error %d (%s, host \"%s\")\n",
                     bindid ? bindid : "(anon)",
@@ -1188,16 +1197,27 @@ slapi_ldap_bind(
             rc = ldap_result(ld, mymsgid, LDAP_MSG_ALL, bind_timeout, &result);
             if (-1 == rc) { /* error */
                 rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
-                        "Error reading bind response for id "
-                        "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
-                        bindid ? bindid : "(anon)",
-                        mech ? mech : "SIMPLE",
-                        rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                if (errno != 0){
+                	/* Log the system errno and message */
+                    slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error reading bind response for id "
+                            "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                } else {
+                    /* Only LDAP error, no system error */
+                	slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error reading bind response for id "
+                            "[%s] authentication mechanism [%s]: error %d (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                	        rc, ldap_err2string(rc));
+                }
                 goto done;
             } else if (rc == 0) { /* timeout */
                 rc = LDAP_TIMEOUT;
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
+                slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
                         "Error: timeout after [%ld.%ld] seconds reading "
                         "bind response for [%s] authentication mechanism [%s]\n",
                         bind_timeout->tv_sec, bind_timeout->tv_usec,
@@ -1211,33 +1231,60 @@ slapi_ldap_bind(
              */
             if ((rc = ldap_parse_result(ld, result, &err, NULL, NULL,
                                         NULL, returnedctrls, 0)) != LDAP_SUCCESS) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
-                        "Error: could not parse bind result: error %d (%s) errno %d (%s)\n",
-                        rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                if (errno != 0){
+                    /* Log the system errno and message */
+                    slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error: could not parse bind result: error %d (%s) errno %d (%s)\n",
+                            rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                } else {
+                	/* Only LDAP error, no system error */
+                    slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error: could not parse bind result: error %d (%s)\n",
+                            rc, ldap_err2string(rc));                    
+                }
                 goto done;
             }
 
             /* check the result code from the bind operation */
             if(err){
-                rc = err;
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
-                         "Error: could not bind id "
-                         "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
-                         bindid ? bindid : "(anon)",
-                         mech ? mech : "SIMPLE",
-                         rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+            	rc = err;
+                if (errno != 0){
+                    /* Log the system errno and message */
+                	slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error: could not bind id "
+                            "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
+                            bindid ? bindid : "(anon)", mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                } else {
+                	/* Only LDAP error, no system error */
+                    slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error: could not bind id "
+                            "[%s] authentication mechanism [%s]: error %d (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc));
+                }
                 goto done;
             }
 
             /* parse the bind result and get the ldap error code */
             if ((rc = ldap_parse_sasl_bind_result(ld, result, &servercredp, 0))) {
                 rc = slapi_ldap_get_lderrno(ld, NULL, NULL);
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "slapi_ldap_bind",
-                        "Error: could not read bind results for id "
-                        "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
-                        bindid ? bindid : "(anon)",
-                        mech ? mech : "SIMPLE",
-                        rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                if (errno != 0){
+                    slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error: could not read bind results for id "
+                            "[%s] authentication mechanism [%s]: error %d (%s) errno %d (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc), errno, slapd_system_strerror(errno));
+                } else {
+                    slapi_log_error(SLAPI_LOG_ERR, "slapi_ldap_bind",
+                            "Error: could not read bind results for id "
+                            "[%s] authentication mechanism [%s]: error %d (%s)\n",
+                            bindid ? bindid : "(anon)",
+                            mech ? mech : "SIMPLE",
+                            rc, ldap_err2string(rc));                   
+                }
                 goto done;
             }
         }
@@ -1255,7 +1302,7 @@ slapi_ldap_bind(
         rc = slapd_ldap_sasl_interactive_bind(ld, bindid, creds, mech,
                  serverctrls, returnedctrls, msgidp);
         if (LDAP_SUCCESS != rc) {
-            slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "slapi_ldap_bind",
+            slapi_log_error(SLAPI_LOG_CONNS, "slapi_ldap_bind",
                 "Error: could not perform interactive bind for id "
                 "[%s] authentication mechanism [%s]: error %d (%s)\n",
                 bindid ? bindid : "(anon)",
@@ -1355,8 +1402,8 @@ slapi_add_auth_response_control( Slapi_PBlock *pb, const char *binddn )
 	}
 	
 	if ( slapi_pblock_set( pb, SLAPI_ADD_RESCONTROL, &arctrl ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "bind",
-				"unable to add authentication response control" );
+		slapi_log_error(SLAPI_LOG_ERR, "slapi_add_auth_response_control",
+				"Unable to add authentication response control" );
 	}
 
 	if ( NULL != dnbuf_dynamic ) {
@@ -1478,25 +1525,25 @@ ldap_sasl_get_val(ldapSaslInteractVals *vals, sasl_interact_t *interact, unsigne
         switch(interact->id) {
         case SASL_CB_AUTHNAME:
             defvalue = vals->authid;
-            slapi_log_error(authtracelevel, LOG_DEBUG, "ldap_sasl_get_val",
+            slapi_log_error(authtracelevel, "ldap_sasl_get_val",
                             "Using value [%s] for SASL_CB_AUTHNAME\n",
                             defvalue ? defvalue : "(null)");
             break;
         case SASL_CB_USER:
             defvalue = vals->username;
-            slapi_log_error(authtracelevel, LOG_DEBUG, "ldap_sasl_get_val",
+            slapi_log_error(authtracelevel, "ldap_sasl_get_val",
                             "Using value [%s] for SASL_CB_USER\n",
                             defvalue ? defvalue : "(null)");
             break;
         case SASL_CB_PASS:
             defvalue = vals->passwd;
-            slapi_log_error(authtracelevel, LOG_DEBUG, "ldap_sasl_get_val",
+            slapi_log_error(authtracelevel, "ldap_sasl_get_val",
                             "Using value [%s] for SASL_CB_PASS\n",
                             defvalue ? defvalue : "(null)");
             break;
         case SASL_CB_GETREALM:
             defvalue = vals->realm;
-            slapi_log_error(authtracelevel, LOG_DEBUG, "ldap_sasl_get_val",
+            slapi_log_error(authtracelevel, "ldap_sasl_get_val",
                             "Using value [%s] for SASL_CB_GETREALM\n",
                             defvalue ? defvalue : "(null)");
             break;
@@ -1582,7 +1629,7 @@ slapd_ldap_sasl_interactive_bind(
         if (LDAP_SUCCESS != rc) {
             char *errmsg = NULL;
             rc = slapi_ldap_get_lderrno(ld, NULL, &errmsg);
-            slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "slapd_ldap_sasl_interactive_bind",
+            slapi_log_error(SLAPI_LOG_CONNS, "slapd_ldap_sasl_interactive_bind",
                             "Error: could not perform interactive bind for id "
                             "[%s] mech [%s]: LDAP error %d (%s) (%s) "
                             "errno %d (%s)\n",
@@ -1623,13 +1670,13 @@ show_one_credential(int authtracelevel,
     char startts[BUFSIZ], endts[BUFSIZ], renewts[BUFSIZ];
 
     if ((rc = krb5_unparse_name(ctx, cred->client, &name))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get client name from credential: %d (%s)\n",
                         rc, error_message(rc));
         goto cleanup;
     }
     if ((rc = krb5_unparse_name(ctx, cred->server, &sname))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get server name from credential: %d (%s)\n",
                         rc, error_message(rc));
         goto cleanup;
@@ -1644,7 +1691,7 @@ show_one_credential(int authtracelevel,
     krb5_timestamp_to_sfstring((krb5_timestamp)cred->times.renew_till,
                                renewts, sizeof(renewts), NULL);
 
-    slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+    slapi_log_error(authtracelevel, logname,
                     "\tKerberos credential: client [%s] server [%s] "
                     "start time [%s] end time [%s] renew time [%s] "
                     "flags [0x%x]\n", name, sname, startts, endts,
@@ -1672,19 +1719,19 @@ show_cached_credentials(int authtracelevel,
     char *princ_name = NULL;
 
     if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get principal name from principal: %d (%s)\n",
                         rc, error_message(rc));
 	    goto cleanup;
     }
 
-	slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+	slapi_log_error(authtracelevel, logname,
                     "Ticket cache: %s:%s\nDefault principal: %s\n\n",
                     krb5_cc_get_type(ctx, cc),
                     krb5_cc_get_name(ctx, cc), princ_name);
 
     if ((rc = krb5_cc_start_seq_get(ctx, cc, &cur))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get cursor to iterate cached credentials: "
                         "%d (%s)\n", rc, error_message(rc));
         goto cleanup;
@@ -1696,7 +1743,7 @@ show_cached_credentials(int authtracelevel,
     }
     if (rc == KRB5_CC_END) {
         if ((rc = krb5_cc_end_seq_get(ctx, cc, &cur))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+            slapi_log_error(SLAPI_LOG_ERR, logname,
                             "Could not close cached credentials cursor: "
                             "%d (%s)\n", rc, error_message(rc));
             goto cleanup;
@@ -1758,7 +1805,7 @@ credentials_are_valid(
                                        realm_len, realm_str);
 
     if ((*rc = krb5_parse_name(ctx, tgs_princ_name, &mcreds.server))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could parse principal [%s]: %d (%s)\n",
                         tgs_princ_name, *rc, error_message(*rc));
         goto cleanup;
@@ -1775,14 +1822,14 @@ credentials_are_valid(
 
     /* have the creds - now look at the timestamp */
     if ((*rc = krb5_timeofday(ctx, &currenttime))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get current time: %d (%s)\n",
                         *rc, error_message(*rc));
         goto cleanup;
     }
 
     if (currenttime > (creds.times.endtime + time_buffer)) {
-        slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+        slapi_log_error(authtracelevel, logname,
                         "Credentials for [%s] have expired or will soon "
                         "expire - now [%d] endtime [%d]\n", princ_name,
                         currenttime, creds.times.endtime);
@@ -1809,7 +1856,7 @@ internal_krb5_init(void)
     PR_ASSERT(NULL == krb5_lock);
     if ((krb5_lock = PR_NewLock()) == NULL) {
         PRErrorCode errorCode = PR_GetError();
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "internal_krb5_init PR_NewLock failed %d:%s\n",
+        slapi_log_error(SLAPI_LOG_ERR, "internal_krb5_init", "PR_NewLock failed %d:%s\n",
                         errorCode, slapd_pr_strerror(errorCode));
         return PR_FAILURE;
     }
@@ -1864,7 +1911,7 @@ set_krb5_creds(
      * so we put a lock around all kerberos interactions
      */
     if (PR_SUCCESS != PR_CallOnce(&krb5_callOnce, internal_krb5_init)) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not perform internal krb5 init\n");
         rc = -1;
         goto cleanup;
@@ -1874,7 +1921,7 @@ set_krb5_creds(
     
     /* initialize the kerberos context */
     if ((rc = krb5_init_context(&ctx))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not init Kerberos context: %d (%s)\n",
                         rc, error_message(rc));
         goto cleanup;
@@ -1884,7 +1931,7 @@ set_krb5_creds(
        creds in the ccache */
     /* grab the default ccache - note: this does not open the cache */
     if ((rc = krb5_cc_default(ctx, &cc))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get default Kerberos ccache: %d (%s)\n",
                         rc, error_message(rc));
         goto cleanup;
@@ -1898,7 +1945,7 @@ set_krb5_creds(
        is no ccache */
     if ((rc = krb5_cc_get_principal(ctx, cc, &princ))) {
         if (KRB5_FCC_NOFILE == rc) { /* no cache - ok */
-            slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+            slapi_log_error(authtracelevel, logname,
                             "The default credentials cache [%s] not found: "
                             "will create a new one.\n", cc_name);
             /* close the cache - we will create a new one below */
@@ -1907,19 +1954,19 @@ set_krb5_creds(
             slapi_ch_free_string(&cc_name);
             /* fall through to the keytab auth code below */
         } else { /* fatal */
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+            slapi_log_error(SLAPI_LOG_ERR, logname,
                             "Could not open default Kerberos ccache [%s]: "
                             "%d (%s)\n", cc_name, rc, error_message(rc));
             goto cleanup;
         }
     } else { /* have a valid ccache && found principal */
         if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+            slapi_log_error(SLAPI_LOG_ERR, logname,
                             "Unable to get name of principal from ccache [%s]: "
                             "%d (%s)\n", cc_name, rc, error_message(rc));
             goto cleanup;
         }
-        slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+        slapi_log_error(authtracelevel, logname,
                         "Using principal [%s] from ccache [%s]\n",
                         princ_name, cc_name);
     }
@@ -1936,7 +1983,7 @@ set_krb5_creds(
        NOTE: cc types are case sensitive and always upper case */
     if (cc && strcmp(cc_type, krb5_cc_get_type(ctx, cc))) {
         static int errmsgcounter = 0;
-        int loglevel = SLAPI_LOG_FATAL;
+        int loglevel = SLAPI_LOG_ERR;
         if (errmsgcounter) {
             loglevel = authtracelevel;
         }
@@ -1945,7 +1992,7 @@ set_krb5_creds(
            about it.  However, if the user knows what he/she is doing,
            by using an external ccache file, they probably don't want
            to be notified with an error every time. */
-        slapi_log_error(loglevel, loglevel==SLAPI_LOG_FATAL?LOG_ERR:LOG_DEBUG, logname,
+        slapi_log_error(loglevel, logname,
                         "The server will use the external SASL/GSSAPI "
                         "credentials cache [%s:%s].  If you want the "
                         "server to automatically authenticate with its "
@@ -1964,8 +2011,8 @@ set_krb5_creds(
     */
     if (!princ && looks_like_a_princ_name(username) &&
         (rc = krb5_parse_name(ctx, username, &princ))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
-                        "Error: could not convert [%s] into a kerberos "
+        slapi_log_error(SLAPI_LOG_ERR, logname,
+                        "Could not convert [%s] into a kerberos "
                         "principal: %d (%s)\n", username,
                         rc, error_message(rc));
         goto cleanup;
@@ -1973,8 +2020,8 @@ set_krb5_creds(
 
     if (getenv("HACK_PRINCIPAL_NAME") &&
         (rc = krb5_parse_name(ctx, getenv("HACK_PRINCIPAL_NAME"), &princ))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
-                        "Error: could not convert [%s] into a kerberos "
+        slapi_log_error(SLAPI_LOG_ERR, logname,
+                        "Could not convert [%s] into a kerberos "
                         "principal: %d (%s)\n", getenv("HACK_PRINCIPAL_NAME"),
                         rc, error_message(rc));
         goto cleanup;
@@ -1985,8 +2032,8 @@ set_krb5_creds(
         char *hostname = config_get_localhost();
         if ((rc = krb5_sname_to_principal(ctx, hostname, "ldap",
                                           KRB5_NT_SRV_HST, &princ))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
-                            "Error: could not construct ldap service "
+            slapi_log_error(SLAPI_LOG_ERR, logname,
+                            "Could not construct ldap service "
                             "principal from hostname [%s]: %d (%s)\n",
                             hostname ? hostname : "NULL", rc, error_message(rc));
         }
@@ -1998,26 +2045,26 @@ set_krb5_creds(
 
     slapi_ch_free_string(&princ_name);
     if ((rc = krb5_unparse_name(ctx, princ, &princ_name))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Unable to get name of principal: "
                         "%d (%s)\n", rc, error_message(rc));
         goto cleanup;
     }
 
-    slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+    slapi_log_error(authtracelevel, logname,
                     "Using principal named [%s]\n", princ_name);
 
     /* grab the credentials from the ccache, if any -
        if the credentials are still valid, we do not have
        to authenticate again */
     if (credentials_are_valid(ctx, cc, princ, princ_name, &rc)) {
-        slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+        slapi_log_error(authtracelevel, logname,
                         "Credentials for principal [%s] are still "
                         "valid - no auth is necessary.\n",
                         princ_name);
         goto cleanup;
     } else if (rc) { /* some error other than "there are no credentials" */
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Unable to verify cached credentials for "
                         "principal [%s]: %d (%s)\n", princ_name,
                         rc, error_message(rc));
@@ -2026,7 +2073,7 @@ set_krb5_creds(
 
     /* find our default keytab */
     if ((rc = krb5_kt_default(ctx, &kt))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Unable to get default keytab: %d (%s)\n",
                         rc, error_message(rc));
         goto cleanup;
@@ -2034,13 +2081,13 @@ set_krb5_creds(
 
     /* get name of keytab for debugging purposes */
     if ((rc = krb5_kt_get_name(ctx, kt, ktname, sizeof(ktname)))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Unable to get name of default keytab: %d (%s)\n",
                         rc, error_message(rc));
         goto cleanup;
     }
 
-    slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+    slapi_log_error(authtracelevel, logname,
                     "Using keytab named [%s]\n", ktname);
 
     /* now do the actual kerberos authentication using
@@ -2048,7 +2095,7 @@ set_krb5_creds(
     rc = krb5_get_init_creds_keytab(ctx, &creds, princ, kt,
                                     0, NULL, NULL);
     if (rc) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not get initial credentials for principal [%s] "
                         "in keytab [%s]: %d (%s)\n",
                         princ_name, ktname, rc, error_message(rc));
@@ -2068,7 +2115,7 @@ set_krb5_creds(
            generates a new unique name and returns a memory
            cache with that name */
         if ((rc = krb5_cc_new_unique(ctx, cc_type, NULL, &cc))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+            slapi_log_error(SLAPI_LOG_ERR, logname,
                             "Could not create new unique memory ccache: "
                             "%d (%s)\n",
                             rc, error_message(rc));
@@ -2081,18 +2128,18 @@ set_krb5_creds(
            to create the ctx, so the address should be unique enough
            for our purposes */
         if (!(cc_name = slapi_ch_smprintf("%s:%p", cc_type, ctx))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+            slapi_log_error(SLAPI_LOG_ERR, logname,
                             "Could create Kerberos memory ccache: "
                             "out of memory\n");
             rc = 1;
             goto cleanup;
         }
 #endif
-        slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+        slapi_log_error(authtracelevel, logname,
                         "Generated new memory ccache [%s]\n", cc_name);
         new_ccache = 1; /* need to set this in env. */
     } else {
-        slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+        slapi_log_error(authtracelevel, logname,
                         "Using existing ccache [%s]\n", cc_name);
     }
 
@@ -2104,7 +2151,7 @@ set_krb5_creds(
        cc could already have been created by new_unique above
     */
     if (!cc && (rc = krb5_cc_resolve(ctx, cc_name, &cc))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not create ccache [%s]: %d (%s)\n",
                         cc_name, rc, error_message(rc));
         goto cleanup;
@@ -2112,7 +2159,7 @@ set_krb5_creds(
 
     /* wipe out previous contents of cache for this principal, if any */
     if ((rc = krb5_cc_initialize(ctx, cc, princ))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not initialize ccache [%s] for the new "
                         "credentials for principal [%s]: %d (%s)\n",
                         cc_name, princ_name, rc, error_message(rc));
@@ -2121,7 +2168,7 @@ set_krb5_creds(
 
     /* store the credentials in the cache */
     if ((rc = krb5_cc_store_cred(ctx, cc, &creds))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, logname,
+        slapi_log_error(SLAPI_LOG_ERR, logname,
                         "Could not store the credentials in the "
                         "ccache [%s] for principal [%s]: %d (%s)\n",
                         cc_name, princ_name, rc, error_message(rc));
@@ -2140,7 +2187,7 @@ set_krb5_creds(
         PR_snprintf(cc_env_name, sizeof(cc_env_name),
                     "%s=%s", KRB5_ENV_CCNAME, cc_name);
         PR_SetEnv(cc_env_name);
-        slapi_log_error(authtracelevel, LOG_DEBUG, logname,
+        slapi_log_error(authtracelevel, logname,
                         "Set new env for ccache: [%s]\n",
                         cc_env_name);
     }
@@ -2182,22 +2229,22 @@ clear_krb5_ccache(void)
 
     /* initialize the kerberos context */
     if ((rc = krb5_init_context(&ctx))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clear_krb5_ccache", "Could not initialize kerberos context: %d (%s)\n",
+        slapi_log_error(SLAPI_LOG_ERR, "clear_krb5_ccache", "Could not initialize kerberos context: %d (%s)\n",
                         rc, error_message(rc));
         goto done;
     }
     /* get the default ccache */
     if ((rc = krb5_cc_default(ctx, &cc))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clear_krb5_ccache", "Could not get default kerberos ccache: %d (%s)\n",
+        slapi_log_error(SLAPI_LOG_ERR, "clear_krb5_ccache", "Could not get default kerberos ccache: %d (%s)\n",
                         rc, error_message(rc));
         goto done;
     }
     /* destroy the ccache */
     if((rc = krb5_cc_destroy(ctx, cc))){
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clear_krb5_ccache", "Could not destroy kerberos ccache: %d (%s)\n",
+        slapi_log_error(SLAPI_LOG_ERR, "clear_krb5_ccache", "Could not destroy kerberos ccache: %d (%s)\n",
                         rc, error_message(rc));
     } else {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG,"clear_krb5_ccache", "Successfully cleared kerberos ccache\n");
+        slapi_log_error(SLAPI_LOG_TRACE,"clear_krb5_ccache", "Successfully cleared kerberos ccache\n");
     }
 
 done:

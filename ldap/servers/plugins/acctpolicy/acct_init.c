@@ -129,14 +129,14 @@ acct_policy_init( Slapi_PBlock *pb )
 				(void *)&acct_policy_close ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN,
 				(void *)acct_policy_start ) != 0 ) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PLUGIN_NAME,
-					"acct_policy_init registration failed\n" );
+			slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+					"acct_policy_init - Registration failed\n" );
 			return( CALLBACK_ERR );
 	}
 
 	if( slapi_pblock_get( pb, SLAPI_PLUGIN_IDENTITY, &plugin_id ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PLUGIN_NAME,
-				"acct_policy_init failed to get plugin identity\n" );
+		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+				"acct_policy_init - Failed to get plugin identity\n" );
 		return( CALLBACK_ERR );
 	}
 
@@ -147,8 +147,8 @@ acct_policy_init( Slapi_PBlock *pb )
 		acct_preop_init, PRE_PLUGIN_DESC, NULL, plugin_id) != 0 ||
 		slapi_register_plugin("postoperation", 1, "acct_postop_init",
 		acct_postop_init, POST_PLUGIN_DESC, NULL, plugin_id) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PLUGIN_NAME,
-			"acct_policy_init failed to register callbacks\n" );
+		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+			"acct_policy_init  - Failed to register callbacks\n" );
 		return( CALLBACK_ERR );
 	}
 
@@ -189,14 +189,14 @@ acct_policy_start( Slapi_PBlock *pb )
 
 	/* Load plugin configuration */
 	if( acct_policy_load_config_startup( pb, plugin_id ) ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
 			"acct_policy_start failed to load configuration\n" );
 		return( CALLBACK_ERR );
 	}
 
 	/* Show the configuration */
 	cfg = get_config();
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "acct_policy_start config: "
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "acct_policy_start - config: "
 		"stateAttrName=%s altStateAttrName=%s specAttrName=%s limitAttrName=%s "
 		"alwaysRecordLogin=%d\n",
 		cfg->state_attr_name, cfg->alt_state_attr_name?cfg->alt_state_attr_name:"not configured", cfg->spec_attr_name,
@@ -226,7 +226,7 @@ acct_preop_init( Slapi_PBlock *pb ) {
 			SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
 					(void *)&pre_plugin_desc ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRE_PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_ERR, PRE_PLUGIN_NAME,
 					"Failed to set plugin version or description\n" );
 		return( CALLBACK_ERR );
 	}
@@ -236,8 +236,8 @@ acct_preop_init( Slapi_PBlock *pb ) {
 	     slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODIFY_FN, (void *) acct_mod_pre_op) != 0 ||
 	     slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_DELETE_FN, (void *) acct_del_pre_op) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, PRE_PLUGIN_NAME,
-				"Failed to set plugin callback function\n" );
+		slapi_log_error(SLAPI_LOG_ERR, PRE_PLUGIN_NAME,
+				"acct_preop_init - Failed to set plugin callback function\n" );
 		return( CALLBACK_ERR );
 	}
 
@@ -253,8 +253,8 @@ acct_postop_init( Slapi_PBlock *pb )
 				SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
 					(void *)&post_plugin_desc ) != 0 ) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, POST_PLUGIN_NAME,
-						"Failed to set plugin version or name\n" );
+			slapi_log_error(SLAPI_LOG_ERR, POST_PLUGIN_NAME,
+						"acct_postop_init - Failed to set plugin version or name\n" );
 			return( CALLBACK_ERR );
 	}
 
@@ -263,14 +263,14 @@ acct_postop_init( Slapi_PBlock *pb )
 	     slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN, (void *) acct_post_op) != 0 ||
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *) acct_post_op) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, POST_PLUGIN_NAME,
-				"Failed to set plugin callback function\n" );
+		slapi_log_error(SLAPI_LOG_ERR, POST_PLUGIN_NAME,
+				"acct_postop_init - Failed to set plugin callback function\n" );
 		return( CALLBACK_ERR );
 	}
 
 	if( slapi_pblock_get( pb, SLAPI_PLUGIN_IDENTITY, &plugin_id ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, POST_PLUGIN_NAME,
-				"Failed to get plugin identity\n" );
+		slapi_log_error(SLAPI_LOG_ERR, POST_PLUGIN_NAME,
+				"acct_postop_init - Failed to get plugin identity\n" );
 		return( CALLBACK_ERR );
 	}
 

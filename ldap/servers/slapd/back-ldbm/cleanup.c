@@ -20,14 +20,14 @@ int ldbm_back_cleanup( Slapi_PBlock *pb )
 	struct ldbminfo	*li;
     Slapi_Backend *be;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ldbm backend cleaning up\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "ldbm backend cleaning up\n", 0, 0, 0 );
 	slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
 
 	if (be->be_state != BE_STATE_STOPPED &&
 		be->be_state != BE_STATE_DELETED)
 	{
-		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
+		LDAPDebug(LDAP_DEBUG_TRACE, 
 				  "ldbm_back_cleanup: warning - backend is in a wrong state - %d\n", 
 				  be->be_state, 0, 0 );
 		return 0;
@@ -38,7 +38,7 @@ int ldbm_back_cleanup( Slapi_PBlock *pb )
 	if (be->be_state != BE_STATE_STOPPED &&
 		be->be_state != BE_STATE_DELETED)
 	{
-		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
+		LDAPDebug(LDAP_DEBUG_TRACE, 
 				  "ldbm_back_cleanup: warning - backend is in a wrong state - %d\n", 
 				  be->be_state, 0, 0 );
 		PR_Unlock (be->be_state_lock);

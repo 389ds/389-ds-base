@@ -664,7 +664,7 @@ entry_delete_present_values_wsi(Slapi_Entry *e, const char *type, struct berval 
 			retVal = LDAP_SUCCESS;
 		} else {
 			if (!urp) {
-				LDAPDebug1Arg(LDAP_DEBUG_ARGS, LOG_DEBUG, "could not find attribute %s\n",
+				LDAPDebug1Arg(LDAP_DEBUG_ARGS, "could not find attribute %s\n",
 				              type);
 			}
 			retVal = LDAP_NO_SUCH_ATTRIBUTE;
@@ -694,7 +694,7 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 	if ( vals == NULL || vals[0] == NULL )
 	{
 		/* delete the entire attribute */
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "removing entire attribute %s\n", type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "removing entire attribute %s\n", type, 0, 0 );
 		const CSN *adcsn = attr_get_deletion_csn(a);
 		if (csn_compare(csn, adcsn)<0) {
 			/* the attribute was deleted with an adcsn
@@ -772,7 +772,8 @@ entry_delete_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, 
 				 */
 				if ( retVal==LDAP_OPERATIONS_ERROR )
 				{
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Possible existing duplicate "
+					LDAPDebug(LDAP_DEBUG_ERR, "entry_delete_present_values_wsi_single_valued - "
+						"Possible existing duplicate "
 						"value for attribute type %s found in "
 						"entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
 				}
@@ -792,7 +793,7 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 		if ( vals == NULL || vals[0] == NULL )
 		{
 			/* delete the entire attribute */
-			LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "removing entire attribute %s\n", type, 0, 0 );
+			LDAPDebug(LDAP_DEBUG_ARGS, "Removing entire attribute %s\n", type, 0, 0 );
 			const CSN *adcsn = attr_get_deletion_csn(a);
 			if (csn_compare(csn, adcsn)<0) {
 				/* the attribute was deleted with an adcsn
@@ -889,9 +890,10 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 					 */
 					if ( retVal==LDAP_OPERATIONS_ERROR )
 					{
-						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Possible existing duplicate "
-						           "value for attribute type %s found in "
-						           "entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
+						LDAPDebug(LDAP_DEBUG_ERR, "entry_delete_present_values_wsi_multi_valued - "
+								  "Possible existing duplicate "
+						          "value for attribute type %s found in "
+						          "entry %s\n", a->a_type, slapi_entry_get_dn_const(e), 0 );
 					}
 				}
 				valuearray_free(&valuestodelete);
@@ -936,17 +938,17 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 	switch ( mod->mod_op & ~LDAP_MOD_BVALUES )
 	{
 	case LDAP_MOD_ADD:
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   add: %s\n", mod->mod_type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   add: %s\n", mod->mod_type, 0, 0 );
 		retVal = entry_add_present_values_wsi( e, mod->mod_type, mod->mod_bvalues, csn, urp, 0 );
 		break;
 
 	case LDAP_MOD_DELETE:
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   delete: %s\n", mod->mod_type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   delete: %s\n", mod->mod_type, 0, 0 );
 		retVal = entry_delete_present_values_wsi( e, mod->mod_type, mod->mod_bvalues, csn, urp, mod->mod_op, NULL );
 		break;
 
 	case LDAP_MOD_REPLACE:
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   replace: %s\n", mod->mod_type, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   replace: %s\n", mod->mod_type, 0, 0 );
 		retVal = entry_replace_present_values_wsi( e, mod->mod_type, mod->mod_bvalues, csn, urp );
 		break;
 	}
@@ -954,10 +956,10 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 		for ( i = 0;
 		      mod->mod_bvalues != NULL && mod->mod_bvalues[i] != NULL;
 		      i++ ) {
-			LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   %s: %s\n",
+			LDAPDebug(LDAP_DEBUG_ARGS, "   %s: %s\n",
 			           mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
 		}
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   -\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ARGS, "   -\n", 0, 0, 0 );
 	}
 
 	/* 
@@ -1010,7 +1012,7 @@ entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp)
 		localcsn = *csn; /* make a copy */
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> entry_apply_mods_wsi\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> entry_apply_mods_wsi\n", 0, 0, 0 );
 
 	mod = slapi_mods_get_first_mod(smods);
 	while(NULL!=mod && retVal==LDAP_SUCCESS)
@@ -1034,7 +1036,7 @@ entry_apply_mods_wsi(Slapi_Entry *e, Slapi_Mods *smods, const CSN *csn, int urp)
 		mod = slapi_mods_get_next_mod(smods);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= entry_apply_mods_wsi %d\n", retVal, 0, 0 );	
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= entry_apply_mods_wsi %d\n", retVal, 0, 0 );	
 	
 	return retVal;
 }

@@ -61,8 +61,8 @@ aclanom_init ()
                 slapi_ch_calloc (1, sizeof ( struct anom_profile ) );
 
 	if (( anom_rwlock = slapi_new_rwlock()) == NULL ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-				"Failed in getting the ANOM rwlock\n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+				"aclanom_init - Failed in getting the ANOM rwlock\n" );
 		return 1;
 	}
 	return 0;
@@ -115,7 +115,7 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 	/* We have a new signature now */
 	a_profile->anom_signature =  acl_get_aclsignature();
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "GENERATING ANOM USER PROFILE\n");
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "aclanom_gen_anomProfile - GENERATING ANOM USER PROFILE\n");
 	/*
 	** Go thru the ACL list and find all the ACLs  which apply to the 
 	** anonymous user i.e anyone. we can generate a profile for that.
@@ -140,8 +140,8 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 			( (aci->aci_type & ACI_CONTAIN_NOT_USERDN ) ||
 			  (aci->aci_type & ACI_CONTAIN_NOT_GROUPDN)	||
 				(aci->aci_type & ACI_CONTAIN_NOT_ROLEDN)) ){
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"CANCELLING ANOM USER PROFILE BECAUSE OF DENY RULE\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"aclanom_gen_anomProfile - CANCELLING ANOM USER PROFILE BECAUSE OF DENY RULE\n");
 			goto cleanup;
 		}
 
@@ -158,8 +158,8 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 		** let's not consider complex rules - let's make this lean.
 		*/
 		if ( aci->aci_ruleType & ~ACI_USERDN_RULE ){
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"CANCELLING ANOM USER PROFILE BECAUSE OF COMPLEX RULE\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"aclanom_gen_anomProfile - CANCELLING ANOM USER PROFILE BECAUSE OF COMPLEX RULE\n");
 			goto cleanup;
 		}
 
@@ -179,8 +179,8 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 				continue;
 			} else {
 				/* clean up before leaving */
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"CANCELLING ANOM USER PROFILE 1\n");
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"aclanom_gen_anomProfile - CANCELLING ANOM USER PROFILE 1\n");
 				goto cleanup;
 			}
 
@@ -190,7 +190,7 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 		a_numacl = a_profile->anom_numacls++;
 
 		if ( a_profile->anom_numacls == ACL_ANOM_MAX_ACL ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "CANCELLING ANOM USER PROFILE 2\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, "aclanom_gen_anomProfile - CANCELLING ANOM USER PROFILE 2\n");
 			goto cleanup;
 		}
 
@@ -211,8 +211,8 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 			a_profile->anom_targetinfo[a_numacl].anom_filter =  slapi_str2filter ( aci->targetFilterStr );
 			if (NULL == a_profile->anom_targetinfo[a_numacl].anom_filter) {
 				const char	*dn = slapi_sdn_get_dn ( aci->aci_sdn );
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-								"Error: invalid filter [%s] in anonymous aci in entry [%s]\n",
+				slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+								"aclanom_gen_anomProfile - Invalid filter [%s] in anonymous aci in entry [%s]\n",
 								aci->targetFilterStr, dn);
 				goto cleanup;
 			}
@@ -237,8 +237,8 @@ aclanom_gen_anomProfile (acl_lock_flag_t lock_flag)
 				destattrArray[i] = NULL;
 				/* clean up before leaving */
 				aclanom__del_profile (0);
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"CANCELLING ANOM USER PROFILE 3\n");
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"aclanom_gen_anomProfile - CANCELLING ANOM USER PROFILE 3\n");
 				goto cleanup;
 			}
 
@@ -522,8 +522,8 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 			const char				*aci_ndn;
 			aci_ndn = slapi_sdn_get_ndn (acl_anom_profile->anom_targetinfo[i].anom_target);
 			if (access & SLAPI_ACL_MODDN) {
-				slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-					"conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) (from %s) to anonymous: acidn=\"%s\"\n",
+				slapi_log_error(loglevel, plugin_name, 
+					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) (from %s) to anonymous: acidn=\"%s\"\n",
 					o_connid, o_opid,
 					ndn,
 					attr ? attr:"NULL",
@@ -531,8 +531,8 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 					aci_ndn);
 				
 			} else {
-				slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-					"conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
+				slapi_log_error(loglevel, plugin_name, 
+					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Allow access on entry(%s).attr(%s) to anonymous: acidn=\"%s\"\n",
 					o_connid, o_opid,
 					ndn,
 					attr ? attr:"NULL",
@@ -540,14 +540,14 @@ aclanom_match_profile (Slapi_PBlock *pb, struct acl_pblock *aclpb, Slapi_Entry *
 			}
 		} else {
 			if (access & SLAPI_ACL_MODDN) {
-				slapi_log_error(loglevel, LOG_DEBUG, plugin_name,
-					"conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) (from %s) to anonymous\n",
+				slapi_log_error(loglevel, plugin_name,
+					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) (from %s) to anonymous\n",
 					o_connid, o_opid,
 					ndn, attr ? attr:"NULL" ,
 					aclpb->aclpb_moddn_source_sdn ? slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn) : "NULL");
 			} else {
-				slapi_log_error(loglevel, LOG_DEBUG, plugin_name,
-					"conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
+				slapi_log_error(loglevel, plugin_name,
+					"aclanom_match_profile - conn=%" NSPRIu64 " op=%d: Deny access on entry(%s).attr(%s) to anonymous\n",
 					o_connid, o_opid,
 					ndn, attr ? attr:"NULL" );
 			}

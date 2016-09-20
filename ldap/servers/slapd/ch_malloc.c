@@ -90,7 +90,7 @@ void oom_occurred(void)
 static void
 log_negative_alloc_msg( const char *op, const char *units, unsigned long size )
 {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_MODULE,
+	slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
 		"cannot %s %lu %s;\n"
 		"trying to allocate 0 or a negative number of %s is not portable and\n"
 		"gives different results on different platforms.\n",
@@ -114,7 +114,7 @@ slapi_ch_malloc(
 		int	oserr = errno;
 
 	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_MODULE,
+		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "malloc of %lu bytes failed; OS error %d (%s)%s\n",
 			size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -152,7 +152,7 @@ slapi_ch_realloc(
 		int	oserr = errno;
 
 	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_MODULE,
+		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "realloc of %lu bytes failed; OS error %d (%s)%s\n",
 			size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -189,7 +189,7 @@ slapi_ch_calloc(
 		int	oserr = errno;
 
 	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_MODULE,
+		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
 			nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -219,7 +219,7 @@ slapi_ch_strdup ( const char* s1)
 		int	oserr = errno;
         oom_occurred();
 
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_MODULE,
+		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "strdup of %lu characters failed; OS error %d (%s)%s\n",
 			(unsigned long)strlen(s1), oserr, slapd_system_strerror( oserr ),
 			oom_advice );
@@ -246,7 +246,7 @@ slapi_ch_bvdup (const struct berval* v)
 		int	oserr = errno;
 
 	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_MODULE,
+		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
 			(unsigned long)v->bv_len, oserr, slapd_system_strerror( oserr ),
 			oom_advice );

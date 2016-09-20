@@ -41,7 +41,7 @@ aclgroup_init ()
 
 	aclUserGroups = ( aclGroupCache * ) slapi_ch_calloc (1, sizeof ( aclGroupCache ) );
 	if ( NULL ==  (aclUserGroups->aclg_rwlock = slapi_new_rwlock())) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "Unable to allocate RWLOCK for group cache\n");
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "Unable to allocate RWLOCK for group cache\n");
 		return 1;
 	}
 	return 0;
@@ -101,8 +101,8 @@ aclg_init_userGroup ( struct acl_pblock *aclpb, const char *n_dn , int got_lock 
 			*/
 			
 			if ( !u_group->aclug_refcnt ) {
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"In traversal group deallocation\n" );
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"aclg_init_userGroup - In traversal group deallocation\n" );
 				__aclg__delete_userGroup (u_group);								
 			}			
 		} else {
@@ -142,7 +142,7 @@ aclg_init_userGroup ( struct acl_pblock *aclpb, const char *n_dn , int got_lock 
 			if ( u_group == aclUserGroups->aclg_last )
 				aclUserGroups->aclg_last = p_group;
 		}
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "acl_init_userGroup: found in cache for dn:%s\n", n_dn);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl_init_userGroup - Found in cache for dn:%s\n", n_dn);
 	}
 	if (!got_lock ) ACLG_ULOCK_GROUPCACHE_WRITE ();
 }
@@ -252,7 +252,7 @@ aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn)
 	aclUserGroup		*u_group, *f_group;
 
 	if ( !aclpb ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "NULL acl pblock\n" );
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "aclg_get_usersGroup - NULL acl pblock\n" );
 		return NULL;
 	}
 
@@ -274,7 +274,7 @@ aclg_get_usersGroup ( struct acl_pblock *aclpb , char *n_dn)
 	 * That's fine as the invalid one will be deallocated when done.
 	 */
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "ALLOCATING GROUP FOR:%s\n", n_dn );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "aclg_get_usersGroup - ALLOCATING GROUP FOR:%s\n", n_dn );
 	u_group = ( aclUserGroup * ) slapi_ch_calloc ( 1, sizeof ( aclUserGroup ) );
 	
 	u_group->aclug_refcnt = 1;
@@ -368,7 +368,7 @@ __aclg__delete_userGroup ( aclUserGroup *u_group )
 	 * be in a condemned state and later deleted.
 	 */
 	
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "DEALLOCATING GROUP FOR:%s\n", u_group->aclug_ndn );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "__aclg__delete_userGroup - DEALLOCATING GROUP FOR:%s\n", u_group->aclug_ndn );
 
 	slapi_ch_free ( (void **) &u_group->aclug_ndn );
 

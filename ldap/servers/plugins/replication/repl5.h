@@ -681,7 +681,7 @@ int is_task_aborted(ReplicaId rid);
 void delete_aborted_rid(Replica *replica, ReplicaId rid, char *repl_root, int skip);
 int is_pre_cleaned_rid(ReplicaId rid);
 void set_cleaned_rid(ReplicaId rid);
-void cleanruv_log(Slapi_Task *task, int rid, char *task_type, char *fmt, ...);
+void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
 char * replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
 
 #define CLEANRIDSIZ 64 /* maximum number for concurrent CLEANALLRUV tasks */
@@ -726,7 +726,7 @@ void replica_updatedn_list_enumerate(ReplicaUpdateDNList list, FNEnumDN fn, void
 
 /* enabling developper traces for MMR to understand the total/inc protocol state machines */
 #ifdef DEV_DEBUG
-#define SLAPI_LOG_DEV_DEBUG SLAPI_LOG_FATAL
+#define SLAPI_LOG_DEV_DEBUG SLAPI_LOG_DEBUG
 #define dev_debug(a) slapi_log_error(SLAPI_LOG_DEV_DEBUG, "DEV_DEBUG", "%s\n", a)
 #else
 #define dev_debug(a)

@@ -124,7 +124,8 @@ FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker)
                 if (fi->bad == FIFOITEM_BAD) {
                     fi->bad = FIFOITEM_BAD_PRINTED;
                     if (!(job->flags & FLAG_UPGRADEDNFORMAT_V1)) {
-                        import_log_notice(job, "WARNING: bad entry: ID %d", id);
+                        import_log_notice(job, SLAPI_LOG_WARNING, "import_fifo_fetch",
+                                "Bad entry: ID %d", id);
                     }
                 }
                 return NULL;
@@ -198,7 +199,7 @@ static void import_log_status_done(ImportJob *job)
 /* this adds a line to the 'nsTaskLog' value, which is cumulative (anything
  * logged here is added to the end)
  */
-void import_log_notice(ImportJob *job, char *format, ...)
+void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...)
 {
     va_list ap;
     char buffer[LOG_BUFFER];
@@ -212,14 +213,14 @@ void import_log_notice(ImportJob *job, char *format, ...)
     }
     /* also save it in the logs for posterity */
     if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "upgradedn %s: %s\n", job->inst->inst_name,
-                  buffer, 0);
+        slapi_log_error(log_level, subsystem, "upgradedn %s: %s\n",
+                job->inst->inst_name, buffer);
     } else if (job->flags & FLAG_REINDEXING) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "reindex %s: %s\n", job->inst->inst_name,
-                  buffer, 0);
+        slapi_log_error(log_level, subsystem, "reindex %s: %s\n",
+                job->inst->inst_name, buffer);
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "import %s: %s\n", job->inst->inst_name,
-                  buffer, 0);
+        slapi_log_error(log_level, subsystem, "import %s: %s\n",
+                job->inst->inst_name, buffer);
     }
 }
 
@@ -482,9 +483,10 @@ static int import_start_threads(ImportJob *job)
                         PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                         PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
         PRErrorCode prerr = PR_GetError();
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "unable to spawn import foreman thread, "
-                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                  prerr, slapd_pr_strerror(prerr), 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "import_start_threads - "
+                "Unable to spawn import foreman thread, "
+                SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                prerr, slapd_pr_strerror(prerr), 0);
         FREE(foreman);
         goto error;
     }
@@ -512,7 +514,8 @@ static int import_start_threads(ImportJob *job)
                 PR_UNJOINABLE_THREAD,
                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "unable to spawn import worker thread, "
+            LDAPDebug(LDAP_DEBUG_ERR, "import_start_threads - "
+            		"Unable to spawn import worker thread, "
                     SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                     prerr, slapd_pr_strerror(prerr), 0);
             FREE(worker);
@@ -528,10 +531,10 @@ static int import_start_threads(ImportJob *job)
     return 0;
 
 error:
-    import_log_notice(job, "Import thread creation failed.");
-    import_log_notice(job, "Aborting all import threads...");
+    import_log_notice(job, SLAPI_LOG_ERR, "import_start_threads", "Import thread creation failed.");
+    import_log_notice(job, SLAPI_LOG_ERR, "import_start_threads", "Aborting all import threads...");
     import_abort_all(job, 1);
-    import_log_notice(job, "Import threads aborted.");
+    import_log_notice(job, SLAPI_LOG_ERR, "import_start_threads", "Import threads aborted.");
     return -1;
 }
 
@@ -662,10 +665,10 @@ static int import_throw_in_towel(ImportJob *job, time_t current_time,
          * for the slowdown */
         if (job->cache_hit_ratio < IMPORT_CHUNK_TEST_CACHE_HIT_RATIO) {
         /* We have a winner ! */
-        import_log_notice(job, "Decided to end this pass because "
-                  "the progress rate has dropped below "
-                  "the %.0f%% threshold.",
-                  IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_A*100.0);
+        import_log_notice(job, SLAPI_LOG_INFO, "import_throw_in_towel", 
+                "Decided to end this pass because the progress rate has dropped below "
+                 "the %.0f%% threshold.",
+                 IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_A*100.0);
         return 1;
         }
     } else {
@@ -677,10 +680,9 @@ static int import_throw_in_towel(ImportJob *job, time_t current_time,
          * been misconfigured too large */
         if (number_of_times_here > 10) {
             /* Got to get here ten times at least */
-            import_log_notice(job, "Decided to end this pass "
-                      "because the progress rate "
-                      "plummeted below %.0f%%",
-                      IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B*100.0);
+            import_log_notice(job, SLAPI_LOG_INFO, "import_throw_in_towel",
+                   "Decided to end this pass because the progress rate plummeted below %.0f%%",
+                    IMPORT_CHUNK_TEST_SLOWDOWN_RATIO_B*100.0);
             return 1;
         }
         number_of_times_here++;
@@ -850,7 +852,7 @@ static int import_monitor_threads(ImportJob *job, int *status)
             p += sprintf(p, "recent rate %.1f/sec, ",
                          job->recent_progress_rate);
             p += sprintf(p, "hit ratio %.0f%%", job->cache_hit_ratio * 100.0);
-            import_log_notice(job, "%s", buffer);
+            import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads", "%s", buffer);
         }
 
         /* Then let's see if it's time to complete this import pass */
@@ -858,14 +860,14 @@ static int import_monitor_threads(ImportJob *job, int *status)
             giveup = import_throw_in_towel(job, time_now, trailing_ID);
             if (giveup) {
                 /* If so, signal the lead thread to stop */
-                import_log_notice(job, "Ending pass number %d ...",
-                                  job->total_pass);
+                import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads", 
+                        "Ending pass number %d ...", job->total_pass);
                 foreman->command = STOP;
                 while (foreman->state != FINISHED) {
                     DS_Sleep(tenthsecond);
                 }
-                import_log_notice(job, "Foreman is done; waiting for "
-                                  "workers to finish...");
+                import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads", 
+                        "Foreman is done; waiting for workers to finish...");
             }
         }
 
@@ -897,7 +899,8 @@ static int import_monitor_threads(ImportJob *job, int *status)
         count++;
     }
 
-    import_log_notice(job, "Workers finished; cleaning up...");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads",
+            "Workers finished; cleaning up...");
 
     /* Now tell all the workers to stop */
     for (current_worker = job->worker_list; current_worker != NULL;
@@ -918,7 +921,7 @@ static int import_monitor_threads(ImportJob *job, int *status)
             current_worker = current_worker->next;
         }
     }
-    import_log_notice(job, "Workers cleaned up.");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_monitor_threads", "Workers cleaned up.");
 
     /* If we're here and giveup is true, and the primary hadn't finished
      * processing the input files, we need to return IMPORT_INCOMPLETE_PASS */
@@ -951,7 +954,7 @@ static int import_run_pass(ImportJob *job, int *status)
     /* Start the threads running */
     ret = import_start_threads(job);
     if (ret != 0) {
-        import_log_notice(job, "Starting threads failed: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "import_run_pass", "Starting threads failed: %d\n", ret);
         goto error;
     }
 
@@ -959,10 +962,10 @@ static int import_run_pass(ImportJob *job, int *status)
     ret = import_monitor_threads(job, status);
     if ((ret == ERR_IMPORT_ABORTED) || (ret == NEED_DN_NORM) ||
         (ret == NEED_DN_NORM_SP) || (ret == NEED_DN_NORM_BT)) {
-import_log_notice(job, "Thread monitoring returned: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "import_run_pass", "Thread monitoring returned: %d\n", ret);
         goto error;
     } else if (ret != 0) {
-        import_log_notice(job, "Thread monitoring aborted: %d\n", ret);
+        import_log_notice(job, SLAPI_LOG_ERR, "import_run_pass", "Thread monitoring aborted: %d\n", ret);
         goto error;
     }
 
@@ -1063,7 +1066,8 @@ static int import_sweep_after_pass(ImportJob *job)
     backend *be = job->inst->inst_be;
     int ret = 0;
 
-    import_log_notice(job, "Sweeping files for merging later...");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_sweep_after_pass",
+            "Sweeping files for merging later...");
 
     ret = dblayer_instance_close(be);
     
@@ -1076,46 +1080,49 @@ static int import_sweep_after_pass(ImportJob *job)
         /* Foreach job, rename the file to <filename>.n, where n is the 
          * pass number */
         if ((current_worker->work_type != FOREMAN) && 
-        (current_worker->work_type != PRODUCER) && 
-        (strcasecmp(current_worker->index_info->name, LDBM_PARENTID_STR) != 0)) {
-        char *newname = NULL;
-        char *oldname = NULL;
+            (current_worker->work_type != PRODUCER) && 
+            (strcasecmp(current_worker->index_info->name, LDBM_PARENTID_STR) != 0)) {
+            char *newname = NULL;
+            char *oldname = NULL;
 
-        ret = import_make_merge_filenames(job->inst->inst_dir_name,
-            current_worker->index_info->name, job->current_pass,
-            &oldname, &newname);
-        if (0 != ret) {
-            break;
-        }
-        if (PR_Access(oldname, PR_ACCESS_EXISTS) == PR_SUCCESS) {
-            ret = PR_Rename(oldname, newname);
-            if (ret != PR_SUCCESS) {
-                PRErrorCode prerr = PR_GetError();
-                import_log_notice(job, "Failed to rename file \"%s\" to \"%s\", "
-                    SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
-                    oldname, newname, prerr, slapd_pr_strerror(prerr));
-                slapi_ch_free( (void**)&newname);
-                slapi_ch_free( (void**)&oldname);
+            ret = import_make_merge_filenames(job->inst->inst_dir_name,
+                    current_worker->index_info->name, job->current_pass,
+                    &oldname, &newname);
+            if (0 != ret) {
                 break;
             }
+            if (PR_Access(oldname, PR_ACCESS_EXISTS) == PR_SUCCESS) {
+                ret = PR_Rename(oldname, newname);
+                if (ret != PR_SUCCESS) {
+                    PRErrorCode prerr = PR_GetError();
+                    import_log_notice(job, SLAPI_LOG_ERR, "import_sweep_after_pass",
+                            "Failed to rename file \"%s\" to \"%s\", "
+                            SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
+                            oldname, newname, prerr, slapd_pr_strerror(prerr));
+                    slapi_ch_free( (void**)&newname);
+                    slapi_ch_free( (void**)&oldname);
+                    break;
+                }
+            }
+            slapi_ch_free( (void**)&newname);
+            slapi_ch_free( (void**)&oldname);
+            }
         }
-        slapi_ch_free( (void**)&newname);
-        slapi_ch_free( (void**)&oldname);
-        }
-    }
 
-    ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
+        ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
     }
 
     if (0 == ret) {
-    import_log_notice(job, "Sweep done.");
+        import_log_notice(job, SLAPI_LOG_INFO, "import_sweep_after_pass", "Sweep done.");
     } else {
-    if (ENOSPC == ret) {
-        import_log_notice(job, "ERROR: NO DISK SPACE LEFT in sweep phase");
-    } else {
-        import_log_notice(job, "ERROR: Sweep phase error %d (%s)", ret,
-                  dblayer_strerror(ret));
-    }
+        if (ENOSPC == ret) {
+            import_log_notice(job, LOG_CRIT, "import_sweep_after_pass",
+                    "NO DISK SPACE LEFT in sweep phase");
+        } else {
+            import_log_notice(job, SLAPI_LOG_ERR, "import_sweep_after_pass",
+                    "Sweep phase error %d (%s)", ret,
+                    dblayer_strerror(ret));
+        }
     }
     
     return ret;
@@ -1251,8 +1258,8 @@ int import_main_offline(void *arg)
                 producer, PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                          "unable to spawn upgrade dn producer thread, "
+                LDAPDebug(LDAP_DEBUG_ERR, "import_main_offline - "
+                          "Unable to spawn upgrade dn producer thread, "
                           SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr), 0);
                 goto error;
@@ -1265,8 +1272,8 @@ int import_main_offline(void *arg)
                 PR_UNJOINABLE_THREAD,
                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                          "unable to spawn index producer thread, "
+                LDAPDebug(LDAP_DEBUG_ERR, "import_main_offline - "
+                          "Unable to spawn index producer thread, "
                           SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr), 0);
                 goto error;
@@ -1274,14 +1281,14 @@ int import_main_offline(void *arg)
         }
         else
         {
-            import_log_notice(job, "Beginning import job...");
+            import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Beginning import job...");
             if (! CREATE_THREAD(PR_USER_THREAD, (VFP)import_producer, producer,
                             PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                             PR_UNJOINABLE_THREAD,
                             SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                         PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                        "unable to spawn import producer thread, "
+                LDAPDebug(LDAP_DEBUG_ERR,"import_main_offline - "
+                        "Unable to spawn import producer thread, "
                         SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                         prerr, slapd_pr_strerror(prerr), 0);
                 goto error;
@@ -1289,9 +1296,9 @@ int import_main_offline(void *arg)
         }
 
         if (0 == job->job_index_buffer_suggestion)
-                import_log_notice(job, "Index buffering is disabled.");
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Index buffering is disabled.");
         else
-                import_log_notice(job,
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
                                 "Index buffering enabled with bucket size %lu", 
                                 (long unsigned int)job->job_index_buffer_suggestion);
 
@@ -1327,12 +1334,14 @@ int import_main_offline(void *arg)
         if (ret == ERR_IMPORT_ABORTED) {
             /* at least one of the threads has aborted -- shut down ALL
              * of the threads */
-            import_log_notice(job, "Aborting all %s threads...", opstr);
+            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", 
+                    "Aborting all %s threads...", opstr);
             /* this abort sets the  abort flag on the threads and will block for 
              * the exit of all threads 
              */
             import_set_abort_flag_all(job, 1); 
-            import_log_notice(job, "%s threads aborted.", opstr);
+            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+                    "%s threads aborted.", opstr);
             aborted = 1;
             goto error;
         }
@@ -1341,7 +1350,8 @@ int import_main_offline(void *arg)
             goto error;
         } else if (0 != ret) {
             /* Some horrible fate has befallen the import */
-            import_log_notice(job, "Fatal pass error %d", ret);
+            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+                    "Fatal pass error %d", ret);
             goto error;
         }
 
@@ -1387,8 +1397,8 @@ int import_main_offline(void *arg)
                 job->first_ID = job->ready_ID + 1;
                 import_free_thread_data(job);
                 job->worker_list = producer;
-                import_log_notice(job, "Beginning pass number %d",
-                                  job->total_pass+1);
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+                        "Beginning pass number %d", job->total_pass+1);
             } else {
                 /* Bizarro-slapd */
                 goto error;
@@ -1398,7 +1408,7 @@ int import_main_offline(void *arg)
 
     /* kill the producer now; we're done */
     if (producer) {
-        import_log_notice(job, "Cleaning up producer thread...");
+        import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Cleaning up producer thread...");
         producer->command = STOP;
         /* wait for the lead thread to stop */
         while (producer->state != FINISHED) {
@@ -1406,17 +1416,20 @@ int import_main_offline(void *arg)
         }
     }
 
-    import_log_notice(job, "Indexing complete.  Post-processing...");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
-    import_log_notice(job, "Generating numsubordinates (this may take several minutes to complete)...");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", 
+            "Generating numsubordinates (this may take several minutes to complete)...");
     if ( (!(job->flags & FLAG_REINDEXING) || (job->flags & FLAG_DN2RDN)) &&
          (ret = update_subordinatecounts(be, job, NULL)) != 0 )
     {
-        import_log_notice(job, "Failed to update numsubordinates attributes");
+        import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+                "Failed to update numsubordinates attributes");
         goto error;
     }
-    import_log_notice(job, "Generating numSubordinates complete.");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", 
+            "Generating numSubordinates complete.");
 
     if (!entryrdn_get_noancestorid()) {
         /* And the ancestorid index */
@@ -1426,14 +1439,14 @@ int import_main_offline(void *arg)
         ainfo_get(be, "ancestorid", &ai);
         dblayer_erase_index_file(be, ai, 0);
         if ((ret = ldbm_ancestorid_create_index(be, job)) != 0) {
-            import_log_notice(job, "Failed to create ancestorid index");
+            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", "Failed to create ancestorid index");
             goto error;
         }
     }
 
-    import_log_notice(job, "Flushing caches...");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Flushing caches...");
     if (0 != (ret = dblayer_flush(job->inst->inst_li)) ) {
-        import_log_notice(job, "Failed to flush database");
+        import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", "Failed to flush database");
         goto error;
     }
 
@@ -1446,7 +1459,7 @@ int import_main_offline(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it 
        except dry run mode */
-    import_log_notice(job, "Closing files...");
+    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {
         cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
@@ -1460,14 +1473,14 @@ error:
         /* initialize the entry cache */
         if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
                          DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "import_main_offline: "
+            LDAPDebug0Args(LDAP_DEBUG_ERR, "import_main_offline - "
                         "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
         if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
                      DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-            LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "import_main_offline: "
+            LDAPDebug0Args(LDAP_DEBUG_ERR, "import_main_offline - "
                         "dn cache_init failed.  Server should be restarted.\n");
         }
     }
@@ -1480,7 +1493,7 @@ error:
         dblayer_instance_close(job->inst->inst_be);
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be)) ) {
-            import_log_notice(job, "Failed to close database");
+            import_log_notice(job, SLAPI_LOG_WARNING, "import_main_offline", "Failed to close database");
         }
     }
     if (!(job->flags & FLAG_ONLINE))
@@ -1496,7 +1509,7 @@ error:
 
         if (job->not_here_skipped) {
             if (job->skipped) {
-                import_log_notice(job, 
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
                             "%s complete.  Processed %lu entries " 
                             "(%d bad entries were skipped, "
                             "%d entries were skipped because they don't "
@@ -1506,7 +1519,7 @@ error:
                             job->skipped, job->not_here_skipped,
                             seconds_to_import, entries_per_second);
             } else {
-                import_log_notice(job, 
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", 
                             "%s complete.  Processed %lu entries "
                             "(%d entries were skipped because they don't "
                             "belong to this database) "
@@ -1517,7 +1530,7 @@ error:
             }
         } else {
             if (job->skipped) {
-                import_log_notice(job, 
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", 
                             "%s complete.  Processed %lu entries "
                             "(%d were skipped) in %d seconds. "
                             "(%.2f entries/sec)", 
@@ -1525,7 +1538,7 @@ error:
                             job->skipped, seconds_to_import,
                             entries_per_second);
             } else {
-                import_log_notice(job, 
+                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", 
                             "%s complete.  Processed %lu entries "
                             "in %d seconds. (%.2f entries/sec)",
                             opstr, (long unsigned int)entries_processed,
@@ -1536,7 +1549,7 @@ error:
 
     if (job->flags & (FLAG_DRYRUN|FLAG_UPGRADEDNFORMAT_V1)) {
         if (0 == ret) {
-            import_log_notice(job, "%s complete.  %s is up-to-date.", 
+            import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "%s complete.  %s is up-to-date.", 
                               opstr, job->inst->inst_name);
             ret = 0;
             if (job->task) {
@@ -1544,23 +1557,25 @@ error:
             }
             import_all_done(job, ret);
         } else if (NEED_DN_NORM_BT == ret) {
-            import_log_notice(job, "%s complete. %s needs upgradednformat all.",
-                              opstr, job->inst->inst_name);
+            import_log_notice(job, SLAPI_LOG_NOTICE, "import_main_offline",
+                    "%s complete. %s needs upgradednformat all.",
+                    opstr, job->inst->inst_name);
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
             ret = 1;
         } else if (NEED_DN_NORM == ret) {
-            import_log_notice(job, "%s complete. %s needs upgradednformat.", 
-                              opstr, job->inst->inst_name);
+            import_log_notice(job, SLAPI_LOG_NOTICE, "import_main_offline",
+                    "%s complete. %s needs upgradednformat.", 
+                    opstr, job->inst->inst_name);
             if (job->task) {
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
             ret = 2;
         } else if (NEED_DN_NORM_SP == ret) {
-            import_log_notice(job,
+            import_log_notice(job, SLAPI_LOG_NOTICE, "import_main_offline",
                               "%s complete. %s needs upgradednformat spaces.", 
                               opstr, job->inst->inst_name);
             if (job->task) {
@@ -1575,7 +1590,7 @@ error:
             }
         }
     } else if (0 != ret) {
-        import_log_notice(job, "%s failed.", opstr);
+        import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", "%s failed.", opstr);
         if (job->task != NULL) {
             slapi_task_finish(job->task, ret);
         }
@@ -1621,7 +1636,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ldbm_back_ldif2ldbm_deluxe: backend is not set\n");
+        LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_ldif2ldbm_deluxe - Backend is not set\n");
         return -1;
     }
     job = CALLOC(ImportJob);
@@ -1673,7 +1688,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
                 if (entryrdn_get_switch()) {
                     job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
                 } else {
-                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
+                    LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_back_ldif2ldbm_deluxe - "
                                   "DN to RDN option is specified, "
                                   "but %s is not enabled\n",
                                   CONFIG_ENTRYRDN_SWITCH);
@@ -1734,7 +1749,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
                                  SLAPD_DEFAULT_THREAD_STACKSIZE);
         if (thread == NULL) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "unable to spawn import thread, "
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_ldif2ldbm_deluxe - unable to spawn import thread, "
                         SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                         prerr, slapd_pr_strerror(prerr), 0);
             import_free_job(job);

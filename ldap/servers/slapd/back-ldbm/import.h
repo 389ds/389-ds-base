@@ -200,13 +200,7 @@ struct _import_worker_info {
 int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
 FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_free_job(ImportJob *job);
-void import_log_notice(ImportJob *job, char *format, ...)
-#ifdef __GNUC__ 
-        __attribute__ ((format (printf, 2, 3)));
-#else
-        ;
-#endif
-
+void import_log_notice(ImportJob *job,  int log_level, char *subsystem, char *format, ...);
 void import_abort_all(ImportJob *job, int wait_for_them);
 int import_entry_belongs_here(Slapi_Entry *e, backend *be);
 int import_make_merge_filenames(char *directory, char *indexname, int pass,

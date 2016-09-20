@@ -64,7 +64,7 @@ find_localhost_DNS(void)
     if (gethostname (hostname, MAXHOSTNAMELEN)) {
         int oserr = errno;
 
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "gethostname() failed, error %d (%s)\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "find_localhost_DNS - gethostname() failed, error %d (%s)\n",
                 oserr, slapd_system_strerror( oserr ), 0 );
         return NULL;
     }
@@ -72,23 +72,23 @@ find_localhost_DNS(void)
     if (hp == NULL) {
         int oserr = errno;
 
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                "gethostbyname(\"%s\") failed, error %d (%s)\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                "find_localhost_DNS - gethostbyname(\"%s\") failed, error %d (%s)\n",
                 hostname, oserr, slapd_system_strerror( oserr ));
         return NULL;
     }
     if (hp->h_name == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "gethostbyname(\"%s\")->h_name == NULL\n", hostname, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "find_localhost_DNS - gethostbyname(\"%s\")->h_name == NULL\n", hostname, 0, 0);
         return NULL;
     }
     if (strchr (hp->h_name, '.') != NULL) {
-        LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "h_name == %s\n", hp->h_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_CONFIG, "h_name == %s\n", hp->h_name, 0, 0);
         return slapi_ch_strdup (hp->h_name);
     } else if (hp->h_aliases != NULL) {
         for (alias = hp->h_aliases; *alias != NULL; ++alias) {
             if (strchr  (*alias, '.') != NULL &&
                 strncmp (*alias, hp->h_name, strlen (hp->h_name))) {
-                LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "h_alias == %s\n", *alias, 0, 0);
+                LDAPDebug(LDAP_DEBUG_CONFIG, "find_localhost_DNS - h_alias == %s\n", *alias, 0, 0);
                 return slapi_ch_strdup (*alias);
             }
         }
@@ -100,7 +100,7 @@ find_localhost_DNS(void)
     if (f != NULL) {
         while (fgets (line, sizeof(line), f)) {
             if (strncasecmp (line, "domain", 6) == 0 && isspace (line[6])) {
-                LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "%s: %s\n", _PATH_RESCONF, line, 0);
+                LDAPDebug(LDAP_DEBUG_CONFIG, "find_localhost_DNS - %s: %s\n", _PATH_RESCONF, line, 0);
                 for (cp = &line[7]; *cp && isspace(*cp); ++cp);
                 if (*cp) {
                     domain = cp;
@@ -120,9 +120,9 @@ find_localhost_DNS(void)
         /* No domain found. Try getdomainname. */
         line[0] = '\0';
         if (getdomainname(line, sizeof(line)) < 0) { /* failure */
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "localhost_DNS", "getdomainname failed\n");
+            slapi_log_error(SLAPI_LOG_ERR, "find_localhost_DNS", "getdomainname failed\n");
         } else {
-            slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, "localhost_DNS", "getdomainname(%s)\n", line);
+            slapi_log_error(SLAPI_LOG_CONFIG, "find_localhost_DNS", "getdomainname(%s)\n", line);
         }
         if (line[0] != '\0') {
             domain = &line[0];
@@ -138,7 +138,7 @@ find_localhost_DNS(void)
         PL_strcatn (hostname, sizeof(hostname), ".");
         PL_strcatn (hostname, sizeof(hostname), domain);
     }
-    LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "hostname == %s\n", hostname, 0, 0);
+    LDAPDebug(LDAP_DEBUG_CONFIG, "find_localhost_DNS - hostname == %s\n", hostname, 0, 0);
     return slapi_ch_strdup (hostname);
 }
 
@@ -192,7 +192,7 @@ set_localhost_DN(void)
 
     if (localhost_DNS != NULL) {
         localhost_DN = convert_DNS_to_DN (localhost_DNS);
-        LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "DNS %s -> DN %s\n", localhost_DNS, localhost_DN, 0);
+        LDAPDebug(LDAP_DEBUG_CONFIG, "set_localhost_DN - DNS %s -> DN %s\n", localhost_DNS, localhost_DN, 0);
     }
     slapi_ch_free_string(&localhost_DNS);
 }
@@ -224,7 +224,7 @@ get_config_DN()
 		if ( host )
 			c = slapi_ch_malloc (20 + strlen (host));
 		else {
-			LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "get_locahost_DN() returned \"\"\n",
+			LDAPDebug(LDAP_DEBUG_CONFIG, "get_config_DN - get_locahost_DN() returned \"\"\n",
 						 0, 0, 0);
 			c = slapi_ch_malloc (20);
 		}

@@ -99,7 +99,7 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
     }
     hashresult = PL_Base64Decode( dbpwd, dbpwd_len, dbhash );
     if (NULL == hashresult) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, hasherrmsg, schemeName, dbpwd );
+        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
         goto loser;
     } else if ( hash_len >= shaLen ) { /* must be salted */
         salt.bv_val = (void*)(dbhash + shaLen); /* salt starts after hash value */
@@ -108,14 +108,14 @@ sha_pw_cmp (const char *userpwd, const char *dbpwd, unsigned int shaLen )
         salt.bv_val = (void*)dbhash;
         salt.bv_len = OLD_SALT_LENGTH;
     } else { /* unsupported, invalid BASE64 (hash_len < 0), or similar */
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, hasherrmsg, schemeName, dbpwd );
+                slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, hasherrmsg, schemeName, dbpwd );
         goto loser;
     }
 
     /* hash the user's key */
     memset( userhash, 0, sizeof(userhash) );
     if ( sha_salted_hash( userhash, userpwd, &salt, secOID ) != SECSuccess ) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "sha_pw_cmp: sha_salted_hash() failed\n");
+                slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "sha_pw_cmp: sha_salted_hash() failed\n");
         goto loser;
     }
 

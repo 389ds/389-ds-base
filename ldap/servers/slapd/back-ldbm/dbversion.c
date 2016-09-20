@@ -62,7 +62,8 @@ dbversion_write(struct ldbminfo *li, const char *directory,
     if (( prfd = PR_Open( filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                           SLAPD_DEFAULT_FILE_MODE  )) == NULL )
     {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not open file \"%s\" for writing "
+        LDAPDebug(LDAP_DEBUG_ERR, "dbversion_write - "
+                   "Could not open file \"%s\" for writing "
                    SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                    filename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
         rc= -1;
@@ -100,7 +101,8 @@ dbversion_write(struct ldbminfo *li, const char *directory,
         len = strlen(buf);
         if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
         {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not write to file \"%s\"\n", filename, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ERR, "dbversion_write - "
+                    "Could not write to file \"%s\"\n", filename, 0, 0 );
             rc= -1;
         }
         if(rc==0 && dataversion!=NULL)
@@ -109,7 +111,8 @@ dbversion_write(struct ldbminfo *li, const char *directory,
             len = strlen( buf );
             if ( slapi_write_buffer( prfd, buf, len ) != (PRInt32)len )
             {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not write to file \"%s\"\n", filename, 0, 0 );
+                LDAPDebug(LDAP_DEBUG_ERR, "dbversion_write - "
+                        "Could not write to file \"%s\"\n", filename, 0, 0 );
                 rc= -1;
             }
         }

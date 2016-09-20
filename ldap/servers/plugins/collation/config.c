@@ -83,7 +83,7 @@ fp_parse_line(
 	for ( token = strtok_quote( line, " \t" ); token != NULL;
 	    token = strtok_quote( NULL, " \t" ) ) {
 		if ( *argcp == MAXARGS ) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Too many tokens (max %d)\n",
+			LDAPDebug(LDAP_DEBUG_ERR, "fp_parse_line - Too many tokens (max %d)\n",
 			    MAXARGS, 0, 0 );
 			exit( 1 );
 		}
@@ -156,13 +156,13 @@ collation_read_config( char *fname )
 
     fp = fopen( fname, "r" );
     if ( fp == NULL ) {
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		  "could not open config file \"%s\" - absolute path?\n",
+	LDAPDebug(LDAP_DEBUG_ERR,
+		  "collation_read_config - Could not open config file \"%s\" - absolute path?\n",
 		  fname, 0, 0 );
 	return; /* Do not exit */
     }
 
-    LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "reading config file %s\n", fname, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_CONFIG, "reading config file %s\n", fname, 0, 0 );
 
     fp_getline_init( &lineno );
     while ( (line = fp_getline( fp, &lineno )) != NULL ) {
@@ -170,11 +170,11 @@ collation_read_config( char *fname )
 	if ( line[0] == '#' || line[0] == '\0' ) {
 	    continue;
 	}
-	LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "line %d: %s\n", lineno, line, 0 );
+	LDAPDebug(LDAP_DEBUG_CONFIG, "line %d: %s\n", lineno, line, 0 );
 	fp_parse_line( line, &cargc, cargv );
 	if ( cargc < 1 ) {
-	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		      "%s: line %d: bad config line (ignored)\n",
+	    LDAPDebug(LDAP_DEBUG_ERR,
+		      "collation_read_config - %s: line %d: bad config line (ignored)\n",
 		      fname, lineno, 0 );
 	    continue;
 	}

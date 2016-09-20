@@ -21,7 +21,6 @@
 #ifndef _SLDAPD_H_
 #define _SLDAPD_H_
 
- 
 /* Used by SSL and DES plugin */
 #ifdef NEED_TOK_PBE
 static char  tokPBE[34] = "Communicator Generic Crypto Svcs";
@@ -226,9 +225,14 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_INVALID_SOCKET_INDEX	(-1)
 
+/* The default log levels:
+ * (LDAP_DEBUG_ANY | LDAP_DEBUG_EMERG | LDAP_DEBUG_ALERT | LDAP_DEBUG_CRIT | LDAP_DEBUG_ERR | 
+ *  LDAP_DEBUG_WARNING | LDAP_DEBUG_NOTICE | LDAP_DEBUG_INFO)
+ */
+#define SLAPD_DEFAULT_ERRORLOG_LEVEL			266354688
+
 #define SLAPD_DEFAULT_FILE_MODE				S_IRUSR | S_IWUSR
 #define SLAPD_DEFAULT_DIR_MODE				S_IRWXU
-#define SLAPD_DEFAULT_ERRORLOG_LEVEL			16384
 #define SLAPD_DEFAULT_IDLE_TIMEOUT			0		/* seconds - 0 == never */
 #define SLAPD_DEFAULT_SIZELIMIT				2000	/* use -1 for no limit */
 #define SLAPD_DEFAULT_TIMELIMIT				3600	/* use -1 for no limit */
@@ -244,9 +248,7 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_SCHEMA_IGNORE_TRAILING_SPACES	LDAP_OFF
 #define SLAPD_DEFAULT_LOCAL_SSF			71	/* assume local connections are secure */
 #define SLAPD_DEFAULT_MIN_SSF			0	/* allow unsecured connections (no privacy or integrity) */
-
-							/* We'd like this number to be prime for 
-							    the hash into the Connection table */
+/* We'd like this number to be prime for the hash into the Connection table */
 #define SLAPD_DEFAULT_CONNTABLESIZE		4093	/* connection table size */
 
 #define SLAPD_MONITOR_DN		"cn=monitor"

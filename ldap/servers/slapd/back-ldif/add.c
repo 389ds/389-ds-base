@@ -46,7 +46,7 @@ ldif_back_add( Slapi_PBlock *pb )
   tprev = NULL;
 
   /*Turn on tracing to see this printed out*/
-  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldif_back_add\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, "=> ldif_back_add\n", 0, 0, 0 );
 
   /*Get the database, the dn and the entry to add*/
   if (slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &db ) < 0 ||
@@ -58,14 +58,14 @@ ldif_back_add( Slapi_PBlock *pb )
 
   /*Check to make sure the entry passes the schema check*/
   if ( slapi_entry_schema_check( pb, e ) != 0 ) {
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "entry failed schema check\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "entry failed schema check\n", 0, 0, 0 );
     slapi_send_ldap_result( pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, NULL, 0, NULL );
     return( -1 );
   }
 
   /* Check if the attribute values in the entry obey the syntaxes */
   if ( slapi_entry_syntax_check( pb, e, 0 ) != 0 ) {
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "entry failed syntax_check\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "entry failed syntax_check\n", 0, 0, 0 );
     slapi_send_ldap_result( pb, LDAP_INVALID_SYNTAX, NULL, NULL, 0, NULL );
     return( -1 );
   }
@@ -102,12 +102,12 @@ ldif_back_add( Slapi_PBlock *pb )
     int rc;
     if ((old = (ldif_Entry *)ldif_find_entry( pb, db, parentdn, &tprev)) == NULL ) {
       slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-      LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "parent does not exist\n", 0, 0, 0 );
+      LDAPDebug(LDAP_DEBUG_TRACE, "parent does not exist\n", 0, 0, 0 );
       goto error_return;
     }
     rc= slapi_access_allowed( pb, e, NULL, NULL, SLAPI_ACL_ADD );
     if ( rc!=LDAP_SUCCESS ) {
-      LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "no access to parent\n", 0,0, 0 );
+      LDAPDebug(LDAP_DEBUG_TRACE, "no access to parent\n", 0,0, 0 );
       slapi_send_ldap_result( pb, rc, NULL, NULL, 0, NULL );
       goto error_return;
     }
@@ -115,7 +115,7 @@ ldif_back_add( Slapi_PBlock *pb )
     int isroot;
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
     if ( !isroot ) {
-      LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "no parent & not root\n", 0, 0, 0 );
+      LDAPDebug(LDAP_DEBUG_TRACE, "no parent & not root\n", 0, 0, 0 );
       slapi_send_ldap_result( pb, LDAP_INSUFFICIENT_ACCESS, NULL, NULL, 0, NULL );
       goto error_return;
     }
@@ -159,7 +159,7 @@ ldif_back_add( Slapi_PBlock *pb )
   if ( parentdn != NULL ){
     free( (void *)parentdn );
   }
-  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldif_back_add\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, "<= ldif_back_add\n", 0, 0, 0 );
   return( 0 );
   
  error_return:;

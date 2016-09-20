@@ -90,11 +90,11 @@ delete_changerecord( changeNumber cnum )
     slapi_pblock_destroy( pb );
     
     if ( delrc != LDAP_SUCCESS ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, 
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, 
                          "delete_changerecord: could not delete change record %lu (rc: %d)\n",
                          cnum, delrc );
     } else {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
                          "delete_changerecord: deleted changelog entry \"%s\"\n", dnbuf);
     }
     slapi_ch_free((void **) &dnbuf );
@@ -116,10 +116,10 @@ handle_getchangetime_result( int err, void *callback_data )
     cnum_result_t *crt = callback_data;
 
     if ( crt == NULL ) {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-		"handle_getchangetime_result: callback_data NULL\n" );
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                "handle_getchangetime_result: callback_data NULL\n" );
     } else {
-	crt->crt_err = err;
+        crt->crt_err = err;
     }
 }
 
@@ -140,11 +140,11 @@ handle_getchangetime_search( Slapi_Entry *e, void *callback_data)
     Slapi_Attr	*attr;
 
     if (crt == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                 "handle_getchangetime_search: op->o_handler_data NULL\n");
     } else if (crt->crt_nentries > 0) {
         /* only return the first entry, I guess */
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                 "handle_getchangetime_search: multiple entries returned\n");
     } else {
         crt->crt_nentries++;
@@ -260,7 +260,7 @@ static int trim_changelog(void)
 	    did_delete = 0;
 	    first_in_log = retrocl_get_first_changenumber();
 	    if ( 0UL == first_in_log ) {
-	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, 
+	        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, 
 				 "trim_changelog: no changelog records "
 				 "to trim\n" );
 		/* Bail out - we can't do any useful work */
@@ -294,7 +294,7 @@ static int trim_changelog(void)
 	    }
 	}
     } else {
-       LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "not yet time to trim: %ld < (%d+%d)\n",
+       LDAPDebug(LDAP_DEBUG_PLUGIN, "not yet time to trim: %ld < (%d+%d)\n",
                  now, lt, trim_interval);
     }
     PR_Lock( ts.ts_s_trim_mutex );
@@ -302,7 +302,7 @@ static int trim_changelog(void)
     ts.ts_s_last_trim = now;
     PR_Unlock( ts.ts_s_trim_mutex );
     if ( num_deleted > 0 ) {
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, 
+	slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, 
 			 "trim_changelog: removed %d change records\n",
 			 num_deleted );
     }
@@ -348,14 +348,14 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
     int			ldrc;
 
     if (retrocl_be_changelog == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "not housekeeping if no cl be\n");
-	return;
+        LDAPDebug0Args(LDAP_DEBUG_TRACE, "retrocl_housekeeping - not housekeeping if no cl be\n");
+        return;
     }
 
     if ( !ts.ts_s_initialized ) {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "changelog_housekeeping called before "
+	slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - called before "
 		"trimming constraints set\n" );
-	return;
+        return;
     }
 
     PR_Lock( ts.ts_s_trim_mutex );
@@ -372,7 +372,7 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 		 * But a client might have deleted it over protocol.
 		 */
 		first_time = retrocl_getchangetime( SLAPI_SEQ_FIRST, &ldrc );
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
+		LDAPDebug(LDAP_DEBUG_PLUGIN,
 			  "cltrim: ldrc=%d, first_time=%ld, cur_time=%ld\n",
 			  ldrc,first_time,cur_time);
 		if ( LDAP_SUCCESS == ldrc && first_time > (time_t) 0L &&
@@ -381,18 +381,19 @@ void retrocl_housekeeping ( time_t cur_time, void *noarg )
 		}
 	}
 	if ( must_trim ) {
-	    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "changelog about to create thread\n");
+	    LDAPDebug0Args(LDAP_DEBUG_TRACE, "retrocl_housekeeping - changelog about to create thread\n");
 	    /* Start a thread to trim the changelog */
 	    ts.ts_s_trimming = 1;
 	    if ( PR_CreateThread( PR_USER_THREAD,
 		    changelog_trim_thread_fn, NULL,
 		    PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
 		    RETROCL_DLL_DEFAULT_THREAD_STACKSIZE ) == NULL ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "unable to create changelog trimming thread\n" );
+            slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_housekeeping - "
+                    "Unable to create changelog trimming thread\n" );
 	    }
 	} else {
-	    LDAPDebug0Args(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
-		      "changelog does not need to be trimmed\n");
+	    LDAPDebug0Args(LDAP_DEBUG_PLUGIN,
+		      "retrocl_housekeeping - changelog does not need to be trimmed\n");
 	}
     }
     PR_Unlock( ts.ts_s_trim_mutex );
@@ -421,7 +422,7 @@ void retrocl_init_trimming (void)
             ageval = slapi_parse_duration(cl_maxage);
             slapi_ch_free_string((char **)&cl_maxage);
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, 
+            slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, 
                         "retrocl_init_trimming: ignoring invalid %s value %s; "
                         "not trimming retro changelog.\n",
                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, cl_maxage);
@@ -434,7 +435,7 @@ void retrocl_init_trimming (void)
     if (cl_trim_interval) {
       trim_interval = strtol(cl_trim_interval, (char **)NULL, 10);
       if (0 == trim_interval) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, 
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, 
                         "retrocl_init_trimming: ignoring invalid %s value %s; "
                         "resetting the default %d\n",
                         CONFIG_CHANGELOG_TRIM_INTERVAL, cl_trim_interval,
@@ -448,7 +449,7 @@ void retrocl_init_trimming (void)
     ts.ts_s_last_trim = (time_t) 0L;
     ts.ts_s_trimming = 0;
     if (( ts.ts_s_trim_mutex = PR_NewLock()) == NULL ) {
-      slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "set_changelog_trim_constraints: "
+      slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "set_changelog_trim_constraints: "
                        "cannot create new lock.\n" );
       exit( 1 );
     }

@@ -108,8 +108,8 @@ _ger_g_permission_granted (
 	}
 	if ( slapi_sdn_get_dn (requestor_sdn) == NULL )
 	{
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"_ger_g_permission_granted: anonymous has no g permission\n" );
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"_ger_g_permission_granted - Anonymous has no g permission\n" );
 		rc = LDAP_INSUFFICIENT_ACCESS;
 		goto bailout;
 	}
@@ -144,8 +144,8 @@ _ger_g_permission_granted (
 	}
 
 	aclutil_str_append ( errbuf, "get-effective-rights: requestor has no g permission on the entry" );
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"_ger_g_permission_granted: %s\n", *errbuf);
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"_ger_g_permission_granted - %s\n", *errbuf);
 	rc = LDAP_INSUFFICIENT_ACCESS;
 
 bailout:
@@ -191,7 +191,7 @@ _ger_parse_control (
 		 subjectber->bv_len == 0 )
 	{
 		aclutil_str_append ( errbuf, "get-effective-rights: missing subject" );
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "%s\n", *errbuf );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "_ger_parse_control - %s\n", *errbuf );
                 if (iscritical)
                     return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
                 else
@@ -215,7 +215,7 @@ _ger_parse_control (
 		if ( ber == NULL )
 		{
 			aclutil_str_append ( errbuf, "get-effective-rights: ber_init failed for the subject" );
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "%s\n", *errbuf );
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name, "_ger_parse_control - %s\n", *errbuf );
                         if (iscritical)
                             return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
                         else
@@ -225,7 +225,7 @@ _ger_parse_control (
 		if ( ber_scanf (ber, "a", &orig) == LBER_ERROR )
 		{
 			aclutil_str_append ( errbuf, "get-effective-rights: invalid ber tag in the subject" );
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "%s\n", *errbuf );
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name, "_ger_parse_control - %s\n", *errbuf );
 			ber_free ( ber, 1 );
                         if (iscritical)
                             return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
@@ -244,7 +244,7 @@ _ger_parse_control (
 	if ( NULL == orig || subjectndnlen < 3 || strncasecmp ( "dn:", orig, 3 ) != 0 )
 	{
 		aclutil_str_append ( errbuf, "get-effective-rights: subject is not dnAuthzId" );
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "%s\n", *errbuf );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "_ger_parse_control - %s\n", *errbuf );
 		slapi_ch_free_string(&orig);
                 if (iscritical)
                     return LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* RFC 4511 4.1.11 */
@@ -257,7 +257,7 @@ _ger_parse_control (
 	if (NULL == normed) {
 		aclutil_str_append (errbuf, "get-effective-rights: failed to normalize dn: ");
 		aclutil_str_append (errbuf, orig);
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "%s\n", *errbuf);
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "_ger_parse_control - %s\n", *errbuf);
 		slapi_ch_free_string(&orig);
                 if (iscritical)
                     return LDAP_UNAVAILABLE_CRITICAL_EXTENSION;  /* RFC 4511 4.1.11 */
@@ -403,24 +403,24 @@ _ger_get_entry_rights (
 
 	_append_gerstr(gerstr, gerstrsize, gerstrcap, "entryLevelRights: ", NULL);
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_entry_rights: SLAPI_ACL_READ\n" );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_entry_rights - SLAPI_ACL_READ\n" );
 	if (acl_access_allowed(gerpb, e, "*", NULL, SLAPI_ACL_READ) == LDAP_SUCCESS)
 	{
 		/* v - view e */
 		entryrights |= SLAPI_ACL_READ;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "v", NULL);
 	}
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_entry_rights: SLAPI_ACL_ADD\n" );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_entry_rights - SLAPI_ACL_ADD\n" );
 	if (acl_access_allowed(gerpb, e, NULL, NULL, SLAPI_ACL_ADD) == LDAP_SUCCESS)
 	{
 		/* a - add child entry below e */
 		entryrights |= SLAPI_ACL_ADD;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "a", NULL);
 	}
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_entry_rights: SLAPI_ACL_DELETE\n" );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_entry_rights - SLAPI_ACL_DELETE\n" );
 	if (acl_access_allowed(gerpb, e, NULL, NULL, SLAPI_ACL_DELETE) == LDAP_SUCCESS)
 	{
 		/* d - delete e */
@@ -435,8 +435,8 @@ _ger_get_entry_rights (
          * WRITE was granted on rdn attrbibute
          */
         if (acl_access_allowed(gerpb, e, NULL, NULL, SLAPI_ACL_MODDN) == LDAP_SUCCESS) {
-            slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                    "_ger_get_entry_rights: SLAPI_ACL_MODDN %s\n", slapi_entry_get_ndn(e));
+            slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                    "_ger_get_entry_rights - SLAPI_ACL_MODDN %s\n", slapi_entry_get_ndn(e));
             /* n - rename e */
             entryrights |= SLAPI_ACL_MODDN;
             _append_gerstr(gerstr, gerstrsize, gerstrcap, "n", NULL);
@@ -453,8 +453,8 @@ _ger_get_entry_rights (
         rdn = slapi_rdn_new_dn(slapi_entry_get_ndn(e));
         slapi_rdn_get_first(rdn, &rdntype, &rdnvalue);
         if (NULL != rdntype) {
-            slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                    "_ger_get_entry_rights: SLAPI_ACL_WRITE_DEL & _ADD %s\n", rdntype);
+            slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+                    "_ger_get_entry_rights - SLAPI_ACL_WRITE_DEL & _ADD %s\n", rdntype);
             if (acl_access_allowed(gerpb, e, rdntype, NULL,
                     ACLPB_SLAPI_ACL_WRITE_DEL) == LDAP_SUCCESS &&
                     acl_access_allowed(gerpb, e, rdntype, NULL,
@@ -501,40 +501,40 @@ _ger_get_attr_rights (
 	}
 	_append_gerstr(gerstr, gerstrsize, gerstrcap, type, ":");
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_attr_rights: SLAPI_ACL_READ %s\n", type );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_attr_rights - SLAPI_ACL_READ %s\n", type );
 	if (acl_access_allowed(gerpb, e, type, NULL, SLAPI_ACL_READ) == LDAP_SUCCESS)
 	{
 		/* r - read the values of type */
 		attrrights |= SLAPI_ACL_READ;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "r", NULL);
 	}
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_attr_rights: SLAPI_ACL_SEARCH %s\n", type );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_attr_rights -  SLAPI_ACL_SEARCH %s\n", type );
 	if (acl_access_allowed(gerpb, e, type, NULL, SLAPI_ACL_SEARCH) == LDAP_SUCCESS)
 	{
 		/* s - search the values of type */
 		attrrights |= SLAPI_ACL_SEARCH;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "s", NULL);
 	}
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_attr_rights: SLAPI_ACL_COMPARE %s\n", type );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_attr_rights - SLAPI_ACL_COMPARE %s\n", type );
 	if (acl_access_allowed(gerpb, e, type, NULL, SLAPI_ACL_COMPARE) == LDAP_SUCCESS)
 	{
 		/* c - compare the values of type */
 		attrrights |= SLAPI_ACL_COMPARE;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "c", NULL);
 	}
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_attr_rights: SLAPI_ACL_WRITE_ADD %s\n", type );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_attr_rights - SLAPI_ACL_WRITE_ADD %s\n", type );
 	if (acl_access_allowed(gerpb, e, type, NULL, ACLPB_SLAPI_ACL_WRITE_ADD) == LDAP_SUCCESS)
 	{
 		/* w - add the values of type */
 		attrrights |= ACLPB_SLAPI_ACL_WRITE_ADD;
 		_append_gerstr(gerstr, gerstrsize, gerstrcap, "w", NULL);
 	}
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		"_ger_get_attr_rights: SLAPI_ACL_WRITE_DEL %s\n", type );
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		"_ger_get_attr_rights - SLAPI_ACL_WRITE_DEL %s\n", type );
 	if (acl_access_allowed(gerpb, e, type, NULL, ACLPB_SLAPI_ACL_WRITE_DEL) == LDAP_SUCCESS)
 	{
 		/* o - delete the values of type */
@@ -856,8 +856,8 @@ _ger_generate_template_entry (
 	slapi_pblock_get( pb, SLAPI_SEARCH_GERATTRS, &gerattrs );
 	if (NULL == gerattrs)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						"Objectclass info is expected "
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"_ger_generate_template_entry - Objectclass info is expected "
 						"in the attr list, e.g., \"*@person\"\n");
 		rc = LDAP_SUCCESS;
 		goto bailout;
@@ -1089,10 +1089,10 @@ bailout:
 		gerstr = slapi_ch_smprintf("entryLevelRights: %d\nattributeLevelRights: *:%d", rc, rc );
 	}
 
-	slapi_log_error(SLAPI_LOG_ACLSUMMARY, LOG_DEBUG, plugin_name,
+	slapi_log_error(SLAPI_LOG_ACLSUMMARY, plugin_name,
 		"###### Effective Rights on Entry (%s) for Subject (%s) ######\n",
 		e?slapi_entry_get_ndn(e):"null", subjectndn?subjectndn:"null");
-	slapi_log_error(SLAPI_LOG_ACLSUMMARY, LOG_DEBUG, plugin_name, "%s\n", gerstr);
+	slapi_log_error(SLAPI_LOG_ACLSUMMARY, plugin_name, "%s\n", gerstr);
 
 	/* Restore pb */
 	_ger_release_gerpb ( &gerpb, &aclcb, pb );

@@ -132,8 +132,8 @@ syntax_validate_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		(void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 		PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (thread == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
-			"unable to create task thread!\n");
+		slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+			"syntax_validate_task_add - Unable to create task thread!\n");
 		*returncode = LDAP_OPERATIONS_ERROR;
 		rv = SLAPI_DSE_CALLBACK_ERROR;
 		slapi_task_finish(task, *returncode);
@@ -176,8 +176,8 @@ syntax_validate_task_thread(void *arg)
 		return; /* no task */
 	}
 	slapi_task_inc_refcount(task);
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, SYNTAX_PLUGIN_SUBSYSTEM,
-	                "syntax_validate_task_thread --> refcount incremented.\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM,
+	                "syntax_validate_task_thread - refcount incremented.\n" );
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
 
@@ -185,8 +185,8 @@ syntax_validate_task_thread(void *arg)
 	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Syntax validation task starting (arg: %s) ...\n",
 	                      td->filter_str);
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
-	                "Syntax validate task starting (base: \"%s\", filter: \"%s\") ...\n",
+	slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+	                "syntax_validate_task_thread - Starting (base: \"%s\", filter: \"%s\") ...\n",
 	                td->dn, td->filter_str);
 
 	/* Perform the search and use a callback
@@ -205,7 +205,7 @@ syntax_validate_task_thread(void *arg)
 	                " invalid entries.\n", slapi_counter_get_value(td->invalid_entries));
 	slapi_task_log_status(task, "Syntax validate task complete.  Found %" NSPRIu64
 	                " invalid entries.\n", slapi_counter_get_value(td->invalid_entries));
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM, "Syntax validate task complete."
+	slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM, "syntax_validate_task_thread - Complete."
 	                "  Found %" NSPRIu64 " invalid entries.\n",
 	                slapi_counter_get_value(td->invalid_entries));
 	slapi_task_inc_progress(task);
@@ -213,8 +213,8 @@ syntax_validate_task_thread(void *arg)
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
 	slapi_task_dec_refcount(task);
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, SYNTAX_PLUGIN_SUBSYSTEM,
-	                "syntax_validate_task_thread <-- refcount decremented.\n"); 
+	slapi_log_error(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM,
+	                "syntax_validate_task_thread - refcount decremented.\n"); 
 }
 
 static int
@@ -244,8 +244,8 @@ syntax_validate_task_callback(Slapi_Entry *e, void *callback_data)
 		pb = slapi_pblock_new();
 		slapi_entry_syntax_check(pb, e, 1);
 		slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &error_text);
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
-		                "Entry \"%s\" violates syntax.\n%s",
+		slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+		                "syntax_validate_task_callback - Entry \"%s\" violates syntax.\n%s",
 		                dn, error_text);
 		slapi_pblock_destroy(pb);
 

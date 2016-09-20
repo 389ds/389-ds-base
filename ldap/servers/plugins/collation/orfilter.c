@@ -64,7 +64,7 @@ static int
 or_filter_destroy (Slapi_PBlock* pb)
 {
     auto or_filter_t* or = or_filter_get (pb);
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "or_filter_destroy(%p)\n", (void*)or, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "or_filter_destroy(%p)\n", (void*)or, 0, 0);
     if (or != NULL) {
     slapi_ch_free((void**)&or->or_type);
     slapi_ch_free((void**)&or->or_oid);
@@ -473,7 +473,7 @@ or_filter_create (Slapi_PBlock* pb)
 	auto struct berval bv;
 	auto int reusable = MRF_ANY_TYPE;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> or_filter_create(oid %s; type %s)\n",
+	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_filter_create(oid %s; type %s)\n",
 		   mrOID, mrTYPE, 0);
 	if (len > 1 && (ix = indexer_create (mrOID)) != NULL) {
 	    auto char* val = mrVALUE->bv_val;
@@ -535,7 +535,7 @@ or_filter_create (Slapi_PBlock* pb)
 	    {
 		auto struct berval** val = or->or_values;
 		if (val) for (; *val; ++val) {
-		    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "value \"%s\"\n", (*val)->bv_val, 0, 0);
+		    LDAPDebug(LDAP_DEBUG_FILTER, "value \"%s\"\n", (*val)->bv_val, 0, 0);
 		}
 	    }
 	    if (or->or_op == SLAPI_OP_SUBSTRING) {
@@ -553,9 +553,9 @@ or_filter_create (Slapi_PBlock* pb)
 	    rc = LDAP_SUCCESS;
 	}
     } else {
-	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> or_filter_create missing parameter(s)\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_filter_create missing parameter(s)\n", 0, 0, 0);
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= or_filter_create(%p) %i\n", (void*)or, rc, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "<= or_filter_create(%p) %i\n", (void*)or, rc, 0);
     return rc;
 }
 
@@ -573,7 +573,7 @@ static int
 op_indexer_destroy (Slapi_PBlock* pb)
 {
     auto indexer_t* ix = op_indexer_get (pb);
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "op_indexer_destroy(%p)\n", (void*)ix, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "op_indexer_destroy(%p)\n", (void*)ix, 0, 0);
     if (ix != NULL) {
         indexer_free (ix);
         /* The keys were freed, but we need to reset the pblock pointer */
@@ -596,7 +596,7 @@ op_index_entry (Slapi_PBlock* pb)
     } else {
 	rc = LDAP_OPERATIONS_ERROR;
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "op_index_entry(%p) %i\n", (void*)ix, rc, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "op_index_entry(%p) %i\n", (void*)ix, rc, 0);
     return rc;
 }
 
@@ -618,7 +618,7 @@ op_index_search (Slapi_PBlock* pb)
 	    rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_KEYS, or->or_index_keys);
 	}
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "op_index_search(%p) %i\n", (void*)or, rc, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "op_index_search(%p) %i\n", (void*)or, rc, 0);
     return rc;
 }
 
@@ -652,7 +652,7 @@ static void
 ss_indexer_destroy (Slapi_PBlock* pb)
 {
     auto ss_indexer_t* ss = ss_indexer_get (pb);
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "ss_indexer_destroy(%p)\n", (void*)ss, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "ss_indexer_destroy(%p)\n", (void*)ss, 0, 0);
     if (ss) {
         ss_indexer_free(ss);
         /* The keys were freed, but we need to reset the pblock pointer */
@@ -743,7 +743,7 @@ ss_index_entry (Slapi_PBlock* pb)
 	    slapi_ch_free((void**)&prefixes);
 	}
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "ss_index_entry(%p) %i %lu substrings\n",
+    LDAPDebug(LDAP_DEBUG_FILTER, "ss_index_entry(%p) %i %lu substrings\n",
 	       (void*)ss, rc, (unsigned long)substringsLen);
     return rc;
 }
@@ -809,7 +809,7 @@ ss_index_search (Slapi_PBlock* pb)
 	    rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_KEYS, or->or_index_keys);
 	}
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "ss_index_search(%p) %i\n", (void*)or, rc, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "ss_index_search(%p) %i\n", (void*)or, rc, 0);
     return rc;
 }
 
@@ -884,7 +884,7 @@ or_filter_index (Slapi_PBlock* pb)
 	!(rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, mrOID))) {
 	rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_QUERY_OPERATOR, &mrQUERY_OPERATOR);
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "or_filter_index(%p) %i\n",
+    LDAPDebug(LDAP_DEBUG_FILTER, "or_filter_index(%p) %i\n",
 	       (void*)(or ? or->or_indexer : NULL), rc, 0);
     return rc;
 }
@@ -896,12 +896,12 @@ or_indexer_create (Slapi_PBlock* pb)
     auto char* mrOID = NULL;
     auto void* mrOBJECT = NULL;
     if (slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &mrOID) || mrOID == NULL) {
-	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> or_indexer_create: no OID parameter\n", 0, 0, 0);
+	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_indexer_create: no OID parameter\n", 0, 0, 0);
     } else {
 	auto indexer_t* ix = indexer_create (mrOID);
 	auto char* mrTYPE = NULL;
 	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
-	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> or_indexer_create(oid %s; type %s)\n",
+	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_indexer_create(oid %s; type %s)\n",
 		   mrOID, mrTYPE ? mrTYPE : "<NULL>", 0);
 	if (ix != NULL) {
 	    if (ix->ix_index != NULL &&
@@ -944,7 +944,7 @@ or_indexer_create (Slapi_PBlock* pb)
 	    }
 	}
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= or_indexer_create(%p) %i\n", mrOBJECT, rc, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "<= or_indexer_create(%p) %i\n", mrOBJECT, rc, 0);
     return rc;
 }
 
@@ -977,8 +977,8 @@ orderingRule_init (Slapi_PBlock* pb)
 #endif 
 
     if ( slapi_pblock_get( pb, SLAPI_CONFIG_DIRECTORY, &cfgpath ) != 0 ) {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPI_ORPLUGIN_NAME,
-		"Unable to retrieve slapd configuration pathname; using default\n" );
+	slapi_log_error(SLAPI_LOG_ERR, SLAPI_ORPLUGIN_NAME,
+		"orderingRule_init - Unable to retrieve slapd configuration pathname; using default\n" );
 	cfgpath = NULL;
     }
 	
@@ -995,6 +995,6 @@ orderingRule_init (Slapi_PBlock* pb)
     if ( rc == 0 ) {
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc );
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "orderingRule_init %i\n", rc, 0, 0);
+    LDAPDebug(LDAP_DEBUG_FILTER, "orderingRule_init %i\n", rc, 0, 0);
     return rc;
 }

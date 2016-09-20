@@ -64,8 +64,8 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	if ( LDAP_SUCCESS != (parse_rc=cb_forward_operation(pb) )) {
 		/* Don't return errors */
 		if (cb_debug_on()) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-			"local search: base:<%s> scope:<%s> filter:<%s>\n",target,
+			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			"chainingdb_build_candidate_list - local search: base:<%s> scope:<%s> filter:<%s>\n",target,
 			scope==LDAP_SCOPE_SUBTREE?"SUBTREE":scope==LDAP_SCOPE_ONELEVEL ? "ONE-LEVEL" : "BASE" , filter);
 		}
 
@@ -85,8 +85,8 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	}
 
 	if (cb_debug_on()) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-			"chained search: base:<%s> scope:<%s> filter:<%s>\n",target,
+		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			"chainingdb_build_candidate_list - chained search: base:<%s> scope:<%s> filter:<%s>\n",target,
 			scope==LDAP_SCOPE_SUBTREE ? "SUBTREE": scope==LDAP_SCOPE_ONELEVEL ? "ONE-LEVEL" : "BASE",
 			filter);
 	}
@@ -183,8 +183,8 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 	if (LDAP_SUCCESS != rc) {
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-			                "cb_get_connection failed (%d) %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			                "chainingdb_build_candidate_list - cb_get_connection failed (%d) %s\n",
 			                rc, ldap_err2string(rc));
 			warned_get_conn = 1;
 		}
@@ -284,8 +284,8 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 			/* Local timeout management */
 			if (timelimit != -1) {
 				if (current_time() > endbefore) {
-					slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-						"Local timeout expiration\n");
+					slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+						"chainingdb_build_candidate_list - Local timeout expiration\n");
 					cb_send_ldap_result(pb,LDAP_TIMELIMIT_EXCEEDED,
 						NULL,NULL, 0, NULL);
 					/* Force connection close */
@@ -329,7 +329,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 			if ( parse_rc != LDAP_SUCCESS ) {
 				static int warned_parse_rc = 0;
 				if (!warned_parse_rc && error_msg) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						"%s%s%s\n",
 						matched_msg?matched_msg:"",
 						(matched_msg&&(*matched_msg!='\0'))?": ":"",
@@ -342,7 +342,7 @@ chainingdb_build_candidate_list ( Slapi_PBlock *pb )
 				static int warned_rc = 0;
 				if (!warned_rc) {
 					slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						"%s%s%s\n",
 						matched_msg?matched_msg:"",
 						(matched_msg&&(*matched_msg!='\0'))?": ":"",
@@ -426,8 +426,8 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 		/* End of local search */
         	slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
         	slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
-        	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-			"Unexpected NULL ctx in chainingdb_next_search_entry\n");
+        	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			    "chainingdb_next_search_entry - Unexpected NULL ctx in chainingdb_next_search_entry\n");
 		return 0;
 	}
 
@@ -584,7 +584,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
          		/* The server sent one of the entries found by the search */
 			if ((entry = cb_LDAPMessage2Entry(ctx->ld,res,attrsonly)) == NULL) {
-        			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,"Invalid entry received.\n");
+        			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,"chainingdb_next_search_entry - Invalid entry received.\n");
         			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_SET,NULL);
         			slapi_pblock_set( pb, SLAPI_SEARCH_RESULT_ENTRY,NULL);
 
@@ -676,7 +676,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 			if ( parse_rc != LDAP_SUCCESS ) {
 				static int warned_parse_rc = 0;
 				if (!warned_parse_rc) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						            "%s%s%s\n", 
 						            matched_msg?matched_msg:"",
 						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
@@ -691,7 +691,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 				static int warned_rc = 0;
 				slapi_ldap_get_lderrno( ctx->ld, &matched_msg, &error_msg );
 				if (!warned_rc) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						            "%s%s%s\n", 
 						            matched_msg?matched_msg:"",
 						            (matched_msg&&(*matched_msg!='\0'))?": ":"",
@@ -722,8 +722,8 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 			return retcode;
 
 		default:
-        		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM, 
-				"chainingdb_next_search_entry:default case.\n");
+        		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, 
+				"chainingdb_next_search_entry - default case.\n");
 			
 		}
 	}
@@ -734,7 +734,7 @@ chainingdb_next_search_entry ( Slapi_PBlock *pb )
 
 int
 chaining_back_entry_release ( Slapi_PBlock *pb ) {
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM, "chaining_back_entry_release\n");
+	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, "chaining_back_entry_release\n");
 	return 0;
 }
 
@@ -743,7 +743,7 @@ chaining_back_search_results_release ( void **sr )
 {
     cb_searchContext *ctx = (cb_searchContext *)(*sr);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                      "chaining_back_search_results_release\n");
     if (ctx->readahead != ctx->tobefreed) {
         slapi_entry_free(ctx->readahead);

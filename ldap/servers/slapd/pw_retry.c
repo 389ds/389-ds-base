@@ -200,7 +200,7 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	}
 
 	if (target_dn == NULL) {
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+		LDAPDebug0Args(LDAP_DEBUG_TRACE,
 		               "WARNING: 'get_entry' - no dn specified.\n");
 		goto bail;
 	}
@@ -214,7 +214,7 @@ Slapi_Entry *get_entry ( Slapi_PBlock *pb, const char *dn)
 	                                                &retentry, 
 	                                                pw_get_componentID());
 	if (search_result != LDAP_SUCCESS) {
-		LDAPDebug2Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+		LDAPDebug2Args(LDAP_DEBUG_TRACE,
 		               "WARNING: 'get_entry' can't find entry '%s', err %d\n",
 		               target_dn, search_result);
 	}
@@ -246,8 +246,8 @@ pw_apply_mods(const Slapi_DN *sdn, Slapi_Mods *mods)
 		
 		slapi_pblock_get(&pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 		if (res != LDAP_SUCCESS){
-			LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-			        "WARNING: passwordPolicy modify error %d on entry '%s'\n",
+			LDAPDebug2Args(LDAP_DEBUG_WARNING,
+			        "pw_apply_mods - passwordPolicy modify error %d on entry '%s'\n",
 					res, slapi_sdn_get_dn(sdn));
 		}
 		

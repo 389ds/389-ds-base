@@ -368,7 +368,7 @@ value_cmp(
 	} else if (syntax & SYNTAX_CES) {
 		rc = strcmp( v1->bv_val, v2->bv_val );
 	} else { /* error - unknown syntax */
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
+		LDAPDebug(LDAP_DEBUG_PLUGIN,
 				  "invalid syntax [%d]\n", syntax, 0, 0);
 	}
 

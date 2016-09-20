@@ -150,7 +150,7 @@ static int ids_sasl_getopt(
 {
     unsigned tmplen;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "ids_sasl_getopt: plugin=%s option=%s\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_getopt: plugin=%s option=%s\n",
               plugin_name ? plugin_name : "", option, 0);
 
     if (len == NULL) len = &tmplen;
@@ -185,7 +185,7 @@ static int ids_sasl_log(
 {
     switch (level) {
     case SASL_LOG_ERR:          /* log unusual errors (default) */
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "sasl", "%s\n", message);
+        slapi_log_error(SLAPI_LOG_ERR, "sasl", "%s\n", message);
         break;
 
     case SASL_LOG_FAIL:         /* log all authentication failures */
@@ -195,7 +195,7 @@ static int ids_sasl_log(
     case SASL_LOG_TRACE:        /* traces of internal protocols */
     case SASL_LOG_PASS:         /* traces of internal protocols, including
                                  * passwords */
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl(%d): %s\n", level, message, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl(%d): %s\n", level, message, 0);
         break;
 
     case SASL_LOG_NONE:         /* don't log anything */
@@ -220,12 +220,12 @@ static void ids_sasl_user_search(
     Slapi_PBlock *pb = NULL;
     int i, ret;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search basedn=\"%s\" filter=\"%s\"\n", basedn, filter, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search basedn=\"%s\" filter=\"%s\"\n", basedn, filter, 0);
 
     /* TODO: set size and time limits */
     pb = slapi_pblock_new();
     if (!pb) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "null pblock for search_internal_pb\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "null pblock for search_internal_pb\n", 0, 0, 0);
         goto out;
     }
 
@@ -236,7 +236,7 @@ static void ids_sasl_user_search(
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search failed basedn=\"%s\" "
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search failed basedn=\"%s\" "
                   "filter=\"%s\": %s\n", 
                   basedn, filter, ldap_err2string(ret));
         goto out;
@@ -244,7 +244,7 @@ static void ids_sasl_user_search(
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if ((entries == NULL) || (entries[0] == NULL)) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search found no entries\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries\n",
                   0, 0, 0);
         goto out;
     }
@@ -255,7 +255,7 @@ static void ids_sasl_user_search(
             slapi_entry_free(*ep);
         }
         *ep = slapi_entry_dup(entries[i]);
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search found dn=%s\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found dn=%s\n",
                   slapi_entry_get_dn(*ep), 0, 0);
     }
 
@@ -292,11 +292,11 @@ static Slapi_Entry *ids_sasl_user_to_entry(
     /* Check for wildcards in the authid and realm. If we encounter one,
      * just fail the mapping without performing a costly internal search. */
     if (user && strchr(user, '*')) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search encountered a wildcard in "
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search encountered a wildcard in "
             "the authid.  Not attempting to map to entry. (authid=%s)\n", user, 0, 0);
         return NULL;
     } else if (user_realm && strchr(user_realm, '*')) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search encountered a wildcard in "
+        LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search encountered a wildcard in "
             "the realm.  Not attempting to map to entry. (realm=%s)\n", user_realm, 0, 0);
         return NULL;
     }
@@ -310,13 +310,13 @@ static Slapi_Entry *ids_sasl_user_to_entry(
                                  ctrls, attrs, attrsonly,
                                  &entry, &found);
             if (found == 1) {
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search found this entry: dn:%s, "
+                LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found this entry: dn:%s, "
                     "matching filter=%s\n", entry->e_sdn.dn, filter, 0);
             } else if (found == 0) {
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search found no entries matching "
+                LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found no entries matching "
                     "filter=%s\n", filter, 0, 0);
             } else {
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl user search found more than one entry "
+                LDAPDebug(LDAP_DEBUG_TRACE, "sasl user search found more than one entry "
                     "matching filter=%s\n", filter, 0, 0);
                 if (entry) {
                     slapi_entry_free(entry);
@@ -378,13 +378,13 @@ static int ids_sasl_canon_user(
     if (user == NULL) {
         goto fail;
     } 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, 
+    LDAPDebug(LDAP_DEBUG_TRACE, 
               "ids_sasl_canon_user(user=%s, realm=%s)\n", 
               user, user_realm ? user_realm : "", 0);
 
     sasl_getprop(conn, SASL_MECHNAME, (const void**)&mech);
     if (mech == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "Unable to read SASL mechanism while "
+        LDAPDebug0Args(LDAP_DEBUG_TRACE, "Unable to read SASL mechanism while "
               "canonifying user.\n")
         goto fail;
     }
@@ -425,11 +425,11 @@ static int ids_sasl_canon_user(
      * property determines what the bind identity will be if authentication succeeds. */
     if (strcasecmp(mech, "ANONYMOUS") == 0) {
         if (prop_set(propctx, "dn", "", -1) != 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "prop_set(dn) failed\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(dn) failed\n", 0, 0, 0);
             goto fail;
         }
     } else if (prop_set(propctx, "dn", dn, -1) != 0) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "prop_set(dn) failed\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(dn) failed\n", 0, 0, 0);
         goto fail;
     }
 
@@ -442,7 +442,7 @@ static int ids_sasl_canon_user(
              * Any SASL mechanism that actually needs the
              * password is going to fail.  We should print a warning
              * to aid in troubleshooting. */
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "Warning: Detected a sasl bind attempt by an "
+            LDAPDebug(LDAP_DEBUG_TRACE, "Warning: Detected a sasl bind attempt by an "
                       "entry whose password is stored in a non-cleartext format.  This "
                       "will not work for mechanisms which require a cleartext password "
                       "such as DIGEST-MD5 and CRAM-MD5.\n", 0, 0, 0);
@@ -463,13 +463,13 @@ static int ids_sasl_canon_user(
 #ifdef SASL_AUX_PASSWORD_PROP
         if (prop_set(propctx, SASL_AUX_PASSWORD_PROP, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
-            /*LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "prop_set(userpassword) failed\n", 0, 0, 0);
+            /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */ ;
         }
 #endif /* SASL_AUX_PASSWORD_PROP */
         if (prop_set(propctx, SASL_AUX_PASSWORD, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
-            /*LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "prop_set(userpassword) failed\n", 0, 0, 0);
+            /*LDAPDebug(LDAP_DEBUG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */ ;
         }
     }
@@ -544,17 +544,17 @@ int ids_sasl_init(void)
     static int inited = 0;
     int result;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ids_sasl_init\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> ids_sasl_init\n", 0, 0, 0 );
 
     PR_ASSERT(inited == 0);
     if (inited != 0) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ids_sasl_init is called more than once.\n");
+        LDAPDebug0Args(LDAP_DEBUG_ERR, "ids_sasl_init - called more than once.\n");
     }
     inited = 1;
 
     serverfqdn = get_localhost_DNS();
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl service fqdn is: %s\n", 
+    LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_init - sasl service fqdn is: %s\n", 
                   serverfqdn, 0, 0);
 
     /* get component ID for internal operations */
@@ -577,14 +577,14 @@ int ids_sasl_init(void)
     result = sasl_server_init(ids_sasl_callbacks, "iDS");
 
     if (result != SASL_OK) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "failed to initialize sasl library\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_init - failed to initialize sasl library\n", 
                   0, 0, 0);
         return result;
     }
 
     result = sasl_auxprop_add_plugin("iDS", ids_auxprop_plug_init);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ids_sasl_init\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= ids_sasl_init\n", 0, 0, 0 );
 
     return result;
 }
@@ -599,7 +599,7 @@ void ids_sasl_server_new(Connection *conn)
     struct propctx *propctx;
     sasl_security_properties_t secprops = {0};
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ids_sasl_server_new (%s)\n", serverfqdn, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> ids_sasl_server_new (%s)\n", serverfqdn, 0, 0 );
 
     rc = sasl_server_new("ldap", 
                          serverfqdn,
@@ -611,7 +611,7 @@ void ids_sasl_server_new(Connection *conn)
                          &sasl_conn);
 
     if (rc != SASL_OK) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "sasl_server_new: %s\n", 
+        LDAPDebug(LDAP_DEBUG_ERR, "ids_sasl_server_new - %s\n", 
                   sasl_errstring(rc, NULL, NULL), 0, 0);
     }
 
@@ -634,14 +634,14 @@ void ids_sasl_server_new(Connection *conn)
     rc = sasl_setprop(sasl_conn, SASL_SEC_PROPS, &secprops);
 
     if (rc != SASL_OK) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "sasl_setprop: %s\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "ids_sasl_server_new - sasl_setprop: %s\n",
                   sasl_errstring(rc, NULL, NULL), 0, 0);
     }
     
     conn->c_sasl_conn = sasl_conn;
     conn->c_sasl_ssf = 0;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ids_sasl_server_new\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= ids_sasl_server_new\n", 0, 0, 0 );
 
     return;
 }
@@ -657,7 +657,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
     char *dupstr;
     sasl_conn_t *sasl_conn;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ids_sasl_listmech\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> ids_sasl_listmech\n", 0, 0, 0 );
 
     PR_ASSERT(pb);
 
@@ -675,7 +675,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
                       NULL,     /* username */
                       "", ",", "",
                       &str, NULL, NULL) == SASL_OK) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl library mechs: %s\n", str, 0, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_listmech - sasl library mechs: %s\n", str, 0, 0);
         /* merge into result set */
         dupstr = slapi_ch_strdup(str);
         others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
@@ -685,7 +685,7 @@ char **ids_sasl_listmech(Slapi_PBlock *pb)
     }
     PR_ExitMonitor(pb->pb_conn->c_mutex);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ids_sasl_listmech\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= ids_sasl_listmech\n", 0, 0, 0 );
 
     return ret;
 }
@@ -705,7 +705,7 @@ ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
   int sasl_result = 0;
   sasl_conn_t *sasl_conn = (sasl_conn_t *)pb->pb_conn->c_sasl_conn;
 
-  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ids_sasl_mech_supported\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, "=> ids_sasl_mech_supported\n", 0, 0, 0 );
 
 
   /* sasl_listmech is not thread-safe - caller must lock pb_conn */
@@ -730,7 +730,7 @@ ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
   charray_free(mechs);
   slapi_ch_free((void**)&dupstr);
 
-  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ids_sasl_mech_supported\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, "<= ids_sasl_mech_supported\n", 0, 0, 0 );
 
   return ret;
 }
@@ -760,7 +760,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     Slapi_Entry *bind_target_entry = NULL, *referral = NULL;
     Slapi_Backend *be = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ids_sasl_check_bind\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> ids_sasl_check_bind\n", 0, 0, 0 );
 
     PR_ASSERT(pb);
     PR_ASSERT(pb->pb_conn);
@@ -810,11 +810,11 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
          */
         sasl_getprop(sasl_conn, SASL_MECHNAME, (const void**)&activemech);
         if (activemech == NULL) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "could not get active sasl mechanism\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_check_bind - could not get active sasl mechanism\n", 0, 0, 0);
             goto sasl_start;
         }
         if (strcasecmp(activemech, mech) != 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl mechanisms differ: active=%s current=%s\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_check_bind - sasl mechanisms differ: active=%s current=%s\n", 0, 0, 0);
             goto sasl_start;
         }
 
@@ -834,7 +834,7 @@ void ids_sasl_check_bind(Slapi_PBlock *pb)
     if ((pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE) || continuing) {
         Slapi_Operation *operation;
         slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
-        slapi_log_error(SLAPI_LOG_CONNS, LOG_DEBUG, "ids_sasl_check_bind",
+        slapi_log_error(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
                         "cleaning up sasl IO conn=%" NSPRIu64 " op=%d complete=%d continuing=%d\n",
                         pb->pb_conn->c_connid, operation->o_opid,
                         (pb->pb_conn->c_flags & CONN_FLAG_SASL_COMPLETE), continuing);
@@ -874,7 +874,7 @@ sasl_check_result:
             break;
         }
 
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl authenticated mech=%s user=%s\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_check_bind - sasl authenticated mech=%s user=%s\n",
                   mech, username, 0);
 
         /* 
@@ -906,7 +906,7 @@ sasl_check_result:
 
         if ((sasl_getprop(sasl_conn, SASL_SSF, 
                           (const void**)&ssfp) == SASL_OK) && (*ssfp > 0)) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "sasl ssf=%u\n", (unsigned)*ssfp, 0, 0);
+            LDAPDebug(LDAP_DEBUG_TRACE, "ids_sasl_check_bind - sasl ssf=%u\n", (unsigned)*ssfp, 0, 0);
         } else {
             *ssfp = 0;
         }
@@ -961,7 +961,7 @@ sasl_check_result:
         if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
             send_nobackend_ldap_result( pb );
             be = NULL;
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ids_sasl_check_bind\n", 0, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_TRACE, "<= ids_sasl_check_bind\n", 0, 0, 0 );
             return; 
         }
 
@@ -1064,7 +1064,7 @@ sasl_check_result:
         if (bind_target_entry)
             slapi_entry_free(bind_target_entry);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ids_sasl_check_bind\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> ids_sasl_check_bind\n", 0, 0, 0 );
 
     return;
 }

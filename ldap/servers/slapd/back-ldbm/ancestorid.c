@@ -74,7 +74,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJo
         ldbm_nasty(sourcefile,13020,ret);
         goto out;
     }
-    import_log_notice(job, "Gathering ancestorid non-leaf IDs...");
+    import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids", "Gathering ancestorid non-leaf IDs...");
     /* For each key which is an equality key */
     do {
         ret = dbc->c_get(dbc,&key,&data,DB_NEXT_NODUP);
@@ -84,7 +84,8 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJo
         }
         key_count++;
         if(!(key_count % PROGRESS_INTERVAL)){
-            import_log_notice(job, "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+                    "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
                     (key_count * 100 / job->numsubordinates), key_count);
             started_progress_logging = 1;
         }
@@ -92,11 +93,13 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJo
 
     if(started_progress_logging){
         /* finish what we started logging */
-        import_log_notice(job, "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+        import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+                "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
                 (key_count * 100 / job->numsubordinates), key_count);
 
     }
-    import_log_notice(job, "Finished gathering ancestorid non-leaf IDs.");
+    import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+            "Finished gathering ancestorid non-leaf IDs.");
     /* Check for success */
     if (ret == DB_NOTFOUND) ret = 0;
     if (ret != 0) ldbm_nasty(sourcefile,13030,ret);
@@ -120,7 +123,7 @@ static int ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJo
     /* Return the idlist */
     if (ret == 0) {
         *idl = nodes;
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "found %lu nodes for ancestorid\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, "found %lu nodes for ancestorid\n", 
                   (u_long)IDL_NIDS(nodes), 0, 0);
     } else {
         idl_free(&nodes);
@@ -207,8 +210,8 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
 
     /* Maybe nothing to do */
     if (nodes == NULL || nodes->b_nids == 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Nothing to do to build ancestorid index\n",
-                  0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_ancestorid_default_create_index - "
+                "Nothing to do to build ancestorid index\n", 0, 0, 0);
         goto out;
     }
 
@@ -221,7 +224,7 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
     /* Open the parentid index file */
     ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
     if (ret != 0) {
-        ldbm_nasty(sourcefile,13060,ret);
+        ldbm_nasty("ldbm_ancestorid_default_create_index",13060,ret);
         goto out;
     }
 
@@ -230,7 +233,8 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
     key.ulen = sizeof(keybuf);
     key.flags = DB_DBT_USERMEM;
 
-    import_log_notice(job, "Creating ancestorid index (old idl)...");
+    import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+            "Creating ancestorid index (old idl)...");
     /* Iterate from highest to lowest ID */
     nids = nodes->b_nids;
     do {
@@ -251,14 +255,16 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
 
         /* check if we need to abort */
         if(job->flags & FLAG_ABORT){
-            import_log_notice(job, "ancestorid creation aborted.");
+            import_log_notice(job, SLAPI_LOG_ERR, "ldbm_ancestorid_default_create_index",
+                    "ancestorid creation aborted.");
             ret = -1;
             break;
         }
 
         key_count++;
         if(!(key_count % PROGRESS_INTERVAL)){
-        	import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
+        	import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+        	         "Creating ancestorid index: processed %d%% (ID count %d)",
         	        (key_count * 100 / job->numsubordinates), key_count);
         	 started_progress_logging = 1;
         }
@@ -268,7 +274,8 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
             descendants = idl_union_allids(be, ai_aid, ididl->idl, children);
             idl_free(&children);
             if (id2idl_hash_remove(ht, &id) == 0) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ancestorid hash_remove failed\n", 0,0,0);
+                LDAPDebug(LDAP_DEBUG_ERR, "ldbm_ancestorid_default_create_index - "
+                        "id2idl_hash_remove() failed\n", 0,0,0);
             } else {
                 id2idl_free(&ididl);
             }
@@ -302,7 +309,8 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
             ididl->keyid = parentid;
             ididl->idl = descendants;
             if (id2idl_hash_add(ht, &parentid, ididl, NULL) == 0) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ancestorid hash_add failed\n", 0,0,0);
+                LDAPDebug(LDAP_DEBUG_ERR, "ldbm_ancestorid_default_create_index - "
+                        "id2idl_hash_add failed\n", 0,0,0);
             }
         }
 
@@ -337,10 +345,12 @@ static int ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
     if (ret == 0) {
         if(started_progress_logging){
             /* finish what we started logging */
-            import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
+            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+                    "Creating ancestorid index: processed %d%% (ID count %d)",
                     (key_count * 100 / job->numsubordinates), key_count);
         }
-        import_log_notice(job, "Created ancestorid index (old idl).");
+        import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+                "Created ancestorid index (old idl).");
         ai_aid->ai_indexmask &= ~INDEX_OFFLINE;
     }
 
@@ -384,7 +394,8 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
 	/* Bail now if we did not get here honestly. */
 	if (!idl_get_idl_new()) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Cannot create ancestorid index.  " 
+		LDAPDebug(LDAP_DEBUG_ERR, "ldbm_ancestorid_new_idl_create_index - "
+			"Cannot create ancestorid index.  " 
 			"New IDL version called but idl_new is false!\n", 0,0,0);
 		return 1;
 	}
@@ -408,8 +419,8 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
     /* Maybe nothing to do */
     if (nodes == NULL || nodes->b_nids == 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Nothing to do to build ancestorid index\n",
-                  0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_ancestorid_new_idl_create_index - "
+                "Nothing to do to build ancestorid index\n", 0, 0, 0);
         goto out;
     }
 
@@ -428,7 +439,8 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     key.ulen = sizeof(keybuf);
     key.flags = DB_DBT_USERMEM;
 
-    import_log_notice(job, "Creating ancestorid index (new idl)...");
+    import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+           "Creating ancestorid index (new idl)...");
     /* Iterate from highest to lowest ID */
     nids = nodes->b_nids;
     do {
@@ -449,14 +461,16 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
         /* check if we need to abort */
         if(job->flags & FLAG_ABORT){
-            import_log_notice(job, "ancestorid creation aborted.");
+            import_log_notice(job, SLAPI_LOG_ERR, "ldbm_ancestorid_new_idl_create_index",
+                    "ancestorid creation aborted.");
             ret = -1;
             break;
         }
 
         key_count++;
         if(!(key_count % PROGRESS_INTERVAL)){
-            import_log_notice(job, "Creating ancestorid index: progress %d%% (ID count %d)",
+            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                    "Creating ancestorid index: progress %d%% (ID count %d)",
                     (key_count * 100 / job->numsubordinates), key_count);
             started_progress_logging = 1;
         }
@@ -482,8 +496,8 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
         while (1) {
             ret = ldbm_parentid(be, txn, id, &parentid);
             if (ret != 0) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, sourcefile,
-                                "Error: ldbm_parentid on node index [" ID_FMT "] of [" ID_FMT "]\n",
+                slapi_log_error(SLAPI_LOG_ERR, "ldbm_ancestorid_new_idl_create_index",
+                                "Failure: ldbm_parentid on node index [" ID_FMT "] of [" ID_FMT "]\n",
                                 nids, nodes->b_nids);
                 idl_free(&children);
                 goto out;
@@ -518,12 +532,15 @@ static int ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     if (ret == 0) {
         if(started_progress_logging){
             /* finish what we started logging */
-            import_log_notice(job, "Creating ancestorid index: processed %d%% (ID count %d)",
+            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                     "Creating ancestorid index: processed %d%% (ID count %d)",
                     (key_count * 100 / job->numsubordinates), key_count);
         }
-        import_log_notice(job, "Created ancestorid index (new idl).");
+        import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                "Created ancestorid index (new idl).");
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to create ancestorid index\n", 0,0,0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_ancestorid_new_idl_create_index - "
+                "Failed to create ancestorid index\n", 0,0,0);
     }
 
     /* Free any leftover idlists */
@@ -578,8 +595,8 @@ static int ldbm_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid)
     ret = db->get(db, txn, &key, &data, 0);
     if (ret != 0) {
         ldbm_nasty(sourcefile,13110,ret);
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, sourcefile,
-                        "Error: unable to find entry id [" ID_FMT "] (original [" ID_FMT "])"
+        slapi_log_error(SLAPI_LOG_ERR, "ldbm_parentid",
+                        "Unable to find entry id [" ID_FMT "] (original [" ID_FMT "])"
                         " in id2entry\n", stored_id, id);
         goto out;
     }
@@ -632,7 +649,7 @@ static int check_cache(id2idl_hash *ht)
     }
 
     if (found > 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: parentid index is not complete (%lu extra keys in ancestorid cache)\n", found,0,0);
+        LDAPDebug(LDAP_DEBUG_ERR, "check_cache - parentid index is not complete (%lu extra keys in ancestorid cache)\n", found,0,0);
         ret = -1;
     }
 
@@ -699,13 +716,13 @@ static int ancestorid_addordel(
 
     if (flags & BE_INDEX_ADD) {
 #if 1
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "insert ancestorid %lu:%lu\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, "ancestorid_addordel - Insert ancestorid %lu:%lu\n", 
                   (u_long)node_id, (u_long)id, 0);
 #endif
         ret = idl_insert_key(be, db, &key, id, txn, ai, allids);
     } else {
 #if 1
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "delete ancestorid %lu:%lu\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, "ancestorid_addordel - Delete ancestorid %lu:%lu\n", 
                   (u_long)node_id, (u_long)id, 0);
 #endif
         ret = idl_delete_key(be, db, &key, id, txn, ai);
@@ -788,7 +805,8 @@ static int ldbm_ancestorid_index_update(
             if (err) {
                 if (DB_NOTFOUND != err) {
                     ldbm_nasty(sourcefile,13141,err);
-                    LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
+                    LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_ancestorid_index_update - "
+                            "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
                     ret = err;
                 }
                 break;
@@ -958,14 +976,14 @@ _sdn_suffix_cmp(
     /* return the DN */
     slapi_sdn_set_dn_passin(common, ndnstr);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "common suffix <%s>\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "_sdn_suffix_cmp - common suffix <%s>\n",
               slapi_sdn_get_dn(common), 0, 0);
 
 out:
     slapi_ldap_value_free(rdns1);
     slapi_ldap_value_free(rdns2);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "_sdn_suffix_cmp(<%s>, <%s>) => %d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "_sdn_suffix_cmp - (<%s>, <%s>) => %d\n",
               slapi_sdn_get_dn(left), slapi_sdn_get_dn(right), ret);
 
     return ret;

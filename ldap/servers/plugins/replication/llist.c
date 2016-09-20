@@ -201,14 +201,14 @@ int	llistInsertHead (LList *list, const char *key, void *data)
 	LNode *node;
 	if (list == NULL || list->head == NULL || data == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "llistInsertHead: invalid argument\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "llistInsertHead: invalid argument\n");
 		return -1;	
 	}
 
 	node = _llistNewNode (key, data);
 	if (node == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "llistInsertHead: failed to allocate list node\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "llistInsertHead: failed to allocate list node\n");
 		return -1;
 	}
 
@@ -231,14 +231,14 @@ int llistInsertTail (LList *list, const char *key, void *data)
 	LNode *node;
 	if (list == NULL || list->head == NULL || data == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "llistInsertHead: invalid argument\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "llistInsertHead: invalid argument\n");
 		return -1;	
 	}
 
 	node = _llistNewNode (key, data);
 	if (node == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, repl_plugin_name, "llistInsertHead: failed to allocate list node\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "llistInsertHead: failed to allocate list node\n");
 		return -1;
 	}
 

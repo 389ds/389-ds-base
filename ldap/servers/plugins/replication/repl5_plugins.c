@@ -79,7 +79,7 @@ multimaster_set_local_purl()
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "multimaster_set_local_purl: "
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_set_local_purl - "
 			"unable to read server configuration: error %d\n", rc);
 	}
 	else
@@ -87,8 +87,8 @@ multimaster_set_local_purl()
 		slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 		if (NULL == entries || NULL == entries[0])
 		{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "multimaster_set_local_purl: "
-			"server configuration missing\n");
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_set_local_purl - "
+				"Server configuration missing\n");
 			rc = -1;
 		}
 		else
@@ -98,8 +98,8 @@ multimaster_set_local_purl()
 			char *sslport = slapi_entry_attr_get_charptr(entries[0], "nsslapd-secureport");
 			if (host == NULL || ((port == NULL && sslport == NULL)))
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"multimaster_set_local_purl: invalid server "
+				slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+					"multimaster_set_local_purl - Invalid server "
 					"configuration\n");
 			}
 			else
@@ -189,8 +189,8 @@ multimaster_preop_add (Slapi_PBlock *pb)
                 int drc = decode_NSDS50ReplUpdateInfoControl(ctrlp, &target_uuid, &superior_uuid, &csn, NULL /* modrdn_mods */);
                 if (-1 == drc)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, REPLICATION_SUBSYSTEM,
-                            "%s An error occurred while decoding the replication update "
+                    slapi_log_error(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
+                            "multimaster_preop_add - %s An error occurred while decoding the replication update "
                             "control - Add\n", sessionid);
                 }
                 else if (1 == drc)
@@ -240,8 +240,8 @@ multimaster_preop_add (Slapi_PBlock *pb)
                         {
                             if(strcasecmp(entry_uuid,target_uuid)!=0)
                             {
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, REPLICATION_SUBSYSTEM,
-                                    "%s Replicated Add received with Control_UUID=%s and Entry_UUID=%s.\n",
+                                slapi_log_error(SLAPI_LOG_WARNING, REPLICATION_SUBSYSTEM,
+                                    "multimaster_preop_add - %s Replicated Add received with Control_UUID=%s and Entry_UUID=%s.\n",
                                     sessionid, target_uuid,entry_uuid);
                             }
 
@@ -318,8 +318,8 @@ multimaster_preop_delete (Slapi_PBlock *pb)
                 int drc = decode_NSDS50ReplUpdateInfoControl(ctrlp, &target_uuid, NULL, &csn, NULL /* modrdn_mods */);
                 if (-1 == drc)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, REPLICATION_SUBSYSTEM,
-                            "%s An error occurred while decoding the replication update "
+                    slapi_log_error(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
+                            "multimaster_preop_delete - %s An error occurred while decoding the replication update "
                             "control - Delete\n", sessionid);
                 }
                 else if (1 == drc)
@@ -331,8 +331,8 @@ multimaster_preop_delete (Slapi_PBlock *pb)
                         slapi_send_ldap_result(pb, LDAP_SUCCESS, 0, 
                             "replication operation not processed, replica unavailable "
                             "or csn ignored", 0, 0); 
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, REPLICATION_SUBSYSTEM,
-                            "%s replication operation not processed, replica unavailable "
+                        slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                            "multimaster_preop_delete - %s replication operation not processed, replica unavailable "
                             "or csn ignored\n", sessionid); 
                         csn_free (&csn);
                         slapi_ch_free ((void**)&target_uuid);
@@ -417,8 +417,8 @@ multimaster_preop_modify (Slapi_PBlock *pb)
                 int drc = decode_NSDS50ReplUpdateInfoControl(ctrlp, &target_uuid, NULL, &csn, NULL /* modrdn_mods */);
                 if (-1 == drc)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, REPLICATION_SUBSYSTEM,
-                            "%s An error occurred while decoding the replication update "
+                    slapi_log_error(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
+                            "multimaster_preop_modify - %s An error occurred while decoding the replication update "
                             "control- Modify\n", sessionid);
                 }
                 else if (1 == drc)
@@ -430,8 +430,8 @@ multimaster_preop_modify (Slapi_PBlock *pb)
                         slapi_send_ldap_result(pb, LDAP_SUCCESS, 0, 
                             "replication operation not processed, replica unavailable "
                             "or csn ignored", 0, 0); 
-                        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, REPLICATION_SUBSYSTEM,
-                            "%s replication operation not processed, replica unavailable "
+                        slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                            "multimaster_preop_modify - %s replication operation not processed, replica unavailable "
                             "or csn ignored\n", sessionid); 
                         csn_free (&csn);
                         slapi_ch_free ((void**)&target_uuid);
@@ -522,8 +522,8 @@ multimaster_preop_modrdn (Slapi_PBlock *pb)
                         &csn, &modrdn_mods);
                 if (-1 == drc)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, REPLICATION_SUBSYSTEM,
-                            "%s An error occurred while decoding the replication update "
+                    slapi_log_error(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
+                            "multimaster_preop_modrdn - %s An error occurred while decoding the replication update "
                             "control - ModRDN\n", sessionid);
                 }
                 else if (1 == drc)
@@ -692,8 +692,8 @@ purge_entry_state_information (Slapi_PBlock *pb)
 				/* conntion is always null */
                 if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
                     char csn_str[CSN_STRSIZE];
-                    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-                                    "Purged state information from entry %s up to "
+                    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                                    "purge_entry_state_information -  From entry %s up to "
                                     "CSN %s\n", slapi_entry_get_dn(e),
                                     csn_as_string(purge_csn, PR_FALSE, csn_str));
                 }
@@ -959,14 +959,14 @@ copy_operation_parameters(Slapi_PBlock *pb)
            since client operations don't go through urp engine and pblock data can be logged */
         slapi_pblock_get( pb, SLAPI_OPERATION, &op );
         if (NULL == op) {
-            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, REPLICATION_SUBSYSTEM,
-                            "copy_operation_parameters: operation is null.\n");
+            slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                            "copy_operation_parameters - operation is null.\n");
             return;
         }
         replica = (Replica*)object_get_data (repl_obj);
         if (NULL == replica) {
-            slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, REPLICATION_SUBSYSTEM,
-                            "copy_operation_parameters: replica is null.\n");
+            slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                            "copy_operation_parameters - replica is null.\n");
             return;
         }
         opext = (supplier_operation_extension*) repl_sup_get_ext (REPL_SUP_EXT_OP, op);
@@ -1150,8 +1150,8 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			void *txn = NULL;
 			if (cl5_is_diskfull() && !cl5_diskspace_is_available()) 
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-								"write_changelog_and_ruv: Skipped due to DISKFULL\n");
+				slapi_log_error(SLAPI_LOG_CRIT, repl_plugin_name,
+								"write_changelog_and_ruv - Skipped due to DISKFULL\n");
 				return return_value;
 			}
 			slapi_pblock_get(pb, SLAPI_TXN, &txn);
@@ -1161,8 +1161,8 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 			{
     			char csn_str[CSN_STRSIZE];
 			    /* ONREPL - log error */
-        		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"write_changelog_and_ruv: can't add a change for "
+        		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"write_changelog_and_ruv - Can't add a change for "
 					"%s (uniqid: %s, optype: %lu) to changelog csn %s\n",
 					REPL_GET_DN(&op_params->target_address),
 					op_params->target_address.uniqueid,
@@ -1206,14 +1206,14 @@ write_changelog_and_ruv (Slapi_PBlock *pb)
 		}
 		rc = update_ruv_component(r, opcsn, pb);
 		if (RUV_COVERS_CSN == rc) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-					"write_changelog_and_ruv: RUV already covers csn for "
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"write_changelog_and_ruv - RUV already covers csn for "
 					"%s (uniqid: %s, optype: %lu) csn %s\n",
 					dn, uniqueid, optype,
 					csn_as_string(oppcsn, PR_FALSE, csn_str));
 		} else if ((rc != RUV_SUCCESS) && (rc != RUV_NOTFOUND)) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"write_changelog_and_ruv: failed to update RUV for "
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"write_changelog_and_ruv - Failed to update RUV for "
 					"%s (uniqid: %s, optype: %lu) to changelog csn %s - rc %d\n",
 					dn, uniqueid, optype,
 					csn_as_string(oppcsn, PR_FALSE, csn_str), rc);
@@ -1274,8 +1274,8 @@ process_postop (Slapi_PBlock *pb)
 		rc = cancel_opcsn (pb); 
 
 		/* Don't try to get session id since conn is always null */
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-			"%s process postop: canceling operation csn\n", sessionid);
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"process postop - %s canceling operation csn\n", sessionid);
 	} else {
 		rc = SLAPI_PLUGIN_FAILURE;
 	}
@@ -1325,8 +1325,8 @@ process_postop (Slapi_PBlock *pb)
 			slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 			if (conn)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"process_postop: Failed to apply update (%s) error (%d).  "
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"process_postop - Failed to apply update (%s) error (%d).  "
 					"Aborting replication session(conn=%" NSPRIu64 " op=%d)\n",
 					csn_as_string(opcsn, PR_FALSE, csn_str), retval,
 					connid, opid);
@@ -1463,8 +1463,8 @@ process_operation (Slapi_PBlock *pb, const CSN *csn)
     {
 		char sessionid[REPL_SESSION_ID_SIZE];
 		get_repl_session_id (pb, sessionid, NULL);
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s process_operation: "
-			"can't locate replica for the replicated operation\n",
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "process_operation - "
+			"%s - Can't locate replica for the replicated operation\n",
 			sessionid );
         return PR_FALSE;
     }
@@ -1535,8 +1535,8 @@ static const char *replica_get_purl_for_op (const Replica *r, Slapi_PBlock *pb, 
 		{
 			char sessionid[REPL_SESSION_ID_SIZE];
 			get_repl_session_id (pb, sessionid, NULL);
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s replica_get_purl_for_op: "
-                            "cannot obtain consumer connection extension or supplier_ruv.\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_get_purl_for_op - "
+                            "%s - Cannot obtain consumer connection extension or supplier_ruv.\n",
 							sessionid);
 		}
 		else
@@ -1614,16 +1614,16 @@ multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int 
     if (new_be_state == SLAPI_BE_STATE_ON)
     {
         /* backend came back online - restart replication */     
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "multimaster_be_state_change: "
-			"replica %s is coming online; enabling replication\n",
+        slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
+			"Replica %s is coming online; enabling replication\n",
             slapi_sdn_get_ndn (replica_get_root (r)));
         replica_enable_replication (r);
     }
     else if (new_be_state == SLAPI_BE_STATE_OFFLINE)
     {
         /* backend is about to be taken down - disable replication */
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "multimaster_be_state_change: "
-			"replica %s is going offline; disabling replication\n",
+        slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
+			"Replica %s is going offline; disabling replication\n",
             slapi_sdn_get_ndn (replica_get_root (r)));
         replica_disable_replication (r, r_obj);
     }
@@ -1632,8 +1632,8 @@ multimaster_be_state_change (void *handle, char *be_name, int old_be_state, int 
         /* backend is about to be removed - disable replication */
         if (old_be_state == SLAPI_BE_STATE_ON)
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "multimaster_be_state_change: "
-			    "replica %s is about to be deleted; disabling replication\n",
+            slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
+			    "Replica %s is about to be deleted; disabling replication\n",
                 slapi_sdn_get_ndn (replica_get_root (r)));            
             replica_disable_replication (r, r_obj);
         }

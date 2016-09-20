@@ -146,7 +146,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
 			{
 				c->c_mutex = NULL;
 				c->c_pdumutex = NULL;
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"PR_NewLock failed\n",0, 0, 0 );
+				LDAPDebug(LDAP_DEBUG_ERR,"connection_table_get_connection - PR_NewLock failed\n",0, 0, 0 );
 				exit(1);
 			}
 		}
@@ -164,7 +164,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
     else
     {
         /* couldn't find a Connection */
-        LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "max open connections reached\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_CONNS, "connection_table_get_connection - Max open connections reached\n", 0, 0, 0);
     }
 	return c;
 }
@@ -208,7 +208,7 @@ int connection_table_iterate_active_connections(Connection_Table *ct, void* arg,
 static void 
 connection_table_dump_active_connection (Connection *c)
 {
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection", "conn=%p fd=%d refcnt=%d c_flags=%d\n"
+    slapi_log_error(SLAPI_LOG_DEBUG, "connection_table_dump_active_connection", "conn=%p fd=%d refcnt=%d c_flags=%d\n"
 			        "mutex=%p next=%p prev=%p\n\n",  c, c->c_sd, c->c_refcnt, c->c_flags,
                     c->c_mutex, c->c_next, c->c_prev);
 }
@@ -219,7 +219,7 @@ connection_table_dump_active_connections (Connection_Table *ct)
     Connection* c;
 
 	PR_Lock(ct->table_mutex);
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection", "********** BEGIN DUMP ************\n");
+    slapi_log_error(SLAPI_LOG_DEBUG, "connection_table_dump_active_connections", "********** BEGIN DUMP ************\n");
     c = connection_table_get_first_active_connection (ct);
     while (c)
     {
@@ -227,7 +227,7 @@ connection_table_dump_active_connections (Connection_Table *ct)
         c = connection_table_get_next_active_connection (ct, c);
     }
 
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection", "********** END DUMP ************\n");
+    slapi_log_error(SLAPI_LOG_DEBUG, "connection_table_dump_active_connections", "********** END DUMP ************\n");
 	PR_Unlock(ct->table_mutex);
 }
 #endif
@@ -246,7 +246,7 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
     PR_ASSERT (c->c_prev);
 
 #ifdef FOR_DEBUGGING
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection", "Moving connection out of active list\n");
+    slapi_log_error(SLAPI_LOG_DEBUG, "connection_table_move_connection_out_of_active_list", "Moving connection out of active list\n");
     connection_table_dump_active_connection (c);
 #endif
 
@@ -256,8 +256,9 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
      * a reference to the connection (that is, its reference count must be 1 or less).
      */
     if(c->c_refcnt > 1) {
-	    LDAPDebug2Args(LDAP_DEBUG_CONNS, LOG_DEBUG,
-		           "not moving conn %d out of active list because refcnt is %d\n",
+	    LDAPDebug2Args(LDAP_DEBUG_CONNS,
+		           "connection_table_move_connection_out_of_active_list - "
+	               "not moving conn %d out of active list because refcnt is %d\n",
 		           c_sd, c->c_refcnt);
 	    return 1; /* failed */
     }
@@ -278,7 +279,8 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct,Connect
 
     PR_Unlock(ct->table_mutex);
 
-    LDAPDebug1Arg(LDAP_DEBUG_CONNS, LOG_DEBUG, "moved conn %d out of active list and freed\n", c_sd);
+    LDAPDebug1Arg(LDAP_DEBUG_CONNS, "connection_table_move_connection_out_of_active_list - "
+    	"Moved conn %d out of active list and freed\n", c_sd);
 	
 #ifdef FOR_DEBUGGING
     connection_table_dump_active_connections (ct);
@@ -305,7 +307,8 @@ connection_table_move_connection_on_to_active_list(Connection_Table *ct,Connecti
 	}
 
 #ifdef FOR_DEBUGGING
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection", "Moving connection into active list\n");
+    slapi_log_error(SLAPI_LOG_DEBUG, "connection_table_move_connection_on_to_active_list",
+    	"Moving connection into active list\n");
     connection_table_dump_active_connection (c);
 #endif
 
@@ -473,7 +476,7 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 				int r = ct->fd[j].out_flags & SLAPD_POLL_FLAGS;
 				if ( r )
 				{
-					LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,"activity on %d%s\n", i, r ? "r" : "",0 );
+					LDAPDebug(LDAP_DEBUG_CONNS,"activity on %d%s\n", i, r ? "r" : "",0 );
 				}
 			}
 			PR_ExitMonitor(c->c_mutex);

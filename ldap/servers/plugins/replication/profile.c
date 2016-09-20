@@ -25,7 +25,7 @@ static FILE *profile_fd=NULL;
 void profile_log(char *file,int line)
 {
 	if (profile_fd==NULL)
-		slapi_log_error(,"profile_log: profile file not open.");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "profile_log: profile file not open.");
 	else
 	{
 	    /* JCMREPL - Probably need a lock around here */
@@ -43,7 +43,7 @@ void profile_open()
 void profile_close()
 {
 	if (profile_fd==NULL)
-		slapi_log_error(SLAPI_LOG_ERROR, "repl_profile" ,"profile_close: profile file not open.");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name ,"profile_close: profile file not open.");
 	else
 		textfile_close(profile_fd);
 }

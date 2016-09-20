@@ -130,11 +130,11 @@ windows_inc_delete(Private_Repl_Protocol **prpp)
 {
     int rc;
     windows_inc_private *prp_priv = (windows_inc_private *)(*prpp)->private;
-    LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_delete\n" );
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> windows_inc_delete\n" );
     /* First, stop the protocol if it isn't already stopped */
     /* Then, delete all resources used by the protocol */
     rc = slapi_eq_cancel(dirsync); 
-    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
+    slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
                     "windows_inc_delete: dirsync: %p, rval: %d\n", dirsync, rc);
     /* if backoff is set, delete it (from EQ, as well) */
     if (prp_priv->backoff) {
@@ -155,14 +155,14 @@ windows_inc_delete(Private_Repl_Protocol **prpp)
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
 
-    LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_delete\n" );
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= windows_inc_delete\n" );
 }
 
 /* helper function */
 void
 w_set_pause_and_busy_time(Private_Repl_Protocol *prp, long *pausetime, long *busywaittime)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> w_set_pause_and_busy_time\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> w_set_pause_and_busy_time\n" );
   /* If neither are set, set busy time to its default */
   if (!*pausetime && !*busywaittime)
     {
@@ -199,7 +199,7 @@ w_set_pause_and_busy_time(Private_Repl_Protocol *prp, long *pausetime, long *bus
        */
       *pausetime = *busywaittime + 1;
     }
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= w_set_pause_and_busy_time\n" );
+    slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= w_set_pause_and_busy_time\n" );
 }
 
 /*
@@ -276,7 +276,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
  
 	PRBool run_dirsync = PR_FALSE;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_run\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_run\n" );
 
 	prp->stopped = 0;
 	prp->terminate = 0;
@@ -340,13 +340,13 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					current_interval = interval;
 					if(dirsync){
 						int rc = slapi_eq_cancel(dirsync);
-						slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-						                "windows_inc_runs: cancelled dirsync: %p, rval: %d\n",
+						slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						                "windows_inc_run - Cancelled dirsync: %p, rval: %d\n",
 						                dirsync, rc);
 					}
 					dirsync = slapi_eq_repeat(periodic_dirsync, (void*) prp, (time_t)0 , interval);
-					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-					                "windows_inc_runs: new dirsync: %p\n", dirsync);
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					                "windows_inc_run - New dirsync: %p\n", dirsync);
 				}
 
 				break;
@@ -387,9 +387,9 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
 				  {
 					/* this events - should not occur - log a warning and go to sleep */
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-						"%s: Incremental protocol: "
-						"event %s should not occur in state %s; going to sleep\n",
+					slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+						"windows_inc_run - %s: "
+						"Event %s should not occur in state %s; going to sleep\n",
 						agmt_get_long_name(prp->agmt),
 						e1 ? event2name(EVENT_WINDOW_CLOSED) : event2name(EVENT_BACKOFF_EXPIRED), 
 						state2name(current_state));
@@ -403,9 +403,9 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				else
 				  {
 					/* wait until window opens or an event occurs */
-					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-						"%s: Incremental protocol: "
-						"waiting for update window to open\n", agmt_get_long_name(prp->agmt));
+					slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						"windows_inc_run - %s: "
+						"Waiting for update window to open\n", agmt_get_long_name(prp->agmt));
 					protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
 				  }
 				break;
@@ -467,8 +467,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					 event_occurred(prp, EVENT_BACKOFF_EXPIRED))
 				  {
 					/* this events - should not occur - log a warning and clear the event */
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, "%s: Incremental protocol: "
-							"event %s should not occur in state %s\n", 
+					slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_inc_run - %s: "
+							"Event %s should not occur in state %s\n", 
 							agmt_get_long_name(prp->agmt),
 							e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED), 
 							state2name(current_state));
@@ -510,8 +510,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 						
 				rc = windows_acquire_replica(prp, &ruv , (run_dirsync == 0) /* yes, check the consumer RUV for incremental, but not if we're going to dirsync afterwards */);
 
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-						"windows_acquire_replica returned %s (%d)\n",
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+						"windows_inc_run - windows_acquire_replica returned %s (%d)\n",
 						acquire2name(rc),
 						rc);
 
@@ -543,7 +543,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					int optype, ldaprc;
 					windows_conn_get_error(prp->conn, &optype, &ldaprc);
 					agmt_set_last_update_status(prp->agmt, ldaprc,
-								prp->last_acquire_response_code, NULL);
+						prp->last_acquire_response_code, NULL);
 				  }
 						
 				object_release(prp->replica_object);
@@ -579,8 +579,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 				  {
 					/* This should never happen */
 					/* this events - should not occur - log a warning and go to sleep */
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-							"%s: Incremental protocol: event %s should not occur in state %s\n", 
+					slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+							"windows_inc_run - %s: Event %s should not occur in state %s\n", 
 							agmt_get_long_name(prp->agmt),
 							e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED), 
 							state2name(current_state));
@@ -676,7 +676,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 							int optype, ldaprc;
 							windows_conn_get_error(prp->conn, &optype, &ldaprc);
 							agmt_set_last_update_status(prp->agmt, ldaprc,
-										prp->last_acquire_response_code, NULL);
+								prp->last_acquire_response_code, NULL);
 						}
 
 						/*
@@ -691,10 +691,10 @@ windows_inc_run(Private_Repl_Protocol *prp)
 							time(&now);
 							next_fire_time = backoff_step(prp_priv->backoff);
 							/* And go back to sleep */
-							slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-									"%s: Replication session backing off for %ld seconds\n",
-									agmt_get_long_name(prp->agmt),
-									next_fire_time - now);
+							slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+								"windows_inc_run - %s: Replication session backing off for %ld seconds\n",
+								agmt_get_long_name(prp->agmt),
+								next_fire_time - now);
 
 							protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
 						}
@@ -728,39 +728,39 @@ windows_inc_run(Private_Repl_Protocol *prp)
 					else if (event_occurred(prp, EVENT_WINDOW_OPENED))
 					  {
 						/* this should never happen - log an error and go to sleep */
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, "%s: Incremental protocol: "
-								"event %s should not occur in state %s; going to sleep\n", 
-								agmt_get_long_name(prp->agmt),
-								event2name(EVENT_WINDOW_OPENED), state2name(current_state));
+						slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name, "windows_inc_run - %s: "
+							"event %s should not occur in state %s; going to sleep\n", 
+							agmt_get_long_name(prp->agmt),
+							event2name(EVENT_WINDOW_OPENED), state2name(current_state));
 						protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
 					  }
 					break;
-      case STATE_SENDING_UPDATES:
-	dev_debug("windows_inc_run(STATE_SENDING_UPDATES)");
-	agmt_set_update_in_progress(prp->agmt, PR_TRUE);
-	num_changes_sent = 0;
-	last_start_time = current_time();
-	agmt_set_last_update_start(prp->agmt, last_start_time);
-	/*
-	 * We've acquired the replica, and are ready to send any
-	 * needed updates.
-	 */
-	if (PROTOCOL_IS_SHUTDOWN(prp))
-	  {
-	    windows_release_replica (prp);
-	    done = 1;
-	    agmt_set_update_in_progress(prp->agmt, PR_FALSE);
-	    agmt_set_last_update_end(prp->agmt, current_time());
-	    /* MAB: I don't find the following status correct. How do we know it has
-	       been stopped by an admin and not by a total update request, for instance?
-	       In any case, how is this protocol shutdown situation different from all the 
-	       other ones that are present in this state machine? */
-	    /* richm: We at least need to let monitors know that the protocol has been
-	       shutdown - maybe they can figure out why */
-	    agmt_set_last_update_status(prp->agmt, 0, 0, "Protocol stopped");
-	    agmt_update_done(prp->agmt, 0);
-	    break;
-	  } 
+				case STATE_SENDING_UPDATES:
+					dev_debug("windows_inc_run(STATE_SENDING_UPDATES)");
+					agmt_set_update_in_progress(prp->agmt, PR_TRUE);
+					num_changes_sent = 0;
+					last_start_time = current_time();
+					agmt_set_last_update_start(prp->agmt, last_start_time);
+					/*
+					 * We've acquired the replica, and are ready to send any
+					 * needed updates.
+					 */
+					if (PROTOCOL_IS_SHUTDOWN(prp))
+					{
+						windows_release_replica (prp);
+						done = 1;
+						agmt_set_update_in_progress(prp->agmt, PR_FALSE);
+						agmt_set_last_update_end(prp->agmt, current_time());
+						/* MAB: I don't find the following status correct. How do we know it has
+						   been stopped by an admin and not by a total update request, for instance?
+						   In any case, how is this protocol shutdown situation different from all the 
+						   other ones that are present in this state machine? */
+						/* richm: We at least need to let monitors know that the protocol has been
+						   shutdown - maybe they can figure out why */
+						agmt_set_last_update_status(prp->agmt, 0, 0, "Protocol stopped");
+						agmt_update_done(prp->agmt, 0);
+						break;
+					} 
 
 	agmt_set_last_update_status(prp->agmt, 0, 0, "Incremental update started");
 
@@ -777,21 +777,21 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	    next_state = STATE_STOP_FATAL_ERROR;
 	    break;
 	  case EXAMINE_RUV_PRISTINE_REPLICA:
-	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-			"%s: Replica has no update vector. It has never been initialized.\n",
+	    slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+			"windows_inc_run - %s: Replica has no update vector. It has never been initialized.\n",
 		   	 agmt_get_long_name(prp->agmt));
 	    next_state = STATE_BACKOFF_START;
 	    break;
 	  case EXAMINE_RUV_GENERATION_MISMATCH:
-	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-	    	"%s: The remote replica has a different database generation ID than "
+	    slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+	    	"windows_inc_run - %s: The remote replica has a different database generation ID than "
 	    	"the local database.  You may have to reinitialize the remote replica, "
 	    	"or the local replica.\n", agmt_get_long_name(prp->agmt));
 	    next_state = STATE_BACKOFF_START;
 	    break;
 	  case EXAMINE_RUV_REPLICA_TOO_OLD:
-	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-			"%s: Replica update vector is too out of date to bring "
+	    slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+			"windows_inc_run - %s: Replica update vector is too out of date to bring "
 		    "into sync using the incremental protocol. The replica "
 		    "must be reinitialized.\n", agmt_get_long_name(prp->agmt));
 	    next_state = STATE_BACKOFF_START;
@@ -806,15 +806,15 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	    replica = NULL;
 	    if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */
 	      {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-			"%s: Incremental protocol: fatal error - too much time skew between replicas!\n",
+		slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+			"windows_inc_run - %s: Incremental protocol: fatal error - too much time skew between replicas!\n",
 			agmt_get_long_name(prp->agmt));
 		next_state = STATE_STOP_FATAL_ERROR;
 	      }   
 	    else if (rc != 0) /* internal error */
 	      {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-			"%s: Incremental protocol: fatal internal error updating the CSN generator!\n",
+		slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+			"windows_inc_run - %s: Incremental protocol: fatal internal error updating the CSN generator!\n",
 			agmt_get_long_name(prp->agmt));
 		next_state = STATE_STOP_FATAL_ERROR;
 	      }   
@@ -920,8 +920,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	      long loops = pausetime;
 	      /* the while loop is so that we don't just sleep and sleep if an
 		 event comes in that we should handle immediately (like shutdown) */
-	      slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-			      "%s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
+	      slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			      "windows_inc_run - %s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
 			      agmt_get_long_name(prp->agmt), pausetime);
 	      while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp)))
 	        {
@@ -944,8 +944,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	/* XXXggood update state in replica */
 	agmt_set_last_update_status(prp->agmt, -1, 0, "Incremental update has failed and requires administrator action");
 	dev_debug("windows_inc_run(STATE_STOP_FATAL_ERROR)");
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-		"%s: Incremental update failed and requires administrator action\n",
+	slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+		"windows_inc_run - %s: Incremental update failed and requires administrator action\n",
 		agmt_get_long_name(prp->agmt));
 	next_state = STATE_STOP_FATAL_ERROR_PART2;
 	break;
@@ -997,8 +997,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
 	break;
       }
 
-    slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-		"%s: State: %s -> %s\n",
+    slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+		"windows_inc_run - %s: State: %s -> %s\n",
 	    agmt_get_long_name(prp->agmt),
 	    state2name(current_state), state2name(next_state));
 
@@ -1012,10 +1012,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
   /* ... and disconnect, if currently connected */
   windows_conn_disconnect(prp->conn);
   ruv_destroy ( &ruv );
-  LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_run\n" );
+  slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_run\n" );
 }
-
-
 
 /*
  * Go to sleep until awakened.
@@ -1023,7 +1021,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
 static void
 protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> protocol_sleep\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> protocol_sleep\n" );
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
     /* we should not go to sleep if there are events available to be processed.
@@ -1032,12 +1030,12 @@ protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 	    PR_WaitCondVar(prp->cvar, duration);
     else
     {
-        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-			"%s: Incremental protocol: can't go to sleep: event bits - %x\n",
+        slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+			"protocol_sleep - %s: Can't go to sleep: event bits - %x\n",
 			agmt_get_long_name(prp->agmt), prp->eventbits);
     }
 	PR_Unlock(prp->lock);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= protocol_sleep\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= protocol_sleep\n" );
 }
 
 
@@ -1050,13 +1048,13 @@ protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 static void
 event_notify(Private_Repl_Protocol *prp, PRUint32 event)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> event_notify\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> event_notify\n" );
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
 	prp->eventbits |= event;
 	PR_NotifyCondVar(prp->cvar);
 	PR_Unlock(prp->lock);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= event_notify\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= event_notify\n" );
 }
 
 
@@ -1069,26 +1067,26 @@ event_occurred(Private_Repl_Protocol *prp, PRUint32 event)
 {
 	PRUint32 return_value;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> event_occurred\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> event_occurred\n" );
 
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
 	return_value = (prp->eventbits & event);
 	prp->eventbits &= ~event; /* Clear event */
 	PR_Unlock(prp->lock);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= event_occurred\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= event_occurred\n" );
 	return return_value;
 }
 
 static void
 reset_events (Private_Repl_Protocol *prp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> reset_events\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> reset_events\n" );
 	PR_ASSERT(NULL != prp);
 	PR_Lock(prp->lock);
 	prp->eventbits = 0;
 	PR_Unlock(prp->lock);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= reset_events\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= reset_events\n" );
 }
 
 
@@ -1096,8 +1094,8 @@ reset_events (Private_Repl_Protocol *prp)
 static PRBool
 is_dummy_operation (const slapi_operation_parameters *op)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> is_dummy_operation\n" );
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= is_dummy_operation\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> is_dummy_operation\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= is_dummy_operation\n" );
     return (strcmp (op->target_address.uniqueid, START_ITERATION_ENTRY_UNIQUEID) == 0);
 }
 
@@ -1106,7 +1104,7 @@ is_dummy_operation (const slapi_operation_parameters *op)
 void
 w_cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> w_cl5_operation_parameters_done\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> w_cl5_operation_parameters_done\n" );
 	if(sop!=NULL) {
 		switch(sop->operation_type) 
 		{
@@ -1141,7 +1139,7 @@ w_cl5_operation_parameters_done (struct slapi_operation_parameters *sop)
 		}
 	}
 	operation_parameters_done(sop);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= w_cl5_operation_parameters_done\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= w_cl5_operation_parameters_done\n" );
 }
 
 
@@ -1168,7 +1166,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 	RUV *current_ruv = ruv_dup(remote_update_vector);
 	CSN *mincsn = NULL;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> send_updates\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> send_updates\n" );
 
 	*num_changes_sent = 0;
 
@@ -1193,93 +1191,93 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		switch (rc)
 		{
 		case CL5_BAD_DATA: /* invalid parameter passed to the function */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Invalid parameter passed to cl5CreateReplayIterator\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Invalid parameter passed to cl5CreateReplayIterator\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_BAD_FORMAT:     /* db data has unexpected format */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Unexpected format encountered in changelog database\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Unexpected format encountered in changelog database\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_BAD_STATE: /* changelog is in an incorrect state for attempted operation */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Changelog database was in an incorrect state\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Changelog database was in an incorrect state\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_BAD_DBVERSION:  /* changelog has invalid dbversion */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Incorrect dbversion found in changelog database\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Incorrect dbversion found in changelog database\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_DB_ERROR:       /* database error */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: A changelog database error was encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: A changelog database error was encountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_NOTFOUND:       /* we have no changes to send */
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
+			slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 				"%s: No changes to send\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_NO_MORE_UPDATES;
 			break;
 		case CL5_MEMORY_ERROR:   /* memory allocation failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Memory allocation error occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Memory allocation error occurred\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_SYSTEM_ERROR:   /* NSPR error occurred: use PR_GetError for furhter info */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: An NSPR error (%d) occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: An NSPR error (%d) occurred\n",
 				agmt_get_long_name(prp->agmt), PR_GetError());
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_CSN_ERROR:      /* CSN API failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: A CSN API failure was encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: A CSN API failure was encountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_RUV_ERROR:      /* RUV API failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: An RUV API failure occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: An RUV API failure occurred\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_OBJSET_ERROR:   /* namedobjset api failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: A namedobject API failure occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: A namedobject API failure occurred\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_PURGED_DATA:    /* requested data has been purged */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Data required to update replica has been purged. "
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Data required to update replica has been purged. "
 				"The replica must be reinitialized.\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_MISSING_DATA:   /* data should be in the changelog, but is missing */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: Missing data encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: Missing data encountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_UNKNOWN_ERROR:   /* unclassified error */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: An unknown error was ecountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: An unknown error was ecountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		default:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-				"%s: An unknown error (%d) occurred "
+			slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"send_updates - %s: An unknown error (%d) occurred "
 				"(cl5CreateReplayIterator)\n",
 				agmt_get_long_name(prp->agmt), rc);
 			return_value = UPDATE_TRANSIENT_ERROR;
@@ -1304,8 +1302,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                 /* check that we don't return dummy entries */
                 if (is_dummy_operation (entry.op))
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name, 
-                        "%s: changelog iteration code returned a dummy entry with csn %s, "
+                    slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name, 
+                        "send_updates - %s: changelog iteration code returned a dummy entry with csn %s, "
                         "skipping ...\n",
 						agmt_get_long_name(prp->agmt), csn_as_string(entry.op->csn, PR_FALSE, csn_str));
 				    continue;
@@ -1336,10 +1334,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 							agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
 							mark_record_done = 1;
 						}
-						slapi_log_error(finished ? SLAPI_LOG_FATAL : slapi_log_urp, 
-							finished || slapi_log_urp==SLAPI_LOG_FATAL ? LOG_ERR : LOG_DEBUG, 
+						slapi_log_error(finished ? SLAPI_LOG_WARNING : slapi_log_urp, 
 							windows_repl_plugin_name,
-							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s. %s.\n",
+							"send_updates - %s: Consumer failed to replay change (uniqueid %s, CSN %s): %s. %s.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
 							ldap_err2string(error),
@@ -1351,8 +1348,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 
 						return_value = UPDATE_TRANSIENT_ERROR;
 						finished = 1;
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-							"%s: Consumer failed to replay change (uniqueid %s, CSN %s): "
+						slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+							"send_updates - %s: Consumer failed to replay change (uniqueid %s, CSN %s): "
 							"%s. Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
@@ -1362,8 +1359,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					{
 						return_value = UPDATE_TIMEOUT;
 						finished = 1;
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-							"%s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
+						slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+							"send_updates - %s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
 							"%s.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
@@ -1377,8 +1374,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						 */
 						return_value = UPDATE_TRANSIENT_ERROR;
 						finished = 1;
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-							"%s: Failed to replay change (uniqueid %s, CSN %s): "
+						slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+							"send_updates - %s: Failed to replay change (uniqueid %s, CSN %s): "
 							"Local error. Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str);
@@ -1414,40 +1411,40 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				}
 				break;
 			case CL5_BAD_DATA:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"%s: Invalid parameter passed to cl5GetNextOperationToReplay\n",
+				slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+					"send_updates - %s: Invalid parameter passed to cl5GetNextOperationToReplay\n",
 					agmt_get_long_name(prp->agmt));
 				return_value = UPDATE_FATAL_ERROR;
 				finished = 1;
 				break;
 			case CL5_NOTFOUND:
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-					"%s: No more updates to send (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+					"send_updates - %s: No more updates to send (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				return_value = UPDATE_NO_MORE_UPDATES;
 				finished = 1;
 				break;
 			case CL5_DB_ERROR:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"%s: A database error occurred (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+					"send_updates - %s: A database error occurred (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				return_value = UPDATE_FATAL_ERROR;
 				finished = 1;
 				break;
 			case CL5_BAD_FORMAT:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"%s: A malformed changelog entry was encountered (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+					"send_updates - %s: A malformed changelog entry was encountered (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				break;
 			case CL5_MEMORY_ERROR:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"%s: A memory allocation error occurred (cl5GetNextOperationToRepla)\n",
+				slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+					"send_updates - %s: A memory allocation error occurred (cl5GetNextOperationToRepla)\n",
 					agmt_get_long_name(prp->agmt));
 				return_value = UPDATE_FATAL_ERROR;
 				break;
 			default:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"%s: Unknown error code (%d) returned from cl5GetNextOperationToReplay\n",
+				slapi_log_error(SLAPI_LOG_ERR, windows_repl_plugin_name,
+					"send_updates - %s: Unknown error code (%d) returned from cl5GetNextOperationToReplay\n",
 					agmt_get_long_name(prp->agmt), rc);
 				return_value = UPDATE_TRANSIENT_ERROR;
 				break;
@@ -1473,11 +1470,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		agmt_set_consumer_ruv(prp->agmt,current_ruv);
 		ruv_destroy(&current_ruv);
 	}
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= send_updates\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= send_updates\n" );
 	return return_value;
 }
-
-
 
 /*
  * XXXggood this should probably be in the superclass, since the full update
@@ -1490,7 +1485,7 @@ windows_inc_stop(Private_Repl_Protocol *prp)
 	PRIntervalTime start, maxwait, now;
 	int seconds = 1200;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_stop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_stop\n" );
 
 	maxwait = PR_SecondsToInterval(seconds);
 	prp->terminate = 1;
@@ -1506,78 +1501,73 @@ windows_inc_stop(Private_Repl_Protocol *prp)
 	{
 		/* Isn't listening. Do something drastic. */
 		return_value = -1;
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-				"%s: windows_inc_stop: protocol does not stop after %d seconds\n",
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+				"windows_inc_stop - %s: Protocol does not stop after %d seconds\n",
 				agmt_get_long_name(prp->agmt), seconds);
 	}
 	else
 	{
 		return_value = 0;
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
-				"%s: windows_inc_stop: protocol stopped after %d seconds\n",
+		slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
+				"windows_inc_stop - %s: Protocol stopped after %d seconds\n",
 				agmt_get_long_name(prp->agmt),
 				PR_IntervalToSeconds(now-start));
 	}
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_stop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_stop\n" );
 	return return_value;
 }
-
-
 
 static int
 windows_inc_status(Private_Repl_Protocol *prp)
 {
 	int return_value = 0;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_status\n" );
-	
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_status\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_status\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_status\n" );
 
 	return return_value;
 }
 
-
-
 static void
 windows_inc_notify_update(Private_Repl_Protocol *prp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_notify_update\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_notify_update\n" );
 	event_notify(prp, EVENT_TRIGGERING_CRITERIA_MET);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_notify_update\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_notify_update\n" );
 }
 
 
 static void
 windows_inc_update_now(Private_Repl_Protocol *prp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_update_now\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_update_now\n" );
 	event_notify(prp, EVENT_REPLICATE_NOW);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_update_now\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_update_now\n" );
 }
 
 
 static void
 windows_inc_notify_agmt_changed(Private_Repl_Protocol *prp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_notify_agmt_changed\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_notify_agmt_changed\n" );
 	event_notify(prp, EVENT_AGMT_CHANGED);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_notify_agmt_changed\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_notify_agmt_changed\n" );
 }
 
 static void 
 windows_inc_notify_window_opened (Private_Repl_Protocol *prp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_notify_window_opened\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_notify_window_opened\n" );
     event_notify(prp, EVENT_WINDOW_OPENED);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_notify_window_opened\n" );
+    slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_notify_window_opened\n" );
 }
 
 static void 
 windows_inc_notify_window_closed (Private_Repl_Protocol *prp)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_notify_window_closed\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_notify_window_closed\n" );
     event_notify(prp, EVENT_WINDOW_CLOSED);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_notify_window_closed\n" );
+    slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_notify_window_closed\n" );
 }
 
 
@@ -1587,7 +1577,7 @@ Windows_Inc_Protocol_new(Repl_Protocol *rp)
 	windows_inc_private *rip = NULL;
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> Windows_Inc_Protocol_new\n" );
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> Windows_Inc_Protocol_new\n" );
 
 	prp->delete = windows_inc_delete;
 	prp->run = windows_inc_run;
@@ -1620,13 +1610,13 @@ Windows_Inc_Protocol_new(Repl_Protocol *rp)
 	prp->private = (void *)rip;
     prp->replica_acquired = PR_FALSE;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= Windows_Inc_Protocol_new\n" );
+    slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= Windows_Inc_Protocol_new\n" );
 
 	return prp;
 
 loser:
 	windows_inc_delete(&prp);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= Windows_Inc_Protocol_new (loser)\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= Windows_Inc_Protocol_new (loser)\n" );
 	return NULL;
 }
 
@@ -1638,12 +1628,12 @@ windows_inc_backoff_expired(time_t timer_fire_time, void *arg)
 {
 	Private_Repl_Protocol *prp = (Private_Repl_Protocol *)arg;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_inc_backoff_expired\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_backoff_expired\n" );
 
 	PR_ASSERT(NULL != prp);
 	event_notify(prp, EVENT_BACKOFF_EXPIRED);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_inc_backoff_expired\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_inc_backoff_expired\n" );
 }
 
 
@@ -1669,7 +1659,7 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 {
 	int return_value;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_examine_update_vector\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_examine_update_vector\n" );
 
 	PR_ASSERT(NULL != prp);
 	if (NULL == prp)
@@ -1710,7 +1700,7 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
 		slapi_ch_free((void**)&remote_gen);
 		slapi_ch_free((void**)&local_gen);
 	}
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_examine_update_vector\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_examine_update_vector\n" );
 	return return_value;
 }
 
@@ -1735,8 +1725,8 @@ acquire2name (int code)
 static const char* 
 state2name (int state)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> state2name\n" );
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= state2name\n" );
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> state2name\n" );
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= state2name\n" );
     switch (state)
     {
         case STATE_START:                       return "start";
@@ -1757,8 +1747,8 @@ state2name (int state)
 static const char* 
 event2name (int event)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> event2name\n" );
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= event2name\n" );
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "=> event2name\n" );
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= event2name\n" );
     switch (event)
     {
         case EVENT_WINDOW_OPENED:           return "update_window_opened";
@@ -1777,11 +1767,11 @@ event2name (int event)
 static void 
 periodic_dirsync(time_t when, void *arg)
 {
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> periodic_dirsync\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> periodic_dirsync\n" );
 
-	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
+	slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 			"Running Dirsync \n");
 
 	event_notify( (Private_Repl_Protocol*) arg, EVENT_RUN_DIRSYNC);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= periodic_dirsync\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= periodic_dirsync\n" );
 }

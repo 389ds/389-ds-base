@@ -384,16 +384,16 @@ sync_cookie_get_server_info(Slapi_PBlock *pb)
 	slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
 	if (rc != 0)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_get_server_info: "
-			"unable to read server configuration: error %d\n", rc);
+		slapi_log_error(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_get_server_info - "
+			"Unable to read server configuration: error %d\n", rc);
 	}
 	else
 	{
 		slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 		if (NULL == entries || NULL == entries[0])
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_get_server_info: "
-				"server configuration missing\n");
+			slapi_log_error(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_get_server_info -"
+				"Server configuration missing\n");
 			rc = -1;
 		}
 		else

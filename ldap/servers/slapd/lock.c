@@ -33,7 +33,7 @@ lock_fopen( char *fname, char *type, FILE **lfp )
 	/* open the lock file */
 	PR_snprintf( buf, MAXPATHLEN, "%s%s", fname, ".lock" );
 	if ( (*lfp = fopen( buf, "w" )) == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "could not open \"%s\"\n", buf, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "lock_fopen - Could not open \"%s\"\n", buf, 0, 0 );
 		return( NULL );
 	}
 
@@ -48,7 +48,7 @@ lock_fopen( char *fname, char *type, FILE **lfp )
 
 	/* open the log file */
 	if ( (fp = fopen( fname, type )) == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "could not open \"%s\"\n", fname, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "lock_fopen - Could not open \"%s\"\n", fname, 0, 0 );
 #ifdef USE_LOCKF
 		lockf( fileno( *lfp ), F_ULOCK, 0 );
 #else

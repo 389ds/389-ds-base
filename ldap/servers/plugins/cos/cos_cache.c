@@ -93,7 +93,7 @@ int config_get_schemacheck(void);
 void oc_lock_read( void );
 void oc_unlock( void );
 struct objclass* g_get_global_oc_nolock(void);
-int slapd_log_error_proc( char *subsystem, int sev_level, char *fmt, ... );
+int slapd_log_error_proc( int sev_level, char *subsystem, char *fmt, ... );
 
 /* defined in cos.c */
 void * cos_get_plugin_identity(void);
@@ -288,7 +288,7 @@ int cos_cache_init(void)
 {
 	int ret = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_init\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_init\n");
 
 	slapi_vattrcache_cache_none();
 	cache_lock = slapi_new_mutex();
@@ -296,68 +296,68 @@ int cos_cache_init(void)
 	stop_lock = slapi_new_mutex();
 	something_changed = slapi_new_condvar(change_lock);
 	keeprunning =1;
-        start_lock = slapi_new_mutex();
-        start_cond = slapi_new_condvar(start_lock);
-        started = 0;
+	start_lock = slapi_new_mutex();
+	start_cond = slapi_new_condvar(start_lock);
+	started = 0;
 
-	if (	stop_lock == NULL ||
-			change_lock == NULL ||
-			cache_lock == NULL ||
-                stop_lock == NULL ||
-                start_lock == NULL ||
-                start_cond == NULL ||
-                something_changed == NULL)
-        {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
-			   "cos_cache_init: cannot create mutexes\n" );
-                ret = -1;
-		goto out;
-        }
-
-		/* grab the views interface */
-		if(slapi_apib_get_interface(Views_v1_0_GUID, &views_api))
-		{
-			/* lets be tolerant if views is disabled */
-			views_api = 0;
-		}
-
-        if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle, 
-                                    cos_cache_vattr_get, 
-                                    cos_cache_vattr_compare, 
-                                    cos_cache_vattr_types) != 0)
-        {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
-			   "cos_cache_init: cannot register as service provider\n" );
-                ret = -1;
-		goto out;
-        }
-
-        if ( PR_CreateThread (PR_USER_THREAD, 
-					cos_cache_wait_on_change, 
-					NULL,
-					PR_PRIORITY_NORMAL, 
-					PR_GLOBAL_THREAD, 
-					PR_UNJOINABLE_THREAD, 
-					SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL )
+	if (stop_lock == NULL ||
+	    change_lock == NULL ||
+	    cache_lock == NULL ||
+	    stop_lock == NULL ||
+	    start_lock == NULL ||
+	    start_cond == NULL ||
+	    something_changed == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, COS_PLUGIN_SUBSYSTEM,
-			   "cos_cache_init: PR_CreateThread failed\n" );
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+			   "cos_cache_init - Cannot create mutexes\n" );
+				ret = -1;
+		goto out;
+	}
+
+	/* grab the views interface */
+	if(slapi_apib_get_interface(Views_v1_0_GUID, &views_api))
+	{
+		/* lets be tolerant if views is disabled */
+		views_api = 0;
+	}
+
+	if (slapi_vattrspi_register((vattr_sp_handle **)&vattr_handle, 
+	                            cos_cache_vattr_get, 
+	                            cos_cache_vattr_compare, 
+	                            cos_cache_vattr_types) != 0)
+	{
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+		   "cos_cache_init - Cannot register as service provider\n" );
+			ret = -1;
+		goto out;
+	}
+
+	if ( PR_CreateThread (PR_USER_THREAD, 
+				cos_cache_wait_on_change, 
+				NULL,
+				PR_PRIORITY_NORMAL, 
+				PR_GLOBAL_THREAD, 
+				PR_UNJOINABLE_THREAD, 
+				SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL )
+	{
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+			   "cos_cache_init - PR_CreateThread failed\n" );
 		ret = -1;
 		goto out;
 	}
 
-        /* wait for that thread to get started */
-        if (ret == 0) {
-            slapi_lock_mutex(start_lock);
-            while (!started) {
-                while (slapi_wait_condvar(start_cond, NULL) == 0);
-            }
-            slapi_unlock_mutex(start_lock);
-        }
+		/* wait for that thread to get started */
+		if (ret == 0) {
+			slapi_lock_mutex(start_lock);
+			while (!started) {
+				while (slapi_wait_condvar(start_cond, NULL) == 0);
+			}
+			slapi_unlock_mutex(start_lock);
+		}
 
 
 out:
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_init\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_init\n");
 	return ret;
 }
 
@@ -375,7 +375,7 @@ out:
 */
 static void cos_cache_wait_on_change(void *arg)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_wait_on_change thread\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_wait_on_change thread\n");
 
 	slapi_lock_mutex(stop_lock);
 	slapi_lock_mutex(change_lock);
@@ -428,7 +428,7 @@ static void cos_cache_wait_on_change(void *arg)
 	slapi_unlock_mutex(change_lock);
 	slapi_unlock_mutex(stop_lock);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_wait_on_change thread exit\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_wait_on_change thread exit\n");
 }
 
 /*
@@ -446,7 +446,7 @@ static int cos_cache_create(void)
 	static int firstTime = 1;
 	int cache_built = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_create\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_create\n");
 
 	pNewCache = (cosCache*)slapi_ch_malloc(sizeof(cosCache));
 	if(pNewCache)
@@ -509,21 +509,21 @@ static int cos_cache_create(void)
 				{
 					/* we should not go on without proper schema checking */
 					cos_cache_release(pNewCache);
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_create: failed to cache the schema\n",0,0,0);			
+					slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - Failed to cache the schema\n");			
 				}
 			}
 			else
 			{
 				/* currently we cannot go on without the indexes */
 				cos_cache_release(pNewCache);
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_create: failed to index cache\n",0,0,0);			
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - Failed to index cache\n");			
 			}
 		}
 		else
 		{
 			if(firstTime)
 			{
-				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_create: cos disabled\n",0,0,0);
+				slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - cos disabled\n");
 				firstTime = 0;
 			}
 
@@ -531,7 +531,7 @@ static int cos_cache_create(void)
 		}
 	}
 	else
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_create: memory allocation failure\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_create - Memory allocation failure\n");
 
 
 	/* make sure we have a new cache */
@@ -563,7 +563,7 @@ static int cos_cache_create(void)
 		
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_create\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_create\n");
 	return ret;
 }
 
@@ -587,7 +587,7 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 	int cos_def_available = 0;
 	static int firstTime = 1;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_build_definition_list\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_build_definition_list\n");
 
 	/*
 	 * The class of service definitions may be anywhere in the DIT,
@@ -597,7 +597,8 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 	attrs[0] = "namingcontexts";
 	attrs[1] = 0;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos: Building class of service cache after status change.\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_build_definition_list - "
+		"Building class of service cache after status change.\n");
 
 	/*
 	 * XXXrbyrne: this looks really inefficient--should be using
@@ -609,9 +610,8 @@ static int cos_cache_build_definition_list(cosDefinitions **pDefs, int *vattr_ca
 		slapi_pblock_get( pSuffixSearch, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
 	if(!pSuffixSearch || ret != LDAP_SUCCESS) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-		           "cos_cache_build_definition_list: failed to find suffixes\n",
-		           0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+			"cos_cache_build_definition_list - Failed to find suffixes\n");
 		ret = -1;
 		goto next;
 	}
@@ -665,14 +665,16 @@ next:
 	{
 		if(firstTime)
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_build_definition_list: Found no cos definitions, cos disabled while waiting for updates\n",0,0,0);
+			slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_build_definition_list - "
+				"Found no cos definitions, cos disabled while waiting for updates\n");
 			firstTime = 0;
 		}
 
 		ret = -1;
 	}
 	else
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos: Class of service cache built.\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_build_definition_list - "
+			"Class of service cache built.\n");
 
 	/* clean up */
 	if(pSuffixSearch)
@@ -681,7 +683,7 @@ next:
 		slapi_pblock_destroy(pSuffixSearch);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_build_definition_list\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_build_definition_list\n");
 	return ret;
 }
 
@@ -869,9 +871,9 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			parent = slapi_create_dn_string("%s", orig);
 			if (!parent) {
 				parent = orig;
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-				              "cos_dn_defs_cb: "
-				              "failed to normalize parent dn %s. "
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, 
+				              "cos_dn_defs_cb - "
+				              "Failed to normalize parent dn %s. "
 				              "Adding the pre normalized dn.\n", 
 				              parent);
 			}
@@ -886,18 +888,18 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			}
 			slapi_ch_free_string(&orig);
 		} else {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-			              "cos_dn_defs_cb: "
-			              "failed to get parent dn of cos definition %s.\n",
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+			              "cos_dn_defs_cb - "
+			              "Failed to get parent dn of cos definition %s.\n",
 			              pDn->val);
 			if (!pCosTemplateDn) {
 				if (!pCosTargetTree) {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cosTargetTree and cosTemplateDn are not set.\n");
+					slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - cosTargetTree and cosTemplateDn are not set.\n");
 				} else {
-					LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cosTemplateDn is not set.\n");
+					slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - cosTemplateDn is not set.\n");
 				}
 			} else if (!pCosTargetTree) {
-				LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cosTargetTree is not set.\n");
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - cosTargetTree is not set.\n");
 			}
 		}
 	}
@@ -977,14 +979,13 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 			 * Don't reset info->ret....it keeps track of any success
 			*/
 			if ( rc == COS_DEF_ERROR_NO_TEMPLATES) {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Skipping CoS Definition %s"
-					"--no CoS Templates found, "
-					"which should be added before the CoS Definition.\n",
-					pTmpDn, 0, 0);
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - Skipping CoS Definition %s"
+					"--no CoS Templates found, which should be added before the CoS Definition.\n",
+					pTmpDn);
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Skipping CoS Definition %s\n"
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - Skipping CoS Definition %s\n"
 					"--error(%d)\n",
-					pTmpDn, rc, 0);
+					pTmpDn, rc);
 			}
 		}
 		
@@ -999,10 +1000,12 @@ cos_dn_defs_cb (Slapi_Entry* e, void *callback_data)
 		*/
 		if(pDn)
 		{
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_dn_defs: incomplete cos definition detected in %s, discarding from cache.\n",pDn->val,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - "
+				"Incomplete cos definition detected in %s, discarding from cache.\n",pDn->val);
 		}
 		else
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_dn_defs: incomplete cos definition detected, no DN to report, discarding from cache.\n",0,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_defs_cb - "
+				"Incomplete cos definition detected, no DN to report, discarding from cache.\n");
 		
 		if(pCosTargetTree)
 			cos_cache_del_attrval_list(&pCosTargetTree);
@@ -1199,8 +1202,8 @@ static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 				info->ret = 0;  /* we have succeed to add the tmpl */
 			} else {
 				/* Don't reset info->ret....it keeps track of any success */
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_dn_tmpls:"
-								"could not cache cos template %s\n",pDn,0,0);
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_dn_tmpl_entries_cb - "
+								"Could not cache cos template %s\n",pDn->val);
 			}
 		}
 		else
@@ -1215,10 +1218,12 @@ static int 	cos_dn_tmpl_entries_cb (Slapi_Entry* e, void *callback_data) {
 			*/
 			if(pDn)
 			{
-				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_add_dn_tmpls: incomplete cos template detected in %s, discarding from cache.\n",pDn->val,0,0);
+				slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_dn_tmpls - "
+					"Incomplete cos template detected in %s, discarding from cache.\n",pDn->val);
 			}
 			else
-				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_add_dn_tmpls: incomplete cos template detected, no DN to report, discarding from cache.\n",0,0,0);
+				slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_dn_tmpls - "
+					"Incomplete cos template detected, no DN to report, discarding from cache.\n");
 			
 			if(pObjectclass)
 				cos_cache_del_attrval_list(&pObjectclass);
@@ -1259,7 +1264,7 @@ static int cos_cache_add_dn_tmpls(char *dn, cosAttrValue *pCosSpecifier, cosAttr
 	struct tmpl_info	info = {NULL, 0, 0, 0};
 	Slapi_PBlock *pDnSearch = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_add_dn_tmpls\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_dn_tmpls\n");
 	
 	/* no cos specifier means this is an indirect scheme */
 	if(pCosSpecifier)
@@ -1331,17 +1336,17 @@ static int cos_cache_add_defn(
 	cosAttributes *pDummyAttributes = 0;
 	cosAttrValue *pSpecsIter = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_add_defn\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_defn\n");
 	
 	if (!spec) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "missing spec\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_defn - Missing spec\n");
 		ret = -1;
 		goto out;
 	}
 	pSpecsIter = *spec;
 
 	if (!tmpDn) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "missing tmpDn\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_defn - Missing tmpDn\n");
 		ret = -1;
 		goto out;
 	}
@@ -1353,7 +1358,8 @@ static int cos_cache_add_defn(
 		if(	cos_cache_attrval_exists(*pAttrs, pSpecsIter->val ) )
 		{
 			/* no, this is not sane, lets reject the whole darn scheme in disgust */
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos definition %s supplies its own cosspecifier, rejecting scheme\n",(*dn)->val,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_defn - "
+				"cos definition %s supplies its own cosspecifier, rejecting scheme\n",(*dn)->val);
 			ret = -1;
 		}
 
@@ -1370,7 +1376,8 @@ static int cos_cache_add_defn(
 			
 			/* process each template in turn */
 			
-			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Processing cosDefinition %s\n",(*dn)->val,0,0);
+			slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_defn - "
+				"Processing cosDefinition %s\n",(*dn)->val);
 			
 			while(pTmpTmplDn && cosType != COSTYPE_INDIRECT)
 			{
@@ -1384,8 +1391,8 @@ static int cos_cache_add_defn(
 			if(tmplCount == 0 && cosType != COSTYPE_INDIRECT)
 			{
 				/* without our golden templates we are nothing 
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_defn:"
-				"no templates for cos definition at %s.\n",(*dn)->val,0,0);*/
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_defn -"
+				"no templates for cos definition at %s.\n",(*dn)->val);*/
 				ret = COS_DEF_ERROR_NO_TEMPLATES;
 			}
 			else
@@ -1429,7 +1436,8 @@ static int cos_cache_add_defn(
 				theDef->pCosOpDefault = *pCosOpDefault;
 
 				cos_cache_add_ll_entry((void**)pDefs, theDef, NULL);
-				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Added cosDefinition %s\n",(*dn)->val,0,0);
+				slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_defn - "
+					"Added cosDefinition %s\n",(*dn)->val);
 			}
 		}
 		else
@@ -1453,7 +1461,7 @@ out:
 			cos_cache_del_attrval_list(pAttrs);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_add_defn\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_defn\n");
 	return ret;
 }
 
@@ -1464,7 +1472,7 @@ out:
 */
 static void cos_cache_del_attrval_list(cosAttrValue **pVal)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_del_attrval_list\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_del_attrval_list\n");
 
 	while(*pVal)
 	{
@@ -1475,7 +1483,7 @@ static void cos_cache_del_attrval_list(cosAttrValue **pVal)
 		*pVal = pTmp;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_del_attrval_list\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_del_attrval_list\n");
 }
 
 
@@ -1490,7 +1498,7 @@ cos_cache_add_attrval(cosAttrValue **attrval, char *val)
 	int ret = 0;
 	cosAttrValue *theVal;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_add_attrval\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_attrval\n");
 
 	/* create the attrvalue */
 	theVal = (cosAttrValue*) slapi_ch_malloc(sizeof(cosAttrValue));
@@ -1504,17 +1512,17 @@ cos_cache_add_attrval(cosAttrValue **attrval, char *val)
 		else
 		{
 			slapi_ch_free((void**)&theVal);
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_attrval: failed to allocate memory\n",0,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_attrval - Failed to allocate memory\n");
 			ret = -1;
 		}
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_attrval: failed to allocate memory\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_attrval - Failed to allocate memory\n");
 		ret = -1;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_add_attrval\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_attrval\n");
 	return ret;
 }
 
@@ -1551,7 +1559,8 @@ static void cos_cache_add_ll_entry(void** attrval, void *theVal, int ( *compare 
 	static int call_count = 0;
 
 	call_count++;
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_add_ll_entry - recursion level %d\n",call_count,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_ll_entry - "
+		"recursion level %d\n",call_count);
 
 
 	/*
@@ -1614,7 +1623,7 @@ static void cos_cache_add_ll_entry(void** attrval, void *theVal, int ( *compare 
 			*attrval = theVal;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_add_ll_entry - recursion level %d\n",call_count,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_ll_entry - recursion level %d\n",call_count);
 	call_count--;
 }
 
@@ -1630,7 +1639,7 @@ int cos_cache_getref(cos_cache **pptheCache)
 	static int first_time = 1;
 	cosCache **ppCache = (cosCache**)pptheCache;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_getref\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_getref\n");
 
 	if(first_time)
 	{
@@ -1642,7 +1651,7 @@ int cos_cache_getref(cos_cache **pptheCache)
 			if(cos_cache_create())
 			{
 				/* there was a problem or no COS definitions were found */
-				LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_getref: no cos cache created\n",0,0,0);
+				slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_getref - No cos cache created\n");
 			}
 		}
 		slapi_unlock_mutex(change_lock);
@@ -1659,7 +1668,7 @@ int cos_cache_getref(cos_cache **pptheCache)
 
 
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_getref\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_getref\n");
 	return ret;
 }
 
@@ -1673,7 +1682,7 @@ int cos_cache_addref(cos_cache *ptheCache)
 	int ret = 0;
 	cosCache *pCache = (cosCache*)ptheCache;
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_addref\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_addref\n");
 
 	slapi_lock_mutex(cache_lock);
 	
@@ -1682,7 +1691,7 @@ int cos_cache_addref(cos_cache *ptheCache)
 	
 	slapi_unlock_mutex(cache_lock);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_addref\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_addref\n");
 
 	return ret;
 }
@@ -1700,7 +1709,7 @@ int cos_cache_release(cos_cache *ptheCache)
 	int destroy = 0;
 	cosCache *pOldCache = (cosCache*)ptheCache;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_release\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_release\n");
 
 	slapi_lock_mutex(cache_lock);
 
@@ -1770,7 +1779,7 @@ int cos_cache_release(cos_cache *ptheCache)
 		slapi_ch_free((void**)&pOldCache);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_release\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_release\n");
 
 	return ret;
 }
@@ -1783,7 +1792,7 @@ int cos_cache_release(cos_cache *ptheCache)
 */
 static void cos_cache_del_attr_list(cosAttributes **pAttrs)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_del_attr_list\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_del_attr_list\n");
 
 	while(*pAttrs)
 	{
@@ -1796,7 +1805,7 @@ static void cos_cache_del_attr_list(cosAttributes **pAttrs)
 	}
 
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_del_attr_list\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_del_attr_list\n");
 }
 
 
@@ -1810,7 +1819,7 @@ static void cos_cache_del_schema(cosCache *pCache)
 	char *pLastName = 0;
 	int attr_index = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_del_schema\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_del_schema\n");
 
 	if(pCache && pCache->attrCount && pCache->ppAttrIndex)
 	{
@@ -1831,7 +1840,7 @@ static void cos_cache_del_schema(cosCache *pCache)
 		cos_cache_del_attrval_list(&(pCache->ppAttrIndex[0]->pObjectclasses));
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_del_schema\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_del_schema\n");
 }
 
 
@@ -1845,7 +1854,7 @@ static int cos_cache_add_attr(cosAttributes **pAttrs, char *name, cosAttrValue *
 	int ret =0;
 	cosAttributes *theAttr;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_add_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_attr\n");
 
 	/* create the attribute */
 	theAttr = (cosAttributes*) slapi_ch_malloc(sizeof(cosAttributes));
@@ -1857,22 +1866,22 @@ static int cos_cache_add_attr(cosAttributes **pAttrs, char *name, cosAttrValue *
 		if(theAttr->pAttrName)
 		{
 			cos_cache_add_ll_entry((void**)pAttrs, theAttr, NULL);
-			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_add_attr: Added attribute %s\n",name,0,0);
+			slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_attr - Added attribute %s\n",name);
 		}
 		else
 		{
 			slapi_ch_free((void**)&theAttr);
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_attr: failed to allocate memory\n",0,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_attr - Failed to allocate memory\n");
 			ret = -1;
 		}
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_attr: failed to allocate memory\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_attr - Failed to allocate memory\n");
 		ret = -1;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_add_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_attr\n");
 	return ret;
 }
 
@@ -1887,7 +1896,7 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 	int ret =0;
 	cosTemplates *theTemp;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_add_tmpl\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_add_tmpl\n");
 
 	/* create the attribute */
 	theTemp = (cosTemplates*) slapi_ch_malloc(sizeof(cosTemplates));
@@ -1903,10 +1912,10 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 			slapi_ch_free_string(&dn->val);
 			dn->val = normed;
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				"cos_cache_add_tmpl: failed to normalize dn %s. "
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,  
+				"cos_cache_add_tmpl - Failed to normalize dn %s. "
 				"Processing the pre normalized dn.\n", 
-				dn->val, 0, 0);
+				dn->val);
 		}
 		grade = (char*)slapi_ch_malloc(strlen(dn->val)+1);
 
@@ -1997,7 +2006,7 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 		else
 		{
 			/* mmm, should never get here, it means the dn is whacky */
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_tmpl: malformed dn detected: %s\n",dn,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_tmpl - Malformed dn detected: %s\n",dn->val);
 			grade[0] = '\0';
 		}
 
@@ -2016,17 +2025,17 @@ static int cos_cache_add_tmpl(cosTemplates **pTemplates, cosAttrValue *dn, cosAt
 		}
 		
 		cos_cache_add_ll_entry((void**)pTemplates, theTemp, NULL);
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_add_tmpl: Added template %s\n",dn->val,0,0);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_tmpl - Added template %s\n",dn->val);
 
 		slapi_ch_free((void**)&grade);
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_add_tmpl: failed to allocate memory\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_add_tmpl - Failed to allocate memory\n");
 		ret = -1;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_add_tmpl\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_add_tmpl\n");
 	return ret;
 }
 
@@ -2045,7 +2054,7 @@ static int cos_cache_attrval_exists(cosAttrValue *pAttrs, const char *val)
 {
 	int ret = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_attrval_exists\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_attrval_exists\n");
 
 	while(pAttrs)
 	{
@@ -2058,7 +2067,7 @@ static int cos_cache_attrval_exists(cosAttrValue *pAttrs, const char *val)
 		pAttrs = pAttrs->list.pNext;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_attrval_exists\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_attrval_exists\n");
 	return ret;
 }
 
@@ -2070,12 +2079,13 @@ static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_
 	int indirect_cos = 0;
 	int ret = -1;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_vattr_get\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_vattr_get\n");
 	
 	if(cos_cache_getref(&pCache) < 1)
 	{
 		/* problems we are hosed */
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_vattr_get: failed to get class of service reference\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_vattr_get - "
+			"Failed to get class of service reference\n");
 		goto bail;
 	}
 
@@ -2095,7 +2105,7 @@ static int cos_cache_vattr_get(vattr_sp_handle *handle, vattr_context *c, Slapi_
 
 bail:
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_vattr_get\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_vattr_get\n");
 	return ret;
 }
 
@@ -2105,12 +2115,12 @@ static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Sl
 	int ret = -1;
 	cos_cache *pCache = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_vattr_compare\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_vattr_compare\n");
 	
 	if(cos_cache_getref(&pCache) < 1)
 	{
 		/* problems we are hosed */
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_vattr_compare: failed to get class of service reference\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_vattr_compare - Failed to get class of service reference\n");
 		goto bail;
 	}
 
@@ -2120,7 +2130,7 @@ static int cos_cache_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Sl
 
 bail:
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_vattr_compare\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_vattr_compare\n");
 	return ret;
 }
 
@@ -2137,12 +2147,12 @@ static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,
 	char *lastattr = "thisisfakeforcos";
 	int props = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_vattr_types\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_vattr_types\n");
 	
 	if(cos_cache_getref((cos_cache **)&pCache) < 1)
 	{
 		/* problems we are hosed */
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_vattr_types: failed to get class of service reference\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_vattr_types - Failed to get class of service reference\n");
 		goto bail;
 	}
 
@@ -2165,17 +2175,14 @@ static int cos_cache_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,
 
 				slapi_vattrspi_add_type(type_context,&thang,0);
 			}
-
 		}
-
 		index++;
 	}
-
 	cos_cache_release(pCache);
 
 bail:
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_vattr_types\n",0,0,0);
+slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_vattr_types\n");
 	return ret;
 }
 
@@ -2222,7 +2229,7 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 	int entry_has_value = 0;
 	int merge_mode = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_query_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_query_attr\n");
 
 
 	if(out_attr)
@@ -2285,7 +2292,7 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 	
 	if(pDn == 0)
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_query_attr: failed to get entry dn\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_query_attr - Failed to get entry dn\n");
 		ret = 1;
 		goto bail;
 	}
@@ -2300,13 +2307,13 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 
 		if(slapi_entry_attr_find( e, "objectclass", &pObjclasses ))
 		{
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_query_attr: failed to get objectclass from %s\n",pDn,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_query_attr - Failed to get objectclass from %s\n",pDn);
 			goto bail;
 		}
 
 		if(!cos_cache_schema_check(pCache, attr_index, pObjclasses))
 		{
-			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_query_attr: cos attribute %s failed schema check on dn: %s\n",type,pDn,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_query_attr - cos attribute %s failed schema check on dn: %s\n",type,pDn);
 			goto bail;
 		}
 	}
@@ -2474,7 +2481,8 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 											hit = 1;
 										else
 										{
-											LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_query_attr: could not create values to return\n",0,0,0);
+											slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+												"cos_cache_query_attr - Could not create values to return\n");
 											goto bail;
 										}
 
@@ -2536,10 +2544,10 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 			attr_index++;
 
 	} while(
-				(hit == 0 || merge_mode) && 
-				pCache->attrCount > attr_index && 
-				!slapi_utf8casecmp((unsigned char*)type, (unsigned char*)pCache->ppAttrIndex[attr_index]->pAttrName)
-				);
+		(hit == 0 || merge_mode) && 
+		pCache->attrCount > attr_index && 
+		!slapi_utf8casecmp((unsigned char*)type, (unsigned char*)pCache->ppAttrIndex[attr_index]->pAttrName)
+		);
 
 	if(!merge_mode)
 		attr_matched_index = attr_index;
@@ -2557,7 +2565,8 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 				hit = 1;
 			else
 			{
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_query_attr: could not create values to return\n",0,0,0);
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_query_attr - "
+					"Could not create values to return\n");
 				goto bail;
 			}
 		}
@@ -2594,15 +2603,15 @@ static int cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context,
 			(!using_default && pCache && pCache->ppAttrIndex && pCache->ppAttrIndex[attr_matched_index] &&
 			 ((pCache->ppAttrIndex[attr_matched_index]->attr_operational == 1) ||
 			  (pCache->ppAttrIndex[attr_matched_index]->attr_operational_default == 1))))
-	{
-		/* this is an operational attribute, lets mark it so */
-		*props |= SLAPI_ATTR_FLAG_OPATTR;
-	}
+		{
+			/* this is an operational attribute, lets mark it so */
+			*props |= SLAPI_ATTR_FLAG_OPATTR;
+		}
 	}
 
 bail:
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_query_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_query_attr\n");
 	return ret;
 }
 
@@ -2618,7 +2627,7 @@ static int cos_cache_find_attr(cosCache *pCache, char *type)
 	int ret = -1;  /* assume failure */
 	cosAttributes attr;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_find_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_find_attr\n");
 
 	attr.pAttrName = type;
 
@@ -2633,7 +2642,7 @@ static int cos_cache_find_attr(cosCache *pCache, char *type)
 		}
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_find_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_find_attr\n");
 	return ret;
 }
 
@@ -2652,7 +2661,7 @@ static int cos_cache_schema_check(cosCache *pCache, int attr_index, Slapi_Attr *
 	Slapi_Value *val;
 	int hint;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_schema_check\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_schema_check\n");
 
 	hint = slapi_attr_first_value( pObjclasses, &val );
 	while(hint != -1) 
@@ -2664,7 +2673,7 @@ static int cos_cache_schema_check(cosCache *pCache, int attr_index, Slapi_Attr *
 		hint = slapi_attr_next_value( pObjclasses, hint,  &val );
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_schema_check\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_schema_check\n");
 	return ret;
 }
 
@@ -2682,7 +2691,7 @@ static int cos_cache_schema_build(cosCache *pCache)
 	cosAttrValue *pLastRef = 0;
 	int attr_index = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_schema_build\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_schema_build\n");
 
 	if(!config_get_schemacheck())
 		ret = 0;
@@ -2762,7 +2771,7 @@ static int cos_cache_schema_build(cosCache *pCache)
 		}
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_schema_build\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_schema_build\n");
 	return ret;
 }
 
@@ -2788,7 +2797,7 @@ static int cos_cache_index_all(cosCache *pCache)
 {
 	int ret = -1;
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_index_all\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_index_all\n");
 
 	/*
 		first fixup the index array so we can use qsort()
@@ -2877,10 +2886,10 @@ static int cos_cache_index_all(cosCache *pCache)
 						slapi_ch_free_string(&pAttrVal->val);
 						pAttrVal->val = normed;
 					} else {
-						LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-							"cos_cache_index_all: failed to normalize dn %s. "
+						slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,  
+							"cos_cache_index_all - Failed to normalize dn %s. "
 							"Processing the pre normalized dn.\n", 
-							pAttrVal->val, 0, 0);
+							pAttrVal->val);
 					}
 					pCache->ppTemplateList[tmpindex] = pAttrVal->val;
 
@@ -2949,7 +2958,7 @@ static int cos_cache_index_all(cosCache *pCache)
 			
 			pCache->templateCount = actualCount;
 
-			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos: cos cache index built\n",0,0,0);
+			slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_index_all - cos cache index built\n");
 			
 			ret = 0;
 		}
@@ -2961,13 +2970,14 @@ static int cos_cache_index_all(cosCache *pCache)
 			if(pCache->ppTemplateList)
 				slapi_ch_free((void**)(&pCache->ppTemplateList));
 
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_index_all: failed to allocate index memory\n",0,0,0);
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_index_all - "
+				"Failed to allocate index memory\n");
 		}
 	}
 	else
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_index_all: no attributes to index\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_index_all - No attributes to index\n");
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_index_all\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_index_all\n");
 	return ret;
 }
 
@@ -2995,7 +3005,7 @@ static int cos_cache_total_attr_count(cosCache *pCache)
 	int count = 0;
 	cosDefinitions *pDef = pCache->pDefs;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_total_attr_count\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_total_attr_count\n");
 
 	pCache->templateCount = 0;
 
@@ -3020,7 +3030,7 @@ static int cos_cache_total_attr_count(cosCache *pCache)
 		pDef = pDef->list.pNext;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_total_attr_count\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_total_attr_count\n");
 	return count;
 }
 
@@ -3087,7 +3097,7 @@ static int cos_cache_template_index_bsearch(const char *dn)
 	int ret = 0;
 	cosCache *pCache;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_template_index_bsearch\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_template_index_bsearch\n");
 	
 	if(-1 != cos_cache_getref((cos_cache**)&pCache))
 	{
@@ -3097,7 +3107,7 @@ static int cos_cache_template_index_bsearch(const char *dn)
 		cos_cache_release((cos_cache*)pCache);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_template_index_bsearch\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_template_index_bsearch\n");
 
 	return ret;
 }
@@ -3115,7 +3125,7 @@ static int cos_cache_attr_index_bsearch( const cosCache *pCache, const cosAttrib
 	int ret = -1;
 	int index = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_attr_index_bsearch\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_attr_index_bsearch\n");
 
 	if(upper >= lower)
 	{
@@ -3159,7 +3169,7 @@ static int cos_cache_attr_index_bsearch( const cosCache *pCache, const cosAttrib
 	else
 		index = -1;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_attr_index_bsearch\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_attr_index_bsearch\n");
 	return index;
 }
 
@@ -3171,7 +3181,7 @@ static int cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int 
 	cosAttrValue *pAttrVal = pAttr->pAttrValue;
 	char *the_cmp = (char *)slapi_value_get_string(test_this);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_cmp_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_cmp_attr\n");
 	
 	*result = 0;
 
@@ -3189,7 +3199,7 @@ static int cos_cache_cmp_attr(cosAttributes *pAttr, Slapi_Value *test_this, int 
 		index++;
 	} 
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_cmp_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_cmp_attr\n");
 	return ret;
 }
 
@@ -3208,7 +3218,7 @@ static int cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet *
 	static Slapi_Attr *attr = 0; /* allocated once, never freed */
 	static int done_once = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_cos_2_slapi_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_cos_2_slapi_valueset\n");
 	
 	/* test out_vs for existing values */
 	if(*out_vs)
@@ -3242,7 +3252,8 @@ static int cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet *
 			}
 			else
 			{
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_cos_2_slapi_attr: memory allocation error\n",0,0,0);
+				slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_cos_2_slapi_valueset - "
+					"Memory allocation error\n");
 				ret = -1;
 				goto bail;
 			}
@@ -3253,13 +3264,14 @@ static int cos_cache_cos_2_slapi_valueset(cosAttributes *pAttr, Slapi_ValueSet *
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_cos_2_slapi_attr: memory allocation error\n",0,0,0);
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_cos_2_slapi_valueset - "
+			"Memory allocation error\n");
 		ret = -1;
 	}
 
 bail:
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_cos_2_slapi_attr\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_cos_2_slapi_valueset\n");
 	return ret;
 }
 
@@ -3295,7 +3307,7 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 	int rc = 0;
 	int optype = -1;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_change_notify\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_change_notify\n");
 
 	/* Don't update local cache when remote entries are updated. */
 	slapi_pblock_get( pb, SLAPI_BACKEND, &be );
@@ -3306,8 +3318,8 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 
 	/* need to work out if a cache rebuild is necessary */
 	if(slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn )) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_change_notify: "
-		                               "failed to get dn of changed entry\n");
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_change_notify - "
+		                               "Failed to get dn of changed entry\n");
 		goto bail;
 	}
 	dn = slapi_sdn_get_dn(sdn);
@@ -3361,8 +3373,8 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 	 * stays lean in the face of errors.
 	*/
 	if( !do_update && cos_cache_template_index_bsearch(dn)) {
-			LDAPDebug1Arg(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "cos_cache_change_notify: "
-			              "updating due to indirect template change(%s)\n", dn);
+		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_cache_change_notify - "
+			              "Updating due to indirect template change(%s)\n", dn);
 		do_update = 1;
 	}
 
@@ -3376,7 +3388,7 @@ void cos_cache_change_notify(Slapi_PBlock *pb)
 	}
 
 bail:
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_change_notify\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_change_notify\n");
 }
 
 /*
@@ -3386,7 +3398,7 @@ bail:
 */
 void cos_cache_stop(void)
 {
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_stop\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_stop\n");
 
 	/* first deregister our state change func */
 	slapi_unregister_backend_state_change((void *)cos_cache_backend_state_change);
@@ -3411,7 +3423,7 @@ void cos_cache_stop(void)
 	slapi_destroy_condvar(start_cond); start_cond = NULL;
 	slapi_destroy_mutex(start_lock); start_lock = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_stop\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_stop\n");
 }
 
 /*
@@ -3431,7 +3443,7 @@ static int cos_cache_backwards_stricmp_and_clip(char*s1,char*s2)
 	s1len = strlen(s1);
 	s2len = strlen(s2);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> cos_cache_backwards_stricmp_and_clip s1 %d s2 %d\n",s1len,s2len,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_cache_backwards_stricmp_and_clip - s1 %d s2 %d\n",s1len,s2len);
 
 	if(s1len > s2len && s2len > 0)
 	{
@@ -3458,7 +3470,7 @@ static int cos_cache_backwards_stricmp_and_clip(char*s1,char*s2)
 		}
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- cos_cache_backwards_stricmp_and_clip\n",0,0,0);
+	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_cache_backwards_stricmp_and_clip\n");
 	return ret;
 }
 
@@ -3479,14 +3491,14 @@ static int cos_cache_follow_pointer( vattr_context *c, const char *dn, char *typ
 	attrs[0] = type;
 	attrs[1] = 0;
 
-        /* Use new internal operation API */
-        pDnSearch = slapi_pblock_new();
-        if (pDnSearch) {
-                slapi_search_internal_set_pb(pDnSearch, dn, LDAP_SCOPE_BASE,"(|(objectclass=*)(objectclass=ldapsubentry))",attrs,
-			0,NULL,NULL,cos_get_plugin_identity(),0);
-                slapi_search_internal_pb(pDnSearch);
-                slapi_pblock_get( pDnSearch, SLAPI_PLUGIN_INTOP_RESULT, &ret);
-        }
+	/* Use new internal operation API */
+	pDnSearch = slapi_pblock_new();
+	if (pDnSearch) {
+			slapi_search_internal_set_pb(pDnSearch, dn, LDAP_SCOPE_BASE,"(|(objectclass=*)(objectclass=ldapsubentry))",attrs,
+		0,NULL,NULL,cos_get_plugin_identity(),0);
+			slapi_search_internal_pb(pDnSearch);
+			slapi_pblock_get( pDnSearch, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+	}
 
 	if(pDnSearch && (ret == LDAP_SUCCESS))
 	{
@@ -3568,15 +3580,15 @@ static int cos_cache_entry_is_cos_related( Slapi_Entry *e) {
 	Slapi_Attr *pObjclasses = NULL;
 
 	if ( e == NULL ) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "cos_cache_change_notify: "
-		               "modified entry is NULL--updating cache just in case\n");
+		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_entry_is_cos_related - "
+		               "Modified entry is NULL--updating cache just in case\n");
 		rc = 1;
 	} else {
 
 		if(slapi_entry_attr_find( e, "objectclass", &pObjclasses ))
 		{
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,  "cos_cache_change_notify: "
-			              " failed to get objectclass from %s\n",
+			slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_cache_entry_is_cos_related - "
+			              "Failed to get objectclass from %s\n",
 			              slapi_entry_get_dn(e));
 			rc = 0;
 		} else {

@@ -64,7 +64,7 @@ pw_send_ldap_result(
 	
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	if (NULL == operation) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy", "pw_send_ldap_result: no operation\n");
+		slapi_log_error(SLAPI_LOG_ERR, "pw_send_ldap_result", "No operation\n");
 		return;
 	}
 	internal_op= operation_is_flag_set(operation, OP_FLAG_INTERNAL);
@@ -112,7 +112,7 @@ slapi_pw_find_sv(
 	char			*valpwd;
     int     		i;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_pw_find value: \"%s\"\n", slapi_value_get_string(v), 0, 0 ); /* JCM Innards */
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_pw_find value: \"%s\"\n", slapi_value_get_string(v), 0, 0 ); /* JCM Innards */
 
     for ( i = 0; vals && vals[i]; i++ )
     {
@@ -120,7 +120,7 @@ slapi_pw_find_sv(
 		if ( pwsp != NULL && 
 			(*(pwsp->pws_cmp))( (char*)slapi_value_get_string(v), valpwd ) == 0 ) /* JCM Innards*/
 		{
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+			LDAPDebug(LDAP_DEBUG_TRACE,
 			    "<= slapi_pw_find matched \"%s\" using scheme \"%s\"\n",
 			    valpwd, pwsp->pws_name, 0 );
 			free_pw_scheme( pwsp );
@@ -129,7 +129,7 @@ slapi_pw_find_sv(
 		free_pw_scheme( pwsp );
 	}
  
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_pw_find no matching password\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_pw_find no matching password\n", 0, 0, 0 );
 
     return( 1 );	/* no match */
 }
@@ -171,8 +171,9 @@ char* slapi_encode_ext (Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char
 
 		if (pws_enc == NULL)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy", 
-							"slapi_encode: no server scheme\n" );
+			slapi_log_error(SLAPI_LOG_ERR, "slapi_encode_ext", 
+							"no encoding password storage scheme found for %s\n", 
+							pwpolicy->pw_storagescheme->pws_name );
 			return NULL;		
 		}
 	}
@@ -183,13 +184,13 @@ char* slapi_encode_ext (Slapi_PBlock *pb, const Slapi_DN *sdn, char *value, char
 		{
 			char * scheme_list = plugin_get_pwd_storage_scheme_list(PLUGIN_LIST_PWD_STORAGE_SCHEME);
 			if ( scheme_list != NULL ) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy", 
-								"slapi_encode: invalid scheme - %s\n"
+				slapi_log_error(SLAPI_LOG_ERR, "slapi_encode_ext", 
+								"Invalid scheme - %s\n"
 								"Valid values are: %s\n", alg, scheme_list );
 				slapi_ch_free((void **)&scheme_list);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy",
-								"slapi_encode: invalid scheme - %s\n"
+				slapi_log_error(SLAPI_LOG_ERR, "slapi_encode_ext",
+								"Invalid scheme - %s\n"
 								"no pwdstorage scheme plugin loaded", alg);
 			}
 			return NULL;
@@ -601,8 +602,8 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	slapi_pblock_get( pb, SLAPI_REQUESTOR_NDN, &bind_dn);
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
 	if ((NULL == operation) || (NULL == sdn) || (NULL == e)){
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy", 
-		                "update_pw_info: param error - no password entry/target dn/operation\n");
+		slapi_log_error(SLAPI_LOG_ERR, "update_pw_info", 
+		                "Param error - no password entry/target dn/operation\n");
 		return -1;
 	}
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
@@ -809,8 +810,8 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 		return 0;
 	}
 	if (NULL == vals) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy", 
-		                 "check_pw_syntax_ext: no passwords to check\n" );
+		slapi_log_error(SLAPI_LOG_ERR, "check_pw_syntax_ext", 
+		                 "No passwords to check\n" );
 		return -1;
 	}
 
@@ -820,7 +821,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	slapi_pblock_get(pb, SLAPI_IS_REPLICATED_OPERATION, &is_replication);
 	slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 	if (NULL == operation) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy", "check_pw_syntax_ext: no operation\n");
+		slapi_log_error(SLAPI_LOG_ERR, "check_pw_syntax_ext", "No slapi operation\n");
 		return -1;
 	}
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
@@ -1228,8 +1229,8 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	slapi_modify_internal_pb(&mod_pb);
 	slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res != LDAP_SUCCESS){
-		LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-		    "WARNING: passwordPolicy modify error %d on entry '%s'\n", res, dn);
+		LDAPDebug2Args(LDAP_DEBUG_ERR,
+		    "update_pw_history - Modify error %d on entry '%s'\n", res, dn);
 	}
 	pblock_done(&mod_pb);
 	slapi_ch_free_string(&str);
@@ -1324,7 +1325,7 @@ slapi_add_pwd_control ( Slapi_PBlock *pb, char *arg, long time) {
 	LDAPControl	new_ctrl;
 	char		buf[12];
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_add_pwd_control\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_add_pwd_control\n", 0, 0, 0 );
 	
 	sprintf( buf, "%ld", time );
 	new_ctrl.ldctl_oid = arg;
@@ -1353,7 +1354,7 @@ add_password_attrs( Slapi_PBlock *pb, Operation *op, Slapi_Entry *e )
 	int isShadowAccount = 0;
 	int has_shadowLastChange = 0;
 
-	LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "add_password_attrs\n");
+	LDAPDebug0Args(LDAP_DEBUG_TRACE, "add_password_attrs\n");
 
 	bvals[0] = &bv;
 	bvals[1] = NULL;
@@ -1597,7 +1598,7 @@ pw_get_admin_users(passwdPolicy *pwp)
 	if (res != LDAP_SUCCESS) {
 		slapi_free_search_results_internal(pb);
 		slapi_pblock_destroy(pb);
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "pw_get_admin_users: search failed for %s: error %d - "
+		LDAPDebug(LDAP_DEBUG_ERR, "pw_get_admin_users - Search failed for %s: error %d - "
 		        "Password Policy Administrators can not be set\n",
 		        slapi_sdn_get_dn(sdn), res, 0);
 		return;
@@ -1753,8 +1754,8 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 			slapi_entry_free( e );
 
 			if ( pw_entry == NULL ) {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-				              "loading global password policy for %s"
+				LDAPDebug1Arg(LDAP_DEBUG_ERR,
+				              "new_passwdPolicy - Loading global password policy for %s"
 				              "--local policy entry not found\n", dn);
 				goto done;
 			}
@@ -1773,8 +1774,8 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 					if ((sval = attr_get_present_values(attr))) {
 						pwdpolicy->pw_minage = slapi_value_get_timelonglong(*sval);
 						if (-1 == pwdpolicy->pw_minage) {
-							LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-								"Password Policy Entry%s: Invalid passwordMinAge: %s\n",
+							LDAPDebug2Args(LDAP_DEBUG_ERR,
+								"new_passwdPolicy - %s - Invalid passwordMinAge: %s\n",
 								slapi_entry_get_dn_const(pw_entry),
 								slapi_value_get_string(*sval));
 						}
@@ -1785,8 +1786,8 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 					if ((sval = attr_get_present_values(attr))) {
 						pwdpolicy->pw_maxage = slapi_value_get_timelonglong(*sval);
 						if (-1 == pwdpolicy->pw_maxage) {
-							LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-								"Password Policy Entry%s: Invalid passwordMaxAge: %s\n",
+							LDAPDebug2Args(LDAP_DEBUG_ERR,
+								"new_passwdPolicy - %s - Invalid passwordMaxAge: %s\n",
 								slapi_entry_get_dn_const(pw_entry),
 								slapi_value_get_string(*sval));
 						}
@@ -1797,8 +1798,8 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 					if ((sval = attr_get_present_values(attr))) {
 						pwdpolicy->pw_warning = slapi_value_get_timelonglong(*sval);
 						if (-1 == pwdpolicy->pw_warning) {
-							LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-								"Password Policy Entry%s: Invalid passwordWarning: %s\n",
+							LDAPDebug2Args(LDAP_DEBUG_ERR,
+								"new_passwdPolicy - %s - Invalid passwordWarning: %s\n",
 								slapi_entry_get_dn_const(pw_entry),
 								slapi_value_get_string(*sval));
 						}
@@ -2077,7 +2078,7 @@ slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins,
 			passwordInHistory     (8) } }
 	*/
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> slapi_pwpolicy_make_response_control", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_pwpolicy_make_response_control", 0, 0, 0 );
 	if ( ( ber = ber_alloc()) == NULL )
 	{
 		return rc;
@@ -2123,7 +2124,7 @@ slapi_pwpolicy_make_response_control (Slapi_PBlock *pb, int seconds, int logins,
 		ber_bvfree(bvp);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= slapi_pwpolicy_make_response_control (%d)", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_pwpolicy_make_response_control (%d)", rc, 0, 0 );
 
 	return (rc==-1?LDAP_OPERATIONS_ERROR:LDAP_SUCCESS);
 }
@@ -2554,10 +2555,8 @@ pw_entry_constructor(void *object, void *parent)
 	struct slapi_pw_entry_ext *pw_extp = NULL;
 	Slapi_RWLock *rwlock;
 	if ((rwlock = slapi_new_rwlock()) == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy",
-		                "pw_entry_constructor: slapi_new_rwlock() failed\n");
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy",
-		                "WARNING: the server cannot handle unhashed password.\n");
+		slapi_log_error(SLAPI_LOG_ERR, "pw_entry_constructor",
+		                "slapi_new_rwlock() failed\n");
 		return NULL;
 	}
 	pw_extp = (struct slapi_pw_entry_ext *)slapi_ch_calloc(1,
@@ -2596,8 +2595,8 @@ pw_exp_init ( void )
 	                                    pw_entry_destructor,
 	                                    &pw_entry_objtype,
 	                                    &pw_entry_handle) != 0) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy",
-		                "pw_init: slapi_register_object_extension failed; "
+		slapi_log_error(SLAPI_LOG_ERR, "pw_exp_init",
+		                "slapi_register_object_extension failed; "
 		                "unhashed password is not able to access\n");
 	}
 }
@@ -2612,16 +2611,15 @@ slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals)
 	struct slapi_pw_entry_ext *extp = NULL;
 
 	if (NULL == vals) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "pwdpolicy",
-		                "slapi_pw_get_entry_ext: output param vals is NULL.\n");
+		slapi_log_error(SLAPI_LOG_ERR, "slapi_pw_get_entry_ext",
+		                "Output param vals is NULL.\n");
 		return LDAP_PARAM_ERROR;
 	}
 	*vals = NULL;
 
 	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "slapi_pw_get_entry_ext: pw_entry_extension is not "
-		                "registered\n");
+		slapi_log_error(SLAPI_LOG_TRACE, "slapi_pw_get_entry_ext",
+			"pw_entry_extension is not registered\n");
 		return LDAP_OPERATIONS_ERROR;
 	}
 
@@ -2630,8 +2628,7 @@ slapi_pw_get_entry_ext(Slapi_Entry *entry, Slapi_Value ***vals)
 	                                                           entry,
 	                                                           pw_entry_handle);
 	if ((NULL == extp) || (NULL == extp->pw_entry_values)) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "slapi_pw_get_entry_ext: "
+		slapi_log_error(SLAPI_LOG_TRACE, "slapi_pw_get_entry_ext",
 		                "pw_entry_extension is not set\n");
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
@@ -2650,8 +2647,7 @@ slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags)
 	struct slapi_pw_entry_ext *extp = NULL;
 
 	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "slapi_pw_set_entry_ext: "
+		slapi_log_error(SLAPI_LOG_TRACE, "slapi_pw_set_entry_ext",
 		                "pw_entry_extension is not registered\n");
 		return LDAP_OPERATIONS_ERROR;
 	}
@@ -2661,8 +2657,7 @@ slapi_pw_set_entry_ext(Slapi_Entry *entry, Slapi_Value **vals, int flags)
 	                                                           entry,
 	                                                           pw_entry_handle);
 	if (NULL == extp) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "slapi_pw_set_entry_ext: "
+		slapi_log_error(SLAPI_LOG_TRACE, "slapi_pw_set_entry_ext",
 		                "pw_entry_extension is not set\n");
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
@@ -2691,8 +2686,7 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
 	struct slapi_pw_entry_ext *dest_extp = NULL;
 
 	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "pw_copy_entry_ext: "
+		slapi_log_error(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
 		                "pw_entry_extension is not registered\n");
 		return LDAP_OPERATIONS_ERROR;
 	}
@@ -2702,9 +2696,8 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
 	                                                           src_e,
 	                                                           pw_entry_handle);
 	if (NULL == src_extp) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "pw_copy_entry_ext: source pw_entry_extension is "
-		                "not set\n");
+		slapi_log_error(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
+				"Source pw_entry_extension is not set\n");
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
 
@@ -2715,8 +2708,7 @@ pw_copy_entry_ext(Slapi_Entry *src_e, Slapi_Entry *dest_e)
 	                                                           pw_entry_handle);
 	if (NULL == dest_extp) {
 		slapi_rwlock_unlock(src_extp->pw_entry_lock);
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "pw_copy_entry_ext: "
+		slapi_log_error(SLAPI_LOG_TRACE, "pw_copy_entry_ext",
 		                "dest pw_entry_extension is not set\n");
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
@@ -2741,8 +2733,7 @@ slapi_get_first_clear_text_pw(Slapi_Entry *entry)
 	const char *password_str = NULL;
 
 	if ((-1 == pw_entry_objtype) || (-1 == pw_entry_handle)) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "slapi_get_first_clear_text_pw: "
+		slapi_log_error(SLAPI_LOG_TRACE, "slapi_get_first_clear_text_pw",
 		                "pw_entry_extension is not registered\n");
 		return NULL;
 	}
@@ -2752,8 +2743,7 @@ slapi_get_first_clear_text_pw(Slapi_Entry *entry)
 	                                                           entry,
 	                                                           pw_entry_handle);
 	if ((NULL == extp) || (NULL == extp->pw_entry_values)) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, NULL,
-		                "slapi_get_first_clear_text_pw: "
+		slapi_log_error(SLAPI_LOG_TRACE, "slapi_get_first_clear_text_pw",
 		                "pw_entry_extension is not set\n");
 		return NULL;
 	}
@@ -2858,7 +2848,7 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         return rc;
     }
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "--> add_shadow_password_attrs\n");
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> add_shadow_password_attrs\n");
 
     /* shadowMin - the minimum number of days required between password changes. */
     if (pwpolicy->pw_minage > 0) {
@@ -2980,6 +2970,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
      */
 #endif
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "<-- add_shadow_password_attrs\n");
+    LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- add_shadow_password_attrs\n");
     return rc;
 }

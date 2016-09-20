@@ -201,8 +201,8 @@ tombstone_to_glue (
 				/* Add the reason of turning it to glue - The backend code will use it*/
 				slapi_entry_add_string(addingentry, ATTR_NSDS5_REPLCONFLICT, reason);
 			}
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-			                 "%s: Can't resurrect tombstone to glue reason '%s'. "
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			                 "tombstone_to_glue - %s - Can't resurrect tombstone to glue reason '%s'. "
 			                 "Try with conflict dn %s, error=%d\n",
 			                 sessionid, reason, addingdn, op_result);
 			op_result = urp_fixup_rename_entry(addingentry, (const char *)conflictrdn, parentuniqueid,
@@ -216,20 +216,20 @@ tombstone_to_glue (
 	slapi_ch_free_string(&parentuniqueid);
 	if (op_result == LDAP_SUCCESS)
 	{
-		slapi_log_error (/*slapi_log_urp*/SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-			"%s: Resurrected tombstone %s to glue reason '%s'\n", sessionid, addingdn, reason);
+		slapi_log_error (/*slapi_log_urp*/SLAPI_LOG_ERR, repl_plugin_name,
+			"tombstone_to_glue - %s - Resurrected tombstone %s to glue reason '%s'\n", sessionid, addingdn, reason);
 	}
 	else if (LDAP_ALREADY_EXISTS == op_result)
 	{
-		slapi_log_error(/*slapi_log_urp*/SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-		                "%s: No need to turn tombstone %s to glue; it was already resurrected.\n",
+		slapi_log_error(/*slapi_log_urp*/SLAPI_LOG_ERR, repl_plugin_name,
+		                "tombstone_to_glue - %s - No need to turn tombstone %s to glue; it was already resurrected.\n",
 		                sessionid, addingdn);
 		op_result = LDAP_SUCCESS;
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-			"%s: Can't resurrect tombstone %s to glue reason '%s', error=%d\n",
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			"tombstone_to_glue - %s - Can't resurrect tombstone %s to glue reason '%s', error=%d\n",
 			sessionid, addingdn, reason, op_result);
 	}
 	slapi_sdn_free(&parentdn);

@@ -221,10 +221,10 @@ clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV
 	need_new = (!_pool || !_pool->pl_busy_lists || !_pool->pl_busy_lists->bl_buffers);
 
 	if ( (!need_new) && (NULL != ( *buf = (CLC_Buffer*) get_thread_private_cache())) ) {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, get_thread_private_agmtname(),
-						  "clcache_get_buffer: found thread private buffer cache %p\n", *buf);
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, get_thread_private_agmtname(),
-						  "clcache_get_buffer: _pool is %p _pool->pl_busy_lists is %p _pool->pl_busy_lists->bl_buffers is %p\n",
+		slapi_log_error(SLAPI_LOG_REPL, get_thread_private_agmtname(),
+						  "clcache_get_buffer - found thread private buffer cache %p\n", *buf);
+		slapi_log_error(SLAPI_LOG_REPL, get_thread_private_agmtname(),
+						  "clcache_get_buffer - _pool is %p _pool->pl_busy_lists is %p _pool->pl_busy_lists->bl_buffers is %p\n",
 						  _pool, _pool ? _pool->pl_busy_lists : NULL,
 						  (_pool && _pool->pl_busy_lists) ? _pool->pl_busy_lists->bl_buffers : NULL);
 		(*buf)->buf_state = CLC_STATE_READY;
@@ -274,8 +274,8 @@ clcache_get_buffer ( CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV
 		csn_free(&l_csn);
 	}
 	else {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, get_thread_private_agmtname(),
-			"clcache_get_buffer: can't allocate new buffer\n" );
+		slapi_log_error(SLAPI_LOG_ERR, get_thread_private_agmtname(),
+			"clcache_get_buffer - Can't allocate new buffer\n" );
 		rc = CL5_MEMORY_ERROR;
 	}
 
@@ -290,8 +290,8 @@ clcache_return_buffer ( CLC_Buffer **buf )
 {
 	int i;
 
-	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, (*buf)->buf_agmt_name,
-			  "session end: state=%d load=%d sent=%d skipped=%d skipped_new_rid=%d "
+	slapi_log_error(SLAPI_LOG_REPL, (*buf)->buf_agmt_name,
+			  "clcache_return_buffer - session end: state=%d load=%d sent=%d skipped=%d skipped_new_rid=%d "
 			  "skipped_csn_gt_cons_maxcsn=%d skipped_up_to_date=%d "
 			  "skipped_csn_gt_ruv=%d skipped_csn_covered=%d\n",
 			  (*buf)->buf_state,
@@ -353,8 +353,9 @@ clcache_load_buffer ( CLC_Buffer *buf, CSN **anchorCSN )
 			}
 		}
 		else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, buf->buf_agmt_name,
-					"Can't locate CSN %s in the changelog (DB rc=%d). If replication stops, the consumer may need to be reinitialized.\n",
+			slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name,
+					"clcache_load_buffer - Can't locate CSN %s in the changelog (DB rc=%d). "
+					"If replication stops, the consumer may need to be reinitialized.\n",
 					(char*)buf->buf_key.data, rc );
 		}
 	} else if (rc == CLC_STATE_DONE) {
@@ -362,8 +363,8 @@ clcache_load_buffer ( CLC_Buffer *buf, CSN **anchorCSN )
 	}
 
 	if ( rc != 0 ) {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-				"clcache_load_buffer: rc=%d\n", rc );
+		slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+				"clcache_load_buffer - rc=%d\n", rc );
 	}
 
 	return rc;
@@ -385,12 +386,12 @@ clcache_load_buffer_bulk ( CLC_Buffer *buf, int flag )
 #endif
 
 	if (NULL == buf) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clcache_load_buffer_bulk",
-		                  "NULL buf\n" );
+		slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name, 
+				"clcache_load_buffer_bulk - NULL buf\n" );
 		return rc;
 	}
 	if (NULL == buf->buf_busy_list) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clcache_load_buffer_bulk",
+		slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
 		                  "%s%sno buf_busy_list\n",
 		                  buf->buf_agmt_name?buf->buf_agmt_name:"",
 		                  buf->buf_agmt_name?": ":"" );
@@ -413,7 +414,7 @@ retry:
 				 * 2. try to find another starting position as close
 				 *    as possible
 				 */
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clcache_load_buffer_bulk",
+				slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
 							"changelog record with csn (%s) not found for DB_NEXT\n",
 							(char *)buf->buf_key.data );
 				rc = cursor->c_get ( cursor, & buf->buf_key, & buf->buf_data,
@@ -433,7 +434,7 @@ retry:
 		if ( 0 == rc || DB_BUFFER_SMALL == rc ) {
 			rc = clcache_cursor_get ( cursor, buf, use_flag );
 			if ( rc == DB_NOTFOUND && use_flag == DB_SET) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "clcache_load_buffer_bulk",
+				slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
 							"changelog record with csn (%s) not found for DB_SET\n",
 							(char *)buf->buf_key.data );
 				rc = clcache_cursor_get ( cursor, buf, DB_SET_RANGE );
@@ -454,7 +455,7 @@ retry:
 		PRIntervalTime interval;
 
 		tries++;
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "clcache_load_buffer_bulk",
+		slapi_log_error(SLAPI_LOG_TRACE, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
 		                  "deadlock number [%d] - retrying\n", tries );
 		/* back off */
 		interval = PR_MillisecondsToInterval(slapi_rand() % 100);
@@ -463,7 +464,7 @@ retry:
 		goto retry;
 	}
 	if ((rc == DB_LOCK_DEADLOCK) && (tries >= MAX_TRIALS)) {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "clcache_load_buffer_bulk",
+		slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
 		                  "could not load buffer from changelog after %d tries\n", tries );
 	}
 
@@ -535,8 +536,8 @@ clcache_get_next_change ( CLC_Buffer *buf, void **key, size_t *keylen, void **da
 	}
 	else {
 		*csn = buf->buf_current_csn;
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-			"load=%d rec=%d csn=%s\n",
+		slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+			"clcache_get_next_change - load=%d rec=%d csn=%s\n",
 			buf->buf_load_cnt, buf->buf_record_cnt, (char*)*key );
 	}
 
@@ -649,11 +650,12 @@ clcache_initial_anchorcsn ( CLC_Buffer *buf, int *flag )
 				csn_as_string(cscb->local_maxcsn, 0, local);
 				csn_as_string(buf->buf_current_csn, 0, curr);
 				csn_as_string(cscb->consumer_maxcsn, 0, conmaxcsn);
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "clcache_initial_anchorcsn" ,
-								"%s - (cscb %d - state %d) - csnPrevMax (%s) "
-								"csnMax (%s) csnBuf (%s) csnConsumerMax (%s)\n",
-								buf->buf_agmt_name, i, cscb->state, prevmax, local,
-								curr, conmaxcsn);
+				slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+						"clcache_initial_anchorcsn - " 
+						"%s - (cscb %d - state %d) - csnPrevMax (%s) "
+						"csnMax (%s) csnBuf (%s) csnConsumerMax (%s)\n",
+						buf->buf_agmt_name, i, cscb->state, prevmax, local,
+						curr, conmaxcsn);
 			}
 
 			if (cscb->consumer_maxcsn == NULL) {
@@ -670,8 +672,6 @@ clcache_initial_anchorcsn ( CLC_Buffer *buf, int *flag )
 				*flag = rid_flag;
 				hasChange = PR_TRUE;
 			}
-
-
 		}
 	}
 
@@ -680,7 +680,7 @@ clcache_initial_anchorcsn ( CLC_Buffer *buf, int *flag )
 	} else {
 		csn_init_by_csn(buf->buf_current_csn, anchorcsn);
 		csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "clcache_initial_anchorcsn",
+		slapi_log_error(SLAPI_LOG_REPL, "clcache_initial_anchorcsn",
 						"anchor is now: %s\n", (char *)buf->buf_key.data);
 	}
 
@@ -710,7 +710,7 @@ clcache_adjust_anchorcsn ( CLC_Buffer *buf, int *flag )
 				csn_as_string(cscb->local_maxcsn, 0, local);
 				csn_as_string(buf->buf_current_csn, 0, curr);
 				csn_as_string(cscb->consumer_maxcsn, 0, conmaxcsn);
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "clcache_adjust_anchorcsn" ,
+				slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name, "clcache_adjust_anchorcsn - "
 								"%s - (cscb %d - state %d) - csnPrevMax (%s) "
 								"csnMax (%s) csnBuf (%s) csnConsumerMax (%s)\n",
 								buf->buf_agmt_name, i, cscb->state, prevmax, local,
@@ -742,8 +742,6 @@ clcache_adjust_anchorcsn ( CLC_Buffer *buf, int *flag )
 				*flag = rid_flag;
 				hasChange = PR_TRUE;
 			}
-
-
 		}
 	}
 
@@ -752,7 +750,7 @@ clcache_adjust_anchorcsn ( CLC_Buffer *buf, int *flag )
 	} else {
 		csn_init_by_csn(buf->buf_current_csn, anchorcsn);
 		csn_as_string(buf->buf_current_csn, 0, (char *)buf->buf_key.data);
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "clcache_adjust_anchorcsn",
+		slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name, "clcache_adjust_anchorcsn - "
 						"anchor is now: %s\n", (char *)buf->buf_key.data);
 	}
 
@@ -782,9 +780,8 @@ clcache_skip_change ( CLC_Buffer *buf )
 		if (rid == buf->buf_consumer_rid && buf->buf_ignoreConsumerRID){
 			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 				csn_as_string(buf->buf_current_csn, 0, buf_cur_csn_str);
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-					"Skipping update because the consumer with Rid: [%d] is "
-				        "ignored\n", rid);
+				slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+					"clcache_skip_change - Skipping update because the consumer with Rid: [%d] is ignored\n", rid);
 				buf->buf_skipped_csn_gt_cons_maxcsn++;
 			}
 			break;
@@ -792,8 +789,8 @@ clcache_skip_change ( CLC_Buffer *buf )
 
 		/* Skip helper entry (ENTRY_COUNT, PURGE_RUV and so on) */
 		if ( cl5HelperEntry ( NULL, buf->buf_current_csn ) == PR_TRUE ) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-				"Skip helper entry type=%ld\n", csn_get_time( buf->buf_current_csn ));
+			slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+				"clcache_skip_change - Skip helper entry type=%ld\n", csn_get_time( buf->buf_current_csn ));
 			break;
 		}
 
@@ -804,8 +801,8 @@ clcache_skip_change ( CLC_Buffer *buf )
 		if ( i >= buf->buf_num_cscbs ) {
 			if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 				csn_as_string(buf->buf_current_csn, 0, buf_cur_csn_str);
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-					"Skipping update because the changelog buffer current csn [%s] rid "
+				slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+					"clcache_skip_change - Skipping update because the changelog buffer current csn [%s] rid "
 				        "[%d] is not in the list of changelog csn buffers (length %d)\n",
 				        buf_cur_csn_str, rid, buf->buf_num_cscbs);
 			}
@@ -875,8 +872,8 @@ clcache_skip_change ( CLC_Buffer *buf )
 		if ( cscb->local_maxcsn )
 			csn_as_string ( cscb->local_maxcsn, PR_FALSE, local );
 		csn_as_string ( buf->buf_current_csn, PR_FALSE, current );
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-				"Skip %s consumer=%s local=%s\n", current, consumer, local );
+		slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+				"clcache_skip_change - Skip %s consumer=%s local=%s\n", current, consumer, local );
 	}
 #endif
 
@@ -890,7 +887,7 @@ clcache_new_cscb(void)
 
 	cscb = (struct csn_seq_ctrl_block *) slapi_ch_calloc ( 1, sizeof (struct csn_seq_ctrl_block) );
 	if (cscb == NULL) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "clcache: malloc failure\n" );
+		slapi_log_error(SLAPI_LOG_ERR, NULL, "clcache: malloc failure\n" );
 	}
 	return cscb;
 }
@@ -1071,7 +1068,7 @@ clcache_open_cursor ( DB_TXN *txn, CLC_Buffer *buf, DBC **cursor )
 
 	rc = buf->buf_busy_list->bl_db->cursor ( buf->buf_busy_list->bl_db, txn, cursor, 0 );
 	if ( rc != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, get_thread_private_agmtname(),
+		slapi_log_error(SLAPI_LOG_ERR, get_thread_private_agmtname(),
 			"clcache: failed to open cursor; db error - %d %s\n",
 			rc, db_strerror(rc));
 	}
@@ -1111,20 +1108,20 @@ clcache_cursor_get ( DBC *cursor, CLC_Buffer *buf, int flag )
 								 &( buf->buf_key ),
 								 &( buf->buf_data ),
 							 	 buf->buf_load_flag | flag );
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, buf->buf_agmt_name,
-				"clcache: (%d | %d) buf key len %d reallocated and retry returns %d\n", buf->buf_load_flag, flag, buf->buf_key.size, rc );
+			slapi_log_error(SLAPI_LOG_REPL, buf->buf_agmt_name,
+				"clcache_cursor_get - clcache: (%d | %d) buf key len %d reallocated and retry returns %d\n", buf->buf_load_flag, flag, buf->buf_key.size, rc );
 		}
 	}
 
 	switch ( rc ) {
 		case EINVAL:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, buf->buf_agmt_name,
-					"clcache_cursor_get: invalid parameter\n" );
+			slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name,
+					"clcache_cursor_get - invalid parameter\n" );
 			break;
 
 		case DB_BUFFER_SMALL:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, buf->buf_agmt_name,
-					"clcache_cursor_get: can't allocate %u bytes\n", buf->buf_data.ulen );
+			slapi_log_error(SLAPI_LOG_ERR, buf->buf_agmt_name,
+					"clcache_cursor_get - can't allocate %u bytes\n", buf->buf_data.ulen );
 			break;
 
 		default:

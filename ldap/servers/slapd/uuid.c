@@ -128,7 +128,7 @@ int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
 
 	if (_state.initialized)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, 
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, 
 						 "uuid_init: generator is already initialized\n");
 		return UUID_SUCCESS;
 	}
@@ -139,7 +139,7 @@ int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
     rt = read_state(configDir, configDN, &newState);
 	if (rt != UUID_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, 
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, 
 						 "uuid_init: failed to get generator's state\n");
 		uuid_cleanup ();
 		return rt;
@@ -154,7 +154,7 @@ int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
 		if (!_state.lock) 
 		{
 			PRErrorCode prerr = PR_GetError();
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "uuid_init: "
+			slapi_log_error(SLAPI_LOG_ERR, MODULE, "uuid_init: "
 						 "failed to create state lock; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s).\n",
 						 prerr, slapd_pr_strerror(prerr));
 			uuid_cleanup ();
@@ -173,12 +173,12 @@ int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
 			 * If server is readonly and error is UUID_LDAP_ERROR
 			 * we can continue. 
 			 */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "Warning: "
-							 "The server is in read-only mode, therefore the unique ID generator cannot be used. "
-							 "Do not use this server in any replication agreement\n");
+			slapi_log_error(SLAPI_LOG_WARNING, MODULE,
+				"The server is in read-only mode, therefore the unique ID generator cannot be used. "
+				"Do not use this server in any replication agreement\n");
 		}
 		else {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "uuid_init: "
+			slapi_log_error(SLAPI_LOG_ERR, MODULE, "uuid_init: "
 						 "failed to save generator's state.\n");
 			uuid_cleanup ();
 			return rt;
@@ -336,7 +336,7 @@ static int uuid_create_mt(guid_t *uuid)
 	 * time calls are made by a uuid_update_state */
 	if (update_time_mt(&timestamp, &clock_seq) == UUID_TIME_ERROR)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "uuid_create_mt: generator ran "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uuid_create_mt: generator ran "
 						 "out of sequence numbers.\n");
 		return UUID_TIME_ERROR;	
 	}
@@ -390,7 +390,7 @@ static int read_state(const char *configDir, const Slapi_DN *configDN, PRBool *n
 
 	if (rt != UUID_SUCCESS && rt != UUID_NOTFOUND) /* fatal error - bail out */
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, 
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, 
 						 "read_state: failed to get generator's state\n");
 		return rt;		 
 	}
@@ -435,7 +435,7 @@ static int read_state_from_file (const char *configDir)
 		path = (char*)slapi_ch_malloc(strlen (STATE_FILE) + 1);
 		if (path == NULL)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "read_state: "
+			slapi_log_error(SLAPI_LOG_ERR, MODULE, "read_state: "
 							"memory allocation failed.\n");
 			return (UUID_MEMORY_ERROR);
 		}
@@ -447,7 +447,7 @@ static int read_state_from_file (const char *configDir)
 		path = slapi_ch_smprintf("%s/%s", configDir, STATE_FILE);    
 		if (path == NULL)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "read_state: "
+			slapi_log_error(SLAPI_LOG_ERR, MODULE, "read_state: "
 							"memory allocation failed.\n");
 			return (UUID_MEMORY_ERROR);
 		}
@@ -460,7 +460,7 @@ static int read_state_from_file (const char *configDir)
 	if (!_state.fd)
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "read_state: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "read_state: "
 						 "failed to open state file - %s; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s).\n",
 						 path, prerr, slapd_pr_strerror(prerr));
 		return (UUID_IO_ERROR);
@@ -475,7 +475,7 @@ static int read_state_from_file (const char *configDir)
 	if (rt == -1)
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "read_state: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "read_state: "
 						"failed to read state information; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s).\n",
 						prerr, slapd_pr_strerror(prerr));
 		return (UUID_IO_ERROR);
@@ -502,7 +502,7 @@ static int read_state_from_entry (const Slapi_DN *configDN)
 	if (pb == NULL)
 	{		
 		/* the only time NULL pb is returned is when memory allocation fails */
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "read_state_from_entry: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "read_state_from_entry: "
 						 "NULL pblock returned from search\n");
 		return UUID_MEMORY_ERROR;
 	}
@@ -517,7 +517,7 @@ static int read_state_from_entry (const Slapi_DN *configDN)
 
 	if (res != LDAP_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "read_state_from_entry: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "read_state_from_entry: "
 						 "search operation failed; LDAP error - %d\n", res);
 		rt = UUID_LDAP_ERROR;
 		goto done;
@@ -586,7 +586,7 @@ static int write_state_to_file(void)
 	if (rt == -1)
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "write_state: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "write_state: "
 						 "failed to rewind state file; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s).\n",
 						 prerr, slapd_pr_strerror(prerr));
 		return UUID_IO_ERROR;
@@ -596,7 +596,7 @@ static int write_state_to_file(void)
 	if (rt == -1)
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "write_state: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "write_state: "
 						 "failed to update state file; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s).\n",
 						 prerr, slapd_pr_strerror(prerr));
 
@@ -649,7 +649,7 @@ static int add_state_entry(void)
 	if (pb == NULL) 
 	{
 		/* the only time NULL pb is returned is when memory allocation fails */
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "add_state_entry: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "add_state_entry: "
 						 "NULL pblock returned from search\n");
 		return UUID_MEMORY_ERROR;
 	} 
@@ -661,12 +661,12 @@ static int add_state_entry(void)
 
 	if (rt != LDAP_SUCCESS) 
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "add_state_entry: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "add_state_entry: "
 						 "add operation failed; LDAP error - %d.\n", rt);
 		return UUID_LDAP_ERROR;
 	} 
 	
-	slapi_log_error(SLAPI_LOG_HOUSE, LOG_DEBUG, MODULE, "add_state_entry: "
+	slapi_log_error(SLAPI_LOG_HOUSE, MODULE, "add_state_entry: "
 					 "successfully added generator's state entry");
 
 	return UUID_SUCCESS;
@@ -695,7 +695,7 @@ static int modify_state_entry(void)
 	if (pb == NULL)
 	{
 		/* the only time NULL pb is returned is when memory allocation fails */
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "modify_state_entry: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "modify_state_entry: "
 						 "NULL pblock returned from search\n");
 		return UUID_MEMORY_ERROR;
 	}
@@ -704,13 +704,13 @@ static int modify_state_entry(void)
 	slapi_pblock_destroy(pb);
 	if (res != LDAP_SUCCESS) 
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "modify_state_entry: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "modify_state_entry: "
 						 "update operation failed; LDAP error - %d.\n", res);
 
 		return UUID_LDAP_ERROR;
 	}
 
-	slapi_log_error(SLAPI_LOG_HOUSE, LOG_DEBUG, MODULE, "modify_state_entry: "
+	slapi_log_error(SLAPI_LOG_HOUSE, MODULE, "modify_state_entry: "
 					 "successfully updated generator's state entry");
 	return UUID_SUCCESS;
 }
@@ -775,7 +775,7 @@ static int update_time_mt (uuid_time_t *timestamp, unsigned16 *clock_seq)
     if (_state.time_seq >= SEQ_PER_SEC - 1)
 	{
         _state.time_seq = NEED_TIME_UPDATE;
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, MODULE, "update_time_mt: "
+		slapi_log_error(SLAPI_LOG_ERR, MODULE, "update_time_mt: "
 						 "ran out of time sequence numbers; "
 						 "uuid_update_state must be called\n");
  

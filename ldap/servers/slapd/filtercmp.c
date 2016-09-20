@@ -195,7 +195,7 @@ void filter_compute_hash(struct slapi_filter *f)
 	/* get the normalized value (according to the matching rule) */
 	pb = get_mr_normval(f->f_mr_oid, f->f_mr_type, inval, &outval);
 	if (!pb) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "$$$ out of memory !\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ERR, "filter_compute_hash - Out of memory !\n", 0, 0, 0);
 		return;
 	}
 	if (outval && outval[0]) {
@@ -207,8 +207,8 @@ void filter_compute_hash(struct slapi_filter *f)
 	    STIR(h);
 	break;
     default:
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "$$$ can't handle filter type %d !\n",
-		  f->f_choice, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "filter_compute_hash - Can't handle filter type %d !\n",
+                  f->f_choice, 0, 0);
     }
 
     f->f_hash = h;
@@ -328,7 +328,7 @@ int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
     int ret;
     Slapi_Attr sattr;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> filter compare\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_filter_compare\n", 0, 0, 0);
 
     /* allow for the possibility that one of the filters hasn't had a hash
      * computed (and is therefore 0).  this means that a filter node whose
@@ -410,12 +410,12 @@ int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
 	    done_mr_normval(pb2);
 	break;
     default:
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERR can't handle filter %d\n", f1->f_choice,
+	LDAPDebug(LDAP_DEBUG_ERR, "slapi_filter_compare - Can't handle filter %d\n", f1->f_choice,
 		  0, 0);
 	ret = 1;
     }
 
 done:
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= filter compare: %d\n", ret, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_filter_compare: %d\n", ret, 0, 0);
     return ret;
 }

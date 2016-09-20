@@ -53,7 +53,7 @@ ldbm_usn_init(struct ldbminfo  *li)
         be = slapi_mapping_tree_find_backend_for_sdn(sdn);
         rc = usn_get_last_usn(be, &last_usn);
         if (0 == rc) { /* only when the last usn is available */
-            slapi_log_error(SLAPI_LOG_BACKLDBM, LOG_DEBUG, "ldbm_usn_init",
+            slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_usn_init",
                             "backend: %s%s\n", be->be_name, 
                             isglobal?" (global mode)":"");
             if (isglobal) {
@@ -114,17 +114,16 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     rc = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
     if (0 != rc) {
         /* entryusn.db# is missing; it would be the first time. */
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "usn_get_last_usn", 
-                        "WARNING: failed to open the entryusn index: %d; "
-                        "Creating it...\n", rc);
+        slapi_log_error(SLAPI_LOG_ERR, "usn_get_last_usn", 
+                        "Failed to open the entryusn index: %d; Creating it...\n", rc);
         goto bail;
     }
 
     /* Get a cursor */
     rc = db->cursor(db, NULL, &dbc, 0);
     if (0 != rc) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "usn_get_last_usn", 
-                        "failed to create a cursor: %d", rc);
+        slapi_log_error(SLAPI_LOG_ERR, "usn_get_last_usn", 
+                        "Failed to create a cursor: %d", rc);
         goto bail;
     }
     
@@ -182,7 +181,7 @@ ldbm_set_last_usn(Slapi_Backend *be)
     int rc = -1;
 
     if (NULL == be) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "ldbm_set_last_usn",
+        slapi_log_error(SLAPI_LOG_ERR, "ldbm_set_last_usn",
                         "Empty backend\n");
         return rc;
     }
@@ -193,7 +192,7 @@ ldbm_set_last_usn(Slapi_Backend *be)
        slapi_counter_destroy(&(li->li_global_usn_counter));
        ldbm_usn_init(li);
     } else {
-        slapi_log_error(SLAPI_LOG_BACKLDBM, LOG_DEBUG, "ldbm_set_last_usn",
+        slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_set_last_usn",
                         "backend: %s\n", be->be_name);
         rc = usn_get_last_usn(be, &last_usn);
         if (0 == rc) { /* only when the last usn is available */

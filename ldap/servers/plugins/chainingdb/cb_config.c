@@ -26,7 +26,6 @@ static int cb_parse_config_entry(cb_backend * cb, Slapi_Entry *e);
 */
 
 
-
 int cb_config_add_dse_entries(cb_backend *cb, char **entries, char *string1, char *string2, char *string3)
 {
         int x;
@@ -43,8 +42,8 @@ int cb_config_add_dse_entries(cb_backend *cb, char **entries, char *string1, cha
 		slapi_add_internal_pb(util_pb);
 		slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 		if ( LDAP_SUCCESS != res && LDAP_ALREADY_EXISTS != res ) {
-		  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
-				  "Unable to add config entry (%s) to the DSE: %s\n",
+		  slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
+				  "cb_config_add_dse_entries - Unable to add config entry (%s) to the DSE: %s\n",
 				  slapi_entry_get_dn(e),
 				  ldap_err2string(res));
 		  rc = res;
@@ -84,8 +83,8 @@ int cb_config_load_dse_info(Slapi_PBlock * pb) {
 	if ( LDAP_SUCCESS == res ) {
                 slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
                 if (NULL == entries || entries[0] == NULL) {
-                        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM, 
-				"Error accessing entry <%s>\n",cb->configDN);
+                        slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, 
+				"cb_config_load_dse_info - Error accessing entry <%s>\n",cb->configDN);
                 	slapi_free_search_results_internal(search_pb);
                 	slapi_pblock_destroy(search_pb);
                         return 1;
@@ -98,8 +97,8 @@ int cb_config_load_dse_info(Slapi_PBlock * pb) {
         } else {
                 slapi_free_search_results_internal(search_pb);
                 slapi_pblock_destroy(search_pb);
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-			"Error accessing entry <%s> (%s)\n",cb->configDN,ldap_err2string(res));
+		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+			"cb_config_load_dse_info - Error accessing entry <%s> (%s)\n",cb->configDN,ldap_err2string(res));
                 return 1;
         } 
 
@@ -122,8 +121,8 @@ int cb_config_load_dse_info(Slapi_PBlock * pb) {
         slapi_search_internal_pb (search_pb);
         slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
         if (res != LDAP_SUCCESS) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM, 
-			"Error accessing the config DSE (%s)\n",ldap_err2string(res));
+                slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, 
+			"cb_config_load_dse_info - Error accessing the config DSE (%s)\n",ldap_err2string(res));
                 slapi_free_search_results_internal(search_pb);
                 slapi_pblock_destroy(search_pb);
                 return 1;
@@ -206,8 +205,8 @@ int cb_config_add_check_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* 
                         while (i != -1 ) {
                                 bval = (struct berval *) slapi_value_get_berval(sval);
                                 if (!cb_is_control_forwardable(cb,bval->bv_val)) {
-                                        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,CB_PLUGIN_SUBSYSTEM,
-                                                "control %s can't be forwarded.\n",bval->bv_val);
+                                        slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                                                "cb_config_add_check_callback - Control %s can't be forwarded.\n",bval->bv_val);
                                         *returncode=LDAP_CONSTRAINT_VIOLATION;
                                         return SLAPI_DSE_CALLBACK_ERROR;
                                 }
@@ -246,8 +245,8 @@ cb_config_add_callback(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* e2, int *r
                         while (i != -1 ) {
                         	bval = (struct berval *) slapi_value_get_berval(sval);
                                 if (!cb_is_control_forwardable(cb,bval->bv_val)) {
-                                        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,CB_PLUGIN_SUBSYSTEM,
-                                                "control %s can't be forwarded.\n",bval->bv_val);
+                                        slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                                                "cb_config_add_callback - control %s can't be forwarded.\n",bval->bv_val);
                                         *returncode=LDAP_CONSTRAINT_VIOLATION;
                                         return SLAPI_DSE_CALLBACK_ERROR;
 				}
@@ -359,8 +358,8 @@ cb_config_modify_check_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slap
                         for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
                                 config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
                                 if (!cb_is_control_forwardable(cb,config_attr_value)) {
-                                        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,CB_PLUGIN_SUBSYSTEM,
-                                                "control %s can't be forwarded.\n",config_attr_value);
+                                        slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                                                "cb_config_modify_check_callback - control %s can't be forwarded.\n",config_attr_value);
                                         *returncode=LDAP_CONSTRAINT_VIOLATION;
                                         return SLAPI_DSE_CALLBACK_ERROR;
                                 }
@@ -393,8 +392,8 @@ cb_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entr
         	for (j = 0; mods[i]->mod_bvalues && mods[i]->mod_bvalues[j]; j++) {
         		config_attr_value = (char *) mods[i]->mod_bvalues[j]->bv_val;
 				if (!cb_is_control_forwardable(cb,config_attr_value)) {
-				        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,CB_PLUGIN_SUBSYSTEM,
-						"control %s can't be forwarded.\n",config_attr_value);
+				        slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+						"cb_config_modify_callback - control %s can't be forwarded.\n",config_attr_value);
 					*returncode=LDAP_CONSTRAINT_VIOLATION;
 					return SLAPI_DSE_CALLBACK_ERROR;
 				}

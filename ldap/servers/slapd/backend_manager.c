@@ -52,7 +52,7 @@ slapi_be_new( const char *type, const char *name, int isprivate, int logchanges 
 	backends[i] = be;
 	nbackends++;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "slapi_be_new",
+	slapi_log_error(SLAPI_LOG_TRACE, "slapi_be_new",
 					"Added new backend name [%s] type [%s] nbackends [%d]\n",
 					name, type, nbackends);
 	return( be );
@@ -155,7 +155,7 @@ slapi_get_next_backend (char *cookie)
 	int i, last_be;
 	if (cookie == NULL)
 	{
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "slapi_get_next_backend: NULL argument\n", 
+		LDAPDebug(LDAP_DEBUG_ARGS, "slapi_get_next_backend: NULL argument\n", 
 				  0, 0, 0 );
 		return NULL;
 	}
@@ -164,7 +164,7 @@ slapi_get_next_backend (char *cookie)
 
 	if ( last_be < 0 || last_be >= maxbackends)
 	{
-		LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "slapi_get_next_backend: argument out of range\n", 
+		LDAPDebug(LDAP_DEBUG_ARGS, "slapi_get_next_backend: argument out of range\n", 
 				  0, 0, 0 );
 		return NULL;
 	}

@@ -51,7 +51,7 @@ ldif_back_config( Slapi_PBlock *pb )
   Slapi_Entry *tmp;                 /*Used for initialization purposes*/
 
 
-  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> ldif_back_config\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, "=> ldif_back_config\n", 0, 0, 0 );
   
   /* 
    * Get the private_info structure you created in ldif_back_init(). 
@@ -63,7 +63,7 @@ ldif_back_config( Slapi_PBlock *pb )
       slapi_pblock_get( pb, SLAPI_CONFIG_LINENO, &lineno ) < 0 ||
       slapi_pblock_get( pb, SLAPI_CONFIG_ARGC, &argc ) < 0 ||
       slapi_pblock_get( pb, SLAPI_CONFIG_ARGV, &argv ) < 0 ){
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to get data from front end\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: unable to get data from front end\n", 0, 0, 0);
     return(-1);
   }
 
@@ -80,14 +80,14 @@ ldif_back_config( Slapi_PBlock *pb )
   
   /*Check for the correct number of arguments*/
   if (argc != 2){
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: Unable to configure; invalid ldif input file specification line format (file: %s, line: %d)\n", 
+    LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: Unable to configure; invalid ldif input file specification line format (file: %s, line: %d)\n", 
 	    fname, lineno, 0); 
     return(-1);
   }
   
   /*Check for the right format*/
   if (strcmp(argv[0], "file") != 0){
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to configure; invalid parameter \"%s\" in config file (file: %s, line: %d)\n", 
+    LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: unable to configure; invalid parameter \"%s\" in config file (file: %s, line: %d)\n", 
 	    argv[0], fname, lineno ); 
     return(-1);
   }
@@ -95,10 +95,10 @@ ldif_back_config( Slapi_PBlock *pb )
   /*Now we fopen the file and grab up the contents*/
   fp = fopen (argv[1], "r");
   if (fp == NULL){
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to read ldif file %s\n", argv[1], 0, 0);
+    LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: unable to read ldif file %s\n", argv[1], 0, 0);
     fp = fopen (argv[1], "w");
     if(fp == NULL){
-      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to create ldif file %s\n", argv[1], 0, 0);
+      LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: unable to create ldif file %s\n", argv[1], 0, 0);
       return -1;
     }
   }
@@ -110,7 +110,7 @@ ldif_back_config( Slapi_PBlock *pb )
 
   /*Save the filename, for modifications to the file later*/
   if ((db->ldif_file = strdup(argv[1])) == NULL){
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: out of memory\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: out of memory\n", 0, 0, 0);
     PR_Unlock( db->ldif_lock );
     fclose(fp);
     return(-1);
@@ -127,7 +127,7 @@ ldif_back_config( Slapi_PBlock *pb )
 				SLAPI_STR2ENTRY_NOT_WELL_FORMED_LDIF);
     new = (ldif_Entry *) ldifentry_init(tmp);
     if (new == NULL){
-      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ldif Backend: unable to read in ldif file; out of memory\n",0 ,0 ,0 );
+      LDAPDebug(LDAP_DEBUG_ERR, "Ldif Backend: unable to read in ldif file; out of memory\n",0 ,0 ,0 );
       PR_Unlock( db->ldif_lock );
       fclose(fp);
       return(-1);
@@ -159,7 +159,7 @@ ldif_back_config( Slapi_PBlock *pb )
   PR_Unlock( db->ldif_lock );
   fclose(fp);
 
-  LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= ldif_back_config\n", 0, 0, 0 );
+  LDAPDebug(LDAP_DEBUG_TRACE, "<= ldif_back_config\n", 0, 0, 0 );
   return( 0 );
 }
 

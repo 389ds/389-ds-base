@@ -36,7 +36,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
                                                inst->inst_dir_name);
     if ('\0' != dbdir[sizeof(dbdir)-1]) /* overflown */
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+        slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                         "db path too long: %s/%s\n",
                          inst->inst_parent_dir_name, inst->inst_dir_name);
         return 1;
@@ -49,7 +49,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
     dirhandle = PR_OpenDir(dbdir);
     if (! dirhandle)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+        slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                         "PR_OpenDir (%s) failed (%d): %s\n", 
                         dbdir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
         return 1;
@@ -70,7 +70,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
         }
         if (sizeof(direntry->name) + 2 > filelen)
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+            slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                                         "db path too long: %s/%s\n",
                                          dbdir, direntry->name);
             continue;
@@ -79,7 +79,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
         rval = db_create(&dbp, pEnv->dblayer_DB_ENV, 0);
         if (0 != rval)
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+            slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                         "Unable to create id2entry db file %d\n", rval);
             return rval;
         }
@@ -114,7 +114,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
             }
             if (0 != rval)
             {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+                slapi_log_error(SLAPI_LOG_ERR, "DB verify",
                          "Unable to set pagesize flags to db (%d)\n", rval);
                 return rval;
             }
@@ -123,7 +123,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
                 rval = dbp->set_flags(dbp, DB_RECNUM);
                 if (0 != rval)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+                    slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                          "Unable to set RECNUM flag to vlv index (%d)\n", rval);
                     return rval;
                 }
@@ -133,7 +133,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
                 rval = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
                 if (0 != rval)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+                    slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                            "Unable to set DUP flags to db (%d)\n", rval);
                     return rval;
                 }
@@ -147,7 +147,7 @@ dbverify_ext( ldbm_instance *inst, int verbose )
 
                 if (0 != rval)
                 {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+                    slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                            "Unable to set dup_compare to db (%d)\n", rval);
                     return rval;
                 }
@@ -159,13 +159,13 @@ dbverify_ext( ldbm_instance *inst, int verbose )
         {
             if (verbose)
             {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+                slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                                                  "%s: ok\n", dbdir);
             }
         }
         else
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "DB verify",
+            slapi_log_error(SLAPI_LOG_ERR, "dbverify_ext",
                             "verify failed(%d): %s\n", rval, dbdir);
         }
         rval_main |= rval;
@@ -188,7 +188,7 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
     char **instance_names = NULL;
     char *dbdir           = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "verify DB", "Verifying db files...\n");
+    slapi_log_error(SLAPI_LOG_TRACE, "ldbm_back_dbverify", "Verifying db files...\n");
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &verbose);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -199,13 +199,13 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
     /* no write needed; choose EXPORT MODE */
     if (0 != dblayer_start(li, DBLAYER_EXPORT_MODE))
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "verify DB",
-                                         "dbverify: Failed to init database\n");
+        slapi_log_error(SLAPI_LOG_ERR, "ldbm_back_dbverify",
+                "dbverify: Failed to init database\n");
         return rval;
     }
 
     /* server is up */
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "verify DB", "server is up\n");
+    slapi_log_error(SLAPI_LOG_TRACE, "ldbm_back_dbverify", "server is up\n");
     if (instance_names) /* instance is specified */
     {
         char **inp = NULL;
@@ -237,8 +237,8 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
             if (instance_set_busy(inst) != 0)
             {
                 /* standalone, only.  never happens */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "upgrade DB",
-                            "ldbm: '%s' is already in the middle of "
+                slapi_log_error(SLAPI_LOG_WARNING, "ldbm_back_dbverify",
+                            "Backend '%s' is already in the middle of "
                             "another task and cannot be disturbed.\n",
                             inst->inst_name);
                 continue; /* skip this instance and go to the next*/
@@ -256,8 +256,8 @@ ldbm_back_dbverify( Slapi_PBlock *pb )
     rval = dblayer_post_close(li, DBLAYER_EXPORT_MODE);
     if (0 != rval)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
-                        "verify DB", "Failed to close database\n");
+        slapi_log_error(SLAPI_LOG_ERR,
+                        "ldbm_back_dbverify", "Failed to close database\n");
     }
 
     return rval_main;

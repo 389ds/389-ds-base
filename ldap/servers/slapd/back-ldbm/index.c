@@ -353,7 +353,7 @@ index_addordel_entry(
     int		rc, result;
     Slapi_Attr		*attr;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> index_%s_entry( \"%s\", %lu )\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> index_%s_entry( \"%s\", %lu )\n",
                (flags & BE_INDEX_ADD) ? "add" : "del",
                backentry_get_ndn(e), (u_long)e->ep_id );
 
@@ -472,7 +472,7 @@ index_addordel_entry(
         }
     }
     
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= index_%s_entry%s %d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= index_%s_entry%s %d\n",
                (flags & BE_INDEX_ADD) ? "add" : "del", 
                (flags & BE_INDEX_TOMBSTONE) ? " (tombstone)" : "", result );
     return( result );
@@ -900,10 +900,10 @@ index_read_ext_allids(
 	if (unindexed != NULL) *unindexed = 0;
 	prefix = index_index2prefix( indextype );
 	if (prefix == NULL) {
-		LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_DEBUG, "index_read_ext: NULL prefix\n" );
+		LDAPDebug0Args(LDAP_DEBUG_ANY, "index_read_ext: NULL prefix\n" );
 		return NULL;
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> index_read( \"%s\" %s \"%s\" )\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> index_read( \"%s\" %s \"%s\" )\n",
 		   type, prefix, encode (val, buf));
 
 	basetype = typebuf;
@@ -919,7 +919,7 @@ index_read_ext_allids(
 		return NULL;
 	}
 
-	LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   indextype: \"%s\" indexmask: 0x%x\n",
+	LDAPDebug(LDAP_DEBUG_ARGS, "   indextype: \"%s\" indexmask: 0x%x\n",
 	    indextype, ai->ai_indexmask, 0 );
 
 	/* If entryrdn switch is on AND the type is entrydn AND the prefix is '=', 
@@ -954,7 +954,7 @@ index_read_ext_allids(
 	if ( !is_indexed( indextype, ai->ai_indexmask, ai->ai_index_rules ) ) {
 		idl =  idl_allids( be );
                 if (unindexed != NULL) *unindexed = 1;
-		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= index_read %lu candidates "
+		LDAPDebug(LDAP_DEBUG_TRACE, "<= index_read %lu candidates "
 		    "(allids - not indexed)\n", (u_long)IDL_NIDS(idl), 0, 0 );
 		index_free_prefix( prefix );
 		slapi_ch_free_string( &basetmp );
@@ -971,9 +971,9 @@ index_read_ext_allids(
 	    (allidslimit == 0)) {
 		idl = idl_allids( be );
 		if (unindexed != NULL) *unindexed = 1;
-		LDAPDebug1Arg( LDAP_DEBUG_BACKLDBM, LOG_DEBUG, "<= index_read %lu candidates "
+		LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, "<= index_read %lu candidates "
 		    "(do not use index)\n", (u_long)IDL_NIDS(idl) );
-		LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG, "<= index_read index attr %s type %s "
+		LDAPDebug(LDAP_DEBUG_BACKLDBM, "<= index_read index attr %s type %s "
 		    "for value %s does not use index\n", basetype, indextype,
 		    (val && val->bv_val) ? val->bv_val : "ALL" );
 		index_free_prefix( prefix );
@@ -981,7 +981,7 @@ index_read_ext_allids(
 		return( idl );
 	}
 	if ( (*err = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
+		LDAPDebug(LDAP_DEBUG_TRACE,
 		    "<= index_read NULL (index file open for attr %s)\n",
 		    basetype, 0, 0 );
 		index_free_prefix (prefix);
@@ -997,8 +997,8 @@ index_read_ext_allids(
 		/* If necessary, encrypt this index key */
 		ret = attrcrypt_encrypt_index_key(be, ai, val, &encrypted_val);
 		if (ret) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		    "index_read failed to encrypt index key for %s\n",
+			LDAPDebug(LDAP_DEBUG_ERR,
+		    "index_read_ext_allids - Failed to encrypt index key for %s\n",
 		    basetype, 0, 0 );
 		}
 		if (encrypted_val) {
@@ -1054,7 +1054,7 @@ index_read_ext_allids(
 		ber_bvfree(encrypted_val);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= index_read %lu candidates\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= index_read %lu candidates\n",
                    (u_long)IDL_NIDS(idl), 0, 0 );
 	return( idl );
 }
@@ -1235,7 +1235,7 @@ index_range_read_ext(
     int coreop = operator & SLAPI_OP_RANGE;
 
     if (!pb) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "index_range_read: NULL pblock\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "index_range_read_ext - NULL pblock\n",
                   0, 0, 0);
         return NULL;
     }
@@ -1244,7 +1244,7 @@ index_range_read_ext(
 
     prefix = index_index2prefix( indextype );
     if (prefix == NULL) {
-        LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "index_range_read: NULL prefix\n" );
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "index_range_read_ext - NULL prefix\n" );
         return( NULL );
     }
 
@@ -1276,7 +1276,7 @@ index_range_read_ext(
         }
     }
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "index_range_read lookthrough_limit=%d\n",
+    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "index_range_read_ext - lookthrough_limit=%d\n",
                   lookthrough_limit);
 
     switch( coreop ) {
@@ -1286,8 +1286,8 @@ index_range_read_ext(
       case SLAPI_OP_GREATER:
         break;
       default:
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-              "<= index_range_read(%s,%s) NULL (operator %i)\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+              "index_range_read_ext - (%s,%s) NULL (operator %i)\n",
               type, prefix, coreop );
         index_free_prefix(prefix);
         return( NULL );
@@ -1297,19 +1297,19 @@ index_range_read_ext(
         index_free_prefix(prefix);
         return NULL;
     }
-    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   indextype: \"%s\" indexmask: 0x%x\n",
+    LDAPDebug(LDAP_DEBUG_ARGS, "index_range_read_ext - indextype: \"%s\" indexmask: 0x%x\n",
         indextype, ai->ai_indexmask, 0 );
     if ( !is_indexed( indextype, ai->ai_indexmask, ai->ai_index_rules )) {
         idl = idl_allids( be );
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
-            "<= index_range_read(%s,%s) %lu candidates (allids)\n",
+        LDAPDebug(LDAP_DEBUG_TRACE,
+            "index_range_read_ext - (%s,%s) %lu candidates (allids)\n",
             type, prefix, (u_long)IDL_NIDS(idl) );
         index_free_prefix(prefix);
         return( idl );
     }
     if ( (*err = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-            "<= index_range_read(%s,%s) NULL (could not open index file)\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+            "index_range_read_ext - (%s,%s) NULL (could not open index file)\n",
             type, prefix, 0 );
         index_free_prefix(prefix);
         return( NULL ); /* why not allids? */
@@ -1321,8 +1321,8 @@ index_range_read_ext(
     *err = db->cursor(db,db_txn,&dbc,0);
     if (0 != *err ) {
         ldbm_nasty(errmsg, 1060, *err);
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-            "<= index_range_read(%s,%s) NULL: db->cursor() == %i\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+            "index_range_read_ext - (%s,%s) NULL: db->cursor() == %i\n",
             type, prefix, *err );
         dblayer_release_index_file( be, ai, db );
         index_free_prefix(prefix);
@@ -1379,8 +1379,8 @@ index_range_read_ext(
                     goto error;
                 } else {
                     ldbm_nasty(errmsg, 1070, *err);
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                        "index_range_read(%s,%s) seek to end of index file err %i\n",
+                    LDAPDebug(LDAP_DEBUG_ERR,
+                        "index_range_read_ext - (%s,%s) seek to end of index file err %i\n",
                         type, prefix, *err );
                 }
             } else if (DBTcmp (&upperkey, &cur_key, ai->ai_key_cmp_fn) > 0) {
@@ -1411,9 +1411,9 @@ index_range_read_ext(
     }
     /* if (LDAP_DEBUG_FILTER)  {
         char encbuf [BUFSIZ];
-        LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "   lowerkey=%s(%li bytes)\n",
+        LDAPDebug(LDAP_DEBUG_FILTER, "   lowerkey=%s(%li bytes)\n",
               encoded (&lowerkey, encbuf), (long)lowerkey.dsize, 0 );
-        LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "   upperkey=%s(%li bytes)\n",
+        LDAPDebug(LDAP_DEBUG_FILTER, "   upperkey=%s(%li bytes)\n",
               encoded (&upperkey, encbuf), (long)upperkey.dsize, 0 );
     } */
     data.flags = DB_DBT_MALLOC;
@@ -1437,8 +1437,8 @@ index_range_read_ext(
         } else { 
             idl = idl_allids( be ); 
             ldbm_nasty(errmsg, 1080, *err);
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                "<= index_range_read(%s,%s) allids (seek to lower key in index file err %i)\n", 
+            LDAPDebug(LDAP_DEBUG_ERR, 
+                "index_range_read_ext - (%s,%s) allids (seek to lower key in index file err %i)\n", 
                 type, prefix, *err ); 
         } 
         dbc->c_close(dbc); 
@@ -1456,7 +1456,7 @@ index_range_read_ext(
     if (coreop == SLAPI_OP_GREATER) {
         *err = index_range_next_key(db, &cur_key, db_txn);
         if (*err) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "<= index_range_read(%s,%s) op==GREATER, no next key: %i)\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "index_range_read_ext - (%s,%s) op==GREATER, no next key: %i)\n",
                 type, prefix, *err );
             goto error;
         }
@@ -1481,7 +1481,7 @@ index_range_read_ext(
             IDList *tmp;
             /*
             char encbuf [BUFSIZ];
-            LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "   cur_key=%s(%li bytes)\n",
+            LDAPDebug(LDAP_DEBUG_FILTER, "   cur_key=%s(%li bytes)\n",
                    encoded (&cur_key, encbuf), (long)cur_key.dsize, 0 );
             */
             /* lookthrough limit and size limit check */
@@ -1490,14 +1490,14 @@ index_range_read_ext(
                     (idl->b_nids > (ID)lookthrough_limit)) {
                     idl_free(&idl);
                     idl = idl_allids( be );
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                               "index_range_read lookthrough_limit exceeded\n");
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                               "index_range_read_ext - lookthrough_limit exceeded\n");
                     *err = LDAP_ADMINLIMIT_EXCEEDED;
                     break;
                 }
                 if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                                   "index_range_read sizelimit exceeded\n");
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read_ext - sizelimit exceeded\n");
                     *err = LDAP_SIZELIMIT_EXCEEDED;
                     break;
                 }
@@ -1506,8 +1506,8 @@ index_range_read_ext(
             if (timelimit != -1) {
                 curtime = current_time();
                 if (curtime >= stoptime) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                                   "index_range_read timelimit exceeded\n");
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read_ext - timelimit exceeded\n");
                     *err = LDAP_TIMELIMIT_EXCEEDED;
                     break;
                 }
@@ -1520,8 +1520,8 @@ index_range_read_ext(
                     idl_free(&idl);
                     idl = NULL;
                 }
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                               "index_range_read - operation abandoned\n");
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                               "index_range_read_ext - Operation abandoned\n");
                 break;    /* clean up happens outside the while() loop */
             }
     
@@ -1534,7 +1534,7 @@ index_range_read_ext(
               *err = NEW_IDL_DEFAULT;
               tmp = idl_fetch_ext(be, db, &cur_key, NULL, ai, err, allidslimit);
               if(*err == DB_LOCK_DEADLOCK) {
-                ldbm_nasty("index_range_read retrying transaction", 1090, *err);
+                ldbm_nasty("index_range_read_ext - retrying transaction", 1090, *err);
 #ifdef FIX_TXN_DEADLOCKS
 #error if txn != NULL, have to abort and retry the transaction, not just the fetch
 #endif
@@ -1544,13 +1544,13 @@ index_range_read_ext(
               }
             }
             if(retry_count == IDL_FETCH_RETRY_COUNT) {
-              ldbm_nasty("index_range_read retry count exceeded",1095,*err);
+              ldbm_nasty("index_range_read_ext - retry count exceeded",1095,*err);
             }
             if (!tmp) {
                 if (slapi_is_loglevel_set(LDAP_DEBUG_TRACE)) {
                     char encbuf[BUFSIZ];
-                    LDAPDebug2Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                                   "index_range_read_ext: cur_key=%s(%li bytes) was deleted - skipping\n",
+                    LDAPDebug2Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read_ext - cur_key=%s(%li bytes) was deleted - skipping\n",
                                    encoded(&cur_key, encbuf), (long)cur_key.dsize);
                 }
             } else {
@@ -1565,15 +1565,15 @@ index_range_read_ext(
                          id != NOID; id = idl_nextid(tmp, id)) {
                         *err = idl_append_extend(&idl, id);
                         if (*err) {
-                            ldbm_nasty("index_range_read - failed to generate idlist",
+                            ldbm_nasty("index_range_read_ext - Failed to generate idlist",
                                        1097, *err);
                         }
                     }
                     idl_free(&tmp);
                 }
                 if (ALLIDS(idl)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
-                                   "index_range_read hit an allids value\n");
+                    LDAPDebug0Args(LDAP_DEBUG_TRACE,
+                                   "index_range_read_ext - Hit an allids value\n");
                     break;
                 }
             }
@@ -1597,23 +1597,23 @@ index_range_read_ext(
         }
     }
     if (*err) {
-        LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG,
-                      "   dbc->c_get(...DB_NEXT) == %i\n", *err);
+        LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+                      "index_range_read_ext - dbc->c_get(...DB_NEXT) == %i\n", *err);
     }
 #ifdef LDAP_DEBUG
     /* this is for debugging only */
     if (idl != NULL) {
         if (ALLIDS(idl)) {
-            LDAPDebug0Args(LDAP_DEBUG_FILTER, LOG_DEBUG, "   idl=ALLIDS\n");
+            LDAPDebug0Args(LDAP_DEBUG_FILTER, "index_range_read_ext - idl=ALLIDS\n");
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG,
-                          "   idl->b_nids=%d\n", idl->b_nids);
-            LDAPDebug1Arg(LDAP_DEBUG_FILTER, LOG_DEBUG,
-                          "   idl->b_nmax=%d\n", idl->b_nmax);
+            LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+                          "index_range_read_ext - idl->b_nids=%d\n", idl->b_nids);
+            LDAPDebug1Arg(LDAP_DEBUG_FILTER,
+                          "index_range_read_ext - idl->b_nmax=%d\n", idl->b_nmax);
 
             for (i = 0; i < idl->b_nids; i++) {
-                LDAPDebug2Args(LDAP_DEBUG_FILTER, LOG_DEBUG,
-                               "   idl->b_ids[%d]=%d\n", i, idl->b_ids[i]);
+                LDAPDebug2Args(LDAP_DEBUG_FILTER,
+                               "index_range_read_ext - idl->b_ids[%d]=%d\n", i, idl->b_ids[i]);
             }
         }
     }
@@ -1624,7 +1624,7 @@ error:
     DBT_FREE_PAYLOAD(upperkey);
 
     dblayer_release_index_file( be, ai, db );
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= index_range_read(%s,%s) %lu candidates\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "index_range_read_ext - (%s,%s) %lu candidates\n",
                    type, prefix, (u_long)IDL_NIDS(idl) );
     return( idl );
 }
@@ -1673,13 +1673,13 @@ addordel_values(
 	char	*realbuf;
 	char	*prefix;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> %s_values\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values - %s_values\n",
 		   (flags & BE_INDEX_ADD) ? "add" : "del", 0, 0);
 
 	prefix = index_index2prefix( indextype );
 
 	if (prefix == NULL) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "<= %s_values: NULL prefix\n",
+		LDAPDebug(LDAP_DEBUG_ERR, "addordel_values - %s_values: NULL prefix\n",
 			(flags & BE_INDEX_ADD) ? "add" : "del", 0, 0 );
 		return( -1 );
 	}
@@ -1709,7 +1709,7 @@ addordel_values(
 		index_free_prefix (prefix);
 		if (NULL != key.dptr && prefix != key.dptr)
 			slapi_ch_free( (void**)&key.dptr );
-		LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= %s_values %d\n",
+		LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values - %s_values %d\n",
 			   (flags & BE_INDEX_ADD) ? "add" : "del", rc, 0 );
 		return( rc );
 	}
@@ -1743,7 +1743,7 @@ addordel_values(
 		{
 			char encbuf[BUFSIZ];
 
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "   %s_value(\"%s\")\n",
+			LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values - %s_value(\"%s\")\n",
 				   (flags & BE_INDEX_ADD) ? "add" : "del",
 				   encoded (&key, encbuf), 0);
 		}
@@ -1787,7 +1787,7 @@ addordel_values(
 	{
             ldbm_nasty(errmsg, 1110, rc);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= %s_values %d\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values - %s_values %d\n",
 	    (flags & BE_INDEX_ADD) ? "add" : "del", rc, 0 );
 	return( rc );
 }
@@ -1820,12 +1820,12 @@ addordel_values_sv(
     const struct berval *bvp;
     struct berval *encrypted_bvp = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> %s_values\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values_sv - %s_values\n",
                (flags & BE_INDEX_ADD) ? "add" : "del", 0, 0);
 
     prefix = index_index2prefix( indextype );
     if (prefix == NULL) {
-        LDAPDebug0Args( LDAP_DEBUG_ANY, LOG_ERR, "addordel_values_sv: NULL prefix\n" );
+        LDAPDebug0Args(LDAP_DEBUG_ANY, "addordel_values_sv - NULL prefix\n" );
         return( -1 );
     }
 
@@ -1856,7 +1856,7 @@ addordel_values_sv(
             slapi_ch_free( (void**)&key.dptr );
         }
         index_free_prefix (prefix);
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= %s_values %d\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values_sv - %s_values %d\n",
                    (flags & BE_INDEX_ADD) ? "add" : "del", rc, 0 );
         return( rc );
     }
@@ -1872,7 +1872,8 @@ addordel_values_sv(
 				rc = attrcrypt_encrypt_index_key(be,a,bvp,&encrypted_bvp);
 				if (rc) 
 				{
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to encrypt index key for %s\n", a->ai_type ,0,0);
+					LDAPDebug(LDAP_DEBUG_ERR, "addordel_values_sv - Failed to encrypt index key for %s\n",
+						a->ai_type ,0,0);
 				} else {
 					bvp = encrypted_bvp;
 				}
@@ -1912,7 +1913,7 @@ addordel_values_sv(
         {
             char encbuf[BUFSIZ];
 
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "   %s_value(\"%s\")\n",
+            LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values_sv - %s_value(\"%s\")\n",
                        (flags & BE_INDEX_ADD) ? "add" : "del",
                        encoded (&key, encbuf), 0);
         }
@@ -1956,7 +1957,7 @@ addordel_values_sv(
     {
         ldbm_nasty(errmsg, 1140, rc);
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= %s_values %d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "addordel_values_sv - %s_values %d\n",
                (flags & BE_INDEX_ADD) ? "add" : "del", rc, 0 );
     return( rc );
 }
@@ -2012,8 +2013,8 @@ index_addordel_values_ext_sv(
     char	buf[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
     char	*basetmp, *basetype;
     
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
-               "=> index_addordel_values_ext_sv( \"%s\", %lu )\n", type, (u_long)id, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE,
+               "index_addordel_values_ext_sv - ( \"%s\", %lu )\n", type, (u_long)id, 0 );
 
     basetype = buf;
     if ( (basetmp = slapi_attr_basetype( type, buf, sizeof(buf) ))
@@ -2027,11 +2028,11 @@ index_addordel_values_ext_sv(
 		slapi_ch_free_string( &basetmp );
         return( 0 );
     }
-    LDAPDebug(LDAP_DEBUG_ARGS, LOG_DEBUG, "   index_addordel_values_ext_sv indexmask 0x%x\n",
+    LDAPDebug(LDAP_DEBUG_ARGS, "index_addordel_values_ext_sv - indexmask 0x%x\n",
                ai->ai_indexmask, 0, 0 );
     if ( (err = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "<= index_read NULL (could not open index attr %s)\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "index_addordel_values_ext_sv - index_read NULL (could not open index attr %s)\n",
                    basetype, 0, 0 );
 		slapi_ch_free_string( &basetmp );
         if ( err != 0 ) {
@@ -2183,7 +2184,7 @@ index_addordel_values_ext_sv(
         slapi_ch_free( (void**)&basetmp );
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= index_addordel_values_ext_sv\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= index_addordel_values_ext_sv\n", 0, 0, 0 );
     return( 0 );
 
  bad:

@@ -111,7 +111,7 @@ retrocl_postop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, postmod, (void *) retrocl_postop_modify ) != 0 ||
 		slapi_pblock_set( pb, postmdn, (void *) retrocl_postop_modrdn ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, "retrocl_postop_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_postop_init failed\n" );
 		rc= -1;
 	}
 
@@ -141,7 +141,7 @@ retrocl_internalpostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN, (void *) retrocl_postop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN, (void *) retrocl_postop_modrdn ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, "retrocl_internalpostop_init failed\n" );
+		slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_internalpostop_init failed\n" );
 		rc= -1;
 	}
 
@@ -207,8 +207,8 @@ static int retrocl_select_backend(void)
     slapi_entry_free(referral);
 
     if (err != LDAP_SUCCESS || be == NULL || be == defbackend_get_backend()) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                        "Mapping tree select failed (%d) %s.\n", err, errbuf);
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                        "retrocl_select_backend - Mapping tree select failed (%d) %s.\n", err, errbuf);
         
         /* could not find the backend for cn=changelog, either because
          * it doesn't exist
@@ -315,14 +315,16 @@ retrocl_remove_legacy_default_aci(void)
                     slapi_modify_internal_pb(mod_pb);
                     slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
                     if(rc == LDAP_SUCCESS){
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                                "Successfully removed vulnerable legacy default aci \"%s\".  "
+                        slapi_log_error(SLAPI_LOG_NOTICE, RETROCL_PLUGIN_NAME,
+                                "retrocl_remove_legacy_default_aci - "
+                        		"Successfully removed vulnerable legacy default aci \"%s\".  "
                                 "If the aci removal was not desired please use a different \"acl "
                                 "name\" so it is not removed at the next plugin startup.\n",
                                 RETROCL_ACL);
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                                "Failed to removed vulnerable legacy default aci (%s) error %d\n",
+                        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                                "retrocl_remove_legacy_default_aci - "
+                        		"Failed to removed vulnerable legacy default aci (%s) error %d\n",
                                 RETROCL_ACL, rc);
                     }
                     slapi_pblock_destroy(mod_pb);
@@ -360,7 +362,7 @@ static int retrocl_start (Slapi_PBlock *pb)
     rc = retrocl_select_backend();      
 
     if (rc != 0) {
-      LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "Couldnt find backend, not trimming retro changelog (%d).\n",rc);
+      LDAPDebug1Arg(LDAP_DEBUG_TRACE, "retrocl_start - Couldnt find backend, not trimming retro changelog (%d).\n",rc);
       return rc;
     }
 
@@ -370,7 +372,7 @@ static int retrocl_start (Slapi_PBlock *pb)
     retrocl_init_trimming();
 
     if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME, "Missing config entry.\n");
+        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_start - Missing config entry.\n");
         return -1;
     }
 
@@ -381,8 +383,8 @@ static int retrocl_start (Slapi_PBlock *pb)
         for (i = 0;i < num_vals; i++){
             if(slapi_dn_syntax_check(pb, values[i], 1)){
                 /* invalid dn syntax */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                        "Invalid DN (%s) for exclude suffix.\n", values[i] );
+                slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                        "retrocl_start - Invalid DN (%s) for exclude suffix.\n", values[i] );
                 slapi_ch_array_free(values);
                 return -1;
             }
@@ -401,8 +403,8 @@ static int retrocl_start (Slapi_PBlock *pb)
             /* Validate the syntax before we create our DN array */
             if(slapi_dn_syntax_check(pb, values[i], 1)){
                 /* invalid dn syntax */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                        "Invalid DN (%s) for include suffix.\n", values[i] );
+                slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                        "retrocl_start - Invalid DN (%s) for include suffix.\n", values[i] );
                 slapi_ch_array_free(values);
                 return -1;
             }
@@ -426,8 +428,8 @@ static int retrocl_start (Slapi_PBlock *pb)
             while(retrocl_excludes[x]){
                if(slapi_sdn_compare(retrocl_includes[i], retrocl_excludes[x] ) == 0){
                    /* we have a conflict */
-                   slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                           "include suffix (%s) is also listed in exclude suffix list\n",
+                   slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                           "retrocl_start - Include suffix (%s) is also listed in exclude suffix list\n",
 		                   slapi_sdn_get_dn(retrocl_includes[i]));
                    return -1;
                }
@@ -443,8 +445,8 @@ static int retrocl_start (Slapi_PBlock *pb)
             while(retrocl_excludes[x]){
                if(slapi_sdn_issuffix(retrocl_includes[i], retrocl_excludes[x])){
                    /* we have a conflict */
-                   slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, RETROCL_PLUGIN_NAME,
-                           "include suffix (%s) is a child of the exclude suffix(%s)\n",
+                   slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+                           "retrocl_start - include suffix (%s) is a child of the exclude suffix(%s)\n",
                            slapi_sdn_get_dn(retrocl_includes[i]),
                            slapi_sdn_get_dn(retrocl_excludes[i]));
                    return -1;
@@ -460,10 +462,10 @@ static int retrocl_start (Slapi_PBlock *pb)
         int n = 0;
         int i = 0;
 
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, "nsslapd-attribute:\n");
+        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - nsslapd-attribute:\n");
 
         for (n=0; values && values[n]; n++) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, " - %s\n", values[n]);
+            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - %s\n", values[n]);
         }
 
         retrocl_nattributes = n;
@@ -471,7 +473,7 @@ static int retrocl_start (Slapi_PBlock *pb)
         retrocl_attributes = (char **)slapi_ch_calloc(n, sizeof(char *));
         retrocl_aliases = (char **)slapi_ch_calloc(n, sizeof(char *));
 
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, "Attributes:\n");
+        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - Attributes:\n");
 
         for (i=0; i<n; i++) {
             char *value = values[i];
@@ -482,7 +484,7 @@ static int retrocl_start (Slapi_PBlock *pb)
                 retrocl_attributes[i] = slapi_ch_strdup(value);
                 retrocl_aliases[i] = NULL;
 
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, " - %s\n",
+                slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n",
                     retrocl_attributes[i]);
 
             } else {
@@ -493,7 +495,7 @@ static int retrocl_start (Slapi_PBlock *pb)
                 retrocl_aliases[i] = slapi_ch_malloc(value+length-pos);
                 strcpy(retrocl_aliases[i], pos+1);
 
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME, " - %s [%s]\n",
+                slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s [%s]\n",
                     retrocl_attributes[i], retrocl_aliases[i]);
             }
         }
@@ -505,13 +507,13 @@ static int retrocl_start (Slapi_PBlock *pb)
     values = slapi_entry_attr_get_charray(e, "nsslapd-log-deleted");
     if (values != NULL) {
 	if (values[1] != NULL) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
-			"Multiple values specified for attribute: nsslapd-log-deleted\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+			"retrocl_start - Multiple values specified for attribute: nsslapd-log-deleted\n");
 	} else if ( 0 == strcasecmp(values[0], "on")) {
 		retrocl_log_deleted = 1;
 	} else if (strcasecmp(values[0], "off")) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, RETROCL_PLUGIN_NAME,
-			"Invalid value (%s) specified for attribute: nsslapd-log-deleted\n", values[0]);
+		slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+			"Iretrocl_start - nvalid value (%s) specified for attribute: nsslapd-log-deleted\n", values[0]);
 	}
         slapi_ch_array_free(values);
     }

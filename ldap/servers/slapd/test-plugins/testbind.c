@@ -66,7 +66,7 @@ test_bind( Slapi_PBlock *pb )
 	Slapi_Attr		*attr = NULL;
 
 	/* Log a message to the server error log. */
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind", 
+	slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind", 
 		"Pre-operation bind function called.\n" );
 
 	/* Gets parameters available when processing an LDAP bind
@@ -75,7 +75,7 @@ test_bind( Slapi_PBlock *pb )
 	    slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &credentials ) != 0 ) {
 
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 			"Could not get parameters for bind operation\n" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, 
 			NULL, NULL, 0, NULL );
@@ -92,7 +92,7 @@ test_bind( Slapi_PBlock *pb )
 		slapi_sdn_free( &sdn );
 
 		if ( rc != LDAP_SUCCESS ) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+			slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 					"Could not find entry %s (error %d)\n", 
 					dn, rc );
 			break;
@@ -108,7 +108,7 @@ test_bind( Slapi_PBlock *pb )
 			if ( slapi_entry_attr_find( e, SLAPI_USERPWD_ATTR,
 			    &attr ) != 0 || slapi_attr_get_numvalues( attr,
 			    &valcount ) != 0 ) {
-				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+				slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 					"Entry has no %s attribute values\n",
 					SLAPI_USERPWD_ATTR );
 				rc = LDAP_INAPPROPRIATE_AUTH;
@@ -126,7 +126,7 @@ test_bind( Slapi_PBlock *pb )
 			}
 
 			if ( slapi_pw_find_sv( pwvals, credval ) != 0 ) {
-				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+				slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 					"Credentials are not correct\n" );
 				rc = LDAP_INVALID_CREDENTIALS;
 			}
@@ -140,7 +140,7 @@ test_bind( Slapi_PBlock *pb )
 		} else {
 			/* This should not happen. The previous section of code 
 			   already checks for this case. */
-			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+			slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 				"Could find entry for %s\n", dn );
 			rc = LDAP_NO_SUCH_OBJECT;
 			break;
@@ -152,14 +152,14 @@ test_bind( Slapi_PBlock *pb )
 		     slapi_pblock_set( pb, SLAPI_CONN_AUTHMETHOD, 
 			SLAPD_AUTH_SIMPLE ) != 0 ) {
 
-			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+			slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 				"Failed to set DN and method for connection\n" );
 			rc = LDAP_OPERATIONS_ERROR;
 			break;
 		}
 
 		/* Send a "success" result code back to the client. */
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind", 
 			"Authenticated: %s\n", dn );
 		rc = LDAP_SUCCESS;
 		break;
@@ -172,7 +172,7 @@ test_bind( Slapi_PBlock *pb )
 	   1.
 	 */
 	case LDAP_AUTH_NONE:
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind", 
 			"Authenticating anonymously\n" );
 		rc = LDAP_SUCCESS;
 		break;
@@ -180,7 +180,7 @@ test_bind( Slapi_PBlock *pb )
 	/* This plug-in does not support any other method of authentication */
 	case LDAP_AUTH_SASL:
 	default:
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_bind",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_bind",
 			"Unsupported authentication method requested: %d\n",
 			method );
 		rc = LDAP_AUTH_METHOD_NOT_SUPPORTED;
@@ -199,7 +199,7 @@ test_search( Slapi_PBlock *pb )
 	char		*reqdn;
 
 	/* Log a message to the server error log. */
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_search", 
+	slapi_log_error(SLAPI_LOG_PLUGIN, "test_search", 
 		"Pre-operation search function called.\n" );
 
 	/* Get requestor of search operation.  This is not critical
@@ -208,17 +208,17 @@ test_search( Slapi_PBlock *pb )
 	   if this fails. */
 	if ( slapi_pblock_get( pb, SLAPI_REQUESTOR_DN, &reqdn ) != 0 ) {
 
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_search",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_search",
 		"Could not get requestor parameter for search operation\n" );
 		return( 0 );
 	}
 
 	/* Indicate who is requesting the search */
 	if ( reqdn != NULL && *reqdn != '\0' ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_search",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_search",
 			"Search requested by %s\n", reqdn );
 	} else {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "test_search",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "test_search",
 			"Search requested by anonymous client\n" );
 	}
 	return( 0 );
@@ -232,7 +232,7 @@ testbind_init( Slapi_PBlock *pb )
 	/* Retrieve and save the plugin identity to later pass to
 	   internal operations */
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_IDENTITY, &plugin_id ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testbind_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testbind_init",
 			"Failed to retrieve SLAPI_PLUGIN_IDENTITY\n" );
 		return( -1 );
 	}
@@ -248,7 +248,7 @@ testbind_init( Slapi_PBlock *pb )
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_SEARCH_FN, 
 		(void *) test_search ) != 0 ) {
 
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testbind_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testbind_init",
 			"Failed to set version and functions\n" );
 		return( -1 );
 	}

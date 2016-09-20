@@ -245,7 +245,7 @@ my_ber_printf_csn(BerElement *ber, const CSN *csn, const CSNType t)
         case CSN_TYPE_ATTRIBUTE_DELETED:
             break;
 	    default:
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_printf_csn: unknown "
+            slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_printf_csn - Unknown "
 			                "csn type %d encountered.\n", (int)t);
         return -1;
 	}
@@ -454,7 +454,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 
 	if (NULL == ber && NULL == value)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 1\n");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 1\n");
 		goto loser;
 	}
 
@@ -463,13 +463,13 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 	/* Each value is a sequence */
 	if (ber_scanf(ber, "{O", &attrval) == LBER_ERROR)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 2\n");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 2\n");
 		goto loser;
 	}
 	/* Allocate and fill in the attribute value */
 	if ((*value = slapi_value_new_berval(attrval)) == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 3\n");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 3\n");
 		goto loser;
 	}
 
@@ -478,7 +478,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
     {
         if (ber_scanf(ber, "b", deleted) == LBER_ERROR)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 4\n");
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 4\n");
 			goto loser;
 		}
     }
@@ -498,7 +498,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 		len = CSN_STRSIZE;
 		if (ber_scanf(ber, "{es}", &csntype_tmp, csnstring, &len) == LBER_ERROR)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 7 - bval is %s\n", attrval->bv_val);
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 7 - bval is %s\n", attrval->bv_val);
 			goto loser;
 		}
 		switch (csntype_tmp)
@@ -513,14 +513,14 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 			csntype = CSN_TYPE_VALUE_DISTINGUISHED;
 			break;
 		default:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Error: preposterous CSN type "
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - Error: preposterous CSN type "
 				"%d received during total update.\n", csntype_tmp);
 			goto loser;
 		}
 		csn = csn_new_by_string(csnstring);
 		if (csn == NULL)
 		{
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 8\n");
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 8\n");
 			goto loser;
 		}
 		value_add_csn(*value, csntype, csn);
@@ -529,7 +529,7 @@ my_ber_scanf_value(BerElement *ber, Slapi_Value **value, PRBool *deleted)
 
 	if (ber_scanf(ber, "}") == LBER_ERROR) /* End of annotated attribute value seq */
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "my_ber_scanf_value BAD 10\n");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "my_ber_scanf_value - BAD 10\n");
 		goto loser;
 	}
 	
@@ -799,7 +799,7 @@ loser:
         slapi_entry_free (e);
     }
 	*ep = NULL;
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "Error: could not decode extended "
+	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "decode_total_update_extop - Could not decode extended "
 		"operation containing entry for total update.\n");
 
 free_and_return:
@@ -850,21 +850,22 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock  *pb)
         */
        if (rc != LDAP_SUCCESS)
 	   {
-		   const char *dn = slapi_entry_get_dn_const(e);
-		   slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-						   "Error %d: could not import entry dn %s "
-						   "for total update operation conn=%" NSPRIu64 " op=%d\n",
-						   rc, dn, connid, opid);
+           const char *dn = slapi_entry_get_dn_const(e);
+           slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                   "multimaster_extop_NSDS50ReplicationEntry - "
+                   "Error %d: could not import entry dn %s for total update operation conn=%" NSPRIu64 " op=%d\n",
+                   rc, dn, connid, opid);
 		   rc = -1;
 	   }
         
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-						"Error %d: could not decode the total update extop "
-						"for total update operation conn=%" NSPRIu64 " op=%d\n",
-						rc, connid, opid);
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"multimaster_extop_NSDS50ReplicationEntry - "
+				"Error %d: could not decode the total update extop "
+				"for total update operation conn=%" NSPRIu64 " op=%d\n",
+				rc, connid, opid);
 	}
    
     if (LDAP_SUCCESS != rc) {

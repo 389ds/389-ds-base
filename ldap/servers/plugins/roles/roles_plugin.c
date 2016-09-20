@@ -69,8 +69,8 @@ roles_postop_init ( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, postadd, (void *) roles_post_op ) != 0 ||
 		 slapi_pblock_set(pb, postdel, (void *) roles_post_op ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
-						 "roles_postop_init: failed to register plugin\n" );
+		slapi_log_error(SLAPI_LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
+						 "roles_postop_init - Failed to register plugin\n" );
 		rc = -1;
 	}
 	return rc;
@@ -92,8 +92,8 @@ roles_internalpostop_init ( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
 							(void *) roles_post_op ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
-					"roles_internalpostop_init: failed to register plugin\n" );
+		slapi_log_error(SLAPI_LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
+					"roles_internalpostop_init - Failed to register plugin\n" );
 		rc = -1;
 	}
 	return rc;
@@ -111,7 +111,7 @@ int roles_init( Slapi_PBlock *pb )
 	int is_betxn = 0;
 	const char *plugin_type = "postoperation";
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 						"=> roles_init\n" );
 
 	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &plugin_identity);
@@ -132,7 +132,7 @@ int roles_init( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
 							(void *) roles_close ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
+		slapi_log_error(SLAPI_LOG_ERR, ROLES_PLUGIN_SUBSYSTEM,
 					"roles_init failed\n" );
 		rc = -1;
 		goto bailout;
@@ -156,7 +156,7 @@ int roles_init( Slapi_PBlock *pb )
 								   plugin_identity);
 	}
 bailout:
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 							"<= roles_init %d\n", rc );
 	return rc;
 }
@@ -170,7 +170,7 @@ static int roles_start( Slapi_PBlock *pb )
 	int rc = 0;
 	void **statechange_api;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 			"=> roles_start\n" );
 
 	roles_cache_init();
@@ -193,7 +193,7 @@ static int roles_start( Slapi_PBlock *pb )
                              (notify_callback) statechange_vattr_cache_invalidator_callback(statechange_api));
     }
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 			"<= roles_start %d\n", rc );
 	return rc;
 }
@@ -207,7 +207,7 @@ static int roles_close( Slapi_PBlock *pb )
 	void **statechange_api;
 	int rc = 0;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM,
+	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
 			"=> roles_close\n" );
 
 	roles_cache_stop();
@@ -220,8 +220,8 @@ static int roles_close( Slapi_PBlock *pb )
 		                       (notify_callback) statechange_vattr_cache_invalidator_callback(statechange_api));
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM,
-			"<= roles_close %d\n", rc );
+	slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,
+			"<= roles_close - %d\n", rc );
 	return rc;
 }
 
@@ -327,11 +327,11 @@ int roles_sp_cleanup(void)
 */
 static int roles_post_op( Slapi_PBlock *pb )
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM, "--> roles_post_op\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "--> roles_post_op\n");
 
     roles_cache_change_notify(pb);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_post_op\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "<-- roles_post_op\n");
     return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
 

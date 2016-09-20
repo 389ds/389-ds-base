@@ -53,8 +53,8 @@ slapi_op_internal( Slapi_PBlock *pb )
 void
 operation_out_of_disk_space()
 {
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "*** DISK FULL ***\n", 0, 0, 0);
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Attempting to shut down gracefully.\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ERR, "*** DISK FULL ***\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ERR, "Attempting to shut down gracefully.\n", 0, 0, 0);
     g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
 }
 
@@ -576,7 +576,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
     if (conn->c_flags & CONN_FLAG_CLOSING)
     {
 	/* This may happen while other threads are still working on this connection */
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
+        slapi_log_error(SLAPI_LOG_ERR, "connection",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 		                conn->c_connid, conn->c_sd);
         rc = -1;
@@ -602,10 +602,10 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 		;	/* NULL */
 	if ( *tmp == NULL ) {
 		if (op) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "connection_remove_operation: can't find op %d for conn %" NSPRIu64 "\n",
+			LDAPDebug(LDAP_DEBUG_ERR, "connection_remove_operation: can't find op %d for conn %" NSPRIu64 "\n",
 			    (int)op->o_msgid, conn->c_connid, 0 );
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "connection_remove_operation: no operation provided\n",0, 0, 0);
+			LDAPDebug(LDAP_DEBUG_ERR, "connection_remove_operation: no operation provided\n",0, 0, 0);
 		}
 	} else {
 		*tmp = (*tmp)->o_next;
@@ -614,7 +614,7 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 	if (release) {
 		/* connection_release_nolock(conn); */
 		if (conn->c_refcnt <= 0) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "connection",
+			slapi_log_error(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
 			                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 			                conn->c_connid, conn->c_sd);
 			rc = -1;

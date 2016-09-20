@@ -115,11 +115,11 @@ nullsuffix_init( Slapi_PBlock *pb )
 {
 	int		i;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_init\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_init\n" );
 
 	/* retrieve plugin identity to later pass to internal operations */
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_IDENTITY, &plugin_id ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 			"unable to get SLAPI_PLUGIN_IDENTITY\n" );
 		return -1;
 	}
@@ -143,7 +143,7 @@ nullsuffix_init( Slapi_PBlock *pb )
 				    (void *)nullsuffix_bind) != 0
 				|| slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_MODRDN_FN,
 				    (void *)nullsuffix_modrdn) != 0) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"failed to set version and function\n" );
 		return -1;
 	}
@@ -159,7 +159,7 @@ nullsuffix_bind( Slapi_PBlock *pb )
 	if( slapi_op_reserved(pb) ){
 		return PLUGIN_OPERATION_IGNORED;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_bind\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_bind\n" );
 	send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 	return PLUGIN_OPERATION_HANDLED;
 
@@ -172,7 +172,7 @@ nullsuffix_add( Slapi_PBlock *pb )
 	if( slapi_op_reserved(pb) ){
 		return PLUGIN_OPERATION_IGNORED;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_add\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_add\n" );
 	slapi_pblock_get( pb, SLAPI_ADD_TARGET, &dn );
 	db_put_dn(dn);
 	send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
@@ -193,7 +193,7 @@ nullsuffix_modify( Slapi_PBlock *pb )
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &entry);  
 	db_put_dn(dn);
 	send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_modify\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_modify\n" );
 	return PLUGIN_OPERATION_HANDLED;
 
 }
@@ -204,7 +204,7 @@ nullsuffix_delete( Slapi_PBlock *pb )
 	if( slapi_op_reserved(pb) ){
 		return PLUGIN_OPERATION_IGNORED;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_delete\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_delete\n" );
 	send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 	return PLUGIN_OPERATION_HANDLED;
 }
@@ -215,7 +215,7 @@ nullsuffix_modrdn( Slapi_PBlock *pb )
 	if( slapi_op_reserved(pb) ){
 		return PLUGIN_OPERATION_IGNORED;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_modrdn\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_modrdn\n" );
 	send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 	return PLUGIN_OPERATION_HANDLED;
 }
@@ -244,7 +244,7 @@ nullsuffix_search( Slapi_PBlock *pb )
 		"uid:jsmith\n"
 		"mail:jsmith@example.com\n";
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_search\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_search\n" );
 	if( slapi_op_reserved(pb) ){
 		return PLUGIN_OPERATION_IGNORED;
 	}
@@ -252,7 +252,7 @@ nullsuffix_search( Slapi_PBlock *pb )
 	/* get essential search parameters */
 	if ( slapi_pblock_get( pb, SLAPI_SEARCH_TARGET, &dn_base ) != 0 ||
 			slapi_pblock_get( pb, SLAPI_SEARCH_SCOPE, &scope ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"could not get base DN and scope search parameters\n" );
 	}
 	if ( dn_base == NULL ) {
@@ -268,12 +268,12 @@ nullsuffix_search( Slapi_PBlock *pb )
 			slapi_pblock_get( pb, SLAPI_SEARCH_FILTER, &filter ) != 0 ||
 			slapi_pblock_get( pb, SLAPI_SEARCH_ATTRS, &attrs ) != 0 ||
 			slapi_pblock_get( pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"could not get remaining search parameters\n" );
 	}
 
 	if ( slapi_pblock_get( pb, SLAPI_OPERATION, &op ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"could not get operation\n" );
 	} else {
 		 slapi_operation_set_flag(op, SLAPI_OP_FLAG_NO_ACCESS_CHECK  );
@@ -284,7 +284,7 @@ nullsuffix_search( Slapi_PBlock *pb )
 	if ( NULL == ( e = slapi_str2entry( newStr,
 				SLAPI_STR2ENTRY_ADDRDNVALS
 				| SLAPI_STR2ENTRY_EXPAND_OBJECTCLASSES ))) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME,
+		slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME,
 				"nullsuffix_search: slapi_str2entry() failed\n" );
 	} else {
 		slapi_send_ldap_search_entry( pb, e, NULL /* controls */,
@@ -295,7 +295,7 @@ nullsuffix_search( Slapi_PBlock *pb )
 
 	slapi_send_ldap_result( pb, ldaperr, NULL, "kilroy was here",
 			nentries, NULL );
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_search:"
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_search:"
 			" handled search based at %s with scope %d; ldaperr=%d\n",
 			dn_base, scope, ldaperr );
 
@@ -312,6 +312,6 @@ nullsuffix_search( Slapi_PBlock *pb )
 static int
 nullsuffix_close( Slapi_PBlock *pb )
 {
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, PLUGIN_NAME, "nullsuffix_close\n" );
+	slapi_log_error(SLAPI_LOG_PLUGIN, PLUGIN_NAME, "nullsuffix_close\n" );
 	return 0;
 }

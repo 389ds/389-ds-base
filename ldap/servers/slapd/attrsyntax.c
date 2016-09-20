@@ -119,14 +119,14 @@ check_oid( const char *oid ) {
 
   if ( oid == NULL) {
 	/* this is bad */
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "NULL passed to check_oid\n",0,0,0);
+	LDAPDebug(LDAP_DEBUG_ERR, "check_oid - NULL passed to check_oid\n",0,0,0);
 	return 0;
   }
   
   length_oid = strlen(oid);
   if (length_oid < 4) {
 	/* this is probably bad */
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Bad oid %s passed to check_oid\n",oid,0,0);
+	LDAPDebug(LDAP_DEBUG_ERR, "check_oid - Bad oid %s passed to check_oid\n",oid,0,0);
 	return 0;
   }
 
@@ -141,14 +141,14 @@ check_oid( const char *oid ) {
   
   if ( !isdigit(oid[0]) || 
 	   !isdigit(oid[length_oid-1]) ) {
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Non numeric oid %s passed to check_oid\n",oid,0,0);
+	LDAPDebug(LDAP_DEBUG_ERR, "check_oid - Non numeric oid %s passed to check_oid\n",oid,0,0);
 	return 0;
   }
 
   /* check to see that it contains only digits and dots */
   for ( i = 0; i < length_oid; i++ ) {
 	if ( !isdigit(oid[i]) && oid[i] != '.'  ){
-	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Non numeric oid %s passed to check_oid\n",oid,0,0);
+	  LDAPDebug(LDAP_DEBUG_ERR, "check_oid - Non numeric oid %s passed to check_oid\n",oid,0,0);
 	  return 0;
 	}
   }
@@ -174,7 +174,7 @@ attr_syntax_check_oids()
 		PLHashEntry *he = oid2asi->buckets[ii-1];
 		for (; he; he = he->next) {
 			if (!check_oid(he->key)) {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: bad oid %s in bucket %d\n",
+				LDAPDebug(LDAP_DEBUG_ERR, "attr_syntax_check_oids - bad oid %s in bucket %d\n",
 						  he->key, ii-1, 0);
 				nbad++;
 			}
@@ -670,8 +670,8 @@ int default_dirstring_values2keys( Slapi_PBlock *pb, Slapi_Value **bvals,Slapi_V
 	case LDAP_FILTER_SUBSTRINGS:
 	default:
 		/* default plugin only handles equality so far */
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		    "default_dirstring_values2keys: unsupported ftype 0x%x\n",
+		LDAPDebug(LDAP_DEBUG_ERR,
+		    "default_dirstring_values2keys - Unsupported ftype 0x%x\n",
 		    ftype, 0, 0 );
 		break;
 	}
@@ -1038,7 +1038,7 @@ attr_syntax_create(
 	   now, just log an error, and address each case
 	*/
 	if (mr_equality && !slapi_matchingrule_is_compat(mr_equality, attr_syntax)) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_create",
+		slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_create",
 						"Error: the EQUALITY matching rule [%s] is not compatible "
 						"with the syntax [%s] for the attribute [%s]\n",
 						mr_equality, attr_syntax, attr_names[0]);
@@ -1049,7 +1049,7 @@ attr_syntax_create(
 	}
 	a.asi_mr_eq_plugin = plugin_mr_find( mr_equality );
 	if (mr_ordering && !slapi_matchingrule_is_compat(mr_ordering, attr_syntax)) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_create",
+		slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_create",
 						"Error: the ORDERING matching rule [%s] is not compatible "
 						"with the syntax [%s] for the attribute [%s]\n",
 						mr_ordering, attr_syntax, attr_names[0]);
@@ -1060,7 +1060,7 @@ attr_syntax_create(
 	}
 	a.asi_mr_ord_plugin = plugin_mr_find( mr_ordering );
 	if (mr_substring && !slapi_matchingrule_is_compat(mr_substring, attr_syntax)) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_create",
+		slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_create",
 						"Error: the SUBSTR matching rule [%s] is not compatible "
 						"with the syntax [%s] for the attribute [%s]\n",
 						mr_substring, attr_syntax, attr_names[0]);
@@ -1473,7 +1473,7 @@ attr_syntax_init(void)
 			if(oid2asi) PL_HashTableDestroy(oid2asi);
 			oid2asi = NULL;
 
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_init",
+			slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_init",
 					"slapi_new_rwlock() for oid2asi lock failed\n" );
 			return 1;
 		}
@@ -1496,7 +1496,7 @@ attr_syntax_init(void)
 			if(name2asi) PL_HashTableDestroy(name2asi);
 			name2asi = NULL;
 
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_init",
+			slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_init",
 					"slapi_new_rwlock() for oid2asi lock failed\n" );
 			return 1;
 		}
@@ -1537,14 +1537,14 @@ attr_syntax_internal_asi_add_ht(struct asyntaxinfo *asip)
 		                              PL_CompareValues, 0, 0);
 	}
 	if (!internalasi) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_internal_asi_add_ht",
+		slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_internal_asi_add_ht",
 		                "Failed to create HashTable.\n");
 		return 1;
 	}
 	if (!PL_HashTableLookup(internalasi, asip->asi_oid)) {
 		struct asyntaxinfo *asip_copy = attr_syntax_dup(asip);
 		if (!asip_copy) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_syntax_internal_asi_add_ht",
+			slapi_log_error(SLAPI_LOG_ERR, "attr_syntax_internal_asi_add_ht",
 		                    "Failed to duplicate asyntaxinfo: %s.\n",
 		                    asip->asi_name);
 			return 1;
@@ -1583,7 +1583,7 @@ slapi_add_internal_attr_syntax( const char *name, const char *oid,
 		rc = attr_syntax_add( asip, 0 );
 		if ( rc == LDAP_SUCCESS ) {
 			if (attr_syntax_internal_asi_add_ht(asip)) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
+				slapi_log_error(SLAPI_LOG_ERR,
 				                "slapi_add_internal_attr_syntax",
 				                "Failed to stash internal asyntaxinfo: %s.\n",
 				                asip->asi_name);
@@ -1622,7 +1622,7 @@ slapi_reload_internal_attr_syntax()
 {
 	int rc = LDAP_SUCCESS;
 	if (!internalasi) {
-		slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "attr_reload_internal_attr_syntax",
+		slapi_log_error(SLAPI_LOG_TRACE, "attr_reload_internal_attr_syntax",
 		                "No internal attribute syntax to reload.\n");
 		return rc;
 	}

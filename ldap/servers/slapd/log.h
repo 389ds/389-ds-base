@@ -43,6 +43,9 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 
+/* Use the syslog level names (prioritynames) */
+#define SYSLOG_NAMES 1
+
 #define LOG_MB_IN_BYTES	(1024 * 1024)
 
 #define LOG_SUCCESS 		0		/* fine & dandy */

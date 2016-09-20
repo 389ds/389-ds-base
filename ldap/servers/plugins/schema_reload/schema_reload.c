@@ -90,7 +90,7 @@ schemareload_start(Slapi_PBlock *pb)
     int rc = 0;
 
     if ((schemareload_lock = PR_NewLock()) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Failed to create global schema reload lock.");
+        slapi_log_error(SLAPI_LOG_ERR, "schemareload", "schemareload_start - Failed to create global schema reload lock.");
         return -1;
     }
     rc = slapi_plugin_task_register_handler("schema reload task", schemareload_add, pb);
@@ -136,7 +136,7 @@ schemareload_thread(void *arg)
         return; /* no task */
     }
     slapi_task_inc_refcount(task);
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "schemareload",
+    slapi_log_error(SLAPI_LOG_PLUGIN, "schemareload",
                     "schemareload_thread --> refcount incremented.\n" );
     /* Fetch our task data from the task */
     td = (task_data *)slapi_task_get_data(task);
@@ -148,7 +148,7 @@ schemareload_thread(void *arg)
     slapi_task_begin(task, total_work);
     PR_Lock(schemareload_lock);    /* make schema reload serialized */
     slapi_task_log_notice(task, "Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
+    slapi_log_error(SLAPI_LOG_INFO, "schemareload", "schemareload_thread - Schema reload task starts (schema dir: %s) ...\n", td->schemadir?td->schemadir:"default");
 
     rv = slapi_validate_schema_files(td->schemadir);
     slapi_task_inc_progress(task);
@@ -156,11 +156,11 @@ schemareload_thread(void *arg)
     if (slapi_is_shutting_down()) {
         slapi_task_log_notice(task, "Server is shuttoing down; Schema validation aborted.");
         slapi_task_log_status(task, "Server is shuttoing down; Schema validation aborted.");
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Server is shuttoing down; Schema validation aborted.");
+        slapi_log_error(SLAPI_LOG_ERR, "schemareload", "schemareload_thread - Server is shutting down; Schema validation aborted.");
     } else if (LDAP_SUCCESS == rv) {
         slapi_task_log_notice(task, "Schema validation passed.");
         slapi_task_log_status(task, "Schema validation passed.");
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Schema validation passed.\n");
+        slapi_log_error(SLAPI_LOG_INFO, "schemareload", "schemareload_thread - Schema validation passed.\n");
 
         rv = slapi_reload_schema_files(td->schemadir);
         slapi_task_inc_progress(task);
@@ -169,23 +169,23 @@ schemareload_thread(void *arg)
         if (LDAP_SUCCESS == rv) {
             slapi_task_log_notice(task, "Schema reload task finished.");
             slapi_task_log_status(task, "Schema reload task finished.");
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Schema reload task finished.\n");
+            slapi_log_error(SLAPI_LOG_INFO, "schemareload", "schemareload_thread - Schema reload task finished.\n");
         } else {
             slapi_task_log_notice(task, "Schema reload task failed.");
             slapi_task_log_status(task, "Schema reload task failed.");
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Schema reload task failed.\n");
+            slapi_log_error(SLAPI_LOG_ERR, "schemareload", "schemareload_thread - Schema reload task failed.\n");
         }
     } else {
         slapi_task_log_notice(task, "Schema validation failed.");
         slapi_task_log_status(task, "Schema validation failed.");
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "Schema validation failed.\n");
+        slapi_log_error(SLAPI_LOG_ERR, "schemareload", "schemareload_thread - Schema validation failed.\n");
     }
     PR_Unlock(schemareload_lock);
 
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rv);
     slapi_task_dec_refcount(task);
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "schemareload",
+    slapi_log_error(SLAPI_LOG_PLUGIN, "schemareload",
                     "schemareload_thread <-- refcount decremented.\n");
 }
 
@@ -257,7 +257,7 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
     /* allocate new task now */
     task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
     if (task == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload", "unable to allocate new task!\n");
+        slapi_log_error(SLAPI_LOG_ERR, "schemareload", "schemareload_add - Unable to allocate new task!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -285,8 +285,8 @@ schemareload_add(Slapi_PBlock *pb, Slapi_Entry *e,
                              (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "schemareload",
-                  "unable to create schema reload task thread!\n");
+        slapi_log_error(SLAPI_LOG_ERR, "schemareload",
+                  "schemareload_add - Unable to create schema reload task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
     } else {

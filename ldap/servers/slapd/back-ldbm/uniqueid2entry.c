@@ -35,7 +35,7 @@ uniqueid2entry(
 	IDList			*idl = NULL;
 	struct backentry	*e = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> uniqueid2entry \"%s\"\n", uniqueid,
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> uniqueid2entry \"%s\"\n", uniqueid,
 		   0, 0 );
 #ifdef UUIDCACHE_ON 
 	e = cache_find_uuid(&inst->inst_cache, uniqueid);
@@ -78,6 +78,6 @@ ext:
 		slapi_ch_free( (void**)&idl);
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= uniqueid2entry %p\n", e, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= uniqueid2entry %p\n", e, 0, 0 );
 	return( e );
 }

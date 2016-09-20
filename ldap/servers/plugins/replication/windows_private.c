@@ -111,7 +111,7 @@ check_update_allowed(Repl_Agmt *ra, const char *type, Slapi_Entry *e, int *retva
 		while (get_next_disallow_attr_type(&ii, &distype)) {
 			if (slapi_attr_types_equivalent(type, distype)) {
 				char *tmpstr = slapi_entry_attr_get_charptr(e, type);
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, windows_repl_plugin_name,
+				slapi_log_error(SLAPI_LOG_REPL, windows_repl_plugin_name,
 								"windows_parse_config_entry: setting %s to %s will be "
 								"deferred until current update is completed\n",
 								type, tmpstr);
@@ -232,8 +232,8 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			} else if (strcasecmp(tmpstr, "toWindows") == 0) {
 				windows_private_set_one_way(ra, ONE_WAY_SYNC_TO_AD);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"Ignoring illegal setting for %s attribute in replication "
+				slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+					"windows_parse_config_entry - Ignoring illegal setting for %s attribute in replication "
 					"agreement \"%s\".  Valid values are \"toWindows\" or "
 					"\"fromWindows\".\n", type_oneWaySync, slapi_entry_get_dn(e));
 				windows_private_set_one_way(ra, ONE_WAY_SYNC_DISABLED);
@@ -263,8 +263,8 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
 			} else if (strcasecmp(tmpstr, "none") == 0) {
 				windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, windows_repl_plugin_name,
-					"Ignoring illegal setting for %s attribute in replication "
+				slapi_log_error(SLAPI_LOG_WARNING, windows_repl_plugin_name,
+					"windows_parse_config_entry - Ignoring illegal setting for %s attribute in replication "
 					"agreement \"%s\".  Valid values are \"delete\" or "
 					"\"unsync\".\n", type_winsyncMoveAction, slapi_entry_get_dn(e));
 				windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
@@ -374,7 +374,7 @@ Dirsync_Private* windows_private_new()
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_new\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_new\n" );
 
 	dp = (Dirsync_Private *)slapi_ch_calloc(sizeof(Dirsync_Private),1);
 
@@ -389,7 +389,7 @@ Dirsync_Private* windows_private_new()
 	dp->windows_treetop = NULL;
 	dp->directory_treetop = NULL;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_new\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_new\n" );
 	return dp;
 
 }
@@ -399,7 +399,7 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	const subtreePair *sp;
 
 	Dirsync_Private *dp = (Dirsync_Private *) agmt_get_priv(ra);
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_delete\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_delete\n" );
 
 	PR_ASSERT(dp  != NULL);
 	
@@ -431,7 +431,7 @@ void windows_agreement_delete(Repl_Agmt *ra)
 	slapi_ch_free((void **)&dp->subtree_pairs);
 	slapi_ch_free((void **)&dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_delete\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_delete\n" );
 
 }
 
@@ -439,14 +439,14 @@ int windows_private_get_isnt4(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_isnt4\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_isnt4\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 		
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_isnt4\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_isnt4\n" );
 
 	return dp->isnt4;
 }
@@ -455,7 +455,7 @@ void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_isnt4\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_isnt4\n" );
 
 	PR_ASSERT(ra);
 
@@ -464,21 +464,21 @@ void windows_private_set_isnt4(const Repl_Agmt *ra, int isit)
 
 	dp->isnt4 = isit;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_isnt4\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_isnt4\n" );
 }
 
 int windows_private_get_iswin2k3(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_iswin2k3\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_iswin2k3\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_iswin2k3\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_iswin2k3\n" );
 
 	return dp->iswin2k3;
 }
@@ -487,7 +487,7 @@ void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_iswin2k3\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_iswin2k3\n" );
 
 	PR_ASSERT(ra);
 
@@ -496,7 +496,7 @@ void windows_private_set_iswin2k3(const Repl_Agmt *ra, int isit)
 
 	dp->iswin2k3 = isit;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_iswin2k3\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_iswin2k3\n" );
 }
 
 /* Returns a copy of the Slapi_Filter pointer.  The caller should not free it */
@@ -504,7 +504,7 @@ Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_directory_filter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_filter\n" );
 
 	PR_ASSERT(ra);
 
@@ -530,7 +530,7 @@ Slapi_Filter* windows_private_get_directory_filter(const Repl_Agmt *ra)
 		slapi_ch_free_string(&string_filter);
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_directory_filter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_filter\n" );
 
 	return dp->directory_filter;
 }
@@ -541,7 +541,7 @@ windows_private_get_windows_filter(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_windows_filter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_filter\n" );
 
 	PR_ASSERT(ra);
 
@@ -563,7 +563,7 @@ windows_private_get_windows_filter(const Repl_Agmt *ra)
 		}
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_windows_filter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_filter\n" );
 
 	return dp->windows_filter;
 }
@@ -573,7 +573,7 @@ Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_deleted_filter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_deleted_filter\n" );
 
 	PR_ASSERT(ra);
 
@@ -587,7 +587,7 @@ Slapi_Filter* windows_private_get_deleted_filter(const Repl_Agmt *ra)
 		slapi_ch_free_string(&string_filter);
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_deleted_filter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_deleted_filter\n" );
 
 	return dp->deleted_filter;
 }
@@ -597,14 +597,14 @@ const Slapi_DN* windows_private_get_windows_subtree (const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_windows_subtree\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_subtree\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_windows_subtree\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_subtree\n" );
 
 	return dp->windows_subtree;
 }
@@ -614,14 +614,14 @@ windows_private_get_windows_domain(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_windows_domain\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_domain\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_windows_domain\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_domain\n" );
 
 	return dp->windows_domain;	
 }
@@ -631,7 +631,7 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_windows_domain\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_domain\n" );
 
 	PR_ASSERT(ra);
 
@@ -641,7 +641,7 @@ windows_private_set_windows_domain(const Repl_Agmt *ra, char *domain)
 	slapi_ch_free_string(&dp->windows_domain);
 	dp->windows_domain = domain;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_windows_domain\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_domain\n" );
 }
 
 /* Returns a copy of the Slapi_DN pointer, no need to free it */
@@ -649,14 +649,14 @@ const Slapi_DN* windows_private_get_directory_subtree (const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_directory_replarea\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_replarea\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_directory_replarea\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_replarea\n" );
 
 	return dp->directory_subtree; 
 }
@@ -667,7 +667,7 @@ void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_windows_replarea\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_replarea\n" );
 
 	PR_ASSERT(ra);
 	PR_ASSERT(sdn);
@@ -678,7 +678,7 @@ void windows_private_set_windows_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 	slapi_sdn_free(&dp->windows_subtree);
 	dp->windows_subtree = sdn;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_windows_replarea\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_replarea\n" );
 }
 
 /* Takes a copy of the sdn passed in */
@@ -687,7 +687,7 @@ void windows_private_set_directory_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_directory_replarea\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_directory_replarea\n" );
 
 	PR_ASSERT(ra);
 	PR_ASSERT(sdn);
@@ -698,20 +698,20 @@ void windows_private_set_directory_subtree (const Repl_Agmt *ra,Slapi_DN* sdn )
 	slapi_sdn_free(&dp->directory_subtree);
 	dp->directory_subtree = sdn;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_directory_replarea\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_directory_replarea\n" );
 }
 
 PRBool windows_private_create_users(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_create_users\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_create_users\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_create_users\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_create_users\n" );
 
 	return dp->create_users_from_dirsync;
 
@@ -722,7 +722,7 @@ void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value)
 {
 	Dirsync_Private *dp;
 	
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_create_users\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_create_users\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -730,7 +730,7 @@ void windows_private_set_create_users(const Repl_Agmt *ra, PRBool value)
 
 	dp->create_users_from_dirsync = value;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_create_users\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_create_users\n" );
 
 }
 
@@ -738,13 +738,13 @@ PRBool windows_private_create_groups(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_create_groups\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_create_groups\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_create_groups\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_create_groups\n" );
 
 	return dp->create_groups_from_dirsync;
 
@@ -755,7 +755,7 @@ void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
 {
 	Dirsync_Private *dp;
 	
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_create_groups\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_create_groups\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -763,7 +763,7 @@ void windows_private_set_create_groups(const Repl_Agmt *ra, PRBool value)
 
 	dp->create_groups_from_dirsync = value;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_create_groups\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_create_groups\n" );
 
 }
 
@@ -772,13 +772,13 @@ int windows_private_get_one_way(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_one_way\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_one_way\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_one_way\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_one_way\n" );
 
 	return dp->one_way;
 }
@@ -788,7 +788,7 @@ void windows_private_set_one_way(const Repl_Agmt *ra, int value)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_one_way\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_one_way\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -796,7 +796,7 @@ void windows_private_set_one_way(const Repl_Agmt *ra, int value)
 
 	dp->one_way = value;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_one_way\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_one_way\n" );
 }
 
 const char* 
@@ -804,13 +804,13 @@ windows_private_get_windows_userfilter(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_windows_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_userfilter\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_windows_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_userfilter\n" );
 
 	return dp->windows_userfilter;
 }
@@ -821,7 +821,7 @@ windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_windows_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_userfilter\n" );
 
 	PR_ASSERT(ra);
 
@@ -831,7 +831,7 @@ windows_private_set_windows_userfilter(const Repl_Agmt *ra, char *filter)
 	slapi_ch_free_string(&dp->windows_userfilter);
 	dp->windows_userfilter = filter;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_windows_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_userfilter\n" );
 }
 
 const char* 
@@ -839,13 +839,13 @@ windows_private_get_directory_userfilter(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_directory_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_userfilter\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_directory_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_userfilter\n" );
 
 	return dp->directory_userfilter;
 }
@@ -856,7 +856,7 @@ windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_directory_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_directory_userfilter\n" );
 
 	PR_ASSERT(ra);
 
@@ -866,7 +866,7 @@ windows_private_set_directory_userfilter(const Repl_Agmt *ra, char *filter)
 	slapi_ch_free_string(&dp->directory_userfilter);
 	dp->directory_userfilter = filter;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_directory_userfilter\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_directory_userfilter\n" );
 }
 
 const subtreePair* 
@@ -874,13 +874,13 @@ windows_private_get_subtreepairs(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_subtreepairs\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_subtreepairs\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_subtreepairs\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_subtreepairs\n" );
 
 	return dp->subtree_pairs;
 }
@@ -891,7 +891,7 @@ windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_subtreepairs\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_subtreepairs\n" );
 
 	PR_ASSERT(ra);
 
@@ -901,7 +901,7 @@ windows_private_set_subtreepairs(const Repl_Agmt *ra, char **parray)
 	free_subtree_pairs(&(dp->subtree_pairs));
 	dp->subtree_pairs = create_subtree_pairs(parray);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_subtreepairs\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_subtreepairs\n" );
 }
 
 /* 
@@ -931,14 +931,14 @@ create_subtree_pairs(char **pairs)
 		p0 = ldap_utf8strtok_r(*ptr, ":", &saveptr);
 		p1 = ldap_utf8strtok_r(NULL, ":", &saveptr);
 		if ((NULL == p0) || (NULL == p1)) {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
+			LDAPDebug1Arg(LDAP_DEBUG_ERR,
 			              "create_subtree_pairs: "
 			              "Ignoring invalid subtree pairs \"%s\".\n", *ptr);
 			continue;
 		}
 		spp->DSsubtree = slapi_sdn_new_dn_byval(p0);
 		if (NULL == spp->DSsubtree) {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
+			LDAPDebug1Arg(LDAP_DEBUG_ERR,
 			              "create_subtree_pairs: "
 			              "Ignoring invalid DS subtree \"%s\".\n",
 			              p0);
@@ -946,7 +946,7 @@ create_subtree_pairs(char **pairs)
 		}
 		spp->ADsubtree = slapi_sdn_new_dn_byval(p1);
 		if (NULL == spp->ADsubtree) {
-			LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
+			LDAPDebug1Arg(LDAP_DEBUG_ERR,
 			              "create_subtree_pairs: "
 			              "Ignoring invalid AD subtree \"%s\".\n",
 			              p1);
@@ -982,13 +982,13 @@ windows_private_get_windows_treetop(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_windows_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_windows_treetop\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_windows_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_windows_treetop\n" );
 
 	return dp->windows_treetop;
 }
@@ -999,7 +999,7 @@ windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_windows_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_windows_treetop\n" );
 
 	PR_ASSERT(ra);
 
@@ -1026,7 +1026,7 @@ windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
 			if (treetop_sdn) {
 				dp->windows_treetop = treetop_sdn;
 			} else {
-				LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
+				LDAPDebug0Args(LDAP_DEBUG_ERR,
 				               "windows_private_set_windows_treetop: "
 				               "winSyncSubtreePair contains inconsistent Windows subtrees.\n");
 				dp->windows_treetop = NULL;
@@ -1037,7 +1037,7 @@ windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
 		}
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_windows_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_windows_treetop\n" );
 }
 
 const Slapi_DN* 
@@ -1045,13 +1045,13 @@ windows_private_get_directory_treetop(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_directory_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_directory_treetop\n" );
 
 	PR_ASSERT(ra);
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_directory_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_directory_treetop\n" );
 
 	return dp->directory_treetop;
 }
@@ -1062,7 +1062,7 @@ windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_directory_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_directory_treetop\n" );
 
 	PR_ASSERT(ra);
 
@@ -1089,7 +1089,7 @@ windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
 			if (treetop_sdn) {
 				dp->directory_treetop = treetop_sdn;
 			} else {
-				LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
+				LDAPDebug0Args(LDAP_DEBUG_ERR,
 				               "windows_private_set_directory_treetop: "
 				               "winSyncSubtreePair contains inconsistent Windows subtrees.\n");
 				dp->directory_treetop = NULL;
@@ -1100,7 +1100,7 @@ windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
 		}
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_directory_treetop\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_directory_treetop\n" );
 }
 
 /* 
@@ -1116,7 +1116,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 	Dirsync_Private *dp;
 	char iscritical = PR_TRUE;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "=> windows_private_dirsync_control\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name,  "=> windows_private_dirsync_control\n" );
 	
 	PR_ASSERT(ra);
 	
@@ -1134,7 +1134,7 @@ LDAPControl* windows_private_dirsync_control(const Repl_Agmt *ra)
 
 	ber_free(ber,1);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG, "<= windows_private_dirsync_control\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name,  "<= windows_private_dirsync_control\n" );
 
 
 	return control;
@@ -1161,7 +1161,7 @@ void windows_private_update_dirsync_control(const Repl_Agmt *ra,LDAPControl **co
 	int return_value = LDAP_SUCCESS;
 #endif
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_update_dirsync_control\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_update_dirsync_control\n" );
 
     PR_ASSERT(ra);
 
@@ -1234,7 +1234,7 @@ choke:
 #ifdef FOR_DEBUGGING
 	LDAPDebug1Arg( LDAP_DEBUG_TRACE, "<= windows_private_update_dirsync_control: rc=%d\n", return_value);
 #else
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_update_dirsync_control\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_update_dirsync_control\n" );
 #endif
 }
 
@@ -1242,14 +1242,14 @@ PRBool windows_private_dirsync_has_more(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_dirsync_has_more\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_dirsync_has_more\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_dirsync_has_more\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_dirsync_has_more\n" );
 
 	return dp->dirsync_cookie_has_more;
 
@@ -1259,7 +1259,7 @@ void windows_private_null_dirsync_cookie(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_null_dirsync_control\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_null_dirsync_control\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
@@ -1268,7 +1268,7 @@ void windows_private_null_dirsync_cookie(const Repl_Agmt *ra)
 	slapi_ch_free_string(&dp->dirsync_cookie);
 	dp->dirsync_cookie = NULL;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_null_dirsync_control\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_null_dirsync_control\n" );
 }
 
 static 
@@ -1298,7 +1298,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 
     
   
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_save_dirsync_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_save_dirsync_cookie\n" );
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -1333,7 +1333,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 	slapi_mods_free(&mods);
 	slapi_sdn_free(&sdn);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_save_dirsync_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_save_dirsync_cookie\n" );
 	return rc;
 }
 
@@ -1350,7 +1350,7 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 	Slapi_Entry *entry = NULL;
 	Slapi_Attr *attr = NULL;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_load_dirsync_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_load_dirsync_cookie\n" );
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
@@ -1400,7 +1400,7 @@ int windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 	slapi_sdn_free( &sdn);
 	slapi_pblock_destroy (pb);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_load_dirsync_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_load_dirsync_cookie\n" );
 
 	return rc;
 }
@@ -1410,12 +1410,12 @@ Slapi_Entry *windows_private_get_raw_entry(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_raw_entry\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_raw_entry\n" );
 
 	return dp->raw_entry;
 }
@@ -1425,7 +1425,7 @@ void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_raw_entry\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
@@ -1439,7 +1439,7 @@ void windows_private_set_raw_entry(const Repl_Agmt *ra, Slapi_Entry *e)
 		dp->raw_entry = e;
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_raw_entry\n" );
 }
 
 /* Setting keep to 1 will cause the current raw entry to remain, even if
@@ -1449,26 +1449,26 @@ void windows_private_set_keep_raw_entry(const Repl_Agmt *ra, int keep)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_keep_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_keep_raw_entry\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
 	dp->keep_raw_entry = keep;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_keep_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_keep_raw_entry\n" );
 }
 
 int windows_private_get_keep_raw_entry(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_keep_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_keep_raw_entry\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_keep_raw_entry\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_keep_raw_entry\n" );
 
 	return dp->keep_raw_entry;
 }
@@ -1477,12 +1477,12 @@ void *windows_private_get_api_cookie(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_api_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_api_cookie\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_api_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_api_cookie\n" );
 
 	return dp->api_cookie;
 }
@@ -1491,13 +1491,13 @@ void windows_private_set_api_cookie(Repl_Agmt *ra, void *api_cookie)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_api_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_api_cookie\n" );
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 	dp->api_cookie = api_cookie;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_api_cookie\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_api_cookie\n" );
 }
 
 time_t
@@ -1505,14 +1505,14 @@ windows_private_get_sync_interval(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_sync_interval\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_sync_interval\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_sync_interval\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_sync_interval\n" );
 
 	return dp->sync_interval;	
 }
@@ -1523,7 +1523,7 @@ windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
 	Dirsync_Private *dp;
 	time_t tmpval = 0;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_sync_interval\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_sync_interval\n" );
 
 	PR_ASSERT(ra);
 
@@ -1534,7 +1534,7 @@ windows_private_set_sync_interval(Repl_Agmt *ra, char *str)
 		dp->sync_interval = tmpval;
 	}
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_sync_interval\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_sync_interval\n" );
 }
 
 int
@@ -1542,14 +1542,14 @@ windows_private_get_move_action(const Repl_Agmt *ra)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_get_move_action\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_get_move_action\n" );
 
 	PR_ASSERT(ra);
 
 	dp = (Dirsync_Private *) agmt_get_priv(ra);
 	PR_ASSERT (dp);
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_get_move_action\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_get_move_action\n" );
 
 	return dp->move_action;	
 }
@@ -1559,7 +1559,7 @@ windows_private_set_move_action(const Repl_Agmt *ra, int value)
 {
 	Dirsync_Private *dp;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"=> windows_private_set_move_action\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_private_set_move_action\n" );
 
 	PR_ASSERT(ra);
 
@@ -1567,7 +1567,7 @@ windows_private_set_move_action(const Repl_Agmt *ra, int value)
 	PR_ASSERT (dp);
 	dp->move_action = value;
 
-	LDAPDebug0Args( LDAP_DEBUG_TRACE, LOG_DEBUG,"<= windows_private_set_move_action\n" );
+	slapi_log_error(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_set_move_action\n" );
 }
 
 static PRCallOnceType winsync_callOnce = {0,0,0};
@@ -1690,7 +1690,7 @@ windows_plugin_callonce(void)
         void ***theapis = NULL;
         
         if (slapi_apib_get_interface_all(guid, &theapis) || (NULL == theapis)) {
-            LDAPDebug1Arg(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
+            LDAPDebug1Arg(LDAP_DEBUG_PLUGIN,
                           "<-- windows_plugin_callonce -- no more windows plugin APIs registered "
                           "for GUID [%s] -- end\n",
                           guid);
@@ -1698,7 +1698,7 @@ windows_plugin_callonce(void)
             int idx;
             for (idx = 0; theapis && theapis[idx]; ++idx) {
                 if (windows_plugin_add(theapis[idx], maxapi)) {
-                    LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG,
+                    LDAPDebug(LDAP_DEBUG_PLUGIN,
                               "<-- windows_plugin_callonce -- already added windows plugin API "
                               "[%d][0x%p] for GUID [%s] -- end\n",
                               idx, theapis[idx], guid);
@@ -1756,12 +1756,12 @@ windows_plugin_init(Repl_Agmt *ra)
     struct winsync_plugin_cookie *list = NULL;
     void *cookie = NULL;
 
-    LDAPDebug0Args( LDAP_DEBUG_PLUGIN, LOG_DEBUG, "--> windows_plugin_init_start -- begin\n");
+    LDAPDebug0Args(LDAP_DEBUG_PLUGIN, "--> windows_plugin_init_start -- begin\n");
 
     if (PR_CallOnce(&winsync_callOnce, windows_plugin_callonce)) {
 	    PRErrorCode prerr = PR_GetError();
-	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "windows_plugin_init",
-		    	    "cannot initialize plugin: %d:%s\n", prerr,
+	    slapi_log_error(SLAPI_LOG_ERR, "windows_plugin_init",
+		    	    "Cannot initialize plugin: %d:%s\n", prerr,
 		    	    slapi_pr_strerror(prerr));
 	    return;
     }
@@ -1780,7 +1780,7 @@ windows_plugin_init(Repl_Agmt *ra)
        
     windows_private_set_api_cookie(ra, list);
 
-    LDAPDebug0Args( LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<-- windows_plugin_init_start -- end\n");
+    LDAPDebug0Args(LDAP_DEBUG_PLUGIN, "<-- windows_plugin_init_start -- end\n");
     return;
 }
 
@@ -2176,12 +2176,12 @@ static char *test_winsync_plugin_name = "test_winsync_api";
 static void *
 test_winsync_api_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_init [%s] [%s] -- begin\n",
                     slapi_sdn_get_dn(ds_subtree),
                     slapi_sdn_get_dn(ad_subtree));
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_init -- end\n");
 
     return NULL;
@@ -2192,10 +2192,10 @@ test_winsync_dirsync_search_params_cb(void *cbdata, const char *agmt_dn,
                                       char **base, int *scope, char **filter,
                                       char ***attrs, LDAPControl ***serverctrls)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_dirsync_search_params_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_dirsync_search_params_cb -- end\n");
 
     return;
@@ -2207,10 +2207,10 @@ test_winsync_pre_ad_search_cb(void *cbdata, const char *agmt_dn,
                               char **base, int *scope, char **filter,
                               char ***attrs, LDAPControl ***serverctrls)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_search_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_search_cb -- end\n");
 
     return;
@@ -2222,10 +2222,10 @@ test_winsync_pre_ds_search_entry_cb(void *cbdata, const char *agmt_dn,
                                     char **base, int *scope, char **filter,
                                     char ***attrs, LDAPControl ***serverctrls)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_search_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ds_search_cb -- end\n");
 
     return;
@@ -2237,7 +2237,7 @@ test_winsync_pre_ds_search_all_cb(void *cbdata, const char *agmt_dn,
                                   char **base, int *scope, char **filter,
                                   char ***attrs, LDAPControl ***serverctrls)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_search_all_cb -- orig filter [%s] -- begin\n",
                     ((filter && *filter) ? *filter : "NULL"));
 
@@ -2249,13 +2249,13 @@ test_winsync_pre_ds_search_all_cb(void *cbdata, const char *agmt_dn,
            synced with AD already - ntUniqueId and ntUserDomainId are
            indexed for equality only - need to add presence? */
         *filter = slapi_ch_strdup("(&(objectclass=ntuser)(ntUserDomainId=*))");
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+        slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                         "--> test_winsync_pre_ds_search_all_cb -- new filter [%s]\n",
                         *filter ? *filter : "NULL"));
     }
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ds_search_all_cb -- end\n");
 
     return;
@@ -2266,10 +2266,10 @@ test_winsync_pre_ad_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
                                 Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                 Slapi_Mods *smods, int *do_modify)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_user_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_mod_user_cb -- end\n");
 
     return;
@@ -2280,10 +2280,10 @@ test_winsync_pre_ad_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
                                 Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                 Slapi_Mods *smods, int *do_modify)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_group_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_mod_group_cb -- end\n");
 
     return;
@@ -2294,10 +2294,10 @@ test_winsync_pre_ds_mod_user_cb(void *cbdata, const Slapi_Entry *rawentry,
                                 Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                 Slapi_Mods *smods, int *do_modify)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_mod_user_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ds_mod_user_cb -- end\n");
 
     return;
@@ -2308,10 +2308,10 @@ test_winsync_pre_ds_mod_group_cb(void *cbdata, const Slapi_Entry *rawentry,
                                 Slapi_Entry *ad_entry, Slapi_Entry *ds_entry,
                                 Slapi_Mods *smods, int *do_modify)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_mod_group_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ds_mod_group_cb -- end\n");
 
     return;
@@ -2321,10 +2321,10 @@ static void
 test_winsync_pre_ds_add_user_cb(void *cbdata, const Slapi_Entry *rawentry,
                                 Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_add_user_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ds_add_user_cb -- end\n");
 
     return;
@@ -2334,10 +2334,10 @@ static void
 test_winsync_pre_ds_add_group_cb(void *cbdata, const Slapi_Entry *rawentry,
                                 Slapi_Entry *ad_entry, Slapi_Entry *ds_entry)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ds_add_group_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ds_add_group_cb -- end\n");
 
     return;
@@ -2348,7 +2348,7 @@ test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
                                    Slapi_Entry *ad_entry, char **new_dn_string,
                                    const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_get_new_ds_user_dn_cb -- old dn [%s] -- begin\n",
                     *new_dn_string);
 
@@ -2364,7 +2364,7 @@ test_winsync_get_new_ds_user_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
     slapi_ldap_value_free(rdns);
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_get_new_ds_user_dn_cb -- new dn [%s] -- end\n",
                     *new_dn_string);
 
@@ -2376,10 +2376,10 @@ test_winsync_get_new_ds_group_dn_cb(void *cbdata, const Slapi_Entry *rawentry,
                                    Slapi_Entry *ad_entry, char **new_dn_string,
                                    const Slapi_DN *ds_suffix, const Slapi_DN *ad_suffix)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_get_new_ds_group_dn_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_get_new_ds_group_dn_cb -- end\n");
 
     return;
@@ -2391,10 +2391,10 @@ test_winsync_pre_ad_mod_user_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
                                      const Slapi_DN *local_dn, LDAPMod * const *origmods,
                                      Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_user_mods_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_mod_user_mods_cb -- end\n");
 
     return;
@@ -2406,10 +2406,10 @@ test_winsync_pre_ad_mod_group_mods_cb(void *cbdata, const Slapi_Entry *rawentry,
                                      const Slapi_DN *local_dn, LDAPMod * const *origmods,
                                      Slapi_DN *remote_dn, LDAPMod ***modstosend)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_mod_group_mods_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_mod_group_mods_cb -- end\n");
 
     return;
@@ -2419,10 +2419,10 @@ static int
 test_winsync_can_add_entry_to_ad_cb(void *cbdata, const Slapi_Entry *local_entry,
                                     const Slapi_DN *remote_dn)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_can_add_entry_to_ad_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_can_add_entry_to_ad_cb -- end\n");
 
     /*    return 0;*/ /* false - do not allow entries to be added to ad */
@@ -2433,10 +2433,10 @@ static void
 test_winsync_begin_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
                              const Slapi_DN *ad_subtree, int is_total)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_begin_update_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_begin_update_cb -- end\n");
 
     return;
@@ -2446,10 +2446,10 @@ static void
 test_winsync_end_update_cb(void *cbdata, const Slapi_DN *ds_subtree,
                            const Slapi_DN *ad_subtree, int is_total)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_end_update_cb -- begin\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_end_update_cb -- end\n");
 
     return;
@@ -2459,12 +2459,12 @@ static void
 test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
                              const Slapi_DN *ad_subtree)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_destroy_agmt_cb -- begin\n");
 
     /* free(cbdata); */
     
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_destroy_agmt_cb -- end\n");
 
     return;
@@ -2473,16 +2473,16 @@ test_winsync_destroy_agmt_cb(void *cbdata, const Slapi_DN *ds_subtree,
 static void
 test_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of modifying AD entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ad_mod_user_cb -- end\n");
 
     return;
@@ -2491,16 +2491,16 @@ test_winsync_post_ad_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slap
 static void
 test_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of modifying AD entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ad_mod_group_cb -- end\n");
 
     return;
@@ -2509,16 +2509,16 @@ test_winsync_post_ad_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Sla
 static void
 test_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_mod_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of modifying DS entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ds_mod_user_cb -- end\n");
 
     return;
@@ -2527,16 +2527,16 @@ test_winsync_post_ds_mod_user_cb(void *cookie, const Slapi_Entry *rawentry, Slap
 static void
 test_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, Slapi_Mods *smods, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_mod_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of modifying DS entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ds_mod_group_cb -- end\n");
 
     return;
@@ -2545,16 +2545,16 @@ test_winsync_post_ds_mod_group_cb(void *cookie, const Slapi_Entry *rawentry, Sla
 static void
 test_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_add_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of adding DS entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ds_add_user_cb -- end\n");
 
     return;
@@ -2563,16 +2563,16 @@ test_winsync_post_ds_add_user_cb(void *cookie, const Slapi_Entry *rawentry, Slap
 static void
 test_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Slapi_Entry *ad_entry, Slapi_Entry *ds_entry, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ds_add_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of adding DS entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ds_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ds_add_group_cb -- end\n");
 
     return;
@@ -2581,17 +2581,17 @@ test_winsync_post_ds_add_group_cb(void *cookie, const Slapi_Entry *rawentry, Sla
 static void
 test_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_add_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Adding AD entry [%s] from add of DS entry [%s]\n",
                     slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
     /* make modifications to ad_entry here */
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_add_user_cb -- end\n");
 
     return;
@@ -2600,17 +2600,17 @@ test_winsync_pre_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry
 static void
 test_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_pre_ad_add_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Adding AD entry [%s] from add of DS entry [%s]\n",
                     slapi_entry_get_dn(ad_entry), slapi_entry_get_dn(ds_entry));
     /* make modifications to ad_entry here */
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_pre_ad_add_group_cb -- end\n");
 
     return;
@@ -2619,16 +2619,16 @@ test_winsync_pre_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entr
 static void
 test_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_add_user_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of adding AD entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ad_add_user_cb -- end\n");
 
     return;
@@ -2637,16 +2637,16 @@ test_winsync_post_ad_add_user_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entr
 static void
 test_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Entry *ad_entry, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_add_group_cb -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of adding AD entry [%s] was [%d:%s]\n",
                     slapi_entry_get_dn(ad_entry), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ad_add_group_cb -- end\n");
 
     return;
@@ -2655,16 +2655,16 @@ test_winsync_post_ad_add_group_cb(void *cookie, Slapi_Entry *ds_entry, Slapi_Ent
 static void
 test_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_user_mods_cb  -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of modifying AD entry [%s] was [%d:%s]\n",
                     slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ad_mod_user_mods_cb -- end\n");
 
     return;
@@ -2673,16 +2673,16 @@ test_winsync_post_ad_mod_user_mods_cb(void *cookie, const Slapi_Entry *rawentry,
 static void
 test_winsync_post_ad_mod_group_mods_cb(void *cookie, const Slapi_Entry *rawentry, const Slapi_DN *local_dn, const Slapi_Entry *ds_entry, LDAPMod * const *origmods, Slapi_DN *remote_dn, LDAPMod ***modstosend, int *result)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "--> test_winsync_post_ad_mod_group_mods_cb  -- begin\n");
 
 #ifdef THIS_IS_JUST_AN_EXAMPLE
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "Result of modifying AD entry [%s] was [%d:%s]\n",
                     slapi_sdn_get_dn(remote_dn), *result, ldap_err2string(*result));
 #endif
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_PLUGIN, test_winsync_plugin_name,
                     "<-- test_winsync_post_ad_mod_group_mods_cb -- end\n");
 
     return;
@@ -2807,16 +2807,16 @@ static void *test_winsync_api_v3[] = {
 static int
 test_winsync_plugin_start(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "--> test_winsync_plugin_start -- begin\n");
 
 	if( slapi_apib_register(WINSYNC_v3_0_GUID, test_winsync_api_v3) ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_winsync_plugin_name,
-                         "<-- test_winsync_plugin_start -- failed to register winsync api -- end\n");
+        slapi_log_error(SLAPI_LOG_ERR, test_winsync_plugin_name,
+            "test_winsync_plugin_start - Failed to register winsync api -- end\n");
         return -1;
 	}
 	
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "<-- test_winsync_plugin_start -- end\n");
 	return 0;
 }
@@ -2824,12 +2824,12 @@ test_winsync_plugin_start(Slapi_PBlock *pb)
 static int
 test_winsync_plugin_close(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "--> test_winsync_plugin_close -- begin\n");
 
 	slapi_apib_unregister(WINSYNC_v3_0_GUID);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "<-- test_winsync_plugin_close -- end\n");
 	return 0;
 }
@@ -2839,7 +2839,7 @@ test_winsync_plugin_close(Slapi_PBlock *pb)
 */
 int test_winsync_plugin_init(Slapi_PBlock *pb)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                     "--> test_winsync_plugin_init -- begin\n");
 
     if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
@@ -2851,7 +2851,7 @@ int test_winsync_plugin_init(Slapi_PBlock *pb)
          slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
                            (void *)&test_winsync_pdesc ) != 0 )
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_winsync_plugin_name,
+        slapi_log_error(SLAPI_LOG_ERR, test_winsync_plugin_name,
                          "<-- test_winsync_plugin_init -- failed to register plugin -- end\n");
         return -1;
     }
@@ -2859,12 +2859,12 @@ int test_winsync_plugin_init(Slapi_PBlock *pb)
     /* Retrieve and save the plugin identity to later pass to
        internal operations */
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &test_winsync_plugin_id) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, test_winsync_plugin_name,
-                         "<-- test_winsync_plugin_init -- failed to retrieve plugin identity -- end\n");
+        slapi_log_error(SLAPI_LOG_ERR, test_winsync_plugin_name,
+                         "test_winsync_plugin_init - Failed to retrieve plugin identity -- end\n");
         return -1;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, test_winsync_plugin_name,
+    slapi_log_error(SLAPI_LOG_TRACE, test_winsync_plugin_name,
                      "<-- test_winsync_plugin_init -- end\n");
     return 0;
 }

@@ -394,18 +394,20 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	ret = import_make_merge_filenames(inst->inst_dir_name,
 		worker->index_info->name, pass_number, &oldname, &newname);
 	if (0 != ret) {
-	    import_log_notice(worker->job, "Failed making filename in merge");
+	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+	            "Failed making filename in merge");
 	    goto error;
 	}
 	ret = PR_Rename(newname,oldname);
 	if (0 != ret) {
 		PRErrorCode prerr = PR_GetError();
-	    import_log_notice(worker->job, "Failed to rename file \"%s\" to \"%s\" "
-					"in merge, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
-					oldname, newname, prerr, slapd_pr_strerror(prerr));
+		import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+				"Failed to rename file \"%s\" to \"%s\" "
+				"in merge, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)",
+				oldname, newname, prerr, slapd_pr_strerror(prerr));
 		slapi_ch_free( (void**)&newname);
 		slapi_ch_free( (void**)&oldname);
-	    goto error;
+		goto error;
 	}
 	slapi_ch_free( (void**)&newname);
 	slapi_ch_free( (void**)&oldname);
@@ -424,20 +426,20 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	ret = dblayer_close(inst->inst_li, DBLAYER_IMPORT_MODE);
 	if (0 != ret) {
 	    if (ENOSPC == ret) {
-		import_log_notice(worker->job, "FAILED: NO DISK SPACE LEFT");
+		import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "FAILED: NO DISK SPACE LEFT");
 	    } else {
-		import_log_notice(worker->job, "MERGE FAIL 8 %d", ret);
+		import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8 %d", ret);
 	    }
             goto error;
 	}
 	ret = dblayer_start(inst->inst_li, DBLAYER_IMPORT_MODE);
 	if (0 != ret) {
-	    import_log_notice(worker->job, "MERGE FAIL 9");
+	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 9");
             goto error;
 	}
 	ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
 	if (0 != ret) {
-	    import_log_notice(worker->job, "MERGE FAIL 9A");
+	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 9A");
             goto error;
 	}
 #else
@@ -449,27 +451,27 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
          */
         ret = dblayer_instance_close(be);
         if (0 != ret) {
-            import_log_notice(worker->job, "MERGE FAIL 8i %d\n", ret);
-	    goto error;
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8i %d\n", ret);
+            goto error;
         }
         ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
         if (0 != ret) {
-            import_log_notice(worker->job, "MERGE FAIL 8j %d\n", ret);
-	    goto error;
+            import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 8j %d\n", ret);
+            goto error;
         }
 #endif
 
 	ret = import_open_merge_input_files(be, worker->index_info,
 		passes, &input_files, &number_found, &pass_number);
 	if (0 != ret) {
-	    import_log_notice(worker->job, "MERGE FAIL 10");
+	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 10");
 	    goto error;
 	}
 
 	ret = dblayer_open_file(be, worker->index_info->name, 1,
 				worker->index_info->ai, &output_file);
 	if (0 != ret) {
-	    import_log_notice(worker->job, "Failed to open output file for "
+	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "Failed to open output file for "
 			      "index %s in merge", worker->index_info->name);
 	    goto error;
 	}
@@ -481,7 +483,7 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	ret = import_merge_open_input_cursors(input_files, passes,
 					      &input_cursors);
 	if (0 != ret) {
-	    import_log_notice(worker->job, "MERGE FAIL 2 %s %d",
+	    import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 2 %s %d",
 			      worker->index_info->name, ret);
 	    goto error;
 	}
@@ -489,78 +491,78 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	/* Now read from the first location in each file and insert into the 
 	 * queue */
 	for (i = 0; i < passes; i++) if (input_files[i]) {
-	    import_merge_thang prime_thang = {0};
+		import_merge_thang prime_thang = {0};
 
-	    /* Read an IDL from the file */
-	    ret = import_merge_get_next_thang(be, input_cursors[i],
+		/* Read an IDL from the file */
+		ret = import_merge_get_next_thang(be, input_cursors[i],
 		input_files[i], &prime_thang, &key,
 		vlv_index ? IMPORT_MERGE_THANG_VLV : IMPORT_MERGE_THANG_IDL);
-	    if (0 != ret) {
-		import_log_notice(worker->job, "MERGE FAIL 1 %s %d",
+		if (0 != ret) {
+			import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 1 %s %d",
 				  worker->index_info->name, ret);
-		goto error;
-	    }
-	    /* Put it on the queue */
-	    ret = import_merge_insert_input_queue(be, &merge_queue, i,& key,
+			goto error;
+		}
+		/* Put it on the queue */
+		ret = import_merge_insert_input_queue(be, &merge_queue, i,& key,
 						  &prime_thang, passes);
-	    if (0 != ret) {
-		import_log_notice(worker->job, "MERGE FAIL 0 %s",
+		if (0 != ret) {
+			import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 0 %s",
 				  worker->index_info->name);
-		goto error;
-	    }
+			goto error;
+		}
 	}
 
 	/* We now have a pre-filled queue, so we may now proceed to remove the
 	   head entry and write it to the output file, and repeat this process
 	   until we've finished reading all the input data */
 	while (not_finished && (0 == ret) ) {
-	    ret = import_merge_remove_input_queue(be, &merge_queue, &thang,
+		ret = import_merge_remove_input_queue(be, &merge_queue, &thang,
 		&key, input_cursors, input_files, passes);
-	    if (0 != ret) {
-		/* Have we finished cleanly ? */
-		if (EOF == ret) {
-		    not_finished = 0;
-		} else {
-		    import_log_notice(worker->job, "MERGE FAIL 3 %s, %d",
-				      worker->index_info->name, ret);
-		}
-	    } else {
-		/* Write it out */
-		(*key_count)++;
-		if (vlv_index) {
-		    /* Write the vlv index */
-		    ret = output_file->put(output_file, NULL, &key,
-			&(thang.payload.vlv_data),0);
-		    slapi_ch_free(&(thang.payload.vlv_data.data));
-		    thang.payload.vlv_data.data = NULL;
-		} else {
-		    /* Write the IDL index */
-		    ret = idl_store_block(be, output_file, &key,
-			thang.payload.idl, NULL, worker->index_info->ai);
-		    /* Free the key we got back from the queue */
-		    idl_free(&(thang.payload.idl));
-		    thang.payload.idl = NULL;
-		}
-		slapi_ch_free(&(key.data));
-		key.data = NULL;
 		if (0 != ret) {
-		    /* Failed to write--- most obvious cause being out of 
-		       disk space, let's make sure that we at least print a
-		       sensible error message right here. The caller should
-		       really handle this properly, but we're always bad at
-		       this. */
-		    if (ret == DB_RUNRECOVERY || ret == ENOSPC) {
-			import_log_notice(worker->job, "OUT OF SPACE ON DISK, "
-					  "failed writing index file %s",
-					  worker->index_info->name);
-		    } else {
-			import_log_notice(worker->job, "Failed to write "
-					  "index file %s, errno=%d (%s)\n",
-					  worker->index_info->name, errno,
-					  dblayer_strerror(errno));
-		    }
+			/* Have we finished cleanly ? */
+			if (EOF == ret) {
+				not_finished = 0;
+			} else {
+				import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 3 %s, %d",
+						  worker->index_info->name, ret);
+			}
+		} else {
+			/* Write it out */
+			(*key_count)++;
+			if (vlv_index) {
+				/* Write the vlv index */
+				ret = output_file->put(output_file, NULL, &key,
+				&(thang.payload.vlv_data),0);
+				slapi_ch_free(&(thang.payload.vlv_data.data));
+				thang.payload.vlv_data.data = NULL;
+			} else {
+				/* Write the IDL index */
+				ret = idl_store_block(be, output_file, &key,
+				thang.payload.idl, NULL, worker->index_info->ai);
+				/* Free the key we got back from the queue */
+				idl_free(&(thang.payload.idl));
+				thang.payload.idl = NULL;
+			}
+			slapi_ch_free(&(key.data));
+			key.data = NULL;
+			if (0 != ret) {
+				/* Failed to write--- most obvious cause being out of 
+				   disk space, let's make sure that we at least print a
+				   sensible error message right here. The caller should
+				   really handle this properly, but we're always bad at
+				   this. */
+				if (ret == DB_RUNRECOVERY || ret == ENOSPC) {
+					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+						"OUT OF SPACE ON DISK, failed writing index file %s",
+						worker->index_info->name);
+				} else {
+					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+						"Failed to write index file %s, errno=%d (%s)\n",
+						worker->index_info->name, errno,
+						dblayer_strerror(errno));
+				}
+			}
 		}
-	    }
 	}
 	preclose_ret = ret;
 	/* Now close the files */
@@ -568,51 +570,52 @@ static int import_merge_one_file(ImportWorkerInfo *worker, int passes,
 	/* Close the cursors */
 	/* Close and delete the files */
 	for (i = 0; i < passes; i++) {
-	    DBC *cursor = input_cursors[i];
-	    DB *db = input_files[i];
-	    if (NULL != db) {
-		PR_ASSERT(NULL != cursor);
-		ret = cursor->c_close(cursor);
-		if (0 != ret) {
-		    import_log_notice(worker->job, "MERGE FAIL 4");
-		} 
-		ret = dblayer_close_file(&db);
-		if (0 != ret) {
-		    import_log_notice(worker->job, "MERGE FAIL 5");
-		}
-		/* Now make the filename and delete the file */
-		{
-		    char *newname = NULL;
-		    char *oldname = NULL;
-		    ret = import_make_merge_filenames(inst->inst_dir_name,
-			worker->index_info->name, i+1, &oldname, &newname);
-		    if (0 != ret) {
-			import_log_notice(worker->job, "MERGE FAIL 6");
-		    } else {
-			ret = PR_Delete(newname);
+		DBC *cursor = input_cursors[i];
+		DB *db = input_files[i];
+		if (NULL != db) {
+			PR_ASSERT(NULL != cursor);
+			ret = cursor->c_close(cursor);
 			if (0 != ret) {
-			    import_log_notice(worker->job, "MERGE FAIL 7");
+				import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 4");
+			} 
+			ret = dblayer_close_file(&db);
+			if (0 != ret) {
+				import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 5");
 			}
-			slapi_ch_free( (void**)&newname);
-			slapi_ch_free( (void**)&oldname);
-		    }
-		}
-	    }			
+			/* Now make the filename and delete the file */
+			{
+				char *newname = NULL;
+				char *oldname = NULL;
+				ret = import_make_merge_filenames(inst->inst_dir_name,
+				worker->index_info->name, i+1, &oldname, &newname);
+				if (0 != ret) {
+					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 6");
+				} else {
+					ret = PR_Delete(newname);
+				if (0 != ret) {
+					import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "MERGE FAIL 7");
+				}
+				slapi_ch_free( (void**)&newname);
+				slapi_ch_free( (void**)&oldname);
+				}
+			}
+		}			
 	}
 	if (preclose_ret != 0) ret = preclose_ret;
-    }
-    if (EOF == ret) {
+	}
+	if (EOF == ret) {
 	ret = 0;
-    }
+	}
 
 error:
     slapi_ch_free((void**)&input_cursors);
     slapi_ch_free((void**)&input_files);
     if (ret) {
-        import_log_notice(worker->job, "%s: Import merge failed. "
-                          "If this is an online-import, shutdown the server "
-                          "and try the offline command line import (ldif2db)",
-                          inst->inst_name);
+        import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file",
+                "%s: Import merge failed. "
+                "If this is an online-import, shutdown the server "
+                "and try the offline command line import (ldif2db)",
+                inst->inst_name);
     }
     return ret;
 }
@@ -636,52 +639,53 @@ int import_mega_merge(ImportJob *job)
     int passes = job->current_pass;
 
     if (1 == job->number_indexers) {
-	import_log_notice(job, "Beginning %d-way merge of one file...", passes);
+        import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge",
+                "Beginning %d-way merge of one file...", passes);
     } else {
-	import_log_notice(job, "Beginning %d-way merge of up to %lu files...",
-			  passes, (long unsigned int)job->number_indexers);
+        import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge",
+                "Beginning %d-way merge of up to %lu files...",
+                passes, (long unsigned int)job->number_indexers);
     }
 
     time(&beginning);
     /* Iterate over the files */
-    for (current_worker = job->worker_list; 
+	for (current_worker = job->worker_list; 
 	 (ret == 0) && (current_worker != NULL);
-	 current_worker = current_worker->next) {
-	/* We need to ignore the primary index */
-	if ((current_worker->work_type != FOREMAN) && 
-	    (current_worker->work_type != PRODUCER)) {
-	    time_t file_beginning = 0;
-	    time_t file_end = 0;
-	    int key_count = 0;
-
-	    time(&file_beginning);
-	    ret = import_merge_one_file(current_worker,passes,&key_count);
-	    time(&file_end);
-	    if (key_count == 0) {
-		import_log_notice(job, "No files to merge for \"%s\".",
-				  current_worker->index_info->name);
-	    } else {
-		if (-1 == key_count) {
-		    import_log_notice(job, "Merged \"%s\": Simple merge - "
-				      "file renamed.", 
-				      current_worker->index_info->name);
-		} else {
-		    import_log_notice(job, "Merged \"%s\": %d keys merged "
-				      "in %ld seconds.",
-				      current_worker->index_info->name,
-				      key_count, file_end-file_beginning);
-		}
-	    }
-	}
-    }
-
-    time(&end);
-    if (0 == ret) {
-	int seconds_to_merge = end - beginning;
+	 current_worker = current_worker->next)
+	{
+		/* We need to ignore the primary index */
+		if ((current_worker->work_type != FOREMAN) && 
+			(current_worker->work_type != PRODUCER)) {
+			time_t file_beginning = 0;
+			time_t file_end = 0;
+			int key_count = 0;
 	
-	import_log_notice(job, "Merging completed in %d seconds.",
+			time(&file_beginning);
+			ret = import_merge_one_file(current_worker,passes,&key_count);
+			time(&file_end);
+			if (key_count == 0) {
+				import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "No files to merge for \"%s\".",
+					current_worker->index_info->name);
+			} else {
+				if (-1 == key_count) {
+					import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": Simple merge - "
+						"file renamed.", current_worker->index_info->name);
+				} else {
+					import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merged \"%s\": %d keys merged "
+						"in %ld seconds.", current_worker->index_info->name,
+						key_count, file_end-file_beginning);
+				}
+			}
+		}
+	}
+
+	time(&end);
+	if (0 == ret) {
+		int seconds_to_merge = end - beginning;
+	
+	import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",
 			  seconds_to_merge);
-    }
+	}
 
     return ret;
 }

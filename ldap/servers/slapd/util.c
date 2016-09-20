@@ -333,7 +333,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             raw_filter.bv_val = (char *)buf;
             raw_filter.bv_len = filter_len;
             if(ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0){
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
+                LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
                 ctx->next_arg_needs_esc_norm = 0;
                 return -1;
             } else {
@@ -345,7 +345,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
             buf = slapi_ch_calloc(sizeof(char), filter_len*3 + 1);
             val2 = (char *)do_escape_string(val, filter_len, buf, special_filter);
             if(val2 == NULL){
-                LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
+                LDAPDebug(LDAP_DEBUG_TRACE, "slapi_filter_sprintf: failed to escape filter value(%s)\n",val,0,0);
                 ctx->next_arg_needs_esc_norm = 0;
                 slapi_ch_free_string(&buf);
                 return -1;
@@ -473,7 +473,7 @@ slapi_escape_filter_value(char* filter_str, int len)
     raw_filter.bv_val = filter_str;
     raw_filter.bv_len = filter_len;
     if(ldap_bv2escaped_filter_value(&raw_filter, &escaped_filter) != 0){
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "slapi_escape_filter_value: failed to escape filter value(%s)\n",filter_str,0,0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "slapi_escape_filter_value: failed to escape filter value(%s)\n",filter_str,0,0);
         return NULL;
     } else {
         return escaped_filter.bv_val;
@@ -612,8 +612,8 @@ int slapi_mods2entry (Slapi_Entry **e, const char *idn, LDAPMod **iattrs)
         valuearray_free(&vals);
         if (rc != LDAP_SUCCESS)
         {
-            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                "slapi_mods2entry: add_values for type %s failed (rc: %d)\n",
+            LDAPDebug2Args(LDAP_DEBUG_ERR,
+                "slapi_mods2entry - Add_values for type %s failed (rc: %d)\n",
                 normtype, rc );
             slapi_entry_free (*e);
             *e = NULL;
@@ -932,7 +932,7 @@ rel2abspath_ext( char *relpath, char *cwd )
         if ( NULL == cwd ) {
             if ( getcwd( abspath, MAXPATHLEN ) == NULL ) {
                 perror( "getcwd" );
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Cannot determine current directory\n",
+                LDAPDebug(LDAP_DEBUG_ERR, "rel2abspath_ext - Cannot determine current directory\n",
                         0, 0, 0 );
                 exit( 1 );
             }
@@ -941,7 +941,7 @@ rel2abspath_ext( char *relpath, char *cwd )
         }
     
         if ( strlen( relpath ) + strlen( abspath ) + 1  > MAXPATHLEN ) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Pathname \"%s" _PSEP "%s\" too long\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "rel2abspath_ext - Pathname \"%s" _PSEP "%s\" too long\n",
                     abspath, relpath, 0 );
             exit( 1 );
         }
@@ -1003,7 +1003,7 @@ void slapd_nasty(char* str, int c, int err)
 	char *msg = NULL;
 	char buffer[100];
 	PR_snprintf(buffer,sizeof(buffer), "%s BAD %d",str,c);
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"%s, err=%d %s\n",buffer,err,(msg = strerror( err )) ? msg : "");
+	LDAPDebug(LDAP_DEBUG_ERR,"%s, err=%d %s\n",buffer,err,(msg = strerror( err )) ? msg : "");
 }
 
 /* ***************************************************
@@ -1415,11 +1415,11 @@ slapi_is_special_rdn(const char *rdn, int flag)
 	}
 
 	if ((RDN_IS_TOMBSTONE != flag) && (RDN_IS_CONFLICT != flag)) {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "slapi_is_special_rdn: invalid flag %d\n", flag);
+		LDAPDebug1Arg(LDAP_DEBUG_ERR, "slapi_is_special_rdn - Invalid flag %d\n", flag);
 		return 0; /* not a special rdn/dn */
 	}
 	if (!rdn) {
-		LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "slapi_is_special_rdn: NULL rdn\n");
+		LDAPDebug0Args(LDAP_DEBUG_ERR, "slapi_is_special_rdn - NULL rdn\n");
 		return 0; /* not a special rdn/dn */
 	}
 
@@ -1490,7 +1490,7 @@ static size_t util_getvirtualmemsize(void)
          * memory.
          */
         int errsrv = errno;
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"util_getvirtualmemsize", "ERROR: getrlimit returned non-zero. errno=%u\n", errsrv);
+        slapi_log_error(SLAPI_LOG_ERR,"util_getvirtualmemsize", "getrlimit returned non-zero. errno=%u\n", errsrv);
         return 0;
     }
     return rl.rlim_cur;
@@ -1503,8 +1503,8 @@ static size_t util_getvirtualmemsize(void)
 int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size_t *availpages)
 {
     if ((NULL == pagesize) || (NULL == pages) || (NULL == procpages) || (NULL == availpages)) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "util_info_sys_pages",
-                        "ERROR: Null return variables are passed.  Skip getting the system info.\n");
+        slapi_log_error(SLAPI_LOG_ERR, "util_info_sys_pages",
+                        "Null return variables are passed.  Skip getting the system info.\n");
         return 1;
     }
     *pagesize = 0;
@@ -1590,7 +1590,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         if (!f) {    /* fopen failed */
             /* We should probably make noise here! */
             int errsrv = errno;
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"util_info_sys_pages", "ERROR: Unable to open file /proc/%d/status. errno=%u\n", getpid(), errsrv);
+            slapi_log_error(SLAPI_LOG_ERR,"util_info_sys_pages", "Unable to open file /proc/%d/status. errno=%u\n", getpid(), errsrv);
             return 1;
         }
         while (! feof(f)) {
@@ -1614,7 +1614,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         fm = fopen(fmn, "r");
         if (!fm) {
             int errsrv = errno;
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"util_info_sys_pages", "ERROR: Unable to open file /proc/meminfo. errno=%u\n", errsrv);
+            slapi_log_error(SLAPI_LOG_ERR,"util_info_sys_pages", "Unable to open file /proc/meminfo. errno=%u\n", errsrv);
             return 1;
         }
         while (! feof(fm)) {
@@ -1648,9 +1648,9 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         }
 
         /* Pages is the total ram on the system. */
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages pages=%lu, \n", 
+        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - pages=%lu, \n", 
             (unsigned long) *pages, 0,0);
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages using pages for pages \n",0,0,0);
+        LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - using pages for pages \n",0,0,0);
 
         /* Availpages is how much we *could* alloc. We should take the smallest:
          * - pages
@@ -1658,21 +1658,21 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
          * - freesize
          */
         if (rlimsize == RLIM_INFINITY) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages pages=%lu, getrlim=RLIM_INFINITY, freesize=%lu\n",
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - pages=%lu, getrlim=RLIM_INFINITY, freesize=%lu\n",
                 (unsigned long)*pages, (unsigned long)freesize, 0);
         } else {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages pages=%lu, getrlim=%lu, freesize=%lu\n",
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - pages=%lu, getrlim=%lu, freesize=%lu\n",
                 (unsigned long)*pages, (unsigned long)*availpages, (unsigned long)freesize);
         }
 
         if (rlimsize != RLIM_INFINITY && rlimsize < freesize && rlimsize < *pages && rlimsize > 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages using getrlim for availpages \n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - using getrlim for availpages \n",0,0,0);
             *availpages = rlimsize;
         } else if (freesize < *pages && freesize > 0) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages using freesize for availpages \n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - using freesize for availpages \n",0,0,0);
             *availpages = freesize;
         } else {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_info_sys_pages using pages for availpages \n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - using pages for availpages \n",0,0,0);
             *availpages = *pages;
         }
 
@@ -1733,7 +1733,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
 #define GIGABYTE (1024*1024*1024)
         size_t one_gig_pages = GIGABYTE / *pagesize;
         if (*pages > (2 * one_gig_pages) ) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
+            LDAPDebug(LDAP_DEBUG_TRACE,"util_info_sys_pages - More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n",
                 0, 0, 0);
             *pages = (2 * one_gig_pages);
         }
@@ -1743,7 +1743,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
     /* This is stupid. If you set %u to %zu to print a size_t, you get literal %zu in your logs 
      * So do the filthy cast instead.
      */
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
+    slapi_log_error(SLAPI_LOG_TRACE,"util_info_sys_pages", "USING pages=%lu, procpages=%lu, availpages=%lu \n", 
         (unsigned long)*pages, (unsigned long)*procpages, (unsigned long)*availpages);
     return 0;
 
@@ -1782,13 +1782,13 @@ int util_is_cachesize_sane(size_t *cachesize)
      */
 
     cachepages = *cachesize / pagesize;
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_is_cachesize_sane cachesize=%lu / pagesize=%lu \n",
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane - cachesize=%lu / pagesize=%lu \n",
         (unsigned long)*cachesize,(unsigned long)pagesize,0);
 
 #ifdef LINUX
     /* Linux we calculate availpages correctly, so USE IT */
     issane = (int)(cachepages <= availpages);
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_is_cachesize_sane cachepages=%lu <= availpages=%lu\n",
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane - cachepages=%lu <= availpages=%lu\n",
         (unsigned long)cachepages,(unsigned long)availpages,0);
 
     if (!issane) {
@@ -1799,28 +1799,28 @@ int util_is_cachesize_sane(size_t *cachesize)
         /* These are now trace warnings, because it was to confusing to log this *then* kill the request anyway.
          * Instead, we will let the caller worry about the notification, and we'll just use this in debugging and tracing.
          */
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
+        slapi_log_error(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "Available pages %lu, requested pages %lu, pagesize %lu\n", (unsigned long)availpages, (unsigned long)cachepages, (unsigned long)pagesize);
+        slapi_log_error(SLAPI_LOG_TRACE, "util_is_cachesize_sane", "WARNING adjusted cachesize to %lu\n", (unsigned long)*cachesize);
     }
 #else
     size_t freepages = 0;
     freepages = pages - procpages;
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_is_cachesize_sane pages=%lu - procpages=%lu\n",
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane pages=%lu - procpages=%lu\n",
         (unsigned long)pages,(unsigned long)procpages,0);
 
     issane = (int)(cachepages <= freepages);
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,"util_is_cachesize_sane cachepages=%lu <= freepages=%lu\n",
+    LDAPDebug(LDAP_DEBUG_TRACE,"util_is_cachesize_sane cachepages=%lu <= freepages=%lu\n",
         (unsigned long)cachepages,(unsigned long)freepages,0);
 
     if (!issane) {
         *cachesize = (size_t)((pages - procpages) * pagesize);
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "util_is_cachesize_sane", "util_is_cachesize_sane WARNING adjusted cachesize to %lu\n",
+        slapi_log_error(SLAPI_LOG_WARNING, "util_is_cachesize_sane", "util_is_cachesize_sane WARNING adjusted cachesize to %lu\n",
             (unsigned long )*cachesize);
     }
 #endif
 out:
     if (!issane) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
+        slapi_log_error(SLAPI_LOG_TRACE,"util_is_cachesize_sane", "WARNING: Cachesize not sane \n");
     }
 
     return issane;

@@ -40,7 +40,7 @@ md5_pw_cmp( const char *userpwd, const char *dbpwd )
 
    ctx = PK11_CreateDigestContext(SEC_OID_MD5);
    if (ctx == NULL) {
-	   slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MD5_SUBSYSTEM_NAME,
+	   slapi_log_error(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
 					   "Could not create context for digest operation for password compare");
 	   goto loser;
    }
@@ -59,7 +59,7 @@ md5_pw_cmp( const char *userpwd, const char *dbpwd )
    if (bver) {
 	   rc = strcmp(bver,dbpwd);
    } else {
-	   slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MD5_SUBSYSTEM_NAME,
+	   slapi_log_error(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
 					   "Could not base64 encode hashed value for password compare");
    }
 loser:
@@ -78,7 +78,7 @@ md5_pw_enc( const char *pwd )
 
    ctx = PK11_CreateDigestContext(SEC_OID_MD5);
    if (ctx == NULL) {
-	   slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MD5_SUBSYSTEM_NAME,
+	   slapi_log_error(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
 					   "Could not create context for digest operation for password encoding");
 	   return NULL;
    }
@@ -97,7 +97,7 @@ md5_pw_enc( const char *pwd )
 	   enc = slapi_ch_smprintf("%c%s%c%s", PWD_HASH_PREFIX_START, MD5_SCHEME_NAME,
 							   PWD_HASH_PREFIX_END, bver );
    } else {
-	   slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, MD5_SUBSYSTEM_NAME,
+	   slapi_log_error(SLAPI_LOG_PLUGIN, MD5_SUBSYSTEM_NAME,
 					   "Could not base64 encode hashed value for password encoding");
    }
 	   

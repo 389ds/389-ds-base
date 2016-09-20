@@ -91,8 +91,8 @@ void cb_close_conn_pool(cb_conn_pool * pool) {
 		for (i=0; i< MAX_CONN_ARRAY; i++) {
 			for (conn = pool->connarray[i]; conn != NULL; conn = nextconn) {
 			  if ( conn->status != CB_CONNSTATUS_OK ) {
-			    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-					     "cb_close_conn_pool: unexpected connection state (%d)\n",conn->status);
+			    slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					     "cb_close_conn_pool - Unexpected connection state (%d)\n",conn->status);
 			  }
 			  nextconn=conn->next;
 			  cb_close_and_dispose_connection(conn);
@@ -102,8 +102,8 @@ void cb_close_conn_pool(cb_conn_pool * pool) {
 	else {
         for ( conn = pool->conn.conn_list; conn != NULL; conn = nextconn ) {
         	if ( conn->status != CB_CONNSTATUS_OK ) {
-  			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-				"cb_close_conn_pool: unexpected connection state (%d)\n",conn->status);
+  			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+				"cb_close_conn_pool - Unexpected connection state (%d)\n",conn->status);
 		}
 		nextconn=conn->next;
 		cb_close_and_dispose_connection(conn);
@@ -194,8 +194,8 @@ cb_get_connection(cb_conn_pool * pool,
 	if (maxconnections <=0) {
 		static int warned_maxconn = 0;
 		if (!warned_maxconn) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-			    "<== cb_get_connection error (no connection available)\n");
+			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			    "cb_get_connection - Error (no connection available)\n");
 			warned_maxconn = 1;
 		}
 		if ( errmsg ) {
@@ -238,8 +238,8 @@ cb_get_connection(cb_conn_pool * pool,
     	slapi_lock_mutex( pool->conn.conn_list_mutex );
 
 	if (cb_debug_on()) {
-  		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-        		"==> cb_get_connection server %s conns: %d maxconns: %d\n",
+  		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+        		"cb_get_connection - server %s conns: %d maxconns: %d\n",
         		hostname, pool->conn.conn_list_count, maxconnections );
 	}
 
@@ -248,8 +248,8 @@ cb_get_connection(cb_conn_pool * pool,
 		/* time limit mgmt */
 		if (checktime) {
 			if (current_time() > endbefore ) {
-  				slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-        				"cb_get_connection server %s expired.\n", hostname );
+  				slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+        				"cb_get_connection - server %s expired.\n", hostname );
 				if ( errmsg ) {
 					*errmsg = PR_smprintf(error1,"timelimit exceeded");
 				}
@@ -269,8 +269,8 @@ cb_get_connection(cb_conn_pool * pool,
 			  if ((conn->ThreadId == PR_MyThreadId()) && (conn->status == CB_CONNSTATUS_OK &&
 			        conn->refcount < maxconcurrency)){
 			        if (cb_debug_on()) {
-                			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                        		"<= cb_get_connection server found conn 0x%p to use)\n", conn );
+                			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                        		"cb_get_connection - server found conn 0x%p to use)\n", conn );
 				}
 				goto unlock_and_return;         /* found one */
 			  }
@@ -280,16 +280,16 @@ cb_get_connection(cb_conn_pool * pool,
         	connprev = NULL;
         	for ( conn = pool->conn.conn_list; conn != NULL; conn = conn->next ) {
 			if (cb_debug_on()) {
-                		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                        		"list: conn 0x%p status %d refcount %lu\n", conn, 
+                		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                        		"cb_get_connection - conn 0x%p status %d refcount %lu\n", conn, 
 					conn->status, conn->refcount );
 			}
 
             		if ( conn->status == CB_CONNSTATUS_OK
                     		&& conn->refcount < maxconcurrency ) {
 				if (cb_debug_on()) {
-                			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                        		"<= cb_get_connection server found conn 0x%p to use)\n", conn );
+                			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                        		"cb_get_connection - server found conn 0x%p to use)\n", conn );
 				}
                 		goto unlock_and_return;         /* found one */
             		}
@@ -311,8 +311,8 @@ cb_get_connection(cb_conn_pool * pool,
 			if (NULL == ld) {
 				static int warned_init = 0;
 				if (!warned_init) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-					                 "Can't contact server <%s> port <%d>.\n",
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					                 "cb_get_connection -  Can't contact server <%s> port <%d>.\n",
 					                 hostname, port );
 					warned_init = 1;
 				}
@@ -340,8 +340,8 @@ cb_get_connection(cb_conn_pool * pool,
 				rc=LDAP_SUCCESS;
 
 				if (cb_debug_on()) {
-                               		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                                       	"Bind to to server <%s> port <%d> as <%s>\n",
+                               		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                                       	"cb_get_connection - Bind to to server <%s> port <%d> as <%s>\n",
                                		hostname, port, binddn);
 				}
 
@@ -352,8 +352,8 @@ cb_get_connection(cb_conn_pool * pool,
 				{
 					static int warned_pw = 0;
 					if (!warned_pw) {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-							"Internal credentials decoding error; "
+						slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+							"cb_get_connection - Internal credentials decoding error; "
 							"password storage schemes do not match or "
 							"encrypted password is corrupted.\n");
 						warned_pw = 1;
@@ -374,8 +374,8 @@ cb_get_connection(cb_conn_pool * pool,
 				if ( rc == LDAP_TIMEOUT ) {
 					static int warned_bind_timeout = 0;
 					if (!warned_bind_timeout) {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-							"Can't bind to server <%s> port <%d>. (%s)\n",
+						slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+							"cb_get_connection - Can't bind to server <%s> port <%d>. (%s)\n",
 							hostname, port, "time-out expired");
 						warned_bind_timeout = 1;
 					}
@@ -388,8 +388,8 @@ cb_get_connection(cb_conn_pool * pool,
 					prerr=PR_GetError();
 					static int warned_bind_err = 0;
 					if (!warned_bind_err) {
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM,
-								"Can't bind to server <%s> port <%d>. "
+						slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+								"cb_get_connection - Can't bind to server <%s> port <%d>. "
 								"(LDAP error %d - %s; "
 								SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
 								hostname, port, rc,
@@ -412,8 +412,8 @@ cb_get_connection(cb_conn_pool * pool,
 						if ( !(strcmp( serverctrls[ i ]->ldctl_oid, LDAP_CONTROL_PWEXPIRED)) )
 						{
 						    /* Bind is successful but password has expired */
-						    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
-								    "Successfully bound as %s to remote server %s:%d, "
+						    slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
+								    "cb_get_connection - Successfully bound as %s to remote server %s:%d, "
 								    "but password has expired.\n",
 								    binddn, hostname, port);
 						}					
@@ -424,8 +424,8 @@ cb_get_connection(cb_conn_pool * pool,
 							 (serverctrls[ i ]->ldctl_value.bv_len > 0) )
 						    {
 							int password_expiring = atoi( serverctrls[ i ]->ldctl_value.bv_val );
-							slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
-									"Successfully bound as %s to remote server %s:%d, "
+							slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
+									"cb_get_connection - Successfully bound as %s to remote server %s:%d, "
 									"but password is expiring in %d seconds.\n",
 									binddn, hostname, port, password_expiring);
 						    }
@@ -437,13 +437,13 @@ cb_get_connection(cb_conn_pool * pool,
 				/* the start_tls operation is usually performed in slapi_ldap_bind, but
 				   since we are not binding we still need to start_tls */
 				if (cb_debug_on()) {
-                			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-							 "<= cb_get_connection doing start_tls on connection 0x%p\n", conn );
+                			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+							 "cb_get_connection - doing start_tls on connection 0x%p\n", conn );
 				}
 				if ((rc = ldap_start_tls_s(ld, NULL, NULL))) {
 					PRErrorCode prerr = PR_GetError();
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
-							"Unable to do start_tls on connection to %s:%d "
+					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, 
+							"cb_get_connection - Unable to do start_tls on connection to %s:%d "
 							"LDAP error %d:%s NSS error %d:%s\n", hostname, port,
 							rc, ldap_err2string(rc), prerr,
 							slapd_pr_strerror(prerr));
@@ -479,23 +479,23 @@ cb_get_connection(cb_conn_pool * pool,
 			++pool->conn.conn_list_count;
 				
 			if (cb_debug_on()) {
-                      	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                    		"<= cb_get_connection added new conn 0x%p, "
+                      	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                    		"cb_get_connection - added new conn 0x%p, "
                     		"conn count now %d\n", conn->ld, pool->conn.conn_list_count );
 			}
             		goto unlock_and_return;             /* got a new one */
 		}
 
 		if (cb_debug_on()) {
-        	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                "... cb_get_connection waiting for conn to free up\n" );
+        	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                "cb_get_connection - waiting for conn to free up\n" );
 		}
 		
    		if (!secure) slapi_wait_condvar( pool->conn.conn_list_cv, NULL );
 
 		if (cb_debug_on()) {
-        		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                	"... cb_get_connection awake again\n" );
+        		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                	"cb_get_connection - awake again\n" );
 		}
     	} 
 
@@ -505,8 +505,8 @@ unlock_and_return:
 		*lld=conn->ld;
 		*cc=conn;
 		if (cb_debug_on()) {
-  		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                "<== cb_get_connection ld=0x%p (concurrency now %lu)\n",*lld, conn->refcount );
+  		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                "cb_get_connection - ld=0x%p (concurrency now %lu)\n",*lld, conn->refcount );
 		}
 
     	} else {
@@ -515,8 +515,8 @@ unlock_and_return:
 		}
 
 		if (cb_debug_on()) {
-	        	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-       		         "<== cb_get_connection error %d\n", rc );
+	        	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+       		         "cb_get_connection - error %d\n", rc );
 		}
     	}
 
@@ -558,15 +558,15 @@ void cb_release_op_connection(cb_conn_pool* pool, LDAP *lld, int dispose) {
 	}
 
 	if ( conn == NULL ) {               /* ld not found -- unexpected */
-        	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                "==> cb_release_op_connection ld=0x%p not found\n", lld );
+        	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                "cb_release_op_connection - ld=0x%p not found\n", lld );
     	} else {
 
         	--conn->refcount;
 
 		if (cb_debug_on()) {
-                	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                        	"release conn 0x%p status %d refcount after release %lu\n", conn,
+                	slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                        	"cb_release_op_connection - release conn 0x%p status %d refcount after release %lu\n", conn,
                                         conn->status, conn->refcount );
                 }
 
@@ -648,8 +648,8 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 		    	(( connlifetime > 0) && (curtime - conn->opentime > connlifetime))) {
 				if ( conn->refcount == 0 ) {
 					if (cb_debug_on()) {
-                        			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-							"cb_check_for_stale_connections: conn 0x%p idle and stale\n",conn);
+                        slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+							"cb_check_for_stale_connections - conn 0x%p idle and stale\n",conn);
 					}
                                		--pool->conn.conn_list_count;
 					if (connprev == NULL) {
@@ -669,8 +669,8 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 				  conn->status = CB_CONNSTATUS_STALE;
 				}
                         	if (cb_debug_on()) {
-                        	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                       		                "cb_check_for_stale_connections: conn 0x%p stale\n",conn);
+                        	        slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                       		                "cb_check_for_stale_connections - conn 0x%p stale\n",conn);
                         	}
 			}
 			connprev = conn ;
@@ -693,8 +693,8 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
                                         connprev->next=conn->next;
 
 				if (cb_debug_on()) {
-                        		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-						"cb_check_for_stale_connections: conn 0x%p idle and stale\n",conn);
+                        		slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+						"cb_check_for_stale_connections - conn 0x%p idle and stale\n",conn);
 				}
                                 --pool->conn.conn_list_count;
 				conn_next=conn->next;
@@ -709,8 +709,8 @@ static void cb_check_for_stale_connections(cb_conn_pool * pool) {
 			  conn->status = CB_CONNSTATUS_STALE;
 			}
                         if (cb_debug_on()) {
-                                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-                                        "cb_check_for_stale_connections: conn 0x%p stale\n",conn);
+                                slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                                        "cb_check_for_stale_connections - conn 0x%p stale\n",conn);
                         }
 		}
                 connprev = conn;
@@ -907,8 +907,8 @@ void cb_update_failed_conn_cpt ( cb_backend_instance *cb ) {
 	       		       cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD ;
 			slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
 	       		cb->monitor_availability.farmserver_state = FARMSERVER_UNAVAILABLE ;
-			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-				"cb_update_failed_conn_cpt: Farm server unavailable");
+			slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+				"cb_update_failed_conn_cpt - Farm server unavailable");
 	       	}
 		
 	}
@@ -920,8 +920,8 @@ void cb_reset_conn_cpt( cb_backend_instance *cb ) {
 			cb->monitor_availability.cpt = 0 ;
 			if (cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE) {
 				cb->monitor_availability.farmserver_state = FARMSERVER_AVAILABLE ;
-			        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-				"cb_reset_conn_cpt: Farm server is back");
+			    slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+				"cb_reset_conn_cpt - Farm server is back");
 			}
 		slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
 	}
@@ -942,16 +942,16 @@ int cb_check_availability( cb_backend_instance *cb, Slapi_PBlock *pb ) {
 		    cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL) ;
 		    return FARMSERVER_UNAVAILABLE ;
 		}
-	        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-				"cb_check_availability: ping the farm server and check if it's still unavailable");
+	        slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+				"cb_check_availability - ping the farm server and check if it's still unavailable");
 		if (cb_ping_farm(cb, NULL, 0) != LDAP_SUCCESS) { /* farm still unavailable... Just change the timelimit */ 
 		    slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
 		    now = current_time();
 		    cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD ;
 		    slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);		
 		    cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL) ;
-	            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, CB_PLUGIN_SUBSYSTEM,
-				"cb_check_availability: Farm server still unavailable");
+	            slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+				"cb_check_availability - Farm server still unavailable");
 		    return FARMSERVER_UNAVAILABLE ;
 		}
 		else {

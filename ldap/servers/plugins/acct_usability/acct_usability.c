@@ -79,7 +79,7 @@ auc_init(Slapi_PBlock *pb)
     int status = 0;
     char *plugin_identity = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_init\n");
 
     /* Store the plugin identity for later use.
@@ -102,8 +102,8 @@ auc_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_ENTRY_FN,
                          (void *) auc_pre_entry) != 0
         ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                        "auc_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
+                        "auc_init - Failed to register plugin\n");
         status = -1;
     }
 
@@ -111,7 +111,7 @@ auc_init(Slapi_PBlock *pb)
         slapi_register_supported_control(AUC_OID, SLAPI_OPERATION_SEARCH);
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "<-- auc_init\n");
     return status;
 }
@@ -123,13 +123,13 @@ auc_init(Slapi_PBlock *pb)
 static int
 auc_start(Slapi_PBlock * pb)
 {
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_start\n");
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
-                    "account usability control plug-in: ready for service\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, AUC_PLUGIN_SUBSYSTEM,
+                    "auc_start - Account usability control plug-in: ready for service\n");
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "<-- auc_start\n");
 
     return 0;
@@ -141,10 +141,10 @@ auc_start(Slapi_PBlock * pb)
 static int
 auc_close(Slapi_PBlock * pb)
 {
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_close\n");
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "<-- auc_close\n");
 
     return 0;
@@ -200,8 +200,8 @@ static LDAPControl *auc_create_response_ctrl(Slapi_Entry *e)
     time_t now = slapi_current_time();
 
     if (!e) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
-                        "auc_create_response_ctrl: NULL entry specified.\n");
+        slapi_log_error(SLAPI_LOG_PLUGIN, AUC_PLUGIN_SUBSYSTEM,
+                        "auc_create_response_ctrl - NULL entry specified.\n");
         goto bail;
     }
 
@@ -281,7 +281,7 @@ auc_pre_search(Slapi_PBlock *pb)
     int isroot = 0;
     int ii;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "--> auc_pre_search\n");
 
     /* See if the requestor is the root DN. */
@@ -294,14 +294,14 @@ auc_pre_search(Slapi_PBlock *pb)
         const LDAPControl *ctrl = reqctrls[ii];
         if (!strcmp(ctrl->ldctl_oid, AUC_OID)) {
             if (aucctrl) { /* already specified */
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                                "The account usability control was specified more than "
+                slapi_log_error(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
+                                "auc_pre_search - The account usability control was specified more than "
                                 "once - it must be specified only once in the search request\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The account usability control cannot be specified more than once";
                 aucctrl = NULL;
             } else if (ctrl->ldctl_value.bv_len > 0) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
                                 "Non-null control value specified for account usability control\n");
                 ldapcode = LDAP_PROTOCOL_ERROR;
                 ldaperrtext = "The account usability control must not have a value";
@@ -314,9 +314,9 @@ auc_pre_search(Slapi_PBlock *pb)
     }
 
     if (aucctrl && incompatible) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                        "Cannot use the account usability control and control [%s] for the same search operation\n",
-                        incompatible);
+        slapi_log_error(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
+                "auc_pre_search - Cannot use the account usability control and control "
+                "[%s] for the same search operation\n", incompatible);
         /* not sure if this is a hard failure - the current spec says:
            The semantics of the criticality field are specified in [RFC4511].
            In detail, the criticality of the control determines whether the
@@ -362,7 +362,7 @@ auc_pre_search(Slapi_PBlock *pb)
         slapi_send_ldap_result(pb, ldapcode, NULL, (char *)ldaperrtext, 0, NULL);
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, AUC_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, AUC_PLUGIN_SUBSYSTEM,
                     "<-- auc_pre_op\n");
 
     return ldapcode;
@@ -394,16 +394,16 @@ auc_pre_entry(Slapi_PBlock *pb)
         /* grab the entry to be returned */
         slapi_pblock_get(pb, SLAPI_SEARCH_ENTRY_ORIG, &e);
         if (!e) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                            "auc_pre_entry: Unable to fetch entry.\n");
+            slapi_log_error(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
+                            "auc_pre_entry - Unable to fetch entry.\n");
             goto bail;
         }
 
         /* create the respose control */
         ctrl = auc_create_response_ctrl(e);
         if (!ctrl) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
-                "auc_pre_entry: Error creating response control for entry \"%s\".\n",
+            slapi_log_error(SLAPI_LOG_ERR, AUC_PLUGIN_SUBSYSTEM,
+                "auc_pre_entry - Error creating response control for entry \"%s\".\n",
                 slapi_entry_get_ndn(e) ? slapi_entry_get_ndn(e) : "null");
             goto bail;
         }

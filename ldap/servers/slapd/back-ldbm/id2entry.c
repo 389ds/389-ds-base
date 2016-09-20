@@ -36,11 +36,12 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
     struct backentry *encrypted_entry = NULL;
     char *entrydn = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> id2entry_add( %lu, \"%s\" )\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> id2entry_add( %lu, \"%s\" )\n",
                                  (u_long)e->ep_id, backentry_get_ndn(e), 0 );
 
     if ( (rc = dblayer_get_id2entry( be, &db )) != 0 ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not open/create id2entry\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "id2entry_add_ext - "
+        	"Could not open/create id2entry\n",
             0, 0, 0 );
         rc = -1;
         goto done;
@@ -56,8 +57,8 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
     if (encrypt) {
         rc = attrcrypt_encrypt_entry(be, e, &encrypted_entry);
         if (rc) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "attrcrypt_encrypt_entry failed in id2entry_add\n",
-                0, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ERR, "id2entry_add_ext - "
+            	"attrcrypt_encrypt_entry failed\n", 0, 0, 0 );
             rc = -1;
             goto done;
         }
@@ -82,7 +83,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
                     if (cache_replace( &inst->inst_dncache, oldbdn, bdn ) != 0) {
                         /* The entry was not in the cache for some reason (this
                          * should not happen since CACHE_ADD said it existed above). */
-                        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "id2entry_add_ext(): Entry disappeared "
+                        LDAPDebug(LDAP_DEBUG_WARNING, "id2entry_add_ext - Entry disappeared "
                                    "from cache (%s)\n", oldbdn->dn_sdn, 0, 0 );
                     }
                 }
@@ -90,7 +91,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn,
             }
 
             CACHE_RETURN(&inst->inst_dncache, &bdn);
-            LDAPDebug2Args( LDAP_DEBUG_TRACE, LOG_DEBUG,
+            LDAPDebug2Args(LDAP_DEBUG_TRACE,
                    "=> id2entry_add (dncache) ( %lu, \"%s\" )\n",
                    (u_long)e->ep_id, slapi_entry_get_dn_const(entry_to_use) );
         }
@@ -189,7 +190,7 @@ done:
         backentry_free(&encrypted_entry);
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= id2entry_add %d\n", rc, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= id2entry_add %d\n", rc, 0, 0 );
     return( rc );
 }
 
@@ -211,12 +212,12 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
     int    rc;
     char temp_id[sizeof(ID)];
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> id2entry_delete( %lu, \"%s\" )\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "=> id2entry_delete( %lu, \"%s\" )\n",
         (u_long)e->ep_id, backentry_get_ndn(e), 0 );
 
     if ( (rc = dblayer_get_id2entry( be, &db )) != 0 ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Could not open/create id2entry\n",
-            0, 0, 0 );
+        LDAPDebug(LDAP_DEBUG_ERR, "id2entry_delete - "
+        	"Could not open/create id2entry\n", 0, 0, 0 );
         return( -1 );
     }
 
@@ -234,7 +235,7 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
         ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
         struct backdn *bdn = dncache_find_id(&inst->inst_dncache, e->ep_id);
         if (bdn) {
-            slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, ID2ENTRY,
+            slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
                             "dncache_find_id returned: %s\n", 
                             slapi_sdn_get_dn(bdn->dn_sdn));
             CACHE_REMOVE(&inst->inst_dncache, bdn);
@@ -245,7 +246,7 @@ id2entry_delete( backend *be, struct backentry *e, back_txn *txn )
     rc = db->del( db,db_txn,&key,0 );
     dblayer_release_id2entry( be, db );
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= id2entry_delete %d\n", rc, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "<= id2entry_delete %d\n", rc, 0, 0 );
     return( rc );
 }
 
@@ -261,11 +262,11 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
     Slapi_Entry      *ee;
     char             temp_id[sizeof(ID)];
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY,
+    slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
                     "=> id2entry(%lu)\n", (u_long)id);
 
     if ( (e = cache_find_id( &inst->inst_cache, id )) != NULL ) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY, 
+        slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
                         "<= id2entry %p, dn \"%s\" (cache)\n",
                         e, backentry_get_ndn(e));
         goto bail;
@@ -273,7 +274,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
 
     *err = dblayer_get_id2entry( be, &db );
     if ( (*err != 0) || (NULL == db) ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ID2ENTRY,
+        slapi_log_error(SLAPI_LOG_ERR, ID2ENTRY,
                         "Could not open id2entry err %d\n", *err);
         return( NULL );
     }
@@ -295,7 +296,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         if ( (0 != *err) && 
              (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err) )
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ID2ENTRY, "db error %d (%s)\n",
+            slapi_log_error(SLAPI_LOG_ERR, ID2ENTRY, "db error %d (%s)\n",
                             *err, dblayer_strerror( *err ));
         }
     }
@@ -310,8 +311,8 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
              * by ENV->set_alloc in dblayer.c.  As long as the functions are 
              * used by libdb, it won't reach here.
              */
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ID2ENTRY, 
-                            "malloc failed in libdb; "
+            slapi_log_error(SLAPI_LOG_CRIT, ID2ENTRY, 
+                            "Malloc failed in libdb; "
                             "terminating the server; OS error %d (%s)\n",
                             *err, slapd_system_strerror( *err ));
             exit (1);
@@ -321,7 +322,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
     }
 
     if ( data.dptr == NULL ) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY, 
+        slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
                         "<= id2entry( %lu ) not found\n", (u_long)id);
         goto bail;
     }
@@ -344,21 +345,21 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
             struct backdn *bdn = dncache_find_id(&inst->inst_dncache, id);
             if (bdn) {
                 normdn = slapi_ch_strdup(slapi_sdn_get_dn(bdn->dn_sdn));
-                slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, ID2ENTRY,
+                slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
                                 "dncache_find_id returned: %s\n", normdn);
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
             } else {
                 Slapi_DN *sdn = NULL;
                 rc = entryrdn_lookup_dn(be, rdn, id, &normdn, &srdn, txn);
                 if (rc) {
-                    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY,
+                    slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
                                     "id2entry: entryrdn look up failed "
                                     "(rdn=%s, ID=%d)\n", rdn, id);
                     /* Try rdn as dn. Could be RUV. */
                     normdn = slapi_ch_strdup(rdn);
                 } else if (NULL == normdn) {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ID2ENTRY, 
-                        "<= id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
+                    slapi_log_error(SLAPI_LOG_ERR, ID2ENTRY, 
+                        "id2entry( %lu ) entryrdn_lookup_dn returned NULL. "
                         "Index file may be deleted or corrupted.\n",
                         (u_long)id);
                     goto bail;
@@ -367,11 +368,11 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
                 bdn = backdn_init(sdn, id, 0);
                 if (CACHE_ADD( &inst->inst_dncache, bdn, NULL )) {
                     backdn_free(&bdn);
-                    slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, ID2ENTRY,
+                    slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
                                     "%s is already in the dn cache\n", normdn);
                 } else {
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_log_error(SLAPI_LOG_CACHE, LOG_DEBUG, ID2ENTRY,
+                    slapi_log_error(SLAPI_LOG_CACHE, ID2ENTRY,
                                     "entryrdn_lookup_dn returned: %s, "
                                     "and set to dn cache (id %d)\n", normdn, id);
                 }
@@ -395,7 +396,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         /* ownership of the entry is passed into the backentry */
         e = backentry_init( ee );
         e->ep_id = id;
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY, 
+        slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY, 
                         "id2entry id: %d, dn \"%s\" -- adding it to cache\n",
                         id, backentry_get_ndn(e));
 
@@ -403,7 +404,7 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
          * before adding it to the cache */
         retval = attrcrypt_decrypt_entry(be, e);
         if (retval) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ID2ENTRY,
+            slapi_log_error(SLAPI_LOG_ERR, ID2ENTRY,
                             "attrcrypt_decrypt_entry failed in id2entry\n");
         }
         
@@ -444,13 +445,13 @@ id2entry( backend *be, ID id, back_txn *txn, int *err  )
         } else if (-1 == retval) {
             /* the entry is in idtable but not in dntable, i.e., the entry
              * could have been renamed */
-            slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY,
-                            "id2entry: failed to put entry (id %lu, dn %s) "
+            slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
+                            "Failed to put entry (id %lu, dn %s) "
                             "into entry cache\n", (u_long)id,
                             backentry_get_ndn(e));
         }
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ID2ENTRY,
+        slapi_log_error(SLAPI_LOG_ERR, ID2ENTRY,
                         "str2entry returned NULL for id %lu, string=\"%s\"\n",
                         (u_long)id, (char*)data.data);
         e = NULL;
@@ -461,7 +462,7 @@ bail:
 
     dblayer_release_id2entry( be, db );
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, ID2ENTRY,
+    slapi_log_error(SLAPI_LOG_TRACE, ID2ENTRY,
                     "<= id2entry( %lu ) %p (disk)\n", (u_long)id, e);
     return( e );
 }

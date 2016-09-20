@@ -151,7 +151,7 @@ int views_init( Slapi_PBlock *pb )
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void * plugin_identity=NULL;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_init\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_init\n");
 
 	/*
 	** Store the plugin identity for later use.
@@ -170,12 +170,12 @@ int views_init( Slapi_PBlock *pb )
 			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
                      (void *)&pdesc ) != 0 )
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
                          "views_init: failed to register plugin\n" );
 		ret = SLAPI_PLUGIN_FAILURE;
     }
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_init\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_init\n");
     return ret;
 }
 
@@ -204,7 +204,7 @@ static int views_start( Slapi_PBlock *pb )
 	int ret = SLAPI_PLUGIN_SUCCESS;
 	void **statechange_api;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_start\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_start\n");
 
 	theCache.cache_built = 0;
 	g_views_cache_lock = slapi_new_rwlock();
@@ -237,7 +237,7 @@ static int views_start( Slapi_PBlock *pb )
 
 	if( slapi_apib_register(Views_v1_0_GUID, api) )
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM, "views: failed to publish views interface\n");
+		slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM, "views_start - Failed to publish views interface\n");
 		if(statechange_api){
 			statechange_unregister(statechange_api,
 			                       NULL,
@@ -253,7 +253,7 @@ static int views_start( Slapi_PBlock *pb )
 		op_counter = slapi_counter_new();
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_start\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_start\n");
 	return ret;
 }
 
@@ -351,7 +351,7 @@ bail:
 static int views_close( Slapi_PBlock *pb )
 {
     void **statechange_api;
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_close\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_close\n");
 
 	g_plugin_started = 0;
 
@@ -374,7 +374,7 @@ static int views_close( Slapi_PBlock *pb )
 	slapi_destroy_rwlock(g_views_cache_lock);
 	g_views_cache_lock = NULL;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_close\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_close\n");
 
 	return SLAPI_PLUGIN_SUCCESS;
 }
@@ -384,7 +384,7 @@ static void views_cache_free(void)
 	viewEntry *head = theCache.pCacheViews;
 	viewEntry *current;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_free\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_free\n");
 
 	/* free the cache */
 	current = head; 
@@ -413,7 +413,7 @@ static void views_cache_free(void)
 	
 	theCache.view_count = 0;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_free\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_free\n");
 }
 
 /*
@@ -431,7 +431,7 @@ static int views_cache_create(void)
 		return SLAPI_PLUGIN_SUCCESS;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_create\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_create\n");
 
 	/* lock cache */
 	views_write_lock();
@@ -474,7 +474,7 @@ static int views_cache_create(void)
 		if(ret != 0)
 		{
 			/* currently we cannot go on without the indexes */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM, "views_cache_create: failed to index cache\n");			
+			slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM, "views_cache_create - Failed to index cache\n");			
 		}
 		else
 			theCache.cache_built = 1;
@@ -491,7 +491,7 @@ static int views_cache_create(void)
 	/* unlock cache */
 	views_unlock();
 	slapi_counter_decrement(op_counter);
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_create\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_create\n");
 
 	return ret;
 }
@@ -797,8 +797,8 @@ static void views_cache_create_applied_filter(viewEntry *pView)
 
 		pCurrentFilter = slapi_str2filter( buf );
 		if (!pCurrentFilter) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
-							"Error: the view filter [%s] in entry [%s] is not valid\n",
+			slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
+							"views_cache_create_applied_filter - View filter [%s] in entry [%s] is not valid\n",
 							buf, current->pDn);
 		}
 		if(pBuiltFilter && pCurrentFilter)
@@ -973,8 +973,8 @@ Slapi_Filter *views_cache_create_descendent_filter(viewEntry *ancestor, PRBool u
 		{
 			pCurrentFilter = slapi_str2filter( buf );
 			if (!pCurrentFilter) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
-								"Error: the view filter [%s] in entry [%s] is not valid\n",
+				slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
+								"views_cache_create_descendent_filter - View filter [%s] in entry [%s] is invalid\n",
 								buf, currentChild->pDn);
 			}
 			if(pOrSubFilter && pCurrentFilter)
@@ -1037,8 +1037,8 @@ static void views_cache_create_inclusion_filter(viewEntry *pView)
 		sprintf(buf, "(%s)", viewRDNstr );
 		viewSubFilter = slapi_str2filter( buf );
 		if (!viewSubFilter) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
-							"Error: the view filter [%s] in entry [%s] is not valid\n",
+			slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
+							"views_cache_create_inclusion_filter - View filter [%s] in entry [%s] is invalid\n",
 							buf, current->pDn);
 		}
 
@@ -1139,7 +1139,7 @@ static int views_cache_build_view_list(viewEntry **pViews)
 	int suffixIndex = 0;
 	int valIndex = 0;
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_build_view_list\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_build_view_list\n");
 
 	/*
 		the views may be anywhere in the DIT,
@@ -1149,7 +1149,7 @@ static int views_cache_build_view_list(viewEntry **pViews)
 	attrs[0] = "namingcontexts";
 	attrs[1] = 0;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "views: Building view cache.\n");
+	slapi_log_error(SLAPI_LOG_PLUGIN, VIEWS_PLUGIN_SUBSYSTEM, "views_cache_build_view_list - Building view cache.\n");
 
 	pSuffixSearch = slapi_search_internal("",LDAP_SCOPE_BASE,"(objectclass=*)",NULL,attrs,0);
 	if(pSuffixSearch)
@@ -1201,7 +1201,7 @@ static int views_cache_build_view_list(viewEntry **pViews)
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "views_cache_build_view_list: failed to find suffixes\n");
+		slapi_log_error(SLAPI_LOG_PLUGIN, VIEWS_PLUGIN_SUBSYSTEM, "views_cache_build_view_list - Failed to find suffixes\n");
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
 
@@ -1213,7 +1213,7 @@ static int views_cache_build_view_list(viewEntry **pViews)
 	}
 
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_build_view_list\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_build_view_list\n");
 	return ret;
 }
 
@@ -1335,7 +1335,7 @@ static int views_cache_add_dn_views(char *dn, viewEntry **pViews)
 */
 static void views_cache_add_ll_entry(void** attrval, void *theVal)
 {
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_add_ll_entry\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_cache_add_ll_entry\n");
 
 	if(*attrval)
 	{
@@ -1352,7 +1352,7 @@ static void views_cache_add_ll_entry(void** attrval, void *theVal)
 		*attrval = theVal;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_add_ll_entry\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_cache_add_ll_entry\n");
 }
 
 
@@ -1377,7 +1377,7 @@ static void views_update_views_cache( Slapi_Entry *e, char *dn, int modtype, Sla
 		return;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "--> views_update_views_cache\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "--> views_update_views_cache\n");
 
 	views_write_lock();
 
@@ -1667,7 +1667,7 @@ unlock_cache:
 	}
 	slapi_counter_decrement(op_counter);
 
-	slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_update_views_cache\n");
+	slapi_log_error(SLAPI_LOG_TRACE, VIEWS_PLUGIN_SUBSYSTEM, "<-- views_update_views_cache\n");
 }
 
 
@@ -1876,8 +1876,8 @@ static void views_cache_backend_state_change(void *handle, char *be_name,
 					PR_UNJOINABLE_THREAD, 
 					SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL )
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
-			   "views_cache_backend_state_change: PR_CreateThread failed\n" );
+		slapi_log_error(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
+			   "views_cache_backend_state_change - PR_CreateThread failed\n" );
 	}
 }
 

@@ -110,7 +110,7 @@ ldbm_instance_config_cachememsize_set(void *arg, void *value, char *errorbuf, in
             delta = val - inst->inst_cache.c_maxsize;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: cachememsize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: cachememsize value is too large.\n");
+                LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_instance_config_cachememsize_set - cachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -151,8 +151,10 @@ ldbm_instance_config_dncachememsize_set(void *arg, void *value, char *errorbuf, 
         if (val > inst->inst_dncache.c_maxsize) {
             delta = val - inst->inst_dncache.c_maxsize;
             if (!util_is_cachesize_sane(&delta)){
-                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: dncachememsize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,"Error: dncachememsize value is too large.\n");
+                slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Error: dncachememsize value is too large.");
+                LDAPDebug0Args(LDAP_DEBUG_ERR,"ldbm_instance_config_dncachememsize_set - "
+                    "dncachememsize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -350,9 +352,9 @@ read_instance_index_entries(ldbm_instance *inst)
     basedn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                           inst->inst_name, inst->inst_li->li_plugin->plg_name); 
     if (NULL == basedn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "read_instance_index_entries: "
-                       "failed create index dn for plugin %s, instance %s\n",
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "read_instance_index_entries - "
+                       "Failed create index dn for plugin %s, instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name); 
         return 1;
     }
@@ -394,9 +396,9 @@ read_instance_attrcrypt_entries(ldbm_instance *inst)
     basedn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
                           inst->inst_name, inst->inst_li->li_plugin->plg_name); 
     if (NULL == basedn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "read_instance_attrcrypt_entries: "
-                       "failed create encrypted attributes dn for plugin %s, "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "read_instance_attrcrypt_entries - "
+                       "Failed create encrypted attributes dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
         return 1;
@@ -469,8 +471,9 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
 
         if (ldbm_config_set((void *) inst, attr_name, config_array, bval,
             err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error with config attribute %s : %s\n",
-                      attr_name, err_buf, 0);
+            LDAPDebug(LDAP_DEBUG_ERR, "parse_ldbm_instance_config_entry - "
+                    "Error with config attribute %s : %s\n",
+                    attr_name, err_buf, 0);
             return 1;
         }
     }
@@ -511,9 +514,9 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_config_load_dse_info: "
-                       "failed create instance dn %s for plugin %s\n",
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_config_load_dse_info - "
+                       "Failed create instance dn %s for plugin %s\n",
                        inst->inst_name, inst->inst_li->li_plugin->plg_name);
         rval = 1;
         goto bail;
@@ -521,8 +524,8 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
 
     search_pb = slapi_pblock_new();
     if (!search_pb) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_config_load_dse_info: Out of memory\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                       "ldbm_instance_config_load_dse_info - Out of memory\n",
                        0, 0, 0);
         rval = 1;
         goto bail;
@@ -535,7 +538,8 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
 
     if (rval != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error accessing the config DSE\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_config_load_dse_info - "
+            "Error accessing the config DSE entry (%s), error %d\n", dn, rval, 0);
         rval = 1;
         goto bail;
     } else {
@@ -544,15 +548,15 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
         slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                          &entries);
         if ((!entries) || (!entries[0])) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error accessing the config DSE\n",
-                      0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_config_load_dse_info - "
+                "No entries found in config DSE entry (%s)\n", dn, 0, 0);
             rval = 1;
             goto bail;
         }
         if (0 != parse_ldbm_instance_config_entry(inst, entries[0],
                                          ldbm_instance_config)) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error parsing the config DSE\n",
-                      0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_config_load_dse_info - "
+                "Error parsing the config DSE\n", 0, 0, 0);
             rval = 1;
             goto bail;
         }
@@ -591,8 +595,8 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_config_load_dse_info: "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_config_load_dse_info - "
                        "failed create monitor instance dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
@@ -616,8 +620,8 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_config_load_dse_info: "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_config_load_dse_info - "
                        "failed create index instance dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
@@ -639,8 +643,8 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_config_load_dse_info: "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_config_load_dse_info - "
                        "failed create encrypted attribute instance dn "
                        "for plugin %s, instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
@@ -759,10 +763,9 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
 
     if (!returntext) {
         rc = LDAP_OPERATIONS_ERROR;
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                  "ldbm_instance_modify_config_entry_callback: "
-                  "NULL return text\n",
-                  0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR,
+                  "ldbm_instance_modify_config_entry_callback - "
+                  "NULL return text\n", 0, 0, 0);
         goto out;
     }
 
@@ -781,10 +784,10 @@ ldbm_instance_modify_config_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryB
                 rc = LDAP_UNWILLING_TO_PERFORM;
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                             "Can't change the root suffix of a backend");
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                          "ldbm: modify attempted to change the root suffix "
-                          "of a backend (which is not allowed)\n",
-                          0, 0, 0);
+                LDAPDebug(LDAP_DEBUG_ERR,
+                    "ldbm_instance_modify_config_entry_callback - Modify attempted to "
+                	"change the root suffix of a backend (which is not allowed)\n",
+                    0, 0, 0);
                 continue;
             }
 
@@ -836,8 +839,9 @@ ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *val
 
     if (ldbm_config_set((void *) inst, attrname, ldbm_instance_config, &bval, 
         err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-            "Internal Error: Error setting instance config attr %s to %s: %s\n", 
+        LDAPDebug(LDAP_DEBUG_CRIT, 
+            "ldbm_instance_config_internal_set - "
+            "Internal error setting instance config attr %s to %s: %s\n", 
             attrname, value, err_buf);
         exit(1);
     }
@@ -902,8 +906,8 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* ent
     parse_ldbm_instance_entry(entryBefore, &instance_name);
     rval = ldbm_instance_generate(li, instance_name, &be);
     if (rval) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-            "ldbm_instance_postadd_instance_entry_callback: "
+        LDAPDebug(LDAP_DEBUG_ERR,
+            "ldbm_instance_postadd_instance_entry_callback - "
             "ldbm_instance_generate (%s) failed (%d)\n",
             instance_name, rval, 0);
     }
@@ -922,8 +926,8 @@ ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* ent
     rval = ldbm_instance_start(be);
     if (0 != rval)
     {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-            "ldbm_instance_postadd_instance_entry_callback: "
+        LDAPDebug(LDAP_DEBUG_ERR,
+            "ldbm_instance_postadd_instance_entry_callback - "
             "ldbm_instnace_start (%s) failed (%d)\n",
             instance_name, rval, 0);
     }
@@ -949,8 +953,8 @@ ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entryBe
     /* Make sure we don't create two instances with the same name. */
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (inst != NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "WARNING: ldbm instance %s already exists\n",
-                  instance_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_WARNING, "ldbm_instance_add_instance_entry_callback: "
+            " ldbm instance %s already exists\n", instance_name, 0, 0);
         if (returntext != NULL)
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "An ldbm instance with the name %s already exists\n",
                     instance_name);
@@ -992,9 +996,9 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_unregister_callbacks: "
-                       "failed create instance dn for plugin %s, "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_unregister_callbacks - "
+                       "Failed create instance dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
         goto bail;
@@ -1017,9 +1021,9 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_unregister_callbacks: "
-                       "failed create monitor instance dn for plugin %s, "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_unregister_callbacks - "
+                       "Failed create monitor instance dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
         goto bail;
@@ -1036,9 +1040,9 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_unregister_callbacks: "
-                       "failed create index dn for plugin %s, "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_unregister_callbacks - "
+                       "Failed create index dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
         goto bail;
@@ -1058,8 +1062,8 @@ static void ldbm_instance_unregister_callbacks(ldbm_instance *inst)
     dn = slapi_create_dn_string("cn=encrypted attributes,cn=%s,cn=%s,cn=plugins,cn=config",
                                 inst->inst_name, li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_instance_unregister_callbacks: "
+        LDAPDebug2Args(LDAP_DEBUG_ERR,
+                       "ldbm_instance_unregister_callbacks - "
                        "failed create encrypted attributes dn for plugin %s, "
                        "instance %s\n",
                        inst->inst_li->li_plugin->plg_name, inst->inst_name);
@@ -1092,10 +1096,10 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
     inst = ldbm_instance_find_by_name(li, instance_name);
 
     if (inst == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: instance '%s' does not exist! (2)\n",
-                  instance_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_post_delete_instance_entry_callback - "
+            "Instance '%s' does not exist!\n", instance_name, 0, 0);
         if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s' (2)\n",
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s'\n",
                     instance_name);
         }
         if (returncode) {
@@ -1105,7 +1109,8 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: removing '%s'.\n", instance_name, 0, 0);
+    LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_post_delete_instance_entry_callback - "
+        "Removing '%s'.\n", instance_name, 0, 0);
 
     cache_destroy_please(&inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) { /* subtree-rename: on */
@@ -1140,9 +1145,9 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
 
                         dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
                         if (NULL == dbp) {
-                            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                            "ldbm_instance_post_delete_instance_entry_callback:"
-                            " failed to generate db path: %s/%s\n",
+                            LDAPDebug(LDAP_DEBUG_ERR,
+                            "ldbm_instance_post_delete_instance_entry_callback - "
+                            "Failed to generate db path: %s/%s\n",
                             inst_dirp, direntry->name, 0);
                             break;
                         }
@@ -1156,9 +1161,9 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry*
                         }
                         PR_ASSERT(rc == 0);
                         if (rc != 0) {
-                            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                                "ldbm_instance_post_delete_instance_entry_callback:"
-                                " failed to delete %s\n", dbp);
+                            LDAPDebug2Args(LDAP_DEBUG_ERR,
+                                "ldbm_instance_post_delete_instance_entry_callback - "
+                                "Failed to delete %s, error %d\n", dbp, rc);
                         }
                         PR_smprintf_free(dbp);
                     }
@@ -1201,8 +1206,8 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     parse_ldbm_instance_entry(entryBefore, &instance_name);
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (inst == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: instance '%s' does not exist!\n",
-                  instance_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_delete_instance_entry_callback - "
+            "Instance '%s' does not exist!\n", instance_name, 0, 0);
         if (returntext) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "No ldbm instance exists with the name '%s'\n",
                     instance_name);
@@ -1217,9 +1222,9 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     /* check if some online task is happening */
     if ((instance_set_busy(inst) != 0) ||
         (slapi_counter_get_value(inst->inst_ref_count) > 0)) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: '%s' is in the middle of a task. "
-                  "Cancel the task or wait for it to finish, "
-                  "then try again.\n", instance_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_WARNING, "ldbm_instance_delete_instance_entry_callback - "
+        	"'%s' is in the middle of a task. Cancel the task or wait for it to finish, "
+            "then try again.\n", instance_name, 0, 0);
         if (returntext) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "ldbm instance '%s' is in the middle of a "
                     "task. Cancel the task or wait for it to finish, "
@@ -1233,8 +1238,8 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry* entr
     }
 
     /* okay, we're gonna delete this database instance.  take it offline. */
-    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ldbm: Bringing %s offline...\n",
-              instance_name, 0, 0);
+    LDAPDebug(LDAP_DEBUG_INFO, "ldbm_instance_delete_instance_entry_callback - "
+    	"Bringing %s offline...\n", instance_name, 0, 0);
     slapi_mtn_be_stopping(inst->inst_be);
     dblayer_instance_close(inst->inst_be);
     slapi_ch_free((void **)&instance_name);

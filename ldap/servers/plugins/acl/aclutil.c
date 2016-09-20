@@ -115,10 +115,10 @@ acl_print_acllib_err (NSErr_t *errp , char * str)
 	msgbuf[ACLUTIL_ACLLIB_MSGBUF_LEN-1] = '\0';
 
 	if (strlen(msgbuf) > 0) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"ACL LIB ERR:(%s)(%s)\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"acl_print_acllib_err - ACL LIB ERR:(%s)(%s)\n",
 				msgbuf, str ? str: "NULL");
 	} else {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,"ACL LIB ERR:(%s)\n", 
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,"acl_print_acllib_err - ACL LIB ERR:(%s)\n", 
 				str ? str: "NULL"); 
 	}
 
@@ -134,30 +134,30 @@ aclutil_print_aci (aci_t *aci_item, char *type)
 
 	if (!aci_item) {
 		
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 			"acl__print_aci: Null item\n");
 		return;
 	}
 
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 		"***BEGIN ACL INFO[ Name:%s]***\n", aci_item->aclName);
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 		"ACL Index:%d   ACL_ELEVEL:%d\n", aci_item->aci_index, aci_item->aci_elevel );
 	aclutil__access_str (aci_item->aci_access, str);    
     aclutil__typestr (aci_item->aci_type, &str[strlen(str)]);
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 		   "ACI type:(%s)\n", str);
 
 	aclutil__Ruletypestr (aci_item->aci_ruleType, str);
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 		   "ACI RULE type:(%s)\n",str);
 	
 	dn = slapi_sdn_get_dn ( aci_item->aci_sdn );
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Slapi_Entry DN:%s\n", dn);
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "Slapi_Entry DN:%s\n", dn);
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
 		"***END ACL INFO*****************************\n");
 
 }
@@ -263,7 +263,7 @@ aclutil_print_err (int rv , const Slapi_DN *sdn, const struct berval* val,
 		aclutil_str_append(errbuf, lineptr);	
 	}
 
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, "%s", lineptr);
+	slapi_log_error(SLAPI_LOG_ERR, plugin_name, "aclutil_print_err - %s", lineptr);
 	slapi_ch_free_string(&newline);
 }
 
@@ -491,21 +491,21 @@ aclutil_print_resource( struct acl_pblock *aclpb, const char *right , char *attr
 	if ( ! slapi_is_loglevel_set ( SLAPI_LOG_ACL ) )
 		return;
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    ************ RESOURCE INFO STARTS *********\n");
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    Client DN: %s\n", 
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO STARTS *********\n");
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    Client DN: %s\n", 
 		   clientdn ? clientdn : "NULL");
 	aclutil__access_str (aclpb->aclpb_access, str);
     aclutil__typestr (aclpb->aclpb_res_type, &str[strlen(str)]);
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    resource type:%d(%s)\n",
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    resource type:%d(%s)\n",
 		   aclpb->aclpb_res_type, str);
 
 	dn = slapi_sdn_get_dn ( aclpb->aclpb_curr_entry_sdn );
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    Slapi_Entry DN: %s\n", 
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    Slapi_Entry DN: %s\n", 
 		   dn ? dn  : "NULL");
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    ATTR: %s\n", attr ? attr : "NULL");
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    rights:%s\n", right ? right: "NULL");
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "    ************ RESOURCE INFO ENDS   *********\n");
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    ATTR: %s\n", attr ? attr : "NULL");
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    rights:%s\n", right ? right: "NULL");
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "    ************ RESOURCE INFO ENDS   *********\n");
 }
 /*
  * The input string contains a rule like
@@ -765,9 +765,9 @@ acl_match_macro_in_target( const char *ndn, char * match_this,
 	/* we know it's got a $(dn) */
 	tmp_ptr = PL_strcasestr(macro_prefix, ACL_TARGET_MACRO_DN_KEY);	
 	if (!tmp_ptr) {
-		LDAPDebug(LDAP_DEBUG_ACL, LOG_DEBUG,"acl_match_macro_in_target: "
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl_match_macro_in_target - "
 				"Target macro DN key \"%s\" not found in \"%s\".\n",
-				ACL_TARGET_MACRO_DN_KEY, macro_prefix, 0);
+				ACL_TARGET_MACRO_DN_KEY, macro_prefix);
 		slapi_ch_free_string(&macro_prefix);
 		return ret_val;
 	}
@@ -1463,7 +1463,7 @@ acl_ht_display_entry(PLHashEntry *he, PRIntn i, void *arg)
 	PLHashNumber aci_index = (PLHashNumber)he->key;
     char *matched_val = (char *)he->value;
 	
-	LDAPDebug(LDAP_DEBUG_ACL, LOG_DEBUG,"macro ht entry: key='%d' matched_val='%s'"
+	slapi_log_error(LDAP_DEBUG_ACL, plugin_name, "acl_ht_display_entry - macro ht entry: key='%d' matched_val='%s'"
 								"keyhash='%d'\n", 
 				aci_index, (matched_val ? matched_val: "NULL"),
 				(PLHashNumber)he->keyHash);

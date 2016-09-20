@@ -438,7 +438,7 @@ dna_init(Slapi_PBlock *pb)
     int preadd = SLAPI_PLUGIN_BE_PRE_ADD_FN;
     int premod = SLAPI_PLUGIN_BE_PRE_MODIFY_FN;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_init\n");
 
     /**
@@ -460,8 +460,8 @@ dna_init(Slapi_PBlock *pb)
                          (void *) &pdesc) != 0 ||
         slapi_pblock_set(pb, premod, (void *) dna_mod_pre_op) != 0 ||
         slapi_pblock_set(pb, preadd, (void *) dna_add_pre_op) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_init - Failed to register plugin\n");
         status = DNA_FAILURE;
     }
 
@@ -476,8 +476,8 @@ dna_init(Slapi_PBlock *pb)
                                   NULL,     /* ? */
                                   plugin_identity   /* access control */
                                   )) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_init: failed to register postop plugin\n");
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_init - Failed to register postop plugin\n");
             status = DNA_FAILURE;
         }
     }
@@ -493,8 +493,8 @@ dna_init(Slapi_PBlock *pb)
                               plugin_identity   /* access control */
         )
         ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_init - Failed to register plugin\n");
         status = DNA_FAILURE;
     }
 
@@ -510,13 +510,13 @@ dna_init(Slapi_PBlock *pb)
                                   NULL,     /* ? */
                                   plugin_identity   /* access control */
                                   )) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_init: failed to register be_txn_pre_op plugin\n");
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_init - Failed to register be_txn_pre_op plugin\n");
             status = DNA_FAILURE;
         }
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_init\n");
     return status;
 }
@@ -537,8 +537,8 @@ dna_postop_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, mdnfn, (void *) dna_config_check_post_op) != 0 ||
         slapi_pblock_set(pb, delfn, (void *) dna_config_check_post_op) != 0 ||
         slapi_pblock_set(pb, modfn, (void *) dna_config_check_post_op) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_postop_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_postop_init - Failed to register plugin\n");
         status = DNA_FAILURE;
     }
 
@@ -561,8 +561,8 @@ dna_exop_init(Slapi_PBlock * pb)
                          (void *) dna_extend_exop) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_EXT_OP_BACKEND_FN,
                          (void *) dna_extend_exop_backend) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_exop_init: failed to register plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_exop_init - Failed to register plugin\n");
         status = DNA_FAILURE;
     }
 
@@ -577,8 +577,8 @@ dna_be_txn_preop_init(Slapi_PBlock *pb){
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *) &pdesc) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN, (void *)dna_be_txn_add_pre_op) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN, (void *)dna_be_txn_mod_pre_op) != 0){
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_init: failed to register be_txn_pre_op plugin\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_init - Failed to register be_txn_pre_op plugin\n");
         status = DNA_FAILURE;
     }
 
@@ -597,20 +597,20 @@ dna_start(Slapi_PBlock * pb)
     Slapi_DN *pluginsdn = NULL;
     const char *plugindn = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_start\n");
 
     g_dna_cache_lock = slapi_new_rwlock();
     if (!g_dna_cache_lock) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: global config lock creation failed\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Global config lock creation failed\n");
         return DNA_FAILURE;
     }
 
     g_dna_cache_server_lock = slapi_new_rwlock();
     if (!g_dna_cache_server_lock) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: global server lock creation failed\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Global server lock creation failed\n");
         return DNA_FAILURE;
     }
 
@@ -621,13 +621,13 @@ dna_start(Slapi_PBlock * pb)
      */
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &pluginsdn);
     if (NULL == pluginsdn || 0 == slapi_sdn_get_ndn_len(pluginsdn)) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: had to use hard coded config dn\n");
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Had to use hard coded config dn\n");
         plugindn = DNA_DN;
     } else {
         plugindn = slapi_sdn_get_dn(pluginsdn);
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: config at %s\n", plugindn);
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Config at %s\n", plugindn);
 
     }
 
@@ -637,8 +637,8 @@ dna_start(Slapi_PBlock * pb)
      * in case shared config is enabled for any of the
      * ranges we are managing. */
     if (dna_load_host_port() != DNA_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: unable to load host and port information\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Unable to load host and port information\n");
     }
 
     /*
@@ -649,8 +649,8 @@ dna_start(Slapi_PBlock * pb)
     PR_INIT_CLIST(dna_global_config);
 
     if (dna_load_plugin_config(pb, 1/* use eventq */) != DNA_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: unable to load plug-in configuration\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Unable to load plug-in configuration\n");
         return DNA_FAILURE;
     }
 
@@ -658,14 +658,14 @@ dna_start(Slapi_PBlock * pb)
      * Load all shared server configs
      */
     if (dna_load_shared_servers() ) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_start: shared config server initialization failed.\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_start - Shared config server initialization failed.\n");
         return DNA_FAILURE;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "dna: ready for service\n");
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_start - Ready for service\n");
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_start\n");
 
     return DNA_SUCCESS;
@@ -679,7 +679,7 @@ dna_start(Slapi_PBlock * pb)
 static int
 dna_close(Slapi_PBlock * pb)
 {
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_close\n");
 
     slapi_eq_cancel(eq_ctx);
@@ -696,7 +696,7 @@ dna_close(Slapi_PBlock * pb)
     slapi_ch_free_string(&portnum);
     slapi_ch_free_string(&secureportnum);
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_close\n");
 
     return DNA_SUCCESS;
@@ -710,29 +710,29 @@ dna_parse_exop_ber(Slapi_PBlock *pb, char **shared_dn)
     struct berval *reqdata = NULL;
     BerElement *tmp_bere = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "----> dna_parse_exop_ber\n");
 
     /* Fetch the request OID */
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_OID, &oid);
     if (!oid) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_exop_ber: Unable to retrieve request OID.\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_exop_ber - Unable to retrieve request OID.\n");
         goto out;
     }
 
     /* Make sure the request OID is correct. */
     if (strcmp(oid, DNA_EXTEND_EXOP_REQUEST_OID) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_exop_ber: Received incorrect request OID.\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_exop_ber - Received incorrect request OID.\n");
         goto out;
     }
 
     /* Fetch the request data */
     slapi_pblock_get(pb, SLAPI_EXT_OP_REQ_VALUE, &reqdata);
     if (!BV_HAS_DATA(reqdata)) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_exop_ber: No request data received.\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_exop_ber - No request data received.\n");
         goto out;
     }
 
@@ -755,7 +755,7 @@ out:
         tmp_bere = NULL;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<---- dna_parse_exop_ber %s\n", *shared_dn);
     return ret;
 }
@@ -858,7 +858,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_load_plugin_config %s\n",
                     use_eventq?"using event queue":"");
 
@@ -911,7 +911,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
 cleanup:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_load_plugin_config\n");
 
     return status;
@@ -940,7 +940,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     int ret = DNA_SUCCESS;
     char **plugin_attr_values;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_parse_config_entry\n");
 
     /* If this is the main DNA plug-in
@@ -957,13 +957,13 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         entry->dn = slapi_ch_strdup(value);
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> dn [%s]\n", entry->dn);
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - dn [%s]\n", entry->dn);
 
     entry->types = slapi_entry_attr_get_charray(e, DNA_TYPE);
     if (entry->types == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_config_entry: The %s config "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - The %s config "
                         "setting is required for range %s.\n",
                         DNA_TYPE, entry->dn);
         ret = DNA_FAILURE;
@@ -972,14 +972,14 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 
     for (i = 0; entry->types && entry->types[i]; i++) {
         if (!slapi_attr_syntax_exists(entry->types[i])){
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_parse_config_entry: dnaType (%s) does "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry - dnaType (%s) does "
                             "not exist.\n",
                             entry->types[i]);
             ret = DNA_FAILURE;
             goto bail;
         }
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
                         "----------> %s [%s]\n", DNA_TYPE, entry->types[i]);
     }
 
@@ -988,16 +988,16 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         entry->nextval = strtoull(value, 0, 0);
         slapi_ch_free_string(&value);
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_config_entry: The %s config "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - The %s config "
                         "setting is required for range %s.\n",
                         DNA_NEXTVAL, entry->dn);
         ret = DNA_FAILURE;
         goto bail;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_NEXTVAL,
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%" NSPRIu64 "]\n", DNA_NEXTVAL,
                     entry->nextval);
 
     value = slapi_entry_attr_get_charptr(e, DNA_PREFIX);
@@ -1012,8 +1012,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         slapi_ch_free_string(&value);
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_PREFIX, entry->prefix);
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%s]\n", DNA_PREFIX, entry->prefix);
 
     /* Set the default interval to 1 */
     entry->interval = 1;
@@ -1025,38 +1025,38 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         slapi_ch_free_string(&value);
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_INTERVAL, entry->interval);
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%" NSPRIu64 "]\n", DNA_INTERVAL, entry->interval);
 #endif
 
     value = slapi_entry_attr_get_charptr(e, DNA_GENERATE);
     if (value) {
         entry->generate = value;
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_GENERATE, entry->generate);
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%s]\n", DNA_GENERATE, entry->generate);
     }
 
     value = slapi_entry_attr_get_charptr(e, DNA_FILTER);
     if (value) {
         entry->filter = value;
         if (NULL == (entry->slapi_filter = slapi_str2filter(value))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM ,
-                "Error: Invalid search filter in entry [%s]: [%s]\n",
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM ,
+                "dna_parse_config_entry - Invalid search filter in entry [%s]: [%s]\n",
                 entry->dn, value);
             ret = DNA_FAILURE;
             goto bail;
         }
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_config_entry: The %s config "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - The %s config "
                         "setting is required for range %s.\n",
                         DNA_FILTER, entry->dn);
         ret = DNA_FAILURE;
         goto bail;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_FILTER, value);
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%s]\n", DNA_FILTER, value);
 
     value = slapi_entry_attr_get_charptr(e, DNA_SCOPE);
     if (value) {
@@ -1070,8 +1070,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
          * RDN elements to still work. */
         test_dn = slapi_sdn_new_dn_byref(value);
         if (slapi_dn_syntax_check(NULL, (char *)slapi_sdn_get_ndn(test_dn), 1) == 1) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                "Error: Invalid DN used as scope in entry [%s]: [%s]\n",
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                "dna_parse_config_entry - Invalid DN used as scope in entry [%s]: [%s]\n",
                 entry->dn, value);
             ret = DNA_FAILURE;
             slapi_sdn_free(&test_dn);
@@ -1079,16 +1079,16 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         }
         slapi_sdn_free(&test_dn);
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_parse_config_entry: The %s config "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - The %s config "
                         "config setting is required for range %s.\n",
                         DNA_SCOPE, entry->dn);
         ret = DNA_FAILURE;
         goto bail;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%s]\n", DNA_SCOPE, entry->scope);
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%s]\n", DNA_SCOPE, entry->scope);
     
     plugin_attr_values = slapi_entry_attr_get_charray(e, DNA_EXCLUDE_SCOPE);
     if (plugin_attr_values) {
@@ -1101,8 +1101,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         /* Copy them in the config at the condition they are valid DN */
         for (i = 0; plugin_attr_values[i]; i++) {
             if (slapi_dn_syntax_check(NULL, plugin_attr_values[i], 1) == 1) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "Error: Ignoring invalid DN used as excluded scope: [%s]\n",  plugin_attr_values[i]);
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - Ignoring invalid DN used as excluded scope: [%s]\n",  plugin_attr_values[i]);
                 slapi_ch_free_string(&plugin_attr_values[i]);
             } else {
                 entry->excludescope[j++] = slapi_sdn_new_dn_passin(plugin_attr_values[i]);
@@ -1111,8 +1111,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         slapi_ch_free((void**) &plugin_attr_values);
     }
     for (i = 0; entry->excludescope && entry->excludescope[i]; i++) {
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                "----------> %s[%d] [%s]\n", DNA_EXCLUDE_SCOPE, i, slapi_sdn_get_dn(entry->excludescope[i]));
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                "dna_parse_config_entry - %s[%d] [%s]\n", DNA_EXCLUDE_SCOPE, i, slapi_sdn_get_dn(entry->excludescope[i]));
     }
 
     /* optional, if not specified set -1 which is converted to the max unsigned
@@ -1125,8 +1125,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         entry->maxval = -1;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_MAXVAL,
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%" NSPRIu64 "]\n", DNA_MAXVAL,
                     entry->maxval);
 
     /* get the global bind dn and password(if any) */
@@ -1137,8 +1137,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 
         sdn = slapi_sdn_new_dn_passin(value);
         if (!sdn) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                    "dna_parse_config_entry: Unable to create "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - Unable to create "
                     "slapi_dn from dnaRemoteBindDN (%s)\n", value);
             ret = DNA_FAILURE;
             slapi_ch_free_string(&value);
@@ -1146,8 +1146,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         }
         normdn = (char *)slapi_sdn_get_dn(sdn);
         if (NULL == normdn) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                "dna_parse_config_entry: failed to normalize dn: "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                "dna_parse_config_entry - Failed to normalize dn: "
                 "%s\n", value);
             ret = DNA_FAILURE;
             slapi_sdn_free(&sdn);
@@ -1162,8 +1162,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     /* validate that we have both a bind dn or password, or we have none */
     if((entry->remote_bindpw != NULL && entry->remote_binddn == NULL) ||
        (entry->remote_binddn != NULL && entry->remote_bindpw == NULL)){
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                "dna_parse_config_entry: Invalid remote bind DN and password settings.\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                "dna_parse_config_entry - Invalid remote bind DN and password settings.\n");
         ret = DNA_FAILURE;
         goto bail;
     }
@@ -1178,8 +1178,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         sdn = slapi_sdn_new_dn_passin(value);
 
         if (!sdn) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_parse_config_entry: Unable to create "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry - Unable to create "
                             "slapi_dn (%s)\n", value);
             ret = DNA_FAILURE;
             slapi_ch_free_string(&value);
@@ -1194,8 +1194,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         if (!shared_e) {
             /* We didn't locate the shared config container entry. Log
              * a message and skip this config entry. */
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_parse_config_entry: Unable to locate "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry - Unable to locate "
                             "shared configuration entry (%s)\n", value);
             ret = DNA_FAILURE;
             slapi_sdn_free(&sdn);
@@ -1207,8 +1207,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 
         normdn = (char *)slapi_sdn_get_dn(sdn);
         if (NULL == normdn) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_parse_config_entry: failed to normalize dn: "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry - Failed to normalize dn: "
                             "%s\n", value);
             ret = DNA_FAILURE;
             slapi_sdn_free(&sdn);
@@ -1223,8 +1223,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
                                         hostname, DNA_PORTNUM, portnum,
                                         entry->shared_cfg_base);
         if (NULL == normdn) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_parse_config_entry: failed to create dn: "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry - Failed to create dn: "
                             "%s=%s+%s=%s,%s", DNA_HOSTNAME,
                             hostname, DNA_PORTNUM, portnum, value);
             ret = DNA_FAILURE;
@@ -1232,8 +1232,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         }
         entry->shared_cfg_dn = normdn;
 
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%s]\n", DNA_SHARED_CFG_DN,
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - %s [%s]\n", DNA_SHARED_CFG_DN,
                         entry->shared_cfg_base);
     }
 
@@ -1241,12 +1241,12 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     if (value) {
         entry->threshold = strtoull(value, 0, 0);
 
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "----------> %s [%s]\n", DNA_THRESHOLD, value);
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - %s [%s]\n", DNA_THRESHOLD, value);
 
         if (entry->threshold <= 0) {
             entry->threshold = 1;
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                             "----------> %s too low, setting to [%s]\n", DNA_THRESHOLD, value);
         }
 
@@ -1255,8 +1255,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         entry->threshold = 1;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_THRESHOLD,
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%" NSPRIu64 "]\n", DNA_THRESHOLD,
                     entry->threshold);
 
     value = slapi_entry_attr_get_charptr(e, DNA_RANGE_REQUEST_TIMEOUT);
@@ -1267,8 +1267,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         entry->timeout = DNA_DEFAULT_TIMEOUT;
     }
 
-    slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "----------> %s [%" NSPRIu64 "]\n", DNA_RANGE_REQUEST_TIMEOUT,
+    slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_parse_config_entry - %s [%" NSPRIu64 "]\n", DNA_RANGE_REQUEST_TIMEOUT,
                     entry->timeout);
 
     value = slapi_entry_attr_get_charptr(e, DNA_NEXT_RANGE);
@@ -1284,7 +1284,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 
             /* validate that upper is greater than lower */
             if (entry->next_range_upper <= entry->next_range_lower) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                                 "dna_parse_config_entry: Illegal %s "
                                 "setting specified for range %s.  Legal "
                                 "format is <lower>-<upper>.\n",
@@ -1300,7 +1300,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
                  (entry->next_range_upper >= entry->nextval)) ||
                 ((entry->next_range_lower <= entry->maxval) &&
                  (entry->next_range_lower >= entry->nextval))) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                             "dna_parse_config_entry: Illegal %s "
                             "setting specified for range %s.  %s "
                             "overlaps with the active range.\n",
@@ -1310,7 +1310,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
                 entry->next_range_upper = 0;
             }
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                             "dna_parse_config_entry: Illegal %s "
                             "setting specified for range %s.  Legal "
                             "format is <lower>-<upper>.\n",
@@ -1342,7 +1342,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     /* create the new value lock for this range */
     entry->lock = slapi_new_mutex();
     if (!entry->lock) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                         "dna_parse_config_entry: Unable to create lock "
                         "for range %s.\n", entry->dn);
         ret = DNA_FAILURE;
@@ -1354,8 +1354,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
         if (entry->slapi_filter) {
             ret = slapi_vattr_filter_test(pb, e, entry->slapi_filter, 0);
             if (LDAP_SUCCESS == ret) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM, "dna_parse_config_entry: "
-                        "Error: shared config entry (%s) matches scope \"%s\", and filter \"%s\" "
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM, "dna_parse_config_entry - "
+                        "Shared config entry (%s) matches scope \"%s\", and filter \"%s\" "
                         "of the DNA config entry (%s).\n", entry->shared_cfg_base,
                         entry->scope, entry->filter, entry->dn);
                 ret = DNA_FAILURE;
@@ -1378,9 +1378,9 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
 
             if (slapi_dn_issuffix(entry->scope, config_entry->scope)) {
                 PR_INSERT_BEFORE(&(entry->list), list);
-                slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG,
+                slapi_log_error(SLAPI_LOG_CONFIG,
                                 DNA_PLUGIN_SUBSYSTEM,
-                                "store [%s] before [%s] \n", entry->scope,
+                                "dna_parse_config_entry - store [%s] before [%s] \n", entry->scope,
                                 config_entry->scope);
                 entry_added = 1;
                 break;
@@ -1391,8 +1391,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
             if (dna_global_config == list) {
                 /* add to tail */
                 PR_INSERT_BEFORE(&(entry->list), list);
-                slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                                "store [%s] at tail\n", entry->scope);
+                slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                                "dna_parse_config_entry - store [%s] at tail\n", entry->scope);
                 entry_added = 1;
                 break;
             }
@@ -1400,8 +1400,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry * e, int apply)
     } else {
         /* first entry */
         PR_INSERT_LINK(&(entry->list), dna_global_config);
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "store [%s] at head \n", entry->scope);
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_parse_config_entry - store [%s] at head \n", entry->scope);
         entry_added = 1;
     }
 
@@ -1409,8 +1409,8 @@ bail:
     if (0 == entry_added) {
         /* Don't log error if we weren't asked to apply config */
         if ((apply != 0) && (entry != NULL)) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_parse_config_entry: Invalid config entry "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_parse_config_entry - Invalid config entry "
                             "[%s] skipped\n", entry->dn);
         }
         dna_free_config_entry(&entry);
@@ -1418,7 +1418,7 @@ bail:
         ret = DNA_SUCCESS;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_parse_config_entry\n");
 
     return ret;
@@ -1434,8 +1434,8 @@ dna_free_config_entry(struct configEntry ** entry)
 
     e = *entry;
     if (e->dn) {
-        slapi_log_error(SLAPI_LOG_CONFIG, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "freeing config entry [%s]\n", e->dn);
+        slapi_log_error(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_free_config_entry - Freeing config entry [%s]\n", e->dn);
         slapi_ch_free_string(&e->dn);
     }
 
@@ -1528,7 +1528,7 @@ dna_load_host_port(void)
     Slapi_DN *config_dn = NULL;
     char *attrs[4];
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_load_host_port\n");
 
     attrs[0] = "nsslapd-localhost";
@@ -1553,7 +1553,7 @@ dna_load_host_port(void)
         status = DNA_FAILURE;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_load_host_port\n");
 
     return status;
@@ -1627,14 +1627,15 @@ dna_update_config_event(time_t event_time, void *arg)
                             slapi_back_transaction_commit(dna_pb);
                         } else {
                             if (slapi_back_transaction_abort(dna_pb) != 0) {
-                                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM, "dna_update_config_event: failed to abort transaction!\n");
+                                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM, "dna_update_config_event - "
+                                	"Failed to abort transaction!\n");
                             }
                         }
                         slapi_pblock_destroy(dna_pb);
                         slapi_pblock_init(pb);
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                  "dna_update_config_event: failed to start transaction\n");
+                        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                  "dna_update_config_event - Failed to start transaction\n");
                     }
                 }
 
@@ -1686,8 +1687,8 @@ static int dna_fix_maxval(struct configEntry *config_entry,
     if (config_entry->next_range_lower != 0) {
         ret = dna_activate_next_range(config_entry);
         if (ret != 0) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_fix_maxval: Unable to activate the "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_fix_maxval - Unable to activate the "
                             "next range for range %s.\n", config_entry->dn);
         }
     } else if (!skip_range_request && config_entry->shared_cfg_base) {
@@ -1759,8 +1760,8 @@ dna_notice_allocation(struct configEntry *config_entry, PRUint64 new,
         if (config_entry->next_range_lower != 0) {
             /* Make the next range active */
             if (dna_activate_next_range(config_entry) != 0) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                "dna_notice_allocation: Unable to activate "
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                "dna_notice_allocation - Unable to activate "
                                 "the next range for range %s.\n", config_entry->dn);
             }
         } else {
@@ -1817,8 +1818,8 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (LDAP_SUCCESS != ret) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_get_shared_servers: search failed for shared "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_get_shared_servers - Search failed for shared "
                         "config: %s [error %d]\n", config_entry->shared_cfg_base,
                         ret);
         goto cleanup;
@@ -1861,8 +1862,8 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                 if (!server->host || (server->port == 0 && server->secureport == 0))
                 {
                     /* free and skip this one */
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                                    "dna_get_shared_servers: skipping invalid "
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                                    "dna_get_shared_servers - Skipping invalid "
                                     "shared config entry (%s)\n", slapi_entry_get_dn(entries[i]));
                     dna_free_shared_server(&server);
                     continue;
@@ -1891,8 +1892,8 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                         }
                     }
                     if(err){
-                        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                                        "dna_get_shared_servers: skipping invalid "
+                        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                                        "dna_get_shared_servers - Skipping invalid "
                                         "shared config entry (%s). Reason: %s\n",
                                         slapi_entry_get_dn(entries[i]), reason);
                         dna_free_shared_server(&server);
@@ -1986,8 +1987,8 @@ static int dna_request_range(struct configEntry *config_entry,
     slapi_lock_mutex(config_entry->extend_lock);
     if (config_entry->extend_in_progress) {
         /* We're already processing a range extention, so bail. */
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Already processing a "
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_request_range - Already processing a "
                         "range extension request.  Skipping request.\n");
         slapi_unlock_mutex(config_entry->extend_lock);
         goto bail;
@@ -2002,22 +2003,22 @@ static int dna_request_range(struct configEntry *config_entry,
     if (dna_get_replica_bind_creds(config_entry->shared_cfg_base, server,
                                    &bind_dn, &bind_passwd, &bind_method,
                                    &is_ssl, &port) != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                         "dna_request_range: Unable to retrieve "
                         "replica bind credentials.\n");
         goto bail;
     }
 
     if ((request = dna_create_range_request(config_entry->shared_cfg_base)) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Failed to create "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_request_range - Failed to create "
                         "range extension extended operation request.\n");
         goto bail;
     }
 
     if ((ld = slapi_ldap_init(server->host, port, is_ssl, 0)) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Unable to "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_request_range - Unable to "
                         "initialize LDAP session to server %s:%u.\n",
                          server->host, server->port);
         goto bail;
@@ -2039,8 +2040,8 @@ static int dna_request_range(struct configEntry *config_entry,
                           NULL, NULL, NULL, NULL);
 
     if (ret != LDAP_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Error binding "
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_request_range - Error binding "
                         " to replica server %s:%u. [error %d]\n",
                         server->host, server->port, ret);
         goto bail;
@@ -2051,8 +2052,8 @@ static int dna_request_range(struct configEntry *config_entry,
                         request, NULL, NULL, &retoid, &responsedata);
 
     if (ret != LDAP_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Error sending "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_request_range - Error sending "
                         "range extension extended operation request "
                         "to server %s:%u [error %d]\n", server->host,
                         server->port, ret);
@@ -2062,8 +2063,8 @@ static int dna_request_range(struct configEntry *config_entry,
     /* Verify that the OID is correct. */
     if (strcmp(retoid, DNA_EXTEND_EXOP_RESPONSE_OID) != 0) {
         ret = LDAP_OPERATIONS_ERROR;
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_request_range: Received incorrect response OID.\n");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_request_range - Received incorrect response OID.\n");
         goto bail;
     }
 
@@ -2120,22 +2121,22 @@ static struct berval *dna_create_range_request(char *range_dn)
     shared_dn.bv_len = strlen(shared_dn.bv_val);
 
     if((ber = ber_alloc()) == NULL) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_create_range_request: Error "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_create_range_request - Error "
                         "allocating request data.\n");
         goto bail;
     }
 
     if (LBER_ERROR == (ber_printf(ber, "{o}", shared_dn.bv_val, shared_dn.bv_len))) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_create_range_request: Error "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_create_range_request - Error "
                         "encoding request data.\n");
         goto bail;
     }
 
     if (ber_flatten(ber, &requestdata) == -1) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_create_range_request: Error "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_create_range_request -  Error "
                         "encoding request data.\n");
         goto bail;
     }
@@ -2153,17 +2154,17 @@ bail:
 static char *dna_get_dn(Slapi_PBlock * pb)
 {
     Slapi_DN *sdn = 0;
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_get_dn\n");
 
     if (slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn)) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_get_dn: failed to get dn of changed entry");
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_get_dn - Failed to get dn of changed entry");
         goto bail;
     }
 
   bail:
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_get_dn\n");
 
     return (char *)slapi_sdn_get_dn(sdn);
@@ -2176,14 +2177,14 @@ static int dna_dn_is_config(char *dn)
 {
     int ret = 0;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_is_config %s\n", dn);
 
     if (slapi_dn_issuffix(dn, getPluginDN())) {
         ret = 1;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_is_config\n");
 
     return ret;
@@ -2454,7 +2455,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
     PRUint64 nextval = 0;
     int ret;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_get_next_value\n");
 
     /* get the lock to prevent contention with other threads over
@@ -2473,8 +2474,8 @@ static int dna_get_next_value(struct configEntry *config_entry,
              * while within a transaction. */
             ret = dna_fix_maxval(config_entry, 1 /* skip range transfer request */ );
             if (LDAP_SUCCESS != ret) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                "dna_get_next_value: no more values available!!\n");
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                "dna_get_next_value - No more values available!!\n");
                 goto done;
             }
 
@@ -2484,8 +2485,8 @@ static int dna_get_next_value(struct configEntry *config_entry,
                 goto done;
         } else {
             /* dna_first_free_value() failed for some unknown reason */
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_next_value: failed to allocate a new ID!!\n");
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_next_value - Failed to allocate a new ID!!\n");
             goto done;
         }
     }
@@ -2540,7 +2541,7 @@ static int dna_get_next_value(struct configEntry *config_entry,
         slapi_pblock_destroy(pb);
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_get_next_value\n");
 
     return ret;
@@ -2673,8 +2674,8 @@ dna_update_shared_config(struct configEntry *config_entry)
             }
 
             if (ret != LDAP_SUCCESS) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_update_shared_config: Unable to update shared config entry: %s [error %d]\n",
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_update_shared_config - Unable to update shared config entry: %s [error %d]\n",
                         config_entry->shared_cfg_dn, ret);
             }
 
@@ -2737,8 +2738,8 @@ dna_update_next_range(struct configEntry *config_entry,
     pb = NULL;
 
     if (ret != LDAP_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_update_next_range: Error updating "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_update_next_range - Error updating "
                         "configuration entry [err=%d]\n", ret);
     } else {
         /* update the cached config and the shared config */
@@ -2819,8 +2820,8 @@ dna_activate_next_range(struct configEntry *config_entry)
     pb = NULL;
 
     if (ret != LDAP_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_activate_next_range: Error updating "
+        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_activate_next_range - Error updating "
                         "configuration entry [err=%d]\n", ret);
     } else {
         /* Update the in-memory config info */
@@ -2870,8 +2871,8 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
         /* This function converts the old DN style to the new one. */
         replica_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", be_suffix);
         if (NULL == replica_dn) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_is_replica_bind_dn: failed to create "
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_is_replica_bind_dn - Failed to create "
                             "replica dn for %s\n", be_suffix);
             ret = 1;
             goto done;
@@ -2919,8 +2920,8 @@ static int dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
             }
             slapi_value_free(&bind_dn_sv);
         } else {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_is_replica_bind_dn: Failed to fetch replica entry "
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_is_replica_bind_dn - Failed to fetch replica entry "
                             "for range %s\n", range_dn);
         }
     }
@@ -2960,8 +2961,8 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
         /* This function converts the old DN style to the new one. */
         replica_dn = slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config", be_suffix);
         if (NULL == replica_dn) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_replica_bind_creds: failed to create "
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_replica_bind_creds - Failed to create "
                             "replica dn for %s\n", be_suffix);
             ret = LDAP_PARAM_ERROR;
             goto bail;
@@ -2980,8 +2981,8 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
 
         pb = slapi_pblock_new();
         if (NULL == pb) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_replica_bind_creds: Failed to "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_replica_bind_creds - Failed to "
                             "allocate pblock\n");
             goto bail;
         }
@@ -2993,8 +2994,8 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
         if (LDAP_SUCCESS != ret) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_replica_bind_creds: Failed to fetch replica "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_replica_bind_creds - Failed to fetch replica "
                             "bind credentials for range %s, server %s, port %u [error %d]\n",
                             range_dn, server->host,
                             server->port ? server->port : server->secureport, ret);
@@ -3013,8 +3014,8 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
                 ret = dna_get_remote_config_info(server, bind_dn, bind_passwd, bind_method, is_ssl, port);
                 goto bail;
             }
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_replica_bind_creds: Failed to fetch replication "
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_replica_bind_creds - Failed to fetch replication "
                             "agreement for range %s, server %s, port %u\n", range_dn,
                             server->host, server->port ? server->port : server->secureport);
             ret = LDAP_OPERATIONS_ERROR;
@@ -3064,8 +3065,8 @@ static int dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server,
             pw_ret = pw_rever_decode(bind_cred, bind_passwd, DNA_REPL_CREDS);
 
             if (pw_ret == -1) {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_get_replica_bind_creds: Failed to decode "
+                slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_get_replica_bind_creds - Failed to decode "
                             "replica bind credentials for range %s, server %s, "
                             "port %u\n", range_dn, server->host, server->port);
                 goto bail;
@@ -3134,8 +3135,8 @@ dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bin
         if (server->secureport){
             *port = server->secureport;
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                    "dna_get_remote_config_info: Using SSL protocol, but the secure "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_get_remote_config_info - Using SSL protocol, but the secure "
                     "port is not defined.\n");
             return -1;
         }
@@ -3143,8 +3144,8 @@ dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bin
         if(server->port){
             *port = server->port;
         } else {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                    "dna_get_remote_config_info: Using %s protocol, but the non-secure "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_get_remote_config_info - Using %s protocol, but the non-secure "
                     "port is not defined.\n", server->remote_conn_prot);
             return -1;
         }
@@ -3159,8 +3160,8 @@ dna_get_remote_config_info( struct dnaServer *server, char **bind_dn, char **bin
         pw_ret = pw_rever_decode(bind_cred, bind_passwd, DNA_REPL_CREDS);
 
         if (pw_ret == -1) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                    "dna_get_remote_config_info: Failed to decode "
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_get_remote_config_info - Failed to decode "
                     "replica bind credentials for server %s, "
                     "port %u\n", server->host,
                     server->port ? server->port : server->secureport);
@@ -3410,21 +3411,21 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
 
             /* Did we already service all of these configured types? */
             if (dna_list_contains_types(generated_types, config_entry->types)) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    no types to act upon.\n");
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "_dna_pre_op_add - No types to act upon.\n");
                 goto next;
             }
 
             /* is the entry in scope? */
             if (config_entry->scope &&
                 !slapi_dn_issuffix(dn, config_entry->scope)) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    dn not in scope\n");
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "    dn not in scope\n");
                 goto next;
             }
 
             /* is this entry in an excluded scope? */
             for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
                 if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    dn in excluded scope\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "_dna_pre_op_add - dn in excluded scope\n");
                     goto next;
                 }
             }
@@ -3433,7 +3434,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
             if (config_entry->slapi_filter) {
                 ret = slapi_vattr_filter_test(pb, e, config_entry->slapi_filter, 0);
                 if (LDAP_SUCCESS != ret) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    dn does not match filter\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "_dna_pre_op_add - dn does not match filter\n");
                     goto next;
                 }
             }
@@ -3465,7 +3466,7 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
 
             if (types_to_generate && types_to_generate[0]) {
 
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    adding %s to %s as -2\n", types_to_generate[0], dn);
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "_dna_pre_op_add - adding %s to %s as -2\n", types_to_generate[0], dn);
                 /* add - add to entry */
                 for (i = 0; types_to_generate && types_to_generate[i]; i++) {
                     slapi_entry_attr_set_charptr(e, types_to_generate[i],
@@ -3504,15 +3505,15 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                 slapi_lock_mutex(config_entry->lock);
 
                 ret = dna_first_free_value(config_entry, &setval);
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    retrieved value %" PRIu64 " ret %d\n", setval, ret);
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "_dna_pre_op_add - retrieved value %" PRIu64 " ret %d\n", setval, ret);
                 if (LDAP_SUCCESS != ret) {
                     /* check if we overflowed the configured range */
                     if (setval > config_entry->maxval) {
                         /* try for a new range or fail */
                         ret = dna_fix_maxval(config_entry, 0);
                         if (LDAP_SUCCESS != ret) {
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                            "dna_pre_op: no more values available!!\n");
+                            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                            "_dna_pre_op_add - No more values available!!\n");
                             /* Set an error string to be returned to the client. */
                             *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3524,8 +3525,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                         /* Make sure dna_first_free_value() doesn't error out */
                         ret = dna_first_free_value(config_entry, &setval);
                         if (LDAP_SUCCESS != ret){
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                            "dna_pre_op: failed to allocate a new ID 1\n");
+                            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                            "_dna_pre_op_add - Failed to allocate a new ID 1\n");
                             /* Set an error string to be returned to the client. */
                             *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3535,8 +3536,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                         }
                     } else {
                         /* dna_first_free_value() failed for some unknown reason */
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                        "dna_pre_op: failed to allocate a new ID!! 2\n");
+                        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                        "_dna_pre_op_add - Failed to allocate a new ID!! 2\n");
                         /* Set an error string to be returned to the client. */
                         *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3553,8 +3554,8 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                  * really a soft failure. */
                 if ((config_entry->next_range_lower == 0) &&
                     (config_entry->remaining <= config_entry->threshold)) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                                    "dna_pre_op: Passed threshold of %" 
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                                    "_dna_pre_op_add - Passed threshold of %" 
                                     NSPRIu64 " remaining values "
                                     "for range %s. (%" NSPRIu64 " values remain)\n",
                                     config_entry->threshold, config_entry->dn,
@@ -3783,8 +3784,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                         /* try for a new range or fail */
                         ret = dna_fix_maxval(config_entry, 0);
                         if (LDAP_SUCCESS != ret) {
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                            "dna_pre_op: no more values available!!\n");
+                            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                            "_dna_pre_op_modify - No more values available!!\n");
                             /* Set an error string to be returned to the client. */
                             *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3796,8 +3797,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                         /* Make sure dna_first_free_value() doesn't error out */
                         ret = dna_first_free_value(config_entry, &setval);
                         if (LDAP_SUCCESS != ret){
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                            "dna_pre_op: failed to allocate a new ID\n");
+                            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                            "_dna_pre_op_modify - Failed to allocate a new ID\n");
                             /* Set an error string to be returned to the client. */
                             *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                                " %s failed! Unable to proceed.",
@@ -3807,8 +3808,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                         }
                     } else {
                         /* dna_first_free_value() failed for some unknown reason */
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                        "dna_pre_op: failed to allocate a new ID!!\n");
+                        slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                        "_dna_pre_op_modify - Failed to allocate a new ID!!\n");
                         /* Set an error string to be returned to the client. */
                         *errstr = slapi_ch_smprintf("Allocation of a new value for range"
                                            " %s failed! Unable to proceed.",
@@ -3825,8 +3826,8 @@ _dna_pre_op_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Mods *smods, char **e
                  * really a soft failure. */
                 if ((config_entry->next_range_lower == 0) &&
                     (config_entry->remaining <= config_entry->threshold)) {
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                    "dna_pre_op: Passed threshold of %" 
+                    slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                    "_dna_pre_op_modify - Passed threshold of %" 
                                     NSPRIu64 " remaining values "
                                     "for range %s. (%" NSPRIu64 " values remain)\n",
                                     config_entry->threshold, config_entry->dn,
@@ -3868,7 +3869,7 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
     LDAPMod **mods;
     int ret = 0;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_pre_op\n");
 
     if (0 == (dn = dna_get_dn(pb))) {
@@ -3883,15 +3884,15 @@ dna_pre_op(Slapi_PBlock * pb, int modtype)
     if (LDAP_CHANGETYPE_ADD == modtype) {
         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
         if (NULL == e) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_pre_op: no add entry set for add\n");
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_pre_op - No add entry set for add\n");
             goto bail;
         }
     } else {
         slapi_pblock_get(pb, SLAPI_MODIFY_EXISTING_ENTRY, &e);
         if (NULL == e) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                            "dna_pre_op: no pre op entry set for modify\n");
+            slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                            "dna_pre_op - No pre op entry set for modify\n");
             goto bail;
         }
         /* grab the mods - we'll put them back later with our modifications appended */
@@ -3959,15 +3960,15 @@ bail:
     slapi_mods_free(&smods);
 
     if (ret) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_pre_op: operation failure [%d]\n", ret);
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_pre_op - Operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = DNA_FAILURE;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_pre_op\n");
 
     return ret;
@@ -4031,26 +4032,26 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     int numvals, e_numvals = 0;
     int i, len, ret = DNA_SUCCESS;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_be_txn_pre_op\n");
 
     if (!slapi_plugin_running(pb)) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, " --x bailing, plugin not running\n");
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Bailing, plugin not running\n");
         goto bail;
     }
 
     if (0 == (dn = dna_get_dn(pb))) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, " --x bailing, is dna dn\n");
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Bailing, is dna dn\n");
         goto bail;
     }
 
     if (dna_dn_is_config(dn)) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, " --x bailing is dna config dn\n");
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Bailing is dna config dn\n");
         goto bail;
     }
 
     if (dna_isrepl(pb)) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, " --x bailing replicated operation\n");
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Bailing replicated operation\n");
         /* if repl, the dna values should be already in the entry. */
         goto bail;
     }
@@ -4062,7 +4063,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
     }
 
     if (e == NULL) {
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, " --x bailing entry is NULL\n");
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Bailing entry is NULL\n");
         goto bail;
     } else if (LDAP_CHANGETYPE_MODIFY == modtype) {
         slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -4074,21 +4075,21 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
 
     if (!PR_CLIST_IS_EMPTY(dna_global_config)) {
         list = PR_LIST_HEAD(dna_global_config);
-        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "     using global config...\n");
+        slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Using global config...\n");
 
         while (list != dna_global_config && LDAP_SUCCESS == ret) {
             config_entry = (struct configEntry *) list;
 
             /* Did we already service all of these configured types? */
             if (dna_list_contains_types(generated_types, config_entry->types)) {
-                slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    All types already serviced\n");
+                slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - All types already serviced\n");
                 goto next;
             }
 
             /* is the entry in scope? */
             if (config_entry->scope) {
                 if (!slapi_dn_issuffix(dn, config_entry->scope)) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    Entry not in scope of dnaScope!\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Entry not in scope of dnaScope!\n");
                     goto next;
                 }
             }
@@ -4096,7 +4097,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
             /* is this entry in an excluded scope? */
             for (i = 0; config_entry->excludescope && config_entry->excludescope[i]; i++) {
                 if (slapi_dn_issuffix(dn, slapi_sdn_get_dn(config_entry->excludescope[i]))) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    Entry in excluded scope, next\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Entry in excluded scope, next\n");
                     goto next;
                 }
             }
@@ -4104,7 +4105,7 @@ static int dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
             /* does the entry match the filter? */
             if (config_entry->slapi_filter) {
                 if(LDAP_SUCCESS != slapi_vattr_filter_test(pb,e,config_entry->slapi_filter, 0)) {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM, "    Entry does not match filter\n");
+                    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM, "dna_be_txn_pre_op - Entry does not match filter\n");
                     goto next;
                 }
             }
@@ -4290,15 +4291,15 @@ bail:
     slapi_ch_array_free(generated_types);
 
     if (ret) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                          "dna_be_txn_pre_op: operation failure [%d]\n", ret);
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                          "dna_be_txn_pre_op - Operation failure [%d]\n", ret);
         slapi_send_ldap_result(pb, ret, NULL, errstr, 0, NULL);
         slapi_ch_free((void **)&errstr);
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &ret);
         ret = DNA_FAILURE;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_be_txn_pre_op\n");
 
     return ret;
@@ -4312,7 +4313,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
         return DNA_SUCCESS;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_config_check_post_op\n");
 
 
@@ -4327,7 +4328,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
         }
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_config_check_post_op\n");
 
     return DNA_SUCCESS;
@@ -4339,7 +4340,7 @@ static int dna_config_check_post_op(Slapi_PBlock * pb)
  ***************************************************/
 static int dna_extend_exop_backend(Slapi_PBlock *pb, Slapi_Backend **target)
 {
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_parse_exop_backend\n");
     Slapi_DN *shared_sdn = NULL;
     char *shared_dn = NULL;
@@ -4356,7 +4357,7 @@ static int dna_extend_exop_backend(Slapi_PBlock *pb, Slapi_Backend **target)
     }
     res = LDAP_SUCCESS;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_parse_exop_backend %d\n", res);
     return res;
 }
@@ -4377,15 +4378,15 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         return ret;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_extend_exop\n");
 
     if(dna_parse_exop_ber(pb, &shared_dn) != LDAP_SUCCESS) {
         return ret;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                    "dna_extend_exop: received range extension "
+    slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_extend_exop - Received range extension "
                     "request for range [%s]\n", shared_dn);
 
     /* Only allow range requests from the replication bind DN user */
@@ -4425,8 +4426,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         if (LBER_ERROR == (ber_printf(respber, "{oo}",
                            range_low.bv_val, range_low.bv_len,
                            range_high.bv_val, range_high.bv_len))) {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                    "dna_extend_exop: Unable to encode exop response.\n");
+            slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                    "dna_extend_exop - Unable to encode exop response.\n");
             ber_free(respber, 1);
             ret = LDAP_ENCODING_ERROR;
             goto free_and_return;
@@ -4443,8 +4444,8 @@ static int dna_extend_exop(Slapi_PBlock *pb)
         ret = SLAPI_PLUGIN_EXTENDED_SENT_RESULT;
         ber_bvfree(respdata);
 
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                        "dna_extend_exop: Released range %" NSPRIu64 "-%" NSPRIu64 ".\n",
+        slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        "dna_extend_exop - Released range %" NSPRIu64 "-%" NSPRIu64 ".\n",
                         lower, upper);
     }
 
@@ -4452,7 +4453,7 @@ static int dna_extend_exop(Slapi_PBlock *pb)
     slapi_ch_free_string(&shared_dn);
     slapi_ch_free_string(&bind_dn);
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_extend_exop\n");
 
     return ret;
@@ -4475,7 +4476,7 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
     struct configEntry *config_entry = NULL;
     int set_extend_flag = 0;
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "--> dna_release_range\n");
 
     if (range_dn) {
@@ -4525,8 +4526,8 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
             slapi_lock_mutex(config_entry->extend_lock);
             if (config_entry->extend_in_progress) {
                 /* We're already processing a range extention, so bail. */
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
-                                "dna_release_range: Already processing a "
+                slapi_log_error(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                                "dna_release_range - Already processing a "
                                 "range extension request.  Skipping request.\n");
                 slapi_unlock_mutex(config_entry->extend_lock);
                 ret = LDAP_UNWILLING_TO_PERFORM;
@@ -4627,8 +4628,8 @@ dna_release_range(char *range_dn, PRUint64 *lower, PRUint64 *upper)
                      * want to give the caller any range */
                     *lower = 0;
                     *upper = 0;
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
-                                    "dna_release_range: Error updating "
+                    slapi_log_error(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
+                                    "dna_release_range - Error updating "
                                     "configuration entry [err=%d]\n", ret);
             }
         }
@@ -4648,7 +4649,7 @@ bail:
         dna_unlock();
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, DNA_PLUGIN_SUBSYSTEM,
+    slapi_log_error(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                     "<-- dna_release_range\n");
 
     return ret;

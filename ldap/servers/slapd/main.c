@@ -94,10 +94,10 @@ static int init_cmd_shutdown_detect(void)
     int rc;
     sigset_t proc_mask;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "Reseting signal mask....\n", 0, 0, 0);
+    LDAPDebug(LDAP_DEBUG_TRACE, "Reseting signal mask....\n", 0, 0, 0);
     (void)sigemptyset( &proc_mask );
     rc = pthread_sigmask( SIG_SETMASK, &proc_mask, NULL );
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, " %s \n",
+    LDAPDebug(LDAP_DEBUG_TRACE, " %s \n",
                rc ? "Failed to reset signal mask":"....Done (signal mask reset)!!", 0, 0 );
   }
 
@@ -182,14 +182,14 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
   {
     if((ptr=strrchr(log,'/'))==NULL)
     {
-      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Caution changing ownership of ./%s \n",name,0,0);
+      LDAPDebug(LDAP_DEBUG_ERR, "Caution changing ownership of ./%s \n",name,0,0);
       if(slapd_chown_if_not_owner(log, pw->pw_uid, -1 )){
-          LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
+          LDAPDebug(LDAP_DEBUG_ERR, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
                   log, errno, slapd_system_strerror(errno));
       }
       rc=1;
     } else if(log==ptr) {
-      LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Caution changing ownership of / directory and its contents to %s\n",pw->pw_name,0,0);
+      LDAPDebug(LDAP_DEBUG_ERR, "Caution changing ownership of / directory and its contents to %s\n",pw->pw_name,0,0);
       *(++ptr)='\0';
     } else {
       *ptr='\0';
@@ -207,7 +207,7 @@ chown_dir_files(char *name, struct passwd *pw, PRBool strip_fn, PRBool both)
         gid = -1;
       }
       if(slapd_chown_if_not_owner( file, pw->pw_uid, gid )){
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "chown_dir_files: file (%s) chown failed (%d) %s.\n",
                   file, errno, slapd_system_strerror(errno));
       }
     }
@@ -228,7 +228,7 @@ fix_ownership(void)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
 	if (slapdFrontendConfig->localuser == NULL) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
+		LDAPDebug(LDAP_DEBUG_ERR, 
 			"Local user missing from frontend configuration\n",
 			0, 0, 0);
 		return; 
@@ -237,7 +237,7 @@ fix_ownership(void)
 	if (slapdFrontendConfig->localuserinfo == NULL) {
 		pw = getpwnam( slapdFrontendConfig->localuser );
 		if ( NULL == pw ) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
+			LDAPDebug(LDAP_DEBUG_ERR, 
 				"Unable to find user %s in system account database, "
 				"errno %d (%s)\n",
 				slapdFrontendConfig->localuser, errno, strerror(errno));
@@ -283,20 +283,20 @@ static int main_setuid(char *username)
 	    if (pw == NULL) {
 		int oserr = errno;
 
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "getpwnam(%s) == NULL, error %d (%s)\n",
+		LDAPDebug(LDAP_DEBUG_ERR, "getpwnam(%s) == NULL, error %d (%s)\n",
 			   username, oserr, slapd_system_strerror(oserr));
 	    } else {
 		if (setgid (pw->pw_gid) != 0) {
 		    int oserr = errno;
 
-		    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "setgid(%li) != 0, error %d (%s)\n",
+		    LDAPDebug(LDAP_DEBUG_ERR, "setgid(%li) != 0, error %d (%s)\n",
 			       (long)pw->pw_gid, oserr, slapd_system_strerror(oserr));
 			return -1;
 		}
 		if (setuid (pw->pw_uid) != 0) {
 		    int oserr = errno;
 
-		    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "setuid(%li) != 0, error %d (%s)\n",
+		    LDAPDebug(LDAP_DEBUG_ERR, "setuid(%li) != 0, error %d (%s)\n",
 			       (long)pw->pw_uid, oserr, slapd_system_strerror(oserr));
 			return -1;
 		}
@@ -681,7 +681,7 @@ main( int argc, char **argv)
 		 * Process the config files.
 		 */
 		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
+			slapi_log_error(SLAPI_LOG_EMERG, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
 			exit(1);
@@ -742,7 +742,7 @@ main( int argc, char **argv)
 		 * Process the config files.
 		 */
 		if (0 == slapd_bootstrap_config(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
+			slapi_log_error(SLAPI_LOG_EMERG, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
 			exit(1);
@@ -757,13 +757,13 @@ main( int argc, char **argv)
 		/* do it before splitting off to other modes too -robey */
 		/* -richm: must be done before reading config files */
 		if (0 != (return_value = compute_init())) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Initialization Failed 0 %d\n",return_value,0,0);
+			LDAPDebug(LDAP_DEBUG_EMERG, "Initialization Failed 0 %d\n",return_value,0,0);
 			exit (1);
 		}
 		entry_computed_attr_init();
 
 		if (0 == setup_internal_backends(slapdFrontendConfig->configdir)) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "startup",
+			slapi_log_error(SLAPI_LOG_EMERG, "startup",
 							"The configuration files in directory %s could not be read or were not found.  Please refer to the error log or output for more information.\n",
 							slapdFrontendConfig->configdir);
 			exit(1);
@@ -777,7 +777,7 @@ main( int argc, char **argv)
 
 #ifdef PUMPKIN_HOUR
 	if ( time( NULL ) > (PUMPKIN_HOUR - 10) ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
+		LDAPDebug(LDAP_DEBUG_ERR,
 		"ERROR: ** This beta software has expired **\n", 0, 0, 0 );
 		exit( 1 );
 	}
@@ -842,7 +842,7 @@ main( int argc, char **argv)
 
 		return_value = daemon_pre_setuid_init(&ports_info);
 		if (0 != return_value) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to init daemon\n",
+			LDAPDebug(LDAP_DEBUG_ERR, "Failed to init daemon\n",
 				   0, 0, 0 );
 			exit(1);
 		}
@@ -851,7 +851,7 @@ main( int argc, char **argv)
 	/* Now, sockets are open, so we can safely change identity now */
 	return_value = main_setuid(slapdFrontendConfig->localuser);
 	if (0 != return_value) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to change user and group identity to that of %s\n",
+		LDAPDebug(LDAP_DEBUG_ERR, "Failed to change user and group identity to that of %s\n",
 				   slapdFrontendConfig->localuser, 0, 0 );
 		exit(1);
 	}
@@ -899,7 +899,7 @@ main( int argc, char **argv)
 	case SLAPD_EXEMODE_REFERRAL:
 		/* check that all the necessary info was given, then go on */
 		if (! config_check_referral_mode()) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
+			LDAPDebug(LDAP_DEBUG_ALERT,
 				  "ERROR: No referral URL supplied\n", 0, 0, 0);
 			usage( myname, extraname );
 			exit(1);
@@ -937,12 +937,12 @@ main( int argc, char **argv)
 
 		/* Ensure that we can read from and write to our rundir */
 		if (access(rundir, R_OK | W_OK)) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Unable to access " CONFIG_RUNDIR_ATTRIBUTE ": %s\n",
+			LDAPDebug(LDAP_DEBUG_EMERG, "Unable to access " CONFIG_RUNDIR_ATTRIBUTE ": %s\n",
 				slapd_system_strerror(errno), 0, 0);
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Ensure that user \"%s\" has read and write "
+			LDAPDebug(LDAP_DEBUG_EMERG, "Ensure that user \"%s\" has read and write "
 				"permissions on %s\n",
 				slapdFrontendConfig->localuser, rundir, 0);
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Shutting down.\n", 0, 0, 0);
+			LDAPDebug(LDAP_DEBUG_EMERG, "Shutting down.\n", 0, 0, 0);
 			slapi_ch_free_string(&rundir);
 			return_value = 1;
 			goto cleanup;
@@ -987,8 +987,9 @@ main( int argc, char **argv)
  	 */
 	if ((slapd_exemode != SLAPD_EXEMODE_REFERRAL) &&
 		( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
-					skip_db_protect_check) == -1 ))  {
- 		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
+		                        skip_db_protect_check) == -1 ))
+	{
+		LDAPDebug(LDAP_DEBUG_CRIT,
 				"Shutting down due to possible conflicts with other slapd processes\n",
 				0, 0, 0 );
 		return_value = 1;
@@ -1004,7 +1005,7 @@ main( int argc, char **argv)
 	if (1) {
 	  char *versionstring = config_get_versionstring();
 	  char *buildnum = config_get_buildnum();
-	  LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s B%s starting up\n",
+	  LDAPDebug(LDAP_DEBUG_INFO, "%s B%s starting up\n",
 			 versionstring, buildnum, 0 );
 	  slapi_ch_free((void **)&buildnum);
 	  slapi_ch_free((void **)&versionstring);
@@ -1032,7 +1033,7 @@ main( int argc, char **argv)
 
 		if (mapping_tree_init())
 		{
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to init mapping tree\n",
+			LDAPDebug(LDAP_DEBUG_EMERG, "Failed to init mapping tree\n",
 				0, 0, 0 );
 			return_value = 1;
 			goto cleanup;
@@ -1047,7 +1048,7 @@ main( int argc, char **argv)
 		slapi_sdn_free (&sdn);
 		if (rc != UID_SUCCESS)
 		{
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
+			LDAPDebug(LDAP_DEBUG_EMERG,
 				"Fatal Error---Failed to initialize uniqueid generator; error = %d. "
 				"Exiting now.\n", rc, 0, 0 );
 			return_value = 1;
@@ -1057,11 +1058,11 @@ main( int argc, char **argv)
 		/* --ugaston: register the start-tls plugin */
 		if ( slapd_security_library_is_initialized() != 0 ) {
 			start_tls_register_plugin();
-			LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "Start TLS plugin registered.\n",
+			LDAPDebug(LDAP_DEBUG_PLUGIN, "Start TLS plugin registered.\n",
 				0, 0, 0 );
 		} 
 		passwd_modify_register_plugin();
-		LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, 
+		LDAPDebug(LDAP_DEBUG_PLUGIN, 
 					"Password Modify plugin registered.\n", 0, 0, 0 );
 
 		/* Cleanup old tasks that may still be in the DSE from a previous 
@@ -1107,7 +1108,7 @@ main( int argc, char **argv)
 		} else if (i_port) {
 		} else if ( config_get_security()) {
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
+			LDAPDebug(LDAP_DEBUG_EMERG,
                                 "Fatal Error---No ports specified. "
                                 "Exiting now.\n", 0, 0, 0 );
 			
@@ -1125,7 +1126,7 @@ main( int argc, char **argv)
 		pw_init();
 		/* Initialize the sasl mapping code */
 		if (sasl_map_init()) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to initialize sasl mapping code\n", 0, 0, 0 );
+			LDAPDebug(LDAP_DEBUG_CRIT, "Failed to initialize sasl mapping code\n", 0, 0, 0 );
 		}
 	}
 
@@ -1148,7 +1149,7 @@ main( int argc, char **argv)
 		time( &starttime );
 		slapd_daemon(&ports_info);
 	}
- 	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "slapd stopped.\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_INFO, "slapd stopped.\n", 0, 0, 0 );
 	reslimit_cleanup();
 	compute_terminate();
 	vattr_cleanup();
@@ -2012,8 +2013,8 @@ slapd_exemode_ldif2db(void)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( ldif_file == NULL ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ERROR: Required argument -i <ldiffile> missing\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "ldif2db - Required argument -i <ldiffile> missing\n",
                    0, 0, 0 );
         usage( myname, extraname );
         return 1;
@@ -2034,8 +2035,8 @@ slapd_exemode_ldif2db(void)
 
 		if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
 													&instances) < 0) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				"ERROR: backend instances name [-n <name>] or "
+			LDAPDebug(LDAP_DEBUG_ERR, 
+				"ldif2db - backend instances name [-n <name>] or "
 				"included suffix [-s <suffix>] need to be specified.\n",
 				0, 0, 0);
 			return 1;
@@ -2046,27 +2047,27 @@ slapd_exemode_ldif2db(void)
 				;
 
 			if (counter == 0) {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-					"ERROR 1: There is no backend instance to import to.\n",
+				LDAPDebug(LDAP_DEBUG_ERR, 
+					"ldif2db - There is no backend instance to import to.\n",
 					0, 0, 0);
 				return 1;
 			} else if (counter > 1) {
 				int i;
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-					"ERROR: There are multiple backend instances specified:\n",
+				LDAPDebug(LDAP_DEBUG_ERR, 
+					"ldif2db - There are multiple backend instances specified:\n",
 					0, 0, 0);
 				for (i = 0; i < counter; i++)
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "     : %s\n",
+					LDAPDebug(LDAP_DEBUG_ERR, "     : %s\n",
 											  instances[i], 0, 0);
         		return 1;
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Backend Instance: %s\n",
+				LDAPDebug(LDAP_DEBUG_INFO, "ldif2db - Backend Instance: %s\n",
 					*instances, 0, 0);
 				cmd_line_instance_name = *instances;
 			}
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				"ERROR 2: There is no backend instance to import to.\n",
+			LDAPDebug(LDAP_DEBUG_ERR, 
+				"ldif2db: There is no backend instances to import to.\n",
 				0, 0, 0);
 			return 1;
 		}
@@ -2074,8 +2075,8 @@ slapd_exemode_ldif2db(void)
 
     plugin = lookup_plugin_by_instance_name(cmd_line_instance_name);
     if (plugin == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                  "ERROR: Could not find backend '%s'.\n",
+        LDAPDebug(LDAP_DEBUG_ERR, 
+                  "ldif2db - Could not find backend '%s'.\n",
                   cmd_line_instance_name, 0, 0);
         return 1;
     }
@@ -2087,14 +2088,14 @@ slapd_exemode_ldif2db(void)
     if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
                                skip_db_protect_check) == -1 )  {
 
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                   "Shutting down due to possible conflicts with other slapd processes\n",
+        LDAPDebug(LDAP_DEBUG_ERR, 
+                   "ldif2db - Shutting down due to possible conflicts with other slapd processes\n",
                    0, 0, 0 );
         return 1;
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(plugin)) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: %s is too old to reindex all.\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "ldif2db - %s is too old to reindex all.\n",
                   plugin->plg_name, 0, 0);
         return 1;
     }
@@ -2121,8 +2122,8 @@ slapd_exemode_ldif2db(void)
     if ( plugin->plg_ldif2db != NULL ) {
         return_value = (*plugin->plg_ldif2db)( &pb );
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ERROR: no ldif2db function defined for "
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "ldif2db - no ldif2db function defined for "
                    "%s\n", plugin->plg_name, 0, 0 );
         return_value = -1;
     }
@@ -2157,8 +2158,8 @@ slapd_exemode_db2ldif(int argc, char** argv)
 
 		if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
 													&instances) < 0) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				"ERROR: backend instances name [-n <name>] or "
+			LDAPDebug(LDAP_DEBUG_ERR,
+				"db2ldif - backend instances name [-n <name>] or "
 				"included suffix [-s <suffix>] need to be specified.\n",
 				0, 0, 0);
 			return 1;
@@ -2169,20 +2170,20 @@ slapd_exemode_db2ldif(int argc, char** argv)
 				;
 
 			if (counter == 0) {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-					"ERROR 1: There is no backend instance to export from.\n",
+				LDAPDebug(LDAP_DEBUG_ERR,
+					"db2ldif - There is no backend instance to export from.\n",
 					0, 0, 0);
 				return 1;
 			} else {
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Backend Instance(s): \n", 0, 0, 0);
+				LDAPDebug(LDAP_DEBUG_INFO, "db2ldif - Backend Instance(s): \n", 0, 0, 0);
 				for (ip = instances, counter = 0; ip && *ip; ip++, counter++) {
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "\t%s\n", *ip, 0, 0);
+					LDAPDebug(LDAP_DEBUG_INFO, "db2ldif - %s\n", *ip, 0, 0);
 				}
 				cmd_line_instance_names = instances;
 			}
 		} else {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-				"ERROR 2: There is no backend instance to export from.\n",
+			LDAPDebug(LDAP_DEBUG_ERR, 
+				"db2ldif: There is no backend instances to export from.\n",
 				0, 0, 0);
 			return 1;
 		}
@@ -2196,14 +2197,14 @@ slapd_exemode_db2ldif(int argc, char** argv)
 
 	    plugin = lookup_plugin_by_instance_name(*instp);
 	    if (plugin == NULL) {
-	        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-	                  "ERROR: Could not find backend '%s'.\n", 
+	        LDAPDebug(LDAP_DEBUG_ERR,
+	                  "db2ldif - Could not find backend '%s'.\n",
 	                  *instp, 0, 0);
 	        return 1;
 	    }
 	
 		if (plugin->plg_db2ldif == NULL) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: no db2ldif function defined for "
+			LDAPDebug(LDAP_DEBUG_ERR, "db2ldif - No db2ldif function defined for "
 					  "backend %s - cannot export\n", *instp, 0, 0);
 			return 1;
 		}
@@ -2214,15 +2215,15 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	     */
 	    if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
 								   skip_db_protect_check) == -1 )  {
-	        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-	                   "Shutting down due to possible conflicts "
+	        LDAPDebug(LDAP_DEBUG_ERR,
+	                   "db2ldif - Shutting down due to possible conflicts "
 					   "with other slapd processes\n",
 	                   0, 0, 0 );
 	        return 1;
 	    }
 	
 	    if (! (SLAPI_PLUGIN_IS_V2(plugin))) {
-	        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: %s is too old to do exports.\n",
+	        LDAPDebug(LDAP_DEBUG_ERR, "db2ldif - %s is too old to do exports.\n",
 	                  plugin->plg_name, 0, 0);
 	        return 1;
 	    }
@@ -2374,8 +2375,8 @@ static int slapd_exemode_db2index(void)
 
         if (lookup_instance_name_by_suffixes(db2ldif_include, db2ldif_exclude,
                                              &instances) < 0) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                      "ERROR: backend instances name [-n <name>] or "
+            LDAPDebug(LDAP_DEBUG_ERR, 
+                      "db2index - Backend instances name [-n <name>] or "
                       "included suffix [-s <suffix>] need to be specified.\n",
                       0, 0, 0);
             return 1;
@@ -2386,27 +2387,27 @@ static int slapd_exemode_db2index(void)
                 ;
 
             if (counter == 0) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                          "ERROR 1: There is no backend instance to import to.\n",
+                LDAPDebug(LDAP_DEBUG_ERR, 
+                          "db2index - There is no backend instance to import to.\n",
                           0, 0, 0);
                 return 1;
             } else if (counter > 1) {
                 int i;
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                          "ERROR: There are multiple backend instances specified:\n",
+                LDAPDebug(LDAP_DEBUG_ERR, 
+                          "db2index - There are multiple backend instances specified:\n",
                           0, 0, 0);
                 for (i = 0; i < counter; i++)
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "     : %s\n",
+                    LDAPDebug(LDAP_DEBUG_ERR, "db2index - %s\n",
                               instances[i], 0, 0);
                 return 1;
             } else {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Backend Instance: %s\n",
+                LDAPDebug(LDAP_DEBUG_INFO, "db2index - Backend Instance: %s\n",
                           *instances, 0, 0);
                 cmd_line_instance_name = *instances;
             }
         } else {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                      "ERROR 2: There is no backend instance to import to.\n",
+            LDAPDebug(LDAP_DEBUG_ERR, 
+                      "db2index - There is no backend instances to import to.\n",
                       0, 0, 0);
             return 1;
         }
@@ -2414,8 +2415,8 @@ static int slapd_exemode_db2index(void)
 
     plugin = lookup_plugin_by_instance_name(cmd_line_instance_name);
     if (plugin == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                  "ERROR: Could not find backend '%s'.\n",
+        LDAPDebug(LDAP_DEBUG_ERR, 
+                  "db2index - Could not find backend '%s'.\n",
                   cmd_line_instance_name, 0, 0);
         return 1;
     }
@@ -2423,15 +2424,15 @@ static int slapd_exemode_db2index(void)
     /* make sure nothing else is running */
     if (add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
                               skip_db_protect_check) == -1) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                  "Shutting down due to possible conflicts with other "
+        LDAPDebug(LDAP_DEBUG_ERR,
+                  "db2index - Shutting down due to possible conflicts with other "
                   "slapd processes.\n", 0, 0, 0);
         return 1;
     }
 
     if ( db2index_attrs == NULL ) {
-	usage( myname, extraname );
-	return 1;
+        usage( myname, extraname );
+        return 1;
     }
     memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
@@ -2456,14 +2457,14 @@ slapd_exemode_db2archive(void)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
 	if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-			"ERROR: Could not find the ldbm backend plugin.\n",
+		LDAPDebug(LDAP_DEBUG_CRIT,
+			"db2bak - Could not find the ldbm backend plugin.\n",
 			0, 0, 0);
 		return 1;
 	}
 	if (NULL == archive_name) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		    "ERROR: no archive directory supplied\n",
+		LDAPDebug(LDAP_DEBUG_ERR,
+		    "db2bak - no archive directory supplied\n",
 		    0, 0, 0 );
 		return 1;
 	}
@@ -2474,13 +2475,13 @@ slapd_exemode_db2archive(void)
 	 */
 	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
 	                           skip_db_protect_check) == -1 )  {
-	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-		       "Shutting down due to possible conflicts with other slapd processes\n",
+	    LDAPDebug(LDAP_DEBUG_ERR,
+		       "db2bak - Shutting down due to possible conflicts with other slapd processes\n",
 		       0, 0, 0 );
 	    return 1;
 	}
 	if (compute_init()) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Initialization Failed 0 %d\n",return_value,0,0);
+		LDAPDebug(LDAP_DEBUG_ERR, "db2bak - Initialization Failed 0 %d\n",return_value,0,0);
 		return 1;
 	}
 	if (!is_quiet) {
@@ -2510,14 +2511,14 @@ slapd_exemode_archive2db(void)
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
 	if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-			"ERROR: Could not find the ldbm backend plugin.\n",
+		LDAPDebug(LDAP_DEBUG_CRIT,
+			"bak2db - Could not find the ldbm backend plugin.\n",
 			0, 0, 0);
 		return 1;
 	}
 	if (NULL == archive_name) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		    "ERROR: no archive directory supplied\n",
+		LDAPDebug(LDAP_DEBUG_ERR,
+		    "bak2db - no archive directory supplied\n",
 		    0, 0, 0 );
 		return 1;
 	}
@@ -2528,13 +2529,13 @@ slapd_exemode_archive2db(void)
 	 */
 	if ( add_new_slapd_process(slapd_exemode, db2ldif_dump_replica,
 	                           skip_db_protect_check) == -1 )  {
-	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-		       "Shutting down due to possible conflicts with other slapd processes\n",
+	    LDAPDebug(LDAP_DEBUG_ERR,
+		       "bak2db - Shutting down due to possible conflicts with other slapd processes\n",
 		       0, 0, 0 );
 	    return 1;
 	}
 	if (compute_init()) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Initialization Failed 0 %d\n",return_value,0,0);
+		LDAPDebug(LDAP_DEBUG_ERR, "bak2db - Initialization Failed 0 %d\n",return_value,0,0);
 		return 1;
 	}
 
@@ -2569,8 +2570,8 @@ slapd_exemode_upgradedb(void)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( archive_name == NULL ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ERROR: Required argument -a <backup_dir> missing\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "upgradedb - Required argument -a <backup_dir> missing\n",
                    0, 0, 0 );
         usage( myname, extraname );
         return 1;
@@ -2582,8 +2583,8 @@ slapd_exemode_upgradedb(void)
     mapping_tree_init();
 
     if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-            "ERROR: Could not find the ldbm backend plugin.\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+            "upgradedb - Could not find the ldbm backend plugin.\n",
             0, 0, 0);
         return 1;
     }
@@ -2593,14 +2594,14 @@ slapd_exemode_upgradedb(void)
      * slapd processes that are currently running
      */
     if (add_new_slapd_process(slapd_exemode, 0, skip_db_protect_check) == -1) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                   "Shutting down due to possible conflicts with other slapd processes\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "upgradedb -Shutting down due to possible conflicts with other slapd processes\n",
                    0, 0, 0 );
         return 1;
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: %s is too old to do convert idl.\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "upgradedb - %s is too old to do convert idl.\n",
                   backend_plugin->plg_name, 0, 0);
         return 1;
     }
@@ -2620,8 +2621,8 @@ slapd_exemode_upgradedb(void)
     if ( backend_plugin->plg_upgradedb != NULL ) {
         return_value = (*backend_plugin->plg_upgradedb)( &pb );
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ERROR: no upgradedb function defined for "
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "upgradedb - no upgradedb function defined for "
                    "%s\n", backend_plugin->plg_name, 0, 0 );
         return_value = -1;
     }
@@ -2639,7 +2640,7 @@ slapd_exemode_upgradednformat(void)
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if ( archive_name == NULL ) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: Required argument "
+        LDAPDebug0Args(LDAP_DEBUG_ERR, "upgradednformat - Required argument "
                        "\"-a <path to work db instance dir>\" is missing\n");
         usage( myname, extraname );
         goto bail;
@@ -2651,8 +2652,8 @@ slapd_exemode_upgradednformat(void)
     mapping_tree_init();
 
     if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ERROR: Could not find the ldbm backend plugin.\n");
+        LDAPDebug0Args(LDAP_DEBUG_ERR,
+                       "upgradednformat - Could not find the ldbm backend plugin.\n");
         goto bail;
     }
 
@@ -2663,14 +2664,14 @@ slapd_exemode_upgradednformat(void)
      */
     if (add_new_slapd_process(slapd_exemode, 0, skip_db_protect_check) 
                                                                         == -1) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Shutting down due to possible "
+        LDAPDebug0Args(LDAP_DEBUG_ERR, "upgradednformat - Shutting down due to possible "
                                       "conflicts with other slapd processes\n");
         goto bail;
     }
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ERROR: %s is too old to upgrade dn format.\n",
+        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "upgradednformat - %s is too old to upgrade dn format.\n",
                       backend_plugin->plg_name);
         goto bail;
     }
@@ -2695,8 +2696,8 @@ slapd_exemode_upgradednformat(void)
     if ( backend_plugin->plg_upgradednformat != NULL ) {
         rc  = (*backend_plugin->plg_upgradednformat)( &pb );
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ERROR: no upgradednformat function defined for "
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "upgradednformat - no upgradednformat function defined for "
                    "%s\n", backend_plugin->plg_name, 0, 0 );
     }
 bail:
@@ -2719,15 +2720,15 @@ slapd_exemode_dbverify(void)
      */
     mapping_tree_init();
     if ((backend_plugin = plugin_get_by_name("ldbm database")) == NULL) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-            "ERROR: Could not find the ldbm backend plugin.\n",
+        LDAPDebug(LDAP_DEBUG_CRIT,
+            "dbverify - Could not find the ldbm backend plugin.\n",
             0, 0, 0);
         return 1;
     }
 
     /* check for slapi v2 support */
     if (! SLAPI_PLUGIN_IS_V2(backend_plugin)) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: %s is too old to do dbverify.\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "dbverify - %s is too old to do dbverify.\n",
                   backend_plugin->plg_name, 0, 0);
         return 1;
     }
@@ -2743,8 +2744,8 @@ slapd_exemode_dbverify(void)
     if ( backend_plugin->plg_dbverify != NULL ) {
         return_value = (*backend_plugin->plg_dbverify)( &pb );
     } else {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ERROR: no db verify function defined for "
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "dbverify - no db verify function defined for "
                    "%s\n", backend_plugin->plg_name, 0, 0 );
         return_value = -1;
     }
@@ -2885,7 +2886,7 @@ slapd_debug_level_log( int level )
                 }
         }
 
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, SLAPD_VERSION_STR,
+		slapi_log_error(SLAPI_LOG_INFO, SLAPD_VERSION_STR,
 				"%s: %s (%d)\n", "debug level", msg, level );
 		slapi_ch_free( (void **)&msg );
 }
@@ -2928,12 +2929,12 @@ force_to_disable_security(const char *what, int *init_ssl, daemon_ports_t *ports
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 	errorbuf[0] = '\0';
 
-    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: %s Initialization Failed.  Disabling %s.\n", what, what);
+    LDAPDebug2Args(LDAP_DEBUG_ERR, "ERROR: %s Initialization Failed.  Disabling %s.\n", what, what);
     ports_info->s_socket = SLAPD_INVALID_SOCKET;
     ports_info->s_port = 0;
     *init_ssl = 0;
     if (config_set_security(CONFIG_SECURITY_ATTRIBUTE, "off", errorbuf, 1)) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "ERROR: Failed to disable %s: \"%s\".\n", 
+        LDAPDebug2Args(LDAP_DEBUG_ERR, "ERROR: Failed to disable %s: \"%s\".\n", 
                        CONFIG_SECURITY_ATTRIBUTE, errorbuf[0]?errorbuf:"no error message");
         return 1;
     }

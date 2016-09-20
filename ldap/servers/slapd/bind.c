@@ -109,7 +109,7 @@ do_bind( Slapi_PBlock *pb )
     int minssf_exclude_rootdse = 0;
     Slapi_DN *original_sdn = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "do_bind\n", 0, 0, 0 );
+    LDAPDebug(LDAP_DEBUG_TRACE, "do_bind\n", 0, 0, 0 );
 
     /*
      * Parse the bind request.  It looks like this:
@@ -133,8 +133,8 @@ do_bind( Slapi_PBlock *pb )
 
     ber_rc = ber_scanf( ber, "{iat", &version, &rawdn, &method );
     if ( ber_rc == LBER_ERROR ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ber_scanf failed (op=Bind; params=Version,DN,Method)\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "do_bind - ber_scanf failed (op=Bind; params=Version,DN,Method)\n",
                    0, 0, 0 );
         log_bind_access (pb, "???", method, version, saslmech, "decoding error");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
@@ -165,7 +165,7 @@ do_bind( Slapi_PBlock *pb )
         slapi_sdn_free(&sdn);
         return;
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "BIND dn=\"%s\" method=%" BERTAG_T " version=%d\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "do_bind - BIND dn=\"%s\" method=%" BERTAG_T " version=%d\n",
                dn?dn:"empty", method, version );
 
     /* target spec is used to decide which plugins are applicable for the operation */
@@ -174,8 +174,8 @@ do_bind( Slapi_PBlock *pb )
     switch ( method ) {
     case LDAP_AUTH_SASL:
         if ( version < LDAP_VERSION3 ) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                       "got SASL credentials from LDAPv2 client\n",
+            LDAPDebug(LDAP_DEBUG_ERR,
+                       "do_bind - got SASL credentials from LDAPv2 client\n",
                        0, 0, 0 );
             log_bind_access (pb, dn?dn:"empty", method, version, saslmech, "SASL credentials only in LDAPv3");
             send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
@@ -205,7 +205,7 @@ do_bind( Slapi_PBlock *pb )
             static char *kmsg = 
                 "LDAPv2-style kerberos authentication received "
                 "on LDAPv3 connection.";
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, kmsg, 0, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ERR, kmsg, 0, 0, 0 );
             log_bind_access (pb, dn?dn:"empty", method, version, saslmech, kmsg);
             send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                               kmsg, 0, NULL );
@@ -225,8 +225,8 @@ do_bind( Slapi_PBlock *pb )
         goto free_and_return;
     }
     if ( ber_rc == LBER_ERROR ) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                   "ber_scanf failed (op=Bind; params=Credentials)\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                   "do_bind - ber_scanf failed (op=Bind; params=Credentials)\n",
                    0, 0, 0 );
         log_bind_access (pb, dn?dn:"empty", method, version, saslmech, "decoding error");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
@@ -324,14 +324,14 @@ do_bind( Slapi_PBlock *pb )
         }
         break;
     default:
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "bind: unknown LDAP protocol version %d\n",
+        LDAPDebug(LDAP_DEBUG_TRACE, "do_bind - Unknown LDAP protocol version %d\n",
                    version, 0, 0 );
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
                           "version not supported", 0, NULL );
         goto free_and_return;
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "do_bind: version %d method 0x%x dn %s\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "do_bind - version %d method 0x%x dn %s\n",
                version, method, dn );
     pb->pb_conn->c_ldapversion = version;
 
@@ -564,13 +564,13 @@ do_bind( Slapi_PBlock *pb )
              * or connections using SASL privacy layers */
             conn = pb->pb_conn;
             if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "do_bind",
+                slapi_log_error(SLAPI_LOG_PLUGIN, "do_bind",
                                  "Could not get SASL SSF from connection\n" );
                 sasl_ssf = 0;
             }
 
             if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "do_bind",
+                slapi_log_error(SLAPI_LOG_PLUGIN, "do_bind",
                                  "Could not get local SSF from connection\n" );
                 local_ssf = 0;
             }

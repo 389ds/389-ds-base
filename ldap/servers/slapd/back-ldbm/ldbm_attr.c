@@ -664,7 +664,7 @@ attr_index_config(
 		 slapi_attr_first_value(attr, &sval);
 		 attrValue = slapi_value_get_berval(sval);
 	} else {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "attr_index_config: Missing indexing arguments\n", 0, 0, 0);
+		LDAPDebug(LDAP_DEBUG_ERR, "attr_index_config - Missing indexing arguments\n", 0, 0, 0);
 		return -1;
 	}
 
@@ -701,13 +701,13 @@ attr_index_config(
 				a->ai_indexmask |= INDEX_SUB;
 			} else if ( strcasecmp( attrValue->bv_val, "none" ) == 0 ) {
 				if ( a->ai_indexmask != 0 ) {
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-						"%s: line %d: index type \"none\" cannot be combined with other types\n",
+					LDAPDebug(LDAP_DEBUG_WARNING,
+						"attr_index_config - %s: line %d: index type \"none\" cannot be combined with other types\n",
 						fname, lineno, 0);
 				}
 				a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
 			} else {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "attr_index_config",
+				slapi_log_error(SLAPI_LOG_ERR, "attr_index_config - ",
 					"%s: line %d: unknown index type \"%s\" (ignored) in entry (%s), "
 					"valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
 					fname, lineno, attrValue->bv_val, slapi_entry_get_dn(e));
@@ -717,7 +717,7 @@ attr_index_config(
 		}
 		if(hasIndexType == 0){
 			/* indexType missing, error out */
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "attr_index_config: Missing index type\n", 0, 0, 0);
+			LDAPDebug(LDAP_DEBUG_ERR, "attr_index_config - Missing index type\n", 0, 0, 0);
 			attrinfo_delete(&a);
 			return -1;
 		}
@@ -841,14 +841,15 @@ attr_index_config(
 					official_rules[k++] = slapi_ch_strdup (officialOID);
 				} else {
 					char* preamble = slapi_ch_smprintf("%s: line %d", fname, lineno);
-					LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: use \"%s\" instead of \"%s\" (ignored)\n",
-								  preamble, officialOID, attrValue->bv_val);
+					LDAPDebug(LDAP_DEBUG_WARNING, "attr_index_config - "
+						"%s: use \"%s\" instead of \"%s\" (ignored)\n",
+						preamble, officialOID, attrValue->bv_val);
 					slapi_ch_free((void**)&preamble);
 				}
 			} else { /* we don't know what this is */
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s: line %d: "
-						   "unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
-						   fname, lineno, attrValue->bv_val);
+				LDAPDebug(LDAP_DEBUG_WARNING, "attr_index_config - %s: line %d: "
+					"unknown or invalid matching rule \"%s\" in index configuration (ignored)\n",
+					fname, lineno, attrValue->bv_val);
 			}
 
 			{  /*
@@ -876,7 +877,7 @@ attr_index_config(
 	}
 
 	if ((return_value = attr_index_idlistsize_config(e, a, myreturntext))) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"attr_index_config: %s: Failed to parse idscanlimit info: %d:%s\n",
+		LDAPDebug(LDAP_DEBUG_ERR,"attr_index_config - %s: Failed to parse idscanlimit info: %d:%s\n",
 		          fname, return_value, myreturntext);
 	}
 
@@ -884,8 +885,9 @@ attr_index_config(
 	return_value = idl_init_private(be, a);
 	if (0 != return_value) {
 		/* fatal error, exit */
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"%s: line %d:Fatal Error: Failed to initialize attribute structure\n",
-				fname, lineno, 0);
+		LDAPDebug(LDAP_DEBUG_CRIT,"attr_index_config - "
+			"%s: line %d:Fatal Error: Failed to initialize attribute structure\n",
+			fname, lineno, 0);
 		exit( 1 );
 	}
 
@@ -898,9 +900,9 @@ attr_index_config(
 	if (need_compare_fn) {
 		int rc = attr_get_value_cmp_fn( &a->ai_sattr, &a->ai_key_cmp_fn );
 		if (rc != LDAP_SUCCESS) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-						  "The attribute [%s] does not have a valid ORDERING matching rule - error %d:s\n",
-						  a->ai_type, rc, ldap_err2string(rc));
+			LDAPDebug(LDAP_DEBUG_ERR,
+				"attr_index_config - The attribute [%s] does not have a valid ORDERING matching rule - error %d:s\n",
+				a->ai_type, rc, ldap_err2string(rc));
 			a->ai_key_cmp_fn = NULL;
 		}
 	}

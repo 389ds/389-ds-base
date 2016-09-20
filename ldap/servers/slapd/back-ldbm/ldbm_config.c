@@ -73,12 +73,13 @@ int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *strin
         rc = slapi_add_internal_pb(util_pb);
         slapi_pblock_get(util_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
         if (!rc && (result == LDAP_SUCCESS)) {
-            LDAPDebug1Arg(LDAP_DEBUG_CONFIG, LOG_DEBUG, "Added database config entry [%s]\n", ebuf);
+            LDAPDebug1Arg(LDAP_DEBUG_CONFIG, "ldbm_config_add_dse_entries - Added database config entry [%s]\n", ebuf);
         } else if (result == LDAP_ALREADY_EXISTS) {
-            LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "Database config entry [%s] already exists - skipping\n", ebuf);
+            LDAPDebug1Arg(LDAP_DEBUG_TRACE, "ldbm_config_add_dse_entries - Database config entry [%s] already exists - skipping\n", ebuf);
         } else {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Unable to add config entry [%s] to the DSE: %d %d\n",
-                      ebuf, result, rc);
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_add_dse_entries - "
+                    "Unable to add config entry [%s] to the DSE: %d %d\n",
+                    ebuf, result, rc);
         }
         slapi_pblock_destroy(util_pb);
     }
@@ -305,13 +306,14 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
         slapi_ch_free((void **) &(li->li_new_directory));
         li->li_new_directory = rel2abspath(val); /* normalize the path;
                                                     strdup'ed in rel2abspath */
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "New db directory location will not take affect until the server is restarted\n", 0, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_directory_set - "
+                "New db directory location will not take affect until the server is restarted\n", 0, 0, 0);
     } else {
         slapi_ch_free((void **) &(li->li_new_directory));
         slapi_ch_free((void **) &(li->li_directory));
         if (NULL == val || '\0' == *val) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                "ERROR: db directory is not set; check %s in the db config: %s\n",
+            LDAPDebug(LDAP_DEBUG_ERR, 
+                "ldbm_config_directory_set - db directory is not set; check %s in the db config: %s\n",
                 CONFIG_DIRECTORY, CONFIG_LDBM_DN, 0);
             retval = LDAP_PARAM_ERROR;
         } else {
@@ -335,8 +337,8 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
                 slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
     
                 if (res != LDAP_SUCCESS) {
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                              "ERROR: ldbm plugin unable to read %s\n",
+                    LDAPDebug(LDAP_DEBUG_ERR, 
+                              "ldbm_config_directory_set - ldbm plugin unable to read %s\n",
                               CONFIG_LDBM_DN, 0, 0);
                     retval = res;
                     goto done;
@@ -344,8 +346,8 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
     
                 slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
                 if (NULL == entries) {
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                              "ERROR: ldbm plugin unable to read %s\n",
+                    LDAPDebug(LDAP_DEBUG_ERR,
+                              "ldbm_config_directory_set - ldbm plugin unable to read %s\n",
                               CONFIG_LDBM_DN, 0, 0);
                     retval = LDAP_OPERATIONS_ERROR;
                     goto done;
@@ -353,8 +355,8 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
                 
                 res = slapi_entry_attr_find(entries[0], "nsslapd-directory", &attr);
                 if (res != 0 || attr == NULL) {
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                              "ERROR: ldbm plugin unable to read attribute nsslapd-directory from %s\n",
+                    LDAPDebug(LDAP_DEBUG_ERR, 
+                              "ldbm_config_directory_set - ldbm plugin unable to read attribute nsslapd-directory from %s\n",
                               CONFIG_LDBM_DN, 0, 0);
                     retval = LDAP_OPERATIONS_ERROR;
                     goto done;
@@ -363,16 +365,16 @@ static int ldbm_config_directory_set(void *arg, void *value, char *errorbuf, int
                 if ( slapi_attr_first_value(attr,&v) != 0
                         || ( NULL == v )
                         || ( NULL == ( s = slapi_value_get_string( v )))) {
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                              "ERROR: ldbm plugin unable to read attribute nsslapd-directory from %s\n",
+                    LDAPDebug(LDAP_DEBUG_ERR, 
+                              "ldbm_config_directory_set - ldbm plugin unable to read attribute nsslapd-directory from %s\n",
                               CONFIG_LDBM_DN, 0, 0);
                     retval = LDAP_OPERATIONS_ERROR;
                     goto done;
                 }
                 slapi_pblock_destroy(search_pb);
                 if (NULL == s || '\0' == s || 0 == PL_strcmp(s, "(null)")) {
-                    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                        "ERROR: db directory is not set; check %s in the db config: %s\n",
+                    LDAPDebug(LDAP_DEBUG_ERR, 
+                        "ldbm_config_directory_set - db directory is not set; check %s in the db config: %s\n",
                         CONFIG_DIRECTORY, CONFIG_LDBM_DN, 0);
                     retval = LDAP_PARAM_ERROR;
                     goto done;
@@ -419,20 +421,21 @@ static int ldbm_config_dbcachesize_set(void *arg, void *value, char *errorbuf, i
         /* min: 8KB (page size) * def thrd cnts (threadnumber==20). */
 #define DBDEFMINSIZ     500000
         if (val < DBDEFMINSIZ) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"WARNING: cache too small, increasing to %dK bytes\n",
+            LDAPDebug(LDAP_DEBUG_NOTICE,"ldbm_config_dbcachesize_set: cache too small, increasing to %dK bytes\n",
                     DBDEFMINSIZ/1000, 0, 0);
             val = DBDEFMINSIZ;
         } else if (val > li->li_dbcachesize) {
             delta = val - li->li_dbcachesize;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: nsslapd-dbcachesize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: nsslapd-dbcachesize value is too large.\n");
+                LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_config_dbcachesize_set - "
+                        "nsslapd-dbcachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbcachesize = val;
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "New db cache size will not take affect until the server is restarted\n",
+            LDAPDebug(LDAP_DEBUG_NOTICE, "New db cache size will not take affect until the server is restarted\n",
                     0, 0, 0);
         } else {
             li->li_new_dbcachesize = val;
@@ -458,7 +461,8 @@ static int ldbm_config_maxpassbeforemerge_set(void *arg, void *value, char *erro
     
     if (apply) {
         if (val < 0) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"WARNING: maxpassbeforemerge will not take negative value\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_NOTICE,"ldbm_config_maxpassbeforemerge_set- "
+                   "maxpassbeforemerge will not take negative value - setting to 100\n", 0, 0, 0);
             val = 100;
         } 
         
@@ -486,7 +490,8 @@ static int ldbm_config_dbncache_set(void *arg, void *value, char *errorbuf, int 
 
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dbncache = val;
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "New nsslapd-dbncache will not take affect until the server is restarted\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_NOTICE, "ldbm_config_dbncache_set - "
+                   "New nsslapd-dbncache will not take affect until the server is restarted\n", 0, 0, 0);
         } else {
             li->li_new_dbncache = val;
             li->li_dbncache = val;
@@ -827,8 +832,9 @@ static int ldbm_config_db_trickle_percentage_set(void *arg, void *value, char *e
     if (val < 0 || val > 100) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
             CONFIG_DB_TRICKLE_PERCENTAGE, val);
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: Invalid value for %s (%d). Must be between 0 and 100\n",
-            CONFIG_DB_TRICKLE_PERCENTAGE, val);
+        LDAPDebug2Args(LDAP_DEBUG_ERR, "ldbm_config_db_trickle_percentage_set - "
+                "Invalid value for %s (%d). Must be between 0 and 100\n",
+                CONFIG_DB_TRICKLE_PERCENTAGE, val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
     
@@ -1022,14 +1028,14 @@ static int ldbm_config_db_lock_set(void *arg, void *value, char *errorbuf, int p
     if (val < BDB_LOCK_NB_MIN) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: Invalid value for %s (%d). Must be greater than %d\n",
             CONFIG_DB_LOCK, val, BDB_LOCK_NB_MIN);
-        LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: Invalid value for %s (%d)\n",
+        LDAPDebug2Args(LDAP_DEBUG_ERR, "ldbm_config_db_lock_set - Invalid value for %s (%d)\n",
             CONFIG_DB_LOCK, val);
         return LDAP_UNWILLING_TO_PERFORM;
     }
     if (apply) {
         if (CONFIG_PHASE_RUNNING == phase) {
             li->li_new_dblock = val;
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "New db max lock count will not take affect until the server is restarted\n", 0, 0, 0);
+            LDAPDebug(LDAP_DEBUG_NOTICE, "ldbm_config_db_lock_set - New db max lock count will not take affect until the server is restarted\n", 0, 0, 0);
         } else {
             li->li_new_dblock = val;
             li->li_dblock = val;
@@ -1068,7 +1074,7 @@ static int ldbm_config_db_cache_set(void *arg, void *value, char *errorbuf, int 
             delta = val - li->li_dblayer_private->dblayer_cache_config;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: db cachesize value is too large");
-                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,"Error: db cachesize value is too large.\n");
+                LDAPDebug0Args(LDAP_DEBUG_ERR,"ldbm_config_db_cache_set - db cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -1199,7 +1205,8 @@ static int ldbm_config_import_cachesize_set(void *arg, void *value, char *errorb
             delta = val - li->li_import_cachesize;
             if (!util_is_cachesize_sane(&delta)){
                 slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: import cachesize value is too large.");
-                LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,"Error: import cachesize value is too large.\n");
+                LDAPDebug0Args(LDAP_DEBUG_ERR,"ldbm_config_import_cachesize_set - "
+                        "Import cachesize value is too large.\n");
                 return LDAP_UNWILLING_TO_PERFORM;
             }
         }
@@ -1463,15 +1470,16 @@ static int ldbm_config_db_deadlock_policy_set(void *arg, void *value, char *erro
 	    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	                "Error: Invalid value for %s (%d). Must be between %d and %d inclusive",
 	                CONFIG_DB_DEADLOCK_POLICY, val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
-	    LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: Invalid value for deadlock policy (%d). Must be between %d and %d inclusive",
-	                val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
+	    LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_db_deadlock_policy_set - "
+	            "Invalid value for deadlock policy (%d). Must be between %d and %d inclusive",
+	            val, DB_LOCK_DEFAULT, DB_LOCK_YOUNGEST);
 	    return LDAP_UNWILLING_TO_PERFORM;
     }
     if (val == DB_LOCK_NORUN) {
 	    slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
 	                "Warning: Setting value for %s to (%d) will disable deadlock detection",
 	                CONFIG_DB_DEADLOCK_POLICY, val);
-	    LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Warning: Setting value for %s to (%d) will disable deadlock detection",
+	    LDAPDebug2Args(LDAP_DEBUG_WARNING, "ldbm_config_db_deadlock_policy_set - Setting value for %s to (%d) will disable deadlock detection",
 	                CONFIG_DB_DEADLOCK_POLICY, val);
     }
 
@@ -1572,8 +1580,8 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
     /* Construct the base dn of the subtree that holds the instance entries. */
     basedn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config", backend_type);
     if (NULL == basedn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_read_instance_entries: "
+        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "ldbm_config_read_instance_entries -"
                       "failed to create backend dn for %s\n", backend_type);
         return 1;
     }
@@ -1589,8 +1597,8 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
             rc = ldbm_instance_add_instance_entry_callback(NULL,
                                              entries[i], NULL, NULL, NULL, li);
             if (SLAPI_DSE_CALLBACK_ERROR == rc) {
-                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_read_instance_entries: "
+                LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "ldbm_config_read_instance_entries - "
                       "failed to add instance entry %s\n", 
                       slapi_entry_get_dn_const(entries[i]));
                 break;
@@ -1625,8 +1633,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     dn = slapi_create_dn_string("cn=config,cn=%s,cn=plugins,cn=config", 
                                 li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_load_dse_info: "
+        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "ldbm_config_load_dse_info - "
                       "failed create config dn for %s\n",
                       li->li_plugin->plg_name); 
         rval = 1;
@@ -1635,8 +1643,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
 
     search_pb = slapi_pblock_new();
     if (!search_pb) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_load_dse_info: Out of memory\n",
+        LDAPDebug(LDAP_DEBUG_ERR,
+                      "ldbm_config_load_dse_info - Out of memory\n",
                       0, 0, 0);
         rval = 1;
         goto bail;
@@ -1652,7 +1660,7 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         ldbm_config_add_dse_entries(li, ldbm_skeleton_entries,
                                     li->li_plugin->plg_name, NULL, NULL, 0);
     } else if (rval != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error accessing the ldbm config DSE\n",
+        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_load_dse_info - Error accessing the ldbm config DSE 1\n",
                   0, 0, 0);
         rval = 1;
         goto bail;
@@ -1662,13 +1670,13 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
         slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
                          &entries);
         if (NULL == entries || entries[0] == NULL) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error accessing the ldbm config DSE\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_load_dse_info - Error accessing the ldbm config DSE 2\n",
                       0, 0, 0);
             rval = 1;
             goto bail;
         }
         if (0 != parse_ldbm_config_entry(li, entries[0], ldbm_config)) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error parsing the ldbm config DSE\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_load_dse_info - Error parsing the ldbm config DSE\n",
                       0, 0, 0);
             rval = 1;
             goto bail;
@@ -1684,8 +1692,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
      * ldbm_instance for each */
     rval = ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
     if (rval) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, LOG_ERR,
-                       "ldbm_config_load_dse_info: "
+        LDAPDebug0Args(LDAP_DEBUG_ERR,
+                       "ldbm_config_load_dse_info - "
                        "failed to read instance entries\n");
         goto bail;
     }
@@ -1706,8 +1714,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=plugins,cn=config",
                                 li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_load_dse_info: "
+        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "ldbm_config_load_dse_info - "
                       "failed to create monitor dn for %s\n",
                       li->li_plugin->plg_name); 
         rval = 1;
@@ -1722,8 +1730,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     dn = slapi_create_dn_string("cn=database,cn=monitor,cn=%s,cn=plugins,cn=config",
                                 li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_load_dse_info: "
+        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "ldbm_config_load_dse_info - "
                       "failed create monitor database dn for %s\n",
                       li->li_plugin->plg_name); 
         rval = 1;
@@ -1739,8 +1747,8 @@ int ldbm_config_load_dse_info(struct ldbminfo *li)
     dn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config", 
                                 li->li_plugin->plg_name);
     if (NULL == dn) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                      "ldbm_config_load_dse_info: "
+        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                      "ldbm_config_load_dse_info - "
                       "failed create plugin dn for %s\n",
                       li->li_plugin->plg_name); 
         rval = 1;
@@ -1890,7 +1898,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
 
     config = get_config_info(config_array, attr_name);
     if (NULL == config) {
-        LDAPDebug(LDAP_DEBUG_CONFIG, LOG_DEBUG, "Unknown config attribute %s\n", attr_name, 0, 0);
+        LDAPDebug(LDAP_DEBUG_CONFIG, "ldbm_config_set - Unknown config attribute %s\n", attr_name, 0, 0);
         slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown config attribute %s\n", attr_name);
         return LDAP_SUCCESS; /* Ignore unknown attributes */
     }
@@ -1898,7 +1906,7 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
     /* Some config attrs can't be changed while the server is running. */
     if (phase == CONFIG_PHASE_RUNNING && 
         !(config->config_flags & CONFIG_FLAG_ALLOW_RUNNING_CHANGE)) {
-        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "%s can't be modified while the server is running.\n", attr_name);
+        LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_config_set - %s can't be modified while the server is running.\n", attr_name);
         slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "%s can't be modified while the server is running.\n", attr_name);
         return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -1946,20 +1954,20 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         /* check for parsing error (e.g. not a number) */
         if (err) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n", str_val, attr_name);
-            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is not a number\n", str_val, attr_name);
+            LDAPDebug2Args(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is not a number\n", str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for overflow */
         } else if (LL_CMP(llval, >, llmaxint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is greater than the maximum %d\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for underflow */
         } else if (LL_CMP(llval, <, llminint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is less than the minimum %d\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
             return LDAP_UNWILLING_TO_PERFORM;
         }
@@ -1987,21 +1995,21 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         if (err) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
-            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is not a number\n",
+            LDAPDebug2Args(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is not a number\n",
                     str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for overflow */
         } else if (LL_CMP(llval, >, llmaxint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is greater than the maximum %d\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is greater than the maximum %d\n",
                     str_val, attr_name, maxint);
             return LDAP_UNWILLING_TO_PERFORM;
         /* check for underflow */
         } else if (LL_CMP(llval, <, llminint)) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is less than the minimum %d\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is less than the minimum %d\n",
                     str_val, attr_name, minint);
             return LDAP_UNWILLING_TO_PERFORM;
         }
@@ -2023,14 +2031,14 @@ int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struc
         if (err == EINVAL) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is not a number\n",
                     str_val, attr_name);
-            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is not a number\n",
+            LDAPDebug2Args(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is not a number\n",
                     str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
             /* check for overflow */
         } else if (err == ERANGE) {
             slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: value %s for attr %s is outside the range of representable values\n",
                     str_val, attr_name);
-            LDAPDebug2Args(LDAP_DEBUG_ANY, LOG_ERR, "Error: value %s for attr %s is outside the range of representable values\n",
+            LDAPDebug2Args(LDAP_DEBUG_ERR, "ldbm_config_set - Value %s for attr %s is outside the range of representable values\n",
                     str_val, attr_name);
             return LDAP_UNWILLING_TO_PERFORM;
         }
@@ -2091,7 +2099,7 @@ static int parse_ldbm_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_i
         bval = (struct berval *) slapi_value_get_berval(sval);
         
         if (ldbm_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Error with config attribute %s : %s\n", attr_name, err_buf, 0);
+            LDAPDebug(LDAP_DEBUG_ERR, "parse_ldbm_config_entry - Error with config attribute %s : %s\n", attr_name, err_buf, 0);
             return 1;
         }
     }
@@ -2211,8 +2219,8 @@ void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
     if (ldbm_config_set((void *) li, attrname, ldbm_config, &bval, 
                         err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */,
                         LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, 
-                  "Internal Error: Error setting instance config attr %s to %s: %s\n", 
+        LDAPDebug(LDAP_DEBUG_ERR, 
+                  "ldbm_config_internal_set - Error setting instance config attr %s to %s: %s\n", 
                   attrname, value, err_buf);
         exit(1);
     }

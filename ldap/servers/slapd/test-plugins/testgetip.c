@@ -73,11 +73,11 @@ testgetip( Slapi_PBlock *pb )
 	 */
 	if ( slapi_pblock_get( pb, SLAPI_CONN_CLIENTNETADDR, &client_addr )
 	    != 0 || ( client_addr.raw.family == 0 )) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testgetip",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testgetip",
 		    "Could not get client IP.\n" );
 	} else if (( addrstr = netaddr2str( &client_addr, addrbuf,
 	    sizeof(addrbuf))) != NULL ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testgetip",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testgetip",
 		    "Client's IP address is %s\n", addrstr );
 	}
 
@@ -86,11 +86,11 @@ testgetip( Slapi_PBlock *pb )
 	 */
 	if ( slapi_pblock_get( pb, SLAPI_CONN_SERVERNETADDR, &server_addr )
 	    != 0 || ( server_addr.raw.family == 0 )) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testgetip",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testgetip",
 		    "Could not get server IP.\n" );
 	} else if (( addrstr = netaddr2str( &server_addr, addrbuf,
 	    sizeof(addrbuf))) != NULL ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testgetip",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testgetip",
 		    "Client sent request to server IP %s\n", addrstr );
 	}
 
@@ -107,12 +107,12 @@ testgetip_init( Slapi_PBlock *pb )
 	    (void *)&getippdesc ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_SEARCH_FN,
 	    (void *) testgetip ) != 0 ) { 
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "testgetip_init",
+		slapi_log_error(SLAPI_LOG_ERR, "testgetip_init",
 			"Failed to set version and functions.\n" );
 		return( -1 );
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testgetip_init",
+	slapi_log_error(SLAPI_LOG_PLUGIN, "testgetip_init",
 		"Registered preop plugins.\n" );
 	return( 0 );
 }
@@ -128,7 +128,7 @@ netaddr2str( PRNetAddr *addrp, char *buf, size_t buflen )
 
 	*buf = '\0';
 	if ( PR_NetAddrToString( addrp, buf, buflen ) != PR_SUCCESS ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testgetip",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testgetip",
 		    "PR_NetAddrToString failed.\n" );
 		return( NULL );
 	}

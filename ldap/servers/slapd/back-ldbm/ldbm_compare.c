@@ -48,9 +48,9 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
-		LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-		              "ldbm_compare: instance \"%s\" does not exist.\n",
-		              inst ? inst->inst_name : "null instance");
+		LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_back_compare - "
+			"Instance \"%s\" does not exist.\n",
+			inst ? inst->inst_name : "null instance");
 		return -1;
 	}
 	/* get the namespace dn */

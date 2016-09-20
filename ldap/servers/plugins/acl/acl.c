@@ -102,8 +102,8 @@ acl_access_allowed_modrdn(
 									SLAPI_ACL_WRITE);
 
 	if ( retCode != LDAP_SUCCESS ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-							"modrdn:write permission to entry not allowed\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+							"acl_access_allowed_modrdn - Write permission to entry not allowed\n");
 		return(retCode);
 	}
 
@@ -117,8 +117,8 @@ acl_access_allowed_modrdn(
 	retCode = check_rdn_access( pb, e, ci_newrdn, ACLPB_SLAPI_ACL_WRITE_ADD) ;
 	slapi_ch_free_string(&ci_newrdn);
 	if ( retCode != LDAP_SUCCESS ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"modrdn:write permission to add new naming attribute not allowed\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acl_access_allowed_modrdn - Write permission to add new naming attribute not allowed\n");
 		return(retCode);
 	}
 
@@ -128,8 +128,8 @@ acl_access_allowed_modrdn(
 		oldrdn = slapi_sdn_get_ndn(target_sdn);
 		retCode = check_rdn_access( pb, e, oldrdn, ACLPB_SLAPI_ACL_WRITE_DEL) ;
 		if ( retCode != LDAP_SUCCESS ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"modrdn:write permission to delete old naming attribute not allowed\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acl_access_allowed_modrdn - write permission to delete old naming attribute not allowed\n");
 			return(retCode);
 		}
 	}
@@ -158,8 +158,8 @@ check_rdn_access( Slapi_PBlock *pb, Slapi_Entry *e, const char *dn, int access)
 				struct berval bv;
 			
 				if ( slapi_rdn2typeval( rdns[i], &type, &bv ) != 0 ) {
-        			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-							"modrdn: rdn2typeval (%s) failed\n", rdns[i]);
+        			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+							"check_rdn_access - rdn2typeval (%s) failed\n", rdns[i]);
 					retCode = LDAP_INSUFFICIENT_ACCESS;
 					break;            	
 				} else {
@@ -275,8 +275,8 @@ acl_access_allowed(
 		privateBackend = slapi_be_private ( be );
 
 		 if (  !privateBackend && (be_readonly ||  slapi_config_get_readonly () )){
-			slapi_log_error	(loglevel, LOG_DEBUG, plugin_name,
-				"conn=%" NSPRIu64 " op=%d (main): Deny %s on entry(%s)"
+			slapi_log_error(loglevel, plugin_name,
+				"acl_access_allowed - conn=%" NSPRIu64 " op=%d (main): Deny %s on entry(%s)"
 				": readonly backend\n", 
 				o_connid, o_opid,
 				acl_access2str(access),
@@ -288,8 +288,8 @@ acl_access_allowed(
 	/* Check for things we need to skip */
 	TNF_PROBE_0_DEBUG(acl_skipaccess_start,"ACL","");
 	if (  acl_skip_access_check ( pb, e, access )) {
-		slapi_log_error	(loglevel, LOG_DEBUG, plugin_name,
-				"conn=%" NSPRIu64 " op=%d (main): Allow %s on entry(%s)"
+		slapi_log_error(loglevel, plugin_name,
+				"acl_access_allowed - conn=%" NSPRIu64 " op=%d (main): Allow %s on entry(%s)"
 				": root user\n", 
 				o_connid, o_opid,
 				acl_access2str(access),
@@ -312,20 +312,20 @@ acl_access_allowed(
 		aclpb =	acl_get_aclpb (	pb, ACLPB_BINDDN_PBLOCK	);
 
 	if ( !aclpb ) {
-		slapi_log_error	( SLAPI_LOG_FATAL, LOG_DEBUG, plugin_name,	 "Missing aclpb	1 \n" );
+		slapi_log_error	(SLAPI_LOG_ERR, plugin_name, "acl_access_allowed - Missing aclpb	1 \n" );
 		ret_val	= LDAP_OPERATIONS_ERROR;
 		goto cleanup_and_ret;
 	}
 
 	if (pb != aclpb->aclpb_pblock) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-		                "acl_access_allowed: Resetting aclpb_pblock %p to pblock addr %p\n",
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+		                "acl_access_allowed - Resetting aclpb_pblock %p to pblock addr %p\n",
 		                aclpb->aclpb_pblock, pb);
 		aclpb->aclpb_pblock = pb;
 	}
 
 	if ( !aclpb->aclpb_curr_entry_sdn ) {
-		slapi_log_error	( SLAPI_LOG_FATAL, LOG_ERR, plugin_name,	 "NULL aclpb_curr_entry_sdn \n" );
+		slapi_log_error(SLAPI_LOG_ERR ,plugin_name, "NULL aclpb_curr_entry_sdn \n" );
 		ret_val	= LDAP_OPERATIONS_ERROR;
 		goto cleanup_and_ret;
 	}
@@ -381,8 +381,8 @@ acl_access_allowed(
 	/* Convert access to string of rights eg SLAPI_ACL_ADD->"add". */
 	if ((right= acl_access2str(access)) == NULL) {
 		/* ERROR: unknown rights */
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"acl_access_allowed unknown rights:%d\n", access);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acl_access_allowed - Unknown rights:%d\n", access);
 
 		ret_val	= LDAP_OPERATIONS_ERROR;
 		goto cleanup_and_ret;
@@ -447,8 +447,8 @@ acl_access_allowed(
 		 (aclpb->aclpb_curr_entry != e) /* cannot trust the cached entry */ ) {
 		TNF_PROBE_0_DEBUG(acl_entry_first_touch_start,"ACL","");
 
-		slapi_log_error(loglevel, LOG_DEBUG, plugin_name,
-			"#### conn=%" NSPRIu64 " op=%d binddn=\"%s\"\n",
+		slapi_log_error(loglevel, plugin_name,
+			"acl_access_allowed - #### conn=%" NSPRIu64 " op=%d binddn=\"%s\"\n",
 			o_connid, o_opid, clientDn);
 		aclpb->aclpb_stat_total_entries++;
 
@@ -513,8 +513,8 @@ acl_access_allowed(
 				   DS_ATTR_ENTRY, e, 0);
                                                  
 		if (rv < 0) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-	    	  		"Unable to set the Slapi_Entry in the Plist\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+	    	  		"acl_access_allowed - Unable to set the Slapi_Entry in the Plist\n");
 			ret_val = LDAP_OPERATIONS_ERROR;
 			goto cleanup_and_ret;
 		}
@@ -577,8 +577,8 @@ acl_access_allowed(
 		goto cleanup_and_ret;
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		   "Processed attr:%s for entry:%s\n", attr ? attr : "NULL",
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		   "acl_access_allowed - Processed attr:%s for entry:%s\n", attr ? attr : "NULL",
 		    n_edn);
 
 	/*
@@ -704,7 +704,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 	}
 
 	if ( !aclpb ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,  "Missing aclpb \n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,  "print_access_control_summary - Missing aclpb \n" );
 		return;
 	}
 
@@ -775,7 +775,7 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                 slapi_sdn_get_ndn(aclpb->aclpb_authorization_sdn):
                                 null_user);
                         if (strcasecmp(right, access_str_moddn) == 0) {
-                                 slapi_log_error(loglevel, LOG_DEBUG, plugin_name,                                                
+                                 slapi_log_error(loglevel, plugin_name, "print_access_control_summary - "                                            
                                         "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
                                          ": %s\n",
                                         o_connid, o_opid,
@@ -789,8 +789,8 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                         acl_info[0] ? acl_info : access_reason);
 
                         } else {
-                                slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+                                slapi_log_error(loglevel, plugin_name, 
+                                        "print_access_control_summary - conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
                                          ": %s\n",
                                         o_connid, o_opid,
                                         source,
@@ -804,8 +804,8 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 		} else {
                         proxy_user = null_user;
                         if (strcasecmp(right, access_str_moddn) == 0) {
-                                slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
+                                slapi_log_error(loglevel, plugin_name, 
+                                        "print_access_control_summary - conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to proxy (%s)"
                                         ": %s\n",
                                         o_connid, o_opid,
                                         source,
@@ -818,8 +818,8 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                         acl_info[0] ? acl_info : access_reason);
                                 
                         } else {
-                                slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-                                        "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
+                                slapi_log_error(loglevel, plugin_name, 
+                                        "print_access_control_summary - conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to proxy (%s)"
                                         ": %s\n",
                                         o_connid, o_opid,
                                         source,
@@ -833,8 +833,8 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
 		}
 	} else {
                 if (strcasecmp(right, access_str_moddn) == 0) {
-                        slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-                                "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to %s"
+                        slapi_log_error(loglevel, plugin_name, 
+                                "print_access_control_summary - conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) [from %s] to %s"
                                 ": %s\n",
                                 o_connid, o_opid,
                                 source,
@@ -847,8 +847,8 @@ print_access_control_summary( char *source, int ret_val, char *clientDn,
                                 acl_info[0] ? acl_info : access_reason);
                         
                 } else {
-                        slapi_log_error(loglevel, LOG_DEBUG, plugin_name, 
-                                "conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
+                        slapi_log_error(loglevel, plugin_name, 
+                                "print_access_control_summary - conn=%" NSPRIu64 " op=%d (%s): %s %s on entry(%s).attr(%s) to %s"
                                 ": %s\n",
                                 o_connid, o_opid,
                                 source,
@@ -923,8 +923,8 @@ acl_read_access_allowed_on_entry (
 	*/
 	if ( acl_skip_access_check ( pb, e, access ) ) {
 		char   *n_edn =  slapi_entry_get_ndn ( e );
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			  "Root access (%s) allowed on entry(%s)\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			  "acl_read_access_allowed_on_entry - Root access (%s) allowed on entry(%s)\n",
 			   acl_access2str(access), 
 			   n_edn);
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_entry_end ,"ACL","",
@@ -934,15 +934,15 @@ acl_read_access_allowed_on_entry (
 
 	aclpb = acl_get_aclpb ( pb, ACLPB_BINDDN_PBLOCK );
 	if ( !aclpb ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,  "Missing aclpb 2 \n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,  "acl_read_access_allowed_on_entry - Missing aclpb 2 \n" );
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_entry_end ,"ACL","",
 							tnf_string,end,"aclpb error");
 		return LDAP_OPERATIONS_ERROR;
 	}
 	 
 	if (pb != aclpb->aclpb_pblock) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-		                "acl_read_access_allowed_on_entry: Resetting aclpb_pblock %p to pblock addr %p\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		                "acl_read_access_allowed_on_entry - Resetting aclpb_pblock %p to pblock addr %p\n",
 		                aclpb->aclpb_pblock, pb);
 		aclpb->aclpb_pblock = pb;
 	}
@@ -1228,7 +1228,7 @@ acl_read_access_allowed_on_attr (
 
 	/* If it's the root or acl is off or rootdse, he has all the priv */
 	if ( acl_skip_access_check ( pb, e, access ) ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
 			  "Root access (%s) allowed on entry(%s)\n",
 			   acl_access2str(access), 
 			   n_edn);
@@ -1240,7 +1240,7 @@ acl_read_access_allowed_on_attr (
 
 	aclpb = acl_get_aclpb ( pb, ACLPB_BINDDN_PBLOCK );
 	if ( !aclpb ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,  "Missing aclpb 3 \n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,  "acl_read_access_allowed_on_attr - Missing aclpb 3 \n" );
 		TNF_PROBE_1_DEBUG(acl_read_access_allowed_on_attr_end ,"ACL","",
 							tnf_string,aclpb_error,"");
 
@@ -1268,8 +1268,8 @@ acl_read_access_allowed_on_attr (
 
 		ret_val = acl__attr_cached_result (aclpb, attr, SLAPI_ACL_READ);
 		if (ret_val != -1) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			                "MATCHED HANDLE:dn:%s attr: %s val:%d\n", 
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			                "acl_read_access_allowed_on_attr - MATCHED HANDLE:dn:%s attr: %s val:%d\n", 
 			                n_edn, attr, ret_val );
 			if (ret_val == LDAP_SUCCESS) {
 				decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_ALLOW;
@@ -1295,8 +1295,8 @@ acl_read_access_allowed_on_attr (
 	** rest of the attributes.
 	*/
 	if (aclpb->aclpb_state & ACLPB_ATTR_STAR_MATCHED) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-		 	  "STAR Access allowed on attr:%s; entry:%s \n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+		 	  "acl_read_access_allowed_on_attr - STAR Access allowed on attr:%s; entry:%s \n",
 		 	   attr, n_edn);
 		decision_reason.reason = ACL_REASON_EVALCONTEXT_CACHED_ATTR_STAR_ALLOW;
 		ret_val = LDAP_SUCCESS;
@@ -1664,8 +1664,8 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 		** use this group. for now just do the whole thing.
 		*/
 		if ( group_change )  {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Group Change: Invalidating entire UserGroup Cache %s\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acl_modified - Group Change: Invalidating entire UserGroup Cache %s\n",
 			n_dn);
 			aclg_regen_group_signature();
 			if (  (optype == SLAPI_OPERATION_MODIFY) || (optype == SLAPI_OPERATION_DELETE ) ) {
@@ -1700,8 +1700,8 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 		 * Mark this for deletion next time round--try to impact
 		 * this mainline code as little as possible.
 		*/
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Marking entry %s for removal from ACL user Group Cache\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acl_modified - Marking entry %s for removal from ACL user Group Cache\n",
 			n_dn);
 		aclg_markUgroupForRemoval (ugroup);
 	}
@@ -1852,8 +1852,8 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 		}
 		if (NULL == parent_DN) {
 			if (NULL == new_RDN) {
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				                 "acl_modified (MODRDN %s => \"no change\"\n", 
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				                 "acl_modified - (MODRDN %s => \"no change\"\n", 
 				                 n_dn);
 				break;
 			} else {
@@ -1870,8 +1870,8 @@ acl_modified (Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
 				new_DN = slapi_create_dn_string("%s,%s", new_RDN, parent_DN);
 			}
 		}
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-		                 "acl_modified (MODRDN %s => \"%s\"\n", n_dn, new_RDN);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+		                 "acl_modified - (MODRDN %s => \"%s\"\n", n_dn, new_RDN);
 
 		/* Change the acls */
 		acllist_acicache_WRITE_LOCK();
@@ -1932,7 +1932,7 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 			aclpb->aclpb_handles_index[0] != -1 ) {
 			int kk = 0;
 			while ( kk < aclpb_max_selected_acls && aclpb->aclpb_handles_index[kk] != -1 ) {
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Using ACL Container:%d for evaluation\n", kk);
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__scan_for_acis - Using ACL Container:%d for evaluation\n", kk);
 				kk++;
 			}
 	}
@@ -1946,8 +1946,8 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 
 	/* Check the signature. If it has changed, start fresh */
 	if ( aclpb->aclpb_signature != acl_signature ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-				"Restart the scan -- due to acl changes\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+				"acl__scan_for_acis - Restart the scan due to acl changes\n");
 		acllist_init_scan ( aclpb->aclpb_pblock, LDAP_SCOPE_BASE, NULL );
 	}
 
@@ -2027,7 +2027,7 @@ acl__scan_for_acis(Acl_PBlock *aclpb, int *err)
 	aclpb->aclpb_num_deny_handles = deny_handle;
 	aclpb->aclpb_num_allow_handles = allow_handle;
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Num of ALLOW Handles:%d, DENY handles:%d\n", 
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__scan_for_acis - Num of ALLOW Handles:%d, DENY handles:%d\n", 
 		  aclpb->aclpb_num_allow_handles, aclpb->aclpb_num_deny_handles);
 
 	TNF_PROBE_0_DEBUG(acl__scan_for_acis_end,"ACL","");
@@ -2171,85 +2171,85 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
                  * (sdn was stored in the pblock)
                  */
 		if (aci->target_to) { 
-                        f = aci->target_to;
-                        dn_matched = ACL_TRUE;
-                        
-                        /* Now check if the filter is a simple or substring filter */
-                        if (aci->aci_type & ACI_TARGET_MODDN_TO_PATTERN) {
-                                /* This is a filter with substring
-                                 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
-                                 */
-                                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "moddn target_to substring: %s\n",
-                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
-                                if ((rv = acl_match_substring(f, (char *) res_ndn, 0 /* match suffix */)) != ACL_TRUE) {
-                                        dn_matched = ACL_FALSE;
-                                        if (rv == ACL_ERR) {
-                                                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                                                        "acl__resource_match_aci:pattern err\n");
-                                                matches = ACL_FALSE;
-                                                goto acl__resource_match_aci_EXIT;
-                                        }
-                                }
-                        } else {
-                                /* This is a filter without substring
-                                 * e.g. ldap:///cn=accounts,dc=example,dc=com
-                                 */
-                                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "moddn target_to: %s\n",
-                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
-                                slapi_filter_get_ava(f, &avaType, &avaValue);
-
-                                if (!slapi_dn_issuffix(res_ndn, avaValue->bv_val)) {
-                                        dn_matched = ACL_FALSE;
-                                }
-
-                        }
-                        if (aci->aci_type & ACI_TARGET_NOT) {
-                                matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
-                        } else {
-                                matches = (dn_matched ? ACL_TRUE : ACL_FALSE);
-                        }
-                } /* target_to */
-                
-                if ((matches == ACL_TRUE) && (aci->target_from) && aclpb->aclpb_moddn_source_sdn) {
-                        f = aci->target_from;
-                        dn_matched = ACL_TRUE;
-                        slapi_filter_get_ava ( f, &avaType, &avaValue );
-                        
-                        /* Now check if the filter is a simple or substring filter */
-                        if (aci->aci_type & ACI_TARGET_MODDN_FROM_PATTERN) {
-                                /* This is a filter with substring
-                                 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
-                                 */
-                                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "moddn target_from substring: %s\n",
-                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
-                                if ((rv = acl_match_substring(f, (char *) slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), 0 /* match suffix */)) != ACL_TRUE) {
-                                        dn_matched = ACL_FALSE;
-                                        if (rv == ACL_ERR) {
-                                                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-                                                        "acl__resource_match_aci:pattern err\n");
-                                                matches = ACL_FALSE;
-                                                goto acl__resource_match_aci_EXIT;
-                                        }
-                                }
-                                
-                        } else {
-                                /* This is a filter without substring
-                                 * e.g. ldap:///cn=accounts,dc=example,dc=com
-                                 */
-                                slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "moddn target_from: %s\n",
-                                        slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
-                                if (!slapi_dn_issuffix(slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), avaValue->bv_val)) {
-                                        dn_matched = ACL_FALSE;
-                                }
-                                
-                        }
-
-                        if (aci->aci_type & ACI_TARGET_NOT) {
-                                matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
-                        } else {
-                                matches = (dn_matched ? ACL_TRUE: ACL_FALSE);
-                        }
-                }
+			f = aci->target_to;
+			dn_matched = ACL_TRUE;
+			
+			/* Now check if the filter is a simple or substring filter */
+			if (aci->aci_type & ACI_TARGET_MODDN_TO_PATTERN) {
+					/* This is a filter with substring
+					 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
+					 */
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_to substring: %s\n",
+							slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+					if ((rv = acl_match_substring(f, (char *) res_ndn, 0 /* match suffix */)) != ACL_TRUE) {
+							dn_matched = ACL_FALSE;
+							if (rv == ACL_ERR) {
+									slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+											"acl__resource_match_aci:pattern err\n");
+									matches = ACL_FALSE;
+									goto acl__resource_match_aci_EXIT;
+							}
+					}
+			} else {
+					/* This is a filter without substring
+					 * e.g. ldap:///cn=accounts,dc=example,dc=com
+					 */
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_to: %s\n",
+							slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+					slapi_filter_get_ava(f, &avaType, &avaValue);
+	
+					if (!slapi_dn_issuffix(res_ndn, avaValue->bv_val)) {
+							dn_matched = ACL_FALSE;
+					}
+	
+			}
+			if (aci->aci_type & ACI_TARGET_NOT) {
+					matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
+			} else {
+					matches = (dn_matched ? ACL_TRUE : ACL_FALSE);
+			}
+		} /* target_to */
+		
+		if ((matches == ACL_TRUE) && (aci->target_from) && aclpb->aclpb_moddn_source_sdn) {
+				f = aci->target_from;
+				dn_matched = ACL_TRUE;
+				slapi_filter_get_ava ( f, &avaType, &avaValue );
+				
+				/* Now check if the filter is a simple or substring filter */
+				if (aci->aci_type & ACI_TARGET_MODDN_FROM_PATTERN) {
+						/* This is a filter with substring
+						 * e.g. ldap:///uid=*,cn=accounts,dc=example,dc=com
+						 */
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_from substring: %s\n",
+								slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+						if ((rv = acl_match_substring(f, (char *) slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), 0 /* match suffix */)) != ACL_TRUE) {
+								dn_matched = ACL_FALSE;
+								if (rv == ACL_ERR) {
+										slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+												"acl__resource_match_aci - pattern err\n");
+										matches = ACL_FALSE;
+										goto acl__resource_match_aci_EXIT;
+								}
+						}
+						
+				} else {
+						/* This is a filter without substring
+						 * e.g. ldap:///cn=accounts,dc=example,dc=com
+						 */
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__resource_match_aci - moddn target_from: %s\n",
+								slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
+						if (!slapi_dn_issuffix(slapi_sdn_get_dn(aclpb->aclpb_moddn_source_sdn), avaValue->bv_val)) {
+								dn_matched = ACL_FALSE;
+						}
+						
+				}
+		
+				if (aci->aci_type & ACI_TARGET_NOT) {
+						matches = (dn_matched ? ACL_FALSE : ACL_TRUE);
+				} else {
+						matches = (dn_matched ? ACL_TRUE: ACL_FALSE);
+				}
+		}
 	}
         
 	/* No need to look further */
@@ -2265,8 +2265,8 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		if ((rv = acl_match_substring(f, (char *)res_ndn, 0 /* match suffux */)) != ACL_TRUE) {
 			dn_matched = ACL_FALSE;
 			if(rv == ACL_ERR) {
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-					"acl__resource_match_aci:pattern err\n");
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+					"acl__resource_match_aci - Pattern err\n");
 				matches = ACL_FALSE;
 				goto acl__resource_match_aci_EXIT;	
 			}
@@ -2312,8 +2312,8 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 		if ( matched_val == NULL &&
 			(aclpb->aclpb_res_type & (ACLPB_NEW_ENTRY | ACLPB_EFFECTIVE_RIGHTS))) {
 
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"Evaluating macro aci(%d)%s for resource %s\n",
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acl__resource_match_aci - Evaluating macro aci(%d)%s for resource %s\n",
 				aci->aci_index, aci->aclName,
 				aclutil__access_str(res_right, res_right_str));
 			matched_val = acl_match_macro_in_target( res_ndn,
@@ -2350,15 +2350,15 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 				acl_ht_add_and_freeOld(aclpb->aclpb_macro_ht,
 									(PLHashNumber)aci->aci_index,
 									matched_val);
-				slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-					"-- Added aci(%d) and matched value (%s) to macro ht\n",
+				slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+					"acl__resource_match_aci - Added aci(%d) and matched value (%s) to macro ht\n",
 					aci->aci_index, matched_val);
 				acl_ht_display_ht(aclpb->aclpb_macro_ht);
 			} else {
 				slapi_ch_free((void **)&matched_val);
 				if (matches == ACL_FALSE) {
-					slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"Evaluated ACL_FALSE\n");
+					slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+						"acl__resource_match_aci - Evaluated ACL_FALSE\n");
 				}
 			}
 		}
@@ -2427,8 +2427,8 @@ acl__resource_match_aci( Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *
 			}
 		} else {
 			matches = ACL_FALSE;
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"Returning UNDEFINED for targetfilter evaluation.\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acl__resource_match_aci - Returning UNDEFINED for targetfilter evaluation.\n");
 		}
 
 		if (matches == ACL_FALSE) {
@@ -2957,8 +2957,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 		}
 		k++;
 		index = aci->aci_index;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Evaluating DENY aci(%d) \"%s\"\n", index, aci->aclName);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acl__TestRights - Evaluating DENY aci(%d) \"%s\"\n", index, aci->aclName);
 
 		if (access  & ( SLAPI_ACL_SEARCH | SLAPI_ACL_READ)) {
 
@@ -2989,8 +2989,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 					*/
 					if (access & SLAPI_ACL_SEARCH) {
 						if ( result & ACLPB_CACHE_SEARCH_RES_DENY){
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-						           "DENY:Found SEARCH DENY in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+						           "acl__TestRights - DENY:Found SEARCH DENY in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_DENY;
@@ -2999,8 +2999,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 							return ACL_RES_DENY;
 						} else if ((result & ACLPB_CACHE_SEARCH_RES_SKIP) ||
 							   (result & ACLPB_CACHE_SEARCH_RES_ALLOW)) { 
-					  	    slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							     "DENY:Found SEARCH SKIP in cache\n");
+					  	    slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							     "acl__TestRights - DENY:Found SEARCH SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -3008,8 +3008,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 						}
 					} else {	/* must be READ */
 						if (result & ACLPB_CACHE_READ_RES_DENY) {
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-								  "DENY:Found READ DENY in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+								  "acl__TestRights - DENY:Found READ DENY in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_DENY;
@@ -3017,8 +3017,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 								tnf_string,cached_deny,"");
 							return ACL_RES_DENY;
 						} else if ( result & ACLPB_CACHE_READ_RES_SKIP) {
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-								  "DENY:Found READ SKIP in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+								  "acl__TestRights - DENY:Found READ SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -3035,8 +3035,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 
 		rv = ACL_EvalSetACL(NULL, acleval, aci->aci_handle);
 		if ( rv < 0) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"acl__TestRights:Unable to set the DENY acllist\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acl__TestRights - Unable to set the DENY acllist\n");
 			continue;
 		}
 		/* 
@@ -3050,7 +3050,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 						&deny_generic,
 						&acl_tag, &expr_num);
 
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Processed:%d DENY handles Result:%d\n",index, rights_rv);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "acl__TestRights - Processed:%d DENY handles Result:%d\n",index, rights_rv);
 
 		if (rights_rv   == ACL_RES_FAIL) {
 				result_reason->deciding_aci = aci;
@@ -3085,7 +3085,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 			} else {  /* cache overflow */
 				if (!(aclpb->aclpb_cache_result[j].result &
 				      ACLPB_CACHE_ERROR_REPORTED)) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "acl__TestRights",
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name, "acl__TestRights - "
 					    "Your ACL cache of %d slots has overflowed. "
 					    "This can happen when you have many ACIs. "
 					    "This ACI evaluation requires %d slots to cache. "
@@ -3185,8 +3185,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 		}
 		k++;
 		index = aci->aci_index;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"%d. Evaluating ALLOW aci(%d) \"%s\"\n", k, index, aci->aclName);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acl__TestRights - %d. Evaluating ALLOW aci(%d) \"%s\"\n", k, index, aci->aclName);
 
 		if (access  & ( SLAPI_ACL_SEARCH | SLAPI_ACL_READ)) {
 
@@ -3218,8 +3218,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 					*/
 					if (access & SLAPI_ACL_SEARCH) {
 						if (result & ACLPB_CACHE_SEARCH_RES_ALLOW) {
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							   "Found SEARCH ALLOW in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							   "acl__TestRights - Found SEARCH ALLOW in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_ALLOW;
@@ -3227,8 +3227,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 								tnf_string,cached_allow,"");
 							return ACL_RES_ALLOW;
 						} else if ( result & ACLPB_CACHE_SEARCH_RES_SKIP) {
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							   "Found SEARCH SKIP in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							   "acl__TestRights - Found SEARCH SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -3237,8 +3237,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 						}
 					} else {
 						if ( result & ACLPB_CACHE_READ_RES_ALLOW) {
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							   "Found READ ALLOW in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							   "acl__TestRights - Found READ ALLOW in cache\n");
 							__acl_set_aclIndex_inResult ( aclpb, access, index );
 							result_reason->deciding_aci = aci;
 							result_reason->reason = ACL_REASON_RESULT_CACHED_ALLOW;
@@ -3246,8 +3246,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 								tnf_string,cached_allow,"");
 							return ACL_RES_ALLOW;
 						} else if ( result & ACLPB_CACHE_READ_RES_SKIP) {
-							slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							   "Found READ SKIP in cache\n");
+							slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							   "acl__TestRights - Found READ SKIP in cache\n");
 							skip_eval = 1;
 							break;
 						} else {
@@ -3265,8 +3265,8 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 		TNF_PROBE_0_DEBUG(acl__libaccess_start,"ACL","");
 		rv = ACL_EvalSetACL(NULL, acleval, aci->aci_handle);
 		if ( rv < 0) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-				"acl__TestRights:Unable to set the acllist\n");
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+				"acl__TestRights - Unable to set the acllist\n");
 			continue;
 		}
 		/* 
@@ -3307,7 +3307,7 @@ acl__TestRights(Acl_PBlock *aclpb,int access, const char **right, const char ** 
 			} else {  /* cache overflow */
 				if (!(aclpb->aclpb_cache_result[j].result &
 				      ACLPB_CACHE_ERROR_REPORTED)) {
-					slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "acl__TestRights",
+					slapi_log_error(SLAPI_LOG_ERR, plugin_name, "acl__TestRights - "
 					    "Your ACL cache of %d slots has overflowed. "
 					    "This can happen when you have many ACIs. "
 					    "This ACI evaluation requires %d slots to cache. "
@@ -3550,12 +3550,12 @@ acl__attr_cached_result (struct acl_pblock *aclpb, char *attr, int access )
 
 	if (aclpb->aclpb_state & ACLPB_HAS_ACLCB_EVALCONTEXT ) {
 		c_evalContext = &aclpb->aclpb_prev_opEval_context;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			    "acl__attr_cached_result:Using Context: ACLPB_ACLCB\n" );
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			    "acl__attr_cached_result - Using Context: ACLPB_ACLCB\n" );
 	} else {
 		c_evalContext = &aclpb->aclpb_prev_entryEval_context;
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			    "acl__attr_cached_result:Using Context: ACLPB_PREV\n" );
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			    "acl__attr_cached_result - Using Context: ACLPB_PREV\n" );
 	}
 
 	if ( attr == NULL ) {
@@ -3739,8 +3739,8 @@ acl__scan_match_handles ( Acl_PBlock *aclpb, int type)
 					** to nullify the cached result
 					 */
 					if ( aci->aci_ruleType & ACI_ATTR_RULES ) {
-						slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-							"Found an attr Rule [Name:%s Index:%d\n", aci->aclName, 
+						slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+							"acl__scan_match_handles - Found an attr Rule [Name:%s Index:%d\n", aci->aclName, 
 							aci->aci_index );
 						for ( jj =0; jj < c_evalContext->acle_numof_attrs; jj++ ) {
 							AclAttrEval     *a_eval = &c_evalContext->acle_attrEval[jj];
@@ -4174,8 +4174,8 @@ acl__recompute_acl (  	Acl_PBlock 		*aclpb,
 		goto set_result_status;
 	}
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-			"Recomputing the ACL Index:%d for entry:%s\n",
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+			"acl__recompute_acl - Recomputing the ACL Index:%d for entry:%s\n",
 			aciIndex, slapi_entry_get_ndn ( aclpb->aclpb_curr_entry) );
 				
 	/* First find this one ACL and then evaluate it. */
@@ -4292,9 +4292,7 @@ acl__test_filter ( Slapi_Entry *entry, struct slapi_filter *f, int filter_sense)
 
 		/* slapi_vattr_filter_test() returns 0 for match */
 
-		filter_matched = !slapi_vattr_filter_test(NULL, entry, 
-					    					f,
-					    					0 /*don't do acess chk*/);
+		filter_matched = !slapi_vattr_filter_test(NULL, entry, f, 0 /*don't do acess chk*/);
 		
 		if (filter_sense) {
 			return(filter_matched ? ACL_TRUE : ACL_FALSE);

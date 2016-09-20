@@ -67,8 +67,8 @@ static char *moreInfo =
 static int
 op_error(int internal_error)
 {
-  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-    "Internal error: %d\n", internal_error);
+  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    "op_error - %d\n", internal_error);
 
   return LDAP_OPERATIONS_ERROR;
 }
@@ -78,8 +78,8 @@ issue_error(Slapi_PBlock *pb, int result, char *type, char *value)
 {
   char *moreinfop;
 
-  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-      "%s result %d\n", type, result);
+  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+      "issue_error - %s result %d\n", type, result);
 
   if (value == NULL) {
     value = "unknown";
@@ -105,7 +105,7 @@ bit_check_one_berval(const struct berval *value, char **violated)
   int i;
 
 #ifdef DEBUG
-  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "7-bit checking begin\n");
+  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "bit_check_one_berval - 7-bit checking begin\n");
 #endif
 
   result = LDAP_SUCCESS;
@@ -166,8 +166,8 @@ bit_check(Slapi_Attr *attr, struct berval **values, char **violated)
   }
 
 #ifdef DEBUG
-  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-    "7 bit check result = %d\n", result);
+  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+    "bit_check - 7 bit check result = %d\n", result);
 #endif
 
   return result;
@@ -186,7 +186,7 @@ preop_add(Slapi_PBlock *pb)
   char *pwd = NULL;
   char *origpwd = NULL;
 #ifdef DEBUG
-  slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "ADD begin\n");
+  slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "preop_add - ADD begin\n");
 #endif
 
   result = LDAP_SUCCESS;
@@ -238,7 +238,7 @@ preop_add(Slapi_PBlock *pb)
     dn = slapi_sdn_get_dn(sdn);
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name, "ADD target=%s\n", dn);
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "preop_add - ADD target=%s\n", dn);
 #endif
 
     /*
@@ -290,8 +290,8 @@ preop_add(Slapi_PBlock *pb)
         if (slapi_dn_issuffix(dn, *subtreeDN)) 
         {
 #ifdef DEBUG
-          slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-            "ADD subtree=%s\n", *subtreeDN);
+          slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+            "preop_add - ADD subtree=%s\n", *subtreeDN);
 #endif
   
           /*
@@ -348,8 +348,8 @@ preop_modify(Slapi_PBlock *pb)
   int checkmodsCapacity = 0; /* max capacity of checkmods */
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-      "MODIFY begin\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+      "preop_modify - MODIFY begin\n");
 #endif
 
   result = LDAP_SUCCESS;
@@ -472,8 +472,8 @@ preop_modify(Slapi_PBlock *pb)
 	    if (slapi_dn_issuffix(target, *subtreeDN))
 	    {
 #ifdef DEBUG
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-				"MODIFY subtree=%s\n", *subtreeDN);
+		slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+				"preop_modify - MODIFY subtree=%s\n", *subtreeDN);
 #endif
 		/*
 		 * Check if the value is 7-bit clean
@@ -511,8 +511,8 @@ preop_modrdn(Slapi_PBlock *pb)
   char *violated = NULL;
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-      "MODRDN begin\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+      "preop_modrdn - MODRDN begin\n");
 #endif
 
   /* Init */
@@ -572,8 +572,8 @@ preop_modrdn(Slapi_PBlock *pb)
     if (err) { result = op_error(33); break; }
 
 #ifdef DEBUG
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-      "MODRDN newrdn=%s\n", rdn);
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+      "preop_modrdn - MODRDN newrdn=%s\n", rdn);
 #endif
 
     /*
@@ -593,8 +593,8 @@ preop_modrdn(Slapi_PBlock *pb)
     err = slapi_entry_add_rdn_values(e);
     if (err)
     {
-      slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-        "MODRDN bad rdn value=%s\n", rdn);
+      slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+        "preop_modrdn - MODRDN bad rdn value=%s\n", rdn);
       break; /* Bad DN */
     }
 
@@ -638,8 +638,8 @@ preop_modrdn(Slapi_PBlock *pb)
         if (slapi_dn_issuffix(slapi_sdn_get_dn(superior), *subtreeDN))
         {
 #ifdef DEBUG
-          slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, plugin_name,
-            "MODRDN subtree=%s\n", *subtreeDN);
+          slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+            "preop_modrdn - MODRDN subtree=%s\n", *subtreeDN);
 #endif
 
           /*
@@ -713,7 +713,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     if (err) break;
 
     for (attr_count = 0; argv && argv[attr_count]; attr_count++) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "NS7bitAttr_Init", "%d: %s\n",
+        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "NS7bitAttr_Init - %d: %s\n",
                         attr_count, argv[attr_count]);
     }
     /* 
@@ -730,7 +730,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
     for(;argc > 0;argc--, argv++) {
 	err = slapi_dn_syntax_check(pb, *argv, 1);
 	if (err) {
-	    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "NS7bitAttr_Init",
+	    slapi_log_error(SLAPI_LOG_ERR, plugin_name, "NS7bitAttr_Init - "
                       "Invalid suffix: %s\n", *argv);
 	    continue;
 	}
@@ -761,29 +761,28 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
 
   if (err) {
       if(err == -1){
-          slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "NS7bitAttr_Init","Error: %d\n", err);
+          slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "NS7bitAttr_Init - Error: %d\n", err);
       } else if(err == -2){
-          slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "NS7bitAttr_Init",
+          slapi_log_error(SLAPI_LOG_ERR, plugin_name, "NS7bitAttr_Init - "
                       "Invalid plugin arguments - missing arguments\n");
       } else if(err == -3){
-          slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "NS7bitAttr_Init",
+          slapi_log_error(SLAPI_LOG_ERR, plugin_name, "NS7bitAttr_Init - "
                       "Invalid plugin arguments - missing \",\" separator argument\n");
       } else if(err == -4){
-          slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "NS7bitAttr_Init",
+          slapi_log_error(SLAPI_LOG_ERR, plugin_name, "NS7bitAttr_Init - "
                       "Invalid plugin arguments - missing attributes\n");
       } else if(err == -5){
-          slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "NS7bitAttr_Init",
+          slapi_log_error(SLAPI_LOG_ERR, plugin_name, "NS7bitAttr_Init - "
                       "Invalid plugin arguments - missing suffix\n");
       } else if(err == -6){
-          slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "NS7bitAttr_Init",
+          slapi_log_error(SLAPI_LOG_ERR, plugin_name, "NS7bitAttr_Init - "
                       "Invalid plugin arguments - Invalid suffix list\n");
       }
 
       err = -1;
   }
   else
-    slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "NS7bitAttr_Init",
-             "plugin loaded\n");
+    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "NS7bitAttr_Init - plugin loaded\n");
 
   return err;
 }

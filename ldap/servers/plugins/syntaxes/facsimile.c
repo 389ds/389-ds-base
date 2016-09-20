@@ -49,7 +49,7 @@ facsimile_init( Slapi_PBlock *pb )
 {
 	int	rc, flags;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "=> facsimile_init\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> facsimile_init\n", 0, 0, 0 );
 
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    (void *) SLAPI_PLUGIN_VERSION_01 );
@@ -79,7 +79,7 @@ facsimile_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
 	    (void *) facsimile_normalize );
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, LOG_DEBUG, "<= facsimile_init %d\n", rc, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= facsimile_init %d\n", rc, 0, 0 );
 	return( rc );
 }
 

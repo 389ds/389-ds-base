@@ -39,7 +39,7 @@ static PRStatus
 oc_init_lock( void )
 {
 	if ( NULL == ( oc_lock = slapi_new_rwlock())) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "oc_init_lock",
+		slapi_log_error(SLAPI_LOG_ERR, "oc_init_lock",
 				"slapi_new_rwlock() for objectclass lock failed\n" );
 		return PR_FAILURE;
 	}
@@ -206,7 +206,7 @@ normalize_oc( void )
 	oc_lock_write();
 
 	for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	  LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG, 
+	  LDAPDebug(LDAP_DEBUG_PARSE, 
 				 "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
 	  /* required attributes */
 	  normalize_list( oc->oc_required );
@@ -226,7 +226,7 @@ normalize_oc_nolock( void )
 	struct objclass	*oc;
 
 	for ( oc = g_get_global_oc_nolock(); oc != NULL; oc = oc->oc_next ) {
-	  LDAPDebug(LDAP_DEBUG_PARSE, LOG_DEBUG, 
+	  LDAPDebug(LDAP_DEBUG_PARSE, 
 				 "normalize_oc: normalizing '%s'\n", oc->oc_name, 0, 0);
 	  /* required attributes */
 	  normalize_list( oc->oc_required );

@@ -74,7 +74,7 @@ testsasl_bind( Slapi_PBlock *pb )
 	struct berval	svrcreds;
 
 	/* Log a message to the server error log. */
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testsasl_bind", 
+	slapi_log_error(SLAPI_LOG_PLUGIN, "testsasl_bind", 
 		"Pre-operation bind function called.\n" );
 
 	/* Gets parameters available when processing an LDAP bind
@@ -84,7 +84,7 @@ testsasl_bind( Slapi_PBlock *pb )
 	    slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &credentials ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_BIND_SASLMECHANISM, &mechanism )
 	    != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "testsasl_bind",
+		slapi_log_error(SLAPI_LOG_ERR, "testsasl_bind",
 			"Could not get parameters for bind operation\n" );
 		return( 0 );	/* let the server try other mechanisms */
 	}
@@ -102,7 +102,7 @@ testsasl_bind( Slapi_PBlock *pb )
 	if ( slapi_pblock_set( pb, SLAPI_CONN_DN, slapi_ch_strdup( target ) )
 	    != 0 || slapi_pblock_set( pb, SLAPI_CONN_AUTHMETHOD,
 	    TEST_SASL_AUTHMETHOD ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "testsasl_bind",
+		slapi_log_error(SLAPI_LOG_ERR, "testsasl_bind",
 		    "Failed to set DN and method for connection\n" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    NULL, 0, NULL );
@@ -114,7 +114,7 @@ testsasl_bind( Slapi_PBlock *pb )
 	svrcreds.bv_len = sizeof("my credentials") - 1;
 	if ( slapi_pblock_set( pb, SLAPI_BIND_RET_SASLCREDS, &svrcreds )
 	    != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testsasl_bind", 
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testsasl_bind", 
 			"Could not set credentials to return to client\n" );
 		slapi_pblock_set( pb, SLAPI_CONN_DN, NULL );
 		slapi_pblock_set( pb, SLAPI_CONN_AUTHMETHOD, SLAPD_AUTH_NONE );
@@ -122,7 +122,7 @@ testsasl_bind( Slapi_PBlock *pb )
 	}
 
 	/* Send the credentials back to the client. */
-	slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testsasl_bind",
+	slapi_log_error(SLAPI_LOG_PLUGIN, "testsasl_bind",
 	    "Authenticated: %s\n", target );
 	slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
 
@@ -138,7 +138,7 @@ testsasl_init( Slapi_PBlock *pb )
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01 ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&saslpdesc ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN, (void *) testsasl_bind ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, "testsasl_init",
+		slapi_log_error(SLAPI_LOG_PLUGIN, "testsasl_init",
 			"Failed to set version and function\n" );
 		return( -1 );
 	}

@@ -207,7 +207,7 @@ idl_new_fetch(
         if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
             if (ret == DB_BUFFER_SMALL) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ERR, "idl_new_fetch - Database index is corrupt; "
                           "data item for key %s is too large for our buffer "
                           "(need=%d actual=%d)\n",
                           key.data, data.size, data.ulen);
@@ -231,21 +231,21 @@ idl_new_fetch(
             if (ptr == NULL) break;
 
             if (*(int32_t *)ptr < -1) {
-                LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "DB_MULTIPLE buffer is corrupt; "
-                              "next offset [%d] is less than zero\n",
-                              *(int32_t *)ptr);
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "idl_new_fetch - "
+                        "DB_MULTIPLE buffer is corrupt; next offset [%d] is less than zero\n",
+                         *(int32_t *)ptr);
                 /* retry the read */
                 break;
             }
             if (dataret.size != sizeof(ID)) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ERR, "idl_new_fetch - Database index is corrupt; "
                           "key %s has a data item with the wrong size (%d)\n", 
                           key.data, dataret.size, 0);
                 goto error;
             }
             memcpy(&id, dataret.data, sizeof(ID));
             if (id == lastid) { /* dup */
-                LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "Detected duplicate id "
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "idl_new_fetch - Detected duplicate id "
                               "%d due to DB_MULTIPLE error - skipping\n",
                               id);
                 continue; /* get next one */
@@ -255,7 +255,8 @@ idl_new_fetch(
             /* we got another ID, add it to our IDL */
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "unable to extend id list (err=%d)\n", idl_rc, 0, 0);
+                LDAPDebug(LDAP_DEBUG_ERR, "idl_new_fetch - Unable to extend id list (err=%d)\n",
+                	idl_rc, 0, 0);
                 idl_free(&idl);
                 goto error;
             }
@@ -263,7 +264,7 @@ idl_new_fetch(
             count++;
         }
 
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "bulk fetch buffer nids=%d\n", count, 0, 0); 
+        LDAPDebug(LDAP_DEBUG_TRACE, "bulk fetch buffer nids=%d\n", count, 0, 0); 
 #if defined(DB_ALLIDS_ON_READ)	
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
@@ -271,7 +272,7 @@ idl_new_fetch(
         	idl->b_nids = 1;
         	idl->b_ids[0] = ALLID;
         	ret = DB_NOTFOUND; /* fool the code below into thinking that we finished the dups */
-        	LDAPDebug(LDAP_DEBUG_BACKLDBM, LOG_DEBUG, "search for key for attribute index %s "
+        	LDAPDebug(LDAP_DEBUG_BACKLDBM, "idl_new_fetch - search for key for attribute index %s "
         		  "exceeded allidslimit %d - count is %d\n",
         		  a->ai_type, allidslimit, count);
         	break;
@@ -292,8 +293,8 @@ idl_new_fetch(
         /* we got another ID, add it to our IDL */
         idl_rc = idl_append_extend(&idl, id);
         if (idl_rc) {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                          "unable to extend id list (err=%d)\n", idl_rc);
+            LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                          "idl_new_fetch - Unable to extend id list (err=%d)\n", idl_rc);
             idl_free(&idl);
             goto error;
         }
@@ -321,10 +322,10 @@ idl_new_fetch(
     if (idl != NULL && idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
         idl_free(&idl);
         idl = idl_allids(be);
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "idl_new_fetch %s returns allids\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_fetch -  %s returns allids\n", 
                   key.data, 0, 0);
     } else {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "idl_new_fetch %s returns nids=%lu\n", 
+        LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_fetch -  %s returns nids=%lu\n", 
                   key.data, (u_long)IDL_NIDS(idl), 0);
     }
 
@@ -465,10 +466,9 @@ idl_new_range_fetch(
         if (DB_NOTFOUND != ret) {
 #ifdef DB_USE_BULK_FETCH
             if (ret == DB_BUFFER_SMALL) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
-                          "data item for key %s is too large for our buffer "
-                          "(need=%d actual=%d)\n",
-                          cur_key.data, data.size, data.ulen);
+                LDAPDebug(LDAP_DEBUG_ERR, "idl_new_range_fetch - Database index is corrupt; "
+                        "data item for key %s is too large for our buffer (need=%d actual=%d)\n",
+                        cur_key.data, data.size, data.ulen);
             }
 #endif
             ldbm_nasty(filename,2,ret);
@@ -494,13 +494,13 @@ idl_new_range_fetch(
                 (idl->b_nids > (ID)lookthrough_limit)) {
                 idl_free(&idl);
                 idl = idl_allids( be );
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
                           "idl_new_range_fetch - lookthrough_limit exceeded\n");
                 *flag_err = LDAP_ADMINLIMIT_EXCEEDED;
                 goto error;
             }
             if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
                                "idl_new_range_fetch - sizelimit exceeded\n");
                 *flag_err = LDAP_SIZELIMIT_EXCEEDED;
                 goto error;
@@ -510,7 +510,7 @@ idl_new_range_fetch(
         if (stoptime > 0) { /* timelimit is set */
             curtime = current_time();
             if (curtime >= stoptime) {
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
                               "idl_new_range_fetch - timelimit exceeded\n");
                 *flag_err = LDAP_TIMELIMIT_EXCEEDED;
                 goto error;
@@ -525,23 +525,22 @@ idl_new_range_fetch(
             if (ptr == NULL) break;
 
             if (*(int32_t *)ptr < -1) {
-                LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "DB_MULTIPLE buffer is corrupt; "
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "DB_MULTIPLE buffer is corrupt; "
                               "next offset [%d] is less than zero\n",
                               *(int32_t *)ptr);
                 /* retry the read */
                 break;
             }
             if (dataret.size != sizeof(ID)) {
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "database index is corrupt; "
+                LDAPDebug(LDAP_DEBUG_ERR, "idl_new_range_fetch - Database index is corrupt; "
                           "key %s has a data item with the wrong size (%d)\n", 
                           cur_key.data, dataret.size, 0);
                 goto error;
             }
             memcpy(&id, dataret.data, sizeof(ID));
             if (id == lastid) { /* dup */
-                LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "Detedted duplicate id "
-                              "%d due to DB_MULTIPLE error - skipping\n",
-                              id);
+                LDAPDebug1Arg(LDAP_DEBUG_TRACE, "idl_new_range_fetch - "
+                        "Detected duplicate id %d due to DB_MULTIPLE error - skipping\n", id);
                 continue; /* get next one */
             }
             /* note the last id read to check for dups */
@@ -571,8 +570,8 @@ idl_new_range_fetch(
                 idl_rc = idl_append_extend(&idl, id);
             }
             if (idl_rc) {
-                LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                              "unable to extend id list (err=%d)\n", idl_rc);
+                LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                              "idl_new_range_fetch - Unable to extend id list (err=%d)\n", idl_rc);
                 idl_free(&idl);
                 goto error;
             }
@@ -580,7 +579,7 @@ idl_new_range_fetch(
             count++;
         }
 
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "bulk fetch buffer nids=%d\n", count, 0, 0); 
+        LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_range_fetch - Bulk fetch buffer nids=%d\n", count, 0, 0); 
 #if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && ai && (idl != NULL) &&
@@ -636,13 +635,13 @@ idl_new_range_fetch(
                 (idl->b_nids > (ID)lookthrough_limit)) {
                 idl_free(&idl);
                 idl = idl_allids( be );
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
                           "idl_new_range_fetch - lookthrough_limit exceeded\n");
                 *flag_err = LDAP_ADMINLIMIT_EXCEEDED;
                 goto error;
             }
             if ((sizelimit > 0) && (idl->b_nids > (ID)sizelimit)) {
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
                                "idl_new_range_fetch - sizelimit exceeded\n");
                 *flag_err = LDAP_SIZELIMIT_EXCEEDED;
                 goto error;
@@ -652,7 +651,7 @@ idl_new_range_fetch(
         if (stoptime > 0) { /* timelimit is set */
             curtime = current_time();
             if (curtime >= stoptime) {
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, LOG_DEBUG,
+                LDAPDebug0Args(LDAP_DEBUG_TRACE,
                               "idl_new_range_fetch - timelimit exceeded\n");
                 *flag_err = LDAP_TIMELIMIT_EXCEEDED;
                 goto error;
@@ -683,8 +682,8 @@ idl_new_range_fetch(
         /* we got another ID, add it to our IDL */
         idl_rc = idl_append_extend(&idl, id);
         if (idl_rc) {
-            LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR,
-                          "unable to extend id list (err=%d)\n", idl_rc);
+            LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                          "idl_new_range_fetch - Unable to extend id list (err=%d)\n", idl_rc);
             idl_free(&idl);
             goto error;
         }
@@ -714,10 +713,10 @@ idl_new_range_fetch(
     if (idl && (idl->b_nids == 1) && (idl->b_ids[0] == ALLID)) {
         idl_free(&idl);
         idl = idl_allids(be);
-        LDAPDebug1Arg(LDAP_DEBUG_TRACE, LOG_DEBUG, "idl_new_fetch %s returns allids\n", 
+        LDAPDebug1Arg(LDAP_DEBUG_TRACE, "idl_new_range_fetch -  %s returns allids\n", 
                       cur_key.data);
     } else {
-        LDAPDebug2Args(LDAP_DEBUG_TRACE, LOG_DEBUG, "idl_new_fetch %s returns nids=%lu\n", 
+        LDAPDebug2Args(LDAP_DEBUG_TRACE, "idl_new_range_fetch - %s returns nids=%lu\n", 
                        cur_key.data, (u_long)IDL_NIDS(idl));
     }
 
@@ -754,7 +753,8 @@ error:
                 if (leftover[i].key && idl_id_is_in_idlist(idl, leftover[i].key)) {
                     idl_rc = idl_append_extend(&idl, leftover[i].id);
                     if (idl_rc) {
-                        LDAPDebug1Arg(LDAP_DEBUG_ANY, LOG_ERR, "unable to extend id list (err=%d)\n", idl_rc);
+                        LDAPDebug1Arg(LDAP_DEBUG_ERR, "idl_new_range_fetch - "
+                            "Unable to extend id list (err=%d)\n", idl_rc);
                         idl_free(&idl);
                         return NULL;
                     }
@@ -827,12 +827,12 @@ int idl_new_insert_key(
     } else {
         /* check for allidslimit exceeded in database */
         if (cursor->c_count(cursor, &count, 0) != 0) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "could not obtain count for key %s\n",
+            LDAPDebug(LDAP_DEBUG_ERR, "idl_new_insert_key - Could not obtain count for key %s\n",
                       key->data, 0, 0);
             goto error;
         }
         if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
-            LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "allidslimit exceeded for key %s\n",
+            LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_insert_key - allidslimit exceeded for key %s\n",
                       key->data, 0, 0);
             cursor->c_close(cursor);
             cursor = NULL;
@@ -871,7 +871,6 @@ error:
         }
     }
 #endif
-
 
     return ret;
 }
@@ -987,7 +986,7 @@ static int idl_new_store_allids(backend *be, DB *db, DBT *key, DB_TXN *txn)
         goto error;
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "key %s has been set to allids\n",
+    LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_store_allids - key %s has been set to allids\n",
               key->data, 0, 0);
 
 error:
@@ -1082,13 +1081,14 @@ int idl_new_store_block(
 #if defined(DB_ALLIDS_ON_WRITE)
     /* check for allidslimit exceeded in database */
     if (cursor->c_count(cursor, &count, 0) != 0) {
-        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "could not obtain count for key %s\n",
-                  key->data, 0, 0);
+        LDAPDebug(LDAP_DEBUG_ERR, "idl_new_store_block - "
+                "could not obtain count for key %s\n", key->data, 0, 0);
         goto error;
     }
     if ((size_t)count > idl_new_get_allidslimit(a, 0)) {
-        LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "allidslimit exceeded for key %s\n",
-                  key->data, 0, 0);
+        LDAPDebug(LDAP_DEBUG_TRACE, "idl_new_store_block - "
+                "allidslimit exceeded for key %s\n",
+                key->data, 0, 0);
         cursor->c_close(cursor);
         cursor = NULL;
         ret = idl_new_store_allids(be, db, key, txn);

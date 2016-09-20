@@ -72,8 +72,8 @@ acllist_init(void)
 {
 
 	if (( aci_rwlock = slapi_new_rwlock() ) == NULL ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name, 
-							"acllist_init:failed in getting the rwlock\n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, 
+							"acllist_init - Failed in getting the rwlock\n" );
 		return 1;
 	}
 	
@@ -114,13 +114,13 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 
 	if ( old_state == SLAPI_BE_STATE_ON && new_state != SLAPI_BE_STATE_ON) {
 
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Backend %s is no longer STARTED--deactivating it's acis\n",
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acl_be_state_change_fnc - Backend %s is no longer STARTED--deactivating it's acis\n",
 			be_name);
 		
 		if ( (be = slapi_be_select_by_instance_name( be_name )) == NULL) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Failed to retrieve backend--NOT activating it's acis\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 
@@ -129,8 +129,8 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 		*/
 
 		if ( (sdn = slapi_be_getsuffix( be, 0)) == NULL ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Failed to retrieve backend--NOT activating it's acis\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 
@@ -142,12 +142,12 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 										DO_TAKE_ACLCACHE_WRITELOCK);
 		
 	} else if ( old_state != SLAPI_BE_STATE_ON && new_state == SLAPI_BE_STATE_ON) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Backend %s is now STARTED--activating it's acis\n", be_name);
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acl_be_state_change_fnc - Backend %s is now STARTED--activating it's acis\n", be_name);
 
 		if ( (be = slapi_be_select_by_instance_name( be_name )) == NULL) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Failed to retrieve backend--NOT activating it's acis\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 
@@ -156,8 +156,8 @@ void acl_be_state_change_fnc ( void *handle, char *be_name, int old_state,
 		*/
 
 		if ( (sdn = slapi_be_getsuffix( be, 0)) == NULL ) {
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			"Failed to retrieve backend--NOT activating it's acis\n");
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			"acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
 			return;
 		}
 																	
@@ -195,8 +195,8 @@ acllist_insert_aci_needsLock_ext( Slapi_PBlock *pb, const Slapi_DN *e_sdn, const
 	acl_str = slapi_ch_strdup(aci_attr->bv_val);
 	/* Parse the ACL TEXT */
 	if (  0 != (rv = acl_parse ( pb, acl_str, aci, NULL )) ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-				"ACL PARSE ERR(rv=%d): %s\n", rv, acl_str );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+				"acllist_insert_aci_needsLock_ext - ACL PARSE ERR(rv=%d): %s\n", rv, acl_str );
 		slapi_ch_free ( (void **) &acl_str );
 		acllist_free_aci ( aci );
 		
@@ -205,8 +205,8 @@ acllist_insert_aci_needsLock_ext( Slapi_PBlock *pb, const Slapi_DN *e_sdn, const
 
 	/* Now add it to the list */
 	if ( 0 != (rv =__acllist_add_aci ( aci ))) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"ACL ADD ACI ERR(rv=%d): %s\n", rv, acl_str );
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acllist_insert_aci_needsLock_ext - ACL ADD ACI ERR(rv=%d): %s\n", rv, acl_str );
 		slapi_ch_free ( (void **) &acl_str );
 		acllist_free_aci ( aci );
 		return 1;
@@ -241,8 +241,8 @@ __acllist_add_aci ( aci_t *aci )
 		/* Find the node that contains the acl. */
 		if ( NULL == (head = (AciContainer *) avl_find( acllistRoot, aciListHead, 
 										(IFP) __acllist_aciContainer_node_cmp ) ) ) {
-			slapi_log_error ( SLAPI_PLUGIN_ACL, LOG_DEBUG, plugin_name,
-								"Can't insert the acl in the tree\n");
+			slapi_log_error ( SLAPI_PLUGIN_ACL, plugin_name,
+								"__acllist_add_aci - Can't insert the acl in the tree\n");
 			rv = 1;
 		} else {
 			aci_t		*t_aci;;
@@ -255,7 +255,7 @@ __acllist_add_aci ( aci_t *aci )
 			/* Now add the new one to the end of the list */
 			t_aci->aci_next = aci;
 
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Added the ACL:%s to existing container:[%d]%s\n", 
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added the ACL:%s to existing container:[%d]%s\n", 
 					aci->aclName, head->acic_index, slapi_sdn_get_ndn( head->acic_sdn ));
 		}
 
@@ -290,7 +290,7 @@ __acllist_add_aci ( aci_t *aci )
 
 		aciContainerArray[ aciListHead->acic_index ] = aciListHead;
 
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, "Added %s to container:%d\n", 
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added %s to container:%d\n", 
 								slapi_sdn_get_ndn( aciListHead->acic_sdn ), aciListHead->acic_index );
 		break;
 	}
@@ -359,8 +359,8 @@ acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
 		/* In that case we don't have any acl for this entry. cool !!! */
 
 		acllist_free_aciContainer ( &aciListHead );
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"No acis to remove in this entry\n" );
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acllist_remove_aci_needsLock - No acis to remove in this entry\n" );
 		return 0;
 	}
 
@@ -384,8 +384,8 @@ acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
 	/* remove the container from the slot */
 	aciContainerArray[root->acic_index] = NULL;
 
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"Removing container[%d]=%s\n",  root->acic_index,
+	slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acllist_remove_aci_needsLock - Removing container[%d]=%s\n",  root->acic_index,
 					slapi_sdn_get_ndn ( root->acic_sdn) );
 	dContainer = (AciContainer *) avl_delete ( &acllistRoot, aciListHead, 
 										__acllist_aciContainer_node_cmp );
@@ -409,8 +409,8 @@ acllist_remove_aci_needsLock( const Slapi_DN *sdn,  const struct berval *attr )
 													LDAP_SCOPE_BASE,
 													ACL_ADD_ACIS,
 											DONT_TAKE_ACLCACHE_WRITELOCK))) {
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,
-						" Can't add the rest of the acls for entry:%s after delete\n",
+			slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+						"acllist_remove_aci_needsLock - Can't add the rest of the acls for entry:%s after delete\n",
 						slapi_sdn_get_dn ( sdn ) );
 		}
 	}
@@ -624,7 +624,7 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 	}
 	aclpb = acl_get_aclpb (pb, ACLPB_BINDDN_PBLOCK );
 	if ( !aclpb ) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, plugin_name,  "Missing aclpb 4 \n" );
+		slapi_log_error(SLAPI_LOG_ERR, plugin_name, "acllist_init_scan - Missing aclpb\n" );
 		return;
 	}
 
@@ -665,8 +665,8 @@ acllist_init_scan (Slapi_PBlock *pb, int scope, const char *base)
 			/* slapi_dn_parent returns the "parent" dn syntactically.
 			 * Most likely, basedn is above suffix (e.g., dn=com).
 			 * Thus, no need to make it FATAL. */
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name, 
-			                  "Failed to find root for base: %s \n", basedn );
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name, 
+			                  "acllist_init_scan - Failed to find root for base: %s \n", basedn );
 		}
 		tmp = slapi_dn_parent ( basedn );
 		slapi_ch_free_string(&basedn);
@@ -699,8 +699,8 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 	int is_not_search_base = 1;
 
 	if ( !aclpb ) {
-		slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-				"acllist_aciscan_update_scan: NULL acl pblock\n");
+		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acllist_aciscan_update_scan - NULL acl pblock\n");
 		return;
 	}
 
@@ -745,9 +745,9 @@ acllist_aciscan_update_scan (  Acl_PBlock *aclpb, char *edn )
 									(caddr_t) aclpb->aclpb_aclContainer, 
 									(IFP) __acllist_aciContainer_node_cmp);
 		
-			slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, plugin_name,
-						"Searching AVL tree for update:%s: container:%d\n", basedn ,
-					root ? root->acic_index: -1);	
+			slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+				"acllist_aciscan_update_scan - Searching AVL tree for update:%s: container:%d\n",
+				basedn, root ? root->acic_index: -1);	
 			if ( index >= aclpb_max_selected_acls -2 ) {
 				aclpb->aclpb_handles_index[0] = -1;
 				slapi_ch_free ( (void **) &basedn);
@@ -910,8 +910,8 @@ acllist_moddn_aci_needsLock ( Slapi_DN *oldsdn, char *newdn )
 	if ( NULL == (head = (AciContainer *) avl_find( acllistRoot, aciListHead,
 	     (IFP) __acllist_aciContainer_node_cmp ) ) ) {
 
-		slapi_log_error ( SLAPI_PLUGIN_ACL, LOG_DEBUG, plugin_name,
-		         "Can't find the acl in the tree for moddn operation:olddn%s\n",
+		slapi_log_error ( SLAPI_PLUGIN_ACL, plugin_name,
+		         "acllist_moddn_aci_needsLock - Can't find the acl in the tree for moddn operation:olddn%s\n",
 		         slapi_sdn_get_ndn ( oldsdn ));
 		aciListHead->acic_sdn = NULL;
 		acllist_free_aciContainer ( &aciListHead );
@@ -956,8 +956,8 @@ acllist_print_tree ( Avlnode *root, int *depth, char *start, char *side)
 		return;
 	}
 	aciHeadList = (AciContainer *) root->avl_data;
-	slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, "plugin_name",
-						"Container[ Depth=%d%s-%s]: %s\n", *depth, start, side,
+	slapi_log_error(SLAPI_LOG_ACL, "plugin_name",
+						"acllist_print_tree - Container[ Depth=%d%s-%s]: %s\n", *depth, start, side,
 						slapi_sdn_get_ndn ( aciHeadList->acic_sdn ) );
 
 	(*depth)++;

@@ -119,6 +119,8 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 	int	ava_wordcount;
 	char	*w1, *w2, *c1, *c2;
 
+	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> string_filter_approx\n");
+
 	/*
 	 * try to match words in each filter value in order
 	 * in the attribute value.
@@ -181,8 +183,7 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 	if (0 != rc) {
 		rc = -1;
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= string_filter_approx %d\n",
-	    rc, 0, 0 );
+	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= string_filter_approx %d\n", rc);
 
 	return( rc );
 }
@@ -208,7 +209,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	int free_re = 1;
 	struct subfilt *sf = NULL;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "=> string_filter_sub\n", 0, 0, 0 );
+	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> string_filter_sub\n");
 	if (pb) {
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 	}
@@ -322,13 +323,15 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		tmpbuf = NULL;
 		re = slapi_re_comp( p, &re_result );
 		if (NULL == re) {
-			LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "re_comp (%s) failed (%s): %s\n",
-					   pat, p, re_result?re_result:"unknown" );
+			slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+					"string_filter_sub - re_comp (%s) failed (%s): %s\n",
+					pat, p, re_result?re_result:"unknown" );
 			rc = LDAP_OPERATIONS_ERROR;
 			goto bailout;
 		} else if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
 			char ebuf[BUFSIZ];
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "re_comp (%s)\n", escape_string(p, ebuf), 0, 0);
+			slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM,
+				"string_filter_sub - re_comp (%s)\n", escape_string(p, ebuf));
 		}
 	}
 
@@ -376,7 +379,8 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 
 		if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
 			char ebuf[BUFSIZ];
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "re_exec (%s) %i\n", escape_string(realval, ebuf), tmprc, 0);
+			slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM,"re_exec (%s) %i\n",
+				escape_string(realval, ebuf), tmprc);
 		}
 		if ( tmprc == 1 ) {
 			rc = 0;
@@ -393,8 +397,7 @@ bailout:
 	slapi_ch_free((void**)&tmpbuf );	/* NULL is fine */
 	slapi_ch_free((void**)&bigpat );	/* NULL is fine */
 
-	LDAPDebug(LDAP_DEBUG_FILTER, LOG_DEBUG, "<= string_filter_sub %d\n",
-	    rc, 0, 0 );
+	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= string_filter_sub %d\n", rc);
 	return( rc );
 }
 
@@ -738,9 +741,9 @@ string_assertion2keys_ava(
 		}
 		break;
 	default:
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-		    "string_assertion2keys_ava: unknown ftype 0x%x\n",
-		    ftype, 0, 0 );
+		slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+		    "string_assertion2keys_ava - Unknown ftype 0x%x\n",
+		    ftype);
 		break;
 	}
 
@@ -920,8 +923,8 @@ substring_comp_keys(
 	PR_ASSERT(NULL != comp_buf);
 	PR_ASSERT(NULL != substrlens);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> substring_comp_keys (%s) %d\n",
-        str, prepost, 0 );
+	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> substring_comp_keys - (%s) %d\n",
+        str, prepost);
 
     /* prepend ^ for initial substring */
     if ( prepost == '^' )
@@ -963,5 +966,5 @@ substring_comp_keys(
 		(*nsubs)++;
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= substring_comp_keys\n", 0, 0, 0 );
+	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= substring_comp_keys\n");
 }

@@ -45,13 +45,13 @@ NSAPI_PUBLIC int ereport_v(int degree, char *fmt, va_list args)
         case LOG_INFORM:
         case LOG_VERBOSE:
         case LOG_MISCONFIG:
-//            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG, ACL_PLUGIN_NAME, errstr);
+//            slapi_log_error(SLAPI_LOG_PLUGIN, ACL_PLUGIN_NAME, errstr);
             break;
         case LOG_SECURITY:
-//            slapi_log_error(SLAPI_LOG_ACL, LOG_DEBUG, ACL_PLUGIN_NAME, errstr);
+//            slapi_log_error(SLAPI_LOG_ACL, ACL_PLUGIN_NAME, errstr);
             break;
         case LOG_CATASTROPHE:
-//            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, ACL_PLUGIN_NAME, errstr);
+//            slapi_log_error(SLAPI_LOG_ERR, ACL_PLUGIN_NAME, errstr);
             break;
 	default:
             break;

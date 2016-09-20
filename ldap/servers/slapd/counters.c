@@ -146,13 +146,13 @@ counters_to_errors_log(const char *text)
 #if defined(DEBUG)
 	int i;
 	fetch_counters();
-	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Counter Dump - %s\n",text, 0, 0);
+	LDAPDebug(LDAP_DEBUG_DEBUG, "Counter Dump - %s\n",text, 0, 0);
 	for(i=0;i<num_counters;i++)
 	{
 		char value[40];
 		char *type= (char*)malloc(counter_size(&counters[i])+4);
 		counter_dump(type,value,i);
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "%s %s\n",type, value, 0);
+		LDAPDebug(LDAP_DEBUG_DEBUG, "%s %s\n",type, value, 0);
 		free(type);
 	}
 #endif

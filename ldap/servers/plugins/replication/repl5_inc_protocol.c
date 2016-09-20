@@ -230,8 +230,8 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char* ldap_e
 {
 	char *op_string = slapi_op_type_to_string(operation_code);
 
-    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-		"%s: Received error %d: %s for %s operation\n",
+    slapi_log_error(SLAPI_LOG_DEBUG, repl_plugin_name,
+		"repl5_inc_log_operation_failure - %s: Received error %d: %s for %s operation\n",
 		agreement_name,
 		ldap_error, ldap_error_string ? ldap_error_string : "NULL",
 		op_string ? op_string : "NULL");
@@ -249,7 +249,7 @@ repl5_inc_result_threadmain(void *param)
 	int message_id = 0;
 	int yield_session = 0;
 
-	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL, "repl5_inc_result_threadmain starting\n");
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain - Starting\n");
 	while (!finished) 
 	{
 		LDAPControl **returned_controls = NULL;
@@ -274,7 +274,8 @@ repl5_inc_result_threadmain(void *param)
 		while (!finished)
 		{
 			conres = conn_read_result_ex(conn, NULL, NULL, &returned_controls, LDAP_RES_ANY, &message_id, 0);
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL, "repl5_inc_result_threadmain: read result for message_id %d\n", message_id);
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain - "
+				"Read result for message_id %d\n", message_id);
 			/* Timeout here means that we didn't block, not a real timeout */
 			if (CONN_TIMEOUT == conres)
 			{
@@ -337,17 +338,17 @@ repl5_inc_result_threadmain(void *param)
 			}
 
 			conn_get_error_ex(conn, &operation_code, &connection_error, &ldap_error_string);
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL,
-			                "repl5_inc_result_threadmain: result %d, %d, %d, %d, %s\n",
-			                operation_code,connection_error,conres,message_id,ldap_error_string);
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"repl5_inc_result_threadmain - Result %d, %d, %d, %d, %s\n",
+				operation_code,connection_error,conres,message_id,ldap_error_string);
 			return_value = repl5_inc_update_from_op_result(rd->prp, conres, connection_error,
 			                                               csn_str, uniqueid, replica_id, &should_finish,
 			                                               &(rd->num_changes_sent));
 			if (return_value || should_finish)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL,
-				                "repl5_inc_result_threadmain: got op result %d should finish %d\n",
-				                return_value, should_finish);
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"repl5_inc_result_threadmain - Got op result %d should finish %d\n",
+					return_value, should_finish);
 				/* If so then we need to take steps to abort the update process */
 				PR_Lock(rd->lock);
 				rd->result = return_value;
@@ -374,7 +375,7 @@ repl5_inc_result_threadmain(void *param)
 		if (!finished && yield_session && rd->abort != SESSION_ABORTED && rd->abort_time == 0) {
 			rd->abort_time = time( NULL );
 			rd->abort = SESSION_ABORTED;  /* only set the abort time once */
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, "repl5_inc_result_threadmain",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain - "
 			                "Abort control detected, setting abort time...(%s)\n",
 			                agmt_get_long_name(rd->prp->agmt));
 		}
@@ -388,7 +389,7 @@ repl5_inc_result_threadmain(void *param)
 			repl5_inc_op_free(op);
 		}
 	}
-	slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL, "repl5_inc_result_threadmain exiting\n");
+	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain exiting\n");
 }
 
 static result_data *
@@ -442,8 +443,8 @@ repl5_inc_create_async_result_thread(result_data *rd)
 				SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (NULL == tid) 
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
-					"repl5_tot_create_async_result_thread failed. "
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"repl5_inc_create_async_result_thread - Failed. "
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					PR_GetError(), slapd_pr_strerror( PR_GetError() ));
 		retval = -1;
@@ -499,8 +500,8 @@ repl5_inc_waitfor_async_results(result_data *rd)
 		/* Lock the structure to force memory barrier */
 		PR_Lock(rd->lock);
 		/* Are we caught up ? */
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, NULL,
-					"repl5_inc_waitfor_async_results: %d %d\n",
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"repl5_inc_waitfor_async_results - %d %d\n",
 					rd->last_message_id_received, rd->last_message_id_sent);
 		if (rd->last_message_id_received >= rd->last_message_id_sent) {
 			/* If so then we're done */
@@ -524,9 +525,9 @@ repl5_inc_waitfor_async_results(result_data *rd)
 		if (!done && (loops > 300))
 		{
 			/* Log a warning */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL,
-					"repl5_inc_waitfor_async_results timed out waiting for responses: %d %d\n",
-					rd->last_message_id_received, rd->last_message_id_sent);
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"repl5_inc_waitfor_async_results  - Timed out waiting for responses: %d %d\n",
+				rd->last_message_id_received, rd->last_message_id_sent);
 			done = 1;
 		}
 	}
@@ -746,17 +747,17 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               } else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
 		                  event_occurred(prp, EVENT_BACKOFF_EXPIRED)){
                   /* this events - should not occur - log a warning and go to sleep */
-                  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                      "%s: Incremental protocol: "
-                      "event %s should not occur in state %s; going to sleep\n",
+                  slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+                      "repl5_inc_run - %s: "
+                      "Event %s should not occur in state %s; going to sleep\n",
                   agmt_get_long_name(prp->agmt), e1 ? event2name(EVENT_WINDOW_CLOSED) :
                                      event2name(EVENT_BACKOFF_EXPIRED), state2name(current_state));
                   protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
               } else {
                   /* wait until window opens or an event occurs */
-            	  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-                      "%s: Incremental protocol: "
-                      "waiting for update window to open\n", agmt_get_long_name(prp->agmt));
+            	  slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                      "repl5_inc_run - %s: Waiting for update window to open\n",
+                      agmt_get_long_name(prp->agmt));
                   protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
               }
               break;
@@ -791,8 +792,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               wait_change_timer_set = 0;
           } else if ((e1 = event_occurred(prp, EVENT_WINDOW_OPENED)) || event_occurred(prp, EVENT_BACKOFF_EXPIRED)){
               /* this events - should not occur - log a warning and clear the event */
-              slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: Incremental protocol: "
-                  "event %s should not occur in state %s\n",agmt_get_long_name(prp->agmt),
+              slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "repl5_inc_run - %s: "
+                  "Event %s should not occur in state %s\n",agmt_get_long_name(prp->agmt),
                   e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED),
                   state2name(current_state));
               wait_change_timer_set = 0;
@@ -859,8 +860,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                       event_occurred (prp, EVENT_BACKOFF_EXPIRED)){
               /* This should never happen */
               /* this events - should not occur - log a warning and go to sleep */
-              slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                  "%s: Incremental protocol: event %s should not occur in state %s\n",
+              slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+                  "repl5_inc_run - %s: Event %s should not occur in state %s\n",
                   agmt_get_long_name(prp->agmt),
                   e1 ? event2name(EVENT_WINDOW_OPENED) : event2name(EVENT_BACKOFF_EXPIRED),
                   state2name(current_state));
@@ -934,8 +935,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   time(&now);
                   next_fire_time = backoff_step(prp_priv->backoff);
                   /* And go back to sleep */
-                  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-                      "%s: Replication session backing off for %ld seconds\n",
+                  slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                      "repl5_inc_run - %s: Replication session backing off for %ld seconds\n",
                       agmt_get_long_name(prp->agmt),next_fire_time - now);
                   protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
               } else {
@@ -959,8 +960,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
              }
          } else if (event_occurred(prp, EVENT_WINDOW_OPENED)){
              /* this should never happen - log an error and go to sleep */
-             slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: Incremental protocol: "
-                 "event %s should not occur in state %s; going to sleep\n",
+             slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "repl5_inc_run - %s: "
+                 "Event %s should not occur in state %s; going to sleep\n",
                  agmt_get_long_name(prp->agmt), event2name(EVENT_WINDOW_OPENED),
                  state2name(current_state));
              protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
@@ -1006,7 +1007,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
               agmt_set_consumer_schema_csn ( prp->agmt, cons_schema_csn );
           }
           if (CONN_SCHEMA_UPDATED != rc && CONN_SCHEMA_NO_UPDATE_NEEDED != rc){
-              slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
+              slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
                   "%s: Warning: unable to replicate schema: rc=%d\n", agmt_get_long_name(prp->agmt), rc);
               /* But keep going */
           }
@@ -1021,16 +1022,16 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   next_state = STATE_STOP_FATAL_ERROR;
                   break;
               case EXAMINE_RUV_PRISTINE_REPLICA:
-                  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                      "%s: Replica has no update vector. It has never been initialized.\n",
+                  slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+                      "repl5_inc_run - %s: Replica has no update vector. It has never been initialized.\n",
                       agmt_get_long_name(prp->agmt));
                   agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_RUV_ERROR,
                       "Replica is not initialized");
                   next_state = STATE_BACKOFF_START;
                   break;
               case EXAMINE_RUV_GENERATION_MISMATCH:
-                  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                      "%s: The remote replica has a different database generation ID than "
+                  slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+                      "repl5_inc_run - %s: The remote replica has a different database generation ID than "
                       "the local database.  You may have to reinitialize the remote replica, "
                       "or the local replica.\n", agmt_get_long_name(prp->agmt));
                   agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_RUV_ERROR,
@@ -1039,8 +1040,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   next_state = STATE_BACKOFF_START;
                   break;
               case EXAMINE_RUV_REPLICA_TOO_OLD:
-                  slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                      "%s: Replica update vector is too out of date to bring "
+                  slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+                      "repl5_inc_run - %s: Replica update vector is too out of date to bring "
                       "into sync using the incremental protocol. The replica "
                       "must be reinitialized.\n", agmt_get_long_name(prp->agmt));
                   agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_RUV_ERROR,
@@ -1056,15 +1057,15 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   object_release (prp->replica_object);
                   replica = NULL;
                   if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */ {
-                      slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                          "%s: Incremental protocol: fatal error - too much time skew between replicas!\n",
+                      slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+                          "repl5_inc_run - %s: Fatal error - too much time skew between replicas!\n",
                           agmt_get_long_name(prp->agmt));
                       agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_EXCESSIVE_CLOCK_SKEW,
                           "fatal error - too much time skew between replicas");
                       next_state = STATE_STOP_FATAL_ERROR;
                   } else if (rc != 0) /* internal error */ {
-                      slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-                          "%s: Incremental protocol: fatal internal error updating the CSN generator!\n",
+                      slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+                          "repl5_inc_run - %s: Fatal internal error updating the CSN generator!\n",
                           agmt_get_long_name(prp->agmt));
                       agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_INTERNAL_ERROR,
                           "fatal internal error updating the CSN generator");
@@ -1152,8 +1153,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                   loops = pausetime;
                   /* the while loop is so that we don't just sleep and sleep if an
                    * event comes in that we should handle immediately (like shutdown) */
-                  slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-                      "%s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
+                  slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+                      "repl5_inc_run - %s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
                       agmt_get_long_name(prp->agmt), pausetime);
                   while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp))){
                       DS_Sleep(PR_SecondsToInterval(1));
@@ -1171,8 +1172,8 @@ repl5_inc_run(Private_Repl_Protocol *prp)
            * We encountered some sort of a fatal error. Suspend.
            */
           dev_debug("repl5_inc_run(STATE_STOP_FATAL_ERROR)");
-          slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-              "%s: Incremental update failed and requires administrator action\n",
+          slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+              "repl5_inc_run - %s: Incremental update failed and requires administrator action\n",
               agmt_get_long_name(prp->agmt));
           next_state = STATE_STOP_FATAL_ERROR_PART2;
           break;
@@ -1220,7 +1221,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
           break;
       }
 
-      slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,"%s: State: %s -> %s\n",
+      slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,"repl5_inc_run - %s: State: %s -> %s\n",
 	      agmt_get_long_name(prp->agmt),state2name(current_state), state2name(next_state));
 
       current_state = next_state;
@@ -1248,8 +1249,8 @@ protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
 	    PR_WaitCondVar(prp->cvar, duration);
     else
     {
-        slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-			"%s: Incremental protocol: can't go to sleep: event bits - %x\n",
+        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+			"protocol_sleep - %s: Can't go to sleep: event bits - %x\n",
 			agmt_get_long_name(prp->agmt), prp->eventbits);
     }
 	PR_Unlock(prp->lock);
@@ -1338,16 +1339,16 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 	if (create_NSDS50ReplUpdateInfoControl(op->target_address.uniqueid,
 		parentuniqueid, op->csn, modrdn_mods, &update_control) != LDAP_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-			"%s: replay_update: Unable to create NSDS50ReplUpdateInfoControl "
+		slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+			"replay_update - %s: Unable to create NSDS50ReplUpdateInfoControl "
 			"for operation with csn %s. Skipping update.\n",
 			agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
 	}
 	else
 	{
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-							"%s: replay_update: Sending %s operation (dn=\"%s\" csn=%s)\n",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"replay_update - %s: Sending %s operation (dn=\"%s\" csn=%s)\n",
 							agmt_get_long_name(prp->agmt),
 							op2string(op->operation_type), REPL_GET_DN(&op->target_address),
 							csn_as_string(op->csn, PR_FALSE, csn_str));
@@ -1364,8 +1365,8 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 									&entryattrs);
 			if (NULL == entryattrs)
 			{
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"%s: replay_update: Cannot convert entry to LDAPMods.\n",
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"replay_update - %s: Cannot convert entry to LDAPMods.\n",
 					agmt_get_long_name(prp->agmt));
 				return_value = CONN_LOCAL_ERROR;
 			}
@@ -1378,8 +1379,8 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 				}
 				if (MODS_ARE_EMPTY(entryattrs)) {
 					if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-						slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-										"%s: replay_update: %s operation (dn=\"%s\" csn=%s) "
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+										"replay_update - %s: %s operation (dn=\"%s\" csn=%s) "
 										"not sent - empty\n",
 										agmt_get_long_name(prp->agmt),
 										op2string(op->operation_type),
@@ -1403,8 +1404,8 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 			}
 			if (MODS_ARE_EMPTY(op->p.p_modify.modify_mods)) {
 				if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-									"%s: replay_update: %ss operation (dn=\"%s\" csn=%s) "
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+									"replay_update - %s: %s operation (dn=\"%s\" csn=%s) "
 									"not sent - empty\n",
 									agmt_get_long_name(prp->agmt),
 									op2string(op->operation_type),
@@ -1430,7 +1431,7 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 				update_control, message_id);
 			break;
 		default:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: replay_update: Unknown "
+			slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name, "replay_update - %s: Unknown "
 				"operation type %lu found in changelog - skipping change.\n",
 				agmt_get_long_name(prp->agmt), op->operation_type);
 		}
@@ -1441,16 +1442,16 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
 	if (CONN_OPERATION_SUCCESS == return_value)
 	{
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-							"%s: replay_update: Consumer successfully sent operation with csn %s\n",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"replay_update - %s: Consumer successfully sent operation with csn %s\n",
 							agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
 		}
 	}
 	else
 	{
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-							"%s: replay_update: Consumer could not replay operation with csn %s\n",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"replay_update - %s: Consumer could not replay operation with csn %s\n",
 							agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
 		}
 	}
@@ -1524,10 +1525,9 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 			{
 				agmt_inc_last_update_changecount (prp->agmt, replica_id, 1 /*skipped*/);
 			}
-			slapi_log_error(*finished ? SLAPI_LOG_FATAL : slapi_log_urp, 
-				*finished ? LOG_ERR : LOG_DEBUG,
+			slapi_log_error(*finished ? SLAPI_LOG_WARNING : slapi_log_urp, 
 				repl_plugin_name,
-				"%s: Consumer failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
+				"repl5_inc_update_from_op_result - %s: Consumer failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
 				agmt_get_long_name(prp->agmt),
 				uniqueid, csn_str,
 				ldap_err2string(connection_error), connection_error,
@@ -1539,8 +1539,8 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 
 			return_value = UPDATE_CONNECTION_LOST;
 			*finished = 1;
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Consumer failed to replay change (uniqueid %s, CSN %s): "
+			slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+				"repl5_inc_update_from_op_result - %s: Consumer failed to replay change (uniqueid %s, CSN %s): "
 				"%s(%d). Will retry later.\n",
 				agmt_get_long_name(prp->agmt),
 				uniqueid, csn_str,
@@ -1551,8 +1551,8 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 		{
 			return_value = UPDATE_TIMEOUT;
 			*finished = 1;
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
+			slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+				"repl5_inc_update_from_op_result - %s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
 				"%s.\n",
 				agmt_get_long_name(prp->agmt),
 				uniqueid, csn_str,
@@ -1566,8 +1566,8 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 			 */
 			return_value = UPDATE_TRANSIENT_ERROR;
 			*finished = 1;
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Failed to replay change (uniqueid %s, CSN %s): "
+			slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+				"repl5_inc_update_from_op_result - %s: Failed to replay change (uniqueid %s, CSN %s): "
 				"Local error. Will retry later.\n",
 				agmt_get_long_name(prp->agmt),
 				uniqueid, csn_str);
@@ -1624,86 +1624,86 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		switch (rc)
 		{
 		case CL5_BAD_DATA: /* invalid parameter passed to the function */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Invalid parameter passed to cl5CreateReplayIterator\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Invalid parameter passed to cl5CreateReplayIterator\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Invalid parameter passed to cl5CreateReplayIterator");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_BAD_FORMAT:     /* db data has unexpected format */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Unexpected format encountered in changelog database\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Unexpected format encountered in changelog database\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Unexpected format encountered in changelog database");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_BAD_STATE: /* changelog is in an incorrect state for attempted operation */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Changelog database was in an incorrect state\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Changelog database was in an incorrect state\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Changelog database was in an incorrect state");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_BAD_DBVERSION:  /* changelog has invalid dbversion */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Incorrect dbversion found in changelog database\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Incorrect dbversion found in changelog database\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Incorrect dbversion found in changelog database");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_DB_ERROR:       /* database error */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: A changelog database error was encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: A changelog database error was encountered\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Changelog database error was encountered");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_NOTFOUND:       /* we have no changes to send */
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-				"%s: No changes to send\n",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"send_updates - %s: No changes to send\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_NO_MORE_UPDATES;
 			break;
 		case CL5_MEMORY_ERROR:   /* memory allocation failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Memory allocation error occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Memory allocation error occurred\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"changelog memory allocation error occurred");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_SYSTEM_ERROR:   /* NSPR error occurred: use PR_GetError for further info */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: An NSPR error (%d) occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: An NSPR error (%d) occurred\n",
 				agmt_get_long_name(prp->agmt), PR_GetError());
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_CSN_ERROR:      /* CSN API failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: A CSN API failure was encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: A CSN API failure was encountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_RUV_ERROR:      /* RUV API failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: An RUV API failure occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: An RUV API failure occurred\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_OBJSET_ERROR:   /* namedobjset api failed */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: A namedobject API failure occurred\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: A namedobject API failure occurred\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_PURGED_DATA:    /* requested data has been purged */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Data required to update replica has been purged from the changelog. "
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Data required to update replica has been purged from the changelog. "
 				"The replica must be reinitialized.\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
@@ -1712,22 +1712,22 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_MISSING_DATA:   /* data should be in the changelog, but is missing */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: Missing data encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: Missing data encountered\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Changelog data is missing");
 			return_value = UPDATE_FATAL_ERROR;
 			break;
 		case CL5_UNKNOWN_ERROR:   /* unclassified error */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: An unknown error was encountered\n",
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: An unknown error was encountered\n",
 				agmt_get_long_name(prp->agmt));
 			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		default:
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				"%s: An unknown error (%d) occurred "
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"send_updates - %s: An unknown error (%d) occurred "
 				"(cl5CreateReplayIterator)\n",
 				agmt_get_long_name(prp->agmt), rc);
 			return_value = UPDATE_TRANSIENT_ERROR;
@@ -1751,7 +1751,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		{
 			rc = repl5_inc_create_async_result_thread(rd);
 			if (rc) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: repl5_inc_run: "
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "send_updates - %s: "
 							 "repl5_inc_create_async_result_thread failed; error - %d\n",
 							 agmt_get_long_name(prp->agmt), rc);
 				agmt_set_last_update_status(prp->agmt, 0, rc, "Failed to create result thread");
@@ -1772,8 +1772,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				/* check that we don't return dummy entries */
 				if (is_dummy_operation (entry.op))
 				{
-					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
-						"%s: changelog iteration code returned a dummy entry with csn %s, "
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+						"send_updates - %s: changelog iteration code returned a dummy entry with csn %s, "
 						"skipping ...\n",
 						agmt_get_long_name(prp->agmt), csn_as_string(entry.op->csn, PR_FALSE, csn_str));
 					continue;
@@ -1802,10 +1802,9 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						{
 							agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
 						}
-						slapi_log_error(finished ? SLAPI_LOG_FATAL : slapi_log_urp, 
-							finished ? LOG_ERR : LOG_DEBUG, repl_plugin_name,
-							"%s: Failed to send update operation to consumer (uniqueid %s, CSN %s): %s. %s.\n",
-							agmt_get_long_name(prp->agmt),
+						slapi_log_error(finished ? SLAPI_LOG_WARNING : slapi_log_urp, 
+							"send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): %s. %s.\n",
+							(char *)agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
 							ldap_err2string(error),
 							finished ? "Will retry later" : "Skipping");
@@ -1816,8 +1815,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 
 						return_value = UPDATE_CONNECTION_LOST;
 						finished = 1;
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-							"%s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
+						slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+							"send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
 							"%s. Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
@@ -1827,8 +1826,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					{
 						return_value = UPDATE_TIMEOUT;
 						finished = 1;
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-							"%s: Timed out sending update operation to consumer (uniqueid %s, CSN %s): "
+						slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+							"send_updates - %s: Timed out sending update operation to consumer (uniqueid %s, CSN %s): "
 							"%s.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str,
@@ -1842,8 +1841,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						 */
 						return_value = UPDATE_TRANSIENT_ERROR;
 						finished = 1;
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-							"%s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
+						slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+							"send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
 							"Local error. Will retry later.\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str);
@@ -1892,8 +1891,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						repl5_int_push_operation(rd,sop);
 						repl5_inc_flow_control_results(prp->agmt, rd);
 					} else {
-						slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-							"%s: Skipping update operation with no message_id (uniqueid %s, CSN %s):\n",
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"send_updates - %s: Skipping update operation with no message_id (uniqueid %s, CSN %s):\n",
 							agmt_get_long_name(prp->agmt),
 							entry.op->target_address.uniqueid, csn_str);
 						agmt_inc_last_update_changecount (prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
@@ -1901,8 +1900,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 						{
 							skipped_updates++;
 							if (skipped_updates > FRACTIONAL_SKIPPED_THRESHOLD) {
-								slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-										"%s: skipped updates is too high (%d) if no other update is sent we will update the subentry\n",
+								slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+										"send_updates - %s: skipped updates is too high (%d) if no other update is sent we will update the subentry\n",
 										agmt_get_long_name(prp->agmt), skipped_updates);
 								subentry_update_needed = PR_TRUE;
 							}
@@ -1911,8 +1910,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				}
 				break;
 			case CL5_BAD_DATA:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"%s: Invalid parameter passed to cl5GetNextOperationToReplay\n",
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"send_updates - %s: Invalid parameter passed to cl5GetNextOperationToReplay\n",
 					agmt_get_long_name(prp->agmt));
 				agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 					"Invalid parameter passed to cl5GetNextOperationToReplay");
@@ -1920,15 +1919,15 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				finished = 1;
 				break;
 			case CL5_NOTFOUND:
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-					"%s: No more updates to send (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"send_updates - %s: No more updates to send (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				return_value = UPDATE_NO_MORE_UPDATES;
 				finished = 1;
 				break;
 			case CL5_DB_ERROR:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"%s: A database error occurred (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"send_updates - %s: A database error occurred (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 					"Database error occurred while getting the next operation to replay");
@@ -1936,13 +1935,13 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 				finished = 1;
 				break;
 			case CL5_BAD_FORMAT:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"%s: A malformed changelog entry was encountered (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+					"send_updates - %s: A malformed changelog entry was encountered (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				break;
 			case CL5_MEMORY_ERROR:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"%s: A memory allocation error occurred (cl5GetNextOperationToReplay)\n",
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"send_updates - %s: A memory allocation error occurred (cl5GetNextOperationToReplay)\n",
 					agmt_get_long_name(prp->agmt));
 				agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 					"Memory allocation error occurred (cl5GetNextOperationToReplay)");
@@ -1951,8 +1950,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			case CL5_IGNORE_OP:
 				break;
 			default:
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-					"%s: Unknown error code (%d) returned from cl5GetNextOperationToReplay\n",
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					"send_updates - %s: Unknown error code (%d) returned from cl5GetNextOperationToReplay\n",
 					agmt_get_long_name(prp->agmt), rc);
 				return_value = UPDATE_TRANSIENT_ERROR;
 				break;
@@ -1977,8 +1976,8 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 					rd->result = UPDATE_YIELD;
 					return_value = UPDATE_YIELD;
 					finished = 1;
-					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-					                "Aborting send_updates...(%s)\n",
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					                "send_updates - Aborting send_updates...(%s)\n",
 					                agmt_get_long_name(rd->prp->agmt));
 				}
 			}
@@ -2000,13 +1999,13 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 			{
 				rid = replica_get_rid(replica);
 			}
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-					"%s: skipped updates was definitely too high (%d) update the subentry now\n",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"send_updates - %s: skipped updates was definitely too high (%d) update the subentry now\n",
 					agmt_get_long_name(prp->agmt), skipped_updates);
 			replarea_sdn = agmt_get_replarea(prp->agmt);
 			if (!replarea_sdn) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name,
-				                "send_updates: Unknown replication area due to agreement not found.");
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				                "send_updates - Unknown replication area due to agreement not found.");
 				agmt_set_last_update_status(prp->agmt, 0, -1, "Agreement is corrupted: missing suffix");
 				return_value = UPDATE_FATAL_ERROR;
 			} else {
@@ -2039,16 +2038,16 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 
 			rc = repl5_inc_destroy_async_result_thread(rd);
 			if (rc) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "%s: repl5_inc_run: "
-							 "repl5_tot_destroy_async_result_thread failed; error - %d\n", 
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "%s: repl5_inc_run: "
+							 "send_updates - repl5_inc_destroy_async_result_thread failed; error - %d\n", 
 							 agmt_get_long_name(prp->agmt), rc);
 			}
 			*num_changes_sent = rd->num_changes_sent;
 		}
 		PR_Lock(rd->lock);
 		if (rd->flowcontrol_detection) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-					"%s: Incremental update flow control triggered %d times\n"
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"send_updates - %s: Incremental update flow control triggered %d times\n"
 					"You may increase %s and/or decrease %s in the replica agreement configuration\n",
 					agmt_get_long_name(prp->agmt),
 					rd->flowcontrol_detection,
@@ -2102,44 +2101,44 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
 	{
 		/* Isn't listening. Do something drastic. */
 		return_value = -1;
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-				"%s: repl5_inc_stop: protocol does not stop after %" NSPRIu64 " seconds\n",
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"repl5_inc_stop - %s: Protocol does not stop after %" NSPRIu64 " seconds\n",
 				agmt_get_long_name(prp->agmt), timeout);
 	}
 	else
 	{
 		return_value = 0;
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-				"%s: repl5_inc_stop: protocol stopped after %d seconds\n",
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				"repl5_inc_stop - %s: Protocol stopped after %d seconds\n",
 				agmt_get_long_name(prp->agmt),
 				PR_IntervalToSeconds(now-start));
 	}
 	if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
 		if (NULL == prp->replica_object) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-					"%s: repl5_inc_stop: protocol replica_object is NULL\n",
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					"repl5_inc_stop - %s: Protocol replica_object is NULL\n",
 					agmt_get_long_name(prp->agmt));
 		} else {
 			Replica *replica;
 			object_acquire(prp->replica_object);
 			replica = object_get_data(prp->replica_object);
 			if (NULL == replica) {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-						"%s: repl5_inc_stop: replica is NULL\n",
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						"repl5_inc_stop - %s:replica is NULL\n",
 						agmt_get_long_name(prp->agmt));
 			} else {
 				Object *ruv_obj = replica_get_ruv(replica);
 				if (NULL == ruv_obj) {
-					slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-							"%s: repl5_inc_stop: ruv_obj is NULL\n",
+					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							"repl5_inc_stop - %s: rruv_obj is NULL\n",
 							agmt_get_long_name(prp->agmt));
 				} else {
 					RUV *ruv;
 					object_acquire(ruv_obj);
 					ruv = (RUV*)object_get_data (ruv_obj);
 					if (NULL == ruv) {
-						slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name,
-								"%s: repl5_inc_stop: ruv is NULL\n",
+						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+								"repl5_inc_stop - %s: ruv is NULL\n",
 								agmt_get_long_name(prp->agmt));
 
 					} else {

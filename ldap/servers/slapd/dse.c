@@ -448,7 +448,7 @@ dse_destroy(struct dse *pdse)
         slapi_destroy_rwlock(pdse->dse_rwlock);
     }
     slapi_ch_free((void **)&pdse);
-    LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG, "Removed [%d] entries from the dse tree.\n",
+    LDAPDebug(SLAPI_DSE_TRACELEVEL, "Removed [%d] entries from the dse tree.\n",
                nentries,0,0 );
 
     return 0; /* no one checks this return value */
@@ -555,7 +555,7 @@ dse_updateNumSubordinates(Slapi_Entry *entry, int op)
 			if (!already_present)
 			{
 				/* This means that something is wrong---deleting a child but no subcount present on parent */
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
+				slapi_log_error(SLAPI_LOG_ERR, "dse_updateNumSubordinates",
 						"numsubordinates assertion failure\n" );
 				return;
 			}
@@ -644,28 +644,28 @@ dse_check_file(char *filename, char *backupname)
     PRFileInfo64 prfinfo;
 
     if (PR_GetFileInfo64( filename, &prfinfo ) == PR_SUCCESS) {
-	if ( prfinfo.size > 0)
-		return (1);
-	else {
-		rc = PR_Delete (filename);
-	}
+        if ( prfinfo.size > 0)
+            return (1);
+        else {
+            rc = PR_Delete (filename);
+        }
     }
 
     if (backupname) 
-	rc = PR_Rename (backupname, filename);
+        rc = PR_Rename (backupname, filename);
     else 
-	return (0);
+        return (0);
 
     if ( PR_GetFileInfo64( filename, &prfinfo ) == PR_SUCCESS && prfinfo.size > 0 ) {
-	slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
-             "The configuration file %s was restored from backup %s\n", filename, backupname);
-	return (1);
+        slapi_log_error(SLAPI_LOG_INFO, "dse_check_file",
+            "The configuration file %s was restored from backup %s\n", filename, backupname);
+        return (1);
     } else {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
-              "The configuration file %s was not restored from backup %s, error %d\n",
-                                    filename, backupname, rc);
-	return (0);
-   }
+        slapi_log_error(SLAPI_LOG_ERR, "dse_check_file",
+            "The configuration file %s was not restored from backup %s, error %d\n",
+             filename, backupname, rc);
+        return (0);
+    }
 }
 static int
 dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
@@ -692,14 +692,14 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
 
         if ( (rc = PR_GetFileInfo64( filename, &prfinfo )) != PR_SUCCESS )
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
+            slapi_log_error(SLAPI_LOG_ERR, "dse_read_one_file",
                             "The configuration file %s could not be accessed, error %d\n",
                             filename, rc);
             rc = 0; /* Fail */
         }
         else if (( prfd = PR_Open( filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE )) == NULL )
         {
-            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
+            slapi_log_error(SLAPI_LOG_ERR, "dse_read_one_file",
                             "The configuration file %s could not be read. "
                             SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                             filename,
@@ -713,7 +713,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
             buf = slapi_ch_malloc( prfinfo.size + 1 );
             if (( nr = slapi_read_buffer( prfd, buf, prfinfo.size )) < 0 )
             {
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
+                slapi_log_error(SLAPI_LOG_ERR, "dse_read_one_file",
                                 "Could only read %d of %ld bytes from config file %s\n",
                                 nr, (long int)prfinfo.size, filename);
                 rc = 0; /* Fail */
@@ -765,7 +765,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                         int returncode = 0;
                         char returntext[SLAPI_DSE_RETURNTEXT_SIZE]= {0};
 
-                        slapi_log_error(SLAPI_LOG_TRACE, LOG_DEBUG, "dse_read_one_file",
+                        slapi_log_error(SLAPI_LOG_TRACE, "dse_read_one_file",
                                 " processing entry \"%s\" in file %s%s "
                                 "(lineno: %d)\n",
                                 slapi_entry_get_dn_const(e), filename,
@@ -792,7 +792,7 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                         }
                         else /* free entry if not used */
                         {
-                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,
+                            slapi_log_error(SLAPI_LOG_ERR,
                                             "dse_read_one_file",
                                             "The entry %s in file %s "
                                             "(lineno: %d) is invalid, "
@@ -805,11 +805,11 @@ dse_read_one_file(struct dse *pdse, const char *filename, Slapi_PBlock *pb,
                             rc = 0;    /* failure */
                         }
                     } else {
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse_read_one_file",
+                        slapi_log_error(SLAPI_LOG_ERR, "dse_read_one_file",
                                          "Parsing entry (lineno: %d) "
                                          "in file %s failed.\n",
                                          lineno, filename );
-                        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse_read_one_file",
+                        slapi_log_error(SLAPI_LOG_ERR, "dse_read_one_file",
                                          "Invalid section [%s%s]\n",
                                          errbuf, cpylen==estrlen?"":" ..." );
                         rc = 0;    /* failure */
@@ -909,9 +909,9 @@ dse_rw_permission_to_one_file(const char *name, int loglevel)
 	}
 
 	if ( prerr != 0 ) {
-		slapi_log_error( loglevel, loglevel==SLAPI_LOG_FATAL?LOG_ERR:LOG_DEBUG, 
-				"dse", "Unable to %s \"%s\": "SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-				accesstype, name, prerr, slapd_pr_strerror(prerr));
+		slapi_log_error( loglevel,
+			"dse_rw_permission_to_one_file", "Unable to %s \"%s\": "SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+			accesstype, name, prerr, slapd_pr_strerror(prerr));
 		return 0;	/* insufficient permission */
 	} else {
 		return 1;	/* sufficient permission */
@@ -957,11 +957,11 @@ dse_check_for_readonly_error(Slapi_PBlock *pb, struct dse* pdse)
 	if ( !pdse->dse_is_updateable ) {
 		if ( !pdse->dse_readonly_error_reported ) {
 			if ( NULL != pdse->dse_filename ) {
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse",
+				slapi_log_error(SLAPI_LOG_ERR, "dse_check_for_readonly_error",
 						"The DSE database stored in \"%s\" is not writeable\n",
 						pdse->dse_filename );
 				/* log the details too */
-				(void)dse_permission_to_write(pdse, SLAPI_LOG_FATAL);
+				(void)dse_permission_to_write(pdse, SLAPI_LOG_ERR);
 			}
 			pdse->dse_readonly_error_reported = 1;
 		}
@@ -1000,7 +1000,7 @@ dse_write_file_nolock(struct dse* pdse)
         if (( fpw.fpw_prfd = PR_Open( pdse->dse_tmpfile, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE, SLAPD_DEFAULT_FILE_MODE )) == NULL )
         {
             rc =  PR_GetOSError();
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse", "Cannot open "
+			slapi_log_error(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot open "
 				"temporary DSE file \"%s\" for update: OS error %d (%s)\n",
 				pdse->dse_tmpfile, rc, slapd_system_strerror( rc ));
         }
@@ -1010,7 +1010,7 @@ dse_write_file_nolock(struct dse* pdse)
             if ( avl_apply( pdse->dse_tree, dse_write_entry, &fpw, STOP_TRAVERSAL, AVL_INORDER ) == STOP_TRAVERSAL )
             {
                 rc = fpw.fpw_rc;
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse", "Cannot write "
+                slapi_log_error(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot write "
 					" temporary DSE file \"%s\": OS error %d (%s)\n",
         			pdse->dse_tmpfile, rc, slapd_system_strerror( rc ));
                 (void)PR_Close( fpw.fpw_prfd );
@@ -1025,7 +1025,7 @@ dse_write_file_nolock(struct dse* pdse)
 					rc = slapi_destructive_rename( pdse->dse_filename, pdse->dse_fileback );
 					if ( rc != 0 )
 					{
-						slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse", "Cannot backup"
+						slapi_log_error(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot backup"
 								" DSE file \"%s\" to \"%s\": OS error %d (%s)\n",
 								pdse->dse_filename, pdse->dse_fileback,
 								rc, slapd_system_strerror( rc ));
@@ -1034,7 +1034,7 @@ dse_write_file_nolock(struct dse* pdse)
 				rc = slapi_destructive_rename( pdse->dse_tmpfile, pdse->dse_filename );
 				if ( rc != 0 )
 				{
-                    slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "dse", "Cannot rename"
+                    slapi_log_error(SLAPI_LOG_ERR, "dse_write_file_nolock", "Cannot rename"
 							" temporary DSE file \"%s\" to \"%s\":"
 							" OS error %d (%s)\n",
 							pdse->dse_tmpfile, pdse->dse_filename,
@@ -1722,7 +1722,7 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         if ( baseentry == NULL )
         {
             slapi_send_ldap_result( pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL );
-			slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,"dse_search", "node %s was not found\n",
+			slapi_log_error(SLAPI_LOG_PLUGIN,"dse_search", "node %s was not found\n",
 								 slapi_sdn_get_dn(basesdn));
             return -1;
         }
@@ -1866,12 +1866,12 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
             }
             if (rc || returncode) {
-                LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG,
+                LDAPDebug(SLAPI_DSE_TRACELEVEL,
                            "dse_modify: SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN failed - rc %d LDAP error %d:%s\n",
                            rc, returncode, ldap_err2string(returncode));
             }
         } else {
-            LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG,
+            LDAPDebug(SLAPI_DSE_TRACELEVEL,
                        "dse_modify: SLAPI_PLUGIN_BE_PRE_MODIFY_FN failed - rc %d LDAP error %d:%s\n",
                        rc, returncode, ldap_err2string(returncode));
         }
@@ -1879,7 +1879,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
             char *ldap_result_message = NULL;
             rc = SLAPI_DSE_CALLBACK_ERROR;
             if (!returncode) {
-                LDAPDebug0Args( SLAPI_DSE_TRACELEVEL, LOG_DEBUG,
+                LDAPDebug0Args(SLAPI_DSE_TRACELEVEL,
                                 "dse_modify: PRE_MODIFY plugin returned non-zero but did not set an LDAP error\n");
                 returncode = LDAP_OPERATIONS_ERROR;
             }
@@ -2075,7 +2075,7 @@ dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod
         }
         if(restart_plugin){       /* for all other plugin config changes, restart the plugin */
             if(plugin_restart(entryBefore, entryAfter) != LDAP_SUCCESS){
-                slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR,"dse_pre_modify_plugin",
+                slapi_log_error(SLAPI_LOG_ERR,"dse_pre_modify_plugin",
                         "The configuration change for plugin (%s) could not be applied.\n",
                         slapi_entry_get_dn(entryBefore));
                 rc = -1;
@@ -2110,7 +2110,7 @@ dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returnt
             rc = -1;
         } else {
             rc = 2; /* plugin disabled */
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,"dse_modify_plugin", "Disabled plugin (%s)\n",
+            slapi_log_error(SLAPI_LOG_PLUGIN,"dse_modify_plugin", "Disabled plugin (%s)\n",
                             slapi_entry_get_dn(post_entry));
         }
     } else if ( slapi_entry_attr_hasvalue(pre_entry, "nsslapd-pluginEnabled", "off") &&
@@ -2123,7 +2123,7 @@ dse_modify_plugin(Slapi_Entry *pre_entry, Slapi_Entry *post_entry, char *returnt
             rc = -1;
         } else {
             rc = 1; /* plugin started */
-            slapi_log_error(SLAPI_LOG_PLUGIN, LOG_DEBUG,"dse_modify_plugin", "Enabled plugin (%s)\n",
+            slapi_log_error(SLAPI_LOG_PLUGIN,"dse_modify_plugin", "Enabled plugin (%s)\n",
                             slapi_entry_get_dn(post_entry));
         }
     }
@@ -2223,7 +2223,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
      */
     if ( slapi_entry_schema_check( pb, e ) != 0 ) {
         char *errtext;
-        LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG,
+        LDAPDebug(SLAPI_DSE_TRACELEVEL,
                    "dse_add: entry failed schema check\n", 0, 0, 0 );
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         if (errtext && errtext[0]) {
@@ -2237,7 +2237,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     /* Check if the attribute values in the entry obey the syntaxes */
     if ( slapi_entry_syntax_check( pb, e, 0 ) != 0 ) {
         char *errtext;
-        LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG,
+        LDAPDebug(SLAPI_DSE_TRACELEVEL,
                    "dse_add: entry failed syntax check\n", 0, 0, 0 );
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         if (errtext && errtext[0]) {
@@ -2277,7 +2277,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         parententry= dse_get_entry_copy( pdse, &parent, DSE_USE_LOCK );
         if( parententry==NULL ) {
             rc = LDAP_NO_SUCH_OBJECT;
-            LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG," dse_add: parent does not exist\n", 0, 0, 0 );
+            LDAPDebug(SLAPI_DSE_TRACELEVEL," dse_add: parent does not exist\n", 0, 0, 0 );
             slapi_sdn_done(&parent);
             e = NULL; /* caller will free upon error */
             goto done;
@@ -2285,7 +2285,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         rc= plugin_call_acl_plugin ( pb, parententry, NULL, NULL, SLAPI_ACL_ADD, ACLPLUGIN_ACCESS_DEFAULT, &errbuf );
         slapi_entry_free(parententry);
         if ( rc!=LDAP_SUCCESS ) {
-            LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG, "dse_add: no access to parent\n", 0, 0, 0 );
+            LDAPDebug(SLAPI_DSE_TRACELEVEL, "dse_add: no access to parent\n", 0, 0, 0 );
             if (errbuf && errbuf[0]) {
                 PL_strncpyz(returntext, errbuf, sizeof(returntext));
             }
@@ -2299,7 +2299,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
         int isroot;
         slapi_pblock_get( pb, SLAPI_REQUESTOR_ISROOT, &isroot );
         if ( !isroot ) {
-            LDAPDebug( SLAPI_DSE_TRACELEVEL, LOG_DEBUG, "dse_add: no parent and not root\n", 0, 0, 0 );
+            LDAPDebug(SLAPI_DSE_TRACELEVEL, "dse_add: no parent and not root\n", 0, 0, 0 );
             rc = LDAP_INSUFFICIENT_ACCESS;
             slapi_sdn_done(&parent);
             e = NULL; /* caller will free upon error */
@@ -2332,7 +2332,7 @@ dse_add(Slapi_PBlock *pb) /* JCM There should only be one exit point from this f
     if(dse_call_callback(pdse, pb, SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, e,
                          NULL, &returncode, returntext)!=SLAPI_DSE_CALLBACK_OK) {
         if (!returncode) {
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "dse_add: DSE PREOP callback returned error but did not set returncode\n", 0, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ERR, "dse_add - DSE PREOP callback returned error but did not set returncode\n", 0, 0, 0 );
             returncode = LDAP_OPERATIONS_ERROR;
         }
         rc = returncode;

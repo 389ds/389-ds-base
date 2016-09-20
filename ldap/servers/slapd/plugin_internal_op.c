@@ -209,8 +209,8 @@ slapi_seq_callback( const char *ibase,
 
 	if (ibase == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
-						"slapi_seq_callback: NULL parameter\n");
+		slapi_log_error(SLAPI_LOG_ERR, "slapi_seq_callback",
+			"NULL parameter\n");
 		return -1;
 	}
 
@@ -265,8 +265,8 @@ slapi_search_internal_set_pb (Slapi_PBlock *pb, const char *base,
 	char **tmp_attrs = NULL;
 	if (pb == NULL || base == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
-		                "slapi_search_internal_set_pb: NULL parameter\n");
+		slapi_log_error(SLAPI_LOG_ERR, "slapi_search_internal_set_pb",
+			"NULL parameter\n");
 		return;
 	}
 
@@ -299,8 +299,8 @@ slapi_search_internal_set_pb_ext (Slapi_PBlock *pb, Slapi_DN *sdn,
 	char **tmp_attrs = NULL;
 	if (pb == NULL || sdn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
-		                "slapi_search_internal_set_pb: NULL parameter\n");
+		slapi_log_error(SLAPI_LOG_ERR, "slapi_search_internal_set_pb", 
+			"NULL parameter\n");
 		return;
 	}
 
@@ -331,8 +331,8 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *base, int type, char *att
 	char **tmp_attrs = NULL;
 	if (pb == NULL || base == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, 
-						"slapi_seq_internal_set_pb: NULL parameter\n");
+		slapi_log_error(SLAPI_LOG_ERR, "slapi_seq_internal_set_pb",
+			"NULL parameter\n");
 		return;
 	}
 
@@ -812,13 +812,13 @@ PRBool allow_operation (Slapi_PBlock *pb)
 	slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &cid);
 	if (cid == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "allow_operation: component identity is NULL\n");
+		slapi_log_error(SLAPI_LOG_ERR, "allow_operation", "Component identity is NULL\n");
 		return PR_FALSE;
 	}
 	plugin=(struct slapdplugin *) cid->sci_plugin;
 	if (plugin == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, NULL, "allow_operation: plugin identity is NULL\n");
+		slapi_log_error(SLAPI_LOG_ERR, "allow_operation", "Plugin identity is NULL\n");
 		return PR_FALSE;
 	}
 

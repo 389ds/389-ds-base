@@ -204,7 +204,7 @@ int send_ldap_intermediate( Slapi_PBlock *pb,  LDAPControl **ectrls,
 	int 		rc = 0;
 	int		logit = 0;
 			
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> send_ldap_intermediate\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> send_ldap_intermediate\n", 0, 0, 0 );
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 	slapi_pblock_get (pb, SLAPI_CONNECTION, &connection);
 
@@ -213,7 +213,7 @@ int send_ldap_intermediate( Slapi_PBlock *pb,  LDAPControl **ectrls,
 	}
 	tag = LDAP_RES_INTERMEDIATE;
 	if ( (ber = der_alloc()) == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_alloc failed\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_intermediate - ber_alloc failed\n", 0, 0, 0 );
 		goto log_and_return;
 	}
 	/* add the intermediate message */
@@ -239,7 +239,7 @@ int send_ldap_intermediate( Slapi_PBlock *pb,  LDAPControl **ectrls,
 		rc = ber_put_seq( ber );
 	}
 	if ( rc == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 0\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_intermediate - ber_printf failed 0\n", 0, 0, 0 );
 		ber_free( ber, 1 /* freebuf */ );
 		goto log_and_return;
 	}
@@ -266,7 +266,7 @@ log_and_return:
 		log_result( pb, operation, rc, tag, 0 );
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= send_ldap_intermediate\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= send_ldap_intermediate\n", 0, 0, 0 );
 	return rc;
 }
 
@@ -385,7 +385,7 @@ send_ldap_result_ext(
 
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> send_ldap_result %d:%s:%s\n", err,
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> send_ldap_result %d:%s:%s\n", err,
 	    matched ? matched : "", text ? text : "" );
 
 	switch ( operation->o_tag ) {
@@ -444,7 +444,7 @@ send_ldap_result_ext(
         
 	if ( ber == NULL ) {
 	    if ( (ber = der_alloc()) == NULL ) {
-	        LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_alloc failed\n", 0, 0, 0 );
+	        LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_result_ext - ber_alloc failed\n", 0, 0, 0 );
 			goto log_and_return;
 	    }
 	}
@@ -598,7 +598,7 @@ send_ldap_result_ext(
 	}
 
 	if ( rc == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 1\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_result_ext - ber_printf failed 1\n", 0, 0, 0 );
                 if (flush_ber_element == 1) {
                     /* we alloced the ber */
                     ber_free( ber, 1 /* freebuf */ );
@@ -622,7 +622,7 @@ log_and_return:
 		log_result( pb, operation, err, tag, nentries );
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= send_ldap_result\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= send_ldap_result\n", 0, 0, 0 );
 }
 
 /*
@@ -665,7 +665,7 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
                 slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
             } else {
                 /* Ok, read control not used for this type of operation */
-            	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "process_read_entry_controls: Read Entry Controls "
+            	LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Read Entry Controls "
             	        "can not be used for a %s operation.\n", op_to_string(op->o_tag), 0, 0);
                 rc = -1;
                 goto done;
@@ -677,14 +677,14 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
                 slapi_pblock_get(pb, SLAPI_ENTRY_POST_OP, &e);
             } else {
                 /* Ok, read control not used for this type of operation */
-            	LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "process_read_entry_controls: Read Entry Controls "
+            	LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Read Entry Controls "
                         "can not be used for a %s operation.\n", op_to_string(op->o_tag), 0, 0);
                 rc = -1;
                 goto done;
             }
         }
         if(e == NULL){
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "process_read_entry_controls: unable to retrieve entry\n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Unable to retrieve entry\n",0,0,0);
             rc = -1;
             goto done;
         }
@@ -694,7 +694,7 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
         if ( plugin_call_acl_plugin (pb, e, attrs, NULL, SLAPI_ACL_READ,
             ACLPLUGIN_ACCESS_READ_ON_ENTRY, NULL ) != LDAP_SUCCESS )
         {
-            LDAPDebug(LDAP_DEBUG_ACL, LOG_DEBUG, "process_read_entry_controls: access to entry not allowed (%s)\n",
+            LDAPDebug(LDAP_DEBUG_ACL, "process_read_entry_controls - Access to entry not allowed (%s)\n",
                 slapi_entry_get_dn_const(e), 0, 0 );
             rc = -1;
             goto done;
@@ -734,8 +734,8 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
             }
             if(no_attrs && (all_attrs || attr_count)){
                 /* Can't have both no attrs and some attributes */
-                LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "process_read_entry_controls: Error, both no attributes \"1.1\" and "
-                    "specific attributes were requeseted.\n", 0, 0, 0 );
+                LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Both no attributes \"1.1\" and "
+                    "specific attributes were requested.\n", 0, 0, 0 );
                 rc = -1;
                 goto free;
             }
@@ -746,7 +746,7 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
             }
         } else {
             /* this is a problem, malformed request control value */
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "process_read_entry_controls: invalid control value.\n",0,0,0);
+            LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Invalid control value.\n",0,0,0);
             rc = -1;
             goto free;
         }
@@ -765,8 +765,8 @@ process_read_entry_controls(Slapi_PBlock *pb, char *oid)
             ber_bvfree(res_value);
         } else {
             /* failed to encode the result entry */
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to process READ ENTRY Control (%s), error encoding result entry\n",
-                        oid, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Failed to process READ ENTRY"
+            	" Control (%s), error encoding result entry\n", oid, 0, 0 );
             rc = -1;
         }
 
@@ -776,8 +776,8 @@ free:
         }
         if(rc != 0){
             /* log an error */
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "Failed to process READ ENTRY Control (%s) ber decoding error\n",
-                        oid, 0, 0 );
+            LDAPDebug(LDAP_DEBUG_ERR, "process_read_entry_controls - Failed to process READ ENTRY "
+            	"Control (%s) ber decoding error\n", oid, 0, 0 );
         }
     }
 done:
@@ -818,7 +818,7 @@ send_ldapv3_referral(
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> send_ldapv3_referral\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> send_ldapv3_referral\n", 0, 0, 0 );
 	
 	if ( conn == NULL ) {
 		if ( operation->o_search_referral_handler != NULL ) {
@@ -835,7 +835,7 @@ send_ldapv3_referral(
 	}
 
 	if ( (ber = der_alloc()) == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_alloc failed\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldapv3_referral - ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_alloc", 0, NULL );
 		return( -1 );
@@ -860,13 +860,13 @@ send_ldapv3_referral(
 		rc = ber_printf( ber, "s", urls[i]->bv_val );
 	}
 	if ( rc == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 2\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldapv3_referral - ber_printf failed 2\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf", 0, NULL );
 		return( -1 );
 	}
 	if ( ber_printf( ber, "}}" ) == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 3\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldapv3_referral - ber_printf failed 3\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf", 0, NULL );
 		return( -1 );
@@ -983,7 +983,7 @@ encode_attr_2(
 #endif
 
 	if (ber_printf(ber, "{s[", returned_type?returned_type:attribute_type) == -1) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 4\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "encode_attr_2 - ber_printf failed 4\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
 		                 "ber_printf type", 0, NULL);
@@ -996,8 +996,8 @@ encode_attr_2(
 		{
 			if ( ber_printf( ber, "o", v->bv.bv_val,v->bv.bv_len ) == -1 )
 			{
-				LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-				    "ber_printf failed 5\n", 0, 0, 0 );
+				LDAPDebug(LDAP_DEBUG_ERR,
+				    "encode_attr_2 - ber_printf failed 5\n", 0, 0, 0 );
 				ber_free( ber, 1 );
 				send_ldap_result( pb, LDAP_OPERATIONS_ERROR,
 				    NULL, "ber_printf value", 0, NULL );
@@ -1008,7 +1008,7 @@ encode_attr_2(
 	}
 
 	if ( ber_printf( ber, "]}" ) == -1 ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 6\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "encode_attr_2 - ber_printf failed 6\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf type end", 0, NULL );
@@ -1491,7 +1491,7 @@ send_ldap_search_entry_ext(
 
 	slapi_pblock_get (pb, SLAPI_OPERATION, &operation);
 
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "=> send_ldap_search_entry (%s)\n",
+	LDAPDebug(LDAP_DEBUG_TRACE, "=> send_ldap_search_entry_ext (%s)\n",
 	    e ? slapi_entry_get_dn_const(e) : "null", 0, 0 );
 
 	/* set current entry */
@@ -1502,9 +1502,9 @@ send_ldap_search_entry_ext(
 	/* call pre entry fn */
 	rc = plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_ENTRY_FN);
 	if (rc) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,
-				   "error returned by pre entry plugins for entry %s\n",
-				   e?slapi_entry_get_dn_const(e):"null", 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR,
+				   "send_ldap_search_entry_ext - Error %d returned by pre entry plugins for entry %s\n",
+				   rc, e?slapi_entry_get_dn_const(e):"null", 0 );
 		goto cleanup;
 	}
 
@@ -1531,7 +1531,7 @@ send_ldap_search_entry_ext(
 #if !defined(DISABLE_ACL_CHECK)
 	if ( e && plugin_call_acl_plugin (pb, e, attrs, NULL, 
 				    SLAPI_ACL_READ, ACLPLUGIN_ACCESS_READ_ON_ENTRY, NULL ) != LDAP_SUCCESS ) {
-		LDAPDebug(LDAP_DEBUG_ACL, LOG_DEBUG, "acl: access to entry not allowed\n",
+		LDAPDebug(LDAP_DEBUG_ACL, "send_ldap_search_entry_ext - Access to entry not allowed\n",
 		    0, 0, 0 );
 		rc = 1;
 		goto cleanup;
@@ -1544,7 +1544,7 @@ send_ldap_search_entry_ext(
 	}
 
 	if ( (ber = der_alloc()) == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_alloc failed\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_search_entry_ext - ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_alloc", 0, NULL );
 		rc = -1;
@@ -1555,7 +1555,7 @@ send_ldap_search_entry_ext(
 	    LDAP_RES_SEARCH_ENTRY, slapi_entry_get_dn_const(e) );
 
 	if ( rc == -1 ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 7\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_search_entry_ext - ber_printf failed 7\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf dn", 0, NULL );
 		goto cleanup;
@@ -1594,8 +1594,8 @@ send_ldap_search_entry_ext(
 			 * and some other stuff. this is not allowed, but
 			 * what should we do? we'll allow them to keep going.
 			 */
-			LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG,
-			    "Accepting illegal other attributes specified with "
+			LDAPDebug(LDAP_DEBUG_TRACE,
+			    "send_ldap_search_entry_ext - Accepting illegal other attributes specified with "
 			    "special \"1.1\" attribute\n", 0, 0, 0 );
 		}
 	}
@@ -1673,7 +1673,7 @@ send_ldap_search_entry_ext(
 	}
 
 	if ( rc == -1 ) {
-		LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR, "ber_printf failed 8\n", 0, 0, 0 );
+		LDAPDebug(LDAP_DEBUG_ERR, "send_ldap_search_entry_ext - ber_printf failed 8\n", 0, 0, 0 );
 		send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf entry end", 0, NULL );
 		goto cleanup;
@@ -1736,7 +1736,7 @@ cleanup:
 		ldap_controls_free(searchctrlp);
 	}
 	ber_free( ber, 1 );
-	LDAPDebug(LDAP_DEBUG_TRACE, LOG_DEBUG, "<= send_ldap_search_entry\n", 0, 0, 0 );
+	LDAPDebug(LDAP_DEBUG_TRACE, "<= send_ldap_search_entry_ext\n", 0, 0, 0 );
 
 	return( rc );
 }
@@ -1776,7 +1776,7 @@ flush_ber(
 	}
 
 	if ((conn->c_flags & CONN_FLAG_CLOSING) || slapi_op_abandoned(pb)) {
-	    LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG, "ber_flush skipped because the "
+	    LDAPDebug(LDAP_DEBUG_CONNS, "flush_ber skipped because the "
 		      "connection was marked to be closed or abandoned\n", 0, 0, 0);
 			ber_free( ber, 1 );
 			/* One of the failure can be because the client has reset the connection ( closed )
@@ -1796,8 +1796,8 @@ flush_ber(
 			 * and the status needs to be updated to reflect it */
 			op->o_status = SLAPI_OP_STATUS_ABANDONED;
 			
-			LDAPDebug(LDAP_DEBUG_CONNS, LOG_DEBUG,
-				"ber_flush failed, error %d (%s)\n",
+			LDAPDebug(LDAP_DEBUG_CONNS,
+				"flush_ber failed, error %d (%s)\n",
 				oserr, slapd_system_strerror( oserr ), 0 );
 			if (op->o_flags & OP_FLAG_PS) {
 			/* We need to tell disconnect_server() not to ding
@@ -1811,7 +1811,7 @@ flush_ber(
 			ber_free( ber, 1 );
 		} else {
 			PRUint64 b;
-			LDAPDebug(LDAP_DEBUG_BER, LOG_DEBUG,
+			LDAPDebug(LDAP_DEBUG_BER,
 				"flush_ber() wrote %u bytes to socket %d\n",
 				bytes, conn->c_sd, 0 );
 			LL_I2L ( b, bytes ) ;
@@ -2126,7 +2126,7 @@ log_result( Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentrie
 				}
 				plugin_dn = plugin_get_dn(plugin);
 
-				slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, "Internal search" , "Unindexed search: source (%s) "
+				slapi_log_error(SLAPI_LOG_ERR, "log_result", "Internal unindexed search: source (%s) "
 						"search base=\"%s\" filter=\"%s\" etime=%s nentries=%d %s\n",
 						plugin_dn, base_dn, filter_str, etime, nentries, notes_str);
 
@@ -2221,7 +2221,7 @@ encode_read_entry (Slapi_PBlock *pb, Slapi_Entry *e, char **attrs, int alluserat
             real_attrs_only = SLAPI_SEND_VATTR_FLAG_VIRTUALONLY;
         } else {
             /* we cannot service a request for virtual only and real only */
-            LDAPDebug(LDAP_DEBUG_ANY, LOG_ERR,"encode_read_entry: Error, both real and virtual attributes "
+            LDAPDebug(LDAP_DEBUG_ERR,"encode_read_entry - Both real and virtual attributes "
                                       "only controls requested.\n", 0, 0, 0 );
             rc = -1;
             goto cleanup;

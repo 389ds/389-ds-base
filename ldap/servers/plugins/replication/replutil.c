@@ -168,23 +168,23 @@ int copyfile(char* source, char * destination, int overwrite, int mode)
 	buffer =  slapi_ch_malloc(64*1024);
 	if (NULL == buffer)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "copy file: memory allocation failed\n");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "copyfile - Memory allocation failed\n");
 		goto error;
 	}
 	/* Open source file */
 	source_fd = OPEN_FUNCTION(source,O_RDONLY,0);
 	if (-1 == source_fd)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"copyfile: failed to open source file %s\n", source);
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"copyfile - Failed to open source file %s\n", source);
 		goto error;
 	}
 	/* Open destination file */
 	dest_fd = OPEN_FUNCTION(destination,O_CREAT | O_WRONLY, mode);
 	if (-1 == dest_fd)
 	{
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"copyfile: failed to open destination file %s\n", destination);
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"copyfile - Failed to open destination file %s\n", destination);
 		goto error;
 	}
 	/* Loop round reading data and writing it */
@@ -201,8 +201,8 @@ int copyfile(char* source, char * destination, int overwrite, int mode)
 		if (return_value != bytes_to_write)
 		{
 			/* means error */
-			slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"copyfile: failed to write to destination file %s\n", destination);
+			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"copyfile - Failed to write to destination file %s\n", destination);
 			return_value = -1;
 			break;
 		}
@@ -365,7 +365,7 @@ parse_changes_string(char *str)
 			if (rc != 0)
 			{
 				/* ONREPL - log warning */
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, 
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
 						 "Failed to parse the ldif line.\n");
 				continue;
 			}
@@ -425,72 +425,77 @@ IsValidOperation (const slapi_operation_parameters *op)
 {
 	if (op == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"IsValidOperation: NULL operation\n");
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"IsValidOperation - NULL operation\n");
         return PR_FALSE;
     }
 
     if (op->csn == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"IsValidOperation: NULL operation CSN\n");
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"IsValidOperation - NULL operation CSN\n");
         return PR_FALSE;
     }
 
     if (op->target_address.uniqueid == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"IsValidOperation: NULL entry uniqueid\n");
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"IsValidOperation - NULL entry uniqueid\n");
         return PR_FALSE;
     }
 
     if (op->target_address.sdn == NULL)
     {
-        slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"IsValidOperation: NULL entry DN\n");
+        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"IsValidOperation - NULL entry DN\n");
         return PR_FALSE;
     }
 
 	switch (op->operation_type)
 	{
-		case SLAPI_OPERATION_ADD:		if (op->p.p_add.target_entry == NULL)
-                                        {
-                                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						                    "IsValidOperation: NULL entry for add operation\n");
-											return PR_FALSE;
-                                        }
-										else 
-											break;
+		case SLAPI_OPERATION_ADD:
+			if (op->p.p_add.target_entry == NULL)
+			{
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+				"IsValidOperation - NULL entry for add operation\n");
+				return PR_FALSE;
+			}
+			else 
+				break;
 
-		case SLAPI_OPERATION_MODIFY:	if (op->p.p_modify.modify_mods == NULL || 
-										    op->p.p_modify.modify_mods[0] == NULL)
-                                        {
-                                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						                    "IsValidOperation: NULL mods for modify operation\n");
-											return PR_FALSE;
-                                        }
-										else 
-											break;
+		case SLAPI_OPERATION_MODIFY:
+			if (op->p.p_modify.modify_mods == NULL ||
+			    op->p.p_modify.modify_mods[0] == NULL)
+			{
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+				"IsValidOperation - NULL mods for modify operation\n");
+				return PR_FALSE;
+			}
+			else 
+				break;
 
-		case SLAPI_OPERATION_MODRDN:	if (op->p.p_modrdn.modrdn_mods == NULL || 
-											op->p.p_modrdn.modrdn_mods[0] == NULL)
-										{
-                                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						                    "IsValidOperation: NULL mods for modrdn operation\n");
-											return PR_FALSE;
-                                        }
-										if (op->p.p_modrdn.modrdn_newrdn == NULL)
-										{
-                                            slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						                    "IsValidOperation: NULL new rdn for modrdn operation\n");
-											return PR_FALSE;
-                                        }
-										else 
-											break;
+		case SLAPI_OPERATION_MODRDN:
+			if (op->p.p_modrdn.modrdn_mods == NULL ||
+			    op->p.p_modrdn.modrdn_mods[0] == NULL)
+			{
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+				"IsValidOperation - NULL mods for modrdn operation\n");
+				return PR_FALSE;
+			}
+			if (op->p.p_modrdn.modrdn_newrdn == NULL)
+			{
+				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				"IsValidOperation - NULL new rdn for modrdn operation\n");
+				return PR_FALSE;
+			}
+			else 
+				break;
 		
-		case SLAPI_OPERATION_DELETE:	break;
+		case SLAPI_OPERATION_DELETE:
+			break;
 
-		default:						return PR_FALSE;	
+		default:
+			return PR_FALSE;	
 	}
 
 	return PR_TRUE;
@@ -633,8 +638,8 @@ repl_set_mtn_state_and_referrals(
 	char **referrals_to_set = NULL;
 	PRBool chain_on_update = is_chain_on_update_setup(repl_root_sdn);
 	if (NULL == mtn_state) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, 
-						"repl_set_mtn_referrals: cannot set NULL state.\n");
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+						"repl_set_mtn_state_and_referrals - Cannot set NULL state.\n");
 		return;
 	}
 
@@ -710,8 +715,9 @@ repl_set_mtn_state_and_referrals(
 	}
 
 	if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS) {
-		slapi_log_error(SLAPI_LOG_FATAL, LOG_ERR, repl_plugin_name, "repl_set_mtn_referrals: could "
-			"not set referrals for replica %s: %d\n", slapi_sdn_get_dn(repl_root_sdn), rc);
+		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "repl_set_mtn_state_and_referrals - "
+			"Could not set referrals for replica %s: %d\n",
+			slapi_sdn_get_dn(repl_root_sdn), rc);
 	}
 
 	charray_free(referrals_to_set);
@@ -785,12 +791,12 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 			}
 #ifdef DEBUG_CHAIN_ON_UPDATE
 			if (is_internal) {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d be "
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d be "
 					"%s is the %s backend and is %s\n", opid,
 					mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
 					(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
 			} else {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d be "
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=%" PRIu64 " op=%d be "
 					"%s is the %s backend and is %s\n", connid, opid,
 					mtn_be_names[ii], (chaining_backend == ii) ? "chaining" : "local",
 					(mtn_be_states[ii] == SLAPI_BE_STATE_ON) ? "online" : "offline");
@@ -803,11 +809,11 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 			 * offline replication initialization. */
 #ifdef DEBUG_CHAIN_ON_UPDATE
 			if (is_internal) {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d be "
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d be "
 					"%s not found.  Assuming it is the chaining backend and we are doing an import.\n",
 					opid, mtn_be_names[ii]);
 			} else {
-				slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d be "
+				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=%" PRIu64 " op=%d be "
 					"%s not found.  Assuming it is the chaining backend and we are doing an import.\n",
 					connid, opid, mtn_be_names[ii]);
 			}
@@ -835,10 +841,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	    (op_type == SLAPI_OPERATION_COMPARE))) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
 		if (is_internal) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d op is "
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d op is "
 						"%d: using local backend\n", opid, op_type);
 		} else {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d op is "
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=%" PRIu64 " op=%d op is "
 						"%d: using local backend\n", connid, opid, op_type);
 		}
 #endif
@@ -858,10 +864,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	if (slapi_dn_isroot(requestor_dn)) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
 		if (is_internal) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d requestor "
-						"is root: using local backend\n", opid);
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d requestor "
+						"is root - using local backend\n", opid);
 		} else {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d requestor "
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=%" PRIu64 " op=%d requestor "
 						"is root: using local backend\n", connid, opid);
 		}
 #endif
@@ -880,10 +886,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	if (repl_op) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
 		if (is_internal) {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d op is "
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d op is "
 						"replicated: using local backend\n", opid);
 		} else {
-			slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d op is "
+			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=%" PRIu64 " op=%d op is "
 						"replicated: using local backend\n", connid, opid);
 		}
 #endif
@@ -897,10 +903,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
         if (!config_get_pw_is_global_policy()) {
 #ifdef DEBUG_CHAIN_ON_UPDATE
             if (is_internal) {
-                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d using "
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d using "
                             "local backend for local password policy\n", opid);
             } else {
-                slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d using "
+                slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=%" PRIu64 " op=%d using "
                             "local backend for local password policy\n", connid, opid);
             }
 #endif
@@ -914,10 +920,10 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN * target_dn,
 	 */
 #ifdef DEBUG_CHAIN_ON_UPDATE
 	if (is_internal) {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=-1 op=%d using "
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update - conn=-1 op=%d using "
 					"chaining backend\n", opid);
 	} else {
-		slapi_log_error(SLAPI_LOG_REPL, LOG_DEBUG, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d using "
+		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "repl_chain_on_update: conn=%" PRIu64 " op=%d using "
 					"chaining backend\n", connid, opid);
 	}
 #endif
