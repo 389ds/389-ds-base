@@ -2120,7 +2120,24 @@ modify_schema_dse (Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entr
                   slapi_log_error(SLAPI_LOG_FATAL, "schema",
 			                  "[C] Local %s must not be overwritten (set replication log for additional info)\n",
 			                  attr_name);
-                  *returncode = LDAP_UNWILLING_TO_PERFORM;
+                  /*
+                   * If the update (replicated) of the schema is rejected then
+                   * process_postop->ignore_error_and_keep_going will decide if
+                   * this failure is fatal or can be ignored.
+                   * LDAP_UNWILLING_TO_PERFORM is considered as fatal error --> close the connection
+                   * 
+                   * A 6.x supplier may send a subset schema and trigger this error, that
+                   * will break the replication session.
+                   * 
+                   * With new "learning" mechanism this is not that important if the
+                   * update of the schema is successful or not. Just be permissive
+                   * ignoring that failure to let the full replication session going on
+                   * So return LDAP_CONSTRAINT_VIOLATION (in place of LDAP_UNWILLING_TO_PERFORM)
+                   * is pick up as best choice of non fatal returncode.
+                   * (others better choices UNWILLING_TO_PERFORM, OPERATION_ERROR or ldap_error
+                   * are unfortunately all fatal). 
+                   */
+                  *returncode = LDAP_CONSTRAINT_VIOLATION;
                   return (SLAPI_DSE_CALLBACK_ERROR);
           }
   }
