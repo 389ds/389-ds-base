@@ -643,7 +643,7 @@ def test_ticket47823_invalid_config_1(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config fail: unable to parse old style")
+    regex = re.compile("Unable to parse old style")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -694,7 +694,7 @@ def test_ticket47823_invalid_config_2(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: No valid subtree is defined")
+    regex = re.compile("No valid subtree is defined")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -747,7 +747,7 @@ def test_ticket47823_invalid_config_3(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config fail: unable to parse old style")
+    regex = re.compile("Unable to parse old style")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -799,7 +799,7 @@ def test_ticket47823_invalid_config_4(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: No valid subtree is defined")
+    regex = re.compile("No valid subtree is defined")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -850,7 +850,7 @@ def test_ticket47823_invalid_config_5(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: attribute name not defined")
+    regex = re.compile("Attribute name not defined")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -901,7 +901,7 @@ def test_ticket47823_invalid_config_6(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: objectclass for subtree entries is not defined")
+    regex = re.compile("Objectclass for subtree entries is not defined")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert
@@ -952,7 +952,7 @@ def test_ticket47823_invalid_config_7(topology):
             pass
 
     # Check the expected error message
-    regex = re.compile("Config info: No valid subtree is defined")
+    regex = re.compile("No valid subtree is defined")
     res = _pattern_errorlog(topology.standalone.errorlog_file, regex)
     if not res:
         # be sure to restore a valid config before assert

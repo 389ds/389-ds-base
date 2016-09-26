@@ -384,7 +384,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
         if (tmp_config->subtrees == NULL) {
                 /* Uniqueness is enforced on entries matching objectclass */
                 if (tmp_config->subtree_entries_oc == NULL) {
-                        slapi_log_error(SLAPI_LOG_ERR, plugin_name, "uniqueness_entry_to_config - objectclass for subtree entries is not defined\n");
+                        slapi_log_error(SLAPI_LOG_ERR, plugin_name, "uniqueness_entry_to_config - Objectclass for subtree entries is not defined\n");
                         rc = SLAPI_PLUGIN_FAILURE;
                         goto done;
                 }

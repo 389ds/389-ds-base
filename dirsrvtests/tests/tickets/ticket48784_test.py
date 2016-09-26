@@ -426,7 +426,7 @@ def test_ticket48784(topology):
 
     log.info('##### Searching for entries on master1...')
     entries = topology.master1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 12 == len(entries)
+    assert 11 == len(entries)  # This is supposed to be "1" less than master 2's entry count
 
     log.info('##### Searching for entries on master2...')
     entries = topology.master2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
