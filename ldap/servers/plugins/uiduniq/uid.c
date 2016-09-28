@@ -302,7 +302,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                         }
                         
                         /* Store attrName in the config */
-                        tmp_config->attrs = (const char **) slapi_ch_calloc(1, sizeof(char *));
+                        tmp_config->attrs = (const char **) slapi_ch_calloc(2, sizeof(char *));
                         tmp_config->attrs[0] = slapi_ch_strdup(attrName);
                         argc--;
                         argv++; /* First argument was attribute name and remaining are subtrees */
@@ -345,7 +345,7 @@ uniqueness_entry_to_config(Slapi_PBlock *pb, Slapi_Entry *config_entry)
                          *  - requiredObjectClass 
                          */
                         /* Store attrName in the config */
-                        tmp_config->attrs = (const char **) slapi_ch_calloc(1, sizeof(char *));
+                        tmp_config->attrs = (const char **) slapi_ch_calloc(2, sizeof(char *));
                         tmp_config->attrs[0] = slapi_ch_strdup(attrName);
                         
                         /* There is no subtrees */
