@@ -1956,8 +1956,13 @@ check_plugin_path(Slapi_PBlock *pb,
         } else {                 /* relative path */
             full_path = slapi_get_plugin_name(PLUGINDIR, vals[j]);
         }
-        resolved_path = slapi_ch_malloc(strlen(full_path) + 1);
-        res = realpath( full_path, resolved_path );
+        /*
+         * See man 3 realpath. We have to pass in NULL here, because we don't
+         * know if the library is versioned, it could be *any* length when
+         * resolved. The quirk is that this uses malloc, not slapi_ch_malloc,
+         * so we need to free res with free() only!
+         */
+        res = realpath( full_path, NULL );
         if (res) {
             if ((handle = dlopen(res, RTLD_NOW)) == NULL) {
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -1972,7 +1977,8 @@ check_plugin_path(Slapi_PBlock *pb,
             rc = SLAPI_DSE_CALLBACK_ERROR;
         }
         slapi_ch_free_string(&full_path);
-        slapi_ch_free_string(&resolved_path);
+        /* See comment above. Must free res from realpath with free() only! */
+        free(res);
     }
     slapi_ch_array_free(vals);
 
