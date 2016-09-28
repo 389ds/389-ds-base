@@ -1192,7 +1192,11 @@ void slapd_daemon( daemon_ports_t *ports )
 		tp_config.stacksize = 0;
 		tp_config.event_queue_size = config_get_maxdescriptors();
 		tp_config.work_queue_size = config_get_maxdescriptors();
+#ifdef LDAP_DEBUG
 		tp_config.log_fct = nunc_stans_logging;
+#else
+		tp_config.log_fct = NULL;
+#endif
 		tp_config.log_start_fct = NULL;
 		tp_config.log_close_fct = NULL;
 		tp_config.malloc_fct = nunc_stans_malloc;

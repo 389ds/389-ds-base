@@ -2420,7 +2420,7 @@ vslapd_log_error(
  * severity - LOG_ERR, LOG_WARNING, LOG_INFO, etc
  */
 int
-slapi_log_error( int loglevel, char *subsystem, char *fmt, ... )
+slapi_log_err( int loglevel, char *subsystem, char *fmt, ... )
 {
     va_list ap_err;
     va_list ap_file;

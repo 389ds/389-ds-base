@@ -3630,6 +3630,7 @@ stop_ruv_cleaning()
 void
 cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...)
 {
+#ifdef LDAP_DEBUG
     va_list ap1;
     va_list ap2;
     va_list ap3;
@@ -3654,6 +3655,7 @@ cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fm
     va_end(ap2);
     va_end(ap3);
     va_end(ap4);
+#endif
 }
 
 char *
