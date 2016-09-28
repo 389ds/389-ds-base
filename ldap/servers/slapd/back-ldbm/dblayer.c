@@ -2679,7 +2679,13 @@ int dblayer_close_indexes(backend *be)
         pDB = handle->dblayer_dbp;
         return_value |= pDB->close(pDB,0);
         next = handle->dblayer_handle_next;
-        *((dblayer_handle **)handle->dblayer_handle_ai_backpointer) = NULL;
+        /* If the backpointer is still valid, NULL the attrinfos ref to us
+         * This is important as there is no ordering guarantee between if the
+         * handle or the attrinfo is freed first!
+         */
+        if (handle->dblayer_handle_ai_backpointer) {
+            *((dblayer_handle **)handle->dblayer_handle_ai_backpointer) = NULL;
+        }
         slapi_ch_free((void**)&handle);
     }
 
