@@ -59,6 +59,10 @@ attrinfo_delete(struct attrinfo **pp)
         slapi_ch_free((void**)&((*pp)->ai_attrcrypt));
         attr_done(&((*pp)->ai_sattr));
         attrinfo_delete_idlistinfo(&(*pp)->ai_idlistinfo);
+        if ((*pp)->ai_dblayer) {
+            /* attriinfo is deleted.  Cleaning up the backpointer at the same time. */
+            ((dblayer_handle *)((*pp)->ai_dblayer))->dblayer_handle_ai_backpointer = NULL;
+        }
         slapi_ch_free((void**)pp);
         *pp= NULL;
     }
