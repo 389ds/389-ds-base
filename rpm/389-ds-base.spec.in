@@ -18,7 +18,7 @@
 # To build without nunc-stans, set use_nunc_stans to 0.
 %global use_nunc_stans __NUNC_STANS_ON__
 %if %{use_nunc_stans}
-%global nunc_stans_ver 0.1.8
+%global nunc_stans_ver 0.2.0
 %endif
 
 # This enables an ASAN build. This should not go to production, so we rename.

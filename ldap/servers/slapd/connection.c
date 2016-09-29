@@ -229,9 +229,6 @@ connection_cleanup(Connection *conn)
 
 	/* free the connection socket buffer */
 	connection_free_private_buffer(conn);
-	if (enable_listeners && !g_get_shutdown()) {
-		ns_enable_listeners();
-	}
 #ifdef ENABLE_NUNC_STANS
 	/* even if !config_get_enable_nunc_stans, it is ok to set to 0 here */
 	conn->c_ns_close_jobs = 0;

@@ -123,7 +123,6 @@ int daemon_register_reslimits( void );
 PRFileDesc * get_ssl_listener_fd(void);
 int configure_pr_socket( PRFileDesc **pr_socket, int secure, int local );
 void configure_ns_socket( int * ns );
-void ns_enable_listeners(void);
 
 /*
  * sasl_io.c

@@ -25,6 +25,7 @@
 
 static int counters_created= 0;
 PR_DEFINE_COUNTER(slapi_ch_counter_malloc);
+PR_DEFINE_COUNTER(slapi_ch_counter_memalign);
 PR_DEFINE_COUNTER(slapi_ch_counter_calloc);
 PR_DEFINE_COUNTER(slapi_ch_counter_realloc);
 PR_DEFINE_COUNTER(slapi_ch_counter_strdup);
@@ -36,7 +37,7 @@ PR_DEFINE_COUNTER(slapi_ch_counter_exist);
 static void *oom_emergency_area = NULL;
 static PRLock *oom_emergency_lock = NULL;
 
-#define SLAPD_MODULE	"memory allocator"
+#define SLAPD_MODULE    "memory allocator"
 
 static const char* const oom_advice =
   "\nThe server has probably allocated all available virtual memory. To solve\n"
@@ -51,21 +52,22 @@ static const char* const oom_advice =
 static void
 create_counters(void)
 {
-	PR_CREATE_COUNTER(slapi_ch_counter_malloc,"slapi_ch","malloc","");
-	PR_CREATE_COUNTER(slapi_ch_counter_calloc,"slapi_ch","calloc","");
-	PR_CREATE_COUNTER(slapi_ch_counter_realloc,"slapi_ch","realloc","");
-	PR_CREATE_COUNTER(slapi_ch_counter_strdup,"slapi_ch","strdup","");
-	PR_CREATE_COUNTER(slapi_ch_counter_free,"slapi_ch","free","");
-	PR_CREATE_COUNTER(slapi_ch_counter_created,"slapi_ch","created","");
-	PR_CREATE_COUNTER(slapi_ch_counter_exist,"slapi_ch","exist","");
+    PR_CREATE_COUNTER(slapi_ch_counter_malloc,"slapi_ch","malloc","");
+    PR_CREATE_COUNTER(slapi_ch_counter_memalign,"slapi_ch","memalign","");
+    PR_CREATE_COUNTER(slapi_ch_counter_calloc,"slapi_ch","calloc","");
+    PR_CREATE_COUNTER(slapi_ch_counter_realloc,"slapi_ch","realloc","");
+    PR_CREATE_COUNTER(slapi_ch_counter_strdup,"slapi_ch","strdup","");
+    PR_CREATE_COUNTER(slapi_ch_counter_free,"slapi_ch","free","");
+    PR_CREATE_COUNTER(slapi_ch_counter_created,"slapi_ch","created","");
+    PR_CREATE_COUNTER(slapi_ch_counter_exist,"slapi_ch","exist","");
 
-	/* ensure that we have space to allow for shutdown calls to malloc()
-	 * from should we run out of memory.
-	 */
-	if (oom_emergency_area == NULL) {
-	  oom_emergency_area = malloc(OOM_PREALLOC_SIZE);
-	}
-	oom_emergency_lock = PR_NewLock();
+    /* ensure that we have space to allow for shutdown calls to malloc()
+     * from should we run out of memory.
+     */
+    if (oom_emergency_area == NULL) {
+      oom_emergency_area = malloc(OOM_PREALLOC_SIZE);
+    }
+    oom_emergency_lock = PR_NewLock();
 }
 
 /* called when we have just detected an out of memory condition, before
@@ -75,161 +77,195 @@ create_counters(void)
  */
 void oom_occurred(void)
 {
-  int tmp_errno = errno;  /* callers will need the error from malloc */
-  if (oom_emergency_lock == NULL) return;
+    int tmp_errno = errno;  /* callers will need the error from malloc */
+    if (oom_emergency_lock == NULL) {
+        return;
+    }
 
-  PR_Lock(oom_emergency_lock);
-  if (oom_emergency_area) {
-    free(oom_emergency_area);
-    oom_emergency_area = NULL;
-  }
-  PR_Unlock(oom_emergency_lock);
-  errno = tmp_errno;
+    PR_Lock(oom_emergency_lock);
+    if (oom_emergency_area) {
+        free(oom_emergency_area);
+        oom_emergency_area = NULL;
+    }
+    PR_Unlock(oom_emergency_lock);
+    errno = tmp_errno;
 }
 
 static void
 log_negative_alloc_msg( const char *op, const char *units, unsigned long size )
 {
-	slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-		"cannot %s %lu %s;\n"
-		"trying to allocate 0 or a negative number of %s is not portable and\n"
-		"gives different results on different platforms.\n",
-		op, size, units, units );
+    slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+        "cannot %s %lu %s;\n"
+        "trying to allocate 0 or a negative number of %s is not portable and\n"
+        "gives different results on different platforms.\n",
+        op, size, units, units );
 }
 
 #if !defined(MEMPOOL_EXPERIMENTAL)
 char *
 slapi_ch_malloc(
-    unsigned long	size
+    unsigned long   size
 )
 {
-	char	*newmem;
+    char    *newmem;
 
-	if (size <= 0) {
-		log_negative_alloc_msg( "malloc", "bytes", size );
-		return 0;
-	}
+    if (size <= 0) {
+        log_negative_alloc_msg( "malloc", "bytes", size );
+        return 0;
+    }
 
-	if ( (newmem = (char *) malloc( size )) == NULL ) {
-		int	oserr = errno;
+    if ( (newmem = (char *) malloc( size )) == NULL ) {
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "malloc of %lu bytes failed; OS error %d (%s)%s\n",
-			size, oserr, slapd_system_strerror( oserr ), oom_advice );
-		exit( 1 );
-	}
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
+        oom_occurred();
+        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+            size, oserr, slapd_system_strerror( oserr ), oom_advice );
+        exit( 1 );
+    }
+    if(!counters_created)
+    {
+        create_counters();
+        counters_created= 1;
+    }
     PR_INCREMENT_COUNTER(slapi_ch_counter_malloc);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
 
-	return( newmem );
+    return( newmem );
+}
+
+/* See slapi-plugin.h */
+char *
+slapi_ch_memalign(size_t size, size_t alignment)
+{
+    char    *newmem;
+
+    if (size <= 0) {
+        log_negative_alloc_msg( "memalign", "bytes", size );
+        return 0;
+    }
+
+    if ( posix_memalign((void **)&newmem, alignment, size) != 0 ) {
+        int oserr = errno;
+
+        oom_occurred();
+        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+            size, oserr, slapd_system_strerror( oserr ), oom_advice );
+        exit( 1 );
+    }
+    if(!counters_created)
+    {
+        create_counters();
+        counters_created= 1;
+    }
+    PR_INCREMENT_COUNTER(slapi_ch_counter_memalign);
+    PR_INCREMENT_COUNTER(slapi_ch_counter_created);
+    PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
+
+    return( newmem );
 }
 
 char *
 slapi_ch_realloc(
-    char		*block,
-    unsigned long	size
+    char        *block,
+    unsigned long   size
 )
 {
-	char	*newmem;
+    char    *newmem;
 
-	if ( block == NULL ) {
-		return( slapi_ch_malloc( size ) );
-	}
+    if ( block == NULL ) {
+        return( slapi_ch_malloc( size ) );
+    }
 
-	if (size <= 0) {
-		log_negative_alloc_msg( "realloc", "bytes", size );
-		return block;
-	}
+    if (size <= 0) {
+        log_negative_alloc_msg( "realloc", "bytes", size );
+        return block;
+    }
 
-	if ( (newmem = (char *) realloc( block, size )) == NULL ) {
-		int	oserr = errno;
+    if ( (newmem = (char *) realloc( block, size )) == NULL ) {
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "realloc of %lu bytes failed; OS error %d (%s)%s\n",
-			size, oserr, slapd_system_strerror( oserr ), oom_advice );
-		exit( 1 );
-	}
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
+        oom_occurred();
+        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "realloc of %lu bytes failed; OS error %d (%s)%s\n",
+            size, oserr, slapd_system_strerror( oserr ), oom_advice );
+        exit( 1 );
+    }
+    if(!counters_created)
+    {
+        create_counters();
+        counters_created= 1;
+    }
     PR_INCREMENT_COUNTER(slapi_ch_counter_realloc);
 
-	return( newmem );
+    return( newmem );
 }
 
 char *
 slapi_ch_calloc(
-    unsigned long	nelem,
-    unsigned long	size
+    unsigned long   nelem,
+    unsigned long   size
 )
 {
-	char	*newmem;
+    char    *newmem;
 
-	if (size <= 0) {
-		log_negative_alloc_msg( "calloc", "bytes", size );
-		return 0;
-	}
+    if (size <= 0) {
+        log_negative_alloc_msg( "calloc", "bytes", size );
+        return 0;
+    }
 
-	if (nelem <= 0) {
-		log_negative_alloc_msg( "calloc", "elements", nelem );
-		return 0;
-	}
+    if (nelem <= 0) {
+        log_negative_alloc_msg( "calloc", "elements", nelem );
+        return 0;
+    }
 
-	if ( (newmem = (char *) calloc( nelem, size )) == NULL ) {
-		int	oserr = errno;
+    if ( (newmem = (char *) calloc( nelem, size )) == NULL ) {
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
-			nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
-		exit( 1 );
-	}
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
+        oom_occurred();
+        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
+            nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
+        exit( 1 );
+    }
+    if(!counters_created)
+    {
+        create_counters();
+        counters_created= 1;
+    }
     PR_INCREMENT_COUNTER(slapi_ch_counter_calloc);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
 
-	return( newmem );
+    return( newmem );
 }
 
 char*
 slapi_ch_strdup ( const char* s1)
 {
     char* newmem;
-	
-	/* strdup pukes on NULL strings...bail out now */
-	if(NULL == s1)
-		return NULL;
-	newmem = strdup (s1);
+    
+    /* strdup pukes on NULL strings...bail out now */
+    if(NULL == s1)
+        return NULL;
+    newmem = strdup (s1);
     if (newmem == NULL) {
-		int	oserr = errno;
+        int oserr = errno;
         oom_occurred();
 
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "strdup of %lu characters failed; OS error %d (%s)%s\n",
-			(unsigned long)strlen(s1), oserr, slapd_system_strerror( oserr ),
-			oom_advice );
-		exit (1);
+        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "strdup of %lu characters failed; OS error %d (%s)%s\n",
+            (unsigned long)strlen(s1), oserr, slapd_system_strerror( oserr ),
+            oom_advice );
+        exit (1);
     }
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
+    if(!counters_created)
+    {
+        create_counters();
+        counters_created= 1;
+    }
     PR_INCREMENT_COUNTER(slapi_ch_counter_strdup);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
@@ -243,14 +279,14 @@ slapi_ch_bvdup (const struct berval* v)
 {
     struct berval* newberval = ber_bvdup ((struct berval *)v);
     if (newberval == NULL) {
-		int	oserr = errno;
+        int oserr = errno;
 
-	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-		    "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
-			(unsigned long)v->bv_len, oserr, slapd_system_strerror( oserr ),
-			oom_advice );
-		exit( 1 );
+        oom_occurred();
+        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+            "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
+            (unsigned long)v->bv_len, oserr, slapd_system_strerror( oserr ),
+            oom_advice );
+        exit( 1 );
     }
     return newberval;
 }
@@ -285,20 +321,20 @@ slapi_ch_bvecdup (struct berval** v)
 void 
 slapi_ch_free(void **ptr)
 {
-	if (ptr==NULL || *ptr == NULL){
-		return;
-	}
+    if (ptr==NULL || *ptr == NULL){
+        return;
+    }
 
-	free (*ptr);
-	*ptr = NULL;
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
+    free (*ptr);
+    *ptr = NULL;
+    if(!counters_created)
+    {
+        create_counters();
+        counters_created= 1;
+    }
     PR_INCREMENT_COUNTER(slapi_ch_counter_free);
     PR_DECREMENT_COUNTER(slapi_ch_counter_exist);
-	return;
+    return;
 }
 #endif /* !MEMPOOL_EXPERIMENTAL */
 
@@ -307,13 +343,13 @@ slapi_ch_free(void **ptr)
 void
 slapi_ch_bvfree(struct berval** v)
 {
-	if (v == NULL || *v == NULL)
-		return;
+    if (v == NULL || *v == NULL)
+        return;
 
-	slapi_ch_free((void **)&((*v)->bv_val));
-	slapi_ch_free((void **)v);
+    slapi_ch_free((void **)&((*v)->bv_val));
+    slapi_ch_free((void **)v);
 
-	return;
+    return;
 }
 
 /* just like slapi_ch_free, but the argument is the address of a string
@@ -322,7 +358,7 @@ slapi_ch_bvfree(struct berval** v)
 void
 slapi_ch_free_string(char **s)
 {
-	slapi_ch_free((void **)s);
+    slapi_ch_free((void **)s);
 }
 
 /*
@@ -351,17 +387,17 @@ slapi_ch_free_string(char **s)
 char *
 slapi_ch_smprintf(const char *fmt, ...)
 {
-	char *p = NULL;
-	va_list ap;
+    char *p = NULL;
+    va_list ap;
 
-	if (NULL == fmt) {
-		return NULL;
-	}
+    if (NULL == fmt) {
+        return NULL;
+    }
 
-	va_start(ap, fmt);
-	p = PR_vsmprintf(fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    p = PR_vsmprintf(fmt, ap);
+    va_end(ap);
 
-	return p;
+    return p;
 }
 #endif

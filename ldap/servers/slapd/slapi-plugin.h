@@ -5820,6 +5820,17 @@ int slapi_is_shutting_down(void);
  * checking routines for allocating and freeing memory
  */
 char * slapi_ch_malloc( unsigned long size );
+/*
+ * memalign returns an alligned block of memory as a multiple of alignment.
+ * alignment must be a power of 2. This is not normally needed, but is required
+ * for memory that works with certain cpu operations. It's basically malloc
+ * with some extra guarantees.
+ *
+ * \param size The size of the memory to allocate
+ * \param alignment The alignment. MUST be a power of 2!
+ * \return Pointer to the allocated memory aligned by alignment.
+ */
+char * slapi_ch_memalign( size_t size, size_t alignment);
 char * slapi_ch_realloc( char *block, unsigned long size );
 char * slapi_ch_calloc( unsigned long nelem, unsigned long size );
 char * slapi_ch_strdup( const char *s );

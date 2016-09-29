@@ -902,50 +902,6 @@ convert_pbe_des_to_aes(void)
 }
 
 #ifdef ENABLE_NUNC_STANS
-static ns_job_type_t ns_listen_job_flags = NS_JOB_ACCEPT|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD;
-static PRStack *ns_disabled_listeners; /* holds the disabled listeners, if any */
-static PRInt32 num_disabled_listeners;
-#endif
-
-#ifdef ENABLE_NUNC_STANS
-static void
-ns_disable_listener(listener_info *listener)
-{
-	/* tell the event framework not to listen for new connections on this listener */
-	ns_job_modify(listener->ns_job, NS_JOB_DISABLE_ONLY|NS_JOB_PRESERVE_FD);
-	/* add the listener to our list of disabled listeners */
-	PR_StackPush(ns_disabled_listeners, (PRStackElem *)listener);
-	PR_AtomicIncrement(&num_disabled_listeners);
-	LDAPDebug2Args(LDAP_DEBUG_ERR, "ns_disable_listener - "
-	               "disabling listener for fd [%d]: [%d] now disabled\n",
-	               PR_FileDesc2NativeHandle(listener->listenfd),
-	               num_disabled_listeners);
-}
-#endif
-
-void
-ns_enable_listeners()
-{
-#ifdef ENABLE_NUNC_STANS
-	if (!enable_nunc_stans) {
-		return;
-	}
-	int num_enabled = 0;
-	listener_info *listener;
-	while ((listener = (listener_info *)PR_StackPop(ns_disabled_listeners))) {
-		/* there was a disabled listener - re-enable it to listen for new connections */
-		ns_job_modify(listener->ns_job, ns_listen_job_flags);
-		PR_AtomicDecrement(&num_disabled_listeners);
-		num_enabled++;
-	}
-	if (num_enabled) {
-		LDAPDebug1Arg(LDAP_DEBUG_ERR, "ns_enable_listeners - "
-		              "enabled [%d] listeners\n", num_enabled);
-	}
-#endif
-}
-
-#ifdef ENABLE_NUNC_STANS
 /*
  * Nunc stans logging function.
  */
@@ -969,6 +925,12 @@ static void*
 nunc_stans_malloc(size_t size)
 {
 	return (void*)slapi_ch_malloc((unsigned long)size);
+}
+
+static void*
+nunc_stans_memalign(size_t size, size_t alignment)
+{
+    return (void*)slapi_ch_memalign(size, alignment);
 }
 
 static void*
@@ -1170,11 +1132,6 @@ void slapd_daemon( daemon_ports_t *ports )
 #endif /* ENABLE_LDAPI */
 
 	listener_idxs = (listener_info *)slapi_ch_calloc(listeners, sizeof(*listener_idxs));
-#ifdef ENABLE_NUNC_STANS
-	if (enable_nunc_stans) {
-		ns_disabled_listeners = PR_CreateStack("disabled_listeners");
-	}
-#endif
 	/*
 	 * Convert old DES encoded passwords to AES
 	 */
@@ -1187,11 +1144,8 @@ void slapd_daemon( daemon_ports_t *ports )
 		/* Set the nunc-stans thread pool config */
 		ns_thrpool_config_init(&tp_config);
 
-		tp_config.initial_threads = maxthreads;
 		tp_config.max_threads = maxthreads;
 		tp_config.stacksize = 0;
-		tp_config.event_queue_size = config_get_maxdescriptors();
-		tp_config.work_queue_size = config_get_maxdescriptors();
 #ifdef LDAP_DEBUG
 		tp_config.log_fct = nunc_stans_logging;
 #else
@@ -1200,6 +1154,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		tp_config.log_start_fct = NULL;
 		tp_config.log_close_fct = NULL;
 		tp_config.malloc_fct = nunc_stans_malloc;
+		tp_config.memalign_fct = nunc_stans_memalign;
 		tp_config.calloc_fct = nunc_stans_calloc;
 		tp_config.realloc_fct = nunc_stans_realloc;
 		tp_config.free_fct = nunc_stans_free;
@@ -1211,7 +1166,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		setup_pr_read_pds(the_connection_table,n_tcps,s_tcps,i_unix,&num_poll);
 		for (ii = 0; ii < listeners; ++ii) {
 			listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
-			ns_add_io_job(tp, listener_idxs[ii].listenfd, ns_listen_job_flags,
+			ns_add_io_job(tp, listener_idxs[ii].listenfd, NS_JOB_ACCEPT|NS_JOB_PERSIST|NS_JOB_PRESERVE_FD,
 				      ns_handle_new_connection, &listener_idxs[ii], &listener_idxs[ii].ns_job);
 
 		}
@@ -2632,10 +2587,8 @@ ns_handle_new_connection(struct ns_job_t *job)
 	 */
 	if ((li->ct->size - g_get_current_conn_count())
 	     <= config_get_reservedescriptors()) {
-		/* too many open fds - shut off this listener - when an fd is
-		 * closed, try to resume this listener
-		 */
-		ns_disable_listener(li);
+		/* too many open fds - Just return, and hope next time is better. */
+		slapi_log_error(SLAPI_LOG_FATAL, "ns_handle_new_connection", "Insufficient Reserve FD: File Descriptor exhaustion has occured! Connections will be silently dropped!\n");
 		return;
 	}
 
@@ -2644,12 +2597,13 @@ ns_handle_new_connection(struct ns_job_t *job)
 		PRErrorCode prerr = PR_GetError();
 		if (PR_PROC_DESC_TABLE_FULL_ERROR == prerr) {
 			/* too many open fds - shut off this listener - when an fd is
-			 * closed, try to resume this listener
+			 * closed, try to resume this listener.
+			 *
+			 * WARNING: This generates a lot of false negatives. Why?
 			 */
-			ns_disable_listener(li);
+			slapi_log_error(SLAPI_LOG_FATAL, "ns_handle_new_connection", "PR_PROC_DESC_TABLE_FULL_ERROR: File Descriptor exhaustion has occured! Connections will be silently dropped!\n");
 		} else {
-			LDAPDebug(LDAP_DEBUG_CONNS, "ns_handle_new_connection - Error accepting"
-				" new connection listenfd=%d [%d:%s]\n",
+			slapi_log_error(SLAPI_LOG_FATAL, "ns_handle_new_connection", "Error accepting new connection listenfd=%d [%d:%s]\n",
 				PR_FileDesc2NativeHandle(li->listenfd), prerr,
 				slapd_pr_strerror(prerr));
 		}

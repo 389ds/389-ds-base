@@ -23,22 +23,22 @@
 void
 pblock_init( Slapi_PBlock *pb )
 {
-	memset( pb, '\0', sizeof(Slapi_PBlock) );
+    memset( pb, '\0', sizeof(Slapi_PBlock) );
 }
 
 void
 pblock_init_common(
-    Slapi_PBlock	*pb,
-    Slapi_Backend	*be,
-    Connection	*conn,
-    Operation	*op
+    Slapi_PBlock    *pb,
+    Slapi_Backend   *be,
+    Connection  *conn,
+    Operation   *op
 )
 {
-	PR_ASSERT( NULL != pb );
-	memset( pb, '\0', sizeof(Slapi_PBlock) );
-	pb->pb_backend = be;
-	pb->pb_conn = conn;
-	pb->pb_op = op;
+    PR_ASSERT( NULL != pb );
+    memset( pb, '\0', sizeof(Slapi_PBlock) );
+    pb->pb_backend = be;
+    pb->pb_conn = conn;
+    pb->pb_op = op;
 }
 
 void

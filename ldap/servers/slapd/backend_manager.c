@@ -103,7 +103,7 @@ Slapi_Backend *
 be_new_internal(struct dse *pdse, const char *type, const char *name)
 {
     Slapi_Backend *be= slapi_be_new(type, name, 1 /* Private */, 0 /* Do Not Log Changes */);
-	be->be_database = (struct slapdplugin *) slapi_ch_calloc( 1, sizeof(struct slapdplugin) );
+    be->be_database = (struct slapdplugin *) slapi_ch_calloc( 1, sizeof(struct slapdplugin) );
     be->be_database->plg_private= (void*)pdse;
     be->be_database->plg_bind= &dse_bind;
     be->be_database->plg_unbind= &dse_unbind;
@@ -351,29 +351,32 @@ be_flushall()
 void
 be_unbindall(Connection *conn, Operation *op)
 {
-	int		i;
-	Slapi_PBlock	pb;
+    int     i;
+    Slapi_PBlock pb = {0};
 
-	for ( i = 0; i < maxbackends; i++ )
-	{
-		if ( backends[i] && (backends[i]->be_unbind != NULL) )
-		{
-			pblock_init_common( &pb, backends[i], conn, op );
+    for ( i = 0; i < maxbackends; i++ )
+    {
+        if ( backends[i] && (backends[i]->be_unbind != NULL) )
+        {
+            /* This is the modern, and faster way to do pb memset(0) 
+             * It also doesn't trigger the HORRIBLE stack overflows I found ...
+             */
+            pblock_init_common( &pb, backends[i], conn, op );
 
-			if ( plugin_call_plugins( &pb, SLAPI_PLUGIN_PRE_UNBIND_FN ) == 0 )
-			{
-				int	rc = 0;
-				slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
+            if ( plugin_call_plugins( &pb, SLAPI_PLUGIN_PRE_UNBIND_FN ) == 0 )
+            {
+                int rc = 0;
+                slapi_pblock_set( &pb, SLAPI_PLUGIN, backends[i]->be_database );
                 if(backends[i]->be_state != BE_STATE_DELETED && 
-				   backends[i]->be_unbind!=NULL)
+                   backends[i]->be_unbind!=NULL)
                 {
-    				rc = (*backends[i]->be_unbind)( &pb );
+                    rc = (*backends[i]->be_unbind)( &pb );
                 }
-				slapi_pblock_set( &pb, SLAPI_PLUGIN_OPRETURN, &rc );
-				(void) plugin_call_plugins( &pb, SLAPI_PLUGIN_POST_UNBIND_FN );
-			}
-		}
-	}
+                slapi_pblock_set( &pb, SLAPI_PLUGIN_OPRETURN, &rc );
+                (void) plugin_call_plugins( &pb, SLAPI_PLUGIN_POST_UNBIND_FN );
+            }
+        }
+    }
 }
 
 int
