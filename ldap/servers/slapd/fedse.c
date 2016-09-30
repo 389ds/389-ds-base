@@ -1948,7 +1948,6 @@ check_plugin_path(Slapi_PBlock *pb,
     for (j = 0; vals && vals[j]; j++) {
         void *handle;
         char *full_path = NULL;
-        char *resolved_path = NULL;
         char *res = NULL;
  
         if ( *vals[j] == '/' ) { /* absolute path */
