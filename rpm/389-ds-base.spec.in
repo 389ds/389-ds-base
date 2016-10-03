@@ -477,6 +477,7 @@ fi
 %exclude %{_mandir}/man3/ns_job_t.3.gz
 %exclude %{_mandir}/man3/ns_thrpool_config.3.gz
 %exclude %{_mandir}/man3/nunc-stans.h.3.gz
+%exclude %{_unitdir}/%{pkgname}-snmp.service
 
 %files devel
 %defattr(-,root,root,-)
@@ -507,6 +508,7 @@ fi
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/ldap-agent.conf
 %{_sbindir}/ldap-agent*
 %{_mandir}/man1/ldap-agent.1.gz
+%{_unitdir}/%{pkgname}-snmp.service
 
 %files tests
 %defattr(-,root,root,-)
