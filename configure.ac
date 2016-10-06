@@ -16,6 +16,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADER([string.h],,[AC_ERROR([We need string.h in order to build])])
 AC_CHECK_HEADER([termios.h],,[AC_ERROR([We need termios.h in order to build])])
 AC_CHECK_HEADER([unistd.h],,[AC_ERROR([We need unistd.h in order to build])])
+AC_PROG_CC_STDC
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
