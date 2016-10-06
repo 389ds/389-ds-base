@@ -1965,7 +1965,7 @@ check_plugin_path(Slapi_PBlock *pb,
         if (res) {
             if ((handle = dlopen(res, RTLD_NOW)) == NULL) {
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
-                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path - failed to open library");
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path %s - failed to open library", res);
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             } else {
                 dlclose(handle);
