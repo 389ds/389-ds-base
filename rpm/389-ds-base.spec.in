@@ -243,14 +243,19 @@ The lib389 CI tests that can be run against the Directory Server.
 cp %{SOURCE2} README.devel
 
 %build
+
 %if %{use_nunc_stans}
 pushd ../nunc-stans-%{nunc_stans_ver}
 %configure --with-fhs --libdir=%{_libdir}/%{pkgname}
-make %{?_smp_mflags}
-mkdir -p lib
-cp .libs/libnunc-stans.so.0.0.0 lib/libnunc-stans.so
-mkdir -p include/nunc-stans
-cp nunc-stans.h include/nunc-stans/nunc-stans.h
+# We install into our build dir first, then later we install to the correct build root.
+# This is to make it possible for directory server to use us, else we can't resolve
+# liblfds during link time.
+# Frankly, this is horrible, but until we can make nunc-stans a package, it'll
+# have to do... :(
+# Can't use SMP flags here
+make DESTDIR=`pwd` install
+# Remove these else it breaks libtool
+rm ./%{_libdir}/%{pkgname}/*.{a,la}
 popd
 %endif
 
@@ -262,7 +267,7 @@ OPENLDAP_FLAG="--with-openldap"
 NSSARGS="--with-svrcore-inc=%{_includedir} --with-svrcore-lib=%{_libdir} --with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
 
 %if %{use_nunc_stans}
-NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_stans_ver}" 
+NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_stans_ver}/usr --with-nunc-stans-inc=../nunc-stans-%{nunc_stans_ver}/%{_includedir} --with-nunc-stans-lib=../nunc-stans-%{nunc_stans_ver}/%{_libdir}/%{pkgname}"
 %endif
 
 %if %{use_asan}
@@ -286,13 +291,12 @@ make %{?_smp_mflags}
 
 
 %install
-rm -rf $RPM_BUILD_ROOT 
+rm -rf $RPM_BUILD_ROOT
 
 %if %{use_nunc_stans}
 pushd ../nunc-stans-%{nunc_stans_ver}
+# This is the *actual* install of nunc-stans.
 make DESTDIR="$RPM_BUILD_ROOT" install
-rm -rf $RPM_BUILD_ROOT%{_includedir} $RPM_BUILD_ROOT%{_datadir} \
-    $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/pkgconfig
 popd
 %endif
 
@@ -454,6 +458,14 @@ fi
 %{_mandir}/man8/*
 %exclude %{_sbindir}/ldap-agent*
 %exclude %{_mandir}/man1/ldap-agent.1.gz
+# Don't rm these files, just exclude them!
+%exclude %{_datadir}/doc/nunc-stans/*
+%exclude %{_libdir}/%{pkgname}/pkgconfig/nunc-stans.pc
+%exclude %{_includedir}/nunc-stans/nunc-stans.h
+%exclude %{_mandir}/man3/md_docs_job-safety.3.gz
+%exclude %{_mandir}/man3/ns_job_t.3.gz
+%exclude %{_mandir}/man3/ns_thrpool_config.3.gz
+%exclude %{_mandir}/man3/nunc-stans.h.3.gz
 
 %files devel
 %defattr(-,root,root,-)
@@ -463,6 +475,7 @@ fi
 %{_libdir}/%{pkgname}/libns-dshttpd.so
 %if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so
+%{_libdir}/%{pkgname}/liblfds710.so
 %endif
 %{_libdir}/pkgconfig/*
 
@@ -474,6 +487,7 @@ fi
 %{_libdir}/%{pkgname}/libns-dshttpd.so.*
 %if %{use_nunc_stans}
 %{_libdir}/%{pkgname}/libnunc-stans.so.*
+%{_libdir}/%{pkgname}/liblfds710.so.*
 %endif
 
 %files snmp
