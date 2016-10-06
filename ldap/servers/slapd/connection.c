@@ -168,8 +168,6 @@ connection_done(Connection *conn)
 void
 connection_cleanup(Connection *conn)
 {
-	int enable_listeners = 0;
-
 	bind_credentials_clear( conn, PR_FALSE /* do not lock conn */,
 							PR_TRUE /* clear external creds. */ );
 	slapi_ch_free((void**)&conn->c_authtype);
@@ -186,7 +184,6 @@ connection_cleanup(Connection *conn)
 	if (conn->c_prfd)
 	{
 		PR_Close(conn->c_prfd);
-		enable_listeners = 1; /* re-enable listeners disabled due to no fds */
 	}
 
 	conn->c_sd= SLAPD_INVALID_SOCKET;
