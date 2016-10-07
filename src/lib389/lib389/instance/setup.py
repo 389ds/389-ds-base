@@ -15,6 +15,7 @@ import grp
 import re
 import socket
 
+from lib389 import _ds_shutil_copytree
 from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
@@ -73,7 +74,7 @@ class SetupDs(object):
     A logging interface is provided to self.log that you should call.
     """
 
-    def __init__(self, verbose=False, dryrun=False, log=None):
+    def __init__(self, verbose=False, dryrun=False, log=None, containerised=False):
         self.verbose = verbose
         self.extra = None
         self.dryrun = dryrun
@@ -81,6 +82,8 @@ class SetupDs(object):
         self.log = log.getChild('SetupDs')
         if self.verbose:
             self.log.info('Running setup with verbose')
+        # This will indicate that start / stop / status should bypass systemd.
+        self.containerised = containerised
 
     # Could be nicer if we did self._get_config_fallback_<type>?
     def _get_config_fallback(self, config, group, attr, value, boolean=False, num=False):
@@ -224,6 +227,7 @@ class SetupDs(object):
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
         ds = DirSrv(verbose=self.verbose)
+        ds.containerised = self.containerised
         ds.prefix = slapd['prefix']
         insts = ds.list(serverid=slapd['instance_name'])
         assert(len(insts) == 0)
@@ -322,7 +326,7 @@ class SetupDs(object):
             if self.verbose:
                 self.log.info("ACTION: creating %s" % slapd[path])
             try:
-                os.makedirs(slapd[path], mode=0o770)
+                os.makedirs(slapd[path], mode=0o775)
             except OSError:
                 pass
             os.chown(slapd[path], slapd['user_uid'], slapd['group_gid'])
@@ -330,7 +334,9 @@ class SetupDs(object):
         # Copy correct data to the paths.
         # Copy in the schema
         #  This is a little fragile, make it better.
-        shutil.copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
+        # It won't matter when we move schema to usr anyway ...
+
+        _ds_shutil_copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
 
         # Copy in the collation
@@ -386,6 +392,7 @@ class SetupDs(object):
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
         ds_instance = DirSrv(self.verbose)
+        ds_instance.containerised = self.containerised
         args = {
             SER_PORT: slapd['port'],
             SER_SERVERID_PROP: slapd['instance_name'],

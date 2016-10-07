@@ -74,7 +74,9 @@ def instance_create(inst, log, args):
         log.info('%s ...' % (5 - int(i)))
         time.sleep(1)
     log.info('Launching ...')
-    sd = SetupDs(args.verbose, args.dryrun, log)
+    if args.containerised:
+        log.debug("Containerised features requested.")
+    sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
     ### If args.file is not set, we need to interactively get answers!
     if sd.create_from_inf(args.file):
         # print("Sucessfully created instance")
@@ -137,6 +139,7 @@ def create_parser(subparsers):
 By setting this value you acknowledge and take responsibility for the fact this command is UNTESTED and NOT READY. You are ON YOUR OWN!
 """,
                         action='store_true', default=False)
+    create_parser.add_argument('-c', '--containerised', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.", action='store_true', default=False)
     create_parser.set_defaults(func=instance_create)
     create_parser.set_defaults(noinst=True)
 

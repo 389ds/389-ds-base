@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 
+import sys
 import pytest
 from lib389 import DirSrv
 from lib389.cli_base import LogCapture
@@ -21,6 +22,8 @@ INSTANCE_SERVERID = 'standalone'
 
 DEBUGGING = True
 
+MAJOR, MINOR, _, _, _ = sys.version_info
+
 class TopologyInstance(object):
     def __init__(self, standalone):
         # For these tests, we don't want to open the instance.
@@ -30,7 +33,6 @@ class TopologyInstance(object):
 # Need a teardown to destroy the instance.
 @pytest.fixture
 def topology(request):
-
     instance = DirSrv(verbose=DEBUGGING)
     instance.log.debug("Instance allocated")
     args = {SER_PORT: INSTANCE_PORT,
@@ -47,6 +49,8 @@ def topology(request):
     return TopologyInstance(instance)
 
 def test_setup_ds_minimal_dry(topology):
+    if MAJOR < 3:
+        return
     # Create the setupDs
     lc = LogCapture()
     # Give it the right types.
@@ -74,6 +78,8 @@ def test_setup_ds_minimal_dry(topology):
     assert(len(insts) == 0)
 
 def test_setup_ds_minimal(topology):
+    if MAJOR < 3:
+        return
     # Create the setupDs
     lc = LogCapture()
     # Give it the right types.
@@ -106,6 +112,8 @@ def test_setup_ds_minimal(topology):
 
 
 def test_setup_ds_inf_minimal(topology):
+    if MAJOR < 3:
+        return
     # Write a template inf
     # Check it?
     # Setup the server

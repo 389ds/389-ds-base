@@ -116,11 +116,22 @@ class Paths(object):
         else:
             return self._config.get(SECTION, name)
 
+    @property
     def asan_enabled(self):
         if self._defaults_cached is False:
             self._read_defaults()
             self._validate_defaults()
         if self._config.has_option(SECTION, 'asan_enabled'):
             if self._config.get(SECTION, 'asan_enabled') == '1':
+                return True
+        return False
+
+    @property
+    def with_systemd(self):
+        if self._defaults_cached is False:
+            self._read_defaults()
+            self._validate_defaults()
+        if self._config.has_option(SECTION, 'with_systemd'):
+            if self._config.get(SECTION, 'with_systemd') == '1':
                 return True
         return False

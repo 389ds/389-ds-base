@@ -48,6 +48,9 @@ import glob
 import tarfile
 import subprocess
 import collections
+import signal
+import errno
+from shutil import copy2
 try:
     # There are too many issues with this on EL7
     # Out of the box, it's just outright broken ...
@@ -157,22 +160,89 @@ def wrapper(f, name):
     return inner
 
 
-class DirSrv(SimpleLDAPObject):
+def pid_exists(pid):
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            return False
+        elif err.errno == errno.EPERM:
+            return True
+        else:
+            raise
+    return True
 
-    def getDseAttr(self, attrname):
-        """Return a given attribute from dse.ldif.
-            TODO can we take it from "cn=config" ?
-        """
-        conffile = self.confdir.decode('utf-8') + '/dse.ldif'
+def pid_from_file(pidfile):
+    pid = None
+    try:
+        with open(pidfile, 'rb') as f:
+            for line in f.readlines():
+                try:
+                    pid = int(line.strip())
+                    break
+                except ValueError:
+                    continue
+    except IOError:
+        pass
+    return pid
+
+def _ds_shutil_copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2,
+             ignore_dangling_symlinks=False):
+    """Recursively copy a directory tree.
+    This is taken from /usr/lib64/python3.5/shutil.py, but removes the
+    copystat function at the end. Why? Because in a container without
+    privileges, we don't have access to set xattr. But copystat attempts to
+    set the xattr when we are root, which causes the copy to fail. Remove it!
+    """
+    names = os.listdir(src)
+    if ignore is not None:
+        ignored_names = ignore(src, names)
+    else:
+        ignored_names = set()
+
+    os.makedirs(dst)
+    errors = []
+    for name in names:
+        if name in ignored_names:
+            continue
+        srcname = os.path.join(src, name)
+        dstname = os.path.join(dst, name)
         try:
-            dse_ldif = LDIFConn(conffile)
-            cnconfig = dse_ldif.get(DN_CONFIG)
-            if cnconfig:
-                return cnconfig.getValue(attrname)
-            return None
-        except IOError as err:
-            log.error("could not read dse config file")
-            raise err
+            if os.path.islink(srcname):
+                linkto = os.readlink(srcname)
+                if symlinks:
+                    # We can't just leave it to `copy_function` because legacy
+                    # code with a custom `copy_function` may rely on copytree
+                    # doing the right thing.
+                    os.symlink(linkto, dstname)
+                    copystat(srcname, dstname, follow_symlinks=not symlinks)
+                else:
+                    # ignore dangling symlink if the flag is on
+                    if not os.path.exists(linkto) and ignore_dangling_symlinks:
+                        continue
+                    # otherwise let the copy occurs. copy2 will raise an error
+                    if os.path.isdir(srcname):
+                        _ds_shutil_copytree(srcname, dstname, symlinks, ignore,
+                                 copy_function)
+                    else:
+                        copy_function(srcname, dstname)
+            elif os.path.isdir(srcname):
+                _ds_shutil_copytree(srcname, dstname, symlinks, ignore, copy_function)
+            else:
+                # Will raise a SpecialFileError for unsupported file types
+                copy_function(srcname, dstname)
+        # catch the Error from the recursive copytree so that we can
+        # continue with other files
+        except Error as err:
+            errors.extend(err.args[0])
+        except OSError as why:
+            errors.append((srcname, dstname, str(why)))
+    return dst
+
+
+class DirSrv(SimpleLDAPObject):
 
     def __initPart2(self):
         """Initialize the DirSrv structure filling various fields, like:
@@ -225,40 +295,13 @@ class DirSrv(SimpleLDAPObject):
                     self.schemadir = os.path.join(self.confdir, "schema")
                 instdir = ent.getValue('nsslapd-instancedir')
                 if not instdir and self.isLocal:
-                    # get instance name from errorlog
-                    # move re outside
-                    # This is a terrible check! There is NO GUARANTEE this pattern will match or work!
-                    # self.inst = re.match(
-                    #     r'(.*)[\/]slapd-([^/]+)/errors', self.errlog.decode('utf-8')).group(2)
-                    if self.isLocal and self.confdir:
-                        instdir = self.getDseAttr('nsslapd-instancedir')
-                    else:
-                        instdir = re.match(r'(.*/slapd-.*)/logs/errors',
-                                           self.errlog).group(1)
+                    if self.isLocal:
+                        instdir = self.ds_paths.inst_dir
                 if not instdir:
                     instdir = self.confdir.decode('utf-8')
 
                 # parse the lib dir, and so set the plugin dir
                 self.instdir = instdir
-                # THIS NEEDS TO BE FIXED .... There is no guarantee this is correct.
-                # These two values aren't even used, yet cause so much pain.
-                # self.libdir = self.instdir.replace(ensure_bytes('slapd-%s' % self.serverid), ensure_bytes(''))
-                # self.plugindir = self.libdir + ensure_bytes('plugins')
-
-                # if self.verbose:
-                #     log.debug("instdir=%r" % instdir)
-                #     log.debug("Entry: %r" % ent)
-                # match = re.match(r'(.*)[\/]slapd-([^/]+)$', instdir)
-                # if match:
-                #     self.sroot, self.inst = match.groups()
-                # else:
-                #     self.sroot = self.inst = ''
-                #  In case DirSrv was allocated without creating the instance
-                #  serverid is not set. Set it now from the config
-                # if hasattr(self, 'serverid') and self.serverid != None and self.serverid != "":
-                #     assert(self.serverid == self.inst)
-                # else:
-                #     self.serverid = self.inst
 
                 ent = self.getEntry('cn=config,' + DN_LDBM,
                                     attrlist=['nsslapd-directory'])
@@ -425,6 +468,7 @@ class DirSrv(SimpleLDAPObject):
         #  ds = lib389.DirSrv()
         #  ds.list(all=True)
         self.prefix = args_instance[SER_DEPLOYED_DIR]
+        self.containerised = False
 
         self.__wrapmethods()
         self.__add_brookers__()
@@ -1094,9 +1138,41 @@ class DirSrv(SimpleLDAPObject):
             @raise None
         '''
 
-        # called with the default timeout
-        if DirSrvTools.start(self, verbose=self.verbose, timeout=timeout):
-            self.log.error("Probable failure to start the instance")
+        if self.status() is True:
+            return
+
+        if self.with_systemd() and not self.containerised:
+            # Do systemd things here ...
+            subprocess.check_call(["/usr/bin/systemctl",
+                                    "start",
+                                    "dirsrv@%s" % self.serverid])
+        else:
+            # Start the process.
+            # Wait for it to terminate
+            # This means the server is probably ready to go ....
+            subprocess.check_call(["%s/ns-slapd" % self.get_sbin_dir(),
+                                    "-D",
+                                    self.ds_paths.config_dir,
+                                    "-i",
+                                    self.ds_paths.pid_file])
+            count = timeout
+            pid = pid_from_file(self.ds_paths.pid_file)
+            while (pid is None) and count > 0:
+                count -= 1
+                time.sleep(1)
+                pid = pid_from_file(self.ds_paths.pid_file)
+            if pid == 0 or pid is None:
+                raise ValueError
+            # Wait
+            while not pid_exists(pid) and count > 0:
+                # It looks like DS changes the value in here at some point ...
+                # It's probably a DS bug, but if we "keep checking" the file, eventually
+                # we get the main server pid, and it's ready to go.
+                pid = pid_from_file(self.ds_paths.pid_file)
+                time.sleep(1)
+                count -= 1
+            if not pid_exists(pid):
+                raise Exception("Failed to start DS")
 
         self.open()
 
@@ -1112,12 +1188,28 @@ class DirSrv(SimpleLDAPObject):
 
             @raise None
         '''
+        if self.status() is False:
+            return
 
-        # called with the default timeout
-        if DirSrvTools.stop(self, verbose=self.verbose, timeout=timeout):
-            self.log.error("Probable failure to stop the instance")
-
-        # whatever the initial state, the instance is now Offline
+        if self.with_systemd() and not self.containerised:
+            # Do systemd things here ...
+            subprocess.check_call(["/usr/bin/systemctl",
+                                    "stop",
+                                    "dirsrv@%s" % self.serverid])
+        else:
+            # TODO: Make the pid path in the files things
+            # TODO: use the status call instead!!!!
+            count = timeout
+            pid = pid_from_file(self.ds_paths.pid_file)
+            if pid == 0 or pid is None:
+                raise ValueError
+            os.kill(pid, signal.SIGTERM)
+            # Wait
+            while pid_exists(pid) and count > 0:
+                time.sleep(1)
+                count -= 1
+            if pid_exists(pid):
+                os.kill(pid, signal.SIGKILL)
         self.state = DIRSRV_STATE_OFFLINE
 
     def status(self):
@@ -1126,12 +1218,28 @@ class DirSrv(SimpleLDAPObject):
 
         Will update the self.state parameter.
         """
-        status_prog = os.path.join(self.prefix, 'sbin', 'status-dirsrv')
-        try:
-            subprocess.check_call([status_prog, self.serverid])
-            return True
-        except subprocess.CalledProcessError:
+        if self.with_systemd() and not self.containerised:
+            # Do systemd things here ...
+            rc = subprocess.call(["/usr/bin/systemctl",
+                                    "status",
+                                    "dirsrv@%s" % self.serverid])
+            if rc == 0:
+                return True
+                # This .... probably will mess something up
+                # self.state = DIRSRV_STATE_RUNNING
+            self.state = DIRSRV_STATE_OFFLINE
             return False
+        else:
+            # TODO: Make the pid path in the files things
+            # TODO: use the status call instead!!!!
+            pid = pid_from_file(self.ds_paths.pid_file)
+            if pid is None:
+                # No pidfile yet ...
+                return False
+            if pid == 0:
+                raise ValueError
+            # Wait
+            return pid_exists(pid)
 
     def restart(self, timeout=120):
         '''
@@ -1477,6 +1585,9 @@ class DirSrv(SimpleLDAPObject):
     def has_asan(self):
         return self.ds_paths.asan_enabled
 
+    def with_systemd(self):
+        return self.ds_paths.with_systemd
+
     #
     # Get entries
     #
@@ -1506,7 +1617,7 @@ class DirSrv(SimpleLDAPObject):
             raise NoSuchEntryError("no such entry for %r" % [args])
 
         if self.verbose:
-            log.info("Retrieved entry %r" % obj)
+            log.info("Retrieved entry %s" % obj)
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple

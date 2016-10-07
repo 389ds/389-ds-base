@@ -17,7 +17,7 @@ import sys
 
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import ensure_str, ensure_bytes
+from lib389.utils import ensure_str, ensure_bytes, ensure_list_bytes
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -51,7 +51,6 @@ class Entry(object):
     """
     # the ldif class base64 encodes some attrs which I would rather see in raw
     # form - to encode specific attrs as base64, add them to the list below
-    ldif.safe_string_re = re.compile('^$')
     base64_attrs = ['nsstate']
 
     def __init__(self, entrydata):

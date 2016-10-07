@@ -77,10 +77,11 @@ CMD_PATH_SETUP_DS = "setup-ds.pl"
 CMD_PATH_REMOVE_DS = "remove-ds.pl"
 
 # State of an DirSrv object
-DIRSRV_STATE_INIT = 'initial'
-DIRSRV_STATE_ALLOCATED = 'allocated'
-DIRSRV_STATE_OFFLINE = 'offline'
-DIRSRV_STATE_ONLINE = 'online'
+DIRSRV_STATE_INIT = 1
+DIRSRV_STATE_ALLOCATED = 2
+DIRSRV_STATE_OFFLINE = 3
+DIRSRV_STATE_RUNNING = 4
+DIRSRV_STATE_ONLINE = 5
 
 LOCALHOST = "localhost.localdomain"
 LOCALHOST_SHORT = "localhost"

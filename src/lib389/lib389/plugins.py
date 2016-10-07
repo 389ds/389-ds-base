@@ -17,7 +17,16 @@ class Plugin(DSLdapObject):
     def __init__(self, instance, dn=None, batch=False):
         super(Plugin, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
-        self._must_attributes = []
+        self._must_attributes = [
+            'nsslapd-pluginEnabled',
+            'nsslapd-pluginPath',
+            'nsslapd-pluginInitfunc',
+            'nsslapd-pluginType',
+            'nsslapd-pluginId',
+            'nsslapd-pluginVendor',
+            'nsslapd-pluginVersion',
+            'nsslapd-pluginDescription',
+            ]
         self._create_objectclasses = ['top', 'nsslapdplugin']
         # We'll mark this protected, and people can just disable the plugins.
         self._protected = True
