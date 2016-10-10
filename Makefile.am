@@ -32,6 +32,12 @@ else
 ASAN_ON = 0
 endif
 
+if with_systemd
+WITH_SYSTEMD = 1
+else
+WITH_SYSTEMD = 0
+endif
+
 # these paths are dependent on the settings of prefix and exec_prefix which may be specified
 # at make time.  So we cannot use AC_DEFINE in the configure.ac because that would set the
 # values prior to their being defined.  Defining them here ensures that they are properly
@@ -1828,6 +1834,7 @@ fixupcmd = sed \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
+	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
@@ -1898,6 +1905,7 @@ fixupcmd = sed \
 	-e 's,@defaultgroup\@,$(defaultgroup),g' \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
+	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \

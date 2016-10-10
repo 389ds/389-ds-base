@@ -119,5 +119,7 @@ fi
 # End of with_systemd
 
 AM_CONDITIONAL([SYSTEMD],[test -n "$with_systemd"])
+AM_CONDITIONAL([with_systemd],[test -n "$with_systemd"])
 AM_CONDITIONAL([JOURNALD],[test -n "$with_journald"])
+AM_CONDITIONAL([with_systemd_journald],[test -n "$with_journald"])
 

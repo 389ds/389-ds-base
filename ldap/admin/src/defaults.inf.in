@@ -20,6 +20,8 @@
 product = @capbrand@ Directory Server
 version = @PACKAGE_VERSION@
 asan_enabled = @enable_asan@
+with_systemd = @with_systemd@
+with_selinux = @with_selinux@
 prefix = @prefixdir@
 bin_dir = @bindir@
 sbin_dir = @sbindir@
@@ -31,6 +33,7 @@ initconfig_dir = @initconfigdir@
 config_dir = @instconfigdir@/slapd-{instance_name}
 local_state_dir = @localstatedir@
 run_dir = @localstatedir@/run/dirsrv
+pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
 plugin_dir = @serverplugindir@
 
 ; These values can be altered in an installation of ds
