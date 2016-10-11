@@ -166,7 +166,7 @@ referint_postop_init( Slapi_PBlock *pb )
     PR_ASSERT (referint_plugin_identity);
 
     if((config = (referint_config *)slapi_ch_calloc (1, sizeof (referint_config))) == NULL){
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init  - Failed to "
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init  - Failed to "
                "allocate configuration\n" );
         return ( -1 );
     }
@@ -203,7 +203,7 @@ referint_postop_init( Slapi_PBlock *pb )
 		plugin_EntryScope = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *),i+1);
 		for (i=0; plugin_attr_values[i];i++) {
 			if (slapi_dn_syntax_check(NULL, plugin_attr_values[i], 1) == 1) {
-				slapi_log_error(SLAPI_LOG_WARNING, REFERINT_PLUGIN_SUBSYSTEM,
+				slapi_log_err(SLAPI_LOG_WARNING, REFERINT_PLUGIN_SUBSYSTEM,
 						"referint_postop_init - Ignoring invalid DN used as plugin entry scope: [%s]\n",
 						plugin_attr_values[i]);
 				slapi_ch_free_string(&plugin_attr_values[i]);
@@ -216,7 +216,7 @@ referint_postop_init( Slapi_PBlock *pb )
         plugin_attr_value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginExcludeEntryScope");
         if(plugin_attr_value) {
             if (slapi_dn_syntax_check(NULL, plugin_attr_value, 1) == 1) {
-                slapi_log_error(SLAPI_LOG_WARNING, REFERINT_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_WARNING, REFERINT_PLUGIN_SUBSYSTEM,
                         "referint_postop_init - Ignoring invalid DN used as plugin exclude entry scope: [%s]\n",
                         plugin_attr_value);
                 slapi_ch_free_string(&plugin_attr_value);
@@ -228,7 +228,7 @@ referint_postop_init( Slapi_PBlock *pb )
         plugin_attr_value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginContainerScope");
         if(plugin_attr_value) {
             if (slapi_dn_syntax_check(NULL, plugin_attr_value, 1) == 1) {
-                slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                         "referint_postop_init - Ignoring invalid DN used as plugin container scope: [%s]\n",
                         plugin_attr_value);
                 slapi_ch_free_string(&plugin_attr_value);
@@ -248,7 +248,7 @@ referint_postop_init( Slapi_PBlock *pb )
          slapi_pblock_set( pb, SLAPI_PLUGIN_START_FN, (void *) referint_postop_start ) != 0 ||
          slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *) referint_postop_close ) != 0)
     {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init - Failed\n" );
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init - Failed\n" );
         return( -1 );
     }
 
@@ -263,7 +263,7 @@ referint_postop_init( Slapi_PBlock *pb )
                               NULL,     /* ? */
                               referint_plugin_identity   /* access control */))
     {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init - Preop registration failed\n" );
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_init - Preop registration failed\n" );
         return ( -1 );
     }
 
@@ -300,13 +300,13 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
     slapi_rwlock_wrlock(config_rwlock);
 
     if(config == NULL){
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
     	                "load_config: config is NULL\n" );
         rc = SLAPI_PLUGIN_FAILURE;
         goto done;
     }
     if((tmp_config = (referint_config *)slapi_ch_calloc (1, sizeof (referint_config))) == NULL){
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Failed to "
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Failed to "
                "allocate configuration\n" );
         rc = SLAPI_PLUGIN_FAILURE;
         goto done;
@@ -338,19 +338,19 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
     if(new_config_present){
         /* Verify we have everything we need */
         if(tmp_config->delay == -1){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
                              REFERINT_ATTR_DELAY);
             rc = SLAPI_PLUGIN_FAILURE;
         } else if (!tmp_config->logfile){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
                              REFERINT_ATTR_LOGFILE);
             rc = SLAPI_PLUGIN_FAILURE;
         } else if (tmp_config->logchanges == -1){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
                              REFERINT_ATTR_LOGCHANGES);
             rc = SLAPI_PLUGIN_FAILURE;
         } else if (!tmp_config->attrs){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - Plugin configuration is missing %s\n",
                              REFERINT_ATTR_MEMBERSHIP);
             rc = SLAPI_PLUGIN_FAILURE;
         }
@@ -359,19 +359,19 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
          * We are using the old plugin arg configuration, get the args
          */
         if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                     "load_config - Failed to get argc\n" );
             rc = SLAPI_PLUGIN_FAILURE;
             goto done;
         }
         if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                     "load_config - Failed to get argv\n" );
             rc = SLAPI_PLUGIN_FAILURE;
             goto done;
         }
         if(argv == NULL){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                     "load_config - args are NULL\n" );
             rc = SLAPI_PLUGIN_FAILURE;
             goto done;
@@ -389,7 +389,7 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
                 slapi_ch_array_add(&tmp_config->attrs, slapi_ch_strdup(argv[i]));
             }
         } else {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                     "load_config - Insufficient arguments supplied\n" );
             rc = SLAPI_PLUGIN_FAILURE;
             goto done;
@@ -431,7 +431,7 @@ referint_postop_modify(Slapi_PBlock *pb)
     if (referint_sdn_config_cmp(sdn) == 0 && slapi_sdn_compare(sdn, referint_get_plugin_area()))
     {
         if( SLAPI_PLUGIN_FAILURE == load_config(pb, entry, 1)){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_modify - "
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_modify - "
             	"Failed to update configuration.\n");
             return SLAPI_PLUGIN_FAILURE;
         }
@@ -443,7 +443,7 @@ referint_postop_modify(Slapi_PBlock *pb)
         if((config_area = slapi_entry_attr_get_charptr(entry, SLAPI_PLUGIN_SHARED_CONFIG_AREA))){
             rc = slapi_dn_syntax_check(pb, config_area, 1);
             if (rc) { /* syntax check failed */
-                slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_modify - "
+                slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_modify - "
                                 "%s does not contain a valid DN (%s)\n",
                                 SLAPI_PLUGIN_SHARED_CONFIG_AREA, config_area);
                 rc = LDAP_INVALID_DN_SYNTAX;
@@ -454,7 +454,7 @@ referint_postop_modify(Slapi_PBlock *pb)
             if (LDAP_SUCCESS != result) {
                 if (result == LDAP_NO_SUCH_OBJECT) {
                     /* log an error and use the plugin entry for the config */
-                    slapi_log_error(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
                             "referint_postop_modify - Config entry \"%s\" does "
                             "not exist.\n", config_area);
                     rc = LDAP_OPERATIONS_ERROR;
@@ -464,7 +464,7 @@ referint_postop_modify(Slapi_PBlock *pb)
                 if(e){
                     config_e = e;
                 } else {
-                    slapi_log_error(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
                             "referint_postop_modify - Config entry \"%s\" was not located.\n", config_area);
                     rc = LDAP_OPERATIONS_ERROR;
                     goto bail;
@@ -618,7 +618,7 @@ referint_postop_del( Slapi_PBlock *pb )
          slapi_pblock_get( pb, SLAPI_DELETE_TARGET_SDN, &sdn ) != 0  ||
          slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0)
     {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_del - Could not get parameters\n" );
         return SLAPI_PLUGIN_FAILURE;
     }
@@ -671,7 +671,7 @@ referint_postop_modrdn( Slapi_PBlock *pb )
          slapi_pblock_get( pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &newsuperior ) != 0 ||
          slapi_pblock_get( pb, SLAPI_PLUGIN_OPRETURN, &oprc) != 0 )
     {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
             "referint_postop_modrdn - Could not get parameters\n" );
         return SLAPI_PLUGIN_FAILURE;
     }
@@ -792,7 +792,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         list_of_mods[1] = NULL;
         rc = _do_modify(mod_pb, entrySDN, list_of_mods);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                 "_update_one_per_mod - Entry %s: deleting \"%s: %s\" failed (%d)"
                 "\n", slapi_sdn_get_dn(entrySDN), attrName, slapi_sdn_get_dn(origDN), rc);
         }
@@ -803,14 +803,14 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         Slapi_Value *v = NULL;
 
         if (NULL == origDN) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                             "_update_one_per_mod - NULL dn was passed\n");
             goto bail;
         }
         /* need to put together rdn into a dn */
         dnParts = slapi_ldap_explode_dn( slapi_sdn_get_dn(origDN), 0 );
         if (NULL == dnParts) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                             "_update_one_per_mod - Failed to explode dn %s\n",
                             slapi_sdn_get_dn(origDN));
             goto bail;
@@ -882,7 +882,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
                 list_of_mods[2] = NULL;
                 rc = _do_modify(mod_pb, entrySDN, list_of_mods);
                 if (rc) {
-                    slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                         "_update_one_per_mod - Entry %s: replacing \"%s: %s\" "
                         "with \"%s: %s\" failed (%d)\n",
                         slapi_sdn_get_dn(entrySDN), attrName, 
@@ -912,7 +912,7 @@ _update_one_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
                 list_of_mods[2] = NULL;
                 rc = _do_modify(mod_pb, entrySDN, list_of_mods);
                 if (rc) {
-                    slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                         "_update_one_per_mod - Entry %s: replacing \"%s: %s\" "
                         "with \"%s: %s\" failed (%d)\n",
                         slapi_sdn_get_dn(entrySDN), attrName, sval, attrName, newvalue, rc);
@@ -975,7 +975,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         mods[1] = NULL;
         rc = _do_modify(mod_pb, entrySDN, mods);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                 "_update_all_per_mod - Entry %s: deleting \"%s: %s\" failed (%d)"
                 "\n", slapi_sdn_get_dn(entrySDN), attrName, slapi_sdn_get_dn(origDN), rc);
         }
@@ -986,14 +986,14 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         Slapi_Value *v = NULL;
 
         if (NULL == origDN) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                             "_update_all_per_mod - NULL dn was passed\n");
             goto bail;
         }
         /* need to put together rdn into a dn */
         dnParts = slapi_ldap_explode_dn( slapi_sdn_get_dn(origDN), 0 );
         if (NULL == dnParts) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                             "_update_all_per_mod - Failed to explode dn %s\n",
                             slapi_sdn_get_dn(origDN));
             goto bail;
@@ -1070,7 +1070,7 @@ _update_all_per_mod(Slapi_DN *entrySDN,      /* DN of the searched entry */
         }
         rc = _do_modify(mod_pb, entrySDN, slapi_mods_get_ldapmods_byref(smods));
         if (rc) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                         "_update_all_per_mod - Entry %s failed (%d)\n",
                         slapi_sdn_get_dn(entrySDN), rc);
         }
@@ -1220,7 +1220,7 @@ update_integrity(Slapi_DN *origSDN,
                     }
                 } else {
                     if (isFatalSearchError(search_result)){
-                        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+                        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                             "update_integrity - Search (base=%s filter=%s) returned "
                             "error %d\n", search_base, filter, search_result);
                         rc = SLAPI_PLUGIN_FAILURE;
@@ -1268,7 +1268,7 @@ int referint_postop_start( Slapi_PBlock *pb)
     int rc = 0;
 
     if((config_rwlock = slapi_new_rwlock()) == NULL){
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_start - Failed to "
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_start - Failed to "
                 "create rwlock.\n" );
         return ( -1 );
     }
@@ -1281,7 +1281,7 @@ int referint_postop_start( Slapi_PBlock *pb)
     {
         rc = slapi_dn_syntax_check(pb, config_area, 1);
         if (rc) { /* syntax check failed */
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_start - "
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_postop_start - "
                             "%s does not contain a valid DN (%s)\n",
                             SLAPI_PLUGIN_SHARED_CONFIG_AREA, config_area);
             rc = LDAP_INVALID_DN_SYNTAX;
@@ -1292,7 +1292,7 @@ int referint_postop_start( Slapi_PBlock *pb)
         if (LDAP_SUCCESS != result) {
             if (result == LDAP_NO_SUCH_OBJECT) {
                 /* log an error and use the plugin entry for the config */
-                slapi_log_error(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
                         "referint_postop_start -Config entry \"%s\" does "
                         "not exist.\n", config_area);
                 rc = -1;
@@ -1302,7 +1302,7 @@ int referint_postop_start( Slapi_PBlock *pb)
             if(e){
                 config_e = e;
             } else {
-                slapi_log_error(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
                         "referint_postop_start - Config entry \"%s\" was not located.\n", config_area);
                 rc = -1;
                 goto bail;
@@ -1339,7 +1339,7 @@ int referint_postop_start( Slapi_PBlock *pb)
                            PR_UNJOINABLE_THREAD,
                            SLAPD_DEFAULT_THREAD_STACKSIZE);
         if ( referint_tid == NULL ) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                 "referint_postop_start - PR_CreateThread failed\n" );
             exit( 1 );
         }
@@ -1456,7 +1456,7 @@ referint_thread_func(void *arg)
             if (strcasecmp(ptoken, "NULL") != 0) {
                 /* Set the bind DN in the thread data */
                 if(slapi_td_set_dn(slapi_ch_strdup(ptoken))){
-                    slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,"referint_thread_func - "
+                    slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,"referint_thread_func - "
                     	"Failed to set thread data\n");
                 }
             }
@@ -1472,7 +1472,7 @@ referint_thread_func(void *arg)
 
         /* remove the original file */
         if( PR_SUCCESS != PR_Delete(logfilename) ){
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                 "referint_thread_func - Could not delete \"%s\"\n", logfilename );
         }
 
@@ -1592,7 +1592,7 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     if (( prfd = PR_Open( logfilename, PR_WRONLY | PR_CREATE_FILE | PR_APPEND,
           REFERINT_DEFAULT_FILE_MODE )) == NULL ) 
     {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
             "writeintegritylog - Could not write integrity log \"%s\" "
         SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
             logfilename, PR_GetError(), slapd_pr_strerror(PR_GetError()) );
@@ -1638,7 +1638,7 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     }
 
     if(len_to_write > MAX_LINE ){
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                          "writeintegritylog - Could not write integrity log:"
                          " line length exceeded. It will not be able"
                          " to update references to this entry.\n");
@@ -1648,7 +1648,7 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
                     (newsuperiordn != NULL) ? newsuperiordn : "NULL",
                     requestordn ? requestordn : "NULL");
         if (PR_Write(prfd,buffer,strlen(buffer)) < 0){
-            slapi_log_error(SLAPI_LOG_ERR,REFERINT_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR,REFERINT_PLUGIN_SUBSYSTEM,
                 " writeintegritylog - PR_Write failed : The disk"
                 " may be full or the file is unwritable :: NSPR error - %d\n",
             PR_GetError());
@@ -1658,7 +1658,7 @@ writeintegritylog(Slapi_PBlock *pb, char *logfilename, Slapi_DN *sdn,
     /* If file descriptor is closed successfully, PR_SUCCESS */
     rc = PR_Close(prfd);
     if (rc != PR_SUCCESS){
-        slapi_log_error(SLAPI_LOG_ERR,REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR,REFERINT_PLUGIN_SUBSYSTEM,
             " writeintegritylog - Failed to close the file descriptor prfd; NSPR error - %d\n",
             PR_GetError());
     }
@@ -1674,7 +1674,7 @@ referint_preop_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,  (void *) &pdesc) != 0 ||
         slapi_pblock_set(pb, premodfn, (void *)referint_validate_config) != 0)
     {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM,
                 "referint_preop_init - Failed to register plugin\n");
         status = -1;
     }
@@ -1702,7 +1702,7 @@ referint_validate_config(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_entry);
     if (!pre_entry) {
-        slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - Null pre op entry.\n");
+        slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - Null pre op entry.\n");
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }
@@ -1726,7 +1726,7 @@ referint_validate_config(Slapi_PBlock *pb)
         }
 
         if ( SLAPI_PLUGIN_FAILURE == load_config(pb, resulting_entry, 0)) {
-            slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - "
+            slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - "
                     "configuration validation failed.\n");
             rc = LDAP_UNWILLING_TO_PERFORM;
             goto bail;
@@ -1750,7 +1750,7 @@ referint_validate_config(Slapi_PBlock *pb)
          if((config_area = slapi_entry_attr_get_charptr(resulting_entry, SLAPI_PLUGIN_SHARED_CONFIG_AREA))){
              rc = slapi_dn_syntax_check(pb, config_area, 1);
              if (rc) { /* syntax check failed */
-                 slapi_log_error(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - "
+                 slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - "
                                  "%s does not contain a valid DN (%s)\n",
                                  SLAPI_PLUGIN_SHARED_CONFIG_AREA, config_area);
                  rc = LDAP_INVALID_DN_SYNTAX;
@@ -1760,7 +1760,7 @@ referint_validate_config(Slapi_PBlock *pb)
              rc = slapi_search_internal_get_entry(config_sdn, NULL, &e, referint_plugin_identity);
              if (LDAP_SUCCESS != rc) {
                  /* log an error and use the plugin entry for the config */
-                 slapi_log_error(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                 slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
                          "referint_validate_config - Config entry \"%s\" couild not be found, error %d\n",
                          config_area, rc);
                  rc = LDAP_OPERATIONS_ERROR;
@@ -1769,7 +1769,7 @@ referint_validate_config(Slapi_PBlock *pb)
                  if(e){
                      config_e = e;
                  } else {
-                     slapi_log_error(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
+                     slapi_log_err(SLAPI_LOG_PLUGIN, REFERINT_PLUGIN_SUBSYSTEM,
                              "referint_validate_config - Config entry \"%s\" was not located.\n", config_area);
                      rc = LDAP_OPERATIONS_ERROR;
                      goto bail;

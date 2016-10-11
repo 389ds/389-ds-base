@@ -103,7 +103,7 @@ cos_postop_init ( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *)cos_post_op ) != 0 ||
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *)cos_post_op ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 						 "cos_postop_init - Failed to register plugin\n" );
 		rc = -1;
 	}
@@ -126,7 +126,7 @@ cos_internalpostop_init ( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN,
 							(void *) cos_post_op ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 					"cos_internalpostop_init - Failed to register plugin\n" );
 		rc = -1;
 	}
@@ -143,7 +143,7 @@ int cos_init( Slapi_PBlock *pb )
 	int ret = 0;
 	void * plugin_identity=NULL;
 
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_init\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_init\n");
 
 	/*
 	** Store the plugin identity for later use.
@@ -159,7 +159,7 @@ int cos_init( Slapi_PBlock *pb )
 		 slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN, (void *) cos_close ) != 0 ||
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM,
 						 "cos_init - Failed to register plugin\n" );
 		ret = -1;
 		goto bailout;
@@ -178,7 +178,7 @@ int cos_init( Slapi_PBlock *pb )
 	                      plugin_identity);
 
 bailout:
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_init\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_init\n");
 	return ret;
 }
 
@@ -193,22 +193,22 @@ int cos_start( Slapi_PBlock *pb )
 {
 	int ret = 0;
 
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_start\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_start\n");
 
 	if( !cos_cache_init() )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_start - Ready for service\n");
+		slapi_log_err(SLAPI_LOG_PLUGIN, COS_PLUGIN_SUBSYSTEM, "cos_start - Ready for service\n");
 	}
 	else
 	{
 
 		/* problems we are hosed */
 		cos_cache_stop();
-		slapi_log_error(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_start - Failed to initialise\n");
+		slapi_log_err(SLAPI_LOG_ERR, COS_PLUGIN_SUBSYSTEM, "cos_start - Failed to initialise\n");
 		ret = -1;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_start\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_start\n");
 	return ret;
 }
 
@@ -219,11 +219,11 @@ int cos_start( Slapi_PBlock *pb )
 */
 int cos_close( Slapi_PBlock *pb )
 {
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_close\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_close\n");
 
 	cos_cache_stop();
 
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_close\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_close\n");
 
 	return 0;
 }
@@ -260,11 +260,11 @@ int cos_compute(computed_attr_context *c,char* type,Slapi_Entry *e,slapi_compute
 */
 int cos_post_op( Slapi_PBlock *pb )
 {
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_post_op\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "--> cos_post_op\n");
 
 	cos_cache_change_notify(pb);
 
-	slapi_log_error(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_post_op\n");
+	slapi_log_err(SLAPI_LOG_TRACE, COS_PLUGIN_SUBSYSTEM, "<-- cos_post_op\n");
 
 	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }

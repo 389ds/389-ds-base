@@ -894,9 +894,9 @@ valueset_value_syntax_cmp( const Slapi_Attr *a, const Slapi_Value *v1, const Sla
 		 * generate the keys will be found (there exists a default plugin)
 		 * log an error and continue.
 		 */
-		LDAPDebug(LDAP_DEBUG_ERR, "valueset_value_syntax_cmp - "
+		slapi_log_err(SLAPI_LOG_ERR, "valueset_value_syntax_cmp",
 		    "slapi_attr_values2keys_sv failed for type %s\n",
-		    a->a_type, 0, 0 );
+		    a->a_type);
 	} else {
 		const struct berval *bv1, *bv2;
 		bv1 = &keyvals[0]->bv;
@@ -1290,7 +1290,8 @@ valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value 
 			{
 				if((flags & SLAPI_VALUE_FLAG_IGNOREERROR) == 0)
 				{
-					LDAPDebug(LDAP_DEBUG_ARGS,"could not find value %d for attr %s\n", i-1, a->a_type, 0 );
+					slapi_log_err(SLAPI_LOG_ARGS, "valueset_remove_valuearray",
+						"Could not find value %d for attr %s\n", i-1, a->a_type);
 					rc= LDAP_NO_SUCH_ATTRIBUTE;
 				}
 			}

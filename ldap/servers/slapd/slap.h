@@ -113,7 +113,6 @@ typedef struct symbol_t {
 #include "ldap.h"
 #include "ldaprot.h"
 #include "ldif.h"
-#include "ldaplog.h"
 #include "portable.h"
 #include "disconnect_errors.h"
 

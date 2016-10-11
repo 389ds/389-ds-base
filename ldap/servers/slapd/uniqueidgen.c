@@ -46,7 +46,7 @@ int uniqueIDGenInit (const char *configDir, const Slapi_DN *configDN, PRBool mtG
     if ((configDN == NULL && (configDir == NULL || !validDir(configDir))) ||
         (configDN && configDir))
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDGenInit: invalid arguments\n");
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDGenInit: invalid arguments\n");
 		
         return UID_BADDATA;
 	}
@@ -57,7 +57,7 @@ int uniqueIDGenInit (const char *configDir, const Slapi_DN *configDN, PRBool mtG
         return UID_SUCCESS;
     else
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDGenInit: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDGenInit: "
 						 "generator initialization failed\n");
         return UID_SYSTEM_ERROR;
 	}
@@ -85,7 +85,7 @@ int slapi_uniqueIDGenerate (Slapi_UniqueID *uId){
 
     if (uId == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDGenerate: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDGenerate: "
 						 "NULL parameter is passed to the function.\n");
         return UID_BADDATA;
 	}
@@ -93,7 +93,7 @@ int slapi_uniqueIDGenerate (Slapi_UniqueID *uId){
     rt = uuid_create(uId); 
     if (rt != UUID_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDGenerate: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDGenerate: "
 						 "id generation failed.\n");
         return UID_SYSTEM_ERROR;
 	}
@@ -145,7 +145,7 @@ int slapi_uniqueIDGenerateFromName (Slapi_UniqueID *uId, const Slapi_UniqueID *u
 {
 	if (uId == NULL || uIdBase == NULL || name == NULL || namelen <= 0)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDGenerateMT: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDGenerateMT: "
 						 "invalid parameter is passed to the function.\n");
 		return UID_BADDATA;
 	}

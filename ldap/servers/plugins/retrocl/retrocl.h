@@ -22,7 +22,6 @@
 #include "slapi-private.h"
 #include "slapi-plugin.h"
 /* #include "portable.h" */
-#include "ldaplog.h"
 #include "ldif.h"
 #include "slap.h"
 

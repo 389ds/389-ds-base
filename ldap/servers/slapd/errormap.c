@@ -153,14 +153,12 @@ SECU_Strerror(PRErrorCode errNum) {
     	for (i = low + 1; i <= high; ++i) {
 	    num = errStrings[i].errNum;
 	    if (num <= lastNum) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"SECU_Strerror - Sequence error in error strings at item %d\n"
-			"error %d (%s)\n",
-			i, lastNum, errStrings[i-1].errString );
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"SECU_Strerror - Should come after \n"
-			"error %d (%s)\n",
-			num, errStrings[i].errString, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "SECU_Strerror",
+			"Sequence error in error strings at item %d - error %d (%s)\n",
+			lastNum, num, errStrings[i-1].errString );
+		slapi_log_err(SLAPI_LOG_ERR, "SECU_Strerror",
+			"Should come after %d - error %d (%s)\n",
+			i, num, errStrings[i].errString);
 	    }
 	    lastNum = num;
 	}

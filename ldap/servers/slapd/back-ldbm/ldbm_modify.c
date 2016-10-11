@@ -88,7 +88,7 @@ int modify_switch_entries(modify_context *mc,backend *be)
 	if (mc->old_entry && mc->new_entry) {
 		ret = cache_replace(&(inst->inst_cache), mc->old_entry, mc->new_entry);
 		if (ret) {
-			LDAPDebug(LDAP_DEBUG_CACHE, "modify_switch_entries: replacing %s with %s failed (%d)\n",
+			slapi_log_err(SLAPI_LOG_CACHE, "modify_switch_entries", "Replacing %s with %s failed (%d)\n",
 			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
 			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
 		}
@@ -133,7 +133,7 @@ modify_unswitch_entries(modify_context *mc,backend *be)
 			cache_unlock_entry(&inst->inst_cache, mc->new_entry);
 			cache_lock_entry(&inst->inst_cache, mc->old_entry);
 		} else {
-			LDAPDebug(LDAP_DEBUG_CACHE, "modify_unswitch_entries: replacing %s with %s failed (%d)\n",
+			slapi_log_err(SLAPI_LOG_CACHE, "modify_unswitch_entries", "Replacing %s with %s failed (%d)\n",
 			          slapi_entry_get_dn(mc->old_entry->ep_entry), 
 			          slapi_entry_get_dn(mc->new_entry->ep_entry), ret);
 		}
@@ -180,7 +180,7 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 	if ( 0 != retval ) {
 		if (DB_LOCK_DEADLOCK != retval)
 		{
-			ldbm_nasty(function_name,66,retval);
+			ldbm_nasty(function_name,"",66,retval);
 		}
 		goto error;
 	}
@@ -188,7 +188,7 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 	if ( 0 != retval ) {
 		if (DB_LOCK_DEADLOCK != retval)
 		{
-			ldbm_nasty(function_name,65,retval);
+			ldbm_nasty(function_name,"",65,retval);
 		}
 		goto error;
 	}
@@ -203,7 +203,7 @@ int modify_update_all(backend *be, Slapi_PBlock *pb,
 		if ( 0 != retval ) {
 			if (DB_LOCK_DEADLOCK != retval)
 			{
-				ldbm_nasty(function_name,64,retval);
+				ldbm_nasty(function_name,"",64,retval);
 			}
 			goto error;
 		}
@@ -431,7 +431,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
-		LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_back_modify - "
+		slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 		              "Instance \"%s\" does not exist.\n",
 		              inst ? inst->inst_name : "null instance");
 		goto error_return;
@@ -519,7 +519,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				ruv_c_init = 0;
 			}
 
-			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM,
+			slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modify",
 			               "Modify Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
@@ -568,7 +568,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				{
 					ldap_result_code = LDAP_UNWILLING_TO_PERFORM;
                 			ldap_result_message = "Operation not allowed on tombstone entry.";
-					slapi_log_error(SLAPI_LOG_ERR, "ldbm_back_modify",
+					slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 						"Attempt to modify a tombstone entry %s\n",
 						slapi_sdn_get_dn(slapi_entry_get_sdn_const( e->ep_entry )));
 					goto error_return;
@@ -617,7 +617,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
 				if (!ldap_result_code) {
-					LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_modify - "
+					slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 						"SLAPI_PLUGIN_BE_PRE_MODIFY_FN "
 						"returned error but did not set SLAPI_RESULT_CODE\n");
 					ldap_result_code = LDAP_OPERATIONS_ERROR;
@@ -660,7 +660,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		/* call the transaction pre modify plugins just after creating the transaction */
 		retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN);
 		if (retval) {
-			LDAPDebug1Arg(LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
+			slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modify", "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN plugin "
 						   "returned error code %d\n", retval );
 			slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 			slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
@@ -684,7 +684,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		slapi_mods_init_byref(&smods,mods);
 		new_mod_count = slapi_mods_get_num_mods(&smods);
 		if (new_mod_count < mod_count) {
-			LDAPDebug2Args(LDAP_DEBUG_ANY, "ldbm_back_modify - "
+			slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 				"Error: BE_TXN_PRE_MODIFY plugin has removed "
 				"mods from the original list - mod count was [%d] now [%d] "
 				"mods will not be applied - mods list changes must be done "
@@ -710,9 +710,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			continue;
 		}
 		if (0 != retval) {
-			LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
+			slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 				"id2entry_add failed, err=%d %s\n",
-				retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				retval, (msg = dblayer_strerror( retval )) ? msg : "");
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
@@ -724,9 +724,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 			continue;
 		}
 		if (0 != retval) {
-			LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
+			slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 				"index_add_mods failed, err=%d %s\n",
-				retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+				retval, (msg = dblayer_strerror( retval )) ? msg : "");
 			if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 			MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
 			goto error_return;
@@ -744,9 +744,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
+				slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 					"vlv_update_index failed, err=%d %s\n",
-					retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+					retval, (msg = dblayer_strerror( retval )) ? msg : "");
 				if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
 				MOD_SET_ERROR(ldap_result_code, 
 							  LDAP_OPERATIONS_ERROR, retry_count);
@@ -758,9 +758,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
 			ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
 			if (-1 == ruv_c_init) {
-				LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
-					"ldbm_txn_ruv_modify_context failed to construct RUV modify context\n",
-					0, 0, 0);
+				slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
+					"ldbm_txn_ruv_modify_context failed to construct RUV modify context\n");
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				retval = 0;
 				goto error_return;
@@ -774,9 +773,9 @@ ldbm_back_modify( Slapi_PBlock *pb )
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
+				slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
 					"modify_update_all failed, err=%d %s\n", retval,
-					(msg = dblayer_strerror( retval )) ? msg : "", 0 );
+					(msg = dblayer_strerror( retval )) ? msg : "");
 				if (LDBM_OS_ERR_IS_DISKFULL(retval))
 					disk_full = 1;
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -789,8 +788,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 		}
 	}
 	if (retry_count == RETRY_TIMES) {
-		LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
-			"Retry count exceeded in modify\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
+			"Retry count exceeded in modify\n");
 	   	ldap_result_code= LDAP_BUSY;
 		goto error_return;
 	}
@@ -798,8 +797,8 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	if (ruv_c_init) {
 		if (modify_switch_entries(&ruv_c, be) != 0 ) {
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_modify - "
-				"modify_switch_entries failed\n", 0, 0, 0);
+			slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
+				"modify_switch_entries failed\n");
 			goto error_return;
 		}
 	}
@@ -834,7 +833,7 @@ ldbm_back_modify( Slapi_PBlock *pb )
 	
 	/* call the transaction post modify plugins just before the commit */
 	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
-		LDAPDebug1Arg(LDAP_DEBUG_TRACE, "ldbm_back_modify - "
+		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modify",
 			"SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
 			"returned error code %d\n", retval );
 		if (!ldap_result_code) {
@@ -872,7 +871,7 @@ error_return:
 	}
 	if (retval == DB_RUNRECOVERY) {
 	  dblayer_remember_disk_filled(li);
-	  ldbm_nasty("Modify",81,retval);
+	  ldbm_nasty("ldbm_back_modify","Modify",81,retval);
 	  disk_full = 1;
 	}
 
@@ -900,8 +899,8 @@ error_return:
 			   keep track of a counter (usn, dna) may want to "rollback" the counter
 			   in this case */
 			if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN))) {
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin "
-							   "returned error code %d\n", retval );
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_modify",
+					"SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN plugin returned error code %d\n", retval );
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 				slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 				slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &opreturn);
@@ -927,7 +926,7 @@ error_return:
 		/* if ec was in cache, e was not - add back e */
 		if (e) {
 			if (CACHE_ADD( &inst->inst_cache, e, NULL ) < 0) {
-				LDAPDebug1Arg(LDAP_DEBUG_CACHE, "ldbm_modify: CACHE_ADD %s failed\n",
+				slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modify", "CACHE_ADD %s failed\n",
 				              slapi_entry_get_dn(e->ep_entry));
 			}
 		}

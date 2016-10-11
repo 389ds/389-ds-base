@@ -33,44 +33,18 @@
 #include "slapi-plugin-compat4.h"
 #include <sys/stat.h>
 
-/*** from proto-slap.h ***/
-
-int slapd_log_error_proc( int loglevel, char *subsystem, char *fmt, ... );
-
-/*** from ldaplog.h ***/
-
-/* edited ldaplog.h for LDAPDebug()*/
-#ifndef _LDAPLOG_H
-#define _LDAPLOG_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #ifdef BUILD_STANDALONE
-#define slapi_log_error(a,b,c,d) printf((c),(d))
+#define slapi_log_err(a,b,c,d) printf((c),(d))
 #define stricmp strcasecmp
 #endif
-
-#define LDAP_DEBUG_TRACE	0x00001		/*     1 */
-#define LDAP_DEBUG_ANY      0x04000		/* 16384 */
-#define LDAP_DEBUG_PLUGIN	0x10000		/* 65536 */
-
-/* debugging stuff */
-
-extern int	slapd_ldap_debug;
-#define LDAPDebug( level, fmt, arg1, arg2, arg3 )	\
-{ \
-  if ( slapd_ldap_debug & level ) { \
-    slapd_log_error_proc( level, NULL, fmt, arg1, arg2, arg3 ); \
-  } \
-}
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* _LDAP_H */
 
 #define HTTP_PLUGIN_SUBSYSTEM   "http-client-plugin"   /* used for logging */
 
@@ -182,14 +156,14 @@ static int doRequestRetry(const char *url, httpheader **httpheaderArray, char *b
 	retrycnt = httpConfig->retryCount;
 	
 	if (retrycnt == 0) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Retry Count cannot be read. Setting to default value of 3\n");
+		slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Retry Count cannot be read. Setting to default value of 3\n");
 	   	retrycnt = 3;
 	}
         status = doRequest(url, httpheaderArray, body, buf, bytesRead, reqType);
 	if (status != HTTP_IMPL_SUCCESS) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Failed to perform http request \n");
+		slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Failed to perform http request \n");
        	 while (retrycnt > 0) {
-       		slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Retrying http request %d.\n", i);
+       		slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Retrying http request %d.\n", i);
        	         status = doRequest(url, httpheaderArray, body, buf, bytesRead, reqType);
        	         if (status == HTTP_IMPL_SUCCESS) {
                         break;
@@ -198,8 +172,8 @@ static int doRequestRetry(const char *url, httpheader **httpheaderArray, char *b
        	         i++;
         }
         if (status != HTTP_IMPL_SUCCESS) {
-        	slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Failed to perform http request after %d attempts.\n", i);
-        	slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Verify plugin URI configuration and contact Directory Administrator.\n");
+        	slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Failed to perform http request after %d attempts.\n", i);
+        	slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM, "doRequestRetry - Verify plugin URI configuration and contact Directory Administrator.\n");
         }
 
 	}
@@ -219,18 +193,18 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	PRInt32 http_connection_time_out = 0;
 	PRInt32 sslOn = 0;
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - BEGIN\n");
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - url=[%s] \n",url);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - url=[%s] \n",url);
 
 	/* Parse the URL and initialize the host, port, path */
 	if (parseURI(url, &host, &port, &path, &sslOn) == PR_FAILURE) {
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "doRequest: %s \n", HTTP_ERROR_BAD_URL);
 		status = PR_FAILURE;
 		goto bail;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - host=[%s] port[%d] path[%s] \n",host,port,path);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - host=[%s] port[%d] path[%s] \n",host,port,path);
 
 	/* Initialize the Net Addr */
     if (PR_StringToNetAddr(host, &addr) == PR_FAILURE) {
@@ -241,7 +215,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		if (status == PR_SUCCESS) {
             PR_EnumerateHostEnt(0, &ent, (PRUint16)port, &addr);
         } else {
-			slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "doRequest - %s\n", HTTP_ERROR_NET_ADDR);
 			status = HTTP_CLIENT_ERROR_NET_ADDR;
 			goto bail;
@@ -250,18 +224,18 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 		addr.inet.port = (PRUint16)port;
 	}
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully created NetAddr \n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully created NetAddr \n");
 
 	/* open a TCP connection to the server */
     fd = PR_NewTCPSocket();
     if (!fd) {
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "doRequest - %s\n", HTTP_ERROR_SOCKET_CREATE);
         	status = HTTP_CLIENT_ERROR_SOCKET_CREATE;
 		goto bail;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully created New TCP Socket \n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully created New TCP Socket \n");
 
 	/* immediately send the response */
     setTCPNoDelay(fd);
@@ -269,7 +243,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
     if (sslOn) {
 		fd = setupSSLSocket(fd);
 		if (fd == NULL) {
-			slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      	"doRequest - %s\n", HTTP_ERROR_SSLSOCKET_CREATE);
         		status = HTTP_CLIENT_ERROR_SSLSOCKET_CREATE;
 			goto bail;
@@ -277,7 +251,7 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	
 		if (SSL_SetURL(fd, host) != 0) {
     			errcode = PR_GetError();
-				slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+				slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
 		     	"doRequest - SSL_SetURL -> NSPR Error code (%d) \n", errcode);
         		status = HTTP_CLIENT_ERROR_SSLSOCKET_CREATE;
 			goto bail;
@@ -289,19 +263,19 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	/* connect to the host */
     if (PR_Connect(fd, &addr, PR_MillisecondsToInterval(http_connection_time_out)) == PR_FAILURE) {
     	errcode = PR_GetError();
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
 			"doRequest - %s (%s:%d) -> NSPR Error code (%d)\n",
 			HTTP_ERROR_CONNECT_FAILED, host, addr.inet.port, errcode);
     	status = HTTP_CLIENT_ERROR_CONNECT_FAILED;
 		goto bail;
     }
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "----------> Successfully connected to host [%s] \n",host,0,0);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully connected to host [%s] \n",host);
 
 	/* send the request to the server */
 	if (reqType == HTTP_REQ_TYPE_POST) {
 		if (sendPostReq(fd, path, httpheaderArray, body) == PR_FAILURE) {
-			slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
 				"doRequest - sendPostReq: %s (%s)\n", HTTP_ERROR_SEND_REQ, path);
        		status = HTTP_CLIENT_ERROR_SEND_REQ;
 			goto bail;
@@ -309,23 +283,23 @@ static int doRequest(const char *url, httpheader **httpheaderArray, char *body, 
 	}
 	else {
 		if (sendGetReq(fd, path) == PR_FAILURE) {
-			slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
 				"doRequest - sendGetReq: %s (%s)\n", HTTP_ERROR_SEND_REQ, path);
        		status = HTTP_CLIENT_ERROR_SEND_REQ;
 			goto bail;
 		}
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully sent the request [%s] \n",path);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully sent the request [%s] \n",path);
 
 	/* read the response */
 	if (processResponse(fd, buf, bytesRead, reqType) == PR_FAILURE) {
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
-			"doRequest: %s (%s)\n", HTTP_ERROR_BAD_RESPONSE, url);
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+			"doRequest - %s (%s)\n", HTTP_ERROR_BAD_RESPONSE, url);
         status = HTTP_CLIENT_ERROR_BAD_RESPONSE;
 		goto bail;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully read the response\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - Successfully read the response\n");
 bail:
 	if (host) {
 		PR_Free(host);
@@ -337,7 +311,7 @@ bail:
 		PR_Close(fd);
 		fd = NULL;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "doRequest - END\n");
 	return status;
 }
 
@@ -367,7 +341,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 	 * the HTTP_DEFAULT_BUFFER_SIZE, it will cause the server to crash. A 4k
 	 * buffer should be good enough.
 	 */
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - BEGIN\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - BEGIN\n");
 
 	headers = (char *)PR_Calloc(1, 4 * HTTP_DEFAULT_BUFFER_SIZE);
     /* Get protocol string */
@@ -389,7 +363,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
     tmp[index] = '\0';
     protocol = PL_strdup(tmp);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - protocol=[%s] \n",protocol);
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - protocol=[%s] \n",protocol);
 
     /* Get status num */
     index = 0;
@@ -411,7 +385,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
     statusNum = PL_strdup(tmp);
 	retcode=atoi(tmp);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - statusNum=[%s] \n",statusNum);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - statusNum=[%s] \n",statusNum);
 
 	if (HTTP_RESPONSE_REDIRECT && (reqType == HTTP_REQ_TYPE_REDIRECT)) {
 		isRedirect = PR_TRUE;
@@ -432,7 +406,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 		}
 		tmp[index] = '\0';
         statusString = PL_strdup(tmp);
-        slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - statusString [%s] \n",statusString);
+        slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - statusString [%s] \n",statusString);
     }
 
     /**
@@ -506,7 +480,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 				value[index] = '\0';
 				index = 0;
 				inName = PR_TRUE;
-				slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - name=[%s] value=[%s]\n",name,value);
+				slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - name=[%s] value=[%s]\n",name,value);
 				if (isRedirect && !PL_strcasecmp(name,"location")) {
 				  location = PL_strdup(value);
 				}
@@ -529,7 +503,7 @@ static PRStatus processResponse(PRFileDesc *fd, char **resBUF, int *bytesRead, i
 		*resBUF = PL_strdup(location);
 		*bytesRead = strlen(location);
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - Response Buffer=[%s] bytesRead=[%d] \n",*resBUF,*bytesRead);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse -Response Buffer=[%s] bytesRead=[%d] \n",*resBUF,*bytesRead);
 
 bail:
 
@@ -549,7 +523,7 @@ bail:
 		PL_strfree(location);
 	}
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "processResponse - END\n");
     return status;
 }
 
@@ -601,10 +575,10 @@ static PRStatus sendFullData( PRFileDesc *fd, char *buf, int timeOut)
 	else
 	{
 		errcode = PR_GetError();
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
 			"sendFullData - dataSent=%d bufLen=%d -> NSPR Error code (%d)\n",
 			dataSent, bufLen, errcode);
-		slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "sendFullData - NSPR Error code (%d) \n", errcode);
+		slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "sendFullData - NSPR Error code (%d) \n", errcode);
 		return PR_FAILURE;
 	}
 }
@@ -674,7 +648,7 @@ static PRStatus sendPostReq(PRFileDesc *fd, const char *path, httpheader **httph
 	}
 	strcat(reqBUF, "\0");
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "sendPostRequest - reqBUF is %s \n",reqBUF);
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "sendPostReq - reqBUF is %s \n",reqBUF);
 	http_connection_time_out = httpConfig->connectionTimeOut;
 
 	status = sendFullData( fd, reqBUF, http_connection_time_out);
@@ -692,7 +666,7 @@ static PRStatus getChar(PRFileDesc *fd, char *buf)
     PRInt32 bytesRead = http_read(fd, buf, 1);
 	if (bytesRead <=0) {
     	PRInt32 errcode = PR_GetError();
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM, "sendPostReq - "
 			"getChar - NSPR Error code (%d)\n", errcode);
 		return PR_FAILURE;
 	}
@@ -962,32 +936,32 @@ PRFileDesc* setupSSLSocket(PRFileDesc* fd)
 	socketOption.option                 = PR_SockOpt_Nonblocking;
 	socketOption.value.non_blocking = PR_FALSE;
 	if( PR_SetSocketOption(fd, &socketOption) != 0) {
-        	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+        	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
 			"setupSSLSocket - Cannot set socket option NSS \n");
 		return NULL;
 	}
 
 	sslSocket = SSL_ImportFD(NULL, fd);
 	if (!sslSocket) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                      "setupSSLSocket - Cannot import to SSL Socket\n" );
 				goto sslbail;
 	}
 	
-    slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "setupSSLSocket - setupssl socket created\n" );
 
 	secStatus = SSL_OptionSet(sslSocket, SSL_SECURITY, 1);
 	if (SECSuccess != secStatus) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                      "setupSSLSocket - Cannot set SSL_SECURITY option\n");
 				goto sslbail;
 	}
 
 	secStatus = SSL_OptionSet(sslSocket, SSL_HANDSHAKE_AS_CLIENT, 1);
 	if (SECSuccess != secStatus) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-                     "setupSSLSocket - CAnnot set SSL_HANDSHAKE_AS_CLIENT option\n");
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+                     "setupSSLSocket - Cannot set SSL_HANDSHAKE_AS_CLIENT option\n");
 				goto sslbail;
 	}
 	
@@ -997,8 +971,8 @@ PRFileDesc* setupSSLSocket(PRFileDesc* fd)
                                   (SSLGetClientAuthData)  getClientAuthData,
                                   (void *)certNickname);
     if (secStatus != SECSuccess) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-           		"setupSSLSocket: SSL_GetClientAuthDataHook Failed\n");
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+           		"setupSSLSocket - SSL_GetClientAuthDataHook Failed\n");
     	       	goto sslbail;
     }
 
@@ -1006,7 +980,7 @@ PRFileDesc* setupSSLSocket(PRFileDesc* fd)
                            (SSLAuthCertificate)   authCertificate,
                            (void *)CERT_GetDefaultCertDB());
     if (secStatus != SECSuccess) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                      "setupSSLSocket - SSL_AuthCertificateHook Failed\n");
                 goto sslbail;
     }
@@ -1014,7 +988,7 @@ PRFileDesc* setupSSLSocket(PRFileDesc* fd)
 	secStatus = SSL_BadCertHook(sslSocket,
                         (SSLBadCertHandler)  badCertHandler, NULL);
     if (secStatus != SECSuccess) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                      "setupSSLSocket - SSL_BadCertHook Failed\n");
                 goto sslbail;
     }
@@ -1022,7 +996,7 @@ PRFileDesc* setupSSLSocket(PRFileDesc* fd)
     secStatus = SSL_HandshakeCallback(sslSocket,
                         (SSLHandshakeCallback)  handshakeCallback, NULL);
     if (secStatus != SECSuccess) {
-                slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                      "setupSSLSocket - SSL_HandshakeCallback Failed\n");
                 goto sslbail;
     }
@@ -1046,7 +1020,7 @@ authCertificate(void *arg, PRFileDesc *socket,
     SECStatus           secStatus;
 
     if (!arg || !socket) {
-    	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+    	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                 "authCertificate - Faulty socket in callback function\n");
         return SECFailure;
     }
@@ -1121,7 +1095,7 @@ badCertHandler(void *arg, PRFileDesc *socket)
         break;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
         "badCertHandler - Bad certificate: %d\n", err);
 
     return secStatus;
@@ -1199,7 +1173,7 @@ SECStatus
 SECStatus
 handshakeCallback(PRFileDesc *socket, void *arg)
 {
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
     	"handshakeCallback - Handshake has completed, ready to send data securely.\n");
     return SECSuccess;
 }
@@ -1211,28 +1185,28 @@ handshakeCallback(PRFileDesc *socket, void *arg)
 int http_impl_init(Slapi_ComponentId *plugin_id)
 {
 	int status = HTTP_IMPL_SUCCESS;
-       	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-		"-> http_impl_init \n");
+       	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+		"-> http_impl_init\n");
 	httpConfig = NULL;
 
    	httpConfig = (httpPluginConfig *) slapi_ch_calloc(1, sizeof(httpPluginConfig));
 
 	status = readConfigLDAPurl(plugin_id, HTTP_PLUGIN_DN); 
     if (status != 0) {
-       		 slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+       		 slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                         "http_impl_init - Unable to get HTTP config information \n");
         	 return HTTP_IMPL_FAILURE;
    	}
 	
 	status = readConfigLDAPurl(plugin_id, CONFIG_DN); 
     if (status != 0) {
-       		 slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+       		 slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                         "http_impl_init - Unable to get config information \n");
         	 return HTTP_IMPL_FAILURE;
     }
 	
-       	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
-		"<- http_impl_init \n");
+       	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+		"<- http_impl_init\n");
 
 	return status;
 
@@ -1285,14 +1259,14 @@ static int readConfigLDAPurl(Slapi_ComponentId *plugin_id, char *plugindn) {
 	rc = slapi_search_internal_get_entry(sdn, NULL, &entry, plugin_id);
     	slapi_sdn_free(&sdn);
 	if (rc != LDAP_SUCCESS) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                        "readConfigLDAPurl - Could not find entry %s (error %d)\n", plugindn, rc);
             status = HTTP_IMPL_FAILURE;
             return status;
    	}
 	if (NULL == entry)
     	{
-            slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,
                        "readConfigLDAPurl - No entries found for <%s>\n", plugindn);
 
             status = HTTP_IMPL_FAILURE;
@@ -1342,7 +1316,7 @@ static int parseHTTPConfigEntry(Slapi_Entry *e)
             httpConfig->connectionTimeOut = value;
     }
    	else {
-                 LDAPDebug(LDAP_DEBUG_PLUGIN, "parseHTTPConfigEntry - HTTP Connection Time Out cannot be read. Setting to default value of 5000 ms \n", 0,0,0);
+                 slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "parseHTTPConfigEntry - HTTP Connection Time Out cannot be read. Setting to default value of 5000 ms \n");
                  httpConfig->connectionTimeOut = 5000;
    	}
 
@@ -1352,7 +1326,7 @@ static int parseHTTPConfigEntry(Slapi_Entry *e)
             httpConfig->readTimeOut = value;
     }
     else {
-                 LDAPDebug(LDAP_DEBUG_PLUGIN, "parseHTTPConfigEntry - HTTP Read Time Out cannot be read. Setting to default value of 5000 ms \n", 0,0,0);
+                 slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "parseHTTPConfigEntry - HTTP Read Time Out cannot be read. Setting to default value of 5000 ms \n");
                  httpConfig->readTimeOut = 5000;
    	}
 	

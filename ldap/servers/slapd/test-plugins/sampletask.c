@@ -101,7 +101,7 @@ task_sampletask_thread(void *arg)
     /* update task state to show it's running */
     slapi_task_begin(task, total_work);
     slapi_task_log_notice(task, "Sample task starts (arg: %s) ...\n", myarg);
-    slapi_log_error(SLAPI_LOG_ERR, "sampletask", "Sample task starts (arg: %s) ...\n", myarg);
+    slapi_log_err(SLAPI_LOG_ERR, "sampletask", "Sample task starts (arg: %s) ...\n", myarg);
 
     /* real work would be done here */
     for (i = 0; i < total_work; i++) {
@@ -112,7 +112,7 @@ task_sampletask_thread(void *arg)
     /* update task state to say we're finished */
     slapi_task_log_notice(task, "Sample task finished.");
     slapi_task_log_status(task, "Sample task finished.");
-    slapi_log_error(SLAPI_LOG_ERR, "sampletask", "Sample task finished.\n");
+    slapi_log_err(SLAPI_LOG_ERR, "sampletask", "Sample task finished.\n");
 
     /* this will queue the destruction of the task */
     slapi_task_finish(task, rv);
@@ -179,7 +179,7 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
     /* allocate new task now */
     task = slapi_new_task(slapi_entry_get_ndn(e));
     if (task == NULL) {
-        slapi_log_error(SLAPI_LOG_ERR, "sampletask", "unable to allocate new task!\n");
+        slapi_log_err(SLAPI_LOG_ERR, "sampletask", "unable to allocate new task!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -196,7 +196,7 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e,
                              (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        slapi_log_error(SLAPI_LOG_ERR, "sampletask",
+        slapi_log_err(SLAPI_LOG_ERR, "sampletask",
                   "unable to create sample task thread!\n");
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;

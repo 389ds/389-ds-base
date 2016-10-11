@@ -83,7 +83,7 @@ int statechange_init( Slapi_PBlock *pb )
 	int postmdn = SLAPI_PLUGIN_POST_MODRDN_FN;
 	int postdel = SLAPI_PLUGIN_POST_DELETE_FN;
 
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_init\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_init\n");
 
 	if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
 		plugin_entry &&
@@ -111,12 +111,12 @@ int statechange_init( Slapi_PBlock *pb )
 			slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
                      (void *)&pdesc ) != 0 )
     {
-        slapi_log_error(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM,
                          "statechange_init - Failed to register plugin\n" );
 		ret = SLAPI_PLUGIN_FAILURE;
     }
 
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_init\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_init\n");
     return ret;
 }
 
@@ -130,7 +130,7 @@ static int statechange_start( Slapi_PBlock *pb )
 {
 	int ret = SLAPI_PLUGIN_SUCCESS;
 
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_start\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_start\n");
 
 	api[0] = 0; /* reserved for api broker use, must be zero */
 	api[1] = (void *)_statechange_register;
@@ -141,14 +141,14 @@ static int statechange_start( Slapi_PBlock *pb )
 	if(0 == (buffer_lock = slapi_new_mutex())) /* we never free this mutex */
 	{
 		/* badness */
-		slapi_log_error(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, "statechange_start - Failed to create lock\n");
+		slapi_log_err(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, "statechange_start - Failed to create lock\n");
 		ret = SLAPI_PLUGIN_FAILURE;
 	}
 	else
 	{
 		if( slapi_apib_register(StateChange_v1_0_GUID, api) )
 		{
-			slapi_log_error(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, "statechange_start  - Failed to publish state change interface\n");
+			slapi_log_err(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, "statechange_start  - Failed to publish state change interface\n");
 			ret = SLAPI_PLUGIN_FAILURE;
 		}
 	}
@@ -159,7 +159,7 @@ static int statechange_start( Slapi_PBlock *pb )
 	    g_plugin_started = 1;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_start\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_start\n");
 	return ret;
 }
 
@@ -170,7 +170,7 @@ static int statechange_start( Slapi_PBlock *pb )
 */
 static int statechange_close( Slapi_PBlock *pb )
 {
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_close\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_close\n");
 
 	g_plugin_started = 0;
 
@@ -183,7 +183,7 @@ static int statechange_close( Slapi_PBlock *pb )
 	slapi_destroy_mutex(buffer_lock);
 	buffer_lock = NULL;
 
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_close\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_close\n");
 
 	return SLAPI_PLUGIN_SUCCESS;
 }
@@ -232,7 +232,7 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 		return SLAPI_PLUGIN_SUCCESS;
 	}
 
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_post_op\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_post_op\n");
 
 	/* evaluate this operation against the notification entries */
 	slapi_lock_mutex(buffer_lock);
@@ -240,7 +240,7 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 	{
 		slapi_pblock_get( pb, SLAPI_TARGET_SDN, &sdn );
 		if (NULL == sdn) {
-			slapi_log_error(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, 
+			slapi_log_err(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, 
 			         "statechange_post_op - Failed to get dn of changed entry" );
 			goto bail;
 		}
@@ -293,7 +293,7 @@ static int statechange_post_op( Slapi_PBlock *pb, int modtype )
 	}
 bail:
 	slapi_unlock_mutex(buffer_lock);
-	slapi_log_error(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_post_op\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_post_op\n");
 
 	return SLAPI_PLUGIN_SUCCESS; /* always succeed */
 }
@@ -327,7 +327,7 @@ static int _statechange_register(char *caller_id, char *dn, char *filter, void *
 		item->caller_data = caller_data;
 		if (writable_filter &&
 			(NULL == (item->realfilter = slapi_str2filter(writable_filter)))) {
-			slapi_log_error(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM,
 							"_statechange_register - Invalid filter in statechange entry [%s]: [%s]\n",
 							dn, filter);
 			slapi_ch_free_string(&item->caller_id);

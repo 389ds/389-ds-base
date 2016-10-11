@@ -117,7 +117,7 @@ chaining_back_init( Slapi_PBlock *pb )
 	*/
 
  	if ( rc != 0 ) {
-        	slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_init - Failed\n");
+        	slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_init - Failed\n");
                 return( -1 );
         }
 

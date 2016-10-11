@@ -43,15 +43,18 @@
 #ifdef LDAP_CACHE_DEBUG
 #define ASSERT(_x) do { \
     if (!(_x)) { \
-       LDAPDebug(LDAP_DEBUG_ERR, "BAD CACHE ASSERTION at %s/%d: %s\n", \
+       slapi_log_err(SLAPI_LOG_ERR, "cache", "BAD CACHE ASSERTION at %s/%d: %s\n", \
                 __FILE__, __LINE__, #_x); \
        *(char *)0L = 23; \
     } \
 } while (0)
-#define LOG(_a, _x1, _x2, _x3)  LDAPDebug(LDAP_DEBUG_CACHE, _a, _x1, _x2, _x3)
+
+# define LOG(...) slapi_log_err(SLAPI_LOG_CACHE, (char*)__func__, __VA_ARGS__)
+//# define LOG(_a, _x1, _x2, _x3)  slapi_log_err(SLAPI_LOG_CACHE, _a, _x1, _x2, _x3)
 #else
 #define ASSERT(_x) ;
-#define LOG(_a, _x1, _x2, _x3)  ;
+//#define LOG(_a, _x1, _x2, _x3)  ;
+#define LOG(...)
 #endif
 
 #define LRU_DETACH(cache, e) lru_detach((cache), (void *)(e))
@@ -270,7 +273,7 @@ dump_hash(Hashtable *ht)
             PR_snprintf(ep_id, 16, "%u-%u", ((struct backcommon *)e)->ep_id, ((struct backcommon *)e)->ep_refcnt);
             len = strlen(ep_id);
             if (ids_size < len + 1) {
-                LDAPDebug1Arg(LDAP_DEBUG_DEBUG, "%s\n", ep_ids);
+                slapi_log_err(SLAPI_LOG_DEBUG, "dump_hash", "%s\n", ep_ids);
                 p = ep_ids; ids_size = 80;
             }
             PR_snprintf(p, ids_size, "%s:", ep_id);
@@ -278,7 +281,7 @@ dump_hash(Hashtable *ht)
         } while ((e = HASH_NEXT(ht, e)));
     }
     if (p != ep_ids) {
-        LDAPDebug1Arg(LDAP_DEBUG_DEBUG, "%s\n", ep_ids);
+        slapi_log_err(SLAPI_LOG_DEBUG, "dump_hash", "%s\n", ep_ids);
     }
 }
 #endif
@@ -330,7 +333,7 @@ lru_verify(struct cache *cache, void *ptr, int in)
     struct backcommon *e;
     if (NULL == ptr)
     {
-        LOG("=> lru_verify\n<= lru_verify (null entry)\n", 0, 0, 0);
+        LOG("=> lru_verify\n<= lru_verify (null entry)\n");
         return;
     }
     e = (struct backcommon *)ptr;
@@ -381,7 +384,7 @@ static void lru_detach(struct cache *cache, void *ptr)
     struct backcommon *e;
     if (NULL == ptr)
     {
-        LOG("=> lru_detach\n<= lru_detach (null entry)\n", 0, 0, 0);
+        LOG("=> lru_detach\n<= lru_detach (null entry)\n");
         return;
     }
     e = (struct backcommon *)ptr;
@@ -409,7 +412,7 @@ static void lru_delete(struct cache *cache, void *ptr)
     struct backcommon *e;
     if (NULL == ptr)
     {
-        LOG("=> lru_delete\n<= lru_delete (null entry)\n", 0, 0, 0);
+        LOG("=> lru_delete\n<= lru_delete (null entry)\n");
         return;
     }
     e = (struct backcommon *)ptr;
@@ -436,7 +439,7 @@ static void lru_add(struct cache *cache, void *ptr)
     struct backcommon *e;
     if (NULL == ptr)
     {
-        LOG("=> lru_add\n<= lru_add (null entry)\n", 0, 0, 0);
+        LOG("=> lru_add\n<= lru_add (null entry)\n");
         return;
     }
     e = (struct backcommon *)ptr;
@@ -489,7 +492,7 @@ static void cache_make_hashes(struct cache *cache, int type)
 /* initialize the cache */
 int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
 {
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> cache_init\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "cache_init", "-->\n");
     cache->c_maxsize = maxsize;
     cache->c_maxentries = maxentries;
     cache->c_curentries = 0;
@@ -507,8 +510,8 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
         }
         cache->c_tries = slapi_counter_new();
     } else {
-        LDAPDebug0Args(LDAP_DEBUG_NOTICE,
-                      "cache_init - slapi counter is not available.\n");
+        slapi_log_err(SLAPI_LOG_NOTICE,
+                      "cache_init", "slapi counter is not available.\n");
         cache->c_cursize = NULL;
         cache->c_hits = NULL;
         cache->c_tries = NULL;
@@ -518,10 +521,10 @@ int cache_init(struct cache *cache, size_t maxsize, long maxentries, int type)
 
     if (((cache->c_mutex = PR_NewMonitor()) == NULL) ||
         ((cache->c_emutexalloc_mutex = PR_NewLock()) == NULL)) {
-       LDAPDebug0Args(LDAP_DEBUG_ERR, "cache_init - PR_NewMonitor failed\n");
+       slapi_log_err(SLAPI_LOG_ERR, "cache_init", "PR_NewMonitor failed\n");
        return 0;
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= cache_init\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "cache_init", "<--\n");
     return 1;
 }
 
@@ -542,7 +545,7 @@ entrycache_flush(struct cache *cache)
 {
     struct backentry *e = NULL;
 
-    LOG("=> entrycache_flush\n", 0, 0, 0);
+    LOG("=> entrycache_flush\n");
 
     /* all entries on the LRU list are guaranteed to have a refcnt = 0
      * (iow, nobody's using them), so just delete from the tail down
@@ -561,8 +564,8 @@ entrycache_flush(struct cache *cache)
         ASSERT(e->ep_refcnt == 0);
         e->ep_refcnt++;
         if (entrycache_remove_int(cache, e) < 0) {
-           LDAPDebug(LDAP_DEBUG_ERR,
-                     "entrycache_flush - Unable to delete entry\n", 0, 0, 0);
+           slapi_log_err(SLAPI_LOG_ERR,
+                     "entrycache_flush", "Unable to delete entry\n");
            break;
         }
         if(e == CACHE_LRU_HEAD(cache, struct backentry *)) {
@@ -572,7 +575,7 @@ entrycache_flush(struct cache *cache)
     if (e)
         LRU_DETACH(cache, e);
     LOG("<= entrycache_flush (down to %lu entries, %lu bytes)\n",
-            cache->c_curentries, slapi_counter_get_value(cache->c_cursize), 0);
+            cache->c_curentries, slapi_counter_get_value(cache->c_cursize));
     return e;
 }
 
@@ -593,11 +596,11 @@ static void entrycache_clear_int(struct cache *cache)
     }
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
-        LDAPDebug1Arg(LDAP_DEBUG_WARNING,
-                     "entrycache_clear_int - There are still %ld entries "
+        slapi_log_err(SLAPI_LOG_WARNING,
+                     "entrycache_clear_int", "There are still %ld entries "
                      "in the entry cache.\n", cache->c_curentries);
 #ifdef LDAP_CACHE_DEBUG
-        LDAPDebug0Args(LDAP_DEBUG_DEBUG, "entrycache_clear_int - ID(s) in entry cache:\n");
+        slapi_log_err(SLAPI_LOG_DEBUG, "entrycache_clear_int", "ID(s) in entry cache:\n");
         dump_hash(cache->c_idtable);
 #endif
     }
@@ -655,13 +658,13 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
 
     if (bytes < MINCACHESIZE) {
        bytes = MINCACHESIZE;
-       LDAPDebug(LDAP_DEBUG_WARNING,
-                "entrycache_set_max_size - Minimum cache size is %lu -- rounding up\n",
-                MINCACHESIZE, 0, 0);
+       slapi_log_err(SLAPI_LOG_WARNING,
+                "entrycache_set_max_size", "Minimum cache size is %lu -- rounding up\n",
+                MINCACHESIZE);
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;
-    LOG("entry cache size set to %lu\n", bytes, 0, 0);
+    LOG("entry cache size set to %lu\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache))
        eflush = entrycache_flush(cache);
@@ -683,10 +686,10 @@ static void entrycache_set_max_size(struct cache *cache, size_t bytes)
      * ldbm_instance_config
      */
     if (! util_is_cachesize_sane(&bytes)) {
-       LDAPDebug(LDAP_DEBUG_WARNING,
-                "entrycache_set_max_size - Possible CONFIGURATION ERROR -- cachesize "
+       slapi_log_err(SLAPI_LOG_WARNING,
+                "entrycache_set_max_size", "Possible CONFIGURATION ERROR -- cachesize "
                 "(%lu) may be configured to use more than the available "
-                "physical memory.\n", bytes, 0, 0);
+                "physical memory.\n", bytes);
     }
 }
 
@@ -702,9 +705,9 @@ void cache_set_max_entries(struct cache *cache, long entries)
     cache_lock(cache);
     cache->c_maxentries = entries;
     if (entries >= 0) {
-        LOG("entry cache entry-limit set to %lu\n", entries, 0, 0);
+        LOG("entry cache entry-limit set to %lu\n", entries);
     } else {
-        LOG("entry cache entry-limit turned off\n", 0, 0, 0);
+        LOG("entry cache entry-limit turned off\n");
     }
 
     /* check for full cache, and clear out if necessary */
@@ -849,7 +852,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
     }
     else
     {
-        LOG("remove %s from dn hash failed\n", ndn, 0, 0);
+        LOG("remove %s from dn hash failed\n", ndn);
     }
     /* if entry was added tentatively, it will be in the dntable
        but not in the idtable - we cannot just remove it from
@@ -865,7 +868,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
         }
         else
         {
-            LOG("remove %s (%d) from id hash failed\n", ndn, e->ep_id, 0);
+            LOG("remove %s (%d) from id hash failed\n", ndn, e->ep_id);
         }
     }
 #ifdef UUIDCACHE_ON 
@@ -876,7 +879,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
     }
     else
     {
-        LOG("remove %d from uuid hash failed\n", uuid, 0, 0);
+        LOG("remove %d from uuid hash failed\n", uuid);
     }
 #endif
     if (ret == 0) {
@@ -896,7 +899,7 @@ entrycache_remove_int(struct cache *cache, struct backentry *e)
         dump_hash(cache->c_idtable);
     }
 #endif
-    LOG("<= entrycache_remove_int: %d\n", ret, 0, 0);
+    LOG("<= entrycache_remove_int: %d\n", ret);
     return ret;
 }
 
@@ -916,7 +919,7 @@ int cache_remove(struct cache *cache,  void *ptr)
     struct backcommon *e;
     if (NULL == ptr)
     {
-        LOG("=> lru_remove\n<= lru_remove (null entry)\n", 0, 0, 0);
+        LOG("=> lru_remove\n<= lru_remove (null entry)\n");
         return ret;
     }
     e = (struct backcommon *)ptr;
@@ -941,7 +944,7 @@ int cache_replace(struct cache *cache, void *oldptr, void *newptr)
     struct backcommon *olde;
     if (NULL == oldptr || NULL == newptr)
     {
-        LOG("=> lru_replace\n<= lru_replace (null entry)\n", 0, 0, 0);
+        LOG("=> lru_replace\n<= lru_replace (null entry)\n");
         return 0;
     }
     olde = (struct backcommon *)oldptr;
@@ -975,7 +978,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     struct backentry *alte = NULL;
 
     LOG("=> entrycache_replace (%s) -> (%s)\n", backentry_get_ndn(olde),
-        backentry_get_ndn(newe), 0);
+        backentry_get_ndn(newe));
 
     /* remove from all hashtables -- this function may be called from places
      * where the entry isn't in all the tables yet, so we don't care if any
@@ -1017,7 +1020,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
             slapi_counter_subtract(cache->c_cursize, newe->ep_size);
             cache->c_curentries--;
             newe->ep_refcnt--;
-            LOG("entry cache replace remove entry size %lu\n", newe->ep_size, 0, 0);
+            LOG("entry cache replace remove entry size %lu\n", newe->ep_size);
         }
     }
     /* 
@@ -1049,15 +1052,15 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
      */
     if (!add_hash(cache->c_dntable, (void *)newndn, strlen(newndn), newe, (void **)&alte)) {
         LOG("entry cache replace (%s): can't add to dn table (returned %s)\n", 
-            newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none", 0);
+            newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none");
         cache_unlock(cache);
         return 1;
     }
     if (!add_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID), newe, (void **)&alte)) {
         LOG("entry cache replace (%s): can't add to id table (returned %s)\n", 
-            newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none", 0);
+            newndn, alte?slapi_entry_get_dn(alte->ep_entry):"none");
         if(remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)) == 0){
-            LOG("entry cache replace: failed to remove dn table\n", 0, 0, 0);
+            LOG("entry cache replace: failed to remove dn table\n");
         }
         cache_unlock(cache);
         return 1;
@@ -1067,10 +1070,10 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
                        newe, NULL)) {
         LOG("entry cache replace: can't add uuid\n", 0, 0, 0);
         if(remove_hash(cache->c_dntable, (void *)newndn, strlen(newndn)) == 0){
-            LOG("entry cache replace: failed to remove dn table(uuid cache)\n", 0, 0, 0);
+            LOG("entry cache replace: failed to remove dn table(uuid cache)\n");
         }
         if(remove_hash(cache->c_idtable, &(newe->ep_id), sizeof(ID)) == 0){
-            LOG("entry cache replace: failed to remove id table(uuid cache)\n", 0, 0, 0);
+            LOG("entry cache replace: failed to remove id table(uuid cache)\n");
         }
         cache_unlock(cache);
         return 1;
@@ -1087,7 +1090,7 @@ static int entrycache_replace(struct cache *cache, struct backentry *olde,
     newe->ep_state = 0;
     cache_unlock(cache);
     LOG("<= entrycache_replace OK,  cache size now %lu cache count now %ld\n",
-             slapi_counter_get_value(cache->c_cursize), cache->c_curentries, 0);
+             slapi_counter_get_value(cache->c_cursize), cache->c_curentries);
     return 0;
 }
 
@@ -1100,7 +1103,7 @@ void cache_return(struct cache *cache, void **ptr)
 
     if (NULL == ptr || NULL == *ptr)
     {
-        LOG("=> cache_return\n<= cache_return (null entry)\n", 0, 0, 0);
+        LOG("=> cache_return\n<= cache_return (null entry)\n");
         return;
     }
     bep = *(struct backcommon **)ptr;
@@ -1120,7 +1123,7 @@ entrycache_return(struct cache *cache, struct backentry **bep)
 
     e = *bep;
     if (!e) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "entrycache_return - backentry is NULL\n");
+        slapi_log_err(SLAPI_LOG_ERR, "entrycache_return", "Backentry is NULL\n");
         return;
     }
     LOG("entrycache_return - (%s) entry count: %d, entry in cache:%ld\n",
@@ -1144,7 +1147,7 @@ entrycache_return(struct cache *cache, struct backentry **bep)
                      * we don't/can't always call cache_remove().
                      */
                     if (remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0) {
-                        LOG("entrycache_return -Failed to remove %s from dn table\n", ndn, 0, 0);
+                        LOG("entrycache_return -Failed to remove %s from dn table\n", ndn);
                     }
                 }
                 backentry_free(bep);
@@ -1163,7 +1166,7 @@ entrycache_return(struct cache *cache, struct backentry **bep)
         backentry_free(&eflush);
         eflush = eflushtemp;
     }
-    LOG("entrycache_return - returning.\n", 0, 0, 0);
+    LOG("entrycache_return - returning.\n");
 }
 
 
@@ -1172,7 +1175,7 @@ struct backentry *cache_find_dn(struct cache *cache, const char *dn, unsigned lo
 {
     struct backentry *e;
 
-    LOG("=> cache_find_dn - (%s)\n", dn, 0, 0);
+    LOG("=> cache_find_dn - (%s)\n", dn);
 
     /*entry normalized by caller (dn2entry.c)  */
     cache_lock(cache);
@@ -1181,7 +1184,7 @@ struct backentry *cache_find_dn(struct cache *cache, const char *dn, unsigned lo
        if (e->ep_state != 0) {
            /* entry is deleted or not fully created yet */
            cache_unlock(cache);
-           LOG("<= cache_find_dn (NOT FOUND)\n", 0, 0, 0);
+           LOG("<= cache_find_dn (NOT FOUND)\n");
            return NULL;
        }
        if (e->ep_refcnt == 0)
@@ -1194,7 +1197,7 @@ struct backentry *cache_find_dn(struct cache *cache, const char *dn, unsigned lo
     }
     slapi_counter_increment(cache->c_tries);
 
-    LOG("<= cache_find_dn - (%sFOUND)\n", e ? "" : "NOT ", 0, 0);
+    LOG("<= cache_find_dn - (%sFOUND)\n", e ? "" : "NOT ");
     return e;
 }
 
@@ -1204,7 +1207,7 @@ struct backentry *cache_find_id(struct cache *cache, ID id)
 {
     struct backentry *e;
 
-    LOG("=> cache_find_id (%lu)\n", (u_long)id, 0, 0);
+    LOG("=> cache_find_id (%lu)\n", (u_long)id);
 
     cache_lock(cache);
     if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&e)) {
@@ -1212,7 +1215,7 @@ struct backentry *cache_find_id(struct cache *cache, ID id)
        if (e->ep_state != 0) {
            /* entry is deleted or not fully created yet */
            cache_unlock(cache);
-           LOG("<= cache_find_id (NOT FOUND)\n", 0, 0, 0);
+           LOG("<= cache_find_id (NOT FOUND)\n");
            return NULL;
        }
        if (e->ep_refcnt == 0)
@@ -1225,7 +1228,7 @@ struct backentry *cache_find_id(struct cache *cache, ID id)
     }
     slapi_counter_increment(cache->c_tries);
 
-    LOG("<= cache_find_id (%sFOUND)\n", e ? "" : "NOT ", 0, 0);
+    LOG("<= cache_find_id (%sFOUND)\n", e ? "" : "NOT ");
     return e;
 }
 
@@ -1235,7 +1238,7 @@ struct backentry *cache_find_uuid(struct cache *cache, const char *uuid)
 {
     struct backentry *e;
 
-    LOG("=> cache_find_uuid (%s)\n", uuid, 0, 0);
+    LOG("=> cache_find_uuid (%s)\n", uuid);
 
     cache_lock(cache);
     if (find_hash(cache->c_uuidtable, uuid, strlen(uuid), (void **)&e)) {
@@ -1243,7 +1246,7 @@ struct backentry *cache_find_uuid(struct cache *cache, const char *uuid)
        if (e->ep_state != 0) {
            /* entry is deleted or not fully created yet */
            cache_unlock(cache);
-           LOG("<= cache_find_uuid (NOT FOUND)\n", 0, 0, 0);
+           LOG("<= cache_find_uuid (NOT FOUND)\n");
            return NULL;
        }
        if (e->ep_refcnt == 0)
@@ -1256,7 +1259,7 @@ struct backentry *cache_find_uuid(struct cache *cache, const char *uuid)
     }
     slapi_counter_increment(cache->c_tries);
 
-    LOG("<= cache_find_uuid (%sFOUND)\n", e ? "" : "NOT ", 0, 0);
+    LOG("<= cache_find_uuid (%sFOUND)\n", e ? "" : "NOT ");
     return e;
 }
 #endif
@@ -1277,7 +1280,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
     int already_in = 0;
 
     LOG("=> entrycache_add_int( \"%s\", %ld )\n", backentry_get_ndn(e),
-        e->ep_id, 0);
+        (long int)e->ep_id);
 
     if(e->ep_size == 0){
         /*
@@ -1292,7 +1295,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
     cache_lock(cache);
     if (! add_hash(cache->c_dntable, (void *)ndn, strlen(ndn), e,
            (void **)&my_alt)) {
-        LOG("entry \"%s\" already in dn cache\n", ndn, 0, 0);
+        LOG("entry \"%s\" already in dn cache\n", ndn);
         /* add_hash filled in 'my_alt' if necessary */
         if (my_alt == e)
         {
@@ -1302,7 +1305,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                  * and the old entry was a placeholder and the new one isn't?
                  * sounds like a confirmation of a previous add!
                  */
-                LOG("confirming a previous add\n", 0, 0, 0);
+                LOG("confirming a previous add\n");
                 already_in = 1;
             }
             else
@@ -1373,7 +1376,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
     if (state == 0) {
         /* neither of these should fail, or something is very wrong. */
         if (! add_hash(cache->c_idtable, &(e->ep_id), sizeof(ID), e, NULL)) {
-            LOG("entry %s already in id cache!\n", ndn, 0, 0);
+            LOG("entry %s already in id cache!\n", ndn);
             if (already_in) {
                 /* there's a bug in the implementatin of 'modify' and 'modrdn'
                  * that i'm working around here.  basically they do a
@@ -1390,12 +1393,12 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                  * remove the old entry and add the new one, and all will be
                  * fine (i think).
                  */
-                LOG("<= entrycache_add_int (ignoring)\n", 0, 0, 0);
+                LOG("<= entrycache_add_int (ignoring)\n");
                 cache_unlock(cache);
                 return 0;
             }
             if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
-                LOG("entrycache_add_int: failed to remove %s from dn table\n", ndn, 0, 0);
+                LOG("entrycache_add_int: failed to remove %s from dn table\n", ndn);
             }
             e->ep_state |= ENTRY_STATE_NOTINCACHE;
             cache_unlock(cache);
@@ -1411,10 +1414,10 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
                 LOG("entry %s already in uuid cache!\n", backentry_get_ndn(e),
                             0, 0);
                 if(remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0){
-                    LOG("entrycache_add_int: failed to remove dn table(uuid cache)\n", 0, 0, 0);
+                    LOG("entrycache_add_int: failed to remove dn table(uuid cache)\n");
                 }
                 if(remove_hash(cache->c_idtable, &(e->ep_id), sizeof(ID)) == 0){
-                    LOG("entrycache_add_int: failed to remove id table(uuid cache)\n", 0, 0, 0);
+                    LOG("entrycache_add_int: failed to remove id table(uuid cache)\n";
                 }
                 e->ep_state |= ENTRY_STATE_NOTINCACHE;
                 cache_unlock(cache);
@@ -1436,7 +1439,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
           e->ep_size, slapi_counter_get_value(cache->c_cursize), cache->c_maxsize);
         if (cache->c_maxentries >= 0) {
             LOG("    total entries %ld out of %ld\n",
-                    cache->c_curentries, cache->c_maxentries, 0);
+                    cache->c_curentries, cache->c_maxentries);
         }
         /* check for full cache, and clear out if necessary */
         if (CACHE_FULL(cache))
@@ -1450,7 +1453,7 @@ entrycache_add_int(struct cache *cache, struct backentry *e, int state,
         backentry_free(&eflush);
         eflush = eflushtemp;
     }
-    LOG("<= entrycache_add_int OK\n", 0, 0, 0);
+    LOG("<= entrycache_add_int OK\n");
     return 0;
 }
 
@@ -1470,7 +1473,7 @@ int cache_add(struct cache *cache, void *ptr, void **alt)
     struct backcommon *e;
     if (NULL == ptr)
     {
-        LOG("=> cache_add\n<= cache_add (null entry)\n", 0, 0, 0);
+        LOG("=> cache_add\n<= cache_add (null entry)\n");
         return 0;
     }
     e = (struct backcommon *)ptr;
@@ -1511,7 +1514,7 @@ void cache_unlock(struct cache *cache)
  */
 int cache_lock_entry(struct cache *cache, struct backentry *e)
 {
-    LOG("=> cache_lock_entry (%s)\n", backentry_get_ndn(e), 0, 0);
+    LOG("=> cache_lock_entry (%s)\n", backentry_get_ndn(e));
 
     if (! e->ep_mutexp) {
         /* make sure only one thread does this */
@@ -1520,11 +1523,11 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
             e->ep_mutexp = PR_NewMonitor();
             if (!e->ep_mutexp) {
                 PR_Unlock(cache->c_emutexalloc_mutex);
-                LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
-                LDAPDebug1Arg(LDAP_DEBUG_ERR,
-                              "cache_lock_entry - Failed to create a lock for %s\n",
+                LOG("<= cache_lock_entry (DELETED)\n");
+                slapi_log_err(SLAPI_LOG_ERR,
+                              "cache_lock_entry", "Failed to create a lock for %s\n",
                               backentry_get_ndn(e));
-                LOG("<= cache_lock_entry (FAILED)\n", 0, 0, 0);
+                LOG("<= cache_lock_entry (FAILED)\n");
                 return 1;
             }
         }
@@ -1539,21 +1542,21 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
     if (e->ep_state & (ENTRY_STATE_DELETED|ENTRY_STATE_NOTINCACHE)) {
        cache_unlock(cache);
        PR_ExitMonitor(e->ep_mutexp);
-       LOG("<= cache_lock_entry (DELETED)\n", 0, 0, 0);
+       LOG("<= cache_lock_entry (DELETED)\n");
        return RETRY_CACHE_LOCK;
     }
     cache_unlock(cache);
 
-    LOG("<= cache_lock_entry (FOUND)\n", 0, 0, 0);
+    LOG("<= cache_lock_entry (FOUND)\n");
     return 0;
 }
 
 /* the opposite of above */
 void cache_unlock_entry(struct cache *cache, struct backentry *e)
 {
-    LOG("=> cache_unlock_entry\n", 0, 0, 0);
+    LOG("=> cache_unlock_entry\n");
     if (PR_ExitMonitor(e->ep_mutexp)) {
-        LOG("=> cache_unlock_entry - monitor was not entered!!!\n", 0, 0, 0);
+        LOG("=> cache_unlock_entry - monitor was not entered!!!\n");
     }
 }
 
@@ -1580,8 +1583,8 @@ dncache_clear_int(struct cache *cache)
     }
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
-       LDAPDebug1Arg(LDAP_DEBUG_WARNING,
-                     "dncache_clear_int - There are still %ld dn's "
+       slapi_log_err(SLAPI_LOG_WARNING,
+                     "dncache_clear_int", "There are still %ld dn's "
                      "in the dn cache. :/\n", cache->c_curentries);
     }
 }
@@ -1604,13 +1607,13 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
 
     if (bytes < MINCACHESIZE) {
        bytes = MINCACHESIZE;
-       LDAPDebug(LDAP_DEBUG_WARNING,
-                "dncache_set_max_size - Minimum cache size is %lu -- rounding up\n",
-                MINCACHESIZE, 0, 0);
+       slapi_log_err(SLAPI_LOG_WARNING,
+                "dncache_set_max_size", "Minimum cache size is %lu -- rounding up\n",
+                MINCACHESIZE);
     }
     cache_lock(cache);
     cache->c_maxsize = bytes;
-    LOG("entry cache size set to %lu\n", bytes, 0, 0);
+    LOG("entry cache size set to %lu\n", bytes);
     /* check for full cache, and clear out if necessary */
     if (CACHE_FULL(cache)) {
        dnflush = dncache_flush(cache);
@@ -1633,8 +1636,8 @@ dncache_set_max_size(struct cache *cache, size_t bytes)
      * ldbm_instance_config
      */
     if (! util_is_cachesize_sane(&bytes)) {
-       LDAPDebug1Arg(LDAP_DEBUG_WARNING,
-                "dncache_set_max_size - Possible CONFIGURATION ERROR -- cachesize "
+       slapi_log_err(SLAPI_LOG_WARNING,
+                "dncache_set_max_size", "Possible CONFIGURATION ERROR -- cachesize "
                 "(%lu) may be configured to use more than the available "
                 "physical memory.\n", bytes);
     }
@@ -1651,7 +1654,7 @@ dncache_remove_int(struct cache *cache, struct backdn *bdn)
         return 0;
     }
 
-    LOG("=> dncache_remove_int (%s)\n", slapi_sdn_get_dn(bdn->dn_sdn), 0, 0);
+    LOG("=> dncache_remove_int (%s)\n", slapi_sdn_get_dn(bdn->dn_sdn));
     if (bdn->ep_state & ENTRY_STATE_NOTINCACHE)
     {
         return ret;
@@ -1664,7 +1667,7 @@ dncache_remove_int(struct cache *cache, struct backdn *bdn)
     }
     else
     {
-        LOG("remove %d from id hash failed\n", bdn->ep_id, 0, 0);
+        LOG("remove %d from id hash failed\n", bdn->ep_id);
     }
     if (ret == 0) {
         /* won't be on the LRU list since it has a refcount on it */
@@ -1678,7 +1681,7 @@ dncache_remove_int(struct cache *cache, struct backdn *bdn)
 
     /* mark for deletion (will be erased when refcount drops to zero) */
     bdn->ep_state |= ENTRY_STATE_DELETED;
-    LOG("<= dncache_remove_int: %d\n", ret, 0, 0);
+    LOG("<= dncache_remove_int: %d\n", ret);
     return ret;
 }
 
@@ -1734,7 +1737,7 @@ dncache_find_id(struct cache *cache, ID id)
         return bdn;
     }
 
-    LOG("=> dncache_find_id (%lu)\n", (u_long)id, 0, 0);
+    LOG("=> dncache_find_id (%lu)\n", (u_long)id);
 
     cache_lock(cache);
     if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&bdn)) {
@@ -1742,7 +1745,7 @@ dncache_find_id(struct cache *cache, ID id)
        if (bdn->ep_state != 0) {
            /* entry is deleted or not fully created yet */
            cache_unlock(cache);
-           LOG("<= dncache_find_id (NOT FOUND)\n", 0, 0, 0);
+           LOG("<= dncache_find_id (NOT FOUND)\n");
            return NULL;
        }
        if (bdn->ep_refcnt == 0)
@@ -1755,7 +1758,7 @@ dncache_find_id(struct cache *cache, ID id)
     }
     slapi_counter_increment(cache->c_tries);
 
-    LOG("<= cache_find_id (%sFOUND)\n", bdn ? "" : "NOT ", 0, 0);
+    LOG("<= cache_find_id (%sFOUND)\n", bdn ? "" : "NOT ");
     return bdn;
 }
 
@@ -1774,13 +1777,13 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state,
     }
 
     LOG("=> dncache_add_int( \"%s\", %ld )\n", slapi_sdn_get_dn(bdn->dn_sdn), 
-        bdn->ep_id, 0);
+        (long int)bdn->ep_id);
 
     cache_lock(cache);
 
     if (! add_hash(cache->c_idtable, &(bdn->ep_id), sizeof(ID), bdn,
                                                            (void **)&my_alt)) {
-        LOG("entry %s already in id cache!\n", slapi_sdn_get_dn(bdn->dn_sdn), 0, 0);
+        LOG("entry %s already in id cache!\n", slapi_sdn_get_dn(bdn->dn_sdn));
         if (my_alt == bdn)
         {
             if ((bdn->ep_state & ENTRY_STATE_CREATING) && (state == 0))
@@ -1789,7 +1792,7 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state,
                  * and the old entry was a placeholder and the new one isn't?
                  * sounds like a confirmation of a previous add!
                  */
-                LOG("confirming a previous add\n", 0, 0, 0);
+                LOG("confirming a previous add\n");
                 already_in = 1;
             }
             else
@@ -1819,14 +1822,14 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state,
         {
             if (my_alt->ep_state & ENTRY_STATE_CREATING)
             {
-                LOG("the entry is reserved\n", 0, 0, 0);
+                LOG("the entry is reserved\n");
                 bdn->ep_state |= ENTRY_STATE_NOTINCACHE;
                 cache_unlock(cache);
                 return -1;
             }
             else if (state != 0)
             {
-                LOG("the entry already exists. cannot reserve it.\n", 0, 0, 0);
+                LOG("the entry already exists. cannot reserve it.\n");
                 bdn->ep_state |= ENTRY_STATE_NOTINCACHE;
                 cache_unlock(cache);
                 return -1;
@@ -1861,7 +1864,7 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state,
             cache->c_maxsize);
         if (cache->c_maxentries >= 0) {
             LOG("    total entries %ld out of %ld\n",
-                    cache->c_curentries, cache->c_maxentries, 0);
+                    cache->c_curentries, cache->c_maxentries);
         }
         /* check for full cache, and clear out if necessary */
         if (CACHE_FULL(cache)) {
@@ -1876,7 +1879,7 @@ dncache_add_int(struct cache *cache, struct backdn *bdn, int state,
         backdn_free(&dnflush);
         dnflush = dnflushtemp;
     }
-    LOG("<= dncache_add_int OK\n", 0, 0, 0);
+    LOG("<= dncache_add_int OK\n");
     return 0;
 }
 
@@ -1889,8 +1892,8 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
         return 0;
     }
 
-    LOG("=> dncache_replace (%s) -> (%s)\n",
-        slapi_sdn_get_dn(olddn->dn_sdn), slapi_sdn_get_dn(newdn->dn_sdn), 0);
+    LOG("(%s) -> (%s)\n",
+        slapi_sdn_get_dn(olddn->dn_sdn), slapi_sdn_get_dn(newdn->dn_sdn));
 
     /* remove from all hashtable -- this function may be called from places
      * where the entry isn't in all the table yet, so we don't care if any
@@ -1907,7 +1910,7 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
 
         found = remove_hash(cache->c_idtable, &(olddn->ep_id), sizeof(ID));
         if (!found) {
-            LOG("dn cache replace: cache index tables out of sync\n", 0, 0, 0);
+            LOG("cache index tables out of sync\n");
             cache_unlock(cache);
             return 1;
         }
@@ -1918,7 +1921,7 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
      * tested enough that we believe it works.)
      */
     if (!add_hash(cache->c_idtable, &(newdn->ep_id), sizeof(ID), newdn, NULL)) {
-       LOG("dn cache replace: can't add id\n", 0, 0, 0);
+       LOG("dn cache replace: can't add id\n");
        cache_unlock(cache);
        return 1;
     }
@@ -1935,8 +1938,8 @@ dncache_replace(struct cache *cache, struct backdn *olddn, struct backdn *newdn)
     olddn->ep_state = ENTRY_STATE_DELETED;
     newdn->ep_state = 0;
     cache_unlock(cache);
-    LOG("<= dncache_replace OK,  cache size now %lu cache count now %ld\n",
-             slapi_counter_get_value(cache->c_cursize), cache->c_curentries, 0);
+    LOG("<-- OK,  cache size now %lu cache count now %ld\n",
+             slapi_counter_get_value(cache->c_cursize), cache->c_curentries);
     return 0;
 }
 
@@ -1949,7 +1952,7 @@ dncache_flush(struct cache *cache)
         return dn;
     }
 
-    LOG("=> dncache_flush\n", 0, 0, 0);
+    LOG("->\n");
 
     /* all entries on the LRU list are guaranteed to have a refcnt = 0
      * (iow, nobody's using them), so just delete from the tail down
@@ -1968,8 +1971,7 @@ dncache_flush(struct cache *cache)
         ASSERT(dn->ep_refcnt == 0);
         dn->ep_refcnt++;
         if (dncache_remove_int(cache, dn) < 0) {
-           LDAPDebug(LDAP_DEBUG_ERR, "dncache_flush - Unable to delete entry\n",
-                    0, 0, 0);
+           slapi_log_err(SLAPI_LOG_ERR, "dncache_flush", "Unable to delete entry\n");
            break;
         }
         if(dn == CACHE_LRU_HEAD(cache, struct backdn *)) {
@@ -1978,8 +1980,8 @@ dncache_flush(struct cache *cache)
     }
     if (dn)
         LRU_DETACH(cache, dn);
-    LOG("<= dncache_flush (down to %lu dns, %lu bytes)\n", cache->c_curentries,
-        slapi_counter_get_value(cache->c_cursize), 0);
+    LOG("(down to %lu dns, %lu bytes)\n", cache->c_curentries,
+        slapi_counter_get_value(cache->c_cursize));
     return dn;
 }
 
@@ -2031,13 +2033,13 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache */
 			CACHE_RETURN(cache, &debug_e);
 			if ((e != debug_e) && !(e->ep_state & ENTRY_STATE_DELETED)) {
-				slapi_log_error(SLAPI_LOG_DEBUG, "check_entry_cache",
+				slapi_log_err(SLAPI_LOG_DEBUG, "check_entry_cache",
 				                "entry 0x%p is not in dn cache but 0x%p having the same dn %s is "
 				                "although in_cache flag is set!!!\n",
 				                e, debug_e, slapi_sdn_get_dn(sdn));
 			}
 		} else if (!(e->ep_state & ENTRY_STATE_DELETED)) {
-			slapi_log_error(SLAPI_LOG_DEBUG, "check_entry_cache",
+			slapi_log_err(SLAPI_LOG_DEBUG, "check_entry_cache",
 			                "%s (id %d) is not in dn cache although in_cache flag is set!!!\n",
 			                slapi_sdn_get_dn(sdn), e->ep_id);
 		}
@@ -2045,13 +2047,13 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache */
 			CACHE_RETURN(cache, &debug_e);
 			if ((e != debug_e) && !(e->ep_state & ENTRY_STATE_DELETED)) {
-				slapi_log_error(SLAPI_LOG_DEBUG, "check_entry_cache",
+				slapi_log_err(SLAPI_LOG_DEBUG, "check_entry_cache",
 				                "entry 0x%p is not in id cache but 0x%p having the same id %d is "
 				                "although in_cache flag is set!!!\n",
 				                e, debug_e, e->ep_id);
 			}
 		} else {
-			slapi_log_error(SLAPI_LOG_CACHE, "check_entry_cache",
+			slapi_log_err(SLAPI_LOG_CACHE, "check_entry_cache",
 			                "%s (id %d) is not in id cache although in_cache flag is set!!!\n",
 			                slapi_sdn_get_dn(sdn), e->ep_id);
 		}
@@ -2059,7 +2061,7 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache */
 			CACHE_RETURN(cache, &debug_e);
 			if (e == debug_e) {
-				slapi_log_error(SLAPI_LOG_DEBUG, "check_entry_cache",
+				slapi_log_err(SLAPI_LOG_DEBUG, "check_entry_cache",
 				                "%s (id %d) is in dn cache although in_cache flag is not set!!!\n",
 				                slapi_sdn_get_dn(sdn), e->ep_id);
 			}
@@ -2068,7 +2070,7 @@ check_entry_cache(struct cache *cache, struct backentry *e)
 		if (debug_e) { /* e is in cache: bad */
 			CACHE_RETURN(cache, &debug_e);
 			if (e == debug_e) {
-				slapi_log_error(SLAPI_LOG_CACHE, "check_entry_cache",
+				slapi_log_err(SLAPI_LOG_CACHE, "check_entry_cache",
 				                "%s (id %d) is in id cache although in_cache flag is not set!!!\n",
 				                slapi_sdn_get_dn(sdn), e->ep_id);
 			}

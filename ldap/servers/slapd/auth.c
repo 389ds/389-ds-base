@@ -59,7 +59,7 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
         slapi_sdn_free(&sdn);
         return err;
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> slapu_search_s (\"%s\", %i, %s)\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "slapu_search_s", "=> (\"%s\", %i, %s)\n",
                baseDN, scope, filter);
     if (filter == NULL) filter = "objectclass=*";
 
@@ -86,18 +86,18 @@ slapu_search_s( LDAP* ld, const char* rawbaseDN, int scope, const char* filter,
             pb = NULL;
             if (scope == LDAP_SCOPE_SUBTREE) {
                 char fbuf[ BUFSIZ ];
-                LDAPDebug(LDAP_DEBUG_ERR, "slapu_search_s - (\"%s\", subtree, %s) err %i\n",
+                slapi_log_err(SLAPI_LOG_ERR, "slapu_search_s", "(\"%s\", subtree, %s) err %i\n",
                            baseDN, escape_string( (char*)filter, fbuf ), err);
             }
         }
     } else {
         char fbuf[ BUFSIZ ];
-        LDAPDebug(LDAP_DEBUG_ERR, "slapu_search_s - (\"%s\", %i, %s) NULL\n",
+        slapi_log_err(SLAPI_LOG_ERR, "slapu_search_s", "(\"%s\", %i, %s) NULL\n",
                    baseDN, scope, escape_string( (char*)filter, fbuf ));
     }
     slapi_sdn_free(&sdn);
     *result = (LDAPMessage*)pb;
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= slapu_search_s %i\n", err, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "<= slapu_search_s", "%i\n", err);
     return err;
 }
 
@@ -260,16 +260,12 @@ client_auth_init ()
     if (client_auth_config_file == NULL) {
 	char *confdir = config_get_configdir();
 	if (NULL == confdir) {
-	    LDAPDebug(LDAP_DEBUG_ERR,
-		"client_auth_init - Failed to get configdir\n",
-		0, 0, 0);
+	    slapi_log_err(SLAPI_LOG_ERR, "client_auth_init", "Failed to get configdir\n");
 	    return;
 	}
 	client_auth_config_file = PR_smprintf("%s/certmap.conf", confdir);
 	if (NULL == client_auth_config_file) {
-	    LDAPDebug(LDAP_DEBUG_ERR,
-		"client_auth_init - Failed to duplicate \"%s/certmap\"\n",
-		confdir, 0, 0);
+	    slapi_log_err(SLAPI_LOG_ERR, "client_auth_init", "Failed to duplicate \"%s/certmap\"\n", confdir);
 	    slapi_ch_free_string(&confdir);
 	    return;
 	}
@@ -277,8 +273,7 @@ client_auth_init ()
     }
     err = ldaputil_init (client_auth_config_file, "", NULL, "slapd", NULL);
     if (err != LDAPU_SUCCESS) {
-	LDAPDebug(LDAP_DEBUG_TRACE, "client_auth_init - ldaputil_init(%s,...) %i\n",
-		client_auth_config_file, err, 0);
+	slapi_log_err(SLAPI_LOG_TRACE, "client_auth_init", "ldaputil_init(%s,...) %i\n", client_auth_config_file, err);
     } else {
 	LDAPUVTable_t vtable = {
 	    NULL /* ssl_init */,
@@ -331,7 +326,7 @@ subject_of (CERTCertificate* cert)
     if (cert != NULL) {
 	int err = ldapu_get_cert_subject_dn (cert, &dn);
 	if (err != LDAPU_SUCCESS) {
-	    LDAPDebug(LDAP_DEBUG_ERR, "subject_of - ldapu_get_cert_subject_dn(%p) %i (%s)\n",
+	    slapi_log_err(SLAPI_LOG_ERR, "subject_of", "ldapu_get_cert_subject_dn(%p) %i (%s)\n",
 		       (void*)cert, err, ldapu_err2string (err));
 	}
     }
@@ -345,7 +340,7 @@ issuer_of (CERTCertificate* cert)
     if (cert != NULL) {
 	int err = ldapu_get_cert_issuer_dn (cert, &dn);
 	if (err != LDAPU_SUCCESS) {
-	    LDAPDebug(LDAP_DEBUG_ERR, "issuer_of - ldapu_get_cert_issuer_dn(%p) %i (%s)\n",
+	    slapi_log_err(SLAPI_LOG_ERR, "issuer_of", "ldapu_get_cert_issuer_dn(%p) %i (%s)\n",
 		       (void*)cert, err, ldapu_err2string (err));
 	}
     }
@@ -487,12 +482,12 @@ handle_handshake_done (PRFileDesc *prfd, void* clientData)
 		} else {
 		  
 		    extraErrorMsg = "no entry";
-		    LDAPDebug(LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %s\n",
-			       extraErrorMsg, 0, 0);
+		    slapi_log_err(SLAPI_LOG_TRACE, "handle_handshake_done", "<= ldapu_cert_to_ldap_entry() %s\n",
+			       extraErrorMsg);
 		}
 	    } else {
 		extraErrorMsg = ldapu_err2string(err);
-	        LDAPDebug(LDAP_DEBUG_TRACE, "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
+	        slapi_log_err(SLAPI_LOG_TRACE, "handle_handshake_done", "<= ldapu_cert_to_ldap_entry() %i (%s)%s\n",
 			   err, extraErrorMsg, chain ? "" : " NULL");
 	    }
 		slapi_ch_free_string(&basedn);

@@ -60,13 +60,13 @@ housekeeping_start(time_t cur_time, void *arg)
 	}
 
 	if ( ( housekeeping_mutex = PR_NewLock()) == NULL ) {
-		slapi_log_error(SLAPI_LOG_ERR, "housekeeping_start",
+		slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
 				"housekeeping cannot create new lock. "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				PR_GetError(), slapd_pr_strerror( PR_GetError() ));
 	}
 	else if ( ( housekeeping_cvar = PR_NewCondVar( housekeeping_mutex )) == NULL ) {
-		slapi_log_error(SLAPI_LOG_ERR, "housekeeping_start",
+		slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
 				"housekeeping cannot create new condition variable. "
 				SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 				PR_GetError(), slapd_pr_strerror( PR_GetError() ));
@@ -77,7 +77,7 @@ housekeeping_start(time_t cur_time, void *arg)
 				(VFP) housecleaning, (void*)&thread_start_time,
 				PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD, 
 				SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL) {
-			slapi_log_error(SLAPI_LOG_ERR, "housekeeping_start",
+			slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
 					"housekeeping PR_CreateThread failed. "
 					SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
 					PR_GetError(), slapd_pr_strerror( PR_GetError() ));

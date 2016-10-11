@@ -91,7 +91,7 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, ber_tag_t method,
 	if (LDAP_SUCCESS != rc) {
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
-			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 			                "cb_sasl_bind_once_s - cb_get_connection failed (%d) %s\n",
 			                rc, ldap_err2string(rc));
 			warned_get_conn = 1;
@@ -157,7 +157,7 @@ cb_sasl_bind_once_s( cb_conn_pool *pool, const char *dn, ber_tag_t method,
 		static int warned_bind_once = 0;
 		if (!warned_bind_once) {
 			int hasmatched = (matcheddnp && *matcheddnp && (**matcheddnp != '\0'));
-			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 			                "cb_sasl_bind_once_s - Failed (%s%s%s)\n",
 			                hasmatched ? *matcheddnp : "", 
 			                hasmatched ? ": " : "",

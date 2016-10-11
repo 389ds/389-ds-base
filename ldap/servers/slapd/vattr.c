@@ -623,9 +623,9 @@ slapi_vattr_values_get_sp(vattr_context *c,
       if(!vattr_context_is_loop_msg_displayed(&c))
       {
         /* Print a handy error log message */
-        LDAPDebug(LDAP_DEBUG_ERR,
-          "slapi_vattr_values_get_sp - Detected virtual attribute loop in get on entry %s, attribute %s\n",
-          slapi_entry_get_dn_const(e), type, 0);
+        slapi_log_err(SLAPI_LOG_ERR,
+          "slapi_vattr_values_get_sp", "Detected virtual attribute loop in get on entry %s, attribute %s\n",
+          slapi_entry_get_dn_const(e), type);
         vattr_context_set_loop_msg_displayed(&c);
       }
       return rc;
@@ -831,7 +831,9 @@ int slapi_vattr_namespace_values_get_sp(vattr_context *c,
 			/* Print a handy error log message */
 			if(!vattr_context_is_loop_msg_displayed(&c))
 			{
-				LDAPDebug(LDAP_DEBUG_ERR,"slapi_vattr_namespace_values_get_sp - Detected virtual attribute loop in get on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
+				slapi_log_err(SLAPI_LOG_ERR,"slapi_vattr_namespace_values_get_sp",
+					"Detected virtual attribute loop in get on entry %s, attribute %s\n",
+					slapi_entry_get_dn_const(e), type);
 				vattr_context_set_loop_msg_displayed(&c);
 			}
 			return rc;
@@ -1060,7 +1062,9 @@ int slapi_vattr_namespace_value_compare_sp(vattr_context *c,/* Entry we're inter
 	if (0 != rc) {
 		if(!vattr_context_is_loop_msg_displayed(&c)) {
 			/* Print a handy error log message */
-			LDAPDebug(LDAP_DEBUG_ERR,"slapi_vattr_namespace_value_compare_sp - Detected virtual attribute loop in compare on entry %s, attribute %s\n", slapi_entry_get_dn_const(e), type, 0);
+			slapi_log_err(SLAPI_LOG_ERR,"slapi_vattr_namespace_value_compare_sp",
+				"Detected virtual attribute loop in compare on entry %s, attribute %s\n",
+				slapi_entry_get_dn_const(e), type);
 			vattr_context_set_loop_msg_displayed(&c);
 		}
 		return rc;
@@ -1197,7 +1201,7 @@ int slapi_vattr_list_attrs(/* Entry we're interested in */ Slapi_Entry *e,
 	vattr_type_list_context type_context = {0};
 
 	if (NULL == types || NULL == buffer_flags) {
-		LDAPDebug(LDAP_DEBUG_ERR, "slapi_vattr_list_attrs - Invalid param\n", 0, 0, 0);
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_vattr_list_attrs", "Invalid param\n");
 		return -1;
 	}
 
@@ -1946,7 +1950,7 @@ int vattr_add_attrval(objAttrValue **attrval, char *val)
 	int ret = 0;
 	objAttrValue *theVal;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "--> vattr_add_attrval\n",0,0,0);
+	slapi_log_err(SLAPI_LOG_TRACE, "vattr_add_attrval", "-->\n");
 
 	/* create the attrvalue */
 	theVal = (objAttrValue*) slapi_ch_malloc(sizeof(objAttrValue));
@@ -1961,17 +1965,17 @@ int vattr_add_attrval(objAttrValue **attrval, char *val)
 		else
 		{
 			slapi_ch_free((void**)&theVal);
-			LDAPDebug(LDAP_DEBUG_ERR, "vattr_add_attrval - Failed to allocate memory\n",0,0,0);
+			slapi_log_err(SLAPI_LOG_ERR, "vattr_add_attrval", "Failed to allocate memory\n");
 			ret = -1;
 		}
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_ERR, "vattr_add_attrval - Failed to allocate memory\n",0,0,0);
+		slapi_log_err(SLAPI_LOG_ERR, "vattr_add_attrval", "Failed to allocate memory\n");
 		ret = -1;
 	}
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "<-- vattr_add_attrval\n",0,0,0);
+	slapi_log_err(SLAPI_LOG_TRACE, "vattr_add_attrval", "-->\n");
 	return ret;
 }
 
@@ -1981,7 +1985,7 @@ objAttrValue *vattr_map_entry_build_schema(char *type_name)
 	objAttrValue *ret = 0;
 	struct objclass	*oc;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "--> vattr_map_entry_build_schema\n",0,0,0);
+	slapi_log_err(SLAPI_LOG_TRACE, "vattr_map_entry_build_schema", "-->\n");
 
 	/* this is the first opportunity to register
 	 * with the statechange api, our init function
@@ -2000,7 +2004,7 @@ objAttrValue *vattr_map_entry_build_schema(char *type_name)
 
 	if(!config_get_schemacheck())
 	{
-		LDAPDebug(LDAP_DEBUG_TRACE, "<-- vattr_map_entry_build_schema - schema off\n",0,0,0);
+		slapi_log_err(SLAPI_LOG_TRACE, "vattr_map_entry_build_schema", "<-- schema off\n");
 		return 0;
 	}
 
@@ -2038,7 +2042,7 @@ objAttrValue *vattr_map_entry_build_schema(char *type_name)
 	}
     oc_unlock();
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "<-- vattr_map_entry_build_schema\n",0,0,0);
+	slapi_log_err(SLAPI_LOG_TRACE, "vattr_map_entry_build_schema", "<--\n");
 	return ret;
 }
 

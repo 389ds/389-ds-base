@@ -19,7 +19,6 @@
    we define slapd_ldap_debug here, so we don't want to declare
    it in any header file which might conflict with our definition
 */
-#define DONT_DECLARE_SLAPD_LDAP_DEBUG /* see ldaplog.h */
 
 #include "ldap.h"
 #include <sslproto.h>
@@ -1434,14 +1433,14 @@ FrontendConfig_init(void) {
 #if SLAPI_CFG_USE_RWLOCK == 1
   /* initialize the read/write configuration lock */
   if ( (cfg->cfg_rwlock = slapi_new_rwlock()) == NULL ) {
-	LDAPDebug(LDAP_DEBUG_ERR, "FrontendConfig_init - "
-	  "failed to initialize cfg_rwlock. Exiting now.",0,0,0);
+	slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
+	  "Failed to initialize cfg_rwlock. Exiting now.");
 	exit(-1);
   }
 #else
   if ((cfg->cfg_lock = PR_NewLock()) == NULL){
-	LDAPDebug(LDAP_DEBUG_ERR, "FrontendConfig_init - "
-	  "failed to initialize cfg_lock. Exiting now.",0,0,0);
+	slapi_log_err(SLAPI_LOG_EMERG, "FrontendConfig_init",
+	  "Failed to initialize cfg_lock. Exiting now.");
 	exit(-1);
   }
 #endif
@@ -2037,7 +2036,7 @@ config_set_port( const char *attrname, char *port, char *errorbuf, int apply ) {
   }
 
   if ( nPort == 0 ) {
-      LDAPDebug(LDAP_DEBUG_NOTICE, "config_set_port - Information: Non-Secure Port Disabled\n", 0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_NOTICE, "config_set_port", "Non-Secure Port Disabled\n");
   }
   
   if ( apply ) {
@@ -7111,7 +7110,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
             cgas = (struct config_get_and_set *)PL_HashTableLookup(confighash,
                                                                    *s);
             if (!cgas && PL_strcasecmp(*s, "aci") /* aci is an exception */) {
-                slapi_log_error(SLAPI_LOG_ERR, "config_set_allowed_to_delete_attrs",
+                slapi_log_err(SLAPI_LOG_ERR, "config_set_allowed_to_delete_attrs",
                         "%s: Unknown attribute %s will be ignored\n",
                         CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE, *s);
                 charray_remove(allowed, *s, 1);
@@ -7125,7 +7124,7 @@ config_set_allowed_to_delete_attrs( const char *attrname, char *value,
             /* reuse the duplicated string for the new attr value. */
             if (allowed && (NULL == *allowed)) {
                 /* all the values to allow to delete are invalid */
-                slapi_log_error(SLAPI_LOG_ERR, "config_set_allowed_to_delete_attrs",
+                slapi_log_err(SLAPI_LOG_ERR, "config_set_allowed_to_delete_attrs",
                         "%s: Given attributes are all invalid.  No effects.\n",
                         CONFIG_ALLOWED_TO_DELETE_ATTRIBUTE);
                 slapi_ch_array_free(allowed);
@@ -7181,10 +7180,10 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf,
     remove_commas(value);
 
     if(invalid_sasl_mech(value)){
-        LDAPDebug(LDAP_DEBUG_ERR,"config_set_allowed_sasl_mechs - "
+        slapi_log_err(SLAPI_LOG_ERR,"config_set_allowed_sasl_mechs",
                 "Invalid value/character for sasl mechanism (%s).  Use ASCII "
                 "characters, upto 20 characters, that are upper-case letters, "
-                "digits, hyphens, or underscores\n", value, 0, 0);
+                "digits, hyphens, or underscores\n", value);
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
@@ -7579,7 +7578,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 		debugHashTable(attr);
 #endif
 		slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown attribute %s will be ignored", attr);
-		slapi_log_error(SLAPI_LOG_ERR, "config_set", "Unknown attribute %s will be ignored", attr);
+		slapi_log_err(SLAPI_LOG_ERR, "config_set", "Unknown attribute %s will be ignored", attr);
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
 
@@ -7614,9 +7613,8 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 			} else if (cgas->logsetfunc) {
 				retval = (cgas->logsetfunc)(cgas->attr_name, initval, cgas->whichlog, errorbuf, apply);
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ERR,
-				              "config_set - The attribute %s is read only; "
-				              "ignoring setting NULL value\n", attr);
+				slapi_log_err(SLAPI_LOG_ERR, "config_set",
+					"The attribute %s is read only; ignoring setting NULL value\n", attr);
 			}
 		}
 		for (ii = 0; !retval && values && values[ii]; ++ii)
@@ -7629,9 +7627,9 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
 							(char *)values[ii]->bv_val, cgas->whichlog,
 							errorbuf, apply);
 			} else {
-				LDAPDebug(LDAP_DEBUG_ERR, 
-						  "config_set - The attribute %s is read only; ignoring new value %s\n",
-						  attr, values[ii]->bv_val, 0);
+				slapi_log_err(SLAPI_LOG_ERR, "config_set",
+					"The attribute %s is read only; ignoring new value %s\n",
+					attr, values[ii]->bv_val);
 			}
 			values[ii]->bv_len = strlen((char *)values[ii]->bv_val);
 		}
@@ -7955,7 +7953,7 @@ config_set_accesslog_enabled(int value)
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 	if (errorbuf[0] != '\0') {
-        slapi_log_error(SLAPI_LOG_ERR, "config_set_accesslog_enabled", "%s\n", errorbuf);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_accesslog_enabled", "%s\n", errorbuf);
     }
 }
 
@@ -7974,7 +7972,7 @@ config_set_auditlog_enabled(int value){
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 	if (errorbuf[0] != '\0') {
-        slapi_log_error(SLAPI_LOG_ERR, "config_set_auditlog_enabled", "%s\n", errorbuf);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_auditlog_enabled", "%s\n", errorbuf);
     }
 }
 
@@ -7993,7 +7991,7 @@ config_set_auditfaillog_enabled(int value){
     }
     CFG_ONOFF_UNLOCK_WRITE(slapdFrontendConfig);
 	if (errorbuf[0] != '\0') {
-        slapi_log_error(SLAPI_LOG_ERR, "config_set_auditlog_enabled", "%s\n", errorbuf);
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_auditlog_enabled", "%s\n", errorbuf);
     }
 }
 
@@ -8084,7 +8082,7 @@ config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int 
     if ((mxfast >= 0) && (mxfast <= max)) {
         mallopt(M_MXFAST, mxfast);
     } else if (DEFAULT_MALLOC_UNSET != mxfast) {
-        slapi_log_error(SLAPI_LOG_ERR, "config_set_malloc_mxfast",
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_malloc_mxfast",
                         "%s: Invalid value %d will be ignored\n",
                         CONFIG_MALLOC_MXFAST, mxfast);
     }
@@ -8126,7 +8124,7 @@ config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorb
     if (trim_threshold >= -1) {
         mallopt(M_TRIM_THRESHOLD, trim_threshold);
     } else if (DEFAULT_MALLOC_UNSET != trim_threshold) {
-        slapi_log_error(SLAPI_LOG_ERR, "config_set_malloc_trim_threshold",
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_malloc_trim_threshold",
                         "%s: Invalid value %d will be ignored\n",
                         CONFIG_MALLOC_TRIM_THRESHOLD, trim_threshold);
     }
@@ -8175,7 +8173,7 @@ config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorb
     if ((mmap_threshold >= 0) && (mmap_threshold <= max)) {
         mallopt(M_MMAP_THRESHOLD, mmap_threshold);
     } else if (DEFAULT_MALLOC_UNSET != mmap_threshold) {
-        slapi_log_error(SLAPI_LOG_ERR, "config_set_malloc_mmap_threshold",
+        slapi_log_err(SLAPI_LOG_ERR, "config_set_malloc_mmap_threshold",
                         "%s: Invalid value %d will be ignored\n",
                         CONFIG_MALLOC_MMAP_THRESHOLD, mmap_threshold);
     }

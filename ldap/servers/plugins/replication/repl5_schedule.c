@@ -593,7 +593,7 @@ schedule_window_state_change_event (Schedule *sch)
         sch->pending_event = slapi_eq_once(window_state_changed, sch, wakeup_time);        
 
         timestr = get_timestring(&wakeup_time);
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s: Update window will %s at %s\n",
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: Update window will %s at %s\n",
 						sch->session_id,
                          window_opened ? "close" : "open", timestr);
         free_timestring(timestr);
@@ -615,7 +615,7 @@ window_state_changed (time_t when, void *arg)
 
     open = schedule_in_window_now_nolock(sch);
 
-    slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "%s: Update window is now %s\n",
+    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: Update window is now %s\n",
 					sch->session_id,
                     open ? "open" : "closed");
 

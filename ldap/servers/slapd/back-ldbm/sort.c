@@ -150,7 +150,7 @@ int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlo
 	}
 	/* we refuse to sort a candidate list which is vast */
 	if (ALLIDS(candidates)) {
-		LDAPDebug(LDAP_DEBUG_TRACE, "Asked to sort ALLIDS candidate list, refusing\n",0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_TRACE, "sort_candidates", "Asked to sort ALLIDS candidate list, refusing\n");
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 
@@ -160,7 +160,8 @@ int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlo
 			int return_value = 0;
 			return_value = attr_get_value_cmp_fn( &this_s->sattr, &(this_s->compare_fn) );
 			if (return_value  != 0 ) {
-				LDAPDebug(LDAP_DEBUG_TRACE, "Attempting to sort a non-ordered attribute (%s)\n",this_s->type, 0, 0 );
+				slapi_log_err(SLAPI_LOG_TRACE, "sort_candidates",
+					"Attempting to sort a non-ordered attribute (%s)\n",this_s->type);
 				/* DBDB we should set the error type here */
 				return_value = LDAP_UNWILLING_TO_PERFORM;
 				*sort_error_type = this_s->type;
@@ -189,7 +190,7 @@ int sort_candidates(backend *be,int lookthrough_limit,time_t time_up, Slapi_PBlo
 	bc.check_counter = 1;
 
 	return_value = slapd_qsort(&bc,candidates,s);
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= Sorting done\n",0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "Sorting done", "<=\n");
 
 	return return_value;
 }
@@ -463,7 +464,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	a = id2entry(be,*id_a,&txn,&err);
 	if (NULL == a) {
 		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries_sv db err %d\n",err,0,0);
+			slapi_log_err(SLAPI_LOG_TRACE,"compare_entries_sv", "db err %d\n",err);
 		}
 		/* Were up a creek without paddle here */
 		/* Best to log error and set some flag */
@@ -472,7 +473,7 @@ static int compare_entries_sv(ID *id_a, ID *id_b, sort_spec *s,baggage_carrier *
 	b = id2entry(be,*id_b,&txn,&err);
 	if (NULL == b) {
 		if (0 != err ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,"compare_entries_sv db err %d\n",err,0,0);
+			slapi_log_err(SLAPI_LOG_TRACE,"compare_entries_sv", "db err %d\n",err);
 		}
 		CACHE_RETURN(&inst->inst_cache,&a);
 		return 0;

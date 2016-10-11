@@ -26,7 +26,6 @@
 
 #include <slap.h>
 #include <getopt_ext.h>
-#include <ldaplog.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -35,6 +34,8 @@
 #ifndef FALSE
 #define FALSE 0
 #endif
+
+//extern int slapd_ldap_debug;
 
 /*
  * VSTRING was defined in PMDF headers.
@@ -320,11 +321,11 @@ int mm_diff(stats_t *statsp)
     for (i = 0; i < ndirectories; i++) {
         pindex = i / 32;
         pmask = 1 << (i % 32);
-        LDAPDebug(LDAP_DEBUG_TRACE, "finger printing directory %d\n", i, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "finger printing directory %d\n", i);
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "ignored: %s: %s\n", 
+                slapi_log_err(SLAPI_LOG_TRACE, "ignored: %s: %s\n", 
                                  attrib->name, attrib->value, 0);
                 continue;
             }
@@ -335,7 +336,7 @@ int mm_diff(stats_t *statsp)
                 return stat;
             }
             records++;
-            LDAPDebug(LDAP_DEBUG_TRACE, "db%d: %s: %s\n", 
+            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n", 
                              i, attrib->name, attrib->value);
             hashname(seed, attrib, hashkey.data);
             key = hashkey.key & hashmask;
@@ -348,9 +349,9 @@ int mm_diff(stats_t *statsp)
                     hashentry = hashentry->overflow;
                 if (hashentry != NULL) {
                     if (hashentry->present[pindex] & pmask) {
-                        LDAPDebug(LDAP_DEBUG_TRACE, 
+                        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", 
                                          "duplicate DN <%s=%s> (ignored)\n",
-                                         attrib->name, attrib->value, 0);
+                                         attrib->name, attrib->value);
                         if (emitchanges) {
                             fprintf(edfout[i], "\n# Duplicate DN:\n");
                             commententry(edfout[i], attrib);
@@ -364,14 +365,14 @@ int mm_diff(stats_t *statsp)
                         hashentry->present[pindex] |= pmask;
                         hashvalue(seed, attrib, fingerprint);
                         if (memcmp(fingerprint, hashentry->fingerprint, 16)) {
-                            LDAPDebug(LDAP_DEBUG_TRACE, 
-				      "...data modified\n", key, 0, 0);
+                            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", 
+                            		"...data modified - key %u\n", key);
                             hashentry->flags = MODIFIED;
                         }
                     }
                     continue;
                 }
-                LDAPDebug(LDAP_DEBUG_TRACE, "overflow in key %u\n", key, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "overflow in key %u\n", key);
                 hashentry2 = entryalloc();
                 hashentry2->overflow = hashtable[key];
                 hashentry = hashtable[key] = hashentry2;
@@ -406,13 +407,13 @@ int mm_diff(stats_t *statsp)
         rewind(edfin[i].fp);
         edfin[i].end = FALSE;
 
-        LDAPDebug(LDAP_DEBUG_TRACE, 
-		  "loading authoritative data from directory %d\n", i, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff",
+		  "loading authoritative data from directory %d\n", i);
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "ignored: %s: %s\n", 
-			  attrib->name, attrib->value, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "ignored: %s: %s\n", 
+			  attrib->name, attrib->value);
                     continue;
             }
             if (stat == IDDS_MM_EOF)
@@ -421,7 +422,7 @@ int mm_diff(stats_t *statsp)
                 free(hashtable);
                 return stat;
             }
-            LDAPDebug(LDAP_DEBUG_TRACE, "db%d: %s: %s\n", 
+            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n", 
 		      i, attrib->name, attrib->value);
             hashname(seed, attrib, hashkey.data);
             key = hashkey.key & hashmask;
@@ -430,14 +431,14 @@ int mm_diff(stats_t *statsp)
                    memcmp(hashentry->key, hashkey.data, 16))
                 hashentry = hashentry->overflow;
             if (hashentry == NULL) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "...hash entry not found\n", 0, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "...hash entry not found\n");
                     continue;
             }
             if (!(hashentry->flags & LOADED))
             {
                 hashentry->first = newrecord(attrib);
                 hashentry->flags |= LOADED;
-                LDAPDebug(LDAP_DEBUG_TRACE, " ...data loaded\n", 0, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...data loaded\n");
                     hashentry->db = i;
                 continue;
             }
@@ -445,7 +446,7 @@ int mm_diff(stats_t *statsp)
                 continue;
             if (mm_get_winner(hashentry->first, attrib)) {
                 hashentry->flags |= LOADED;
-                LDAPDebug(LDAP_DEBUG_TRACE, " ...winner data loaded\n", 0, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...winner data loaded\n");
                 hashentry->db = i;
                 free(hashentry->first);
                 hashentry->first = newrecord(attrib);
@@ -473,13 +474,13 @@ int mm_diff(stats_t *statsp)
         rewind(edfin[i].fp);
         edfin[i].end = FALSE;
 
-        LDAPDebug(LDAP_DEBUG_TRACE, 
-		  "generating differences for directory %d\n", i, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", 
+		  "generating differences for directory %d\n", i);
         while (TRUE) {
             stat = readrec(&edfin[i], &attrib);
             if (stat == IDDS_MM_ABSENT) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "ignored: %s: %s\n", 
-			  attrib->name, attrib->value, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "ignored: %s: %s\n", 
+			  attrib->name, attrib->value);
                 continue;
             }
             if (stat == IDDS_MM_EOF)
@@ -488,7 +489,7 @@ int mm_diff(stats_t *statsp)
                 free(hashtable);
                 return stat;
             }
-            LDAPDebug(LDAP_DEBUG_TRACE, "db%d: %s: %s\n", 
+            slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "db%d: %s: %s\n", 
 		      i, attrib->name, attrib->value);
             hashname(seed, attrib, hashkey.data);
             key = hashkey.key & hashmask;
@@ -497,7 +498,7 @@ int mm_diff(stats_t *statsp)
                    memcmp(hashentry->key, hashkey.data, 16))
                 hashentry = hashentry->overflow;
             if (hashentry == NULL) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "...hash entry not found\n", 0, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "...hash entry not found\n");
                     continue;
             }
             if (hashentry->flags & IDENTITY)
@@ -507,10 +508,10 @@ int mm_diff(stats_t *statsp)
             hashvalue(seed, attrib, fingerprint);
             if (memcmp(fingerprint, hashentry->fingerprint, 16)) {
                 if (mm_is_deleted(hashentry->first, attrib, 0)) {
-                    LDAPDebug(LDAP_DEBUG_TRACE, " ...deleted\n", 0, 0, 0);
+                    slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...deleted\n");
                     adddelete(edfout[i], attrib);
                 } else {
-                    LDAPDebug(LDAP_DEBUG_TRACE, " ...modified\n", 0, 0, 0);
+                    slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...modified\n");
                     addmodified(edfout[i], attrib, hashentry->first);
                 }
             }
@@ -525,7 +526,7 @@ int mm_diff(stats_t *statsp)
  *      no action is needed here.  Otherwise we emit an add.
  *      we take this opportunity to free the memory.
  */
-    LDAPDebug(LDAP_DEBUG_TRACE, "scanning db for new entries\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", "scanning db for new entries\n");
     for (h = 0; h < 0x1000; h++) {
         for (hashentry = hashtable[h]; hashentry; hashentry = overflow) {
             if (!hashentry->flags)
@@ -539,7 +540,7 @@ int mm_diff(stats_t *statsp)
                 if (mm_is_deleted(hashentry->first, NULL, 0)) continue;
                 added++;
                 if (!emitchanges) continue;
-                LDAPDebug(LDAP_DEBUG_TRACE, " ...add new\n", 0, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "mm_diff", " ...add new\n");
                 addnew(edfout[i], "add", hashentry->first);
             }
 
@@ -737,8 +738,8 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
         }
         vptr = strchr(line, ':');
         if (!vptr) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "%s\n invalid input line\n", 
-                             line, 0, 0);
+            slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n", 
+                             line);
             continue;           /* invalid line, but we'll just skip it */
         }
         *vptr = 0;
@@ -766,7 +767,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
             while (*vptr == ' ') vptr++; /* skip optional spaces */
             b64 = initDec64((unsigned char *)att->value, 0x20000);
             if (Dec64(b64, (unsigned char *) vptr)) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "%s\n invalid input line\n", line, 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n", line);
                 continue;       /* invalid line, but we'll just skip it */
             }
             toolong = FALSE;
@@ -776,7 +777,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                     break;
                 line[0] = '\0';
                 if (NULL == fgets(line, sizeof(line), edf1->fp)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, "readrec: failed to read line\n");
+                    slapi_log_err(SLAPI_LOG_TRACE, "readrec", "Failed to read line\n");
                     break;
                 }
                 len = strlen(line);
@@ -788,14 +789,14 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 rc = Dec64(b64, (unsigned char *)line);
                 if (rc == -1)
                 {
-                    LDAPDebug(LDAP_DEBUG_TRACE, "%s\n invalid input line\n", line, 0, 0);
+                    slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n invalid input line\n", line);
                     continue;   /* invalid line, but we'll just skip it */
                 }
 
                 if (rc) {
                     if (!toolong) {
                         toolong = TRUE;
-                        LDAPDebug(LDAP_DEBUG_TRACE, "%s\n line too long\n", line, 0, 0);
+                        slapi_log_err(SLAPI_LOG_TRACE, "readrec", "%s\n line too long\n", line);
                     }
                     continue;
                 }
@@ -815,7 +816,7 @@ readrec(edfFILE * edf1, attrib1_t ** attrib)
                 if (lookahead != ' ')
                     break;
                 if (NULL == fgets(line, sizeof(line), edf1->fp)) {
-                    LDAPDebug0Args(LDAP_DEBUG_TRACE, "readrec: failed to read line\n");
+                    slapi_log_err(SLAPI_LOG_TRACE, "readrec", "Failed to read line\n");
                     break;
                 }
                 len = strlen(line);

@@ -98,7 +98,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 
     if (prp->replica_acquired)  /* we already acquire replica */
     {
-        slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
 						"acquire_replica - %s: Remote replica already acquired\n",
 						agmt_get_long_name(prp->agmt));
 		return_value = ACQUIRE_FATAL_ERROR;
@@ -266,7 +266,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 
 				/* Couldn't send the extended operation */
 				return_value = ACQUIRE_TRANSIENT_ERROR; /* XXX right return value? */
-				slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name, "acquire_replica - "
+				slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "acquire_replica - "
 					"%s: Unable to send a startReplication "
 					"extended operation to consumer (%s). Will retry later.\n",
 					agmt_get_long_name(prp->agmt),
@@ -298,7 +298,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 					{
 					/* XXXggood handle other error codes here */
 					case NSDS50_REPL_INTERNAL_ERROR:
-							slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+							slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 								"acquire_replica - "
 								"%s: Unable to acquire replica: "
 								"an internal error occurred on the remote replica. "
@@ -313,7 +313,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						/* Not allowed to send updates */
 						{
 							char *repl_binddn = agmt_get_binddn(prp->agmt);
-							slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+							slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 								"acquire_replica - "
 								"%s: Unable to acquire replica: permission denied. "
 								"The bind dn \"%s\" does not have permission to "
@@ -333,7 +333,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						/* There is no such replica on the consumer */
 						{
 							Slapi_DN *repl_root = agmt_get_replarea(prp->agmt);
-							slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+							slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 								"acquire_replica - "
 								"%s: Unable to acquire replica: there is no "
 								"replicated area \"%s\" on the consumer server. "
@@ -350,7 +350,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						}
 					case NSDS50_REPL_EXCESSIVE_CLOCK_SKEW:
 						/* Large clock skew between the consumer and the supplier */
-						slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 							"acquire_replica - "
 							"%s: Unable to acquire replica: "
 							"Excessive clock skew between the supplier and "
@@ -360,7 +360,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						break;
 					case NSDS50_REPL_DECODING_ERROR:
 						/* We sent something the replica couldn't understand. */
-						slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 							"acquire_replica - "
 							"%s: Unable to acquire replica: "
 							"the consumer was unable to decode the "
@@ -381,7 +381,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						if (strcmp(REPL_NSDS50_TOTAL_PROTOCOL_OID,
 								   prot_oid) == 0)
 						{
-							slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name,
+							slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name,
 								"acquire_replica - "
 								"%s: Unable to acquire replica: "
 								"the replica is currently being updated"
@@ -390,7 +390,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						}
 						else /* REPL_NSDS50_INCREMENTAL_PROTOCOL_OID */
 						{
-							slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+							slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 								"acquire_replica - "
 								"%s: Unable to acquire replica: "
 								"the replica is currently being updated"
@@ -405,7 +405,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						break;
 					case NSDS50_REPL_LEGACY_CONSUMER:
 						/* remote replica is a legacy consumer */
-						slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 							"acquire_replica - "
 							"%s: Unable to acquire replica: the replica "
 							"is supplied by a legacy supplier. "
@@ -417,7 +417,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						break;
 					case NSDS50_REPL_REPLICAID_ERROR:
 						/* remote replica detected a duplicate ReplicaID */
-						slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 							"acquire_replica - "
 							"%s: Unable to aquire replica: the replica "
 							"has the same Replica ID as this one. "
@@ -431,7 +431,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 					case NSDS50_REPL_BACKOFF:
 						/* A replication sesssion hook on the replica
 						 * wants us to go into backoff mode. */
-						slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+						slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 							"acquire_replica - "
 							"%s: Unable to acquire replica: "
 							"the replica instructed us to go into "
@@ -472,7 +472,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 						}
 
 						/* We've acquired the replica. */
-						slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+						slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 							"acquire_replica - "
 							"%s: Replica was successfully acquired.\n",
 							agmt_get_long_name(prp->agmt));
@@ -483,7 +483,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 							{
 								/* Couldn't parse the update vector */
 								*ruv = NULL;
-								slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+								slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 									"acquire_replica - "
 									"%s: acquired replica, but could not parse update vector. "
 									"The replica must be reinitialized.\n",
@@ -507,7 +507,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 				else
 				{
 					/* Couldn't parse the response */
-					slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 						"acquire_replica - "
 						"%s: Unable to parse the response to the "
 						"startReplication extended operation. "
@@ -528,7 +528,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 
 				/* Couldn't send the extended operation */
 				return_value = ACQUIRE_TRANSIENT_ERROR; /* XXX right return value? */
-				slapi_log_error(SLAPI_LOG_WARNING, repl_plugin_name,
+				slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
 					"acquire_replica - "
 					"%s: Unable to receive the response for a startReplication "
 					"extended operation to consumer (%s). Will retry later.\n",
@@ -542,7 +542,7 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
 		else
 		{
 			/* Couldn't get a current CSN */
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 				"acquire_replica - "
 				"%s: Unable to obtain current CSN. "
 				"Replication is aborting.\n",
@@ -613,7 +613,7 @@ release_replica(Private_Repl_Protocol *prp)
 	{
 		int operation, error;
 		conn_get_error(prp->conn, &operation, &error);
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 			"release_replica - %s: Unable to send endReplication extended operation (%s)\n",
 			agmt_get_long_name(prp->agmt),
 			error ? ldap_err2string(error) : "unknown error");
@@ -625,7 +625,7 @@ release_replica(Private_Repl_Protocol *prp)
 	{
 		int operation, error;
 		conn_get_error(prp->conn, &operation, &error);
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 			"release_replica - %s: Attempting to release replica, but unable to receive endReplication extended "
 			"operation response from the replica. Error %d (%s)\n", agmt_get_long_name(prp->agmt), error,
 			error ? ldap_err2string(error) : "unknown error");
@@ -643,7 +643,7 @@ release_replica(Private_Repl_Protocol *prp)
 		{
 			int operation, error;
 			conn_get_error(prp->conn, &operation, &error);
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 				"release_replica - %s: Response message id does not match the request (%s)\n",
 				agmt_get_long_name(prp->agmt),
 				error ? ldap_err2string(error) : "unknown error");
@@ -663,12 +663,12 @@ release_replica(Private_Repl_Protocol *prp)
 		{
 			if (NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED == extop_result)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+				slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 					"release_replica - %s: Successfully released consumer\n", agmt_get_long_name(prp->agmt));
 			}
 			else
 			{
-				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 					"release_replica - %s: Unable to release consumer: response code %d\n",
 					agmt_get_long_name(prp->agmt), extop_result);
                 /* disconnect from the consumer so that it does not stay locked */
@@ -678,7 +678,7 @@ release_replica(Private_Repl_Protocol *prp)
 		else
 		{
 			/* Couldn't parse the response */
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 				"release_replica - %s: Unable to parse the response "
 				" to the endReplication extended operation.\n", 
 				agmt_get_long_name(prp->agmt));

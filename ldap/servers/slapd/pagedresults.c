@@ -62,10 +62,10 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
     int i;
     int maxreqs = config_get_maxsimplepaged_per_conn();
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_parse_control_value\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_parse_control_value", "=>\n");
     if ( NULL == conn || NULL == op || NULL == pagesize || NULL == index ) {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR,
-                      "<-- pagedresults_parse_control_value: %d\n",
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "pagedresults_parse_control_value", "<= Error %d\n",
                       LDAP_OPERATIONS_ERROR);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -73,28 +73,28 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
 
     if ( psbvp->bv_len == 0 || psbvp->bv_val == NULL )
     {
-        LDAPDebug0Args(LDAP_DEBUG_ERR,
-                    "<-- pagedresults_parse_control_value: no control value\n");
+        slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
+                    "<= no control value\n");
         return LDAP_PROTOCOL_ERROR;
     }
     ber = ber_init( psbvp );
     if ( ber == NULL )
     {
-        LDAPDebug0Args(LDAP_DEBUG_ERR,
-                    "<-- pagedresults_parse_control_value: no control value\n");
+        slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
+                    "<= no control value\n");
         return LDAP_PROTOCOL_ERROR;
     }
     if ( ber_scanf( ber, "{io}", pagesize, &cookie ) == LBER_ERROR )
     {
-        LDAPDebug0Args(LDAP_DEBUG_ERR,
-             "<-- pagedresults_parse_control_value: corrupted control value\n");
+        slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
+             "<= corrupted control value\n");
         return LDAP_PROTOCOL_ERROR;
     }
     if (!maxreqs)
     {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR,
-                      "pagedresults_parse_control_value: simple paged results requests per conn exeeded the limit: %d\n",
-                      maxreqs);
+        slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
+                "Simple paged results requests per conn exceeded the limit: %d\n",
+                maxreqs);
         return LDAP_UNWILLING_TO_PERFORM;
     }
 
@@ -140,9 +140,9 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         }
         if ((maxreqs > 0) && (*index >= maxreqs)) {
             rc = LDAP_UNWILLING_TO_PERFORM;
-            LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                          "pagedresults_parse_control_value: simple paged results requests per conn exeeded the limit: %d\n",
-                          maxreqs);
+            slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_parse_control_value",
+                    "Simple paged results requests per conn exeeded the limit: %d\n",
+                    maxreqs);
             goto bail;
         }
 
@@ -161,8 +161,8 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         slapi_ch_free_string(&ptr);
         if ((conn->c_pagedresults.prl_maxlen <= *index) || (*index < 0)){
             rc = LDAP_PROTOCOL_ERROR;
-            LDAPDebug1Arg(LDAP_DEBUG_ERR,
-                          "pagedresults_parse_control_value - Invalid cookie: %d\n", *index);
+            slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
+                          "Invalid cookie: %d\n", *index);
             *index = -1; /* index is invalid. reinitializing it. */
             goto bail;
         }
@@ -186,7 +186,8 @@ pagedresults_parse_control_value( Slapi_PBlock *pb,
         }
     } else {
         rc = LDAP_PROTOCOL_ERROR;
-        LDAPDebug1Arg(LDAP_DEBUG_ERR, "pagedresults_parse_control_value - Invalid cookie: %d\n", *index);
+        slapi_log_err(SLAPI_LOG_ERR, "pagedresults_parse_control_value",
+                "Invalid cookie: %d\n", *index);
     }
 bail:
     slapi_ch_free((void **)&cookie.bv_val);
@@ -207,8 +208,8 @@ bail:
     }
     PR_ExitMonitor(conn->c_mutex);
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_parse_control_value: idx %d\n", *index);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_parse_control_value",
+            "<= idx %d\n", *index);
     return rc;
 }
 
@@ -237,8 +238,8 @@ pagedresults_set_response_control( Slapi_PBlock *pb, int iscritical,
     int i;
     int cookie = 0;
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_response_control: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_response_control",
+            "=> idx=%d\n", index);
 
     if ( (ber = der_alloc()) == NULL )
     {
@@ -291,8 +292,8 @@ bailout:
     ber_free ( ber, 1 );      /* ber_free() checks for NULL param */
     ber_bvfree ( berval );    /* ber_bvfree() checks for NULL param */
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_response_control: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_response_control",
+            "<= idx=%d\n", index);
 }
 
 int 
@@ -303,13 +304,13 @@ pagedresults_free_one( Connection *conn, Operation *op, int index )
     if (!op_is_pagedresults(op)) {
         return 0; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_free_one: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one",
+            "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (conn->c_pagedresults.prl_count <= 0) {
-            LDAPDebug2Args(LDAP_DEBUG_TRACE, "pagedresults_free_one: "
-                           "conn=%d paged requests list count is %d\n",
+            slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one",
+                           "conn=%" NSPRIu64 " paged requests list count is %d\n",
                            conn->c_connid, conn->c_pagedresults.prl_count);
         } else if (index < conn->c_pagedresults.prl_maxlen) {
             PagedResults *prp = conn->c_pagedresults.prl_list + index;
@@ -320,7 +321,7 @@ pagedresults_free_one( Connection *conn, Operation *op, int index )
         PR_ExitMonitor(conn->c_mutex);
     }
 
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_free_one: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_free_one", "<= %d\n", rc);
     return rc;
 }
 
@@ -337,8 +338,8 @@ pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
         if (conn->c_pagedresults.prl_maxlen <= 0) {
             ; /* Not a paged result. */
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                          "--> pagedresults_free_one_msgid_nolock: msgid=%d\n", msgid);
+            slapi_log_err(SLAPI_LOG_TRACE,
+                          "pagedresults_free_one_msgid_nolock", "=> msgid=%d\n", msgid);
             for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
                 if (conn->c_pagedresults.prl_list[i].pr_msgid == msgid) {
                     PagedResults *prp = conn->c_pagedresults.prl_list + i;
@@ -353,8 +354,8 @@ pagedresults_free_one_msgid_nolock( Connection *conn, ber_int_t msgid )
                     break;
                 }
             }
-            LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                          "<-- pagedresults_free_one_msgid_nolock: %d\n", rc);
+            slapi_log_err(SLAPI_LOG_TRACE,
+                          "pagedresults_free_one_msgid_nolock" ,"<= %d\n", rc);
         }
     }
 
@@ -366,8 +367,8 @@ Slapi_Backend *
 pagedresults_get_current_be(Connection *conn, int index)
 {
     Slapi_Backend *be = NULL;
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_current_be: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_current_be", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -375,8 +376,8 @@ pagedresults_get_current_be(Connection *conn, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_current_be: %p\n", be);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_current_be", "<= %p\n", be);
     return be;
 }
 
@@ -384,8 +385,8 @@ int
 pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int nolock)
 {
     int rc = -1;
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_current_be: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_current_be", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         if (!nolock) PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -394,8 +395,8 @@ pagedresults_set_current_be(Connection *conn, Slapi_Backend *be, int index, int 
         rc = 0;
         if (!nolock) PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_current_be: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_current_be", "<= %d\n", rc);
     return rc;
 }
 
@@ -406,8 +407,8 @@ pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int 
     if (!op_is_pagedresults(op)) {
         return sr; /* noop */
     }
-    LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                   "--> pagedresults_get_search_result(%s): idx=%d\n",
+    slapi_log_err(SLAPI_LOG_TRACE,
+                   "pagedresults_get_search_result", "=> (%s) idx=%d\n",
                    locked?"locked":"not locked", index);
     if (conn && (index > -1)) {
         if (!locked) {
@@ -420,8 +421,8 @@ pagedresults_get_search_result(Connection *conn, Operation *op, int locked, int 
             PR_ExitMonitor(conn->c_mutex);
         }
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_search_result: %p\n", sr);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_search_result", "<=%p\n", sr);
     return sr;
 }
 
@@ -432,8 +433,8 @@ pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int lo
     if (!op_is_pagedresults(op)) {
         return 0; /* noop */
     }
-    LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                   "--> pagedresults_set_search_result: idx=%d, sr=%p\n",
+    slapi_log_err(SLAPI_LOG_TRACE,
+                   "pagedresults_set_search_result", "=> idx=%d, sr=%p\n",
                    index, sr);
     if (conn && (index > -1)) {
         if (!locked) PR_EnterMonitor(conn->c_mutex);
@@ -447,8 +448,8 @@ pagedresults_set_search_result(Connection *conn, Operation *op, void *sr, int lo
         }
         if (!locked) PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_search_result: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_search_result", "=> %d\n", rc);
     return rc;
 }
 
@@ -459,8 +460,8 @@ pagedresults_get_search_result_count(Connection *conn, Operation *op, int index)
     if (!op_is_pagedresults(op)) {
         return count; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_search_result_count: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_search_result_count", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -468,8 +469,8 @@ pagedresults_get_search_result_count(Connection *conn, Operation *op, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_search_result_count: %d\n", count);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_search_result_count", "<= %d\n", count);
     return count;
 }
 
@@ -481,8 +482,8 @@ pagedresults_set_search_result_count(Connection *conn, Operation *op,
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_search_result_count: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_search_result_count", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -491,8 +492,8 @@ pagedresults_set_search_result_count(Connection *conn, Operation *op,
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_search_result_count: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_search_result_count", "<= %d\n", rc);
     return rc;
 }
 
@@ -505,9 +506,9 @@ pagedresults_get_search_result_set_size_estimate(Connection *conn,
     if (!op_is_pagedresults(op)) {
         return count; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_search_result_set_size_estimate: "
-                  "idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_search_result_set_size_estimate",
+                  "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -515,8 +516,8 @@ pagedresults_get_search_result_set_size_estimate(Connection *conn,
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_search_result_set_size_estimate: %d\n",
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_search_result_set_size_estimate", "<= %d\n",
                   count);
     return count;
 }
@@ -530,9 +531,9 @@ pagedresults_set_search_result_set_size_estimate(Connection *conn,
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_search_result_set_size_estimate: "
-                  "idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_search_result_set_size_estimate",
+                  "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -541,8 +542,8 @@ pagedresults_set_search_result_set_size_estimate(Connection *conn,
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_search_result_set_size_estimate: %d\n",
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "<-- pagedresults_set_search_result_set_size_estimate", "<= %d\n",
                   rc);
     return rc;
 }
@@ -554,8 +555,8 @@ pagedresults_get_with_sort(Connection *conn, Operation *op, int index)
     if (!op_is_pagedresults(op)) {
         return flags; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_with_sort: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_with_sort", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -563,8 +564,8 @@ pagedresults_get_with_sort(Connection *conn, Operation *op, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_with_sort: %p\n", flags);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_with_sort", "<= %d\n", flags);
     return flags;
 }
 
@@ -576,8 +577,8 @@ pagedresults_set_with_sort(Connection *conn, Operation *op,
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_with_sort: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_with_sort", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -589,7 +590,7 @@ pagedresults_set_with_sort(Connection *conn, Operation *op,
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_set_with_sort: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_with_sort", "<= %d\n", rc);
     return rc;
 }
 
@@ -600,8 +601,8 @@ pagedresults_get_unindexed(Connection *conn, Operation *op, int index)
     if (!op_is_pagedresults(op)) {
         return flags; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_unindexed: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_unindexed", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -609,8 +610,8 @@ pagedresults_get_unindexed(Connection *conn, Operation *op, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_unindexed: %p\n", flags);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_unindexed", "<= %d\n", flags);
     return flags;
 }
 
@@ -621,8 +622,8 @@ pagedresults_set_unindexed(Connection *conn, Operation *op, int index)
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_unindexed: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_unindexed", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -632,8 +633,8 @@ pagedresults_set_unindexed(Connection *conn, Operation *op, int index)
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_unindexed: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_unindexed", "<= %d\n", rc);
     return rc;
 }
 
@@ -644,8 +645,8 @@ pagedresults_get_sort_result_code(Connection *conn, Operation *op, int index)
     if (!op_is_pagedresults(op)) {
         return code; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_sort_result_code: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_sort_result_code", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -653,8 +654,8 @@ pagedresults_get_sort_result_code(Connection *conn, Operation *op, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_get_sort_result_code: %d\n", code);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_get_sort_result_code", "<= %d\n", code);
     return code;
 }
 
@@ -666,8 +667,8 @@ pagedresults_set_sort_result_code(Connection *conn, Operation *op,
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_sort_result_code: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_sort_result_code", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -676,8 +677,8 @@ pagedresults_set_sort_result_code(Connection *conn, Operation *op,
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_sort_result_code: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_sort_result_code", "<= %d\n", rc);
     return rc;
 }
 
@@ -689,8 +690,8 @@ pagedresults_set_timelimit(Connection *conn, Operation *op,
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_timelimit: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_timelimit", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -699,7 +700,7 @@ pagedresults_set_timelimit(Connection *conn, Operation *op,
         PR_ExitMonitor(conn->c_mutex);
         rc = 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_set_timelimit: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_timelimit", "<= %d\n", rc);
     return rc;
 }
 
@@ -711,10 +712,9 @@ pagedresults_set_sizelimit(Connection *conn, Operation *op,
     if (!op_is_pagedresults(op)) {
         return rc; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_set_sizelimit: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_sizelimit", "=> idx=%d\n", index);
     op->o_pagedresults_sizelimit = sizelimit;
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_set_sizelimit: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_set_sizelimit", "<= %d\n", rc);
     return rc;
 }
 
@@ -725,10 +725,9 @@ pagedresults_get_sizelimit(Connection *conn, Operation *op, int index)
     if (!op_is_pagedresults(op)) {
         return sizelimit; /* noop */
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_get_sizelimit: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_get_sizelimit", "=> idx=%d\n", index);
     sizelimit = op->o_pagedresults_sizelimit;
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_get_sizelimit\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_get_sizelimit", "<=\n");
     return sizelimit;
 }
 
@@ -746,10 +745,10 @@ pagedresults_cleanup(Connection *conn, int needlock)
     int i;
     PagedResults *prp = NULL;
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_cleanup\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup", "=>\n");
 
     if (NULL == conn) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_cleanup: -\n");
+        slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup", "<= Connection is NULL\n");
         return 0;
     }
 
@@ -774,7 +773,7 @@ pagedresults_cleanup(Connection *conn, int needlock)
     if (needlock) {
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_cleanup: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup", "<= %d\n", rc);
     return rc;
 }
 
@@ -791,10 +790,10 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
     int i;
     PagedResults *prp = NULL;
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_cleanup_all\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup_all", "=>\n");
 
     if (NULL == conn) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_cleanup_all: -\n");
+        slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup_all", "<= Connection is NULL\n");
         return 0;
     }
 
@@ -820,7 +819,7 @@ pagedresults_cleanup_all(Connection *conn, int needlock)
     if (needlock) {
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_cleanup_all: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_cleanup_all", "<= %d\n", rc);
     return rc;
 }
 
@@ -834,8 +833,8 @@ int
 pagedresults_check_or_set_processing(Connection *conn, int index)
 {
     int ret = 0;
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_check_or_set_processing\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_check_or_set_processing", "=>\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -847,8 +846,8 @@ pagedresults_check_or_set_processing(Connection *conn, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_check_or_set_processing: %d\n", ret);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_check_or_set_processing", "<= %d\n", ret);
     return ret;
 }
 
@@ -861,8 +860,8 @@ int
 pagedresults_reset_processing(Connection *conn, int index)
 {
     int ret = 0;
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "--> pagedresults_reset_processing: idx=%d\n", index);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_reset_processing", "=> idx=%d\n", index);
     if (conn && (index > -1)) {
         PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -874,8 +873,8 @@ pagedresults_reset_processing(Connection *conn, int index)
         }
         PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_reset_processing: %d\n", ret);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_reset_processing", "<= %d\n", ret);
     return ret;
 }
 #endif
@@ -899,10 +898,10 @@ pagedresults_is_timedout_nolock(Connection *conn)
     PagedResults *prp = NULL;
     time_t ctime;
 
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_is_timedout\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_is_timedout", "=>\n");
 
     if (!conn || (0 == conn->c_pagedresults.prl_maxlen)) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_is_timedout: false\n");
+        slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_is_timedout", "<= false 1\n");
         return 0;
     }
 
@@ -911,12 +910,12 @@ pagedresults_is_timedout_nolock(Connection *conn)
     if (prp && (1 == conn->c_pagedresults.prl_maxlen)) {
         if (prp->pr_current_be && (prp->pr_timelimit > 0)) {
             if (ctime > prp->pr_timelimit) {
-                LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_is_timedout: true\n");
+                slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_is_timedout", "<= true\n");
                 return 1;
             }
         }
     }
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_is_timedout: false\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "<-- pagedresults_is_timedout", "<= false 2\n");
     return 0;
 }
 
@@ -933,13 +932,13 @@ pagedresults_reset_timedout_nolock(Connection *conn)
     if (NULL == conn) {
         return 0;
     }
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_reset_timedout\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_reset_timedout", "=>\n");
 
     for (i = 0; i < conn->c_pagedresults.prl_maxlen; i++) {
         prp = conn->c_pagedresults.prl_list + i;
         prp->pr_timelimit = 0;
     }
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_reset_timedout: 0\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_reset_timedout", "<=\n");
     return 0;
 }
 
@@ -947,12 +946,12 @@ pagedresults_reset_timedout_nolock(Connection *conn)
 int
 pagedresults_in_use_nolock(Connection *conn)
 {
-    LDAPDebug0Args(LDAP_DEBUG_TRACE, "--> pagedresults_in_use\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_in_use_nolock", "=>\n");
     if (NULL == conn) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "<-- pagedresults_in_use: -\n");
+        slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_in_use_nolock", "<= Connection is NULL\n");
         return 0;
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE, "<-- pagedresults_in_use: %d\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "pagedresults_in_use_nolock", "<= %d\n",
                   conn->c_pagedresults.prl_count);
     return conn->c_pagedresults.prl_count;
 }
@@ -1044,8 +1043,8 @@ pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked)
     }
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &index);
-    LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                   "--> pagedresults_set_search_result_pb: idx=%d, sr=%p\n", index, sr);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                   "pagedresults_set_search_result_pb", "=> idx=%d, sr=%p\n", index, sr);
     if (conn && (index > -1)) {
         if (!locked) PR_EnterMonitor(conn->c_mutex);
         if (index < conn->c_pagedresults.prl_maxlen) {
@@ -1054,7 +1053,7 @@ pagedresults_set_search_result_pb(Slapi_PBlock *pb, void *sr, int locked)
         }
         if (!locked) PR_ExitMonitor(conn->c_mutex);
     }
-    LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-                  "<-- pagedresults_set_search_result_pb: %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE,
+                  "pagedresults_set_search_result_pb", "<= %d\n", rc);
     return rc;
 }

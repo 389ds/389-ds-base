@@ -159,7 +159,7 @@ write_replog_db(
     int	i;
 
     if (!dn) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "write_replog_db: NULL dn\n");
         return ret;
     }
 
@@ -179,7 +179,7 @@ write_replog_db(
     changenum = retrocl_assign_changenumber();
    
     PR_ASSERT( changenum > 0UL );
-    slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+    slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 	    "write_replog_db: write change record %lu for dn: \"%s\"\n", 
 	    changenum, dn );
 
@@ -224,7 +224,7 @@ write_replog_db(
             if ( entry == NULL ) continue;
             uniqueId = slapi_entry_get_uniqueid( entry );
 
-            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 	        "write_replog_db: add %s: \"%s\"\n", attributeAlias, uniqueId );
 
             val.bv_val = (char *)uniqueId;
@@ -241,7 +241,7 @@ write_replog_db(
             slapi_pblock_get( pb, SLAPI_IS_REPLICATED_OPERATION, &isReplicated );
             attributeValue = isReplicated ? "TRUE" : "FALSE";
 
-            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 	        "write_replog_db: add %s: \"%s\"\n", attributeAlias, attributeValue );
 
             val.bv_val = attributeValue;
@@ -275,7 +275,7 @@ write_replog_db(
 
             if ( valueSet == NULL ) continue;
 
-            slapi_log_error(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
 	        "write_replog_db: add %s\n", attributeAlias );
 
             slapi_entry_add_valueset( e, attributeAlias, valueSet );
@@ -346,7 +346,7 @@ write_replog_db(
         break;
 
     default:
-        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                 "write_replog_db - Unknown LDAP operation type %d.\n", optype );
         err = SLAPI_PLUGIN_FAILURE;
     }
@@ -362,7 +362,7 @@ write_replog_db(
         slapi_pblock_get( newPb, SLAPI_PLUGIN_INTOP_RESULT, &ret );
         slapi_pblock_destroy(newPb);
         if ( 0 != ret ) {
-            slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                  "write_replog_db - An error occured while adding change "
                  "number %lu, dn = %s: %s. \n",
                  changenum, edn, ldap_err2string( ret ));
@@ -373,7 +373,7 @@ write_replog_db(
             retrocl_commit_changenumber();
         }
     } else {
-        slapi_log_error(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
              "write_replog_db - An error occurred while constructing "
              "change record number %ld.\n",	changenum );
         retrocl_release_changenumber();
@@ -589,24 +589,24 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
    
     (void)slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     if (be == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "retrocl_postob - Backend is not set\n");
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME, "retrocl_postob - Backend is not set\n");
         return SLAPI_PLUGIN_FAILURE;
     }
     
     if (slapi_be_logchanges(be) == 0) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "retrocl_postob - Not applying change if not logging\n");
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change if not logging\n");
         return SLAPI_PLUGIN_SUCCESS;
     }
     
     if (retrocl_be_changelog == NULL || be == retrocl_be_changelog) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE, "retrocl_postob - Not applying change if no/cl be\n");
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change if no/cl be\n");
         return SLAPI_PLUGIN_SUCCESS;
     }
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
 
     if (rc != LDAP_SUCCESS) {
-        LDAPDebug1Arg(LDAP_DEBUG_TRACE,"retrocl_postob - Not applying change if op failed %d\n",rc);
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change if op failed %d\n",rc);
         /* this could also mean that the changenumber is no longer correct
          * set a flag to check at next assignment
          */
@@ -615,7 +615,7 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
     }
 
     if (slapi_op_abandoned(pb)) {
-        LDAPDebug0Args(LDAP_DEBUG_PLUGIN,"retrocl_postob - Not applying change if op abandoned\n");
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change if op abandoned\n");
         return SLAPI_PLUGIN_SUCCESS;
     }
 
@@ -630,12 +630,12 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
     slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 
     if (op == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_TRACE,"retrocl_postob - Not applying change if no op\n");
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change if no op\n");
         return SLAPI_PLUGIN_SUCCESS;
     }
 
     if (operation_is_flag_set(op, OP_FLAG_TOMBSTONE_ENTRY)){
-        LDAPDebug0Args(LDAP_DEBUG_TRACE,"retrocl_postob - Not applying change for nsTombstone entries\n");
+        slapi_log_err(SLAPI_LOG_TRACE, RETROCL_PLUGIN_NAME, "retrocl_postob - Not applying change for nsTombstone entries\n");
         return SLAPI_PLUGIN_SUCCESS;
     }
     /*
@@ -677,7 +677,7 @@ int retrocl_postob (Slapi_PBlock *pb, int optype)
     if((rc = write_replog_db( pb, optype, dn, log_m, flag, curtime, entry,
         post_entry, newrdn, modrdn_mods, slapi_sdn_get_dn(newsuperior) )))
     {
-        slapi_log_error(SLAPI_LOG_ERR, "retrocl-plugin",
+        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                         "retrocl_postob - Operation failure [%d]\n", rc);
         if(rc < 0){
             rc = LDAP_OPERATIONS_ERROR;

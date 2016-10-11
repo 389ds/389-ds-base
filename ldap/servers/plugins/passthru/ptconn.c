@@ -128,7 +128,7 @@ passthru_get_connection( PassThruServer *srvr, LDAP **ldp )
     slapi_lock_mutex( srvr->ptsrvr_connlist_mutex );
     rc = LDAP_SUCCESS;		/* optimistic */
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	"=> passthru_get_connection server %s:%d conns: %d maxconns: %d\n",
 	srvr->ptsrvr_hostname, srvr->ptsrvr_port, srvr->ptsrvr_connlist_count,
 	srvr->ptsrvr_maxconnections );
@@ -143,7 +143,7 @@ passthru_get_connection( PassThruServer *srvr, LDAP **ldp )
 	    if ( conn->ptconn_status == PASSTHRU_CONNSTATUS_OK
 		    && conn->ptconn_usecount < srvr->ptsrvr_maxconcurrency ) {
 #ifdef PASSTHRU_VERBOSE_LOGGING
-		slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"<= passthru_get_connection server found "
 			"conn 0x%x to use)\n", conn->ptconn_ld );
 #endif
@@ -160,7 +160,7 @@ passthru_get_connection( PassThruServer *srvr, LDAP **ldp )
 	    if (( ld = slapi_ldap_init( srvr->ptsrvr_hostname,
 		    srvr->ptsrvr_port, srvr->ptsrvr_secure, 1 )) == NULL ) {
 #ifdef PASSTHRU_VERBOSE_LOGGING
-		slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"<= passthru_get_connection slapi_ldap_init failed\n" );
 #endif
 		rc = LDAP_LOCAL_ERROR;
@@ -195,7 +195,7 @@ passthru_get_connection( PassThruServer *srvr, LDAP **ldp )
 	    ++srvr->ptsrvr_connlist_count;
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
-	    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 		    "<= passthru_get_connection added new conn 0x%x, "
 		    "conn count now %d\n", ld, srvr->ptsrvr_connlist_count );
 #endif
@@ -203,13 +203,13 @@ passthru_get_connection( PassThruServer *srvr, LDAP **ldp )
 	}
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
-	slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"... passthru_get_connection waiting for conn to free up\n" );
 #endif
 	slapi_wait_condvar( srvr->ptsrvr_connlist_cv, NULL );
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
-	slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"... passthru_get_connection awake again\n" );
 #endif
     }
@@ -218,11 +218,11 @@ unlock_and_return:
     if ( conn != NULL ) {
 	++conn->ptconn_usecount;
 	*ldp = conn->ptconn_ld;
-	slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"<= passthru_get_connection ld=0x%p (concurrency now %d)\n",
 		*ldp, conn->ptconn_usecount );
     } else {
-	slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"<= passthru_get_connection error %d\n", rc );
     }
 
@@ -245,7 +245,7 @@ passthru_release_connection( PassThruServer *srvr, LDAP *ld, int dispose )
     PASSTHRU_ASSERT( ld != NULL );
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "=> passthru_release_connection ld=0x%x%s\n", ld,
 	    dispose ? " (disposing)" : "" );
 #endif
@@ -265,7 +265,7 @@ passthru_release_connection( PassThruServer *srvr, LDAP *ld, int dispose )
     }
 
     if ( conn == NULL ) {		/* ld not found -- unexpected */
-	slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"=> passthru_release_connection ld=0x%p not found\n", ld );
     } else {
 	PASSTHRU_ASSERT( conn->ptconn_usecount > 0 );
@@ -371,7 +371,7 @@ check_for_stale_connections( PassThruServer *srvr )
     PASSTHRU_ASSERT( srvr != NULL );
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "check_for_stale_connections: server %s (lifetime %d secs)\n",
 	    srvr->ptsrvr_url, srvr->ptsrvr_connlifetime );
 #endif
@@ -395,7 +395,7 @@ check_for_stale_connections( PassThruServer *srvr )
 		 * connection is idle and stale -- remove from server's list
 		 */
 #ifdef PASSTHRU_VERBOSE_LOGGING
-		slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"check_for_stale_connections: discarding idle, "
 			"stale connection 0x%x\n", conn->ptconn_ld );
 #endif
@@ -411,7 +411,7 @@ check_for_stale_connections( PassThruServer *srvr )
 		 * connection is stale but in use -- mark to be disposed later
 		 */
 #ifdef PASSTHRU_VERBOSE_LOGGING
-		slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 			"check_for_stale_connections: marking connection 0x%x "
 			"stale (use count %d)\n", conn->ptconn_ld,
 			conn->ptconn_usecount );

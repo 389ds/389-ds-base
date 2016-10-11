@@ -68,7 +68,7 @@ static int passwd_check_pwd(Slapi_Entry *targetEntry, const char *pwd){
 	Slapi_Value cv;
 	Slapi_Value **bvals; 
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "=> passwd_check_pwd\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_check_pwd", "=>\n");
 	
 	slapi_value_init_string(&cv,pwd);
 	
@@ -82,7 +82,7 @@ static int passwd_check_pwd(Slapi_Entry *targetEntry, const char *pwd){
 	}
 
 	value_done(&cv);
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= passwd_check_pwd: %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_check_pwd", "<= %d\n", rc);
 	
 	/* if the userPassword attribute is absent then rc is -1 */
 	return rc;
@@ -97,16 +97,16 @@ static int
 passwd_modify_getEntry( const char *dn, Slapi_Entry **e2 ) {
 	int		search_result = 0;
 	Slapi_DN 	sdn;
-	LDAPDebug(LDAP_DEBUG_TRACE, "=> passwd_modify_getEntry\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_getEntry", "=>\n");
 	slapi_sdn_init_dn_byref( &sdn, dn );
 	if ((search_result = slapi_search_internal_get_entry( &sdn, NULL, e2,
  					plugin_get_default_component_id())) != LDAP_SUCCESS ){
-	 LDAPDebug(LDAP_DEBUG_TRACE, "passwd_modify_getEntry: No such entry-(%s), err (%d)\n",
-					 dn, search_result, 0);
+	 slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_getEntry", "No such entry-(%s), err (%d)\n",
+					 (char *)dn, search_result);
 	}
 
 	slapi_sdn_done( &sdn );
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= passwd_modify_getEntry: %d\n", search_result, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_getEntry", "<= %d\n", search_result);
 	return search_result;
 }
 
@@ -123,7 +123,7 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 	LDAPControl **pb_resp_controls = NULL;
 	int ret=0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "=> passwd_apply_mods\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "=>\n");
 
 	if (mods && (slapi_mods_get_num_mods(mods) > 0)) 
 	{
@@ -164,14 +164,15 @@ passwd_apply_mods(Slapi_PBlock *pb_orig, const Slapi_DN *sdn, Slapi_Mods *mods,
 		}
 
 		if (ret != LDAP_SUCCESS){
-			LDAPDebug(LDAP_DEBUG_TRACE, "WARNING: passwordPolicy modify error %d on entry '%s'\n",
-				ret, slapi_sdn_get_dn(sdn), 0);
+			slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods",
+				"WARNING: passwordPolicy modify error %d on entry '%s'\n",
+				ret, slapi_sdn_get_dn(sdn));
 		}
 
 		pblock_done(&pb);
  	}
  
- 	LDAPDebug(LDAP_DEBUG_TRACE, "<= passwd_apply_mods: %d\n", ret, 0, 0 );
+ 	slapi_log_err(SLAPI_LOG_TRACE, "passwd_apply_mods", "<= %d\n", ret);
  
  	return ret;
 }
@@ -185,7 +186,7 @@ static int passwd_modify_userpassword(Slapi_PBlock *pb_orig, Slapi_Entry *target
 	int ret = 0;
 	Slapi_Mods smods;
 	
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> passwd_modify_userpassword\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_userpassword", "=>\n");
 	
 	slapi_mods_init (&smods, 0);
 	slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, SLAPI_USERPWD_ATTR, newPasswd);
@@ -196,7 +197,7 @@ static int passwd_modify_userpassword(Slapi_PBlock *pb_orig, Slapi_Entry *target
  
 	slapi_mods_done(&smods);
 	
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= passwd_modify_userpassword: %d\n", ret, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_userpassword", "<= %d\n", ret);
 
 	return ret;
 }
@@ -302,11 +303,12 @@ static int passwd_modify_generate_policy_passwd( passwdPolicy *pwpolicy,
 			}
 			if ( categories > 0 ) {
 				/* password generator does not support passwordMin8Bit */
-    			LDAPDebug(LDAP_DEBUG_ERR,
-					"passwd_modify_generate_policy_passwd - Unable to generate a password that meets the current "
+    			slapi_log_err(SLAPI_LOG_ERR,
+					"passwd_modify_generate_policy_passwd",
+					"Unable to generate a password that meets the current "
 					"password syntax rules.  A minimum categories setting "
 					"of %d is not supported with random password generation.\n",
-					pwpolicy->pw_mincategories, 0, 0 );
+					pwpolicy->pw_mincategories);
 				*errMesg = "Unable to generate new random password.  Please contact the Administrator.";
 				return LDAP_CONSTRAINT_VIOLATION;
 			}
@@ -379,10 +381,11 @@ static int passwd_modify_generate_passwd( passwdPolicy *pwpolicy,
 		return LDAP_OPERATIONS_ERROR;
 	}
 	if ( pwpolicy->pw_min8bit > 0 ) {
-    	LDAPDebug(LDAP_DEBUG_ERR, "passwd_modify_generate_passwd - Unable to generate a password that meets "
-						"the current password syntax rules.  8-bit syntax "
-						"restrictions are not supported with random password "
-						"generation.\n", 0, 0, 0 );
+    	slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_generate_passwd",
+    		"Unable to generate a password that meets "
+			"the current password syntax rules.  8-bit syntax "
+			"restrictions are not supported with random password "
+			"generation.\n");
 		*errMesg = "Unable to generate new random password.  Please contact the Administrator.";
 		return LDAP_CONSTRAINT_VIOLATION;
 	}
@@ -445,7 +448,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	Slapi_Entry	*referrals = NULL;
 	/* Slapi_DN sdn; */
 
-    	LDAPDebug(LDAP_DEBUG_TRACE, "=> passwd_modify_extop\n", 0, 0, 0 );
+    	slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_extop", "=>\n");
 
 	/* Before going any further, we'll make sure that the right extended operation plugin
 	 * has been called: i.e., the OID shipped whithin the extended operation request must 
@@ -453,11 +456,11 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_OID, &oid ) != 0 ) {
 		errMesg = "Could not get OID value from request.\n";
 		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
+		slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
 				"%s", errMesg );
 		goto free_and_return;
 	} else {
-	        slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
+	        slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
 				 "Received extended operation request with OID %s\n", oid );
 	}
 	
@@ -466,7 +469,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		rc = LDAP_OPERATIONS_ERROR;
 		goto free_and_return;
 	} else {
-	        slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
+	        slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop", 
 				 "Password Modify extended operation request confirmed.\n" );
 	}
 	
@@ -479,7 +482,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if ( slapi_pblock_get(pb, SLAPI_CONN_SASL_SSF, &sasl_ssf) != 0) {
 		errMesg = "Could not get SASL SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+		slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
 				"%s", errMesg );
 		goto free_and_return;
 	}
@@ -487,7 +490,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if ( slapi_pblock_get(pb, SLAPI_CONN_LOCAL_SSF, &local_ssf) != 0) {
 		errMesg = "Could not get local SSF from connection\n";
 		rc = LDAP_OPERATIONS_ERROR;
-		slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+		slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
 				"%s", errMesg );
 		goto free_and_return;
 	}
@@ -551,7 +554,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 		int rc = 0;
 		if ( ber_scanf( ber, "a", &rawdn) == LBER_ERROR ) {
 			slapi_ch_free_string(&rawdn);
-			LDAPDebug(LDAP_DEBUG_ERR, "passwd_modify_extop - ber_scanf failed :{\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
 			errMesg = "ber_scanf failed at userID parse.\n";
 			rc = LDAP_PROTOCOL_ERROR;
 			goto free_and_return;
@@ -577,7 +580,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	if (tag == LDAP_EXTOP_PASSMOD_TAG_OLDPWD ) {
 		if ( ber_scanf( ber, "a", &oldPasswd ) == LBER_ERROR ) {
 			slapi_ch_free_string(&oldPasswd);
-			LDAPDebug(LDAP_DEBUG_ERR, "passwd_modify_extop - ber_scanf failed :{\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
 			errMesg = "ber_scanf failed at oldPasswd parse.\n";
 			rc = LDAP_PROTOCOL_ERROR;
 			goto free_and_return;
@@ -590,7 +593,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 	{
 		if ( ber_scanf( ber, "a", &newPasswd ) == LBER_ERROR ) {
 			slapi_ch_free_string(&newPasswd);
-			LDAPDebug(LDAP_DEBUG_ERR, "passwd_modify_extop - ber_scanf failed :{\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "passwd_modify_extop", "ber_scanf failed :{\n");
 			errMesg = "ber_scanf failed at newPasswd parse.\n";
 			rc = LDAP_PROTOCOL_ERROR;
 			goto free_and_return;
@@ -599,7 +602,7 @@ passwd_modify_extop( Slapi_PBlock *pb )
 
 parse_req_done:	
 	/* Uncomment for debugging, otherwise we don't want to leak the password values into the log... */
-	/* LDAPDebug(LDAP_DEBUG_ARGS, "passwd: dn (%s), oldPasswd (%s) ,newPasswd (%s)\n",
+	/* slapi_log_err(SLAPI_LOG_ARGS, "passwd: dn (%s), oldPasswd (%s) ,newPasswd (%s)\n",
 					 dn, oldPasswd, newPasswd); */
 
 	/* Get Bind DN */
@@ -806,11 +809,11 @@ parse_req_done:
 		slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, gen_passwd);
 	}
 	
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= passwd_modify_extop: %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "passwd_modify_extop", "<= %d\n", rc);
 	
 	/* Free anything that we allocated above */
 free_and_return:
-	slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
+	slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_extop",
 		"%s", errMesg ? errMesg : "success" );
 
 	if ((rc == LDAP_REFERRAL) && (referrals)) {
@@ -880,18 +883,18 @@ int passwd_modify_init( Slapi_PBlock *pb )
 	 */ 
 
 	if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) {
-	        slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_init", "Could not get argv\n" );
+	        slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_init", "Could not get argv\n" );
 		return( -1 );
 	}
 
 	/* Compare the OID specified in the configuration file against the Passwd OID. */
 
 	if ( argv == NULL || strcmp( argv[0], EXTOP_PASSWD_OID ) != 0 ) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_init", 
+		slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_init", 
 				 "OID is missing or is not %s\n", EXTOP_PASSWD_OID );
 		return( -1 );
 	} else {
-		slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_init", 
+		slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_init", 
 				 "Registering plug-in for Password Modify extended op %s.\n", argv[0] /* oid */);
 	}
 
@@ -905,7 +908,7 @@ int passwd_modify_init( Slapi_PBlock *pb )
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, passwd_oid_list ) != 0 ||
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, passwd_name_list ) != 0 ) {
 
-		slapi_log_error(SLAPI_LOG_PLUGIN, "passwd_modify_init",
+		slapi_log_err(SLAPI_LOG_PLUGIN, "passwd_modify_init",
 				 "Failed to set plug-in version, function, and OID.\n" );
 		return( -1 );
 	}

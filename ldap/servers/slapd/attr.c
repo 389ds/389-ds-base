@@ -916,7 +916,7 @@ attr_add_valuearray(Slapi_Attr *a, Slapi_Value **vals, const char *dn)
             }
         }
 
-        slapi_log_error(SLAPI_LOG_TRACE, NULL, "add value \"%s\" to "
+        slapi_log_err(SLAPI_LOG_TRACE, "attr_add_valuearray", "add value \"%s\" to "
                 "attribute type \"%s\" in entry \"%s\" failed: %s\n", 
                 duplicate_string,
                 a->a_type,
@@ -986,14 +986,14 @@ attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn)
 {
 	int rc = LDAP_PROTOCOL_ERROR;
 
-	LDAPDebug0Args(LDAP_DEBUG_TRACE,
-					"=> slapi_attr_get_value_cmp_fn\n");
+	slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn",
+					"=> attr_get_value_cmp_fn\n");
 
 	*compare_fn = NULL;
 
 	if (attr == NULL) {
-		LDAPDebug0Args(LDAP_DEBUG_TRACE,
-						"<= slapi_attr_get_value_cmp_fn no attribute given\n");
+		slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn",
+						"No attribute given\n");
 		rc = LDAP_PARAM_ERROR; /* unkonwn */
 		goto done;
 	}
@@ -1005,22 +1005,22 @@ attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn)
 	}
 
 	if ((attr->a_plugin->plg_syntax_flags & SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING) == 0) {
-		LDAPDebug2Args(LDAP_DEBUG_TRACE,
-					   "<= slapi_attr_get_value_cmp_fn syntax [%s] for attribute [%s] does not support ordering\n",
+		slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn",
+					   "Syntax [%s] for attribute [%s] does not support ordering\n",
 					   attr->a_plugin->plg_syntax_oid, attr->a_type);
 		goto done;
 	}
 
 	if (attr->a_plugin->plg_syntax_filter_ava == NULL) {
-		LDAPDebug2Args(LDAP_DEBUG_TRACE,
-					   "<= slapi_attr_get_value_cmp_fn syntax [%s] for attribute [%s] does not support equality matching\n",
+		slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn",
+					   "Syntax [%s] for attribute [%s] does not support equality matching\n",
 					   attr->a_plugin->plg_syntax_oid, attr->a_type);
 		goto done;
 	}
 
 	if (attr->a_plugin->plg_syntax_compare == NULL) {
-		LDAPDebug2Args(LDAP_DEBUG_TRACE,
-					   "<= slapi_attr_get_value_cmp_fn syntax [%s] for attribute [%s] does not have a compare function\n",
+		slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn",
+					   "Syntax [%s] for attribute [%s] does not have a compare function\n",
 					   attr->a_plugin->plg_syntax_oid, attr->a_type);
 		goto done;
 	}
@@ -1029,7 +1029,7 @@ attr_get_value_cmp_fn(const Slapi_Attr *attr, value_compare_fn_type *compare_fn)
 	rc = LDAP_SUCCESS;
 
 done:
-	LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= slapi_attr_get_value_cmp_fn \n");
+	slapi_log_err(SLAPI_LOG_TRACE, "attr_get_value_cmp_fn","<= attr_get_value_cmp_fn \n");
 	return rc;
 }
 

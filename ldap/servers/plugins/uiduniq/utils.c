@@ -39,7 +39,7 @@ static char *plugin_name = "utils";
  */
 int
 op_error(int internal_error) {
-	slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name,
+	slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name,
 					"Internal error: %d\n", internal_error);
 
 	return LDAP_OPERATIONS_ERROR;

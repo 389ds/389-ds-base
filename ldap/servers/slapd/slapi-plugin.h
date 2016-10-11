@@ -59,10 +59,10 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
 #endif
 
 /* Define our logging macros */
-#define slapi_log_error(level, subsystem, fmt, ...)
+#define slapi_log_err(level, subsystem, fmt, ...)
 #ifdef LDAP_DEBUG
-# undef slapi_log_error
-# define slapi_log_error(level, subsystem, ...) slapi_log_err(level, subsystem, __VA_ARGS__)
+# undef slapi_log_err
+# define slapi_log_err(level, subsystem, ...) slapi_log_error(level, subsystem, __VA_ARGS__)
 #endif
 
 /* NSPR uses the print macros a bit differently than ANSI C.  We
@@ -6081,7 +6081,7 @@ int slapi_register_plugin_ext( const char *plugintype, int enabled,
 /*
  * logging
  */
-int slapi_log_err( int loglevel, char *subsystem, char *fmt, ... )
+int slapi_log_error( int loglevel, char *subsystem, char *fmt, ... )
 #ifdef __GNUC__ 
         __attribute__ ((format (printf, 3, 4)));
 #else

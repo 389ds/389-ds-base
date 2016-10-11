@@ -38,7 +38,6 @@
 #include <sys/param.h>
 
 #include "portable.h" /* GGOODREPL - is this cheating? */
-#include "ldaplog.h"
 #include "repl_shared.h"
 #include "cl4.h"
 

@@ -318,7 +318,6 @@ dist_noinst_HEADERS = \
 	ldap/include/avl.h \
 	ldap/include/dblayer.h \
 	ldap/include/disptmpl.h \
-	ldap/include/ldaplog.h \
 	ldap/include/ldaprot.h \
 	ldap/include/ldbm.h \
 	ldap/include/portable.h \

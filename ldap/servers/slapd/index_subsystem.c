@@ -193,18 +193,18 @@ int index_subsys_assign_filter_decoders(Slapi_PBlock *pb)
 	/* extract the filter */
 	slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, &f);   
 
-	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_FILTER ) && NULL != f ) {
+	if ( loglevel_is_set( LDAP_DEBUG_FILTER ) && NULL != f ) {
 		logbuf[0] = '\0';
-		slapi_log_error(SLAPI_LOG_DEBUG, subsystem, "before: %s\n",
+		slapi_log_err(SLAPI_LOG_DEBUG, subsystem, "before: %s\n",
 				slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
 	}
 
 	/* find decoders */
 	rc = index_subsys_assign_decoders(f);
 
-	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_FILTER ) && NULL != f ) {
+	if ( loglevel_is_set( LDAP_DEBUG_FILTER ) && NULL != f ) {
 		logbuf[0] = '\0';
-		slapi_log_error(SLAPI_LOG_DEBUG, subsystem, " after: %s\n",
+		slapi_log_err(SLAPI_LOG_DEBUG, subsystem, " after: %s\n",
 				slapi_filter_to_string(f, logbuf, sizeof(logbuf)));
 	}
 

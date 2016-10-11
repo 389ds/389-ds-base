@@ -124,18 +124,19 @@ symload_report_error( const char *libpath, char *symbol, char *plugin, int libop
 	if ( errlen > 0 ) {
 		errtext = slapi_ch_malloc( errlen+1 );
 		if ( PR_GetErrorText( errtext ) > 0 ) {
-			LDAPDebug(LDAP_DEBUG_ERR, SLAPI_COMPONENT_NAME_NSPR " error %d: %s\n",
-				PR_GetError(), errtext, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "symload_report_error",
+				SLAPI_COMPONENT_NAME_NSPR " error %d: %s\n",
+				PR_GetError(), errtext);
 		}
 		slapi_ch_free( (void **)&errtext );
 	}
 	if ( libopen ) {
-		LDAPDebug(LDAP_DEBUG_ERR,
+		slapi_log_err(SLAPI_LOG_ERR, "symload_report_error",
 			"Could not load symbol \"%s\" from \"%s\" for plugin %s\n",
 					symbol, libpath, plugin );
 	} else {
-		LDAPDebug(LDAP_DEBUG_ERR,
+		slapi_log_err(SLAPI_LOG_ERR, "symload_report_error",
 			"Could not open library \"%s\" for plugin %s\n",
-			libpath, plugin, 0 );
+			libpath, plugin);
 	}
 }

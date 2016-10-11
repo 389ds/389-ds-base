@@ -147,7 +147,7 @@ check_db_version( struct ldbminfo *li, int *action )
     value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION );
     if ( !value )
     {
-        LDAPDebug(LDAP_DEBUG_ERR, "check_db_version - "
+        slapi_log_err(SLAPI_LOG_ERR, "check_db_version",
            "Database version mismatch (expecting "
            "'%s' but found '%s' in directory %s)\n",
             LDBM_VERSION, ldbmversion, li->li_directory );
@@ -231,7 +231,7 @@ check_db_inst_version( ldbm_instance *inst )
     value = lookup_dbversion( ldbmversion, DBVERSION_TYPE | DBVERSION_ACTION );
     if ( !value )
     {
-        LDAPDebug(LDAP_DEBUG_ERR, "check_db_inst_version -"
+        slapi_log_err(SLAPI_LOG_ERR, "check_db_inst_version",
            "Database version mismatch (expecting "
            "'%s' but found '%s' in directory %s)\n",
             LDBM_VERSION, ldbmversion, inst->inst_dir_name );
@@ -307,9 +307,9 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (!idl_get_idl_new())   /* config: old idl */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "new", li);
-            LDAPDebug(LDAP_DEBUG_WARNING, "adjust_idl_switch - "
+            slapi_log_err(SLAPI_LOG_WARNING, "adjust_idl_switch",
                 "Dbversion %s does not meet nsslapd-idl-switch: \"old\"; "
-                "nsslapd-idl-switch is updated to \"new\"\n", ldbmversion, 0, 0);
+                "nsslapd-idl-switch is updated to \"new\"\n", ldbmversion);
         }
     }
     else if ((0 == strcmp(ldbmversion, LDBM_VERSION_OLD)) ||
@@ -320,17 +320,17 @@ adjust_idl_switch(char *ldbmversion, struct ldbminfo *li)
         if (idl_get_idl_new())   /* config: new */
         {
             replace_ldbm_config_value(CONFIG_IDL_SWITCH, "old", li);
-            LDAPDebug(LDAP_DEBUG_WARNING, "adjust_idl_switch - "
+            slapi_log_err(SLAPI_LOG_WARNING, "adjust_idl_switch",
                 "Dbversion %s does not meet nsslapd-idl-switch: \"new\"; "
                 "nsslapd-idl-switch is updated to \"old\"\n",
-                ldbmversion, 0, 0);
+                ldbmversion);
         }
     }
     else
     {
-         LDAPDebug(LDAP_DEBUG_ERR, "adjust_idl_switch - "
+         slapi_log_err(SLAPI_LOG_ERR, "adjust_idl_switch",
                    "Dbversion %s is not supported\n", 
-                   ldbmversion, 0, 0);
+                   ldbmversion);
          rval = -1;
     }
 
@@ -357,7 +357,7 @@ int ldbm_upgrade(ldbm_instance *inst, int action)
         rval = dblayer_update_db_ext(inst, LDBM_SUFFIX_OLD, LDBM_SUFFIX);
         if (0 == rval)
         {
-            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_upgrade - "
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_upgrade",
                       "Upgrading instance %s supporting bdb %d.%d "
                       "was successfully done.\n",
                       inst->inst_name, DB_VERSION_MAJOR, DB_VERSION_MINOR);
@@ -390,18 +390,18 @@ static int upgrade_db_3x_40(backend *be)
 
     static char* indexes_modified[] = {"parentid", "numsubordinates", NULL};
 
-    LDAPDebug(LDAP_DEBUG_WARNING, "upgrade_db_3x_40 - "
-    	"WARNING: Detected a database older than this server, upgrading data...\n",0,0,0);
+    slapi_log_err(SLAPI_LOG_WARNING, "upgrade_db_3x_40",
+    	"WARNING: Detected a database older than this server, upgrading data...\n");
 
     dblayer_txn_init(li,&txn);
     ret = dblayer_txn_begin(li,NULL,&txn);
     if (0 != ret) {
-        ldbm_nasty(filename,69,ret);
+        ldbm_nasty("upgrade_db_3x_40",filename,69,ret);
         goto error;
     }
     ret = indexfile_delete_all_keys(be,"parentid",&txn);
     if (0 != ret) {
-        ldbm_nasty(filename,70,ret);
+        ldbm_nasty("upgrade_db_3x_40",filename,70,ret);
         goto error;
     }
 
@@ -416,7 +416,7 @@ static int upgrade_db_3x_40(backend *be)
     }
 
     if (0 != ret) {
-        ldbm_nasty(filename,61,ret);
+        ldbm_nasty("upgrade_db_3x_40",filename,61,ret);
     }
 
 error:
@@ -425,15 +425,15 @@ error:
     } else {
         ret = dblayer_txn_commit(li,&txn);
         if (0 != ret) {
-            ldbm_nasty(filename,60,ret);
+            ldbm_nasty("upgrade_db_3x_40",filename,60,ret);
         } else {
             /* Now update DBVERSION file */
         }
     }
     if (0 == ret) {
-        LDAPDebug(LDAP_DEBUG_INFO, "upgrade_db_3x_40 - ...upgrade complete.\n",0,0,0);
+        slapi_log_err(SLAPI_LOG_INFO, "upgrade_db_3x_40", "...upgrade complete.\n");
     } else {
-        LDAPDebug(LDAP_DEBUG_ERR, "upgrade_db_3x_40 - Attempt to upgrade the older database FAILED.\n",0,0,0);
+        slapi_log_err(SLAPI_LOG_ERR, "upgrade_db_3x_40", "Attempt to upgrade the older database FAILED.\n");
     }
     return ret;
 }

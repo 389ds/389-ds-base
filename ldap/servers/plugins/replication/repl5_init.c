@@ -224,7 +224,7 @@ multimaster_preop_init( Slapi_PBlock *pb )
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_COMPARE_FN, (void *) multimaster_preop_compare ) != 0 ||
             slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_ENTRY_FN, (void *) multimaster_ruv_search ) != 0)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_preop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_preop_init - Failed\n" );
 		rc= -1;
 	}
 	return rc;
@@ -245,7 +245,7 @@ multimaster_postop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *) multimaster_postop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *) multimaster_postop_modrdn ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_postop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_postop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -264,7 +264,7 @@ multimaster_internalpreop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_PRE_MODIFY_FN, (void *) multimaster_preop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_PRE_MODRDN_FN, (void *) multimaster_preop_modrdn ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_internalpreop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_internalpreop_init - Failed\n" );
 		rc= -1;
 	}
 	return rc;
@@ -282,7 +282,7 @@ multimaster_internalpostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN, (void *) multimaster_postop_modify ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN, (void *) multimaster_postop_modrdn ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_internalpostop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_internalpostop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -307,7 +307,7 @@ multimaster_bepreop_init( Slapi_PBlock *pb )
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *) cl5Close ) != 0 ||
 	    slapi_pblock_set( pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN, (void *) cl5WriteRUV ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepreop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepreop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -342,7 +342,7 @@ multimaster_bepostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *) changelog5_init ) != 0 ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN, (void *) cl5DeleteRUV ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepostop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepostop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -364,7 +364,7 @@ multimaster_betxn_bepostop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *) changelog5_init ) ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN, (void *) cl5DeleteRUV ) )
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_betxn_bepostop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_betxn_bepostop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -399,7 +399,7 @@ multimaster_betxnpostop_init( Slapi_PBlock *pb )
 	    slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN, del_fn) ||
 	    slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN, mdn_fn) ||
 	    slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN, mod_fn)) {
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
 		                "multimaster_betxnpostop_init - Failed\n");
 		rc = -1;
 	}
@@ -418,7 +418,7 @@ multimaster_start_extop_init( Slapi_PBlock *pb )
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)start_name_list ) != 0  ||
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_StartNSDS50ReplicationRequest ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_start_extop_init  - (StartNSDS50ReplicationRequest) failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_start_extop_init  - (StartNSDS50ReplicationRequest) failed\n" );
 		rc= -1;
 	}
 
@@ -439,7 +439,7 @@ multimaster_end_extop_init( Slapi_PBlock *pb )
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)end_name_list ) != 0  ||
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_EndNSDS50ReplicationRequest ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_end_extop_init - (EndNSDS50ReplicationRequest) failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_end_extop_init - (EndNSDS50ReplicationRequest) failed\n" );
 		rc= -1;
 	}
 
@@ -462,7 +462,7 @@ multimaster_cleanruv_maxcsn_extop_init( Slapi_PBlock *pb )
 			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_maxcsn_name_list ) != 0  ||
 			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_cleanruv_get_maxcsn ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_maxcsn_extop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_maxcsn_extop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -485,7 +485,7 @@ multimaster_cleanruv_status_extop_init( Slapi_PBlock *pb )
 			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_status_name_list ) != 0  ||
 			  slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_cleanruv_check_status ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_status_extop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_status_extop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -509,7 +509,7 @@ multimaster_total_extop_init( Slapi_PBlock *pb )
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)total_name_list ) != 0  ||
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_NSDS50ReplicationEntry ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_total_extop_init - (NSDS50ReplicationEntry failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_total_extop_init - (NSDS50ReplicationEntry failed\n" );
 		rc= -1;
 	}
 
@@ -532,7 +532,7 @@ multimaster_response_extop_init( Slapi_PBlock *pb )
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)response_name_list ) != 0  ||
 		 slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)extop_noop ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_response_extop_init - (NSDS50ReplicationResponse failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_response_extop_init - (NSDS50ReplicationResponse failed\n" );
 		rc= -1;
 	}
 
@@ -555,7 +555,7 @@ multimaster_cleanruv_extop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_name_list ) != 0  ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_cleanruv ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_extop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_extop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -578,7 +578,7 @@ multimaster_cleanruv_abort_extop_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_NAMELIST, (void *)cleanruv_abort_name_list ) != 0  ||
 		slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, (void *)multimaster_extop_abort_cleanruv ))
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_abort_extop_init - Failed\n" );
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_cleanruv_abort_extop_init - Failed\n" );
 		rc= -1;
 	}
 
@@ -633,7 +633,7 @@ create_repl_schema_policy(void)
 	slapi_add_internal_pb(pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
 	if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) {
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - "
 				"Unable to create configuration entry %s: %s\n", repl_schema_top,
 				ldap_err2string(return_value));
 		rc = -1;
@@ -653,7 +653,7 @@ create_repl_schema_policy(void)
 	slapi_add_internal_pb(pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
 	if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) {
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - Unable to "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - Unable to "
 				"create configuration entry %s: %s\n", repl_schema_supplier,
 				ldap_err2string(return_value));
 		rc = -1;
@@ -673,7 +673,7 @@ create_repl_schema_policy(void)
 	slapi_add_internal_pb(pb);
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
 	if (return_value != LDAP_SUCCESS && return_value != LDAP_ALREADY_EXISTS) {
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - "
 			"Unable to create configuration entry %s: %s\n", repl_schema_consumer,
 			ldap_err2string(return_value));
 		rc = -1;
@@ -685,7 +685,7 @@ create_repl_schema_policy(void)
 
 	/* Load the policies of the schema replication */
 	if (slapi_schema_load_repl_policies()) {
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "create_repl_schema_policy - "
 			"Unable to load the schema replication policies\n");
 		rc = -1;
 		goto done;

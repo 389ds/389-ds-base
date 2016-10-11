@@ -43,14 +43,14 @@ int whoami_exop( Slapi_PBlock *pb )
 	
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_OID, &oid ) != 0 )
    	{
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get OID from request\n" );
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get OID from request\n" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "Could not get OID from request\n", 0, NULL );
 		return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 	} 
 	
 	if ( slapi_pblock_get( pb, SLAPI_EXT_OP_REQ_VALUE, &bval ) != 0 || bval->bv_val != NULL )
         {
-                slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get correct request value from request\n" );
+                slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get correct request value from request\n" );
                 slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "Could not get correct request value from request\n", 0, NULL );
                 return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
         }
@@ -59,7 +59,7 @@ int whoami_exop( Slapi_PBlock *pb )
 
 	if( slapi_pblock_get( pb, SLAPI_CONN_DN, &client_dn ) !=0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get client_dn" );
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not get client_dn" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "Could not get client_dn\n", 0, NULL );
 		return( SLAPI_PLUGIN_EXTENDED_SENT_RESULT );
 	}
@@ -80,7 +80,7 @@ int whoami_exop( Slapi_PBlock *pb )
 
 	if ( slapi_pblock_set( pb, SLAPI_EXT_OP_RET_OID, NULL ) != 0 || slapi_pblock_set( pb, SLAPI_EXT_OP_RET_VALUE, &retbval ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not set return values" );
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_exop - Could not set return values" );
                 slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, "Could not set return values", 0, NULL );
 		slapi_ch_free_string( &client_dn );
         	slapi_ch_free_string( &fdn );
@@ -110,7 +110,7 @@ int whoami_init( Slapi_PBlock *pb )
 			slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_FN, ( void * )whoami_exop ) != 0 ||
 			slapi_pblock_set( pb, SLAPI_PLUGIN_EXT_OP_OIDLIST, ( void * )whoami_exop_oid_list ) !=0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_init - Failed to register plug-in.\n" );
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME, "whoami_init - Failed to register plug-in.\n" );
 		return( -1 );
 	}
 

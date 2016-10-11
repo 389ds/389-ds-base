@@ -43,7 +43,7 @@ do_delete( Slapi_PBlock *pb )
 	char	    *rawdn = NULL;
 	int			err = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_delete\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_delete", "<==\n");
 	
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
@@ -58,8 +58,8 @@ do_delete( Slapi_PBlock *pb )
 	 */
 
 	if ( ber_scanf( pb->pb_op->o_ber, "a", &rawdn ) == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "do_delete - ber_scanf failed (op=Delete; params=DN)\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+		    "do_delete", "ber_scanf failed (op=Delete; params=DN)\n");
 		op_shared_log_error_access (pb, "DEL", "???", "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
 		    NULL );
@@ -89,7 +89,7 @@ do_delete( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	LDAPDebug1Arg(LDAP_DEBUG_ARGS, "do_delete - dn (%s)\n", rawdn );
+	slapi_log_err(SLAPI_LOG_ARGS, "do_delete", "dn (%s)\n", rawdn );
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
 	slapi_pblock_set( pb, SLAPI_ORIGINAL_TARGET, rawdn);
@@ -166,7 +166,7 @@ slapi_delete_internal_set_pb (Slapi_PBlock *pb,
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || rawdn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "slapi_delete_internal_set_pb", 
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_delete_internal_set_pb", 
 						"NULL parameter\n");
 		return;
 	}

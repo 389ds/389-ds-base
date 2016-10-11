@@ -105,7 +105,6 @@ typedef unsigned short u_int16_t;
 #include "slapi-plugin.h"
 #include "slapi-private.h"
 #include "avl.h"
-#include "ldaplog.h"
 #include "portable.h"
 #include "proto-slap.h"
 

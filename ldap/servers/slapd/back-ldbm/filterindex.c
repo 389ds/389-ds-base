@@ -65,7 +65,7 @@ filter_candidates_ext(
     IDList          *result;
     int             ftype;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> filter_candidates\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "filter_candidates_ext", "=> \n");
 
     if (!allidslimit) {
         allidslimit = compute_allids_limit(pb, li);
@@ -74,8 +74,8 @@ filter_candidates_ext(
     /* check if this is to be serviced by a virtual index */
     if(INDEX_FILTER_EVALUTED == index_subsys_evaluate_filter(f, (Slapi_DN*)slapi_be_getsuffix(be, 0), (IndexEntryList**)&result))
     {
-        LDAPDebug(LDAP_DEBUG_TRACE, "<= filter_candidates %lu (vattr)\n",
-               (u_long)IDL_NIDS(result), 0, 0 );
+        slapi_log_err(SLAPI_LOG_TRACE, "filter_candidates_ext", "<= %lu (vattr)\n",
+               (u_long)IDL_NIDS(result));
         return result;
     }
 
@@ -88,8 +88,8 @@ filter_candidates_ext(
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
         result = vlv_find_index_by_filter_txn(be, base, f, &txn);
         if (result) {
-            LDAPDebug(LDAP_DEBUG_TRACE, "<= filter_candidates %lu (vlv)\n",
-                    (u_long)IDL_NIDS(result), 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE, "filter_candidates_ext", "<= %lu (vlv)\n",
+                    (u_long)IDL_NIDS(result));
             return result;
         }
     }
@@ -97,67 +97,67 @@ filter_candidates_ext(
     result = NULL;
     switch ( (ftype = slapi_filter_get_choice( f )) ) {
     case LDAP_FILTER_EQUALITY:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tEQUALITY\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tEQUALITY\n");
         result = ava_candidates( pb, be, f, LDAP_FILTER_EQUALITY, nextf, range, err, allidslimit );
         break;
 
     case LDAP_FILTER_SUBSTRINGS:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tSUBSTRINGS\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tSUBSTRINGS\n");
         result = substring_candidates( pb, be, f, err, allidslimit );
         break;
 
     case LDAP_FILTER_GE:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tGE\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tGE\n");
         result = ava_candidates( pb, be, f, LDAP_FILTER_GE, nextf, range,
             err, allidslimit );
         break;
 
     case LDAP_FILTER_LE:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tLE\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tLE\n");
         result = ava_candidates( pb, be, f, LDAP_FILTER_LE, nextf, range,
             err, allidslimit );
         break;
 
     case LDAP_FILTER_PRESENT:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tPRESENT\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tPRESENT\n");
         result = presence_candidates( pb, be, f, err, allidslimit );
         break;
 
     case LDAP_FILTER_APPROX:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tAPPROX\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tAPPROX\n");
         result = ava_candidates( pb, be, f, LDAP_FILTER_APPROX, nextf,
             range, err, allidslimit );
         break;
 
     case LDAP_FILTER_EXTENDED:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tEXTENSIBLE\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tEXTENSIBLE\n");
         result = extensible_candidates( pb, be, f, err, allidslimit );
         break;
 
     case LDAP_FILTER_AND:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tAND\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tAND\n");
         result = list_candidates( pb, be, base, f, LDAP_FILTER_AND, err, allidslimit );
         break;
 
     case LDAP_FILTER_OR:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tOR\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tOR\n");
         result = list_candidates( pb, be, base, f, LDAP_FILTER_OR, err, allidslimit );
         break;
 
     case LDAP_FILTER_NOT:
-        LDAPDebug(LDAP_DEBUG_FILTER, "\tNOT\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "filter_candidates_ext", "\tNOT\n");
         result = idl_allids( be );
         break;
 
     default:
-        LDAPDebug(LDAP_DEBUG_FILTER,
-            "filter_candidates: unknown type 0x%X\n",
-            ftype, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER,
+            "filter_candidates_ext", "unknown type 0x%X\n",
+            ftype);
         break;
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= filter_candidates %lu\n",
-                   (u_long)IDL_NIDS(result), 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "filter_candidates_ext", "<= %lu\n",
+                   (u_long)IDL_NIDS(result));
     return( result );
 }
 
@@ -197,11 +197,10 @@ ava_candidates(
     back_txn      txn = {NULL};
     int           pr_idx = -1;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> ava_candidates\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "=>\n");
 
     if ( slapi_filter_get_ava( f, &type, &bval ) != 0 ) {
-        LDAPDebug(LDAP_DEBUG_TRACE, "  slapi_filter_get_ava failed\n",
-            0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "slapi_filter_get_ava failed\n");
         return( NULL );
     }
 
@@ -209,7 +208,7 @@ ava_candidates(
     slapi_attr_init(&sattr, type);
 
 #ifdef LDAP_DEBUG
-    if ( LDAPDebugLevelIsSet( LDAP_DEBUG_TRACE )) {
+    if ( loglevel_is_set( LDAP_DEBUG_TRACE )) {
         char    *op = NULL;
         char    buf[BUFSIZ];
 
@@ -227,7 +226,7 @@ ava_candidates(
             op = "~=";
             break;
         }
-        LDAPDebug(LDAP_DEBUG_TRACE, "   %s%s%s\n", type, op,
+        slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "   %s%s%s\n", type, op,
             encode( bval, buf ) );
     }
 #endif
@@ -235,14 +234,14 @@ ava_candidates(
     switch ( ftype ) {
         case LDAP_FILTER_GE:
             idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
-            LDAPDebug(LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
-                       (u_long)IDL_NIDS(idl), 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+                       (u_long)IDL_NIDS(idl));
             goto done;
             break;
         case LDAP_FILTER_LE:
             idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
-            LDAPDebug(LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
-                       (u_long)IDL_NIDS(idl), 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+                       (u_long)IDL_NIDS(idl));
             goto done;
             break;
         case LDAP_FILTER_EQUALITY:
@@ -252,7 +251,7 @@ ava_candidates(
             indextype = (char*)indextype_APPROX;
             break;
         default:
-            LDAPDebug(LDAP_DEBUG_TRACE, "<= ava_candidates invalid filter\n", 0, 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= invalid filter\n");
             goto done;
             break;
     }
@@ -312,8 +311,8 @@ ava_candidates(
         slapi_attr_assertion2keys_ava_sv( &sattr, &sv, &ivals, ftype );
         value_done(&sv);
         if ( ivals == NULL || *ivals == NULL ) {
-            LDAPDebug(LDAP_DEBUG_TRACE,
-                "<= ava_candidates ALLIDS (no keys)\n", 0, 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates",
+                "<= ALLIDS (no keys)\n");
             idl = idl_allids( be );
             goto done;
         }
@@ -324,8 +323,8 @@ ava_candidates(
             pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
         }
          valuearray_free( &ivals );
-         LDAPDebug(LDAP_DEBUG_TRACE, "<= ava_candidates %lu\n",
-                   (u_long)IDL_NIDS(idl), 0, 0 );
+         slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
+                   (u_long)IDL_NIDS(idl));
     }
 done:
     attr_done(&sattr);
@@ -346,11 +345,10 @@ presence_candidates(
     int     unindexed = 0;
     back_txn      txn = {NULL};
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> presence_candidates\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "presence_candidates", "=> n");
 
     if ( slapi_filter_get_type( f, &type ) != 0 ) {
-        LDAPDebug(LDAP_DEBUG_ERR, "presence_candidates - slapi_filter_get_type failed\n",
-            0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR, "presence_candidates", "slapi_filter_get_type failed\n");
         return( NULL );
     }
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
@@ -367,17 +365,16 @@ presence_candidates(
 
     if (idl != NULL && ALLIDS(idl) && strcasecmp(type, "nscpentrydn") == 0) {
         /* try the equality index instead */
-        LDAPDebug(LDAP_DEBUG_TRACE, 
-            "presence_candidates - fallback to eq index as pres index gave allids\n", 
-            0, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, 
+            "presence_candidates", "Fallback to eq index as pres index gave allids\n");
         idl_free(&idl);
         idl = index_range_read_ext(pb, be, type, indextype_EQUALITY,
                                    SLAPI_OP_GREATER_OR_EQUAL,
                                    NULL, NULL, 0, &txn, err, allidslimit);
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= presence_candidates %lu\n",
-                   (u_long)IDL_NIDS(idl), 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "presence_candidates", "<= %lu\n",
+                   (u_long)IDL_NIDS(idl));
     return( idl );
 }
 
@@ -395,7 +392,7 @@ extensible_candidates(
     int mrOP = 0;
     Slapi_Operation *op = NULL;
     back_txn txn = {NULL};
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> extensible_candidates\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "=> \n");
     slapi_pblock_get(glob_pb, SLAPI_TXN, &txn.back_txn_txn);
     if ( ! slapi_mr_filter_index (f, pb) &&    !slapi_pblock_get (pb, SLAPI_PLUGIN_MR_QUERY_OPERATOR, &mrOP))
     {
@@ -525,8 +522,8 @@ return_idl:
     op = NULL;
     slapi_pblock_set (pb, SLAPI_OPERATION, op);
     slapi_pblock_destroy (pb);
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= extensible_candidates %lu\n", 
-                   (u_long)IDL_NIDS(idl), 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "extensible_candidates", "<= %lu\n", 
+                   (u_long)IDL_NIDS(idl));
     return idl;
 }
 
@@ -555,15 +552,15 @@ range_candidates(
     int operator = 0;
     Operation *op = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> range_candidates attr=%s\n", type, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "range_candidates", "=> attr=%s\n", type);
 
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
 
     if (low_val != NULL) {
         slapi_attr_assertion2keys_ava(sattr, low_val, &lows, LDAP_FILTER_EQUALITY);
         if (lows == NULL || *lows == NULL) {
-            LDAPDebug(LDAP_DEBUG_TRACE,
-                       "<= range_candidates ALLIDS (no keys)\n", 0, 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE,
+                       "range_candidates", "<= ALLIDS (no keys)\n");
             idl = idl_allids( be );
             goto done;
         }
@@ -573,8 +570,8 @@ range_candidates(
     if (high_val != NULL) {
         slapi_attr_assertion2keys_ava(sattr, high_val, &highs, LDAP_FILTER_EQUALITY);
         if (highs == NULL || *highs == NULL) {
-            LDAPDebug(LDAP_DEBUG_TRACE,
-                       "<= range_candidates ALLIDS (no keys)\n", 0, 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE,
+                       "range_candidates", "<= ALLIDS (no keys)\n");
             idl = idl_allids( be );
             goto done;
         }
@@ -606,8 +603,8 @@ done:
     if (lows) ber_bvecfree(lows);
     if (highs) ber_bvecfree(highs);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= range_candidates %lu\n",
-               (u_long)IDL_NIDS(idl), 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "range_candidates", "<= %lu\n",
+               (u_long)IDL_NIDS(idl));
 
     return idl;
 }
@@ -656,7 +653,7 @@ list_candidates(
     struct berval *vpairs[2] = {NULL, NULL};
     int is_and = 0;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> list_candidates 0x%x\n", ftype, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "=> 0x%x\n", ftype);
 
     /* 
      * Optimize bounded range queries such as (&(cn>=A)(cn<=B)).
@@ -753,8 +750,8 @@ list_candidates(
         slapi_attr_init(&sattr, tpairs[0]);
         idl = range_candidates(pb, be, tpairs[0], vpairs[0], vpairs[1], err, &sattr, allidslimit);
         attr_done(&sattr);
-        LDAPDebug(LDAP_DEBUG_TRACE, "<= list_candidates %lu\n",
-                   (u_long)IDL_NIDS(idl), 0, 0 );
+        slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= %lu\n",
+                   (u_long)IDL_NIDS(idl));
         goto out;
     }
 
@@ -779,7 +776,7 @@ list_candidates(
 
             /* Fetch the IDL for foo */
             /* Later we'll remember to call idl_notin() */
-            LDAPDebug(LDAP_DEBUG_TRACE,"NOT filter\n", 0, 0, 0 );
+            slapi_log_err(SLAPI_LOG_TRACE, "list_candidates" ,"NOT filter\n");
             if (filter_is_subtype(slapi_filter_list_first(f))) {
                 /*
                  * If subtype is included in the filter (e.g., !(cn;fr=<CN>)),
@@ -806,8 +803,8 @@ list_candidates(
                 attr_done(&sattr);
                 if (tmp == NULL && ftype == LDAP_FILTER_AND)
                 {
-                    LDAPDebug(LDAP_DEBUG_TRACE,
-                        "<= list_candidates NULL\n", 0, 0, 0 );
+                    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates",
+                        "<= NULL\n");
                     idl_free( &idl );
                     idl = NULL;
                     goto out;
@@ -816,8 +813,8 @@ list_candidates(
             /* Proceed as normal */
             else if ( (tmp = filter_candidates_ext( pb, be, base, f, nextf, range, err, allidslimit ))
                 == NULL && ftype == LDAP_FILTER_AND ) {
-                    LDAPDebug(LDAP_DEBUG_TRACE,
-                        "<= list_candidates NULL\n", 0, 0, 0 );
+                    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates",
+                        "<=  NULL 2\n");
                     idl_free( &idl );
                     idl = NULL;
                     goto out;
@@ -879,8 +876,8 @@ list_candidates(
         }
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= list_candidates %lu\n",
-                   (u_long)IDL_NIDS(idl), 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "list_candidates", "<= %lu\n",
+                   (u_long)IDL_NIDS(idl));
 out:
     if (is_and) {
         /*
@@ -918,11 +915,10 @@ substring_candidates(
     int          pr_idx = -1;
     struct attrinfo *ai = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> sub_candidates\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "substring_candidates", "=>\n");
 
     if (slapi_filter_get_subfilt( f, &type, &initial, &any, &final ) != 0) {
-        LDAPDebug(LDAP_DEBUG_ERR, "substring_candidates - slapi_filter_get_subfilt fails\n",
-            0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR, "substring_candidates", "slapi_filter_get_subfilt fails\n");
         return( NULL );
     }
 
@@ -939,8 +935,8 @@ substring_candidates(
     if ( ivals == NULL || *ivals == NULL ) {
         slapi_pblock_set( pb, SLAPI_OPERATION_NOTES, &opnote );
         pagedresults_set_unindexed( pb->pb_conn, pb->pb_op, pr_idx );
-        LDAPDebug(LDAP_DEBUG_TRACE,
-            "<= sub_candidates ALLIDS (no keys)\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_TRACE, "substring_candidates",
+            "<= ALLIDS (no keys)\n");
         return( idl_allids( be ) );
     }
 
@@ -956,8 +952,8 @@ substring_candidates(
     }
     valuearray_free( &ivals );
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= sub_candidates %lu\n",
-                   (u_long)IDL_NIDS(idl), 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "substring_candidates", "<= %lu\n",
+                   (u_long)IDL_NIDS(idl));
     return( idl );
 }
 
@@ -977,8 +973,8 @@ keys2idl(
     IDList    *idl;
     int    i;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> keys2idl type %s indextype %s\n",
-        type, indextype, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "keys2idl", "=> type %s indextype %s\n",
+        type, indextype);
     idl = NULL;
     for ( i = 0; ivals[i] != NULL; i++ ) {
         IDList    *idl2;
@@ -990,7 +986,7 @@ keys2idl(
         {
             char    buf[BUFSIZ];
 
-            LDAPDebug(LDAP_DEBUG_TRACE,
+            slapi_log_err(SLAPI_LOG_TRACE, "keys2idl",
                 "   ival[%d] = \"%s\" => %lu IDs\n", i,
                 encode( slapi_value_get_berval(ivals[i]), buf ), (u_long)IDL_NIDS(idl2) );
         }

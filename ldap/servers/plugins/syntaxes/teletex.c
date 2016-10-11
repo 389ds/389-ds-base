@@ -49,7 +49,7 @@ teletex_init( Slapi_PBlock *pb )
 {
 	int	rc, flags;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> teletex_init\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> teletex_init\n");
 
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    (void *) SLAPI_PLUGIN_VERSION_01 );
@@ -79,7 +79,7 @@ teletex_init( Slapi_PBlock *pb )
 	rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_SYNTAX_NORMALIZE,
 	    (void *) teletex_normalize );
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= teletex_init %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= teletex_init %d\n", rc);
 	return( rc );
 }
 

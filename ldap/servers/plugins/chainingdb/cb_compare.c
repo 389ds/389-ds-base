@@ -93,7 +93,7 @@ chaining_back_compare ( Slapi_PBlock *pb )
 	if (LDAP_SUCCESS != rc) {
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
-			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 			                "chaining_back_compare - cb_get_connection failed (%d) %s\n",
 			                rc, ldap_err2string(rc));
 			warned_get_conn = 1;
@@ -184,7 +184,7 @@ chaining_back_compare ( Slapi_PBlock *pb )
 			if ( parse_rc != LDAP_SUCCESS ) {
 				static int warned_parse_rc = 0;
 				if (!warned_parse_rc) {
-					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						            "chaining_back_compare - %s%s%s\n", 
 						            matched_msg?matched_msg:"",
 						            (matched_msg&&(*matched_msg!='\0'))?": ":"",

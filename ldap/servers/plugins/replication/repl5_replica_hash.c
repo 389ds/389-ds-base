@@ -39,7 +39,7 @@ int replica_init_name_hash ()
                              PL_CompareValues, NULL, NULL);
     if (s_hash == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_init_name_hash: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_init_name_hash: "
                         "failed to allocate hash table; NSPR error - %d\n",
                         PR_GetError ());	
         return -1;
@@ -49,7 +49,7 @@ int replica_init_name_hash ()
     s_lock = slapi_new_rwlock();
     if (s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_init_name_hash: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_init_name_hash: "
                         "failed to create lock; NSPR error - %d\n",
                         PR_GetError ());
         replica_destroy_name_hash ();
@@ -75,13 +75,13 @@ int replica_add_by_name (const char *name, Object *replica)
 {
     if (name == NULL || replica == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: NULL argument\n");
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: NULL argument\n");
         return -1;
     }
 
     if (s_hash == NULL || s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
                         "replica hash is not initialized\n");
         return -1;
     }
@@ -91,7 +91,7 @@ int replica_add_by_name (const char *name, Object *replica)
     /* make sure that the name is unique */
     if (PL_HashTableLookup(s_hash, name) != NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
                         "replica with name (%s) already in the hash\n", name);
         slapi_rwlock_unlock (s_lock);
         return -1 ;    
@@ -103,7 +103,7 @@ int replica_add_by_name (const char *name, Object *replica)
     /* add replica */
     if (PL_HashTableAdd(s_hash, name, replica) == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
                         "failed to add replica with name (%s); NSPR error - %d\n",
                         name, PR_GetError ());
         object_release (replica);
@@ -121,14 +121,14 @@ int replica_delete_by_name (const char *name)
 
     if (name == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
                         "NULL argument\n");
         return -1;
     }
 
     if (s_hash == NULL || s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
                         "replica hash is not initialized\n");
         return -1;
     }
@@ -139,7 +139,7 @@ int replica_delete_by_name (const char *name)
     replica = (Object*)PL_HashTableLookup(s_hash, name);     
     if (replica == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
                         "replica with name (%s) is not in the hash.\n", name);
         slapi_rwlock_unlock (s_lock);
         return -1;
@@ -162,14 +162,14 @@ Object* replica_get_by_name (const char *name)
 
     if (name == NULL)
     {
-         slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_get_by_name: "
+         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_get_by_name: "
                          "NULL argument\n");
         return NULL;
     }
 
     if (s_hash == NULL || s_lock == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_get_by_name: "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_get_by_name: "
                         "replica hash is not initialized\n");
         return NULL;
     }

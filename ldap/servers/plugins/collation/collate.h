@@ -40,4 +40,6 @@ collation_config (size_t argc, char** argv, const char* fname, size_t lineno);
 extern indexer_t*
 collation_indexer_create (const char* oid);
 
+#define COLLATE_PLUGIN_SUBSYSTEM "collation-plugin"
+
 #endif

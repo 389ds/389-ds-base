@@ -64,7 +64,8 @@ static int
 or_filter_destroy (Slapi_PBlock* pb)
 {
     auto or_filter_t* or = or_filter_get (pb);
-    LDAPDebug(LDAP_DEBUG_FILTER, "or_filter_destroy(%p)\n", (void*)or, 0, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+            "or_filter_destroy - (%p)\n", (void*)or);
     if (or != NULL) {
     slapi_ch_free((void**)&or->or_type);
     slapi_ch_free((void**)&or->or_oid);
@@ -458,105 +459,107 @@ static int or_filter_index (Slapi_PBlock* pb);
 static int
 or_filter_create (Slapi_PBlock* pb)
 {
-    auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
-    auto char* mrOID = NULL;
-    auto char* mrTYPE = NULL;
-    auto struct berval* mrVALUE = NULL;
-    auto or_filter_t* or = NULL;
-    
-    if (!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &mrOID) && mrOID != NULL &&
+	auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
+	auto char* mrOID = NULL;
+	auto char* mrTYPE = NULL;
+	auto struct berval* mrVALUE = NULL;
+	auto or_filter_t* or = NULL;
+	
+	if (!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &mrOID) && mrOID != NULL &&
 	!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE) && mrTYPE != NULL &&
 	!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_VALUE, &mrVALUE) && mrVALUE != NULL) {
-	auto size_t len = mrVALUE->bv_len;
-	auto indexer_t* ix = NULL;
-	auto int op = SLAPI_OP_EQUAL;
-	auto struct berval bv;
-	auto int reusable = MRF_ANY_TYPE;
-
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_filter_create(oid %s; type %s)\n",
-		   mrOID, mrTYPE, 0);
-	if (len > 1 && (ix = indexer_create (mrOID)) != NULL) {
-	    auto char* val = mrVALUE->bv_val;
-	    switch (val[0]) {
-	      case '=': break;
-	      case '<': op = (val[1] == '=') ?
-		SLAPI_OP_LESS_OR_EQUAL : SLAPI_OP_LESS; break;
-	      case '>': op = (val[1] == '=') ?
-		SLAPI_OP_GREATER_OR_EQUAL : SLAPI_OP_GREATER; break;
-	      case WILDCARD: op = SLAPI_OP_SUBSTRING; break;
-	      default:
-		break;
-	    }
-	    for (; len > 0 && *val != ' '; ++val, --len);
-	    if (len > 0) ++val, --len; /* skip the space */
-	    bv.bv_len = len;
-	    bv.bv_val = (len > 0) ? val : NULL;
-	} else { /* mrOID does not identify an ordering rule. */
-	    /* Is it an ordering rule OID with a relational operator suffix? */
-	    auto size_t oidlen = strlen (mrOID);
-	    if (oidlen > 2 && mrOID[oidlen-2] == '.') {
-		op = atoi (mrOID + oidlen - 1);
-		switch (op) {
-		  case SLAPI_OP_LESS:
-		  case SLAPI_OP_LESS_OR_EQUAL:
-		  case SLAPI_OP_EQUAL:
-		  case SLAPI_OP_GREATER_OR_EQUAL:
-		  case SLAPI_OP_GREATER:
-		  case SLAPI_OP_SUBSTRING:
-		    {
-			auto char* or_oid = slapi_ch_strdup (mrOID);
-			or_oid [oidlen-2] = '\0';
-			ix = indexer_create (or_oid);
-			if (ix != NULL) {
-			    memcpy (&bv, mrVALUE, sizeof(struct berval));
-			    reusable |= MRF_ANY_VALUE;
+		auto size_t len = mrVALUE->bv_len;
+		auto indexer_t* ix = NULL;
+		auto int op = SLAPI_OP_EQUAL;
+		auto struct berval bv;
+		auto int reusable = MRF_ANY_TYPE;
+	
+		slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+			"or_filter_create - (oid %s; type %s)\n", mrOID, mrTYPE);
+		if (len > 1 && (ix = indexer_create (mrOID)) != NULL) {
+			auto char* val = mrVALUE->bv_val;
+			switch (val[0]) {
+				case '=': break;
+				case '<': op = (val[1] == '=') ?
+						SLAPI_OP_LESS_OR_EQUAL : SLAPI_OP_LESS; break;
+				case '>': op = (val[1] == '=') ?
+						SLAPI_OP_GREATER_OR_EQUAL : SLAPI_OP_GREATER; break;
+				case WILDCARD: op = SLAPI_OP_SUBSTRING; break;
+				default:
+					break;
 			}
-			slapi_ch_free((void**)&or_oid);
-		    }
-		    break;
-		  default: /* not a relational operator */
-		    break;
+			for (; len > 0 && *val != ' '; ++val, --len);
+			if (len > 0) ++val, --len; /* skip the space */
+			bv.bv_len = len;
+			bv.bv_val = (len > 0) ? val : NULL;
+		} else { /* mrOID does not identify an ordering rule. */
+			/* Is it an ordering rule OID with a relational operator suffix? */
+			auto size_t oidlen = strlen (mrOID);
+			if (oidlen > 2 && mrOID[oidlen-2] == '.') {
+				op = atoi (mrOID + oidlen - 1);
+				switch (op) {
+					case SLAPI_OP_LESS:
+					case SLAPI_OP_LESS_OR_EQUAL:
+					case SLAPI_OP_EQUAL:
+					case SLAPI_OP_GREATER_OR_EQUAL:
+					case SLAPI_OP_GREATER:
+					case SLAPI_OP_SUBSTRING:
+						{
+							auto char* or_oid = slapi_ch_strdup (mrOID);
+							or_oid [oidlen-2] = '\0';
+							ix = indexer_create (or_oid);
+							if (ix != NULL) {
+								memcpy (&bv, mrVALUE, sizeof(struct berval));
+								reusable |= MRF_ANY_VALUE;
+							}
+							slapi_ch_free((void**)&or_oid);
+						}
+						break;
+					default: /* not a relational operator */
+						break;
+				}
+			}
 		}
-	    }
-	}
-	if (ix != NULL) {
-	    or = (or_filter_t*) slapi_ch_calloc (1, sizeof (or_filter_t));
-	    or->or_type = slapi_ch_strdup (mrTYPE);
-	    or->or_indexer = ix;
-	    or->or_op = op;
-	    if (op == SLAPI_OP_SUBSTRING) {
-		or->or_values = ss_filter_values (&bv, &(or->or_op));
-	    } else {
-		or->or_values = (struct berval**)
-		  slapi_ch_malloc (2 * sizeof (struct berval*));
-		or->or_values[0] = slapi_ch_bvdup0 (&bv);
-		or->or_values[1] = NULL;
-	    }
-	    {
-		auto struct berval** val = or->or_values;
-		if (val) for (; *val; ++val) {
-		    LDAPDebug(LDAP_DEBUG_FILTER, "value \"%s\"\n", (*val)->bv_val, 0, 0);
+		if (ix != NULL) {
+			or = (or_filter_t*) slapi_ch_calloc (1, sizeof (or_filter_t));
+			or->or_type = slapi_ch_strdup (mrTYPE);
+			or->or_indexer = ix;
+			or->or_op = op;
+			if (op == SLAPI_OP_SUBSTRING) {
+				or->or_values = ss_filter_values (&bv, &(or->or_op));
+			} else {
+				or->or_values = (struct berval**)
+				  slapi_ch_malloc (2 * sizeof (struct berval*));
+				or->or_values[0] = slapi_ch_bvdup0 (&bv);
+				or->or_values[1] = NULL;
+			}
+			{
+				auto struct berval** val = or->or_values;
+				if (val) for (; *val; ++val) {
+					slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+							"or_filter_create - value \"%s\"\n", (*val)->bv_val);
+				}
+			}
+			if (or->or_op == SLAPI_OP_SUBSTRING) {
+				or->or_match_keys = ss_filter_keys (ix, or->or_values);
+			} else {
+				or->or_match_keys = slapi_ch_bvecdup(ix->ix_index (ix, or->or_values, NULL));	
+			}
+			slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, or);
+			slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)or_filter_destroy);
+			slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_MATCH_FN, (void*)or_filter_match);
+			slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_INDEX_FN, (void*)or_filter_index);
+	/*	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_REUSABLE, &reusable); */
+	/*	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_RESET_FN, ?); to be implemented */
+			rc = LDAP_SUCCESS;
 		}
-	    }
-	    if (or->or_op == SLAPI_OP_SUBSTRING) {
-		or->or_match_keys = ss_filter_keys (ix, or->or_values);
-	    } else {
-		or->or_match_keys = slapi_ch_bvecdup (
-						ix->ix_index (ix, or->or_values, NULL));	
-	    }
-	    slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, or);
-	    slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)or_filter_destroy);
-	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_MATCH_FN, (void*)or_filter_match);
-	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_INDEX_FN, (void*)or_filter_index);
-/*	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_REUSABLE, &reusable); */
-/*	    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_RESET_FN, ?); to be implemented */
-	    rc = LDAP_SUCCESS;
+	} else {
+		slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+			"or_filter_create - Missing parameter(s)\n");
 	}
-    } else {
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_filter_create missing parameter(s)\n", 0, 0, 0);
-    }
-    LDAPDebug(LDAP_DEBUG_FILTER, "<= or_filter_create(%p) %i\n", (void*)or, rc, 0);
-    return rc;
+	slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+			"or_filter_create - (%p) %i\n", (void*)or, rc);
+	return rc;
 }
 
 static indexer_t*
@@ -573,7 +576,8 @@ static int
 op_indexer_destroy (Slapi_PBlock* pb)
 {
     auto indexer_t* ix = op_indexer_get (pb);
-    LDAPDebug(LDAP_DEBUG_FILTER, "op_indexer_destroy(%p)\n", (void*)ix, 0, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+    	"op_indexer_destroy - (%p)\n", (void*)ix);
     if (ix != NULL) {
         indexer_free (ix);
         /* The keys were freed, but we need to reset the pblock pointer */
@@ -596,7 +600,8 @@ op_index_entry (Slapi_PBlock* pb)
     } else {
 	rc = LDAP_OPERATIONS_ERROR;
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, "op_index_entry(%p) %i\n", (void*)ix, rc, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+    	"op_index_entry - (%p) %i\n", (void*)ix, rc);
     return rc;
 }
 
@@ -604,22 +609,22 @@ static int
 op_index_search (Slapi_PBlock* pb)
      /* Compute collation keys (when searching for entries). */
 {
-    auto or_filter_t* or = or_filter_get (pb);
-    auto int rc = LDAP_OPERATIONS_ERROR;
-    if (or != NULL) {
-	auto indexer_t* ix = or->or_indexer;
-	struct berval** values;
-	if (or->or_index_keys == NULL && ix != NULL && ix->ix_index != NULL &&
-	    !slapi_pblock_get (pb, SLAPI_PLUGIN_MR_VALUES, &values)) {
-	    or->or_index_keys = slapi_ch_bvecdup (
-					    ix->ix_index (ix, values, NULL));
+	auto or_filter_t* or = or_filter_get (pb);
+	auto int rc = LDAP_OPERATIONS_ERROR;
+	if (or != NULL) {
+		auto indexer_t* ix = or->or_indexer;
+		struct berval** values;
+		if (or->or_index_keys == NULL && ix != NULL && ix->ix_index != NULL &&
+			!slapi_pblock_get (pb, SLAPI_PLUGIN_MR_VALUES, &values)) {
+			or->or_index_keys = slapi_ch_bvecdup(ix->ix_index (ix, values, NULL));
+		}
+		if (or->or_index_keys) {
+			rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_KEYS, or->or_index_keys);
+		}
 	}
-	if (or->or_index_keys) {
-	    rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_KEYS, or->or_index_keys);
-	}
-    }
-    LDAPDebug(LDAP_DEBUG_FILTER, "op_index_search(%p) %i\n", (void*)or, rc, 0);
-    return rc;
+	slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+			"op_index_search - (%p) %i\n", (void*)or, rc);
+	return rc;
 }
 
 typedef struct ss_indexer_t {
@@ -652,7 +657,8 @@ static void
 ss_indexer_destroy (Slapi_PBlock* pb)
 {
     auto ss_indexer_t* ss = ss_indexer_get (pb);
-    LDAPDebug(LDAP_DEBUG_FILTER, "ss_indexer_destroy(%p)\n", (void*)ss, 0, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+            "ss_indexer_destroy - (%p)\n", (void*)ss);
     if (ss) {
         ss_indexer_free(ss);
         /* The keys were freed, but we need to reset the pblock pointer */
@@ -743,8 +749,9 @@ ss_index_entry (Slapi_PBlock* pb)
 	    slapi_ch_free((void**)&prefixes);
 	}
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, "ss_index_entry(%p) %i %lu substrings\n",
-	       (void*)ss, rc, (unsigned long)substringsLen);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+            "ss_index_entry - (%p) %i %lu substrings\n",
+	        (void*)ss, rc, (unsigned long)substringsLen);
     return rc;
 }
 
@@ -809,7 +816,8 @@ ss_index_search (Slapi_PBlock* pb)
 	    rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_KEYS, or->or_index_keys);
 	}
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, "ss_index_search(%p) %i\n", (void*)or, rc, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+            "ss_index_search - (%p) %i\n", (void*)or, rc);
     return rc;
 }
 
@@ -884,74 +892,75 @@ or_filter_index (Slapi_PBlock* pb)
 	!(rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, mrOID))) {
 	rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_QUERY_OPERATOR, &mrQUERY_OPERATOR);
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, "or_filter_index(%p) %i\n",
-	       (void*)(or ? or->or_indexer : NULL), rc, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+            "or_filter_index - (%p) %i\n",
+	        (void*)(or ? or->or_indexer : NULL), rc);
     return rc;
 }
 
 static int
 or_indexer_create (Slapi_PBlock* pb)
 {
-    auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
-    auto char* mrOID = NULL;
-    auto void* mrOBJECT = NULL;
-    if (slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &mrOID) || mrOID == NULL) {
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_indexer_create: no OID parameter\n", 0, 0, 0);
-    } else {
-	auto indexer_t* ix = indexer_create (mrOID);
-	auto char* mrTYPE = NULL;
-	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> or_indexer_create(oid %s; type %s)\n",
-		   mrOID, mrTYPE ? mrTYPE : "<NULL>", 0);
-	if (ix != NULL) {
-	    if (ix->ix_index != NULL &&
-		!slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, ix) &&
-		!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, ix->ix_oid) &&
-		!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_INDEX_FN, (void*)op_index_entry) &&
-		!slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)op_indexer_destroy)) {
-		mrOBJECT = ix;
-		rc = 0; /* success */
-	    } else {
-		indexer_free (ix);
-	    }
-	} else { /* mrOID does not identify an ordering rule. */
-	    /* Is it an ordering rule OID with the substring suffix? */
-	    auto size_t oidlen = strlen (mrOID);
-	    if (oidlen > 2 && mrOID[oidlen-2] == '.' &&
-		atoi (mrOID + oidlen - 1) == SLAPI_OP_SUBSTRING) {
-		auto char* or_oid = slapi_ch_strdup (mrOID);
-		or_oid [oidlen-2] = '\0';
-		ix = indexer_create (or_oid);
+	auto int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION; /* failed to initialize */
+	auto char* mrOID = NULL;
+	auto void* mrOBJECT = NULL;
+	if (slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &mrOID) || mrOID == NULL) {
+		slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+			"or_indexer_create - No OID parameter\n");
+	} else {
+		auto indexer_t* ix = indexer_create (mrOID);
+		auto char* mrTYPE = NULL;
+		slapi_pblock_get (pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
+		slapi_log_err(SLAPI_LOG_FILTER, "or_indexer_create", "(oid %s; type %s)\n",
+			   mrOID, mrTYPE ? mrTYPE : "<NULL>");
 		if (ix != NULL) {
-		    auto ss_indexer_t* ss = (ss_indexer_t*) slapi_ch_malloc (sizeof (ss_indexer_t));
-		    ss->ss_indexer = ix;
-		    oidlen = strlen (ix->ix_oid);
-		    ss->ss_oid = slapi_ch_malloc (oidlen + 3);
-		    memcpy (ss->ss_oid, ix->ix_oid, oidlen);
-		    sprintf (ss->ss_oid + oidlen, ".%1i", SLAPI_OP_SUBSTRING);
-		    if (ix->ix_index != NULL &&
-			!slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, ss) &&
-			!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, ss->ss_oid) &&
-			!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_INDEX_FN, (void*)ss_index_entry) &&
-			!slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)ss_indexer_destroy)) {
-			mrOBJECT = ss;
-			rc = 0; /* success */
-		    } else {
-			ss_indexer_free (ss);
-		    }
+			if (ix->ix_index != NULL &&
+			!slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, ix) &&
+			!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, ix->ix_oid) &&
+			!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_INDEX_FN, (void*)op_index_entry) &&
+			!slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)op_indexer_destroy)) {
+				mrOBJECT = ix;
+				rc = 0; /* success */
+			} else {
+				indexer_free (ix);
+			}
+		} else { /* mrOID does not identify an ordering rule. */
+			/* Is it an ordering rule OID with the substring suffix? */
+			auto size_t oidlen = strlen (mrOID);
+			if (oidlen > 2 && mrOID[oidlen-2] == '.' &&
+			atoi (mrOID + oidlen - 1) == SLAPI_OP_SUBSTRING) {
+				auto char* or_oid = slapi_ch_strdup (mrOID);
+				or_oid [oidlen-2] = '\0';
+				ix = indexer_create (or_oid);
+				if (ix != NULL) {
+					auto ss_indexer_t* ss = (ss_indexer_t*) slapi_ch_malloc (sizeof (ss_indexer_t));
+					ss->ss_indexer = ix;
+					oidlen = strlen (ix->ix_oid);
+					ss->ss_oid = slapi_ch_malloc (oidlen + 3);
+					memcpy (ss->ss_oid, ix->ix_oid, oidlen);
+					sprintf (ss->ss_oid + oidlen, ".%1i", SLAPI_OP_SUBSTRING);
+					if (ix->ix_index != NULL &&
+					!slapi_pblock_set (pb, SLAPI_PLUGIN_OBJECT, ss) &&
+					!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_OID, ss->ss_oid) &&
+					!slapi_pblock_set (pb, SLAPI_PLUGIN_MR_INDEX_FN, (void*)ss_index_entry) &&
+					!slapi_pblock_set (pb, SLAPI_PLUGIN_DESTROY_FN, (void*)ss_indexer_destroy)) {
+						mrOBJECT = ss;
+						rc = 0; /* success */
+					} else {
+						ss_indexer_free (ss);
+					}
+				}
+				slapi_ch_free((void**)&or_oid);
+			}
 		}
-		slapi_ch_free((void**)&or_oid);
-	    }
 	}
-    }
-    LDAPDebug(LDAP_DEBUG_FILTER, "<= or_indexer_create(%p) %i\n", mrOBJECT, rc, 0);
-    return rc;
+	slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+		"or_indexer_create - (%p) %i\n", mrOBJECT, rc);
+	return rc;
 }
 
 static Slapi_PluginDesc pdesc = { "orderingrule", VENDOR, DS_PACKAGE_VERSION,
               "internationalized ordering rule plugin" };
-
-#define SLAPI_ORPLUGIN_NAME	pdesc.spd_description
 
 int /* LDAP error code */
 orderingRule_init (Slapi_PBlock* pb)
@@ -977,24 +986,22 @@ orderingRule_init (Slapi_PBlock* pb)
 #endif 
 
     if ( slapi_pblock_get( pb, SLAPI_CONFIG_DIRECTORY, &cfgpath ) != 0 ) {
-	slapi_log_error(SLAPI_LOG_ERR, SLAPI_ORPLUGIN_NAME,
-		"orderingRule_init - Unable to retrieve slapd configuration pathname; using default\n" );
-	cfgpath = NULL;
+        slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM,
+            "orderingRule_init - Unable to retrieve slapd configuration pathname; using default\n");
+        cfgpath = NULL;
     }
 	
     collation_init( cfgpath );
     if (!slapi_pblock_get (pb, SLAPI_PLUGIN_ARGC, &argc) &&
-	!slapi_pblock_get (pb, SLAPI_PLUGIN_ARGV, &argv) &&
-	argc > 0) {
-	collation_read_config (argv[0]);
+        !slapi_pblock_get (pb, SLAPI_PLUGIN_ARGV, &argv) &&
+        argc > 0) {
+        collation_read_config (argv[0]);
     }
-    {
-	slapi_pblock_set (pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, (void*)or_indexer_create);
-	rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, (void*)or_filter_create);
-    }
+    slapi_pblock_set (pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, (void*)or_indexer_create);
+    rc = slapi_pblock_set (pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, (void*)or_filter_create);
     if ( rc == 0 ) {
-	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc );
+        rc = slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pdesc );
     }
-    LDAPDebug(LDAP_DEBUG_FILTER, "orderingRule_init %i\n", rc, 0, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM, "orderingRule_init - %i\n", rc);
     return rc;
 }

@@ -38,7 +38,7 @@ do_abandon( Slapi_PBlock *pb )
 	Operation	*o;
 	BerElement	*ber = pb->pb_op->o_ber;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_abandon\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "->\n");
 
 	/*
 	 * Parse the abandon request.  It looks like this:
@@ -47,9 +47,8 @@ do_abandon( Slapi_PBlock *pb )
 	 */
 
 	if ( ber_scanf( ber, "i", &id ) == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "do_abandon - ber_scanf failed (op=Abandon; params=ID)\n",
-		    0, 0 ,0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+		    "do_abandon", "ber_scanf failed (op=Abandon; params=ID)\n");
 		return;
 	}
 
@@ -61,14 +60,14 @@ do_abandon( Slapi_PBlock *pb )
 	 * pass them to the backend.
 	 */
 	if ( (err = get_ldapmessage_controls( pb, ber, NULL )) != 0 ) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-				"do_abandon - get_ldapmessage_controls failed: %d (%s) (op=Abandon)\n", 
-				err, ldap_err2string( err ), 0);
+		slapi_log_err(SLAPI_LOG_ERR,
+				"do_abandon", "get_ldapmessage_controls failed: %d (%s) (op=Abandon)\n", 
+				err, ldap_err2string( err ));
 		/* LDAP does not allow any response to an abandon */
 		return;
 	}
 
-	LDAPDebug(LDAP_DEBUG_ARGS, "do_abandon - id %d\n", id, 0 ,0 );
+	slapi_log_err(SLAPI_LOG_ARGS, "do_abandon", "id %d\n", id);
 
 	/*
 	 * find the operation being abandoned and set the o_abandon
@@ -97,7 +96,7 @@ do_abandon( Slapi_PBlock *pb )
 		if (ts) {
 		  	operation_set_target_spec (pb->pb_op, ts);
 		} else {
-		     LDAPDebug(LDAP_DEBUG_TRACE, "do_abandon - no target spec of abandoned operation\n", 0,0,0);
+		     slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "no target spec of abandoned operation\n");
 		}
 
 		operation_set_abandoned_op (pb->pb_op, o->o_abandoned_op);
@@ -116,7 +115,7 @@ do_abandon( Slapi_PBlock *pb )
 			suppressed_by_plugin = 1;
 		}
 	} else {
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, "do_abandon - op not found\n");
+		slapi_log_err(SLAPI_LOG_TRACE, "do_abandon", "op not found\n");
 	}
 
 	if ( 0 == pagedresults_free_one_msgid_nolock(pb->pb_conn, id) ) {

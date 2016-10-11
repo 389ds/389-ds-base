@@ -257,13 +257,13 @@ ldbm_search_compile_filter(Slapi_Filter *f, void *arg)
         p = bigpat ? bigpat : pat;
         re = slapi_re_comp(p, &re_result);
         if (NULL == re) {
-            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_search_compile_filter - re_comp (%s) failed (%s): %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_search_compile_filter", "re_comp (%s) failed (%s): %s\n",
                       pat, p, re_result?re_result:"unknown" );
             rc = SLAPI_FILTER_SCAN_ERROR;
         } else {
             char ebuf[BUFSIZ];
-            LDAPDebug(LDAP_DEBUG_TRACE, "ldbm_search_compile_filter - re_comp (%s)\n",
-                      escape_string(p, ebuf), 0, 0);
+            slapi_log_err(SLAPI_LOG_TRACE, "ldbm_search_compile_filter", "re_comp (%s)\n",
+                      escape_string(p, ebuf));
             f->f_un.f_un_sub.sf_private = (void *)re;
         }
     } else if (f->f_choice == LDAP_FILTER_EQUALITY) {
@@ -365,8 +365,8 @@ ldbm_back_search( Slapi_PBlock *pb )
     if (inst && inst->inst_ref_count) {
         slapi_counter_increment(inst->inst_ref_count);
     } else {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR,
-                      "ldbm_back_search - Instance \"%s\" does not exist.\n",
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_back_search", "Instance \"%s\" does not exist.\n",
                       inst ? inst->inst_name : "null instance");
         return( -1 );
     }
@@ -406,9 +406,9 @@ ldbm_back_search( Slapi_PBlock *pb )
                     slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
                     slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
-                    LDAPDebug(LDAP_DEBUG_WARNING,
-                            "ldbm_back_search - Sort control ignored for conn=%d op=%d\n",
-                            conn_id, op_id, 0);                    
+                    slapi_log_err(SLAPI_LOG_WARNING,
+                            "ldbm_back_search", "Sort control ignored for conn=%" NSPRIu64 " op=%d\n",
+                            conn_id, op_id);                    
                 }
             } else {
                 /* set this operation includes the server side sorting */
@@ -441,9 +441,9 @@ ldbm_back_search( Slapi_PBlock *pb )
                         slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
                         slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
 
-                        LDAPDebug(LDAP_DEBUG_WARNING,
-                                "ldbm_back_search - VLV control ignored for conn=%d op=%d\n",
-                                conn_id, op_id, 0);             
+                        slapi_log_err(SLAPI_LOG_WARNING,
+                                "ldbm_back_search", "VLV control ignored for conn=%" NSPRIu64 " op=%d\n",
+                                conn_id, op_id);             
                     }
 
                 } else {
@@ -511,11 +511,11 @@ ldbm_back_search( Slapi_PBlock *pb )
 
         if (print_once)
         {
-            LDAPDebug(LDAP_DEBUG_WARNING,
-                    "ldbm_back_search - %s "
-                    "when more than one backend is involved. "
+            slapi_log_err(SLAPI_LOG_WARNING,
+                    "ldbm_back_search", "%s "
+                    "When more than one backend is involved. "
                     "VLV indexes that will never be used should be removed.\n",
-                    ctrlstr, 0, 0);
+                    ctrlstr);
             print_once = 0;
         }
 
@@ -954,8 +954,8 @@ vlv_bail:
         rc = slapi_filter_apply(sr->sr_norm_filter, ldbm_search_compile_filter,
                                 NULL, &filt_errs);
         if (rc != SLAPI_FILTER_SCAN_NOMORE) {
-            LDAPDebug2Args(LDAP_DEBUG_ERR,
-                           "ldbm_back_search - Could not pre-compile the search filter - error %d %d\n",
+            slapi_log_err(SLAPI_LOG_ERR,
+                           "ldbm_back_search", "Could not pre-compile the search filter - error %d %d\n",
                            rc, filt_errs);
             if (rc == SLAPI_FILTER_SCAN_ERROR) {
                 tmp_err = LDAP_OPERATIONS_ERROR;
@@ -1021,7 +1021,7 @@ build_candidate_list( Slapi_PBlock *pb, backend *be, struct backentry *e,
         r = SLAPI_FAIL_GENERAL;
     }
     if ( 0 != err && DB_NOTFOUND != err ) {
-        LDAPDebug(LDAP_DEBUG_ERR, "build_candidate_list - Database error %d\n", err, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR, "build_candidate_list", "Database error %d\n", err);
         slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL,
                     0, NULL );
         if (LDBM_OS_ERR_IS_DISKFULL(err)) r = return_on_disk_full(li);
@@ -1044,8 +1044,8 @@ bail:
         }
     }
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "build_candidate_list - Candidate list has %lu ids\n",
-                  *candidates ? (*candidates)->b_nids : 0L, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "build_candidate_list", "Candidate list has %lu ids\n",
+                  *candidates ? (*candidates)->b_nids : 0L);
 
     return r;
 }
@@ -1632,8 +1632,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
         {
             if ( err != 0 && err != DB_NOTFOUND )
             {
-                LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_next_search_entry_ext - next_search_entry db err %d\n",
-                        err, 0, 0 );
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext", "next_search_entry db err %d\n",
+                        err);
                 if (LDBM_OS_ERR_IS_DISKFULL(err))
                 {
                     /* disk full in the middle of returning search results
@@ -1644,8 +1644,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                     goto bail;
                 }
             }
-            LDAPDebug(LDAP_DEBUG_ARGS, "ldbm_back_next_search_entry_ext - candidate %lu not found\n",
-                    (u_long)id, 0, 0 );
+            slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_next_search_entry_ext", "candidate %lu not found\n",
+                    (u_long)id);
             if ( err == DB_NOTFOUND )
             {
                 /* Since we didn't really look at this entry, we should
@@ -1672,8 +1672,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             Slapi_Value **refs= attr_get_present_values(attr);
             if ( refs == NULL || refs[0] == NULL )
             {
-                LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_next_search_entry_ext - null ref in (%s)\n",
-                        backentry_get_ndn(e), 0, 0 );
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext", "null ref in (%s)\n",
+                        backentry_get_ndn(e));
             }
             else if ( slapi_sdn_scope_test( backentry_get_sdn(e), basesdn, scope ))
             {
@@ -1724,8 +1724,8 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
             /* it's a regular entry, check if it matches the filter, and passes the ACL check */
              if ( 0 != ( sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST )) {
                   /* Since we do access control checking in the filter test (?Why?) we need to check access now */
-                  LDAPDebug(LDAP_DEBUG_FILTER, "ldbm_back_next_search_entry_ext - "
-                          "Bypassing filter test\n", 0, 0, 0 );
+                  slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry_ext",
+                          "Bypassing filter test\n");
                   if ( ACL_CHECK_FLAG ) {
                       filter_test = slapi_vattr_filter_test_ext( pb, e->ep_entry, filter, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
                   } else {
@@ -1734,13 +1734,13 @@ ldbm_back_next_search_entry_ext( Slapi_PBlock *pb, int use_extension )
                   if (li->li_filter_bypass_check) {
                       int    ft_rc;
   
-                      LDAPDebug(LDAP_DEBUG_FILTER, "Checking bypass\n", 0, 0, 0 );
+                      slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry_ext", "Checking bypass\n");
                       ft_rc = slapi_vattr_filter_test( pb, e->ep_entry, filter,
                               ACL_CHECK_FLAG );
                       if (filter_test != ft_rc) {
                           /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                          LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_next_search_entry_ext - "
-                                  "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e), 0, 0 );
+                          slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext",
+                                  "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
                           filter_test = ft_rc; /* Fix the error */
                       }
                   }
@@ -1858,22 +1858,22 @@ ldbm_back_prev_search_results( Slapi_PBlock *pb )
 
     slapi_pblock_get( pb, SLAPI_BACKEND, &be );
     if (!be) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR,
-                       "ldbm_back_prev_search_results - no backend\n");
+        slapi_log_err(SLAPI_LOG_ERR,
+                       "ldbm_back_prev_search_results", "no backend\n");
         return;
     }
     inst = (ldbm_instance *) be->be_instance_info;
     if (!inst) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR,
-                       "ldbm_back_prev_search_results - no backend instance\n");
+        slapi_log_err(SLAPI_LOG_ERR,
+                       "ldbm_back_prev_search_results", "no backend instance\n");
         return;
     }
     slapi_pblock_get( pb, SLAPI_SEARCH_RESULT_SET, &sr );
     if (sr) {
         if (sr->sr_entry) {
             /* The last entry should be returned to cache */
-            LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM,
-                          "ldbm_back_prev_search_results - returning: %s\n",
+            slapi_log_err(SLAPI_LOG_BACKLDBM,
+                          "ldbm_back_prev_search_results", "returning: %s\n",
                           slapi_entry_get_dn_const(sr->sr_entry->ep_entry));
             CACHE_RETURN (&inst->inst_cache, &(sr->sr_entry));
             sr->sr_entry = NULL;
@@ -1918,8 +1918,8 @@ delete_search_result_set( Slapi_PBlock *pb, back_search_result_set **sr )
     rc = slapi_filter_apply((*sr)->sr_norm_filter, ldbm_search_free_compiled_filter,
                             NULL, &filt_errs);
     if (rc != SLAPI_FILTER_SCAN_NOMORE) {
-        LDAPDebug2Args(LDAP_DEBUG_ERR,
-                       "delete_search_result_set - Could not free the pre-compiled regexes in the search filter - error %d %d\n",
+        slapi_log_err(SLAPI_LOG_ERR,
+                       "delete_search_result_set", "Could not free the pre-compiled regexes in the search filter - error %d %d\n",
                        rc, filt_errs);
     }
     slapi_filter_free((*sr)->sr_norm_filter, 1);

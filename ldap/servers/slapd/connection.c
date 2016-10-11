@@ -244,7 +244,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     char *str_unknown = "unknown";
     int in_referral_mode = config_check_referral_mode();
 
-    LDAPDebug(LDAP_DEBUG_CONNS, "new %sconnection on %d\n", pTmp, conn->c_sd, 0 );
+    slapi_log_err(SLAPI_LOG_CONNS, "connection_reset", "new %sconnection on %d\n", pTmp, conn->c_sd);
 
     /* bump our count of connections and update SNMP stats */
     conn->c_connid = slapi_counter_increment(num_conns);
@@ -425,16 +425,16 @@ init_op_threads()
 
 	if ((work_q_lock = PR_NewLock()) == NULL ) {
 		errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"init_op_threads - PR_NewLock failed for work_q_lock, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			errorCode, slapd_pr_strerror(errorCode), 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+			"init_op_threads", "PR_NewLock failed for work_q_lock, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+			errorCode, slapd_pr_strerror(errorCode));
 		exit(-1);
 	}
 
 	if ((work_q_cv = PR_NewCondVar( work_q_lock )) == NULL) {
 		errorCode = PR_GetError();
-		LDAPDebug(LDAP_DEBUG_ERR, "init_op_threads - PR_NewCondVar failed for work_q_cv, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-			errorCode, slapd_pr_strerror(errorCode), 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "init_op_threads", "PR_NewCondVar failed for work_q_cv, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+			errorCode, slapd_pr_strerror(errorCode));
 		exit(-1);
 	}
 
@@ -452,8 +452,8 @@ init_op_threads()
 		                     SLAPD_DEFAULT_THREAD_STACKSIZE ) == NULL )
 		{
 			int prerr = PR_GetError();
-			LDAPDebug(LDAP_DEBUG_ERR, "init_op_threads - PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-				prerr, slapd_pr_strerror( prerr ), 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "init_op_threads", "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+				prerr, slapd_pr_strerror( prerr ));
 		} else {
 			g_incr_active_threadcnt();
 		}
@@ -637,7 +637,8 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 			int i = 1;
 			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
-				LDAPDebug(LDAP_DEBUG_ERR, "connection_dispatch_operation - Failed to set TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid, 0, 0);
+				slapi_log_err(SLAPI_LOG_ERR, "connection_dispatch_operation",
+					"Failed to set TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid);
 			}
 			pop_cork = 1;
 		}
@@ -650,7 +651,8 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 			int i = 0;
 			int ret = setsockopt(conn->c_sd,IPPROTO_TCP,TCP_CORK,&i,sizeof(i));
 			if (ret < 0) {
-				LDAPDebug(LDAP_DEBUG_ERR, "connection_dispatch_operation - Failed to clear TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid, 0, 0);
+				slapi_log_err(SLAPI_LOG_ERR, "connection_dispatch_operation",
+					"Failed to clear TCP_CORK on connection %" NSPRIu64 "\n",conn->c_connid);
 			}
 		}
 #endif
@@ -675,9 +677,9 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 		break;
 
 	default:
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "connection_dispatch_operation - Ignoring unknown LDAP request (conn=%" NSPRIu64 ", tag=0x%lx)\n",
-		    conn->c_connid, op->o_tag, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+		    "connection_dispatch_operation", "Ignoring unknown LDAP request (conn=%" NSPRIu64 ", tag=0x%lx)\n",
+		    conn->c_connid, op->o_tag);
 		break;
 	}
 }
@@ -687,7 +689,7 @@ int connection_release_nolock_ext (Connection *conn, int release_only)
 {
     if (conn->c_refcnt <= 0)
     {
-        slapi_log_error(SLAPI_LOG_ERR, "connection_release_nolock_ext",
+        slapi_log_err(SLAPI_LOG_ERR, "connection_release_nolock_ext",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 		                conn->c_connid, conn->c_sd);
         PR_ASSERT (PR_FALSE);
@@ -719,7 +721,7 @@ int connection_acquire_nolock_ext (Connection *conn, int allow_when_closing)
     if (!allow_when_closing && (conn->c_flags & CONN_FLAG_CLOSING))
     {
 	/* This may happen while other threads are still working on this connection */
-        slapi_log_error(SLAPI_LOG_ERR, "connection_acquire_nolock_ext",
+        slapi_log_err(SLAPI_LOG_ERR, "connection_acquire_nolock_ext",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 		                conn->c_connid, conn->c_sd);
         return -1;
@@ -955,11 +957,11 @@ int connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
 	}
 
 	if ( op_shutdown ) {
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, "connection_wait_for_new_work: shutdown\n" );
+		slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "shutdown\n" );
 		ret = CONN_SHUTDOWN;
 	} else if ( NULL == ( wqitem = get_work_q( &op_stack_obj ) ) ) {
 		/* not sure how this can happen */
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, "connection_wait_for_new_work: no work to do\n" );
+		slapi_log_err(SLAPI_LOG_TRACE, "connection_wait_for_new_work", "no work to do\n" );
 		ret = CONN_NOWORK;
 	} else {
 		/* make new pb */
@@ -1055,8 +1057,8 @@ get_next_from_buffer( void *buffer, size_t buffer_size, ber_len_t *lenp,
 		}
 		syserr = errno;
 		/* Bad stuff happened, like the client sent us some junk */
-		LDAPDebug(LDAP_DEBUG_CONNS,
-			"ber_get_next failed for connection %" NSPRIu64 "\n", conn->c_connid, 0, 0 );
+		slapi_log_err(SLAPI_LOG_CONNS, "get_next_from_buffer",
+			"ber_get_next failed for connection %" NSPRIu64 "\n", conn->c_connid);
 		/* reset private buffer */
 		conn->c_private->c_buffer_bytes = conn->c_private->c_buffer_offset = 0;
 
@@ -1217,7 +1219,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					} else {
 						/* Otherwise we loop, unless we exceeded the ioblock timeout */
 						if (waits_done > ioblocktimeout_waits) {
-							LDAPDebug(LDAP_DEBUG_CONNS,"connection_read_operation - ioblock timeout expired on connection %" NSPRIu64 "\n", conn->c_connid, 0, 0 );
+							slapi_log_err(SLAPI_LOG_CONNS,"connection_read_operation",
+								"ioblocktimeout expired on connection %" NSPRIu64 "\n", conn->c_connid);
 							disconnect_server_nomutex( conn, conn->c_connid, -1,
 									SLAPD_DISCONNECT_IO_TIMEOUT, 0 );
 							ret = CONN_DONE;
@@ -1237,20 +1240,20 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					/* PR_Poll call failed */
 					err = PR_GetError();
 					syserr = PR_GetOSError();
-					LDAPDebug(LDAP_DEBUG_ERR,
-						"connection_read_operation - PR_Poll for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
+					slapi_log_err(SLAPI_LOG_ERR, "connection_read_operation",
+						"PR_Poll for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
 					disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
 					ret = CONN_DONE;
 					goto done;
 				}
-				LDAPDebug(LDAP_DEBUG_CONNS,
-					   "connection_read_operation - connection %" NSPRIu64 " waited %d times for read to be ready\n", conn->c_connid, waits_done, 0 );
+				slapi_log_err(SLAPI_LOG_CONNS,
+					   "connection_read_operation", "connection %" NSPRIu64 " waited %d times for read to be ready\n", conn->c_connid, waits_done);
 			} else {
 				/* Some other error, typically meaning bad stuff */
 					syserr = PR_GetOSError();
-					LDAPDebug(LDAP_DEBUG_CONNS,
-						"connection_read_operation - PR_Recv for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
+					slapi_log_err(SLAPI_LOG_CONNS, "connection_read_operation",
+						"PR_Recv for connection %" NSPRIu64 " returns %d (%s)\n", conn->c_connid, err, slapd_pr_strerror( err ) );
 					/* If this happens we should close the connection */
 					disconnect_server_nomutex( conn, conn->c_connid, -1, err, syserr );
 					ret = CONN_DONE;
@@ -1270,8 +1273,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 					goto done;
 				}
 			}
-			LDAPDebug(LDAP_DEBUG_CONNS,
-				   "connection_read_operation - connection %" NSPRIu64 " read %d bytes\n", conn->c_connid, ret, 0 );
+			slapi_log_err(SLAPI_LOG_CONNS,
+				   "connection_read_operation", "connection %" NSPRIu64 " read %d bytes\n", conn->c_connid, ret);
 
 			new_operation = 0;
 			ret = CONN_FOUND_WORK_TO_DO;
@@ -1291,8 +1294,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 		/*
 		 * We received a non-LDAP message.  Log and close connection.
 		 */
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"connection_read_operation - conn=%" NSPRIu64 " received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
+		slapi_log_err(SLAPI_LOG_ERR,
+			"connection_read_operation", "conn=%" NSPRIu64 " received a non-LDAP message (tag 0x%lx, expected 0x%lx)\n",
 			conn->c_connid, *tag, LDAP_TAG_MESSAGE );
 		disconnect_server_nomutex( conn, conn->c_connid, -1,
 			SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
@@ -1303,8 +1306,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	if ( (*tag = ber_get_int( op->o_ber, &msgid ))
 		!= LDAP_TAG_MSGID ) {
 		/* log, close and send error */
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"connection_read_operation - conn=%" NSPRIu64 " unable to read tag for incoming request\n", conn->c_connid, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+			"connection_read_operation", "conn=%" NSPRIu64 " unable to read tag for incoming request\n", conn->c_connid);
 		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BAD_BER_TAG, EPROTO );
 		ret = CONN_DONE;
 		goto done;
@@ -1321,8 +1324,8 @@ int connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, i
 	  case LBER_ERROR:
 	  case LDAP_TAG_LDAPDN: /* optional username, for CLDAP */
 		/* log, close and send error */
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"connection_read_operation - conn=%" NSPRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+			"connection_read_operation", "conn=%" NSPRIu64 " ber_peek_tag returns 0x%lx\n", conn->c_connid, *tag);
 		disconnect_server_nomutex( conn, conn->c_connid, -1, SLAPD_DISCONNECT_BER_PEEK, EPROTO );
 		ret = CONN_DONE;
 		goto done;
@@ -1346,7 +1349,7 @@ void connection_make_readable(Connection *conn)
 void connection_make_readable_nolock(Connection *conn)
 {
 	conn->c_gettingber = 0;
-	LDAPDebug2Args(LDAP_DEBUG_CONNS, "connection_make_readable_nolock - making readable conn %" NSPRIu64 " fd=%d\n",
+	slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" NSPRIu64 " fd=%d\n",
 		       conn->c_connid, conn->c_sd);
 	if (!(conn->c_flags & CONN_FLAG_CLOSING)) {
 		/* if the connection is closing, try the close in connection_release_nolock */
@@ -1373,7 +1376,7 @@ void connection_check_activity_level(Connection *conn)
 	/* update the last checked time */
 	conn->c_private->previous_count_check_time = current_time();
 	PR_ExitMonitor(conn->c_mutex);
-	LDAPDebug(LDAP_DEBUG_CONNS,"connection_check_activity_level - conn %" NSPRIu64 " activity level = %d\n",conn->c_connid,delta_count,0); 
+	slapi_log_err(SLAPI_LOG_CONNS,"connection_check_activity_level", "conn %" NSPRIu64 " activity level = %d\n",conn->c_connid,delta_count); 
 }
 
 typedef struct table_iterate_info_struct {
@@ -1434,7 +1437,8 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	} else {
 	  double activet = 0.0;
 	  connection_find_our_rank(conn,&connection_count, &our_rank);
-	  LDAPDebug(LDAP_DEBUG_CONNS,"connection_enter_leave_turbo - conn %" NSPRIu64 " turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
+	  slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo",
+	      "conn %" NSPRIu64 " turbo rank = %d out of %d conns\n",conn->c_connid,our_rank,connection_count); 
 	  activet = (double)g_get_active_threadcnt();
 	  threshold_rank = (int)(activet * ((double)CONN_TURBO_PERCENTILE / 100.0));
 
@@ -1475,9 +1479,9 @@ void connection_enter_leave_turbo(Connection *conn, int current_turbo_flag, int 
 	PR_ExitMonitor(conn->c_mutex);
 	if (current_mode != new_mode) {
 		if (current_mode) {
-			LDAPDebug(LDAP_DEBUG_CONNS,"connection_enter_leave_turbo - conn %" NSPRIu64 " leaving turbo mode\n",conn->c_connid,0,0); 
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo", "conn %" NSPRIu64 " leaving turbo mode\n",conn->c_connid); 
 		} else {
-			LDAPDebug(LDAP_DEBUG_CONNS,"connection_enter_leave_turbo - conn %" NSPRIu64 " entering turbo mode\n",conn->c_connid,0,0); 
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_enter_leave_turbo", "conn %" NSPRIu64 " entering turbo mode\n",conn->c_connid); 
 		}
 	}
 	*new_turbo_flag = new_mode;
@@ -1517,8 +1521,8 @@ connection_threadmain()
 		time_t curtime = 0;
 		
 		if( op_shutdown ) {
-			LDAPDebug(LDAP_DEBUG_TRACE, 
-			"connection_threadmain - op_thread received shutdown signal\n",	0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
+				"op_thread received shutdown signal\n");
 			g_decr_active_threadcnt();
 			return;
 		}
@@ -1534,8 +1538,8 @@ connection_threadmain()
 					PR_ASSERT(interval != PR_INTERVAL_NO_TIMEOUT); /* this should never happen with PR_INTERVAL_NO_TIMEOUT */
 					continue;
 				case CONN_SHUTDOWN:
-					LDAPDebug(LDAP_DEBUG_TRACE, 
-					"connection_threadmain - op_thread received shutdown signal\n", 0, 0, 0 );
+					slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
+						"op_thread received shutdown signal\n");
 					g_decr_active_threadcnt();
 					return;
 				case CONN_FOUND_WORK_TO_DO:
@@ -1567,7 +1571,8 @@ connection_threadmain()
 						slapi_ch_free_string( &anon_dn );
 					}
 					if (connection_call_io_layer_callbacks(pb->pb_conn)) {
-						LDAPDebug0Args(LDAP_DEBUG_ANY, "connection_threadmain - Could not add/remove IO layers from connection\n" );
+						slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
+							"Could not add/remove IO layers from connection\n");
 					}
 				default:
 					break;
@@ -1583,7 +1588,8 @@ connection_threadmain()
 			/* Make our own pb in turbo mode */
 			connection_make_new_pb(pb,conn);
 			if (connection_call_io_layer_callbacks(conn)) {
-				LDAPDebug0Args(LDAP_DEBUG_ANY, "connection_threadmain - Could not add/remove IO layers from connection\n" );
+				slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
+					"Could not add/remove IO layers from connection\n" );
 			}
 			PR_ExitMonitor(conn->c_mutex);
 			if (! config_check_referral_mode()) {
@@ -1598,12 +1604,12 @@ connection_threadmain()
 		more_data = 0;
 		ret = connection_read_operation(conn, op, &tag, &more_data);
 		if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
-			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
+			slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
 					"conn %" NSPRIu64 " read not ready due to %d - thread_turbo_flag %d more_data %d "
 					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, ret, thread_turbo_flag, more_data,
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
 		} else if (ret == CONN_FOUND_WORK_TO_DO) {
-			slapi_log_error(SLAPI_LOG_CONNS, "connection_threadmain",
+			slapi_log_err(SLAPI_LOG_CONNS, "connection_threadmain",
 					"conn %" NSPRIu64 " read operation successfully - thread_turbo_flag %d more_data %d "
 					"ops_initiated %d refcnt %d flags %d\n", conn->c_connid, thread_turbo_flag, more_data,
 					conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
@@ -1629,8 +1635,9 @@ connection_threadmain()
 		/* turn off turbo mode immediately if any pb waiting in global queue */
 		if (thread_turbo_flag && !WORK_Q_EMPTY) {
 			thread_turbo_flag = 0;
-			LDAPDebug2Args(LDAP_DEBUG_CONNS,"connection_threadmain - conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",
-			               conn->c_connid,work_q_size);
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain",
+				"conn %" NSPRIu64 " leaving turbo mode - pb_q is not empty %d\n",
+			    conn->c_connid,work_q_size);
 		}
 #endif
 		
@@ -1655,12 +1662,13 @@ connection_threadmain()
 				 * should call connection_make_readable after the op is removed
 				 * connection_make_readable(conn);
 				 */
-				LDAPDebug(LDAP_DEBUG_CONNS,"connection_threadmain - conn %" NSPRIu64 " leaving turbo mode due to %d\n",
-				          conn->c_connid,ret,0);
+				slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain",
+					"conn %" NSPRIu64 " leaving turbo mode due to %d\n",
+					conn->c_connid,ret);
 				goto done;
 			case CONN_SHUTDOWN:
-				LDAPDebug(LDAP_DEBUG_TRACE, 
-				"op_thread received shutdown signal\n", 0, 0, 0 );
+				slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
+					"op_thread received shutdown signal\n");
 				g_decr_active_threadcnt();
 				doshutdown = 1;
 				goto done; /* To destroy pb, jump to done once */
@@ -1712,8 +1720,8 @@ connection_threadmain()
 					 */
 					conn->c_idlesince = curtime;
 					connection_activity(conn, maxthreads);
-					LDAPDebug(LDAP_DEBUG_CONNS,"connection_threadmain - conn %" NSPRIu64 " queued because more_data\n",
-					          conn->c_connid,0,0);
+					slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain", "conn %" NSPRIu64 " queued because more_data\n",
+					          conn->c_connid);
 				} else {
 					/* keep count of how many times maxthreads has blocked an operation */
 					conn->c_maxthreadsblocked++;
@@ -1738,9 +1746,8 @@ connection_threadmain()
 		if (conn->c_flags & CONN_FLAG_IMPORT) {
 			if ((tag != LDAP_REQ_ADD) && (tag != LDAP_REQ_EXTENDED)) {
 				/* no cookie for you. */
-				LDAPDebug(LDAP_DEBUG_ERR, "connection_threadmain - Attempted operation %d "
-						  "from within bulk import\n",
-						  tag, 0, 0);
+				slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain", "Attempted operation %lu "
+						  "from within bulk import\n", tag);
 				slapi_send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL,
 									   NULL, 0, NULL);
 				goto done;
@@ -1795,7 +1802,7 @@ done:
 			/* If we're in turbo mode, we keep our reference to the connection alive */
 			/* can't use the more_data var because connection could have changed in another thread */
 			more_data = conn_buffered_data_avail_nolock(conn, &conn_closed) ? 1 : 0;
-			LDAPDebug(LDAP_DEBUG_CONNS,"connection_threadmain - conn %" NSPRIu64 " check more_data %d thread_turbo_flag %d\n",
+			slapi_log_err(SLAPI_LOG_CONNS,"connection_threadmain", "conn %" NSPRIu64 " check more_data %d thread_turbo_flag %d\n",
 			          conn->c_connid,more_data,thread_turbo_flag);
 			if (!more_data) {
 				if (!thread_turbo_flag) {
@@ -1843,9 +1850,9 @@ connection_activity(Connection *conn, int maxthreads)
 	struct Slapi_op_stack *op_stack_obj;
 
 	if (connection_acquire_nolock (conn) == -1) {
-		LDAPDebug(LDAP_DEBUG_CONNS,
-		          "connection_activity - Could not acquire lock in connection_activity as conn %" NSPRIu64 " closing fd=%d\n",
-		          conn->c_connid,conn->c_sd,0);
+		slapi_log_err(SLAPI_LOG_CONNS,
+		          "connection_activity", "Could not acquire lock in connection_activity as conn %" NSPRIu64 " closing fd=%d\n",
+		          conn->c_connid,conn->c_sd);
 		/* XXX how to handle this error? */
 		/* MAB: 25 Jan 01: let's return on error and pray this won't leak */
 		return (-1);
@@ -1883,7 +1890,7 @@ add_work_q( work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj )
 {
 	struct Slapi_work_q	*new_work_q=NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "add_work_q \n", 0,  0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "add_work_q", "=>\n");
 
 	new_work_q = create_work_q();
 	new_work_q->work_item = wqitem;
@@ -1917,9 +1924,9 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
 	struct Slapi_work_q  *tmp = NULL;
 	work_q_item *wqitem;
 
-	LDAPDebug0Args(LDAP_DEBUG_TRACE, "get_work_q\n" );
+	slapi_log_err(SLAPI_LOG_TRACE, "get_work_q","=>\n");
 	if (head_work_q == NULL) {
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, "get_work_q -The work queue is empty.\n" );
+		slapi_log_err(SLAPI_LOG_TRACE, "get_work_q", "The work queue is empty.\n");
 		return NULL;
 	}
 
@@ -1947,7 +1954,7 @@ get_work_q(struct Slapi_op_stack **op_stack_obj)
 void
 op_thread_cleanup()
 {
-	LDAPDebug(LDAP_DEBUG_INFO,
+	slapi_log_err(SLAPI_LOG_INFO, "op_thread_cleanup",
 		   "slapd shutting down - signaling operation threads - op stack size %d max work q size %d max work q stack size %d\n",
 		   op_stack_size, work_q_size_max, work_q_stack_size_max);
 
@@ -1987,7 +1994,7 @@ connection_post_shutdown_cleanup()
 	}
 	PR_DestroyStack(op_stack);
 	op_stack = NULL;
-	LDAPDebug2Args(LDAP_DEBUG_INFO,
+	slapi_log_err(SLAPI_LOG_INFO, "connection_post_shutdown_cleanup",
 		   	"slapd shutting down - freed %d work q stack objects - freed %d op stack objects\n",
 		   	work_cnt, stack_cnt);
 }
@@ -2027,8 +2034,8 @@ connection_remove_operation( Connection *conn, Operation *op )
 
 	if ( *tmp == NULL )
 	{
-		LDAPDebug(LDAP_DEBUG_ERR, "connection_remove_operation - Can't find op %d for conn %" NSPRIu64 "\n",
-		    (int)op->o_msgid, conn->c_connid, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "connection_remove_operation", "Can't find op %d for conn %" NSPRIu64 "\n",
+		    (int)op->o_msgid, conn->c_connid);
 	}
 	else
 	{
@@ -2167,13 +2174,13 @@ log_ber_too_big_error(const Connection *conn, ber_len_t ber_len,
 		maxbersize = config_get_maxbersize();
 	}
 	if (0 == ber_len) {
-		slapi_log_error(SLAPI_LOG_ERR, "log_ber_too_big_error",
+		slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
 			conn->c_connid, conn->c_sd, maxbersize );
 	} else {
-		slapi_log_error(SLAPI_LOG_ERR, "log_ber_too_big_error",
+		slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",
 			"conn=%" NSPRIu64 " fd=%d Incoming BER Element was %" BERLEN_T " bytes, max allowable"
 			" is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in"
 			" cn=config to increase.\n",
@@ -2205,7 +2212,7 @@ disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PR
     if ( ( conn->c_sd != SLAPD_INVALID_SOCKET &&
 	    conn->c_connid == opconnid ) && !(conn->c_flags & CONN_FLAG_CLOSING) )
 	{
-		LDAPDebug(LDAP_DEBUG_CONNS, "disconnect_server_nomutex_ext - Setting conn %" NSPRIu64 " fd=%d "
+		slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Setting conn %" NSPRIu64 " fd=%d "
 			  "to be disconnected: reason %d\n", conn->c_connid, conn->c_sd, reason);
 		/*
 		 * PR_Close must be called before anything else is done because
@@ -2282,7 +2289,7 @@ disconnect_server_nomutex_ext( Connection *conn, PRUint64 opconnid, int opid, PR
 		}
 
     } else {
-	    LDAPDebug2Args(LDAP_DEBUG_CONNS, "disconnect_server_nomutex_ext - Not setting conn %d to be disconnected: %s\n",
+	    slapi_log_err(SLAPI_LOG_CONNS, "disconnect_server_nomutex_ext", "Not setting conn %d to be disconnected: %s\n",
 			   conn->c_sd,
 			   (conn->c_sd == SLAPD_INVALID_SOCKET) ? "socket is invalid" :
 			    ((conn->c_connid != opconnid) ? "conn id does not match op conn id" :

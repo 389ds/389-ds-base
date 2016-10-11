@@ -39,7 +39,7 @@ do_unbind( Slapi_PBlock *pb )
 	int		err;
 	int ignore_criticality = 1;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_unbind\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_unbind", "=>\n");
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;

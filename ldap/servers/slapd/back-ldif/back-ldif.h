@@ -22,7 +22,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include "prlock.h"
-#include "ldaplog.h"
 #include "portable.h"
 #include "slap.h"
 #include <sys/socket.h>

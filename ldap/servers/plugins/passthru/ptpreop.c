@@ -38,7 +38,7 @@ passthruauth_init( Slapi_PBlock *pb )
 {
     PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "=> passthruauth_init\n" );
 
     if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
@@ -51,12 +51,12 @@ passthruauth_init( Slapi_PBlock *pb )
 		    (void *)passthru_bindpreop ) != 0
 	    || slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN,
 		    (void *)passthru_bindpreop_close ) != 0  ) {
-	slapi_log_error(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"passthruauth_init - Failed\n" );
 	return( -1 );
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	"<= passthruauth_init succeeded\n" );
 
     return( 0 );
@@ -75,18 +75,18 @@ passthru_bindpreop_start( Slapi_PBlock *pb )
 
     PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "=> passthru_bindpreop_start\n" );
 
     if ( slapi_pblock_get( pb, SLAPI_PLUGIN_ARGC, &argc ) != 0 ||
 	    slapi_pblock_get( pb, SLAPI_PLUGIN_ARGV, &argv ) != 0 ) {
-	slapi_log_error(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"passthru_bindpreop_start - Unable to get arguments\n" );
 	return( -1 );
     }
 
     if (( rc = passthru_config( argc, argv )) != LDAP_SUCCESS ) {
-	slapi_log_error(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
 		"passthru_bindpreop_start - Configuration failed (%s)\n", ldap_err2string( rc ));
 	return( -1 );
     }
@@ -103,7 +103,7 @@ passthru_bindpreop_close( Slapi_PBlock *pb )
 {
     PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "=> passthru_bindpreop_close\n" );
 
     /*
@@ -133,7 +133,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
 
     PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "=> passthru_bindpreop\n" );
 
     /*
@@ -142,7 +142,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
     if ( slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ||
         slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &sdn ) != 0 ||
         slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds ) != 0 ) {
-        slapi_log_error(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
                      "passthru_bindpreop - Not handled (unable to retrieve bind parameters)\n" );
         return( PASSTHRU_OP_NOT_HANDLED );
     }
@@ -157,7 +157,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
      */
     if ( method != LDAP_AUTH_SIMPLE || *normbinddn == '\0'
 	    || creds->bv_len == 0 ) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
                 "passthru_bindpreop - Not handled (not simple bind or NULL dn/credentials)\n" );
         return( PASSTHRU_OP_NOT_HANDLED );
     }
@@ -172,7 +172,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
      * another server.
      */
     if ( passthru_dn2server( cfg, normbinddn, &srvr ) != LDAP_SUCCESS ) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
                 "passthru_bindpreop - Not handled (not one of our suffixes)\n" );
         return( PASSTHRU_OP_NOT_HANDLED );
     }
@@ -187,7 +187,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
     if ( slapi_pblock_get( pb, SLAPI_REQCONTROLS, &reqctrls ) != 0 ) {
 	rc = LDAP_OPERATIONS_ERROR;
 	errmsg = "unable to retrieve bind controls";
-	slapi_log_error(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM, "%s\n",
+	slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM, "%s\n",
 		errmsg );
     } else {
 	int	lderrno;
@@ -224,7 +224,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
             slapi_ch_free((void **)&ndn);
             rc = LDAP_OPERATIONS_ERROR;
             errmsg = "unable to set connection DN or AUTHTYPE";
-            slapi_log_error(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PASSTHRU_PLUGIN_SUBSYSTEM,
                              "passthru_bindpreop - %s\n", errmsg );
         }
     }
@@ -259,7 +259,7 @@ passthru_bindpreop( Slapi_PBlock *pb )
 	ldap_memfree( matcheddn );
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
 	    "passthru_bindpreop - handled (error %d - %s)\n", rc, ldap_err2string( rc ));
 
     return( PASSTHRU_OP_HANDLED );

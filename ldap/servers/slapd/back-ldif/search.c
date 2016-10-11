@@ -50,7 +50,7 @@ ldif_back_search( Slapi_PBlock *pb )
   char          *freeme;   /*Tmp storage for monitordn*/
   time_t        currtime;  /*The current time*/
 
-  LDAPDebug(LDAP_DEBUG_TRACE, "=> ldif_back_search\n", 0, 0, 0 );
+  slapi_log_err(SLAPI_LOG_TRACE, "=> ldif_back_search\n", 0, 0, 0 );
   
   /* 
    * Get private information created in the init routine. 
@@ -199,7 +199,7 @@ ldif_back_search( Slapi_PBlock *pb )
   /* Search is done, send LDAP_SUCCESS */
   slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, nentries, NULL );
   PR_Unlock( db->ldif_lock );
-  LDAPDebug(LDAP_DEBUG_TRACE, "<= ldif_back_search\n", 0, 0, 0 );
+  slapi_log_err(SLAPI_LOG_TRACE, "<= ldif_back_search\n", 0, 0, 0 );
   return( -1 );
   
 }

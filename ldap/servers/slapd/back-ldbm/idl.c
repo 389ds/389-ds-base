@@ -72,8 +72,8 @@ static void idl_init_maxids(struct ldbminfo *li,idl_private *priv)
     }
     priv->idl_maxindirect = (li->li_allidsthreshold / priv->idl_maxids) + 1;
     priv->idl_allidslimit = (priv->idl_maxids * priv->idl_maxindirect);
-    LDAPDebug(LDAP_DEBUG_ARGS,
-        "idl_init_private: blksize %lu, maxids %i, maxindirect %i\n",
+    slapi_log_err(SLAPI_LOG_ARGS,
+        "idl_init_maxids", "blksize %lu, maxids %i, maxindirect %i\n",
         (unsigned long)blksize, priv->idl_maxids, priv->idl_maxindirect);
 }
 
@@ -194,9 +194,6 @@ idl_fetch_one(
 {
 	DBT	data = {0};
 	IDList	*idl = NULL;
-
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> idl_fetch_one\n", 0, 0, 0 ); */
-
 	data.flags = DB_DBT_MALLOC;
 
 	do {
@@ -205,16 +202,16 @@ idl_fetch_one(
 		{
 			char *msg;
 			if ( EPERM == *err && *err != errno ) {
-				LDAPDebug(LDAP_DEBUG_ERR,
-					"idl_fetch_one - (%s) Database failed to run, "
+				slapi_log_err(SLAPI_LOG_ERR,
+					"idl_fetch_one", "(%s) Database failed to run, "
 					"There is either insufficient disk space or "
 					"insufficient memory available for database.\n",
 					((char*)key->dptr)[ key->dsize - 1 ] ?
-					"" : (char*)key->dptr, 0, 0 );
+					"" : (char*)key->dptr);
 			} else {
-			    LDAPDebug(LDAP_DEBUG_ERR,
-			    	"idl_fetch_one: Error %d %s\n",
-			    	*err, (msg = dblayer_strerror( *err )) ? msg : "", 0 );
+			    slapi_log_err(SLAPI_LOG_ERR,
+			    	"idl_fetch_one", "Error %d %s\n",
+			    	*err, (msg = dblayer_strerror( *err )) ? msg : "");
 			}
 		}
 	}
@@ -246,7 +243,7 @@ idl_old_fetch(
 	int	i;
 	unsigned long nids;
 
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> idl_fetch\n", 0, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "=> idl_fetch\n", 0, 0, 0 ); */
 	if ( (idl = idl_fetch_one( li, db, key, txn, err )) == NULL ) {
 		return( NULL );
 	}
@@ -324,19 +321,19 @@ idl_old_fetch(
 
 		/* Check for inconsistencies: */
 		if ( tmp[i]->b_ids[0] != thisID ) {
-		    LDAPDebug(LDAP_DEBUG_WARNING, "idl_old_fetch - (%s)->b_ids[0] == %lu\n",
-			       k2.dptr, (u_long)tmp[i]->b_ids[0], 0);
+		    slapi_log_err(SLAPI_LOG_WARNING, "idl_old_fetch", "(%s)->b_ids[0] == %lu\n",
+			       (char *)k2.dptr, (u_long)tmp[i]->b_ids[0]);
 		}
 		if ( nextID != NOID ) {
 			if ( nextID <= thisID ) {
-		    	LDAPDebug(LDAP_DEBUG_WARNING, "idl_old_fetch - "
+		    	slapi_log_err(SLAPI_LOG_WARNING, "idl_old_fetch",
 					"Indirect block (%s) contains %lu, %lu\n",
-					key->dptr, (u_long)thisID, (u_long)nextID);
+					(char *)key->dptr, (u_long)thisID, (u_long)nextID);
 		    }
 			if ( nextID <= tmp[i]->b_ids[(tmp[i]->b_nids)-1] ) {
-				LDAPDebug(LDAP_DEBUG_WARNING, "idl_old_fetch - (%s)->b_ids[last] == %lu"
+				slapi_log_err(SLAPI_LOG_WARNING, "idl_old_fetch", "(%s)->b_ids[last] == %lu"
 				   " >= %lu (next indirect ID)\n",
-				   k2.dptr, (u_long)tmp[i]->b_ids[(tmp[i]->b_nids)-1], (u_long)nextID);
+				   (char *)k2.dptr, (u_long)tmp[i]->b_ids[(tmp[i]->b_nids)-1], (u_long)nextID);
 			}
 		}
 	}
@@ -364,8 +361,8 @@ idl_old_fetch(
 	}
 	slapi_ch_free((void**)&tmp );
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_old_fetch %lu ids (%lu max)\n", (u_long)idl->b_nids,
-	    (u_long)idl->b_nmax, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "idl_old_fetch", "<= %lu ids (%lu max)\n", (u_long)idl->b_nids,
+	    (u_long)idl->b_nmax);
 	return( idl );
 }
 
@@ -381,7 +378,7 @@ idl_store(
 	int        rc;
 	DBT        data = {0};
 	
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> idl_store\n", 0, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "=> idl_store\n", 0, 0, 0 ); */
 	
 	data.dptr = (char *) idl;
 	data.dsize = (2 + idl->b_nmax) * sizeof(ID);
@@ -390,27 +387,27 @@ idl_store(
 	if ( 0 != rc ) {
 		char *msg;
 		if ( EPERM == rc && rc != errno ) {
-			LDAPDebug(LDAP_DEBUG_ERR,
-				"idl_store - (%s) Database failed to run, "
+			slapi_log_err(SLAPI_LOG_ERR,
+				"idl_store", "(%s) Database failed to run, "
 				"There is insufficient memory available for database.\n",
-				((char*)key->dptr)[ key->dsize - 1 ] ? "" : (char*)key->dptr, 0, 0 );
+				((char*)key->dptr)[ key->dsize - 1 ] ? "" : (char*)key->dptr);
 		} else {
 			if (LDBM_OS_ERR_IS_DISKFULL(rc)) {
 				operation_out_of_disk_space();
 			}
-			LDAPDebug( ((DB_LOCK_DEADLOCK == rc) ? LDAP_DEBUG_TRACE : LDAP_DEBUG_ERR), 		  
+			slapi_log_err( ((DB_LOCK_DEADLOCK == rc) ? SLAPI_LOG_TRACE : SLAPI_LOG_ERR), 		  
 				"idl_store - (%s) Returns %d %s\n",
 				((char*)key->dptr)[ key->dsize - 1 ] ? "" : (char*)key->dptr,
 				rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 			if (rc == DB_RUNRECOVERY) {
-				LDAPDebug(LDAP_DEBUG_WARNING, "%s\n" "idl_store - ",
-					"Failures can be an indication of insufficient disk space.", 0, 0);
-				ldbm_nasty("idl_store", 71, rc);
+				slapi_log_err(SLAPI_LOG_WARNING, "idl_store",
+					"Failures can be an indication of insufficient disk space.\n");
+				ldbm_nasty("idl_store","db->put", 71, rc);
 			}
 		}
 	}
 
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_store %d\n", rc, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "<= idl_store %d\n", rc, 0, 0 ); */
 	return( rc );
 }
 
@@ -473,16 +470,14 @@ idl_change_first(
 	int	rc;
 	char	*msg;
 
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> idl_change_first\n", 0, 0, 0 ); */
-
 	/* delete old key block */
 	rc = db->del( db, txn, bkey, 0 );
 	if ( (rc != 0) && (DB_LOCK_DEADLOCK != rc) )
 	{
-		LDAPDebug(LDAP_DEBUG_ERR, "idl_change_first - del (%s) err %d %s\n",
-			bkey->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+		slapi_log_err(SLAPI_LOG_ERR, "idl_change_first", "del (%s) err %d %s\n",
+			(char *)bkey->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 		if (rc == DB_RUNRECOVERY) {
-		    ldbm_nasty("idl_store",72,rc);
+		    ldbm_nasty("idl_change_first","db->del", 72,rc);
 		}
 		return( rc );
 	}
@@ -509,7 +504,7 @@ do { \
     char* fmt = slapi_ch_malloc (strlen(func) + strlen(note) + strlen(FORMAT) + 30); \
     if (fmt != NULL) { \
         sprintf (fmt, "IDL_CHECK_FAILED - %s(%%s,%lu) %s: %s\n", func, (u_long)id, note, FORMAT); \
-        LDAPDebug(LDAP_DEBUG_ERR, fmt, key->dptr, ARG1, ARG2); \
+        slapi_log_err(SLAPI_LOG_ERR, fmt, key->dptr, ARG1, ARG2); \
         slapi_ch_free((void**)&fmt); \
     } \
 } while(0)
@@ -518,7 +513,7 @@ do { \
 static void
 idl_check_indirect (IDList* idl, int i, IDList* tmp, IDList* tmp2,
 		    char* func, char* note, DBT* key, ID id)
-     /* Check for inconsistencies; report any via LDAPDebug(LDAP_DEBUG_ANY).
+     /* Check for inconsistencies
 	The caller alleges that *idl is a header block, in which the
 	i'th item points to the indirect block *tmp, and either tmp2 == NULL
 	or *tmp2 is the indirect block to which the i+1'th item in *idl points.
@@ -592,8 +587,8 @@ idl_old_insert_key(
 		if ( rc != 0 && rc != DB_NOTFOUND ) {
 			if ( rc != DB_LOCK_DEADLOCK )
 			{
-				LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 0 BAD %d %s\n",
-					   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+				slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "0 BAD %d %s\n",
+					   rc, (msg = dblayer_strerror( rc )) ? msg : "");
 			}
 			return( rc );
 		}
@@ -602,8 +597,8 @@ idl_old_insert_key(
 		rc = idl_store( be, db, key, idl, txn );
 		if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 		{
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 1 BAD %d %s\n",
-				   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "1 BAD %d %s\n",
+				   rc, (msg = dblayer_strerror( rc )) ? msg : "");
 		}
 
 		idl_free( &idl );
@@ -640,8 +635,8 @@ idl_old_insert_key(
 				idl_unlock_list(a->ai_idl,key);
 				if ( rc != 0 && rc != DB_LOCK_DEADLOCK)
 				{
-					LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 2 BAD %d %s\n",
-						   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+					slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "2 BAD %d %s\n",
+						   rc, (msg = dblayer_strerror( rc )) ? msg : "");
 				}
 				if (NULL != disposition) {
 					*disposition = IDL_INSERT_NOW_ALLIDS;
@@ -668,8 +663,8 @@ idl_old_insert_key(
 				idl_free( &tmp2 );
 				if ( rc != DB_LOCK_DEADLOCK )
 				{
-					LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 3 BAD %d %s\n",
-						rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+					slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "3 BAD %d %s\n",
+						rc, (msg = dblayer_strerror( rc )) ? msg : "");
 				}
 				return( rc );
 			}
@@ -694,8 +689,8 @@ idl_old_insert_key(
 				idl_free( &tmp2 );
 				if ( rc != DB_LOCK_DEADLOCK )
 				{
-					LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 4 BAD %d %s\n",
-						   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+					slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "4 BAD %d %s\n",
+						   rc, (msg = dblayer_strerror( rc )) ? msg : "");
 				}
 				return( rc );
 			}
@@ -712,8 +707,8 @@ idl_old_insert_key(
 		idl_unlock_list(a->ai_idl,key);
 		if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 		{
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 5 BAD %d %s\n",
-				   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "5 BAD %d %s\n",
+				   rc, (msg = dblayer_strerror( rc )) ? msg : "");
 		}
 		return( rc );
 	}
@@ -731,8 +726,8 @@ idl_old_insert_key(
 		;	/* NULL */
 	if ( id == idl->b_ids[i] ) {	/* already in a block */
 #ifdef _DEBUG_LARGE_BLOCKS
-		LDAPDebug(LDAP_DEBUG_DEBUG, 
-		    "idl_old_insert_key - id %lu for key (%s) is already in block %d\n",
+		slapi_log_err(SLAPI_LOG_DEBUG, 
+		    "idl_old_insert_key", "id %lu for key (%s) is already in block %d\n",
 		    (u_long)id, key.dptr, i);
 #endif
 		idl_unlock_list(a->ai_idl,key);
@@ -752,13 +747,13 @@ idl_old_insert_key(
 		if ( rc != 0 ) {
 			if ( rc != DB_LOCK_DEADLOCK )
 			{
-				LDAPDebug(LDAP_DEBUG_ERR, "idl_old_insert_key - 6 BAD %d %s\n",
-					   rc, (msg = dblayer_strerror( rc )) ? msg : "", 0 );
+				slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "6 BAD %d %s\n",
+					   rc, (msg = dblayer_strerror( rc )) ? msg : "");
 			}
 			return( rc );
 		}
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "idl_old_insert_key - nonexistent continuation block (%s)\n", k2.dptr, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+		    "idl_old_insert_key", "nonexistent continuation block (%s)\n", (char *)k2.dptr);
 		idl_unlock_list(a->ai_idl,key);
 		idl_free( &idl );
 		slapi_ch_free((void**)&kstr );
@@ -817,9 +812,8 @@ idl_old_insert_key(
 			    == NULL ) {
 				if ( rc != DB_LOCK_DEADLOCK )
 				{
-					LDAPDebug(LDAP_DEBUG_ERR,
-					    "idl_old_insert_key - (%s) returns NULL\n",
-					    k3.dptr, 0, 0 );
+					slapi_log_err(SLAPI_LOG_ERR,
+					    "idl_old_insert_key", "(%s) returns NULL\n", (char *)k3.dptr);
 				}
 				if (0 != rc) {
 					idl_check_indirect (idl, i, tmp, NULL,
@@ -870,10 +864,10 @@ idl_old_insert_key(
 						break;
 					case 2:	/* already there - how? */
 					case 3: /* split block - how? */
-						LDAPDebug(LDAP_DEBUG_ERR,
-							"idl_old_insert_key - Not expecting (%d) from idl_insert_maxids "
+						slapi_log_err(SLAPI_LOG_ERR,
+							"idl_old_insert_key", "Not expecting (%d) from idl_insert_maxids "
 							"of %lu in (%s).  Likely database corruption\n",
-							rc, (u_long)id, k2.dptr );
+							rc, (u_long)id, (char *)k2.dptr );
 						rc = 0;
 						break;
 					}
@@ -900,10 +894,10 @@ idl_old_insert_key(
 				 * we started this insert. what can we do
 				 * aside from log a warning?
 				 */
-				LDAPDebug(LDAP_DEBUG_ERR,
-					"idl_old_insert_key - Not expecting return %d from idl_insert_maxids "
+				slapi_log_err(SLAPI_LOG_ERR,
+					"idl_old_insert_key", "Not expecting return %d from idl_insert_maxids "
 					"of id %lu in block with key (%s).  Likely database corruption\n",
-					rc, (u_long)tmp->b_ids[tmp->b_nids-1], k3.dptr );
+					rc, (u_long)tmp->b_ids[tmp->b_nids-1], (char *)k3.dptr );
 				/* FALL */
 			case 3:		/* block is full */
 				/*
@@ -952,7 +946,7 @@ idl_old_insert_key(
 				rc = db->del( db, txn, &k2, 0 );
 				if ( rc != 0 ) {
 				  	if (rc == DB_RUNRECOVERY) {
-					  ldbm_nasty("",73,rc);
+					  ldbm_nasty("idl_old_insert_key","db->del",73,rc);
 					}
 					break;
 				}
@@ -1133,8 +1127,8 @@ int idl_old_store_block(
 					slapi_ch_free(&(cont_key.data));
 					if ( ret != 0 && ret != DB_LOCK_DEADLOCK )
 					{
-						LDAPDebug(LDAP_DEBUG_ERR, "idl_old_store_block - (%s) BAD %d %s\n",
-							key->data, ret, dblayer_strerror( ret ));
+						slapi_log_err(SLAPI_LOG_ERR, "idl_old_store_block", "(%s) BAD %d %s\n",
+								(char *)key->data, ret, dblayer_strerror( ret ));
 						goto done;
 					}
 					/* Put the lead ID number in the header block */
@@ -1358,8 +1352,8 @@ idl_old_delete_key(
 	IDList	*idl, *didl;
 	DBT	contkey = {0};
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "=> idl_old_delete_key(%s,%lu)\n",
-		   key->dptr, (u_long)id, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "=> (%s,%lu)\n",
+			(char *)key->dptr, (u_long)id);
 
 	idl_Wlock_list(a->ai_idl,key);
 
@@ -1367,12 +1361,12 @@ idl_old_delete_key(
 		idl_unlock_list(a->ai_idl,key);
 		if ( rc != 0 && rc != DB_NOTFOUND && rc != DB_LOCK_DEADLOCK )
 		{
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 0 BAD %d %s\n",
-				   key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key - (%s) 0 BAD %d %s\n",
+				(char *)key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 		}
 		if ( 0 == rc || DB_NOTFOUND == rc ) rc = -666;
-		LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_old_delete_key(%s,%lu) %d !idl_fetch_one\n",
-			   key->dptr, (u_long)id, rc );
+		slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "<= (%s,%lu) %d !idl_fetch_one\n",
+				(char *)key->dptr, (u_long)id, rc );
 		return rc;
 	}
 
@@ -1384,8 +1378,8 @@ idl_old_delete_key(
 			rc = idl_store( be, db, key, idl, txn );
 			if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 			{
-				LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 1 BAD %d %s\n",
-					   key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+				slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 1 BAD %d %s\n",
+					(char *)key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 			}
 			break;
 
@@ -1393,10 +1387,10 @@ idl_old_delete_key(
 			rc = db->del( db, txn, key, 0 );
 			if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 			{
-				LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 2 BAD %d %s\n",
-					   key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+				slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 2 BAD %d %s\n",
+					(char *)key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 				if (rc == DB_RUNRECOVERY) {
-				    ldbm_nasty("",74,rc);
+				    ldbm_nasty("idl_old_delete_key", "db->del",74,rc);
 				}
 
 			}
@@ -1408,15 +1402,15 @@ idl_old_delete_key(
 			break;
 
 		default:
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 3 BAD idl_delete\n",
-				   key->dptr, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 3 BAD idl_delete\n",
+				(char *)key->dptr);
 			break;
 		}
 
 		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
-		LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_old_delete_key(%s,%lu) %d (not indirect)\n",
-			   key->dptr, (u_long)id, rc );
+		slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "<= (%s,%lu) %d (not indirect)\n",
+			(char *)key->dptr, (u_long)id, rc );
 		return( rc );
 	}
 
@@ -1436,8 +1430,8 @@ idl_old_delete_key(
 	if ( i == 0 && id < idl->b_ids[i] ) {
 		idl_free( &idl );
 		idl_unlock_list(a->ai_idl,key);
-		LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_old_delete_key(%s,%lu) -666 (id not found)\n",
-			   key->dptr, (u_long)id, 0 );
+		slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "<= (%s,%lu) -666 (id not found)\n",
+				(char *)key->dptr, (u_long)id);
 		return( -666 );
 	}
 	if ( id != idl->b_ids[i] ) {
@@ -1451,11 +1445,11 @@ idl_old_delete_key(
 		idl_unlock_list(a->ai_idl,key);
 		if ( rc != DB_LOCK_DEADLOCK )
 		{
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 5 BAD %d %s\n",
-				   contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 5 BAD %d %s\n",
+					(char *)contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 		}
-		LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_old_delete_key(%s,%lu) %d idl_fetch_one(contkey)\n",
-			   contkey.dptr, (u_long)id, rc );
+		slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "<= (%s,%lu) %d idl_fetch_one(contkey)\n",
+				(char *)contkey.dptr, (u_long)id, rc );
 		slapi_ch_free( (void **)&(contkey.dptr) );
 		return( rc );
 	}
@@ -1466,8 +1460,8 @@ idl_old_delete_key(
 		if ( (rc = idl_store( be, db, &contkey, didl, txn )) != 0 ) {
 		    if ( rc != DB_LOCK_DEADLOCK )
 		    {
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) BAD %d %s\n",
-				   contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) BAD %d %s\n",
+				(char *)contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 		    }
 		}
 		if (0 != rc) {
@@ -1479,8 +1473,8 @@ idl_old_delete_key(
 		rc = idl_change_first( be, db, key, idl, i, &contkey, didl, txn );
 		if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 		{
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 7 BAD %d %s\n",
-				   contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 7 BAD %d %s\n",
+				(char *)contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 		}
 		if (0 != rc) {
 			idl_check_indirect( idl, i, didl, NULL, "idl_old_delete_key", "1", key, id );
@@ -1495,17 +1489,17 @@ idl_old_delete_key(
 		    rc = idl_store( be, db, key, idl, txn );
 		    if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 		    {
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - idl_store(%s) BAD %d %s\n",
-				   key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "idl_store(%s) BAD %d %s\n",
+				(char *)key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 		    }
 		} else { /* This index is entirely empty.  Delete the header: */
 		    rc = db->del( db, txn, key, 0 );
 		    if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 		    {
-			LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - db->del(%s) 0 BAD %d %s\n",
-				   key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+			slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "db->del(%s) 0 BAD %d %s\n",
+				(char *)key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 			if (rc == DB_RUNRECOVERY) {
-			    ldbm_nasty("",75,rc);
+			    ldbm_nasty("idl_old_delete_key", "db->del",75,rc);
 			}
 
 		    }
@@ -1514,10 +1508,10 @@ idl_old_delete_key(
 			rc = db->del( db, txn, &contkey, 0 );
 			if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 			{
-				LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key -  db->del(%s) 1 BAD %d %s\n",
-					contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+				slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "db->del(%s) 1 BAD %d %s\n",
+					(char *)contkey.dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 				if (rc == DB_RUNRECOVERY) {
-					ldbm_nasty("",76,rc);
+					ldbm_nasty("idl_old_delete_key", "db->del",76,rc);
 				}
 			}
 		}
@@ -1528,8 +1522,8 @@ idl_old_delete_key(
 		idl_check_indirect( idl, i, didl, NULL, "idl_old_delete_key", "3", key, id );
 		break;
 	case 4:		/* all ids block - should not happen */
-		LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - cont block (%s) is allids\n",
-			contkey.dptr, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "cont block (%s) is allids\n",
+			(char *)contkey.dptr);
 		rc = 0;
 		break;
 	}
@@ -1539,11 +1533,11 @@ idl_old_delete_key(
 	idl_unlock_list(a->ai_idl,key);
 	if ( rc != 0 && rc != DB_LOCK_DEADLOCK )
 	{
-		LDAPDebug(LDAP_DEBUG_ERR, "idl_old_delete_key - (%s) 9 BAD %d %s\n",
-			   key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
+		slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 9 BAD %d %s\n",
+			(char *)key->dptr, rc, (msg = dblayer_strerror( rc )) ? msg : "" );
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= idl_old_delete_key(%s,%lu) %d (indirect)\n",
-		   key->dptr, (u_long)id, rc );
+	slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "<= (%s,%lu) %d (indirect)\n",
+			(char *)key->dptr, (u_long)id, rc );
 	return( rc );
 }
 

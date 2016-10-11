@@ -213,13 +213,13 @@ void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *for
     }
     /* also save it in the logs for posterity */
     if (job->flags & (FLAG_UPGRADEDNFORMAT|FLAG_UPGRADEDNFORMAT_V1)) {
-        slapi_log_error(log_level, subsystem, "upgradedn %s: %s\n",
+        slapi_log_err(log_level, subsystem, "upgradedn %s: %s\n",
                 job->inst->inst_name, buffer);
     } else if (job->flags & FLAG_REINDEXING) {
-        slapi_log_error(log_level, subsystem, "reindex %s: %s\n",
+        slapi_log_err(log_level, subsystem, "reindex %s: %s\n",
                 job->inst->inst_name, buffer);
     } else {
-        slapi_log_error(log_level, subsystem, "import %s: %s\n",
+        slapi_log_err(log_level, subsystem, "import %s: %s\n",
                 job->inst->inst_name, buffer);
     }
 }
@@ -483,10 +483,10 @@ static int import_start_threads(ImportJob *job)
                         PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                         PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
         PRErrorCode prerr = PR_GetError();
-        LDAPDebug(LDAP_DEBUG_ERR, "import_start_threads - "
+        slapi_log_err(SLAPI_LOG_ERR, "import_start_threads",
                 "Unable to spawn import foreman thread, "
                 SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                prerr, slapd_pr_strerror(prerr), 0);
+                prerr, slapd_pr_strerror(prerr));
         FREE(foreman);
         goto error;
     }
@@ -514,10 +514,10 @@ static int import_start_threads(ImportJob *job)
                 PR_UNJOINABLE_THREAD,
                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug(LDAP_DEBUG_ERR, "import_start_threads - "
+            slapi_log_err(SLAPI_LOG_ERR, "import_start_threads",
             		"Unable to spawn import worker thread, "
                     SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                    prerr, slapd_pr_strerror(prerr), 0);
+                    prerr, slapd_pr_strerror(prerr));
             FREE(worker);
             goto error;
         }
@@ -1258,10 +1258,10 @@ int import_main_offline(void *arg)
                 producer, PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                 PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ERR, "import_main_offline - "
+                slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
                           "Unable to spawn upgrade dn producer thread, "
                           SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                          prerr, slapd_pr_strerror(prerr), 0);
+                          prerr, slapd_pr_strerror(prerr));
                 goto error;
             }
         }
@@ -1272,10 +1272,10 @@ int import_main_offline(void *arg)
                 PR_UNJOINABLE_THREAD,
                 SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ERR, "import_main_offline - "
+                slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
                           "Unable to spawn index producer thread, "
                           SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                          prerr, slapd_pr_strerror(prerr), 0);
+                          prerr, slapd_pr_strerror(prerr));
                 goto error;
             }
         }
@@ -1287,10 +1287,10 @@ int import_main_offline(void *arg)
                             PR_UNJOINABLE_THREAD,
                             SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                         PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ERR,"import_main_offline - "
+                slapi_log_err(SLAPI_LOG_ERR,"import_main_offline",
                         "Unable to spawn import producer thread, "
                         SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                        prerr, slapd_pr_strerror(prerr), 0);
+                        prerr, slapd_pr_strerror(prerr));
                 goto error;
             }
         }
@@ -1473,14 +1473,14 @@ error:
         /* initialize the entry cache */
         if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
                          DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "import_main_offline - "
+            slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
                         "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
         if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
                      DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "import_main_offline - "
+            slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
                         "dn cache_init failed.  Server should be restarted.\n");
         }
     }
@@ -1636,7 +1636,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_ldif2ldbm_deluxe - Backend is not set\n");
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm_deluxe", "Backend is not set\n");
         return -1;
     }
     job = CALLOC(ImportJob);
@@ -1688,7 +1688,7 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
                 if (entryrdn_get_switch()) {
                     job->flags |= FLAG_DN2RDN; /* migrate to the rdn format */
                 } else {
-                    LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_back_ldif2ldbm_deluxe - "
+                    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm_deluxe",
                                   "DN to RDN option is specified, "
                                   "but %s is not enabled\n",
                                   CONFIG_ENTRYRDN_SWITCH);
@@ -1749,9 +1749,10 @@ int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb)
                                  SLAPD_DEFAULT_THREAD_STACKSIZE);
         if (thread == NULL) {
             PRErrorCode prerr = PR_GetError();
-            LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_ldif2ldbm_deluxe - unable to spawn import thread, "
-                        SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                        prerr, slapd_pr_strerror(prerr), 0);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm_deluxe",
+                    "Unable to spawn import thread, "
+                    SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                    prerr, slapd_pr_strerror(prerr));
             import_free_job(job);
             FREE(job);
             return -2;

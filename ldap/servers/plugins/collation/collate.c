@@ -60,8 +60,8 @@ collation_config (size_t cargc, char** cargv,
 	/* ignore - not needed anymore with ICU - was used to get path for NLS_Initialize */
     } else if (!strcasecmp (cargv[0], "collation")) {
 	if ( cargc < 7 ) {
-	    LDAPDebug(LDAP_DEBUG_ERR, "collation_config - "
-		       "%s: line %lu ignored: only %lu arguments (expected "
+	    slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM,
+		       "collation_config - %s: line %lu ignored: only %lu arguments (expected "
 		       "collation language country variant strength decomposition oid ...)\n",
 		       fname, (unsigned long)lineno, (unsigned long)cargc );
 	} else {
@@ -76,8 +76,8 @@ collation_config (size_t cargc, char** cargv,
 	      case 3: profile->strength = UCOL_TERTIARY; break;
 	      case 4: profile->strength = UCOL_IDENTICAL; break;
 	      default: profile->strength = UCOL_SECONDARY;
-              LDAPDebug(LDAP_DEBUG_ERR, "collation_config - "
-                      "%s: line %lu: strength \"%s\" not supported (will use 2)\n",
+              slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM,
+                      "collation_config - %s: line %lu: strength \"%s\" not supported (will use 2)\n",
                       fname, (unsigned long)lineno, cargv[4]);
               break;
 	    }
@@ -86,8 +86,8 @@ collation_config (size_t cargc, char** cargv,
 	      case 2: profile->decomposition = UCOL_DEFAULT; /* no break here? fall through? wtf? */
 	      case 3: profile->decomposition = UCOL_ON; break;
 	      default: profile->decomposition = UCOL_DEFAULT;
-              LDAPDebug(LDAP_DEBUG_ERR, "collation_config - "
-                  "%s: line %lu: decomposition \"%s\" not supported (will use 2)\n",
+              slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM,
+                  "collation_config - %s: line %lu: decomposition \"%s\" not supported (will use 2)\n",
                   fname, (unsigned long)lineno, cargv[5]);
               break;
 	    }
@@ -326,8 +326,9 @@ collation_index (indexer_t* ix, struct berval** bvec, struct berval** prefixes)
 		    }
 		    memcpy(bk->bv_val + prefixLen, key, realLen);
 		    bk->bv_val[bk->bv_len] = '\0';
-		    LDAPDebug(LDAP_DEBUG_FILTER, "collation_index(%.*s) %lu bytes\n",
-			       bk->bv_len, bk->bv_val, (unsigned long)bk->bv_len);
+		    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+		            "collation_index - %s - %lu bytes\n",
+			        (char *)bk->bv_val, (unsigned long)bk->bv_len);
 		    keys = (struct berval**)
 			slapi_ch_realloc ((void*)keys, sizeof(struct berval*) * (keyn + 2));
 		    keys[keyn++] = bk;
@@ -425,15 +426,15 @@ collation_indexer_create (const char* oid)
 		    ix = (indexer_t*) slapi_ch_calloc (1, sizeof (indexer_t));
 		    ucol_setAttribute (coll, UCOL_STRENGTH, profile->strength, &err);
 		    if (U_FAILURE(err)) {
-		    	LDAPDebug(LDAP_DEBUG_ERR, "collation_indexer_create - "
+		    	slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM, "collation_indexer_create - "
 		    	        "Could not set the collator strength for oid %s to %d: err %d\n",
 				        oid, profile->strength, err);
 		    }
 		    ucol_setAttribute (coll, UCOL_DECOMPOSITION_MODE, profile->decomposition, &err);
 		    if (U_FAILURE(err)) {
-		    	LDAPDebug(LDAP_DEBUG_ERR, "collation_indexer_create - Could not "
-				   "set the collator decomposition mode for oid %s to %d: err %d\n",
-				   oid, profile->decomposition, err);
+		    	slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM, "collation_indexer_create - " 
+		    		"Could not set the collator decomposition mode for oid %s to %d: err %d\n",
+		    		oid, profile->decomposition, err);
 		    }
 		    etc->collator = coll;
 		    for (id = collation_id; *id; ++id) {
@@ -442,7 +443,8 @@ collation_indexer_create (const char* oid)
 		    	}
 		    }
             if (!*id) {
-                LDAPDebug(LDAP_DEBUG_ERR, "collation_indexer_create - id not found\n", 0, 0, 0);
+                slapi_log_err(SLAPI_LOG_ERR, COLLATE_PLUGIN_SUBSYSTEM,
+                        "collation_indexer_create - id not found\n");
                 goto error;
             }
 
@@ -454,14 +456,15 @@ collation_indexer_create (const char* oid)
 		    /* free (etc); */
 		    /* free (ix); */
 		} else if (err == U_USING_DEFAULT_WARNING) {
-		    LDAPDebug(LDAP_DEBUG_FILTER, "collation_indexer_create - could not "
-			       "create an indexer for OID %s for locale %s and could not "
-			       "use default locale\n",
-			       oid, (locale ? locale : "(default)"), NULL);
+		    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+		            "collation_indexer_create - Could not "
+			        "create an indexer for OID %s for locale %s and could not "
+			        "use default locale\n", oid, (locale ? locale : "(default)"));
 		} else { /* error */
-		    LDAPDebug(LDAP_DEBUG_FILTER, "collation_indexer_create - could not "
-			       "create an indexer for OID %s for locale %s: err = %d\n",
-			       oid, (locale ? locale : "(default)"), err);
+		    slapi_log_err(SLAPI_LOG_FILTER, COLLATE_PLUGIN_SUBSYSTEM,
+		            "collation_indexer_create - Could not "
+			        "create an indexer for OID %s for locale %s: err = %d\n",
+			        oid, (locale ? locale : "(default)"), err);
 		}
 		if (coll) {
 		    ucol_close (coll);

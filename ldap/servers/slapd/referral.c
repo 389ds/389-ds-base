@@ -46,8 +46,8 @@ g_get_global_referrals(void)
         global_referrals.ra_rwlock = slapi_new_rwlock();
       
         if (global_referrals.ra_rwlock == NULL) {
-            LDAPDebug(LDAP_DEBUG_ERR,
-    		   "g_get_global_referrals - New lock creation failed\n", 0, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR,
+    		   "g_get_global_referrals", "New lock creation failed\n");
         	exit (-1);
         }
         
@@ -176,9 +176,9 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
          slapi_pblock_get( pb, SLAPI_OPERATION, &op ) != 0 || op == NULL ||
          ( operation_get_type(op) == SLAPI_OPERATION_SEARCH && slapi_pblock_get( pb,
         SLAPI_SEARCH_SCOPE, &scope ) != 0 )) {
-        LDAPDebug0Args(LDAP_DEBUG_ANY, "ref_adjust - Referrals suppressed "
-                        "(could not get target DN, operation, "
-                        "or scope from pblock)\n" );
+        slapi_log_err(SLAPI_LOG_ERR, "ref_adjust",
+                "Referrals suppressed (could not get target DN, operation, "
+                "or scope from pblock)\n" );
         return( NULL );
     }
 
@@ -236,11 +236,11 @@ ref_adjust( Slapi_PBlock *pb, struct berval **urls, const Slapi_DN *refsdn,
     /*
      * log what we did (for debugging purposes)
      */
-	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_ARGS )) {
-	for ( i = 0; urlscopy[i] != NULL; ++i ) {
-	    LDAPDebug(LDAP_DEBUG_ARGS, "ref_adjust: \"%s\" -> \"%s\"\n",
-		urls[i]->bv_val, urlscopy[i]->bv_val, 0 );
-	}
+    if ( loglevel_is_set( LDAP_DEBUG_ARGS )) {
+        for ( i = 0; urlscopy[i] != NULL; ++i ) {
+            slapi_log_err(SLAPI_LOG_ARGS, "ref_adjust", "\"%s\" -> \"%s\"\n",
+                    urls[i]->bv_val, urlscopy[i]->bv_val);
+        }
     }
 
     /*

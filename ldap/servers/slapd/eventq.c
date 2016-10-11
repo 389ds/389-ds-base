@@ -118,7 +118,7 @@ slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when)
 		/* been freed, depending on the thread   */
 		/* scheduling. Too bad			 */
 
-		slapi_log_error(SLAPI_LOG_HOUSE, NULL,
+		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
 				"added one-time event id %p at time %ld\n",
 				id, when);
 		return(id);
@@ -150,7 +150,7 @@ slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval
 	if (!eq_stopped) {
 		tmp = eq_new(fn, arg, when, interval);
 		eq_enqueue(tmp);
-		slapi_log_error(SLAPI_LOG_HOUSE, NULL,
+		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
 				"added repeating event id %p at time %ld, interval %lu\n",
 				tmp->ec_id, when, interval);
 		return(tmp->ec_id);
@@ -187,7 +187,7 @@ slapi_eq_cancel(Slapi_Eq_Context ctx)
 		}
 		PR_Unlock(eq->eq_lock);
 	}
-	slapi_log_error(SLAPI_LOG_HOUSE, NULL,
+	slapi_log_err(SLAPI_LOG_HOUSE, NULL,
 			"cancellation of event id %p requested: %s\n",
 			ctx, found ? "cancellation succeeded" : "event not found");
 	return found;
@@ -281,7 +281,7 @@ eq_call_all(void)
 	while ((p = eq_dequeue(current_time())) != NULL) {
 		/* Call the scheduled function */
 		p->ec_fn(p->ec_when, p->ec_arg);
-		slapi_log_error(SLAPI_LOG_HOUSE, NULL,
+		slapi_log_err(SLAPI_LOG_HOUSE, NULL,
 				"Event id %p called at %ld (scheduled for %ld)\n",
 				p->ec_id, current_time(), p->ec_when);
 		if (0UL != p->ec_interval) {
@@ -346,19 +346,19 @@ eq_create(void)
 {
 	PR_ASSERT(NULL == eq->eq_lock);
 	if ((eq->eq_lock = PR_NewLock()) == NULL) {
-		slapi_log_error(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
 		exit(1);
 	}
 	if ((eq->eq_cv = PR_NewCondVar(eq->eq_lock)) == NULL) {
-		slapi_log_error(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
 		exit(1);
 	}
 	if ((ss_lock = PR_NewLock()) == NULL) {
-		slapi_log_error(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
 		exit(1);
 	}
 	if ((ss_cv = PR_NewCondVar(ss_lock)) == NULL) {
-		slapi_log_error(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
 		exit(1);
 	}
 	eq->eq_queue = NULL;
@@ -384,10 +384,10 @@ eq_start()
 	if ((eq_loop_tid = PR_CreateThread(PR_USER_THREAD, (VFP)eq_loop,
 			NULL, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_JOINABLE_THREAD,
 			SLAPD_DEFAULT_THREAD_STACKSIZE)) == NULL) {
-		slapi_log_error(SLAPI_LOG_ERR, "eq_start", "eq_loop PR_CreateThread failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "eq_start", "eq_loop PR_CreateThread failed\n");
 		exit(1);
 	}
-	slapi_log_error(SLAPI_LOG_HOUSE, NULL, "event queue services have started\n");
+	slapi_log_err(SLAPI_LOG_HOUSE, NULL, "event queue services have started\n");
 }
 
 
@@ -407,7 +407,7 @@ eq_init()
 {
 	if (!eq_initialized) {
 		if (PR_SUCCESS != PR_CallOnce(&init_once, eq_create)) {
-			slapi_log_error(SLAPI_LOG_ERR, "eq_init", "eq_create failed\n");
+			slapi_log_err(SLAPI_LOG_ERR, "eq_init", "eq_create failed\n");
 		}
 	}
 }
@@ -463,7 +463,7 @@ eq_stop()
          p = q;
     }
     PR_Unlock(eq->eq_lock);
-    slapi_log_error(SLAPI_LOG_HOUSE, NULL, "event queue services have shut down\n");
+    slapi_log_err(SLAPI_LOG_HOUSE, NULL, "event queue services have shut down\n");
 }
 
 /*

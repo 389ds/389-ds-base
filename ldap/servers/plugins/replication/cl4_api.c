@@ -61,7 +61,7 @@ int cl4Init ()
 	s_cl4Desc.csnPL = csnplNew ();
 	if (s_cl4Desc.csnPL == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "cl4Init: failed to create CSN pending list\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cl4Init: failed to create CSN pending list\n");
 		return CL4_CSNPL_ERROR;
 	}
 
@@ -90,14 +90,14 @@ int cl4WriteOperation (const slapi_operation_parameters *op)
 
 	if (op == NULL || !IsValidOperation (op))
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "cl4WriteEntry: invalid entry\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cl4WriteEntry: invalid entry\n");
 		return CL4_BAD_DATA;
 	}
 	
 	rc = _cl4WriteOperation (op);	
 	if (rc != CL4_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "cl4WriteEntry: failed to write changelog entry\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cl4WriteEntry: failed to write changelog entry\n");
 		return rc;
 	}
 
@@ -109,7 +109,7 @@ int cl4WriteOperation (const slapi_operation_parameters *op)
 
 		if (rc != 0)
 		{
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 							"cl4WriteEntry: failed to remove CSN from the pending list\n");
 			rc = CL4_CSNPL_ERROR;
 		}
@@ -127,7 +127,7 @@ int cl4ChangeTargetDN (const CSN *csn, const char *newDN)
 
 	if (csn == NULL || newDN == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "cl4ChangeTargetDN: invalid argument\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cl4ChangeTargetDN: invalid argument\n");
 		return CL4_BAD_DATA;
 	}
 
@@ -135,7 +135,7 @@ int cl4ChangeTargetDN (const CSN *csn, const char *newDN)
 	changeEntryDN = _cl4MakeCSNDN (csn);
 	if (changeEntryDN == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 						"cl4ChangeTargetDN: failed to construct change entry dn\n");
 		return CL4_MEMORY_ERROR;
 	}
@@ -158,7 +158,7 @@ int cl4ChangeTargetDN (const CSN *csn, const char *newDN)
 	if (res != LDAP_SUCCESS) 
 	{
 		char s[CSN_STRSIZE];
-	    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+	    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 	    "cl4ChangeTargetDN: an error occured while modifying change entry with csn %s: %s. "
 	    "Logging of changes is disabled.\n", csn_as_string(csn,PR_FALSE,s), ldap_err2string(res));
 	    /* GGOODREPL g_set_repl_backend( NULL ); */
@@ -191,7 +191,7 @@ void cl4AssignChangeNumbers (time_t when, void *arg)
 			slapi_entry_free (entry);
 			if (rc != CL4_SUCCESS)
 			{
-				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "cl4AssignChangeNumbers: failed to resolve target dn\n");
+				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "cl4AssignChangeNumbers: failed to resolve target dn\n");
 				break;
 			}
 
@@ -213,7 +213,7 @@ void cl4AssignChangeNumbers (time_t when, void *arg)
 
 			if (rc != CL4_SUCCESS)
 			{
-				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 							    "cl4AssignChangeNumbers: failed to update changelog entry\n");
 				break;
 			}
@@ -239,7 +239,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
 	Slapi_Value     *values[3];
 	char s[CSN_STRSIZE];
    
-    slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name,
+    slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
 	    "_cl4WriteEntry: writing change record with csn %s for dn: \"%s\"\n", 
 	    csn_as_string(op->csn,PR_FALSE,s), op->target_address.dn);
 
@@ -247,7 +247,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
 	changeEntryDN = _cl4MakeCSNDN (op->csn);
 	if (changeEntryDN == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 						"_cl4WriteEntry: failed to create entry dn\n");
 		return CL4_MEMORY_ERROR;
 	}
@@ -259,7 +259,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
     e = slapi_entry_alloc();
 	if (e == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 						"_cl4WriteEntry: failed to allocate change entry\n");
 		return CL4_MEMORY_ERROR;
 	}
@@ -343,7 +343,7 @@ static int _cl4WriteOperation (const slapi_operation_parameters *op)
 	if (res != LDAP_SUCCESS) 
 	{
 		char s[CSN_STRSIZE];
-	    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+	    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 			"_cl4WriteEntry: an error occured while adding change entry with csn %s, dn = %s: %s. "
 			"Logging of changes is disabled.\n", csn_as_string(op->csn,PR_FALSE,s), op->target_address.dn, 
 			ldap_err2string(res));
@@ -365,7 +365,7 @@ static void _cl4AssignCSNCallback (const CSN *csn, void *data)
 
 	if (csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4AssignCSNCallback: null csn\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4AssignCSNCallback: null csn\n");
 		return;
 	}
 
@@ -374,7 +374,7 @@ static void _cl4AssignCSNCallback (const CSN *csn, void *data)
 	if (rc == -1)
 	{
 		char s[CSN_STRSIZE];
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 				"_cl4AssignCSNCallback: failed to insert csn %s to the pending list\n",
 				csn_as_string(csn,PR_FALSE,s));
 	}
@@ -386,7 +386,7 @@ static void _cl4AbortCSNCallback (const CSN *csn, void *data)
 
 	if (csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4AbortCSNCallback: null csn\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4AbortCSNCallback: null csn\n");
 		return;
 	}
 
@@ -394,7 +394,7 @@ static void _cl4AbortCSNCallback (const CSN *csn, void *data)
 	if (rc == -1)
 	{
 		char s[CSN_STRSIZE];
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, 
 				"_cl4AbortCSNCallback: failed to remove csn %s from the pending list\n",
 				csn_as_string(csn,PR_FALSE,s));		
 	}
@@ -443,7 +443,7 @@ static int _cl4GetEntry (const CSN *csn, Slapi_Entry **entry)
 
 	if (rc != 0 || ret.err != 0)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4GetEntry: failed to get next changelog entry\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4GetEntry: failed to get next changelog entry\n");
 		return CL4_INTERNAL_ERROR;
 	}
 
@@ -510,14 +510,14 @@ static int _cl4ResolveTargetDN (Slapi_Entry *entry, Slapi_DN **newTargetDN)
 	rc = _cl4GetTargetEntry (targetSDN, uniqueid, &targetEntry);
 	if (rc != CL4_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4ResolveTargetDN: failed to get target entry\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4ResolveTargetDN: failed to get target entry\n");
 		goto done;
 	}
 
 	teDNCSN = entry_get_dncsn(targetEntry);
 	if (teDNCSN == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4ResolveTargetDN: failed to get target entry dn\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4ResolveTargetDN: failed to get target entry dn\n");
 		rc = CL4_BAD_FORMAT;
 		goto done;
 	}
@@ -583,7 +583,7 @@ static int _cl4GetTargetEntry (Slapi_DN *sdn, const char *uniqueid, Slapi_Entry 
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res == LDAP_NO_SUCH_OBJECT)	/* entry not found */
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4GetTargetEntry: entry (%s) not found\n", 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4GetTargetEntry: entry (%s) not found\n", 
 						slapi_sdn_get_ndn(sdn));
 		rc = CL4_NOT_FOUND;
 		goto done;
@@ -591,7 +591,7 @@ static int _cl4GetTargetEntry (Slapi_DN *sdn, const char *uniqueid, Slapi_Entry 
 
 	if (res != LDAP_SUCCESS) 
 	{
-	    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+	    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 	    "_cl4ResolveTargetDN: an error occured while searching for directory entry with uniqueid %s: %s. "
 	    "Logging of changes is disabled.\n", uniqueid, ldap_err2string(res));
 	    /* GGOODREPL g_set_repl_backend( NULL ); */
@@ -602,7 +602,7 @@ static int _cl4GetTargetEntry (Slapi_DN *sdn, const char *uniqueid, Slapi_Entry 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 	if (entries == NULL || entries [0] == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4GetTargetEntry: entry (%s) not found\n", 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4GetTargetEntry: entry (%s) not found\n", 
 						slapi_sdn_get_ndn(sdn));
 		rc = CL4_NOT_FOUND;
 		goto done;	
@@ -655,7 +655,7 @@ static int _cl4FindTargetDN (const CSN *csn, const char *uniqueid,
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res == LDAP_NO_SUCH_OBJECT)	/* entry not found */
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4FindTargetDN: no entries much filter (%s)\n",
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4FindTargetDN: no entries much filter (%s)\n",
 						filter);
 		rc = CL4_NOT_FOUND;
 		goto done;
@@ -663,7 +663,7 @@ static int _cl4FindTargetDN (const CSN *csn, const char *uniqueid,
 
 	if (res != LDAP_SUCCESS) 
 	{
-	    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+	    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 	    "_cl4ResolveTargetDN: an error occured while searching change entries matching filter %s: %s. "
 	    "Logging of changes is disabled.\n", filter, ldap_err2string(res));
 	    /* GGOODREPL g_set_repl_backend( NULL ); */
@@ -674,7 +674,7 @@ static int _cl4FindTargetDN (const CSN *csn, const char *uniqueid,
 	slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 	if (entries == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4FindTargetDN: no entries much filter (%s)\n",
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4FindTargetDN: no entries much filter (%s)\n",
 						filter);
 		rc = CL4_NOT_FOUND;
 		goto done;	
@@ -744,14 +744,14 @@ static int _cl4UpdateEntry (const CSN *csn, const char *changeType,
 
 	if (csn == NULL || changeType == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4UpdateEntry: invalid argument\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4UpdateEntry: invalid argument\n");
 		return CL4_BAD_DATA;
 	}
 
 	dn = _cl4MakeCSNDN (csn);
 	if (dn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "_cl4UpdateEntry: failed to create entry dn\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_cl4UpdateEntry: failed to create entry dn\n");
 		return CL4_MEMORY_ERROR;
 	}
 
@@ -787,7 +787,7 @@ static int _cl4UpdateEntry (const CSN *csn, const char *changeType,
 	if (res != LDAP_SUCCESS) 
 	{
 		char s[CSN_STRSIZE];		
-	    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+	    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 	    "cl4ChangeTargetDN: an error occured while modifying change entry with csn %s: %s. "
 	    "Logging of changes is disabled.\n", csn_as_string(csn,PR_FALSE,s), ldap_err2string(res));
 	    /* GGOODREPL g_set_repl_backend( NULL ); */

@@ -29,22 +29,6 @@
 #include <sys/stat.h>
 
 
-/*** from ldaplog.h ***/
-
-/* edited ldaplog.h for LDAPDebug()*/
-#ifndef _LDAPLOG_H
-#define _LDAPLOG_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _LDAP_H */
-
 #define PRESENCE_PLUGIN_SUBSYSTEM			"presence-plugin"
 #define PRESENCE_PLUGIN_VERSION				0x00050050
 
@@ -230,7 +214,7 @@ int presence_init( Slapi_PBlock *pb )
 	int status = PRESENCE_SUCCESS;
 	char * plugin_identity=NULL;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM,"presence_init - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM,"presence_init - BEGIN\n");
 
 	/**
 	 * Store the plugin identity for later use.
@@ -250,12 +234,12 @@ int presence_init( Slapi_PBlock *pb )
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
              (void *)&pdesc ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
                      "presence_init - Failed to register plugin\n" );
 		status = PRESENCE_FAILURE;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_init -- END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_init -- END\n");
     return status;
 }
 
@@ -270,7 +254,7 @@ int presence_start( Slapi_PBlock *pb )
 {
 	char * plugindn = NULL;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_start - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_start - BEGIN\n");
 
     if(slapi_apib_get_interface(HTTP_v1_0_GUID, &_HttpAPI))
 	{
@@ -288,7 +272,7 @@ int presence_start( Slapi_PBlock *pb )
                                 presence_vattr_compare, 
                                 presence_vattr_types) != 0)
     {
-		slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
 		   "presence_start - Cannot register as service provider\n" );
 		return PRESENCE_FAILURE;
     }
@@ -321,13 +305,13 @@ int presence_start( Slapi_PBlock *pb )
 	 */
 	if (loadPluginConfig() != PRESENCE_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM,
     	   "presence_start - Unable to load plug-in configuration\n" );
 		return PRESENCE_FAILURE;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_start - Ready for service\n");
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_start - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_start - Ready for service\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_start - END\n");
 
 	return PRESENCE_SUCCESS;
 }
@@ -339,11 +323,11 @@ int presence_start( Slapi_PBlock *pb )
 */
 int presence_close( Slapi_PBlock *pb )
 {
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_close\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_close\n");
 
 	deleteMapTables();
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_close\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_close\n");
 
 	return PRESENCE_SUCCESS;
 }
@@ -367,9 +351,9 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 	_Vmap *map = NULL;
 	_ConfigEntry *info = NULL;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_vattr_get \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_vattr_get \n");
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - Type=[%s] \n",type);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - Type=[%s] \n",type);
 
 	if (imIDExists(e, type, &id, &map, &info) != PRESENCE_SUCCESS)
 	{
@@ -381,7 +365,7 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 		status = PRESENCE_FAILURE;		
 		goto cleanup;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - ID=[%s] \n",id);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - ID=[%s] \n",id);
 
 	/**
 	 * Now since we got a valid id we do a quick schema check
@@ -398,8 +382,8 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 
 	status = makeHttpRequest(id, map, info, &returnedBUF, &size);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - size=[%d] \n",size);
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - buffer=[%s]\n",(returnedBUF) ? returnedBUF : "NULL");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - size=[%d] \n",size);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - buffer=[%s]\n",(returnedBUF) ? returnedBUF : "NULL");
 
 
 	if(status == PRESENCE_SUCCESS)
@@ -432,14 +416,14 @@ static int presence_vattr_get(vattr_sp_handle *handle,
 	}
 	
 cleanup:
-slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - Processed ID=[%s] \n",id);
+slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "presence_vattr_get - Processed ID=[%s] \n",id);
 	if (id != NULL ) {
 		slapi_ch_free((void **)&id);
 	}
 	if (returnedBUF != NULL ) {
 		PR_Free(returnedBUF);
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_vattr_get \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_vattr_get \n");
 	return status;
 }
 
@@ -450,8 +434,8 @@ static int presence_vattr_compare(vattr_sp_handle *handle, vattr_context *c, Sla
 	/**
 	 * not yet implemented ???
 	 */
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_vattr_compare - does nothing \n");
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_vattr_compare \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_vattr_compare - does nothing \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_vattr_compare \n");
 
 	return status;
 }
@@ -463,11 +447,11 @@ static int presence_vattr_types(vattr_sp_handle *handle,Slapi_Entry *e,vattr_typ
 	args.entry = e;
 	args.context = type_context;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_vattr_types\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> presence_vattr_types\n");
 	
 	PL_HashTableEnumerateEntries(_IdVattrMapTable, setTypes, &args);	
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_vattr_types\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- presence_vattr_types\n");
 	return status;
 }
 
@@ -479,7 +463,7 @@ static int loadPluginConfig(void)
 	Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> loadPluginConfig\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> loadPluginConfig\n");
 
     search_pb = slapi_pblock_new();
 
@@ -490,7 +474,7 @@ static int loadPluginConfig(void)
 
 	if (status != PRESENCE_SUCCESS)
 	{
-        slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
+        slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"loadPluginConfig - Error getting level1 presence configurations<%s>\n", getPluginDN());
 		status = PRESENCE_FAILURE;
 		goto cleanup;
@@ -499,7 +483,7 @@ static int loadPluginConfig(void)
 	slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
 	if (NULL == entries || entries[0] == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
+		slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"loadPluginConfig - No entries found for <%s>\n", getPluginDN());
 
 		status = PRESENCE_FAILURE;
@@ -522,7 +506,7 @@ static int loadPluginConfig(void)
 										NULL
 										);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> parseConfigEntry \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> parseConfigEntry \n");
 
 	for (i = 0; (entries[i] != NULL); i++)
 	{
@@ -533,9 +517,9 @@ static int loadPluginConfig(void)
 			goto cleanup;
 		}
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- parseConfigEntry \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- parseConfigEntry \n");
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- loadPluginConfig\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- loadPluginConfig\n");
 
 cleanup:
     slapi_free_search_results_internal(search_pb);
@@ -560,7 +544,7 @@ static int parseConfigEntry(Slapi_Entry *e)
 	   */
 		return PRESENCE_FAILURE;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - key [%s] \n",key);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - key [%s] \n",key);
 	/**
 	 * Now create the config entry which will hold all the 
 	 * attributes of a presence vendor
@@ -583,7 +567,7 @@ static int parseConfigEntry(Slapi_Entry *e)
 		toLowerCase(value);
 		PL_HashTableAdd(_IdVattrMapTable, value, map);
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMStatusText [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMStatusText [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_STATUS_GRAPHIC);
 	if (value) {
@@ -595,35 +579,35 @@ static int parseConfigEntry(Slapi_Entry *e)
 		PL_HashTableAdd(_IdVattrMapTable, value, map);
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMStatusGraphic [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMStatusGraphic [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_TEXT);
 	if (value) {
 		entry->textURL = value;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMURLText [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMURLText [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_GRAPHIC);
 	if (value) {
 		entry->graphicURL = value;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMStatusGraphic [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMStatusGraphic [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_ON_VALUE_MAP_TEXT);
 	if (value) {
 		entry->onTextMap = value;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMOnValueMapText [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMOnValueMapText [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_OFF_VALUE_MAP_TEXT);
 	if (value) {
 		entry->offTextMap = value;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMOffValueMapText [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMOffValueMapText [%s] \n",value);
 
 	/**
 	 * Next 3 are binary syntax types so needs special handling
@@ -651,20 +635,20 @@ static int parseConfigEntry(Slapi_Entry *e)
 		entry->requestMethod = value;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMRequestMethod [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMRequestMethod [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_TEXT_RETURN_TYPE);
 	if (value) {
 		entry->textReturnType = value;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMURLTextReturnType [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMURLTextReturnType [%s] \n",value);
 
 	value = slapi_entry_attr_get_charptr(e, NS_IM_URL_GRAPHIC_RETURN_TYPE);
 	if (value) {
 		entry->graphicReturnType = value;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMURLGraphicReturnType [%s] \n",value);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "parseConfigEntry - nsIMURLGraphicReturnType [%s] \n",value);
 
 	/**
 	 * Finally add the entry to the map table
@@ -686,8 +670,8 @@ static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _Co
 	_ConfigEntry *tEntry = NULL;
 	_Vmap *tMap = NULL;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> imIDExists \n",0,0,0);	
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "imIDExists - Type [%s] \n",type,0,0);	
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> imIDExists \n",0,0,0);	
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "imIDExists - Type [%s] \n",type,0,0);	
 
 	/**
 	 * The public function PL_HashTableLookup modifies the 
@@ -703,7 +687,7 @@ static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _Co
 	   * this should not happen but no harm we just return
 	   */
 		status = PRESENCE_FAILURE;
-		slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
+		slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"imIDExists - No hashtable for vattr types\n");
 		goto bail;
 	}
@@ -720,14 +704,14 @@ static int imIDExists(Slapi_Entry *e, char *type, char **value, _Vmap **map, _Co
 		status = PRESENCE_FAILURE;
 		goto bail;
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "-imIDExists - Value [%s] \n",tValue,0,0);	
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "-imIDExists - Value [%s] \n",tValue,0,0);	
 
 	tEntry = PL_HashTableLookupConst(_IdConfigMapTable, tMap->imID);
 	*value	= tValue;
 	*entry	= tEntry;
 	*map	= tMap;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- imIDExists \n");	
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- imIDExists \n");	
 
 bail:
 	return status;
@@ -741,7 +725,7 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	char *urltosend = NULL;
 	int bytesRead;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> makeHttpRequest\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> makeHttpRequest\n");
 
 	if (map->syntax == PRESENCE_STRING) {
 		url = info->textURL;
@@ -754,14 +738,14 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	}
 	urltosend = replaceIdWithValue(url, map->imID, id);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - URL [%s] \n",urltosend);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - URL [%s] \n",urltosend);
 	/**
 	 * make an actual HTTP call now
 	 */
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - RequestMethod [%s] \n", info->requestMethod);
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - Syntax [%d] \n", map->syntax);
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - TextReturnType [%s] \n", info->textReturnType);
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - GraphicReturnType [%s] \n", info->graphicReturnType);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - RequestMethod [%s] \n", info->requestMethod);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - Syntax [%d] \n", map->syntax);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - TextReturnType [%s] \n", info->textReturnType);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "makeHttpRequest - GraphicReturnType [%s] \n", info->graphicReturnType);
 	if (!strcasecmp(info->requestMethod, PRESENCE_REQUEST_METHOD_GET)) {
 		if (map->syntax == PRESENCE_STRING) {
 			if (!strcasecmp(info->textReturnType, PRESENCE_TEXT_RETURN_TYPE)) {
@@ -786,7 +770,7 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	   * properly checked and throw warning/errors in case
 	   * of any invalid entry
 	   */
-		slapi_log_error(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
+		slapi_log_err(SLAPI_LOG_ERR, PRESENCE_PLUGIN_SUBSYSTEM, 
 			"makeHttpRequest - Unknown request type <%s>\n", info->requestMethod);
 		status = PRESENCE_FAILURE;
 		goto bail;
@@ -798,7 +782,7 @@ static int makeHttpRequest(char *id, _Vmap *map, _ConfigEntry *info, char **BUF,
 	}
 
 bail:
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- makeHttpRequest:: <%d>\n",status,0,0);
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- makeHttpRequest:: <%d>\n",status,0,0);
 
 	slapi_ch_free((void**)&urltosend);
 	return status;
@@ -870,7 +854,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 	Slapi_Attr *attr = NULL;
 	const struct berval *tmp = NULL;
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> setIMStatus \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> setIMStatus \n");
 	/**
 	 * we got some data back so lets try to map it to 
 	 * the existing set of on/off data
@@ -913,15 +897,15 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 			bval.bv_val = returnedBUF;
 			value1 = slapi_value_new_berval(&bval);
 
-			slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - returned size  [%d] \n", bval.bv_len);
-			slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - returned value [%s] \n", bval.bv_val);
+			slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - returned size  [%d] \n", bval.bv_len);
+			slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - returned value [%s] \n", bval.bv_val);
 			
 			attr = info->onGraphicMap;
 			if (attr) {
 				slapi_attr_first_value(attr, &value2);
 				tmp = slapi_value_get_berval(value2);
-				slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - Stored size  [%d] \n", tmp->bv_len);
-				slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - Stored value [%s] \n", tmp->bv_val);
+				slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - Stored size  [%d] \n", tmp->bv_len);
+				slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - Stored value [%s] \n", tmp->bv_val);
 				if (!slapi_value_compare(attr, value1, value2)) {
 					value = slapi_value_new_string(PRESENCE_RETURNED_ON_TEXT);
 				}
@@ -954,7 +938,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 		   */
 			value = slapi_value_new_string(PRESENCE_RETURNED_ERROR_TEXT);
 		}
-		slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - value [%s] \n", returnedBUF);
+		slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - value [%s] \n", returnedBUF);
 	} else {
 	  /**
 		* we had send a request for image
@@ -962,7 +946,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 		* return instead of analyzing it
 		*/
 		if (!strcasecmp(info->graphicReturnType, PRESENCE_TEXT_RETURN_TYPE)) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - value [%s] \n", returnedBUF);
+			slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - value [%s] \n", returnedBUF);
 			if (!strcasecmp(info->requestMethod, PRESENCE_REQUEST_METHOD_REDIRECT)) {
 			  /**
 			   * a redirect case in which we should probably have a 
@@ -997,7 +981,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 			   */
 			}
 		} else {
-			slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - value [%s] \n", returnedBUF);
+			slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setIMStatus - value [%s] \n", returnedBUF);
 			bval.bv_len = size;
 			bval.bv_val = returnedBUF;
 			value = slapi_value_new_berval(&bval);
@@ -1018,7 +1002,7 @@ static int setIMStatus(char *id, _Vmap *map, _ConfigEntry *info,
 	if (value && map->syntax == PRESENCE_STRING) {
 		slapi_value_free(&value);
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- setIMStatus \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- setIMStatus \n");
 	
 	return status;
 }
@@ -1037,7 +1021,7 @@ static int setTypes(PLHashEntry *he, PRIntn i, void *arg)
 	_Vmap *map  = (_Vmap *)he->value;
 	char *id = map->imID;
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> setTypes \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "--> setTypes \n");
 
 	status = slapi_vattr_values_get_sp(NULL, args->entry, id, &results, &type_name_disposition, &actual_type_name, 0, &free_flags);
 	if(status == PRESENCE_SUCCESS)
@@ -1052,9 +1036,9 @@ static int setTypes(PLHashEntry *he, PRIntn i, void *arg)
 
 		slapi_vattr_values_free(&results, &actual_type_name, free_flags);
 
-		slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setTypes - ID [%s] Type[%s]\n", actual_type_name,type);
+		slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "setTypes - ID [%s] Type[%s]\n", actual_type_name,type);
 	}
-	slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- setTypes \n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "<-- setTypes \n");
 
 	return HT_ENUMERATE_NEXT;
 }
@@ -1066,20 +1050,20 @@ logGraphicAttributeValue( Slapi_Attr *attr, const char *attrname )
 	Slapi_Value			*val = NULL;
 	const struct berval	*v = NULL;
 
-	if ( LDAPDebugLevelIsSet( LDAP_DEBUG_PLUGIN )) {
+	if ( loglevel_is_set( LDAP_DEBUG_PLUGIN )) {
 		slapi_attr_first_value(attr, &val);
 		v = slapi_value_get_berval(val);
 		if (v) {
 			char	*ldifvalue;
 
-			slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "logGraphicAttributeValue - %s size [%d] \n",
+			slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "logGraphicAttributeValue - %s size [%d] \n",
 					attrname,v->bv_len);
 
 			ldifvalue = ldif_type_and_value_with_options(
 					(char *)attrname,	/* XXX: had to cast away const */
 					v->bv_val, v->bv_len, 0 );
 			if ( NULL != ldifvalue ) {
-				slapi_log_error(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "logGraphicAttributeValue - %s value [\n%s]\n",
+				slapi_log_err(SLAPI_LOG_PLUGIN, PRESENCE_PLUGIN_SUBSYSTEM, "logGraphicAttributeValue - %s value [\n%s]\n",
 						attrname,ldifvalue);
 				slapi_ch_free_string( &ldifvalue );
 			}

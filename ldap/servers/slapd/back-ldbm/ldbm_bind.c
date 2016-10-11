@@ -48,7 +48,7 @@ ldbm_back_bind( Slapi_PBlock *pb )
 	if (inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
-		LDAPDebug1Arg(LDAP_DEBUG_ERR,
+		slapi_log_err(SLAPI_LOG_ERR,
 		              "ldbm_back_bind - instance %s does not exist.\n",
 		              inst->inst_name);
 		return( SLAPI_BIND_FAIL );

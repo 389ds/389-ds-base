@@ -114,7 +114,7 @@ do_modify( Slapi_PBlock *pb )
 	int		pw_change = 0; 	/* 0 = no password change */
 	int		err;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_modify\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_modify", "=>\n");
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
 	ber = operation->o_ber;
@@ -145,8 +145,8 @@ do_modify( Slapi_PBlock *pb )
 		int rc = 0;
     	if ( ber_scanf( ber, "{a", &rawdn ) == LBER_ERROR )
     	{
-    		LDAPDebug(LDAP_DEBUG_ERR,
-    		    "do_modify - ber_scanf failed (op=Modify; params=DN)\n", 0, 0, 0 );
+    		slapi_log_err(SLAPI_LOG_ERR, "do_modify",
+    			"ber_scanf failed (op=Modify; params=DN)\n");
 			op_shared_log_error_access (pb, "MOD", "???", "decoding error");
     		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL );
     		slapi_ch_free_string(&rawdn);
@@ -167,7 +167,7 @@ do_modify( Slapi_PBlock *pb )
 		}
 	}
 
-	LDAPDebug(LDAP_DEBUG_ARGS, "do_modify: dn (%s)\n", rawdn, 0, 0 );
+	slapi_log_err(SLAPI_LOG_ARGS, "do_modify", "dn (%s)\n", rawdn);
 
 	/* 
 	 * If nsslapd-minssf-exclude-rootdse is on, the minssf check has been
@@ -285,7 +285,8 @@ do_modify( Slapi_PBlock *pb )
 		   int connid, opid;
 		   slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
 		   slapi_pblock_get(pb, SLAPI_OPERATION_ID, &opid);
-		   LDAPDebug(LDAP_DEBUG_ERR,"do_modify - Rejecting replicated password policy operation(conn=%d op=%d) for "
+		   slapi_log_err(SLAPI_LOG_ERR,"do_modify",
+		           "Rejecting replicated password policy operation(conn=%d op=%d) for "
 				   "entry %s.  To allow these changes to be accepted, set passwordIsGlobalPolicy to 'on' in "
 				   "cn=config.\n", connid, opid, rawdn);
 		}
@@ -358,12 +359,12 @@ do_modify( Slapi_PBlock *pb )
 	}
 
 #ifdef LDAP_DEBUG
-	LDAPDebug(LDAP_DEBUG_ARGS, "modifications:\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_ARGS, "do_modify", "modifications:\n");
 	for (mod = slapi_mods_get_first_mod(&smods); mod != NULL; 
 		 mod = slapi_mods_get_next_mod(&smods))
 	{
-		LDAPDebug(LDAP_DEBUG_ARGS, "\t%s: %s\n",
-		mod_op_image( mod->mod_op ), mod->mod_type, 0 );
+		slapi_log_err(SLAPI_LOG_ARGS, "do_modify", "\t%s: %s\n",
+		mod_op_image( mod->mod_op ), mod->mod_type);
 	}
 #endif
 	
@@ -467,7 +468,7 @@ slapi_modify_internal_set_pb (Slapi_PBlock *pb, const char *dn,
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || dn == NULL || mods == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "slapi_modify_internal_set_pb",
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_modify_internal_set_pb",
 			"NULL parameter\n");
 		return;
 	}
@@ -496,7 +497,7 @@ slapi_modify_internal_set_pb_ext(Slapi_PBlock *pb, const Slapi_DN *sdn,
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || sdn == NULL || mods == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "slapi_modify_internal_set_pb_ext",
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_modify_internal_set_pb_ext",
 			"NULL parameter\n");
 		return;
 	}

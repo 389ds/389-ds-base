@@ -60,7 +60,7 @@ defbackend_init( void )
     char		*errmsg;
     Slapi_PBlock	pb;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "defbackend_init\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "defbackend_init", "<==\n");
 
     /*
      * create a new backend
@@ -119,8 +119,7 @@ defbackend_init( void )
 
 cleanup_and_return:
     if ( rc != 0 ) {
-	LDAPDebug(LDAP_DEBUG_ERR, "defbackend_init - Failed (%s)\n",
-		errmsg, 0, 0 );
+	slapi_log_err(SLAPI_LOG_ERR, "defbackend_init", "Failed (%s)\n", errmsg);
 	exit( 1 );
     }
 }
@@ -144,7 +143,7 @@ defbackend_get_backend( void )
 static int
 defbackend_default( Slapi_PBlock *pb )
 {
-    LDAPDebug(LDAP_DEBUG_TRACE, "defbackend_default\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "defbackend_default", "<==\n");
 
     send_nobackend_ldap_result( pb );
 
@@ -155,7 +154,7 @@ defbackend_default( Slapi_PBlock *pb )
 static int
 defbackend_noop( Slapi_PBlock *pb )
 {
-    LDAPDebug(LDAP_DEBUG_TRACE, "defbackend_noop\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "defbackend_noop", "<==\n");
 
     return( DEFBACKEND_OP_HANDLED );
 }
@@ -164,7 +163,7 @@ defbackend_noop( Slapi_PBlock *pb )
 static int
 defbackend_abandon( Slapi_PBlock *pb )
 {
-    LDAPDebug(LDAP_DEBUG_TRACE, "defbackend_abandon\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "defbackend_abandon", "<==\n");
 
     /* nothing to do */
     return( DEFBACKEND_OP_HANDLED );
@@ -223,7 +222,7 @@ defbackend_bind( Slapi_PBlock *pb )
     ber_tag_t		method;
     struct berval	*cred;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "defbackend_bind\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "defbackend_bind", "<==\n");
 
     /*
      * Accept simple binds that do not contain passwords (but do not
@@ -277,7 +276,7 @@ defbackend_bind( Slapi_PBlock *pb )
 static int
 defbackend_next_search_entry( Slapi_PBlock *pb )
 {
-    LDAPDebug(LDAP_DEBUG_TRACE, "defbackend_next_search_entry\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "defbackend_next_search_entry", "<==\n");
 
     return( 0 );	/* no entries and no error */
 }

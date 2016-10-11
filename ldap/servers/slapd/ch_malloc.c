@@ -71,7 +71,7 @@ create_counters(void)
 }
 
 /* called when we have just detected an out of memory condition, before
- * we make any other library calls.  Note that LDAPDebug() calls malloc,
+ * we make any other library calls.  Note that slapi_log_err() calls malloc,
  * indirectly.  By making 64KB free, we should be able to have a few
  * mallocs' succeed before we shut down.
  */
@@ -94,11 +94,11 @@ void oom_occurred(void)
 static void
 log_negative_alloc_msg( const char *op, const char *units, unsigned long size )
 {
-    slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-        "cannot %s %lu %s;\n"
-        "trying to allocate 0 or a negative number of %s is not portable and\n"
-        "gives different results on different platforms.\n",
-        op, size, units, units );
+	slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+		"cannot %s %lu %s;\n"
+		"trying to allocate 0 or a negative number of %s is not portable and\n"
+		"gives different results on different platforms.\n",
+		op, size, units, units );
 }
 
 #if !defined(MEMPOOL_EXPERIMENTAL)
@@ -107,27 +107,27 @@ slapi_ch_malloc(
     unsigned long   size
 )
 {
-    char    *newmem;
+	char	*newmem;
 
-    if (size <= 0) {
-        log_negative_alloc_msg( "malloc", "bytes", size );
-        return 0;
-    }
+	if (size <= 0) {
+		log_negative_alloc_msg( "malloc", "bytes", size );
+		return 0;
+	}
 
-    if ( (newmem = (char *) malloc( size )) == NULL ) {
-        int oserr = errno;
+	if ( (newmem = (char *) malloc( size )) == NULL ) {
+		int	oserr = errno;
 
-        oom_occurred();
-        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-            "malloc of %lu bytes failed; OS error %d (%s)%s\n",
-            size, oserr, slapd_system_strerror( oserr ), oom_advice );
-        exit( 1 );
-    }
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
-    }
+	  	oom_occurred();
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+		    "malloc of %lu bytes failed; OS error %d (%s)%s\n",
+			size, oserr, slapd_system_strerror( oserr ), oom_advice );
+		exit( 1 );
+	}
+	if(!counters_created)
+	{
+		create_counters();
+		counters_created= 1;
+	}
     PR_INCREMENT_COUNTER(slapi_ch_counter_malloc);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
@@ -173,31 +173,31 @@ slapi_ch_realloc(
     unsigned long   size
 )
 {
-    char    *newmem;
+	char	*newmem;
 
-    if ( block == NULL ) {
-        return( slapi_ch_malloc( size ) );
-    }
+	if ( block == NULL ) {
+		return( slapi_ch_malloc( size ) );
+	}
 
-    if (size <= 0) {
-        log_negative_alloc_msg( "realloc", "bytes", size );
-        return block;
-    }
+	if (size <= 0) {
+		log_negative_alloc_msg( "realloc", "bytes", size );
+		return block;
+	}
 
-    if ( (newmem = (char *) realloc( block, size )) == NULL ) {
-        int oserr = errno;
+	if ( (newmem = (char *) realloc( block, size )) == NULL ) {
+		int	oserr = errno;
 
-        oom_occurred();
-        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-            "realloc of %lu bytes failed; OS error %d (%s)%s\n",
-            size, oserr, slapd_system_strerror( oserr ), oom_advice );
-        exit( 1 );
-    }
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
-    }
+	  	oom_occurred();
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+		    "realloc of %lu bytes failed; OS error %d (%s)%s\n",
+			size, oserr, slapd_system_strerror( oserr ), oom_advice );
+		exit( 1 );
+	}
+	if(!counters_created)
+	{
+		create_counters();
+		counters_created= 1;
+	}
     PR_INCREMENT_COUNTER(slapi_ch_counter_realloc);
 
     return( newmem );
@@ -209,32 +209,32 @@ slapi_ch_calloc(
     unsigned long   size
 )
 {
-    char    *newmem;
+	char	*newmem;
 
-    if (size <= 0) {
-        log_negative_alloc_msg( "calloc", "bytes", size );
-        return 0;
-    }
+	if (size <= 0) {
+		log_negative_alloc_msg( "calloc", "bytes", size );
+		return 0;
+	}
 
-    if (nelem <= 0) {
-        log_negative_alloc_msg( "calloc", "elements", nelem );
-        return 0;
-    }
+	if (nelem <= 0) {
+		log_negative_alloc_msg( "calloc", "elements", nelem );
+		return 0;
+	}
 
-    if ( (newmem = (char *) calloc( nelem, size )) == NULL ) {
-        int oserr = errno;
+	if ( (newmem = (char *) calloc( nelem, size )) == NULL ) {
+		int	oserr = errno;
 
-        oom_occurred();
-        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-            "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
-            nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
-        exit( 1 );
-    }
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
-    }
+	  	oom_occurred();
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+		    "calloc of %lu elems of %lu bytes failed; OS error %d (%s)%s\n",
+			nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
+		exit( 1 );
+	}
+	if(!counters_created)
+	{
+		create_counters();
+		counters_created= 1;
+	}
     PR_INCREMENT_COUNTER(slapi_ch_counter_calloc);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
@@ -254,17 +254,11 @@ slapi_ch_strdup ( const char* s1)
     if (newmem == NULL) {
         int oserr = errno;
         oom_occurred();
-
-        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-            "strdup of %lu characters failed; OS error %d (%s)%s\n",
-            (unsigned long)strlen(s1), oserr, slapd_system_strerror( oserr ),
-            oom_advice );
-        exit (1);
-    }
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+		    "strdup of %lu characters failed; OS error %d (%s)%s\n",
+			(unsigned long)strlen(s1), oserr, slapd_system_strerror( oserr ),
+			oom_advice );
+		exit (1);
     }
     PR_INCREMENT_COUNTER(slapi_ch_counter_strdup);
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
@@ -279,14 +273,14 @@ slapi_ch_bvdup (const struct berval* v)
 {
     struct berval* newberval = ber_bvdup ((struct berval *)v);
     if (newberval == NULL) {
-        int oserr = errno;
+		int	oserr = errno;
 
-        oom_occurred();
-        slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
-            "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
-            (unsigned long)v->bv_len, oserr, slapd_system_strerror( oserr ),
-            oom_advice );
-        exit( 1 );
+	  	oom_occurred();
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+		    "ber_bvdup of %lu bytes failed; OS error %d (%s)%s\n",
+			(unsigned long)v->bv_len, oserr, slapd_system_strerror( oserr ),
+			oom_advice );
+		exit( 1 );
     }
     return newberval;
 }

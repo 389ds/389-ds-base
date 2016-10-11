@@ -340,8 +340,8 @@ substr_dn_normalize_orig( char *dn, char *end )
 			} else if ( *s == '"' ) {
 				state = B4SEPARATOR;
 				if (!value) {
-					LDAPDebug(LDAP_DEBUG_ERR,
-						"substr_dn_normalize_orig - missing value\n", 0, 0, 0 );
+					slapi_log_err(SLAPI_LOG_ERR,
+						"substr_dn_normalize_orig", "Missing value\n" );
 					break;
 				}
 				if ( value_separator == dn /* 2 or more separators */
@@ -390,8 +390,8 @@ substr_dn_normalize_orig( char *dn, char *end )
 			}
 			break;
 		default:
-			LDAPDebug(LDAP_DEBUG_ERR,
-				"substr_dn_normalize_orig - unknown state %d\n", state, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR,
+				"substr_dn_normalize_orig", "Unknown state %d\n", state);
 			break;
 		}
 		if ( *s == '\\' ) {
@@ -1073,8 +1073,8 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
             }
             break;
         default:
-            LDAPDebug(LDAP_DEBUG_ERR,
-                "slapi_dn_normalize_ext - unknown state %d\n", state, 0, 0 );
+            slapi_log_err(SLAPI_LOG_ERR,
+                "slapi_dn_normalize_ext", "Unknown state %d\n", state);
             break;
         }
     }
@@ -1365,9 +1365,9 @@ rdn_av_swap( struct berval *av1, struct berval *av2, int escape )
 char *
 slapi_dn_normalize_original( char *dn )
 {
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 	*(substr_dn_normalize_orig( dn, dn + strlen( dn ))) = '\0';
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 
 	return( dn );
 }
@@ -1376,9 +1376,9 @@ slapi_dn_normalize_original( char *dn )
 char *
 slapi_dn_normalize_case_original( char *dn )
 {
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 	*(substr_dn_normalize_orig( dn, dn + strlen( dn ))) = '\0';
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
 
 	/* normalize case */
 	return( slapi_dn_ignore_case( dn ));
@@ -1392,9 +1392,9 @@ slapi_dn_normalize_case_original( char *dn )
 char *
 slapi_dn_normalize( char *dn )
 {
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "=> slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
     *(substr_dn_normalize( dn, dn + strlen( dn ))) = '\0';
-	/* LDAPDebug(LDAP_DEBUG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_TRACE, "<= slapi_dn_normalize \"%s\"\n", dn, 0, 0 ); */
     return dn;
 }
 
@@ -2730,7 +2730,8 @@ slapi_moddn_get_newdn(Slapi_DN *dn_olddn, const char *newrdn, const char *newsup
 static void
 sdn_dump( const Slapi_DN *sdn, const char *text)
 {
-    LDAPDebug(LDAP_DEBUG_DEBUG, "SDN %s ptr=%lx dn=%s\n", text, sdn, (sdn->dn==NULL?"NULL":sdn->dn));
+    slapi_log_err(SLAPI_LOG_DEBUG, "sdn_dump", "SDN %s ptr=%lx dn=%s\n",
+            text, sdn, (sdn->dn==NULL?"NULL":sdn->dn));
 }
 #endif
 
@@ -2797,7 +2798,7 @@ ndn_cache_init()
     ndn_started = 1;
     if ( NULL == ( lru_lock = PR_NewLock()) ||  NULL == ( ndn_cache_lock = slapi_new_rwlock())) {
         ndn_cache_destroy();
-        slapi_log_error(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n" );
+        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create locks.  Disabling cache.\n" );
     }
 }
 
@@ -2951,7 +2952,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
      */
     new_node = (struct ndn_cache_lru *)slapi_ch_malloc(sizeof(struct ndn_cache_lru));
     if(new_node == NULL){
-        slapi_log_error(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to allocate new lru node.\n");
+        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to allocate new lru node.\n");
         return;
     }
     new_node->prev = NULL;
@@ -2974,7 +2975,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
     ht_entry = (struct ndn_hash_val *)slapi_ch_malloc(sizeof(struct ndn_hash_val));
     if(ht_entry == NULL){
         slapi_rwlock_unlock(ndn_cache_lock);
-        slapi_log_error(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to allocate new hash entry.\n");
+        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to allocate new hash entry.\n");
         slapi_ch_free_string(&new_node->key);
         slapi_ch_free((void **)&new_node);
         return;
@@ -3012,7 +3013,7 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
      */
     he = PL_HashTableAdd(ndn_cache_hashtable, new_node->key, (void *)ht_entry);
     if(he == NULL){
-        slapi_log_error(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to add new entry to hash(%s)\n",dn);
+        slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_add", "Failed to add new entry to hash(%s)\n",dn);
     } else {
         ndn_cache->cache_count++;
         ndn_cache->cache_size += size;
@@ -3044,7 +3045,7 @@ ndn_cache_flush(void)
         slapi_ch_free((void **)&flush_node);
     }
 
-    slapi_log_error(SLAPI_LOG_CACHE, "ndn_cache_flush","Flushed cache.\n");
+    slapi_log_err(SLAPI_LOG_CACHE, "ndn_cache_flush","Flushed cache.\n");
 }
 
 static void

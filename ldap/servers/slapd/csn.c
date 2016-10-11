@@ -356,7 +356,7 @@ int csn_increment_subsequence (CSN *csn)
 	}
 	else if (csn->subseqnum == maxsubseq)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "csn_increment_subsequence",
+		slapi_log_err(SLAPI_LOG_ERR, "csn_increment_subsequence",
 			"subsequence overflow\n");
 		return -1;
 	}

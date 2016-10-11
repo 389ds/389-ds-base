@@ -46,9 +46,8 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
 
 	url=(struct berval **) slapi_ch_malloc((numValues + 1) * sizeof(struct berval*));
 	if (!url) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"check_entry_for_referral - Out of memory\n",
-			0, 0, 0);
+		slapi_log_err(SLAPI_LOG_ERR,
+			"check_entry_for_referral", "Out of memory\n");
 		goto out;
 	}
 
@@ -62,7 +61,7 @@ check_entry_for_referral(Slapi_PBlock *pb, Slapi_Entry *entry, char *matched, co
 	slapi_send_ldap_result( pb, LDAP_REFERRAL, matched, NULL, 0, refscopy );
 	rc= 1;
 
-	LDAPDebug(LDAP_DEBUG_TRACE,
+	slapi_log_err(SLAPI_LOG_TRACE, "check_entry_for_referral", 
 		"<= %s sent referral to (%s) for (%s)\n",
 		callingfn,
 		refscopy ? refscopy[0]->bv_val : "",
@@ -133,21 +132,21 @@ find_entry_internal_dn(
 
 		/* wait for entry modify lock */
 		if ( !lock || cache_lock_entry( &inst->inst_cache, e ) == 0 ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,
-			    "<= find_entry_internal_dn - found (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
+			slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal_dn",
+			    "<= found (%s)\n", slapi_sdn_get_dn(sdn));
 			return( e );
 		}
 		/*
 		 * this entry has been deleted - see if it was actually
 		 * replaced with a new copy, and try the whole thing again.
 		 */
-		LDAPDebug(LDAP_DEBUG_ARGS,
-		    "   find_entry_internal_dn - Retrying (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
+		slapi_log_err(SLAPI_LOG_ARGS, "find_entry_internal_dn",
+		    "   Retrying (%s)\n", slapi_sdn_get_dn(sdn));
 		CACHE_RETURN( &inst->inst_cache, &e );
 		tries++;
 	}
 	if (tries >= LDBM_CACHE_RETRY_COUNT) {
-		LDAPDebug(LDAP_DEBUG_ERR, "find_entry_internal_dn - Retry count exceeded (%s)\n", slapi_sdn_get_dn(sdn), 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "find_entry_internal_dn", "Retry count exceeded (%s)\n", slapi_sdn_get_dn(sdn));
 	}
 	/*
 	 * there is no such entry in this server. see how far we
@@ -243,8 +242,8 @@ find_entry_internal_dn(
 	}
 
 	slapi_ch_free_string(&errbuf);
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= find_entry_internal_dn - Not found (%s)\n",
-	    slapi_sdn_get_dn(sdn), 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal_dn", "<= Not found (%s)\n",
+	    slapi_sdn_get_dn(sdn));
 	return( NULL );
 }
 
@@ -277,34 +276,32 @@ find_entry_internal_uniqueid(
 
 		/* wait for entry modify lock */
 		if ( !lock || cache_lock_entry( &inst->inst_cache, e ) == 0 ) {
-			LDAPDebug(LDAP_DEBUG_TRACE,
-			    "<= find_entry_internal_uniqueid found; uniqueid = (%s)\n", 
-			uniqueid, 0, 0 );
+			slapi_log_err(SLAPI_LOG_TRACE,
+			    "find_entry_internal_uniqueid", "<= Found uniqueid = (%s)\n", uniqueid);
 			return( e );
 		}
 		/*
 		 * this entry has been deleted - see if it was actually
 		 * replaced with a new copy, and try the whole thing again.
 		 */
-		LDAPDebug(LDAP_DEBUG_ARGS,
-			"   find_entry_internal_uniqueid retrying; uniqueid = (%s)\n", 
-			uniqueid, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ARGS,
+			"   find_entry_internal_uniqueid", "Retrying; uniqueid = (%s)\n", uniqueid);
 		CACHE_RETURN( &inst->inst_cache, &e );
 		tries++;
 	}
 	if (tries >= LDBM_CACHE_RETRY_COUNT) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"find_entry_internal_uniqueid  - Retry count exceeded; uniqueid = (%s)\n", 
-			uniqueid , 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+			"find_entry_internal_uniqueid", "Retry count exceeded; uniqueid = (%s)\n", 
+			uniqueid);
 	}
 
 	/* entry not found */
 	slapi_send_ldap_result( pb, ( 0 == err || DB_NOTFOUND == err ) ?
 		LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
 		0, NULL );
-	LDAPDebug(LDAP_DEBUG_TRACE, 
-		"<= find_entry_internal_uniqueid not found; uniqueid = (%s)\n",
-	    uniqueid, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, 
+		"find_entry_internal_uniqueid", "<= not found; uniqueid = (%s)\n",
+	    uniqueid);
 	return( NULL );
 }
 
@@ -322,23 +319,23 @@ find_entry_internal(
 	/* check if we should search based on uniqueid or dn */
 	if (addr->uniqueid!=NULL)
 	{
-		LDAPDebug(LDAP_DEBUG_TRACE, "=> find_entry_internal (uniqueid=%s) lock %d\n",
-		    addr->uniqueid, lock, 0 );
+		slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal", "=> (uniqueid=%s) lock %d\n",
+		    addr->uniqueid, lock);
 		return (find_entry_internal_uniqueid (pb, be, addr->uniqueid, lock, txn));
 	}
 	else
 	{
 		struct backentry *entry = NULL;
 
-		LDAPDebug(LDAP_DEBUG_TRACE, "=> find_entry_internal - (dn=%s) lock %d\n",
-		           slapi_sdn_get_dn(addr->sdn), lock, 0 );
+		slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal", "(dn=%s) lock %d\n",
+		           slapi_sdn_get_dn(addr->sdn), lock);
 		if (addr->sdn) {
 			entry = find_entry_internal_dn (pb, be, addr->sdn, lock, txn, flags, rc);
 		} else {
-			LDAPDebug0Args(LDAP_DEBUG_ANY, "find_entry_internal: Null target dn\n" );
+			slapi_log_err(SLAPI_LOG_ERR, "find_entry_internal", "NULL target dn\n" );
 		}
 
-		LDAPDebug0Args(LDAP_DEBUG_TRACE, "<= find_entry_internal\n" );
+		slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal", "<=\n" );
 		return entry;
 	}
 }

@@ -26,28 +26,6 @@
 #include "http_impl.h"
 #include <sys/stat.h>
 
-
-/*** from proto-slap.h ***/
-
-int slapd_log_error_proc( char *subsystem, int sev_level, char *fmt, ... );
-
-/*** from ldaplog.h ***/
-
-/* edited ldaplog.h for LDAPDebug()*/
-#ifndef _LDAPLOG_H
-#define _LDAPLOG_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _LDAP_H */
-
 #define HTTP_PLUGIN_SUBSYSTEM   "http-client-plugin"   /* used for logging */
 #define HTTP_PLUGIN_VERSION		0x00050050
 
@@ -101,7 +79,7 @@ int http_client_version(void)
 int http_client_init(Slapi_PBlock *pb)
 {
 	int status = HTTP_SUCCESS;
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,"http_client_init - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,"http_client_init - BEGIN\n");
 
 	if ( slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    	SLAPI_PLUGIN_VERSION_01 ) != 0 ||
@@ -112,7 +90,7 @@ int http_client_init(Slapi_PBlock *pb)
 		slapi_pblock_set( pb, SLAPI_PLUGIN_DESCRIPTION,
              (void *)&pdesc ) != 0 )
 	{
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "http_client_init - Failed to register plugin\n" );
 		status = HTTP_FAILURE;
 	}
@@ -120,12 +98,12 @@ int http_client_init(Slapi_PBlock *pb)
         /* Retrieve and save the plugin identity to later pass to
         internal operations */
         if (slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &plugin_id) != 0) {
-         slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+         slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                         "http_client_init - Failed to retrieve SLAPI_PLUGIN_IDENTITY\n");
          return HTTP_FAILURE;
         }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_init - END\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_init - END\n");
     return status;
 }
 
@@ -135,7 +113,7 @@ static int http_client_start(Slapi_PBlock *pb)
 	/**
 	 * do some init work here
 	 */
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,"http_client_start - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM,"http_client_start - BEGIN\n");
 
 	api[0] = 0; /* reserved for api broker use, must be zero */
 	api[1] = (void *)_http_init;
@@ -146,14 +124,14 @@ static int http_client_start(Slapi_PBlock *pb)
 	api[6] = (void *)_http_post;
 
 	if( slapi_apib_register(HTTP_v1_0_GUID, api) ) {
-		slapi_log_error(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, HTTP_PLUGIN_SUBSYSTEM,
                      "http_client_start: failed to register functions\n" );
 		status = HTTP_FAILURE;
 	}
 	
 	_http_init(plugin_id);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_start - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_start - END\n");
 	return status;
 }
 
@@ -163,11 +141,11 @@ static int http_client_close(Slapi_PBlock *pb)
 	/**
 	 * do cleanup 
 	 */
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_close - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_close - BEGIN\n");
 
 	slapi_apib_unregister(HTTP_v1_0_GUID);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_close - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "http_client_close - END\n");
 
 	return status;
 }
@@ -177,11 +155,11 @@ static int http_client_close(Slapi_PBlock *pb)
  */
 static void _http_init(Slapi_ComponentId *plugin_id)
 {
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_init - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_init - BEGIN\n");
 	
 	http_impl_init(plugin_id);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_init - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_init - END\n");
 }
 
 /**
@@ -191,11 +169,11 @@ static void _http_init(Slapi_ComponentId *plugin_id)
 static int _http_get_text(char *url, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_text - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_text - BEGIN\n");
 
 	status = http_impl_get_text(url, data, bytesRead);
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_text - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_text - END\n");
 	return status;
 }
 
@@ -206,11 +184,11 @@ static int _http_get_text(char *url, char **data, int *bytesRead)
 static int _http_get_binary(char *url, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_binary - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_binary - BEGIN\n");
 
 	status = http_impl_get_binary(url, data, bytesRead);
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_binary - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_binary - END\n");
 	return status;
 }
 
@@ -221,11 +199,11 @@ static int _http_get_binary(char *url, char **data, int *bytesRead)
 static int _http_get_redirected_uri(char *url, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_redirected_uri -- BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_redirected_uri -- BEGIN\n");
 
 	status = http_impl_get_redirected_uri(url, data, bytesRead);
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_redirected_uri -- END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_get_redirected_uri -- END\n");
 	return status;
 }
 
@@ -235,11 +213,11 @@ static int _http_get_redirected_uri(char *url, char **data, int *bytesRead)
 static int _http_post(char *url, httpheader ** httpheaderArray, char *body, char **data, int *bytesRead)
 {
 	int status = HTTP_SUCCESS;
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_post - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_post - BEGIN\n");
 
 	status = http_impl_post(url, httpheaderArray, body, data, bytesRead);
 	
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_post - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_post - END\n");
 	return status;
 }
 
@@ -248,10 +226,10 @@ static int _http_post(char *url, httpheader ** httpheaderArray, char *body, char
  */
 static void _http_shutdown( void )
 {
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_shutdown - BEGIN\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_shutdown - BEGIN\n");
 	
 	http_impl_shutdown();
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_shutdown - END\n");
+	slapi_log_err(SLAPI_LOG_PLUGIN, HTTP_PLUGIN_SUBSYSTEM, "_http_shutdown - END\n");
 }
 

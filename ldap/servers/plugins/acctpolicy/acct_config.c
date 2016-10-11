@@ -48,7 +48,7 @@ acct_policy_load_config_startup( Slapi_PBlock* pb, void* plugin_id ) {
 	slapi_sdn_free( &config_sdn );
 
 	if( rc != LDAP_SUCCESS || config_entry == NULL ) {
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME,
 			"acct_policy_load_config_startup - Failed to retrieve configuration entry %s: %d\n",
 			PLUGIN_CONFIG_DN, rc );
 		return( -1 );
@@ -74,7 +74,7 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
 	int rc = 0;
 
 	if( newcfg == NULL ) {
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME,
 			"acct_policy_entry2config - Failed to allocate configuration structure\n" );
 		return( -1 );
 	}
@@ -86,7 +86,7 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
 		newcfg->state_attr_name = slapi_ch_strdup( DEFAULT_LASTLOGIN_STATE_ATTR );
 	} else if (!update_is_allowed_attr(newcfg->state_attr_name)) {
 		/* log a warning that this attribute cannot be updated */
-		slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+		slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME,
 			"acct_policy_entry2config - The configured state attribute [%s] cannot be updated, accounts will always become inactive.\n",
 			newcfg->state_attr_name );
 	}
@@ -139,7 +139,7 @@ acct_policy_entry2config( Slapi_Entry *e, acctPluginCfg *newcfg ) {
 		char *endptr = NULL;
 		newcfg->inactivitylimit = strtoul(config_val, &endptr, 10);
 		if (endptr && (*endptr != '\0')) {
-			slapi_log_error(SLAPI_LOG_ERR, PLUGIN_NAME,
+			slapi_log_err(SLAPI_LOG_ERR, PLUGIN_NAME,
 							 "acct_policy_entry2config - Failed to parse [%s] from the config entry: [%s] is not a valid unsigned long value\n",
 							 newcfg->limit_attr_name, config_val );
 

@@ -43,7 +43,7 @@ do_compare( Slapi_PBlock *pb )
 	Slapi_Entry *referral = NULL;
 	char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_compare\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_compare", "=>\n");
 
 	/* count the compare request */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsCompareOps);
@@ -65,9 +65,8 @@ do_compare( Slapi_PBlock *pb )
 
 	if ( ber_scanf( ber, "{a{ao}}", &rawdn, &ava.ava_type,
 	    &ava.ava_value ) == LBER_ERROR ) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "do_compare - ber_scanf failed (op=Compare; params=DN,Type,Value)\n",
-		    0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+		    "do_compare", "ber_scanf failed (op=Compare; params=DN,Type,Value)\n");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0,
 			NULL );
 		goto free_and_return;
@@ -108,7 +107,7 @@ do_compare( Slapi_PBlock *pb )
 	/* target spec is used to decide which plugins are applicable for the operation */
 	operation_set_target_spec (pb->pb_op, &sdn);
 
-	LDAPDebug(LDAP_DEBUG_ARGS, "do_compare: dn (%s) attr (%s)\n",
+	slapi_log_err(SLAPI_LOG_ARGS, "do_compare: dn (%s) attr (%s)\n",
 	    rawdn, ava.ava_type, 0 );
 
 	slapi_log_access( LDAP_DEBUG_STATS,

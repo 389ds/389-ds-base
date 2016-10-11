@@ -114,7 +114,7 @@ csngen_new (ReplicaId rid, Slapi_Attr *state)
 	gen = (CSNGen*)slapi_ch_calloc (1, sizeof (CSNGen));
 	if (gen == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "csngen_new", "Memory allocation failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "csngen_new", "Memory allocation failed\n");
 		return NULL;
 	}
 
@@ -122,7 +122,7 @@ csngen_new (ReplicaId rid, Slapi_Attr *state)
 	gen->lock = slapi_new_rwlock();	
 	if (gen->lock == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "csngen_new", "Failed to create lock\n");
+		slapi_log_err(SLAPI_LOG_ERR, "csngen_new", "Failed to create lock\n");
 		rc = CSN_NSPR_ERROR;
 		goto done;
 	}
@@ -186,14 +186,14 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
 
 	if (gen == NULL || csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "csngen_new_csn", "Invalid argument\n");
+		slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn", "Invalid argument\n");
 		return CSN_INVALID_PARAMETER;
 	}
 
 	*csn = csn_new ();
 	if (*csn == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "csngen_new_csn", "Memory allocation failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn", "Memory allocation failed\n");
 		return CSN_MEMORY_ERROR;
 	}
 
@@ -224,7 +224,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
 		 * Beyond 300 secs, we advance gen->state.sampled_time by
 		 * one sec to recycle seqnum.
 		 */
-        slapi_log_error(SLAPI_LOG_WARNING, "csngen_new_csn", "Too much time skew (%d secs). Current seqnum=%0x\n", delta, gen->state.seq_num );
+        slapi_log_err(SLAPI_LOG_WARNING, "csngen_new_csn", "Too much time skew (%d secs). Current seqnum=%0x\n", delta, gen->state.seq_num );
         rc = _csngen_adjust_local_time (gen, gen->state.sampled_time+1);
         if (rc != CSN_SUCCESS)
         {
@@ -236,7 +236,7 @@ csngen_new_csn (CSNGen *gen, CSN **csn, PRBool notify)
 
     if (gen->state.seq_num == CSN_MAX_SEQNUM)
     {
-        slapi_log_error(SLAPI_LOG_INFO, "csngen_new_csn", "Sequence rollover; "
+        slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn", "Sequence rollover; "
                         "local offset updated.\n");
         gen->state.local_offset ++;
         gen->state.seq_num = 0;
@@ -303,7 +303,7 @@ int csngen_adjust_time(CSNGen *gen, const CSN* csn)
 
     if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
         cur_time = CSN_CALC_TSTAMP(gen);
-        slapi_log_error(SLAPI_LOG_REPL, "csngen_adjust_time",
+        slapi_log_err(SLAPI_LOG_REPL, "csngen_adjust_time",
                          "gen state before %08lx%04x:%ld:%ld:%ld\n",
                          cur_time, gen->state.seq_num,
                          gen->state.sampled_time,
@@ -352,7 +352,7 @@ int csngen_adjust_time(CSNGen *gen, const CSN* csn)
 			}
 	    	else /* remote_offset > CSN_MAX_TIME_ADJUST */
 			{
-				slapi_log_error(SLAPI_LOG_ERR, "csngen_adjust_time",
+				slapi_log_err(SLAPI_LOG_ERR, "csngen_adjust_time",
                             "Adjustment limit exceeded; value - %ld, limit - %ld\n",
                              remote_offset, (long)CSN_MAX_TIME_ADJUST);
 				slapi_rwlock_unlock (gen->lock);
@@ -378,7 +378,7 @@ int csngen_adjust_time(CSNGen *gen, const CSN* csn)
 			gen->state.seq_num = remote_seqnum + 1;
 		}
 		if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-			slapi_log_error(SLAPI_LOG_REPL, "csngen_adjust_time",
+			slapi_log_err(SLAPI_LOG_REPL, "csngen_adjust_time",
 							 "gen state after %08lx%04x:%ld:%ld:%ld\n",
 							 new_time, gen->state.seq_num,
 							 gen->state.sampled_time,
@@ -473,12 +473,12 @@ void csngen_dump_state (const CSNGen *gen)
     if (gen)
     {
         slapi_rwlock_rdlock (gen->lock);
-        slapi_log_error(SLAPI_LOG_DEBUG, "csngen_dump_state", "CSN generator's state:\n");
-        slapi_log_error(SLAPI_LOG_DEBUG, "csngen_dump_state", "\treplica id: %d\n", gen->state.rid);
-        slapi_log_error(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tsampled time: %ld\n", gen->state.sampled_time);
-        slapi_log_error(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tlocal offset: %ld\n", gen->state.local_offset);
-        slapi_log_error(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tremote offset: %ld\n", gen->state.remote_offset);
-        slapi_log_error(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tsequence number: %d\n", gen->state.seq_num);
+        slapi_log_err(SLAPI_LOG_DEBUG, "csngen_dump_state", "CSN generator's state:\n");
+        slapi_log_err(SLAPI_LOG_DEBUG, "csngen_dump_state", "\treplica id: %d\n", gen->state.rid);
+        slapi_log_err(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tsampled time: %ld\n", gen->state.sampled_time);
+        slapi_log_err(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tlocal offset: %ld\n", gen->state.local_offset);
+        slapi_log_err(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tremote offset: %ld\n", gen->state.remote_offset);
+        slapi_log_err(SLAPI_LOG_DEBUG, "csngen_dump_state", "\tsequence number: %d\n", gen->state.seq_num);
         slapi_rwlock_unlock (gen->lock);
     }
 }
@@ -491,7 +491,7 @@ void csngen_test ()
     int rc;
     CSNGen *gen = csngen_new (255, NULL);
 
-    slapi_log_error(SLAPI_LOG_DEBUG, "csngen_test", "staring csn generator test ...");
+    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "staring csn generator test ...");
     csngen_dump_state (gen);
 
     rc = _csngen_start_test_threads(gen);
@@ -502,7 +502,7 @@ void csngen_test ()
     
     _csngen_stop_test_threads();
     csngen_dump_state (gen);    
-    slapi_log_error(SLAPI_LOG_DEBUG, "csngen_test", "csn generator test is complete...");
+    slapi_log_err(SLAPI_LOG_DEBUG, "csngen_test", "csn generator test is complete...");
 }
 
 /*
@@ -523,7 +523,7 @@ _csngen_parse_state (CSNGen *gen, Slapi_Attr *state)
 	rc = slapi_attr_first_value(state, &val);
 	if (rc != 0)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "_csngen_parse_state", "Invalid state format\n");
+		slapi_log_err(SLAPI_LOG_ERR, "_csngen_parse_state", "Invalid state format\n");
 		return CSN_INVALID_FORMAT;
 	}
 
@@ -533,7 +533,7 @@ _csngen_parse_state (CSNGen *gen, Slapi_Attr *state)
 	/* replicaid does not match */
 	if (rid != gen->state.rid)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, "_csngen_parse_state", "Replica id"
+		slapi_log_err(SLAPI_LOG_ERR, "_csngen_parse_state", "Replica id"
                          " mismatch; current id - %d, replica id in the state - %d\n", 
                           rid, gen->state.rid);
 		return CSN_INVALID_FORMAT;
@@ -634,7 +634,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
         time_t ts_after = 0;
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             time_t new_time = CSN_CALC_TSTAMP(gen);
-            slapi_log_error(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
+            slapi_log_err(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
                              "gen state before %08lx%04x:%ld:%ld:%ld\n",
                              new_time, gen->state.seq_num,
                              gen->state.sampled_time,
@@ -661,7 +661,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             time_t new_time = CSN_CALC_TSTAMP(gen);
-            slapi_log_error(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
+            slapi_log_err(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
                              "gen state after %08lx%04x:%ld:%ld:%ld\n",
                              new_time, gen->state.seq_num,
                              gen->state.sampled_time,
@@ -674,7 +674,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
     {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             time_t new_time = CSN_CALC_TSTAMP(gen);
-            slapi_log_error(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
+            slapi_log_err(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
                              "gen state back before %08lx%04x:%ld:%ld:%ld\n",
                              new_time, gen->state.seq_num,
                              gen->state.sampled_time,
@@ -684,7 +684,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 
         if (!ignore_time_skew && (labs (time_diff) > CSN_MAX_TIME_ADJUST))
         {
-            slapi_log_error(SLAPI_LOG_ERR, "_csngen_adjust_local_time",
+            slapi_log_err(SLAPI_LOG_ERR, "_csngen_adjust_local_time",
                              "Adjustment limit exceeded; value - %ld, limit - %d\n",
                              labs (time_diff), CSN_MAX_TIME_ADJUST);
             return CSN_LIMIT_EXCEEDED;
@@ -696,7 +696,7 @@ _csngen_adjust_local_time (CSNGen *gen, time_t cur_time)
 
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             time_t new_time = CSN_CALC_TSTAMP(gen);
-            slapi_log_error(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
+            slapi_log_err(SLAPI_LOG_REPL, "_csngen_adjust_local_time",
                              "gen state back after %08lx%04x:%ld:%ld:%ld\n",
                              new_time, gen->state.seq_num,
                              gen->state.sampled_time,
@@ -737,7 +737,7 @@ _csngen_start_test_threads(CSNGen *gen)
 							DEFAULT_THREAD_STACKSIZE) == NULL)
 		{
 			PRErrorCode prerr = PR_GetError();
-			slapi_log_error(SLAPI_LOG_ERR, "_csngen_start_test_threads", 
+			slapi_log_err(SLAPI_LOG_ERR, "_csngen_start_test_threads", 
 							"Failed to create a CSN generator thread number %d; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", 
 							i, prerr, slapd_pr_strerror(prerr));
 			return -1;	
@@ -752,7 +752,7 @@ _csngen_start_test_threads(CSNGen *gen)
 						DEFAULT_THREAD_STACKSIZE) == NULL)
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_ERR, "_csngen_start_test_threads",
+		slapi_log_err(SLAPI_LOG_ERR, "_csngen_start_test_threads",
 						"Failed to create the remote CSN tester thread; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", 
 						prerr, slapd_pr_strerror(prerr));
 		return -1;
@@ -767,7 +767,7 @@ _csngen_start_test_threads(CSNGen *gen)
 
 	{
 		PRErrorCode prerr = PR_GetError();
-		slapi_log_error(SLAPI_LOG_ERR, "_csngen_start_test_threads", 
+		slapi_log_err(SLAPI_LOG_ERR, "_csngen_start_test_threads", 
 						"Failed to create the local CSN tester thread; " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n", 
 						prerr, slapd_pr_strerror(prerr));
 		return -1;
@@ -806,12 +806,12 @@ _csngen_gen_tester_main (void *data)
 		rc = csngen_new_csn (gen, &csn, PR_FALSE);
 		if (rc != CSN_SUCCESS)
 		{
-			slapi_log_error(SLAPI_LOG_ERR, "_csngen_gen_tester_main", 
+			slapi_log_err(SLAPI_LOG_ERR, "_csngen_gen_tester_main", 
 							 "failed to generate csn; csn error - %d\n", rc);
 		}
 		else
 		{
-			slapi_log_error(SLAPI_LOG_INFO, "_csngen_gen_tester_main", "generate csn %s\n", 
+			slapi_log_err(SLAPI_LOG_INFO, "_csngen_gen_tester_main", "generate csn %s\n", 
 							 csn_as_string(csn, PR_FALSE, buff));
 		}	
 		csn_free(&csn);
@@ -840,7 +840,7 @@ _csngen_remote_tester_main (void *data)
 		rc = csngen_new_csn (gen, &csn, PR_FALSE);
 		if (rc != CSN_SUCCESS)
 		{
-			slapi_log_error(SLAPI_LOG_ERR, "_csngen_remote_tester_main", 
+			slapi_log_err(SLAPI_LOG_ERR, "_csngen_remote_tester_main", 
 							 "Failed to generate csn; csn error - %d\n", rc);
 		}
 		else
@@ -851,7 +851,7 @@ _csngen_remote_tester_main (void *data)
 			rc = csngen_adjust_time (gen, csn);
 			if (rc != CSN_SUCCESS)
 			{
-				slapi_log_error(SLAPI_LOG_ERR, "_csngen_remote_tester_main", 
+				slapi_log_err(SLAPI_LOG_ERR, "_csngen_remote_tester_main", 
 								 "Failed to adjust generator's time; csn error - %d\n", rc);
 			}
 

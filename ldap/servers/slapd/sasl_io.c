@@ -77,43 +77,43 @@ debug_print_layers(PRFileDesc *fd)
         PRSocketOptionData sod;
         PRInt32 err;
 
-        LDAPDebug2Args(LDAP_DEBUG_CONNS,
-                       "debug_print_layers: fd %d sasl_io_recv = %p\n",
+        slapi_log_err(SLAPI_LOG_CONNS,
+                       "debug_print_layers", "fd %d sasl_io_recv = %p\n",
                         PR_FileDesc2NativeHandle(fd), sasl_io_recv );
-        LDAPDebug(LDAP_DEBUG_CONNS,
-                   "debug_print_layers: fd name %s type = %d recv = %p\n",
+        slapi_log_err(SLAPI_LOG_CONNS,
+                   "debug_print_layers", "fd name %s type = %d recv = %p\n",
                    PR_GetNameForIdentity(fd->identity),
                    PR_GetDescType(fd),
                    fd->methods->recv ? fd->methods->recv : NULL );
         sod.option = PR_SockOpt_Nonblocking;
         if (PR_FAILURE == PR_GetSocketOption(fd, &sod)) {
             err = PR_GetError();
-            LDAPDebug2Args(LDAP_DEBUG_CONNS,
-                            "debug_print_layers: error getting nonblocking option: %d %s\n",
+            slapi_log_err(SLAPI_LOG_CONNS,
+                            "debug_print_layers", "Error getting nonblocking option: %d %s\n",
                             err, slapd_pr_strerror(err) );
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                           "debug_print_layers: non blocking %d\n", sod.value.non_blocking );
+            slapi_log_err(SLAPI_LOG_CONNS,
+                           "debug_print_layers", "Non blocking %d\n", sod.value.non_blocking );
         }
         sod.option = PR_SockOpt_Reuseaddr;
         if (PR_FAILURE == PR_GetSocketOption(fd, &sod)) {
             err = PR_GetError();
-            LDAPDebug2Args(LDAP_DEBUG_CONNS,
-                            "debug_print_layers: error getting reuseaddr option: %d %s\n",
+            slapi_log_err(SLAPI_LOG_CONNS,
+                            "debug_print_layers", "Error getting reuseaddr option: %d %s\n",
                             err, slapd_pr_strerror(err) );
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                           "debug_print_layers: reuseaddr %d\n", sod.value.reuse_addr );
+            slapi_log_err(SLAPI_LOG_CONNS,
+                           "debug_print_layers", "reuseaddr %d\n", sod.value.reuse_addr );
         }
         sod.option = PR_SockOpt_RecvBufferSize;
         if (PR_FAILURE == PR_GetSocketOption(fd, &sod)) {
             err = PR_GetError();
-            LDAPDebug2Args(LDAP_DEBUG_CONNS,
-                            "debug_print_layers: error getting recvbuffer option: %d %s\n",
+            slapi_log_err(SLAPI_LOG_CONNS,
+                            "debug_print_layers", "Error getting recvbuffer option: %d %s\n",
                             err, slapd_pr_strerror(err) );
         } else {
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                           "debug_print_layers: recvbuffer %d\n", sod.value.recv_buffer_size );
+            slapi_log_err(SLAPI_LOG_CONNS,
+                           "debug_print_layers", "recvbuffer %d\n", sod.value.recv_buffer_size );
         }
         fd = fd->lower;
     }
@@ -197,19 +197,19 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     debug_print_layers(fd);
     /* first we need the length bytes */
     ret = PR_Recv(fd->lower, buffer, amount, flags, timeout);
-    LDAPDebug(LDAP_DEBUG_CONNS,
-           "sasl_io_start_packet - read sasl packet length returned %d on connection %" NSPRIu64 "\n",
-           ret, c->c_connid, 0 );
+    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+            "Read sasl packet length returned %d on connection %" NSPRIu64 "\n",
+            ret, c->c_connid);
     if (ret <= 0) {
         *err = PR_GetError();
         if (ret == 0) {
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                   "sasl_io_start_packet - connection closed while reading sasl packet length on connection %" NSPRIu64 "\n",
-                   c->c_connid );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                    "Connection closed while reading sasl packet length on connection %" NSPRIu64 "\n",
+                    c->c_connid );
         } else {
-            LDAPDebug(LDAP_DEBUG_CONNS,
-                   "sasl_io_start_packet - error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n",
-                   c->c_connid, *err, slapd_pr_strerror(*err) );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                    "Error reading sasl packet length on connection %" NSPRIu64 " %d:%s\n",
+                    c->c_connid, *err, slapd_pr_strerror(*err) );
         }
         return ret;
     }
@@ -224,8 +224,8 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
     memcpy(sp->encrypted_buffer + sp->encrypted_buffer_offset, buffer, ret);
     sp->encrypted_buffer_offset += ret;
     if (sp->encrypted_buffer_offset < sizeof(buffer)) {
-        LDAPDebug2Args(LDAP_DEBUG_CONNS,
-               "sasl_io_start_packet - read only %d bytes of sasl packet "
+        slapi_log_err(SLAPI_LOG_CONNS,
+               "sasl_io_start_packet", "Read only %d bytes of sasl packet "
                "length on connection %" NSPRIu64 "\n", ret, c->c_connid );
 #if defined(EWOULDBLOCK)
         errno = EWOULDBLOCK;
@@ -251,7 +251,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
         ber_len_t ber_len = 0;
         ber_tag_t tag = 0;
 
-        slapi_log_error(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                 "Sent an LDAP message that was not encrypted.\n", c->c_connid,
                 c->c_sd);
 
@@ -264,7 +264,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
 
         /* Is the ldap operation too large? */
         if(ber_len > maxbersize){
-            slapi_log_error(SLAPI_LOG_ERR, "sasl_io_start_packet",
+            slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
                     "conn=%" NSPRIu64 " fd=%d Incoming BER Element was too long, max allowable "
                     "is %" BERLEN_T " bytes. Change the nsslapd-maxbersize attribute in "
                     "cn=config to increase.\n",
@@ -303,9 +303,10 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 PR_SetError(PR_WOULD_BLOCK_ERROR, errno);
                 return PR_FAILURE;
             } else if (ret > 0) {
-                LDAPDebug(LDAP_DEBUG_CONNS,
-                        "sasl_io_start_packet - Continued: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
-                        ret, c->c_connid, 0 );
+                slapi_log_err(SLAPI_LOG_CONNS,
+                        "sasl_io_start_packet",
+                        "Continued: read sasl packet length returned %d on connection %" NSPRIu64 "\n",
+                        ret, c->c_connid);
                 if((ret + sp->encrypted_buffer_offset) > sp->encrypted_buffer_size){
                 	sasl_io_resize_encrypted_buffer(sp, ret + sp->encrypted_buffer_offset);
                 }
@@ -313,7 +314,8 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 sp->encrypted_buffer_offset += ret;
             } else if (ret < 0){
                 *err = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_CONNS, "sasl_io_start_packet - error reading sasl packet length on connection "
+                slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
+                		"Error reading sasl packet length on connection "
                         "%" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
                 return ret;
             }
@@ -358,7 +360,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                 tag = *ber->ber_ptr++;
                 if (*ber->ber_ptr == LDAP_REQ_UNBIND){
 #endif
-                    slapi_log_error(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                             "Received unencrypted UNBIND operation.\n", c->c_connid,
                             c->c_sd);
                     sp->encrypted_buffer_count = sp->encrypted_buffer_offset;
@@ -366,7 +368,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
                     ber_free(ber, 1);
                     return SASL_IO_BUFFER_NOT_ENCRYPTED;
                 }
-                slapi_log_error(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+                slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                         "Error: received an LDAP message (tag 0x%lx) that was not encrypted.\n",
 #ifdef USE_OPENLDAP
                         c->c_connid, c->c_sd, (long unsigned int)tag);
@@ -378,7 +380,7 @@ sasl_io_start_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt
 
 done:
         /* If we got here we have garbage, or a denied LDAP operation */
-        slapi_log_error(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
+        slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet", "conn=%" NSPRIu64 " fd=%d "
                 "Error: received an invalid message that was not encrypted.\n",
                 c->c_connid, c->c_sd);
 
@@ -396,7 +398,7 @@ done:
     /* add length itself (for Cyrus SASL library) */
     packet_length += sizeof(uint32_t);
 
-    LDAPDebug2Args(LDAP_DEBUG_CONNS,
+    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_start_packet",
                     "read sasl packet length %ld on connection %" NSPRIu64 "\n", 
                     packet_length, c->c_connid );
 
@@ -404,8 +406,8 @@ done:
      * setting of -1 means that we allow any size SASL IO packet. */
     saslio_limit = config_get_maxsasliosize();
     if(((long)saslio_limit != -1) && (packet_length > saslio_limit)) {
-        LDAPDebug2Args(LDAP_DEBUG_ANY,
-                "sasl_io_start_packet - SASL encrypted packet length exceeds maximum allowed limit (length=%ld, limit=%ld)."
+        slapi_log_err(SLAPI_LOG_ERR, "sasl_io_start_packet",
+                "SASL encrypted packet length exceeds maximum allowed limit (length=%ld, limit=%ld)."
                 "  Change the nsslapd-maxsasliosize attribute in cn=config to increase limit.\n",
                  packet_length, config_get_maxsasliosize() );
         PR_SetError(PR_BUFFER_OVERFLOW_ERROR, 0);
@@ -429,19 +431,19 @@ sasl_io_read_packet(PRFileDesc *fd, PRIntn flags, PRIntervalTime timeout, PRInt3
     Connection *c = sp->conn;
     size_t bytes_remaining_to_read = sp->encrypted_buffer_count - sp->encrypted_buffer_offset;
 
-    LDAPDebug2Args(LDAP_DEBUG_CONNS,
-               "sasl_io_read_packet: reading %d bytes for connection %" NSPRIu64 "\n",
-               bytes_remaining_to_read,
-               c->c_connid );
+    slapi_log_err(SLAPI_LOG_CONNS,
+               "sasl_io_read_packet", "Reading %lu bytes for connection %" NSPRIu64 "\n",
+               bytes_remaining_to_read, c->c_connid );
     ret = PR_Recv(fd->lower, sp->encrypted_buffer + sp->encrypted_buffer_offset, bytes_remaining_to_read, flags, timeout);
     if (ret <= 0) {
         *err = PR_GetError();
         if (ret == 0) {
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                       "sasl_io_read_packet: connection closed while reading sasl packet on connection %" NSPRIu64 "\n", c->c_connid );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_read_packet",
+                    "Connection closed while reading sasl packet on connection %" NSPRIu64 "\n", c->c_connid );
         } else {
-            LDAPDebug(LDAP_DEBUG_CONNS,
-                       "sasl_io_read_packet: error reading sasl packet on connection %" NSPRIu64 " %d:%s\n", c->c_connid, *err, slapd_pr_strerror(*err) );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_read_packet",
+                    "Error reading sasl packet on connection %" NSPRIu64 " %d:%s\n",
+                    c->c_connid, *err, slapd_pr_strerror(*err) );
         }
         return ret;
     }
@@ -461,10 +463,12 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
 
     /* Do we have decrypted data buffered from 'before' ? */
     bytes_in_buffer = sp->decrypted_buffer_count - sp->decrypted_buffer_offset;
-    LDAPDebug(LDAP_DEBUG_CONNS,
-               "sasl_io_recv - Connection %" NSPRIu64 " len %d bytes_in_buffer %d\n", c->c_connid, len, bytes_in_buffer );
-    LDAPDebug(LDAP_DEBUG_CONNS,
-               "sasl_io_recv - Connection %" NSPRIu64 " len %d encrypted buffer count %d\n", c->c_connid, len, sp->encrypted_buffer_count );
+    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+            "Connection %" NSPRIu64 " len %d bytes_in_buffer %lu\n",
+            c->c_connid, len, bytes_in_buffer );
+    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+            "Connection %" NSPRIu64 " len %d encrypted buffer count %lu\n",
+            c->c_connid, len, sp->encrypted_buffer_count );
     if (0 == bytes_in_buffer) {
         /* If there wasn't buffered decrypted data, we need to get some... */
         if (!sasl_io_reading_packet(sp)) {
@@ -497,8 +501,8 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
          * when more data arrives
          */
         if (!sasl_io_finished_packet(sp)) {
-            LDAPDebug(LDAP_DEBUG_CONNS,
-                       "sasl_io_recv - Connection %" NSPRIu64 " - not finished reading packet yet\n", c->c_connid, 0, 0 );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+                    "Connection %" NSPRIu64 " - not finished reading packet yet\n", c->c_connid);
 #if defined(EWOULDBLOCK)
             errno = EWOULDBLOCK;
 #elif defined(EAGAIN)
@@ -511,16 +515,16 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         {
             const char *output_buffer = NULL;
             unsigned int output_length = 0;
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                       "sasl_io_recv - Finished reading packet for connection %" NSPRIu64 "\n", c->c_connid );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+                    "Finished reading packet for connection %" NSPRIu64 "\n", c->c_connid );
             /* Now decode it */
             ret = sasl_decode(c->c_sasl_conn,sp->encrypted_buffer,sp->encrypted_buffer_count,&output_buffer,&output_length);
             /* even if decode fails, need re-initialize the encrypted_buffer */
             sp->encrypted_buffer_offset = 0;
             sp->encrypted_buffer_count = 0;
             if (SASL_OK == ret) {
-                LDAPDebug2Args(LDAP_DEBUG_CONNS,
-                           "sasl_io_recv - Decoded packet length %d for connection %" NSPRIu64 "\n", output_length, c->c_connid );
+                slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+                        "Decoded packet length %u for connection %" NSPRIu64 "\n", output_length, c->c_connid );
                 if (output_length) {
                     sasl_io_resize_decrypted_buffer(sp,output_length);
                     memcpy(sp->decrypted_buffer,output_buffer,output_length);
@@ -529,8 +533,8 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
                     bytes_in_buffer = output_length;
                 }
             } else {
-                LDAPDebug1Arg(LDAP_DEBUG_ANY,
-                "sasl_io_recv - Failed to decode packet for connection %" NSPRIu64 "\n", c->c_connid );
+                slapi_log_err(SLAPI_LOG_ERR, "sasl_io_recv",
+                        "Failed to decode packet for connection %" NSPRIu64 "\n", c->c_connid );
                 PR_SetError(PR_IO_ERROR, 0);
                 return PR_FAILURE;
             }
@@ -547,15 +551,13 @@ sasl_io_recv(PRFileDesc *fd, void *buf, PRInt32 len, PRIntn flags,
         if (bytes_in_buffer == bytes_to_return) {
             sp->decrypted_buffer_offset = 0;
             sp->decrypted_buffer_count = 0;
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                       "sasl_io_recv - All decrypted data returned for connection %" NSPRIu64 "\n", c->c_connid );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+                    "All decrypted data returned for connection %" NSPRIu64 "\n", c->c_connid );
         } else {
             sp->decrypted_buffer_offset += bytes_to_return;
-            LDAPDebug(LDAP_DEBUG_CONNS,
-                       "sasl_io_recv - Returning %d bytes to caller %d bytes left to return for connection %" NSPRIu64 "\n",
-                       bytes_to_return,
-                       sp->decrypted_buffer_count - sp->decrypted_buffer_offset,
-                       c->c_connid );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_recv",
+                    "Returning %lu bytes to caller %lu bytes left to return for connection %" NSPRIu64 "\n",
+                    bytes_to_return, sp->decrypted_buffer_count - sp->decrypted_buffer_offset, c->c_connid );
         }
         ret = bytes_to_return;
     }
@@ -582,28 +584,28 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount,
     sasl_io_private *sp = sasl_get_io_private(fd);
     Connection *c = sp->conn;
 
-    LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                   "sasl_io_send - Writing %d bytes\n", amount );
+    slapi_log_err(SLAPI_LOG_CONNS,
+                   "sasl_io_send", "Writing %d bytes\n", amount );
     if (sp->send_encrypted) {
         /* Get SASL to encrypt the buffer */
         if (NULL == sp->send_buffer) {
             ret = sasl_encode(c->c_sasl_conn, buf, amount, &sp->send_buffer, &sp->send_size);
             if (ret != SASL_OK) {
                 const char *saslerr = sasl_errdetail(c->c_sasl_conn);
-                LDAPDebug2Args(LDAP_DEBUG_ANY,
-                                "sasl_io_send - Could not encode %d bytes - sasl error %s\n",
+                slapi_log_err(SLAPI_LOG_ERR,
+                                "sasl_io_send", "Could not encode %d bytes - sasl error %s\n",
                                 amount, saslerr ? saslerr : "unknown" );
                 reset_send_info(sp);
                 PR_SetError(PR_IO_ERROR, 0);
                 return PR_FAILURE;
             }
-            LDAPDebug1Arg(LDAP_DEBUG_CONNS,
-                           "sasl_io_send - Encoded as %d bytes\n", sp->send_size );
+            slapi_log_err(SLAPI_LOG_CONNS,
+                           "sasl_io_send", "Encoded as %d bytes\n", sp->send_size );
             sp->send_offset = 0;
         } else if ((amount > 0) && (sp->send_offset >= sp->send_size)) {
             /* something went wrong - we sent too many bytes */
-            LDAPDebug2Args(LDAP_DEBUG_ANY,
-                           "sasl_io_send - Client requested to send %d bytes but we "
+            slapi_log_err(SLAPI_LOG_ERR,
+                           "sasl_io_send", "Client requested to send %d bytes but we "
                             "already sent %d bytes\n", amount, (sp->send_offset >= sp->send_size));
             reset_send_info(sp);
             PR_SetError(PR_BUFFER_OVERFLOW_ERROR, EMSGSIZE);
@@ -616,8 +618,8 @@ sasl_io_send(PRFileDesc *fd, const void *buf, PRInt32 amount,
             ret = amount; /* sent amount of data requested by caller */
             reset_send_info(sp); /* done with this buffer, ready for next buffer */
         } else if (ret > 0) { /* could not send the entire encrypted buffer - tell caller we're blocked */
-            LDAPDebug2Args(LDAP_DEBUG_CONNS,
-                       "sasl_io_send - error: only sent %d of %d encoded bytes\n", ret,
+            slapi_log_err(SLAPI_LOG_CONNS,
+                       "sasl_io_send", "error: only sent %d of %d encoded bytes\n", ret,
                             (sp->send_size - sp->send_offset) );
             sp->send_offset += ret;
             ret = PR_FAILURE;
@@ -656,8 +658,8 @@ sasl_pop_IO_layer(PRFileDesc* stack, int doclose)
 
     /* see if stack has the sasl io layer */
     if (!sasl_LayerID || !stack) {
-        LDAPDebug0Args(LDAP_DEBUG_CONNS,
-                        "sasl_pop_IO_layer - No SASL IO layer\n" );
+        slapi_log_err(SLAPI_LOG_CONNS,
+                        "sasl_pop_IO_layer", "No SASL IO layer\n" );
         return PR_SUCCESS;
     }
 
@@ -666,8 +668,8 @@ sasl_pop_IO_layer(PRFileDesc* stack, int doclose)
     if (!doclose) {
         id = sasl_LayerID;
         if (!PR_GetIdentitiesLayer(stack, id)) {
-            LDAPDebug0Args(LDAP_DEBUG_CONNS,
-                            "sasl_pop_IO_layer - No SASL IO layer\n" );
+            slapi_log_err(SLAPI_LOG_CONNS,
+                            "sasl_pop_IO_layer", "No SASL IO layer\n" );
             return PR_SUCCESS;
         }
     }
@@ -675,8 +677,8 @@ sasl_pop_IO_layer(PRFileDesc* stack, int doclose)
     /* remove the layer from the stack */
     layer = PR_PopIOLayer(stack, id);
     if (!layer) {
-        LDAPDebug0Args(LDAP_DEBUG_CONNS,
-                        "sasl_pop_IO_layer - error - could not pop SASL IO layer\n" );
+        slapi_log_err(SLAPI_LOG_CONNS,
+                        "sasl_pop_IO_layer", "Could not pop SASL IO layer\n" );
         return PR_FAILURE;
     }
 
@@ -684,8 +686,8 @@ sasl_pop_IO_layer(PRFileDesc* stack, int doclose)
     sp = sasl_get_io_private(layer);
 
     if (sp) {
-        LDAPDebug0Args(LDAP_DEBUG_CONNS,
-                        "sasl_pop_IO_layer - removing SASL IO layer\n" );
+        slapi_log_err(SLAPI_LOG_CONNS,
+                        "sasl_pop_IO_layer", "Removing SASL IO layer\n" );
         /* Free the buffers */
         slapi_ch_free_string(&sp->encrypted_buffer);
         slapi_ch_free_string(&sp->decrypted_buffer);
@@ -709,12 +711,12 @@ static PRStatus PR_CALLBACK
 closeLayer(PRFileDesc* stack)
 {
     PRStatus rv = 0;
-    LDAPDebug0Args(LDAP_DEBUG_CONNS,
-                    "closeLayer - Closing SASL IO layer\n" );
+    slapi_log_err(SLAPI_LOG_CONNS,
+                    "closeLayer", "Closing SASL IO layer\n" );
     rv = sasl_pop_IO_layer(stack, 1 /* do close */);
     if (PR_SUCCESS != rv) {
-        LDAPDebug0Args(LDAP_DEBUG_CONNS,
-                    "closeLayer - Error closing SASL IO layer\n" );
+        slapi_log_err(SLAPI_LOG_CONNS,
+                    "closeLayer", "Error closing SASL IO layer\n" );
         return rv;
     }
 
@@ -758,7 +760,7 @@ sasl_io_enable(Connection *c, void *data /* UNUSED */)
         sasl_io_private *sp = NULL;
 
         if ( c->c_flags & CONN_FLAG_CLOSING ) {
-            slapi_log_error(SLAPI_LOG_ERR, "sasl_io_enable",
+            slapi_log_err(SLAPI_LOG_ERR, "sasl_io_enable",
                              "Cannot enable SASL security on connection in CLOSING state\n");
             return PR_FAILURE;
         }
@@ -769,11 +771,12 @@ sasl_io_enable(Connection *c, void *data /* UNUSED */)
         sp->conn = c;
         rv = PR_PushIOLayer(c->c_prfd, PR_TOP_IO_LAYER, layer);
         if (rv) {
-            LDAPDebug(LDAP_DEBUG_ERR,
-                       "sasl_io_enable - Error enabling sasl io on connection %" NSPRIu64 " %d:%s\n", c->c_connid, rv, slapd_pr_strerror(rv) );
+            slapi_log_err(SLAPI_LOG_ERR, "sasl_io_enable",
+                    "Error enabling sasl io on connection %" NSPRIu64 " %d:%s\n",
+                    c->c_connid, rv, slapd_pr_strerror(rv) );
         } else {
-            LDAPDebug(LDAP_DEBUG_CONNS,
-                       "sasl_io_enable - Enabled sasl io on connection %" NSPRIu64 " \n", c->c_connid, 0, 0 );
+            slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_enable",
+                    "Enabled sasl io on connection %" NSPRIu64 " \n", c->c_connid);
             debug_print_layers(c->c_prfd);
         }
     }
@@ -790,8 +793,8 @@ sasl_io_cleanup(Connection *c, void *data /* UNUSED */)
 {
     int ret = 0;
 
-    LDAPDebug(LDAP_DEBUG_CONNS,
-               "sasl_io_cleanup - Connection %" NSPRIu64 "\n", c->c_connid, 0, 0 );
+    slapi_log_err(SLAPI_LOG_CONNS, "sasl_io_cleanup",
+            "Connection %" NSPRIu64 "\n", c->c_connid);
 
     ret = sasl_pop_IO_layer(c->c_prfd, 0 /* do not close */);
 

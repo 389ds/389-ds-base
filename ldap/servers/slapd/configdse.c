@@ -273,7 +273,7 @@ load_config_dse(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *ret
 				 * value to the current process limit when this happens.  We want
 				 * to allow the server to still start in this case. */
 				if (retval == LDAP_UNWILLING_TO_PERFORM) {
-					slapi_log_error(SLAPI_LOG_WARNING, "load_config_dse", "Config Warning: - %s\n", returntext);
+					slapi_log_err(SLAPI_LOG_WARNING, "load_config_dse", "Config Warning: - %s\n", returntext);
 					retval = LDAP_SUCCESS;
 				}
 			} else {
@@ -328,7 +328,7 @@ load_plugin_entry(Slapi_PBlock *pb, Slapi_Entry* e, Slapi_Entry* ignored, int *r
 		 */
 		if(retval)
 		{
-			slapi_log_error(SLAPI_LOG_ERR, "load_plugin_entry",
+			slapi_log_err(SLAPI_LOG_ERR, "load_plugin_entry",
 					"Unable to load plugin \"%s\"\n",
 					slapi_entry_get_dn_const( e ));
 			exit(1);
@@ -367,7 +367,7 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
  
 			if (SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
 				if (apply_mods) { /* log warning once */
-					slapi_log_error(SLAPI_LOG_WARNING, "modify_config_dse", 
+					slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", 
 						"Adding configuration attribute \"%s\"\n",
 						config_attr);
 				}
@@ -385,7 +385,7 @@ modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, in
 					rc = config_set(config_attr, mods[i]->mod_bvalues, 
 									returntext, apply_mods);
 					if (apply_mods) { /* log warning once */
-						slapi_log_error(SLAPI_LOG_WARNING, "modify_config_dse", 
+						slapi_log_err(SLAPI_LOG_WARNING, "modify_config_dse", 
 						  "Deleting configuration attribute \"%s\"\n",
 						  config_attr);
 					}
@@ -475,7 +475,7 @@ postop_modify_config_dse(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry
 					PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
 						"The change of %s will not take effect "
 						"until the server is restarted", mods[i]->mod_type);
-					slapi_log_error(SLAPI_LOG_INFO, "postop_modify_config_dse", "%s\n", returntext);
+					slapi_log_err(SLAPI_LOG_INFO, "postop_modify_config_dse", "%s\n", returntext);
 					break;
 				}
 			}

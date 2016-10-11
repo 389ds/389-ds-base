@@ -61,7 +61,7 @@ do_add( Slapi_PBlock *pb )
 	int			rc;
 	PRBool  searchsubentry=PR_TRUE;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_add\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_add", "==>\n");
 
 	slapi_pblock_get( pb, SLAPI_OPERATION, &operation);
     ber = operation->o_ber;
@@ -86,8 +86,8 @@ do_add( Slapi_PBlock *pb )
 		Slapi_DN mysdn;
 		if ( ber_scanf( ber, "{a", &rawdn ) == LBER_ERROR ) {
 			slapi_ch_free_string(&rawdn);
-			LDAPDebug(LDAP_DEBUG_ERR,
-				"do_add - ber_scanf failed (op=Add; params=DN)\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "do_add",
+				"ber_scanf failed (op=Add; params=DN)\n");
 			op_shared_log_error_access (pb, "ADD", "???", "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 				"decoding error", 0, NULL );
@@ -121,7 +121,7 @@ do_add( Slapi_PBlock *pb )
 		slapi_entry_init_ext(e, &mysdn, NULL);
 		slapi_sdn_done(&mysdn);
 	}
-	LDAPDebug(LDAP_DEBUG_ARGS, "	do_add: dn (%s)\n", slapi_entry_get_dn_const(e), 0, 0 );
+	slapi_log_err(SLAPI_LOG_ARGS, "do_add", "dn (%s)\n", (char *)slapi_entry_get_dn_const(e));
 
 	/* get the attrs */
 	for ( tag = ber_first_element( ber, &len, &last );
@@ -140,7 +140,7 @@ do_add( Slapi_PBlock *pb )
 		}
 
 		if ( vals == NULL ) {
-			LDAPDebug(LDAP_DEBUG_ERR, "do_add - no values for type %s\n", type, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "do_add - no values for type %s\n", type, 0, 0 );
 			op_shared_log_error_access (pb, "ADD", slapi_sdn_get_dn (slapi_entry_get_sdn_const(e)), "null value");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, NULL,
 			    0, NULL );
@@ -339,7 +339,7 @@ int slapi_add_internal_set_pb (Slapi_PBlock *pb, const char *dn, LDAPMod **attrs
 
 	if (pb == NULL || dn == NULL || attrs == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, NULL, "slapi_add_internal_set_pb: invalid argument\n");
+		slapi_log_err(SLAPI_LOG_PLUGIN, NULL, "slapi_add_internal_set_pb: invalid argument\n");
 		return LDAP_PARAM_ERROR;
 	}
 
@@ -361,7 +361,7 @@ void slapi_add_entry_internal_set_pb (Slapi_PBlock *pb, Slapi_Entry *e, LDAPCont
 	PR_ASSERT (pb != NULL);
 	if (pb == NULL || e == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, NULL, "slapi_add_entry_internal_set_pb: invalid argument\n");
+		slapi_log_err(SLAPI_LOG_PLUGIN, NULL, "slapi_add_entry_internal_set_pb: invalid argument\n");
 		return;
 	}
 
@@ -596,7 +596,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			 * PSEUDO_ATTR_UNHASHEDUSERPASSWORD attribute */
 			char *test_str = slapi_get_first_clear_text_pw(e);
 			if (test_str) {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY,
+				slapi_log_err(SLAPI_LOG_ERR,
 				              "Value from extension: %s\n", test_str);
 				slapi_ch_free_string(&test_str);
 			}
@@ -604,7 +604,7 @@ static void op_shared_add (Slapi_PBlock *pb)
 			test_str = slapi_entry_attr_get_charptr(e,
 			                                  PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
 			if (test_str) {
-				LDAPDebug1Arg(LDAP_DEBUG_ANY,
+				slapi_log_err(SLAPI_LOG_ERR,
 				              "Value from attr: %s\n", test_str);
 				slapi_ch_free_string(&test_str);
 			}
@@ -787,7 +787,7 @@ add_created_attrs(Slapi_PBlock *pb, Slapi_Entry *e)
 	struct slapi_componentid *cid = NULL;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "add_created_attrs\n", 0, 0, 0);
+	slapi_log_err(SLAPI_LOG_TRACE, "add_created_attrs", "==>\n");
 
 	bvals[0] = &bv;
 	bvals[1] = NULL;
@@ -881,7 +881,8 @@ static int check_rdn_for_created_attrs(Slapi_Entry *e)
 
         for (i = 0; type[i] != NULL; i++) {
             if (slapi_rdn_contains_attr(rdn, type[i], &value)) {
-                LDAPDebug(LDAP_DEBUG_TRACE, "Invalid DN. RDN contains %s attribute\n", type[i], 0, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "check_rdn_for_created_attrs",
+                	"Invalid DN. RDN contains %s attribute\n", type[i]);
                 rc = 1;
                 break;
             }
@@ -889,7 +890,7 @@ static int check_rdn_for_created_attrs(Slapi_Entry *e)
 
         slapi_rdn_free(&rdn);
     } else {
-        LDAPDebug(LDAP_DEBUG_TRACE, "check_rdn_for_created_attrs: Error allocating RDN\n", 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "check_rdn_for_created_attrs", "Error allocating RDN\n");
         rc = -1;
     }
 
@@ -907,8 +908,8 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "handle_fast_add - Backend not supported\n", 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR,
+                  "handle_fast_add", "Backend not supported\n");
         send_ldap_result(pb, LDAP_NOT_SUPPORTED, NULL, NULL, 0, NULL);
         return;
     }
@@ -924,7 +925,7 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
     if (operation_is_flag_set(operation, OP_FLAG_ACTION_SCHEMA_CHECK) &&
         (slapi_entry_schema_check(pb, entry) != 0)) {
 	char *errtext; 
-        LDAPDebug(LDAP_DEBUG_TRACE, "handle_fast_add - Entry failed schema check\n", 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "handle_fast_add", "Entry failed schema check\n");
 	slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         send_ldap_result(pb, LDAP_OBJECT_CLASS_VIOLATION, NULL, errtext, 0, NULL);
         slapi_entry_free(entry);
@@ -934,7 +935,7 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
     /* syntax check */
     if (slapi_entry_syntax_check(pb, entry, 0) != 0) {
         char *errtext;
-        LDAPDebug(LDAP_DEBUG_TRACE, "handle_fast_add - Entry failed syntax check\n", 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "handle_fast_add", "Entry failed syntax check\n");
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
         send_ldap_result(pb, LDAP_INVALID_SYNTAX, NULL, errtext, 0, NULL);
         slapi_entry_free(entry);
@@ -954,9 +955,8 @@ static void handle_fast_add(Slapi_PBlock *pb, Slapi_Entry *entry)
     slapi_pblock_set(pb, SLAPI_BULK_IMPORT_STATE, &ret);
     ret = (*be->be_wire_import)(pb);
     if (ret != 0) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "handle_fast_add - wire import: error during import (%d)\n",
-                  ret, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "handle_fast_add",
+            "wire import: Error during import (%d)\n", ret);
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR,
 			 NULL, NULL, 0, NULL);
         /* It's our responsibility to free the entry if
@@ -988,8 +988,8 @@ add_uniqueid (Slapi_Entry *e)
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_ERR, "add_uniqueid - Uniqueid generation failed for %s; error = %d\n", 
-				   slapi_entry_get_dn_const(e), rc, 0);
+		slapi_log_err(SLAPI_LOG_ERR, "add_uniqueid", "Uniqueid generation failed for %s; error = %d\n", 
+				   slapi_entry_get_dn_const(e), rc);
 	}
 
 	return( rc );

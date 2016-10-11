@@ -78,8 +78,8 @@ plugin_mr_find( const char *nameoroid )
 	}
 
 	if (nameoroid && !pi) {
-		slapi_log_error(SLAPI_LOG_CONFIG, "plugin_mr_find",
-						"Error: matching rule plugin for [%s] not found\n", nameoroid);
+		slapi_log_err(SLAPI_LOG_CONFIG, "plugin_mr_find",
+						"Matching rule plugin for [%s] not found\n", nameoroid);
 	}
 
 	return ( pi );
@@ -122,11 +122,11 @@ plugin_mr_find_registered (char* oid)
 	{
 	    if (!strcasecmp (oid, i->oi_oid))
 	    {
-			LDAPDebug(LDAP_DEBUG_FILTER, "plugin_mr_find_registered(%s) != NULL\n", oid, 0, 0);
+			slapi_log_err(SLAPI_LOG_FILTER, "plugin_mr_find_registered", "(%s) != NULL 1\n", oid);
 			return i->oi_plugin;
 	    }
 	}
-    LDAPDebug(LDAP_DEBUG_FILTER, "plugin_mr_find_registered(%s) == NULL\n", oid, 0, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, "plugin_mr_find_registered", "(%s) == NULL 2\n", oid);
     return NULL;
 }
 
@@ -134,7 +134,7 @@ static void
 plugin_mr_bind (char* oid, struct slapdplugin* plugin)
 {
 	oid_item_t* i = (oid_item_t*) slapi_ch_malloc (sizeof (oid_item_t));
-    LDAPDebug(LDAP_DEBUG_FILTER, "=> plugin_mr_bind(%s)\n", oid, 0, 0);
+    slapi_log_err(SLAPI_LOG_FILTER, "plugin_mr_bind", "=> (%s)\n", oid);
 	init_global_mr_lock();
 	i->oi_oid = slapi_ch_strdup (oid);
 	i->oi_plugin = plugin;
@@ -142,7 +142,7 @@ plugin_mr_bind (char* oid, struct slapdplugin* plugin)
 	i->oi_next = global_mr_oids;
 	global_mr_oids = i;
 	PR_Unlock (global_mr_oids_lock);        
-	LDAPDebug(LDAP_DEBUG_FILTER, "<= plugin_mr_bind\n", 0, 0, 0);
+	slapi_log_err(SLAPI_LOG_FILTER, "plugin_mr_bind", "<=\n");
 }
 
 int /* an LDAP error code, hopefully LDAP_SUCCESS */
@@ -281,9 +281,9 @@ mr_wrap_mr_index_sv_fn(Slapi_PBlock* pb)
 	slapi_pblock_set(pb, SLAPI_PLUGIN_MR_KEYS, out_vals); /* make sure output is cleared */
 	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
 	if (!pi) {
-		LDAPDebug0Args(LDAP_DEBUG_ERR, "mr_wrap_mr_index_sv_fn - no plugin specified\n");
+		slapi_log_err(SLAPI_LOG_ERR, "mr_wrap_mr_index_sv_fn", "No plugin specified\n");
 	} else if (!pi->plg_mr_values2keys) {
-		LDAPDebug0Args(LDAP_DEBUG_ERR, "mr_wrap_mr_index_sv_fn - plugin has no plg_mr_values2keys function\n");
+		slapi_log_err(SLAPI_LOG_ERR, "mr_wrap_mr_index_sv_fn", "Plugin has no plg_mr_values2keys function\n");
 	} else {
 		struct mr_private *mrpriv = NULL;
 		int ftype = plugin_mr_get_type(pi);
@@ -412,7 +412,7 @@ default_mr_filter_index(Slapi_PBlock *pb)
 		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID);
 		slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE);
 
-		slapi_log_error(SLAPI_LOG_ERR, "default_mr_filter_index",
+		slapi_log_err(SLAPI_LOG_ERR, "default_mr_filter_index",
 				"Failure because mrpriv is NULL : %s %s\n",
 				mrOID ? "" : " oid",
 				mrTYPE ? "" : " attribute type");
@@ -443,7 +443,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 	struct berval* mrVALUE = NULL;
 	struct slapdplugin* pi = NULL;
 
-	LDAPDebug0Args(LDAP_DEBUG_FILTER, "=> default_mr_filter_create\n");
+	slapi_log_err(SLAPI_LOG_FILTER, "default_mr_filter_create", "=>\n");
 
 	if (!slapi_pblock_get(pb, SLAPI_PLUGIN_MR_OID, &mrOID) && mrOID != NULL &&
 		!slapi_pblock_get(pb, SLAPI_PLUGIN_MR_TYPE, &mrTYPE) && mrTYPE != NULL &&
@@ -453,14 +453,14 @@ default_mr_filter_create(Slapi_PBlock *pb)
 		struct mr_private *mrpriv = NULL;
 		int ftype = 0;
 
-		LDAPDebug2Args(LDAP_DEBUG_FILTER, "=> default_mr_filter_create(oid %s; type %s)\n",
+		slapi_log_err(SLAPI_LOG_FILTER, "default_mr_filter_create", "(oid %s; type %s)\n",
 					   mrOID, mrTYPE);
 
 		/* check to make sure this create function is supposed to be used with the
 		   given oid */
 		if (!charray_inlist(pi->plg_mr_names, mrOID)) {
-			LDAPDebug2Args(LDAP_DEBUG_FILTER,
-						   "=> default_mr_filter_create: cannot use matching rule %s with plugin %s\n",
+			slapi_log_err(SLAPI_LOG_FILTER,
+						   "default_mr_filter_create", "<= Cannot use matching rule %s with plugin %s\n",
 						   mrOID, pi->plg_name);
 			goto done;
 		}
@@ -484,7 +484,7 @@ default_mr_filter_create(Slapi_PBlock *pb)
 			   reason is that the API provides no way to pass in the search time limit
 			   required by the syntax filter substring match functions
 			*/
-			LDAPDebug1Arg(LDAP_DEBUG_FILTER, "<= default_mr_filter_create - unsupported filter type %d\n",
+			slapi_log_err(SLAPI_LOG_FILTER, "default_mr_filter_create", "<= unsupported filter type %d\n",
 						  ftype);
 			goto done;
 		}
@@ -529,15 +529,15 @@ default_mr_filter_create(Slapi_PBlock *pb)
 		slapi_pblock_set(pb, SLAPI_PLUGIN_DESTROY_FN, default_mr_filter_destroy);
 		rc = 0; /* success */
 	} else {
-		LDAPDebug(LDAP_DEBUG_FILTER,
-				  "default_mr_filter_create: missing parameter: %s%s%s\n",
+		slapi_log_err(SLAPI_LOG_FILTER,
+				  "default_mr_filter_create", "Missing parameter: %s%s%s\n",
 				  mrOID ? "" : " oid",
 				  mrTYPE ? "" : " attribute type",
 				  mrVALUE ? "" : " filter value");
 	}
 
 done:
-	LDAPDebug1Arg(LDAP_DEBUG_FILTER, "=> default_mr_filter_create: %d\n", rc);
+	slapi_log_err(SLAPI_LOG_FILTER, "default_mr_filter_create", "<= %d\n", rc);
 
 	return rc;
 }
@@ -659,7 +659,7 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 
 	slapi_pblock_get(pb, SLAPI_PLUGIN, &pi);
 	if (NULL == pi) {
-		LDAPDebug0Args(LDAP_DEBUG_ERR, "default_mr_indexer_create - error - no plugin specified\n");
+		slapi_log_err(SLAPI_LOG_ERR, "default_mr_indexer_create", "No plugin specified\n");
 		goto done;
 	}
 	slapi_pblock_get (pb, SLAPI_PLUGIN_MR_OID, &oid);
@@ -667,15 +667,16 @@ default_mr_indexer_create(Slapi_PBlock* pb)
 	 * MR plugin. We need to check the selected plugin handle the expected OID
 	 */
 	if ( oid == NULL || !charray_inlist(pi->plg_mr_names, oid)) {
-	    LDAPDebug2Args(LDAP_DEBUG_WARNING, "default_mr_indexer_create - plugin [%s] does not handle %s\n",
+	    slapi_log_err(SLAPI_LOG_WARNING, "default_mr_indexer_create", "Plugin [%s] does not handle %s\n",
 		    pi->plg_name,
 		    oid ? oid : "unknown oid");
 	    goto done;
 	}
 
 	if (NULL == pi->plg_mr_values2keys) {
-		LDAPDebug1Arg(LDAP_DEBUG_ERR, "default_mr_indexer_create: error - plugin [%s] has no plg_mr_values2keys function\n",
-					  pi->plg_name);
+		slapi_log_err(SLAPI_LOG_ERR, "default_mr_indexer_create",
+			"Plugin [%s] has no plg_mr_values2keys function\n",
+			pi->plg_name);
 		goto done;
 	}
 

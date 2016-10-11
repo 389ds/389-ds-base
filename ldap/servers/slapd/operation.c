@@ -53,8 +53,10 @@ slapi_op_internal( Slapi_PBlock *pb )
 void
 operation_out_of_disk_space()
 {
-    LDAPDebug(LDAP_DEBUG_ERR, "*** DISK FULL ***\n", 0, 0, 0);
-    LDAPDebug(LDAP_DEBUG_ERR, "Attempting to shut down gracefully.\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_EMERG, "operation_out_of_disk_space",
+            "*** DISK FULL ***\n");
+    slapi_log_err(SLAPI_LOG_EMERG, "operation_out_of_disk_space",
+            "Attempting to shut down gracefully.\n");
     g_set_shutdown( SLAPI_SHUTDOWN_DISKFULL );
 }
 
@@ -576,7 +578,7 @@ int slapi_connection_acquire(Slapi_Connection *conn)
     if (conn->c_flags & CONN_FLAG_CLOSING)
     {
 	/* This may happen while other threads are still working on this connection */
-        slapi_log_error(SLAPI_LOG_ERR, "connection",
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_acquire",
 		                "conn=%" NSPRIu64 " fd=%d Attempt to acquire connection in the closing state\n",
 		                conn->c_connid, conn->c_sd);
         rc = -1;
@@ -602,10 +604,12 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 		;	/* NULL */
 	if ( *tmp == NULL ) {
 		if (op) {
-			LDAPDebug(LDAP_DEBUG_ERR, "connection_remove_operation: can't find op %d for conn %" NSPRIu64 "\n",
-			    (int)op->o_msgid, conn->c_connid, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
+				"Can't find op %d for conn %" NSPRIu64 "\n",
+			    (int)op->o_msgid, conn->c_connid);
 		} else {
-			LDAPDebug(LDAP_DEBUG_ERR, "connection_remove_operation: no operation provided\n",0, 0, 0);
+			slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
+				"No operation provided\n");
 		}
 	} else {
 		*tmp = (*tmp)->o_next;
@@ -614,7 +618,7 @@ slapi_connection_remove_operation( Slapi_PBlock *pb, Slapi_Connection *conn, Sla
 	if (release) {
 		/* connection_release_nolock(conn); */
 		if (conn->c_refcnt <= 0) {
-			slapi_log_error(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
+			slapi_log_err(SLAPI_LOG_ERR, "slapi_connection_remove_operation",
 			                "conn=%" NSPRIu64 " fd=%d Attempt to release connection that is not acquired\n",
 			                conn->c_connid, conn->c_sd);
 			rc = -1;

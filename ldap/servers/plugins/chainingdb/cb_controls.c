@@ -158,7 +158,7 @@ int cb_update_controls( Slapi_PBlock * pb,
             /* we have to force remote acl checking if the associated backend to this
             chaining backend is disabled - disabled == no acl check possible */
             if (!cb->local_acl && !cb->associated_be_is_disabled) {
-                slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
                     "local aci check required to handle proxied auth control. Deny access.\n");
                     rc= LDAP_INSUFFICIENT_ACCESS;
                 break;
@@ -177,7 +177,7 @@ int cb_update_controls( Slapi_PBlock * pb,
                 slapi_dn_ignore_case(requestorCopy);
 
                 if (!strcmp( requestorCopy, rootdn )) {    /* UTF8- aware */
-                    slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
                             "Use of user <%s> incompatible with proxied auth. control\n",
                             rootdn);
                     rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
@@ -202,7 +202,7 @@ int cb_update_controls( Slapi_PBlock * pb,
 
             ber = ber_init(&(reqControls[cCount]->ldctl_value));
             if (LBER_ERROR == ber_scanf(ber,"i",&hops)) {
-                slapi_log_error(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN,CB_PLUGIN_SUBSYSTEM,
                                  "Unable to get number of hops from the chaining control\n");
             }
             ber_free(ber,1);
@@ -255,7 +255,7 @@ int cb_update_controls( Slapi_PBlock * pb,
 
         if ( slapi_ldap_create_proxyauth_control(ld, proxyDN, isabandon?0:1, 0, &ctrls[dCount] )) {
             ldap_controls_free(ctrls);
-                slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                 "LDAP_CONTROL_PROXYAUTH control encoding failed.\n");
             return LDAP_OPERATIONS_ERROR;
         }

@@ -113,7 +113,7 @@ modify_update_last_modified_attr(Slapi_PBlock *pb, Slapi_Mods *smods)
     struct slapi_componentid *cid = NULL;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "modify_update_last_modified_attr\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "modify_update_last_modified_attr", "=>\n");
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     bvals[0] = &bv;
@@ -1087,8 +1087,8 @@ process_entry(Slapi_PBlock *pb, Slapi_Entry *e, int send_result)
         slapi_attr_get_numvalues(a, &numValues );
         if (numValues == 0) 
         {
-            LDAPDebug1Arg(LDAP_DEBUG_ERR, "process_entry - null ref in (%s)\n",
-                          slapi_entry_get_dn_const(e));
+            slapi_log_err(SLAPI_LOG_ERR, "process_entry", "NULL ref in (%s)\n",
+                    slapi_entry_get_dn_const(e));
         }
         else 
         {
@@ -1379,9 +1379,9 @@ iterate(Slapi_PBlock *pb, Slapi_Backend *be, int send_result,
                 if ( rc != LDAP_SUCCESS ) {
                     /* Send error result and 
                        abort op if the control is critical */
-                    LDAPDebug(LDAP_DEBUG_ERR,
-                        "iterate - Failed to get effective rights for entry (%s), rc=%d\n",
-                        slapi_entry_get_dn_const(e), rc, 0 );
+                    slapi_log_err(SLAPI_LOG_ERR, "iterate",
+                        "Failed to get effective rights for entry (%s), rc=%d\n",
+                        slapi_entry_get_dn_const(e), rc);
                     send_ldap_result( pb, rc, NULL, errbuf, 0, NULL );
                     slapi_ch_free ( (void**)&errbuf );
                     if (gerentry)
@@ -1669,9 +1669,9 @@ compute_limits (Slapi_PBlock *pb)
     }
     slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &sizelimit);
 
-    LDAPDebug(LDAP_DEBUG_TRACE,
-            "=> compute_limits: sizelimit=%d, timelimit=%d\n",
-            sizelimit, timelimit, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "compute_limits",
+            "=> sizelimit=%d, timelimit=%d\n",
+            sizelimit, timelimit);
 }
 
 /* Iterates through results and send them to the client.

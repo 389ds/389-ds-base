@@ -170,10 +170,12 @@ factory_type_add_extension(struct factory_type *ft, struct factory_extension *fe
     }
     else
     {
-        LDAPDebug(LDAP_DEBUG_ERR, "factory_type_add_extension - Registration of %s extension by %s failed.\n",
-                   ft->name, fe->pluginname, 0);
-        LDAPDebug(LDAP_DEBUG_ERR, "factory_type_add_extension - %d extensions already registered. Max is %d\n",
-                   ft->extension_count, MAX_EXTENSIONS, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "factory_type_add_extension",
+                "Registration of %s extension by %s failed.\n",
+                ft->name, fe->pluginname);
+        slapi_log_err(SLAPI_LOG_ERR, "factory_type_add_extension",
+                "%d extensions already registered. Max is %d\n",
+                ft->extension_count, MAX_EXTENSIONS);
     }
 
     PR_Unlock(ft->extension_lock);
@@ -193,8 +195,9 @@ factory_type_decrement_existence(struct factory_type *ft)
 	if(ft->existence_count<0)
 	{
 	    /* This just shouldn't happen */
-   		LDAPDebug(LDAP_DEBUG_ERR, "factory_type_decrement_existence - %lu %s object extensions in existence.\n",
-   			ft->extension_count, ft->name, 0);
+   		slapi_log_err(SLAPI_LOG_ERR, "factory_type_decrement_existence",
+   			"%d %s object extensions in existence.\n",
+   			ft->extension_count, ft->name);
 	}
 }
 
@@ -275,8 +278,10 @@ factory_register_type(const char *name, size_t offset)
 	}
 	else
 	{
-   		LDAPDebug(LDAP_DEBUG_ERR, "factory_register_type - Registration of %s object failed.\n", name, 0, 0);
-   		LDAPDebug(LDAP_DEBUG_ERR, "factory_register_type - %d objects already registered. Max is %d\n", number_of_types, MAX_TYPES, 0);
+   		slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
+   			"Registration of %s object failed.\n", name);
+   		slapi_log_err(SLAPI_LOG_ERR, "factory_register_type",
+   			"%d objects already registered. Max is %d\n", number_of_types, MAX_TYPES);
 	    type= -1;
 	}
 	PR_Unlock(factory_type_store_lock);
@@ -324,7 +329,8 @@ factory_create_extension(int type,void *object,void *parent)
 	else
 	{
 	    /* The type wasn't registered. Programming error? */
-   		LDAPDebug(LDAP_DEBUG_ERR, "factory_create_extension - Object type handle %d not valid. Object not registered?\n", type, 0, 0);
+   		slapi_log_err(SLAPI_LOG_ERR, "factory_create_extension",
+   			"Object type handle %d not valid. Object not registered?\n", type);
 	}
 	return (void*)extension;
 }
@@ -365,7 +371,8 @@ factory_destroy_extension(int type,void *object,void *parent,void **extension)
 		else
 		{
 			/* The type wasn't registered. Programming error? */
-			LDAPDebug(LDAP_DEBUG_ERR, "factory_destroy_extension - Object type handle %d not valid. Object not registered?\n", type, 0, 0);
+			slapi_log_err(SLAPI_LOG_ERR, "factory_destroy_extension", 
+				"Object type handle %d not valid. Object not registered?\n", type);
 		}
 		slapi_ch_free(extension);
 	}
@@ -430,7 +437,8 @@ slapi_register_object_extension(
 	}
 	else
 	{
-   		LDAPDebug(LDAP_DEBUG_ERR, "slapi_register_object_extension - Plugin %s failed to register extension for object %s.\n", pluginname, objectname, 0);
+   		slapi_log_err(SLAPI_LOG_ERR, "slapi_register_object_extension",
+   			"Plugin %s failed to register extension for object %s.\n", pluginname, objectname);
 		rc= -1;
 		delete_factory_extension(&fe);
 	}

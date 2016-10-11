@@ -164,7 +164,8 @@ make_sure_dir_exists(char *dir)
     if (PR_MkDir(dir, 0755) != PR_SUCCESS) {
         PRErrorCode prerr = PR_GetError();
         if (prerr != PR_FILE_EXISTS_ERROR) {
-            LDAPDebug(LDAP_DEBUG_ERR, "make_sure_dir_exists " FILE_CREATE_ERROR, dir, prerr, slapd_pr_strerror(prerr));
+            slapi_log_err(SLAPI_LOG_ERR, "make_sure_dir_exists",
+            	FILE_CREATE_ERROR, dir, prerr, slapd_pr_strerror(prerr));
             return 1;
         }
     }
@@ -175,10 +176,10 @@ make_sure_dir_exists(char *dir)
         pw = slapdFrontendConfig->localuserinfo;
         if (chown(dir, pw->pw_uid, -1) == -1) {
             if ((stat(dir, &stat_buffer) == 0) && (stat_buffer.st_uid != pw->pw_uid)) {
-                LDAPDebug(LDAP_DEBUG_WARNING, "make_sure_dir_exists " CHOWN_WARNING, dir, 0, 0);
+                slapi_log_err(SLAPI_LOG_WARNING, "make_sure_dir_exists", CHOWN_WARNING, dir);
                 return 1;
             } else {
-                LDAPDebug(LDAP_DEBUG_ERR, "make_sure_dir_exists " STAT_ERROR, dir, errno, 0);
+                slapi_log_err(SLAPI_LOG_ERR, "make_sure_dir_exists", STAT_ERROR, dir, errno);
                 return 1;
             }
         }
@@ -203,7 +204,7 @@ add_this_process_to(char *dir_name)
     file_name[sizeof(file_name)-1] = (char)0;
     
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0644)) == NULL) {
-        LDAPDebug(LDAP_DEBUG_WARNING, "add_this_process_to" FILE_CREATE_WARNING, file_name, 0, 0);
+        slapi_log_err(SLAPI_LOG_WARNING, "add_this_process_to", FILE_CREATE_WARNING, file_name);
         return;
     }
     
@@ -214,7 +215,7 @@ add_this_process_to(char *dir_name)
         pw = slapdFrontendConfig->localuserinfo;
         if (chown(file_name, pw->pw_uid, -1) == -1) {
             if ((stat(file_name, &stat_buffer) == 0) && (stat_buffer.st_uid != pw->pw_uid)) {
-                LDAPDebug(LDAP_DEBUG_WARNING, "add_this_process_to" CHOWN_WARNING, file_name, 0, 0);
+                slapi_log_err(SLAPI_LOG_WARNING, "add_this_process_to", CHOWN_WARNING, file_name);
             }
         }
     }
@@ -388,10 +389,10 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     case SLAPD_EXEMODE_SLAPD:
     if (running) {
         result = -1;
-        LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_SERVER_DUE_TO_SERVER, running, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_SERVER_DUE_TO_SERVER, running);
     } else if (importing) {
         result = -1;
-        LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_SERVER_DUE_TO_IMPORT, importing, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_SERVER_DUE_TO_IMPORT, importing);
     } else {
         add_this_process_to(server_dir);
         result = 0;
@@ -404,7 +405,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
          * it needs to run by itself, so no other slapd process can
          * change the database while it is running. */
         if (running || importing) {
-            LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process"  NO_DB2LDIFR_DUE_TO_USE, 0, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process",  NO_DB2LDIFR_DUE_TO_USE);
             result = -1;
         } else {
             /* Even though this is really going to export code, we will 
@@ -415,7 +416,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
         }
     } else {
         if (importing) {
-            LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_DB2LDIF_DUE_TO_IMPORT, importing, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2LDIF_DUE_TO_IMPORT, importing);
             result = -1;        
         } else {
             add_this_process_to(export_dir);
@@ -425,7 +426,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     break;
     case SLAPD_EXEMODE_DB2ARCHIVE:
     if (importing) {
-        LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_DB2BAK_DUE_TO_IMPORT, importing, 0, 0);        
+        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2BAK_DUE_TO_IMPORT, importing);        
         result = -1;
     } else {
         add_this_process_to(export_dir);
@@ -435,7 +436,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     case SLAPD_EXEMODE_ARCHIVE2DB:
     case SLAPD_EXEMODE_LDIF2DB:
     if (running || importing || exporting) {
-        LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_IMPORT_DUE_TO_USE, 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_IMPORT_DUE_TO_USE);
         result = -1;
     } else {
         add_this_process_to(import_dir);
@@ -444,7 +445,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
     break;
     case SLAPD_EXEMODE_DB2INDEX:
         if (running || importing || exporting) {
-            LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_DB2INDEX_DUE_TO_USE, 0, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DB2INDEX_DUE_TO_USE);
             result = -1;
         } else {
             add_this_process_to(import_dir);
@@ -453,7 +454,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
         break;
     case SLAPD_EXEMODE_UPGRADEDB:
         if (running || importing || exporting) {
-            LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_UPGRADEDB_DUE_TO_USE, 0, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_UPGRADEDB_DUE_TO_USE);
             result = -1;
         } else {
             add_this_process_to(import_dir);
@@ -462,7 +463,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
         break;
     case SLAPD_EXEMODE_UPGRADEDNFORMAT:
         if (running || importing || exporting) {
-            LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_UPGRADEDNFORMAT_DUE_TO_USE, 0, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_UPGRADEDNFORMAT_DUE_TO_USE);
             result = -1;
         } else {
             add_this_process_to(import_dir);
@@ -471,7 +472,7 @@ add_new_slapd_process(int exec_mode, int r_flag, int skip_flag)
         break;
     case SLAPD_EXEMODE_DBTEST:
         if (running || importing || exporting) {
-            LDAPDebug(LDAP_DEBUG_ERR, "add_new_slapd_process" NO_DBTEST_DUE_TO_USE, 0, 0, 0);
+            slapi_log_err(SLAPI_LOG_ERR, "add_new_slapd_process", NO_DBTEST_DUE_TO_USE);
             result = -1;
         } else {
             add_this_process_to(import_dir);

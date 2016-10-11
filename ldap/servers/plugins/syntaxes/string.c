@@ -119,7 +119,7 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 	int	ava_wordcount;
 	char	*w1, *w2, *c1, *c2;
 
-	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> string_filter_approx\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> string_filter_approx\n");
 
 	/*
 	 * try to match words in each filter value in order
@@ -183,7 +183,7 @@ string_filter_approx( struct berval *bvfilter, Slapi_Value **bvals,
 	if (0 != rc) {
 		rc = -1;
 	}
-	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= string_filter_approx %d\n", rc);
+	slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= string_filter_approx %d\n", rc);
 
 	return( rc );
 }
@@ -209,7 +209,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 	int free_re = 1;
 	struct subfilt *sf = NULL;
 
-	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> string_filter_sub\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> string_filter_sub\n");
 	if (pb) {
 		slapi_pblock_get( pb, SLAPI_OPERATION, &op );
 	}
@@ -323,14 +323,14 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 		tmpbuf = NULL;
 		re = slapi_re_comp( p, &re_result );
 		if (NULL == re) {
-			slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
 					"string_filter_sub - re_comp (%s) failed (%s): %s\n",
 					pat, p, re_result?re_result:"unknown" );
 			rc = LDAP_OPERATIONS_ERROR;
 			goto bailout;
 		} else if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
 			char ebuf[BUFSIZ];
-			slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM,
 				"string_filter_sub - re_comp (%s)\n", escape_string(p, ebuf));
 		}
 	}
@@ -379,7 +379,7 @@ string_filter_sub( Slapi_PBlock *pb, char *initial, char **any, char *final,
 
 		if (slapi_is_loglevel_set(SLAPI_LOG_TRACE)) {
 			char ebuf[BUFSIZ];
-			slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM,"re_exec (%s) %i\n",
+			slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM,"re_exec (%s) %i\n",
 				escape_string(realval, ebuf), tmprc);
 		}
 		if ( tmprc == 1 ) {
@@ -397,7 +397,7 @@ bailout:
 	slapi_ch_free((void**)&tmpbuf );	/* NULL is fine */
 	slapi_ch_free((void**)&bigpat );	/* NULL is fine */
 
-	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= string_filter_sub %d\n", rc);
+	slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= string_filter_sub %d\n", rc);
 	return( rc );
 }
 
@@ -741,7 +741,7 @@ string_assertion2keys_ava(
 		}
 		break;
 	default:
-		slapi_log_error(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, SYNTAX_PLUGIN_SUBSYSTEM,
 		    "string_assertion2keys_ava - Unknown ftype 0x%x\n",
 		    ftype);
 		break;
@@ -923,7 +923,7 @@ substring_comp_keys(
 	PR_ASSERT(NULL != comp_buf);
 	PR_ASSERT(NULL != substrlens);
 
-	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> substring_comp_keys - (%s) %d\n",
+	slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "=> substring_comp_keys - (%s) %d\n",
         str, prepost);
 
     /* prepend ^ for initial substring */
@@ -966,5 +966,5 @@ substring_comp_keys(
 		(*nsubs)++;
     }
 
-	slapi_log_error(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= substring_comp_keys\n");
+	slapi_log_err(SLAPI_LOG_TRACE, SYNTAX_PLUGIN_SUBSYSTEM, "<= substring_comp_keys\n");
 }

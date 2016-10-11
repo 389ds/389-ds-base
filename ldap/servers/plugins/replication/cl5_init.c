@@ -29,7 +29,7 @@ int changelog5_init()
 	rc = cl5Init ();
 	if (rc != CL5_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 						"changelog5_init: failed to initialize changelog\n");
 		return 1;
 	}
@@ -51,7 +51,7 @@ int changelog5_init()
 	rc = cl5Open (config.dir, &config.dbconfig);
 	if (rc != CL5_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 					"changelog5_init: failed to start changelog at %s\n", 
 					config.dir);
 		rc = 1;
@@ -62,7 +62,7 @@ int changelog5_init()
 	rc = cl5ConfigTrimming (config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
 	if (rc != CL5_SUCCESS)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 						"changelog5_init: failed to configure changelog trimming\n");
 		rc = 1;
         goto done;

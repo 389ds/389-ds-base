@@ -41,7 +41,7 @@ ldif_back_bind( Slapi_PBlock *pb )
   int			rc, syntax; /*Storage for error return values*/
   Slapi_Attr		*attr;
 
-  LDAPDebug(LDAP_DEBUG_TRACE, "=> ldif_back_bind\n", 0, 0, 0 );
+  slapi_log_err(SLAPI_LOG_TRACE, "=> ldif_back_bind\n", 0, 0, 0 );
 
   prev = NULL;
   
@@ -109,7 +109,7 @@ ldif_back_bind( Slapi_PBlock *pb )
   
   PR_Unlock( db->ldif_lock );  
 
-  LDAPDebug(LDAP_DEBUG_TRACE, "<= ldif_back_bind\n", 0, 0, 0 );  
+  slapi_log_err(SLAPI_LOG_TRACE, "<= ldif_back_bind\n", 0, 0, 0 );  
 
   /* success:  front end will send result */
   return( SLAPI_BIND_SUCCESS );

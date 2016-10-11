@@ -666,7 +666,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 
 		/* Stash info that this is an incremental update session */
 		connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 			"multimaster_extop_StartNSDS50ReplicationRequest - "
 			"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin incremental protocol\n",
 			connid, opid, repl_root);
@@ -693,7 +693,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		{
 			connext->repl_protocol_version = REPL_PROTOCOL_50_TOTALUPDATE;
 		}
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin total protocol\n",
 				connid, opid, repl_root);
@@ -703,7 +703,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	{
 		/* Stash info that this is an incremental update session */
 		connext->repl_protocol_version = REPL_PROTOCOL_50_INCREMENTAL;
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 			"multimaster_extop_StartNSDS50ReplicationRequest - "
 			"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin 7.1 incremental protocol\n",
 			connid, opid, repl_root);
@@ -716,7 +716,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		{
 			connext->repl_protocol_version = REPL_PROTOCOL_50_TOTALUPDATE;
 		}
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": Begin 7.1 total protocol\n",
 				connid, opid, repl_root);
@@ -739,7 +739,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	/* see if this replica is being configured and wait for it */
 	if (replica_is_being_configured(repl_root))
 	{
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d replica=\"%s\": "
 				"Replica is being configured: try again later\n",
@@ -767,7 +767,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		if (replica_is_state_flag_set(replica,
 							REPLICA_TOTAL_EXCL_SEND|REPLICA_TOTAL_EXCL_RECV))
 		{
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 				"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"%s: total update on is initiated on the replica.  Cannot execute the total update from other master.\n", repl_root);
 			response = NSDS50_REPL_REPLICA_BUSY;
@@ -812,7 +812,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 				rc = replica_update_csngen_state_ext (replica, supplier_ruv, replicacsn); /* too much skew */
 				if (rc == CSN_LIMIT_EXCEEDED)
 				{
-					slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 							"multimaster_extop_StartNSDS50ReplicationRequest - "
 							"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 							"Excessive clock skew from supplier RUV\n",
@@ -850,7 +850,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	}
 
 	if (check_replica_id_uniqueness(replica, supplier_ruv) != 0){
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"Replica has same replicaID %d as supplier\n",
@@ -890,7 +890,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 	if (getenv("SLAPD_TEST_TICKET_374") && (opid > 20)) {
 		int i = 0;
 		int max = 480 * 5;
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"374 - Starting sleep: connext->repl_protocol_version == %d\n",
@@ -900,7 +900,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 			usleep(200000);
 		}
         
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"374 - Finished sleep: connext->repl_protocol_version == %d\n",
@@ -995,7 +995,7 @@ multimaster_extop_StartNSDS50ReplicationRequest(Slapi_PBlock *pb)
 		 * than assuming a total update was requested. 
 		 * https://fedorahosted.org/389/ticket/374 */
 		response = NSDS50_REPL_INTERNAL_ERROR;
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 				"multimaster_extop_StartNSDS50ReplicationRequest - "
 				"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 				"Unexpected update protocol received: %d.  "
@@ -1036,7 +1036,7 @@ send_response:
 			resp_log_level = SLAPI_LOG_REPL;
 		}
 
-		slapi_log_error (resp_log_level,
+		slapi_log_err (resp_log_level,
 			repl_plugin_name,
 			"multimaster_extop_StartNSDS50ReplicationRequest - "
 			"conn=%" NSPRIu64 " op=%d replica=\"%s\": "
@@ -1090,7 +1090,7 @@ send_response:
 	}
 
 	slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
-	slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+	slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 			"multimaster_extop_StartNSDS50ReplicationRequest - "
 			"conn=%" NSPRIu64 " op=%d repl=\"%s\": "
 			"%s: response=%d rc=%d\n",
@@ -1463,7 +1463,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	 *  Decode the payload, and grab our settings
 	 */
 	if(decode_cleanruv_payload(extop_payload, &payload)){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 				"Abort CleanAllRUV Task - Failed to decode payload.  Aborting ext op\n");
 		return LDAP_OPERATIONS_ERROR;
 	}
@@ -1475,14 +1475,14 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 		/* This replica has already been aborted, or was never cleaned, or already finished cleaning */
 		goto out;
 	} else {
-		slapi_log_error(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 			"Abort CleanAllRUV Task - Aborting cleanallruv task for rid(%d)\n", rid);
 	}
 	/*
 	 *  Get the node, so we can get the replica and its agreements
 	 */
 	if((mtnode_ext = replica_config_get_mtnode_by_dn(repl_root)) == NULL){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 			"Abort CleanAllRUV Task - Failed to get replication node "
 			"from (%s), aborting operation\n", repl_root);
 		rc = LDAP_OPERATIONS_ERROR;
@@ -1492,7 +1492,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 		object_acquire (mtnode_ext->replica);
 		release_it = 1;
 	} else {
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 			"Abort CleanAllRUV Task - Replica is missing from (%s), "
 			"aborting operation\n",repl_root);
 		rc = LDAP_OPERATIONS_ERROR;
@@ -1500,7 +1500,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	}
 	r = (Replica*)object_get_data (mtnode_ext->replica);
 	if(r == NULL){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 			"Abort CleanAllRUV Task - Replica is NULL, aborting task\n");
 		rc = LDAP_OPERATIONS_ERROR;
 		goto out;
@@ -1510,7 +1510,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 	 */
 	data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
 	if (data == NULL) {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 			"Abort CleanAllRUV Task - Failed to allocate "
 			"abort_cleanruv_data.  Aborting task.\n");
 		rc = LDAP_OPERATIONS_ERROR;
@@ -1536,7 +1536,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
 			(void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 			PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (thread == NULL) {
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_extop_abort_cleanruv - "
 			"Abort CleanAllRUV Task - Unable to create abort "
 			"thread.  Aborting task.\n");
 		release_it = 1; /* have to release mtnode_ext->replica now */
@@ -1600,7 +1600,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 	 *  Decode the payload
 	 */
 	if(decode_cleanruv_payload(extop_payload, &payload)){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to decode payload.  Aborting ext op\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to decode payload.  Aborting ext op\n");
 		goto free_and_return;
 	}
 	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
@@ -1624,7 +1624,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 	 *  Get the node, so we can get the replica and its agreements
 	 */
 	if((mtnode_ext = replica_config_get_mtnode_by_dn(repl_root)) == NULL){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to get replication node "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to get replication node "
 			"from (%s), aborting operation\n", repl_root);
 		goto free_and_return;
 	}
@@ -1633,14 +1633,14 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 		object_acquire (mtnode_ext->replica);
 		release_it = 1;
 	} else {
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Replica is missing from (%s), "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Replica is missing from (%s), "
 			"aborting operation\n",repl_root);
 		goto free_and_return;
 	}
 
 	r = (Replica*)object_get_data (mtnode_ext->replica);
 	if(r == NULL){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Replica is NULL, aborting task\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Replica is NULL, aborting task\n");
 		goto free_and_return;
 	}
 
@@ -1650,10 +1650,10 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 		 *
 		 *  This will also release mtnode_ext->replica
 		 */
-		slapi_log_error(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Launching cleanAllRUV thread...\n");
+		slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Launching cleanAllRUV thread...\n");
 		data = (cleanruv_data*)slapi_ch_calloc(1, sizeof(cleanruv_data));
 		if (data == NULL) {
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to allocate "
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to allocate "
 				"cleanruv_Data\n");
 			goto free_and_return;
 		}
@@ -1670,7 +1670,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 				(void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 				PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 		if (thread == NULL) {
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Unable to create cleanAllRUV "
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Unable to create cleanAllRUV "
 				"monitoring thread.  Aborting task.\n");
 			ber_bvfree(data->payload);
 			data->payload = NULL;
@@ -1697,18 +1697,18 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 				/* we've already been cleaned */
 				break;
 			}
-			slapi_log_error(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Checking if we're caught up...\n");
+			slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Checking if we're caught up...\n");
 			if(ruv_covers_csn_cleanallruv(ruv,maxcsn) || csn_get_replicaid(maxcsn) == 0|| strcmp(force,"yes") == 0){
 				/* We are caught up */
 				break;
 			} else {
 				char csnstr[CSN_STRSIZE];
 				csn_as_string(maxcsn, PR_FALSE, csnstr);
-				slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Not ruv caught up maxcsn(%s)\n", csnstr);
+				slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Not ruv caught up maxcsn(%s)\n", csnstr);
 			}
 			DS_Sleep(PR_SecondsToInterval(5));
 		}
-		slapi_log_error(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - We're caught up...\n");
+		slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - We're caught up...\n");
 		/*
 		 *  Set cleaned rid in memory only - does not survive a server restart
 		 */
@@ -1724,8 +1724,8 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
 		 *  This read-only replica has no easy way to tell when it's safe to release the rid.
 		 *  So we won't release it, not until a server restart.
 		 */
-		slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - You must restart the server if you want to reuse rid(%d).\n", rid);
-		slapi_log_error(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Successfully cleaned rid(%d).\n", rid);
+		slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - You must restart the server if you want to reuse rid(%d).\n", rid);
+		slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Successfully cleaned rid(%d).\n", rid);
 		rc = LDAP_SUCCESS;
 	}
 
@@ -1792,7 +1792,7 @@ multimaster_extop_cleanruv_get_maxcsn(Slapi_PBlock *pb)
 	 *  Decode the payload
 	 */
 	if(decode_cleanruv_payload(extop_payload, &payload)){
-		   slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_get_maxcsn - CleanAllRUV Task - Get MaxCSN Task: failed to decode payload.  Aborting ext op\n");
+		   slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_get_maxcsn - CleanAllRUV Task - Get MaxCSN Task: failed to decode payload.  Aborting ext op\n");
 		   goto free_and_return;
 	}
 	rid = atoi(ldap_utf8strtok_r(payload, ":", &iter));
@@ -1861,7 +1861,7 @@ multimaster_extop_cleanruv_check_status(Slapi_PBlock *pb)
 	 *  Decode the payload - which should just be a filter
 	 */
 	if(decode_cleanruv_payload(extop_payload, &filter)){
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_check_status - "
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv_check_status - "
 			"CleanAllRUV Task - Check Status Task: failed to decode payload.  Aborting ext op\n");
 		goto free_and_return;
 	}

@@ -77,7 +77,7 @@ testentry_scramble( char **entry, unsigned long *len )
 
 	/* Log an entry to the server's error log file whenever
 	   this function is called. */
-	slapi_log_error(SLAPI_LOG_PLUGIN, "testentry_scramble",  
+	slapi_log_err(SLAPI_LOG_PLUGIN, "testentry_scramble",  
 		"Entry data scrambled.\n" );
 
 	/* Perform a bitwise exclusive-OR operation on each
@@ -107,7 +107,7 @@ testentry_unscramble( char **entry, unsigned long *len )
 		(*entry)[i] ^= 0xaa;
 	}
 
-	slapi_log_error(SLAPI_LOG_PLUGIN, "testentry_unscramble",
+	slapi_log_err(SLAPI_LOG_PLUGIN, "testentry_unscramble",
 		"Entry data unscrambled.\n");
 	return( 0 );
 }
@@ -126,7 +126,7 @@ testentry_init(Slapi_PBlock *pb)
 	     slapi_pblock_set( pb, SLAPI_PLUGIN_ENTRY_STORE_FUNC, 
 		(void *) testentry_scramble ) != 0 ) {
 
-		slapi_log_error(SLAPI_LOG_PLUGIN, "testentry_init",
+		slapi_log_err(SLAPI_LOG_PLUGIN, "testentry_init",
 			"Failed to set version and functions\n" );
 		return( -1 );
 	}

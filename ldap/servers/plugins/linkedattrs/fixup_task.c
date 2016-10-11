@@ -71,7 +71,7 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb, Slapi_Entry *e,
 		(void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
 		PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
 	if (thread == NULL) {
-		slapi_log_error(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
 			"linked_attrs_fixup_task_add - Unable to create task thread!\n");
 		*returncode = LDAP_OPERATIONS_ERROR;
 		slapi_task_finish(task, *returncode);
@@ -116,7 +116,7 @@ linked_attrs_fixup_task_thread(void *arg)
 		return; /* no task */
 	}
 	slapi_task_inc_refcount(task);
-	slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
 	                "linked_attrs_fixup_task_thread --> refcount incremented.\n" );
 	/* Fetch our task data from the task */
 	td = (task_data *)slapi_task_get_data(task);
@@ -128,7 +128,7 @@ linked_attrs_fixup_task_thread(void *arg)
 	slapi_task_begin(task, 1);
 	slapi_task_log_notice(task, "Linked attributes fixup task starting (link dn: \"%s\") ...\n",
 	                      td->linkdn ? td->linkdn : "");
-	slapi_log_error(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM,
 	                "linked_attrs_fixup_task_thread - Syntax validate task starting (link dn: \"%s\") ...\n",
                     td->linkdn ? td->linkdn : "");
 
@@ -147,7 +147,7 @@ linked_attrs_fixup_task_thread(void *arg)
                     found_config = 1;
                     slapi_task_log_notice(task, "Fixing up linked attribute pair (%s)\n",
                          config_entry->dn);
-                    slapi_log_error(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM,
                          "linked_attrs_fixup_task_thread - Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
                     linked_attrs_fixup_links(config_entry);
@@ -157,7 +157,7 @@ linked_attrs_fixup_task_thread(void *arg)
                 /* No config DN was supplied, so fix up all configured links. */
                 slapi_task_log_notice(task, "Fixing up linked attribute pair (%s)\n",
                         config_entry->dn);
-                slapi_log_error(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM,
                        "linked_attrs_fixup_task_thread - Fixing up linked attribute pair (%s)\n", config_entry->dn);
 
                 linked_attrs_fixup_links(config_entry);
@@ -171,7 +171,7 @@ linked_attrs_fixup_task_thread(void *arg)
     if (td->linkdn && !found_config) {
         slapi_task_log_notice(task, "Requested link config DN not found (%s)\n",
                 td->linkdn);
-        slapi_log_error(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
                 "linked_attrs_fixup_task_thread - Requested link config DN not found (%s)\n", td->linkdn);
     }
 
@@ -180,14 +180,14 @@ linked_attrs_fixup_task_thread(void *arg)
 	/* Log finished message. */
 	slapi_task_log_notice(task, "Linked attributes fixup task complete.");
 	slapi_task_log_status(task, "Linked attributes fixup task complete.");
-	slapi_log_error(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM, "linked_attrs_fixup_task_thread - Linked attributes fixup task complete.\n");
+	slapi_log_err(SLAPI_LOG_INFO, LINK_PLUGIN_SUBSYSTEM, "linked_attrs_fixup_task_thread - Linked attributes fixup task complete.\n");
 	slapi_task_inc_progress(task);
 
 	/* this will queue the destruction of the task */
 	slapi_task_finish(task, rc);
 
 	slapi_task_dec_refcount(task);
-	slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
+	slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
 	                "linked_attrs_fixup_task_thread <-- refcount decremented.\n");
 }
 
@@ -219,11 +219,11 @@ linked_attrs_fixup_links(struct configEntry *config)
                 fixup_pb = slapi_pblock_new();
                 slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
                 if(slapi_back_transaction_begin(fixup_pb) != LDAP_SUCCESS){
-                    slapi_log_error(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
                             "linked_attrs_fixup_links - Failed to start transaction\n");
                 }
             } else {
-                slapi_log_error(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+                slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
                         "linked_attrs_fixup_link - Failed to get be backend from %s\n",
                         config->scope);
             }
@@ -276,11 +276,11 @@ linked_attrs_fixup_links(struct configEntry *config)
                     fixup_pb = slapi_pblock_new();
                     slapi_pblock_set(fixup_pb, SLAPI_BACKEND, be);
                     if(slapi_back_transaction_begin(fixup_pb) != LDAP_SUCCESS){
-                        slapi_log_error(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+                        slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
                                 "linked_attrs_fixup_links: failed to start transaction\n");
                     }
                 } else {
-                    slapi_log_error(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
+                    slapi_log_err(SLAPI_LOG_ERR, LINK_PLUGIN_SUBSYSTEM,
                             "linked_attrs_fixup_links: failed to get be backend from %s\n",
                             slapi_sdn_get_dn(config->suffix));
                 }
@@ -361,7 +361,7 @@ linked_attrs_remove_backlinks_callback(Slapi_Entry *e, void *callback_data)
     mods[0] = &mod;
     mods[1] = 0;
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                     "linked_attrs_remove_backlinks_callback - Removing backpointer attribute (%s) from entry (%s)\n",
                     type, slapi_sdn_get_dn(sdn));
 
@@ -436,7 +436,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
         }
 
         if (perform_update) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_PLUGIN, LINK_PLUGIN_SUBSYSTEM,
                             "linked_attrs_add_backlinks_callback - Adding backpointer (%s) in entry (%s)\n",
                             linkdn, targetdn);
 

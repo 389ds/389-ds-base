@@ -37,8 +37,7 @@ int ldbm_instance_create(backend *be, char *name)
     /* initialize the entry cache */
     if (! cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
                      DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_create - cache_init failed\n",
-                  0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "cache_init failed\n");
         rc = -1;
         goto error;
     }
@@ -50,8 +49,8 @@ int ldbm_instance_create(backend *be, char *name)
      */
     if (! cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
                      DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR,
-                       "ldbm_instance_create - dn cache_init failed\n");
+        slapi_log_err(SLAPI_LOG_ERR,
+                       "ldbm_instance_create", "dn cache_init failed\n");
         rc = -1;
         goto error;
     }
@@ -59,8 +58,7 @@ int ldbm_instance_create(backend *be, char *name)
     /* Lock for the list of open db handles */
     inst->inst_handle_list_mutex = PR_NewLock();
     if (NULL == inst->inst_handle_list_mutex) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_create - PR_NewLock failed\n",
-                  0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "PR_NewLock failed\n");
         rc = -1;
         goto error;
     }
@@ -68,28 +66,25 @@ int ldbm_instance_create(backend *be, char *name)
     /* Lock used to synchronize modify operations. */
     inst->inst_db_mutex = PR_NewMonitor();
     if (NULL == inst->inst_db_mutex) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_create - PR_NewMonitor failed\n",
-                  0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "PR_NewMonitor failed\n");
         rc = -1;
         goto error;
     }
 
     if ((inst->inst_config_mutex = PR_NewLock()) == NULL) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_create - PR_NewLock failed\n",
-                  0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "PR_NewLock failed\n");
         rc = -1;
         goto error;
     }
 
     if ((inst->inst_nextid_mutex = PR_NewLock()) == NULL) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_create - PR_NewLock failed\n",
-                  0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "PR_NewLock failed\n");
         rc = -1;
         goto error;
     }
 
     if ((inst->inst_indexer_cv = PR_NewCondVar(inst->inst_nextid_mutex)) == NULL) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_create - PR_NewCondVar failed\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "PR_NewCondVar failed\n");
         rc = -1;
         goto error;
     }
@@ -254,9 +249,9 @@ ldbm_instance_start(backend *be)
 
     if (be->be_state != BE_STATE_STOPPED &&
         be->be_state != BE_STATE_DELETED) {
-        LDAPDebug(LDAP_DEBUG_TRACE, 
-                   "ldbm_instance_start: warning - backend is in a wrong state - %d\n", 
-                   be->be_state, 0, 0 );
+        slapi_log_err(SLAPI_LOG_TRACE, 
+                   "ldbm_instance_start", "Warning - backend is in a wrong state - %d\n", 
+                   be->be_state);
         PR_Unlock (be->be_state_lock);
         return 0;
     }
@@ -280,9 +275,9 @@ ldbm_instance_stop(backend *be)
     PR_Lock (be->be_state_lock);
 
     if (be->be_state != BE_STATE_STARTED) {
-        LDAPDebug(LDAP_DEBUG_WARNING, 
-                   "ldbm_instance_stop - Backend %s is in the wrong state - %d\n", 
-                   inst ? inst->inst_name : "", be->be_state, 0 );
+        slapi_log_err(SLAPI_LOG_WARNING, 
+                   "ldbm_instance_stop", "Backend %s is in the wrong state - %d\n", 
+                   inst ? inst->inst_name : "", be->be_state);
         PR_Unlock (be->be_state_lock);
         return 0;
     }
@@ -392,8 +387,8 @@ ldbm_instance_destructor(void **arg)
 {
     ldbm_instance *inst = (ldbm_instance *) *arg;
 
-    LDAPDebug(LDAP_DEBUG_ERR, "ldbm_instance_destructor - Destructor for instance %s called\n", 
-              inst->inst_name, 0, 0);
+    slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_destructor", "Destructor for instance %s called\n", 
+              inst->inst_name);
 
     slapi_counter_destroy(&(inst->inst_ref_count));
     slapi_ch_free_string(&inst->inst_name);

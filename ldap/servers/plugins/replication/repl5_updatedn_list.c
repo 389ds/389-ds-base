@@ -52,7 +52,7 @@ replica_updatedn_list_new(const Slapi_Entry *entry)
     PLHashTable *hash = PL_NewHashTable(4, PL_HashString, PL_CompareStrings,
 										updatedn_compare_dns, NULL, NULL);
     if (hash == NULL) {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_new_updatedn_list - "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_new_updatedn_list - "
                         "Failed to allocate hash table; NSPR error - %d\n",
                         PR_GetError ());	
         return NULL;
@@ -96,7 +96,7 @@ replica_groupdn_list_new(const Slapi_ValueSet *vs)
     hash = PL_NewHashTable(4, PL_HashString, PL_CompareStrings,
 						updatedn_compare_dns, NULL, NULL);
     if (hash == NULL) {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name, "replica_new_updatedn_list - "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_new_updatedn_list - "
                         "Failed to allocate hash table; NSPR error - %d\n",
                         PR_GetError ());	
         return NULL;
@@ -150,7 +150,7 @@ replica_updatedn_list_delete(ReplicaUpdateDNList list, const Slapi_ValueSet *vs)
 			Slapi_DN *deldn = (Slapi_DN *)PL_HashTableLookup(hash, slapi_sdn_get_ndn(dn));     
 			if (deldn == NULL)
 			{
-				slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_updatedn_list_delete -"
+				slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_updatedn_list_delete -"
 								"Update DN with value (%s) is not in the update DN list.\n",
 								slapi_sdn_get_ndn(dn));
 			} else {
@@ -245,7 +245,7 @@ replica_updatedn_list_add_ext(ReplicaUpdateDNList list, const Slapi_ValueSet *vs
 		/* make sure that the name is unique */
 		if (PL_HashTableLookup(hash, ndn) != NULL)
 		{
-			slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, "replica_updatedn_list_add - "
+			slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_updatedn_list_add - "
 							"Update DN with value (%s) already in the update DN list\n",
 							ndn);
 			slapi_sdn_free(&dn);

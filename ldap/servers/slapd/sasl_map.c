@@ -367,12 +367,12 @@ sasl_map_config_parse_entry(Slapi_Entry *entry, sasl_map_data **new_dp)
 		desc.bv_len = strlen(desc.bv_val);
 		newval[0] = &desc;
 		if (entry_replace_values(entry, "nsSaslMapPriority", newval) != 0){
-			LDAPDebug(LDAP_DEBUG_ERR, "sasl_map_config_parse_entry - Failed to reset entry "
-					"priority to (%d) - previous value (%s)\n", LOW_PRIORITY,  priority_str, 0);
+			slapi_log_err(SLAPI_LOG_ERR, "sasl_map_config_parse_entry", "Failed to reset entry "
+					"priority to (%d) - previous value (%s)\n", LOW_PRIORITY,  priority_str);
 		} else {
-			LDAPDebug(LDAP_DEBUG_ERR, "sasl_map_config_parse_entry - Resetting invalid nsSaslMapPriority "
+			slapi_log_err(SLAPI_LOG_ERR, "sasl_map_config_parse_entry", "Resetting invalid nsSaslMapPriority "
 					" value (%s) to the lowest priority (%d)\n",
-					priority_str, LOW_PRIORITY, 0);
+					priority_str, LOW_PRIORITY);
 		}
 		priority = LOW_PRIORITY;
 	}
@@ -402,34 +402,34 @@ sasl_map_read_config_startup(sasl_map_private *priv)
 	char **map_entry_list = NULL;
 	int ret = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "-> sasl_map_read_config_startup\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_read_config_startup", "=>\n");
     if((map_entry_list = getChildren(configDN))) {
 		char **map_entry = NULL;
 		Slapi_Entry *entry = NULL;
 		sasl_map_data *dp = NULL;
 
 		for (map_entry = map_entry_list; *map_entry && !ret; map_entry++) {
-			LDAPDebug(LDAP_DEBUG_CONFIG, "sasl_map_read_config_startup - proceesing [%s]\n", *map_entry, 0, 0 );
+			slapi_log_err(SLAPI_LOG_CONFIG, "sasl_map_read_config_startup", "Processing [%s]\n", *map_entry);
  			getConfigEntry( *map_entry, &entry );
 			if ( entry == NULL ) {
 				continue;
 			}
 			ret = sasl_map_config_parse_entry(entry,&dp);
 			if (ret) {
-				    LDAPDebug(LDAP_DEBUG_ERR, "sasl_map_read_config_startup - Failed to parse entry\n", 0, 0, 0 );
+				    slapi_log_err(SLAPI_LOG_ERR, "sasl_map_read_config_startup", "Failed to parse entry\n");
 			} else {
 				ret = sasl_map_insert_list_entry(priv,dp);
 				if (ret) {
-					LDAPDebug(LDAP_DEBUG_ERR, "sasl_map_read_config_startup - Failed to insert entry\n", 0, 0, 0 );
+					slapi_log_err(SLAPI_LOG_ERR, "sasl_map_read_config_startup", "Failed to insert entry\n");
 				} else {
-					LDAPDebug(LDAP_DEBUG_CONFIG, "sasl_map_read_config_startup - processed [%s]\n", *map_entry, 0, 0 );
+					slapi_log_err(SLAPI_LOG_CONFIG, "sasl_map_read_config_startup", "Processed [%s]\n", *map_entry);
 				}
 			}
 			freeConfigEntry( &entry );
 		}
 		freeChildren( map_entry_list );
     }
-	LDAPDebug(LDAP_DEBUG_TRACE, "<- sasl_map_read_config_startup\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_read_config_startup", "<= %d\n", ret);
 	return ret;
 }
 
@@ -439,7 +439,7 @@ sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 	int ret = 0;
 	sasl_map_data *dp = NULL;
 	sasl_map_private *priv = sasl_map_get_global_priv();
-	LDAPDebug(LDAP_DEBUG_TRACE, "-> sasl_map_config_add\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_add", "=>\n");
 	ret = sasl_map_config_parse_entry(entryBefore,&dp);
 	if (!ret && dp) {
 		ret = sasl_map_insert_list_entry(priv,dp);
@@ -451,7 +451,7 @@ sasl_map_config_add(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* e, 
 		*returncode = LDAP_UNWILLING_TO_PERFORM;
 		ret = SLAPI_DSE_CALLBACK_ERROR;
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, "<- sasl_map_config_add\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_add", "<= %d\n", ret);
 	return ret;
 }
 
@@ -464,7 +464,7 @@ sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	int ret = SLAPI_DSE_CALLBACK_ERROR;
 
 	if((map_name = slapi_entry_attr_get_charptr( entryBefore, "cn" )) == NULL){
-		LDAPDebug(LDAP_DEBUG_TRACE, "sasl_map_config_modify: could not find name of map\n",0,0,0);
+		slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_modify", "Could not find name of map\n");
 		return ret;
 	}
 	if(sasl_map_remove_list_entry(priv, map_name) == 0){
@@ -477,7 +477,7 @@ sasl_map_config_modify(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 		}
 	}
 	if(ret == SLAPI_DSE_CALLBACK_ERROR){
-		LDAPDebug(LDAP_DEBUG_TRACE, "sasl_map_config_modify: failed to update map(%s)\n",map_name,0,0);
+		slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_modify", "Failed to update map(%s)\n",map_name);
 	}
 	slapi_ch_free_string(&map_name);
 
@@ -491,7 +491,7 @@ sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	sasl_map_private *priv = sasl_map_get_global_priv();
 	char *entry_name = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "-> sasl_map_config_delete\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_delete", "=>\n");
 	entry_name = slapi_entry_attr_get_charptr( entryBefore, "cn" );
 	if (entry_name) {
 		/* remove this entry from the list */
@@ -505,7 +505,7 @@ sasl_map_config_delete(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Entry* 
 	} else {
 		ret = SLAPI_DSE_CALLBACK_OK;
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, "<- sasl_map_config_delete\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_delete", "<= %d\n", ret);
 	return ret;
 }
 
@@ -561,17 +561,17 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 	int matched = 0;
 	const char *recomp_result = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "-> sasl_map_check\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_check", "=>\n");
 	/* Compiles the regex */
 	re = slapi_re_comp(dp->regular_expression, &recomp_result);
 	if (NULL == re) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-			"sasl_map_check - slapi_re_comp failed for expression (%s): %s\n",
-			dp->regular_expression, recomp_result?recomp_result:"unknown", 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+			"sasl_map_check", "slapi_re_comp failed for expression (%s): %s\n",
+			dp->regular_expression, recomp_result?recomp_result:"unknown");
 	} else {
 		/* Matches the compiled regex against sasl_user_and_realm */
 		matched = slapi_re_exec(re, sasl_user_and_realm, -1 /* no timelimit */);
-		LDAPDebug(LDAP_DEBUG_TRACE, "regex: %s, id: %s, %s\n",
+		slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_check", "regex: %s, id: %s, %s\n",
 			dp->regular_expression, sasl_user_and_realm,
 			matched ? "matched" : "didn't match" );
 	}
@@ -598,8 +598,8 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 			rc = slapi_re_subs(re, sasl_user_and_realm, dp->template_base_dn,
 					ldap_search_base, ldap_search_base_len);
 			if (0 != rc) {
-				LDAPDebug(LDAP_DEBUG_ERR,
-					"sasl_map_check - slapi_re_subs failed: "
+				slapi_log_err(SLAPI_LOG_ERR,
+					"sasl_map_check", "slapi_re_subs failed: "
 					"subject: %s, subst str: %s (%d)\n",
 					sasl_user_and_realm, dp->template_base_dn, rc);
 				slapi_ch_free_string(ldap_search_base);
@@ -610,8 +610,8 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 					dp->template_search_filter, ldap_search_filter,
 					ldap_search_filter_len, 1);
 				if (0 != rc) {
-					LDAPDebug(LDAP_DEBUG_ERR,
-						"sasl_map_check - slapi_re_subs failed: "
+					slapi_log_err(SLAPI_LOG_ERR,
+						"sasl_map_check", "slapi_re_subs failed: "
 						"subject: %s, subst str: %s (%d)\n",
 						sasl_user_and_realm, dp->template_search_filter, rc);
 					slapi_ch_free_string(ldap_search_base);
@@ -619,22 +619,22 @@ sasl_map_check(sasl_map_data *dp, char *sasl_user_and_realm, char **ldap_search_
 				} else {
 					/* these values are internal regex representations with
 					 * lots of unprintable control chars - escape for logging */
-					LDAPDebug(LDAP_DEBUG_TRACE,
-						"mapped base dn: %s, filter: %s\n",
+					slapi_log_err(SLAPI_LOG_TRACE,
+						"sasl_map_check", "mapped base dn: %s, filter: %s\n",
 						escape_string( *ldap_search_base, escape_base ),
-						escape_string( *ldap_search_filter, escape_filt ), 0 );
+						escape_string( *ldap_search_filter, escape_filt ));
 					ret = 1;
 				}
 			}
 		} else {
-			LDAPDebug(LDAP_DEBUG_ERR,
-				"sasl_map_check - slapi_re_exec failed: "
+			slapi_log_err(SLAPI_LOG_ERR,
+				"sasl_map_check", "slapi_re_exec failed: "
 				"regex: %s, subject: %s (%d)\n",
 				dp->regular_expression, sasl_user_and_realm, matched);
 		}
 	}
 	slapi_re_free(re);
-	LDAPDebug(LDAP_DEBUG_TRACE, "<- sasl_map_check\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_check", "<= %d\n", ret);
 	return ret;
 }
 
@@ -660,9 +660,9 @@ sasl_map_domap(sasl_map_data **map, char *sasl_user, char *sasl_realm, char **ld
 	char *sasl_user_and_realm = NULL;
 	int ret = 0;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "-> sasl_map_domap\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_domap", "=>\n");
 	if(map == NULL){
-		LDAPDebug(LDAP_DEBUG_TRACE, "<- sasl_map_domap: Internal error, mapping is NULL\n",0,0,0);
+		slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_domap", "<= Internal error, mapping is NULL\n");
 		return ret;
 	}
 	*ldap_search_base = NULL;
@@ -673,7 +673,7 @@ sasl_map_domap(sasl_map_data **map, char *sasl_user, char *sasl_realm, char **ld
 		*map = priv->map_data_list;
 	while (*map) {
 		/* If one matches, then make the search params */
-		LDAPDebug(LDAP_DEBUG_TRACE, "sasl_map_domap - trying map [%s]\n", (*map)->name, 0, 0 );
+		slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_domap", "Trying map [%s]\n", (*map)->name);
 		if((ret = sasl_map_check(*map, sasl_user_and_realm, ldap_search_base, ldap_search_filter))){
 			*map = sasl_map_next(*map);
 			break;
@@ -683,7 +683,7 @@ sasl_map_domap(sasl_map_data **map, char *sasl_user, char *sasl_realm, char **ld
 	if (sasl_user_and_realm) {
 		slapi_ch_free((void**)&sasl_user_and_realm);
 	}
-	LDAPDebug(LDAP_DEBUG_TRACE, "<- sasl_map_domap (%s)\n", (1 == ret) ? "mapped" : "not mapped", 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_domap", "<= (%s)\n", (1 == ret) ? "mapped" : "not mapped");
 	return ret;
 }
 

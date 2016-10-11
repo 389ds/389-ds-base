@@ -40,7 +40,7 @@ poll_using_select(struct my_pollfd *filed, int nfds, int timeout)
     int a, b, retval;
 
 #ifdef DEBUG_POLL_AS_SELECT
-    LDAPDebug(LDAP_DEBUG_DEBUG, "poll convert nfds=%d, timeout=%d\n", nfds, timeout,0);
+    slapi_log_err(SLAPI_LOG_DEBUG, "poll convert nfds=%d, timeout=%d\n", nfds, timeout,0);
 #endif /* DEBUG_POLL_AS_SELECT */
 
     FD_ZERO( &rd );
@@ -61,7 +61,7 @@ poll_using_select(struct my_pollfd *filed, int nfds, int timeout)
 
 #ifdef DEBUG_POLL_AS_SELECT
 	if (filed[a].events != 0) {
-		LDAPDebug(LDAP_DEBUG_DEBUG, "poll events = %d for fd=%d\n", filed[a].events, filed[a].fd,0);
+		slapi_log_err(SLAPI_LOG_DEBUG, "poll events = %d for fd=%d\n", filed[a].events, filed[a].fd,0);
 	}
 #endif /* DEBUG_POLL_AS_SELECT */
 
@@ -77,7 +77,7 @@ poll_using_select(struct my_pollfd *filed, int nfds, int timeout)
 
 #ifdef DEBUG_POLL_AS_SELECT
 	if( temp_events != 0 ){
-	    LDAPDebug(LDAP_DEBUG_DEBUG, "Unhandled poll event type=0x%x on FD(%d)\n",filed[a].events,filed[a].fd,0);
+	    slapi_log_err(SLAPI_LOG_DEBUG, "Unhandled poll event type=0x%x on FD(%d)\n",filed[a].events,filed[a].fd,0);
 	}
 #endif /* DEBUG_POLL_AS_SELECT */
 
@@ -98,7 +98,7 @@ poll_using_select(struct my_pollfd *filed, int nfds, int timeout)
     if( retval <= 0 ) return( retval );
 
 #ifdef DEBUG_POLL_AS_SELECT
-    LDAPDebug(LDAP_DEBUG_DEBUG, "For\n",0,0,0);
+    slapi_log_err(SLAPI_LOG_DEBUG, "For\n",0,0,0);
 #endif /* DEBUG_POLL_AS_SELECT */
 
     for( b=0; b<nfds;b++){
@@ -112,7 +112,7 @@ poll_using_select(struct my_pollfd *filed, int nfds, int timeout)
 
 #ifdef DEBUG_POLL_AS_SELECT
 	    if ((filed[b].events != 0) || (filed[b].revents != 0)) {
-	 	LDAPDebug(LDAP_DEBUG_DEBUG, "   file des=%d, events=0x%x, revents=0x%x\n", filed[b].fd, filed[b].events ,filed[b].revents);
+	 	slapi_log_err(SLAPI_LOG_DEBUG, "   file des=%d, events=0x%x, revents=0x%x\n", filed[b].fd, filed[b].events ,filed[b].revents);
 	    }
 #endif /* DEBUG_POLL_AS_SELECT */
 	}
@@ -123,7 +123,7 @@ poll_using_select(struct my_pollfd *filed, int nfds, int timeout)
     }
 
 #ifdef DEBUG_POLL_AS_SELECT
-    LDAPDebug(LDAP_DEBUG_DEBUG, "poll returns %d (converted poll)\n",retval,0,0);
+    slapi_log_err(SLAPI_LOG_DEBUG, "poll returns %d (converted poll)\n",retval,0,0);
 #endif /* DEBUG_POLL_AS_SELECT */
 
     return( retval );

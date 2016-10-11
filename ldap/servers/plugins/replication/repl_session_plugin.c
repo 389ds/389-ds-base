@@ -25,8 +25,8 @@ repl_session_plugin_init()
     if((NULL == _ReplSessionAPI) &&
        (slapi_apib_get_interface(REPL_SESSION_v1_0_GUID, &_ReplSessionAPI) ||
        (NULL == _ReplSessionAPI))) {
-            LDAPDebug1Arg(LDAP_DEBUG_PLUGIN,
-                   "<-- repl_session_plugin_init -- no replication session"
+            slapi_log_err(SLAPI_LOG_PLUGIN,
+                   "repl_session_plugin_init", "No replication session"
                    " plugin API registered for GUID [%s] -- end\n",
                    REPL_SESSION_v1_0_GUID);
     }
@@ -41,7 +41,7 @@ repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra)
     Slapi_DN *replarea = NULL;
     repl_session_plugin_agmt_init_cb initfunc = NULL;
 
-    LDAPDebug0Args(LDAP_DEBUG_PLUGIN, "--> repl_session_plugin_call_agmt_init_cb - begin\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, "repl_session_plugin_call_agmt_init_cb", "Begin\n");
 
     if (_ReplSessionAPI) {
         initfunc = (repl_session_plugin_agmt_init_cb)_ReplSessionAPI[REPL_SESSION_PLUGIN_AGMT_INIT_CB];
@@ -49,7 +49,7 @@ repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra)
     if (initfunc) {
         replarea = agmt_get_replarea(ra);
         if (!replarea) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "repl_session_plugin_call_agmt_init_cb - Aborted - No replication area\n");
+            slapi_log_err(SLAPI_LOG_ERR, "repl_session_plugin_call_agmt_init_cb", "Aborted - No replication area\n");
             return;
         }
         cookie = (*initfunc)(replarea);
@@ -58,7 +58,7 @@ repl_session_plugin_call_agmt_init_cb(Repl_Agmt *ra)
 
     agmt_set_priv(ra, cookie);
 
-    LDAPDebug0Args(LDAP_DEBUG_PLUGIN, "<-- repl_session_plugin_call_agmt_init_cb - end\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, "<-- repl_session_plugin_call_agmt_init_cb", " end\n");
 
     return;
 }
@@ -78,7 +78,7 @@ repl_session_plugin_call_pre_acquire_cb(const Repl_Agmt *ra, int is_total,
     if (thefunc) {
         replarea = agmt_get_replarea(ra);
         if (!replarea) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "repl_session_plugin_call_pre_acquire_cb - Aborted - No replication area\n");
+            slapi_log_err(SLAPI_LOG_ERR, "repl_session_plugin_call_pre_acquire_cb", "Aborted - No replication area\n");
             return 1;
         }
         rc = (*thefunc)(agmt_get_priv(ra), replarea, is_total, data_guid, data);
@@ -103,7 +103,7 @@ repl_session_plugin_call_post_acquire_cb(const Repl_Agmt *ra, int is_total,
     if (thefunc) {
         replarea = agmt_get_replarea(ra);
         if (!replarea) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "repl_session_plugin_call_post_acquire_cb - Aborted - No replication area\n");
+            slapi_log_err(SLAPI_LOG_ERR, "repl_session_plugin_call_post_acquire_cb", "Aborted - No replication area\n");
             return 1;
         }
         rc = (*thefunc)(agmt_get_priv(ra), replarea, is_total, data_guid, data);
@@ -162,7 +162,7 @@ repl_session_plugin_call_destroy_agmt_cb(const Repl_Agmt *ra)
     if (thefunc) {
         replarea = agmt_get_replarea(ra);
         if (!replarea) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "repl_session_plugin_call_destroy_agmt_cb - Aborted - No replication area\n");
+            slapi_log_err(SLAPI_LOG_ERR, "repl_session_plugin_call_destroy_agmt_cb", "Aborted - No replication area\n");
             return;
         }
         (*thefunc)(agmt_get_priv(ra), replarea);

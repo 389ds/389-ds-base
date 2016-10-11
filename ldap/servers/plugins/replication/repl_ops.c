@@ -78,7 +78,7 @@ legacy_preop(Slapi_PBlock *pb, const char *caller, int operation_type)
 	if (NULL == operation) {
 		slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, 
 		                       "Null replication operation is given", 0, NULL);
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 		                "Null replication operation is given\n");
 		return -1;
 	}
@@ -91,7 +91,7 @@ legacy_preop(Slapi_PBlock *pb, const char *caller, int operation_type)
 			   Just refuse it */
 			slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, 
 				"Replication operation refused because the consumer is not defined as a replica", 0, NULL);
-			slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 				"Incoming replication operation was refused because "
 				"there's no replica defined for this operation\n");
 			return -1;
@@ -116,7 +116,7 @@ legacy_preop(Slapi_PBlock *pb, const char *caller, int operation_type)
 				slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, 
 					"Replication operation refused because "
 					"the consumer is not defined as a legacy replica", 0, NULL);
-				slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 					"Incoming replication operation was refused because "
 					"there's no legacy replica defined for this operation\n");
 				return -1;

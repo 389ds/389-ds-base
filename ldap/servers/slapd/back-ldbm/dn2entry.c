@@ -45,7 +45,7 @@ dn2entry_ext(
 	struct backentry	*e = NULL;
 	char *indexname = "";
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "=> dn2entry_ext \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "=> \"%s\"\n", slapi_sdn_get_dn(sdn));
 
 	inst = (ldbm_instance *) be->be_instance_info;
 
@@ -66,8 +66,8 @@ dn2entry_ext(
 			{
 				if (DB_NOTFOUND != *err)
 				{
-					LDAPDebug2Args(LDAP_DEBUG_ANY,
-									"dn2entry_ext - Failed to get id for %s "
+					slapi_log_err(SLAPI_LOG_ERR,
+									"dn2entry_ext", "Failed to get id for %s "
 									"from entryrdn index (%d)\n",
 									slapi_sdn_get_dn(sdn), *err);
 				}
@@ -118,15 +118,15 @@ dn2entry_ext(
 				 * entrydn index, but we could not read the entry
 				 * from the id2entry index. what should we do?
 				 */
-				LDAPDebug(LDAP_DEBUG_ERR,
-					    "dn2entry_ext - The dn \"%s\" was in the %s index, "
+				slapi_log_err(SLAPI_LOG_ERR,
+					    "dn2entry_ext", "The dn \"%s\" was in the %s index, "
 					    "but it did not exist in id2entry of instance %s.\n",
 					    slapi_sdn_get_dn(sdn), indexname, inst->inst_name);
 			}
 		}
 	}
 bail:
-	LDAPDebug(LDAP_DEBUG_TRACE, "<= dn2entry_ext %p\n", e, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "dn2entry_ext", "<= %p\n", e);
 	return( e );
 }
 
@@ -159,7 +159,7 @@ dn2ancestor(
 {
     struct backentry *e = NULL;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "=> dn2ancestor \"%s\"\n", slapi_sdn_get_dn(sdn), 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "dn2ancestor", "=> \"%s\"\n", slapi_sdn_get_dn(sdn));
 
     /* first, check to see if the given sdn is empty or a root suffix of the
        given backend - if so, it has no parent */
@@ -221,7 +221,7 @@ dn2ancestor(
        e is the entry of the ancestor of sdn OR e is the suffix entry
        OR e is NULL
        ancestordn contains the unnormalized DN of e or is empty */
-    LDAPDebug(LDAP_DEBUG_TRACE, "<= dn2ancestor %p\n", e, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "dn2ancestor", "=> %p\n", e);
     return( e );
 }
 
@@ -255,8 +255,8 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
 	{
 		if(must_exist)
 		{
-			LDAPDebug(LDAP_DEBUG_ERR,
-				"get_copy_of_entry - Operation error fetching %s (%s), error %d.\n", 
+			slapi_log_err(SLAPI_LOG_ERR,
+				"get_copy_of_entry", "Operation error fetching %s (%s), error %d.\n", 
 				addr->sdn?slapi_sdn_get_dn(addr->sdn):"Null DN",
 				(addr->uniqueid==NULL?"null":addr->uniqueid), err );
 		}

@@ -40,7 +40,7 @@ legacy_preop_bind( Slapi_PBlock *pb )
 			void *conn = NULL;
 			consumer_connection_extension *connext = NULL;
 #ifdef DEBUG
-	slapi_log_error(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM, "legacy_preop_bind: begin\n");
+	slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM, "legacy_preop_bind: begin\n");
 #endif
 			slapi_pblock_get( pb, SLAPI_CONNECTION, &conn );
 			/* TEL 20120529 - Is there any reason we must protect this connext access? */

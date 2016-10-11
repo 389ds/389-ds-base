@@ -1063,7 +1063,7 @@ Ticket 399 - slapi_ldap_bind() doesn't check bind results
 - Bug 745259 - Incorrect entryUSN index under high load in replicated environment
 - d439e3a use slapi_hexchar2int and slapi_str_to_u8 everywhere
 - 5910551 csn_init_as_string should not use sscanf
-- b53ba00 reduce calls to csn_as_string and slapi_log_error
+- b53ba00 reduce calls to csn_as_string and slapi_log_err
 - c897267 fix member variable name error in slapi_uniqueIDFormat
 - 66808e5 uniqueid formatting - use slapi_u8_to_hex instead of sprintf
 - 580a875 csn_as_string - use slapi_uN_to_hex instead of sprintf

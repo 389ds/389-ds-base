@@ -727,7 +727,7 @@ void replica_updatedn_list_enumerate(ReplicaUpdateDNList list, FNEnumDN fn, void
 /* enabling developper traces for MMR to understand the total/inc protocol state machines */
 #ifdef DEV_DEBUG
 #define SLAPI_LOG_DEV_DEBUG SLAPI_LOG_DEBUG
-#define dev_debug(a) slapi_log_error(SLAPI_LOG_DEV_DEBUG, "DEV_DEBUG", "%s\n", a)
+#define dev_debug(a) slapi_log_err(SLAPI_LOG_DEV_DEBUG, "DEV_DEBUG", "%s\n", a)
 #else
 #define dev_debug(a)
 #endif

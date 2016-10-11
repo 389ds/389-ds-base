@@ -89,7 +89,7 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 	}
 	else
 	{
-		slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name, 
+		slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, 
 				"%s: Target entry %s is already a glue entry reason %s\n",
 				sessionid, dn, reason);
 	}
@@ -108,7 +108,7 @@ entry_to_glue(char *sessionid, const Slapi_Entry* entry, const char *reason, CSN
 		op_result = urp_fixup_modify_entry (NULL, sdn, opcsn, &smods, 0);
 		if (op_result == LDAP_SUCCESS)
 		{
-			slapi_log_error (slapi_log_urp, repl_plugin_name,
+			slapi_log_err (slapi_log_urp, repl_plugin_name,
 				"%s: Turned the entry %s to glue, reason %s\n",
 				sessionid, dn, reason);
 		}
@@ -189,7 +189,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 	if ( NULL == uniqueid )
 	{
 		op_result = LDAP_OPERATIONS_ERROR;
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 			"create_glue_entry - %s: Can't create glue %s, uniqueid=NULL\n", sessionid, dnstr);
 	}
 	else
@@ -209,7 +209,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 			switch(op_result)
 			{
 				case LDAP_SUCCESS:
-					slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name,
 						"create_glue_entry - %s: Created glue entry %s uniqueid=%s reason missingEntry\n",
 						sessionid, dnstr, uniqueid);
 					done= 1;
@@ -218,7 +218,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 				{
 					struct slapi_operation_parameters *op_params;
 					/* This is okay.  While creating a glue, a real entry was added. */
-					slapi_log_error(SLAPI_LOG_NOTICE, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name,
 						"create_glue_entry - %s: Skipped creating glue entry %s uniqueid=%s reason Entry Already Exists\n",
 						sessionid, dnstr, uniqueid);
 					op_result = LDAP_SUCCESS;
@@ -233,7 +233,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 					/* The parent is missing */
 					{
 					/* JCMREPL - Create the parent ... recursion?... but what's the uniqueid? */
-					slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 						"create_glue_entry - %s: Can't created glue entry %s uniqueid=%s, error %d; "
 						"Possibly, parent entry is a conflict entry.\n",
 						sessionid, dnstr, uniqueid, op_result);
@@ -241,7 +241,7 @@ create_glue_entry ( Slapi_PBlock *pb, char *sessionid, Slapi_DN *dn, const char 
 					break;
 					}
 				default:
-					slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 						"create_glue_entry %s: Can't created glue entry %s uniqueid=%s, error %d\n",
 						sessionid, dnstr, uniqueid, op_result);
 					break;

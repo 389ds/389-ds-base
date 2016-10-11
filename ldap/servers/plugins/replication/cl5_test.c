@@ -74,7 +74,7 @@ static void testBasic ()
 {
 	int rc = 0;
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting basic test ...\n");	
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting basic test ...\n");	
 
     /* ONREPL - we can't run the tests from the startup code because
        operations can't be issued until all plugins are started. So,
@@ -90,10 +90,10 @@ static void testBasic ()
     }
 
 	if (rc == 0)
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 						"Basic test completed successfully\n");
 	else
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 						"Basic test failed\n");
 }
 
@@ -104,7 +104,7 @@ static void testBackupRestore ()
 	char *baseDir;
 	char bkDir [MAXPATHLEN];
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting backup and recovery test ...\n");	
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting backup and recovery test ...\n");	
 	
 	dir = cl5GetDir ();
 
@@ -127,10 +127,10 @@ static void testBackupRestore ()
 	}
 
 	if (rc == CL5_SUCCESS)
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 						"Backup and Restore test completed successfully\n");
 	else
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 						"Backup and Restore test failed\n");
 }
 
@@ -146,7 +146,7 @@ static void testIteration ()
 	int rc;
 	int i;
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting iteration test ...\n");	
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting iteration test ...\n");	
 
 	/* get replica object */
     r_root = slapi_sdn_new_dn_byval(REPLICA_ROOT);
@@ -154,12 +154,12 @@ static void testIteration ()
     slapi_sdn_free (&r_root);
     if (r_obj == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "replica is not configured for (%s)\n",
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "replica is not configured for (%s)\n",
                         REPLICA_ROOT);	
         return;
     }
 
-    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting first iteration pass ...\n");	
+    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting first iteration pass ...\n");	
 
     /* configure empty consumer ruv */        
 	r = (Replica*)object_get_data (r_obj);
@@ -186,16 +186,16 @@ static void testIteration ()
     if (rc == CL5_NOTFOUND)
     {
 	    if (i == 0) /* success */
-		    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "First iteration pass completed "
+		    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "First iteration pass completed "
 				            "successfully: no changes to replay\n");
 	    else /* incorrect number of entries traversed */
-		    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "First iteration pass failed: "
+		    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "First iteration pass failed: "
 				            "traversed %d entries; expected none\n", i);
     }
 	else /* general error */
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "First iteration pass failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "First iteration pass failed\n");
 
-    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting second iteration pass ...\n");	
+    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting second iteration pass ...\n");	
 
     /* add some entries */
     populateChangelogOp ();
@@ -219,16 +219,16 @@ static void testIteration ()
     if (rc == CL5_NOTFOUND)
     {
 	    if (i == OP_COUNT) /* success */
-		    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass completed "
+		    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass completed "
 				            "successfully: %d entries traversed\n", i);
 	    else /* incorrect number of entries traversed */
-		    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass failed: "
+		    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass failed: "
 				            "traversed %d entries; expected %d\n", i, OP_COUNT);
     }
 	else /* general error */
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass failed\n");
 
-    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting third iteration pass ...\n");	
+    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting third iteration pass ...\n");	
     /* add more entries */
     populateChangelogOp ();
     
@@ -251,16 +251,16 @@ static void testIteration ()
     if (rc == CL5_NOTFOUND)
     {
 	    if (i == OP_COUNT) /* success */
-		    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Third iteration pass completed "
+		    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Third iteration pass completed "
 				            "successfully: %d entries traversed\n", i);
 	    else /* incorrect number of entries traversed */
-		    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Third iteration pass failed: "
+		    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Third iteration pass failed: "
 				            "traversed %d entries; expected %d\n", i, OP_COUNT);
     }
 	else /* general error */
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Second iteration pass failed\n");
 
-    slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Iteration test is complete\n");
+    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Iteration test is complete\n");
 
     ruv_destroy (&ruv);
     object_release (r_obj);
@@ -273,7 +273,7 @@ static void testTrimming ()
 	int count;
 	int rc;
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting trimming test ...\n");	
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting trimming test ...\n");	
 
 	rc = populateChangelog (200, NULL);
 
@@ -288,7 +288,7 @@ static void testTrimming ()
 			rc = cl5ConfigTrimming (300, "1d", CHANGELOGDB_COMPACT_INTERVAL, CHANGELOGDB_TRIM_INTERVAL);
 
 		interval = PR_SecondsToInterval(300); /* 5 min is default trimming interval */
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 			"Trimming test: sleeping for 5 minutes until trimming kicks in\n");
 		DS_Sleep (interval);
 
@@ -297,17 +297,17 @@ static void testTrimming ()
 
 	if (rc == 0 && count == 300)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 			"Trimming test completed successfully: changelog contains 300 entries\n");
 	}
 	else if (rc == 0)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 			"Trimming test failed: changelog contains %d entries; expected - 300\n", 
 			count);
 	}
 	else /* general failure */
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Trimming test failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Trimming test failed\n");
 }
 
 static void testPerformance ()
@@ -324,7 +324,7 @@ static void testPerformance ()
 	endtime = PR_Now();
 
 	totaltime = (endtime - starttime) / 1000; /* ms */
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Write performance:\n"
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Write performance:\n"
 					"entry count - %d, total time - %ldms\n"
 					"latency = %d msec\nthroughput = %d entry/sec\n",
 					entryCount, totaltime,
@@ -338,7 +338,7 @@ static void testPerformance ()
 	endtime = PR_Now();
 
 	totaltime = (endtime - starttime) / 1000; /* ms */
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Read performance:\n"
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Read performance:\n"
 					"entry count - %d, total time - %ld\n"
 					"latency = %d msec\nthroughput = %d entry/sec\n",
 					entryCount, totaltime,
@@ -375,7 +375,7 @@ static void testPerformanceMT ()
 	endtime = PR_Now();
 
 	totaltime = (endtime - starttime) / 1000; /* ms */
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Write performance:\n"
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Write performance:\n"
 					"entry count - %d, total time - %ld\n"
 					"latency = %d msec per entry\nthroughput = %d entry/sec\n",
 					entryCount, totaltime,
@@ -390,7 +390,7 @@ static void testPerformanceMT ()
 	endtime = PR_Now();
 
 	totaltime = (endtime - starttime) / 1000; /* ms */
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Read performance:\n"
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Read performance:\n"
 					"entry count - %d, total time - %ld\n"
 					"latency = %d msec per entry\nthroughput = %d entry/sec\n",
 					entryCount, totaltime,
@@ -404,7 +404,7 @@ static void testLDIF ()
 	char *baseDir;
 	char ldifFile [MAXPATHLEN];
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting LDIF test ...\n");	
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting LDIF test ...\n");	
 
 	baseDir = getBaseDir (clDir);
 	PR_snprintf (ldifFile, sizeof(ldifFile), "%s/cl5.ldif", baseDir);
@@ -426,10 +426,10 @@ static void testLDIF ()
 	PR_Delete (ldifFile);
 
 	if (rc == CL5_SUCCESS)
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 		"LDIF test completed successfully\n");
 	else
-		slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "LDIF test failed\n");
+		slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "LDIF test failed\n");
 }
 
 static void testAll ()
@@ -448,11 +448,11 @@ static void testAll ()
 	/* xxxPINAKI */
 	/* these tests are not working correctly...the call to db->put() */
 	/* just hangs forever */
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 					"Starting single threaded performance measurement ...\n");	
 	testPerformance ();	
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 					"Starting multi threaded performance measurement ...\n");	
 	testPerformanceMT ();
 #endif
@@ -523,7 +523,7 @@ static int populateChangelog (int entryCount, CSN ***csnList)
 			return -1;				
 	}
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 			"Successfully populated changelog with %d entries\n", entryCount);
 	return 0;
 }
@@ -547,7 +547,7 @@ static int processEntries (int entryCount, CSN **csnList)
 		operation_parameters_done (&op);
 	} 		
 
-	slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, 
+	slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, 
 			"Successfully read %d entries from the changelog\n", entryCount);
 	return 0;
 }
@@ -660,7 +660,7 @@ static int  configureChangelog ()
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to get server instance "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to get server instance "
                         "directory; LDAP error - %d\n", rc);	
         rc = -1;
         goto done;
@@ -684,7 +684,7 @@ static int  configureChangelog ()
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to add changelog "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to add changelog "
                         "configuration entry; LDAP error - %d\n", rc);
         rc = -1;
     }
@@ -738,7 +738,7 @@ static int  configureReplica ()
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to add replica for (%s) "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to add replica for (%s) "
                         "configuration entry; LDAP error - %d\n", REPLICA_ROOT, rc);
         rc = -1;
     }
@@ -777,7 +777,7 @@ static int  populateChangelogOp ()
     slapi_pblock_destroy (pb);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to add entry (%s); "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to add entry (%s); "
                         "LDAP error - %d\n", dn, rc);
         return -1;
     }
@@ -800,7 +800,7 @@ static int  populateChangelogOp ()
     slapi_pblock_destroy (pb);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to modify entry (%s); "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to modify entry (%s); "
                         "LDAP error - %d\n", dn, rc);
         return -1;
     }
@@ -816,7 +816,7 @@ static int  populateChangelogOp ()
     slapi_pblock_destroy (pb);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to rename entry (%s); "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to rename entry (%s); "
                         "LDAP error - %d\n", dn, rc);
         return -1;
     }
@@ -831,7 +831,7 @@ static int  populateChangelogOp ()
     slapi_pblock_destroy (pb);
     if (rc != LDAP_SUCCESS)
     {
-        slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to delete entry (%s); "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "failed to delete entry (%s); "
                         "LDAP error - %d\n", dn, rc);
         return -1;
     }

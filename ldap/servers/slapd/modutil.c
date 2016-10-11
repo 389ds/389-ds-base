@@ -528,7 +528,7 @@ void
 slapi_mods_dump(const Slapi_Mods *smods, const char *text)
 {
 	int i;
-	LDAPDebug(LDAP_DEBUG_DEBUG, "smod - %s\n", text, 0, 0);
+	slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mods_dump", "smod - %s\n", text);
 	for(i=0;i<smods->num_mods;i++)
 	{
 		slapi_mod_dump(smods->mods[i],i);
@@ -819,19 +819,23 @@ slapi_mod_dump(LDAPMod *mod, int n)
 	    switch ( operationtype )
 		{
 	    case LDAP_MOD_ADD:
-			LDAPDebug(LDAP_DEBUG_DEBUG, "smod %d - add: %s\n", n, mod->mod_type, 0);
+			slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump",
+				"smod %d - add: %s\n", n, mod->mod_type);
 			break;
 
 	    case LDAP_MOD_DELETE:
-			LDAPDebug(LDAP_DEBUG_DEBUG, "smod %d - delete: %s\n", n, mod->mod_type, 0);
+			slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump",
+				"smod %d - delete: %s\n", n, mod->mod_type);
 			break;
 
 	    case LDAP_MOD_REPLACE:
-			LDAPDebug(LDAP_DEBUG_DEBUG, "smod %d - replace: %s\n", n, mod->mod_type, 0);
+			slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump",
+				"smod %d - replace: %s\n", n, mod->mod_type);
 			break;
 
 	    case LDAP_MOD_IGNORE:
-			LDAPDebug(LDAP_DEBUG_DEBUG, "smod %d - ignore: %s\n", n, mod->mod_type, 0);
+			slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump",
+				"smod %d - ignore: %s\n", n, mod->mod_type);
 			break;
 	    }
 		if(operationtype!=LDAP_MOD_IGNORE)
@@ -846,13 +850,13 @@ slapi_mod_dump(LDAPMod *mod, int n)
 				bufp = buf;
 				slapi_ldif_put_type_and_value_with_options( &bufp, mod->mod_type, mod->mod_bvalues[i]->bv_val,	mod->mod_bvalues[i]->bv_len, 0 );
 				*bufp = '\0';
-				LDAPDebug(LDAP_DEBUG_DEBUG, "smod %d - value: %s", n, buf, 0);
+				slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump", "smod %d - value: %s", n, buf);
 				slapi_ch_free( (void**)&buf );
 			}
 		}
 	}
 	else
 	{
-		LDAPDebug(LDAP_DEBUG_DEBUG, "smod - null\n", 0, 0, 0);
+		slapi_log_err(SLAPI_LOG_DEBUG, "slapi_mod_dump", "smod - null\n");
 	}
 }

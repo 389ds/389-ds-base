@@ -152,8 +152,7 @@ plugin_call_acl_mods_update ( Slapi_PBlock *pb, int optype )
 	}
 	
 	if (NULL == sdn) {
-		LDAPDebug0Args(LDAP_DEBUG_ERR,
-			"plugin_call_acl_mods_update - Null target DN\n" );
+		slapi_log_err(SLAPI_LOG_ERR, "plugin_call_acl_mods_update", "NULL target DN\n");
 		return LDAP_INVALID_DN_SYNTAX;
 	}
 
@@ -194,7 +193,8 @@ plugin_call_acl_verify_syntax ( Slapi_PBlock *pb, Slapi_Entry *e, char **errbuf 
 	}
 
 	if ( !plugin_called ) {
-		LDAPDebug(LDAP_DEBUG_ERR, "plugin_call_acl_verify_syntax - The ACL plugin is not initialized. The aci syntax cannot be verified\n",0,0,0);
+		slapi_log_err(SLAPI_LOG_ERR, "plugin_call_acl_verify_syntax",
+			"The ACL plugin is not initialized. The aci syntax cannot be verified\n");
 	}
 	return rc;
 }

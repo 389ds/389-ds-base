@@ -41,6 +41,8 @@ static struct logging_opts  loginfo;
 static int detached=0;
 static int logging_hr_timestamps_enabled = 1;
 
+//extern int slapd_ldap_debug;
+
 /*
  * Note: the order of the values in the slapi_log_map array must exactly
  * match that of the SLAPI_LOG_XXX #defines found in slapi-plugin.h (this is
@@ -151,6 +153,13 @@ get_syslog_loglevel(int loglevel)
 
     return default_level;
 }
+
+int loglevel_is_set( int level )
+{
+	return (0 != (slapd_ldap_debug & level));
+}
+
+
 
 static int
 slapd_log_error_proc_internal(
@@ -524,7 +533,7 @@ log_update_accesslogdir(char *pathname, int apply)
 
 	/* try to open the file, we may have a incorrect path */
 	if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_access_mode)) {
-		LDAPDebug(LDAP_DEBUG_WARNING, "log_update_accesslogdir - Can't open file %s. "
+		slapi_log_err(SLAPI_LOG_WARNING, "log_update_accesslogdir - Can't open file %s. "
 				"errno %d (%s)\n",
 				pathname, errno, slapd_system_strerror(errno));
 		/* stay with the current log file */
@@ -545,7 +554,7 @@ log_update_accesslogdir(char *pathname, int apply)
 	if (loginfo.log_access_fdes) {
 		LogFileInfo	*logp, *d_logp;
 
-		LDAPDebug(LDAP_DEBUG_TRACE,
+		slapi_log_err(SLAPI_LOG_TRACE,
 		   	"LOGINFO:Closing the access log file. "
 			"Moving to a new access log file (%s)\n", pathname,0,0);
 
@@ -679,7 +688,7 @@ log_update_auditlogdir(char *pathname, int apply)
 
 	/* try to open the file, we may have a incorrect path */
 	if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_audit_mode)) {
-		LDAPDebug(LDAP_DEBUG_WARNING, "log_update_auditlogdir - Can't open file %s. "
+		slapi_log_err(SLAPI_LOG_WARNING, "log_update_auditlogdir - Can't open file %s. "
 				"errno %d (%s)\n",
 				pathname, errno, slapd_system_strerror(errno));
 		/* stay with the current log file */
@@ -699,7 +708,7 @@ log_update_auditlogdir(char *pathname, int apply)
 	LOG_AUDIT_LOCK_WRITE ();
 	if (loginfo.log_audit_fdes) {
 		LogFileInfo	*logp, *d_logp;
-		LDAPDebug(LDAP_DEBUG_TRACE,
+		slapi_log_err(SLAPI_LOG_TRACE,
 		   	"LOGINFO:Closing the audit log file. "
 			"Moving to a new audit file (%s)\n", pathname,0,0);
 
@@ -757,7 +766,7 @@ log_update_auditfaillogdir(char *pathname, int apply)
 
     /* try to open the file, we may have a incorrect path */
     if (! LOG_OPEN_APPEND(fp, pathname, loginfo.log_auditfail_mode)) {
-        LDAPDebug(LDAP_DEBUG_WARNING, "log_update_auditfaillogdir - Can't open file %s. "
+        slapi_log_err(SLAPI_LOG_WARNING, "log_update_auditfaillogdir - Can't open file %s. "
                 "errno %d (%s)\n",
                 pathname, errno, slapd_system_strerror(errno));
         /* stay with the current log file */
@@ -777,7 +786,7 @@ log_update_auditfaillogdir(char *pathname, int apply)
     LOG_AUDITFAIL_LOCK_WRITE ();
     if (loginfo.log_auditfail_fdes) {
         LogFileInfo *logp, *d_logp;
-        LDAPDebug(LDAP_DEBUG_TRACE,
+        slapi_log_err(SLAPI_LOG_TRACE,
             "LOGINFO:Closing the auditfail log file. "
             "Moving to a new auditfail file (%s)\n", pathname,0,0);
 
@@ -930,8 +939,8 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
 	  break;
 	default:
 	  rv = LDAP_OPERATIONS_ERROR;
-	  LDAPDebug(LDAP_DEBUG_ERR, 
-	      "log_set_numlogsperdir - Invalid log type %d", logtype,0,0 );
+	  slapi_log_err(SLAPI_LOG_ERR, "log_set_numlogsperdir",
+	          "Invalid log type %d", logtype);
 	}
   }
   return rv;
@@ -1026,12 +1035,12 @@ log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *retu
 	}
 	/* logsize is in MB */
 	if (rv == 2) {
-		LDAPDebug(LDAP_DEBUG_ERR, 
-			   "log_set_logsize - Invalid value for Maximum log size:"
-			   "Maxlogsize:%d (MB) exceeds Maxdisksize:%d (MB)\n", 
-			    logsize, mdiskspace/LOG_MB_IN_BYTES,0);
+		slapi_log_err(SLAPI_LOG_ERR, "log_set_logsize",
+			"Invalid value for Maximum log size:"
+			"Maxlogsize:%d (MB) exceeds Maxdisksize:%ld (MB)\n", 
+			logsize, (long int)(mdiskspace/LOG_MB_IN_BYTES));
 
-			rv = LDAP_OPERATIONS_ERROR;
+		rv = LDAP_OPERATIONS_ERROR;
 	}
 	return rv;
 }
@@ -2063,9 +2072,8 @@ slapd_log_audit_internal (
         if (log__needrotation(loginfo.log_audit_fdes,
                     SLAPD_AUDIT_LOG) == LOG_ROTATE) {
             if (log__open_auditlogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                LDAPDebug(LDAP_DEBUG_ERR,
-                    "slapd_log_audit_internal - Unable to open audit file:%s\n",
-                    loginfo.log_audit_file,0,0);
+                slapi_log_err(SLAPI_LOG_ERR, "slapd_log_audit_internal",
+                        "Unable to open audit file:%s\n", loginfo.log_audit_file);
                 LOG_AUDIT_UNLOCK_WRITE();
                 return 0;
             }
@@ -2122,9 +2130,8 @@ slapd_log_auditfail_internal (
         if (log__needrotation(loginfo.log_auditfail_fdes,
                     SLAPD_AUDITFAIL_LOG) == LOG_ROTATE) {
             if (log__open_auditfaillogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-                LDAPDebug(LDAP_DEBUG_ERR,
-                          "slapd_log_auditfail_internal - Unable to open auditfail file:%s\n",
-                          loginfo.log_auditfail_file,0,0);
+                slapi_log_err(SLAPI_LOG_ERR, "slapd_log_auditfail_internal",
+                        "Unable to open auditfail file:%s\n", loginfo.log_auditfail_file);
                 LOG_AUDITFAIL_UNLOCK_WRITE();
                 return 0;
             }
@@ -2420,7 +2427,7 @@ vslapd_log_error(
  * severity - LOG_ERR, LOG_WARNING, LOG_INFO, etc
  */
 int
-slapi_log_err( int loglevel, char *subsystem, char *fmt, ... )
+slapi_log_error( int loglevel, char *subsystem, char *fmt, ... )
 {
     va_list ap_err;
     va_list ap_file;
@@ -2429,7 +2436,7 @@ slapi_log_err( int loglevel, char *subsystem, char *fmt, ... )
 
     if ( loglevel < SLAPI_LOG_MIN || loglevel > SLAPI_LOG_MAX ) {
         (void)slapd_log_error_proc(loglevel, subsystem,
-                "slapi_log_error: invalid log level %d (message %s)\n",
+                "slapi_log_err: invalid log level %d (message %s)\n",
                 loglevel, fmt );
         return( -1 );
     }
@@ -2727,7 +2734,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 		int oserr = errno;
 		loginfo.log_access_fdes = NULL;
 		if (!locked)  LOG_ACCESS_UNLOCK_WRITE();
-		LDAPDebug(LDAP_DEBUG_ERR, "log__open_accesslogfile - Access file open %s failed errno %d (%s)\n",
+		slapi_log_err(SLAPI_LOG_ERR, "log__open_accesslogfile", "Access file open %s failed errno %d (%s)\n",
 				  loginfo.log_access_file, oserr, slapd_system_strerror(oserr));
 		return LOG_UNABLE_TO_OPENFILE;
 	}
@@ -2744,7 +2751,7 @@ log__open_accesslogfile(int logfile_state, int locked)
 	if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_accessinfo_file, loginfo.log_access_mode)) {
 		int oserr = errno;
 		if (!locked) LOG_ACCESS_UNLOCK_WRITE();
-		LDAPDebug(LDAP_DEBUG_ERR, "log__open_accesslogfile - accessinfo file open %s failed errno %d (%s)\n",
+		slapi_log_err(SLAPI_LOG_ERR, "log__open_accesslogfile", "accessinfo file open %s failed errno %d (%s)\n",
 					    loginfo.log_accessinfo_file,
 				            oserr, slapd_system_strerror(oserr));
 		return LOG_UNABLE_TO_OPENFILE;
@@ -2897,14 +2904,14 @@ log_rotate:
 	if (logtype!=SLAPD_ERROR_LOG)
 	{
 		if (type == LOG_SIZE_EXCEEDED) {
-			LDAPDebug(LDAP_DEBUG_TRACE,
-				   "LOGINFO:End of Log because size exceeded(Max:%" 
-				   NSPRI64 "d bytes) (Is:%" NSPRI64 "d bytes)\n",
-				   maxlogsize, f_size, 0);
+			slapi_log_err(SLAPI_LOG_TRACE, "log__needrotation",
+				"LOGINFO:End of Log because size exceeded(Max:%" 
+				NSPRI64 "d bytes) (Is:%" NSPRI64 "d bytes)\n",
+				maxlogsize, f_size);
 		} else  if ( type == LOG_EXPIRED) {
-			LDAPDebug(LDAP_DEBUG_TRACE,
-				   "LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%ld secs)\n",
-					rotationtime_secs, curr_time - log_createtime,0);
+			slapi_log_err(SLAPI_LOG_TRACE, "log__needrotation",
+				"LOGINFO:End of Log because time exceeded(Max:%d secs) (Is:%ld secs)\n",
+				rotationtime_secs, curr_time - log_createtime);
 		}
 	}
 	return (type == LOG_CONTINUE) ? LOG_CONTINUE : LOG_ROTATE;
@@ -2945,10 +2952,12 @@ log__delete_access_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+					"File %s already removed\n", loginfo.log_access_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
-				                loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
+				slapi_log_err(SLAPI_LOG_TRACE,  "log__delete_access_logfile",
+					"Unable to remove file:%s error %d (%s)\n",
+					loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
 
@@ -2957,10 +2966,12 @@ log__delete_access_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+					"File %s already removed\n", loginfo.log_access_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
-				                loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+					"Unable to remove file:%s.rotationinfo error %d (%s)\n",
+					loginfo.log_access_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
 		return 0;
@@ -3065,13 +3076,16 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
 		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_access_file);
+			slapi_log_err(SLAPI_LOG_TRACE,"log__delete_access_logfile",
+				"File %s already removed\n", loginfo.log_access_file);
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
-			                loginfo.log_access_file, tbuf, prerr, slapd_pr_strerror(prerr));
+			slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+				"Unable to remove file:%s.%s error %d (%s)\n",
+				loginfo.log_access_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_access_file, tbuf, logstr);
+		slapi_log_err(SLAPI_LOG_TRACE, "log__delete_access_logfile",
+			"Removed file:%s.%s because of (%s)\n", loginfo.log_access_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_access_logs--;
@@ -3101,7 +3115,8 @@ log__delete_rotated_logs()
 		log_convert_time (logp->l_ctime, tbuf, 1);
 		PR_snprintf (buffer, sizeof(buffer), "%s.%s", loginfo.log_access_file, tbuf);
 
-		LDAPDebug(LDAP_DEBUG_ERR,"log__delete_rotated_logs - Deleted Rotated Log: %s\n",buffer,0,0);
+		slapi_log_err(SLAPI_LOG_ERR,"log__delete_rotated_logs",
+			"Deleted Rotated Log: %s\n",buffer);
 
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			logp = logp->l_next;
@@ -3697,12 +3712,12 @@ log__delete_error_logfile(int locked)
 		PR_snprintf (buffer, sizeof(buffer), "%s", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			if (!locked) {
-				/* If locked, we should not call LDAPDebug, which tries to get a lock internally. */
+				/* If locked, we should not call slapi_log_err, which tries to get a lock internally. */
 				PRErrorCode prerr = PR_GetError();
 				if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
+					slapi_log_err(SLAPI_LOG_TRACE, "log__delete_error_logfile", "File %s already removed\n", loginfo.log_error_file);
 				} else {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+					slapi_log_err(SLAPI_LOG_TRACE, "log__delete_error_logfile", "Unable to remove file:%s error %d (%s)\n",
 					                loginfo.log_error_file, prerr, slapd_pr_strerror(prerr));
 				}
 			}
@@ -3712,12 +3727,12 @@ log__delete_error_logfile(int locked)
 		PR_snprintf (buffer, sizeof(buffer), "%s.rotationinfo", loginfo.log_error_file);
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			if (!locked) {
-				/* If locked, we should not call LDAPDebug, which tries to get a lock internally. */
+				/* If locked, we should not call slapi_log_err, which tries to get a lock internally. */
 				PRErrorCode prerr = PR_GetError();
 				if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_error_file);
+					slapi_log_err(SLAPI_LOG_TRACE, "log__delete_error_logfile", "File %s already removed\n", loginfo.log_error_file);
 				} else {
-					slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
+					slapi_log_err(SLAPI_LOG_TRACE, "log__delete_error_logfile", "Unable to remove file:%s.rotationinfo error %d (%s)\n",
 					                loginfo.log_error_file, prerr, slapd_pr_strerror(prerr));
 				}
 			}
@@ -3812,9 +3827,9 @@ delete_logfile:
 	memset(tbuf, 0, sizeof(tbuf));
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	if (!locked) {
-		/* if locked, we should not call LDAPDebug, 
+		/* if locked, we should not call slapi_log_err, 
 		   which tries to get a lock internally. */
-		LDAPDebug(LDAP_DEBUG_TRACE, 
+		slapi_log_err(SLAPI_LOG_TRACE, 
 			   "LOGINFO:Removing file:%s.%s because of (%s)\n",
 					loginfo.log_error_file, tbuf,
 					logstr);
@@ -3877,9 +3892,9 @@ log__delete_audit_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "File %s already removed\n", loginfo.log_audit_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "Unable to remove file:%s error %d (%s)\n",
 				                loginfo.log_audit_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -3889,9 +3904,9 @@ log__delete_audit_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "File %s already removed\n", loginfo.log_audit_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
 				                loginfo.log_audit_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -3996,13 +4011,13 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
 		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_audit_file);
+			slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "File %s already removed\n", loginfo.log_audit_file);
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "Unable to remove file:%s.%s error %d (%s)\n",
 			                loginfo.log_audit_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_audit_file, tbuf, logstr);
+		slapi_log_err(SLAPI_LOG_TRACE, "log__delete_audit_logfile", "Removed file:%s.%s because of (%s)\n", loginfo.log_audit_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_audit_logs--;
@@ -4044,9 +4059,9 @@ log__delete_auditfail_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "File %s already removed\n", loginfo.log_auditfail_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s error %d (%s)\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Unable to remove file:%s error %d (%s)\n",
 				                loginfo.log_auditfail_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -4056,9 +4071,9 @@ log__delete_auditfail_logfile(void)
 		if (PR_Delete(buffer) != PR_SUCCESS) {
 			PRErrorCode prerr = PR_GetError();
 			if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "File %s already removed\n", loginfo.log_auditfail_file);
 			} else {
-				slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Unable to remove file:%s.rotatoininfo error %d (%s)\n",
 				                loginfo.log_auditfail_file, prerr, slapd_pr_strerror(prerr));
 			}
 		}
@@ -4163,13 +4178,13 @@ delete_logfile:
 	if (PR_Delete(buffer) != PR_SUCCESS) {
 		PRErrorCode prerr = PR_GetError();
 		if (PR_FILE_NOT_FOUND_ERROR == prerr) {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "File %s already removed\n", loginfo.log_auditfail_file);
+			slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "File %s already removed\n", loginfo.log_auditfail_file);
 		} else {
-			slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Unable to remove file:%s.%s error %d (%s)\n",
+			slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Unable to remove file:%s.%s error %d (%s)\n",
 			                loginfo.log_auditfail_file, tbuf, prerr, slapd_pr_strerror(prerr));
 		}
 	} else {
-		slapi_log_error(SLAPI_LOG_TRACE, "LOGINFO", "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
+		slapi_log_err(SLAPI_LOG_TRACE, "log__delete_auditfail_logfile", "Removed file:%s.%s because of (%s)\n", loginfo.log_auditfail_file, tbuf, logstr);
 	}
 	slapi_ch_free((void**)&delete_logp);
 	loginfo.log_numof_auditfail_logs--;
@@ -4710,9 +4725,9 @@ log__open_auditlogfile(int logfile_state, int locked)
 
 	/* open a new log file */
 	if (! LOG_OPEN_APPEND(fp, loginfo.log_audit_file, loginfo.log_audit_mode)) {
-		LDAPDebug(LDAP_DEBUG_ERR, "log__open_auditlogfile - can't open file %s. "
-				"errno %d (%s)\n",
-				loginfo.log_audit_file, errno, slapd_system_strerror(errno));
+		slapi_log_err(SLAPI_LOG_ERR, "log__open_auditlogfile", 
+			"can't open file %s - errno %d (%s)\n",
+			loginfo.log_audit_file, errno, slapd_system_strerror(errno));
 		if (!locked) LOG_AUDIT_UNLOCK_WRITE();
 		/*if I have an old log file -- I should log a message
 		** that I can't open the  new file. Let the caller worry
@@ -4731,9 +4746,9 @@ log__open_auditlogfile(int logfile_state, int locked)
 	loginfo.log_audit_state |= LOGGING_NEED_TITLE;
 
 	if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_auditinfo_file, loginfo.log_audit_mode)) {
-		LDAPDebug(LDAP_DEBUG_ERR, "WARNING: can't open file %s. "
-				"errno %d (%s)\n",
-				loginfo.log_auditinfo_file, errno, slapd_system_strerror(errno));
+		slapi_log_err(SLAPI_LOG_ERR, "log__open_auditlogfile",
+			"Can't open file %s - errno %d (%s)\n",
+			loginfo.log_auditinfo_file, errno, slapd_system_strerror(errno));
 		if (!locked) LOG_AUDIT_UNLOCK_WRITE();
 		return LOG_UNABLE_TO_OPENFILE;
 	}
@@ -4836,9 +4851,9 @@ log__open_auditfaillogfile(int logfile_state, int locked)
 
     /* open a new log file */
     if (! LOG_OPEN_APPEND(fp, loginfo.log_auditfail_file, loginfo.log_auditfail_mode)) {
-        LDAPDebug(LDAP_DEBUG_ERR, "log__open_auditlogfile - Can't open file %s. "
-                  "errno %d (%s)\n",
-                  loginfo.log_auditfail_file, errno, slapd_system_strerror(errno));
+        slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile", 
+                "Can't open file %s - errno %d (%s)\n",
+                loginfo.log_auditfail_file, errno, slapd_system_strerror(errno));
         if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
         /*if I have an old log file -- I should log a message
         ** that I can't open the  new file. Let the caller worry
@@ -4857,9 +4872,9 @@ log__open_auditfaillogfile(int logfile_state, int locked)
     loginfo.log_auditfail_state |= LOGGING_NEED_TITLE;
 
     if (! LOG_OPEN_WRITE(fpinfo, loginfo.log_auditfailinfo_file, loginfo.log_auditfail_mode)) {
-        LDAPDebug(LDAP_DEBUG_ERR, "log__open_auditlogfile - Can't open file %s. "
-                  "errno %d (%s)\n",
-                  loginfo.log_auditfailinfo_file, errno, slapd_system_strerror(errno));
+        slapi_log_err(SLAPI_LOG_ERR, "log__open_auditfaillogfile",
+                "Can't open file %s - errno %d (%s)\n",
+                loginfo.log_auditfailinfo_file, errno, slapd_system_strerror(errno));
         if (!locked) LOG_AUDITFAIL_UNLOCK_WRITE();
         return LOG_UNABLE_TO_OPENFILE;
     }
@@ -5004,9 +5019,9 @@ static void log_flush_buffer(LogBufferInfo *lbi, int type, int sync_now)
         if (log__needrotation(loginfo.log_access_fdes,
 				SLAPD_ACCESS_LOG) == LOG_ROTATE) {
     		if (log__open_accesslogfile(LOGFILE_NEW, 1) != LOG_SUCCESS) {
-    			LDAPDebug(LDAP_DEBUG_ERR,
-    				"log_flush_buffer - Unable to open access file:%s\n",
-    				loginfo.log_access_file,0,0);
+    			slapi_log_err(SLAPI_LOG_ERR,
+    				"log_flush_buffer", "Unable to open access file:%s\n",
+    				loginfo.log_access_file);
 			lbi->current = lbi->top; /* reset counter to prevent overwriting rest of lbi struct */
     			return;
 			}

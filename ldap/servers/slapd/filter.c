@@ -73,19 +73,19 @@ get_filter( Connection *conn, BerElement *ber, int scope,
 			(*filt)->f_flags |= SLAPI_FILTER_RUV;
 	}
 
-	if (LDAPDebugLevelIsSet( LDAP_DEBUG_FILTER ) && *filt != NULL
+	if (loglevel_is_set( LDAP_DEBUG_FILTER ) && *filt != NULL
 			&& *fstr != NULL) {
 		logbufsize = strlen(*fstr) + 1;
 		logbuf = slapi_ch_malloc(logbufsize);
 		*logbuf = '\0';
-		slapi_log_error(SLAPI_LOG_DEBUG, "get_filter", "before optimize: %s\n",
+		slapi_log_err(SLAPI_LOG_DEBUG, "get_filter", "before optimize: %s\n",
 				slapi_filter_to_string(*filt, logbuf, logbufsize));
 	}
 
 	filter_optimize(*filt);
 
 	if (NULL != logbuf) {
-		slapi_log_error(SLAPI_LOG_DEBUG, "get_filter", " after optimize: %s\n",
+		slapi_log_err(SLAPI_LOG_DEBUG, "get_filter", " after optimize: %s\n",
 				slapi_filter_to_string(*filt, logbuf, logbufsize));
 		slapi_ch_free_string( &logbuf );
 	}
@@ -153,7 +153,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
     struct slapi_filter	*f;
     char		*ftmp, *type = NULL;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> get_filter_internal\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "==>\n");
 
 	/*
 	 * Track and check the depth of nesting.  Use post-increment on
@@ -164,9 +164,9 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		*filt = NULL;
 		*fstr = NULL;
 		err = LDAP_UNWILLING_TO_PERFORM;
-		LDAPDebug(LDAP_DEBUG_FILTER, "<= get_filter_internal %d"
-				" (maximum nesting level of %d exceeded)\n",
-				err, maxdepth, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal",
+			"<== %d (maximum nesting level of %d exceeded)\n",
+			err, maxdepth);
 		return( err );
 	}
 
@@ -211,7 +211,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 	f->f_choice = ber_peek_tag( ber, &len );
 	switch ( f->f_choice ) {
 	case LDAP_FILTER_EQUALITY:
-		LDAPDebug(LDAP_DEBUG_FILTER, "EQUALITY\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "EQUALITY\n");
 		if ( (err = get_ava( ber, &f->f_ava )) == 0 ) {
 
 			if ( 0 == strcasecmp ( f->f_avtype, "objectclass")) {
@@ -260,26 +260,26 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		break;
 
 	case LDAP_FILTER_SUBSTRINGS:
-		LDAPDebug(LDAP_DEBUG_FILTER, "SUBSTRINGS\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "SUBSTRINGS\n");
 		err = get_substring_filter( conn, ber, f, fstr );
 		break;
 
 	case LDAP_FILTER_GE:
-		LDAPDebug(LDAP_DEBUG_FILTER, "GE\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "GE\n");
 		if ( (err = get_ava( ber, &f->f_ava )) == 0 ) {
 		  *fstr=filter_escape_filter_value(f, FILTER_GE_FMT, FILTER_GE_LEN);
 		}
 		break;
 
 	case LDAP_FILTER_LE:
-		LDAPDebug(LDAP_DEBUG_FILTER, "LE\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "LE\n");
 		if ( (err = get_ava( ber, &f->f_ava )) == 0 ) {
 		  *fstr=filter_escape_filter_value(f, FILTER_LE_FMT, FILTER_LE_LEN);
 		}
 		break;
 
 	case LDAP_FILTER_PRESENT:
-		LDAPDebug(LDAP_DEBUG_FILTER, "PRESENT\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "PRESENT\n");
 		if ( ber_scanf( ber, "a", &type ) == LBER_ERROR ) {
             slapi_ch_free_string(&type);
 			err = LDAP_PROTOCOL_ERROR;
@@ -293,22 +293,21 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		break;
 
 	case LDAP_FILTER_APPROX:
-		LDAPDebug(LDAP_DEBUG_FILTER, "APPROX\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "APPROX\n");
 		if ( (err = get_ava( ber, &f->f_ava )) == 0 ) {
 		  *fstr=filter_escape_filter_value(f, FILTER_APROX_FMT, FILTER_APROX_LEN);
 		}
 		break;
 
     case LDAP_FILTER_EXTENDED:
-        LDAPDebug(LDAP_DEBUG_FILTER, "EXTENDED\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "EXTENDED\n");
         if ( conn->c_ldapversion < 3 ) {
-            LDAPDebug(LDAP_DEBUG_ERR,
-                "get_filter_internal - Extensible filter received from v2 client\n",
-                0, 0, 0 );
+            slapi_log_err(SLAPI_LOG_ERR, "get_filter_internal",
+                "Extensible filter received from v2 client\n");
             err = LDAP_PROTOCOL_ERROR;
         } else if ( (err = get_extensible_filter( ber, &f->f_mr )) == LDAP_SUCCESS ) {           
             *fstr=filter_escape_filter_value_extended(f); 
-            LDAPDebug(LDAP_DEBUG_FILTER, "%s\n", *fstr, 0, 0);
+            slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "%s\n", *fstr);
             if(f->f_mr_oid==NULL) {
             /*
             * We accept:
@@ -323,7 +322,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
         break;
 
 	case LDAP_FILTER_AND:
-		LDAPDebug(LDAP_DEBUG_FILTER, "AND\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "AND\n");
 		if ( (err = get_filter_list( conn, ber, &f->f_and, &ftmp, maxdepth,
 					curdepth, subentry_dont_rewrite,
 					has_tombstone_filter, has_ruv_filter ))
@@ -335,7 +334,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		break;
 
 	case LDAP_FILTER_OR:
-		LDAPDebug(LDAP_DEBUG_FILTER, "OR\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "OR\n");
 		if ( (err = get_filter_list( conn, ber, &f->f_or, &ftmp, maxdepth,
 					curdepth, subentry_dont_rewrite,
 					has_tombstone_filter, has_ruv_filter ))
@@ -347,7 +346,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		break;
 
 	case LDAP_FILTER_NOT:
-		LDAPDebug(LDAP_DEBUG_FILTER, "NOT\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "NOT\n");
 		(void) ber_skip_tag( ber, &len );
 		if ( (err = get_filter_internal( conn, ber, &f->f_not, &ftmp, maxdepth,
 					curdepth, subentry_dont_rewrite,
@@ -360,8 +359,8 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		break;
 
 	default:
-		LDAPDebug(LDAP_DEBUG_ERR, "get_filter_internal - Unknown type 0x%lX\n",
-		    f->f_choice, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,  "get_filter_internal",
+			"Unknown type 0x%lX\n", f->f_choice);
 		err = LDAP_PROTOCOL_ERROR;
 		break;
 	}
@@ -372,7 +371,7 @@ get_filter_internal( Connection *conn, BerElement *ber,
 		slapi_ch_free( (void**)fstr );
 	}
 	*filt = f;
-	LDAPDebug(LDAP_DEBUG_FILTER, "<= get_filter_internal %d\n", err, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_filter_internal", "<= %d\n", err);
 	return( err );
 }
 
@@ -388,7 +387,7 @@ get_filter_list( Connection *conn, BerElement *ber,
 	ber_len_t	len = LBER_ERROR;
 	char		*last;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> get_filter_list\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_filter_list", "=>\n" );
 
 	*fstr = NULL;
 	new = f;
@@ -423,11 +422,11 @@ get_filter_list( Connection *conn, BerElement *ber,
 	   len if it has reached the end, and -1 is not a valid value
 	   for a real len */
 	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) && (*fstr != NULL) ) {
-		LDAPDebug(LDAP_DEBUG_ERR, "get_filter_list - Error parsing filter list\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "get_filter_list", "Error parsing filter list\n");
 		slapi_ch_free((void**)fstr );
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "<= get_filter_list\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_filter_list", "<=\n");
 	return(( *fstr == NULL ) ? LDAP_PROTOCOL_ERROR : 0 );
 }
 
@@ -444,7 +443,7 @@ get_substring_filter(
 	char		*val, *eval, *last, *type = NULL;
 	size_t fstr_len;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> get_substring_filter\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_substring_filter", "=>\n");
 
 	if ( ber_scanf( ber, "{a", &type ) == LBER_ERROR ) {
 		slapi_ch_free_string(&type);
@@ -480,7 +479,7 @@ get_substring_filter(
 
 		switch ( tag ) {
 		case LDAP_SUBSTRING_INITIAL:
-			LDAPDebug(LDAP_DEBUG_FILTER, "  INITIAL\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_FILTER, "get_substring_filter", "INITIAL\n");
 			if ( f->f_sub_initial != NULL ) {
 				return( LDAP_PROTOCOL_ERROR );
 			}
@@ -497,7 +496,7 @@ get_substring_filter(
 			break;
 
 		case LDAP_SUBSTRING_ANY:
-			LDAPDebug(LDAP_DEBUG_FILTER, "  ANY\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_FILTER, "get_substring_filter", "ANY\n");
 			charray_add(&f->f_sub_any, val);
 			eval = (char*)slapi_escape_filter_value(val, -1);
 			if(eval){
@@ -512,7 +511,7 @@ get_substring_filter(
 			break;
 
 		case LDAP_SUBSTRING_FINAL:
-			LDAPDebug(LDAP_DEBUG_FILTER, "  FINAL\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_FILTER, "get_substring_filter", "FINAL\n");
 			if ( f->f_sub_final != NULL ) {
 				return( LDAP_PROTOCOL_ERROR );
 			}
@@ -530,13 +529,13 @@ get_substring_filter(
 			break;
 
 		default:
-			LDAPDebug(LDAP_DEBUG_FILTER, "  unknown tag 0x%lX\n", tag, 0, 0 );
+			slapi_log_err(SLAPI_LOG_FILTER,  "get_substring_filter", "Unknown tag 0x%lX\n", tag);
 			return( LDAP_PROTOCOL_ERROR );
 		}
 	}
 
 	if ( (tag != LBER_END_OF_SEQORSET) && (len != -1) ) {
-		LDAPDebug(LDAP_DEBUG_ERR, "get_substring_filter - Error reading substring filter\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "get_substring_filter", "Error reading substring filter\n");
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	if ( f->f_sub_initial == NULL && f->f_sub_any == NULL &&
@@ -554,7 +553,7 @@ get_substring_filter(
 	}
 	strcat( *fstr, ")" );
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "<= get_substring_filter\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_substring_filter", "<=\n");
 	return( 0 );
 }
 
@@ -567,7 +566,7 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 	char		*last;
 	int		rc = LDAP_SUCCESS;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> get_extensible_filter\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_extensible_filter", "=>\n");
 	memset (mrf, 0, sizeof (mr_filter_t));
 
 	gotelem = gotoid = gotvalue = 0;
@@ -642,12 +641,11 @@ get_extensible_filter( BerElement *ber, mr_filter_t* mrf )
 		goto parsing_error;
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "<= get_extensible_filter %i\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "get_extensible_filter", "<= %i\n", rc);
 	return rc;
 
 parsing_error:;
-	LDAPDebug(LDAP_DEBUG_ERR, "get_extensible_filter - Error parsing extensible filter\n",
-	    0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_ERR, "get_extensible_filter", "Error parsing extensible filter\n");
 	return( LDAP_PROTOCOL_ERROR );
 }
 
@@ -666,8 +664,7 @@ slapi_filter_dup(Slapi_Filter *f)
 
 	out = (struct slapi_filter*)slapi_ch_calloc(1, sizeof(struct slapi_filter));
 	if ( out == NULL ) {
-		LDAPDebug(LDAP_DEBUG_ERR, "slapi_filter_dup - Memory allocation error\n",
-		    0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_filter_dup", "Memory allocation error\n");
 		return NULL;
 	}
 
@@ -675,7 +672,7 @@ slapi_filter_dup(Slapi_Filter *f)
 	out->f_hash = f->f_hash;
 	out->f_flags = f->f_flags;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "slapi_filter_dup type 0x%lX\n", f->f_choice, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "slapi_filter_dup", "type 0x%lX\n", f->f_choice);
 	switch ( f->f_choice ) {
 	case LDAP_FILTER_EQUALITY:
 	case LDAP_FILTER_GE:
@@ -718,13 +715,12 @@ slapi_filter_dup(Slapi_Filter *f)
 		out->f_mr_dnAttrs = f->f_mr_dnAttrs;
 		if (f->f_mr.mrf_match) {
 			int rc = plugin_mr_filter_create(&out->f_mr);
-			LDAPDebug1Arg(LDAP_DEBUG_FILTER, "slapi_filter_dup plugin_mr_filter_create returned %d\n", rc );
+			slapi_log_err(SLAPI_LOG_FILTER, "slapi_filter_dup", "plugin_mr_filter_create returned %d\n", rc );
 		}
 		break;
 
 	default:
-		LDAPDebug(LDAP_DEBUG_FILTER, "slapi_filter_dup: unknown type 0x%lX\n",
-		    f->f_choice, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "slapi_filter_dup", "Unknown type 0x%lX\n", f->f_choice);
 		break;
 	}
 	
@@ -738,7 +734,7 @@ slapi_filter_free( struct slapi_filter *f, int recurse )
 		return;
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "slapi_filter_free type 0x%lX\n", f->f_choice, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "slapi_filter_free", "type 0x%lX\n", f->f_choice);
 	switch ( f->f_choice ) {
 	case LDAP_FILTER_EQUALITY:
 	case LDAP_FILTER_GE:
@@ -787,8 +783,8 @@ slapi_filter_free( struct slapi_filter *f, int recurse )
 		break;
 
 	default:
-		LDAPDebug(LDAP_DEBUG_ERR, "slapi_filter_free - Unknown type 0x%lX\n",
-		    f->f_choice, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_filter_free", "nknown type 0x%lX\n",
+		    f->f_choice);
 		break;
 	}
 	slapi_ch_free((void**)&f);

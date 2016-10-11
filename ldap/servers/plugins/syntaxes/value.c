@@ -368,8 +368,8 @@ value_cmp(
 	} else if (syntax & SYNTAX_CES) {
 		rc = strcmp( v1->bv_val, v2->bv_val );
 	} else { /* error - unknown syntax */
-		LDAPDebug(LDAP_DEBUG_PLUGIN,
-				  "invalid syntax [%d]\n", syntax, 0, 0);
+		slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, 
+				  "value_cmp - invalid syntax [%d]\n", syntax);
 	}
 
 	if ((syntax & SYNTAX_INT) && !v1sign && !v2sign) { /* both negative */

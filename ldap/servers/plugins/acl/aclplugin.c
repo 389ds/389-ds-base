@@ -94,7 +94,7 @@ acl_preopInit (Slapi_PBlock *pb)
 #endif
 
 
-        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc );
+        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc );
         return( rc );
 }
 
@@ -187,7 +187,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 	aclpb = acl_get_aclpb ( pb, ACLPB_BINDDN_PBLOCK );
 
 	if (aclpb == NULL) {
-		slapi_log_error(SLAPI_LOG_ACL, plugin_name, "aclplugin_preop_common - Error: aclpb is NULL\n" );
+		slapi_log_err(SLAPI_LOG_ACL, plugin_name, "aclplugin_preop_common - Error: aclpb is NULL\n" );
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
 		return 1;
 	}
@@ -220,7 +220,7 @@ aclplugin_preop_common( Slapi_PBlock *pb )
 	if ( proxy_dn) {
 		TNF_PROBE_0_DEBUG(proxyacpb_init_start,"ACL","");
 
-		slapi_log_error(SLAPI_LOG_ACL, plugin_name,
+		slapi_log_err(SLAPI_LOG_ACL, plugin_name,
 				"aclplugin_preop_common - Proxied authorization dn is (%s)\n", proxy_dn );
 		acl_init_aclpb ( pb, aclpb, proxy_dn, 1 );
 		aclpb = acl_new_proxy_aclpb ( pb );
@@ -297,10 +297,10 @@ acl_init( Slapi_PBlock *pb )
 {
         int     rc =0;
 
-        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "=> acl_init\n" );
+        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> acl_init\n" );
 
         if  ( 0 != acl_init_ext() ) {
-		    slapi_log_error(SLAPI_LOG_ERR, plugin_name,
+		    slapi_log_err(SLAPI_LOG_ERR, plugin_name,
 			    "acl_init - Unable to initialize the extensions\n");
 		    return 1;
 	    }
@@ -324,7 +324,7 @@ acl_init( Slapi_PBlock *pb )
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_ACL_MODS_UPDATE,
             (void *) acl_modified );
 
-        slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_init %d\n", rc);
+        slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_init %d\n", rc);
         return( rc );
 }
 
@@ -356,7 +356,7 @@ acl_access_allowed_main ( Slapi_PBlock *pb, Slapi_Entry *e, char **attrs,
 		rc = acl_read_access_allowed_on_entry ( pb, e, attrs, access);
 	} else if ( ACLPLUGIN_ACCESS_READ_ON_ATTR == flags) {
 		if (attr == NULL) {
-			slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "acl_access_allowed_main - Missing attribute\n" );
+			slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "acl_access_allowed_main - Missing attribute\n" );
 			rc = LDAP_OPERATIONS_ERROR;
 		} else {
 			rc = acl_read_access_allowed_on_attr ( pb, e, attr, val, access);

@@ -61,14 +61,13 @@ ldbm_back_start( Slapi_PBlock *pb )
   PRUint64 memsize = pages * pagesize;
 #endif
 
-  LDAPDebug(LDAP_DEBUG_TRACE, "ldbm_back_start - ldbm backend starting\n", 0, 0, 0 );
+  slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend starting\n");
 
   slapi_pblock_get( pb, SLAPI_PLUGIN_PRIVATE, &li );
 
   /* parse the config file here */
   if (0 != ldbm_config_load_dse_info(li)) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Loading database configuration failed\n",
-            0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Loading database configuration failed\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -77,8 +76,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             LDBM_LOOKTHROUGHLIMIT_AT, &li->li_reslimit_lookthrough_handle )
             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Resource limit registration failed for lookthroughlimit\n",
-            0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for lookthroughlimit\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -87,8 +85,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             LDBM_ALLIDSLIMIT_AT, &li->li_reslimit_allids_handle )
             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Resource limit registration failed for allidslimit\n",
-            0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for allidslimit\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -97,8 +94,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             LDBM_PAGEDLOOKTHROUGHLIMIT_AT, &li->li_reslimit_pagedlookthrough_handle )
             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Resource limit registration failed for pagedlookthroughlimit\n",
-            0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for pagedlookthroughlimit\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -107,8 +103,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             LDBM_PAGEDALLIDSLIMIT_AT, &li->li_reslimit_pagedallids_handle )
             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Resource limit registration failed for pagedallidslimit\n",
-            0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for pagedallidslimit\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -116,8 +111,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   if ( slapi_reslimit_register( SLAPI_RESLIMIT_TYPE_INT,
             LDBM_RANGELOOKTHROUGHLIMIT_AT, &li->li_reslimit_rangelookthrough_handle )
             != SLAPI_RESLIMIT_STATUS_SUCCESS ) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Resource limit registration failed for rangelookthroughlimit\n",
-            0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Resource limit registration failed for rangelookthroughlimit\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -138,12 +132,11 @@ ldbm_back_start( Slapi_PBlock *pb )
       (li->li_import_cache_autosize > 100) ||
       ((li->li_cache_autosize > 0) && (li->li_import_cache_autosize > 0) &&
       (li->li_cache_autosize + li->li_import_cache_autosize > 100))) {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Cache autosizing: bad settings, "
-        "value or sum of values can not larger than 100.\n", 0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Cache autosizing: bad settings, "
+        "value or sum of values can not larger than 100.\n");
   } else {
       if (util_info_sys_pages(&pagesize, &pages, &procpages, &availpages) != 0) {
-          LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Unable to determine system page limits\n",
-                0, 0, 0 );
+          slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Unable to determine system page limits\n");
           return SLAPI_FAIL_GENERAL;
       }
       if (pagesize) {
@@ -157,7 +150,7 @@ ldbm_back_start( Slapi_PBlock *pb )
                   cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
                   db_size = dblayer_get_id2entry_size(inst);
                   if (cache_size < db_size) {
-                      LDAPDebug(LDAP_DEBUG_NOTICE,
+                      slapi_log_err(SLAPI_LOG_NOTICE,
                              "ldbm_back_start - "
                               "%s: entry cache size %llu B is "
                               "less than db size %llu B; "
@@ -165,21 +158,21 @@ ldbm_back_start( Slapi_PBlock *pb )
                               "nsslapd-cachememsize.\n",
                               inst->inst_name, cache_size, db_size);
                   } else {
-                      LDAPDebug(LDAP_DEBUG_BACKLDBM,
-                                "ldbm_back_start - %s: entry cache size: %llu B; db size: %llu B\n",
+                      slapi_log_err(SLAPI_LOG_BACKLDBM,
+                                "ldbm_back_start", "%s: entry cache size: %lu B; db size: %lu B\n",
                                 inst->inst_name, cache_size, db_size);
                   }
                   /* Get the dn_cachesize */
                   dncache_size = (PRUint64)cache_get_max_size(&(inst->inst_dncache));
                   total_cache_size += cache_size + dncache_size;
-                  LDAPDebug(LDAP_DEBUG_BACKLDBM,
-                            "ldbm_back_start - total cache size: %llu B; \n",
-                            total_cache_size, 0 ,0 );
+                  slapi_log_err(SLAPI_LOG_BACKLDBM,
+                            "ldbm_back_start", "total cache size: %lu B; \n",
+                            total_cache_size);
               }
-              LDAPDebug(LDAP_DEBUG_BACKLDBM,
-                        "ldbm_back_start - Total entry cache size: %llu B; "
-                        "dbcache size: %llu B; "
-                        "available memory size: %llu B;\n",
+              slapi_log_err(SLAPI_LOG_BACKLDBM,
+                        "ldbm_back_start", "Total entry cache size: %lu B; "
+                        "dbcache size: %lu B; "
+                        "available memory size: %lu B;\n",
 #ifdef LINUX
                         (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
 #else
@@ -196,8 +189,9 @@ ldbm_back_start( Slapi_PBlock *pb )
               /* In the case it is not, this will *reduce* the allocation */
               issane = util_is_cachesize_sane(&zone_size);
               if (!issane) {
-                  LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Your autosized cache values have been reduced. Likely your nsslapd-cache-autosize percentage is too high.\n", 0,0,0);
-                  LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - %s", msg,0,0);
+                  slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start",
+                		 "Your autosized cache values have been reduced. Likely your nsslapd-cache-autosize percentage is too high.\n");
+                  slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "%s", msg);
               }
               /* It's valid, lets divide it up and set according to user prefs */
               zone_pages = zone_size / pagesize;
@@ -206,12 +200,12 @@ ldbm_back_start( Slapi_PBlock *pb )
               /* We update this for the is-sane check below. */
               total_cache_size = (zone_pages - db_pages) * pagesize;
 
-              LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - cache autosizing. found %dk physical memory\n",
-                pages*(pagesize/1024), 0, 0);
-              LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - cache autosizing. found %dk avaliable\n",
-                zone_pages*(pagesize/1024), 0, 0);
-              LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - cache autosizing: db cache: %dk, "
-                "each entry cache (%d total): %dk\n",
+              slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "cache autosizing. found %luk physical memory\n",
+                pages*(pagesize/1024));
+              slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "cache autosizing. found %luk avaliable\n",
+                zone_pages*(pagesize/1024));
+              slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "cache autosizing: db cache: %luk, "
+                "each entry cache (%d total): %luk\n",
                 db_pages*(pagesize/1024), objset_size(li->li_instance_set),
                 entry_pages*(pagesize/1024));
     
@@ -248,15 +242,14 @@ ldbm_back_start( Slapi_PBlock *pb )
               import_size = import_pages * pagesize;
               issane = util_is_cachesize_sane(&import_size);
               if (!issane) {
-                  LDAPDebug(LDAP_DEBUG_NOTICE, "ldbm_back_start - "
+                  slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start",
                           "Your autosized import cache values have been reduced. "
-                          "Likely your nsslapd-import-cache-autosize percentage is too high.\n",
-                          0,0,0);
+                          "Likely your nsslapd-import-cache-autosize percentage is too high.\n");
               }
               /* We just accept the reduced allocation here. */
               import_pages = import_size / pagesize;
-              LDAPDebug(LDAP_DEBUG_NOTICE, "ldbm_back_start - cache autosizing: import cache: %dk\n",
-                import_pages*(pagesize/1024), NULL, NULL);
+              slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start", "cache autosizing: import cache: %luk\n",
+                import_pages*(pagesize/1024));
     
               sprintf(s, "%lu", (unsigned long)(import_pages * pagesize));
               ldbm_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
@@ -270,19 +263,21 @@ ldbm_back_start( Slapi_PBlock *pb )
   issane = util_is_cachesize_sane(&total_size);
   if (!issane) {
     /* Right, it's time to panic */
-    LDAPDebug(LDAP_DEBUG_CRIT, "ldbm_back_start - It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n", 0, 0, 0 );
-    LDAPDebug(LDAP_DEBUG_CRIT, "ldbm_back_start - In a future release this WILL prevent server start up. You MUST alter your configuration.\n", 0, 0, 0 );
-    LDAPDebug(LDAP_DEBUG_CRIT,
-              "ldbm_back_start - Total entry cache size: %llu B; "
-              "dbcache size: %llu B; "
-              "available memory size: %llu B; \n",
+    slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start",
+        "It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n");
+    slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start",
+        "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
+    slapi_log_err(SLAPI_LOG_CRIT,
+              "ldbm_back_start", "Total entry cache size: %lu B; "
+              "dbcache size: %lu B; "
+              "available memory size: %lu B; \n",
 #ifdef LINUX
               (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
 #else
               (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, memsize
 #endif
     );
-    LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - %s\n", msg,0,0);
+    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "%s\n", msg);
     /* WB 2016 - This should be UNCOMMENTED in a future release */
     /* return SLAPI_FAIL_GENERAL; */
   }
@@ -292,8 +287,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   retval = check_db_version(li, &action);
   if (0 != retval)
   {
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - db version is not supported\n",
-                 0, 0, 0);
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "db version is not supported\n");
       return SLAPI_FAIL_GENERAL;
   }
 
@@ -308,8 +302,8 @@ ldbm_back_start( Slapi_PBlock *pb )
   }
   if (0 != retval) {
       char *msg;
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Failed to init database, err=%d %s\n",
-         retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to init database, err=%d %s\n",
+         retval, (msg = dblayer_strerror( retval )) ? msg : "");
       if (LDBM_OS_ERR_IS_DISKFULL(retval)) return return_on_disk_full(li);
       else return SLAPI_FAIL_GENERAL;
   }
@@ -318,14 +312,14 @@ ldbm_back_start( Slapi_PBlock *pb )
   retval = ldbm_instance_startall(li);
   if (0 != retval) {
       char *msg;
-      LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Failed to start databases, err=%d %s\n",
-         retval, (msg = dblayer_strerror( retval )) ? msg : "", 0 );
+      slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to start databases, err=%d %s\n",
+         retval, (msg = dblayer_strerror( retval )) ? msg : "");
       if (LDBM_OS_ERR_IS_DISKFULL(retval)) return return_on_disk_full(li);
       else {
         if ((li->li_cache_autosize > 0) && (li->li_cache_autosize <= 100)) {
-          LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_start - Failed to allocate %d byte dbcache.  "
+          slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to allocate %lu byte dbcache.  "
                    "Please reduce the value of %s and restart the server.\n",
-                   li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE, 0);
+                   li->li_dbcachesize, CONFIG_CACHE_AUTOSIZE);
         }
         return SLAPI_FAIL_GENERAL;
       }
@@ -352,7 +346,7 @@ ldbm_back_start( Slapi_PBlock *pb )
   /* initialize the USN counter */
   ldbm_usn_init(li);
 
-  LDAPDebug(LDAP_DEBUG_TRACE, "ldbm_back_start - ldbm backend done starting\n", 0, 0, 0 );
+  slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_start", "ldbm backend done starting\n");
 
   return( 0 );
 

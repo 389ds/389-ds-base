@@ -37,7 +37,7 @@ void cb_eliminate_illegal_attributes(cb_backend_instance * inst, Slapi_Entry * e
 				slapi_attr_get_type(attr,&aType);
                         	if (aType && slapi_attr_types_equivalent(inst->illegal_attributes[j],aType)) {
 					tobefreed=aType;
-					slapi_log_error(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
 						"attribute <%s> not forwarded.\n",aType);
 				}
                 		rc = slapi_entry_next_attr(e, attr, &attr);

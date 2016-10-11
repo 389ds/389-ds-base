@@ -25,13 +25,13 @@ plugin_syntax_find( const char *nameoroid )
 {
 	struct slapdplugin	*pi;
 
-	/* LDAPDebug(LDAP_DEBUG_FILTER, "=> plugin_syntax_find (%s)\n", nameoroid, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_FILTER, "plugin_syntax_find", "=> (%s)\n", nameoroid ); */
 	for ( pi = get_plugin_list(PLUGIN_LIST_SYNTAX); pi != NULL; pi = pi->plg_next ) {
 		if ( charray_inlist( pi->plg_syntax_names, (char *)nameoroid ) ) {
 			break;
 		}
 	}
-	/* LDAPDebug(LDAP_DEBUG_FILTER, "<= plugin_syntax_find %d\n", pi, 0, 0 ); */
+	/* slapi_log_err(SLAPI_LOG_FILTER, "plugin_syntax_find", "<= %d\n", pi); */
 	return ( pi );
 }
 
@@ -60,8 +60,8 @@ slapi_get_global_syntax_plugins()
 char *
 plugin_syntax2oid( struct slapdplugin *pi )
 {
-	LDAPDebug(LDAP_DEBUG_NOTICE,
-              "plugin_syntax2oid() - This function is deprecated - please use attr_get_syntax_oid() instead\n", 0, 0, 0);
+	slapi_log_err(SLAPI_LOG_NOTICE, "plugin_syntax2oid",
+		"This function is deprecated - please use attr_get_syntax_oid() instead\n");
     PR_ASSERT(0);
 	return( NULL );
 }
@@ -72,8 +72,8 @@ plugin_call_syntax_get_compare_fn(
 	value_compare_fn_type *compare_fn
 )
 {
-	LDAPDebug(LDAP_DEBUG_NOTICE,
-              "plugin_call_syntax_get_compare_fn() - This function is deprecated - please use attr_get_value_cmp_fn() instead\n", 0, 0, 0);
+	slapi_log_err(SLAPI_LOG_NOTICE, "plugin_call_syntax_get_compare_fn", 
+		"This function is deprecated - please use attr_get_value_cmp_fn() instead\n");
     PR_ASSERT(0);
 	return( 0 );
 }
@@ -101,9 +101,9 @@ plugin_call_syntax_filter_ava_sv(
 	Slapi_PBlock	pipb;
 	IFP ava_fn = NULL;
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "=> plugin_call_syntax_filter_ava_sv %s=%s\n", ava->ava_type,
-	    ava->ava_value.bv_val, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "plugin_call_syntax_filter_ava_sv", "=> %s=%s\n", ava->ava_type,
+	    ava->ava_value.bv_val);
 
 	if ( ( a->a_mr_eq_plugin == NULL ) && ( a->a_mr_ord_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
@@ -112,9 +112,9 @@ plugin_call_syntax_filter_ava_sv(
 	}
 
 	if ( ( a->a_mr_eq_plugin == NULL ) && ( a->a_mr_ord_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
-		LDAPDebug(LDAP_DEBUG_FILTER,
-		    "<= plugin_call_syntax_filter_ava_sv no plugin for attr (%s)\n",
-		    a->a_type, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER,
+		    "plugin_call_syntax_filter_ava_sv", "<= no plugin for attr (%s)\n",
+		    a->a_type);
 		return( LDAP_PROTOCOL_ERROR );	/* syntax unkonwn */
 	}
 
@@ -135,9 +135,9 @@ plugin_call_syntax_filter_ava_sv(
 		if ((a->a_mr_ord_plugin == NULL) &&
 			((a->a_plugin->plg_syntax_flags &
 			  SLAPI_PLUGIN_SYNTAX_FLAG_ORDERING) == 0)) {
-			LDAPDebug(LDAP_DEBUG_FILTER,
-					   "<= plugin_call_syntax_filter_ava: attr (%s) has no ordering matching rule, and syntax does not define a compare function\n",
-					   a->a_type, 0, 0 );
+			slapi_log_err(SLAPI_LOG_FILTER, "plugin_call_syntax_filter_ava",
+				"<= attr (%s) has no ordering matching rule, and syntax does not define a compare function\n",
+				a->a_type);
 			rc = LDAP_PROTOCOL_ERROR;
 			break;
 		}
@@ -177,20 +177,20 @@ plugin_call_syntax_filter_ava_sv(
 				rc = (*ava_fn)( &pipb, &ava->ava_value, va, ftype, retVal );
 			}
 		} else {
-			LDAPDebug(LDAP_DEBUG_FILTER,
-					   "<= plugin_call_syntax_filter_ava: attr (%s) has no ava filter function\n",
-					   a->a_type, 0, 0 );
+			slapi_log_err(SLAPI_LOG_FILTER,
+					   "plugin_call_syntax_filter_ava", "attr (%s) has no ava filter function\n",
+					   a->a_type);
 		}
 		break;
 	default:
-		LDAPDebug(LDAP_DEBUG_ERR, "plugin_call_syntax_filter_ava - "
-		    "Unknown filter type %d\n", ftype, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "plugin_call_syntax_filter_ava",
+		    "Unknown filter type %d\n", ftype);
 		rc = LDAP_PROTOCOL_ERROR;
 		break;
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= plugin_call_syntax_filter_ava %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "plugin_call_syntax_filter_ava", "<= %d\n", rc);
 	return( rc );
 }
 
@@ -216,17 +216,17 @@ plugin_call_syntax_filter_sub_sv(
 	IFP sub_fn = NULL;
 	int filter_normalized = 0;
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "=> plugin_call_syntax_filter_sub_sv\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "plugin_call_syntax_filter_sub_sv", "=>\n");
 
 	if ( ( a->a_mr_sub_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
 		slapi_attr_init_syntax(a);
 	}
 	if ( ( a->a_mr_sub_plugin == NULL ) && ( a->a_plugin == NULL ) ) {
-		LDAPDebug(LDAP_DEBUG_FILTER,
-				   "<= plugin_call_syntax_filter_sub_sv attribute (%s) has no substring matching rule or syntax plugin\n",
-				   a->a_type, 0, 0 );
+		slapi_log_err(SLAPI_LOG_FILTER, "plugin_call_syntax_filter_sub_sv",
+			"Attribute (%s) has no substring matching rule or syntax plugin\n",
+			a->a_type);
 		return( -1 );	/* syntax unkonwn - does not match */
 	}
 
@@ -262,8 +262,8 @@ plugin_call_syntax_filter_sub_sv(
 		rc = -1;
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "<= plugin_call_syntax_filter_sub_sv %d\n",
-	    rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "plugin_call_syntax_filter_sub_sv", "<= %d\n",
+	    rc);
 	return( rc );
 }
 
@@ -313,7 +313,7 @@ slapi_dn_syntax_check(
 			/* Validate the value. */
 			if (dn_plugin->plg_syntax_validate(&dn_bval) != 0) {
 				if (syntaxlogging) {
-					slapi_log_error(SLAPI_LOG_ERR, "slapi_dn_syntax_check",
+					slapi_log_err(SLAPI_LOG_ERR, "slapi_dn_syntax_check",
 						"DN value (%s) invalid per syntax\n", dn);
 				}
 
@@ -400,7 +400,7 @@ slapi_entry_syntax_check(
 					bval = slapi_value_get_berval(val);
 					if ((a->a_plugin->plg_syntax_validate( bval )) != 0) {
 						if (syntaxlogging) {
-							slapi_log_error(SLAPI_LOG_ERR, "slapi_entry_syntax_check",
+							slapi_log_err(SLAPI_LOG_ERR, "slapi_entry_syntax_check",
 							                "\"%s\": (%s) value #%d invalid per syntax\n",
 							                slapi_entry_get_dn(e), a->a_type, hint );
 						}
@@ -502,7 +502,7 @@ slapi_mods_syntax_check(
 				for (j = 0; mod->mod_bvalues[j] != NULL; j++) {
 					if (syntax_plugin->plg_syntax_validate(mod->mod_bvalues[j]) != 0) {
 						if (syntaxlogging) {
-							slapi_log_error(SLAPI_LOG_ERR, "slapi_mods_syntax_check", "\"%s\": (%s) value #%d invalid per syntax\n", 
+							slapi_log_err(SLAPI_LOG_ERR, "slapi_mods_syntax_check", "\"%s\": (%s) value #%d invalid per syntax\n", 
 							    dn ? dn : "NULL", mod->mod_type, j );
 						}
 
@@ -562,8 +562,7 @@ slapi_call_syntax_values2keys_sv(
 	Slapi_PBlock		pipb;
 	struct slapdplugin	*pi = vpi;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> slapi_call_syntax_values2keys\n",
-	    0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "slapi_call_syntax_values2keys_sv", "=>\n");
 
 	pblock_init( &pipb );
 	slapi_pblock_set( &pipb, SLAPI_PLUGIN, vpi );
@@ -574,8 +573,8 @@ slapi_call_syntax_values2keys_sv(
 		rc = pi->plg_syntax_values2keys( &pipb, vals, ivals, ftype );
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_call_syntax_values2keys %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_call_syntax_values2keys_sv", "<= %d\n", rc);
 	return( rc );
 }
 
@@ -592,8 +591,7 @@ slapi_attr_values2keys_sv_pb(
 	struct slapdplugin	*pi = NULL;
 	IFP v2k_fn = NULL;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> slapi_attr_values2keys_sv\n",
-	    0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "slapi_attr_values2keys_sv_pb", "=>\n");
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
 		slapi_attr_init_syntax((Slapi_Attr *)sattr);
@@ -620,8 +618,8 @@ slapi_attr_values2keys_sv_pb(
 		}
 		break;
 	default:
-		LDAPDebug(LDAP_DEBUG_ERR, "slapi_attr_values2keys_sv_pb: Unsupported filter type %d\n",
-				   ftype, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_attr_values2keys_sv_pb", "Unsupported filter type %d\n",
+				   ftype);
 		rc = LDAP_PROTOCOL_ERROR;
 		goto done;
 	}
@@ -635,8 +633,8 @@ slapi_attr_values2keys_sv_pb(
 	}
 
 done:
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_call_syntax_values2keys %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_attr_values2keys_sv_pb", "<= %d\n", rc);
 	return( rc );
 }
 
@@ -688,8 +686,7 @@ slapi_call_syntax_values2keys_sv_pb(
 	int					rc;
 	struct slapdplugin	*pi = vpi;
 
-	LDAPDebug(LDAP_DEBUG_FILTER, "=> slapi_call_syntax_values2keys\n",
-	    0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER, "slapi_call_syntax_values2keys_sv_pb", "=>\n");
 
 	slapi_pblock_set( pb, SLAPI_PLUGIN, vpi );
 
@@ -699,8 +696,8 @@ slapi_call_syntax_values2keys_sv_pb(
 		rc = pi->plg_syntax_values2keys( pb, vals, ivals, ftype );
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_call_syntax_values2keys %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_call_syntax_values2keys_sv_pb", "<= %d\n", rc);
 	return( rc );
 }
 
@@ -735,8 +732,8 @@ slapi_call_syntax_assertion2keys_ava_sv(
 	Slapi_PBlock		pipb;
 	struct slapdplugin	*pi = vpi;
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "=> slapi_call_syntax_assertion2keys_ava\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_call_syntax_assertion2keys_ava_sv" , "=>\n");
 
 	pblock_init( &pipb );
 	slapi_pblock_set( &pipb, SLAPI_PLUGIN, vpi );
@@ -746,8 +743,8 @@ slapi_call_syntax_assertion2keys_ava_sv(
 		rc = pi->plg_syntax_assertion2keys_ava( &pipb, val, ivals, ftype );
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_call_syntax_assertion2keys_ava %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_call_syntax_assertion2keys_ava_sv", "<= %d\n", rc);
 	return( rc );
 }
 
@@ -764,8 +761,8 @@ slapi_attr_assertion2keys_ava_sv(
 	struct slapdplugin	*pi = NULL;
 	IFP a2k_fn = NULL;
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "=> slapi_attr_assertion2keys_ava_sv\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_attr_assertion2keys_ava_sv", "=>\n");
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
 		slapi_attr_init_syntax((Slapi_Attr *)sattr);
@@ -784,8 +781,8 @@ slapi_attr_assertion2keys_ava_sv(
 		}
 		break;
 	default:
-		LDAPDebug(LDAP_DEBUG_ERR, "slapi_attr_assertion2keys_ava_sv - Unsupported filter type %d\n",
-				   ftype, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "slapi_attr_assertion2keys_ava_sv", 
+			"Unsupported filter type %d\n", ftype);
 		rc = LDAP_PROTOCOL_ERROR;
 		goto done;
 	}
@@ -798,8 +795,8 @@ slapi_attr_assertion2keys_ava_sv(
 		rc = (*a2k_fn)( &pipb, val, ivals, ftype );
 	}
 done:
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_attr_assertion2keys_ava_sv %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_attr_assertion2keys_ava_sv", "=> %d\n", rc);
 	return( rc );
 }
 
@@ -852,8 +849,8 @@ slapi_call_syntax_assertion2keys_sub_sv(
 	Slapi_PBlock		pipb;
 	struct slapdplugin	*pi = vpi;
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "=> slapi_call_syntax_assertion2keys_sub\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_call_syntax_assertion2keys_sub_sv", "=>\n");
 
 	pblock_init( &pipb );
 	slapi_pblock_set( &pipb, SLAPI_PLUGIN, vpi );
@@ -865,8 +862,8 @@ slapi_call_syntax_assertion2keys_sub_sv(
 		    final, ivals );
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_call_syntax_assertion2keys_sub %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_call_syntax_assertion2keys_sub_sv", "<= %d\n", rc);
 	return( rc );
 }
 
@@ -898,8 +895,8 @@ slapi_attr_assertion2keys_sub_sv_pb(
 	struct slapdplugin	*origpi = NULL;
 	IFP a2k_fn = NULL;
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "=> slapi_attr_assertion2keys_sub_sv\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_attr_assertion2keys_sub_sv_pb", "=>\n");
 	if ( ( sattr->a_plugin == NULL ) ) {
 		/* could be lazy plugin initialization, get it now */
 		slapi_attr_init_syntax((Slapi_Attr *)sattr);
@@ -932,8 +929,8 @@ slapi_attr_assertion2keys_sub_sv_pb(
 		slapi_pblock_set(pb, SLAPI_PLUGIN, origpi);
 	}
 
-	LDAPDebug(LDAP_DEBUG_FILTER,
-	    "<= slapi_attr_assertion2keys_sub_sv %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_FILTER,
+	    "slapi_attr_assertion2keys_sub_sv_pb", "<= %d\n", rc);
 	return( rc );
 }
 

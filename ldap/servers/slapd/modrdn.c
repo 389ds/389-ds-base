@@ -52,7 +52,7 @@ do_modrdn( Slapi_PBlock *pb )
 	Slapi_DN	snewdn;
 	Slapi_DN	*snewsuperior = NULL;
 
-	LDAPDebug(LDAP_DEBUG_TRACE, "do_modrdn\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "do_modrdn", "=>\n");
 
 	/* count the modrdn request */
 	slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsModifyRDNOps);
@@ -75,9 +75,8 @@ do_modrdn( Slapi_PBlock *pb )
 	 */
 
 	if (ber_scanf(ber, "{aab", &rawdn, &newrdn, &deloldrdn) == LBER_ERROR) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "do_modrdn - ber_scanf failed (op=ModRDN; params=DN,newRDN,deleteOldRDN)\n",
-		    0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "do_modrdn",
+			"ber_scanf failed (op=ModRDN; params=DN,newRDN,deleteOldRDN)\n");
 		op_shared_log_error_access (pb, "MODRDN", "???", "decoding error");
 		send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 		    "unable to decode DN, newRDN, or deleteOldRDN parameters",
@@ -88,8 +87,8 @@ do_modrdn( Slapi_PBlock *pb )
 	if ( ber_peek_tag( ber, &len ) == LDAP_TAG_NEWSUPERIOR ) {
 		/* This "len" is not used... */
 		if ( pb->pb_conn->c_ldapversion < LDAP_VERSION3 ) {
-			LDAPDebug(LDAP_DEBUG_ERR,
-			    "do_modrdn - got newSuperior in LDAPv2 modrdn op\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "do_modrdn",
+				"Got newSuperior in LDAPv2 modrdn op\n");
 			op_shared_log_error_access (pb, "MODRDN",
 										rawdn?rawdn:"", "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
@@ -99,9 +98,8 @@ do_modrdn( Slapi_PBlock *pb )
 			goto free_and_return;
 		}
 		if ( ber_scanf( ber, "a", &rawnewsuperior ) == LBER_ERROR ) {
-			LDAPDebug(LDAP_DEBUG_ERR,
-			    "do_modrdn - ber_scanf failed (op=ModRDN; params=newSuperior)\n",
-			    0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ERR, "do_modrdn",
+				"ber_scanf failed (op=ModRDN; params=newSuperior)\n");
 			op_shared_log_error_access (pb, "MODRDN", rawdn, "decoding error");
 			send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL,
 			    "unable to decode newSuperior parameter", 0, NULL );
@@ -209,8 +207,8 @@ do_modrdn( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-	LDAPDebug(LDAP_DEBUG_ARGS,
-			   "do_modrdn: dn (%s) newrdn (%s) deloldrdn (%d)\n", dn, newrdn,
+	slapi_log_err(SLAPI_LOG_ARGS,
+			   "do_modrd", "dn (%s) newrdn (%s) deloldrdn (%d)\n", dn, newrdn,
 			   deloldrdn );
 
 	slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot );
@@ -312,7 +310,7 @@ slapi_rename_internal_set_pb_ext(Slapi_PBlock *pb,
     PR_ASSERT (pb != NULL);
     if (pb == NULL || olddn == NULL || newrdn == NULL)
     {
-        slapi_log_error(SLAPI_LOG_ERR, "slapi_rename_internal_set_pb",
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_rename_internal_set_pb_ext",
         	"NULL parameter\n");
         return;
     }
@@ -349,7 +347,7 @@ static int rename_internal_pb (Slapi_PBlock *pb)
 	if (!op) {
 		opresult = 1;
 		slapi_pblock_set(pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
-		slapi_log_error(SLAPI_LOG_ERR, "rename_internal_pb",
+		slapi_log_err(SLAPI_LOG_ERR, "rename_internal_pb",
 			"Internal error: pblock was not properly initialized\n");
 		return -1;
 	}
@@ -500,13 +498,13 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	if ((rdns = slapi_ldap_explode_rdn(newrdn, 0)) == NULL) 
 	{
 		if ( !internal_op ) {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
+			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename", 
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 (NULL == newrdn) ? "(null)" : newrdn);
 		} else {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL, 
+			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename", 
 				 "conn=%s op=%d MODRDN invalid new RDN (\"%s\")\n",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
@@ -531,15 +529,16 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 	err = slapi_dn_syntax_check(pb, newsuperior, 1);
 	if (err)
 	{
-		LDAPDebug0Args(LDAP_DEBUG_ARGS, "Syntax check of newSuperior failed\n");
+		slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
+			"Syntax check of newSuperior failed\n");
 		if (!internal_op) {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL,
+			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
 				 "conn=%" NSPRIu64 " op=%d MODRDN invalid new superior (\"%s\")",
 				 pb->pb_conn->c_connid,
 				 pb->pb_op->o_opid,
 				 newsuperior ? newsuperior : "(null)");
 		} else {
-			slapi_log_error(SLAPI_LOG_ARGS, NULL,
+			slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename",
 				 "conn=%s op=%d MODRDN invalid new superior (\"%s\")",
 				 LOG_INTERNAL_OP_CON_ID,
 				 LOG_INTERNAL_OP_OP_ID,
@@ -552,7 +551,7 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
 
 	if (newsuperior != NULL) 
 	{
-		LDAPDebug(LDAP_DEBUG_ARGS, "do_moddn: newsuperior (%s)\n", newsuperior, 0, 0);
+		slapi_log_err(SLAPI_LOG_ARGS, "op_shared_rename", "do_moddn: newsuperior (%s)\n", newsuperior);
 	}
 
 	/* target spec is used to decide which plugins are applicable for the operation */
@@ -718,14 +717,16 @@ static int check_rdn_for_created_attrs(const char *newrdn)
 		slapi_rdn_init_dn(rdn, newrdn);
 		for (i = 0; type[i] != NULL; i++) {
 			if (slapi_rdn_contains_attr(rdn, type[i], &value)) {
-				LDAPDebug(LDAP_DEBUG_TRACE, "Invalid DN. RDN contains %s attribute\n", type[i], 0, 0);
+				slapi_log_err(SLAPI_LOG_TRACE, "check_rdn_for_created_attrs",
+					"Invalid DN. RDN contains %s attribute\n", type[i]);
 				rc = 1;
 				break;
 			}
 		}
 		slapi_rdn_free(&rdn);
 	} else {
-		LDAPDebug(LDAP_DEBUG_TRACE, "check_rdn_for_created_attrs: Error allocating RDN\n", 0, 0, 0);
+		slapi_log_err(SLAPI_LOG_TRACE, "check_rdn_for_created_attrs",
+			"Error allocating RDN\n");
 		rc = -1;
 	}
 

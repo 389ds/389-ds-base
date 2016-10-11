@@ -18,7 +18,7 @@
 #include "nspr.h"
 #include "base64.h"
 #include "slap.h"
-#include "ldaplog.h"
+#include <plbase64.h>
 
 #define AES_MECH 1
 #define DES_MECH 2

@@ -92,7 +92,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
 
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthruauth_init\n" );
 
     slapi_pblock_get (pb, SLAPI_PLUGIN_IDENTITY, &pam_passthruauth_plugin_identity);
@@ -121,7 +121,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
              slapi_pblock_set( pb, premod, (void *)pam_passthru_mod_preop ) ||
              slapi_pblock_set( pb, predel, (void *)pam_passthru_del_preop ) ||
              slapi_pblock_set( pb, premdn, (void *)pam_passthru_modrdn_preop )) {
-            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                              "pam_passthruauth_init - Failed\n");
             status = -1;
             goto bail;
@@ -136,7 +136,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
                                   NULL,     /* ? */
                                   pam_passthruauth_plugin_identity   /* access control */
             )) {
-            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                             "pam_passthruauth_init - "
                             "Failed to register preop plugin\n");
             status = -1;
@@ -156,7 +156,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
              slapi_pblock_set( pb, premod, (void *)pam_passthru_mod_preop ) ||
              slapi_pblock_set( pb, predel, (void *)pam_passthru_del_preop ) ||
              slapi_pblock_set( pb, premdn, (void *)pam_passthru_modrdn_preop )) {
-            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                              "pam_passthruauth_init - Failed\n");
             status = -1;
             goto bail;
@@ -171,7 +171,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
                                   NULL,     /* ? */
                                   pam_passthruauth_plugin_identity   /* access control */
         )) {
-            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                             "pam_passthruauth_init - "
                             "Failed to register internal postop plugin\n");
             status = -1;
@@ -188,7 +188,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
                               NULL,     /* ? */
                               pam_passthruauth_plugin_identity   /* access control */
     )) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "pam_passthruauth_init - "
                         "Failed to register (%s) plugin\n",
                         is_betxn ? "postoperation" : "betxnpostoperation");
@@ -196,7 +196,7 @@ pam_passthruauth_init( Slapi_PBlock *pb )
         goto bail;
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "<= pam_passthruauth_init\n" );
 
 bail:
@@ -214,7 +214,7 @@ pam_passthru_preop_init(Slapi_PBlock *pb)
     if ( slapi_pblock_set( pb, SLAPI_PLUGIN_PRE_BIND_FN,
                            (void *)pam_passthru_bindpreop ) ||
          slapi_pblock_set( pb, SLAPI_PLUGIN_CLOSE_FN, (void *)pam_passthru_bindpreop_close )) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru_preop_init - Failed\n");
         status = -1;
     }
@@ -238,7 +238,7 @@ pam_passthru_internal_postop_init(Slapi_PBlock *pb)
                          (void *) pam_passthru_postop) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN,
                          (void *) pam_passthru_postop) != 0) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "pam_passthru_internal_postop_init: failed to register plugin\n");
         status = -1;
     }
@@ -277,7 +277,7 @@ pam_passthru_postop_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, postdel, (void *) pam_passthru_postop) ||
         slapi_pblock_set(pb, postmod, (void *) pam_passthru_postop) ||
         slapi_pblock_set(pb, postmdn, (void *) pam_passthru_postop) ) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "pam_passthru_postop_init - "
                         "Failed to register (%s) plugin\n",
                         is_betxn ? "betxn postop" : "postop");
@@ -300,13 +300,13 @@ pam_passthru_bindpreop_start( Slapi_PBlock *pb )
 
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthru_bindpreop_start\n" );
 
     /* Get the plug-in configuration DN and store it for later use. */
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &pluginsdn);
     if (NULL == pluginsdn || 0 == slapi_sdn_get_ndn_len(pluginsdn)) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "pam_passthru_bindpreop_start - Unable to determine plug-in config dn\n");
         rc = PAM_PASSTHRU_FAILURE;
         goto done;
@@ -323,7 +323,7 @@ pam_passthru_bindpreop_start( Slapi_PBlock *pb )
         pam_passthru_set_config_area(slapi_sdn_dup(pluginsdn));
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "pam_passthru_bindpreop_start - Config at %s\n",
                     slapi_sdn_get_ndn(pam_passthru_get_config_area()));
 
@@ -331,7 +331,7 @@ pam_passthru_bindpreop_start( Slapi_PBlock *pb )
     g_pam_config_lock = slapi_new_rwlock();
 
     if (!g_pam_config_lock) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru_bindpreop_start - Lock creation failed\n");
         rc = PAM_PASSTHRU_FAILURE;
         goto done;
@@ -346,7 +346,7 @@ pam_passthru_bindpreop_start( Slapi_PBlock *pb )
     pam_passthru_load_config(0 /* don't skip validation */);
 
     if (( rc = pam_passthru_pam_init()) != LDAP_SUCCESS ) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru_bindpreop_start - Could not initialize PAM subsystem (%d)\n", rc);
         rc =  PAM_PASSTHRU_FAILURE;
         goto done;
@@ -359,11 +359,11 @@ done:
         g_pam_config_lock = NULL;
         slapi_ch_free((void **)&pam_passthru_global_config);
     } else {
-        slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru_bindpreop_start - Ready for service\n" );
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "<= pam_passthru_bindpreop_start\n" );
 
     return( rc );
@@ -378,7 +378,7 @@ pam_passthru_bindpreop_close( Slapi_PBlock *pb )
 {
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthru_bindpreop_close\n" );
 
     pam_passthru_delete_config();
@@ -391,7 +391,7 @@ pam_passthru_bindpreop_close( Slapi_PBlock *pb )
     slapi_destroy_rwlock(g_pam_config_lock);
     g_pam_config_lock = NULL;
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "<= pam_passthru_bindpreop_close\n" );
 
     return( 0 );
@@ -412,7 +412,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
 
     PAM_PASSTHRU_ASSERT( pb != NULL );
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "=> pam_passthru_bindpreop\n" );
 
     /*
@@ -421,7 +421,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
     if ( slapi_pblock_get( pb, SLAPI_BIND_METHOD, &method ) != 0 ||
             slapi_pblock_get( pb, SLAPI_BIND_TARGET_SDN, &bindsdn ) != 0 ||
             slapi_pblock_get( pb, SLAPI_BIND_CREDENTIALS, &creds ) != 0 ) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru_bindpreop - not handled (unable to retrieve bind parameters)\n" );
         return retcode;
     }
@@ -433,7 +433,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
      */
     if ((method != LDAP_AUTH_SIMPLE) || (*normbinddn == '\0') ||
         (creds->bv_len == 0)) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                          "pam_passthru_bindpreop - Not handled (not simple bind or NULL dn/credentials)\n" );
         return retcode;
     }
@@ -451,7 +451,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
     cfg = pam_passthru_get_config(bindsdn);
 
     if (!cfg) {
-        slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                 "pam_passthru_bindpreop - \"%s\" Not handled (doesn't meet configuration criteria)\n", normbinddn );
         goto done;
     }
@@ -460,7 +460,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
         int is_ssl = 0;
         slapi_pblock_get(pb, SLAPI_CONN_IS_SSL_SESSION, &is_ssl);
         if (!is_ssl) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "pam_passthru_bindpreop - Connection not secure (secure connection required; check config)\n");
             goto done;
         }
@@ -484,7 +484,7 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
             slapi_ch_free_string(&ndn);
             rc = LDAP_OPERATIONS_ERROR;
             errmsg = "unable to set connection DN or AUTHTYPE";
-            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                             "pam_passthru_bindpreop - %s\n", errmsg);
         } else {
             LDAPControl **reqctrls = NULL;
@@ -508,10 +508,10 @@ pam_passthru_bindpreop( Slapi_PBlock *pb )
 done:
     pam_passthru_unlock();
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "pam_passthru_bindpreop - handled (error %d - %s)\n", rc, ldap_err2string(rc));
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                      "<= pam_passthru_bindpreop\n" );
 
     return retcode;
@@ -530,7 +530,7 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
     char returntext[SLAPI_DSE_RETURNTEXT_SIZE];
     int ret = SLAPI_PLUGIN_SUCCESS;
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "=> pam_passthru_preop\n");
 
     /* Get the target SDN. */
@@ -595,7 +595,7 @@ bail:
         slapi_send_ldap_result(pb, ret, NULL, returntext, 0, NULL);
         ret = SLAPI_PLUGIN_FAILURE;
     }
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "<= pam_passthru_preop\n");
 
     return ret;
@@ -638,7 +638,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
     int optype = SLAPI_OPERATION_NONE;
     int oprc = -1;
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "=> pam_passthru_postop\n");
 
     /* Make sure the operation succeeded and bail if it didn't. */
@@ -651,7 +651,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
     /* Get the target SDN. */
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
     if (!sdn) {
-        slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+        slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                         "pam_passthru_postop - Unable to fetch target SDN.\n");
         ret = SLAPI_PLUGIN_FAILURE;
         goto bail;
@@ -665,7 +665,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
         if (e) {
             new_sdn = slapi_entry_get_sdn(e);
         } else {
-            slapi_log_error(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                             "pam_passthru_postop - Unable to fetch post-op "
                             "entry for rename operation.\n");
             ret = SLAPI_PLUGIN_FAILURE;
@@ -680,7 +680,7 @@ pam_passthru_postop(Slapi_PBlock *pb)
         pam_passthru_load_config(1); /* skip validation, as it was done at preop */
     }
 
-    slapi_log_error(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_TRACE, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
                     "<= pam_passthru_postop\n");
 
 bail:

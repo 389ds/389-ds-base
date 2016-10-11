@@ -104,7 +104,7 @@ bitstring_init( Slapi_PBlock *pb )
 {
 	int	rc, flags;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> bitstring_init\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> bitstring_init\n");
 
 	rc = slapi_pblock_set( pb, SLAPI_PLUGIN_VERSION,
 	    (void *) SLAPI_PLUGIN_VERSION_01 );
@@ -135,7 +135,7 @@ bitstring_init( Slapi_PBlock *pb )
 	    (void *) bitstring_normalize );
 
 	rc |= register_matching_rule_plugins();
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= bitstring_init %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= bitstring_init %d\n", rc);
 	return( rc );
 }
 

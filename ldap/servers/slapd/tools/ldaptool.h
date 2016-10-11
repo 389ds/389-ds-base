@@ -73,7 +73,6 @@
 
 #include <portable.h>
 #include <ldap.h>
-#include <ldaplog.h>
 #include <ldif.h>
 
 #ifdef __cplusplus

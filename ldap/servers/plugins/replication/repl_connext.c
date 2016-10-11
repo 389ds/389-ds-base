@@ -31,7 +31,7 @@ void* consumer_connection_extension_constructor (void *object, void *parent)
 	consumer_connection_extension *ext = (consumer_connection_extension*) slapi_ch_malloc (sizeof (consumer_connection_extension));
 	if (ext == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "consumer_connection_extension_constructor - "
+		slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "consumer_connection_extension_constructor - "
 			"Unable to create replication consumer connection extension - out of memory\n" );
 	}
 	else
@@ -46,7 +46,7 @@ void* consumer_connection_extension_constructor (void *object, void *parent)
 		ext->lock = PR_NewLock();
 		if (NULL == ext->lock)
 		{
-			slapi_log_error(SLAPI_LOG_PLUGIN, repl_plugin_name, "consumer_connection_extension_constructor - "
+			slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "consumer_connection_extension_constructor - "
 				"Unable to create replication consumer connection extension lock - out of memory\n" );
 			/* no need to go through the full destructor, but still need to free up this memory */
 			slapi_ch_free((void **)&ext);
@@ -81,7 +81,7 @@ void consumer_connection_extension_destructor (void *ext, void *object, void *pa
 					slapi_pblock_set(pb, SLAPI_CONNECTION, connext->connection);
 					slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void*)repl_root_sdn);
 					slapi_pblock_get(pb, SLAPI_CONN_ID, &connid);
-					slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
 							"consumer_connection_extension_destructor - "
 							"Aborting total update in progress for replicated "
 							"area %s connid=%" NSPRIu64 "\n", slapi_sdn_get_dn(repl_root_sdn), connid);
@@ -89,7 +89,7 @@ void consumer_connection_extension_destructor (void *ext, void *object, void *pa
 				}
 				else
 				{
-					slapi_log_error(SLAPI_LOG_ERR, repl_plugin_name,
+					slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 						"consumer_connection_extension_destructor - Can't determine root "
 						"of replicated area.\n");
 				}
@@ -154,7 +154,7 @@ consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 conn
             /* step 4, take it! */
             connext->in_use_opid = opid;
             ret = connext;
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_acquire_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Acquired consumer connection extension\n",
                     connid, opid);
@@ -162,14 +162,14 @@ consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 conn
         else if (opid == connext->in_use_opid)
         {
             ret = connext;
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_acquire_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Reacquired consumer connection extension\n",
                     connid, opid);
         }
         else
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_acquire_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Could not acquire consumer connection extension; it is in use by op=%d\n",
                     connid, opid, connext->in_use_opid);
@@ -180,7 +180,7 @@ consumer_connection_extension_acquire_exclusive_access(void* conn, PRUint64 conn
     }
     else
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"consumer_connection_extension_acquire_exclusive_access - "
                 "conn=%" NSPRIu64 " op=%d Could not acquire consumer extension, it is NULL!\n",
                 connid, opid);
@@ -219,7 +219,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
         /* step 3, see if it is in use */
         if (0 > connext->in_use_opid)
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Consumer connection extension is not in use\n",
                     connid, opid);
@@ -228,7 +228,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
         else if (opid == connext->in_use_opid)
         {
             /* step 4, relinquish it (normal) */
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Relinquishing consumer connection extension\n",
                     connid, opid);
@@ -238,7 +238,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
         else if (force)
         {
             /* step 4, relinquish it (forced) */
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Forced to relinquish consumer connection extension held by op=%d\n",
                     connid, opid, connext->in_use_opid);
@@ -247,7 +247,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
         }
         else
         {
-            slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
             		"consumer_connection_extension_relinquish_exclusive_access - "
                     "conn=%" NSPRIu64 " op=%d Not relinquishing consumer connection extension, it is held by op=%d!\n",
                     connid, opid, connext->in_use_opid);
@@ -258,7 +258,7 @@ consumer_connection_extension_relinquish_exclusive_access(void* conn, PRUint64 c
     }
     else
     {
-        slapi_log_error(SLAPI_LOG_REPL, repl_plugin_name,
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
         		"consumer_connection_extension_relinquish_exclusive_access - "
                 "conn=%" NSPRIu64 " op=%d Could not relinquish consumer extension, it is NULL!\n",
                 connid, opid);

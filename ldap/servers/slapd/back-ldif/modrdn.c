@@ -48,7 +48,7 @@ ldif_back_modrdn( Slapi_PBlock *pb )
   LDAPMod       **mods;               /*Holds the list of modifications*/
   int rc;
 
-  LDAPDebug(LDAP_DEBUG_TRACE, "=> ldif_back_modrdn\n", 0, 0, 0 );  
+  slapi_log_err(SLAPI_LOG_TRACE, "=> ldif_back_modrdn\n", 0, 0, 0 );  
 
   prev = NULL;
 
@@ -106,7 +106,7 @@ ldif_back_modrdn( Slapi_PBlock *pb )
     /* parent + rdn + separator(s) + null */
     newdn = (char *) malloc( strlen( pdn ) + strlen( newrdn ) + 3 );
     if (newdn == NULL){
-      LDAPDebug(LDAP_DEBUG_ERR,"malloc failed", 0, 0, 0 );
+      slapi_log_err(SLAPI_LOG_ERR,"malloc failed", 0, 0, 0 );
       exit(1);
     }
 
@@ -197,7 +197,7 @@ ldif_back_modrdn( Slapi_PBlock *pb )
   /*Unlock the database, and tell the user the good news*/
   PR_Unlock( db->ldif_lock );
   slapi_send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-  LDAPDebug(LDAP_DEBUG_TRACE, "<= ldif_back_modrdn\n", 0, 0, 0 );  
+  slapi_log_err(SLAPI_LOG_TRACE, "<= ldif_back_modrdn\n", 0, 0, 0 );  
   return( 0 );
   
 error_return:;
@@ -254,19 +254,19 @@ ldif_add_mod( LDAPMod ***modlist, int modtype, char *type, struct berval **bvps 
 				     (i + 2) * sizeof(LDAPMod *) );
 
   if (*modlist == NULL){
-    LDAPDebug(LDAP_DEBUG_ERR, "realloc failed", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_ERR, "realloc failed", 0, 0, 0 );
     exit(1);
   }
   (*modlist)[i] = (LDAPMod *) malloc( sizeof(LDAPMod) );
 
   if ((*modlist)[i] == NULL){
-    LDAPDebug(LDAP_DEBUG_ERR,"malloc failed", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_ERR,"malloc failed", 0, 0, 0 );
     exit(1);
   }
 
   (*modlist)[i]->mod_type = (char *) strdup( type );
   if ((*modlist)[i]->mod_type == NULL){
-    LDAPDebug(LDAP_DEBUG_ERR,"strdup failed", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_ERR,"strdup failed", 0, 0, 0 );
     exit(1);
   }
 
@@ -274,7 +274,7 @@ ldif_add_mod( LDAPMod ***modlist, int modtype, char *type, struct berval **bvps 
   (*modlist)[i]->mod_op = modtype;
   (*modlist)[i]->mod_bvalues = (struct berval **) malloc(2*sizeof(struct berval *));
   if ((*modlist)[i]->mod_bvalues == NULL){
-    LDAPDebug(LDAP_DEBUG_ERR,"malloc failed",0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_ERR,"malloc failed",0, 0, 0 );
     exit(1);
   }
   (*modlist)[i]->mod_bvalues[0] = ber_bvdup( bvps[0] );

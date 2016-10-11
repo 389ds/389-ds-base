@@ -102,7 +102,7 @@ Server plug-ins are built as libraries available to the server.
 
         if (error)
            {
-              slapi_log_error();
+              slapi_log_err();
               return error_code;
            }
         else return 0;

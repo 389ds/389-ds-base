@@ -41,7 +41,7 @@ Slapi_UniqueID *slapi_uniqueIDNew ()
 
 	if (uId == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDNew: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDNew: "
 						 "failed to allocate new id.\n");
 		return NULL;
 	}
@@ -78,7 +78,7 @@ void slapi_uniqueIDDestroy (Slapi_UniqueID **uId)
 int slapi_uniqueIDCompare (const Slapi_UniqueID *uId1, const Slapi_UniqueID *uId2){
     if (uId1 == NULL || uId2 == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDCompare: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDCompare: "
 						 "NULL argument passed to the function.\n");
         return UID_BADDATA;
 	}
@@ -126,7 +126,7 @@ int slapi_uniqueIDFormat (const Slapi_UniqueID *uId, char **buff){
 	
     if (uId == NULL || buff == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDFormat: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDFormat: "
 						 "NULL argument passed to the function.\n");
         return UID_BADDATA;
 	}
@@ -134,7 +134,7 @@ int slapi_uniqueIDFormat (const Slapi_UniqueID *uId, char **buff){
     *buff = (char*)slapi_ch_malloc (UIDSTR_SIZE + 1);
 	if (*buff == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDFormat: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDFormat: "
 						 "failed to allocate buffer.\n");
 		return UID_MEMORY_ERROR;
 	}
@@ -179,14 +179,14 @@ int slapi_uniqueIDFormat (const Slapi_UniqueID *uId, char **buff){
 int slapi_uniqueIDScan (Slapi_UniqueID *uId, const char *buff){
     if (uId == NULL || buff == NULL)
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDScan: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDScan: "
 						 "NULL argument passed to the function.\n");
         return UID_BADDATA;
 	}
 
 	if (!isValidFormat (buff))
 	{
-		slapi_log_error(SLAPI_LOG_ERR, MODULE, "uniqueIDScan: "
+		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDScan: "
 						 "invalid data format.\n");
 		return UID_BADDATA;
 	}

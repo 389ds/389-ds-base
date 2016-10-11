@@ -87,7 +87,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 	if (LDAP_SUCCESS != rc) {
 		static int warned_get_conn = 0;
 		if (!warned_get_conn) {
-			slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+			slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 				"chaining_back_add - cb_get_connection failed (%d) %s\n",
 				rc, ldap_err2string(rc));
 			warned_get_conn = 1;
@@ -121,7 +121,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 	 * Call the backend preoperation plugins
 	 */
 	if((rc = slapi_plugin_call_preop_be_plugins(pb, SLAPI_PLUGIN_ADD_OP))){
-		slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_add - add (%s): pre betxn failed, error (%d)\n",dn,rc);
+		slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_add - add (%s): pre betxn failed, error (%d)\n",dn,rc);
 		cb_release_op_connection(cb->pool,ld,0);
 		ldap_mods_free(mods,1);
 		ldap_controls_free(ctrls);
@@ -138,7 +138,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 	ldap_controls_free(ctrls);
 
 	if ( rc != LDAP_SUCCESS ) {
-		slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+		slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 			"ldap_add_ext failed -- %s\n", ldap_err2string(rc) );
 
 		cb_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, ENDUSERMSG, 0, NULL );
@@ -199,7 +199,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 			if ( parse_rc != LDAP_SUCCESS ) {
 				static int warned_parse_rc = 0;
 				if (!warned_parse_rc) {
-					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						"chaining_back_add - %s%s%s\n",
 						matched_msg?matched_msg:"",
 						(matched_msg&&(*matched_msg!='\0'))?": ":"",
@@ -220,7 +220,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 				struct berval ** refs =  referrals2berval(referrals); 
 				static int warned_rc = 0;
 				if (!warned_rc && error_msg) {
-					slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
+					slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
 						"chaining_back_add - %s%s%s\n",
 						matched_msg?matched_msg:"",
 						(matched_msg&&(*matched_msg!='\0'))?": ":"",
@@ -245,7 +245,7 @@ chaining_back_add ( Slapi_PBlock *pb )
 
 			/* Call the backend postoperation plugins */
 			if((rc = slapi_plugin_call_postop_be_plugins(pb, SLAPI_PLUGIN_ADD_OP))){
-				slapi_log_error(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_add - add (%s): post betxn failed, error (%d)\n",dn,rc);
+				slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM, "chaining_back_add - add (%s): post betxn failed, error (%d)\n",dn,rc);
 			}
 
 			/* Add control response sent by the farm server */

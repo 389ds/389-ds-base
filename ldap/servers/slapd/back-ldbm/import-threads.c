@@ -68,9 +68,9 @@ static int import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
         if (rc == UID_SUCCESS) {
             slapi_entry_set_uniqueid (e, newuniqueid);
         } else {
-            LDAPDebug(LDAP_DEBUG_ERR, "import_generate_uniqueid - "
+            slapi_log_err(SLAPI_LOG_ERR, "import_generate_uniqueid",
                     "Failed to generate uniqueid for %s; error=%d.\n", 
-                    slapi_entry_get_dn_const(e), rc, 0 );
+                    slapi_entry_get_dn_const(e), rc);
         }                
     }
 
@@ -915,7 +915,7 @@ index_producer(void *param)
     /* open id2entry with dedicated db env and db handler */
     if ( dblayer_get_aux_id2entry( be, &db, &env, &id2entry ) != 0  ||
          db == NULL || env == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "index_producer - Could not open id2entry\n" );
+        slapi_log_err(SLAPI_LOG_ERR, "index_producer", "Could not open id2entry\n" );
         goto error;
     }
     if (job->flags & FLAG_DN2RDN) {
@@ -923,7 +923,7 @@ index_producer(void *param)
         if ( dblayer_get_aux_id2entry_ext( be, &tmp_db, &env, &tmpid2entry,
                                            DBLAYER_AUX_ID2ENTRY_TMP ) != 0  ||
              tmp_db == NULL || env == NULL) {
-            LDAPDebug0Args(LDAP_DEBUG_ERR, "index_producer - Could not open new id2entry\n");
+            slapi_log_err(SLAPI_LOG_ERR, "index_producer", "Could not open new id2entry\n");
             goto error;
         }
     }
@@ -931,8 +931,8 @@ index_producer(void *param)
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
     if ( db_rval || !dbc ) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                   "index_producer - Failed to get cursor for reindexing\n", 0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR,
+                   "index_producer", "Failed to get cursor for reindexing\n");
         dblayer_release_id2entry(be, db);
         goto error;
     }
@@ -967,7 +967,7 @@ index_producer(void *param)
         
         if (0 != db_rval) {
             if (DB_NOTFOUND != db_rval) {
-                LDAPDebug(LDAP_DEBUG_ERR, "index_producer - %s: Failed to read database, "
+                slapi_log_err(SLAPI_LOG_ERR, "index_producer", "%s: Failed to read database, "
                     "errno=%d (%s)\n", inst->inst_name, db_rval,
                     dblayer_strerror(db_rval));
                 if (job->task) {
@@ -1003,8 +1003,8 @@ index_producer(void *param)
                     /* store it in the new id2entry db file */
                     rc = tmp_db->put( tmp_db, NULL, &key, &data, 0);
                     if (rc) {
-                        LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                                   "index_producer - Converting an entry "
+                        slapi_log_err(SLAPI_LOG_TRACE,
+                                   "index_producer", "Converting an entry "
                                    "from dn format to rdn format failed " 
                                    "(dn: %s, ID: %d)\n", 
                                    slapi_entry_get_dn_const(e), temp_id);
@@ -1014,8 +1014,7 @@ index_producer(void *param)
                 }
             } else {
                 char *normdn = NULL;
-                struct backdn *bdn = 
-                                  dncache_find_id(&inst->inst_dncache, temp_id);
+                struct backdn *bdn = dncache_find_id(&inst->inst_dncache, temp_id);
                 if (bdn) {
                     /* don't free dn */
                     normdn = (char *)slapi_sdn_get_dn(bdn->dn_sdn);
@@ -1030,8 +1029,8 @@ index_producer(void *param)
                         char *pid_str = NULL;
                         char *pdn = NULL;
 
-                        LDAPDebug2Args(LDAP_DEBUG_TRACE,
-                                   "index_producer - entryrdn is not available; "
+                        slapi_log_err(SLAPI_LOG_TRACE,
+                                   "index_producer", "entryrdn is not available; "
                                    "composing dn (rdn: %s, ID: %d)\n", 
                                    rdn, temp_id);
                         rc = get_value_from_string((const char *)data.dptr,
@@ -1046,8 +1045,8 @@ index_producer(void *param)
                             rc = import_get_and_add_parent_rdns(info, inst, db,
                                                  pid, &id, &psrdn, &curr_entry);
                             if (rc) {
-                                LDAPDebug2Args(LDAP_DEBUG_ANY, "index_producer - "
-                                        "Failed to compose dn for (rdn: %s, ID: %d)\n",\
+                                slapi_log_err(SLAPI_LOG_ERR, "index_producer",
+                                        "Failed to compose dn for (rdn: %s, ID: %d)\n",
                                         rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
                                 slapi_rdn_done(&psrdn);
@@ -1057,7 +1056,7 @@ index_producer(void *param)
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             slapi_rdn_done(&psrdn);
                             if (rc) {
-                                LDAPDebug2Args(LDAP_DEBUG_ANY, "index_producer - "
+                                slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                                         "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
                                         rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1074,7 +1073,7 @@ index_producer(void *param)
                     bdn = backdn_init(sdn, temp_id, 0);
                     CACHE_ADD( &inst->inst_dncache, bdn, NULL );
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_log_error(SLAPI_LOG_CACHE, "index_producer - ",
+                    slapi_log_err(SLAPI_LOG_CACHE, "index_producer - ",
                                     "entryrdn_lookup_dn returned: %s, "
                                     "and set to dn cache\n", normdn);
                 }
@@ -1090,9 +1089,9 @@ index_producer(void *param)
                         "%s: WARNING: skipping badly formatted entry (id %lu)",
                         inst->inst_name, (u_long)temp_id);
                 }
-                LDAPDebug(LDAP_DEBUG_WARNING,
-                    "index_producer - %s: Skipping badly formatted entry (id %lu)\n",
-                    inst->inst_name, (u_long)temp_id, 0);
+                slapi_log_err(SLAPI_LOG_WARNING,
+                    "index_producer", "%s: Skipping badly formatted entry (id %lu)\n",
+                    inst->inst_name, (u_long)temp_id);
                 continue;
             } 
         }
@@ -1118,26 +1117,26 @@ index_producer(void *param)
         tmp_db->close(tmp_db, 0);
         rc = db_create(&db, env, 0);
         if (rc) {
-            LDAPDebug1Arg(LDAP_DEBUG_ERR, "index_producer - "
+            slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                     "Creating db handle to remove %s failed.\n", id2entry);
             goto bail;
         }
         rc = db->remove(db, id2entry, NULL, 0);
         if (rc) {
-            LDAPDebug1Arg(LDAP_DEBUG_ERR, "index_producer - "
+            slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                     "Removing %s failed.\n", id2entry);
             goto bail;
         }
         rc = db_create(&db, env, 0);
         if (rc) {
-            LDAPDebug2Args(LDAP_DEBUG_ERR, "index_producer - "
+            slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                            "Creating db handle to rename %s to %s failed.\n",
                            tmpid2entry, id2entry);
             goto bail;
         }
         rc = db->rename(db, tmpid2entry, NULL, id2entry, 0);
         if (rc) {
-            LDAPDebug2Args(LDAP_DEBUG_ERR, "index_producer - "
+            slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                            "Renaming %s to %s failed.\n",
                            tmpid2entry, id2entry);
             goto bail;
@@ -1158,7 +1157,7 @@ error:
             tmp_db->close(tmp_db, 0);
             rc = db_create(&tmp_db, env, 0);
             if (rc) {
-                LDAPDebug1Arg(LDAP_DEBUG_ERR, "index_producer - "
+                slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                               "Creating db handle to remove %s s failed.\n",
                               tmpid2entry);
                 goto bail;
@@ -1166,7 +1165,7 @@ error:
             /* remove tmp */
             rc = tmp_db->remove(tmp_db, tmpid2entry, NULL, 0);
             if (rc) {
-                LDAPDebug1Arg(LDAP_DEBUG_ERR, "index_producer - "
+                slapi_log_err(SLAPI_LOG_ERR, "index_producer",
                               "Removing %s failed.\n", tmpid2entry);
                 goto bail;
             }
@@ -1262,14 +1261,14 @@ add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
     }
     p = PL_strchr(strids, ':');
     if (NULL == p) {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR, "add_IDs_to_IDarray - "
+        slapi_log_err(SLAPI_LOG_ERR, "add_IDs_to_IDarray",
                       "Format error: no ':' in %s\n", strids);
         return 1;
     }
     *p = '\0';
     my_id = (ID)strtol(strids, (char **)NULL, 10);
     if (!my_id) {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR, "add_IDs_to_IDarray - "
+        slapi_log_err(SLAPI_LOG_ERR, "add_IDs_to_IDarray",
                 "Invalid ID in %s\n", strids);
         return 1;
     }
@@ -1466,7 +1465,7 @@ upgradedn_producer(void *param)
 
     if (!chk_dn_norm && !chk_dn_norm_sp) {
         /* Nothing to do... */
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "upgradedn_producer - "
+        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                 "UpgradeDnFormat is not required.\n");
         info->state = FINISHED;
         goto done;
@@ -1484,7 +1483,7 @@ upgradedn_producer(void *param)
     /* open id2entry with dedicated db env and db handler */
     if ( dblayer_get_aux_id2entry( be, &db, &env, NULL ) != 0  || db == NULL ||
          env == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "upgradedn_producer - "
+        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                 "Could not open id2entry\n");
         goto error;
     }
@@ -1492,7 +1491,7 @@ upgradedn_producer(void *param)
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
     if ( db_rval || !dbc ) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "upgradedn_producer - "
+        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                 "Failed to get cursor for reindexing\n");
         dblayer_release_id2entry(be, db);
         goto error;
@@ -1527,14 +1526,14 @@ upgradedn_producer(void *param)
         
         if (0 != db_rval) {
             if (DB_NOTFOUND == db_rval) {
-                LDAPDebug1Arg(LDAP_DEBUG_ERR, "upgradedn_producer - "
+                slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                         "%s: Finished reading database\n", inst->inst_name);
                 if (job->task) {
                     slapi_task_log_notice(job->task,
                         "%s: Finished reading database", inst->inst_name);
                 }
             } else {
-                LDAPDebug(LDAP_DEBUG_ERR, "%s: Failed to read database, "
+                slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer", "%s: Failed to read database, "
                     "errno=%d (%s)\n", inst->inst_name, db_rval,
                     dblayer_strerror(db_rval));
                 if (job->task) {
@@ -1589,7 +1588,7 @@ upgradedn_producer(void *param)
                         char *pid_str = NULL;
                         char *pdn = NULL;
 
-                        LDAPDebug2Args(LDAP_DEBUG_TRACE, "upgradedn_producer - "
+                        slapi_log_err(SLAPI_LOG_TRACE, "upgradedn_producer",
                                 "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n", 
                                 rdn, temp_id);
                         rc = get_value_from_string((const char *)data.dptr,
@@ -1604,7 +1603,7 @@ upgradedn_producer(void *param)
                             rc = import_get_and_add_parent_rdns(info, inst, db,
                                                  pid, &id, &psrdn, &curr_entry);
                             if (rc) {
-                                LDAPDebug2Args(LDAP_DEBUG_ANY,
+                                slapi_log_err(SLAPI_LOG_ERR,
                                    "uptradedn: Failed to compose dn for "
                                    "(rdn: %s, ID: %d)\n", rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1615,7 +1614,7 @@ upgradedn_producer(void *param)
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             slapi_rdn_done(&psrdn);
                             if (rc) {
-                                LDAPDebug2Args(LDAP_DEBUG_ANY, "upgradedn_producer - "
+                                slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                                         "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
                                         rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1640,7 +1639,7 @@ upgradedn_producer(void *param)
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
                         /* don't free this normdn  */
                         normdn = (char *)slapi_sdn_get_dn(sdn);
-                        slapi_log_error(SLAPI_LOG_CACHE, "upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_CACHE, "upgradedn_producer",
                                         "entryrdn_lookup_dn returned: %s, "
                                         "and set to dn cache\n", normdn);
                         dn_in_cache = 1;
@@ -1666,9 +1665,9 @@ upgradedn_producer(void *param)
                         "%s: WARNING: skipping badly formatted entry (id %lu)",
                         inst->inst_name, (u_long)temp_id);
             }
-            LDAPDebug(LDAP_DEBUG_WARNING, "upgradedn_producer - "
+            slapi_log_err(SLAPI_LOG_WARNING, "upgradedn_producer",
                     "%s: Skipping badly formatted entry (id %lu)\n",
-                    inst->inst_name, (u_long)temp_id, 0);
+                    inst->inst_name, (u_long)temp_id);
             continue;
         }
 
@@ -1711,7 +1710,7 @@ upgradedn_producer(void *param)
                             slapi_task_log_notice(job->task,
                                       "%s: No DNs to fix.\n", inst->inst_name);
                         }
-                        LDAPDebug1Arg(LDAP_DEBUG_ERR,
+                        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                                       "%s: No DNs to fix.\n", inst->inst_name);
                         slapi_ch_free_string(&path);
                         goto bail;
@@ -1724,7 +1723,7 @@ upgradedn_producer(void *param)
                                             "%s: Error: failed to open a file \"%s\"",
                                             inst->inst_name, path);
                         }
-                        LDAPDebug2Args(LDAP_DEBUG_ERR, "upgradedn_producer - "
+                        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                                        "%s: Error: failed to open a file \"%s\"\n",
                                        inst->inst_name, path);
                         slapi_ch_free_string(&path);
@@ -1744,7 +1743,7 @@ upgradedn_producer(void *param)
                                         "%s: Error: failed to write a line \"%s\"",
                                         inst->inst_name, dn_id);
                         }
-                        LDAPDebug2Args(LDAP_DEBUG_ERR, "upgradedn_producer - "
+                        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                                         "%s: Error: failed to write a line \"%s\"",
                                         inst->inst_name, dn_id);
                         slapi_ch_free_string(&dn_id);
@@ -1772,9 +1771,8 @@ upgradedn_producer(void *param)
                         }
                         if (add_IDs_to_IDarray(&dn_norm_sp_conflicts, &my_max,
                                                my_idx, buf)) {
-                            LDAPDebug1Arg(LDAP_DEBUG_ERR, "upgradedn_producer - "
-                                          "Failed to set IDs %s to conflict list\n",
-                                          buf);
+                            slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
+                                    "Failed to set IDs %s to conflict list\n", buf);
                             goto error;
                         }
                         my_idx++;
@@ -1786,10 +1784,10 @@ upgradedn_producer(void *param)
                         char *newrdn = slapi_create_dn_string("%s %u", rdn, temp_id);
                         char *parentdn = slapi_dn_parent(normdn);
                         /* This entry is a conflict of alt_id */
-                        LDAPDebug(LDAP_DEBUG_NOTICE, "upgradedn_producer - "
-                                  "Entry %s (%lu) is a conflict of (%lu)\n",
+                        slapi_log_err(SLAPI_LOG_NOTICE, "upgradedn_producer",
+                                  "Entry %s (%u) is a conflict of (%u)\n",
                                   normdn, temp_id, alt_id);
-                        LDAPDebug2Args(LDAP_DEBUG_NOTICE, "upgradedn_producer - "
+                        slapi_log_err(SLAPI_LOG_NOTICE, "upgradedn_producer",
                                 "Renaming \"%s\" to \"%s\"\n", rdn, newrdn);
                         if (!dn_in_cache) {
                             /* If not in dn cache, normdn needs to be freed. */
@@ -1808,7 +1806,7 @@ upgradedn_producer(void *param)
                                           slapi_ch_strdup(rdn), 0);
                     rc = slapi_entry_add_rdn_values(e);
                     if (rc) {
-                        LDAPDebug(LDAP_DEBUG_ERR, "upgradedn_producer - "
+                        slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                                 "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
                                 inst->inst_name, normdn, (u_long)temp_id);
                         goto error;
@@ -1826,7 +1824,7 @@ upgradedn_producer(void *param)
             bdn = backdn_init(sdn, temp_id, 0);
             CACHE_ADD(&inst->inst_dncache, bdn, NULL);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
-            slapi_log_error(SLAPI_LOG_CACHE, "upgradedn_producer",
+            slapi_log_err(SLAPI_LOG_CACHE, "upgradedn_producer",
                             "set dn %s to dn cache\n", normdn);
         }
         /* Check DN syntax attr values if it contains '\\' or not */
@@ -1838,7 +1836,7 @@ upgradedn_producer(void *param)
 
             rdnp = PL_strchr(rdn, '=');
             if (NULL == rdnp) {
-                LDAPDebug(LDAP_DEBUG_WARNING, "upgradedn_producer - "
+                slapi_log_err(SLAPI_LOG_WARNING, "upgradedn_producer",
                     "%s: Skipping an entry with corrupted RDN \"%s\" (id %lu)\n",
                     inst->inst_name, rdn, (u_long)temp_id);
                 slapi_entry_free(e); e = NULL;
@@ -1859,7 +1857,7 @@ upgradedn_producer(void *param)
                 upgradedn_add_to_list(&ud_list,
                                       slapi_ch_strdup(LDBM_ENTRYRDN_STR),
                                       slapi_ch_strdup(rdn), 0);
-                LDAPDebug2Args(LDAP_DEBUG_TRACE, "upgradedn_producer - "
+                slapi_log_err(SLAPI_LOG_TRACE, "upgradedn_producer",
                                "%s: Found upgradedn candidate: (id %lu)\n", 
                                inst->inst_name, (u_long)temp_id);
                 /*
@@ -1868,7 +1866,7 @@ upgradedn_producer(void *param)
                  */
                 rc = slapi_entry_add_rdn_values(e);
                 if (rc) {
-                    LDAPDebug(LDAP_DEBUG_ERR, "upgradedn_producer - "
+                    slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                             "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
                             inst->inst_name, normdn, (u_long)temp_id);
                     slapi_entry_free(e); e = NULL;
@@ -1931,7 +1929,7 @@ upgradedn_producer(void *param)
                                                   slapi_ch_strdup(a->a_type),
                                                   slapi_ch_strdup(*ud_valp),
                                                   isentrydn?0:OLD_DN_NORMALIZE);
-                            LDAPDebug(LDAP_DEBUG_TRACE, "upgradedn_producer - "
+                            slapi_log_err(SLAPI_LOG_TRACE, "upgradedn_producer",
                                     "%s: Found upgradedn candidate: %s (id %lu)\n", 
                                     inst->inst_name, valueptr, (u_long)temp_id);
                             if (!entryrdn_get_switch() && isentrydn) {
@@ -1943,7 +1941,7 @@ upgradedn_producer(void *param)
                                  */
                                 rc = slapi_entry_add_rdn_values(e);
                                 if (rc) {
-                                    LDAPDebug(LDAP_DEBUG_ERR, "upgradedn_producer - "
+                                    slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                                             "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
                                             inst->inst_name, normdn, (u_long)temp_id);
                                     slapi_entry_free(e); e = NULL;
@@ -1971,7 +1969,7 @@ upgradedn_producer(void *param)
                 charray_free(ud_vals);
                 ud_vals = NULL;
                 if (skipit) {
-                    LDAPDebug(LDAP_DEBUG_WARNING, "upgradedn_producer - "
+                    slapi_log_err(SLAPI_LOG_WARNING, "upgradedn_producer",
                             "%s: Skipping an entry with a corrupted dn (syntax value): %s (id %lu)\n",
                             inst->inst_name, workdn?workdn:"unknown", (u_long)temp_id);
                     slapi_ch_free_string(&workdn);
@@ -3036,8 +3034,8 @@ import_worker(void *param)
 
 error:
     if (ret == DB_RUNRECOVERY) {
-        LDAPDebug(LDAP_DEBUG_CRIT, "import_worker - "
-                "Cannot import; database recovery needed\n", 0,0,0);
+        slapi_log_err(SLAPI_LOG_CRIT, "import_worker",
+                "Cannot import; database recovery needed\n");
     } else if (ret == DB_LOCK_DEADLOCK) {
         /* can this occur? */
     }
@@ -3072,7 +3070,7 @@ static int bulk_import_start(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "bulk_import_start - Backend is not set\n");
+        slapi_log_err(SLAPI_LOG_ERR, "bulk_import_start", "Backend is not set\n");
         return -1;
     }
     job = CALLOC(ImportJob);
@@ -3084,9 +3082,9 @@ static int bulk_import_start(Slapi_PBlock *pb)
     PR_Lock(job->inst->inst_config_mutex);
     if (job->inst->inst_flags & INST_FLAG_BUSY) {
         PR_Unlock(job->inst->inst_config_mutex);
-        LDAPDebug(LDAP_DEBUG_WARNING, "bulk_import_start - "
+        slapi_log_err(SLAPI_LOG_WARNING, "bulk_import_start",
                 "'%s' is already in the middle of another task and cannot be disturbed.\n",
-                job->inst->inst_name, 0, 0);
+                job->inst->inst_name);
         FREE(job);
         return SLAPI_BI_ERR_BUSY;
     }
@@ -3154,9 +3152,9 @@ static int bulk_import_start(Slapi_PBlock *pb)
                              SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         PRErrorCode prerr = PR_GetError();
-        LDAPDebug(LDAP_DEBUG_ERR, "bulk_import_start - "
+        slapi_log_err(SLAPI_LOG_ERR, "bulk_import_start",
                 "Unable to spawn import thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                prerr, slapd_pr_strerror(prerr), 0);
+                prerr, slapd_pr_strerror(prerr));
         PR_Unlock(job->wire_lock);
         ret = -2;
         goto fail;
@@ -3303,7 +3301,7 @@ static int bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
             if (sepp) {
                 Slapi_RDN mysrdn = {0};
                 if (slapi_rdn_init_all_dn(&mysrdn, sepp + 1)) {
-                    slapi_log_error(SLAPI_LOG_ERR, "bulk_import_queue",
+                    slapi_log_err(SLAPI_LOG_ERR, "bulk_import_queue",
                                 "Failed to convert DN %s to RDN\n", sepp + 1);
                     slapi_ch_free_string(&tombstone_rdn);
                     /* entry is released in the frontend on failure*/
@@ -3383,8 +3381,8 @@ void factory_destructor(void *extension, void *object, void *parent)
      * aborted!
      */
     thread = job->main_thread;
-    LDAPDebug(LDAP_DEBUG_ERR, "factory_destructor - "
-            "ERROR bulk import abandoned\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_ERR, "factory_destructor",
+            "ERROR bulk import abandoned\n");
     import_abort_all(job, 1);
     /* wait for import_main to finish... */
     PR_JoinThread(thread);
@@ -3409,7 +3407,7 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_wire_import - "
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_wire_import",
                 "Backend is not set\n");
         return -1;
     }
@@ -3471,8 +3469,8 @@ int ldbm_back_wire_import(Slapi_PBlock *pb)
     }
 
     /* ??? unknown state */
-    LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_wire_import - "
-              "ERROR: unknown state %d\n", state, 0, 0);
+    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_wire_import",
+              "ERROR: unknown state %d\n", state);
     return -1;
 }
 
@@ -3510,14 +3508,14 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     {
         filename = slapi_ch_smprintf("%s/%s", dest_dir, file_name);
     }
-    LDAPDebug(LDAP_DEBUG_TRACE, "dse_conf_backup_core - "
-            "(%s): backup file %s\n", filter, filename, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "dse_conf_backup_core",
+            "(%s): backup file %s\n", filter, filename);
 
     /* Open the file to write */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL)
     {
-        LDAPDebug(LDAP_DEBUG_ERR, "dse_conf_backup_core - "
+        slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
                 "(%s): open %s failed: (%s)\n",
                 filter, filename, slapd_pr_strerror(PR_GetError()));
         rval = -1;
@@ -3526,8 +3524,8 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
 
     srch_pb = slapi_pblock_new();
     if (!srch_pb) {
-        LDAPDebug(LDAP_DEBUG_ERR, "dse_conf_backup_core - "
-                "(%s): out of memory\n", filter, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
+                "(%s): out of memory\n", filter);
         rval = -1;
         goto out;
     }
@@ -3539,8 +3537,8 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
     for (ep = entries; ep != NULL && *ep != NULL; ep++)
     {
         size_t l = strlen(slapi_entry_get_dn_const(*ep)) + 5 /* "dn: \n" */;
-        LDAPDebug(LDAP_DEBUG_TRACE, "dse_conf_backup_core - "
-                "dn: %s\n", slapi_entry_get_dn_const(*ep), 0, 0);
+        slapi_log_err(SLAPI_LOG_TRACE, "dse_conf_backup_core",
+                "dn: %s\n", slapi_entry_get_dn_const(*ep));
 
         if (l <= sizeof(tmpbuf))
             tp = tmpbuf;
@@ -3550,9 +3548,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
         prrval = PR_Write(prfd, tp, l);
         if ((size_t)prrval != l)
         {
-            LDAPDebug(LDAP_DEBUG_ERR, "dse_conf_backup_core - "
-                "(%s): write %s failed: %d (%s)\n",
-                filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+            slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
+                "(%s): write %lu failed: %d (%s)\n",
+                filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
             if (l > sizeof(tmpbuf))
                 slapi_ch_free_string(&tp);
@@ -3579,8 +3577,8 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
             {
                 attr_val = slapi_value_get_berval(sval);
                 l = strlen(attr_val->bv_val) + attr_name_len + 3; /* : \n" */
-                LDAPDebug(LDAP_DEBUG_TRACE, "dse_conf_backup_core - "
-                        "%s: %s\n", attr_name, attr_val->bv_val, 0);
+                slapi_log_err(SLAPI_LOG_TRACE, "dse_conf_backup_core",
+                        "%s: %s\n", attr_name, attr_val->bv_val);
                 if (l <= sizeof(tmpbuf))
                     tp = tmpbuf;
                 else
@@ -3589,9 +3587,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
                 prrval = PR_Write(prfd, tp, l);
                 if ((size_t)prrval != l)
                 {
-                    LDAPDebug(LDAP_DEBUG_ERR, "dse_conf_backup_core - "
-                        "%s): write %s failed: %d (%s)\n",
-                        filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+                    slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
+                        "(%s): write %lu failed: %d (%s)\n",
+                        filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                     rval = -1;
                     if (l > sizeof(tmpbuf))
                         slapi_ch_free_string(&tp);
@@ -3606,9 +3604,9 @@ dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char 
             prrval = PR_Write(prfd, "\n", 1);
             if ((int)prrval != 1)
             {
-                LDAPDebug(LDAP_DEBUG_ERR, "dse_conf_backup_core - "
-                        "(%s): write %s failed: %d (%s)\n",
-                        filter, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+                slapi_log_err(SLAPI_LOG_ERR, "dse_conf_backup_core",
+                        "(%s): write %lu failed: %d (%s)\n",
+                        filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                 rval = -1;
                 goto out;
             }
@@ -3632,9 +3630,9 @@ out:
         prrval = PR_Close(prfd);
         if (PR_SUCCESS != prrval)
         {
-            LDAPDebug(LDAP_DEBUG_CRIT, "dse_conf_backup_core - "
+            slapi_log_err(SLAPI_LOG_CRIT, "dse_conf_backup_core",
                     "Failed to back up dse indexes %d (%s)\n",
-                    PR_GetError(), slapd_pr_strerror(PR_GetError()), 0);
+                    PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
         }
     }
@@ -3678,9 +3676,9 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
     if (PR_SUCCESS != PR_Access(filename, PR_ACCESS_READ_OK))
     {
-        LDAPDebug(LDAP_DEBUG_WARNING, "dse_conf_verify_core - "
+        slapi_log_err(SLAPI_LOG_WARNING, "dse_conf_verify_core",
             "Config backup file %s not found in backup\n",
-            file_name, 0, 0);
+            file_name);
         rval = 0;
         goto out;
     }
@@ -3688,8 +3686,8 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     fd = dblayer_open_huge_file(filename, O_RDONLY, 0);
     if (fd < 0)
     {
-        LDAPDebug(LDAP_DEBUG_ERR, "dse_conf_verify_core - "
-            "Can't open config backup file: %s\n", filename, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "dse_conf_verify_core",
+            "Can't open config backup file: %s\n", filename);
         rval = -1;
         goto out;
     }
@@ -3718,9 +3716,9 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         e = slapi_str2entry(estr, 0);
         slapi_ch_free_string(&estr);
         if (!e) {
-            LDAPDebug(LDAP_DEBUG_WARNING, "dse_conf_verify_core - "
+            slapi_log_err(SLAPI_LOG_WARNING, "dse_conf_verify_core",
                     "Skipping bad LDIF entry ending line %d of file \"%s\"",
-                    curr_lineno, filename, 0);
+                    curr_lineno, filename);
             continue;
         }
         if (bep - backup_entries >= backup_entry_len)
@@ -3755,9 +3753,9 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, 1 /* force_update */, li->li_identity))
     {
-        LDAPDebug(LDAP_DEBUG_WARNING, "dse_conf_verify_core - "
+        slapi_log_err(SLAPI_LOG_WARNING, "dse_conf_verify_core",
                 "Current %s is different from backed up configuration; "
-                "The backup is restored.\n", log_str, 0, 0);
+                "The backup is restored.\n", log_str);
     }
 
     slapi_free_search_results_internal(&srch_pb);
@@ -3826,7 +3824,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         return rc;
     }
     if (NULL == inst || NULL == srdn) {
-        slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+        slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                         "Empty %s\n", NULL==inst?"inst":"srdn");
         return rc;
     }
@@ -3839,7 +3837,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         if (slapi_rdn_get_rdn(srdn)) { /* srdn is already in use */
             rc = slapi_rdn_init_all_dn(&mysrdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
-                slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+                slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                                 "Failed to convert DN %s to RDN\n", 
                                 slapi_sdn_get_dn(bdn->dn_sdn));
                 slapi_rdn_done(&mysrdn);
@@ -3848,7 +3846,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
             }
             rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
             if (rc) {
-                slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+                slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                                 "Failed to merge Slapi_RDN %s to RDN\n",
                                 slapi_sdn_get_dn(bdn->dn_sdn));
             }
@@ -3856,7 +3854,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         } else { /* srdn is empty */
             rc = slapi_rdn_init_all_dn(srdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
-                slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+                slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                                 "Failed to convert DN %s to RDN\n", 
                                 slapi_sdn_get_dn(bdn->dn_sdn));
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
@@ -3874,7 +3872,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
 
         /* not in the dn cache; read id2entry */
         if (NULL == db) {
-            slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                     "Empty db\n");
             return rc;
         }
@@ -3887,21 +3885,21 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         data.flags = DB_DBT_MALLOC;
         rc = db->get(db, NULL, &key, &data, 0);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                             "Failed to position at ID " ID_FMT "\n", id);
             return rc;
         }
         /* rdn is allocated in get_value_from_string */
         rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                             "Failed to get rdn of entry " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is set to srdn */
         rc = slapi_rdn_init_all_dn(&mysrdn, rdn);
         if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
-            slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                             "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
         }
@@ -3923,7 +3921,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         normdn = NULL;
         rc = slapi_rdn_get_dn(&mysrdn, &normdn);
         if (rc) {
-        	slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+        	slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                                 "Failed to compose dn for (rdn: %s, ID: %d) "
                                 "from Slapi_RDN\n", rdn, id);
             goto bail;
@@ -3936,7 +3934,7 @@ import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         }
         rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "import_get_and_add_parent_rdns",
                             "Failed to merge Slapi_RDN %s to RDN\n",
                             slapi_sdn_get_dn(bdn->dn_sdn));
         }

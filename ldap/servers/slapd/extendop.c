@@ -32,8 +32,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
     int ret;
 
     if (extval == NULL || extval->bv_val == NULL) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_start - no data supplied\n", 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR,
+                  "extop_handle_import_start", "no data supplied\n");
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, 
                          "no data supplied", 0, NULL);
         return;
@@ -46,7 +46,7 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
         /* check that the dn is formatted correctly */
         ret = slapi_dn_syntax_check(pb, orig, 1);
         if (ret) { /* syntax check failed */
-            LDAPDebug1Arg(LDAP_DEBUG_ERR,
+            slapi_log_err(SLAPI_LOG_ERR,
                           "extop_handle_import_start - strict: invalid suffix\n",
                           orig);
             send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
@@ -56,8 +56,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
     }
     sdn = slapi_sdn_new_dn_passin(orig);
     if (!sdn) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_start - out of memory\n", 0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR,
+                  "extop_handle_import_start", "Out of memory\n");
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         return;
     }
@@ -69,9 +69,9 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
         be = slapi_be_select_by_instance_name(suffix);
     }
     if (be == NULL || be == defbackend_get_backend()) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_start - invalid suffix or instance name '%s'\n",
-                  suffix, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR,
+                  "extop_handle_import_start", "invalid suffix or instance name '%s'\n",
+                  suffix);
         send_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, 
                          "invalid suffix or instance name", 0, NULL);
         goto out;
@@ -112,9 +112,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
 
     if (be->be_wire_import == NULL) {
         /* not supported by this backend */
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_start - bulk import attempted on '%s' (not supported)\n",
-                  suffix, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "extop_handle_import_start",
+                "bulk import attempted on '%s' (not supported)\n", suffix);
         send_ldap_result(pb, LDAP_NOT_SUPPORTED, NULL, NULL, 0, NULL);
         goto out;
     }
@@ -125,9 +124,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
     slapi_pblock_set(pb, SLAPI_BULK_IMPORT_STATE, &ret);
     ret = (*be->be_wire_import)(pb);
     if (ret != 0) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_start - error starting import (%d)\n",
-                  ret, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "extop_handle_import_start",
+                "error starting import (%d)\n", ret);
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         goto out;
     }
@@ -145,8 +143,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
     bv.bv_len = 0;
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, &bv);
     send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
-    LDAPDebug(LDAP_DEBUG_INFO,
-              "extop_handle_import_start - Bulk import begin import on '%s'.\n", suffix, 0, 0);
+    slapi_log_err(SLAPI_LOG_INFO, "extop_handle_import_start",
+            "Bulk import begin import on '%s'.\n", suffix);
 
 out:
     slapi_sdn_free(&sdn);
@@ -168,9 +166,8 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_done - backend not supported\n",
-                  0, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "extop_handle_import_done",
+                "backend not supported\n");
         send_ldap_result(pb, LDAP_NOT_SUPPORTED, NULL, NULL, 0, NULL);
         return;
     }
@@ -182,9 +179,8 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
     slapi_pblock_set(pb, SLAPI_BULK_IMPORT_STATE, &ret);
     ret = (*be->be_wire_import)(pb);
     if (ret != 0) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-                  "extop_handle_import_done - bulk import error ending import (%d)\n",
-                  ret, 0, 0);
+        slapi_log_err(SLAPI_LOG_ERR, "extop_handle_import_done",
+                "bulk import error ending import (%d)\n", ret);
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         return;
     }
@@ -195,8 +191,8 @@ static void extop_handle_import_done(Slapi_PBlock *pb, char *extoid,
     bv.bv_len = 0;
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, &bv);
     send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
-    LDAPDebug(LDAP_DEBUG_INFO,
-              "extop_handle_import_done - Bulk import completed successfully.\n", 0, 0, 0);
+    slapi_log_err(SLAPI_LOG_INFO, "extop_handle_import_done",
+            "Bulk import completed successfully.\n");
     return;
 }
 
@@ -212,7 +208,7 @@ do_extended( Slapi_PBlock *pb )
     ber_tag_t   tag;
     const char  *name;
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "do_extended\n", 0, 0, 0 );
+    slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "->\n");
 
     /*
      * Parse the extended request. It looks like this:
@@ -225,9 +221,8 @@ do_extended( Slapi_PBlock *pb )
 
     if ( ber_scanf( pb->pb_op->o_ber, "{a", &extoid )
         == LBER_ERROR ) {
-        LDAPDebug(LDAP_DEBUG_ERR,
-            "do_extended - ber_scanf failed (op=extended; params=OID)\n",
-            0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR,
+            "do_extended", "ber_scanf failed (op=extended; params=OID)\n");
         op_shared_log_error_access (pb, "EXT", "???", "decoding error: fail to get extension OID");
         send_ldap_result( pb, LDAP_PROTOCOL_ERROR, NULL, "decoding error", 0,
             NULL );
@@ -251,13 +246,13 @@ do_extended( Slapi_PBlock *pb )
         }
     }
     if ( NULL == ( name = extended_op_oid2string( extoid ))) {
-        LDAPDebug(LDAP_DEBUG_ARGS, "do_extended - oid (%s)\n", extoid, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s)\n", extoid);
 
         slapi_log_access( LDAP_DEBUG_STATS, "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\"\n",
                 pb->pb_conn->c_connid, pb->pb_op->o_opid, extoid );
     } else {
-        LDAPDebug(LDAP_DEBUG_ARGS, "do_extended - oid (%s-%s)\n",
-                extoid, name, 0 );
+        slapi_log_err(SLAPI_LOG_ARGS, "do_extended", "oid (%s-%s)\n",
+                extoid, name);
 
         slapi_log_access( LDAP_DEBUG_STATS,
             "conn=%" NSPRIu64 " op=%d EXT oid=\"%s\" name=\"%s\"\n",
@@ -336,14 +331,14 @@ do_extended( Slapi_PBlock *pb )
     slapi_pblock_set( pb, SLAPI_REQUESTOR_ISROOT, &pb->pb_op->o_isroot);
 
     rc = plugin_determine_exop_plugins( extoid, &p );
-    slapi_log_error(SLAPI_LOG_TRACE, "do_extended", "Plugin_determine_exop_plugins rc %d\n", rc);
+    slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Plugin_determine_exop_plugins rc %d\n", rc);
 
     if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_EXTOP_FN) != SLAPI_PLUGIN_SUCCESS) {
         goto free_and_return;
     }
 
     if (rc == SLAPI_PLUGIN_EXTENDEDOP && p != NULL) {
-        slapi_log_error(SLAPI_LOG_TRACE, "do_extended", "Calling plugin ... \n");
+        slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Calling plugin ... \n");
         /*
          * Return values:
          *  SLAPI_PLUGIN_EXTENDED_SENT_RESULT: The result is already sent to the client. 
@@ -353,16 +348,16 @@ do_extended( Slapi_PBlock *pb )
          */
         rc = plugin_call_exop_plugins( pb, p);
 
-        slapi_log_error(SLAPI_LOG_TRACE, "do_extended", "Called exop, got %d \n", rc);
+        slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Called exop, got %d \n", rc);
 
     } else if (rc == SLAPI_PLUGIN_BETXNEXTENDEDOP && p != NULL) {
 
-        slapi_log_error(SLAPI_LOG_TRACE, "do_extended", "Calling betxn plugin ... \n");
+        slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Calling betxn plugin ... \n");
         /* Look up the correct backend to use. */
         Slapi_Backend *be = plugin_extended_op_getbackend( pb, p );
 
         if ( be == NULL ) {
-            slapi_log_error(SLAPI_LOG_ERR, "do_extended", "Plugin_extended_op_getbackend was unable to retrieve a backend!\n");
+            slapi_log_err(SLAPI_LOG_ERR, "do_extended", "Plugin_extended_op_getbackend was unable to retrieve a backend!\n");
             rc = LDAP_OPERATIONS_ERROR;
         } else {
             /* We need to make a new be pb here because when you set SLAPI_BACKEND
@@ -375,7 +370,7 @@ do_extended( Slapi_PBlock *pb )
 
             int txn_rc = slapi_back_transaction_begin(be_pb);
             if (txn_rc) {
-                slapi_log_error(SLAPI_LOG_ERR, "do_extended", "Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
+                slapi_log_err(SLAPI_LOG_ERR, "do_extended", "Failed to start be_txn for plugin_call_exop_plugins %d\n", txn_rc);
             } else {
                 /*
                  * Return values:
@@ -385,19 +380,19 @@ do_extended( Slapi_PBlock *pb )
                  *  LDAP codes (e.g., LDAP_SUCCESS): The result is not sent yet. Call send_ldap_result.
                  */
                 rc = plugin_call_exop_plugins( pb, p );
-                slapi_log_error(SLAPI_LOG_TRACE, "do_extended", "Called betxn exop, got %d \n", rc);
+                slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Called betxn exop, got %d \n", rc);
                 if (rc == LDAP_SUCCESS || rc == SLAPI_PLUGIN_EXTENDED_SENT_RESULT) {
                     /* commit */
                     txn_rc = slapi_back_transaction_commit(be_pb);
                     if (txn_rc == 0) {
-                        slapi_log_error(SLAPI_LOG_TRACE, "do_extended", "Commit with result %d \n", txn_rc);
+                        slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Commit with result %d \n", txn_rc);
                     } else {
-                        slapi_log_error(SLAPI_LOG_ERR, "do_extended", "Unable to commit commit with result %d \n", txn_rc);
+                        slapi_log_err(SLAPI_LOG_ERR, "do_extended", "Unable to commit commit with result %d \n", txn_rc);
                     }
                 } else {
                     /* abort */
                     txn_rc = slapi_back_transaction_abort(be_pb);
-                    slapi_log_error(SLAPI_LOG_ERR, "do_extended", "Abort with result %d \n", txn_rc);
+                    slapi_log_err(SLAPI_LOG_ERR, "do_extended", "Abort with result %d \n", txn_rc);
                 }
             } /* txn_rc */
             slapi_pblock_destroy(be_pb); /* Clean up after ourselves */
@@ -414,7 +409,7 @@ do_extended( Slapi_PBlock *pb )
             errmsg = "unsupported extended operation";
         } else {
             if (rc != LDAP_SUCCESS) {
-                slapi_log_error(SLAPI_LOG_ERR, "do_extended", "Failed with result %d \n", rc);
+                slapi_log_err(SLAPI_LOG_ERR, "do_extended", "Failed with result %d \n", rc);
             }
             errmsg = NULL;
             lderr = rc;

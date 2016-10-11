@@ -517,7 +517,7 @@ parse_duration(char *value)
     duration *= times;
 bail:
     if (duration == -1) {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR, "parse_duration - Invalid duration (%s)\n", value?value:"null");
+        slapi_log_err(SLAPI_LOG_ERR, "parse_duration - Invalid duration (%s)\n", value?value:"null");
     }
     slapi_ch_free_string(&input);
     return duration;
@@ -584,7 +584,7 @@ parse_duration_longlong(char *value)
     duration *= times;
 bail:
     if (duration == -1) {
-        LDAPDebug1Arg(LDAP_DEBUG_ERR, "parse_duration_longlong - Invalid duration (%s)\n", value?value:"null");
+        slapi_log_err(SLAPI_LOG_ERR, "parse_duration_longlong - Invalid duration (%s)\n", value?value:"null");
     }
     slapi_ch_free_string(&input);
     return duration;

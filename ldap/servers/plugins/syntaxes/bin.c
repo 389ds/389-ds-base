@@ -211,11 +211,11 @@ bin_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> bin_init\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> bin_init\n");
 	rc = register_bin_like_plugin( pb, &bin_pdesc, bin_names,
 		 	BINARY_SYNTAX_OID );
 	rc |= register_matching_rule_plugins();
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= bin_init %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= bin_init %d\n", rc);
 	return( rc );
 }
 
@@ -225,10 +225,10 @@ octetstring_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> octetstring_init\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> octetstring_init\n");
 	rc = register_bin_like_plugin( pb, &octetstring_pdesc, octetstring_names,
 		 	OCTETSTRING_SYNTAX_OID );
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= octetstring_init %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= octetstring_init %d\n", rc);
 	return( rc );
 }
 
@@ -238,10 +238,10 @@ jpeg_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> jpeg_init\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> jpeg_init\n");
 	rc = register_bin_like_plugin( pb, &jpeg_pdesc, jpeg_names,
 		 	JPEG_SYNTAX_OID );
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= jpeg_init %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= jpeg_init %d\n", rc);
 	return( rc );
 }
 
@@ -251,10 +251,10 @@ fax_init( Slapi_PBlock *pb )
 {
 	int	rc;
 
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "=> fax_init\n", 0, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "=> fax_init\n");
 	rc = register_bin_like_plugin( pb, &fax_pdesc, fax_names,
 			FAX_SYNTAX_OID );
-	LDAPDebug(LDAP_DEBUG_PLUGIN, "<= fax_init %d\n", rc, 0, 0 );
+	slapi_log_err(SLAPI_LOG_PLUGIN, SYNTAX_PLUGIN_SUBSYSTEM, "<= fax_init %d\n", rc);
 	return( rc );
 }
 

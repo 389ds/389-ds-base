@@ -117,7 +117,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
-		LDAPDebug1Arg(LDAP_DEBUG_ERR, "ldbm_back_add - "
+		slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 			"Instance \"%s\" does not exist.\n",
 			inst ? inst->inst_name : "null instance");
 		goto error_return;
@@ -205,7 +205,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				/* addingentry is in cache.  Remove it once. */
 				retval = CACHE_REMOVE(&inst->inst_cache, addingentry);
 				if (retval) {
-					LDAPDebug1Arg(LDAP_DEBUG_CACHE, "ldbm_add: cache_remove %s failed.\n",
+					slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_add", "cache_remove %s failed.\n",
 					              slapi_entry_get_dn_const(addingentry->ep_entry));
 				}
 			}
@@ -216,7 +216,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			tmpentry = NULL;
 			/* Adding the resetted addingentry to the cache. */
 			if (cache_add_tentative(&inst->inst_cache, addingentry, NULL) < 0) {
-				LDAPDebug1Arg(LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected: %s\n",
+				slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_add", "cache_add_tentative concurrency detected: %s\n",
 				              slapi_entry_get_dn_const(addingentry->ep_entry));
 				ldap_result_code = LDAP_ALREADY_EXISTS;
 				goto error_return;
@@ -228,7 +228,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			}
 
 			/* We're re-trying */
-			LDAPDebug0Args(LDAP_DEBUG_BACKLDBM, "Add Retrying Transaction\n");
+			slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add", "Add Retrying Transaction\n");
 #ifndef LDBM_NO_BACKOFF_DELAY
 			{
 				PRIntervalTime interval;
@@ -272,7 +272,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 					slapi_pblock_get( pb, SLAPI_ADD_TARGET_SDN, &sdn );
 					if (NULL == sdn)
 					{
-						LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_add - "
+						slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 							"Null target dn\n");
 						goto error_return;
 					}
@@ -333,7 +333,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 						slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
 					}
 					if (!ldap_result_code) {
-						LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_add - "
+						slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 							       "SLAPI_PLUGIN_BE_PRE_ADD_FN returned error but did not set SLAPI_RESULT_CODE\n");
 						ldap_result_code = LDAP_OPERATIONS_ERROR;
 					}
@@ -393,8 +393,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 						slapi_sdn_set_dn_byval(&parentsdn, slapi_entry_get_dn_const(parententry->ep_entry));
 					}
 				} else {
-					LDAPDebug(LDAP_DEBUG_BACKLDBM, "find_entry2modify_only returned NULL parententry pdn: %s, uniqueid: %s\n",
-					          slapi_sdn_get_dn(&parentsdn), slapi_sdn_get_dn(&parentsdn), addr.uniqueid?addr.uniqueid:"none");
+					slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add", 
+						"find_entry2modify_only returned NULL parententry pdn: %s, uniqueid: %s\n",
+						slapi_sdn_get_dn(&parentsdn), addr.uniqueid?addr.uniqueid:"none");
 				}
 				modify_init(&parent_modify_c,parententry);
 			}
@@ -477,7 +478,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				if ((operation_is_flag_set(operation,OP_FLAG_ACTION_SCHEMA_CHECK))
 				     && (slapi_entry_schema_check(pb, e) != 0))
 				{
-					LDAPDebug(LDAP_DEBUG_TRACE, "entry failed schema check\n", 0, 0, 0);
+					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "Entry failed schema check\n");
 					ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
 					slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 					goto error_return;
@@ -486,7 +487,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				/* Check attribute syntax */
 				if (slapi_entry_syntax_check(pb, e, 0) != 0)
 				{
-					LDAPDebug(LDAP_DEBUG_TRACE, "entry failed syntax check\n", 0, 0, 0);
+					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "Entry failed syntax check\n");
 					ldap_result_code = LDAP_INVALID_SYNTAX;
 					slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
 					goto error_return;
@@ -525,7 +526,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				 * magic objectclass.
 				 */
 				if (NULL == sdn) {
-					LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_add - "
+					slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 						"Null target dn\n");
 					ldap_result_code = LDAP_OPERATIONS_ERROR;
 					goto error_return;
@@ -542,7 +543,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 				slapi_entry_attr_delete(addingentry->ep_entry, SLAPI_ATTR_TOMBSTONE_CSN);
 				/* Now also remove the nscpEntryDN */
 				if (slapi_entry_attr_delete(addingentry->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN) != 0){
-					LDAPDebug(LDAP_DEBUG_REPL, "Resurrection of %s - Couldn't remove %s\n", dn, SLAPI_ATTR_NSCP_ENTRYDN, 0);
+					slapi_log_err(SLAPI_LOG_REPL, "ldbm_back_add", "Resurrection of %s - Couldn't remove %s\n",
+						dn, SLAPI_ATTR_NSCP_ENTRYDN);
 				}
 				
 				/* And copy the reason from e */
@@ -550,7 +552,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 				if (reason) {
 					if (!slapi_entry_attr_hasvalue(addingentry->ep_entry, "nsds5ReplConflict", reason)) {
 						slapi_entry_add_string(addingentry->ep_entry, "nsds5ReplConflict", reason);
-						LDAPDebug(LDAP_DEBUG_REPL, "Resurrection of %s - Added Conflict reason %s\n", dn, reason, 0);
+						slapi_log_err(SLAPI_LOG_REPL, "ldbm_back_add", "Resurrection of %s - Added Conflict reason %s\n",
+							dn, reason);
 					}
 					slapi_ch_free((void **)&reason);
 				}
@@ -603,9 +606,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 				 */
 				addingentry = backentry_init( e );
 				if ( ( addingentry->ep_id = next_id( be ) ) >= MAXID ) {
-				  LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_add - "
+				  slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add ",
 						 "Maximum ID reached, cannot add entry to "
-						 "backend '%s'", be->be_name, 0, 0 );
+						 "backend '%s'", be->be_name);
 				  ldap_result_code = LDAP_OPERATIONS_ERROR;
 				  goto error_return;
 				}
@@ -657,8 +660,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 						Slapi_RDN srdn = {0};
 						rc = slapi_rdn_init_all_dn(&srdn, tombstoned_dn);
 						if (rc) {
-							LDAPDebug1Arg(LDAP_DEBUG_TRACE,
-								"ldbm_back_add (tombstone_operation): failed to "
+							slapi_log_err(SLAPI_LOG_TRACE,
+								"ldbm_back_add", "(tombstone_operation): failed to "
 								"decompose %s to Slapi_RDN\n", tombstoned_dn);
 						} else {
 							slapi_entry_set_srdn(e, &srdn);
@@ -719,7 +722,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 					Slapi_DN ancestorsdn;
 					struct backentry *ancestorentry;
 
-					LDAPDebug1Arg(LDAP_DEBUG_BACKLDBM, "ldbm_add: Parent \"%s\" does not exist. "
+					slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add", "Parent \"%s\" does not exist. "
 					              "It might be a conflict entry.\n", slapi_sdn_get_dn(&parentsdn));
 					slapi_sdn_init(&ancestorsdn);
 					ancestorentry = dn2ancestor(be, &parentsdn, &ancestorsdn, &txn, &err, 1);
@@ -735,7 +738,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				                                          ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
 				if ( ldap_result_code != LDAP_SUCCESS )
 				{
-					LDAPDebug1Arg(LDAP_DEBUG_TRACE, "no access to parent, pdn = %s\n",
+					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "no access to parent, pdn = %s\n",
 					              slapi_sdn_get_dn(&parentsdn));
 					ldap_result_message= errbuf;
 					goto error_return;
@@ -749,7 +752,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 					char *adjusteddn = slapi_ch_smprintf("%s,%s", 
 					                                     slapi_entry_get_rdn_const(addingentry->ep_entry),
 					                                     slapi_entry_get_dn_const(parententry->ep_entry));
-					LDAPDebug2Args(LDAP_DEBUG_BACKLDBM, "ldbm_add: adjusting dn: %s --> %s\n",
+					slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add", "Adjusting dn: %s --> %s\n",
 					               slapi_entry_get_dn(addingentry->ep_entry), adjusteddn);
 					slapi_sdn_set_normdn_passin(&adjustedsdn, adjusteddn);
 					slapi_entry_set_sdn(addingentry->ep_entry, &adjustedsdn);
@@ -761,7 +764,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			else
 			{	/* no parent */
 				if (!isroot && !is_replicated_operation) {
-					LDAPDebug0Args(LDAP_DEBUG_TRACE, "no parent & not root\n");
+					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "No parent & not root\n");
 					ldap_result_code= LDAP_INSUFFICIENT_ACCESS;
 					goto error_return;
 				}
@@ -790,7 +793,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			 * operational attributes to ensure that the cache is sized correctly. */
 			if ( cache_add_tentative( &inst->inst_cache, addingentry, NULL ) < 0 )
 			{
-				LDAPDebug1Arg(LDAP_DEBUG_CACHE, "cache_add_tentative concurrency detected: %s\n",
+				slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_add", "cache_add_tentative concurrency detected: %s\n",
 				              slapi_entry_get_dn_const(addingentry->ep_entry));
 				ldap_result_code= LDAP_ALREADY_EXISTS;
 				goto error_return;
@@ -802,7 +805,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 			 * the entry if the syntax is incorrect.
 			 */
 			if ( plugin_call_acl_verify_syntax (pb, addingentry->ep_entry, &errbuf) != 0 ) {
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE, "ACL syntax error: %s\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "ACL syntax error: %s\n",
 				              slapi_entry_get_dn_const(addingentry->ep_entry));
 				ldap_result_code= LDAP_INVALID_SYNTAX;
 				ldap_result_message= errbuf;
@@ -816,12 +819,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 				retval = parent_update_on_childchange(&parent_modify_c,
 				                                      is_resurect_operation?PARENTUPDATE_RESURECT:PARENTUPDATE_ADD,
 				                                      NULL);
-				slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+				slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
 				                "conn=%lu op=%d parent_update_on_childchange: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
 				                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
 				/* The modify context now contains info needed later */
 				if (retval) {
-					LDAPDebug2Args(LDAP_DEBUG_BACKLDBM, "parent_update_on_childchange: %s, rc=%d\n",
+					slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add", "parent_update_on_childchange: %s, rc=%d\n",
 					               slapi_entry_get_dn_const(addingentry->ep_entry), retval);
 					ldap_result_code= LDAP_OPERATIONS_ERROR;
 					goto error_return;
@@ -844,7 +847,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				not_an_error = 1;
 				rc = retval = LDAP_SUCCESS;
 			}
-			LDAPDebug1Arg(LDAP_DEBUG_TRACE, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
+			slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin "
 			              "returned error code %d\n", retval );
 			if (!ldap_result_code) {
 				slapi_pblock_get(pb, SLAPI_RESULT_CODE, &ldap_result_code);
@@ -858,7 +861,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
 			}
 			slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-			LDAPDebug1Arg(LDAP_DEBUG_DEBUG, "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin failed: %d\n",
+			slapi_log_err(SLAPI_LOG_DEBUG, "ldbm_back_add", "SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN plugin failed: %d\n",
 			              ldap_result_code ? ldap_result_code : retval);
 			goto error_return;
 		}
@@ -866,12 +869,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 		retval = id2entry_add_ext(be, addingentry, &txn, 1, &myrc);
 		if (DB_LOCK_DEADLOCK == retval)
 		{
-			LDAPDebug(LDAP_DEBUG_ARGS, "add 1 DEADLOCK\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 1 DEADLOCK\n");
 			/* Retry txn */
 			continue;
 		}
 		if (retval) {
-			LDAPDebug(LDAP_DEBUG_TRACE, "id2entry_add(%s) failed, err=%d %s\n",
+			slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "id2entry_add(%s) failed, err=%d %s\n",
 			          slapi_entry_get_dn_const(addingentry->ep_entry),
 			          retval, (msg = dblayer_strerror( retval )) ? msg : "");
 			ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -888,12 +891,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 			retval = index_addordel_string(be,SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE,
 			                 addingentry->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug(LDAP_DEBUG_ARGS, "add 2 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+				slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 2 DB_LOCK_DEADLOCK\n");
 				/* Retry txn */
 				continue;
 			}
 			if (retval) {
-				LDAPDebug(LDAP_DEBUG_TRACE, "index_addordel_string TOMBSTONE (%s), err=%d %s\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "index_addordel_string TOMBSTONE (%s), err=%d %s\n",
 				          slapi_entry_get_dn_const(addingentry->ep_entry),
 				          retval, (msg = dblayer_strerror( retval )) ? msg : "");
 				ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -910,12 +913,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 				retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
 								 tombstoneentry->ep_id, BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 				if (DB_LOCK_DEADLOCK == retval) {
-					LDAPDebug(LDAP_DEBUG_ARGS, "add 3 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+					slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 3 DB_LOCK_DEADLOCK\n");
 					/* Retry txn */
 					continue;
 				}
 				if (0 != retval) {
-					LDAPDebug(LDAP_DEBUG_TRACE, "index_addordel_string TOMBSTONE csn(%s), err=%d %s\n",
+					slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "index_addordel_string TOMBSTONE csn(%s), err=%d %s\n",
 							  slapi_entry_get_dn_const(tombstoneentry->ep_entry),
 							  retval, (msg = dblayer_strerror( retval )) ? msg : "");
 					ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -929,12 +932,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 
 			retval = index_addordel_string(be,SLAPI_ATTR_UNIQUEID,slapi_entry_get_uniqueid(addingentry->ep_entry),addingentry->ep_id,BE_INDEX_DEL|BE_INDEX_EQUALITY,&txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug(LDAP_DEBUG_ARGS, "add 4 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+				slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 4 DB_LOCK_DEADLOCK\n");
 				/* Retry txn */
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug(LDAP_DEBUG_TRACE, "index_addordel_string UNIQUEID (%s), err=%d %s\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "index_addordel_string UNIQUEID (%s), err=%d %s\n",
 				          slapi_entry_get_dn_const(addingentry->ep_entry),
 				          retval, (msg = dblayer_strerror( retval )) ? msg : "");
 				ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -950,12 +953,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 			                               addingentry->ep_id,
 			                               BE_INDEX_DEL|BE_INDEX_EQUALITY, &txn);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug(LDAP_DEBUG_ARGS, "add 5 DB_LOCK_DEADLOCK\n", 0, 0, 0 );
+				slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DB_LOCK_DEADLOCK\n");
 				/* Retry txn */
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug(LDAP_DEBUG_TRACE, "index_addordel_string ENTRYDN (%s), err=%d %s\n",
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add", "index_addordel_string ENTRYDN (%s), err=%d %s\n",
 				          slapi_entry_get_dn_const(addingentry->ep_entry),
 				          retval, (msg = dblayer_strerror( retval )) ? msg : "");
 				ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -970,7 +973,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 				if (tombstoneentry) {
 					retval = entryrdn_index_entry(be, tombstoneentry, BE_INDEX_DEL, &txn);
 					if (retval) {
-						LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_add - "
+						slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 							"Resurrecting %s: failed to remove entryrdn index, err=%d %s\n",
 							slapi_entry_get_dn_const(tombstoneentry->ep_entry),
 							retval, (msg = dblayer_strerror( retval )) ? msg : "");
@@ -989,13 +992,12 @@ ldbm_back_add( Slapi_PBlock *pb )
 		}
 		if (DB_LOCK_DEADLOCK == retval)
 		{
-			LDAPDebug(LDAP_DEBUG_ARGS, "ldbm_back_add - "
-				"add 5 DEADLOCK\n", 0, 0, 0 );
+			slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DEADLOCK\n");
 			/* retry txn */
 			continue;
 		}
 		if (retval) {
-			LDAPDebug2Args(LDAP_DEBUG_DEBUG, "ldbm_back_add - "
+			slapi_log_err(SLAPI_LOG_DEBUG, "ldbm_back_add",
 				"Attempt to index %lu failed; rc=%d\n",
 				(u_long)addingentry->ep_id, retval);
 			ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -1008,17 +1010,17 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (parent_found) {
 			/* Push out the db modifications from the parent entry */
 			retval = modify_update_all(be,pb,&parent_modify_c,&txn);
-				slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+				slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
 				                "conn=%lu op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
 				                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
 			if (DB_LOCK_DEADLOCK == retval)
 			{
-				LDAPDebug(LDAP_DEBUG_ARGS, "add 6 DEADLOCK\n", 0, 0, 0 );
+				slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 6 DEADLOCK\n");
 				/* Retry txn */
 				continue;
 			}
 			if (retval) {
-				LDAPDebug(LDAP_DEBUG_BACKLDBM, "ldbm_back_add - "
+				slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
 					"modify_update_all: %s (%lu) failed; rc=%d\n",
 					slapi_entry_get_dn(addingentry->ep_entry), (u_long)addingentry->ep_id, retval);
 				ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -1036,13 +1038,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 		{
 			retval= vlv_update_all_indexes(&txn, be, pb, NULL, addingentry);
 			if (DB_LOCK_DEADLOCK == retval) {
-				LDAPDebug(LDAP_DEBUG_ARGS,
-				          "add DEADLOCK vlv_update_index\n", 0, 0, 0 );
+				slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add",
+				          "add DEADLOCK vlv_update_index\n");
 				/* Retry txn */
 				continue;
 			}
 			if (retval) {
-				LDAPDebug2Args(LDAP_DEBUG_TRACE, "ldbm_back_add - "
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add",
 				               "vlv_update_index failed, err=%d %s\n",
 				               retval, (msg = dblayer_strerror( retval )) ? msg : "");
 				ADD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
@@ -1057,10 +1059,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (!is_ruv && !is_fixup_operation && !NO_RUV_UPDATE(li)) {
 			ruv_c_init = ldbm_txn_ruv_modify_context( pb, &ruv_c );
 			if (-1 == ruv_c_init) {
-				LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_add - "
-					"ldbm_txn_ruv_modify_context "
-					"failed to construct RUV modify context\n",
-					0, 0, 0);
+				slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
+					"ldbm_txn_ruv_modify_context - "
+					"failed to construct RUV modify context\n");
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
 				retval = 0;
 				goto error_return;
@@ -1074,9 +1075,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 				continue;
 			}
 			if (0 != retval) {
-				LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_add - "
+				slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 					"modify_update_all failed, err=%d %s\n", retval,
-					(msg = dblayer_strerror( retval )) ? msg : "", 0 );
+					(msg = dblayer_strerror( retval )) ? msg : "");
 				if (LDBM_OS_ERR_IS_DISKFULL(retval))
 					disk_full = 1;
 				ldap_result_code= LDAP_OPERATIONS_ERROR;
@@ -1090,8 +1091,8 @@ ldbm_back_add( Slapi_PBlock *pb )
 	}
 	if (retry_count == RETRY_TIMES) {
 		/* Failed */
-		LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_add - "
-			"Retry count exceeded in add\n", 0, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
+			"Retry count exceeded in add\n");
 		ldap_result_code= LDAP_BUSY;
 		goto error_return;
 	}
@@ -1111,7 +1112,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 		if (retval) {
 			/* This happens if the dn of addingentry already exists */
 			ADD_SET_ERROR(ldap_result_code, LDAP_ALREADY_EXISTS, retry_count);
-			LDAPDebug2Args(LDAP_DEBUG_CACHE, "ldbm_back_add - "
+			slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_add",
 				"cache_replace concurrency detected: %s (rc: %d)\n",
 				slapi_entry_get_dn_const(addingentry->ep_entry), retval);
 			retval = -1;
@@ -1136,7 +1137,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	{
 		/* switch the parent entry copy into play */
 		myrc = modify_switch_entries(&parent_modify_c,be);
-		slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+		slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
 		                "conn=%lu op=%d modify_switch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
 		                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
 		if (0 == myrc) {
@@ -1147,7 +1148,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	if (ruv_c_init) {
 		if (modify_switch_entries(&ruv_c, be) != 0 ) {
 			ldap_result_code= LDAP_OPERATIONS_ERROR;
-			LDAPDebug0Args(LDAP_DEBUG_ERR, "ldbm_back_add - "
+			slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
 			               "modify_switch_entries failed\n");
 			goto error_return;
 		}
@@ -1156,7 +1157,7 @@ ldbm_back_add( Slapi_PBlock *pb )
 	/* call the transaction post add plugins just before the commit */
 	if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN))) {
 		int opreturn = 0;
-		LDAPDebug1Arg(LDAP_DEBUG_TRACE, "ldbm_back_add - "
+		slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add",
 			"SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
 			"returned error code %d\n", retval );
 		if (!ldap_result_code) {
@@ -1199,7 +1200,7 @@ error_return:
 	}
 	if (rc == DB_RUNRECOVERY) {
 		dblayer_remember_disk_filled(li);
-		ldbm_nasty("Add",80,rc);
+		ldbm_nasty("ldbm_back_add","Add",80,rc);
 		disk_full = 1;
 	} else if (0 == rc) {
 		rc = SLAPI_FAIL_GENERAL;
@@ -1211,7 +1212,7 @@ error_return:
 		 * be written to disk.
 		 */
 		myrc = modify_unswitch_entries(&parent_modify_c, be);
-		slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+		slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
 		                "conn=%lu op=%d modify_unswitch_entries: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
 		                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, myrc);
 	}
@@ -1252,7 +1253,7 @@ diskfull_return:
 			/* call the transaction post add plugins just before the abort */
 			if ((retval = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_ADD_FN))) {
 				int opreturn = 0;
-				LDAPDebug1Arg(LDAP_DEBUG_TRACE, "ldbm_back_add - "
+				slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_add",
 					"SLAPI_PLUGIN_BE_TXN_POST_ADD_FN plugin "
 					"returned error code %d\n", retval );
 				if (!ldap_result_code) {
@@ -1328,7 +1329,7 @@ common_return:
 						if (bdn) {
 							CACHE_ADD( &inst->inst_dncache, bdn, NULL );
 							CACHE_RETURN(&inst->inst_dncache, &bdn);
-							slapi_log_error(SLAPI_LOG_CACHE, "ldbm_back_add",
+							slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_add",
 							                "set %s to dn cache\n", dn);
 						}
 					}
@@ -1350,7 +1351,7 @@ common_return:
 	if (ruv_c_init) {
 		modify_term(&ruv_c, be);
 	}
-	slapi_log_error(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
+	slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
 	                "conn=%lu op=%d modify_term: old_entry=0x%p, new_entry=0x%p\n",
 	                conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry);
 	myrc = modify_term(&parent_modify_c,be);

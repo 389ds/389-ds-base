@@ -271,17 +271,17 @@ slapd_SSL_report(int degree, char *fmt, va_list args)
     int sev;
     
     if (degree == LOG_FAILURE){
-    	sev = LDAP_DEBUG_ERR;
+    	sev = SLAPI_LOG_ERR;
     	msg = "failure";
     } else if (degree == LOG_WARN){
-    	sev = LDAP_DEBUG_WARNING;
+    	sev = SLAPI_LOG_WARNING;
     	msg = "alert";
     } else {
-    	sev = LDAP_DEBUG_INFO;
+    	sev = SLAPI_LOG_INFO;
     	msg = "info"; 
     }
     PR_vsnprintf( buf, sizeof(buf), fmt, args );
-    LDAPDebug(sev, "SSL %s: %s\n", msg,buf, 0 );
+    slapi_log_err(sev, "Security Initialization", "SSL %s: %s\n", msg, buf);
 }
 
 void
@@ -417,7 +417,7 @@ cipher_check_fips(int idx, char ***suplist, char ***unsuplist)
                                                  &info, sizeof info)) {
             PRErrorCode errorCode = PR_GetError();
             if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
-                slapd_SSL_warn("Security Initialization: no information for cipher suite [%s] "
+                slapd_SSL_warn("No information for cipher suite [%s] "
                                "error %d - %s", _conf_ciphers[idx].name,
                                errorCode, slapd_pr_strerror(errorCode));
             }
@@ -425,7 +425,7 @@ cipher_check_fips(int idx, char ***suplist, char ***unsuplist)
         }
         if (rc && !info.isFIPS) {
             if (slapi_is_loglevel_set(SLAPI_LOG_CONFIG)) {
-                slapd_SSL_warn("Security Initialization: FIPS mode is enabled but "
+                slapd_SSL_warn("FIPS mode is enabled but "
                                "cipher suite [%s] is not approved for FIPS - "
                                "the cipher suite will be disabled - if "
                                "you want to use this cipher suite, you must use modutil to "
@@ -570,7 +570,7 @@ _conf_init_ciphers(void)
     for (x = 0; implementedCiphers && (x < SSL_NumImplementedCiphers); x++) {
         rc = SSL_GetCipherSuiteInfo(implementedCiphers[x], &info, sizeof info);
         if (SECFailure == rc) {
-            slapi_log_error(SLAPI_LOG_ERR, "Security Initialization", 
+            slapi_log_err(SLAPI_LOG_ERR, "Security Initialization", 
                 "_conf_init_ciphers - Failed to get the cipher suite info of cipher ID %d\n",
                 implementedCiphers[x]);
             continue;
@@ -621,7 +621,7 @@ _conf_setallciphers(int flag, char ***suplist, char ***unsuplist)
              */
             rc = SSL_CipherPrefGetDefault(_conf_ciphers[x].num, &setme);
             if (SECFailure == rc) {
-                slapi_log_error(SLAPI_LOG_ERR, "Security Initialization",
+                slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
                     "_conf_setallciphers - Failed to get the default state of cipher %s\n",
                     _conf_ciphers[x].name);
                 continue;
@@ -698,7 +698,7 @@ _conf_setciphers(char *ciphers, int flags)
     /* Default is to activate all of them ==> none of them*/
     if (!ciphers || (ciphers[0] == '\0') || !PL_strcasecmp(ciphers, "default")) {
         _conf_setallciphers((CIPHER_SET_DEFAULT|flags), NULL, NULL);
-        slapd_SSL_info("Security Initialization: Enabling default cipher set.");
+        slapd_SSL_info("Enabling default cipher set.");
         _conf_dumpciphers();
         return NULL;
     }
@@ -822,7 +822,7 @@ _conf_setciphers(char *ciphers, int flags)
     if (unsuplist && *unsuplist) {
         char *strsup = charray2str(suplist, ",");
         char *strunsup = charray2str(unsuplist, ",");
-        slapd_SSL_warn("Security Initialization: FIPS mode is enabled - only the following "
+        slapd_SSL_warn("FIPS mode is enabled - only the following "
                        "cipher suites are approved for FIPS: [%s] - "
                        "the specified cipher suites [%s] are disabled - if "
                        "you want to use these unsupported cipher suites, you must use modutil to "
@@ -975,7 +975,7 @@ warn_if_no_cert_file(const char *dir, int no_log)
         if (PR_SUCCESS != status) {
             ret = 1;
             if (!no_log) {
-                slapi_log_error(SLAPI_LOG_CRIT, "Security Initialization",
+                slapi_log_err(SLAPI_LOG_CRIT, "Security Initialization",
                     "warn_if_no_cert_file - Certificate DB file cert8.db nor cert7.db exists in [%s] - "
                     "SSL initialization will likely fail\n", dir);
             }
@@ -997,7 +997,7 @@ warn_if_no_key_file(const char *dir, int no_log)
 	if (PR_SUCCESS != status) {
         ret = 1;
         if (!no_log) {
-            slapi_log_error(SLAPI_LOG_CRIT, "Security Initialization",
+            slapi_log_err(SLAPI_LOG_CRIT, "Security Initialization",
                 "warn_if_no_key_file - Key DB file %s does not exist - SSL initialization will "
                 "likely fail\n", filename);
         }
@@ -1206,7 +1206,7 @@ slapd_nss_init(int init_ssl, int config_available)
 	
 	(void) slapi_getSSLVersion_str(enabledNSSVersions.min, emin, sizeof(emin));
 	(void) slapi_getSSLVersion_str(enabledNSSVersions.max, emax, sizeof(emax));
-	slapi_log_error(SLAPI_LOG_CONFIG, "Security Initialization",
+	slapi_log_err(SLAPI_LOG_CONFIG, "Security Initialization",
 	                "slapd_nss_init - Supported range by NSS: min: %s, max: %s\n",
 	                emin, emax);
 #endif
@@ -1232,7 +1232,7 @@ slapd_nss_init(int init_ssl, int config_available)
 			char *serveruser = "unknown";
 
 			serveruser = config_get_localuser();
-			slapi_log_error(SLAPI_LOG_CRIT, "Security Initialization",
+			slapi_log_err(SLAPI_LOG_CRIT, "Security Initialization",
 				"slapd_nss_init - The key/cert database directory [%s] is not writable by "
 				"the server uid [%s]: initialization likely to fail.\n",
 				certdir, serveruser);
@@ -1256,7 +1256,7 @@ slapd_nss_init(int init_ssl, int config_available)
 
 	if (secStatus != SECSuccess) {
 		errorCode = PR_GetError();
-		slapd_SSL_error("Security Initialization: NSS initialization failed ("
+		slapd_SSL_error("NSS initialization failed ("
 					   SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
 					   "certdir: %s",
 					   errorCode, slapd_pr_strerror(errorCode), certdir);
@@ -1265,7 +1265,7 @@ slapd_nss_init(int init_ssl, int config_available)
 
 	if(SSLPLCY_Install() != PR_SUCCESS) {
 		errorCode = PR_GetError();
-		slapd_SSL_error("Security Initialization: Unable to set SSL export policy ("
+		slapd_SSL_error("Unable to set SSL export policy ("
 					   SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
 					   errorCode, slapd_pr_strerror(errorCode));
 		return -1;
@@ -1281,15 +1281,15 @@ slapd_nss_init(int init_ssl, int config_available)
 		keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
 		secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
 		if(chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			LDAPDebug(LDAP_DEBUG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+			slapi_log_err(SLAPI_LOG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
 					certdb_file_name, errno, slapd_system_strerror(errno));
 		}
 		if(chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			LDAPDebug(LDAP_DEBUG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+			slapi_log_err(SLAPI_LOG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
 					keydb_file_name, errno, slapd_system_strerror(errno));
 		}
 		if(chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			LDAPDebug(LDAP_DEBUG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
+			slapi_log_err(SLAPI_LOG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
 					secmoddb_file_name, errno, slapd_system_strerror(errno));
 		}
 	}
@@ -1325,7 +1325,7 @@ svrcore_setup(void)
     if ( SVRCORE_CreateStdPinObj(&StdPinObj, dongle_file_name, PR_TRUE) != SVRCORE_Success) {
 #endif
         errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Unable to create PinObj ("
+        slapd_SSL_warn("Unable to create PinObj ("
 				SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
 				errorCode, slapd_pr_strerror(errorCode));
         return -1;
@@ -1379,7 +1379,7 @@ slapd_ssl_init()
 
     if(!val) {
       errorCode = PR_GetError();
-      slapd_SSL_error("Security Initialization: Failed to retrieve SSL "
+      slapd_SSL_error("Failed to retrieve SSL "
                      "configuration information ("
                      SLAPI_COMPONENT_NAME_NSPR " error %d - %s): "
                      "nssslSessionTimeout: %s ",
@@ -1441,7 +1441,7 @@ slapd_ssl_init()
                 }
             } else {
                 errorCode = PR_GetError();
-                slapd_SSL_error("Security Initialization: Unable to get token ("
+                slapd_SSL_error("Unable to get token ("
                        SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
                        errorCode, slapd_pr_strerror(errorCode));
                 freeChildren(family_list);
@@ -1451,7 +1451,7 @@ slapd_ssl_init()
 
             if (!slot) {
                 errorCode = PR_GetError();
-                slapd_SSL_error("Security Initialization: Unable to find slot ("
+                slapd_SSL_error("Unable to find slot ("
                        SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                        errorCode, slapd_pr_strerror(errorCode));
                 freeChildren(family_list);
@@ -1466,7 +1466,7 @@ slapd_ssl_init()
 #endif
             if (slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                 errorCode = PR_GetError();
-                slapi_log_error(SLAPI_LOG_ERR, "Security Initialization", 
+                slapi_log_err(SLAPI_LOG_ERR, "Security Initialization", 
                                 "slapd_ssl_init - Unable to authenticate (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                                 errorCode, slapd_pr_strerror(errorCode));
                 freeChildren(family_list);
@@ -1522,7 +1522,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
         if (2 == vnum) {
             if (ismin) {
                 if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_2) {
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                    slapd_SSL_warn("The value of sslVersionMin "
                                    "\"%s\" is lower than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emin);
@@ -1533,7 +1533,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
             } else {
                 if (enabledNSSVersions.max < SSL_LIBRARY_VERSION_2) {
                     /* never happens */
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                    slapd_SSL_warn("The value of sslVersionMax "
                                     "\"%s\" is higher than the supported version; "
                                     "the default value \"%s\" is used.",
                                     val, emax);
@@ -1545,7 +1545,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
         } else if (3 == vnum) {
             if (ismin) {
                 if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_3_0) {
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                    slapd_SSL_warn("The value of sslVersionMin "
                                    "\"%s\" is lower than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emin);
@@ -1556,7 +1556,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
             } else {
                 if (enabledNSSVersions.max < SSL_LIBRARY_VERSION_3_0) {
                     /* never happens */
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                    slapd_SSL_warn("The value of sslVersionMax "
                                    "\"%s\" is higher than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emax);
@@ -1567,12 +1567,12 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
             }
         } else {
             if (ismin) {
-                slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                slapd_SSL_warn("The value of sslVersionMin "
                                "\"%s\" is invalid; the default value \"%s\" is used.",
                                val, emin);
                 (*rval) = enabledNSSVersions.min;
             } else {
-                slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                slapd_SSL_warn("The value of sslVersionMax "
                                "\"%s\" is invalid; the default value \"%s\" is used.",
                                val, emax);
                 (*rval) = enabledNSSVersions.max;
@@ -1585,7 +1585,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
         if (tlsv < 1.1) { /* TLS1.0 */
             if (ismin) {
                 if (enabledNSSVersions.min > CURRENT_DEFAULT_SSL_VERSION) {
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                    slapd_SSL_warn("The value of sslVersionMin "
                                    "\"%s\" is lower than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emin);
@@ -1596,7 +1596,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
             } else {
                 if (enabledNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
                     /* never happens */
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                    slapd_SSL_warn("The value of sslVersionMax "
                                    "\"%s\" is higher than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emax);
@@ -1608,7 +1608,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
         } else if (tlsv < 1.2) { /* TLS1.1 */
             if (ismin) {
                 if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_1) {
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                    slapd_SSL_warn("The value of sslVersionMin "
                                    "\"%s\" is lower than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emin);
@@ -1619,7 +1619,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
             } else {
                 if (enabledNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_1) {
                     /* never happens */
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                    slapd_SSL_warn("The value of sslVersionMax "
                                    "\"%s\" is higher than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emax);
@@ -1632,7 +1632,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
 #if defined(NSS_TLS12)
             if (ismin) {
                 if (enabledNSSVersions.min > SSL_LIBRARY_VERSION_TLS_1_2) {
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                    slapd_SSL_warn("The value of sslVersionMin "
                                    "\"%s\" is lower than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emin);
@@ -1643,7 +1643,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
             } else {
                 if (enabledNSSVersions.max < SSL_LIBRARY_VERSION_TLS_1_2) {
                     /* never happens */
-                    slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                    slapd_SSL_warn("The value of sslVersionMax "
                                    "\"%s\" is higher than the supported version; "
                                    "the default value \"%s\" is used.",
                                    val, emax);
@@ -1655,13 +1655,13 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
 #endif
         } else { /* Specified TLS is newer than supported */
             if (ismin) {
-                slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+                slapd_SSL_warn("The value of sslVersionMin "
                                "\"%s\" is out of the range of the supported version; "
                                "the default value \"%s\" is used.",
                                val, emin);
                 (*rval) = enabledNSSVersions.min;
             } else {
-                slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+                slapd_SSL_warn("The value of sslVersionMax "
                                "\"%s\" is out of the range of the supported version; "
                                "the default value \"%s\" is used.",
                                val, emax);
@@ -1670,12 +1670,12 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
         }
     } else {
         if (ismin) {
-            slapd_SSL_warn("Security Initialization: The value of sslVersionMin "
+            slapd_SSL_warn("The value of sslVersionMin "
                            "\"%s\" is invalid; the default value \"%s\" is used.",
                            val, emin);
             (*rval) = enabledNSSVersions.min;
         } else {
-            slapd_SSL_warn("Security Initialization: The value of sslVersionMax "
+            slapd_SSL_warn("The value of sslVersionMax "
                            "\"%s\" is invalid; the default value \"%s\" is used.",
                            val, emax);
             (*rval) = enabledNSSVersions.max;
@@ -1737,7 +1737,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
      */
     getConfigEntry(configDN, &e);
     if (e == NULL) {
-        slapd_SSL_error("Security Initialization: Failed get config entry %s", configDN);
+        slapd_SSL_error("Failed get config entry %s", configDN);
         return 1;
     }
     val = slapi_entry_attr_get_charptr(e, "allowWeakCipher");
@@ -1763,7 +1763,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     if ( NULL != (val = _conf_setciphers(cipher_string, allowweakcipher)) ) {
         errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to set SSL cipher "
+        slapd_SSL_warn("Failed to set SSL cipher "
             "preference information: %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)", 
             val, errorCode, slapd_pr_strerror(errorCode));
         slapi_ch_free((void **) &val);
@@ -1774,7 +1774,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     pr_sock = SSL_ImportFD( NULL, sock );
     if( pr_sock == (PRFileDesc *)NULL ) {
         errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Failed to import NSPR "
+        slapd_SSL_warn("Failed to import NSPR "
                "fd into SSL (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                errorCode, slapd_pr_strerror(errorCode));
         return 1;
@@ -1790,7 +1790,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         PK11SlotInfo *slot = slapd_pk11_getInternalSlot();
         if (!slot) {
             errorCode = PR_GetError();
-            slapd_SSL_error("Security Initialization: Unable to get internal slot ("
+            slapd_SSL_error("Unable to get internal slot ("
                 SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                 errorCode, slapd_pr_strerror(errorCode));
             return -1;
@@ -1799,7 +1799,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         if(slapd_pk11_isFIPS()) {
             if(slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                errorCode = PR_GetError();
-               slapi_log_error(SLAPI_LOG_ERR, "Security Initialization",
+               slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
             		   "slapd_ssl_init2 - Unable to authenticate (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
                        errorCode, slapd_pr_strerror(errorCode));
                return -1;
@@ -1858,7 +1858,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             }
             else {
                 errorCode = PR_GetError();
-                slapd_SSL_warn("Security Initialization: Failed to get cipher "
+                slapd_SSL_warn("Failed to get cipher "
                            "family information. Missing nsssltoken or"
                            "nssslpersonalityssl in %s ("
                             SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
@@ -1876,7 +1876,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
             if (cert == NULL) {
                 errorCode = PR_GetError();
-                slapd_SSL_warn("Security Initialization: Can't find "
+                slapd_SSL_warn("Can't find "
                             "certificate (%s) for family %s ("
                             SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                             cert_name, *family, 
@@ -1888,7 +1888,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
             if (key == NULL) {
                 errorCode = PR_GetError();
-                slapd_SSL_warn("Security Initialization: Unable to retrieve "
+                slapd_SSL_warn("Unable to retrieve "
                            "private key for cert %s of family %s ("
                            SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                             cert_name, *family,
@@ -2000,7 +2000,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     tmpDir = slapd_get_tmp_dir();
 
-    slapi_log_error(SLAPI_LOG_TRACE, "Security Initialization",
+    slapi_log_err(SLAPI_LOG_TRACE, "Security Initialization",
                     "slapd_ssl_init2 - tmp dir = %s\n", tmpDir);
 
     rv = SSL_ConfigServerSessionIDCache(0, stimeout, stimeout, tmpDir);
@@ -2022,7 +2022,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     sslStatus = SSL_OptionSet(pr_sock, SSL_SECURITY, PR_TRUE);
     if (sslStatus != SECSuccess) {
         errorCode = PR_GetError();
-        slapd_SSL_error("Security Initialization: Failed to enable security "
+        slapd_SSL_error("Failed to enable security "
                "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                errorCode, slapd_pr_strerror(errorCode));
         return -1;
@@ -2032,7 +2032,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL2, enableSSL2);
     if (sslStatus != SECSuccess) {
         errorCode = PR_GetError();
-        slapd_SSL_error("Security Initialization: Failed to %s SSLv2 "
+        slapd_SSL_error("Failed to %s SSLv2 "
                "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                enableSSL2 ? "enable" : "disable",
                errorCode, slapd_pr_strerror(errorCode));
@@ -2049,7 +2049,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     if( !val ) {
         errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Cannot get SSL Client "
+        slapd_SSL_warn("Cannot get SSL Client "
                "Authentication status. No nsslclientauth in %s ("
                 SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                configDN, errorCode, slapd_pr_strerror(errorCode));
@@ -2072,7 +2072,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     if( config_set_SSLclientAuth( "nssslclientauth", val, errorbuf,
                 CONFIG_APPLY ) != LDAP_SUCCESS ) {
             errorCode = PR_GetError();
-        slapd_SSL_warn("Security Initialization: Cannot set SSL Client "
+        slapd_SSL_warn("Cannot set SSL Client "
                    "Authentication status to \"%s\", error (%s). "
                    "Supported values are \"off\", \"allowed\" "
                    "and \"required\". (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
@@ -2093,7 +2093,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                 enableSSL3 = slapi_entry_attr_get_bool( e, "nsSSL3" );
             }
             if ( fipsMode && enableSSL3 ) {
-                slapd_SSL_warn("Security Initialization: FIPS mode is enabled and "
+                slapd_SSL_warn("FIPS mode is enabled and "
                                "nsSSL3 explicitly set to on - SSLv3 is not approved "
                                "for use in FIPS mode - SSLv3 will be disabled - if "
                                "you want to use SSLv3, you must use modutil to "
@@ -2146,7 +2146,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         restrict_SSLVersionRange();
         (void) slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
         (void) slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
-        slapi_log_error(SLAPI_LOG_INFO, "Security Initialization",
+        slapi_log_err(SLAPI_LOG_INFO, "Security Initialization",
                         "slapd_ssl_init2 - Configured SSL version range: min: %s, max: %s\n",
                         mymin, mymax);
         sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
@@ -2163,7 +2163,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, enableSSL3);
         if (sslStatus != SECSuccess) {
             errorCode = PR_GetError();
-            slapd_SSL_warn("Security Initialization: Failed to %s SSLv3 "
+            slapd_SSL_warn("Failed to %s SSLv3 "
                    "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                    enableSSL3 ? "enable" : "disable",
                    errorCode, slapd_pr_strerror(errorCode));
@@ -2172,7 +2172,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_TLS, enableTLS1);
         if (sslStatus != SECSuccess) {
             errorCode = PR_GetError();
-            slapd_SSL_warn("Security Initialization: Failed to %s TLSv1 "
+            slapd_SSL_warn("Failed to %s TLSv1 "
                    "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                    enableTLS1 ? "enable" : "disable",
                    errorCode, slapd_pr_strerror(errorCode));
@@ -2189,7 +2189,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 #ifdef SSL_REQUIRE_CERTIFICATE    /* new feature */
             if ((err = SSL_OptionSet (pr_sock, SSL_REQUIRE_CERTIFICATE, PR_FALSE)) < 0) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ERR,
+                slapi_log_err(SLAPI_LOG_ERR, "Security Initialization", 
                  "SSL_OptionSet(SSL_REQUIRE_CERTIFICATE,PR_FALSE) %d "
                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                  err, prerr, slapd_pr_strerror(prerr));
@@ -2199,7 +2199,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
           case SLAPD_SSLCLIENTAUTH_REQUIRED:
             if ((err = SSL_OptionSet (pr_sock, SSL_REQUEST_CERTIFICATE, PR_TRUE)) < 0) {
                 PRErrorCode prerr = PR_GetError();
-                LDAPDebug(LDAP_DEBUG_ERR,
+                slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
                  "SSL_OptionSet(SSL_REQUEST_CERTIFICATE,PR_TRUE) %d "
                  SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                  err, prerr, slapd_pr_strerror(prerr));
@@ -2313,7 +2313,7 @@ slapd_SSL_client_auth (LDAP* ld)
                     }
                 } else {
                     errorCode = PR_GetError(); 
-                    slapd_SSL_warn("Security Initialization: Failed to get cipher "
+                    slapd_SSL_warn("Failed to get cipher "
                         "family information.  Missing nsssltoken or"
                         "nssslpersonalityssl in %s ("
                         SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
@@ -2338,7 +2338,7 @@ slapd_SSL_client_auth (LDAP* ld)
                     PR_snprintf(cert_name, sizeof(cert_name), "%s:%s", token, personality);
                 } else {
                     errorCode = PR_GetError();
-                    slapd_SSL_warn("Security Initialization: Failed to get cipher "
+                    slapd_SSL_warn("Failed to get cipher "
                        "family information.  Missing nsssltoken or"
                        "nssslpersonalityssl in %s ("
                        SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
@@ -2475,7 +2475,7 @@ slapd_SSL_client_auth (LDAP* ld)
     slapi_ch_free_string(&pw);
     slapi_ch_free_string(&finalpersonality);
 
-    LDAPDebug(LDAP_DEBUG_TRACE, "slapd_SSL_client_auth() %i\n", rc, 0, 0);
+    slapi_log_err(SLAPI_LOG_TRACE, "slapd_SSL_client_auth", "%i\n", rc);
     return rc;
 }
 
@@ -2514,7 +2514,7 @@ char* slapd_get_tmp_dir()
 
 	if((tmpdir = config_get_tmpdir()) == NULL)
 	{
-		slapi_log_error(
+		slapi_log_err(
 			 SLAPI_LOG_NOTICE,
 			 "slapd_get_tmp_dir",
 			 "config_get_tmpdir returns NULL Setting tmp dir to default\n");
@@ -2526,13 +2526,13 @@ char* slapd_get_tmp_dir()
 	if(mkdir(tmpdir, 00770) == -1)
 	{
 		if (errno == EEXIST) {
-			slapi_log_error(
+			slapi_log_err(
 			 SLAPI_LOG_TRACE,
 			 "slapd_get_tmp_dir",
 			 "mkdir(%s, 00770) - already exists\n",
 			 tmpdir);
 		} else {
-			slapi_log_error(
+			slapi_log_err(
 			 SLAPI_LOG_DEBUG,
 			 "slapd_get_tmp_dir",
 			 "mkdir(%s, 00770) Error: %s\n",
@@ -2553,7 +2553,7 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 
 	if (!slotlist) {
 		PRErrorCode errcode = PR_GetError();
-		slapi_log_error(SLAPI_LOG_ERR, "slapd_get_unlocked_key_for_cert",
+		slapi_log_err(SLAPI_LOG_ERR, "slapd_get_unlocked_key_for_cert",
 				"Cannot get slot list for certificate [%s] (%d: %s)\n",
 				certsubject, errcode, slapd_pr_strerror(errcode));
 		return key;
@@ -2564,25 +2564,25 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 		const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
 		const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
 		if (!slot) {
-			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+			slapi_log_err(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
 					"Missing slot for slot list element for certificate [%s]\n",
 					certsubject);
 		} else if (!PK11_NeedLogin(slot) || PK11_IsLoggedIn(slot, pin_arg)) {
 			key = PK11_FindKeyByDERCert(slot, cert, pin_arg);
-			slapi_log_error(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
+			slapi_log_err(SLAPI_LOG_TRACE, "slapd_get_unlocked_key_for_cert",
 					"Found unlocked slot [%s] token [%s] for certificate [%s]\n",
 					slotname, tokenname, certsubject);
 			break;
 		} else {
 			PRErrorCode errcode = PR_GetError();
-			slapi_log_error(SLAPI_LOG_NOTICE, "slapd_get_unlocked_key_for_cert",
+			slapi_log_err(SLAPI_LOG_NOTICE, "slapd_get_unlocked_key_for_cert",
 					"Skipping locked slot [%s] token [%s] for certificate [%s] (%d - %s)\n",
 					slotname, tokenname, certsubject, errcode, slapd_pr_strerror(errcode));
 		}
 	}
 
 	if (!key) {
-		slapi_log_error(SLAPI_LOG_ERR, "slapd_get_unlocked_key_for_cert",
+		slapi_log_err(SLAPI_LOG_ERR, "slapd_get_unlocked_key_for_cert",
 				"Could not find any unlocked slots for certificate [%s].  "
 				"Please review your TLS/SSL configuration.  The following slots were found:\n",
 				certsubject);
@@ -2590,7 +2590,7 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 			PK11SlotInfo *slot = sle->slot;
 			const char *slotname = (slot && PK11_GetSlotName(slot)) ? PK11_GetSlotName(slot) : "unknown slot";
 			const char *tokenname = (slot && PK11_GetTokenName(slot)) ? PK11_GetTokenName(slot) : "unknown token";
-			slapi_log_error(SLAPI_LOG_ERR, "slapd_get_unlocked_key_for_cert",
+			slapi_log_err(SLAPI_LOG_ERR, "slapd_get_unlocked_key_for_cert",
 					"Slot [%s] token [%s] was locked.\n",
 					slotname, tokenname);
 		}
@@ -2639,18 +2639,18 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
     char *name = NULL;
 
     if (!cert) {
-        slapi_log_error(SLAPI_LOG_ERR, "listCerts", "No cert given\n");
+        slapi_log_err(SLAPI_LOG_ERR, "listCerts", "No cert given\n");
         return rv;
     }
     name = cert->nickname;
 
     if (!name) {
-        slapi_log_error(SLAPI_LOG_ERR, "listCerts", "No cert nickname\n");
+        slapi_log_err(SLAPI_LOG_ERR, "listCerts", "No cert nickname\n");
         return rv;
     }
     the_cert = CERT_FindCertByNicknameOrEmailAddr(handle, name);
     if (!the_cert) {
-        slapi_log_error(SLAPI_LOG_ERR, "listCerts", "Could not find cert: %s\n", name);
+        slapi_log_err(SLAPI_LOG_ERR, "listCerts", "Could not find cert: %s\n", name);
         return SECFailure;
     }
 
@@ -2665,7 +2665,7 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
                                        PR_Now(), PR_FALSE);
     CERT_DestroyCertificate(the_cert);
     if (!certs) {
-        slapi_log_error(SLAPI_LOG_ERR, "listCerts", "Problem printing certificates\n");
+        slapi_log_err(SLAPI_LOG_ERR, "listCerts", "Problem printing certificates\n");
         return SECFailure;
     }
     for (node = CERT_LIST_HEAD(certs); !CERT_LIST_END(node,certs); node = CERT_LIST_NEXT(node)) {
@@ -2683,7 +2683,7 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot,
         CERT_DestroyCertList(certs);
     }
     if (rv) {
-        slapi_log_error(SLAPI_LOG_ERR, "listCerts", "Problem printing certificate nicknames\n");
+        slapi_log_err(SLAPI_LOG_ERR, "listCerts", "Problem printing certificate nicknames\n");
         return SECFailure;
     }
 
@@ -2738,7 +2738,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
     char *personality = NULL;
 
     if (!entry) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_cert",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_cert",
                         "No entry is given for %s Cert.\n", isCA?"CA":"Server");
         goto bail;
     }
@@ -2768,7 +2768,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                 (trust.sslFlags & (CERTDB_VALID_CA|CERTDB_TRUSTED_CA|CERTDB_TRUSTED_CLIENT_CA))) {
                 /* default token "internal" */
                 PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
-                slapi_log_error(SLAPI_LOG_INFO, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
+                slapi_log_err(SLAPI_LOG_INFO, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
                     char buf[BUFSIZ];
                     certfile = slapi_ch_smprintf("%s/%s%s", certdir,
@@ -2780,14 +2780,14 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                     outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
                 }
                 if (!outFile) {
-                    slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_cert",
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_cert",
                                     "Unable to open \"%s\" for writing (%d, %d).\n",
                                     certfile, PR_GetError(), PR_GetOSError());
                     goto bail;
                 }
                 rv = listCerts(certHandle, cert, slot, outFile, NULL);
                 if (rv) {
-                    slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_cert", "listCerts failed\n");
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_cert", "listCerts failed\n");
                     break;
                 }
             }
@@ -2795,7 +2795,7 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
         default:
             if (!PL_strcmp(cert->nickname, personality)) {
                 PK11SlotInfo *slot = slapd_pk11_getInternalKeySlot();
-                slapi_log_error(SLAPI_LOG_INFO, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
+                slapi_log_err(SLAPI_LOG_INFO, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
                     char buf[BUFSIZ];
                     certfile = slapi_ch_smprintf("%s/%s%s", certdir,
@@ -2805,14 +2805,14 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                     outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
                 }
                 if (!outFile) {
-                    slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_cert",
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_cert",
                                     "Unable to open \"%s\" for writing (%d, %d).\n",
                                     certfile, PR_GetError(), PR_GetOSError());
                     goto bail;
                 }
                 rv = listCerts(certHandle, cert, slot, outFile, NULL);
                 if (rv) {
-                    slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_cert", "listCerts failed\n");
+                    slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_cert", "listCerts failed\n");
                 }
                 PR_Close(outFile);
                 outFile = NULL;
@@ -2863,7 +2863,7 @@ extractRSAKeysAndSubject(
     CERTCertificate *cert = PK11_FindCertFromNickname((char *)nickname, NULL);
     if (!cert) {
         rv = PR_GetError();
-        slapi_log_error(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
                         "Failed extract cert with %s, (%d-%s, %d).\n",
                         nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         goto bail;
@@ -2872,7 +2872,7 @@ extractRSAKeysAndSubject(
     *pubkey = CERT_ExtractPublicKey(cert);
     if (!*pubkey) {
         rv = PR_GetError();
-        slapi_log_error(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
                         "Could not get public key from cert for %s, (%d-%s, %d)\n",
                         nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         goto bail;
@@ -2881,13 +2881,13 @@ extractRSAKeysAndSubject(
     *privkey = PK11_FindKeyByDERCert(slot, cert, pwdata);
     if (!*privkey) {
         rv = PR_GetError();
-        slapi_log_error(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
                         "Unable to find the key with PK11_FindKeyByDERCert for %s, (%d-%s, %d)\n",
                         nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
         *privkey= PK11_FindKeyByAnyCert(cert, &pwdata);
         if (!*privkey) {
             rv = PR_GetError();
-            slapi_log_error(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+            slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
                             "Unable to find the key with PK11_FindKeyByAnyCert for %s, (%d-%s, %d)\n",
                             nickname, rv, slapd_pr_strerror(rv), PR_GetOSError());
             goto bail;
@@ -2898,7 +2898,7 @@ extractRSAKeysAndSubject(
     *subject = CERT_AsciiToName(cert->subjectName);
 
     if (!*subject) {
-        slapi_log_error(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
+        slapi_log_err(SLAPI_LOG_ERR, "extractRSAKeysAndSubject",
                         "Improperly formatted name: \"%s\"\n",
                         cert->subjectName);
         goto bail;
@@ -3017,25 +3017,25 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
 #endif
 
     if (!entry) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "No entry is given for Server Key.\n");
         goto bail;
     }
 #if defined(ENCRYPTEDKEY)
     if (!token) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "No token is given.\n");
         goto bail;
     }
     StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
     if (!StdPinObj) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "No entry is given for Server Key.\n");
         goto bail;
     }
     err =  SVRCORE_StdPinGetPin(&keyEncPwd, StdPinObj, token);
     if (err || !keyEncPwd) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "Failed to extract pw with token %s.\n", token);
         goto bail;
     }
@@ -3049,7 +3049,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
      */
     rv = PK11_GenerateRandom(randomPassword, sizeof(randomPassword) - 1);
     if (rv != SECSuccess) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key", "Failed to generate random.\n");
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key", "Failed to generate random.\n");
         goto bail;
     }
     pwitem.data = randomPassword;
@@ -3061,7 +3061,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     KeyExtractFile = slapi_entry_attr_get_charptr(entry, "ServerKeyExtractFile");
     personality = slapi_entry_attr_get_charptr(entry, "nsSSLPersonalitySSL" );
     if (!personality) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "nsSSLPersonalitySSL value not found.\n");
         goto bail;
     }
@@ -3074,7 +3074,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     }
     outFile = PR_Open(keyfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
     if (!outFile) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "Unable to open \"%s\" for writing (%d, %d).\n",
                         keyfile, PR_GetError(), PR_GetOSError());
         goto bail;
@@ -3082,10 +3082,10 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     rv = extractRSAKeysAndSubject(personality, slot, &pwdata, &privkey, &pubkey, &subject);
     if (rv != SECSuccess) {
 #if defined(ENCRYPTEDKEY)
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "Failed to extract keys for \"%s\".\n", token);
 #else
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key", "Failed to extract keys for %s.\n", personality);
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key", "Failed to extract keys for %s.\n", personality);
 #endif
         goto bail;
     }
@@ -3096,7 +3096,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
      */
     epki = PK11_ExportEncryptedPrivKeyInfo(NULL, SEC_OID_DES_EDE3_CBC, &pwitem, privkey, 1000, &pwdata);
     if (!epki) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "Unable to export encrypted private key (%d, %d).\n",
                         PR_GetError(), PR_GetOSError());
         goto bail;
@@ -3106,7 +3106,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     /* NULL dest to let it allocate memory for us */
     encryptedKeyDER = SEC_ASN1EncodeItem(arenaForEPKI, NULL, epki, SECKEY_EncryptedPrivateKeyInfoTemplate);
     if (!encryptedKeyDER) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "SEC_ASN1EncodeItem failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
         goto bail;
     }
@@ -3114,7 +3114,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     /* Make a decrypted key the one to write out. */
     arenaForPKI = PORT_NewArena(2048);
     if (!arenaForPKI) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "PORT_NewArena failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
         goto bail;
     }
@@ -3124,7 +3124,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
 
     rv = DecryptKey(epki, SEC_OID_DES_EDE3_CBC, &pwitem, &pwdata, &clearKeyDER);
     if (rv != SECSuccess) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "DekryptKey failed. (%d, %d).\n", PR_GetError(), PR_GetOSError());
         goto bail;
     }
@@ -3137,7 +3137,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
     b64 = BTOA_ConvertItemToAscii(&clearKeyDER);
 #endif
     if (!b64) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "Failed to conver to the ASCII (%d, %d).\n",
                         PR_GetError(), PR_GetOSError());
         goto bail;
@@ -3152,7 +3152,7 @@ slapd_extract_key(Slapi_Entry *entry, char *token, PK11SlotInfo *slot)
 #endif
     numBytes = PR_Write(outFile, b64, total);
     if (numBytes != total) {
-        slapi_log_error(SLAPI_LOG_ERR, "slapd_extract_key",
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_extract_key",
                         "Failed to write to the file (%d, %d).\n",
                         PR_GetError(), PR_GetOSError());
         goto bail;

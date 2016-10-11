@@ -18,21 +18,21 @@
 
 /* Takes a return code supposed to be errno or from lidb
    which we don't expect to see and prints a handy log message */
-void ldbm_nasty(const char* str, int c, int err)
+void ldbm_nasty(char *func, const char* str, int c, int err)
 {
     char *msg = NULL;
     char buffer[200];
     if (err == DB_LOCK_DEADLOCK) {
         PR_snprintf(buffer,200,"%s WARNING %d",str,c);
-        LDAPDebug(LDAP_DEBUG_BACKLDBM,"%s, err=%d %s\n",
+        slapi_log_err(SLAPI_LOG_BACKLDBM, func, "%s, err=%d %s\n",
                   buffer,err,(msg = dblayer_strerror( err )) ? msg : "");
    } else if (err == DB_RUNRECOVERY) {
-        LDAPDebug2Args(LDAP_DEBUG_ERR, "%s (%d); "
+        slapi_log_err(SLAPI_LOG_ERR, func, "%s (%d); "
                   "server stopping as database recovery needed.\n", str, c);
         exit(1);
     } else {
         PR_snprintf(buffer,200,"%s BAD %d",str,c);
-        LDAPDebug(LDAP_DEBUG_ERR, "%s, err=%d %s\n",
+        slapi_log_err(SLAPI_LOG_ERR, func, "%s, err=%d %s\n",
                   buffer, err, (msg = dblayer_strerror( err )) ? msg : "");
     }
 }
@@ -224,7 +224,7 @@ allinstance_set_busy(struct ldbminfo *li)
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (instance_set_busy(inst)) {
-            LDAPDebug1Arg(LDAP_DEBUG_TRACE, "could not set instance [%s] as busy, probably already busy\n",
+            slapi_log_err(SLAPI_LOG_TRACE, "could not set instance [%s] as busy, probably already busy\n",
                       inst->inst_name);
         }
     }
@@ -328,7 +328,7 @@ mkdir_p(char *dir, unsigned int mode)
             PR_Delete(dir);
             if (PR_SUCCESS != PR_MkDir(dir, mode))
             {
-                LDAPDebug(LDAP_DEBUG_ERR, "mkdir_p - %s: error %d (%s)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "mkdir_p - %s: error %d (%s)\n",
                     dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
                 return -1;
             }
@@ -364,7 +364,7 @@ mkdir_p(char *dir, unsigned int mode)
             return rval;
         if (PR_SUCCESS != PR_MkDir(dir, mode))
         {
-            LDAPDebug(LDAP_DEBUG_ERR, "mkdir_p - %s: error %d (%s)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "mkdir_p - %s: error %d (%s)\n",
                     dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
             return -1;
         }
@@ -416,8 +416,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
 
     if (NULL == bentry) {
         /* Uh oh, we couldn't find and lock the RUV entry! */
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_txn_ruv_modify_context - Failed to retrieve and lock RUV entry\n",
-            0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_txn_ruv_modify_context", "Failed to retrieve and lock RUV entry\n");
         rc = -1;
         goto done;
     }
@@ -425,8 +424,7 @@ ldbm_txn_ruv_modify_context( Slapi_PBlock *pb, modify_context *mc )
     modify_init( mc, bentry );
 
     if (modify_apply_mods_ignore_error( mc, smods, LDAP_TYPE_OR_VALUE_EXISTS )) {
-        LDAPDebug(LDAP_DEBUG_ERR, "ldbm_txn_ruv_modify_context - Failed to apply updates to RUV entry\n",
-            0, 0, 0 );
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_txn_ruv_modify_context", "Failed to apply updates to RUV entry\n");
         rc = -1;
         modify_term( mc, be );
     }
@@ -538,7 +536,7 @@ get_value_from_string(const char *string, char *type, char **value)
         rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
         if (0 > rc || NULL == tmptype.bv_val ||
             NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
-            slapi_log_error(SLAPI_LOG_ERR, "get_value_from_string", "parse "
+            slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string", "parse "
                                              "failed: %d\n", rc);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
@@ -547,7 +545,7 @@ get_value_from_string(const char *string, char *type, char **value)
             goto bail;
         }
         if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
-            slapi_log_error(SLAPI_LOG_ERR, "get_value_from_string", "type "
+            slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string", "type "
                                              "does not match: %s != %s\n", 
                                              type, tmptype.bv_val);
             if (freeval) {
@@ -626,7 +624,7 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
             char *p = PL_strchr(tmptype.bv_val, ';'); /* subtype ? */
             if (p) {
                 if (0 != strncasecmp(type, tmptype.bv_val, p - tmptype.bv_val)) {
-                    slapi_log_error(SLAPI_LOG_ERR, "get_values_from_string", 
+                    slapi_log_err(SLAPI_LOG_ERR, "get_values_from_string", 
                                     "type does not match: %s != %s\n", 
                                     type, tmptype.bv_val);
                     if (freeval) {
@@ -635,7 +633,7 @@ get_values_from_string(const char *string, char *type, char ***valuearray)
                     goto bail;
                 }
             } else {
-                slapi_log_error(SLAPI_LOG_ERR, "get_values_from_string", 
+                slapi_log_err(SLAPI_LOG_ERR, "get_values_from_string", 
                                 "type does not match: %s != %s\n", 
                                 type, tmptype.bv_val);
                 if (freeval) {

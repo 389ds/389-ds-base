@@ -96,7 +96,7 @@ mempool_init(struct mempool **my_mempool)
 		mempool[i].mempool_mutex = PR_NewLock();
 		if (NULL == mempool[i].mempool_mutex) {
 			PRErrorCode ec = PR_GetError();
-			slapi_log_error(SLAPI_LOG_ERR, "mempool", "mempool_init: "
+			slapi_log_err(SLAPI_LOG_ERR, "mempool", "mempool_init: "
 				"failed to create mutex - (%d - %s); mempool(%s) is disabled",
 				ec, slapd_pr_strerror(ec), mempool[i].mempool_name);
 			rc = LDAP_OPERATIONS_ERROR;
@@ -340,7 +340,7 @@ create_counters()
 static void
 log_negative_alloc_msg( const char *op, const char *units, unsigned long size )
 {
-	slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+	slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		"cannot %s %lu %s;\n"
 		"trying to allocate 0 or a negative number of %s is not portable and\n"
 		"gives different results on different platforms.\n",
@@ -356,7 +356,7 @@ slapi_ch_malloc_core( unsigned long	lsize )
 		int	oserr = errno;
 	
 		oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 			"malloc of %lu bytes failed; OS error %d (%s)%s\n",
 			lsize, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -424,7 +424,7 @@ slapi_ch_realloc_core( char *block, unsigned long lsize )
 		int	oserr = errno;
 	
 		oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "realloc of %lu bytes failed; OS error %d (%s)%s\n",
 			lsize, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -505,7 +505,7 @@ slapi_ch_calloc_core( unsigned long	lsize )
 		int	oserr = errno;
 	
 		oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "calloc of %lu bytes failed; OS error %d (%s)%s\n",
 			lsize, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -670,7 +670,7 @@ slapi_ch_mmap(unsigned long len)
 		int	oserr = errno;
 
 	  	oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "mmap of %lu bytes failed; OS error %d (%s)%s\n",
 			roundup, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
@@ -691,7 +691,7 @@ slapi_ch_munmap(void **start, unsigned long len)
 	if (0 != rc) {
 		int	oserr = errno;
 
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "munmap of %lu bytes failed; OS error %d (%s)\n",
 			roundup, oserr, slapd_system_strerror( oserr ) );
 		/* Leaked. This should not happen */
@@ -712,7 +712,7 @@ slapi_ch_mmap_no_roundup( unsigned long	size)
 		int	oserr = errno;
 	
 		oom_occurred();
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "mmap of %lu bytes failed; OS error %d (%s)%s\n",
 			size + sizeof(unsigned long), oserr,
 			slapd_system_strerror( oserr ), oom_advice );
@@ -733,7 +733,7 @@ slapi_ch_munmap_no_roundup(void **start, unsigned long len)
 	if (0 != rc) {
 		int	oserr = errno;
 
-		slapi_log_error(SLAPI_LOG_ERR, SLAPD_MODULE,
+		slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
 		    "munmap of %lu bytes failed; OS error %d (%s)\n",
 			len, oserr, slapd_system_strerror( oserr ) );
 		/* Leaked. This should not happen */

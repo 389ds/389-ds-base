@@ -13,30 +13,11 @@
 
 #include <string.h>
 #include <stdio.h>
-
 #include <ldap.h>
-#include <nspr.h> 
 #include <nss.h> 
-#include <secmod.h>
-/*
-#include <secasn1.h>
-#include <secpkcs7.h>
-*/
-#include <key.h>
-#include <certdb.h>
-#include <cert.h>
 #include <svrcore.h>
-#include <secmodt.h>
-#include <prtypes.h>
-#include <seccomon.h>
-#include <pk11func.h>
-
 #define NEED_TOK_PBE /* see slap.h - defines tokPBE and ptokPBE */
 #include "rever.h"
-#include <slap.h>
-#include "slapi-plugin.h"
-#include <uuid.h>
-#include <plbase64.h>
 
 struct pk11MechItem
 {

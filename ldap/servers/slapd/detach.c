@@ -61,10 +61,10 @@ set_workingdir(void)
 			rc = chdir("/");
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: set workingdir failed with \"%s\"\n", errorbuf);
 				}
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: failed to chdir to %s\n", "/");
+				slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", "/");
 			}
 		} else {
 			ptr = strrchr(errorlog, '/');
@@ -74,25 +74,25 @@ set_workingdir(void)
 			rc = chdir(errorlog);
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, errorlog, errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: set workingdir failed with \"%s\"\n", errorbuf);
 					rc = chdir("/");
 					if (0 == rc) {
 						if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-							LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+							slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: set workingdir failed with \"%s\"\n", errorbuf);
 						}
 					} else {
-						LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: failed to chdir to %s\n", "/");
+						slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", "/");
 					}
 				}
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: failed to chdir to %s\n", errorlog);
+				slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", errorlog);
 				rc = chdir("/");
 				if (0 == rc) {
 					if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-						LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+						slapi_log_err(SLAPI_LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 					}
 				} else {
-					LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: failed to chdir to %s\n", "/");
+					slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", "/");
 				}
 			}
 			slapi_ch_free_string(&errorlog);
@@ -100,19 +100,19 @@ set_workingdir(void)
 	} else {
 		/* calling config_set_workingdir to check for validity of directory, don't apply */
 		if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, workingdir, errorbuf, 0) == LDAP_OPERATIONS_ERROR) {
-			LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+			slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: set workingdir failed with \"%s\"\n", errorbuf);
 			rc = chdir("/");
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					slapi_log_err(SLAPI_LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
 				}
 			} else {
-				LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: failed to chdir to %s\n", "/");
+				slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", "/");
 			}
 		} else {
 			rc = chdir(workingdir);
 			if (rc) {
-				LDAPDebug1Arg(LDAP_DEBUG_ERR, "detach: failed to chdir to %s\n", workingdir);
+				slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", workingdir);
 			}
 		}
 		slapi_ch_free_string(&workingdir);
@@ -152,7 +152,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 		}
 
 		if (set_workingdir()) {
-			LDAPDebug0Args(LDAP_DEBUG_ERR, "detach: set_workingdir failed.\n");
+			slapi_log_err(SLAPI_LOG_ERR, "detach", "set_workingdir failed.\n");
 		}
 
 		if ( (sd = open( "/dev/null", O_RDWR )) == -1 ) {
@@ -179,7 +179,7 @@ detach( int slapd_exemode, int importexport_encrypt,
 			return 1;
 		}
 		if (set_workingdir()) {
-			LDAPDebug0Args(LDAP_DEBUG_ERR, "detach: set_workingdir failed.\n");
+			slapi_log_err(SLAPI_LOG_ERR, "detach", "set_workingdir failed 2.\n");
 		}
 	}
 
@@ -225,9 +225,9 @@ static void raise_process_fd_limits(void)
 	if ( getrlimit( RLIMIT_NOFILE, &rl ) != 0 ) {
 		int oserr = errno;
 
-		LDAPDebug(LDAP_DEBUG_ERR,
+		slapi_log_err(SLAPI_LOG_ERR, "raise_process_fd_limits",
 		    "getrlimit of descriptor limit failed - error %d (%s)\n",
-		    oserr, slapd_system_strerror( oserr ), 0 );
+		    oserr, slapd_system_strerror( oserr ));
 		return;
 	}
 
@@ -247,17 +247,16 @@ static void raise_process_fd_limits(void)
 		if ( setrlimit( RLIMIT_NOFILE, &setrl ) != 0 ) {
 			int oserr = errno;
 
-			LDAPDebug(LDAP_DEBUG_ERR, "setrlimit of descriptor "
-			    "limit to %d failed - error %d (%s)\n",
-			    setrl.rlim_cur, oserr,
-			    slapd_system_strerror(oserr));
+			slapi_log_err(SLAPI_LOG_ERR, "raise_process_fd_limits",
+				"setrlimit of descriptor limit to %lu failed - error %d (%s)\n",
+			    setrl.rlim_cur, oserr, slapd_system_strerror(oserr));
 			return;
 		}
 	}
 		    
 	(void)getrlimit( RLIMIT_NOFILE, &rl );
-	LDAPDebug(LDAP_DEBUG_TRACE, "descriptor limit changed from %d to %d\n",
-	    curlim, rl.rlim_cur, 0 );
+	slapi_log_err(SLAPI_LOG_TRACE, "raise_process_fd_limits",
+		"descriptor limit changed from %d to %lu\n", curlim, rl.rlim_cur);
 }
 
 /*
@@ -274,12 +273,12 @@ raise_process_limits()
 	if (getrlimit(RLIMIT_DATA,&rl) == 0) {
 	    rl.rlim_cur = rl.rlim_max;
 	    if (setrlimit(RLIMIT_DATA,&rl) != 0) {
-	        LDAPDebug(LDAP_DEBUG_TRACE,"setrlimit(RLIMIT_DATA) failed %d\n",
-			  errno,0,0);
+	        slapi_log_err(SLAPI_LOG_TRACE, "raise_process_limits", "setrlimit(RLIMIT_DATA) failed %d\n",
+			  errno);
 	    }
 	} else {
-	    LDAPDebug(LDAP_DEBUG_TRACE,"getrlimit(RLIMIT_DATA) failed %d\n",
-		      errno,0,0);
+	    slapi_log_err(SLAPI_LOG_TRACE, "raise_process_limits", "getrlimit(RLIMIT_DATA) failed %d\n",
+		      errno);
 	}
 #endif
 
@@ -287,12 +286,12 @@ raise_process_limits()
 	if (getrlimit(RLIMIT_VMEM,&rl) == 0) {
 	    rl.rlim_cur = rl.rlim_max;
 	    if (setrlimit(RLIMIT_VMEM,&rl) != 0) {
-	        LDAPDebug(LDAP_DEBUG_TRACE,"setrlimit(RLIMIT_VMEM) failed %d\n",
-			  errno,0,0);
+	        slapi_log_err(SLAPI_LOG_TRACE, "raise_process_limits", "setrlimit(RLIMIT_VMEM) failed %d\n",
+			  errno);
 	    }
 	} else {
-	    LDAPDebug(LDAP_DEBUG_TRACE,"getrlimit(RLIMIT_VMEM) failed %d\n",
-		      errno,0,0);
+	    slapi_log_err(SLAPI_LOG_TRACE, "raise_process_limits", "getrlimit(RLIMIT_VMEM) failed %d\n",
+		      errno);
 	}
 #endif /* RLIMIT_VMEM */
 }

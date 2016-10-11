@@ -87,22 +87,22 @@ ldbm_back_seq( Slapi_PBlock *pb )
 	/* get a database */
 
 	ainfo_get( be, attrname, &ai );
-	LDAPDebug(LDAP_DEBUG_ARGS,
-	    "   ldbm_back_seq - indextype: %s indexmask: 0x%x seek type: %d\n",
+	slapi_log_err(SLAPI_LOG_ARGS,
+	    "ldbm_back_seq", "indextype: %s indexmask: 0x%x seek type: %d\n",
 	    ai->ai_type, ai->ai_indexmask, type );
 	if ( ! (INDEX_EQUALITY & ai->ai_indexmask) ) {
-		LDAPDebug(LDAP_DEBUG_TRACE,
-		    "ldbm_back_seq - caller specified un-indexed attribute %s\n",
-			   attrname ? attrname : "", 0, 0 );
+		slapi_log_err(SLAPI_LOG_TRACE,
+		    "ldbm_back_seq", "caller specified un-indexed attribute %s\n",
+			   attrname ? attrname : "");
 		slapi_send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
 		    "Unindexed seq access type", 0, NULL );
 		return -1;
 	}
 
 	if ( (return_value = dblayer_get_index_file( be, ai, &db, DBOPEN_CREATE )) != 0 ) {
-		LDAPDebug(LDAP_DEBUG_ERR,
-		    "ldbm_back_seq - Could not open index file for attribute %s\n",
-		    attrname, 0, 0 );
+		slapi_log_err(SLAPI_LOG_ERR,
+		    "ldbm_back_seq", "Could not open index file for attribute %s\n",
+		    attrname);
 		slapi_send_ldap_result( pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL );
 		return -1;
 	}
@@ -216,7 +216,7 @@ retry:
 					idl_free(&idl);
 					idl = idl_fetch( be, db, &key, parent_txn, ai, &err );
 					if(err == DB_LOCK_DEADLOCK) {
-						ldbm_nasty("ldbm_back_seq deadlock retry", 1600, err);
+						ldbm_nasty("ldbm_back_seq", "deadlock retry", 1600, err);
 						if (txn.back_txn_txn) {
 							/* just in case */
 							slapi_ch_free(&(data.data));
@@ -238,7 +238,7 @@ retry:
 				dblayer_read_txn_abort(be, &txn);
 			}
 			if (DB_LOCK_DEADLOCK == return_value) {
-				ldbm_nasty("ldbm_back_seq - deadlock retry", 1601, err);
+				ldbm_nasty("ldbm_back_seq", "deadlock retry", 1601, err);
 				/* just in case */
 				slapi_ch_free(&(data.data));
 				if ((key.data != little_buffer) && (key.data != &keystring)) {
@@ -248,9 +248,9 @@ retry:
 			}
 		}
 		if(retry_count == IDL_FETCH_RETRY_COUNT) {
-			ldbm_nasty("ldbm_back_seq - retry count exceeded",1645,err);
+			ldbm_nasty("ldbm_back_seq", "Retry count exceeded",1645,err);
 		} else if ( err != 0 && err != DB_NOTFOUND ) {
-			ldbm_nasty("ldbm_back_seq - database error", 1650, err);
+			ldbm_nasty("ldbm_back_seq", "Database error", 1650, err);
 		}
 		slapi_ch_free( &(data.data) );
 		if ( key.data != little_buffer && key.data != &keystring ) {
@@ -275,11 +275,11 @@ retry:
 		    {
 				if ( err != LDAP_SUCCESS )
 				{
-				    LDAPDebug(LDAP_DEBUG_ERR, "ldbm_back_seq - id2entry err %d\n", err, 0, 0 );
+				    slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_seq", "id2entry err %d\n", err);
 				}
-				LDAPDebug(LDAP_DEBUG_ARGS,
-					"ldbm_back_seq - candidate %lu not found\n",
-					(u_long)id, 0, 0 );
+				slapi_log_err(SLAPI_LOG_ARGS,
+					"ldbm_back_seq", "candidate %lu not found\n",
+					(u_long)id);
 				continue;
 		    }
 		    if ( slapi_send_ldap_search_entry( pb, e->ep_entry, NULL, NULL, 0 ) == 0 )

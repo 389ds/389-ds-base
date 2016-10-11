@@ -46,7 +46,7 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
         return NULL;
     }
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+    slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "--> posix_winsync_agmt_init [%s] [%s] -- begin\n",
                     slapi_sdn_get_dn(ds_subtree), slapi_sdn_get_dn(ad_subtree));
 
@@ -55,7 +55,7 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
 		/* if sdn is a parent of ds_subtree or sdn is the WinSync Subtree itself */
         if (slapi_sdn_isparent(sdn, ds_subtree) || !slapi_sdn_compare(sdn, ds_subtree)) {
             theConfig.rep_suffix = sdn;
-            slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "posix_winsync_agmt_init - "
+            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "posix_winsync_agmt_init - "
                     "Found suffix's '%s'\n", slapi_sdn_get_dn(sdn));
             break;
         }
@@ -63,13 +63,13 @@ posix_winsync_agmt_init(const Slapi_DN *ds_subtree, const Slapi_DN *ad_subtree)
     }
     if (!sdn) {
         char *pardn = slapi_dn_parent(slapi_sdn_get_dn(ds_subtree));
-        slapi_log_error(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME, "posix_winsync_agmt_init - "
+        slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME, "posix_winsync_agmt_init - "
                 "suffix not found for '%s'\n", pardn);
         slapi_ch_free_string(&pardn);
     }
 
     plugin_op_finished();
-    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+    slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "<-- posix_winsync_agmt_init -- end\n");
 
     return cbdata;
@@ -151,10 +151,10 @@ posix_winsync_config(Slapi_Entry *config_e)
     theConfig.config_e = NULL;
     theConfig.lock = NULL;
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "--> _config %s -- begin\n",
+    slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME, "--> _config %s -- begin\n",
                     slapi_entry_get_dn_const(config_e));
     if (inited) {
-        slapi_log_error(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME,
                         "posix_winsync_config - POSIX WinSync plug-in already configured.  "
                         "Please remove the plugin config entry [%s]\n",
                         slapi_entry_get_dn_const(config_e));
@@ -183,7 +183,7 @@ posix_winsync_config(Slapi_Entry *config_e)
         const char *config_dn = slapi_entry_get_dn_const(config_e);
 
         if (!memberUidLockInit()) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                             "posix_winsync_config - init Monitor failed\n");
         }
 
@@ -193,7 +193,7 @@ posix_winsync_config(Slapi_Entry *config_e)
 
         rc = slapi_task_register_handler("memberuid task", posix_group_task_add);
         if (rc) {
-            slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+            slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                             "posix_winsync_config - register memberuid task failed\n");
         }
     }
@@ -201,7 +201,7 @@ posix_winsync_config(Slapi_Entry *config_e)
     inited = 1;
 
     if (returncode != LDAP_SUCCESS) {
-        slapi_log_error(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME, "posix_winsync_config - Error %d: %s\n", returncode,
+        slapi_log_err(SLAPI_LOG_ERR, POSIX_WINSYNC_PLUGIN_NAME, "posix_winsync_config - Error %d: %s\n", returncode,
                         returntext);
     }
 
@@ -237,7 +237,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     /* get msfuSchema value */
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MSSFU_SCHEMA, &testattr) && (NULL != testattr)) {
         mssfuSchema = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MSSFU_SCHEMA);
-        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "posix_winsync_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_MSSFU_SCHEMA,
                         mssfuSchema);
     }
@@ -245,7 +245,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     /* get memberUid value */
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MAP_MEMBERUID, &testattr) && (NULL != testattr)) {
         mapMemberUID = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MAP_MEMBERUID);
-        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "posix_winsync_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_MAP_MEMBERUID,
                         mapMemberUID);
     }
@@ -253,21 +253,21 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_CREATE_MEMBEROFTASK, &testattr) && (NULL
         != testattr)) {
         createMemberOfTask = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_CREATE_MEMBEROFTASK);
-        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "posix_winsync_apply_config: Config parameter %s: %d\n",
                         POSIX_WINSYNC_CREATE_MEMBEROFTASK, createMemberOfTask);
     }
     /* get lower case UID in memberUID */
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_LOWER_CASE, &testattr) && (NULL != testattr)) {
         lowercase = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_LOWER_CASE);
-        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "posix_winsync_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_LOWER_CASE,
                         lowercase);
     }
     /* propogate memberuids in nested grouping */
     if (!slapi_entry_attr_find(e, POSIX_WINSYNC_MAP_NESTED_GROUPING, &testattr) && (NULL != testattr)) {
         mapNestedGrouping = slapi_entry_attr_get_bool(e, POSIX_WINSYNC_MAP_NESTED_GROUPING);
-        slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+        slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                         "posix_winsync_apply_config: Config parameter %s: %d\n", POSIX_WINSYNC_MAP_NESTED_GROUPING,
                         mapNestedGrouping);
     }
@@ -286,7 +286,7 @@ posix_winsync_apply_config(Slapi_PBlock *pb, Slapi_Entry* entryBefore, Slapi_Ent
     theConfig.mapNestedGrouping = mapNestedGrouping;
 
     /* success */
-    slapi_log_error(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
+    slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                     "<-- posix_winsync_apply_config: config evaluated\n");
     *returncode = LDAP_SUCCESS;
 
