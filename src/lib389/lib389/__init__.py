@@ -263,57 +263,15 @@ class DirSrv(SimpleLDAPObject):
             @raise ldap.LDAPError - if failure during initialization
 
         """
-        if self.binddn and len(self.binddn):
-            try:
-                # XXX this fields are stale and not continuously updated
-                # do they have sense?
-                ent = self.getEntry(DN_CONFIG, attrlist=[
-                    'nsslapd-instancedir',
-                    'nsslapd-errorlog',
-                    'nsslapd-accesslog',
-                    'nsslapd-auditlog',
-                    'nsslapd-certdir',
-                    'nsslapd-schemadir',
-                    'nsslapd-bakdir',
-                    'nsslapd-ldifdir'])
-                self.errlog = ent.getValue('nsslapd-errorlog')
-                self.accesslog = ent.getValue('nsslapd-accesslog')
-                self.auditlog = ent.getValue('nsslapd-auditlog')
-                self.confdir = ent.getValue('nsslapd-certdir')
-                self.schemadir = ent.getValue('nsslapd-schemadir')
-                self.bakdir = ent.getValue('nsslapd-bakdir')
-                self.ldifdir = ent.getValue('nsslapd-ldifdir')
-
-                if self.isLocal:
-                    if not self.confdir or \
-                       not os.access(self.confdir.decode('utf-8') + '/dse.ldif', os.R_OK):
-                        self.confdir = ent.getValue('nsslapd-schemadir')
-                        if self.confdir:
-                            self.confdir = os.path.dirname(self.confdir)
-                if not self.schemadir:
-                    # assume it is in the "schema" subdir of the confdir
-                    self.schemadir = os.path.join(self.confdir, "schema")
-                instdir = ent.getValue('nsslapd-instancedir')
-                if not instdir and self.isLocal:
-                    if self.isLocal:
-                        instdir = self.ds_paths.inst_dir
-                if not instdir:
-                    instdir = self.confdir.decode('utf-8')
-
-                # parse the lib dir, and so set the plugin dir
-                self.instdir = instdir
-
-                ent = self.getEntry('cn=config,' + DN_LDBM,
-                                    attrlist=['nsslapd-directory'])
-                self.dbdir = os.path.dirname(ent.getValue('nsslapd-directory'))
-            except (ldap.INSUFFICIENT_ACCESS, ldap.CONNECT_ERROR,
-                    NoSuchEntryError):
-                log.exception("Skipping exception during initialization")
-            except ldap.OPERATIONS_ERROR as e:
-                log.exception("Skipping exception: Probably Active Directory")
-            except ldap.LDAPError as e:
-                log.exception("Error during initialization, error: " + str(e))
-                raise
+        self.errlog = self.ds_paths.error_log
+        self.accesslog = self.ds_paths.access_log
+        self.auditlog = self.ds_paths.audit_log
+        self.confdir = self.ds_paths.config_dir
+        self.schemadir = self.ds_paths.schema_dir
+        self.bakdir = self.ds_paths.backup_dir
+        self.ldifdir = self.ds_paths.ldif_dir
+        self.instdir = self.ds_paths.inst_dir
+        self.dbdir = self.ds_paths.db_dir
 
     def __localinit__(self):
         '''
@@ -446,7 +404,7 @@ class DirSrv(SimpleLDAPObject):
         self.timeout = timeout
         self.confdir = None
 
-        self.ds_paths = Paths()
+        self.ds_paths = Paths(instance=self)
 
         # Reset the args (py.test reuses the args_instance for each test case)
         args_instance[SER_DEPLOYED_DIR] = os.environ.get('PREFIX', self.ds_paths.prefix)
@@ -512,9 +470,9 @@ class DirSrv(SimpleLDAPObject):
             self.log.debug('SER_SERVERID_PROP not provided')
             # The lack of this value basically rules it out in most cases
             self.isLocal = False
-            self.ds_paths = Paths()
+            self.ds_paths = Paths(instance=self)
         else:
-            self.ds_paths = Paths(args[SER_SERVERID_PROP])
+            self.ds_paths = Paths(args[SER_SERVERID_PROP], instance=self)
 
 
         # Do we have ldapi settings?
@@ -786,24 +744,14 @@ class DirSrv(SimpleLDAPObject):
             serverid = self.serverid
 
         # first identify the directories we will scan
-        confdir = os.getenv('INITCONFIGDIR')
-        if confdir:
-            if self.verbose:
-                self.log.info("$INITCONFIGDIR set to: %s" % confdir)
-            if not os.path.isdir(confdir):
-                raise ValueError("$INITCONFIGDIR incorrect directory (%s)" %
-                                 confdir)
-            sysconfig_head = confdir
+        sysconfig_head = self.ds_paths.initconfig_dir
+        privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
+        if not os.path.isdir(sysconfig_head):
             privconfig_head = None
-        else:
-            sysconfig_head = self.ds_paths.initconfig_dir
-            privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
-            if not os.path.isdir(sysconfig_head):
-                privconfig_head = None
-            if self.verbose:
-                self.log.info("dir (sys) : %s" % sysconfig_head)
-            if privconfig_head and self.verbose:
-                self.log.info("dir (priv): %s" % privconfig_head)
+        if self.verbose:
+            self.log.info("dir (sys) : %s" % sysconfig_head)
+        if privconfig_head and self.verbose:
+            self.log.info("dir (priv): %s" % privconfig_head)
 
         # list of the found instances
         instances = []
@@ -1563,6 +1511,9 @@ class DirSrv(SimpleLDAPObject):
 
     def get_local_state_dir(self):
         return self.ds_paths.local_state_dir
+
+    def get_config_dir(self):
+        return self.ds_paths.config_dir
 
     def get_sysconf_dir(self):
         return self.ds_paths.sysconf_dir

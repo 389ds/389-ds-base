@@ -9,6 +9,8 @@
 import sys
 import os
 
+from lib389._constants import DIRSRV_STATE_ONLINE
+
 MAJOR, MINOR, _, _, _ = sys.version_info
 
 if MAJOR >= 3:
@@ -60,10 +62,30 @@ MUST = [
     'initconfig_dir',
 ]
 
+# will need to add the access, error, audit log later.
+
+# This maps a config to (entry, attr).
+# This can be used online, or while the server is offline and we can parse dse.ldif
+
+CONFIG_MAP = {
+    'user' : ('cn=config', 'nsslapd-localuser'),
+    'group' : ('cn=config','nsslapd-localuser'), # Is this correct?
+    'schema_dir' : ('cn=config','nsslapd-schemadir'),
+    'cert_dir' : ('cn=config','nsslapd-certdir'),
+    'lock_dir' : ('cn=config','nsslapd-lockdir'),
+    'inst_dir' : ('cn=config','nsslapd-instancedir'),
+    'db_dir' : ('cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-directory'),
+    'backup_dir': ('cn=config','nsslapd-bakdir'),
+    'ldif_dir': ('cn=config','nsslapd-ldifdir'),
+    'error_log' : ('cn=config', 'nsslapd-errorlog'),
+    'access_log' : ('cn=config', 'nsslapd-accesslog'),
+    'audit_log' : ('cn=config', 'nsslapd-auditlog'),
+}
+
 SECTION = 'slapd'
 
 class Paths(object):
-    def __init__(self, serverid=None):
+    def __init__(self, serverid=None, instance=None):
         """
         Parses and uses a set of default paths from wellknown locations. The list
         of keys available is from the MUST attribute in this module.
@@ -86,6 +108,7 @@ class Paths(object):
         self._defaults_cached = False
         self._config = None
         self._serverid = serverid
+        self._instance = instance
 
     def _get_defaults_loc(self, search_paths):
         for spath in search_paths:
@@ -111,7 +134,14 @@ class Paths(object):
         if self._defaults_cached is False:
             self._read_defaults()
             self._validate_defaults()
-        if self._serverid is not None:
+        # Are we online? Is our key in the config map?
+        if name in CONFIG_MAP and self._instance is not None and self._instance.state == DIRSRV_STATE_ONLINE:
+            # Get the online value.
+            (dn, attr) = CONFIG_MAP[name]
+            ent = self._instance.getEntry(dn, attrlist=[attr,])
+            return ent.getValue(attr)
+
+        elif self._serverid is not None:
             return self._config.get(SECTION, name).format(instance_name=self._serverid)
         else:
             return self._config.get(SECTION, name)
