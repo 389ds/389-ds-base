@@ -595,43 +595,26 @@ def test_basic_referrals(topology, import_example_ldif):
 
 
 def test_basic_systemctl(topology, import_example_ldif):
-    """Test systemctl can stop and start the server.  Also test that start reports an
+    """Test systemctl/lib389 can stop and start the server.  Also test that start reports an
     error when the instance does not start.  Only for RPM builds
     """
 
     log.info('Running test_basic_systemctl...')
 
-    # We can only use systemctl on RPM installations
-    if topology.standalone.prefix and topology.standalone.prefix != '/':
-        return
-
-    data_dir = topology.standalone.getDir(__file__, DATA_DIR)
-    tmp_dir = '/tmp'
-    config_dir = topology.standalone.confdir
-    start_ds = 'sudo systemctl start dirsrv@' + topology.standalone.serverid + '.service'
-    stop_ds = 'sudo systemctl stop dirsrv@' + topology.standalone.serverid + '.service'
-    is_running = 'sudo systemctl is-active dirsrv@' + topology.standalone.serverid + '.service'
+    config_dir = topology.standalone.get_config_dir()
 
     #
     # Stop the server
     #
     log.info('Stopping the server...')
-    rc = os.system(stop_ds)
-    log.info('Check the status...')
-    if rc != 0 or os.system(is_running) == 0:
-        log.fatal('test_basic_systemctl: Failed to stop the server')
-        assert False
+    topology.standalone.stop()
     log.info('Stopped the server.')
 
     #
     # Start the server
     #
     log.info('Starting the server...')
-    rc = os.system(start_ds)
-    log.info('Check the status...')
-    if rc != 0 or os.system(is_running) != 0:
-        log.fatal('test_basic_systemctl: Failed to start the server')
-        assert False
+    topology.standalone.start()
     log.info('Started the server.')
 
     #
@@ -639,22 +622,21 @@ def test_basic_systemctl(topology, import_example_ldif):
     # and verify that systemctl detects the failed start
     #
     log.info('Stopping the server...')
-    rc = os.system(stop_ds)
-    log.info('Check the status...')
-    if rc != 0 or os.system(is_running) == 0:
-        log.fatal('test_basic_systemctl: Failed to stop the server')
-        assert False
+    topology.standalone.stop()
     log.info('Stopped the server before breaking the dse.ldif.')
 
-    shutil.copy(config_dir + '/dse.ldif', tmp_dir)
-    shutil.copy(data_dir + 'basic/dse.ldif.broken', config_dir + '/dse.ldif')
+    shutil.copy(config_dir + '/dse.ldif', config_dir + '/dse.ldif.correct' )
+    open(config_dir + '/dse.ldif', 'w').close()
+    # We need to kill the .bak file too, DS is just too smart!
+    open(config_dir + '/dse.ldif.bak', 'w').close()
 
     log.info('Attempting to start the server with broken dse.ldif...')
-    rc = os.system(start_ds)
+    try:
+        topology.standalone.start()
+    except:
+        log.info('Server failed to start as expected')
     log.info('Check the status...')
-    if rc == 0 or os.system(is_running) == 0:
-        log.fatal('test_basic_systemctl: The server incorrectly started')
-        assert False
+    assert(not topology.standalone.status())
     log.info('Server failed to start as expected')
     time.sleep(5)
 
@@ -662,16 +644,12 @@ def test_basic_systemctl(topology, import_example_ldif):
     # Fix the dse.ldif, and make sure the server starts up,
     # and systemctl correctly identifies the successful start
     #
-    shutil.copy(tmp_dir + '/dse.ldif', config_dir)
+    shutil.copy(config_dir + '/dse.ldif.correct', config_dir + '/dse.ldif' )
     log.info('Starting the server with good dse.ldif...')
-    rc = os.system(start_ds)
-    time.sleep(5)
+    topology.standalone.start()
     log.info('Check the status...')
-    if rc != 0 or os.system(is_running) != 0:
-        log.fatal('test_basic_systemctl: Failed to start the server')
-        assert False
+    assert(topology.standalone.status())
     log.info('Server started after fixing dse.ldif.')
-    time.sleep(1)
 
     log.info('test_basic_systemctl: PASSED')
 
