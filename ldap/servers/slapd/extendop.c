@@ -46,9 +46,8 @@ static void extop_handle_import_start(Slapi_PBlock *pb, char *extoid,
         /* check that the dn is formatted correctly */
         ret = slapi_dn_syntax_check(pb, orig, 1);
         if (ret) { /* syntax check failed */
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "extop_handle_import_start - strict: invalid suffix\n",
-                          orig);
+            slapi_log_err(SLAPI_LOG_ERR, "extop_handle_import_start",
+                    "strict: invalid suffix (%s)\n", orig);
             send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX, NULL,
                              "invalid suffix", 0, NULL);
             return;
