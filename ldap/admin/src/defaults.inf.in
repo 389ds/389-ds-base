@@ -21,6 +21,8 @@ product = @capbrand@ Directory Server
 version = @PACKAGE_VERSION@
 ; In 1.2.xx, this will never be true.
 asan_enabled = false
+with_selinux = @with_selinux@
+with_systemd = false
 prefix = @prefixdir@
 bin_dir = @bindir@
 sbin_dir = @sbindir@
@@ -32,6 +34,7 @@ initconfig_dir = @initconfigdir@
 config_dir = @instconfigdir@/slapd-{instance_name}
 local_state_dir = @localstatedir@
 run_dir = @localstatedir@/run/dirsrv
+pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
 plugin_dir = @serverplugindir@
 
 ; These values can be altered in an installation of ds
