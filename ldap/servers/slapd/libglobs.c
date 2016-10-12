@@ -1668,7 +1668,7 @@ FrontendConfig_init(void) {
   cfg->maxsimplepaged_per_conn = DEFAULT_MAXSIMPLEPAGED_PER_CONN;
   cfg->maxbersize = DEFAULT_MAXBERSIZE;
 #ifdef ENABLE_NUNC_STANS
-  init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
+  init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_ON;
 #endif
 #if defined(LINUX)
   init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
