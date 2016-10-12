@@ -224,8 +224,9 @@ allinstance_set_busy(struct ldbminfo *li)
         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         inst = (ldbm_instance *)object_get_data(inst_obj);
         if (instance_set_busy(inst)) {
-            slapi_log_err(SLAPI_LOG_TRACE, "could not set instance [%s] as busy, probably already busy\n",
-                      inst->inst_name);
+            slapi_log_err(SLAPI_LOG_TRACE, "allinstance_set_busy",
+                    "Could not set instance [%s] as busy, probably already busy\n",
+                    inst->inst_name);
         }
     }
 }
@@ -328,7 +329,7 @@ mkdir_p(char *dir, unsigned int mode)
             PR_Delete(dir);
             if (PR_SUCCESS != PR_MkDir(dir, mode))
             {
-                slapi_log_err(SLAPI_LOG_ERR, "mkdir_p - %s: error %d (%s)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "mkdir_p","%s: error %d (%s)\n",
                     dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
                 return -1;
             }
@@ -364,7 +365,7 @@ mkdir_p(char *dir, unsigned int mode)
             return rval;
         if (PR_SUCCESS != PR_MkDir(dir, mode))
         {
-            slapi_log_err(SLAPI_LOG_ERR, "mkdir_p - %s: error %d (%s)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "mkdir_p", "%s: error %d (%s)\n",
                     dir, PR_GetError(),slapd_pr_strerror(PR_GetError()));
             return -1;
         }
@@ -536,8 +537,8 @@ get_value_from_string(const char *string, char *type, char **value)
         rc = slapi_ldif_parse_line(copy, &tmptype, &bvvalue, &freeval);
         if (0 > rc || NULL == tmptype.bv_val ||
             NULL == bvvalue.bv_val || 0 >= bvvalue.bv_len) {
-            slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string", "parse "
-                                             "failed: %d\n", rc);
+            slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
+                    "parse failed: %d\n", rc);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
             }
@@ -545,9 +546,8 @@ get_value_from_string(const char *string, char *type, char **value)
             goto bail;
         }
         if (0 != PL_strncasecmp(type, tmptype.bv_val, tmptype.bv_len)) {
-            slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string", "type "
-                                             "does not match: %s != %s\n", 
-                                             type, tmptype.bv_val);
+            slapi_log_err(SLAPI_LOG_ERR, "get_value_from_string",
+                    "type does not match: %s != %s\n", type, tmptype.bv_val);
             if (freeval) {
                 slapi_ch_free_string(&bvvalue.bv_val);
             }

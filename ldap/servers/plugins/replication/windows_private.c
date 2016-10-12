@@ -932,14 +932,14 @@ create_subtree_pairs(char **pairs)
 		p1 = ldap_utf8strtok_r(NULL, ":", &saveptr);
 		if ((NULL == p0) || (NULL == p1)) {
 			slapi_log_err(SLAPI_LOG_ERR,
-			              "create_subtree_pairs: "
+			              "create_subtree_pairs",
 			              "Ignoring invalid subtree pairs \"%s\".\n", *ptr);
 			continue;
 		}
 		spp->DSsubtree = slapi_sdn_new_dn_byval(p0);
 		if (NULL == spp->DSsubtree) {
 			slapi_log_err(SLAPI_LOG_ERR,
-			              "create_subtree_pairs: "
+			              "create_subtree_pairs",
 			              "Ignoring invalid DS subtree \"%s\".\n",
 			              p0);
 			continue;
@@ -947,7 +947,7 @@ create_subtree_pairs(char **pairs)
 		spp->ADsubtree = slapi_sdn_new_dn_byval(p1);
 		if (NULL == spp->ADsubtree) {
 			slapi_log_err(SLAPI_LOG_ERR,
-			              "create_subtree_pairs: "
+			              "create_subtree_pairs",
 			              "Ignoring invalid AD subtree \"%s\".\n",
 			              p1);
 			slapi_sdn_free(&(spp->DSsubtree));

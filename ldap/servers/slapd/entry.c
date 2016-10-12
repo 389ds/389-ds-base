@@ -325,7 +325,7 @@ str2entry_fast( const char *rawdn, const Slapi_RDN *srdn, char *s, int flags, in
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
 							slapi_log_err(SLAPI_LOG_TRACE,
-							     "str2entry_fast: Invalid DN: %s\n", (char *)rawdn);
+							     "str2entry_fast", "Invalid DN: %s\n", (char *)rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&value.bv_val);
 							e = NULL;
@@ -864,7 +864,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 				} else {
 					normdn = slapi_create_dn_string("%s", rawdn);
 					if (NULL == normdn) {
-						slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck"
+						slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
 						    "nvalid DN: %s\n", (char *)rawdn);
 						slapi_entry_free( e );
 						if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -887,7 +887,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 					} else {
 						normdn = slapi_create_dn_string("%s", rawdn);
 						if (NULL == normdn) {
-						slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck"
+						slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
 							     "Invalid DN: %s\n", (char *)rawdn);
 							slapi_entry_free( e );
 							if (freeval) slapi_ch_free_string(&bvvalue.bv_val);
@@ -918,7 +918,7 @@ str2entry_dupcheck( const char *rawdn, char *s, int flags, int read_stateinfo )
 			}
 			normdn = slapi_create_dn_string("%s", valuecharptr);
 			if (NULL == normdn) {
-				slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck"
+				slapi_log_err(SLAPI_LOG_TRACE, "str2entry_dupcheck",
 						"Invalid DN: %s\n", valuecharptr);
 				slapi_entry_free( e ); e = NULL;
 				if (freeval) slapi_ch_free_string(&bvvalue.bv_val);

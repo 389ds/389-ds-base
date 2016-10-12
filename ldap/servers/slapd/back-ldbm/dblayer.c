@@ -511,7 +511,7 @@ void dblayer_log_print(const char* prefix, char *buffer)
 #endif
 {
     /* We ignore the prefix since we know who we are anyway */
-    slapi_log_err(SLAPI_LOG_ERR,"libdb - %s\n", (char *)buffer);    
+    slapi_log_err(SLAPI_LOG_ERR,"libdb","%s\n", (char *)buffer);    
 }
 
 void dblayer_remember_disk_filled(struct ldbminfo *li)

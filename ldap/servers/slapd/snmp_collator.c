@@ -457,21 +457,24 @@ snmp_collator_create_semaphore(void)
             /* It appears that we didn't exit cleanly last time and left the semaphore
              * around.  Recreate it since we don't know what state it is in. */
             if (sem_unlink(stats_sem_name) != 0) {
-                slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore - Failed to delete old semaphore for stats file (%s). "
-                          "Error %d (%s).\n", szStatsFile, errno, slapd_system_strerror(errno) );
+                slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
+                        "Failed to delete old semaphore for stats file (%s). "
+                        "Error %d (%s).\n", szStatsFile, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
 
             if ((stats_sem = sem_open(stats_sem_name, O_CREAT | O_EXCL, SLAPD_DEFAULT_FILE_MODE, 1)) == SEM_FAILED) {
                 /* No dice */
-                slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore - Failed to create semaphore for stats file (%s). Error %d (%s).\n",
-                         szStatsFile, errno, slapd_system_strerror(errno) );
+                slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
+                        "Failed to create semaphore for stats file (%s). Error %d (%s).\n",
+                        szStatsFile, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
         } else {
             /* Some other problem occurred creating the semaphore. */
-            slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore - Failed to create semaphore for stats file (%s). Error %d.(%s)\n",
-                     szStatsFile, errno, slapd_system_strerror(errno) );
+            slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
+                    "Failed to create semaphore for stats file (%s). Error %d.(%s)\n",
+                    szStatsFile, errno, slapd_system_strerror(errno) );
             exit(1);
         }
     }
@@ -495,7 +498,7 @@ snmp_collator_sem_wait(void)
 
     if (SEM_FAILED == stats_sem) {
         slapi_log_err(SLAPI_LOG_ERR,
-           "snmp_collator_sem_wait - semaphore for stats file (%s) is not available.\n", szStatsFile);
+           "snmp_collator_sem_wait", "semaphore for stats file (%s) is not available.\n", szStatsFile);
         return;
     }
 

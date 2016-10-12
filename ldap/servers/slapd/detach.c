@@ -89,7 +89,7 @@ set_workingdir(void)
 				rc = chdir("/");
 				if (0 == rc) {
 					if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-						slapi_log_err(SLAPI_LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+						slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: set workingdir failed with \"%s\"\n", errorbuf);
 					}
 				} else {
 					slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", "/");
@@ -104,7 +104,7 @@ set_workingdir(void)
 			rc = chdir("/");
 			if (0 == rc) {
 				if (config_set_workingdir(CONFIG_WORKINGDIR_ATTRIBUTE, "/", errorbuf, 1) == LDAP_OPERATIONS_ERROR) {
-					slapi_log_err(SLAPI_LOG_ERR, "detach: set workingdir failed with \"%s\"\n", errorbuf);
+					slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: set workingdir failed with \"%s\"\n", errorbuf);
 				}
 			} else {
 				slapi_log_err(SLAPI_LOG_ERR, "set_workingdir", "detach: failed to chdir to %s\n", "/");

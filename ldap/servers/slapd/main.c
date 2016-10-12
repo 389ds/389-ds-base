@@ -2064,7 +2064,7 @@ slapd_exemode_ldif2db(void)
 
     plugin = lookup_plugin_by_instance_name(cmd_line_instance_name);
     if (plugin == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, 
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_exemode_ldif2db",
                   "Could not find backend '%s'.\n",
                   cmd_line_instance_name);
         return 1;

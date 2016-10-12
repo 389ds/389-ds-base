@@ -320,8 +320,8 @@ static Slapi_Entry *ids_sasl_user_to_entry(
                 slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
                         "sasl user search found no entries matchingfilter=%s\n", filter);
             } else {
-                slapi_log_err(SLAPI_LOG_TRACE, "sasl user search found more than one entry "
-                    "matching filter=%s\n", filter);
+                slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
+                        "sasl user search found more than one entry matching filter=%s\n", filter);
                 if (entry) {
                     slapi_entry_free(entry);
                     entry = NULL;

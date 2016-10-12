@@ -48,7 +48,7 @@ ldbm_back_compare( Slapi_PBlock *pb )
 	if (inst && inst->inst_ref_count) {
 		slapi_counter_increment(inst->inst_ref_count);
 	} else {
-		slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_compare - "
+		slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_compare",
 			"Instance \"%s\" does not exist.\n",
 			inst ? inst->inst_name : "null instance");
 		return -1;
