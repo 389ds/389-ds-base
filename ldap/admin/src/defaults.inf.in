@@ -47,6 +47,9 @@ cert_dir = @instconfigdir@/slapd-{instance_name}
 
 lock_dir = @localstatedir@/lock/dirsrv/slapd-{instance_name}
 log_dir = @localstatedir@/log/dirsrv/slapd-{instance_name}
+access_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/access
+audit_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/audit
+error_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/error
 inst_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}
 db_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/db
 backup_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/bak
