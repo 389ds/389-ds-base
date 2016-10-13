@@ -1963,6 +1963,15 @@ check_plugin_path(Slapi_PBlock *pb,
          */
         res = realpath( full_path, NULL );
         if (res) {
+            /* If this ever fails, the way to check the error is:
+             * gdb -p ns-slapd;
+             * br _dlerror_run
+             * step until you hit something with (result).
+             * print *result
+             * You may need to repeat a few times, but eventually you'll get:
+             * $5 = {errcode = 0, returned = 0, malloced = true, objname = 0x608000053f40 "/opt/dirsrv/lib/dirsrv/plugins/libhellorust-0.1.0.so", errstring = 0x608000053f20 "undefined symbol: slapi_log_err"}
+             * In this case, it means we try to use a symbol that doesn't exist now.
+             */
             if ((handle = dlopen(res, RTLD_NOW)) == NULL) {
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,"Invalid plugin path %s - failed to open library", res);
