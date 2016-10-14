@@ -920,6 +920,7 @@ entry_apply_mod_wsi(Slapi_Entry *e, const LDAPMod *mod, const CSN *csn, int urp)
 		for ( i = 0;
 		      mod->mod_bvalues != NULL && mod->mod_bvalues[i] != NULL;
 		      i++ ) {
+			if (0==strcasecmp(PSEUDO_ATTR_UNHASHEDUSERPASSWORD,mod->mod_type)) continue;
 			LDAPDebug( LDAP_DEBUG_ARGS, "   %s: %s\n",
 			           mod->mod_type, mod->mod_bvalues[i]->bv_val, 0 );
 		}
