@@ -3661,6 +3661,7 @@ entry_apply_mod( Slapi_Entry *e, const LDAPMod *mod )
 		if((strcasecmp(mod->mod_type,"objectclass") == 0)  
 		   && (strncasecmp((const char *)mod->mod_bvalues[i]->bv_val,"ldapsubentry",mod->mod_bvalues[i]->bv_len) == 0)) 
 			sawsubentry=PR_TRUE;
+		if (0==strcasecmp(PSEUDO_ATTR_UNHASHEDUSERPASSWORD,mod->mod_type)) continue;
 		slapi_log_err(SLAPI_LOG_ARGS, "entry_apply_mod", "%s: %s\n", mod->mod_type, mod->mod_bvalues[i]->bv_val);
 	}
 	bvcnt = i;
