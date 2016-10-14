@@ -69,7 +69,7 @@ struct pk11ContextStore
 
 static int encode_path(char *inPlain, char **outCipher, char *path, int mech);
 static int decode_path(char *inCipher, char **outPlain, char *path, int mech, char *algid);
-static SVRCOREError genKey(struct pk11ContextStore **out, const char *token, char *path, int mech, PRArenaPool *arena, char *algid);
+static SVRCOREError genKey(struct pk11ContextStore **out, char *path, int mech, PRArenaPool *arena, char *algid);
 static SVRCOREError cryptPassword(struct pk11ContextStore *store, char * clear, unsigned char **out);
 static SVRCOREError decryptPassword(struct pk11ContextStore *store, unsigned char *cipher, char **out, int len);
 static void freePBE(struct pk11ContextStore *store);
@@ -102,7 +102,7 @@ encode_path(char *inPlain, char **outCipher, char *path, int mech)
     *outCipher = NULL;
     err = 1;
 
-    if ( genKey(&context, tokPBE, path, mech, arena, NULL) == SVRCORE_Success ){
+    if ( genKey(&context, path, mech, arena, NULL) == SVRCORE_Success ){
         /* Try an encryption */
         if ( cryptPassword(context, inPlain, &cipher) == SVRCORE_Success ){
             base = BTOA_DataToAscii(cipher, context->length);
@@ -160,7 +160,7 @@ decode_path(char *inCipher, char **outPlain, char *path, int mech, char *algid)
     *outPlain = NULL;
     err = 1;
 
-    if ( genKey(&context, tokPBE, path, mech, arena, algid) == SVRCORE_Success ){
+    if ( genKey(&context, path, mech, arena, algid) == SVRCORE_Success ){
         /* it seems that there is memory leak in that function: bug 400170 */
         base = ATOB_AsciiToData(inCipher, (unsigned int*)&len);
         if ( base != NULL ){
@@ -196,7 +196,7 @@ freePBE(struct pk11ContextStore *store)
 }
 
 static SVRCOREError
-genKey(struct pk11ContextStore **out, const char *token, char *path, int mech, PRArenaPool *arena, char *alg)
+genKey(struct pk11ContextStore **out, char *path, int mech, PRArenaPool *arena, char *alg)
 {
     SVRCOREError err = SVRCORE_Success;
     struct pk11ContextStore *store = NULL;
@@ -223,8 +223,7 @@ genKey(struct pk11ContextStore **out, const char *token, char *path, int mech, P
     }
     *out = store;
 
-    /* Use the tokenName to find a PKCS11 slot */
-    store->slot = slapd_pk11_findSlotByName((char *)token);
+    store->slot = slapd_pk11_getInternalKeySlot();
     if (store->slot == NULL){
         err = SVRCORE_NoSuchToken_Error;
         goto done;
