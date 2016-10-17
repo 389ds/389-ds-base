@@ -1735,8 +1735,7 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
         size_t one_gig_pages = GIGABYTE / *pagesize;
         if (*pages > (2 * one_gig_pages) ) {
             slapi_log_err(SLAPI_LOG_TRACE,"util_info_sys_pages",
-                    "More than 2Gbytes physical memory detected. Since this is a 32-bit process, "
-                    "truncating memory size used for auto cache calculations to 2Gbytes\n";
+                    "More than 2Gbytes physical memory detected. Since this is a 32-bit process, truncating memory size used for auto cache calculations to 2Gbytes\n");
             *pages = (2 * one_gig_pages);
         }
     }
