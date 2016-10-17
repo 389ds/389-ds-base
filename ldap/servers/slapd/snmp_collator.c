@@ -459,7 +459,7 @@ snmp_collator_create_semaphore(void)
             if (sem_unlink(stats_sem_name) != 0) {
                 slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
                         "Failed to delete old semaphore for stats file (%s). "
-                        "Error %d (%s).\n", szStatsFile, errno, slapd_system_strerror(errno) );
+                        "Error %d (%s).\n", stats_sem_name, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
 
@@ -467,14 +467,14 @@ snmp_collator_create_semaphore(void)
                 /* No dice */
                 slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
                         "Failed to create semaphore for stats file (%s). Error %d (%s).\n",
-                        szStatsFile, errno, slapd_system_strerror(errno) );
+                        stats_sem_name, errno, slapd_system_strerror(errno) );
                 exit(1);
             }
         } else {
             /* Some other problem occurred creating the semaphore. */
             slapi_log_err(SLAPI_LOG_EMERG, "snmp_collator_create_semaphore",
                     "Failed to create semaphore for stats file (%s). Error %d.(%s)\n",
-                    szStatsFile, errno, slapd_system_strerror(errno) );
+                    stats_sem_name, errno, slapd_system_strerror(errno) );
             exit(1);
         }
     }
