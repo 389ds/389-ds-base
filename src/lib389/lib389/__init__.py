@@ -985,7 +985,7 @@ class DirSrv(SimpleLDAPObject):
         uri = self.toLDAPURL()
         if self.verbose:
             self.log.info('open(): Connecting to uri %s' % uri)
-        if hasattr(ldap, 'PYLDAP_VERSION'):
+        if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
             SimpleLDAPObject.__init__(self, uri, bytes_mode=False)
         else:
             SimpleLDAPObject.__init__(self, uri)
@@ -1098,11 +1098,20 @@ class DirSrv(SimpleLDAPObject):
             # Start the process.
             # Wait for it to terminate
             # This means the server is probably ready to go ....
+            env = {}
+            if self.has_asan():
+                log.error("NOTICE: Starting instance with ASAN options")
+                log.error("This is probably not what you want. Please contact support.")
+                log.error("ASAN options will be copied from your environment")
+                env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
+                env['ASAN_OPTIONS'] = "symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (self.ds_paths.run_dir, self.serverid)
+                env.update(os.environ)
+                log.error(env)
             subprocess.check_call(["%s/ns-slapd" % self.get_sbin_dir(),
                                     "-D",
                                     self.ds_paths.config_dir,
                                     "-i",
-                                    self.ds_paths.pid_file])
+                                    self.ds_paths.pid_file], env=env)
             count = timeout
             pid = pid_from_file(self.ds_paths.pid_file)
             while (pid is None) and count > 0:
@@ -1169,7 +1178,7 @@ class DirSrv(SimpleLDAPObject):
         if self.with_systemd() and not self.containerised:
             # Do systemd things here ...
             rc = subprocess.call(["/usr/bin/systemctl",
-                                    "status",
+                                    "is-active", "--quiet",
                                     "dirsrv@%s" % self.serverid])
             if rc == 0:
                 return True

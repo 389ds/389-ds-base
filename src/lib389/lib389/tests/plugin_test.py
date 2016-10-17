@@ -21,7 +21,7 @@ from lib389.utils import *
 
 from lib389.plugins import *
 
-DEBUGGING = True
+DEBUGGING = False
 
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
