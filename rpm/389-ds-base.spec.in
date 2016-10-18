@@ -134,6 +134,9 @@ Requires(post):   systemd-units
 Requires(preun):  systemd-units
 Requires(postun): systemd-units
 
+# for setup-ds.pl
+Requires:         bind-utils
+
 # for setup-ds.pl to support ipv6 
 %if %{use_Socket6}
 Requires:         perl-Socket6
