@@ -740,7 +740,11 @@ AC_SUBST(capbrand)
 AC_SUBST(vendor)
 
 # AC_DEFINE([USE_OLD_UNHASHED], [], [Use old unhashed code])
-AC_DEFINE([LDAP_DEBUG], [1], [LDAP debug flag])
+
+# Internally we use a macro function slapi_log_err() to call slapi_log_error()
+# which gives us the option to do performance testing without the presence of
+# logging.  To remove the presence of error logging undefine LDAP_ERROR_LOGGING.
+AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
 AC_DEFINE([LDAP_DONT_USE_SMARTHEAP], [1], [Don't use smartheap])
 
 # libtool on fedora/rhel contains some gcc-isms which cause problems

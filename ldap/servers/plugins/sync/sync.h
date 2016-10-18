@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "slapi-plugin.h"
+#include "slapi-private.h"
 
 #define PLUGIN_NAME              "content-sync-plugin"
 

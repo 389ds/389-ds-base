@@ -14,6 +14,7 @@
  * Account Usability Control plug-in header file
  */
 #include "slapi-plugin.h"
+#include "slapi-private.h"
 
 /*
  * Plug-in defines

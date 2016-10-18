@@ -207,7 +207,7 @@ ava_candidates(
     slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
     slapi_attr_init(&sattr, type);
 
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
     if ( loglevel_is_set( LDAP_DEBUG_TRACE )) {
         char    *op = NULL;
         char    buf[BUFSIZ];
@@ -981,7 +981,7 @@ keys2idl(
 
         idl2 = index_read_ext_allids( pb, be, type, indextype, slapi_value_get_berval(ivals[i]), txn, err, unindexed, allidslimit );
 
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
         /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE ) { XXX */
         {
             char    buf[BUFSIZ];

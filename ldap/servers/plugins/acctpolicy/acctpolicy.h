@@ -19,6 +19,7 @@ Hewlett-Packard Development Company, L.P.
 ******************************************************************************/
 
 #include <limits.h> /* ULONG_MAX */
+#include "slapi-private.h"
 #include "nspr.h"
 
 #define CFG_LASTLOGIN_STATE_ATTR "stateAttrName"

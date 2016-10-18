@@ -23,8 +23,8 @@ Hewlett-Packard Development Company, L.P.
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
-#include "slapi-plugin.h"
 #include "acctpolicy.h"
+#include "slapi-plugin.h"
 
 /* Globals */
 static void* plugin_id = NULL;

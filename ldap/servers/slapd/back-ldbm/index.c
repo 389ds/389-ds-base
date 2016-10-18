@@ -1599,7 +1599,7 @@ index_range_read_ext(
         slapi_log_err(SLAPI_LOG_FILTER,
                       "index_range_read_ext", "dbc->c_get(...DB_NEXT) == %i\n", *err);
     }
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
     /* this is for debugging only */
     if (idl != NULL) {
         if (ALLIDS(idl)) {
@@ -1737,7 +1737,7 @@ addordel_values(
                  */
 		key.flags = DB_DBT_USERMEM;
                 key.ulen = tmpbuflen;
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 		/* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE )  XXX */
 		{
 			char encbuf[BUFSIZ];
@@ -1907,7 +1907,7 @@ addordel_values_sv(
          */
         key.flags = DB_DBT_USERMEM;
         key.ulen = tmpbuflen;
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
         /* XXX if ( slapd_ldap_debug & LDAP_DEBUG_TRACE )  XXX */
         {
             char encbuf[BUFSIZ];

@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-#include "portable.h"
 #include "prtypes.h"
 #include "ldap.h"
 #include "prprf.h"
@@ -56,13 +55,6 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
         __attribute__ ((format (printf, 2, 3)));
 #else
         ;
-#endif
-
-/* Define our logging macros */
-#define slapi_log_err(level, subsystem, fmt, ...)
-#ifdef LDAP_DEBUG
-# undef slapi_log_err
-# define slapi_log_err(level, subsystem, ...) slapi_log_error(level, subsystem, __VA_ARGS__)
 #endif
 
 /* NSPR uses the print macros a bit differently than ANSI C.  We

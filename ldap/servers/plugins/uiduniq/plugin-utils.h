@@ -42,8 +42,9 @@
 #include "slapi-plugin-compat4.h"
 #include <stdio.h>
 #include <string.h>
+#include <slapi-private.h>
 
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 #ifndef DEBUG
 #define DEBUG
 #endif

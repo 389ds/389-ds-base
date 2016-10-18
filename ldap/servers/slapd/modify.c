@@ -51,7 +51,7 @@ static int hash_rootpw (LDAPMod **mods);
 static int valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***cvals);
 static void optimize_mods(Slapi_Mods *smods);
 
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 static const char*
 mod_op_image (int op)
 {
@@ -358,7 +358,7 @@ do_modify( Slapi_PBlock *pb )
 		goto free_and_return;
 	}
 
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 	slapi_log_err(SLAPI_LOG_ARGS, "do_modify", "modifications:\n");
 	for (mod = slapi_mods_get_first_mod(&smods); mod != NULL; 
 		 mod = slapi_mods_get_next_mod(&smods))

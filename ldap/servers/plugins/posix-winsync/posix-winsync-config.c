@@ -10,6 +10,9 @@
  $HeadURL: file:///storejet/svn/posix-winsync-plugin/trunk/posix-winsync-config.c $
  */
 
+#include "posix-wsp-ident.h"
+#include <string.h>
+#include "posix-group-func.h"
 #ifdef WINSYNC_TEST_POSIX
 #include <slapi-plugin.h>
 #include "winsync-plugin.h"
@@ -17,9 +20,6 @@
 #include <dirsrv/slapi-plugin.h>
 #include <dirsrv/winsync-plugin.h>
 #endif
-#include "posix-wsp-ident.h"
-#include <string.h>
-#include "posix-group-func.h"
 
 #define POSIX_WINSYNC_CONFIG_FILTER "(objectclass=*)"
 /*

@@ -22,6 +22,7 @@
 #include "slapi-plugin.h"
 #include "prclist.h"
 #include "ldif.h"
+#include "slapi-private.h"
 
 /*
  * Plug-in defines

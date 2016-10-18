@@ -1,9 +1,8 @@
-#include "slapi-plugin.h"
-#include "nspr.h"
 #include <string.h>
-
 #include "posix-wsp-ident.h"
 #include "posix-group-func.h"
+#include "slapi-plugin.h"
+
 
 typedef struct _task_data
 {

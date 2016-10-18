@@ -5,6 +5,7 @@
 #ifndef POSIX_WINSYNC_H
 #define POSIX_WINSYNC_H
 
+#include "slapi-private.h"
 
 #define POSIX_WINSYNC_PLUGIN_NAME "posix-winsync"
 

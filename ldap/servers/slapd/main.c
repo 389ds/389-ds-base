@@ -1449,7 +1449,7 @@ process_command_line(int argc, char **argv, char *myname,
 							 long_opts, &longopt_index)) != EOF ) {
 		char *configdir = 0;
 		switch ( i ) {
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 		case 'd':	/* turn on debugging */
 			if ( optarg_ext[0] == '?'
 						|| 0 == strcasecmp( optarg_ext, "help" )) {
@@ -1468,7 +1468,7 @@ process_command_line(int argc, char **argv, char *myname,
 #else
 		case 'd':	/* turn on debugging */
 			fprintf( stderr,
-			    "must compile with LDAP_DEBUG for debugging\n" );
+			    "must compile with LDAP_ERROR_LOGGING for debugging\n" );
 			break;
 #endif
 
@@ -2726,7 +2726,7 @@ slapd_exemode_dbverify(void)
 }
 
 
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 /*
  * Table to associate a string with a debug level.
  */
@@ -2772,7 +2772,7 @@ static struct slapd_debug_level_entry {
 
 
 /*
- * Given a string represention of a debug level, map it to a integer value
+ * Given a string representation of a debug level, map it to a integer value
  * and return that value.  -1 is returned upon error, with a message
  * printed to stderr.
  */
@@ -2893,7 +2893,7 @@ slapd_debug_level_usage( void )
 				"    -d 8+32\n"
 				"    -d 40\n" );
 }
-#endif /* LDAP_DEBUG */
+#endif /* LDAP_ERROR_LOGGING */
 
 static int
 force_to_disable_security(const char *what, int *init_ssl, daemon_ports_t *ports_info)

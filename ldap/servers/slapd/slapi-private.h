@@ -22,12 +22,20 @@ extern "C" {
 
 #include <time.h>		/* for time_t */
 #include "nspr.h"
+#include "portable.h"
 #include "slapi-plugin.h"
 /*
  * XXXmcs: we can stop including slapi-plugin-compat4.h once we stop using
  * deprecated functions internally.
  */
 #include "slapi-plugin-compat4.h"
+
+/* Define our internal logging macro */
+#define slapi_log_err(level, subsystem, fmt, ...)
+#ifdef LDAP_ERROR_LOGGING
+# undef slapi_log_err
+# define slapi_log_err(level, subsystem, ...) slapi_log_error(level, subsystem, __VA_ARGS__)
+#endif
 
 /*
  * server shutdown status

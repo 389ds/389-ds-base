@@ -1146,7 +1146,7 @@ void slapd_daemon( daemon_ports_t *ports )
 
 		tp_config.max_threads = maxthreads;
 		tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
-#ifdef LDAP_DEBUG
+#ifdef LDAP_ERROR_LOGGING
 		tp_config.log_fct = nunc_stans_logging;
 #else
 		tp_config.log_fct = NULL;
@@ -1689,12 +1689,12 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll)
 	time_t curtime = current_time();
 	int maxthreads = config_get_maxthreadsperconn();
 
-#if LDAP_DEBUG
+#if LDAP_ERROR_LOGGING
 	if ( slapd_ldap_debug & LDAP_DEBUG_CONNS )
 	{
 		connection_table_dump_activity_to_errors_log(ct);
 	}
-#endif /* LDAP_DEBUG */
+#endif /* LDAP_ERROR_LOGGING */
 
 
 	/*

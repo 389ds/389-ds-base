@@ -18,10 +18,9 @@
  $Id: posix-group-func.c 28 2011-05-13 14:35:29Z grzemba $
  */
 #include <string.h>
-#include "slapi-plugin.h"
-#include <nspr.h>
 #include "posix-wsp-ident.h"
 #include "posix-group-func.h"
+#include "slapi-plugin.h"
 
 #define MAX_RECURSION_DEPTH (5)
 

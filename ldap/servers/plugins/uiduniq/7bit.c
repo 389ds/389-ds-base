@@ -21,10 +21,11 @@
  */
 #include <stdio.h>
 #include <slapi-plugin.h>
+#include <slapi-private.h>
 #include <string.h>
 
 /* DBDB this should be pulled from a common header file */
-#if defined( LDAP_DEBUG ) && !defined( DEBUG )
+#if defined( LDAP_ERROR_LOGGING ) && !defined( DEBUG )
 #define DEBUG
 #endif
 

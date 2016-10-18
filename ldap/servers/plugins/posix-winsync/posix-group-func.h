@@ -5,6 +5,8 @@
 #ifndef POSIX_GROUP_WINSYNC_H
 #define POSIX_GROUP_WINSYNC_H
 
+#include "slapi-private.h"
+
 /*
 Slapi_PBlock *searchDN( const char *baseDN, const char *filter, char *attrs[] );
 Slapi_PBlock * dnHasObjectClass( const char *baseDN, const char *objectClass, Slapi_Entry **entry );

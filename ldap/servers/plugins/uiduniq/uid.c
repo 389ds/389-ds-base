@@ -23,11 +23,12 @@
  */
 #include <slapi-plugin.h>
 #include <portable.h>
+#include <slapi-private.h>
 #include <string.h>
 #include "plugin-utils.h"
 #include "nspr.h"
 
-#if defined( LDAP_DEBUG ) && !defined( DEBUG )
+#if defined( LDAP_ERROR_LOGGING ) && !defined( DEBUG )
 #define DEBUG
 #endif
 

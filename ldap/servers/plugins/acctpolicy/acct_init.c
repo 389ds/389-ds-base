@@ -44,8 +44,8 @@ limitattrname: accountInactivityLimit
 
 #include <stdio.h>
 #include <string.h>
-#include "slapi-plugin.h"
 #include "acctpolicy.h"
+#include "slapi-plugin.h"
 
 static Slapi_PluginDesc plugin_desc = { PLUGIN_NAME, PLUGIN_VENDOR,
 				PLUGIN_VERSION, PLUGIN_DESC };

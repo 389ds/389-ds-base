@@ -17,6 +17,7 @@
 #include <string.h>
 #include "portable.h"
 #include "slapi-plugin.h"
+#include "slapi-private.h"
 #include "statechange.h"
 #include <sys/stat.h>
 

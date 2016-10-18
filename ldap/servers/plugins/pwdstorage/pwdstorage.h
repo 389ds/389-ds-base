@@ -15,6 +15,7 @@
 #define _PWDSTORAGE_H
 
 #include "slapi-plugin.h"
+#include "slapi-private.h"
 #include <ssl.h>
 #include "nspr.h"
 #include "plbase64.h"

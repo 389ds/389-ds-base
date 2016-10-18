@@ -325,11 +325,11 @@
 /* Use FHS optional layout */
 #undef IS_FHS_OPT
 
-/* LDAP debug flag */
-#undef LDAP_DEBUG
-
 /* Don't use smartheap */
 #undef LDAP_DONT_USE_SMARTHEAP
+
+/* LDAP error logging flag */
+#undef LDAP_ERROR_LOGGING
 
 /* Linux */
 #undef LINUX
@@ -355,9 +355,6 @@
 
 /* no getdomainname */
 #undef NO_DOMAINNAME
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
 
 /* OS version */
 #undef OSVERSION

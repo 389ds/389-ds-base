@@ -931,25 +931,20 @@ create_subtree_pairs(char **pairs)
 		p0 = ldap_utf8strtok_r(*ptr, ":", &saveptr);
 		p1 = ldap_utf8strtok_r(NULL, ":", &saveptr);
 		if ((NULL == p0) || (NULL == p1)) {
-			slapi_log_err(SLAPI_LOG_ERR,
-			              "create_subtree_pairs",
-			              "Ignoring invalid subtree pairs \"%s\".\n", *ptr);
+			slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"create_subtree_pairs - Ignoring invalid subtree pairs \"%s\".\n", *ptr);
 			continue;
 		}
 		spp->DSsubtree = slapi_sdn_new_dn_byval(p0);
 		if (NULL == spp->DSsubtree) {
-			slapi_log_err(SLAPI_LOG_ERR,
-			              "create_subtree_pairs",
-			              "Ignoring invalid DS subtree \"%s\".\n",
-			              p0);
+			slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"create_subtree_pairs - Ignoring invalid DS subtree \"%s\".\n", p0);
 			continue;
 		}
 		spp->ADsubtree = slapi_sdn_new_dn_byval(p1);
 		if (NULL == spp->ADsubtree) {
-			slapi_log_err(SLAPI_LOG_ERR,
-			              "create_subtree_pairs",
-			              "Ignoring invalid AD subtree \"%s\".\n",
-			              p1);
+			slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+				"create_subtree_pairs - Ignoring invalid AD subtree \"%s\".\n", p1);
 			slapi_sdn_free(&(spp->DSsubtree));
 			continue;
 		}
@@ -1027,7 +1022,7 @@ windows_private_set_windows_treetop(const Repl_Agmt *ra, char *treetop)
 				dp->windows_treetop = treetop_sdn;
 			} else {
 				slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
-				               "windows_private_set_windows_treetop: "
+				               "windows_private_set_windows_treetop - "
 				               "winSyncSubtreePair contains inconsistent Windows subtrees.\n");
 				dp->windows_treetop = NULL;
 			}
@@ -1090,7 +1085,7 @@ windows_private_set_directory_treetop(const Repl_Agmt *ra, char *treetop)
 				dp->directory_treetop = treetop_sdn;
 			} else {
 				slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name, 
-				               "windows_private_set_directory_treetop: "
+				               "windows_private_set_directory_treetop - "
 				               "winSyncSubtreePair contains inconsistent Windows subtrees.\n");
 				dp->directory_treetop = NULL;
 			}
@@ -1232,9 +1227,11 @@ choke:
 	}
 
 #ifdef FOR_DEBUGGING
-	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_update_dirsync_control: rc=%d\n", return_value);
+	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name,
+		"<= windows_private_update_dirsync_control - rc=%d\n", return_value);
 #else
-	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= windows_private_update_dirsync_control\n" );
+	slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name,
+		"<= windows_private_update_dirsync_control\n" );
 #endif
 }
 
@@ -1691,7 +1688,7 @@ windows_plugin_callonce(void)
         
         if (slapi_apib_get_interface_all(guid, &theapis) || (NULL == theapis)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, windows_repl_plugin_name, 
-                          "<-- windows_plugin_callonce -- no more windows plugin APIs registered "
+                          "<-- windows_plugin_callonce - No more windows plugin APIs registered "
                           "for GUID [%s] -- end\n",
                           guid);
         } else {
@@ -1699,7 +1696,7 @@ windows_plugin_callonce(void)
             for (idx = 0; theapis && theapis[idx]; ++idx) {
                 if (windows_plugin_add(theapis[idx], maxapi)) {
                     slapi_log_err(SLAPI_LOG_PLUGIN, windows_repl_plugin_name, 
-                              "<-- windows_plugin_callonce -- already added windows plugin API "
+                              "<-- windows_plugin_callonce - Already added windows plugin API "
                               "[%d][0x%p] for GUID [%s] -- end\n",
                               idx, theapis[idx], guid);
                 }
@@ -1756,11 +1753,11 @@ windows_plugin_init(Repl_Agmt *ra)
     struct winsync_plugin_cookie *list = NULL;
     void *cookie = NULL;
 
-    slapi_log_err(SLAPI_LOG_PLUGIN, windows_repl_plugin_name, "--> windows_plugin_init - begin\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, windows_repl_plugin_name, "windows_plugin_init - Begin\n");
 
     if (PR_CallOnce(&winsync_callOnce, windows_plugin_callonce)) {
 	    PRErrorCode prerr = PR_GetError();
-	    slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,  "windows_plugin_init"
+	    slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,  "windows_plugin_init - "
 		    	    "Cannot initialize plugin: %d:%s\n", prerr,
 		    	    slapi_pr_strerror(prerr));
 	    return;
@@ -1780,7 +1777,7 @@ windows_plugin_init(Repl_Agmt *ra)
        
     windows_private_set_api_cookie(ra, list);
 
-    slapi_log_err(SLAPI_LOG_PLUGIN, windows_repl_plugin_name, "<-- windows_plugin_init - end\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, windows_repl_plugin_name, "<-- windows_plugin_init - End\n");
     return;
 }
 

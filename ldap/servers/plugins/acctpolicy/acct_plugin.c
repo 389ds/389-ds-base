@@ -24,8 +24,8 @@ Hewlett-Packard Development Company, L.P.
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
-#include "slapi-plugin.h"
 #include "acctpolicy.h"
+#include "slapi-plugin.h"
 
 /*
  * acct_policy_dn_is_config()

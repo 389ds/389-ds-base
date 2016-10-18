@@ -15,6 +15,7 @@
  *  Root DN access control plug-in header file
  */
 #include "slapi-plugin.h"
+#include "slapi-private.h"
 #include <nspr.h>
 #include <time.h>
 #include <ctype.h>
