@@ -1982,7 +1982,6 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 	int			totalMembersVisited;
 	int			numOfMembers;
 	int			max_nestlevel;
-	int			max_memberlimit;
 	aclUserGroup		*u_group;
 	struct member_info	*groupMember = NULL;
 	struct member_info 	*parentGroup = NULL;
@@ -2067,7 +2066,6 @@ acllas__user_ismember_of_group( struct acl_pblock *aclpb,
 		info.clientCert = NULL;
 	info.aclpb = aclpb;
 
-	max_memberlimit = aclpb->aclpb_max_member_sizelimit;
 	max_nestlevel = aclpb->aclpb_max_nesting_level;
 
 #ifdef FOR_DEBUGGING
@@ -2145,15 +2143,6 @@ eval_another_member:
 		goto free_and_return;
 	}
 
-	/* limit of -1 means "no limit */
-	if (info.c_idx > max_memberlimit && 
-			max_memberlimit != -1 ) {
-		slapi_log_error( SLAPI_LOG_ACL, plugin_name, 
-			"GroupEval:Looked at too many entries:(%d, %d)\n",
-				info.c_idx, info.lu_idx);
-		result = ACL_DONT_KNOW; /* don't try to cache info based on this result */
-		goto free_and_return;
-	}
 	if (info.lu_idx > info.c_idx) {
 		if (numOfMembers == (info.lu_idx - info.c_idx)) {
 			/* That means it's not a GROUP. It is just another
