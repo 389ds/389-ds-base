@@ -1145,7 +1145,7 @@ void slapd_daemon( daemon_ports_t *ports )
 		ns_thrpool_config_init(&tp_config);
 
 		tp_config.max_threads = maxthreads;
-		tp_config.stacksize = 0;
+		tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
 #ifdef LDAP_DEBUG
 		tp_config.log_fct = nunc_stans_logging;
 #else
