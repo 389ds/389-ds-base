@@ -523,8 +523,6 @@ struct acl_pblock {
 	
 	/* Keep the Group nesting level */
 	int 					aclpb_max_nesting_level;
-	int 					aclpb_max_member_sizelimit;
-
 
     /* To keep the results in the cache */
 
