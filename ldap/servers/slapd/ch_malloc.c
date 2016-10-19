@@ -19,19 +19,7 @@
 #include <string.h> /* strdup */
 #include <sys/types.h>
 #include <sys/socket.h>
-#undef DEBUG                    /* disable counters */
-#include <prcountr.h>
 #include "slap.h"
-
-static int counters_created= 0;
-PR_DEFINE_COUNTER(slapi_ch_counter_malloc);
-PR_DEFINE_COUNTER(slapi_ch_counter_memalign);
-PR_DEFINE_COUNTER(slapi_ch_counter_calloc);
-PR_DEFINE_COUNTER(slapi_ch_counter_realloc);
-PR_DEFINE_COUNTER(slapi_ch_counter_strdup);
-PR_DEFINE_COUNTER(slapi_ch_counter_free);
-PR_DEFINE_COUNTER(slapi_ch_counter_created);
-PR_DEFINE_COUNTER(slapi_ch_counter_exist);
 
 #define OOM_PREALLOC_SIZE  65536
 static void *oom_emergency_area = NULL;
@@ -50,24 +38,15 @@ static const char* const oom_advice =
   "Can't recover; calling exit(1).\n";
 
 static void
-create_counters(void)
+create_oom_buffer(void)
 {
-    PR_CREATE_COUNTER(slapi_ch_counter_malloc,"slapi_ch","malloc","");
-    PR_CREATE_COUNTER(slapi_ch_counter_memalign,"slapi_ch","memalign","");
-    PR_CREATE_COUNTER(slapi_ch_counter_calloc,"slapi_ch","calloc","");
-    PR_CREATE_COUNTER(slapi_ch_counter_realloc,"slapi_ch","realloc","");
-    PR_CREATE_COUNTER(slapi_ch_counter_strdup,"slapi_ch","strdup","");
-    PR_CREATE_COUNTER(slapi_ch_counter_free,"slapi_ch","free","");
-    PR_CREATE_COUNTER(slapi_ch_counter_created,"slapi_ch","created","");
-    PR_CREATE_COUNTER(slapi_ch_counter_exist,"slapi_ch","exist","");
-
     /* ensure that we have space to allow for shutdown calls to malloc()
      * from should we run out of memory.
      */
     if (oom_emergency_area == NULL) {
-      oom_emergency_area = malloc(OOM_PREALLOC_SIZE);
+        oom_emergency_area = malloc(OOM_PREALLOC_SIZE);
+        oom_emergency_lock = PR_NewLock();
     }
-    oom_emergency_lock = PR_NewLock();
 }
 
 /* called when we have just detected an out of memory condition, before
@@ -123,14 +102,8 @@ slapi_ch_malloc(
 			size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
 	}
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
-    PR_INCREMENT_COUNTER(slapi_ch_counter_malloc);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_created);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
+    /* So long as this happens once, we are happy, put it in ch_malloc. */
+    create_oom_buffer();
 
     return( newmem );
 }
@@ -155,14 +128,6 @@ slapi_ch_memalign(size_t size, size_t alignment)
             size, oserr, slapd_system_strerror( oserr ), oom_advice );
         exit( 1 );
     }
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
-    }
-    PR_INCREMENT_COUNTER(slapi_ch_counter_memalign);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_created);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
 
     return( newmem );
 }
@@ -193,12 +158,6 @@ slapi_ch_realloc(
 			size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
 	}
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
-    PR_INCREMENT_COUNTER(slapi_ch_counter_realloc);
 
     return( newmem );
 }
@@ -230,14 +189,6 @@ slapi_ch_calloc(
 			nelem, size, oserr, slapd_system_strerror( oserr ), oom_advice );
 		exit( 1 );
 	}
-	if(!counters_created)
-	{
-		create_counters();
-		counters_created= 1;
-	}
-    PR_INCREMENT_COUNTER(slapi_ch_counter_calloc);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_created);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
 
     return( newmem );
 }
@@ -260,9 +211,6 @@ slapi_ch_strdup ( const char* s1)
 			oom_advice );
 		exit (1);
     }
-    PR_INCREMENT_COUNTER(slapi_ch_counter_strdup);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_created);
-    PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
 
     return newmem;
 }
@@ -312,22 +260,19 @@ slapi_ch_bvecdup (struct berval** v)
  *               Note: pass in the address of the pointer you want to free.
  *               Note: you can pass in null pointers, it's cool.
  */
-void 
+void
 slapi_ch_free(void **ptr)
 {
-    if (ptr==NULL || *ptr == NULL){
+    /* Man 3 free
+     * If ptr is NULL, no operation is performed. We only need to check ptr
+     * has a value so that *ptr won't SIGSEGV
+     */
+    if ( ptr==NULL ){
         return;
     }
 
     free (*ptr);
     *ptr = NULL;
-    if(!counters_created)
-    {
-        create_counters();
-        counters_created= 1;
-    }
-    PR_INCREMENT_COUNTER(slapi_ch_counter_free);
-    PR_DECREMENT_COUNTER(slapi_ch_counter_exist);
     return;
 }
 #endif /* !MEMPOOL_EXPERIMENTAL */
