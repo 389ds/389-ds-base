@@ -858,6 +858,11 @@ account_locked:
         } else {
             /* even though preop failed, we should still call the post-op plugins */
             plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
+            /* If the prebind plugins fail we MUST send a result!  */
+            /* Is there a way to get a better result descriptions from say the ADDN plugin? */
+            slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in failed\n");
+            send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
+            goto free_and_return;
         }
     } else {
         send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,

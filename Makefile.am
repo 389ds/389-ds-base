@@ -249,7 +249,9 @@ LIBACCTPOLICY_SCHEMA = $(srcdir)/ldap/schema/60acctpolicy.ldif
 enable_acctpolicy = 1
 endif
 
-serverplugin_LTLIBRARIES = libacl-plugin.la libattr-unique-plugin.la \
+serverplugin_LTLIBRARIES = libacl-plugin.la \
+	libaddn-plugin.la \
+	libattr-unique-plugin.la \
 	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
 	libpbe-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
@@ -330,6 +332,7 @@ dist_noinst_HEADERS = \
 	ldap/include/regex.h \
 	ldap/include/srchpref.h \
 	ldap/include/sysexits-compat.h \
+	ldap/servers/plugins/addn/addn.h \
 	ldap/servers/plugins/collation/config.h \
 	ldap/servers/plugins/collation/collate.h \
 	ldap/servers/plugins/collation/orfilter.h \
@@ -1175,6 +1178,15 @@ libacl_plugin_la_CPPFLAGS = -I$(srcdir)/include/libaccess $(PLUGIN_CPPFLAGS)
 libacl_plugin_la_LIBADD = libslapd.la libns-dshttpd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(LIBCSTD) $(LIBCRUN)
 libacl_plugin_la_LDFLAGS = -avoid-version
 libacl_plugin_la_LINK = $(CXXLINK) -avoid-version
+
+#------------------------
+# libaddn-plugin
+#------------------------
+libaddn_plugin_la_SOURCES = ldap/servers/plugins/addn/addn.c
+
+libaddn_plugin_la_CPPFLAGS = $(PLUGIN_CPPFLAGS)
+libaddn_plugin_la_LIBADD = libslapd.la $(NSPR_LINK)
+libaddn_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # librootdn-access-plugin

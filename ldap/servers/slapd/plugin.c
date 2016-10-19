@@ -1785,7 +1785,10 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 					slapi_pblock_set(&(config[plugin_index].pb), SLAPI_PLUGIN, config[plugin_index].plugin);
 					ret = plugin_call_one( config[plugin_index].plugin, operation, &(config[plugin_index].pb));
 
-					pblock_done(&(config[plugin_index].pb));
+					/* We used to call pblock done here, bet we try to restart
+					 * the plugin. If we call done on the pb here, the next attempt
+					 * can have even MORE issues!
+					 */
 
 					if(ret)
 					{
@@ -1804,6 +1807,12 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 						/* now set the plugin and all its registered plugin functions as started */
 						plugin_set_plugins_started(config[plugin_index].plugin);
 					}
+
+					/* See above note about pblock done: Now we call it here
+					 * because at this point we *have* started correctly, so we
+					 * can now free this.
+					 */
+					pblock_done(&(config[plugin_index].pb));
 
 					/* Add this plugin to the shutdown list */
 
@@ -1828,7 +1837,7 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 							index++;
 						}	
 					}
-				} else {
+				} else { /* if (enabled) == false */
 					pblock_done(&(config[plugin_index].pb));
 				}
 

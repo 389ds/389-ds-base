@@ -474,6 +474,11 @@ slapi_pblock_get( Slapi_PBlock *pblock, int arg, void *value )
 	case SLAPI_PLUGIN_CONFIG_AREA:
 		(*(char **)value) = pblock->pb_plugin_config_area;
 		break;
+    case SLAPI_PLUGIN_CONFIG_DN:
+        if (pblock->pb_plugin != NULL) {
+            (*(char **)value) = pblock->pb_plugin->plg_dn;
+        }
+        break;
 	case SLAPI_PLUGIN_INTOP_RESULT:
         (*(int *)value) = pblock->pb_internal_op_result; 
         break;
