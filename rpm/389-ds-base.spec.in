@@ -86,6 +86,10 @@ BuildRequires:    systemd-devel
 %if %{use_asan}
 BuildRequires:    libasan
 %endif
+# Needed to support regeneration of the autotool artifacts.
+BuildRequires:    autoconf
+BuildRequires:    automake
+BuildRequires:    libtool
 
 # this is needed for using semanage from our setup scripts
 Requires:         policycoreutils-python
@@ -273,6 +277,9 @@ NUNC_STANS_FLAGS="--enable-nunc-stans --with-nunc-stans=../nunc-stans-%{nunc_sta
 %if %{use_asan}
 ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
+
+# Rebuild the autotool artifacts now.
+autoreconf -fiv
 
 %configure --enable-autobind --with-selinux $OPENLDAP_FLAG $TMPFILES_FLAG \
            --with-systemdsystemunitdir=%{_unitdir} \
