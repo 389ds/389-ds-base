@@ -474,7 +474,7 @@ sub getAcctPolicy
     close(LDAP1);
 
     #
-    # Now, get the DN for the cos template from the entry
+    # Now, get the DN for the account policy subEntry from the entry (if available)
     #
     $srch{base} = $entry;
     $srch{filter} = "(objectclass=*)";
@@ -486,14 +486,19 @@ sub getAcctPolicy
         s/\n //g;
         if (/^$cosspecattr: (.*)/i){
             $templateDN = $1;
+            break;
         }
     }
     close(LDAP1);
 
     #
-    # Get the inactivity limit from the template]
+    # Get the inactivity limit
     #
-    $srch{base} = $templateDN;
+    $srch{base} = $configentry;
+    if ($templateDN){
+        # Use subEntry DN
+        $srch{base} = $templateDN;
+    }
     $srch{filter} = "($limitattr=*)";
     $srch{scope} = "base";
     $srch{attrs} = "$limitattr";
