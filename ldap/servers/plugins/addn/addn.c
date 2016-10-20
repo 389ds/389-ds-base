@@ -164,13 +164,13 @@ addn_prebind(Slapi_PBlock *pb)
     Slapi_Entry *domain_config = NULL;
     Slapi_DN *pb_sdn_target = NULL;
     Slapi_DN *pb_sdn_mapped = NULL;
-    const char *dn = NULL;
+    char *dn = NULL;
 
-    const char *dn_bind = NULL;
+    char *dn_bind = NULL;
     int dn_bind_len = 0;
     char *dn_bind_escaped = NULL;
 
-    const char *dn_domain = NULL;
+    char *dn_domain = NULL;
     int dn_domain_len = 0;
     char *dn_domain_escaped = NULL;
 
@@ -188,7 +188,8 @@ addn_prebind(Slapi_PBlock *pb)
 
     slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "addn_prebind: --> begin\n");
     slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn_target);
-    dn = slapi_sdn_get_dn(pb_sdn_target);
+    /* We need to discard the const because later functions require char * only */
+    dn = (char *)slapi_sdn_get_dn(pb_sdn_target);
     if (dn == NULL) {
         result = ADDN_FAILURE;
         goto out;
