@@ -4298,7 +4298,7 @@ static int _cl5WriteRUV (CL5DBFile *file, PRBool purge)
 
 /* This is a very slow process since we have to read every changelog entry.
    Hopefully, this function is not called too often */
-static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
+static int _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
 {
     int rc;
     CL5Entry entry;
@@ -4320,10 +4320,14 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
     if (rc != RUV_SUCCESS)
     {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUV - "
-				"Failed to initialize %s RUV for file %s; ruv error - %d\n", 
+                "Failed to initialize %s RUV for file %s; ruv error - %d\n",
                 purge? "purge" : "upper bound", file->name, rc);
         return CL5_RUV_ERROR;
     }    
+
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+            "_cl5ConstructRUV - Rebuilding the replication changelog RUV, "
+            "this may take several minutes...\n");
 
     entry.op = &op;
     rc = _cl5GetFirstEntry (obj, &entry, &iterator, NULL);
@@ -4333,7 +4337,7 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
             rid = csn_get_replicaid (op.csn);
         } else {
             slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name_cl, "_cl5ConstructRUV - "
-                "Operation missing csn, moving on to next entry.\n");
+                    "Operation missing csn, moving on to next entry.\n");
             cl5_operation_parameters_done (&op);
             rc = _cl5GetNextEntry (&entry, iterator);
             continue;
@@ -4341,7 +4345,7 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
         if(is_cleaned_rid(rid)){
             /* skip this entry as the rid is invalid */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUV - "
-                "Skipping entry because its csn contains a cleaned rid(%d)\n", rid);
+                    "Skipping entry because its csn contains a cleaned rid(%d)\n", rid);
             cl5_operation_parameters_done (&op);
             rc = _cl5GetNextEntry (&entry, iterator);
             continue;
@@ -4355,8 +4359,8 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
         if (rc != RUV_SUCCESS)
         {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5ConstructRUV - "
-				"Failed to updated %s RUV for file %s; ruv error - %d\n", 
-                purge ? "purge" : "upper bound", file->name, rc);
+			        "Failed to update %s RUV for file %s; ruv error - %d\n",
+                    purge ? "purge" : "upper bound", file->name, rc);
             rc = CL5_RUV_ERROR;
             continue;
         }
@@ -4380,6 +4384,10 @@ static int  _cl5ConstructRUV (const char *replGen, Object *obj, PRBool purge)
         else
             ruv_destroy (&file->maxRUV);
     }
+
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+            "_cl5ConstructRUV - Rebuilding replication changelog RUV complete.  Result %d (%s)\n",
+            rc, rc?"Failed to rebuild changelog RUV":"Success");
 
     return rc;
 }
