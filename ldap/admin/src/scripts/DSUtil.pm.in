@@ -975,7 +975,9 @@ sub createInfFromConfig {
     }
     # use the userRoot suffix if available
     while ($ent) {
-        $suffix = $ent->getValues('nsslapd-suffix');
+        if ($ent->getValues('nsslapd-suffix')) {
+            $suffix = $ent->getValues('nsslapd-suffix');
+        }
         last if ($ent->hasValue('cn', 'userRoot', 1));
         $ent = $conn->nextEntry();
     }
