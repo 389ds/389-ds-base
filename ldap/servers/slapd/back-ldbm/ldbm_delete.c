@@ -586,14 +586,8 @@ ldbm_back_delete( Slapi_PBlock *pb )
 					retval = -1;
 					goto error_return;
 				}
-				if ((0 == PL_strncmp(edn + sizeof(SLAPI_ATTR_UNIQUEID), childuniqueid, strlen(childuniqueid))) &&
-				    (*(edn + SLAPI_ATTR_UNIQUEID_LENGTH + slapi_uniqueIDSize() + 1/*=*/) == ',')) {
-					/* The DN already starts with "nsuniqueid=...," */
-					tombstone_dn = slapi_ch_strdup(edn);
-				} else {
-					tombstone_dn = compute_entry_tombstone_dn(edn, childuniqueid);
-				}
-
+				/* always create the special tombstone dn, even if it already starts with nsuniqueid */
+				tombstone_dn = compute_entry_tombstone_dn(edn, childuniqueid);
 				slapi_sdn_set_ndn_byval(&nscpEntrySDN, slapi_sdn_get_ndn(slapi_entry_get_sdn(e->ep_entry)));
 
 				/* Copy the entry unique_id for URP conflict checking */
