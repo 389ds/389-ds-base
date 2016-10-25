@@ -1383,7 +1383,7 @@ g_get_active_threadcnt(void)
 /*
 ** Setting this flag forces the server to shutdown.
 */
-static int slapd_shutdown;
+static int slapd_shutdown = 0;
 
 void g_set_shutdown( int reason )
 {
