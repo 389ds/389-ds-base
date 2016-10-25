@@ -31,6 +31,7 @@ import getpass
 
 # from .nss_ssl import nss_create_new_database
 from threading import Timer
+from lib389.paths import Paths
 from lib389._constants import *
 from lib389._ldifconn import LDIFConn
 from lib389.properties import *
@@ -948,8 +949,9 @@ class DirSrvTools(object):
 
         # Run the "upgrade"
         try:
-            process = subprocess.Popen([prefix + '/sbin/setup-ds.pl',
-                                        '--update'], shell=False,
+            p = Paths()
+            prog = os.path.join(p.sbin_dir, CMD_PATH_SETUP_DS)
+            process = subprocess.Popen([prog, '--update'], shell=False,
                                        stdin=subprocess.PIPE)
             # Answer the interactive questions, as "--update" currently does
             # not work with INF files
@@ -968,7 +970,7 @@ class DirSrvTools(object):
                 assert False
         except:
             log.fatal('runUpgrade failed!')
-            assert False
+            raise
 
     @staticmethod
     def searchFile(filename, pattern):
