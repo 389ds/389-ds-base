@@ -15,6 +15,10 @@ BuildRequires:    nspr-devel >= %{nspr_version}
 BuildRequires:    nss-devel >= %{nss_version}
 BuildRequires:    pkgconfig
 BuildRequires:    pkgconfig(systemd)
+# Needed to support regeneration of the autotool artifacts.
+BuildRequires:    autoconf
+BuildRequires:    automake
+BuildRequires:    libtool
 
 Source0:            http://www.port389.org/binaries/%{name}-%{version}.tar.bz2
 
@@ -47,6 +51,7 @@ develop programs which will use the svrcore library.
 
 %build
 
+autoreconf -fiv
 %configure --with-systemd
 make
 
