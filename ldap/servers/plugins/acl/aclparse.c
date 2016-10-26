@@ -465,6 +465,8 @@ __aclp__sanity_check_acltxt (aci_t *aci_item, char *str)
 	char				*newstr = NULL;
 	char				*word;
 	char				*next;
+	const char      *brkstr = " ;";
+	int             checkversion = 0;
 
 	memset (&errp, 0, sizeof(NSErr_t));
 	newstr = str;
