@@ -1196,9 +1196,6 @@ slapd_nss_init(int init_ssl, int config_available)
 	int create_certdb = 0;
 	PRUint32 nssFlags = 0;
 	char *certdir;
-	char *certdb_file_name = NULL;
-	char *keydb_file_name = NULL;
-	char *secmoddb_file_name = NULL;
 #if !defined(NSS_TLS10) /* NSS_TLS11 or newer */
 	char emin[VERSION_STR_LENGTH], emax[VERSION_STR_LENGTH];
 	/* Get the range of the supported SSL version */
@@ -1271,34 +1268,62 @@ slapd_nss_init(int init_ssl, int config_available)
 		return -1;
 	}
 
-	/* NSS creates the certificate db files with a mode of 600.  There
-	 * is no way to pass in a mode to use for creation to NSS, so we
-	 * need to modify it after creation.  We need to allow read and
-	 * write permission to the group so the certs can be managed via
-	 * the console/adminserver. */
-	if (create_certdb) {
-		certdb_file_name = slapi_ch_smprintf("%s/cert8.db", certdir);
-		keydb_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
-		secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
-		if(chmod(certdb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			slapi_log_err(SLAPI_LOG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
-					certdb_file_name, errno, slapd_system_strerror(errno));
-		}
-		if(chmod(keydb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			slapi_log_err(SLAPI_LOG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
-					keydb_file_name, errno, slapd_system_strerror(errno));
-		}
-		if(chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
-			slapi_log_err(SLAPI_LOG_ERR, "Security Initialization - slapd_nss_init: chmod failed for file %s error (%d) %s.\n",
-					secmoddb_file_name, errno, slapd_system_strerror(errno));
-		}
-	}
+    /* NSS creates the certificate db files with a mode of 600.  There
+     * is no way to pass in a mode to use for creation to NSS, so we
+     * need to modify it after creation.  We need to allow read and
+     * write permission to the group so the certs can be managed via
+     * the console/adminserver. */
+    if (create_certdb) {
+        char *cert8db_file_name = NULL;
+        char *cert9db_file_name = NULL;
+        char *key3db_file_name = NULL;
+        char *key4db_file_name = NULL;
+        char *secmoddb_file_name = NULL;
+        char *pkcs11txt_file_name = NULL;
+
+
+        cert8db_file_name = slapi_ch_smprintf("%s/cert8.db", certdir);
+        cert9db_file_name = slapi_ch_smprintf("%s/cert9.db", certdir);
+        key3db_file_name = slapi_ch_smprintf("%s/key3.db", certdir);
+        key4db_file_name = slapi_ch_smprintf("%s/key4.db", certdir);
+        secmoddb_file_name = slapi_ch_smprintf("%s/secmod.db", certdir);
+        pkcs11txt_file_name = slapi_ch_smprintf("%s/pkcs11.txt", certdir);
+
+        if(chmod(cert8db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
+                    cert8db_file_name, errno, slapd_system_strerror(errno));
+        }
+        if(chmod(cert9db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
+                    cert9db_file_name, errno, slapd_system_strerror(errno));
+        }
+        if(chmod(key3db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
+                    key3db_file_name, errno, slapd_system_strerror(errno));
+        }
+        if(chmod(key4db_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
+                    key4db_file_name, errno, slapd_system_strerror(errno));
+        }
+        if(chmod(secmoddb_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
+                    secmoddb_file_name, errno, slapd_system_strerror(errno));
+        }
+        if(chmod(pkcs11txt_file_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP )){
+            slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization", "slapd_nss_init - chmod failed for file %s error (%d) %s.\n",
+                    pkcs11txt_file_name, errno, slapd_system_strerror(errno));
+        }
+
+        slapi_ch_free_string(&cert8db_file_name);
+        slapi_ch_free_string(&cert9db_file_name);
+        slapi_ch_free_string(&key3db_file_name);
+        slapi_ch_free_string(&key4db_file_name);
+        slapi_ch_free_string(&secmoddb_file_name);
+        slapi_ch_free_string(&pkcs11txt_file_name);
+    }
 
     /****** end of NSS Initialization ******/
     _nss_initialized = 1;
-    slapi_ch_free_string(&certdb_file_name);
-    slapi_ch_free_string(&keydb_file_name);
-    slapi_ch_free_string(&secmoddb_file_name);
     slapi_ch_free_string(&certdir);
     return rv;
 }

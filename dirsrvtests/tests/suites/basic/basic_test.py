@@ -101,6 +101,8 @@ def rootdse_attr(topology, request):
     """Adds an attr from the list
     as the default attr to the rootDSE
     """
+    # Ensure the server is started and connected
+    topology.standalone.start()
 
     RETURN_DEFAULT_OPATTR = "nsslapd-return-default-opattr"
     rootdse_attr_name = request.param
@@ -711,6 +713,8 @@ def test_def_rootdse_attr(topology, import_example_ldif, rootdse_attr_name):
     """Tests that operational attributes
     are not returned by default in rootDSE searches
     """
+
+    topology.standalone.start()
 
     log.info("        Assert rootdse search hasn't %s attr" % rootdse_attr_name)
     try:

@@ -56,8 +56,8 @@ def topology(request):
 
     def fin():
         standalone.delete()
-        sbin_dir = standalone.get_sbin_dir()
         if not standalone.has_asan():
+            sbin_dir = standalone.get_sbin_dir()
             valgrind_disable(sbin_dir)
     request.addfinalizer(fin)
 

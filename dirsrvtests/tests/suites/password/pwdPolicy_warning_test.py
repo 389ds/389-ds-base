@@ -205,7 +205,8 @@ def local_policy(topology, add_user):
 
     log.info("Setting fine grained policy for user ({:s})".format(USER_DN))
     try:
-        subprocess.call(['/usr/sbin/ns-newpwpolicy.pl', '-D', DN_DM,
+        subprocess.call(['%s/ns-newpwpolicy.pl' % topology.standalone.get_sbin_dir(),
+                         '-D', DN_DM,
                          '-w', PASSWORD, '-h', HOST_STANDALONE,
                          '-p', str(PORT_STANDALONE), '-U', USER_DN,
                          '-Z', SERVERID_STANDALONE])

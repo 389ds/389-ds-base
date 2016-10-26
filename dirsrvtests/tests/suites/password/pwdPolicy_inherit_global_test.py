@@ -128,7 +128,8 @@ def password_policy(topology, test_user):
 
     log.info('Create password policy for subtree {}'.format(OU_PEOPLE))
     try:
-        subprocess.call(['ns-newpwpolicy.pl', '-D', DN_DM, '-w', PASSWORD,
+        subprocess.call(['%s/ns-newpwpolicy.pl' % topology.standalone.get_sbin_dir(),
+                         '-D', DN_DM, '-w', PASSWORD,
                          '-p', str(PORT_STANDALONE), '-h', HOST_STANDALONE,
                          '-S', OU_PEOPLE, '-Z', SERVERID_STANDALONE])
     except subprocess.CalledProcessError as e:
