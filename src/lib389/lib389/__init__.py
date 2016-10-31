@@ -2208,8 +2208,7 @@ class DirSrv(SimpleLDAPObject):
                         replicated = True
                         break
                 except ldap.LDAPError as e:
-                    log.fatal('testReplication() failed to modify (%s),' +
-                              ' error (%s)' % (suffix, str(e)))
+                    log.fatal('testReplication() failed to modify (%s), error (%s)' % (suffix, str(e)))
                     return False
                 loop += 1
                 time.sleep(2)

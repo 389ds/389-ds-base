@@ -773,13 +773,13 @@ def socket_check_open(host, port):
 
 
 def ensure_bytes(val):
-    if MAJOR >= 3 and type(val) != bytes:
+    if MAJOR >= 3 and val != None and type(val) != bytes:
         return val.encode()
     return val
 
 
 def ensure_str(val):
-    if MAJOR >= 3 and type(val) != str:
+    if MAJOR >= 3 and val != None and type(val) != str:
         return val.decode('utf-8')
     return val
 

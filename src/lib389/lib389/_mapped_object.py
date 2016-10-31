@@ -101,6 +101,9 @@ class DSLdapObject(DSLogging):
     def __str__(self):
         return self.__unicode__()
 
+    def raw_entry(self):
+        return self._instance.getEntry(self._dn)
+
     def display(self):
         e = self._instance.getEntry(self._dn)
         return e.__repr__()
@@ -146,7 +149,7 @@ class DSLdapObject(DSLogging):
         if isinstance(value, list):
             # value = map(lambda x: ensure_bytes(x), value)
             value = ensure_list_bytes(value)
-        else:
+        elif value is not None:
             value = [ensure_bytes(value)]
 
         if self._batch:
