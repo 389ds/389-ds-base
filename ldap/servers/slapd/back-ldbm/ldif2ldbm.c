@@ -1599,9 +1599,9 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                     "%s: Processed %d entries (100%%).",
                     inst->inst_name, cnt);
         }
-        slapi_log_err(SLAPI_LOG_INFO,
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2ldif",
             "export %s: Processed %d entries (100%%).\n",
-            inst->inst_name, cnt, 0);
+            inst->inst_name, cnt);
     }
 bye:
     if (idl) {

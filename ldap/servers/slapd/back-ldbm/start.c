@@ -150,10 +150,9 @@ ldbm_back_start( Slapi_PBlock *pb )
                   cache_size = (PRUint64)cache_get_max_size(&(inst->inst_cache));
                   db_size = dblayer_get_id2entry_size(inst);
                   if (cache_size < db_size) {
-                      slapi_log_err(SLAPI_LOG_NOTICE,
-                             "ldbm_back_start - "
-                              "%s: entry cache size %llu B is "
-                              "less than db size %llu B; "
+                      slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_start",
+                              "%s: entry cache size %lu B is "
+                              "less than db size %lu B; "
                               "We recommend to increase the entry cache size "
                               "nsslapd-cachememsize.\n",
                               inst->inst_name, cache_size, db_size);
@@ -267,10 +266,8 @@ ldbm_back_start( Slapi_PBlock *pb )
         "It is highly likely your memory configuration of all backends will EXCEED your systems memory.\n");
     slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start",
         "In a future release this WILL prevent server start up. You MUST alter your configuration.\n");
-    slapi_log_err(SLAPI_LOG_CRIT,
-              "ldbm_back_start", "Total entry cache size: %lu B; "
-              "dbcache size: %lu B; "
-              "available memory size: %lu B; \n",
+    slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Total entry cache size: %lu B; "
+              "dbcache size: %lu B; available memory size: %lu B; \n",
 #ifdef LINUX
               (PRUint64)total_cache_size, (PRUint64)li->li_dbcachesize, availpages * pagesize
 #else
