@@ -61,3 +61,16 @@ AC_ARG_WITH(nunc-stans-lib, AS_HELP_STRING([--with-nunc-stans-lib=PATH],[nunc-st
   fi
 ],
 AC_MSG_RESULT(no))
+
+if test -z "$nunc_stans_inc" -o -z "$nunc_stans_lib"; then
+    AC_PATH_PROG(PKG_CONFIG, pkg-config)
+    AC_MSG_CHECKING(for nunc-stans with pkg-config)
+    if test -n "$PKG_CONFIG"; then
+        if $PKG_CONFIG --exists nunc-stans; then
+            nunc_stans_inc=`$PKG_CONFIG --cflags-only-I nunc-stans`
+            nunc_stans_lib=`$PKG_CONFIG --libs-only-L nunc-stans`
+            AC_MSG_RESULT([using system nunc-stans])
+        fi
+    fi
+fi
+
