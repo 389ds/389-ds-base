@@ -83,12 +83,13 @@ except ImportError:
     import popen2
     HASPOPEN = False
 
+_ds_paths = Paths()
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 # Private constants
-PATH_SETUP_DS_ADMIN = "/setup-ds-admin.pl"
+PATH_SETUP_DS_ADMIN = CMD_PATH_SETUP_DS_ADMIN
 PATH_SETUP_DS = CMD_PATH_SETUP_DS
 PATH_REMOVE_DS = CMD_PATH_REMOVE_DS
 PATH_ADM_CONF = "/etc/dirsrv/admin-serv/adm.conf"
@@ -528,13 +529,14 @@ class DirSrvTools(object):
         else:
             prefix = None
 
-        prog = get_sbin_dir(None, prefix) + PATH_REMOVE_DS
-        cmd = "%s -i slapd-%s" % (prog, dirsrv.serverid)
-        log.debug("running: %s " % cmd)
+        prog = os.path.join(_ds_paths.sbin_dir, PATH_REMOVE_DS)
         try:
-            os.system(cmd)
-        except:
-            log.exception("error executing %r" % cmd)
+            cmd = [prog, '-i', 'slapd-{}'.format(dirsrv.serverid)]
+            log.info('Running: {}'.format(" ".join(cmd)))
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as e:
+            log.debug('DS has failed to remove the instance {}, '
+                      'output is: {}'.format(dirsrv.serverid, e.output))
 
     @staticmethod
     def _offlineDirsrv(args):
@@ -575,11 +577,8 @@ class DirSrvTools(object):
             else None
         '''
         instance = DirSrvTools._offlineDirsrv(args)
-        dirname = os.path.join(instance.prefix, "etc/dirsrv/slapd-%s" %
-                               instance.serverid)
-        errorlog = os.path.join(instance.prefix,
-                                "var/log/dirsrv/slapd-%s/errors" %
-                                instance.serverid)
+        dirname = _ds_paths.config_dir.format(instance_name=instance.serverid)
+        errorlog = _ds_paths.error_log.format(instance_name=instance.serverid)
         sroot = os.path.join(instance.prefix, "lib/dirsrv")
         if os.path.isdir(dirname) and \
            os.path.isfile(errorlog) and \
@@ -640,8 +639,8 @@ class DirSrvTools(object):
 
         # do we have ds only or ds+admin?
         if 'no_admin' not in args:
-            sbindir = get_sbin_dir(sroot, prefix)
-            if os.path.isfile(sbindir + PATH_SETUP_DS_ADMIN):
+            ds_admin_path = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS_ADMIN)
+            if os.path.isfile(ds_admin_path):
                 args['have_admin'] = True
 
         # set default values
@@ -766,9 +765,9 @@ class DirSrvTools(object):
         else:
             prog = ''
             if args['have_admin']:
-                prog = get_sbin_dir(sroot, prefix) + '/' + PATH_SETUP_DS_ADMIN
+                prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS_ADMIN)
             else:
-                prog = get_sbin_dir(sroot, prefix) + '/' + PATH_SETUP_DS
+                prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS)
 
             if not os.path.isfile(prog):
                 log.error("Can't find file: %r, removing extension" % prog)
@@ -868,10 +867,10 @@ class DirSrvTools(object):
                             return True
             except AssertionError:
                 raise AssertionError(
-                    "Error: %s should contain '%s' as first host for %s" %
+                    "Error: %s should contain '%s' host for %s" %
                     ('/etc/hosts/', expectedHost, ipPattern))
             raise AssertionError(
-                "Error: /etc/hosts does not contain '%s' as first host for %s"
+                "Error: /etc/hosts does not contain '%s' as a host for %s"
                 % (expectedHost, ipPattern))
 
     @staticmethod
@@ -908,30 +907,14 @@ class DirSrvTools(object):
             /prefix/lib[64]/dirsrv/slapd-INSTANCE/
         '''
 
-        if not prefix:
-            prefix = ''
-            # This is an RPM run - check if /lib exists, if not use /lib64
-            if os.path.isdir('/usr/lib/dirsrv'):
-                libdir = '/usr/lib/dirsrv/'
-            else:
-                if os.path.isdir('/usr/lib64/dirsrv'):
-                    libdir = '/usr/lib64/dirsrv/'
-                else:
-                    log.fatal('runUpgrade: failed to find slapd lib dir!')
-                    assert False
-        else:
-            # Standard prefix lib location
-            if os.path.isdir('/usr/lib64/dirsrv'):
-                libdir = '/usr/lib64/dirsrv/'
-            else:
-                libdir = '/lib/dirsrv/'
+        libdir = os.path.join(_ds_paths.lib_dir, 'dirsrv')
 
         # Gather all the instances so we can adjust the permissions, otherwise
         servers = []
-        path = prefix + '/etc/dirsrv'
+        path = os.path.join(_ds_paths.sysconf_dir, 'dirsrv')
         for files in os.listdir(path):
             if files.startswith('slapd-') and not files.endswith('.removed'):
-                servers.append(prefix + libdir + files)
+                servers.append(os.path.join(libdir, files))
 
         if len(servers) == 0:
             # This should not happen
@@ -945,12 +928,11 @@ class DirSrvTools(object):
         '''
         for instance in servers:
             for files in os.listdir(instance):
-                os.chmod(instance + '/' + files, 755)
+                os.chmod(os.path.join(instance, files), 755)
 
         # Run the "upgrade"
         try:
-            p = Paths()
-            prog = os.path.join(p.sbin_dir, CMD_PATH_SETUP_DS)
+            prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS)
             process = subprocess.Popen([prog, '--update'], shell=False,
                                        stdin=subprocess.PIPE)
             # Answer the interactive questions, as "--update" currently does

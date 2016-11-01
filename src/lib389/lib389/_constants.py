@@ -75,6 +75,8 @@ DN_MONITOR_LDBM = "cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 
 CMD_PATH_SETUP_DS = "setup-ds.pl"
 CMD_PATH_REMOVE_DS = "remove-ds.pl"
+CMD_PATH_SETUP_DS_ADMIN = "setup-ds-admin.pl"
+CMD_PATH_REMOVE_DS_ADMIN = "remove-ds-admin.pl"
 
 # State of an DirSrv object
 DIRSRV_STATE_INIT = 1
