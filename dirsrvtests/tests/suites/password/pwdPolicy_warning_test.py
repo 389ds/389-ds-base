@@ -442,7 +442,7 @@ def test_with_different_password_states(topology, global_policy, add_user):
     try:
         log.info("Expiring user's password by moving the"\
                  " system date past the valid period")
-        subprocess.check_call(['/usr/bin/date', '-s', 'next month'])
+        subprocess.check_call(['/usr/bin/date', '-s', '+30 day'])
 
         log.info('Wait for the server to pick up new date')
         time.sleep(5)
@@ -455,7 +455,7 @@ def test_with_different_password_states(topology, global_policy, add_user):
         log.info("Bind Failed, error: {:s}".format(str(ex)))
 
         log.info("Resetting the system date")
-        subprocess.check_call(['/usr/bin/date', '-s', 'last month'])
+        subprocess.check_call(['/usr/bin/date', '-s', '-30 day'])
 
         log.info('Wait for the server to pick up new date')
         time.sleep(5)

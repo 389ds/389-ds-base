@@ -13,6 +13,7 @@ import logging
 import pytest
 from subprocess import Popen
 from lib389 import DirSrv, Entry
+from lib389.paths import Paths
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
@@ -37,11 +38,6 @@ BOGUSDN2 = 'uid=bogus,ou=people,%s' % DEFAULT_SUFFIX
 BOGUSSUFFIX = 'uid=bogus,ou=people,dc=bogus'
 GROUPOU = 'ou=groups,%s' % DEFAULT_SUFFIX
 BOGUSOU = 'ou=OU,%s' % DEFAULT_SUFFIX
-
-logging.getLogger(__name__).setLevel(logging.DEBUG)
-log = logging.getLogger(__name__)
-
-installation1_prefix = None
 
 
 class TopologyStandalone(object):
@@ -224,6 +220,11 @@ def test_ticket1347760(topology):
     log.info('Deleting aci in %s.' % DEFAULT_SUFFIX)
     topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', None)])
 
+    log.info('While binding as DM, acquire an access log path')
+    ds_paths = Paths(serverid=topology.standalone.serverid,
+                     instance=topology.standalone)
+    file_path = ds_paths.access_log
+
     log.info('Bind case 1. the bind user has no rights to read the entry itself, bind should be successful.')
     log.info('Bind as {%s,%s} who has no access rights.' % (BINDDN, BINDPW))
     try:
@@ -232,7 +233,6 @@ def test_ticket1347760(topology):
         log.info('Desc ' + e.message['desc'])
         assert False
 
-    file_path = os.path.join(topology.standalone.prefix, 'var/log/dirsrv/slapd-%s/access' % topology.standalone.serverid)
     file_obj = open(file_path, "r")
     log.info('Access log path: %s' % file_path)
 
