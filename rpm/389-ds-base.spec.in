@@ -18,7 +18,7 @@
 # To build without nunc-stans, set use_nunc_stans to 0.
 %global use_nunc_stans __NUNC_STANS_ON__
 %if %{use_nunc_stans}
-%global nunc_stans_ver 0.2.0
+%global nunc_stans_ver 0.2.1
 %endif
 
 # This enables an ASAN build. This should not go to production, so we rename.
@@ -253,6 +253,7 @@ cp %{SOURCE2} README.devel
 
 %if %{use_nunc_stans}
 pushd ../nunc-stans-%{nunc_stans_ver}
+autoreconf -fiv
 %configure --with-fhs --libdir=%{_libdir}/%{pkgname}
 # We install into our build dir first, then later we install to the correct build root.
 # This is to make it possible for directory server to use us, else we can't resolve
