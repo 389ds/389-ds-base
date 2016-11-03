@@ -129,9 +129,6 @@ slapi_ch_malloc(
     PR_INCREMENT_COUNTER(slapi_ch_counter_created);
     PR_INCREMENT_COUNTER(slapi_ch_counter_exist);
 
-    /* So long as this happens once, we are happy, put it in ch_malloc. */
-    create_oom_buffer();
-
     return( newmem );
 }
 
@@ -150,7 +147,7 @@ slapi_ch_memalign(size_t size, size_t alignment)
         int oserr = errno;
 
         oom_occurred();
-        slapi_log_err(SLAPI_LOG_ERR, SLAPD_MODULE,
+        slapi_log_error(SLAPI_LOG_FATAL, SLAPD_MODULE,
             "malloc of %lu bytes failed; OS error %d (%s)%s\n",
             size, oserr, slapd_system_strerror( oserr ), oom_advice );
         exit( 1 );
