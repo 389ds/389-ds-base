@@ -26,7 +26,6 @@ int
 clear_pw_cmp( const char *userpwd, const char *dbpwd )
 {
     int result = 0;
-    int len = 0;
     int len_user = strlen(userpwd);
     int len_dbp = strlen(dbpwd);
     if ( len_user != len_dbp ) {
