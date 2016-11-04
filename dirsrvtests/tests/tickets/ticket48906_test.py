@@ -160,7 +160,7 @@ def _check_dse_ldif_value(topology, attr=DBLOCK_ATTR_CONFIG, expected_value=DBLO
     assert(value)
 
 def _check_guardian_value(topology, attr=DBLOCK_ATTR_CONFIG, expected_value=None):
-    guardian_file = topology.standalone.dbdir + '/db/guardian'
+    guardian_file = os.path.join(topology.standalone.dbdir, 'guardian')
     assert(os.path.exists(guardian_file))
     guardian = open(guardian_file, "r")
 

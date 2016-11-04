@@ -115,10 +115,12 @@ def test_ticket48383(topology):
     # stop the server
     topology.standalone.stop(timeout=30)
     # Now export and import the DB. It's easier than db2index ...
-    topology.standalone.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[], encrypt=False, \
-        repl_data=True, outputfile='%s/ldif/%s.ldif' % (topology.standalone.dbdir,SERVERID_STANDALONE ))
+    topology.standalone.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[],
+                                encrypt=False, repl_data=True,
+                                outputfile='{}/{}.ldif'.format(topology.standalone.ldifdir, SERVERID_STANDALONE))
 
-    result = topology.standalone.ldif2db(DEFAULT_BENAME, None, None, False, '%s/ldif/%s.ldif' % (topology.standalone.dbdir,SERVERID_STANDALONE ))
+    result = topology.standalone.ldif2db(DEFAULT_BENAME, None, None, False,
+                                         '{}/{}.ldif'.format(topology.standalone.ldifdir, SERVERID_STANDALONE))
 
     assert(result)
 

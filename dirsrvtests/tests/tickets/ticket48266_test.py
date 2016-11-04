@@ -225,8 +225,7 @@ def _get_last_not_replicated_csn(topology):
     # now retrieve the CSN of the operation we are looking for
     csn = None
     topology.master1.stop(timeout=10)
-    file_path = os.path.join(topology.master1.prefix, "var/log/dirsrv/slapd-%s/access" % topology.master1.serverid)
-    file_obj = open(file_path, "r")
+    file_obj = open(topology.master1.accesslog, "r")
 
     # First the conn/op of the operation
     regex = re.compile("MOD dn=\"%s\"" % name)
@@ -272,8 +271,7 @@ def _get_first_not_replicated_csn(topology):
     # now retrieve the CSN of the operation we are looking for
     csn = None
     topology.master1.stop(timeout=10)
-    file_path = os.path.join(topology.master1.prefix, "var/log/dirsrv/slapd-%s/access" % topology.master1.serverid)
-    file_obj = open(file_path, "r")
+    file_obj = open(topology.master1.accesslog, "r")
 
     # First the conn/op of the operation
     regex = re.compile("MOD dn=\"%s\"" % name)
@@ -298,12 +296,10 @@ def _get_first_not_replicated_csn(topology):
 
 
 def _count_full_session(topology):
-    file_path = os.path.join(topology.master1.prefix, "var/log/dirsrv/slapd-%s/errors" % topology.master1.serverid)
-
     #
     # compute the number of 'No more updates'
     #
-    file_obj = open(file_path, "r")
+    file_obj = open(topology.master1.errlog, "r")
     # pattern to find
     pattern = ".*No more updates to send.*"
     regex = re.compile(pattern)
@@ -392,8 +388,7 @@ def test_ticket48266_count_csn_evaluation(topology, entries):
 
     # Now determine how many times we have skipped 'csn'
     # no need to stop the server to check the error log
-    file_path = os.path.join(topology.master1.prefix, "var/log/dirsrv/slapd-%s/errors" % topology.master1.serverid)
-    file_obj = open(file_path, "r")
+    file_obj = open(topology.master1.errlog, "r")
 
     # find where the last_csn operation was processed
     pattern = ".*ruv_add_csn_inprogress: successfully inserted csn %s.*" % last_csn

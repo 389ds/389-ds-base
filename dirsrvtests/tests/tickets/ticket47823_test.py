@@ -14,6 +14,7 @@ import logging
 import pytest
 import re
 import shutil
+import subprocess
 from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
@@ -639,7 +640,7 @@ def test_ticket47823_invalid_config_1(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message
@@ -690,7 +691,7 @@ def test_ticket47823_invalid_config_2(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message
@@ -743,7 +744,7 @@ def test_ticket47823_invalid_config_3(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message
@@ -795,7 +796,7 @@ def test_ticket47823_invalid_config_4(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message
@@ -846,7 +847,7 @@ def test_ticket47823_invalid_config_5(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message
@@ -897,7 +898,7 @@ def test_ticket47823_invalid_config_6(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message
@@ -948,7 +949,7 @@ def test_ticket47823_invalid_config_7(topology):
             # be sure to restore a valid config before assert
             _config_file(topology, action='restore')
         assert not ent
-    except ldap.SERVER_DOWN:
+    except subprocess.CalledProcessError:
             pass
 
     # Check the expected error message

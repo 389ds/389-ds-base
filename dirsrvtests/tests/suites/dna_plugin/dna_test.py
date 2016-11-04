@@ -60,8 +60,8 @@ def topology(request):
     # Delete each instance in the end
     def fin():
         # This is useful for analysing the test env.
-        standalone.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[], encrypt=False, \
-            repl_data=True, outputfile='%s/ldif/%s.ldif' % (standalone.dbdir,SERVERID_STANDALONE ))
+        standalone.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[], encrypt=False,
+                           repl_data=True, outputfile='{}/{}.ldif'.format(standalone.ldifdir, SERVERID_STANDALONE))
         standalone.clearBackupFS()
         standalone.backupFS()
         standalone.delete()
