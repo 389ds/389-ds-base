@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
+import ldap.dn
 from ldap import filter as ldap_filter
 import logging
 
@@ -259,7 +260,16 @@ class DSLdapObject(DSLogging):
         # Make sure the naming attribute is present
         if properties.get(self._rdn_attribute, None) is None and rdn is None:
             raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None or rdn provided' % self._rdn_attribute)
-        
+
+        # Great! Now, lets fix up our types
+        for k, v in properties.items():
+            if isinstance(v, list):
+                # Great!
+                pass
+            else:
+                # Turn it into a list instead.
+                properties[k] = [v,]
+
         # This change here, means we can pre-load a full dn to _dn, or we can
         # accept based on the rdn
         tdn = self._dn
@@ -271,28 +281,27 @@ class DSLdapObject(DSLogging):
             if properties.get(self._rdn_attribute, None) is not None:
                 # Favour the value in the properties dictionary
                 v = properties.get(self._rdn_attribute)
-                if isinstance(v, list):
-                    rdn = ensure_str(v[0])
-                else:
-                    rdn = ensure_str(v)
+                rdn = ensure_str(v[0])
 
-                tdn = '%s=%s,%s' % (self._rdn_attribute, rdn, basedn)
+                erdn = ldap.dn.escape_dn_chars(rdn)
+                self._log.debug("Using first property %s: %s as rdn" % (self._rdn_attribute, erdn))
+                # Now we compare. If we changed this value, we have to put it back to make the properties complete.
+                if erdn != rdn:
+                    properties[self._rdn_attribute].append(erdn)
+
+                tdn = '%s=%s,%s' % (self._rdn_attribute, erdn, basedn)
 
         # We may need to map over the data in the properties dict to satisfy python-ldap
         str_props = {}
         for k, v in properties.items():
-            if isinstance(v, list):
-                # str_props[k] = map(lambda v1: ensure_bytes(v1), v)
-                str_props[k] = ensure_list_bytes(v)
-            else:
-                str_props[k] = ensure_bytes(v)
+            str_props[k] = ensure_list_bytes(v)
         #
         # Do we need to do extra dn validation here?
         return (tdn, str_props)
 
     def create(self, rdn=None, properties=None, basedn=None):
         assert(len(self._create_objectclasses) > 0)
-        self._log.debug('Creating %s %s : %s' % (rdn, basedn, properties))
+        self._log.debug('Creating "%s" under %s : %s' % (rdn, basedn, properties))
         # Add the objectClasses to the properties
         (dn, valid_props) = self._validate(rdn, properties, basedn)
         # Check if the entry exists or not? .add_s is going to error anyway ...
@@ -307,6 +316,26 @@ class DSLdapObject(DSLogging):
         # If it worked, we need to fix our instance dn
         self._dn = dn
         return self
+
+    def lint(self):
+        """
+        Override this to create a linter for a type. This means that we can detect
+        and report common administrative errors in the server from our cli and
+        rest tools.
+
+        The structure of a result is:
+        {
+          dsle: '<identifier>'. dsle == ds lint error. Will be a code unique to
+                                this module for the error, IE DSBLE0001.
+          severity: '[HIGH:MEDIUM:LOW]'. severity of the error.
+          items: '(dn,dn,dn)'. List of affected DNs or names.
+          detail: 'msg ...'. An explination of the error.
+          fix: 'msg ...'. Steps to resolve the error.
+        }
+
+        You should return an array of these dicts, on None if there are no errors.
+        """
+        return None
 
 
 # A challenge of this, is how do we manage indexes? They have two naming attribunes....

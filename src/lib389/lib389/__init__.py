@@ -334,8 +334,9 @@ class DirSrv(SimpleLDAPObject):
         from lib389.config import Encryption
         from lib389.dirsrv_log import DirsrvAccessLog, DirsrvErrorLog
         from lib389.ldclt import Ldclt
+        from lib389.mappingTree import MappingTrees
+        from lib389.mappingTree import MappingTreeLegacy as MappingTree
         from lib389.backend import Backends
-        from lib389.mappingTree import MappingTree
         from lib389.backend import BackendLegacy as Backend
         from lib389.suffix import Suffix
         from lib389.replica import ReplicaLegacy as Replica
@@ -364,6 +365,7 @@ class DirSrv(SimpleLDAPObject):
         # Do we have a certdb path?
         # if MAJOR < 3:
         self.backends = Backends(self)
+        self.mappingtrees = MappingTrees(self)
         self.replicas = Replicas(self)
         self.aci = Aci(self)
         self.nss_ssl = NssSsl(self)
@@ -1106,7 +1108,6 @@ class DirSrv(SimpleLDAPObject):
                 env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
                 env['ASAN_OPTIONS'] = "symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (self.ds_paths.run_dir, self.serverid)
                 env.update(os.environ)
-                log.error(env)
             subprocess.check_call(["%s/ns-slapd" % self.get_sbin_dir(),
                                     "-D",
                                     self.ds_paths.config_dir,

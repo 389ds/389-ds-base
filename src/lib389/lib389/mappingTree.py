@@ -7,16 +7,20 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
+import ldap.dn
 import six
 
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import suffixfilt, normalizeDN
-from lib389 import DirSrv, Entry
-from lib389 import NoSuchEntryError, InvalidArgumentError
+from lib389 import Entry
+from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
 
-class MappingTree(object):
+from lib389._mapped_object import DSLdapObjects, DSLdapObject
+
+
+class MappingTreeLegacy(object):
     '''
     classdocs
     '''
@@ -32,6 +36,7 @@ class MappingTree(object):
 
     def __getattr__(self, name):
         if name in MappingTree.proxied_methods:
+            from lib389 import DirSrv
             return DirSrv.__getattr__(self.conn, name)
 
     def list(self, suffix=None, bename=None):
@@ -371,3 +376,24 @@ class MappingTree(object):
             return ent.getValues(attr_suffix)
         else:
             raise InvalidArgumentError("entry or name are mandatory")
+
+class MappingTree(DSLdapObject):
+    _must_attributes = ['cn']
+
+    def __init__(self, instance, dn=None, batch=False):
+        super(MappingTree, self).__init__(instance, dn, batch)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'extensibleObject', MT_OBJECTCLASS_VALUE]
+        self._protected = False
+
+
+class MappingTrees(DSLdapObjects):
+    def __init__(self, instance, batch=False):
+        super(MappingTrees, self).__init__(instance=instance, batch=batch)
+        self._objectclasses = [MT_OBJECTCLASS_VALUE]
+        self._filterattrs = ['cn', 'nsslapd-backend' ]
+        self._childobject = MappingTree
+        self._basedn = DN_MAPPING_TREE
+
+

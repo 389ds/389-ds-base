@@ -267,7 +267,8 @@ class Entry(object):
         (1000)
         """
         newdata = {}
-        newdata.update(self.data)
+        for k, v in self.data.items():
+            newdata[k] = ensure_list_bytes(v)
 
         ldif.LDIFWriter(
             sio, Entry.base64_attrs, 1000).unparse(self.dn, newdata)

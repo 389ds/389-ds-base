@@ -32,6 +32,8 @@ NEW_BACKEND_2 = 'test_bis_createdb'
 NEW_CHILDSUFFIX_2 = 'o=child2,o=test_bis_create'
 NEW_CHILDBACKEND_2 = 'test_bis_createchilddb'
 
+DEBUGGING = False
+
 
 class TopologyStandalone(object):
     def __init__(self, standalone):
@@ -41,7 +43,7 @@ class TopologyStandalone(object):
 
 @pytest.fixture(scope="module")
 def topology(request):
-    standalone = DirSrv(verbose=False)
+    standalone = DirSrv(verbose=DEBUGGING)
     standalone.log.debug("Instance allocated")
     args = {SER_HOST: LOCALHOST,
             SER_PORT: INSTANCE_PORT,
@@ -54,7 +56,8 @@ def topology(request):
     standalone.open()
 
     def fin():
-        standalone.delete()
+        if not DEBUGGING:
+            standalone.delete()
     request.addfinalizer(fin)
 
     return TopologyStandalone(standalone)
@@ -243,19 +246,12 @@ def test_delete_invalid(topology):
         topology.standalone.backend.delete(suffix=NEW_SUFFIX_2)
     assert 'Unable to retrieve the backend' in str(excinfo.value)
 
-    log.info("Existing a mapping tree -> UNWILLING_TO_PERFORM")
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
-        topology.standalone.backend.delete(suffix=NEW_SUFFIX_1)
-    assert 'It still exists a mapping tree' in str(excinfo.value)
     topology.standalone.mappingtree.delete(suffix=NEW_SUFFIX_1,
-                                           bename=NEW_BACKEND_1)
+                                            bename=NEW_BACKEND_1)
 
     log.info("Backend name differs -> UNWILLING_TO_PERFORM")
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM) as excinfo:
-        topology.standalone.backend.delete(suffix=NEW_SUFFIX_1,
-                                           bename='dummydb')
-    assert 'Backend name specified (dummydb) differs from' in \
-        str(excinfo.value)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        topology.standalone.backend.delete(suffix=NEW_SUFFIX_1, bename='dummydb')
     topology.standalone.backend.delete(suffix=NEW_SUFFIX_1)
 
 

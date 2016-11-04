@@ -56,7 +56,7 @@ def topology(request):
     return TopologyInstance(instance)
 
 
-def test_list(topology):
+def test_legacy_list(topology):
     """This test list with only no param, suffix,
     bename, suffix+bename (also with invalid values)
     """
@@ -88,7 +88,7 @@ def test_list(topology):
     log.info('test_list(suffix, bename): %r' % ent)
 
 
-def test_create(topology):
+def test_legacy_create(topology):
     """This test will create 2 backends/mapping trees,
     then 2 childs backend/mapping tree
     """
@@ -160,7 +160,7 @@ def test_create(topology):
          NEW_SUFFIX_2)
 
 
-def test_delete(topology):
+def test_legacy_delete(topology):
     """Delete the mapping tree and check the remaining number.
     Delete the sub-suffix first.
     """
@@ -196,7 +196,7 @@ def test_delete(topology):
                                          name=ents[0].dn)
 
 
-def test_getProperties(topology):
+def test_legacy_getProperties(topology):
     """Create one additional mapping tree
     and try to get properties from it
     """
@@ -247,7 +247,7 @@ def test_getProperties(topology):
             name=ent.dn, properties=['dummy'])
 
 
-def test_toSuffix(topology):
+def test_legacy_toSuffix(topology):
     """Try to get suffix name from existing mapping tree"""
 
     ents = topology.instance.mappingtree.list()

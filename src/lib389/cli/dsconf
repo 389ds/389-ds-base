@@ -13,12 +13,15 @@ import logging
 import ldap
 import sys
 
+# This has to happen before we import  DirSrv else it tramples our config ... :(
+logging.basicConfig(format='%(message)s')
+
 from lib389 import DirSrv
 from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import plugin as cli_plugin
+from lib389.cli_conf import lint as cli_lint
 from lib389.cli_base import disconnect_instance, connect_instance
 
-logging.basicConfig()
 log = logging.getLogger("dsconf")
 
 if __name__ == '__main__':
@@ -28,13 +31,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # Build the base ldap options, this keeps in unified.
 
+    # Can we get default options for these from .rc file?
+
     parser.add_argument('-D', '--binddn',
             help="The account to bind as for executing operations",
-            default=None,
+            default='cn=Directory Manager',
         )
     parser.add_argument('-H', '--ldapurl',
             help="The LDAP url to connect to, IE ldap://mai.example.com:389",
-            default=None,
+            default='ldap://localhost',
         )
     parser.add_argument('-b', '--basedn',
             help="The basedn for this operation.",
@@ -52,6 +57,7 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(help="resources to act upon")
 
     cli_backend.create_parser(subparsers)
+    cli_lint.create_parser(subparsers)
     cli_plugin.create_parser(subparsers)
 
     args = parser.parse_args()
@@ -59,6 +65,7 @@ if __name__ == '__main__':
     if args.verbose:
         log.setLevel(logging.DEBUG)
     else:
+        # We aren't verbose, so fix our formatter up to be more minimal ...
         log.setLevel(logging.INFO)
 
     log.debug("The 389 Directory Server Configuration Tool")

@@ -128,7 +128,7 @@ def _generic_delete(inst, basedn, log, object_class, dn):
 class LogCapture(logging.Handler):
     """
     This useful class is for intercepting logs, and then making assertions about
-    the outputs provided. Used by the cli unit tests
+    the outputs provided. Used by the cli unit tests.
     """
 
     def __init__(self):

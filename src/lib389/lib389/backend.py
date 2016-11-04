@@ -9,12 +9,13 @@
 import ldap
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import normalizeDN
+from lib389.utils import normalizeDN, ensure_str, ensure_bytes
 from lib389 import Entry
 
 # Need to fix this ....
 
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
+from lib389.mappingTree import MappingTrees, MappingTree
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
 
@@ -173,8 +174,7 @@ class BackendLegacy(object):
                 (mt_ents[0].dn, be_ent.dn))
 
         # Now delete the indexes
-        found_bename = be_ent.getValue(
-            BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME])
+        found_bename = ensure_str(be_ent.getValue(BACKEND_PROPNAME_TO_ATTRNAME[BACKEND_NAME]))
         if not bename:
             bename = found_bename
         elif bename.lower() != found_bename.lower():
@@ -386,6 +386,8 @@ class Backend(DSLdapObject):
         self._must_attributes = ['nsslapd-suffix', 'cn']
         self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
         self._protected = False
+        # Check if a mapping tree for this suffix exists.
+        self._mts = MappingTrees(self._instance)
 
     def create_sample_entries(self):
         self._log.debug('Creating sample entries ....')
@@ -413,11 +415,32 @@ class Backend(DSLdapObject):
 
         (dn, valid_props) = super(Backend, self)._validate(rdn, nprops, basedn)
 
+        try:
+            self._mts.get(ensure_str(valid_props['nsslapd-suffix'][0]))
+            raise ldap.UNWILLING_TO_PERFORM("Mapping tree for this suffix exists!")
+        except ldap.NO_SUCH_OBJECT:
+            pass
+        try:
+            self._mts.get(ensure_str(valid_props['cn'][0]))
+            raise ldap.UNWILLING_TO_PERFORM("Mapping tree for this database exists!")
+        except ldap.NO_SUCH_OBJECT:
+            pass
+        # We have to stash our valid props so that mapping tree can use them ...
+        self._nprops_stash = valid_props
+
         return (dn, valid_props)
 
     def create(self, dn=None, properties=None, basedn=None):
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
+        print(properties)
+        # Okay, now try to make the backend.
         super(Backend, self).create(dn, properties, basedn)
+        # We check if the mapping tree exists in create, so do this *after*
+        self._mts.create(properties = {
+            'cn': self._nprops_stash['nsslapd-suffix'],
+            'nsslapd-state' : 'backend',
+            'nsslapd-backend' : self._nprops_stash['cn'] ,
+        })
         if sample_entries is True:
             self.create_sample_entries()
         return self
@@ -426,28 +449,83 @@ class Backend(DSLdapObject):
         if self._protected:
             raise ldap.UNWILLING_TO_PERFORM("This is a protected backend!")
         # First check if the mapping tree has our suffix still.
-        suffix = self.get_attr_val('nsslapd-suffix')
-        bename = self.get_attr_val('cn')
-        # TODO: This is the old api, change it!!!!
-        mt_ents = self._instance.mappingtree.list(suffix=suffix)
-        if len(mt_ents) > 0:
-            raise ldap.UNWILLING_TO_PERFORM(
-                "It still exists a mapping tree (%s) for that backend (%s)" %
-                (mt_ents[0].dn, self.dn))
-
+        # suffix = self.get_attr_val('nsslapd-suffix')
+        bename = ensure_str(self.get_attr_val('cn'))
+        try:
+            mt = self._mts.get(selector=bename)
+            # Assert the type is "backend"
+            # Are these the right types....?
+            if mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
+                raise ldap.UNWILLING_TO_PERFORM('Can not delete the mapping tree, not for a backend! You may need to delete this backend via cn=config .... ;_; ')
+            # Delete our mapping tree if it exists.
+            mt.delete()
+        except ldap.NO_SUCH_OBJECT:
+            # Righto, it's already gone! Do nothing ...
+            pass
+        # Delete all our related indcies
         self._instance.index.delete_all(bename)
 
-        # Now remove the children
+        # Now remove our children, this is all ldbm config
         self._instance.delete_branch_s(self._dn, ldap.SCOPE_ONELEVEL)
         # The super will actually delete ourselves.
         super(Backend, self).delete()
 
+    def lint(self):
+        """
+        Backend lint
+
+        This should check for:
+        * missing mapping tree entries for the backend
+        * missing indcies if we are local and have log access?
+        """
+        results = []
+        # return ["Hello!",]
+        # Check for the missing mapping tree.
+        suffix = ensure_str(self.get_attr_val('nsslapd-suffix'))
+        bename = self.get_attr_val('cn')
+        # This should change to the mapping tree objects later ....
+        try:
+            mt = self._mts.get(suffix)
+            if mt.get_attr_val('nsslapd-backend') != ensure_bytes(bename) and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend') :
+                raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
+        except ldap.NO_SUCH_OBJECT:
+            results.append({
+                'dsle': 'DSBLE0001',
+                'severity': 'MEDIUM',
+                'items' : [bename, ],
+                'detail' : """
+This backend may be missing the correct mapping tree references. Mapping Trees allow
+the directory server to determine which backend an operation is routed to in the
+abscence of other information. This is extremely important for correct functioning
+of LDAP ADD for example.
+
+A correct Mapping tree for this backend must contain the suffix name, the database name
+and be a backend type. IE:
+
+cn=o3Dexample,cn=mapping tree,cn=config
+cn: o=example
+nsslapd-backend: userRoot
+nsslapd-state: backend
+objectClass: top
+objectClass: extensibleObject
+objectClass: nsMappingTree
+
+                """,
+                'fix' : """
+Either you need to create the mapping tree, or you need to repair the related
+mapping tree. You will need to do this by hand by editing cn=config, or stopping
+the instance and editing dse.ldif.
+                """
+            })
+        if len(results) == 0:
+            return None
+        return results
 
 # This only does ldbm backends. Chaining backends are a special case
 # of this, so they can be subclassed off.
 class Backends(DSLdapObjects):
     def __init__(self, instance, batch=False):
-        super(Backends, self).__init__(instance=instance, batch=False)
+        super(Backends, self).__init__(instance=instance, batch=batch)
         self._objectclasses = [BACKEND_OBJECTCLASS_VALUE]
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
         self._childobject = Backend
