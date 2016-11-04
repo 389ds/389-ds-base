@@ -1408,8 +1408,8 @@ class DirSrv(SimpleLDAPObject):
         #
 
         # previous db (it may exists new db files not in the backup)
-        log.debug("restoreFS: remove subtree %s/*" % self.dbdir)
-        for root, dirs, files in os.walk(self.dbdir):
+        log.debug("restoreFS: remove subtree %s/*" % self.inst_dir)
+        for root, dirs, files in os.walk(self.inst_dir):
             for d in dirs:
                 if d not in ("bak", "ldif"):
                     log.debug("restoreFS: before restore remove directory" +
@@ -1461,7 +1461,7 @@ class DirSrv(SimpleLDAPObject):
         #
         # Now be safe, triggers a recovery at restart
         #
-        guardian_file = os.path.join(self.dbdir, "db/guardian")
+        guardian_file = os.path.join(self.dbdir, "guardian")
         if os.path.isfile(guardian_file):
             try:
                 log.debug("restoreFS: remove %s" % guardian_file)
@@ -2709,9 +2709,9 @@ class DirSrv(SimpleLDAPObject):
             log.error("dbscan: missing required index name")
             return False
         elif '.db' in index:
-            indexfile = "%s/db/%s/%s" % (self.dbdir, bename, index)
+            indexfile = os.path.join(self.dbdir, bename, index)
         else:
-            indexfile = "%s/db/%s/%s.db" % (self.dbdir, bename, index)
+            indexfile = os.path.join(self.dbdir, bename, index)
 
         option = ''
         if 'id2entry' in index:

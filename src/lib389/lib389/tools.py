@@ -370,8 +370,8 @@ class DirSrvTools(object):
         #
 
         # previous db (it may exists new db files not in the backup)
-        log.debug("instanceRestoreFS: remove subtree %s/*" % dirsrv.dbdir)
-        for root, dirs, files in os.walk(dirsrv.dbdir):
+        log.debug("instanceRestoreFS: remove subtree %s/*" % dirsrv.inst_dir)
+        for root, dirs, files in os.walk(dirsrv.inst_dir):
             for d in dirs:
                 if d not in ("bak", "ldif"):
                     log.debug(
@@ -418,7 +418,7 @@ class DirSrvTools(object):
         #
         # Now be safe, triggers a recovery at restart
         #
-        guardian_file = os.path.join(dirsrv.dbdir, "db/guardian")
+        guardian_file = os.path.join(dirsrv.dbdir, "guardian")
         if os.path.isfile(guardian_file):
             try:
                 log.debug("instanceRestoreFS: remove %s" % guardian_file)
