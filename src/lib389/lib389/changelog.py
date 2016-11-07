@@ -45,7 +45,7 @@ class Changelog(object):
         """
         dn = DN_CHANGELOG
         attribute, changelog_name = dn.split(",")[0].split("=", 1)
-        dirpath = os.path.join(self.conn.inst_dir, dbname)
+        dirpath = os.path.join(os.path.dirname(self.conn.dbdir), dbname)
         entry = Entry(dn)
         entry.update({
             'objectclass': ("top", "extensibleobject"),

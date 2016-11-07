@@ -1408,8 +1408,8 @@ class DirSrv(SimpleLDAPObject):
         #
 
         # previous db (it may exists new db files not in the backup)
-        log.debug("restoreFS: remove subtree %s/*" % self.inst_dir)
-        for root, dirs, files in os.walk(self.inst_dir):
+        log.debug("restoreFS: remove subtree %s/*" % os.path.dirname(self.dbdir))
+        for root, dirs, files in os.walk(os.path.dirname(self.dbdir)):
             for d in dirs:
                 if d not in ("bak", "ldif"):
                     log.debug("restoreFS: before restore remove directory" +

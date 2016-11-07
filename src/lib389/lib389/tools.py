@@ -370,8 +370,8 @@ class DirSrvTools(object):
         #
 
         # previous db (it may exists new db files not in the backup)
-        log.debug("instanceRestoreFS: remove subtree %s/*" % dirsrv.inst_dir)
-        for root, dirs, files in os.walk(dirsrv.inst_dir):
+        log.debug("instanceRestoreFS: remove subtree %s/*" % os.path.dirname(dirsrv.dbdir))
+        for root, dirs, files in os.walk(os.path.dirname(dirsrv.dbdir)):
             for d in dirs:
                 if d not in ("bak", "ldif"):
                     log.debug(
