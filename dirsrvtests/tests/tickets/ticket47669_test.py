@@ -85,7 +85,7 @@ def test_ticket47669_init(topology):
     topology.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     try:
-        changelogdir = os.path.join(topology.standalone.inst_dir, 'changelog')
+        changelogdir = os.path.join(os.path.dirname(topology.standalone.dbdir), 'changelog')
         topology.standalone.add_s(Entry((CHANGELOG,
                                      {'objectclass': 'top extensibleObject'.split(),
                                       'nsslapd-changelogdir': changelogdir})))
