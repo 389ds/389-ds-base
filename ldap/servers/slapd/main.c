@@ -234,6 +234,7 @@ fix_ownership(void)
 		return; 
 	}
 
+    /* Provided the dse.ldif was read, this should never happen .... */
 	if (slapdFrontendConfig->localuserinfo == NULL) {
 		pw = getpwnam( slapdFrontendConfig->localuser );
 		if ( NULL == pw ) {

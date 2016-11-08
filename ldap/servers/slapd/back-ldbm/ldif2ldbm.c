@@ -1259,8 +1259,9 @@ ldbm_back_ldbm2ldif( Slapi_PBlock *pb )
                     SLAPD_DEFAULT_FILE_MODE);
         }
         if (fd < 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: can't open %s: %d (%s)\n",
-                  fname, errno, dblayer_strerror(errno));
+            slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: can't open %s: %d (%s) while running as user \"%s\"\n",
+                  fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             return_value = -1;
             goto bye;
         }

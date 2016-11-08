@@ -118,6 +118,11 @@ typedef struct symbol_t {
 #include "csngen.h"
 #include "uuid.h"
 
+/* Because we provide getFrontendConfig, and that contains localuserinfo, we
+ * need to provide pwd.h to allow resolution of the passwd struct.
+ */
+#include <pwd.h>
+
 #ifdef ENABLE_NUNC_STANS
 #include <nunc-stans/nunc-stans.h>
 #endif
