@@ -135,8 +135,7 @@ def test_ticket48497_homeDirectory_index_run(topology):
     topology.standalone.tasks.reindex(suffix=SUFFIX, attrname='homeDirectory', args=args)
 
     log.info("Check indexing succeeded with a specified matching rule")
-    file_path = os.path.join(topology.standalone.prefix, "var/log/dirsrv/slapd-%s/errors" % topology.standalone.serverid)
-    file_obj = open(file_path, "r")
+    file_obj = open(topology.standalone.errlog, "r")
 
     # Check if the MR configuration failure occurs
     regex = re.compile("unknown or invalid matching rule")
