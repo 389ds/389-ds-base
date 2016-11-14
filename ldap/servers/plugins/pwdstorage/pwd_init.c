@@ -344,7 +344,7 @@ pbkdf2_sha256_pwd_storage_scheme_init(Slapi_PBlock *pb)
 {
     int rc;
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "=> pbkdf2_sha256_pwd_storage_scheme_init\n");
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "=> pbkdf2_sha256_pwd_storage_scheme_init\n");
 
     rc = slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, (void *) SLAPI_PLUGIN_VERSION_01);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&pbkdf2_sha256_pdesc);
@@ -352,7 +352,7 @@ pbkdf2_sha256_pwd_storage_scheme_init(Slapi_PBlock *pb)
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN, (void *)pbkdf2_sha256_pw_cmp);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME, PBKDF2_SHA256_SCHEME_NAME);
 
-    slapi_log_error(SLAPI_LOG_PLUGIN, plugin_name, "<= pbkdf2_sha256_pwd_storage_scheme_init %d\n", rc);
+    slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= pbkdf2_sha256_pwd_storage_scheme_init %d\n", rc);
     return rc;
 }
 

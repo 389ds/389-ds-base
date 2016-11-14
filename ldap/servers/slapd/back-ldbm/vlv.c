@@ -741,8 +741,8 @@ do_vlv_update_index(back_txn *txn, struct ldbminfo *li, Slapi_PBlock *pb, struct
     if (rc != 0) {
       if(rc != DB_LOCK_DEADLOCK)
         slapi_log_err(SLAPI_LOG_ERR, "do_vlv_update_index", "Can't get index file '%s' (err %d)\n",
-                  pIndex->vlv_attrinfo->ai_type, rc);
-        return rc;
+                      pIndex->vlv_attrinfo->ai_type, rc);
+      return rc;
     }
 
     key = vlv_create_key(pIndex,entry);

@@ -112,7 +112,7 @@ slapi_pw_find_sv(
 	char			*valpwd;
     int     		i;
 
-	slapi_log_err(SLAPI_LOG_TRACE, "slapi_pw_find value", "=> \"%s\"\n", slapi_value_get_string(v));
+	slapi_log_err(SLAPI_LOG_TRACE, "slapi_pw_find_sv", "=> \"%s\"\n", slapi_value_get_string(v));
 
     for ( i = 0; vals && vals[i]; i++ )
     {
@@ -120,16 +120,16 @@ slapi_pw_find_sv(
 		if ( pwsp != NULL && 
 			(*(pwsp->pws_cmp))( (char*)slapi_value_get_string(v), valpwd ) == 0 )
 		{
-			slapi_log_err(SLAPI_LOG_TRACE,
-			    "<= slapi_pw_find matched \"%s\" using scheme \"%s\"\n",
-			    valpwd, pwsp->pws_name, 0 );
+			slapi_log_err(SLAPI_LOG_TRACE, "slapi_pw_find_sv",
+			    "<= Matched \"%s\" using scheme \"%s\"\n",
+			    valpwd, pwsp->pws_name);
 			free_pw_scheme( pwsp );
             return( 0 );	/* found it */
         }
 		free_pw_scheme( pwsp );
 	}
  
-	slapi_log_err(SLAPI_LOG_TRACE, "slapi_pw_find no matching password", "<=\n");
+	slapi_log_err(SLAPI_LOG_TRACE, "slapi_pw_find_sv", "No matching password <=\n");
 
     return( 1 );	/* no match */
 }
@@ -610,7 +610,7 @@ update_pw_info ( Slapi_PBlock *pb , char *old_pw)
 	slapi_pblock_get( pb, SLAPI_ENTRY_PRE_OP, &e);
 	if ((NULL == operation) || (NULL == sdn) || (NULL == e)){
 		slapi_log_err(SLAPI_LOG_ERR, "update_pw_info", 
-		                "Param error - no password entry/target dn/operation\n");
+			"Param error - no password entry/target dn/operation\n");
 		return -1;
 	}
 	internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
@@ -818,7 +818,7 @@ check_pw_syntax_ext ( Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals,
 	}
 	if (NULL == vals) {
 		slapi_log_err(SLAPI_LOG_ERR, "check_pw_syntax_ext", 
-		                 "No passwords to check\n" );
+			"No passwords to check\n" );
 		return -1;
 	}
 
@@ -1236,8 +1236,8 @@ update_pw_history( Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw )
 	slapi_modify_internal_pb(&mod_pb);
 	slapi_pblock_get(&mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 	if (res != LDAP_SUCCESS){
-		slapi_log_err(SLAPI_LOG_ERR,
-		    "update_pw_history", "Modify error %d on entry '%s'\n", res, dn);
+		slapi_log_err(SLAPI_LOG_ERR, "update_pw_history",
+			"Modify error %d on entry '%s'\n", res, dn);
 	}
 	pblock_done(&mod_pb);
 	slapi_ch_free_string(&str);
