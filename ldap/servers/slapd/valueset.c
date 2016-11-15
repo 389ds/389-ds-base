@@ -577,7 +577,7 @@ slapi_valueset_done(Slapi_ValueSet *vs)
 {
 	if(vs!=NULL)
 	{
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 		if(vs->va!=NULL)
 		{
 			valuearray_free(&vs->va);
@@ -609,7 +609,7 @@ slapi_valueset_set_from_smod(Slapi_ValueSet *vs, Slapi_Mod *smod)
 	Slapi_Value **va= NULL;
 	valuearray_init_bervalarray(slapi_mod_get_ldapmod_byref(smod)->mod_bvalues, &va);
 	valueset_set_valuearray_passin(vs, va);
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+	PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 }
 
 void
@@ -630,7 +630,7 @@ valueset_set_valuearray_byval(Slapi_ValueSet *vs, Slapi_Value **addvals)
 		}
 	}
 	vs->va[j] = NULL;
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+	PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 }
 
 /* WARNING: you must call this function with a new vs - if it points to existing data, it
@@ -643,7 +643,7 @@ valueset_set_valuearray_passin(Slapi_ValueSet *vs, Slapi_Value **addvals)
 	vs->va= addvals;
 	vs->num = valuearray_count(addvals);
 	vs->max = vs->num + 1;
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+	PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 }
 
 /* WARNING: you must call this function with a new vs1 - if it points to existing data, it
@@ -747,12 +747,13 @@ Slapi_Value *
 valueset_remove_value_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value *v)
 {
 	Slapi_Value *r= NULL;
-	int i, position = 0;
+	size_t i = 0;
+	size_t position = 0;
 	r = valueset_find_sorted(a,vs,v,&position);
 	if (r) {
 		/* the value was found, remove from valuearray */
-		int index = vs->sorted[position];
-		memmove(&vs->sorted[position],&vs->sorted[position+1],(vs->num - position)*sizeof(int));
+		size_t index = vs->sorted[position];
+		memmove(&vs->sorted[position],&vs->sorted[position+1],(vs->num - position)*sizeof(size_t));
 		memmove(&vs->va[index],&vs->va[index+1],(vs->num - index)*sizeof(Slapi_Value *));
 		vs->num--;
 		/* unfortunately the references in the sorted array
@@ -761,7 +762,7 @@ valueset_remove_value_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slap
 		for (i=0; i < vs->num; i++) {
 			if (vs->sorted[i] > index) vs->sorted[i]--;
 		}
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 	}
 	return r;
 }
@@ -780,7 +781,7 @@ valueset_remove_value(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value
 				vs->num--;
 		}
 	}
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+	PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 	return r;
 }
 
@@ -808,7 +809,7 @@ valueset_purge(Slapi_ValueSet *vs, const CSN *csn)
 			slapi_ch_free ((void **)&vs->sorted);
 			vs->sorted = NULL;
 		}
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 	}
 	return 0;
 }
@@ -933,7 +934,7 @@ valueset_value_cmp( const Slapi_Attr *a, const Slapi_Value *v1, const Slapi_Valu
  * If the value is not found, index will contain the place where the value would be inserted
  */
 Slapi_Value *
-valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v, int *index)
+valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v, size_t *index)
 {
 	int cmp = -1;
 	int bot = -1;
@@ -948,10 +949,11 @@ valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi
 	}
 	while (top - bot > 1) {
 		int mid = (top + bot)/2;
-		if ( (cmp = valueset_value_cmp(a, v, vs->va[vs->sorted[mid]])) > 0)
+		if ( (cmp = valueset_value_cmp(a, v, vs->va[vs->sorted[mid]])) > 0) {
 			bot = mid;
-		else
+		} else {
 			top = mid;
+		}
 	}
 	if (index) *index = top;
 	/* check if the value is found */
@@ -961,62 +963,104 @@ valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi
 		return (NULL);
 }
 
+
 void
 valueset_array_to_sorted (const Slapi_Attr *a, Slapi_ValueSet *vs)
 {
-	int i, j, swap;
+    size_t i;
 
-	/* initialize sort array */
-	for (i = 0; i < vs->num; i++)
-		vs->sorted[i] = i;
+    /* initialize sort array with indcies */
+    for (i = 0; i < vs->max; i++) {
+        vs->sorted[i] = i;
+    }
 
-	/* now sort it, use a simple insertion sort as the array will always
-	 * be very small when initially sorted
-	 */
-	for (i = 1; i < vs->num; i++) {
-		swap = vs->sorted[i];
-		j = i -1;
+    /* This is the index boundaries of the array.
+     * We only need to sort if we have 2 or more elements.
+     */
+    if (vs->num >= 2) {
+        valueset_array_to_sorted_quick(a, vs, 0, vs->num - 1);
+    }
 
-		while ( j >= 0 && valueset_value_cmp (a, vs->va[vs->sorted[j]], vs->va[swap]) > 0 ) {
-			vs->sorted[j+1] = vs->sorted[j];
-			j--;
-		}
-		vs->sorted[j+1] = swap;
-	}
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+    PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 }
+
+void
+valueset_array_to_sorted_quick (const Slapi_Attr *a, Slapi_ValueSet *vs, size_t low, size_t high)
+{
+    if (low >= high) {
+        return;
+    }
+
+    /* Hoare quicksort */
+
+    size_t pivot = vs->sorted[low];
+    size_t i = low - 1;
+    size_t j = high + 1;
+
+    /* This is the partition step */
+    while (1) {
+        do {
+            i++;
+        } while ( valueset_value_cmp(a, vs->va[vs->sorted[i]], vs->va[pivot]) < 0);
+
+        do {
+            j--;
+        } while ( valueset_value_cmp(a, vs->va[vs->sorted[j]], vs->va[pivot]) > 0);
+
+        if (i >= j) {
+            break;
+        }
+
+        valueset_swap_values(&(vs->sorted[i]), &(vs->sorted[j]));
+
+    }
+
+    valueset_array_to_sorted_quick(a, vs, low, j);
+    valueset_array_to_sorted_quick(a, vs, j + 1, high);
+
+}
+
+void
+valueset_swap_values(size_t *a, size_t *b)
+{
+    size_t t = *a;
+    *a = *b;
+    *b = t;
+}
+
 /* insert a value into a sorted array, if dupcheck is set no duplicate values will be accepted 
  * (is there a reason to allow duplicates ? LK
- * if the value is inserted the the function returns the index where it was inserted
+ * (OLD) if the value is inserted the the function returns the index where it was inserted
+ * (NEW) If the value is inserted, we return 0. No one checks the return, so don't bother.
  * if the value already exists -index is returned to indicate anerror an the index of the existing value
  */
 int
 valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *vi, int dupcheck)
 {
-	int index = -1;
+	size_t index = 0;
 	Slapi_Value *v;
 	/* test for pre sorted array and to avoid boundary condition */
 	if (vs->num == 0) {
 		vs->sorted[0] = 0;
 		vs->num++;
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 		return(0);
 	} else if (valueset_value_cmp (a, vi, vs->va[vs->sorted[vs->num-1]]) > 0 )  {
 		vs->sorted[vs->num] = vs->num;
-		vs->num++; 
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
-		return (vs->num);
+		vs->num++;
+		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
+		return (0);
 	}
 	v = valueset_find_sorted (a, vs, vi, &index);
 	if (v && dupcheck) {
 		/* value already exists, do not insert duplicates */
 		return (-1);
 	} else {
-		memmove(&vs->sorted[index+1],&vs->sorted[index],(vs->num - index)* sizeof(int));
+		memmove(&vs->sorted[index+1],&vs->sorted[index],(vs->num - index)* sizeof(size_t));
 		vs->sorted[index] = vs->num;
-		vs->num++; 
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
-		return(index);
+		vs->num++;
+		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
+		return(0);
 	}
 		
 }
@@ -1035,32 +1079,34 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 					Slapi_Value **addvals, int naddvals, unsigned long flags, int *dup_index)
 {
 	int rc = LDAP_SUCCESS;
-	int i, dup;
-	int allocate = 0;
-	int need;
+	int dup;
+	size_t allocate = 0;
+	size_t need = 0;
 	int passin = flags & SLAPI_VALUE_FLAG_PASSIN;
 	int dupcheck = flags & SLAPI_VALUE_FLAG_DUPCHECK;
 
-	if (naddvals == 0) 
+	if (naddvals == 0) {
 		return (rc);
+	}
 	
 	need = vs->num + naddvals + 1;
 	if (need > vs->max) {
 		/* Expand the array */
-		allocate= vs->max;
-		if ( allocate == 0 ) /* initial allocation */
+		allocate = vs->max;
+		if ( allocate == 0 ) { /* initial allocation */
 			allocate = VALUESET_ARRAY_MINSIZE;
+		}
 		while ( allocate < need )
 		{
-			if (allocate > VALUESET_ARRAY_MAXINCREMENT ) 
+			if (allocate > VALUESET_ARRAY_MAXINCREMENT ) {
 				/* do not grow exponentially */
 				allocate += VALUESET_ARRAY_MAXINCREMENT;
-			else
+			} else {
 				allocate *= 2;
-	
+			}
 		}
 	}
-	if(allocate>0)
+	if(allocate > 0)
 	{
 		if(vs->va==NULL)
 		{
@@ -1070,20 +1116,19 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 		{
 			vs->va = (Slapi_Value **) slapi_ch_realloc( (char *) vs->va, allocate * sizeof(Slapi_Value *));
 			if (vs->sorted) {
-				vs->sorted = (int *) slapi_ch_realloc( (char *) vs->sorted, allocate * sizeof(int));
+				vs->sorted = (size_t *) slapi_ch_realloc( (char *) vs->sorted, allocate * sizeof(size_t));
 			}
 		}
-		vs->max= allocate;
+		vs->max = allocate;
 	}
 
-	if ( (vs->num + naddvals > VALUESET_ARRAY_SORT_THRESHOLD || dupcheck ) && 
-		!vs->sorted ) {
+	if ((vs->num + naddvals > VALUESET_ARRAY_SORT_THRESHOLD || dupcheck ) && !vs->sorted && vs->max > 0) {
 		/* initialize sort array and do initial sort */
-		vs->sorted = (int *) slapi_ch_malloc( vs->max* sizeof(int));
+		vs->sorted = (size_t *) slapi_ch_malloc( vs->max * sizeof(size_t));
 		valueset_array_to_sorted (a, vs);
 	}
 
-	for ( i = 0; i < naddvals; i++)
+	for (size_t i = 0; i < naddvals; i++)
 	{
 		if ( addvals[i]!=NULL )
 		{
@@ -1118,7 +1163,7 @@ slapi_valueset_add_attr_valuearray_ext(const Slapi_Attr *a, Slapi_ValueSet *vs,
 	}
 	(vs->va)[vs->num] = NULL;
 
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+	PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 	return (rc); 
 }
 
@@ -1182,14 +1227,14 @@ valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 		}
 		if (vs2->sorted) {
 			if ((NULL == vs1->sorted) || (oldmax < vs1->max)) {
-				vs1->sorted = (int *)slapi_ch_realloc((char *)vs1->sorted, vs1->max * sizeof(int));
+				vs1->sorted = (size_t *)slapi_ch_realloc((char *)vs1->sorted, vs1->max * sizeof(size_t));
 			}
-			memcpy(&vs1->sorted[0], &vs2->sorted[0], vs1->num * sizeof(int));
+			memcpy(&vs1->sorted[0], &vs2->sorted[0], vs1->num * sizeof(size_t));
 		} else {
 			slapi_ch_free((void **)&vs1->sorted);
 		}
 		/* post-condition */
-		PR_ASSERT((vs1->sorted == NULL) || (vs1->num == 0) || ((vs1->sorted[0] >= 0) && (vs1->sorted[0] < vs1->num)));
+		PR_ASSERT((vs1->sorted == NULL) || (vs1->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs1->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs1->sorted[0] < vs1->num)));
 	}
 }
 
@@ -1330,6 +1375,7 @@ valueset_replace_valuearray(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **val
 {
 	return (valueset_replace_valuearray_ext(a, vs,valstoreplace, 1));
 }
+
 int
 valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **valstoreplace, int dupcheck)
 {
@@ -1337,55 +1383,52 @@ valueset_replace_valuearray_ext(Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *
     int vals_count = valuearray_count(valstoreplace);
 
     if (vals_count == 0) {
-	/* no new values, just clear the valueset */
-	slapi_valueset_done(vs);
+        /* no new values, just clear the valueset */
+        slapi_valueset_done(vs);
     } else if (vals_count == 1 || !dupcheck) {
-	/* just repelace the valuearray and adjus num, max */
-	slapi_valueset_done(vs);
-	vs->va = valstoreplace;
-	vs->num = vals_count;
-	vs->max = vals_count + 1;
-	PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
+        /* just repelace the valuearray and adjus num, max */
+        slapi_valueset_done(vs);
+        vs->va = valstoreplace;
+        vs->num = vals_count;
+        vs->max = vals_count + 1;
+        PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
     } else {
-	/* verify the given values are not duplicated.  */
-	unsigned long flags = SLAPI_VALUE_FLAG_PASSIN|SLAPI_VALUE_FLAG_DUPCHECK;
-	int dupindex = 0;
-	Slapi_ValueSet *vs_new = slapi_valueset_new();
-	rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, flags, &dupindex);
+        /* verify the given values are not duplicated.  */
+        unsigned long flags = SLAPI_VALUE_FLAG_PASSIN|SLAPI_VALUE_FLAG_DUPCHECK;
+        int dupindex = 0;
+        Slapi_ValueSet *vs_new = slapi_valueset_new();
+        rc = slapi_valueset_add_attr_valuearray_ext (a, vs_new, valstoreplace, vals_count, flags, &dupindex);
 
-	if ( rc == LDAP_SUCCESS )
-	{
-		/* used passin, so vs_new owns all of the Slapi_Value* in valstoreplace
-		 * so tell valuearray_free_ext to start at index vals_count, which is
-		 * NULL, then just free valstoreplace
-		 */
-        	valuearray_free_ext(&valstoreplace, vals_count);
-		/* values look good - replace the values in the attribute */
-        	if(!valuearray_isempty(vs->va))
-        	{
-            		/* remove old values */
-            		slapi_valueset_done(vs);
-        	}
-        	vs->va = vs_new->va;
-		vs_new->va = NULL;
-        	vs->sorted = vs_new->sorted;
-		vs_new->sorted = NULL;
-        	vs->num = vs_new->num;
-        	vs->max = vs_new->max;
-		slapi_valueset_free (vs_new);
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
-	}
-	else
-	{
-	        /* caller expects us to own valstoreplace - since we cannot
-	           use them, just delete them */
-		/* using PASSIN, some of the Slapi_Value* are in vs_new, and the rest
-		 * after dupindex are in valstoreplace
-		 */
-        	slapi_valueset_free(vs_new);
-        	valuearray_free_ext(&valstoreplace, dupindex);
-		PR_ASSERT((vs->sorted == NULL) || (vs->num == 0) || ((vs->sorted[0] >= 0) && (vs->sorted[0] < vs->num)));
-	}
+        if ( rc == LDAP_SUCCESS )
+        {
+            /* used passin, so vs_new owns all of the Slapi_Value* in valstoreplace
+             * so tell valuearray_free_ext to start at index vals_count, which is
+             * NULL, then just free valstoreplace
+             */
+            valuearray_free_ext(&valstoreplace, vals_count);
+            /* values look good - replace the values in the attribute */
+            if(!valuearray_isempty(vs->va)) {
+                    /* remove old values */
+                slapi_valueset_done(vs);
+            }
+            vs->va = vs_new->va;
+            vs_new->va = NULL;
+            vs->sorted = vs_new->sorted;
+            vs_new->sorted = NULL;
+            vs->num = vs_new->num;
+            vs->max = vs_new->max;
+            slapi_valueset_free (vs_new);
+            PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
+        } else {
+            /* caller expects us to own valstoreplace - since we cannot
+               use them, just delete them */
+            /* using PASSIN, some of the Slapi_Value* are in vs_new, and the rest
+             * after dupindex are in valstoreplace
+             */
+            slapi_valueset_free(vs_new);
+            valuearray_free_ext(&valstoreplace, dupindex);
+            PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
+        }
     }
     return rc;
 }

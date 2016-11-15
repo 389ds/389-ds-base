@@ -839,9 +839,13 @@ int charray_normdn_add(char ***chararray, char *dn, char *errstr);
 void valuearray_add_value(Slapi_Value ***vals, const Slapi_Value *addval);
 void valuearray_add_valuearray( Slapi_Value ***vals, Slapi_Value **addvals, PRUint32 flags );
 void valuearray_add_valuearray_fast( Slapi_Value ***vals, Slapi_Value **addvals, int nvals, int naddvals, int *maxvals, int exact, int passin );
-Slapi_Value * valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v, int *index);
+Slapi_Value * valueset_find_sorted (const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v, size_t *index);
 int valueset_insert_value_to_sorted(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value *vi, int dupcheck);
 void valueset_array_to_sorted (const Slapi_Attr *a, Slapi_ValueSet *vs);
+void valueset_big_array_to_sorted (const Slapi_Attr *a, Slapi_ValueSet *vs);
+void valueset_array_to_sorted_quick (const Slapi_Attr *a, Slapi_ValueSet *vs, size_t s, size_t e);
+void valueset_swap_values(size_t *a, size_t *b);
+
 /* NOTE: if the flags include SLAPI_VALUE_FLAG_PASSIN and SLAPI_VALUE_FLAG_DUPCHECK
  * THE CALLER MUST PROVIDE THE dup_index PARAMETER in order to know where in addval
  * the un-copied values start e.g. to free them for cleanup

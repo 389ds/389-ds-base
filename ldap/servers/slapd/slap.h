@@ -564,9 +564,9 @@ struct slapi_value
 #define VALUE_SORT_THRESHOLD 10
 struct slapi_value_set
 {
-	int num; /* The number of values in the array */
-	int max; /* The number of slots in the array */
-	int *sorted; /* sorted array of indices, if NULL va is not sorted */
+	size_t num; /* The number of values in the array */
+	size_t max; /* The number of slots in the array */
+	size_t *sorted; /* sorted array of indices, if NULL va is not sorted */
 	struct slapi_value **va;
 };
 
