@@ -122,9 +122,23 @@ class NssSsl(object):
             '-f',
             '%s/%s' % (self.dirsrv.confdir, PWD_TXT),
         ]
-
         result = check_output(cmd)
         self.dirsrv.log.debug("nss output: %s" % result)
+        # Now extract the CAcert to a well know place.
+        cmd = [
+            '/usr/bin/certutil',
+            '-L',
+            '-n',
+            CA_NAME,
+            '-d',
+            self._certdb,
+            '-a',
+        ]
+        certdetails = check_output(cmd)
+        with open('%s/ca.crt' % self.dirsrv.confdir, 'w') as f:
+            f.write(certdetails)
+        if os.path.isfile('/usr/sbin/cacertdir_rehash'):
+            check_output(['/usr/sbin/cacertdir_rehash', self.dirsrv.confdir])
         return True
 
     def _rsa_cert_list(self):

@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
+import copy
 from lib389 import DirSrv, InvalidArgumentError
 from lib389.properties import *
 from lib389._constants import *
@@ -14,6 +15,10 @@ from lib389._constants import *
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
 class Plugin(DSLdapObject):
+    _plugin_properties = {
+        'nsslapd-pluginEnabled' : 'off'
+    }
+
     def __init__(self, instance, dn=None, batch=False):
         super(Plugin, self).__init__(instance, dn, batch)
         self._rdn_attribute = 'cn'
@@ -42,6 +47,24 @@ class Plugin(DSLdapObject):
             return True
         return False
 
+    def create(self, rdn=None, properties=None, basedn=None):
+        # When we create plugins, we don't want people to have to consider all
+        # the little details. Plus, the server during creation needs to be able
+        # to create these from nothing.
+        # As a result, all the named plugins carry a default properties
+        # dictionary that can be used.
+
+        # Copy the plugin internal properties.
+        internal_properties = copy.deepcopy(self._plugin_properties)
+        if properties is not None:
+            internal_properties.update(properties)
+        return super(Plugin, self).create(rdn, internal_properties, basedn)
+
+class AddnPlugin(Plugin):
+    def __init__(self, instance, dn="cn=addn,cn=plugins,cn=config", batch=False):
+        super(AddnPlugin, self).__init__(instance, dn, batch)
+        # Need to add wrappers to add domains to this.
+
 class AttributeUniquenessPlugin(Plugin):
     def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config", batch=False):
         super(AttributeUniquenessPlugin, self).__init__(instance, dn, batch)
@@ -67,6 +90,22 @@ class AttributeUniquenessPlugin(Plugin):
 
     def disable_all_subtrees(self):
         self.set('uniqueness-across-all-subtrees', 'off')
+
+class LdapSSOTokenPlugin(Plugin):
+    _plugin_properties = {
+        'cn' : 'ldapssotoken',
+        'nsslapd-pluginEnabled' : 'off',
+        'nsslapd-pluginPath' : 'liblst-plugin',
+        'nsslapd-pluginInitfunc' : 'lst_init',
+        'nsslapd-pluginType' : 'extendedop',
+        'nsslapd-pluginId' : 'ldapssotoken-plugin',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.6',
+        'nsslapd-pluginDescription' : 'Ldap SSO Token Sasl Mech - draft-wibrown-ldapssotoken',
+    }
+
+    def __init__(self, instance, dn="cn=ldapssotoken,cn=plugins,cn=config", batch=False):
+        super(LdapSSOTokenPlugin, self).__init__(instance, dn, batch)
 
 class ManagedEntriesPlugin(Plugin):
     def __init__(self, instance, dn="cn=managed entries,cn=plugins,cn=config", batch=False):
@@ -105,7 +144,9 @@ class Plugins(DSLdapObjects):
         # This may not work for attr unique which can have many instance ....
         # Should we be doing this from the .so name?
         self._pluginmap = {
+            'libaddn-plugin' : AddnPlugin,
             'libattr-unique-plugin' : AttributeUniquenessPlugin,
+            'liblst-plugin' : LdapSSOTokenPlugin,
             'libmanagedentries-plugin' : ManagedEntriesPlugin,
             'libreferint-plugin' : ReferentialIntegrityPlugin,
         }

@@ -242,7 +242,7 @@ def _ds_shutil_copytree(src, dst, symlinks=False, ignore=None, copy_function=cop
     return dst
 
 
-class DirSrv(SimpleLDAPObject):
+class DirSrv(SimpleLDAPObject, object):
 
     def __initPart2(self):
         """Initialize the DirSrv structure filling various fields, like:
@@ -348,6 +348,7 @@ class DirSrv(SimpleLDAPObject):
         from lib389.tasks import Tasks
         from lib389.index import Index
         from lib389.monitor import Monitor
+        from lib389.rootdse import RootDSE
 
         # Need updating
         self.agreement = Agreement(self)
@@ -364,6 +365,7 @@ class DirSrv(SimpleLDAPObject):
         self.monitor = Monitor(self)
         # Do we have a certdb path?
         # if MAJOR < 3:
+        self.rootdse = RootDSE(self)
         self.backends = Backends(self)
         self.mappingtrees = MappingTrees(self)
         self.replicas = Replicas(self)
@@ -554,8 +556,13 @@ class DirSrv(SimpleLDAPObject):
                                                       (self.sslport or
                                                        self.port)))
 
-    def openConnection(self, saslmethod=None, certdir=None):
-        """Open a new connection to our LDAP server
+    def openConnection(self, *args, **kwargs):
+        """
+        Open a new connection to our LDAP server
+        *IMPORTANT*
+        This is different to re-opening on the same dirsrv, as bugs in pyldap
+        mean that ldap.set_option doesn't take effect! You need to use this
+        to allow some of the start TLS options to work!
         """
         server = DirSrv(verbose=self.verbose)
         args_instance[SER_HOST] = self.host
@@ -563,7 +570,7 @@ class DirSrv(SimpleLDAPObject):
         args_instance[SER_SERVERID_PROP] = self.serverid
         args_standalone = args_instance.copy()
         server.allocate(args_standalone)
-        server.open(saslmethod, certdir, connOnly=True)
+        server.open(*args, **kwargs)
 
         return server
 
@@ -967,7 +974,7 @@ class DirSrv(SimpleLDAPObject):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, saslmethod=None, certdir=None, starttls=False, connOnly=False):
+    def open(self, saslmethod=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD):
         '''
             It opens a ldap bound connection to dirsrv so that online
             administrative tasks are possible.  It binds with the binddn
@@ -988,18 +995,23 @@ class DirSrv(SimpleLDAPObject):
         if self.verbose:
             self.log.info('open(): Connecting to uri %s' % uri)
         if hasattr(ldap, 'PYLDAP_VERSION') and MAJOR >= 3:
-            SimpleLDAPObject.__init__(self, uri, bytes_mode=False)
+            super(DirSrv, self).__init__(uri, bytes_mode=False)
         else:
-            SimpleLDAPObject.__init__(self, uri)
+            super(DirSrv, self).__init__(uri)
 
         if certdir:
             """
             We have a certificate directory, so lets start up TLS negotiations
             """
-            self.set_option(ldap.OPT_X_TLS_CACERTFILE, certdir)
+            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, certdir)
+            log.debug("Using ca certificate %s" % certdir)
 
         if certdir or starttls:
             try:
+                # MUST be set on ldap. not the object, because pyldap is broken
+                # and only works if you set this globally.
+                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s" % reqcert)
                 self.start_tls_s()
             except ldap.LDAPError as e:
                 log.fatal('TLS negotiation failed: %s' % str(e))

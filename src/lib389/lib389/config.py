@@ -163,9 +163,16 @@ class Encryption(DSLdapObject):
         """@param conn - a DirSrv instance """
         super(Encryption, self).__init__(instance=conn, batch=batch)
         self._dn = 'cn=encryption,%s' % DN_CONFIG
+        self._create_objectclasses = ['top', 'nsEncryptionConfig']
         # Once created, don't allow it's removal
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
         self._protected = True
 
+    def create(self, rdn=None, properties={'cn': 'encryption'}):
+        if rdn is not None:
+            self._log.debug("dn on cn=encryption is not None. This is a mistake.")
+        super(Encryption, self).create(properties=properties)
 
 class RSA(DSLdapObject):
     """
@@ -190,7 +197,7 @@ class RSA(DSLdapObject):
         assert(self._dn == dn)
         return (dn, valid_props)
 
-    def create(self, rdn=None, properties={'cn': 'RSA'}):
+    def create(self, rdn=None, properties={'cn': 'RSA', 'nsSSLPersonalitySSL': 'Server-Cert', 'nsSSLActivation': 'on', 'nsSSLToken': 'internal (software)'}):
         # Is this the best way to for the dn?
         if rdn is not None:
             self._log.debug("dn on cn=Rsa create request is not None. This is a mistake.")

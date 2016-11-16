@@ -122,7 +122,7 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid state. Cannot get presence on instance that is not ONLINE")
         self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
 
-        e = self._instance.getEntry(self._dn)
+        e = self._instance.getEntry(self._dn, attrlist=[attr, ])
         if value is None:
             return e.hasAttr(attr)
         else:
