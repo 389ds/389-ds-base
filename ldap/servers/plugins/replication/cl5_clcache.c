@@ -324,7 +324,7 @@ clcache_return_buffer ( CLC_Buffer **buf )
  *		       historic reason.
  */
 int
-clcache_load_buffer ( CLC_Buffer *buf, CSN **anchorCSN )
+clcache_load_buffer ( CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss )
 {
 	int rc = 0;
         int flag = DB_NEXT;
@@ -345,6 +345,22 @@ clcache_load_buffer ( CLC_Buffer *buf, CSN **anchorCSN )
 		if (anchorCSN) *anchorCSN = buf->buf_current_csn;
 		rc = clcache_load_buffer_bulk ( buf, flag );
 
+		if (rc == DB_NOTFOUND && continue_on_miss && *continue_on_miss) {
+			/* make replication going using next best startcsn */
+			slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name,
+					"clcache_load_buffer - Can't load changelog buffer starting at CSN %s with flag(%s). "
+					"Trying to use an alterantive start CSN.\n",
+					(char*)buf->buf_key.data,
+					flag==DB_NEXT?"DB_NEXT":"DB_SET" );
+			rc = clcache_load_buffer_bulk ( buf, DB_SET_RANGE );
+			if (rc == 0) {
+				slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name,
+					"clcache_load_buffer - Using alternative start iteration csn: %s \n",
+					(char*)buf->buf_key.data);
+			}
+			/* the use of alternative start csns can be limited, record its usage */
+			(*continue_on_miss)--;
+		}
 		/* Reset some flag variables */
 		if ( rc == 0 ) {
 			int i;
@@ -408,23 +424,6 @@ retry:
 								 & buf->buf_key,
 								 & buf->buf_data,
 								 DB_SET );
-			if (rc == DB_NOTFOUND) {
-				/* the start position in the changelog is not found
-				 * 1. log an error
-				 * 2. try to find another starting position as close
-				 *    as possible
-				 */
-				slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
-							"changelog record with csn (%s) not found for DB_NEXT\n",
-							(char *)buf->buf_key.data );
-				rc = cursor->c_get ( cursor, & buf->buf_key, & buf->buf_data,
-							 DB_SET_RANGE );
-				/* this moves the cursor ahead of the tageted csn,
-				 * so we achieved what was intended with DB_SET/DB_NEXT
-				 * continute at this csn.
-				 */
-				use_flag = DB_CURRENT;
-			}
 		}
 
 		/*
@@ -433,12 +432,6 @@ retry:
 		 */
 		if ( 0 == rc || DB_BUFFER_SMALL == rc ) {
 			rc = clcache_cursor_get ( cursor, buf, use_flag );
-			if ( rc == DB_NOTFOUND && use_flag == DB_SET) {
-				slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
-							"changelog record with csn (%s) not found for DB_SET\n",
-							(char *)buf->buf_key.data );
-				rc = clcache_cursor_get ( cursor, buf, DB_SET_RANGE );
-			}
 		}
 
 	}
@@ -512,7 +505,7 @@ clcache_get_next_change ( CLC_Buffer *buf, void **key, size_t *keylen, void **da
 		 * We're done with the current buffer. Now load the next chunk.
 		 */
 		if ( NULL == *key && CLC_STATE_READY == buf->buf_state ) {
-			rc = clcache_load_buffer ( buf, NULL );
+			rc = clcache_load_buffer ( buf, NULL, NULL );
 			if ( 0 == rc && buf->buf_record_ptr ) {
 				DB_MULTIPLE_KEY_NEXT ( buf->buf_record_ptr, &buf->buf_data,
 								   *key, *keylen, *data, *datalen );

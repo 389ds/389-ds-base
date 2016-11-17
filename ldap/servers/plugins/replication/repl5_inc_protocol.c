@@ -1704,20 +1704,22 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
 		case CL5_PURGED_DATA:    /* requested data has been purged */
 			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
 				"send_updates - %s: Data required to update replica has been purged from the changelog. "
-				"The replica must be reinitialized.\n",
+				"If the error persists the replica must be reinitialized.\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
 				"Data required to update replica has been purged from the changelog. "
-				"The replica must be reinitialized.");
-			return_value = UPDATE_FATAL_ERROR;
+				"If the error persists the replica must be reinitialized.");
+			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_MISSING_DATA:   /* data should be in the changelog, but is missing */
 			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-				"send_updates - %s: Missing data encountered\n",
+				"send_updates - %s: Missing data encountered. "
+				"If the error persists the replica must be reinitialized.\n",
 				agmt_get_long_name(prp->agmt));
 			agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_CL_ERROR,
-				"Changelog data is missing");
-			return_value = UPDATE_FATAL_ERROR;
+				"Changelog data is missing. "
+				"If the error persists the replica must be reinitialized.");
+			return_value = UPDATE_TRANSIENT_ERROR;
 			break;
 		case CL5_UNKNOWN_ERROR:   /* unclassified error */
 			slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,

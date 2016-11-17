@@ -399,6 +399,19 @@ agmtlist_modify_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry
 			}
 		}
 		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+					type_replicaIgnoreMissingChange))
+		{
+			/* New replica timeout */
+			if (agmt_set_ignoremissing_from_entry(agmt, e) != 0)
+			{
+				slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+						"Failed to update the ignorMissingChange attribute for agreement %s\n",
+						agmt_get_long_name(agmt));
+				*returncode = LDAP_OPERATIONS_ERROR;
+				rc = SLAPI_DSE_CALLBACK_ERROR;
+			}
+		}
+		else if (slapi_attr_types_equivalent(mods[i]->mod_type,
 					type_nsds5ReplicaBusyWaitTime))
 		{
 			/* New replica busywaittime */
