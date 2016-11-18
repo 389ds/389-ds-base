@@ -2348,7 +2348,7 @@ dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv,
     }
 
     envflags = DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE;
-    cachesize = 10485760; /* 10M */
+    cachesize = DEFAULT_DBCACHE_SIZE;
 
     if (!*ppEnv) {
         mypEnv->dblayer_DB_ENV->set_cachesize(mypEnv->dblayer_DB_ENV,

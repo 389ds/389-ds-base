@@ -160,11 +160,14 @@ typedef unsigned short u_int16_t;
 #define LDBM_VERSION_31          "Netscape-ldbm/3.1"
 #define LDBM_FILENAME_SUFFIX     LDBM_SUFFIX
 #define    DBVERSION_FILENAME    "DBVERSION"
-#define DEFAULT_CACHE_SIZE       (size_t)10485760
+#define DEFAULT_CACHE_SIZE       (size_t)33554432
+#define DEFAULT_CACHE_SIZE_STR   "33554432"
 #define DEFAULT_CACHE_ENTRIES    -1        /* no limit */
-#define DEFAULT_DNCACHE_SIZE     (size_t)10485760
+#define DEFAULT_DNCACHE_SIZE     (size_t)16777216
+#define DEFAULT_DNCACHE_SIZE_STR "16777216"
 #define DEFAULT_DNCACHE_MAXCOUNT -1        /* no limit */
-#define DEFAULT_DBCACHE_SIZE     1000000
+#define DEFAULT_DBCACHE_SIZE     33554432
+#define DEFAULT_DBCACHE_SIZE_STR "33554432"
 #define DEFAULT_MODE             0600
 #define DEFAULT_ALLIDSTHRESHOLD  4000
 #define DEFAULT_IDL_TUNE         1

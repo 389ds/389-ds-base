@@ -1501,7 +1501,7 @@ static config_info ldbm_config[] = {
     {CONFIG_MODE, CONFIG_TYPE_INT_OCTAL, "0600", &ldbm_config_mode_get, &ldbm_config_mode_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IDLISTSCANLIMIT, CONFIG_TYPE_INT, "4000", &ldbm_config_allidsthreshold_get, &ldbm_config_allidsthreshold_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DIRECTORY, CONFIG_TYPE_STRING, "", &ldbm_config_directory_get, &ldbm_config_directory_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE|CONFIG_FLAG_SKIP_DEFAULT_SETTING},
-    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, "10000000", &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_DBCACHESIZE, CONFIG_TYPE_SIZE_T, DEFAULT_DBCACHE_SIZE_STR, &ldbm_config_dbcachesize_get, &ldbm_config_dbcachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_DBNCACHE, CONFIG_TYPE_INT, "0", &ldbm_config_dbncache_get, &ldbm_config_dbncache_set, CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_MAXPASSBEFOREMERGE, CONFIG_TYPE_INT, "100", &ldbm_config_maxpassbeforemerge_get, &ldbm_config_maxpassbeforemerge_set, 0},
     

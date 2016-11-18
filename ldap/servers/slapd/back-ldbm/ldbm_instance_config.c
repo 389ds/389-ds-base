@@ -297,11 +297,11 @@ ldbm_instance_config_require_index_set(void *arg, void *value, char *errorbuf, i
  *----------------------------------------------------------------------*/
 static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_CACHESIZE, CONFIG_TYPE_LONG, "-1", &ldbm_instance_config_cachesize_get, &ldbm_instance_config_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_SIZE_T, "10485760", &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_SIZE_T, DEFAULT_CACHE_SIZE_STR, &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_READONLY, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_readonly_get, &ldbm_instance_config_readonly_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_instance_dir_get, &ldbm_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
-    {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_SIZE_T, "10485760", &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_SIZE_T, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW|CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}
 };
 
