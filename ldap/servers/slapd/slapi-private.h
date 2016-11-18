@@ -1383,6 +1383,13 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
 int util_is_cachesize_sane(size_t *cachesize);
 
 /**
+ * Retrieve the number of threads the server should run with based on this hardware.
+ *
+ * \return -1 if the hardware detection failed. Any positive value is threads to use.
+ */
+long util_get_hardware_threads(void);
+
+/**
  * Write an error message to the given error buffer.
  *
  * \param errorbuf. The buffer that the error message is written into.  If NULL, nothing happens.  It could be a static array or allocated memory.  If it is allocated memory, the next param len should be given.

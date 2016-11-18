@@ -1457,7 +1457,7 @@ FrontendConfig_init(void) {
     init_require_secure_binds = cfg->require_secure_binds = LDAP_OFF;
     cfg->allow_anon_access = SLAPD_DEFAULT_ALLOW_ANON_ACCESS;
     init_slapi_counters = cfg->slapi_counters = LDAP_ON;
-    cfg->threadnumber = SLAPD_DEFAULT_MAX_THREADS;
+    cfg->threadnumber = util_get_hardware_threads();
     cfg->maxthreadsperconn = SLAPD_DEFAULT_MAX_THREADS_PER_CONN;
     cfg->reservedescriptors = SLAPD_DEFAULT_RESERVE_FDS;
     cfg->idletimeout = SLAPD_DEFAULT_IDLE_TIMEOUT;
@@ -3867,34 +3867,38 @@ config_set_encryptionalias( const char *attrname, char *value, char *errorbuf, i
   return retVal;
 }
 
-int 
+int
 config_set_threadnumber( const char *attrname, char *value, char *errorbuf, int apply ) {
-  int retVal = LDAP_SUCCESS;
-  long threadnum = 0;
-  char *endp = NULL;
+    int retVal = LDAP_SUCCESS;
+    long threadnum = 0;
+    char *endp = NULL;
 
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-  if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
-	return LDAP_OPERATIONS_ERROR;
-  }
+    if ( config_value_is_null( attrname, value, errorbuf, 0 )) {
+        return LDAP_OPERATIONS_ERROR;
+    }
 
-  errno = 0;
-  threadnum = strtol(value, &endp, 10);
-  
-  if ( *endp != '\0' || errno == ERANGE || threadnum < 1 || threadnum > 65535 ) {
-	slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-	      "%s: invalid value \"%s\", maximum thread number must range from 1 to 65535", attrname, value);
-	retVal = LDAP_OPERATIONS_ERROR;
-  }
-  
-  if (apply) {
-	CFG_LOCK_WRITE(slapdFrontendConfig);
-	/*	max_threads = threadnum; */
-	slapdFrontendConfig->threadnumber = threadnum;
-	CFG_UNLOCK_WRITE(slapdFrontendConfig);
-  }
-  return retVal;
+    errno = 0;
+    threadnum = strtol(value, &endp, 10);
+
+    /* Means we want to re-run the hardware detection. */
+    if (threadnum == -1) {
+        threadnum = util_get_hardware_threads();
+    }
+
+    if ( *endp != '\0' || errno == ERANGE || threadnum < 1 || threadnum > 65535 ) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+          "%s: invalid value \"%s\", maximum thread number must range from 1 to 65535", attrname, value);
+        retVal = LDAP_OPERATIONS_ERROR;
+    }
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        /*  max_threads = threadnum; */
+        slapdFrontendConfig->threadnumber = threadnum;
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
 }
 
 int 
@@ -5497,16 +5501,25 @@ config_get_encryptionalias(void) {
   return retVal; 
 }
 
-int
+long
 config_get_threadnumber(void) {
-  slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-  int retVal;
-  
-  CFG_LOCK_READ(slapdFrontendConfig);
-  retVal = slapdFrontendConfig->threadnumber;
-  CFG_UNLOCK_READ(slapdFrontendConfig);
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    long retVal;
 
-  return retVal;
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->threadnumber;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    if (retVal == -1) {
+        retVal = util_get_hardware_threads();
+    }
+
+    /* We *still* can't detect hardware threads. Okay, return 30 :( */
+    if (retVal == -1) {
+        retVal = 30;
+    }
+
+    return retVal;
 }
 
 int

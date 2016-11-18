@@ -472,7 +472,7 @@ char *config_get_rootpwstoragescheme(void);
 char *config_get_localuser(void);
 char *config_get_workingdir(void);
 char *config_get_encryptionalias(void);
-int config_get_threadnumber(void);
+long config_get_threadnumber(void);
 int config_get_maxthreadsperconn(void);
 int config_get_maxdescriptors(void);
 int config_get_reservedescriptors(void);

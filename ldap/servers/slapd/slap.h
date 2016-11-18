@@ -257,8 +257,8 @@ typedef void	(*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT_STR "300000"
 #define SLAPD_DEFAULT_RESERVE_FDS           64
 #define SLAPD_DEFAULT_RESERVE_FDS_STR       "64"
-#define SLAPD_DEFAULT_MAX_THREADS           30      /* connection pool threads */
-#define SLAPD_DEFAULT_MAX_THREADS_STR       "30"
+#define SLAPD_DEFAULT_MAX_THREADS           -1      /* connection pool threads */
+#define SLAPD_DEFAULT_MAX_THREADS_STR       "-1"
 #define SLAPD_DEFAULT_MAX_THREADS_PER_CONN  5       /* allowed per connection */
 #define SLAPD_DEFAULT_MAX_THREADS_PER_CONN_STR "5"
 #define SLAPD_DEFAULT_MAX_BERSIZE_STR       "0"
@@ -2405,7 +2405,7 @@ typedef struct _slapdFrontendConfig {
   char *SNMPorganization;
   char *SNMPlocation;
   char *SNMPcontact;
-  int threadnumber;
+  long threadnumber;
   int timelimit;
   char *accesslog;
   struct berval **defaultreferral;
