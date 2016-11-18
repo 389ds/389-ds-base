@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -24,7 +24,7 @@ from lib389 import DirSrv, Entry, tools
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
-
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -32,40 +32,6 @@ log = logging.getLogger(__name__)
 attrclass = ldap.schema.models.AttributeType
 occlass = ldap.schema.models.ObjectClass
 syntax_len_supported = False
-
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to create a DirSrv instance for the 'module'.
-    '''
-    schemainst = DirSrv(verbose=False)
-
-    # Args for the master instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    schemainst.allocate(args_instance)
-
-    # Remove all the instance
-    if schemainst.exists():
-        schemainst.delete()
-
-    # Create the instance
-    schemainst.create()
-    schemainst.open()
-
-    def fin():
-        schemainst.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(schemainst)
 
 
 def ochasattr(subschema, oc, mustormay, attr, key):
@@ -156,13 +122,13 @@ def atgetdiffs(ldschema, at1, at2):
     return ret
 
 
-def test_schema_comparewithfiles(topology):
+def test_schema_comparewithfiles(topology_st):
     '''Compare the schema from ldap cn=schema with the schema files'''
 
     log.info('Running test_schema_comparewithfiles...')
 
     retval = True
-    schemainst = topology.standalone
+    schemainst = topology_st.standalone
     ldschema = schemainst.schema.get_subschema()
     assert ldschema
     for fn in schemainst.schema.list_files():

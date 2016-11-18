@@ -17,6 +17,7 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 from sss_control import SSSRequestControl
 
 DEBUGGING = False
@@ -39,55 +40,22 @@ NEW_BACKEND_1 = 'parent_base'
 NEW_BACKEND_2 = 'child_base'
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
 @pytest.fixture(scope="module")
-def topology(request):
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    # Delete each instance in the end
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
-
-    return TopologyStandalone(standalone)
-
-
-@pytest.fixture(scope="module")
-def test_user(topology, request):
+def test_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user {}'.format(TEST_USER_DN))
     try:
-        topology.standalone.add_s(Entry((TEST_USER_DN, {
-                                        'objectclass': 'top person'.split(),
-                                        'objectclass': 'organizationalPerson',
-                                        'objectclass': 'inetorgperson',
-                                        'cn': TEST_USER_NAME,
-                                        'sn': TEST_USER_NAME,
-                                        'userpassword': TEST_USER_PWD,
-                                        'mail': '%s@redhat.com' % TEST_USER_NAME,
-                                        'uid': TEST_USER_NAME
-                                        })))
+        topology_st.standalone.add_s(Entry((TEST_USER_DN, {
+            'objectclass': 'top person'.split(),
+            'objectclass': 'organizationalPerson',
+            'objectclass': 'inetorgperson',
+            'cn': TEST_USER_NAME,
+            'sn': TEST_USER_NAME,
+            'userpassword': TEST_USER_PWD,
+            'mail': '%s@redhat.com' % TEST_USER_NAME,
+            'uid': TEST_USER_NAME
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add user (%s): error (%s)' % (TEST_USER_DN,
                                                            e.message['desc']))
@@ -95,45 +63,46 @@ def test_user(topology, request):
 
     def fin():
         log.info('Deleting user {}'.format(TEST_USER_DN))
-        topology.standalone.delete_s(TEST_USER_DN)
+        topology_st.standalone.delete_s(TEST_USER_DN)
+
     request.addfinalizer(fin)
 
 
 @pytest.fixture(scope="module")
-def new_suffixes(topology):
+def new_suffixes(topology_st):
     """Add two suffixes with backends, one is a parent
     of the another
     """
 
     log.info('Adding suffix:{} and backend: {}'.format(NEW_SUFFIX_1, NEW_BACKEND_1))
-    topology.standalone.backend.create(NEW_SUFFIX_1,
-                                       {BACKEND_NAME: NEW_BACKEND_1})
-    topology.standalone.mappingtree.create(NEW_SUFFIX_1,
-                                           bename=NEW_BACKEND_1)
+    topology_st.standalone.backend.create(NEW_SUFFIX_1,
+                                          {BACKEND_NAME: NEW_BACKEND_1})
+    topology_st.standalone.mappingtree.create(NEW_SUFFIX_1,
+                                              bename=NEW_BACKEND_1)
     try:
-        topology.standalone.add_s(Entry((NEW_SUFFIX_1, {
-                                        'objectclass': 'top',
-                                        'objectclass': 'organization',
-                                        'o': NEW_SUFFIX_1_NAME
-                                        })))
+        topology_st.standalone.add_s(Entry((NEW_SUFFIX_1, {
+            'objectclass': 'top',
+            'objectclass': 'organization',
+            'o': NEW_SUFFIX_1_NAME
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add suffix ({}): error ({})'.format(NEW_SUFFIX_1,
                                                                  e.message['desc']))
         raise
 
     log.info('Adding suffix:{} and backend: {}'.format(NEW_SUFFIX_2, NEW_BACKEND_2))
-    topology.standalone.backend.create(NEW_SUFFIX_2,
-                                       {BACKEND_NAME: NEW_BACKEND_2})
-    topology.standalone.mappingtree.create(NEW_SUFFIX_2,
-                                           bename=NEW_BACKEND_2,
-                                           parent=NEW_SUFFIX_1)
+    topology_st.standalone.backend.create(NEW_SUFFIX_2,
+                                          {BACKEND_NAME: NEW_BACKEND_2})
+    topology_st.standalone.mappingtree.create(NEW_SUFFIX_2,
+                                              bename=NEW_BACKEND_2,
+                                              parent=NEW_SUFFIX_1)
 
     try:
-        topology.standalone.add_s(Entry((NEW_SUFFIX_2, {
-                                        'objectclass': 'top',
-                                        'objectclass': 'organizationalunit',
-                                        'ou': NEW_SUFFIX_2_NAME
-                                        })))
+        topology_st.standalone.add_s(Entry((NEW_SUFFIX_2, {
+            'objectclass': 'top',
+            'objectclass': 'organizationalunit',
+            'ou': NEW_SUFFIX_2_NAME
+        })))
     except ldap.LDAPError as e:
         log.error('Failed to add suffix ({}): error ({})'.format(NEW_SUFFIX_2,
                                                                  e.message['desc']))
@@ -146,10 +115,10 @@ def new_suffixes(topology):
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
 
     mod = [(ldap.MOD_ADD, 'aci', ACI_BODY)]
-    topology.standalone.modify_s(NEW_SUFFIX_1, mod)
+    topology_st.standalone.modify_s(NEW_SUFFIX_1, mod)
 
 
-def add_users(topology, users_num, suffix):
+def add_users(topology_st, users_num, suffix):
     """Add users to the default suffix
 
     Return the list of added user DNs.
@@ -163,15 +132,15 @@ def add_users(topology, users_num, suffix):
         USER_DN = 'uid=%s,%s' % (USER_NAME, suffix)
         users_list.append(USER_DN)
         try:
-            topology.standalone.add_s(Entry((USER_DN, {
-                                             'objectclass': 'top person'.split(),
-                                             'objectclass': 'organizationalPerson',
-                                             'objectclass': 'inetorgperson',
-                                             'cn': USER_NAME,
-                                             'sn': USER_NAME,
-                                             'userpassword': 'pass%s' % num_ran,
-                                             'mail': '%s@redhat.com' % USER_NAME,
-                                             'uid': USER_NAME})))
+            topology_st.standalone.add_s(Entry((USER_DN, {
+                'objectclass': 'top person'.split(),
+                'objectclass': 'organizationalPerson',
+                'objectclass': 'inetorgperson',
+                'cn': USER_NAME,
+                'sn': USER_NAME,
+                'userpassword': 'pass%s' % num_ran,
+                'mail': '%s@redhat.com' % USER_NAME,
+                'uid': USER_NAME})))
         except ldap.LDAPError as e:
             log.error('Failed to add user (%s): error (%s)' % (USER_DN,
                                                                e.message['desc']))
@@ -179,40 +148,40 @@ def add_users(topology, users_num, suffix):
     return users_list
 
 
-def del_users(topology, users_list):
+def del_users(topology_st, users_list):
     """Delete users with DNs from given list"""
 
     log.info('Deleting %d users' % len(users_list))
     for user_dn in users_list:
         try:
-            topology.standalone.delete_s(user_dn)
+            topology_st.standalone.delete_s(user_dn)
         except ldap.LDAPError as e:
             log.error('Failed to delete user (%s): error (%s)' % (user_dn,
                                                                   e.message['desc']))
             raise e
 
 
-def change_conf_attr(topology, suffix, attr_name, attr_value):
+def change_conf_attr(topology_st, suffix, attr_name, attr_value):
     """Change configurational attribute in the given suffix.
 
     Returns previous attribute value.
     """
 
     try:
-        entries = topology.standalone.search_s(suffix, ldap.SCOPE_BASE,
-                                               'objectclass=top',
-                                               [attr_name])
+        entries = topology_st.standalone.search_s(suffix, ldap.SCOPE_BASE,
+                                                  'objectclass=top',
+                                                  [attr_name])
         attr_value_bck = entries[0].data.get(attr_name)
         log.info('Set %s to %s. Previous value - %s. Modified suffix - %s.' % (
-                 attr_name, attr_value, attr_value_bck, suffix))
+            attr_name, attr_value, attr_value_bck, suffix))
         if attr_value is None:
-            topology.standalone.modify_s(suffix, [(ldap.MOD_DELETE,
-                                                   attr_name,
-                                                   attr_value)])
+            topology_st.standalone.modify_s(suffix, [(ldap.MOD_DELETE,
+                                                      attr_name,
+                                                      attr_value)])
         else:
-            topology.standalone.modify_s(suffix, [(ldap.MOD_REPLACE,
-                                                   attr_name,
-                                                   attr_value)])
+            topology_st.standalone.modify_s(suffix, [(ldap.MOD_REPLACE,
+                                                      attr_name,
+                                                      attr_value)])
     except ldap.LDAPError as e:
         log.error('Failed to change attr value (%s): error (%s)' % (attr_name,
                                                                     e.message['desc']))
@@ -221,7 +190,7 @@ def change_conf_attr(topology, suffix, attr_name, attr_value):
     return attr_value_bck
 
 
-def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
+def paged_search(topology_st, suffix, controls, search_flt, searchreq_attrlist):
     """Search at the DEFAULT_SUFFIX with ldap.SCOPE_SUBTREE
     using Simple Paged Control(should the first item in the
     list controls.
@@ -240,14 +209,14 @@ def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
                                                     searchreq_attrlist,
                                                     req_pr_ctrl.size,
                                                     str(controls)))
-    msgid = topology.standalone.search_ext(suffix,
-                                           ldap.SCOPE_SUBTREE,
-                                           search_flt,
-                                           searchreq_attrlist,
-                                           serverctrls=controls)
+    msgid = topology_st.standalone.search_ext(suffix,
+                                              ldap.SCOPE_SUBTREE,
+                                              search_flt,
+                                              searchreq_attrlist,
+                                              serverctrls=controls)
     while True:
         log.info('Getting page %d' % (pages,))
-        rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+        rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
         log.debug('Data: {}'.format(rdata))
         all_results.extend(rdata)
         pages += 1
@@ -255,18 +224,18 @@ def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
             c
             for c in rctrls
             if c.controlType == SimplePagedResultsControl.controlType
-        ]
+            ]
 
         if pctrls:
             if pctrls[0].cookie:
                 # Copy cookie from response control to request control
                 log.debug('Cookie: {}'.format(pctrls[0].cookie))
                 req_pr_ctrl.cookie = pctrls[0].cookie
-                msgid = topology.standalone.search_ext(suffix,
-                                                       ldap.SCOPE_SUBTREE,
-                                                       search_flt,
-                                                       searchreq_attrlist,
-                                                       serverctrls=controls)
+                msgid = topology_st.standalone.search_ext(suffix,
+                                                          ldap.SCOPE_SUBTREE,
+                                                          search_flt,
+                                                          searchreq_attrlist,
+                                                          serverctrls=controls)
             else:
                 break  # No more pages available
         else:
@@ -278,7 +247,7 @@ def paged_search(topology, suffix, controls, search_flt, searchreq_attrlist):
 
 @pytest.mark.parametrize("page_size,users_num",
                          [(6, 5), (5, 5), (5, 25)])
-def test_search_success(topology, test_user, page_size, users_num):
+def test_search_success(topology_st, test_user, page_size, users_num):
     """Verify that search with a simple paged results control
     returns all entries it should without errors.
 
@@ -293,40 +262,39 @@ def test_search_success(topology, test_user, page_size, users_num):
     :Assert: All users should be found
     """
 
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
-        all_results = paged_search(topology, DEFAULT_SUFFIX, [req_ctrl],
+        all_results = paged_search(topology_st, DEFAULT_SUFFIX, [req_ctrl],
                                    search_flt, searchreq_attrlist)
 
         log.info('%d results' % len(all_results))
         assert len(all_results) == len(users_list)
     finally:
         log.info('Set Directory Manager bind back (test_search_success)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
 @pytest.mark.parametrize("page_size,users_num,suffix,attr_name,attr_value,expected_err", [
-                        (50, 200, 'cn=config,%s' % DN_LDBM, 'nsslapd-idlistscanlimit', '100',
-                         ldap.UNWILLING_TO_PERFORM),
-                        (5, 15, DN_CONFIG, 'nsslapd-timelimit', '20',
-                         ldap.UNAVAILABLE_CRITICAL_EXTENSION),
-                        (21, 50, DN_CONFIG, 'nsslapd-sizelimit', '20',
-                         ldap.SIZELIMIT_EXCEEDED),
-                        (21, 50, DN_CONFIG, 'nsslapd-pagedsizelimit', '5',
-                         ldap.SIZELIMIT_EXCEEDED),
-                        (5, 50, 'cn=config,%s' % DN_LDBM, 'nsslapd-lookthroughlimit', '20',
-                         ldap.ADMINLIMIT_EXCEEDED)])
-def test_search_limits_fail(topology, test_user, page_size, users_num,
+    (50, 200, 'cn=config,%s' % DN_LDBM, 'nsslapd-idlistscanlimit', '100',
+     ldap.UNWILLING_TO_PERFORM),
+    (5, 15, DN_CONFIG, 'nsslapd-timelimit', '20',
+     ldap.UNAVAILABLE_CRITICAL_EXTENSION),
+    (21, 50, DN_CONFIG, 'nsslapd-sizelimit', '20',
+     ldap.SIZELIMIT_EXCEEDED),
+    (21, 50, DN_CONFIG, 'nsslapd-pagedsizelimit', '5',
+     ldap.SIZELIMIT_EXCEEDED),
+    (5, 50, 'cn=config,%s' % DN_LDBM, 'nsslapd-lookthroughlimit', '20',
+     ldap.ADMINLIMIT_EXCEEDED)])
+def test_search_limits_fail(topology_st, test_user, page_size, users_num,
                             suffix, attr_name, attr_value, expected_err):
     """Verify that search with a simple paged results control
     throws expected exceptoins when corresponding limits are
@@ -345,8 +313,8 @@ def test_search_limits_fail(topology, test_user, page_size, users_num,
     :Assert: Should fail with appropriate exception
     """
 
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
-    attr_value_bck = change_conf_attr(topology, suffix, attr_name, attr_value)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
+    attr_value_bck = change_conf_attr(topology_st, suffix, attr_name, attr_value)
     conf_param_dict = {attr_name: attr_value}
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
@@ -354,7 +322,7 @@ def test_search_limits_fail(topology, test_user, page_size, users_num,
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -363,11 +331,11 @@ def test_search_limits_fail(topology, test_user, page_size, users_num,
             sort_ctrl = SSSRequestControl(True, ['sn'])
             controls.append(sort_ctrl)
         log.info('Initiate ldapsearch with created control instance')
-        msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                               ldap.SCOPE_SUBTREE,
-                                               search_flt,
-                                               searchreq_attrlist,
-                                               serverctrls=controls)
+        msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  search_flt,
+                                                  searchreq_attrlist,
+                                                  serverctrls=controls)
 
         time_val = conf_param_dict.get('nsslapd-timelimit')
         if time_val:
@@ -380,42 +348,42 @@ def test_search_limits_fail(topology, test_user, page_size, users_num,
             log.info('Getting page %d' % (pages,))
             if pages == 0 and (time_val or attr_name in ('nsslapd-lookthroughlimit',
                                                          'nsslapd-pagesizelimit')):
-                rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+                rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
             else:
                 with pytest.raises(expected_err):
-                    rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+                    rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
                     all_results.extend(rdata)
                     pages += 1
                     pctrls = [
                         c
                         for c in rctrls
                         if c.controlType == SimplePagedResultsControl.controlType
-                    ]
+                        ]
 
             if pctrls:
                 if pctrls[0].cookie:
                     # Copy cookie from response control to request control
                     req_ctrl.cookie = pctrls[0].cookie
-                    msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                           ldap.SCOPE_SUBTREE,
-                                                           search_flt,
-                                                           searchreq_attrlist,
-                                                           serverctrls=controls)
+                    msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                              ldap.SCOPE_SUBTREE,
+                                                              search_flt,
+                                                              searchreq_attrlist,
+                                                              serverctrls=controls)
                 else:
                     break  # No more pages available
             else:
                 break
     finally:
         if expected_err == ldap.UNAVAILABLE_CRITICAL_EXTENSION:
-            topology.standalone.open()
+            topology_st.standalone.open()
 
         log.info('Set Directory Manager bind back (test_search_limits_fail)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-        change_conf_attr(topology, suffix, attr_name, attr_value_bck)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
+        change_conf_attr(topology_st, suffix, attr_name, attr_value_bck)
 
 
-def test_search_sort_success(topology, test_user):
+def test_search_sort_success(topology_st, test_user):
     """Verify that search with a simple paged results control
     and a server side sort control returns all entries
     it should without errors.
@@ -434,13 +402,13 @@ def test_search_sort_success(topology, test_user):
 
     users_num = 50
     page_size = 5
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         sort_ctrl = SSSRequestControl(True, ['sn'])
@@ -448,21 +416,21 @@ def test_search_sort_success(topology, test_user):
         log.info('Initiate ldapsearch with created control instance')
         log.info('Collect data with sorting')
         controls = [req_ctrl, sort_ctrl]
-        results_sorted = paged_search(topology, DEFAULT_SUFFIX, controls,
+        results_sorted = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                       search_flt, searchreq_attrlist)
 
         log.info('Substring numbers from user DNs')
         r_nums = map(lambda x: int(x[0][8:13]), results_sorted)
 
         log.info('Assert that list is sorted')
-        assert all(r_nums[i] <= r_nums[i+1] for i in range(len(r_nums)-1))
+        assert all(r_nums[i] <= r_nums[i + 1] for i in range(len(r_nums) - 1))
     finally:
         log.info('Set Directory Manager bind back (test_search_sort_success)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
-def test_search_abandon(topology, test_user):
+def test_search_abandon(topology_st, test_user):
     """Verify that search with simple paged results control
     can be abandon
 
@@ -481,37 +449,37 @@ def test_search_abandon(topology, test_user):
 
     users_num = 10
     page_size = 2
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
         log.info('Initiate a search with a paged results control')
-        msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                               ldap.SCOPE_SUBTREE,
-                                               search_flt,
-                                               searchreq_attrlist,
-                                               serverctrls=controls)
+        msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  search_flt,
+                                                  searchreq_attrlist,
+                                                  serverctrls=controls)
         log.info('Abandon the search')
-        topology.standalone.abandon(msgid)
+        topology_st.standalone.abandon(msgid)
 
         log.info('Expect an ldap.TIMEOUT exception, while trying to get the search results')
         with pytest.raises(ldap.TIMEOUT):
-            topology.standalone.result3(msgid, timeout=5)
+            topology_st.standalone.result3(msgid, timeout=5)
     finally:
         log.info('Set Directory Manager bind back (test_search_abandon)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
-def test_search_with_timelimit(topology, test_user):
+def test_search_with_timelimit(topology_st, test_user):
     """Verify that after performing multiple simple paged searches
     to completion, each with a timelimit, it wouldn't fail, if we sleep
     for a time more than the timelimit.
@@ -533,13 +501,13 @@ def test_search_with_timelimit(topology, test_user):
     users_num = 100
     page_size = 50
     timelimit = 5
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -547,52 +515,52 @@ def test_search_with_timelimit(topology, test_user):
 
         for ii in range(3):
             log.info('Iteration %d' % ii)
-            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                   ldap.SCOPE_SUBTREE,
-                                                   search_flt,
-                                                   searchreq_attrlist,
-                                                   serverctrls=controls,
-                                                   timeout=timelimit)
+            msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                      ldap.SCOPE_SUBTREE,
+                                                      search_flt,
+                                                      searchreq_attrlist,
+                                                      serverctrls=controls,
+                                                      timeout=timelimit)
 
             pages = 0
             pctrls = []
             while True:
                 log.info('Getting page %d' % (pages,))
-                rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+                rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
                 pages += 1
                 pctrls = [
                     c
                     for c in rctrls
                     if c.controlType == SimplePagedResultsControl.controlType
-                ]
+                    ]
 
                 if pctrls:
                     if pctrls[0].cookie:
                         # Copy cookie from response control to request control
                         req_ctrl.cookie = pctrls[0].cookie
-                        msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                               ldap.SCOPE_SUBTREE,
-                                                               search_flt,
-                                                               searchreq_attrlist,
-                                                               serverctrls=controls,
-                                                               timeout=timelimit)
+                        msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                                  ldap.SCOPE_SUBTREE,
+                                                                  search_flt,
+                                                                  searchreq_attrlist,
+                                                                  serverctrls=controls,
+                                                                  timeout=timelimit)
                     else:
                         log.info('Done with this search - sleeping %d seconds' % (
-                                 timelimit * 2))
+                            timelimit * 2))
                         time.sleep(timelimit * 2)
                         break  # No more pages available
                 else:
                     break
     finally:
         log.info('Set Directory Manager bind back (test_search_with_timelimit)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
 @pytest.mark.parametrize('aci_subject',
                          ('dns = "localhost.localdomain"',
                           'ip = "::1" or ip = "127.0.0.1"'))
-def test_search_dns_ip_aci(topology, test_user, aci_subject):
+def test_search_dns_ip_aci(topology_st, test_user, aci_subject):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI
 
@@ -615,13 +583,13 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
 
     users_num = 100
     page_size = 5
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Back up current suffix ACI')
-        acis_bck = topology.standalone.aci.list(DEFAULT_SUFFIX, ldap.SCOPE_BASE)
+        acis_bck = topology_st.standalone.aci.list(DEFAULT_SUFFIX, ldap.SCOPE_BASE)
 
         log.info('Add test ACI')
         ACI_TARGET = '(targetattr != "userPassword")'
@@ -629,15 +597,15 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
         ACI_SUBJECT = '(userdn = "ldap:///anyone") and (%s);)' % aci_subject
         ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
         try:
-            topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE,
-                                                           'aci',
-                                                           ACI_BODY)])
+            topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE,
+                                                              'aci',
+                                                              ACI_BODY)])
         except ldap.LDAPError as e:
             log.fatal('Failed to add ACI: error (%s)' % (e.message['desc']))
             raise e
 
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -646,7 +614,7 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
         log.info('Initiate three searches with a paged results control')
         for ii in range(3):
             log.info('%d search' % (ii + 1))
-            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+            all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
@@ -654,19 +622,19 @@ def test_search_dns_ip_aci(topology, test_user, aci_subject):
 
     finally:
         log.info('Set Directory Manager bind back (test_search_dns_ip_aci)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         log.info('Restore ACI')
-        topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE,
-                                                       'aci',
-                                                       None)])
+        topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE,
+                                                          'aci',
+                                                          None)])
         for aci in acis_bck:
-            topology.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD,
-                                                           'aci',
-                                                           aci.getRawAci())])
-        del_users(topology, users_list)
+            topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD,
+                                                              'aci',
+                                                              aci.getRawAci())])
+        del_users(topology_st, users_list)
 
 
-def test_search_multiple_paging(topology, test_user):
+def test_search_multiple_paging(topology_st, test_user):
     """Verify that after performing multiple simple paged searches
     on a single connection without a complition, it wouldn't fail.
 
@@ -685,13 +653,13 @@ def test_search_multiple_paging(topology, test_user):
 
     users_num = 100
     page_size = 30
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
@@ -699,33 +667,33 @@ def test_search_multiple_paging(topology, test_user):
 
         for ii in range(3):
             log.info('Iteration %d' % ii)
-            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                   ldap.SCOPE_SUBTREE,
-                                                   search_flt,
-                                                   searchreq_attrlist,
-                                                   serverctrls=controls)
-            rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+            msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                      ldap.SCOPE_SUBTREE,
+                                                      search_flt,
+                                                      searchreq_attrlist,
+                                                      serverctrls=controls)
+            rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
             pctrls = [
                 c
                 for c in rctrls
                 if c.controlType == SimplePagedResultsControl.controlType
-            ]
+                ]
 
             # Copy cookie from response control to request control
             req_ctrl.cookie = pctrls[0].cookie
-            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                   ldap.SCOPE_SUBTREE,
-                                                   search_flt,
-                                                   searchreq_attrlist,
-                                                   serverctrls=controls)
+            msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                      ldap.SCOPE_SUBTREE,
+                                                      search_flt,
+                                                      searchreq_attrlist,
+                                                      serverctrls=controls)
     finally:
         log.info('Set Directory Manager bind back (test_search_multiple_paging)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
 @pytest.mark.parametrize("invalid_cookie", [1000, -1])
-def test_search_invalid_cookie(topology, test_user, invalid_cookie):
+def test_search_invalid_cookie(topology_st, test_user, invalid_cookie):
     """Verify that using invalid cookie while performing
     search with the simple paged results control throws
     a TypeError exception
@@ -745,41 +713,41 @@ def test_search_invalid_cookie(topology, test_user, invalid_cookie):
 
     users_num = 100
     page_size = 50
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
-        msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                               ldap.SCOPE_SUBTREE,
-                                               search_flt,
-                                               searchreq_attrlist,
-                                               serverctrls=controls)
-        rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+        msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  search_flt,
+                                                  searchreq_attrlist,
+                                                  serverctrls=controls)
+        rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
 
         log.info('Put an invalid cookie (%d) to the control. TypeError is expected' %
                  invalid_cookie)
         req_ctrl.cookie = invalid_cookie
         with pytest.raises(TypeError):
-            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                   ldap.SCOPE_SUBTREE,
-                                                   search_flt,
-                                                   searchreq_attrlist,
-                                                   serverctrls=controls)
+            msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                      ldap.SCOPE_SUBTREE,
+                                                      search_flt,
+                                                      searchreq_attrlist,
+                                                      serverctrls=controls)
     finally:
         log.info('Set Directory Manager bind back (test_search_invalid_cookie)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
-def test_search_abandon_with_zero_size(topology, test_user):
+def test_search_abandon_with_zero_size(topology_st, test_user):
     """Verify that search with simple paged results control
     can be abandon using page_size = 0
 
@@ -797,37 +765,37 @@ def test_search_abandon_with_zero_size(topology, test_user):
 
     users_num = 10
     page_size = 0
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
-        msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                               ldap.SCOPE_SUBTREE,
-                                               search_flt,
-                                               searchreq_attrlist,
-                                               serverctrls=controls)
-        rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+        msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  search_flt,
+                                                  searchreq_attrlist,
+                                                  serverctrls=controls)
+        rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
         pctrls = [
             c
             for c in rctrls
             if c.controlType == SimplePagedResultsControl.controlType
-        ]
+            ]
         assert not pctrls[0].cookie
     finally:
         log.info('Set Directory Manager bind back (test_search_abandon_with_zero_size)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
 
 
-def test_search_pagedsizelimit_success(topology, test_user):
+def test_search_pagedsizelimit_success(topology_st, test_user):
     """Verify that search with a simple paged results control
     returns all entries it should without errors while
     valid value set to nsslapd-pagedsizelimit.
@@ -849,20 +817,20 @@ def test_search_pagedsizelimit_success(topology, test_user):
     page_size = 10
     attr_name = 'nsslapd-pagedsizelimit'
     attr_value = '20'
-    attr_value_bck = change_conf_attr(topology, DN_CONFIG,
+    attr_value_bck = change_conf_attr(topology_st, DN_CONFIG,
                                       attr_name, attr_value)
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
 
-        all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+        all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                    search_flt, searchreq_attrlist)
 
         log.info('%d results' % len(all_results))
@@ -870,15 +838,15 @@ def test_search_pagedsizelimit_success(topology, test_user):
 
     finally:
         log.info('Set Directory Manager bind back (test_search_pagedsizelimit_success)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-        change_conf_attr(topology, DN_CONFIG,
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
+        change_conf_attr(topology_st, DN_CONFIG,
                          'nsslapd-pagedsizelimit', attr_value_bck)
 
 
 @pytest.mark.parametrize('conf_attr,user_attr,expected_rs',
                          (('5', '15', 'PASS'), ('15', '5', ldap.SIZELIMIT_EXCEEDED)))
-def test_search_nspagedsizelimit(topology, test_user,
+def test_search_nspagedsizelimit(topology_st, test_user,
                                  conf_attr, user_attr, expected_rs):
     """Verify that nsPagedSizeLimit attribute overrides
     nsslapd-pagedsizelimit while performing search with
@@ -909,17 +877,17 @@ def test_search_nspagedsizelimit(topology, test_user,
 
     users_num = 10
     page_size = 10
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
-    conf_attr_bck = change_conf_attr(topology, DN_CONFIG,
+    conf_attr_bck = change_conf_attr(topology_st, DN_CONFIG,
                                      'nsslapd-pagedsizelimit', conf_attr)
-    user_attr_bck = change_conf_attr(topology, TEST_USER_DN,
+    user_attr_bck = change_conf_attr(topology_st, TEST_USER_DN,
                                      'nsPagedSizeLimit', user_attr)
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -927,29 +895,29 @@ def test_search_nspagedsizelimit(topology, test_user,
         if expected_rs == ldap.SIZELIMIT_EXCEEDED:
             log.info('Expect to fail with SIZELIMIT_EXCEEDED')
             with pytest.raises(expected_rs):
-                all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+                all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                            search_flt, searchreq_attrlist)
         elif expected_rs == 'PASS':
             log.info('Expect to pass')
-            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+            all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
 
     finally:
         log.info('Set Directory Manager bind back (test_search_nspagedsizelimit)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-        change_conf_attr(topology, DN_CONFIG,
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
+        change_conf_attr(topology_st, DN_CONFIG,
                          'nsslapd-pagedsizelimit', conf_attr_bck)
-        change_conf_attr(topology, TEST_USER_DN,
+        change_conf_attr(topology_st, TEST_USER_DN,
                          'nsPagedSizeLimit', user_attr_bck)
 
 
 @pytest.mark.parametrize('conf_attr_values,expected_rs',
                          ((('5000', '100', '100'), ldap.ADMINLIMIT_EXCEEDED),
                           (('5000', '120', '122'), 'PASS')))
-def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs):
+def test_search_paged_limits(topology_st, test_user, conf_attr_values, expected_rs):
     """Verify that nsslapd-idlistscanlimit and
     nsslapd-lookthroughlimit can limit the administrator
     search abilities.
@@ -979,21 +947,21 @@ def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs)
 
     users_num = 101
     page_size = 10
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
-    size_attr_bck = change_conf_attr(topology, DN_CONFIG,
+    size_attr_bck = change_conf_attr(topology_st, DN_CONFIG,
                                      'nsslapd-sizelimit', conf_attr_values[0])
-    pagedsize_attr_bck = change_conf_attr(topology, DN_CONFIG,
+    pagedsize_attr_bck = change_conf_attr(topology_st, DN_CONFIG,
                                           'nsslapd-pagedsizelimit', conf_attr_values[0])
-    idlistscan_attr_bck = change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+    idlistscan_attr_bck = change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                                            'nsslapd-idlistscanlimit', conf_attr_values[1])
-    lookthrough_attr_bck = change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+    lookthrough_attr_bck = change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                                             'nsslapd-lookthroughlimit', conf_attr_values[2])
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -1001,32 +969,32 @@ def test_search_paged_limits(topology, test_user, conf_attr_values, expected_rs)
         if expected_rs == ldap.ADMINLIMIT_EXCEEDED:
             log.info('Expect to fail with ADMINLIMIT_EXCEEDED')
             with pytest.raises(expected_rs):
-                all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+                all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                            search_flt, searchreq_attrlist)
         elif expected_rs == 'PASS':
             log.info('Expect to pass')
-            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+            all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
     finally:
         log.info('Set Directory Manager bind back (test_search_paged_limits)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-        change_conf_attr(topology, DN_CONFIG,
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
+        change_conf_attr(topology_st, DN_CONFIG,
                          'nsslapd-sizelimit', size_attr_bck)
-        change_conf_attr(topology, DN_CONFIG,
+        change_conf_attr(topology_st, DN_CONFIG,
                          'nsslapd-pagedsizelimit', pagedsize_attr_bck)
-        change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+        change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                          'nsslapd-lookthroughlimit', lookthrough_attr_bck)
-        change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+        change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                          'nsslapd-idlistscanlimit', idlistscan_attr_bck)
 
 
 @pytest.mark.parametrize('conf_attr_values,expected_rs',
                          ((('1000', '100', '100'), ldap.ADMINLIMIT_EXCEEDED),
                           (('1000', '120', '122'), 'PASS')))
-def test_search_paged_user_limits(topology, test_user, conf_attr_values, expected_rs):
+def test_search_paged_user_limits(topology_st, test_user, conf_attr_values, expected_rs):
     """Verify that nsPagedIDListScanLimit and nsPagedLookthroughLimit
     override nsslapd-idlistscanlimit and nsslapd-lookthroughlimit
     while performing search with the simple paged results control.
@@ -1057,21 +1025,21 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
 
     users_num = 101
     page_size = 10
-    users_list = add_users(topology, users_num, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, users_num, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
-    lookthrough_attr_bck = change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+    lookthrough_attr_bck = change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                                             'nsslapd-lookthroughlimit', conf_attr_values[0])
-    idlistscan_attr_bck = change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+    idlistscan_attr_bck = change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                                            'nsslapd-idlistscanlimit', conf_attr_values[0])
-    user_idlistscan_attr_bck = change_conf_attr(topology, TEST_USER_DN,
+    user_idlistscan_attr_bck = change_conf_attr(topology_st, TEST_USER_DN,
                                                 'nsPagedIDListScanLimit', conf_attr_values[1])
-    user_lookthrough_attr_bck = change_conf_attr(topology, TEST_USER_DN,
+    user_lookthrough_attr_bck = change_conf_attr(topology_st, TEST_USER_DN,
                                                  'nsPagedLookthroughLimit', conf_attr_values[2])
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         controls = [req_ctrl]
@@ -1079,29 +1047,29 @@ def test_search_paged_user_limits(topology, test_user, conf_attr_values, expecte
         if expected_rs == ldap.ADMINLIMIT_EXCEEDED:
             log.info('Expect to fail with ADMINLIMIT_EXCEEDED')
             with pytest.raises(expected_rs):
-                all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+                all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                            search_flt, searchreq_attrlist)
         elif expected_rs == 'PASS':
             log.info('Expect to pass')
-            all_results = paged_search(topology, DEFAULT_SUFFIX, controls,
+            all_results = paged_search(topology_st, DEFAULT_SUFFIX, controls,
                                        search_flt, searchreq_attrlist)
             log.info('%d results' % len(all_results))
             assert len(all_results) == len(users_list)
     finally:
         log.info('Set Directory Manager bind back (test_search_paged_user_limits)')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-        change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
+        change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                          'nsslapd-lookthroughlimit', lookthrough_attr_bck)
-        change_conf_attr(topology, 'cn=config,%s' % DN_LDBM,
+        change_conf_attr(topology_st, 'cn=config,%s' % DN_LDBM,
                          'nsslapd-idlistscanlimit', idlistscan_attr_bck)
-        change_conf_attr(topology, TEST_USER_DN,
+        change_conf_attr(topology_st, TEST_USER_DN,
                          'nsPagedIDListScanLimit', user_idlistscan_attr_bck)
-        change_conf_attr(topology, TEST_USER_DN,
+        change_conf_attr(topology_st, TEST_USER_DN,
                          'nsPagedLookthroughLimit', user_lookthrough_attr_bck)
 
 
-def test_ger_basic(topology, test_user):
+def test_ger_basic(topology_st, test_user):
     """Verify that search with a simple paged results control
     and get effective rights control returns all entries
     it should without errors.
@@ -1118,19 +1086,19 @@ def test_ger_basic(topology, test_user):
              an 'attributeLevelRights' returned
     """
 
-    users_list = add_users(topology, 20, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, 20, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     page_size = 4
 
     try:
         log.info('Set bind to directory manager')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
         spr_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
         ger_ctrl = GetEffectiveRightsControl(True, "dn: " + DN_DM)
 
-        all_results = paged_search(topology, DEFAULT_SUFFIX, [spr_ctrl, ger_ctrl],
+        all_results = paged_search(topology_st, DEFAULT_SUFFIX, [spr_ctrl, ger_ctrl],
                                    search_flt, searchreq_attrlist)
 
         log.info('{} results'.format(len(all_results)))
@@ -1139,10 +1107,10 @@ def test_ger_basic(topology, test_user):
         assert all(attrs['attributeLevelRights'][0] for dn, attrs in all_results)
     finally:
         log.info('Remove added users')
-        del_users(topology, users_list)
+        del_users(topology_st, users_list)
 
 
-def test_multi_suffix_search(topology, test_user, new_suffixes):
+def test_multi_suffix_search(topology_st, test_user, new_suffixes):
     """Verify that page result search returns empty cookie
     if there is no returned entry.
 
@@ -1169,27 +1137,27 @@ def test_multi_suffix_search(topology, test_user, new_suffixes):
     users_num = 20
 
     log.info('Clear the access log')
-    topology.standalone.deleteAccessLogs()
+    topology_st.standalone.deleteAccessLogs()
 
-    users_list_1 = add_users(topology, users_num / 2, NEW_SUFFIX_1)
-    users_list_2 = add_users(topology, users_num / 2, NEW_SUFFIX_2)
+    users_list_1 = add_users(topology_st, users_num / 2, NEW_SUFFIX_1)
+    users_list_2 = add_users(topology_st, users_num / 2, NEW_SUFFIX_2)
 
     try:
         log.info('Set DM bind')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
-        all_results = paged_search(topology, NEW_SUFFIX_1, [req_ctrl],
-                                search_flt, searchreq_attrlist)
+        all_results = paged_search(topology_st, NEW_SUFFIX_1, [req_ctrl],
+                                   search_flt, searchreq_attrlist)
 
         log.info('{} results'.format(len(all_results)))
         assert len(all_results) == users_num
 
         log.info('Restart the server to flush the logs')
-        topology.standalone.restart(timeout=10)
+        topology_st.standalone.restart(timeout=10)
 
-        access_log_lines = topology.standalone.ds_access_log.match('.*pr_cookie=.*')
+        access_log_lines = topology_st.standalone.ds_access_log.match('.*pr_cookie=.*')
         pr_cookie_list = ([line.rsplit('=', 1)[-1] for line in access_log_lines])
         pr_cookie_list = [int(pr_cookie) for pr_cookie in pr_cookie_list]
         log.info('Assert that last pr_cookie == -1 and others pr_cookie == 0')
@@ -1198,12 +1166,12 @@ def test_multi_suffix_search(topology, test_user, new_suffixes):
         assert pr_cookie_list[-1] == -1
     finally:
         log.info('Remove added users')
-        del_users(topology, users_list_1)
-        del_users(topology, users_list_2)
+        del_users(topology_st, users_list_1)
+        del_users(topology_st, users_list_2)
 
 
 @pytest.mark.parametrize('conf_attr_value', (None, '-1', '1000'))
-def test_maxsimplepaged_per_conn_success(topology, test_user, conf_attr_value):
+def test_maxsimplepaged_per_conn_success(topology_st, test_user, conf_attr_value):
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :Feature: Simple paged results
@@ -1222,37 +1190,37 @@ def test_maxsimplepaged_per_conn_success(topology, test_user, conf_attr_value):
              results requests per connection.
     """
 
-    users_list = add_users(topology, 20, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, 20, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     page_size = 4
     if conf_attr_value:
-        max_per_con_bck = change_conf_attr(topology, DN_CONFIG,
+        max_per_con_bck = change_conf_attr(topology_st, DN_CONFIG,
                                            'nsslapd-maxsimplepaged-per-conn',
                                            conf_attr_value)
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
-        all_results = paged_search(topology, DEFAULT_SUFFIX, [req_ctrl],
+        all_results = paged_search(topology_st, DEFAULT_SUFFIX, [req_ctrl],
                                    search_flt, searchreq_attrlist)
 
         log.info('{} results'.format(len(all_results)))
         assert len(all_results) == len(users_list)
     finally:
         log.info('Remove added users')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
         if conf_attr_value:
-            change_conf_attr(topology, DN_CONFIG,
+            change_conf_attr(topology_st, DN_CONFIG,
                              'nsslapd-maxsimplepaged-per-conn', max_per_con_bck)
 
 
 @pytest.mark.parametrize('conf_attr_value', ('0', '1'))
-def test_maxsimplepaged_per_conn_failure(topology, test_user, conf_attr_value):
+def test_maxsimplepaged_per_conn_failure(topology_st, test_user, conf_attr_value):
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :Feature: Simple paged results
@@ -1270,43 +1238,43 @@ def test_maxsimplepaged_per_conn_failure(topology, test_user, conf_attr_value):
     :Assert: During the searches UNWILLING_TO_PERFORM should be throwned
     """
 
-    users_list = add_users(topology, 20, DEFAULT_SUFFIX)
+    users_list = add_users(topology_st, 20, DEFAULT_SUFFIX)
     search_flt = r'(uid=test*)'
     searchreq_attrlist = ['dn', 'sn']
     page_size = 4
-    max_per_con_bck = change_conf_attr(topology, DN_CONFIG,
+    max_per_con_bck = change_conf_attr(topology_st, DN_CONFIG,
                                        'nsslapd-maxsimplepaged-per-conn',
                                        conf_attr_value)
 
     try:
         log.info('Set user bind')
-        topology.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')
 
         with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                ldap.SCOPE_SUBTREE,
-                                                search_flt,
-                                                searchreq_attrlist,
-                                                serverctrls=[req_ctrl])
-            rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+            msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                      ldap.SCOPE_SUBTREE,
+                                                      search_flt,
+                                                      searchreq_attrlist,
+                                                      serverctrls=[req_ctrl])
+            rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
 
             # If nsslapd-maxsimplepaged-per-conn = 1,
             # it should pass this point, but failed on the next search
             assert conf_attr_value == '1'
-            msgid = topology.standalone.search_ext(DEFAULT_SUFFIX,
-                                                ldap.SCOPE_SUBTREE,
-                                                search_flt,
-                                                searchreq_attrlist,
-                                                serverctrls=[req_ctrl])
-            rtype, rdata, rmsgid, rctrls = topology.standalone.result3(msgid)
+            msgid = topology_st.standalone.search_ext(DEFAULT_SUFFIX,
+                                                      ldap.SCOPE_SUBTREE,
+                                                      search_flt,
+                                                      searchreq_attrlist,
+                                                      serverctrls=[req_ctrl])
+            rtype, rdata, rmsgid, rctrls = topology_st.standalone.result3(msgid)
     finally:
         log.info('Remove added users')
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        del_users(topology, users_list)
-        change_conf_attr(topology, DN_CONFIG,
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        del_users(topology_st, users_list)
+        change_conf_attr(topology_st, DN_CONFIG,
                          'nsslapd-maxsimplepaged-per-conn', max_per_con_bck)
 
 

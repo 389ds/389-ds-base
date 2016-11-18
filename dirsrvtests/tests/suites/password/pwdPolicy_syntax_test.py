@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,74 +15,25 @@ from lib389 import DirSrv, Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-DEBUGGING = False
-
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
 
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
-
-
+logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
-
-
-class TopologyStandalone(object):
-    """The DS Topology Class"""
-    def __init__(self, standalone):
-        """Init"""
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    """Create DS Deployment"""
-
-    # Creating standalone instance ...
-    if DEBUGGING:
-        standalone = DirSrv(verbose=True)
-    else:
-        standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        """If we are debugging just stop the instances, otherwise remove
-        them
-        """
-        if DEBUGGING:
-            standalone.stop()
-        else:
-            standalone.delete()
-
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
 
 
 def _create_user(inst):
     """Create the test user."""
     inst.add_s(Entry((
-                USER_DN, {
-                    'objectClass': 'top account simplesecurityobject'.split(),
-                     'uid': 'user',
-                     'userpassword': PASSWORD
-                })))
+        USER_DN, {
+            'objectClass': 'top account simplesecurityobject'.split(),
+            'uid': 'user',
+            'userpassword': PASSWORD
+        })))
 
 
 def setPolicy(inst, attr, value):
@@ -129,7 +80,7 @@ def resetPasswd(inst):
     # Now set the password
     try:
         inst.modify_s(USER_DN,
-            [(ldap.MOD_REPLACE, 'userpassword', PASSWORD)])
+                      [(ldap.MOD_REPLACE, 'userpassword', PASSWORD)])
     except ldap.LDAPError as e:
         log.fatal("Failed to reset user password: " + str(e))
         assert False
@@ -145,7 +96,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     setPolicy(inst, policy_attr, value)
     try:
         inst.modify_s(USER_DN,
-            [(ldap.MOD_REPLACE, 'userpassword', pw_bad)])
+                      [(ldap.MOD_REPLACE, 'userpassword', pw_bad)])
         log.fatal('Invalid password was unexpectedly accepted (%s)' %
                   (policy_attr))
         assert False
@@ -160,7 +111,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     # Change password that is allowed
     try:
         inst.modify_s(USER_DN,
-            [(ldap.MOD_REPLACE, 'userpassword', pw_good)])
+                      [(ldap.MOD_REPLACE, 'userpassword', pw_good)])
     except ldap.LDAPError as e:
         log.fatal("Failed to change password: " + str(e))
         assert False
@@ -170,46 +121,46 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     setPolicy(inst, policy_attr, reset_value)
 
 
-def test_pwdPolicy_syntax(topology):
+def test_pwdPolicy_syntax(topology_st):
     '''
     Password policy test: Ensure that on a password change, the policy syntax
     is enforced correctly.
     '''
 
     # Create a user
-    _create_user(topology.standalone)
+    _create_user(topology_st.standalone)
 
     # Set the password policy globally
-    topology.standalone.config.set('passwordCheckSyntax', 'on')
-    topology.standalone.config.set('nsslapd-pwpolicy-local', 'off')
-    topology.standalone.config.set('passwordMinCategories', '1')
+    topology_st.standalone.config.set('passwordCheckSyntax', 'on')
+    topology_st.standalone.config.set('nsslapd-pwpolicy-local', 'off')
+    topology_st.standalone.config.set('passwordMinCategories', '1')
 
     #
     # Test each syntax catagory
     #
 
     # Min Length
-    tryPassword(topology.standalone, 'passwordMinLength', 10, 2, 'passwd',
+    tryPassword(topology_st.standalone, 'passwordMinLength', 10, 2, 'passwd',
                 'password123', 'length too short')
     # Min Digit
-    tryPassword(topology.standalone, 'passwordMinDigits', 2, 0, 'passwd',
+    tryPassword(topology_st.standalone, 'passwordMinDigits', 2, 0, 'passwd',
                 'password123', 'does not contain minimum number of digits')
     # Min Alphas
-    tryPassword(topology.standalone, 'passwordMinAlphas', 2, 0, 'p123456789',
+    tryPassword(topology_st.standalone, 'passwordMinAlphas', 2, 0, 'p123456789',
                 'password123', 'does not contain minimum number of alphas')
     # Max Repeats
-    tryPassword(topology.standalone, 'passwordMaxRepeats', 2, 0, 'passsword',
+    tryPassword(topology_st.standalone, 'passwordMaxRepeats', 2, 0, 'passsword',
                 'pasword123', 'too many repeating characters')
     # Min Specials
-    tryPassword(topology.standalone, 'passwordMinSpecials', 2, 0, 'passwd',
+    tryPassword(topology_st.standalone, 'passwordMinSpecials', 2, 0, 'passwd',
                 'password_#$',
                 'does not contain minimum number of special characters')
     # Min Lowers
-    tryPassword(topology.standalone, 'passwordMinLowers', 2, 0, 'PASSWORD123',
+    tryPassword(topology_st.standalone, 'passwordMinLowers', 2, 0, 'PASSWORD123',
                 'password123',
                 'does not contain minimum number of lowercase characters')
     # Min Uppers
-    tryPassword(topology.standalone, 'passwordMinUppers', 2, 0, 'password',
+    tryPassword(topology_st.standalone, 'passwordMinUppers', 2, 0, 'password',
                 'PASSWORD',
                 'does not contain minimum number of lowercase characters')
     # Min 8-bits - "ldap" package only accepts ascii strings at the moment

@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2016 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
 import os
 import sys
 import time
@@ -11,7 +19,7 @@ from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.mit_krb5 import MitKrb5
-
+from lib389.topologies import topology_m2
 
 #########################################
 #
@@ -34,93 +42,32 @@ REALM = "EXAMPLE.COM"
 HOST_MASTER_1 = 'ldapkdc1.example.com'
 HOST_MASTER_2 = 'ldapkdc2.example.com'
 
-class TopologyReplication(object):
-    def __init__(self, master1, master2):
-        master1.open()
-        self.master1 = master1
-        master2.open()
-        self.master2 = master2
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    return
-    # Create the realm first
-    krb = MitKrb5(realm=REALM)
-    if krb.check_realm():
-        krb.destroy_realm()
-    krb.create_realm()
-    DEBUG = False
-
-    # Creating master 1...
-    master1 = DirSrv(verbose=DEBUG)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_instance[SER_REALM] = REALM
-    args_instance[SER_STRICT_HOSTNAME_CHECKING] = False
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create() # There is some magic in .create that finds the realm, and adds the keytab for us.
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_1)
-
-    # Creating master 2...
-    master2 = DirSrv(verbose=DEBUG)
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_instance[SER_REALM] = REALM
-    args_instance[SER_STRICT_HOSTNAME_CHECKING] = False
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=REPLICAROLE_MASTER, replicaId=REPLICAID_MASTER_2)
-
-    # Delete each instance in the end
-    def fin():
-        master1.delete()
-        master2.delete()
-        if krb.check_realm():
-            krb.destroy_realm()
-    request.addfinalizer(fin)
-
-    # Clear out the tmp dir
-    master1.clearTmpDir(__file__)
-
-    return TopologyReplication(master1, master2)
 
 def _create_machine_ou(inst):
-    inst.add_s( Entry(( "ou=Machines,%s" % DEFAULT_SUFFIX, {
-            'objectClass' : 'top organizationalUnit'.split(),
-            'ou' : 'Machines'
-        }
-        ))
-    )
+    inst.add_s(Entry(("ou=Machines,%s" % DEFAULT_SUFFIX, {
+        'objectClass': 'top organizationalUnit'.split(),
+        'ou': 'Machines'
+    }
+                      ))
+               )
+
 
 def _create_machine_account(inst, name):
     # Create the simple security objects for the servers to replicate to
-    inst.add_s( Entry(( "uid=%s,ou=Machines,%s" % (name, DEFAULT_SUFFIX),
-        {
-            'objectClass' : 'top account'.split(),
-            'uid' : name
-        }
-        )))
+    inst.add_s(Entry(("uid=%s,ou=Machines,%s" % (name, DEFAULT_SUFFIX),
+                      {
+                          'objectClass': 'top account'.split(),
+                          'uid': name
+                      }
+                      )))
+
 
 def _check_machine_account(inst, name):
-    r = inst.search_s( 'ou=Machines,%s' % DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=%s)' % name)
+    r = inst.search_s('ou=Machines,%s' % DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=%s)' % name)
     if len(r) > 0:
         return True
     return False
+
 
 def _allow_machine_account(inst, name):
     # First we need to get the mapping tree dn
@@ -129,15 +76,15 @@ def _allow_machine_account(inst, name):
         (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDN', "uid=%s,ou=Machines,%s" % (name, DEFAULT_SUFFIX))
     ])
 
-def test_gssapi_repl(topology):
-    """
-    Create a kdc, then using that, provision two masters which have a gssapi
+
+def test_gssapi_repl(topology_m2):
+    """Create a kdc, then using that, provision two masters which have a gssapi
     authenticated replication agreement.
     """
-    return
-    master1 = topology.master1
-    master2 = topology.master2
 
+    return
+    master1 = topology_m2.ms["master1"]
+    master2 = topology_m2.ms["master2"]
 
     # Create the locations on each master for the other to bind to.
     _create_machine_ou(master1)
@@ -158,8 +105,8 @@ def test_gssapi_repl(topology):
     # Creating agreement from master 1 to master 2
 
     # Set the replica bind method to sasl gssapi
-    properties = {RA_NAME:      r'meTo_$host:$port',
-                  RA_METHOD:    'SASL/GSSAPI',
+    properties = {RA_NAME: r'meTo_$host:$port',
+                  RA_METHOD: 'SASL/GSSAPI',
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host, port=master2.port, properties=properties)
     if not m1_m2_agmt:
@@ -170,8 +117,8 @@ def test_gssapi_repl(topology):
     # Creating agreement from master 2 to master 1
 
     # Set the replica bind method to sasl gssapi
-    properties = {RA_NAME:      r'meTo_$host:$port',
-                  RA_METHOD:    'SASL/GSSAPI',
+    properties = {RA_NAME: r'meTo_$host:$port',
+                  RA_METHOD: 'SASL/GSSAPI',
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host, port=master1.port, properties=properties)
     if not m2_m1_agmt:
@@ -199,15 +146,12 @@ def test_gssapi_repl(topology):
     _create_machine_account(master1, 'http/one.example.com')
     # Check it's on 2
     time.sleep(5)
-    assert(_check_machine_account(master2, 'http/one.example.com'))
+    assert (_check_machine_account(master2, 'http/one.example.com'))
     # Add a user to master 2
     _create_machine_account(master2, 'http/two.example.com')
     # Check it's on 1
     time.sleep(5)
-    assert(_check_machine_account(master2, 'http/two.example.com'))
-
-
-    log.info('Test complete')
+    assert (_check_machine_account(master2, 'http/two.example.com'))
 
 
 if __name__ == '__main__':

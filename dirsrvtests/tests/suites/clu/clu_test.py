@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -18,55 +18,18 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_clu_init(topology):
-    '''
-    Write any test suite initialization here(if needed)
-    '''
-
-    return
-
-
-def test_clu_pwdhash(topology):
-    '''
-    Test the pwdhash script
-    '''
+def test_clu_pwdhash(topology_st):
+    """Test the pwdhash script"""
 
     log.info('Running test_clu_pwdhash...')
 
-    cmd = '%s -s ssha testpassword' % os.path.join(topology.standalone.get_bin_dir(), 'pwdhash')
+    cmd = '%s -s ssha testpassword' % os.path.join(topology_st.standalone.get_bin_dir(), 'pwdhash')
 
     p = os.popen(cmd)
     result = p.readline()

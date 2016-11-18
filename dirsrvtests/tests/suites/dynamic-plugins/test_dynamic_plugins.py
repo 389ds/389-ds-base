@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -25,57 +25,19 @@ from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
+from lib389.topologies import topology_st
 
 log = logging.getLogger(__name__)
 
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
 
 def repl_fail(replica):
-    # remove replica instance, and assert failure
+    """Remove replica instance, and assert failure"""
+
     replica.delete()
     assert False
 
 
-@pytest.fixture(scope="module")
-def topology(request):
-    '''
-        This fixture is used to standalone topology for the 'module'.
-    '''
-    standalone = DirSrv(verbose=False)
-
-    # Args for the standalone instance
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-
-    # Get the status of the instance and restart it if it exists
-    instance_standalone = standalone.exists()
-
-    # Remove the instance
-    if instance_standalone:
-        standalone.delete()
-
-    # Create the instance
-    standalone.create()
-
-    # Used to retrieve configuration information (dbdir, confdir...)
-    standalone.open()
-
-    def fin():
-        standalone.delete()
-    request.addfinalizer(fin)
-
-    # Here we have standalone instance up and running
-    return TopologyStandalone(standalone)
-
-
-def test_dynamic_plugins(topology):
+def test_dynamic_plugins(topology_st):
     """
         Test Dynamic Plugins - exercise each plugin and its main features, while
         changing the configuration without restarting the server.
@@ -97,7 +59,6 @@ def test_dynamic_plugins(topology):
         Stress - Put the server under load that will trigger multiple plugins(MO, RI, DNA, etc)
                  Restart various plugins while these operations are going on.  Perform this test
                  5 times(stress_max_run).
-
     """
 
     REPLICA_PORT = 33334
@@ -110,14 +71,14 @@ def test_dynamic_plugins(topology):
 
     # First enable dynamic plugins
     try:
-        topology.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
+        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', 'on')])
     except ldap.LDAPError as e:
         ldap.fatal('Failed to enable dynamic plugin!' + e.message['desc'])
         assert False
 
     # Test that critical plugins can be updated even though the change might not be applied
     try:
-        topology.standalone.modify_s(DN_LDBM, [(ldap.MOD_REPLACE, 'description', 'test')])
+        topology_st.standalone.modify_s(DN_LDBM, [(ldap.MOD_REPLACE, 'description', 'test')])
     except ldap.LDAPError as e:
         ldap.fatal('Failed to apply change to critical plugin' + e.message['desc'])
         assert False
@@ -135,7 +96,7 @@ def test_dynamic_plugins(topology):
         log.info('Testing Dynamic Plugins Functionality' + msg + '...')
         log.info('####################################################################\n')
 
-        plugin_tests.test_all_plugins(topology.standalone)
+        plugin_tests.test_all_plugins(topology_st.standalone)
 
         log.info('####################################################################')
         log.info('Successfully Tested Dynamic Plugins Functionality' + msg + '.')
@@ -155,20 +116,20 @@ def test_dynamic_plugins(topology):
             #
             # Restart the plugin several times (and prev plugins) - work that linked list
             #
-            plugin_test(topology.standalone, "restart")
+            plugin_test(topology_st.standalone, "restart")
 
             if prev_prev_plugin_test:
-                prev_prev_plugin_test(topology.standalone, "restart")
+                prev_prev_plugin_test(topology_st.standalone, "restart")
 
-            plugin_test(topology.standalone, "restart")
+            plugin_test(topology_st.standalone, "restart")
 
             if prev_plugin_test:
-                prev_plugin_test(topology.standalone, "restart")
+                prev_plugin_test(topology_st.standalone, "restart")
 
-            plugin_test(topology.standalone, "restart")
+            plugin_test(topology_st.standalone, "restart")
 
             # Now run the functional test
-            plugin_test(topology.standalone)
+            plugin_test(topology_st.standalone)
 
             # Set the previous tests
             if prev_plugin_test:
@@ -188,8 +149,8 @@ def test_dynamic_plugins(topology):
         log.info('Stressing Dynamic Plugins' + msg + '...')
         log.info('####################################################################\n')
 
-        stress_tests.configureMO(topology.standalone)
-        stress_tests.configureRI(topology.standalone)
+        stress_tests.configureMO(topology_st.standalone)
+        stress_tests.configureRI(topology_st.standalone)
 
         stress_count = 0
         while stress_count < stress_max_runs:
@@ -199,37 +160,37 @@ def test_dynamic_plugins(topology):
 
             try:
                 # Launch three new threads to add a bunch of users
-                add_users = stress_tests.AddUsers(topology.standalone, 'employee', True)
+                add_users = stress_tests.AddUsers(topology_st.standalone, 'employee', True)
                 add_users.start()
-                add_users2 = stress_tests.AddUsers(topology.standalone, 'entry', True)
+                add_users2 = stress_tests.AddUsers(topology_st.standalone, 'entry', True)
                 add_users2.start()
-                add_users3 = stress_tests.AddUsers(topology.standalone, 'person', True)
+                add_users3 = stress_tests.AddUsers(topology_st.standalone, 'person', True)
                 add_users3.start()
                 time.sleep(1)
 
                 # While we are adding users restart the MO plugin and an idle plugin
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
-                topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
                 time.sleep(1)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
                 time.sleep(2)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
-                topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
 
                 # Wait for the 'adding' threads to complete
                 add_users.join()
@@ -237,43 +198,43 @@ def test_dynamic_plugins(topology):
                 add_users3.join()
 
                 # Now launch three threads to delete the users
-                del_users = stress_tests.DelUsers(topology.standalone, 'employee')
+                del_users = stress_tests.DelUsers(topology_st.standalone, 'employee')
                 del_users.start()
-                del_users2 = stress_tests.DelUsers(topology.standalone, 'entry')
+                del_users2 = stress_tests.DelUsers(topology_st.standalone, 'entry')
                 del_users2.start()
-                del_users3 = stress_tests.DelUsers(topology.standalone, 'person')
+                del_users3 = stress_tests.DelUsers(topology_st.standalone, 'person')
                 del_users3.start()
                 time.sleep(1)
 
                 # Restart both the MO, RI plugins during these deletes, and an idle plugin
-                topology.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
                 time.sleep(1)
-                topology.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
                 time.sleep(1)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
-                topology.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
-                topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
-                topology.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
-                topology.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
                 time.sleep(2)
-                topology.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_REFER_INTEGRITY)
                 time.sleep(1)
-                topology.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.disable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
+                topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
                 time.sleep(1)
-                topology.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
-                topology.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
-                topology.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.enable(name=PLUGIN_REFER_INTEGRITY)
+                topology_st.standalone.plugins.disable(name=PLUGIN_LINKED_ATTRS)
+                topology_st.standalone.plugins.enable(name=PLUGIN_LINKED_ATTRS)
 
                 # Wait for the 'deleting' threads to complete
                 del_users.join()
@@ -281,11 +242,11 @@ def test_dynamic_plugins(topology):
                 del_users3.join()
 
                 # Now make sure both the MO and RI plugins still work correctly
-                plugin_tests.func_tests[8](topology.standalone)  # RI plugin
-                plugin_tests.func_tests[5](topology.standalone)  # MO plugin
+                plugin_tests.func_tests[8](topology_st.standalone)  # RI plugin
+                plugin_tests.func_tests[5](topology_st.standalone)  # MO plugin
 
                 # Cleanup the stress tests
-                stress_tests.cleanup(topology.standalone)
+                stress_tests.cleanup(topology_st.standalone)
 
             except:
                 log.info('Stress test failed!')
@@ -319,29 +280,29 @@ def test_dynamic_plugins(topology):
             replica_inst.open()
 
             try:
-                topology.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX,
-                                                              role=REPLICAROLE_MASTER,
-                                                              replicaId=1)
+                topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX,
+                                                                 role=REPLICAROLE_MASTER,
+                                                                 replicaId=1)
                 replica_inst.replica.enableReplication(suffix=DEFAULT_SUFFIX,
-                                                              role=REPLICAROLE_CONSUMER,
-                                                              replicaId=65535)
+                                                       role=REPLICAROLE_CONSUMER,
+                                                       replicaId=65535)
                 properties = {RA_NAME: r'to_replica',
                               RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                               RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                               RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                               RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
 
-                repl_agreement = topology.standalone.agreement.create(suffix=DEFAULT_SUFFIX,
-                                                                      host=LOCALHOST,
-                                                                      port=REPLICA_PORT,
-                                                                      properties=properties)
+                repl_agreement = topology_st.standalone.agreement.create(suffix=DEFAULT_SUFFIX,
+                                                                         host=LOCALHOST,
+                                                                         port=REPLICA_PORT,
+                                                                         properties=properties)
 
                 if not repl_agreement:
                     log.fatal("Fail to create a replica agreement")
                     repl_fail(replica_inst)
 
-                topology.standalone.agreement.init(DEFAULT_SUFFIX, LOCALHOST, REPLICA_PORT)
-                topology.standalone.waitForReplInit(repl_agreement)
+                topology_st.standalone.agreement.init(DEFAULT_SUFFIX, LOCALHOST, REPLICA_PORT)
+                topology_st.standalone.waitForReplInit(repl_agreement)
             except:
                 log.info('Failed to setup replication!')
                 repl_fail(replica_inst)
@@ -358,7 +319,7 @@ def test_dynamic_plugins(topology):
 
     try:
         # Grab master's max CSN
-        entry = topology.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, RUV_FILTER)
+        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, RUV_FILTER)
         if not entry:
             log.error('Failed to find db tombstone entry from master')
             repl_fail(replica_inst)
@@ -423,9 +384,9 @@ def test_dynamic_plugins(topology):
 
     # Check the master
     try:
-        entries = topology.standalone.search_s(DEFAULT_SUFFIX,
-                                        ldap.SCOPE_SUBTREE,
-                                        "(|(uid=person*)(uid=entry*)(uid=employee*))")
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX,
+                                                  ldap.SCOPE_SUBTREE,
+                                                  "(|(uid=person*)(uid=entry*)(uid=employee*))")
         if len(entries) > 0:
             log.error('Master database has incorrect data set!\n')
             repl_fail(replica_inst)

@@ -13,15 +13,16 @@ import optparse
 
 """This script generates a template test script that handles the
 non-interesting parts of a test script:
-- topology,
-- test (to be completed by the user),
-- final,
-- and run-isolated function
+- topology fixture (only for tickets),
+  for suites we have predefined fixtures in lib389/topologies.py
+- test function (to be completed by the user),
+- run-isolated function
 """
 
 
 def displayUsage():
     """Display the usage"""
+
     print ('\nUsage:\ncreate_ticket.py -t|--ticket <ticket number> ' +
            '-s|--suite <suite name> ' +
            '[ i|--instances <number of standalone instances> ' +
@@ -33,6 +34,9 @@ def displayUsage():
            'can add mulitple standalone instances(maximum 10).  However, you' +
            ' can not mix "-i" with the replication options(-m, -h , -c).  ' +
            'There is a maximum of 10 masters, 10 hubs, and 10 consumers.')
+    print('If "-s|--suite" option was chosen, then no topology would be added ' +
+          'to the test script. You can find predefined fixtures in the lib389/topologies.py ' +
+          'and usem them or write new one if you have special case.')
     exit(1)
 
 
@@ -41,6 +45,7 @@ def writeFinalizer():
 
     def writeInstanceOp(action):
         """Write instance finializer action"""
+
         if repl_deployment:
             for idx in range(masters):
                 idx += 1
@@ -64,16 +69,15 @@ def writeFinalizer():
                 TEST.write('            standalone' + idx + '.' + action +
                            '()\n')
 
-    TEST.write('    def fin():\n')
-    TEST.write('        """')
-    TEST.write('If we are debugging just stop the instances, ' +
-               'otherwise remove them\n')
-    TEST.write('        """\n')
+    TEST.write('\n    def fin():\n')
+    TEST.write('        """If we are debugging just stop the instances,\n' +
+               '        otherwise remove them\n')
+    TEST.write('        """\n\n')
     TEST.write('        if DEBUGGING:\n')
     writeInstanceOp('stop')
     TEST.write('        else:\n')
     writeInstanceOp('delete')
-    TEST.write('    request.addfinalizer(fin)')
+    TEST.write('\n    request.addfinalizer(fin)')
     TEST.write('\n\n')
 
 
@@ -158,14 +162,11 @@ if len(sys.argv) > 0:
         instances = int(args.inst)
     filename = args.filename
 
-    #
     # Create/open the new test script file
-    #
     if not filename:
         if ticket:
             filename = 'ticket' + ticket + '_test.py'
         else:
-            # suite
             filename = suite + '_test.py'
 
     try:
@@ -174,9 +175,7 @@ if len(sys.argv) > 0:
         print("Can\'t open file:", filename)
         exit(1)
 
-    #
     # Write the imports
-    #
     TEST.write('import os\nimport sys\nimport time\nimport ldap\n' +
                'import logging\nimport pytest\n')
     TEST.write('from lib389 import DirSrv, Entry, tools, tasks\nfrom ' +
@@ -184,306 +183,238 @@ if len(sys.argv) > 0:
                'import *\nfrom lib389.properties import *\n' +
                'from lib389.tasks import *\nfrom lib389.utils import *\n\n')
 
-    #
-    # Set the logger and other settings
-    #
-    TEST.write('DEBUGGING = False\n\n')
-    TEST.write('if DEBUGGING:\n')
-    TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
-    TEST.write('else:\n')
-    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
-    TEST.write('log = logging.getLogger(__name__)\n\n\n')
+    # Add topology function for a ticket only.
+    # Suites have presetuped fixtures in lib389/topologies.py
+    if ticket:
+        TEST.write('DEBUGGING = False\n\n')
+        TEST.write('if DEBUGGING:\n')
+        TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
+        TEST.write('else:\n')
+        TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
+        TEST.write('log = logging.getLogger(__name__)\n\n\n')
 
-    #
-    # Write the replication or standalone classes
-    #
-    repl_deployment = False
-    if masters + hubs + consumers > 0:
-        #
-        # Write the replication class
-        #
-        repl_deployment = True
+        # Write the replication or standalone classes
+        repl_deployment = False
 
-        TEST.write('class TopologyReplication(object):\n')
-        TEST.write('    """The Replication Topology Class"""\n')
-        TEST.write('    def __init__(self')
-        for idx in range(masters):
-            TEST.write(', master' + str(idx + 1))
-        for idx in range(hubs):
-            TEST.write(', hub' + str(idx + 1))
-        for idx in range(consumers):
-            TEST.write(', consumer' + str(idx + 1))
-        TEST.write('):\n')
-        TEST.write('        """Init"""\n')
+        if masters + hubs + consumers > 0:
+            repl_deployment = True
 
-        for idx in range(masters):
-            TEST.write('        master' + str(idx + 1) + '.open()\n')
-            TEST.write('        self.master' + str(idx + 1) + ' = master' +
-                       str(idx + 1) + '\n')
-        for idx in range(hubs):
-            TEST.write('        hub' + str(idx + 1) + '.open()\n')
-            TEST.write('        self.hub' + str(idx + 1) + ' = hub' +
-                       str(idx + 1) + '\n')
-        for idx in range(consumers):
-            TEST.write('        consumer' + str(idx + 1) + '.open()\n')
-            TEST.write('        self.consumer' + str(idx + 1) + ' = consumer' +
-                       str(idx + 1) + '\n')
-        TEST.write('\n\n')
-    else:
-        #
-        # Write the standalone class
-        #
-        TEST.write('class TopologyStandalone(object):\n')
-        TEST.write('    """The DS Topology Class"""\n')
-        TEST.write('    def __init__(self')
-        for idx in range(instances):
-            idx += 1
-            if idx == 1:
-                idx = ''
-            else:
-                idx = str(idx)
-            TEST.write(', standalone' + idx)
-        TEST.write('):\n')
-        TEST.write('        """Init"""\n')
-        for idx in range(instances):
-            idx += 1
-            if idx == 1:
-                idx = ''
-            else:
-                idx = str(idx)
-            TEST.write('        standalone' + idx + '.open()\n')
-            TEST.write('        self.standalone' + idx + ' = standalone' +
-                       idx + '\n')
-        TEST.write('\n\n')
-
-    #
-    # Write the 'topology function'
-    #
-    TEST.write('@pytest.fixture(scope="module")\n')
-    TEST.write('def topology(request):\n')
-
-    if repl_deployment:
-        #
-        # Create the replication instances
-        #
-        TEST.write('    """Create Replication Deployment"""\n\n')
-        for idx in range(masters):
-            idx = str(idx + 1)
-            TEST.write('    # Creating master ' + idx + '...\n')
-            TEST.write('    if DEBUGGING:\n')
-            TEST.write('        master' + idx + ' = DirSrv(verbose=True)\n')
-            TEST.write('    else:\n')
-            TEST.write('        master' + idx + ' = DirSrv(verbose=False)\n')
-            TEST.write('    args_instance[SER_HOST] = HOST_MASTER_' + idx +
-                       '\n')
-            TEST.write('    args_instance[SER_PORT] = PORT_MASTER_' + idx +
-                       '\n')
-            TEST.write('    args_instance[SER_SERVERID_PROP] = ' +
-                       'SERVERID_MASTER_' + idx + '\n')
-            TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
-                       'DEFAULT_SUFFIX\n')
-            TEST.write('    args_master = args_instance.copy()\n')
-            TEST.write('    master' + idx + '.allocate(args_master)\n')
-            TEST.write('    instance_master' + idx + ' = master' + idx +
-                       '.exists()\n')
-            TEST.write('    if instance_master' + idx + ':\n')
-            TEST.write('        master' + idx + '.delete()\n')
-            TEST.write('    master' + idx + '.create()\n')
-            TEST.write('    master' + idx + '.open()\n')
-            TEST.write('    master' + idx + '.replica.enableReplication' +
-                       '(suffix=SUFFIX, role=REPLICAROLE_MASTER, ' +
-                       'replicaId=REPLICAID_MASTER_' + idx + ')\n\n')
-
-        for idx in range(hubs):
-            idx = str(idx + 1)
-            TEST.write('    # Creating hub ' + idx + '...\n')
-            TEST.write('    if DEBUGGING:\n')
-            TEST.write('        hub' + idx + ' = DirSrv(verbose=True)\n')
-            TEST.write('    else:\n')
-            TEST.write('        hub' + idx + ' = DirSrv(verbose=False)\n')
-            TEST.write('    args_instance[SER_HOST] = HOST_HUB_' + idx + '\n')
-            TEST.write('    args_instance[SER_PORT] = PORT_HUB_' + idx + '\n')
-            TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_HUB_' +
-                       idx + '\n')
-            TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
-                       'DEFAULT_SUFFIX\n')
-            TEST.write('    args_hub = args_instance.copy()\n')
-            TEST.write('    hub' + idx + '.allocate(args_hub)\n')
-            TEST.write('    instance_hub' + idx + ' = hub' + idx +
-                       '.exists()\n')
-            TEST.write('    if instance_hub' + idx + ':\n')
-            TEST.write('        hub' + idx + '.delete()\n')
-            TEST.write('    hub' + idx + '.create()\n')
-            TEST.write('    hub' + idx + '.open()\n')
-            TEST.write('    hub' + idx + '.replica.enableReplication' +
-                       '(suffix=SUFFIX, role=REPLICAROLE_HUB, ' +
-                       'replicaId=REPLICAID_HUB_' + idx + ')\n\n')
-
-        for idx in range(consumers):
-            idx = str(idx + 1)
-            TEST.write('    # Creating consumer ' + idx + '...\n')
-            TEST.write('    if DEBUGGING:\n')
-            TEST.write('        consumer' + idx + ' = DirSrv(verbose=True)\n')
-            TEST.write('    else:\n')
-            TEST.write('        consumer' + idx + ' = DirSrv(verbose=False)\n')
-            TEST.write('    args_instance[SER_HOST] = HOST_CONSUMER_' + idx +
-                       '\n')
-            TEST.write('    args_instance[SER_PORT] = PORT_CONSUMER_' + idx +
-                       '\n')
-            TEST.write('    args_instance[SER_SERVERID_PROP] = ' +
-                       'SERVERID_CONSUMER_' + idx + '\n')
-            TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
-                       'DEFAULT_SUFFIX\n')
-            TEST.write('    args_consumer = args_instance.copy()\n')
-            TEST.write('    consumer' + idx + '.allocate(args_consumer)\n')
-            TEST.write('    instance_consumer' + idx + ' = consumer' + idx +
-                       '.exists()\n')
-            TEST.write('    if instance_consumer' + idx + ':\n')
-            TEST.write('        consumer' + idx + '.delete()\n')
-            TEST.write('    consumer' + idx + '.create()\n')
-            TEST.write('    consumer' + idx + '.open()\n')
-            TEST.write('    consumer' + idx + '.replica.enableReplication' +
-                       '(suffix=SUFFIX, role=REPLICAROLE_CONSUMER, ' +
-                       'replicaId=CONSUMER_REPLICAID)\n\n')
-
-        writeFinalizer()
-
-        #
-        # Create the master agreements
-        #
-        TEST.write('    #\n')
-        TEST.write('    # Create all the agreements\n')
-        TEST.write('    #\n')
-        agmt_count = 0
-        for idx in range(masters):
-            master_idx = idx + 1
+            TEST.write('class TopologyReplication(object):\n')
+            TEST.write('    def __init__(self')
             for idx in range(masters):
-                #
-                # Create agreements with the other masters (master -> master)
-                #
+                TEST.write(', master' + str(idx + 1))
+            for idx in range(hubs):
+                TEST.write(', hub' + str(idx + 1))
+            for idx in range(consumers):
+                TEST.write(', consumer' + str(idx + 1))
+            TEST.write('):\n')
+
+            for idx in range(masters):
+                TEST.write('        master' + str(idx + 1) + '.open()\n')
+                TEST.write('        self.master' + str(idx + 1) + ' = master' +
+                           str(idx + 1) + '\n')
+            for idx in range(hubs):
+                TEST.write('        hub' + str(idx + 1) + '.open()\n')
+                TEST.write('        self.hub' + str(idx + 1) + ' = hub' +
+                           str(idx + 1) + '\n')
+            for idx in range(consumers):
+                TEST.write('        consumer' + str(idx + 1) + '.open()\n')
+                TEST.write('        self.consumer' + str(idx + 1) + ' = consumer' +
+                           str(idx + 1) + '\n')
+            TEST.write('\n\n')
+        else:
+            TEST.write('class TopologyStandalone(object):\n')
+            TEST.write('    def __init__(self')
+            for idx in range(instances):
                 idx += 1
-                if master_idx == idx:
-                    # skip ourselves
-                    continue
-                TEST.write('    # Creating agreement from master ' +
-                           str(master_idx) + ' to master ' + str(idx) + '\n')
-                TEST.write("    properties = {RA_NAME: " +
-                           "'meTo_' + master" + str(idx) +
-                           ".host + ':' + str(master" + str(idx) +
-                           ".port),\n")
-                TEST.write("                  RA_BINDDN: " +
-                           "defaultProperties[REPLICATION_BIND_DN],\n")
-                TEST.write("                  RA_BINDPW: " +
-                           "defaultProperties[REPLICATION_BIND_PW],\n")
-                TEST.write("                  RA_METHOD: " +
-                           "defaultProperties[REPLICATION_BIND_METHOD],\n")
-                TEST.write("                  RA_TRANSPORT_PROT: " +
-                           "defaultProperties[REPLICATION_TRANSPORT]}\n")
-                TEST.write('    m' + str(master_idx) + '_m' + str(idx) +
-                           '_agmt = master' + str(master_idx) +
-                            '.agreement.create(suffix=SUFFIX, host=master' +
-                            str(idx) + '.host, port=master' + str(idx) +
-                            '.port, properties=properties)\n')
-                TEST.write('    if not m' + str(master_idx) + '_m' + str(idx) +
-                           '_agmt:\n')
-                TEST.write('        log.fatal("Fail to create a master -> ' +
-                           'master replica agreement")\n')
-                TEST.write('        sys.exit(1)\n')
-                TEST.write('    log.debug("%s created" % m' + str(master_idx) +
-                           '_m' + str(idx) + '_agmt)\n\n')
-                agmt_count += 1
+                if idx == 1:
+                    idx = ''
+                else:
+                    idx = str(idx)
+                TEST.write(', standalone' + idx)
+            TEST.write('):\n')
+
+            for idx in range(instances):
+                idx += 1
+                if idx == 1:
+                    idx = ''
+                else:
+                    idx = str(idx)
+                TEST.write('        standalone' + idx + '.open()\n')
+                TEST.write('        self.standalone' + idx + ' = standalone' +
+                           idx + '\n')
+            TEST.write('\n\n')
+
+        # Write the 'topology function'
+        TEST.write('@pytest.fixture(scope="module")\n')
+        TEST.write('def topology(request):\n')
+
+        if repl_deployment:
+            TEST.write('    """Create Replication Deployment"""\n')
+            for idx in range(masters):
+                idx = str(idx + 1)
+                TEST.write('\n    # Creating master ' + idx + '...\n')
+                TEST.write('    if DEBUGGING:\n')
+                TEST.write('        master' + idx + ' = DirSrv(verbose=True)\n')
+                TEST.write('    else:\n')
+                TEST.write('        master' + idx + ' = DirSrv(verbose=False)\n')
+                TEST.write('    args_instance[SER_HOST] = HOST_MASTER_' + idx +
+                           '\n')
+                TEST.write('    args_instance[SER_PORT] = PORT_MASTER_' + idx +
+                           '\n')
+                TEST.write('    args_instance[SER_SERVERID_PROP] = ' +
+                           'SERVERID_MASTER_' + idx + '\n')
+                TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
+                           'DEFAULT_SUFFIX\n')
+                TEST.write('    args_master = args_instance.copy()\n')
+                TEST.write('    master' + idx + '.allocate(args_master)\n')
+                TEST.write('    instance_master' + idx + ' = master' + idx +
+                           '.exists()\n')
+                TEST.write('    if instance_master' + idx + ':\n')
+                TEST.write('        master' + idx + '.delete()\n')
+                TEST.write('    master' + idx + '.create()\n')
+                TEST.write('    master' + idx + '.open()\n')
+                TEST.write('    master' + idx + '.replica.enableReplication' +
+                           '(suffix=SUFFIX, role=REPLICAROLE_MASTER, ' +
+                           'replicaId=REPLICAID_MASTER_' + idx + ')\n')
 
             for idx in range(hubs):
-                idx += 1
-                #
-                # Create agmts from each master to each hub (master -> hub)
-                #
-                TEST.write('    # Creating agreement from master ' +
-                           str(master_idx) + ' to hub ' + str(idx) + '\n')
-                TEST.write("    properties = {RA_NAME: " +
-                           "'meTo_' + hub" + str(idx) +
-                           ".host + ':' + str(hub" + str(idx) +
-                           ".port),\n")
-                TEST.write("                  RA_BINDDN: " +
-                           "defaultProperties[REPLICATION_BIND_DN],\n")
-                TEST.write("                  RA_BINDPW: " +
-                           "defaultProperties[REPLICATION_BIND_PW],\n")
-                TEST.write("                  RA_METHOD: " +
-                           "defaultProperties[REPLICATION_BIND_METHOD],\n")
-                TEST.write("                  RA_TRANSPORT_PROT: " +
-                           "defaultProperties[REPLICATION_TRANSPORT]}\n")
-                TEST.write('    m' + str(master_idx) + '_h' + str(idx) +
-                           '_agmt = master' + str(master_idx) +
-                           '.agreement.create(suffix=SUFFIX, host=hub' +
-                           str(idx) + '.host, port=hub' + str(idx) +
-                           '.port, properties=properties)\n')
-                TEST.write('    if not m' + str(master_idx) + '_h' + str(idx) +
-                           '_agmt:\n')
-                TEST.write('        log.fatal("Fail to create a master -> ' +
-                           'hub replica agreement")\n')
-                TEST.write('        sys.exit(1)\n')
-                TEST.write('    log.debug("%s created" % m' + str(master_idx) +
-                           '_h' + str(idx) + '_agmt)\n\n')
-                agmt_count += 1
+                idx = str(idx + 1)
+                TEST.write('\n    # Creating hub ' + idx + '...\n')
+                TEST.write('    if DEBUGGING:\n')
+                TEST.write('        hub' + idx + ' = DirSrv(verbose=True)\n')
+                TEST.write('    else:\n')
+                TEST.write('        hub' + idx + ' = DirSrv(verbose=False)\n')
+                TEST.write('    args_instance[SER_HOST] = HOST_HUB_' + idx + '\n')
+                TEST.write('    args_instance[SER_PORT] = PORT_HUB_' + idx + '\n')
+                TEST.write('    args_instance[SER_SERVERID_PROP] = SERVERID_HUB_' +
+                           idx + '\n')
+                TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
+                           'DEFAULT_SUFFIX\n')
+                TEST.write('    args_hub = args_instance.copy()\n')
+                TEST.write('    hub' + idx + '.allocate(args_hub)\n')
+                TEST.write('    instance_hub' + idx + ' = hub' + idx +
+                           '.exists()\n')
+                TEST.write('    if instance_hub' + idx + ':\n')
+                TEST.write('        hub' + idx + '.delete()\n')
+                TEST.write('    hub' + idx + '.create()\n')
+                TEST.write('    hub' + idx + '.open()\n')
+                TEST.write('    hub' + idx + '.replica.enableReplication' +
+                           '(suffix=SUFFIX, role=REPLICAROLE_HUB, ' +
+                           'replicaId=REPLICAID_HUB_' + idx + ')\n')
 
-        #
-        # Create the hub agreements
-        #
-        for idx in range(hubs):
-            hub_idx = idx + 1
-            #
-            # Add agreements from each hub to each consumer (hub -> consumer)
-            #
             for idx in range(consumers):
-                idx += 1
-                #
-                # Create agreements from each hub to each consumer
-                #
-                TEST.write('    # Creating agreement from hub ' + str(hub_idx)
-                           + ' to consumer ' + str(idx) + '\n')
-                TEST.write("    properties = {RA_NAME: " +
-                           "'meTo_' + consumer" + str(idx) +
-                           ".host + ':' + str(consumer" + str(idx) +
-                           ".port),\n")
-                TEST.write("                  RA_BINDDN: " +
-                           "defaultProperties[REPLICATION_BIND_DN],\n")
-                TEST.write("                  RA_BINDPW: " +
-                           "defaultProperties[REPLICATION_BIND_PW],\n")
-                TEST.write("                  RA_METHOD: " +
-                           "defaultProperties[REPLICATION_BIND_METHOD],\n")
-                TEST.write("                  RA_TRANSPORT_PROT: " +
-                           "defaultProperties[REPLICATION_TRANSPORT]}\n")
-                TEST.write('    h' + str(hub_idx) + '_c' + str(idx) +
-                           '_agmt = hub' + str(hub_idx) +
-                           '.agreement.create(suffix=SUFFIX, host=consumer' +
-                           str(idx) + '.host, port=consumer' + str(idx) +
-                           '.port, properties=properties)\n')
-                TEST.write('    if not h' + str(hub_idx) + '_c' + str(idx) +
-                           '_agmt:\n')
-                TEST.write('        log.fatal("Fail to create a hub -> ' +
-                           'consumer replica agreement")\n')
-                TEST.write('        sys.exit(1)\n')
-                TEST.write('    log.debug("%s created" % h' + str(hub_idx) +
-                           '_c' + str(idx) + '_agmt)\n\n')
-                agmt_count += 1
+                idx = str(idx + 1)
+                TEST.write('\n    # Creating consumer ' + idx + '...\n')
+                TEST.write('    if DEBUGGING:\n')
+                TEST.write('        consumer' + idx + ' = DirSrv(verbose=True)\n')
+                TEST.write('    else:\n')
+                TEST.write('        consumer' + idx + ' = DirSrv(verbose=False)\n')
+                TEST.write('    args_instance[SER_HOST] = HOST_CONSUMER_' + idx +
+                           '\n')
+                TEST.write('    args_instance[SER_PORT] = PORT_CONSUMER_' + idx +
+                           '\n')
+                TEST.write('    args_instance[SER_SERVERID_PROP] = ' +
+                           'SERVERID_CONSUMER_' + idx + '\n')
+                TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
+                           'DEFAULT_SUFFIX\n')
+                TEST.write('    args_consumer = args_instance.copy()\n')
+                TEST.write('    consumer' + idx + '.allocate(args_consumer)\n')
+                TEST.write('    instance_consumer' + idx + ' = consumer' + idx +
+                           '.exists()\n')
+                TEST.write('    if instance_consumer' + idx + ':\n')
+                TEST.write('        consumer' + idx + '.delete()\n')
+                TEST.write('    consumer' + idx + '.create()\n')
+                TEST.write('    consumer' + idx + '.open()\n')
+                TEST.write('    consumer' + idx + '.replica.enableReplication' +
+                           '(suffix=SUFFIX, role=REPLICAROLE_CONSUMER, ' +
+                           'replicaId=CONSUMER_REPLICAID)\n')
 
-        if hubs == 0:
-            #
-            # No Hubs, see if there are any consumers to create agreements to
-            #
+            writeFinalizer()
+
+            # Create the master agreements
+            TEST.write('    # Create all the agreements\n')
+            agmt_count = 0
+
             for idx in range(masters):
                 master_idx = idx + 1
-                #
-                # Create agreements with the consumers (master -> consumer)
-                #
+
+                # Create agreements with the other masters (master -> master)
+                for idx in range(masters):
+                    idx += 1
+
+                    # Skip ourselves
+                    if master_idx == idx:
+                        continue
+
+                    TEST.write('\n    # Creating agreement from master ' +
+                               str(master_idx) + ' to master ' + str(idx) + '\n')
+                    TEST.write("    properties = {RA_NAME: " +
+                               "'meTo_' + master" + str(idx) +
+                               ".host + ':' + str(master" + str(idx) +
+                               ".port),\n")
+                    TEST.write("                  RA_BINDDN: " +
+                               "defaultProperties[REPLICATION_BIND_DN],\n")
+                    TEST.write("                  RA_BINDPW: " +
+                               "defaultProperties[REPLICATION_BIND_PW],\n")
+                    TEST.write("                  RA_METHOD: " +
+                               "defaultProperties[REPLICATION_BIND_METHOD],\n")
+                    TEST.write("                  RA_TRANSPORT_PROT: " +
+                               "defaultProperties[REPLICATION_TRANSPORT]}\n")
+                    TEST.write('    m' + str(master_idx) + '_m' + str(idx) +
+                               '_agmt = master' + str(master_idx) +
+                                '.agreement.create(suffix=SUFFIX, host=master' +
+                                str(idx) + '.host, port=master' + str(idx) +
+                                '.port, properties=properties)\n')
+                    TEST.write('    if not m' + str(master_idx) + '_m' + str(idx) +
+                               '_agmt:\n')
+                    TEST.write('        log.fatal("Fail to create a master -> ' +
+                               'master replica agreement")\n')
+                    TEST.write('        sys.exit(1)\n')
+                    TEST.write('    log.debug("%s created" % m' + str(master_idx) +
+                               '_m' + str(idx) + '_agmt)\n')
+                    agmt_count += 1
+
+                # Create agmts from each master to each hub (master -> hub)
+                for idx in range(hubs):
+                    idx += 1
+                    TEST.write('\n    # Creating agreement from master ' +
+                               str(master_idx) + ' to hub ' + str(idx) + '\n')
+                    TEST.write("    properties = {RA_NAME: " +
+                               "'meTo_' + hub" + str(idx) +
+                               ".host + ':' + str(hub" + str(idx) +
+                               ".port),\n")
+                    TEST.write("                  RA_BINDDN: " +
+                               "defaultProperties[REPLICATION_BIND_DN],\n")
+                    TEST.write("                  RA_BINDPW: " +
+                               "defaultProperties[REPLICATION_BIND_PW],\n")
+                    TEST.write("                  RA_METHOD: " +
+                               "defaultProperties[REPLICATION_BIND_METHOD],\n")
+                    TEST.write("                  RA_TRANSPORT_PROT: " +
+                               "defaultProperties[REPLICATION_TRANSPORT]}\n")
+                    TEST.write('    m' + str(master_idx) + '_h' + str(idx) +
+                               '_agmt = master' + str(master_idx) +
+                               '.agreement.create(suffix=SUFFIX, host=hub' +
+                               str(idx) + '.host, port=hub' + str(idx) +
+                               '.port, properties=properties)\n')
+                    TEST.write('    if not m' + str(master_idx) + '_h' + str(idx) +
+                               '_agmt:\n')
+                    TEST.write('        log.fatal("Fail to create a master -> ' +
+                               'hub replica agreement")\n')
+                    TEST.write('        sys.exit(1)\n')
+                    TEST.write('    log.debug("%s created" % m' + str(master_idx) +
+                               '_h' + str(idx) + '_agmt)\n')
+                    agmt_count += 1
+
+            # Create the hub agreements
+            for idx in range(hubs):
+                hub_idx = idx + 1
+
+                # Add agreements from each hub to each consumer (hub -> consumer)
                 for idx in range(consumers):
                     idx += 1
-                    #
-                    # Create agreements from each master to each consumer
-                    #
-                    TEST.write('    # Creating agreement from master ' +
-                               str(master_idx) + ' to consumer ' + str(idx) +
-                               '\n')
+                    TEST.write('\n    # Creating agreement from hub ' + str(hub_idx)
+                               + ' to consumer ' + str(idx) + '\n')
                     TEST.write("    properties = {RA_NAME: " +
                                "'meTo_' + consumer" + str(idx) +
                                ".host + ':' + str(consumer" + str(idx) +
@@ -496,172 +427,195 @@ if len(sys.argv) > 0:
                                "defaultProperties[REPLICATION_BIND_METHOD],\n")
                     TEST.write("                  RA_TRANSPORT_PROT: " +
                                "defaultProperties[REPLICATION_TRANSPORT]}\n")
-                    TEST.write('    m' + str(master_idx) + '_c' + str(idx) +
-                               '_agmt = master' + str(master_idx) +
-                               '.agreement.create(suffix=SUFFIX, ' +
-                               'host=consumer' + str(idx) +
-                               '.host, port=consumer' + str(idx) +
+                    TEST.write('    h' + str(hub_idx) + '_c' + str(idx) +
+                               '_agmt = hub' + str(hub_idx) +
+                               '.agreement.create(suffix=SUFFIX, host=consumer' +
+                               str(idx) + '.host, port=consumer' + str(idx) +
                                '.port, properties=properties)\n')
-                    TEST.write('    if not m' + str(master_idx) + '_c' +
-                               str(idx) + '_agmt:\n')
+                    TEST.write('    if not h' + str(hub_idx) + '_c' + str(idx) +
+                               '_agmt:\n')
                     TEST.write('        log.fatal("Fail to create a hub -> ' +
                                'consumer replica agreement")\n')
                     TEST.write('        sys.exit(1)\n')
-                    TEST.write('    log.debug("%s created" % m' +
-                               str(master_idx) + '_c' + str(idx) +
-                               '_agmt)\n\n')
+                    TEST.write('    log.debug("%s created" % h' + str(hub_idx) +
+                               '_c' + str(idx) + '_agmt)\n')
                     agmt_count += 1
 
-        #
-        # Add sleep that allows all the agreemnts to get situated
-        #
-        TEST.write('    # Allow the replicas to get situated with the new ' +
-                   'agreements...\n')
-        TEST.write('    time.sleep(5)\n\n')
+            # No Hubs, see if there are any consumers to create agreements to
+            if hubs == 0:
 
-        #
-        # Write the replication initializations
-        #
-        TEST.write('    #\n')
-        TEST.write('    # Initialize all the agreements\n')
-        TEST.write('    #\n')
+                # Create agreements with the consumers (master -> consumer)
+                for idx in range(masters):
+                    master_idx = idx + 1
 
-        # Masters
-        for idx in range(masters):
-            idx += 1
-            if idx == 1:
-                continue
-            TEST.write('    master1.agreement.init(SUFFIX, HOST_MASTER_' +
-                       str(idx) + ', PORT_MASTER_' + str(idx) + ')\n')
-            TEST.write('    master1.waitForReplInit(m1_m' + str(idx) +
-                       '_agmt)\n')
+                    for idx in range(consumers):
+                        idx += 1
+                        TEST.write('\n    # Creating agreement from master ' +
+                                   str(master_idx) + ' to consumer ' + str(idx) +
+                                   '\n')
+                        TEST.write("    properties = {RA_NAME: " +
+                                   "'meTo_' + consumer" + str(idx) +
+                                   ".host + ':' + str(consumer" + str(idx) +
+                                   ".port),\n")
+                        TEST.write("                  RA_BINDDN: " +
+                                   "defaultProperties[REPLICATION_BIND_DN],\n")
+                        TEST.write("                  RA_BINDPW: " +
+                                   "defaultProperties[REPLICATION_BIND_PW],\n")
+                        TEST.write("                  RA_METHOD: " +
+                                   "defaultProperties[REPLICATION_BIND_METHOD],\n")
+                        TEST.write("                  RA_TRANSPORT_PROT: " +
+                                   "defaultProperties[REPLICATION_TRANSPORT]}\n")
+                        TEST.write('    m' + str(master_idx) + '_c' + str(idx) +
+                                   '_agmt = master' + str(master_idx) +
+                                   '.agreement.create(suffix=SUFFIX, ' +
+                                   'host=consumer' + str(idx) +
+                                   '.host, port=consumer' + str(idx) +
+                                   '.port, properties=properties)\n')
+                        TEST.write('    if not m' + str(master_idx) + '_c' +
+                                   str(idx) + '_agmt:\n')
+                        TEST.write('        log.fatal("Fail to create a hub -> ' +
+                                   'consumer replica agreement")\n')
+                        TEST.write('        sys.exit(1)\n')
+                        TEST.write('    log.debug("%s created" % m' +
+                                   str(master_idx) + '_c' + str(idx) +
+                                   '_agmt)\n')
+                        agmt_count += 1
 
-        # Hubs
-        consumers_inited = False
-        for idx in range(hubs):
-            idx += 1
-            TEST.write('    master1.agreement.init(SUFFIX, HOST_HUB_' +
-                   str(idx) + ', PORT_HUB_' + str(idx) + ')\n')
-            TEST.write('    master1.waitForReplInit(m1_h' + str(idx) +
-                       '_agmt)\n')
-            for idx in range(consumers):
-                if consumers_inited:
+            # Add sleep that allows all the agreements to get situated
+            TEST.write('\n    # Allow the replicas to get situated with the new ' +
+                       'agreements...\n')
+            TEST.write('    time.sleep(5)\n')
+
+            # Write the replication initializations
+            TEST.write('\n    # Initialize all the agreements\n')
+
+            # Masters
+            for idx in range(masters):
+                idx += 1
+                if idx == 1:
                     continue
-                idx += 1
-                TEST.write('    hub1.agreement.init(SUFFIX, HOST_CONSUMER_' +
-                           str(idx) + ', PORT_CONSUMER_' + str(idx) + ')\n')
-                TEST.write('    hub1.waitForReplInit(h1_c' + str(idx) +
-                           '_agmt)\n')
-            consumers_inited = True
-
-        # Consumers (master -> consumer)
-        if hubs == 0:
-            for idx in range(consumers):
-                idx += 1
-                TEST.write('    master1.agreement.init(SUFFIX, ' +
-                           'HOST_CONSUMER_' + str(idx) + ', PORT_CONSUMER_' +
-                           str(idx) + ')\n')
-                TEST.write('    master1.waitForReplInit(m1_c' + str(idx) +
+                TEST.write('    master1.agreement.init(SUFFIX, HOST_MASTER_' +
+                           str(idx) + ', PORT_MASTER_' + str(idx) + ')\n')
+                TEST.write('    master1.waitForReplInit(m1_m' + str(idx) +
                            '_agmt)\n')
 
-        TEST.write('\n')
+            # Hubs
+            consumers_inited = False
+            for idx in range(hubs):
+                idx += 1
+                TEST.write('    master1.agreement.init(SUFFIX, HOST_HUB_' +
+                       str(idx) + ', PORT_HUB_' + str(idx) + ')\n')
+                TEST.write('    master1.waitForReplInit(m1_h' + str(idx) +
+                           '_agmt)\n')
+                for idx in range(consumers):
+                    if consumers_inited:
+                        continue
+                    idx += 1
+                    TEST.write('    hub1.agreement.init(SUFFIX, HOST_CONSUMER_' +
+                               str(idx) + ', PORT_CONSUMER_' + str(idx) + ')\n')
+                    TEST.write('    hub1.waitForReplInit(h1_c' + str(idx) +
+                               '_agmt)\n')
+                consumers_inited = True
 
-        #
-        # Write replicaton check
-        #
-        if agmt_count > 0:
-            # Find the lowest replica type (consumer -> master)
-            if consumers > 0:
-                replica = 'consumer1'
-            elif hubs > 0:
-                replica = 'hub1'
-            else:
-                replica = 'master2'
-            TEST.write('    # Check replication is working...\n')
-            TEST.write('    if master1.testReplication(DEFAULT_SUFFIX, ' +
-                       replica + '):\n')
-            TEST.write("        log.info('Replication is working.')\n")
-            TEST.write('    else:\n')
-            TEST.write("        log.fatal('Replication is not working.')\n")
-            TEST.write('        assert False\n')
+            # Consumers (master -> consumer)
+            if hubs == 0:
+                for idx in range(consumers):
+                    idx += 1
+                    TEST.write('    master1.agreement.init(SUFFIX, ' +
+                               'HOST_CONSUMER_' + str(idx) + ', PORT_CONSUMER_' +
+                               str(idx) + ')\n')
+                    TEST.write('    master1.waitForReplInit(m1_c' + str(idx) +
+                               '_agmt)\n')
+
             TEST.write('\n')
 
-        #
-        # Write the finals steps for replication
-        #
-        TEST.write('    # Clear out the tmp dir\n')
-        TEST.write('    master1.clearTmpDir(__file__)\n\n')
-        TEST.write('    return TopologyReplication(master1')
-        for idx in range(masters):
-            idx += 1
-            if idx == 1:
-                continue
-            TEST.write(', master' + str(idx))
-        for idx in range(hubs):
-            TEST.write(', hub' + str(idx + 1))
-        for idx in range(consumers):
-            TEST.write(', consumer' + str(idx + 1))
-        TEST.write(')\n')
-    else:
-        #
+            # Write replicaton check
+            if agmt_count > 0:
+                # Find the lowest replica type (consumer -> master)
+                if consumers > 0:
+                    replica = 'consumer1'
+                elif hubs > 0:
+                    replica = 'hub1'
+                else:
+                    replica = 'master2'
+                TEST.write('    # Check replication is working...\n')
+                TEST.write('    if master1.testReplication(DEFAULT_SUFFIX, ' +
+                           replica + '):\n')
+                TEST.write("        log.info('Replication is working.')\n")
+                TEST.write('    else:\n')
+                TEST.write("        log.fatal('Replication is not working.')\n")
+                TEST.write('        assert False\n')
+                TEST.write('\n')
+
+            # Write the finals steps for replication
+            TEST.write('    # Clear out the tmp dir\n')
+            TEST.write('    master1.clearTmpDir(__file__)\n\n')
+            TEST.write('    return TopologyReplication(master1')
+
+            for idx in range(masters):
+                idx += 1
+                if idx == 1:
+                    continue
+                TEST.write(', master' + str(idx))
+            for idx in range(hubs):
+                TEST.write(', hub' + str(idx + 1))
+            for idx in range(consumers):
+                TEST.write(', consumer' + str(idx + 1))
+            TEST.write(')\n\n')
+
         # Standalone servers
-        #
+        else:
+            TEST.write('    """Create DS Deployment"""\n')
+            for idx in range(instances):
+                idx += 1
+                if idx == 1:
+                    idx = ''
+                else:
+                    idx = str(idx)
+                TEST.write('\n    # Creating standalone instance ' + idx + '...\n')
+                TEST.write('    if DEBUGGING:\n')
+                TEST.write('        standalone' + idx +
+                           ' = DirSrv(verbose=True)\n')
+                TEST.write('    else:\n')
+                TEST.write('        standalone' + idx +
+                           ' = DirSrv(verbose=False)\n')
+                TEST.write('    args_instance[SER_HOST] = HOST_STANDALONE' +
+                           idx + '\n')
+                TEST.write('    args_instance[SER_PORT] = PORT_STANDALONE' +
+                           idx + '\n')
+                TEST.write('    args_instance[SER_SERVERID_PROP] = ' +
+                           'SERVERID_STANDALONE' + idx + '\n')
+                TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
+                           'DEFAULT_SUFFIX\n')
+                TEST.write('    args_standalone' + idx + ' = args_instance.copy' +
+                           '()\n')
+                TEST.write('    standalone' + idx + '.allocate(args_standalone' +
+                           idx + ')\n')
 
-        # Args for the standalone instance
-        TEST.write('    """Create DS Deployment"""\n\n')
-        for idx in range(instances):
-            idx += 1
-            if idx == 1:
-                idx = ''
-            else:
-                idx = str(idx)
-            TEST.write('    # Creating standalone instance ' + idx + '...\n')
-            TEST.write('    if DEBUGGING:\n')
-            TEST.write('        standalone' + idx +
-                       ' = DirSrv(verbose=True)\n')
-            TEST.write('    else:\n')
-            TEST.write('        standalone' + idx +
-                       ' = DirSrv(verbose=False)\n')
-            TEST.write('    args_instance[SER_HOST] = HOST_STANDALONE' +
-                       idx + '\n')
-            TEST.write('    args_instance[SER_PORT] = PORT_STANDALONE' +
-                       idx + '\n')
-            TEST.write('    args_instance[SER_SERVERID_PROP] = ' +
-                       'SERVERID_STANDALONE' + idx + '\n')
-            TEST.write('    args_instance[SER_CREATION_SUFFIX] = ' +
-                       'DEFAULT_SUFFIX\n')
-            TEST.write('    args_standalone' + idx + ' = args_instance.copy' +
-                       '()\n')
-            TEST.write('    standalone' + idx + '.allocate(args_standalone' +
-                       idx + ')\n')
+                # Get the status of the instance and restart it if it exists
+                TEST.write('    instance_standalone' + idx + ' = standalone' +
+                           idx + '.exists()\n')
 
-            # Get the status of the instance and restart it if it exists
-            TEST.write('    instance_standalone' + idx + ' = standalone' +
-                       idx + '.exists()\n')
+                # Remove the instance
+                TEST.write('    if instance_standalone' + idx + ':\n')
+                TEST.write('        standalone' + idx + '.delete()\n')
 
-            # Remove the instance
-            TEST.write('    if instance_standalone' + idx + ':\n')
-            TEST.write('        standalone' + idx + '.delete()\n')
+                # Create and open the instance
+                TEST.write('    standalone' + idx + '.create()\n')
+                TEST.write('    standalone' + idx + '.open()\n')
 
-            # Create and open the instance
-            TEST.write('    standalone' + idx + '.create()\n')
-            TEST.write('    standalone' + idx + '.open()\n\n')
+            writeFinalizer()
 
-        writeFinalizer()
+            TEST.write('    return TopologyStandalone(standalone')
+            for idx in range(instances):
+                idx += 1
+                if idx == 1:
+                    continue
+                TEST.write(', standalone' + str(idx))
+            TEST.write(')\n\n')
+    TEST.write('\n')
 
-        TEST.write('    return TopologyStandalone(standalone')
-        for idx in range(instances):
-            idx += 1
-            if idx == 1:
-                continue
-            TEST.write(', standalone' + str(idx))
-        TEST.write(')\n')
-
-    TEST.write('\n\n')
-
-    #
     # Write the test function
-    #
     if ticket:
         TEST.write('def test_ticket' + ticket + '(topology):\n')
         if repl_deployment:
@@ -678,33 +632,35 @@ if len(sys.argv) > 0:
             TEST.write('    Also, if you need any testcase initialization,\n')
             TEST.write('    please, write additional fixture for that' +
                        '(include finalizer).\n')
-        TEST.write('\n    """\n\n')
-
+        TEST.write('    """\n\n')
     else:
-        # Write the first initial empty test function
-        TEST.write('def test_' + suite + '(topology):\n')
+        TEST.write('def test_something(topology_XX):\n')
         TEST.write('    """Write a single test here...\n\n')
         TEST.write('    Also, if you need any test suite initialization,\n')
-        TEST.write('    please, write additional fixture for that(include ' +
-                   'finalizer).\n    """\n')
+        TEST.write('    please, write additional fixture for that(include finalizer).\n' +
+                   '    Topology for suites are predefined in lib389/topologies.py.\n\n'
+                   '    Choose one of the options:\n'
+                   '    1) topology_st for standalone\n'
+                   '        topology.standalone\n'
+                   '    2) topology_m2 for two masters\n'
+                   '        topology.ms["master{1,2}"]\n'
+                   '        each master has agreements\n'
+                   '        topology.ms["master{1,2}_agmts"][m{1,2}_m{2,1}]\n'
+                   '    3) topology_m4 for four masters\n'
+                   '        the same as topology_m2 but has more masters and agreements\n'
+                   '    """\n\n')
 
     TEST.write('    if DEBUGGING:\n')
     TEST.write('        # Add debugging steps(if any)...\n')
-    TEST.write('        pass\n\n')
-    TEST.write("    log.info('Test PASSED')\n")
-    TEST.write('\n\n')
+    TEST.write('        pass\n\n\n')
 
-    #
     # Write the main function
-    #
     TEST.write("if __name__ == '__main__':\n")
     TEST.write('    # Run isolated\n')
     TEST.write('    # -s for DEBUG mode\n')
     TEST.write('    CURRENT_FILE = os.path.realpath(__file__)\n')
     TEST.write('    pytest.main("-s %s" % CURRENT_FILE)\n\n')
 
-    #
     # Done, close things up
-    #
     TEST.close()
     print('Created: ' + filename)

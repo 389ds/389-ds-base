@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -18,82 +18,51 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.topologies import topology_st
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-installation1_prefix = None
-
-
-class TopologyStandalone(object):
-    def __init__(self, standalone):
-        standalone.open()
-        self.standalone = standalone
-
 
 @pytest.fixture(scope="module")
-def topology(request):
-    global installation1_prefix
-    if installation1_prefix:
-        args_instance[SER_DEPLOYED_DIR] = installation1_prefix
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    # Clear out the tmp dir
-    standalone.clearTmpDir(__file__)
-
-    def fin():
-        standalone.delete()
-        if not standalone.has_asan():
-            sbin_dir = standalone.get_sbin_dir()
-            valgrind_disable(sbin_dir)
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
-
-
-def test_range_search_init(topology):
-    '''
-    Enable retro cl, and valgrind.  Since valgrind tests move the ns-slapd binary
+def setup(topology_st, request):
+    """Enable retro cl, and valgrind.  Since valgrind tests move the ns-slapd binary
     around it's important to always "valgrind_disable" before "assert False"ing,
     otherwise we leave the wrong ns-slapd in place if there is a failure
-    '''
+    """
 
     log.info('Initializing test_range_search...')
 
-    topology.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+    topology_st.standalone.plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
 
     # First stop the instance
-    topology.standalone.stop(timeout=30)
+    topology_st.standalone.stop(timeout=30)
 
     # Get the sbin directory so we know where to replace 'ns-slapd'
-    sbin_dir = get_sbin_dir(prefix=topology.standalone.prefix)
+    sbin_dir = get_sbin_dir(prefix=topology_st.standalone.prefix)
 
     # Enable valgrind
-    if not topology.standalone.has_asan():
+    if not topology_st.standalone.has_asan():
         valgrind_enable(sbin_dir)
 
+    def fin():
+        if not topology_st.standalone.has_asan():
+            topology_st.standalone.stop(timeout=30)
+            sbin_dir = topology_st.standalone.get_sbin_dir()
+            valgrind_disable(sbin_dir)
+            topology_st.standalone.start()
+
+    request.addfinalizer(fin)
+
     # Now start the server with a longer timeout
-    topology.standalone.start()
+    topology_st.standalone.start()
 
 
-def test_range_search(topology):
-    '''
-    Add a 100 entries, and run a range search.  When we encounter an error we
-    still need to disable valgrind before exiting
-    '''
+def test_range_search(topology_st, setup):
+    """Add a 100 entries, and run a range search.
+    When we encounter an error we still need to
+    disable valgrind before exiting
+    """
 
     log.info('Running test_range_search...')
 
@@ -104,32 +73,30 @@ def test_range_search(topology):
         idx = str(idx)
         USER_DN = 'uid=user' + idx + ',' + DEFAULT_SUFFIX
         try:
-            topology.standalone.add_s(Entry((USER_DN, {'objectclass': "top extensibleObject".split(),
-                                 'uid': 'user' + idx})))
+            topology_st.standalone.add_s(Entry((USER_DN, {'objectclass': "top extensibleObject".split(),
+                                                          'uid': 'user' + idx})))
         except ldap.LDAPError as e:
             log.fatal('test_range_search: Failed to add test user ' + USER_DN + ': error ' + e.message['desc'])
             success = False
     time.sleep(1)
 
+    # Issue range search
     if success:
-        # Issue range search
         try:
-            topology.standalone.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE,
-                                         '(&(changenumber>=74)(changenumber<=84))')
+            topology_st.standalone.search_s(RETROCL_SUFFIX, ldap.SCOPE_SUBTREE,
+                                            '(&(changenumber>=74)(changenumber<=84))')
         except ldap.LDAPError as e:
             log.fatal('test_range_search: Failed to search retro changelog(%s), error: %s' %
                       (RETROCL_SUFFIX, e.message('desc')))
             success = False
 
-    if success and not topology.standalone.has_asan():
+    if success and not topology_st.standalone.has_asan():
         # Get the results file, stop the server, and check for the leak
-        results_file = valgrind_get_results_file(topology.standalone)
-        topology.standalone.stop(timeout=30)
+        results_file = valgrind_get_results_file(topology_st.standalone)
+        topology_st.standalone.stop(timeout=30)
         if valgrind_check_file(results_file, VALGRIND_LEAK_STR, 'range_candidates'):
             log.fatal('test_range_search: Memory leak is still present!')
             assert False
-
-    log.info('test_range_search: PASSED')
 
 
 if __name__ == '__main__':
@@ -137,4 +104,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
