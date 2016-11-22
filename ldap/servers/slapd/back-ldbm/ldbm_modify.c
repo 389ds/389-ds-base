@@ -275,7 +275,26 @@ modify_apply_check_expand(
      */
     for (i = 0; mods && mods[i]; ++i) {
         if (0 == strcasecmp(SLAPI_ATTR_OBJECTCLASS, mods[i]->mod_type)) {
-            slapi_schema_expand_objectclasses(ec->ep_entry);
+            slapi_schema_expand_objectclasses( ec->ep_entry );
+            /* if the objectclass ldapsubentry is added or removed, the flag in the entry
+             * has to be updated. Otherwise it would only be effective after a reload
+             * of the entry.
+             */
+            for (size_t j = 0; mods[i]->mod_bvalues != NULL && mods[i]->mod_bvalues[j] != NULL; j++ ) {
+                if  (strncasecmp((const char *)mods[i]->mod_bvalues[j]->bv_val,
+                        "ldapsubentry", mods[i]->mod_bvalues[j]->bv_len) == 0) {
+                    switch ( mods[i]->mod_op & ~LDAP_MOD_BVALUES ) {
+                    case LDAP_MOD_ADD:
+                    case LDAP_MOD_REPLACE:
+                        ec->ep_entry->e_flags |= SLAPI_ENTRY_LDAPSUBENTRY;
+                        break;
+                    case LDAP_MOD_DELETE:
+                        ec->ep_entry->e_flags &= ~SLAPI_ENTRY_LDAPSUBENTRY;
+                        break;
+                    }
+                    break;
+                }
+            }
             break;
         }
     }
