@@ -474,6 +474,7 @@ fi
 %exclude %{_libdir}/%{pkgname}/pkgconfig/nunc-stans.pc
 %exclude %{_includedir}/nunc-stans/nunc-stans.h
 %exclude %{_mandir}/man3/md_docs_job-safety.3.gz
+%exclude %{_mandir}/man3/md_docs_intro.3.gz
 %exclude %{_mandir}/man3/ns_job_t.3.gz
 %exclude %{_mandir}/man3/ns_thrpool_config.3.gz
 %exclude %{_mandir}/man3/nunc-stans.h.3.gz
