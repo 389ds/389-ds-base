@@ -468,8 +468,11 @@ NSPR_API(PRUint32) PR_fprintf(struct PRFileDesc* fd, const char *fmt, ...)
  * return codes used by BIND functions
  */
 #define SLAPI_BIND_SUCCESS		0    /* front end will send result */
+                                     /* 1 is reserved */
 #define SLAPI_BIND_FAIL			2    /* back end should send result */
-#define SLAPI_BIND_ANONYMOUS		3    /* front end will send result */
+#define SLAPI_BIND_ANONYMOUS	3    /* front end will send result */
+#define SLAPI_BIND_REFERRAL     4    /* caller should send result */
+#define SLAPI_BIND_NO_BACKEND   5    /* caller should send result */
 
 
 /* commonly used attributes names */

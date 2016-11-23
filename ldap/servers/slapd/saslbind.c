@@ -19,6 +19,7 @@
 
 #include <slap.h>
 #include <fe.h>
+#include <pw_verify.h>
 #include <sasl.h>
 #include <saslplug.h>
 #include <unistd.h>
@@ -510,6 +511,88 @@ static int ids_sasl_getpluginpath(sasl_conn_t *conn, const char **path)
     return SASL_OK;
 }
 
+static int ids_sasl_userdb_checkpass(sasl_conn_t *conn, void *context, const char *user, const char *pass, unsigned passlen, struct propctx *propctx) {
+    /*
+     * Based on the mech
+     */
+    char *mech = NULL;
+    int isroot = 0;
+    int bind_result = SLAPI_BIND_FAIL;
+    struct berval cred;
+
+    sasl_getprop(conn, SASL_MECHNAME, (const void**)&mech);
+    if (mech == NULL) {
+        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_userdb_checkpass", "Unable to read SASL mechanism while verifying userdb password.\n");
+        goto out;
+    }
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_userdb_checkpass", "Using mech %s", mech);
+    if (passlen == 0) {
+        goto out;
+    }
+
+    if (strncasecmp(user, "dn: ", 4) == 0) {
+        isroot = slapi_dn_isroot(user+4);
+    } else {
+        /* The sasl request probably didn't come from us ... */
+        goto out;
+    }
+
+    /* Both types will need the creds. */
+    cred.bv_len = passlen;
+    cred.bv_val = (char *)pass;
+
+    if (isroot) {
+        Slapi_Value sv_cred;
+        /* Turn the creds into a Slapi Value */
+        slapi_value_init_berval(&sv_cred,&cred);
+        bind_result = pw_verify_root_dn(user+4, &sv_cred);
+        value_done(&sv_cred);
+    } else {
+        /* Convert the dn char str to an SDN */
+        ber_tag_t method = LDAP_AUTH_SIMPLE;
+        Slapi_Entry *referral = NULL;
+        Slapi_DN *sdn = slapi_sdn_new();
+        slapi_sdn_set_dn_byval(sdn, user+4);
+        /* Create a pblock */
+        Slapi_PBlock *pb = slapi_pblock_new();
+        /* We have to make a fake operation for the targetsdn spec. */
+        /* This is used within the be_dn function */
+        Slapi_Operation *op = operation_new(OP_FLAG_INTERNAL);
+        operation_set_type(op, SLAPI_OPERATION_BIND);
+        /* For mapping tree to work */
+        operation_set_target_spec(op, sdn);
+        slapi_pblock_set(pb, SLAPI_OPERATION, op);
+        /* Equivalent to SLAPI_BIND_TARGET_SDN 
+         * Used by ldbm bind to know who to bind to.
+         */
+        slapi_pblock_set(pb, SLAPI_TARGET_SDN, (void *)sdn);
+        slapi_pblock_set(pb, SLAPI_BIND_CREDENTIALS, &cred);
+        /* To make the ldbm-bind code work, we pretend to be a simple auth right now. */
+        slapi_pblock_set(pb, SLAPI_BIND_METHOD, &method);
+        /* Feed it to pw_verify_be_dn */
+        bind_result = pw_verify_be_dn(pb, &referral);
+        /* Now check the result, and unlock be if needed. */
+        if (bind_result == SLAPI_BIND_SUCCESS || bind_result == SLAPI_BIND_ANONYMOUS) {
+            Slapi_Backend *be = NULL;
+            slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+            slapi_be_Unlock(be);
+        } else if (bind_result == SLAPI_BIND_REFERRAL) {
+            /* If we have a referral do we ignore it for sasl? */
+            slapi_entry_free(referral);
+        }
+        /* Free everything */
+        slapi_sdn_free(&sdn);
+        slapi_pblock_destroy(pb);
+    }
+
+out:
+    if (bind_result == SLAPI_BIND_SUCCESS) {
+        return SASL_OK;
+    }
+    return SASL_FAIL;
+}
+
 static sasl_callback_t ids_sasl_callbacks[] =
 {
     {
@@ -530,6 +613,11 @@ static sasl_callback_t ids_sasl_callbacks[] =
     {
       SASL_CB_GETPATH,
       (IFP) ids_sasl_getpluginpath,
+      NULL
+    },
+    {
+      SASL_CB_SERVER_USERDB_CHECKPASS,
+      (IFP) ids_sasl_userdb_checkpass,
       NULL
     },
     {

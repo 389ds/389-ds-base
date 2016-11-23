@@ -38,6 +38,7 @@
 #include "slap.h"
 #include "fe.h"
 #include "pratom.h"
+#include "pw_verify.h"
 #include <sasl.h>
 
 static void log_bind_access(
@@ -48,38 +49,6 @@ static void log_bind_access(
     const char *saslmech,
     const char *msg
 );
-
-
-/* 
- * Function: is_root_dn_pw
- * 
- * Returns: 1 if the password for the root dn is correct.
- *          0 otherwise.
- * dn must be normalized
- *
- */
-static int
-is_root_dn_pw( const char *dn, const Slapi_Value *cred )
-{
-	int rv= 0;
-	char *rootpw = config_get_rootpw();
-	if ( rootpw == NULL || !slapi_dn_isroot( dn ) )
-	{
-	       rv = 0;
-	}
-	else
-	{
-		Slapi_Value rdnpwbv;
-		Slapi_Value *rdnpwvals[2];
-		slapi_value_init_string(&rdnpwbv,rootpw);
-		rdnpwvals[ 0 ] = &rdnpwbv;
-		rdnpwvals[ 1 ] = NULL;
-		rv = slapi_pw_find_sv( rdnpwvals, cred ) == 0;
-		value_done(&rdnpwbv);
-	}
-	slapi_ch_free_string( &rootpw );
-	return rv;
-}
 
 void
 do_bind( Slapi_PBlock *pb )
@@ -94,7 +63,6 @@ do_bind( Slapi_PBlock *pb )
     const char	*dn = NULL;
     char		*saslmech = NULL;
     struct berval	cred = {0};
-    Slapi_Backend		*be = NULL;
     ber_tag_t ber_rc;
     int rc = 0;
     Slapi_DN *sdn = NULL;
@@ -107,7 +75,6 @@ do_bind( Slapi_PBlock *pb )
     int auto_bind = 0;
     int minssf = 0;
     int minssf_exclude_rootdse = 0;
-    Slapi_DN *original_sdn = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "do_bind", "=>\n");
 
@@ -612,7 +579,7 @@ do_bind( Slapi_PBlock *pb )
             /*
              *  Check the dn and password
              */
-            if ( is_root_dn_pw( slapi_sdn_get_ndn(sdn), &cv )) {
+            if (pw_verify_root_dn( slapi_sdn_get_ndn(sdn), &cv ) == SLAPI_BIND_SUCCESS) {
                 /*
                  *  right dn and passwd - authorize
                  */
@@ -648,232 +615,201 @@ do_bind( Slapi_PBlock *pb )
             send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
         }
         goto free_and_return;
-    }
+    } /* End isroot and auth_simple */
 
-    /* We could be serving multiple database backends.  Select the appropriate one */
-    if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
-        send_nobackend_ldap_result( pb );
-        be = NULL;
-        goto free_and_return;
-    }
+    /*
+     * call the pre-bind plugins. if they succeed, call
+     * the backend bind function. then call the post-bind
+     * plugins.
+     */
+    if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0 )  {
+        rc = 0;
 
-    if (referral) {
-        send_referrals_from_entry(pb,referral);
-        slapi_entry_free(referral);
-        goto free_and_return;
-    }
-
-    slapi_pblock_set( pb, SLAPI_BACKEND, be );
-
-    /* not root dn - pass to the backend */
-    if ( be->be_bind != NULL ) {
-        original_sdn = slapi_sdn_dup(sdn);
-        /*
-         * call the pre-bind plugins. if they succeed, call
-         * the backend bind function. then call the post-bind
-         * plugins.
-         */
-        if ( plugin_call_plugins( pb, SLAPI_PLUGIN_PRE_BIND_FN ) == 0 )  {
-            int sdn_updated = 0;
-            rc = 0;
-
-            /* Check if a pre_bind plugin mapped the DN to another backend */
-            Slapi_DN *pb_sdn;
-            slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
-            if (!pb_sdn) {
-                slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set NULL dn\n");
-                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errorbuf);
-                send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
-                goto free_and_return;
-            } else if ((pb_sdn != sdn) || (sdn_updated = slapi_sdn_compare(original_sdn, pb_sdn))) {
-                /*
-                 * Slapi_DN set in pblock was changed by a pre bind plug-in.
-                 * It is a plug-in's responsibility to free the original Slapi_DN.
-                 */
-                sdn = pb_sdn;
-                dn = slapi_sdn_get_dn(sdn);
-                if (!dn) {
-                    const char *udn = slapi_sdn_get_udn(sdn);
-                    slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set corrupted dn %s\n", udn?udn:"");
-                    slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errorbuf);
-                    send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
-                    goto free_and_return;
-                }
-                if (!sdn_updated) { /* pb_sdn != sdn; need to compare the dn's. */
-                    sdn_updated = slapi_sdn_compare(original_sdn, sdn);
-                }
-                if (sdn_updated) { /* call slapi_be_select only when the DN is updated. */
-                    slapi_be_Unlock(be);
-                    be = slapi_be_select_exact(sdn);
-                    if (be) {
-                        slapi_be_Rlock(be);
-                        slapi_pblock_set( pb, SLAPI_BACKEND, be );
-                    } else {
-                        slapi_create_errormsg(errorbuf, sizeof(errorbuf), "No matching backend for %s\n", dn);
-                        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errorbuf);
-                        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
-                        goto free_and_return;
-                    }
-                }
-            }
-            slapi_pblock_set( pb, SLAPI_PLUGIN, be->be_database );
-            set_db_default_result_handlers(pb);
-            if ( (rc != 1) && 
-                 (auto_bind || 
-                  (((rc = (*be->be_bind)( pb )) == SLAPI_BIND_SUCCESS) ||
-                   (rc == SLAPI_BIND_ANONYMOUS))) ) {
-                long t;
-                char* authtype = NULL;
-                /* rc is SLAPI_BIND_SUCCESS or SLAPI_BIND_ANONYMOUS */
-                if(auto_bind) {
-                    rc = SLAPI_BIND_SUCCESS;
-                }
-
-                switch ( method ) {
-                case LDAP_AUTH_SIMPLE:
-                    if (cred.bv_len != 0) {
-                        authtype = SLAPD_AUTH_SIMPLE;
-                    }
-#if defined(ENABLE_AUTOBIND)
-                    else if(auto_bind) {
-                        authtype = SLAPD_AUTH_OS;
-                    }
-#endif /* ENABLE_AUTOBIND */
-                    else {
-                        authtype = SLAPD_AUTH_NONE;
-                    }
-                    break;
-                case LDAP_AUTH_SASL:
-                    /* authtype = SLAPD_AUTH_SASL && saslmech: */
-                    PR_snprintf(authtypebuf, sizeof(authtypebuf), "%s%s", SLAPD_AUTH_SASL, saslmech);
-                    authtype = authtypebuf;
-                    break;
-                default:
-                    break;
-                }
-
-                if ( rc == SLAPI_BIND_SUCCESS ) {
-                    int myrc = 0;
-                    /* 
-                     * The bind is successful.
-                     * We can give it to slapi_check_account_lock and reslimit_update_from_dn.
-                     */
-                    /*
-                     * Is this account locked ?
-                     *	could be locked through the account inactivation
-                     *	or by the password policy
-                     *
-                     * rc=0: account not locked
-                     * rc=1: account locked, can not bind, result has been sent
-                     * rc!=0 and rc!=1: error. Result was not sent, lets be_bind
-                     * 		deal with it.
-                     *
-                     */
-                    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-                        bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
-                        myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
-                        if (1 == myrc) { /* account is locked */
-                            rc = myrc;
-                            goto account_locked;
-                        }
-                        myrc = 0;
-                    }
-                    if (!auto_bind) {
-                        /* 
-                         * There could be a race that bind_target_entry was not added 
-                         * when bind_target_entry was retrieved before be_bind, but it
-                         * was in be_bind.  Since be_bind returned SLAPI_BIND_SUCCESS,
-                         * the entry is in the DS.  So, we need to retrieve it once more.
-                         */
-                        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && 
-                            !bind_target_entry) {
-                            bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
-                            if (!bind_target_entry) {
-                                slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
-                                send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
-                                goto free_and_return;
-                            }
-                        }
-                        bind_credentials_set(pb->pb_conn, authtype,
-                                             slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
-                                             NULL, NULL, NULL, bind_target_entry);
-                        if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
-                            /* check if need new password before sending 
-                               the bind success result */
-                            myrc = need_new_pw(pb, &t, bind_target_entry, pw_response_requested);
-                            switch (myrc) {
-                            case 1:
-                                (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
-                                break;
-                            case 2:
-                                (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
-                                break;
-                            default:
-                                break;
-                            }
-                        }
-                    }
-                    if (auth_response_requested) {
-                        slapi_add_auth_response_control(pb, slapi_sdn_get_ndn(sdn));
-                    }
-                    if (-1 == myrc) {
-                        /* need_new_pw failed; need_new_pw already send_ldap_result in it. */
-                        goto free_and_return;
-                    } 
-                } else {	/* anonymous */
-                    /* set bind creds here so anonymous limits are set */
-                    bind_credentials_set(pb->pb_conn, authtype, NULL, NULL, NULL, NULL, NULL);
-
-                    if ( auth_response_requested ) {
-                        slapi_add_auth_response_control(pb, "");
-                    }
-                }
-            } else {
-account_locked:                
-                if(cred.bv_len == 0) {
-                    /* its an UnAuthenticated Bind, DN specified but no pw */
-                    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
-                }else{
-                    /* password must have been invalid */
-                    /* increment BindSecurityError count */
-                    slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
-                }
-            }
-
-            /*
-             * if rc != SLAPI_BIND_SUCCESS and != SLAPI_BIND_ANONYMOUS,
-             * the result has already been sent by the backend.  otherwise,
-             * we assume it is success and send it here to avoid a race
-             * condition where the client could be told by the
-             * backend that the bind succeeded before we set the
-             * c_dn field in the connection structure here in
-             * the front end.
-             */
-            if ( rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
-                send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
-            }
-
-            slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &rc );
-            plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
-        } else {
-            /* even though preop failed, we should still call the post-op plugins */
-            plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
-            /* If the prebind plugins fail we MUST send a result!  */
-            /* Is there a way to get a better result descriptions from say the ADDN plugin? */
-            slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in failed\n");
-            send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
+        /* Check if a pre_bind plugin mapped the DN to another backend */
+        Slapi_DN *pb_sdn;
+        slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &pb_sdn);
+        if (!pb_sdn) {
+            slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set NULL dn\n");
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errorbuf);
+            send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
             goto free_and_return;
         }
+        sdn = pb_sdn;
+        dn = slapi_sdn_get_dn(sdn);
+        if (!dn) {
+            const char *udn = slapi_sdn_get_udn(sdn);
+            slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in set corrupted dn %s\n", udn?udn:"");
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, errorbuf);
+            send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "", 0, NULL);
+            goto free_and_return;
+        }
+
+        /* We could be serving multiple database backends.  Select the appropriate one */
+        /* pw_verify_be_dn will select the backend we need for us. */
+
+        rc = pw_verify_be_dn(pb, &referral);
+
+        if (rc == SLAPI_BIND_NO_BACKEND) {
+            send_nobackend_ldap_result( pb );
+            goto free_and_return;
+        } else if (rc == SLAPI_BIND_REFERRAL) {
+            send_referrals_from_entry(pb,referral);
+            slapi_entry_free(referral);
+            goto free_and_return;
+        } else if (auto_bind || rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
+            long t;
+            char* authtype = NULL;
+            /* rc is SLAPI_BIND_SUCCESS or SLAPI_BIND_ANONYMOUS */
+            if(auto_bind) {
+                rc = SLAPI_BIND_SUCCESS;
+            }
+
+            switch ( method ) {
+            case LDAP_AUTH_SIMPLE:
+                if (cred.bv_len != 0) {
+                    authtype = SLAPD_AUTH_SIMPLE;
+                }
+#if defined(ENABLE_AUTOBIND)
+                else if(auto_bind) {
+                    authtype = SLAPD_AUTH_OS;
+                }
+#endif /* ENABLE_AUTOBIND */
+                else {
+                    authtype = SLAPD_AUTH_NONE;
+                }
+                break;
+            case LDAP_AUTH_SASL:
+                /* authtype = SLAPD_AUTH_SASL && saslmech: */
+                PR_snprintf(authtypebuf, sizeof(authtypebuf), "%s%s", SLAPD_AUTH_SASL, saslmech);
+                authtype = authtypebuf;
+                break;
+            default:
+                break;
+            }
+
+            if ( rc == SLAPI_BIND_SUCCESS ) {
+                int myrc = 0;
+                Slapi_Backend *be = NULL;
+                /*
+                 * The bind is successful.
+                 * We can give it to slapi_check_account_lock and reslimit_update_from_dn.
+                 */
+                /*
+                 * Is this account locked ?
+                 *	could be locked through the account inactivation
+                 *	or by the password policy
+                 *
+                 * rc=0: account not locked
+                 * rc=1: account locked, can not bind, result has been sent
+                 * rc!=0 and rc!=1: error. Result was not sent, lets be_bind
+                 * 		deal with it.
+                 *
+                 */
+                slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+                if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+                    bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
+                    myrc = slapi_check_account_lock(pb, bind_target_entry, pw_response_requested, 1, 1);
+                    if (1 == myrc) { /* account is locked */
+                        rc = myrc;
+                        goto account_locked;
+                    }
+                    myrc = 0;
+                }
+                if (!auto_bind) {
+                    /* 
+                     * There could be a race that bind_target_entry was not added 
+                     * when bind_target_entry was retrieved before be_bind, but it
+                     * was in be_bind.  Since be_bind returned SLAPI_BIND_SUCCESS,
+                     * the entry is in the DS.  So, we need to retrieve it once more.
+                     */
+                    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA) && 
+                        !bind_target_entry) {
+                        bind_target_entry = get_entry(pb, slapi_sdn_get_ndn(sdn));
+                        if (!bind_target_entry) {
+                            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "No such entry");
+                            send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, "", 0, NULL);
+                            goto free_and_return;
+                        }
+                    }
+                    bind_credentials_set(pb->pb_conn, authtype,
+                                         slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
+                                         NULL, NULL, NULL, bind_target_entry);
+                    if (!slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+                        /* check if need new password before sending 
+                           the bind success result */
+                        myrc = need_new_pw(pb, &t, bind_target_entry, pw_response_requested);
+                        switch (myrc) {
+                        case 1:
+                            (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
+                            break;
+                        case 2:
+                            (void)slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRING, t);
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                }
+                if (auth_response_requested) {
+                    slapi_add_auth_response_control(pb, slapi_sdn_get_ndn(sdn));
+                }
+                if (-1 == myrc) {
+                    /* need_new_pw failed; need_new_pw already send_ldap_result in it. */
+                    goto free_and_return;
+                } 
+                if (be) {
+                    slapi_be_Unlock(be);
+                }
+            } else {	/* anonymous */
+                /* set bind creds here so anonymous limits are set */
+                bind_credentials_set(pb->pb_conn, authtype, NULL, NULL, NULL, NULL, NULL);
+
+                if ( auth_response_requested ) {
+                    slapi_add_auth_response_control(pb, "");
+                }
+            }
+        } else { /* if auto_bind || rc == slapi_bind_success | slapi_bind_anonymous */
+            if (rc == LDAP_OPERATIONS_ERROR) {
+                send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Function not implemented", 0, NULL );
+                goto free_and_return;
+            }
+account_locked:
+            if(cred.bv_len == 0) {
+                /* its an UnAuthenticated Bind, DN specified but no pw */
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsUnAuthBinds);
+            }else{
+                /* password must have been invalid */
+                /* increment BindSecurityError count */
+                slapi_counter_increment(g_get_global_snmp_vars()->ops_tbl.dsBindSecurityErrors);
+            }
+        }
+
+        /*
+         * if rc != SLAPI_BIND_SUCCESS and != SLAPI_BIND_ANONYMOUS,
+         * the result has already been sent by the backend.  otherwise,
+         * we assume it is success and send it here to avoid a race
+         * condition where the client could be told by the
+         * backend that the bind succeeded before we set the
+         * c_dn field in the connection structure here in
+         * the front end.
+         */
+        if ( rc == SLAPI_BIND_SUCCESS || rc == SLAPI_BIND_ANONYMOUS) {
+            send_ldap_result( pb, LDAP_SUCCESS, NULL, NULL, 0, NULL );
+        }
+
+        slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, &rc );
+        plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
     } else {
-        send_ldap_result( pb, LDAP_UNWILLING_TO_PERFORM, NULL,
-                          "Function not implemented", 0, NULL );
+        /* even though preop failed, we should still call the post-op plugins */
+        plugin_call_plugins( pb, SLAPI_PLUGIN_POST_BIND_FN );
+        /* If the prebind plugins fail we MUST send a result!  */
+        /* Is there a way to get a better result descriptions from say the ADDN plugin? */
+        slapi_create_errormsg(errorbuf, sizeof(errorbuf), "Pre-bind plug-in failed\n");
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, errorbuf, 0, NULL);
+        goto free_and_return;
     }
 
-free_and_return:;
-    slapi_sdn_free(&original_sdn);
-    if (be) {
-        slapi_be_Unlock(be);
-    }
+free_and_return:
     if (bind_sdn_in_pb) {
         slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
     }

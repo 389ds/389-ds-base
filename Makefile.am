@@ -1738,6 +1738,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/passwd_extop.c \
 	ldap/servers/slapd/psearch.c \
 	ldap/servers/slapd/pw_mgmt.c \
+	ldap/servers/slapd/pw_verify.c \
 	ldap/servers/slapd/rootdse.c \
 	ldap/servers/slapd/sasl_io.c \
 	ldap/servers/slapd/saslbind.c \
