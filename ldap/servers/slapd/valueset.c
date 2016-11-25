@@ -422,61 +422,6 @@ valuearray_remove_value(const Slapi_Attr *a, Slapi_Value **va, const Slapi_Value
 	return r;
 }
 
-/* 
- * Remove any values older than the CSN.
- */
-int 
-valuearray_purge(Slapi_Value ***va, const CSN *csn)
-{
-	int numValues=0;
-	int i=0;
-	int nextValue=0;
-
-	PR_ASSERT(va!=NULL && *va!=NULL);
-
-	/* Loop over all the values freeing the old ones. */
-	for(i=0; (*va)[i]; i++)
-	{
-		csnset_purge(&((*va)[i]->v_csnset),csn);
-		if ((*va)[i]->v_csnset == NULL)
-		{
-			slapi_value_free(&(*va)[i]);
-			(*va)[i] = NULL;
-		}
-	}
-	/* Now compact the value list. */
-	numValues=i;
-	nextValue = 0;
-	i = 0;
-	for(i=0;i<numValues;i++)
-	{
-		while((nextValue < numValues) && (NULL == (*va)[nextValue]))
-		{
-			nextValue++;
-		}
-		if(nextValue < numValues)
-		{
-			(*va)[i] = (*va)[nextValue];
-			nextValue++;
-		}
-		else
-		{
-			break;
-		}
-	}
-	(*va)[i] = NULL;
-
-	/* All the values were deleted, we can discard the whole array. */
-	if(NULL == (*va)[0])
-	{
-		slapi_ch_free((void**)va);
-		*va= NULL;
-	}
-
-	/* return the number of remaining values */
-	return(i);
-}
-
 size_t
 valuearray_size(Slapi_Value **va)
 {
@@ -785,6 +730,80 @@ valueset_remove_value(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value
 	return r;
 }
 
+/*
+ * Remove any values older than the CSN from valueset.
+ */
+int
+valueset_array_purge(Slapi_ValueSet *vs, const CSN *csn)
+{
+    size_t i = 0;
+    size_t j = 0;
+    int nextValue = 0;
+    int numValues = 0;
+
+    /* Loop over all the values freeing the old ones. */
+    for(i = 0; i < vs->num; i++)
+    {
+        if (vs->sorted) {
+            j = vs->sorted[i];
+        } else {
+            j = i;
+        }
+        csnset_purge(&(vs->va[j]->v_csnset),csn);
+        if (vs->va[j]->v_csnset == NULL) {
+            slapi_value_free(&vs->va[j]);
+            vs->va[j] = NULL;
+        }
+    }
+    /* Now compact the value/sorted list. */
+    numValues = i;
+    nextValue = 0;
+    for(i = 0; i<numValues; i++) {
+        if (vs->sorted) {
+            j = vs->sorted[nextValue];
+        } else {
+            j = nextValue;
+        }
+        while((nextValue < numValues) && (NULL == vs->va[j])) {
+            if (vs->sorted) {
+                j = vs->sorted[nextValue++];
+            } else {
+                nextValue++;
+            }
+        }
+        if(nextValue < numValues) {
+            if(vs->sorted) {
+                vs->va[vs->sorted[i]] = vs->va[j];
+                vs->sorted[i] = j;
+            } else {
+                vs->va[i] = vs->va[j];
+            }
+            nextValue++;
+        } else {
+            break;
+        }
+    }
+
+    if(vs->sorted) {
+        vs->va[vs->sorted[i]] = NULL;
+        vs->sorted[i] = 0;
+    } else {
+        vs->va[i] = NULL;
+    }
+
+    /* All the values were deleted, we can discard the whole array. */
+    if(NULL == vs->va[0]) {
+        if(vs->sorted) {
+            slapi_ch_free ((void **)&vs->sorted);
+        }
+        slapi_ch_free ((void **)&vs->va);
+        vs->va= NULL;
+    }
+
+    /* return the number of remaining values */
+    return i;
+}
+
 /* 
  * Remove any values older than the CSN.
  */
@@ -793,21 +812,11 @@ valueset_purge(Slapi_ValueSet *vs, const CSN *csn)
 {
 	int r= 0;
  	if(!valuearray_isempty(vs->va)) {
-		/* valuearray_purge is not valueset and sorting aware,
-		 * maybe need to rewrite, at least keep the valueset 
-		 * consistent
-		 */
-		r= valuearray_purge(&vs->va, csn);
+		r= valueset_array_purge(vs, csn);
 		vs->num = r;
 		if (vs->va == NULL) {
 			/* va was freed */
 			vs->max = 0;
-		}
-		/* we can no longer rely on the sorting */
-		if (vs->sorted != NULL) 
-		{
-			slapi_ch_free ((void **)&vs->sorted);
-			vs->sorted = NULL;
 		}
 		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 	}
