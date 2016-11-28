@@ -483,11 +483,10 @@ rootdn_check_access(Slapi_PBlock *pb){
      */
     if(daysAllowed){
         char *timestr;
-        char day[4];
+        char day[4] = {0};
         char *today = day;
 
         timestr = asctime(timeinfo); // DDD MMM dd hh:mm:ss YYYY
-        memset(day, 0 ,sizeof(day));
         memmove(day, timestr, 3); // we only want the day
         today = strToLower(today);
         daysAllowed = strToLower(daysAllowed);
@@ -600,8 +599,7 @@ rootdn_check_access(Slapi_PBlock *pb){
          *  Check if we are IPv4, so we can grab the correct IP addr for "ip_str"
          */
         if ( PR_IsNetAddrType( client_addr, PR_IpAddrV4Mapped ) ) {
-   	        PRNetAddr v4addr;
-   	        memset( &v4addr, 0, sizeof( v4addr ) );
+   	        PRNetAddr v4addr = {{0}};
    	        v4addr.inet.family = PR_AF_INET;
    	        v4addr.inet.ip = client_addr->ipv6.ip.pr_s6_addr32[3];
    	        if( PR_NetAddrToString( &v4addr, ip_str, sizeof( ip_str )) != PR_SUCCESS){

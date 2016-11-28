@@ -148,6 +148,7 @@ operation_init(Slapi_Operation *o, int flags)
 	if (NULL != o)
 	{
 		BerElement *ber = o->o_ber; /* may have already been set */
+		/* We can't get rid of this til we remove the operation stack. */
 		memset(o,0,sizeof(Slapi_Operation));
 		o->o_ber = ber;
 		o->o_msgid = -1;
@@ -195,7 +196,7 @@ operation_new(int flags)
 	BerElement *ber = NULL;
 	if(flags & OP_FLAG_INTERNAL)
 	{
-	   	o = (Slapi_Operation *) slapi_ch_malloc(sizeof(Slapi_Operation));
+	   	o = (Slapi_Operation *) slapi_ch_calloc(1, sizeof(Slapi_Operation));
 	}
 	else
 	{

@@ -406,11 +406,9 @@ slapi_modify_internal(const char *idn,
                       LDAPControl **controls,
                       int dummy)
 {
-    Slapi_PBlock    pb;
+    Slapi_PBlock    pb = {0};
     Slapi_PBlock    *result_pb = NULL;
     int             opresult;
-
-    pblock_init(&pb);    	
 
 	slapi_modify_internal_set_pb (&pb, idn, (LDAPMod**)mods, controls, NULL, 
 		(void *)plugin_get_default_component_id(), 0);

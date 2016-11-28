@@ -2464,7 +2464,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	int ns = 0;
 	Connection *conn = NULL;
 	/*	struct sockaddr_in	from;*/
-	PRNetAddr from;
+	PRNetAddr from = {{0}};
 	PRFileDesc *pr_clonefd = NULL;
 	ber_len_t maxbersize;
 	slapdFrontendConfig_t *fecfg = getFrontendConfig();
@@ -2472,7 +2472,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 	if (newconn) {
 		*newconn = NULL;
 	}
-	memset(&from, 0, sizeof(from)); /* reset to nulls so we can see what was set */
 	if ( (ns = accept_and_configure( tcps, pr_acceptfd, &from,
 		sizeof(from), secure, local, &pr_clonefd)) == SLAPD_INVALID_SOCKET ) {
 		return -1;
@@ -2519,8 +2518,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
 						LBER_SBIOD_LEVEL_PROVIDER, conn );
 #else /* !USE_OPENLDAP */
     {
-		struct lber_x_ext_io_fns func_pointers;
-		memset(&func_pointers, 0, sizeof(func_pointers));
+		struct lber_x_ext_io_fns func_pointers = {0};
 		func_pointers.lbextiofn_size = LBER_X_EXTIO_FNS_SIZE;
 		func_pointers.lbextiofn_read = NULL; /* see connection_read_function */
 		func_pointers.lbextiofn_write = write_function;
@@ -3044,7 +3042,6 @@ slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr)
 			void *iter = NULL;
 			int addrcnt = 0;
 			int i = 0;
-			memset( netaddr, 0, sizeof( PRNetAddr ));
 			/* need to count the address, first */
 			while ( (iter = PR_EnumerateAddrInfo( iter, infop, 0, netaddr ))
 							!= NULL ) {
@@ -3391,17 +3388,17 @@ static void
 get_loopback_by_addr( void )
 {
 #ifdef GETHOSTBYADDR_BUF_T
-    struct hostent		hp;
-	GETHOSTBYADDR_BUF_T	hbuf;
+    struct hostent      hp = {0};
+    GETHOSTBYADDR_BUF_T hbuf;
 #endif
-    unsigned long	ipaddr;
-    struct in_addr	ia;
-    int				herrno, rc = 0;
+    unsigned long   ipaddr;
+    struct in_addr  ia;
+    int             herrno = 0;
+    int             rc = 0;
 
-    memset( (char *)&hp, 0, sizeof(hp));
     ipaddr = htonl( INADDR_LOOPBACK );
     (void) GETHOSTBYADDR( (char *)&ipaddr, sizeof( ipaddr ),
-	    AF_INET, &hp, hbuf, sizeof(hbuf), &herrno );
+        AF_INET, &hp, hbuf, sizeof(hbuf), &herrno );
 }
 #endif /* RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS */
 

@@ -2267,12 +2267,10 @@ int memberof_test_membership_callback(Slapi_Entry *e, void *callback_data)
 
 			candidate_array =
 				(Slapi_Value**)
-				slapi_ch_malloc(sizeof(Slapi_Value*)*total);
-			memset(candidate_array, 0, sizeof(Slapi_Value*)*total);
+				slapi_ch_calloc(1, sizeof(Slapi_Value*)*total);
 			member_array =
 				(Slapi_Value**)
-				slapi_ch_malloc(sizeof(Slapi_Value*)*total);
-			memset(member_array, 0, sizeof(Slapi_Value*)*total);
+				slapi_ch_calloc(1, sizeof(Slapi_Value*)*total);
 
 			hint = slapi_attr_first_value(attr, &val);
 

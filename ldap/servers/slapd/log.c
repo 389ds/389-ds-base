@@ -3705,7 +3705,7 @@ log__delete_error_logfile(int locked)
 	int                rv = 0;
 	char               *logstr;
 	char               buffer[BUFSIZ];
-	char               tbuf[TBUFSIZE];
+	char               tbuf[TBUFSIZE] = {0};
 
 	/* If we have only one log, then  will delete this one */
 	if (loginfo.log_error_maxnumlogs == 1) {
@@ -3826,7 +3826,6 @@ delete_logfile:
 			return 0;
 		}
 	} 
-	memset(tbuf, 0, sizeof(tbuf));
 	log_convert_time (delete_logp->l_ctime, tbuf, 1 /*short */);
 	if (!locked) {
 		/* if locked, we should not call slapi_log_err, 

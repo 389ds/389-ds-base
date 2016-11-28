@@ -37,16 +37,7 @@ static int isValidFormat (const char * buff);
 Slapi_UniqueID *slapi_uniqueIDNew ()
 {
 	Slapi_UniqueID *uId;
-	uId = (Slapi_UniqueID*)slapi_ch_malloc (sizeof (Slapi_UniqueID));
-
-	if (uId == NULL)
-	{
-		slapi_log_err(SLAPI_LOG_ERR, MODULE, "uniqueIDNew: "
-						 "failed to allocate new id.\n");
-		return NULL;
-	}
-
-	memset (uId, 0, sizeof (Slapi_UniqueID));
+	uId = (Slapi_UniqueID*)slapi_ch_calloc (1, sizeof (Slapi_UniqueID));
 
 	return uId;
 }

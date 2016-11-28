@@ -412,7 +412,7 @@ filter_stuff_func(void *arg, const char *val, PRUint32 slen)
 char*
 slapi_filter_sprintf(const char *fmt, ...)
 {
-    struct filter_ctx ctx;
+    struct filter_ctx ctx = {0};
     va_list args;
     char *buf;
     int rc;
@@ -1143,7 +1143,7 @@ int
 slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
 {
         int fd = -1;
-        struct stat statbuf;
+        struct stat statbuf = {0};
         int result = 1;
         if (!filename) {
             return result;
@@ -1153,7 +1153,6 @@ slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid)
         if (fd == -1) {
             return result;
         }
-        memset(&statbuf, '\0', sizeof(statbuf));
         if (!(result = fstat(fd, &statbuf)))
         {
                 if (((uid != -1) && (uid != statbuf.st_uid)) ||
@@ -1519,16 +1518,16 @@ int util_info_sys_pages(size_t *pagesize, size_t *pages, size_t *procpages, size
     *availpages = util_getvirtualmemsize() / *pagesize;
     /* solaris has THE most annoying way to get this info */
     {
-        struct prpsinfo psi;
+        struct prpsinfo psi = {0};
         char fn[40];
         int fd;
 
         sprintf(fn, "/proc/%d", getpid());
         fd = open(fn, O_RDONLY);
         if (fd >= 0) {
-                memset(&psi, 0, sizeof(psi));
-            if (ioctl(fd, PIOCPSINFO, (void *)&psi) == 0)
+            if (ioctl(fd, PIOCPSINFO, (void *)&psi) == 0) {
                 *procpages = psi.pr_size;
+            }
             close(fd);
         }
     }

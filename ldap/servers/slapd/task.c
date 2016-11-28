@@ -701,15 +701,13 @@ static Slapi_Entry *get_internal_entry(Slapi_PBlock *pb, char *dn)
 
 static void modify_internal_entry(char *dn, LDAPMod **mods)
 {
-    Slapi_PBlock pb;
     Slapi_Operation *op;
     int ret = 0;
     int tries = 0;
     int dont_write_file = 1;
 
     do {
-
-        pblock_init(&pb);
+        Slapi_PBlock pb = {0};
 
         slapi_modify_internal_set_pb(&pb, dn, mods, NULL, NULL,
         (void *)plugin_get_default_component_id(), 0);
@@ -836,7 +834,7 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
     int idx, rv = 0;
     const char *do_attr_indexes, *uniqueid_kind_str;
     int uniqueid_kind = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
-    Slapi_PBlock mypb;
+    Slapi_PBlock mypb = {0};
     Slapi_Task *task;
     char *nameFrombe_name = NULL;
     const char *encrypt_on_import = NULL;
@@ -978,7 +976,6 @@ static int task_import_add(Slapi_PBlock *pb, Slapi_Entry *e,
         goto out;
     }
 
-    memset(&mypb, 0, sizeof(mypb));
     mypb.pb_backend = be;
     mypb.pb_plugin = be->be_database;
     mypb.pb_removedupvals = atoi(fetch_attr(e, "nsImportChunkSize", "0"));
@@ -1797,7 +1794,7 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     int rv = SLAPI_DSE_CALLBACK_OK;
     Slapi_Backend *be = NULL;
     Slapi_Task *task = NULL;
-    Slapi_PBlock mypb;
+    Slapi_PBlock mypb = {0};
     const char *archive_dir = NULL;
     const char *force = NULL;
     const char *database_type = "ldbm database";
@@ -1864,7 +1861,6 @@ task_upgradedb_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
     task->task_work = 1;
     task->task_progress = 0;
 
-    memset(&mypb, 0, sizeof(mypb));
     mypb.pb_backend = be;
     mypb.pb_plugin = be->be_database;
     if (force && 0 == strcasecmp(force, "true"))
@@ -1956,16 +1952,13 @@ task_sysconfig_reload_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter,
                 /* skip comments */
                 continue;
             } else {
-                char env_value[sizeof(line)];
-                char env_var[sizeof(line)];
+                char env_value[sizeof(line)] = {0};
+                char env_var[sizeof(line)] = {0};
                 int using_setenv = 0;
                 int value_index = 0;
                 int start_value = 0;
                 int var_index = 0;
                 int inquotes = 0;
-
-                memset(env_var, 0, sizeof(env_var));
-                memset(env_value, 0, sizeof(env_value));
 
                 /*
                  * Remove leading spaces and tabs

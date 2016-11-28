@@ -1167,9 +1167,8 @@ cleanup:
 void 
 signal2sigaction( int s, void *a )
 {
-    struct sigaction act;
+    struct sigaction act = {0};
 
-    memset(&act, 0, sizeof(struct sigaction));
     act.sa_handler = (VFP)a;
     act.sa_flags = 0;
     (void)sigemptyset( &act.sa_mask );
@@ -2003,7 +2002,7 @@ static int
 slapd_exemode_ldif2db(void)
 {
     int return_value= 0;
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     struct slapdplugin *plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2094,7 +2093,6 @@ slapd_exemode_ldif2db(void)
     if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
         g_set_detached(1);
     }
-    memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
     pb.pb_plugin = plugin;
     pb.pb_removedupvals = ldif2db_removedupvals;
@@ -2126,7 +2124,7 @@ static int
 slapd_exemode_db2ldif(int argc, char** argv)
 {
     int return_value= 0;
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     struct slapdplugin *plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	char *my_ldiffile;
@@ -2218,7 +2216,6 @@ slapd_exemode_db2ldif(int argc, char** argv)
 	    if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
 	        g_set_detached(1);
 	    }
-	    memset( &pb, '\0', sizeof(pb) );
 	    pb.pb_backend = NULL;
 	    pb.pb_plugin = plugin;
 	    pb.pb_ldif_include = db2ldif_include;
@@ -2344,7 +2341,7 @@ static int slapd_exemode_db2index(void)
 {
     int return_value= 0;
     struct slapdplugin *plugin;
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     mapping_tree_init();
@@ -2414,7 +2411,6 @@ static int slapd_exemode_db2index(void)
         usage( myname, extraname );
         return 1;
     }
-    memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
     pb.pb_plugin = plugin;
     pb.pb_db2index_attrs = db2index_attrs;
@@ -2432,7 +2428,7 @@ static int
 slapd_exemode_db2archive(void)
 {
     int return_value= 0;
-	Slapi_PBlock pb;
+	Slapi_PBlock pb = {0};
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
@@ -2469,7 +2465,6 @@ slapd_exemode_db2archive(void)
 		g_set_detached(1);
 	}
 
-	memset( &pb, '\0', sizeof(pb) );
 	pb.pb_backend = NULL;
 	pb.pb_plugin = backend_plugin;
 	pb.pb_instance_name = NULL;
@@ -2484,7 +2479,7 @@ static int
 slapd_exemode_archive2db(void)
 {
 	int return_value= 0;
-	Slapi_PBlock pb;
+	Slapi_PBlock pb = {0};
 	struct slapdplugin *backend_plugin;
 	slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 	
@@ -2522,7 +2517,6 @@ slapd_exemode_archive2db(void)
 		g_set_detached(1);
 	}
 
-	memset( &pb, '\0', sizeof(pb) );
 	pb.pb_backend = NULL;
 	pb.pb_plugin = backend_plugin;
 	pb.pb_instance_name = cmd_line_instance_name;
@@ -2541,7 +2535,7 @@ static int
 slapd_exemode_upgradedb(void)
 {
     int return_value= 0;
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     struct slapdplugin *backend_plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2579,7 +2573,6 @@ slapd_exemode_upgradedb(void)
         return 1;
     }
 
-    memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
     pb.pb_plugin = backend_plugin;
     pb.pb_seq_val = archive_name;
@@ -2608,7 +2601,7 @@ static int
 slapd_exemode_upgradednformat(void)
 {
     int rc = -1; /* error, by default */
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     struct slapdplugin *backend_plugin;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
@@ -2650,7 +2643,6 @@ slapd_exemode_upgradednformat(void)
         goto bail;
     }
 
-    memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
     pb.pb_plugin = backend_plugin;
     pb.pb_instance_name = cmd_line_instance_name;
@@ -2686,7 +2678,7 @@ static int
 slapd_exemode_dbverify(void)
 {
     int return_value = 0;
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     struct slapdplugin *backend_plugin;
 
     /* this should be the first time to be called!  if the init order
@@ -2706,7 +2698,6 @@ slapd_exemode_dbverify(void)
         return 1;
     }
 
-    memset( &pb, '\0', sizeof(pb) );
     pb.pb_backend = NULL;
     pb.pb_seq_type = dbverify_verbose;
     pb.pb_plugin = backend_plugin;

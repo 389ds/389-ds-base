@@ -3670,7 +3670,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
     Slapi_Entry **backup_entries = NULL;
     Slapi_Entry **bep = NULL;
     Slapi_Entry **curr_entries = NULL;
-    Slapi_PBlock srch_pb;
+    Slapi_PBlock srch_pb = {0};
     
     filename = slapi_ch_smprintf("%s/%s", src_dir, file_name);
 
@@ -3732,10 +3732,9 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         bep++;
     }
     /* 623986: terminate the list if we reallocated backup_entries */
-    if (backup_entry_len > 256)
+    if (backup_entry_len > 256) {
        *bep = NULL;
-
-    pblock_init(&srch_pb);
+    }
 
     if (entry_filter != NULL)
     { /* Single instance restoration */

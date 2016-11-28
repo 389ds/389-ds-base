@@ -164,11 +164,10 @@ static int certmap_name_to_secoid (const char *str)
 
 NSAPI_PUBLIC int ldapu_list_alloc (LDAPUList_t **list)
 {
-    *list = (LDAPUList_t *)malloc(sizeof(LDAPUList_t));
+    *list = (LDAPUList_t *)calloc(1, sizeof(LDAPUList_t));
 
     if (!*list) return LDAPU_ERR_OUT_OF_MEMORY;
 
-    memset((void *)*list, 0, sizeof(LDAPUList_t));
     return LDAPU_SUCCESS;
 }
 
@@ -193,13 +192,12 @@ NSAPI_PUBLIC int ldapu_list_add_info (LDAPUList_t *list, void *info)
     LDAPUListNode_t *node;
 
     /* Allocate the list node and set info in the node. */
-    node = (LDAPUListNode_t *)malloc(sizeof(LDAPUListNode_t));
+    node = (LDAPUListNode_t *)calloc(1, sizeof(LDAPUListNode_t));
 
     if (!node) {
 	return LDAPU_ERR_OUT_OF_MEMORY;
     }
 
-    memset((void *)node, 0, sizeof(LDAPUListNode_t));
     node->info = info;
 
     return ldapu_list_add_node(list, node);
@@ -281,14 +279,12 @@ static int dbinfo_to_certinfo (DBConfDBInfo_t *db_info,
 
     *certinfo_out = 0;
 
-    certinfo = (LDAPUCertMapInfo_t *)malloc(sizeof(LDAPUCertMapInfo_t));
+    certinfo = (LDAPUCertMapInfo_t *)calloc(1, sizeof(LDAPUCertMapInfo_t));
 
     if (!certinfo) {
         rv = LDAPU_ERR_OUT_OF_MEMORY;
         goto error;
     }
-
-    memset((void *)certinfo, 0, sizeof(LDAPUCertMapInfo_t));
 
     /* hijack few structures rather then copy.  Make the pointers to the
        structures NULL in the original structure so that they don't freed up
@@ -1453,15 +1449,13 @@ int ldapu_certmap_init (const char *config_file,
 			LDAPUCertMapInfo_t **certmap_default)
 {
     int rv;
-    certmap_listinfo = (LDAPUCertMapListInfo_t *)malloc(sizeof(LDAPUCertMapListInfo_t));
+    certmap_listinfo = (LDAPUCertMapListInfo_t *)calloc(1, sizeof(LDAPUCertMapListInfo_t));
 
     *certmap_list = 0;
     *certmap_default = 0;
     PR_snprintf(this_dllname, sizeof(this_dllname), "%s", dllname);
 
     if (!certmap_listinfo) return LDAPU_ERR_OUT_OF_MEMORY;
-
-    memset((void *)certmap_listinfo, 0, sizeof(LDAPUCertMapListInfo_t));
 
     rv = certmap_read_certconfig_file(config_file);
 

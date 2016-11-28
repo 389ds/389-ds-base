@@ -184,12 +184,13 @@ genKey(struct pk11ContextStore **out, char *path, int mech, PRArenaPool *arena, 
     SECItem *pwitem = NULL;
     SECItem *result = NULL;
     SECItem *salt = NULL;
-    SECItem der_algid;
+    SECItem der_algid = {0};
     SECAlgorithmID *algid = NULL;
     SECOidTag algoid;
     CK_MECHANISM pbeMech;
     CK_MECHANISM cryptoMech;
-    SECAlgorithmID my_algid;
+    /* Have to use long form init due to internal structs */
+    SECAlgorithmID my_algid = {{0}, {0}};
     char *configdir = NULL;
     char *der_ascii = NULL;
     char *iv = NULL;
@@ -262,7 +263,6 @@ genKey(struct pk11ContextStore **out, char *path, int mech, PRArenaPool *arena, 
     strcpy((char*)salt->data, iv);        
     salt->len = strlen(iv) + 1;
 
-    PORT_Memset(&der_algid, 0, sizeof(der_algid));
     if(!alg){
     	/*
     	 * This is DES, or we are encoding AES - the process is the same.
@@ -285,7 +285,6 @@ genKey(struct pk11ContextStore **out, char *path, int mech, PRArenaPool *arena, 
     	/*
     	 * We are decoding AES - use the supplied algid
     	 */
-    	PORT_Memset(&my_algid, 0, sizeof(my_algid));
 
     	/* Decode the base64 der encoding */
     	der_ascii =  PL_Base64Decode(alg, strlen(alg), NULL);

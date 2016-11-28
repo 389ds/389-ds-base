@@ -574,7 +574,7 @@ plugin_mr_filter_create (mr_filter_t* f)
 {
     int rc = LDAP_UNAVAILABLE_CRITICAL_EXTENSION;
     struct slapdplugin* mrp = plugin_mr_find_registered (f->mrf_oid);
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
 
     if (mrp != NULL)
     {
@@ -599,7 +599,6 @@ plugin_mr_filter_create (mr_filter_t* f)
 		if (mrp)
 		{
 		    /* set the default index create fn */
-		    pblock_init(&pb);
 		    slapi_pblock_set(&pb, SLAPI_PLUGIN, mrp);
 		    slapi_pblock_set(&pb, SLAPI_PLUGIN_MR_FILTER_CREATE_FN, default_mr_filter_create);
 		    slapi_pblock_set(&pb, SLAPI_PLUGIN_MR_INDEXER_CREATE_FN, default_mr_indexer_create);

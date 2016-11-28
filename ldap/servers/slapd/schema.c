@@ -1807,8 +1807,7 @@ schema_list_attributes_callback(struct asyntaxinfo *asi, void *arg)
 char **
 slapi_schema_list_attribute_names(unsigned long flag)
 {
-        struct listargs aew;
-        memset(&aew,0,sizeof(struct listargs));
+        struct listargs aew = {0};
         aew.flag=flag;
 
         attr_syntax_enumerate_attrs(schema_list_attributes_callback, &aew,
@@ -5339,8 +5338,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be,
 		int dont_write = 1;
 		int merge = 1;
 		int dont_dup_check = 1;
-		Slapi_PBlock pb;
-		memset(&pb, 0, sizeof(pb));
+		Slapi_PBlock pb = {0};
 		/* don't write out the file when reading */
 		slapi_pblock_set(&pb, SLAPI_DSE_DONT_WRITE_WHEN_ADDING, (void*)&dont_write);
 		/* duplicate entries are allowed */

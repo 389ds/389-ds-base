@@ -82,7 +82,7 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-	struct msghdr msg;
+	struct msghdr msg = {0};
 	struct iovec iov;
 	char dummy[8];
 	int pass_sd[2];
@@ -90,8 +90,6 @@ int slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 	unsigned int retrycnt = 0xffffffff;	/* safety net */
 	int myerrno = 0;
 
-	memset((void *)&msg, 0, sizeof(msg));
-	
 	iov.iov_base = dummy;
 	iov.iov_len = sizeof(dummy);
 	msg.msg_iov = &iov;

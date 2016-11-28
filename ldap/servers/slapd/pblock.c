@@ -35,7 +35,7 @@ pblock_init_common(
 )
 {
     PR_ASSERT( NULL != pb );
-    memset( pb, '\0', sizeof(Slapi_PBlock) );
+    /* No need to memset, this is only called in backend_manager, and it uses {0} */
     pb->pb_backend = be;
     pb->pb_conn = conn;
     pb->pb_op = op;

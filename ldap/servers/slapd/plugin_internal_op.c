@@ -205,7 +205,7 @@ slapi_seq_callback( const char *ibase,
                     plugin_referral_entry_callback ref_callback)								
 {
 	int r;
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
 
 	if (ibase == NULL)
 	{
@@ -213,8 +213,6 @@ slapi_seq_callback( const char *ibase,
 			"NULL parameter\n");
 		return -1;
 	}
-
-	pblock_init(&pb);
 
     slapi_seq_internal_set_pb(&pb, (char *)ibase, type, attrname, val, attrs, attrsonly, controls, 
 		plugin_get_default_component_id(), 0);							  

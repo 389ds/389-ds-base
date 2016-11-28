@@ -1500,7 +1500,8 @@ referint_thread_func(void *arg)
 
 int my_fgetc(PRFileDesc *stream)
 {
-    static char buf[READ_BUFSIZE]  =  "\0";
+    /* This is equivalent to memset of 0, but statically defined. */
+    static char buf[READ_BUFSIZE]  =  {0};
     static int  position           =  READ_BUFSIZE;
     int         retval;
     int         err;
@@ -1508,7 +1509,6 @@ int my_fgetc(PRFileDesc *stream)
     /* check if we need to load the buffer */
     if( READ_BUFSIZE == position )
     {
-        memset(buf, '\0', READ_BUFSIZE);
         if( ( err = PR_Read(stream, buf, READ_BUFSIZE) ) >= 0)
         {
             /* it read some data */;

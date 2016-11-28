@@ -118,7 +118,7 @@ typedef struct
 
 static unsigned int uuid_seed = 0;		/* seed for the random generator */
 
-  uuid_state _state; /* generator's state */
+uuid_state _state;/* generator's state */
 
 /* uuid_init -- initializes uuid layer */
 int uuid_init (const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
@@ -276,16 +276,13 @@ void uuid_create_from_name(guid_t * uuid,      /* resulting UUID */
 {
 	PK11Context *c = NULL;
 
-	unsigned char hash[16];
+	unsigned char hash[16] = {0};
 	unsigned int hashLen;
-	guid_t net_nsid;      /* context UUID in network byte order */
-
-	memset(hash, 0, 16);
+	guid_t net_nsid = {0};      /* context UUID in network byte order */
 
 	/* put name space ID in network byte order so it hashes the same
 		no matter what endian machine we're on */
 
-	memset(&net_nsid, 0, sizeof(guid_t));
 	net_nsid.time_low = PR_htonl(nsid.time_low);
 	net_nsid.time_mid = PR_htons(nsid.time_mid);
 	net_nsid.time_hi_and_version = PR_htons(nsid.time_hi_and_version);

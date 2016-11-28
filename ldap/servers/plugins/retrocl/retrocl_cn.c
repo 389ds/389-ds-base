@@ -171,7 +171,7 @@ int retrocl_get_changenumbers(void)
  */
 time_t retrocl_getchangetime( int type, int *err )
 {
-    cnumRet cr;
+    cnumRet cr = {0};
     time_t ret;
 
     if ( type != SLAPI_SEQ_FIRST && type != SLAPI_SEQ_LAST ) {
@@ -180,7 +180,6 @@ time_t retrocl_getchangetime( int type, int *err )
 	}
 	return NO_TIME;
     }
-    memset( &cr, '\0', sizeof( cnumRet ));
     slapi_seq_callback( RETROCL_CHANGELOG_DN, type, 
 			(char *)attr_changenumber, /* cast away const */
 			NULL,

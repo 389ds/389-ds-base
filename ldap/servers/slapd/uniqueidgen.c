@@ -176,16 +176,11 @@ int slapi_uniqueIDGenerateFromNameString (char **uId,
 										  const void *name, int namelen)
 {
 	int rc;
-	Slapi_UniqueID idBase;
-	Slapi_UniqueID idGen;
+	Slapi_UniqueID idBase = {0};
+	Slapi_UniqueID idGen = {0};
 
 	/* just use Id of all 0 as base id */
-	if (uIdBase == NULL)
-	{
-		memset (&idBase, 0, sizeof (idBase));
-		memset (&idGen, 0, sizeof (idGen));
-	}
-	else
+	if (uIdBase != NULL)
 	{
 		rc = slapi_uniqueIDScan (&idBase, uIdBase);
 		if (rc != UID_SUCCESS)

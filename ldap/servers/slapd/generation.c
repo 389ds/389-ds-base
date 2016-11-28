@@ -59,13 +59,11 @@ get_database_dataversion(const char *dn)
 void
 set_database_dataversion(const char *dn, const char *dataversion)
 {
-    LDAPMod gen_mod;
-	LDAPMod	*mods[2];
+    LDAPMod gen_mod = {0};
+    LDAPMod *mods[2] = {0};
     struct berval* gen_vals[2];
     struct berval gen_val;
-	Slapi_PBlock *pb;
-
-	memset (&gen_mod, 0, sizeof(gen_mod));
+    Slapi_PBlock *pb;
 
 	gen_mod.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
 	gen_mod.mod_type = "nsslapd-dataversion"; /* JCMREPL - Shouldn't be a Netscape specific attribute name */

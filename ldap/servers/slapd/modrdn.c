@@ -245,14 +245,12 @@ slapi_modrdn_internal(const char *iodn, const char *inewrdn, int deloldrdn, LDAP
 Slapi_PBlock *
 slapi_rename_internal(const char *iodn, const char *inewrdn, const char *inewsuperior, int deloldrdn, LDAPControl **controls, int dummy)
 {
-    Slapi_PBlock    pb;
+    Slapi_PBlock    pb = {0};
     Slapi_PBlock    *result_pb = NULL;
     int             opresult= 0;
     Slapi_DN sdn;
     Slapi_DN newsuperiorsdn;
 
-    pblock_init (&pb);   
-    
     slapi_sdn_init_dn_byref(&sdn, iodn);
     slapi_sdn_init_dn_byref(&newsuperiorsdn, inewsuperior);
 

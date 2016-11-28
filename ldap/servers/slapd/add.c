@@ -268,7 +268,6 @@ done:
     if(result_pb==NULL)
 	{
         result_pb = slapi_pblock_new();
-        pblock_init(result_pb);
         slapi_pblock_set(result_pb, SLAPI_PLUGIN_INTOP_RESULT, &opresult);
 	}
 	

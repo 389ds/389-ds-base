@@ -2230,10 +2230,9 @@ void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value)
  */
 void replace_ldbm_config_value(char *conftype, char *val, struct ldbminfo *li)
 {
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     Slapi_Mods smods;
 
-    pblock_init(&pb);
     slapi_mods_init(&smods, 1);
     slapi_mods_add(&smods, LDAP_MOD_REPLACE, conftype, strlen(val), val);
     slapi_modify_internal_set_pb(&pb, CONFIG_LDBM_DN,

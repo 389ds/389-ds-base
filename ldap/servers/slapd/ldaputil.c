@@ -1776,8 +1776,8 @@ credentials_are_valid(
 {
     char *logname = "credentials_are_valid";
     int myrc = 0;
-    krb5_creds mcreds; /* match these values */
-    krb5_creds creds; /* returned creds */
+    krb5_creds mcreds = {0}; /* match these values */
+    krb5_creds creds = {0}; /* returned creds */
     char *tgs_princ_name = NULL;
     krb5_timestamp currenttime;
     int authtracelevel = SLAPI_LOG_SHELL; /* special auth tracing */
@@ -1786,8 +1786,6 @@ credentials_are_valid(
     int time_buffer = 30; /* seconds - go ahead and renew if creds are
                              about to expire  */
 
-    memset(&mcreds, 0, sizeof(mcreds));
-    memset(&creds, 0, sizeof(creds));
     *rc = 0;
     if (!cc) {
         /* ok - no error */
@@ -1890,7 +1888,7 @@ set_krb5_creds(
     krb5_principal princ = NULL;
     char *princ_name = NULL;
     krb5_error_code rc = 0;
-    krb5_creds creds;
+    krb5_creds creds = {0};
     krb5_keytab kt = NULL;
     char *cc_name = NULL;
     char ktname[MAX_KEYTAB_NAME_LEN];
@@ -1901,10 +1899,6 @@ set_krb5_creds(
                                              used for, does not
                                              appear to be used 
                                              currently */
-
-    /* wipe this out so we can safely free it later if we
-       short circuit */
-    memset(&creds, 0, sizeof(creds));
 
     /*
      * we are using static variables and sharing an in-memory credentials cache

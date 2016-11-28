@@ -3318,7 +3318,7 @@ slapi_get_suffix_by_dn(const Slapi_DN *dn)
 int
 slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
 {
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     Slapi_Mods smods;
     int rc = LDAP_SUCCESS,i = 0, j = 0;
     Slapi_DN* node_sdn;
@@ -3390,7 +3390,6 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
     
     if ( do_modify )
     {
-        pblock_init (&pb);
         slapi_modify_internal_set_pb_ext (&pb, node_sdn,
                                 slapi_mods_get_ldapmods_byref(&smods), NULL,
                                 NULL, (void *) plugin_get_default_component_id(), 0);
@@ -3416,7 +3415,7 @@ slapi_mtn_set_referral(const Slapi_DN *sdn, char ** referral)
 int
 slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
 {
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     Slapi_Mods smods;
     int rc = LDAP_SUCCESS;
     Slapi_DN *node_sdn;
@@ -3444,7 +3443,6 @@ slapi_mtn_set_state(const Slapi_DN *sdn, char *state)
     /* Otherwise, means that the state has changed, modify it */
     slapi_mods_init (&smods, 1);
     slapi_mods_add(&smods, LDAP_MOD_REPLACE, "nsslapd-state", strlen(state), state);
-    pblock_init (&pb);
     slapi_modify_internal_set_pb_ext (&pb, node_sdn,
                             slapi_mods_get_ldapmods_byref(&smods), NULL,
                             NULL, (void *) plugin_get_default_component_id(), 0);
@@ -3466,7 +3464,7 @@ bail:
 Slapi_Attr *
 mtn_get_attr(char* node_dn, char * type)
 {
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     int res = 0;
     Slapi_Entry **entries = NULL;
     Slapi_Attr *attr = NULL;
@@ -3475,7 +3473,6 @@ mtn_get_attr(char* node_dn, char * type)
 
     attrs = (char **)slapi_ch_calloc(2, sizeof(char *));
     attrs[0] = slapi_ch_strdup(type);
-    pblock_init(&pb);
     slapi_search_internal_set_pb(&pb, node_dn, LDAP_SCOPE_BASE,
         "objectclass=nsMappingTree", attrs, 0, NULL, NULL,
          (void *) plugin_get_default_component_id(), 0);
@@ -3856,13 +3853,12 @@ static void dump_mapping_tree(mapping_tree_node *parent, int depth)
 static int
 _mtn_update_config_param(int op, char *type, char *strvalue)
 {
-    Slapi_PBlock confpb;
+    Slapi_PBlock confpb = {0};
     Slapi_DN sdn;
     Slapi_Mods smods;
     LDAPMod **mods;
     int rc = LDAP_PARAM_ERROR;
 
-    pblock_init (&confpb);
     slapi_mods_init (&smods, 0);
     switch (op) {
     case LDAP_MOD_DELETE:

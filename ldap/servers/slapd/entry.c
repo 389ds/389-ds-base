@@ -4102,7 +4102,6 @@ slapi_entry_diff(Slapi_Mods *smods, Slapi_Entry *e1, Slapi_Entry *e2, int diff_c
 static void
 delete_subtree(Slapi_PBlock *pb, const char *dn, void *plg_id)
 {
-    Slapi_PBlock mypb;
     int ret = 0;
     int opresult;
 
@@ -4117,11 +4116,11 @@ delete_subtree(Slapi_PBlock *pb, const char *dn, void *plg_id)
         Slapi_DN *rootDN = slapi_sdn_new_dn_byval(dn);
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         for (ep = entries; ep && *ep; ep++) {
+            Slapi_PBlock mypb = {0};
             const Slapi_DN *sdn = slapi_entry_get_sdn_const(*ep);
-            
-            if (slapi_sdn_compare(sdn, rootDN) == 0)
+            if (slapi_sdn_compare(sdn, rootDN) == 0) {
                 continue;
-            pblock_init(&mypb);
+            }
             slapi_delete_internal_set_pb(&mypb, slapi_sdn_get_dn(sdn),
                 NULL, NULL, plg_id, 0);
             slapi_delete_internal_pb(&mypb);
@@ -4157,7 +4156,6 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
     char *my_logging_prestr = "";
     Slapi_Entry **oep, **cep;
     int rval = 0;
-    Slapi_PBlock pb;
 #define SLAPI_ENTRY_FLAG_DIFF_IN_BOTH 0x80
 
     if (NULL != logging_prestr && '\0' != *logging_prestr)
@@ -4222,7 +4220,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
                 }
                 if (0 == isfirst && force_update && testall)
                 {
-                    pblock_init(&pb);
+                    Slapi_PBlock pb = {0};
                     slapi_modify_internal_set_pb_ext(&pb, 
                                 slapi_entry_get_sdn_const(*oep),
                                 slapi_mods_get_ldapmods_byref(smods),
@@ -4250,9 +4248,9 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
             {
                 if (force_update)
                 {
+                    Slapi_PBlock pb = {0};
                     LDAPMod **mods;
                     slapi_entry2mods(*oep, NULL, &mods);
-                    pblock_init(&pb);
                     slapi_add_internal_set_pb(&pb, slapi_entry_get_dn_const(*oep),
                                               mods, NULL, plg_id, 0);
                     slapi_add_internal_pb(&pb);
@@ -4279,7 +4277,7 @@ slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **curr_entries,
             if (testall)
             {
                 if (force_update) {
-                    pblock_init(&pb);
+                    Slapi_PBlock pb = {0};
                     delete_subtree(&pb, slapi_entry_get_dn_const(*cep), plg_id);
                     pblock_done(&pb);
                 }

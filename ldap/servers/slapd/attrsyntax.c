@@ -1010,11 +1010,10 @@ attr_syntax_create(
 )
 {
 	char			*s;
-	struct asyntaxinfo	a;
+	struct asyntaxinfo a = {0};
 	int rc = LDAP_SUCCESS;
 
 	/* XXXmcs: had to cast away const in many places below */
-	memset(&a, 0, sizeof(a));
 	*asip = NULL;
 	a.asi_name = slapi_ch_strdup(attr_names[0]);
 	if ( NULL != attr_names[1] ) {
@@ -1403,9 +1402,8 @@ attr_syntax_force_to_delete(struct asyntaxinfo *asip, void *arg)
 void
 attr_syntax_all_clear_flag( unsigned long flag )
 {
-	struct attr_syntax_enum_flaginfo fi;
+	struct attr_syntax_enum_flaginfo fi = {0};
 
-	memset( &fi, 0, sizeof(fi));
 	fi.asef_flag = flag;
 	attr_syntax_enumerate_attrs( attr_syntax_clear_flag_callback,
 				(void *)&fi, PR_TRUE );
@@ -1419,9 +1417,8 @@ attr_syntax_all_clear_flag( unsigned long flag )
 void
 attr_syntax_delete_all_not_flagged( unsigned long flag )
 {
-	struct attr_syntax_enum_flaginfo fi;
+	struct attr_syntax_enum_flaginfo fi = {0};
 
-	memset( &fi, 0, sizeof(fi));
 	fi.asef_flag = flag;
 	attr_syntax_enumerate_attrs( attr_syntax_delete_if_not_flagged,
 				(void *)&fi, PR_TRUE );
@@ -1433,9 +1430,8 @@ attr_syntax_delete_all_not_flagged( unsigned long flag )
 void
 attr_syntax_delete_all()
 {
-	struct attr_syntax_enum_flaginfo fi;
+	struct attr_syntax_enum_flaginfo fi = {0};
 
-	memset( &fi, 0, sizeof(fi));
 	attr_syntax_enumerate_attrs( attr_syntax_force_to_delete,
 				(void *)&fi, PR_TRUE );
 }
@@ -1447,9 +1443,8 @@ attr_syntax_delete_all()
 void
 attr_syntax_delete_all_for_schemareload(unsigned long flag)
 {
-	struct attr_syntax_enum_flaginfo fi;
+	struct attr_syntax_enum_flaginfo fi = {0};
 
-	memset(&fi, 0, sizeof(fi));
 	fi.asef_flag = flag;
 	attr_syntax_enumerate_attrs_ext(oid2asi, attr_syntax_delete_if_not_flagged,
 	                                (void *)&fi);

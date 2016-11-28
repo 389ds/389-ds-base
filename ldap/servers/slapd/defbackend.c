@@ -32,8 +32,8 @@
 /*
  * ---------------- Static Variables -----------------------------------------
  */
-static struct slapdplugin	defbackend_plugin;
-static Slapi_Backend			*defbackend_backend = NULL;
+static struct slapdplugin   defbackend_plugin = {0};
+static Slapi_Backend            *defbackend_backend = NULL;
 
 
 /*
@@ -58,26 +58,23 @@ defbackend_init( void )
 {
     int			rc;
     char		*errmsg;
-    Slapi_PBlock	pb;
+    Slapi_PBlock    pb = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, "defbackend_init", "<==\n");
 
     /*
      * create a new backend
      */
-    pblock_init( &pb );
     defbackend_backend = slapi_be_new( DEFBACKEND_TYPE , DEFBACKEND_TYPE, 1 /* Private */, 0 /* Do Not Log Changes */ );
-    if (( rc = slapi_pblock_set( &pb, SLAPI_BACKEND, defbackend_backend ))
-	    != 0 ) {
-	errmsg = "slapi_pblock_set SLAPI_BACKEND failed";
-	goto cleanup_and_return;
+    if (( rc = slapi_pblock_set( &pb, SLAPI_BACKEND, defbackend_backend )) != 0 ) {
+        errmsg = "slapi_pblock_set SLAPI_BACKEND failed";
+        goto cleanup_and_return;
     }
 
     /*
      * create a plugin structure for this backend since the
      * slapi_pblock_set()/slapi_pblock_get() functions assume there is one.
      */
-    memset( &defbackend_plugin, '\0', sizeof( struct slapdplugin ));
     defbackend_plugin.plg_type = SLAPI_PLUGIN_DATABASE;
     defbackend_backend->be_database = &defbackend_plugin;
     if (( rc = slapi_pblock_set( &pb, SLAPI_PLUGIN, &defbackend_plugin ))

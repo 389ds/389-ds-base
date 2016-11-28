@@ -1037,9 +1037,9 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
                 for ( i = 0; rdns[i] != NULL; i++ ) 
                 {
                     char *type;
-                    Slapi_Value *svp[2];
-                    Slapi_Value sv;
-                    memset(&sv,0,sizeof(Slapi_Value));
+                    Slapi_Value *svp[2] = {0};
+                    /* Have to use long form init due to presence of internal struct */
+                    Slapi_Value sv = {{0}, 0, 0};
                     if ( slapi_rdn2typeval( rdns[i], &type, &sv.bv ) != 0 ) 
                     {
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
@@ -2020,9 +2020,8 @@ moddn_rename_child_entry(
         entry_set_maxcsn(e->ep_entry, opcsn);
     }
     {
-        Slapi_Mods smods;
+        Slapi_Mods smods = {0};
         Slapi_Mods *smodsp = NULL;
-        memset(&smods, 0, sizeof(smods));
         slapi_mods_init(&smods, 2);
         slapi_mods_add( &smods, LDAP_MOD_DELETE, LDBM_ENTRYDN_STR, 
                     strlen( backentry_get_ndn(e) ), backentry_get_ndn(e) );

@@ -1562,9 +1562,7 @@ __aclp__init_targetattr (aci_t *aci, char *attr_val, char **errbuf)
 		 *
 		 * The attribute goes in the attrTarget list.
 		 */
-		attr = (Targetattr *) slapi_ch_malloc (sizeof (Targetattr));
-		memset (attr, 0, sizeof(Targetattr));
-                                
+		attr = (Targetattr *) slapi_ch_calloc (1, sizeof (Targetattr));
 		/* strip double quotes */
 		lenstr = strlen(str);
 		if (*str == '"' && *(str + lenstr - 1) == '"') {
@@ -2150,8 +2148,7 @@ static int process_filter_list( Targetattrfilter ***input_attrFilterArray,
 		 *
 		*/
 
-		attrfilter = (Targetattrfilter *) slapi_ch_malloc (sizeof (Targetattrfilter));
-		memset (attrfilter, 0, sizeof(Targetattrfilter));
+		attrfilter = (Targetattrfilter *) slapi_ch_calloc (1, sizeof (Targetattrfilter));
 
 		if (strstr( str,":") != NULL) {
 			if ( __acl_init_targetattrfilter( attrfilter, str ) != 0 ) {

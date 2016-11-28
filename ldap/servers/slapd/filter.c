@@ -774,10 +774,9 @@ slapi_filter_free( struct slapi_filter *f, int recurse )
 		slapi_ch_free((void**)&f->f_mr_type);
 		slapi_ber_bvdone(&f->f_mr_value);
 		if (f->f_mr.mrf_destroy != NULL) {
-		    Slapi_PBlock pb;
-		    pblock_init (&pb);
+		    Slapi_PBlock pb = {0};
 		    if ( ! slapi_pblock_set (&pb, SLAPI_PLUGIN_OBJECT, f->f_mr.mrf_object)) {
-			f->f_mr.mrf_destroy (&pb);
+			    f->f_mr.mrf_destroy (&pb);
 		    }
 		}
 		break;

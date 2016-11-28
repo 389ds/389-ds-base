@@ -107,11 +107,9 @@ free_and_return:;
 Slapi_PBlock *
 slapi_delete_internal(const char *idn, LDAPControl **controls, int dummy)
 {
-    Slapi_PBlock	pb;
+    Slapi_PBlock    pb = {0};
     Slapi_PBlock    *result_pb;
     int             opresult;
-
-    pblock_init (&pb);
 
     slapi_delete_internal_set_pb (&pb, idn, controls, NULL, plugin_get_default_component_id(), 0);
 

@@ -104,7 +104,7 @@ connection_get_operation(void)
 {
 	struct Slapi_op_stack *stack_obj = (struct Slapi_op_stack *)PR_StackPop(op_stack);
 	if (!stack_obj) {
-		stack_obj = (struct Slapi_op_stack *)slapi_ch_malloc(sizeof(struct Slapi_op_stack));
+		stack_obj = (struct Slapi_op_stack *)slapi_ch_calloc(1, sizeof(struct Slapi_op_stack));
 		stack_obj->op = operation_new( plugin_build_operation_action_bitmap( 0,
 				plugin_get_server_plg() ));
 	} else {
@@ -282,8 +282,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
         memcpy( conn->cin_addr, from, sizeof( PRNetAddr ) );
 		
         if ( PR_IsNetAddrType( conn->cin_addr, PR_IpAddrV4Mapped ) ) {
-            PRNetAddr v4addr;
-            memset( &v4addr, 0, sizeof( v4addr ) );
+            PRNetAddr v4addr = {{0}};
             v4addr.inet.family = PR_AF_INET;
             v4addr.inet.ip = conn->cin_addr->ipv6.ip.pr_s6_addr32[3];
             PR_NetAddrToString( &v4addr, buf_ip, sizeof( buf_ip ) );
@@ -295,7 +294,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     } else {
         /* try syscall since "from" was not given and PR_GetPeerName failed */
         /* a corner case */
-        struct sockaddr_in addr; /* assuming IPv4 */
+        struct sockaddr_in addr = {0}; /* assuming IPv4 */
 #if ( defined( hpux ) )
         int addrlen;
 #else
@@ -303,7 +302,6 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 #endif
 
         addrlen = sizeof( addr );
-        memset( &addr, 0, addrlen );
 
         if ( (conn->c_prfd == NULL) &&
 	         (getpeername( conn->c_sd, (struct sockaddr *)&addr, &addrlen ) == 0) )
@@ -344,8 +342,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
                     PL_strncpyz(buf_destip, "unknown local file", sizeof(buf_destip));
                 }
             } else if ( PR_IsNetAddrType( conn->cin_destaddr, PR_IpAddrV4Mapped ) ) {
-                PRNetAddr v4destaddr;
-                memset( &v4destaddr, 0, sizeof( v4destaddr ) );
+                PRNetAddr v4destaddr = {{0}};
                 v4destaddr.inet.family = PR_AF_INET;
                 v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
                 PR_NetAddrToString( &v4destaddr, buf_destip, sizeof( buf_destip ) );
@@ -360,7 +357,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
     } else {
         /* try syscall since c_prfd == NULL */
         /* a corner case */
-        struct sockaddr_in	destaddr; /* assuming IPv4 */
+        struct sockaddr_in destaddr = {0}; /* assuming IPv4 */
 #if ( defined( hpux ) )
         int destaddrlen;
 #else
@@ -368,7 +365,7 @@ connection_reset(Connection* conn, int ns, PRNetAddr * from, int fromLen, int is
 #endif
 
         destaddrlen = sizeof( destaddr );
-        memset( &destaddr, 0, destaddrlen );
+
         if ( (getsockname( conn->c_sd, (struct sockaddr *)&destaddr, &destaddrlen ) == 0) ) {
             conn->cin_destaddr = (PRNetAddr *)slapi_ch_malloc( sizeof( PRNetAddr ));
             memset( conn->cin_destaddr, 0, sizeof( PRNetAddr ));

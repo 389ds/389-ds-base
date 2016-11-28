@@ -1556,9 +1556,7 @@ static int
 init_dse_file(const char *configdir, Slapi_DN *config)
 {
     int rc= 1; /* OK */
-	Slapi_PBlock pb;
-
-	memset(&pb, 0, sizeof(pb));
+    Slapi_PBlock pb = {0};
 
     if(pfedse==NULL)
     {

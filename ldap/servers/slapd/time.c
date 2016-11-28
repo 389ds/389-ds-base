@@ -364,12 +364,11 @@ write_genTime (time_t from, struct berval* into)
 time_t
 read_genTime(struct berval*from)
 {
-	struct tm t;
+	struct tm t = {0};
 	time_t retTime;
 	time_t diffsec = 0;
 	int i, gflag = 0, havesec = 0;
 	
-    memset (&t, 0, sizeof(t));
     t.tm_isdst = -1;
     t.tm_year = strntoul (from->bv_val     , 4, 10) - 1900L;
     t.tm_mon  = strntoul (from->bv_val +  4, 2, 10) - 1;

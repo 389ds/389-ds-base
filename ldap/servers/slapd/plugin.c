@@ -1753,10 +1753,9 @@ plugin_dependency_startall(int argc, char** argv, char *errmsg, int operation, c
 				if(!config[plugin_index].entry_created)
 				{
 					int plugin_actions = 0;
-					Slapi_PBlock newpb;
+					Slapi_PBlock newpb = {0};
 					Slapi_Entry *newe;
 
-					pblock_init(&newpb);
 					newe = slapi_entry_dup( config[plugin_index].e );
 					slapi_add_entry_internal_set_pb(&newpb, newe, NULL,
 									plugin_get_default_component_id(), plugin_actions);
@@ -2776,8 +2775,9 @@ plugin_free(struct slapdplugin *plugin)
 	}
 	release_componentid(plugin->plg_identity);
 	slapi_counter_destroy(&plugin->plg_op_counter);
-	if (!plugin->plg_group)
+	if (!plugin->plg_group) {
 		plugin_config_cleanup(&plugin->plg_conf);
+    }
 	slapi_ch_free((void**)&plugin);
 }
 
@@ -2844,7 +2844,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 	struct slapi_componentid *cid = NULL;
 	const char *existname = 0;
 	slapi_plugin_init_fnptr initfunc = p_initfunc;
-	Slapi_PBlock pb;
+	Slapi_PBlock pb = {0};
 	int status = 0;
 	int enabled = 1;
 	char *configdir = 0;
@@ -3067,7 +3067,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group,
 		PR_snprintf(attrname, sizeof(attrname), "%s%d", ATTR_PLUGIN_ARG, ++ii);
 	} while (skipped < MAXSKIPPED);
 
-	memset((char *)&pb, '\0', sizeof(pb));
 	slapi_pblock_set(&pb, SLAPI_PLUGIN, plugin);
 	slapi_pblock_set(&pb, SLAPI_PLUGIN_VERSION, (void *)SLAPI_PLUGIN_CURRENT_VERSION);
 
@@ -3472,9 +3471,7 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type)
                 /*
                  * Call the close function, cleanup the hashtable & the global shutdown list
                  */
-                Slapi_PBlock pb;
-
-                pblock_init(&pb);
+                Slapi_PBlock pb = {0};
                 plugin_set_stopped(plugin);
                 if (slapi_counter_get_value(plugin->plg_op_counter) > 0){
                     /*
@@ -4328,7 +4325,7 @@ bail:
 int
 slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
 {
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     Slapi_Entry **entries = NULL;
     int rc = LDAP_SUCCESS;
     char **search_attrs = NULL; /* used by search */
@@ -4340,7 +4337,6 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
     charray_add(&search_attrs, slapi_ch_strdup(type));
 
     /* cn=plugin default config,cn=config */
-    pblock_init(&pb);
     slapi_search_internal_set_pb(&pb,
                     SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN (normalized) */
                     LDAP_SCOPE_BASE,
@@ -4432,7 +4428,7 @@ slapi_set_plugin_default_config(const char *type, Slapi_Value *value)
 int
 slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
 {
-    Slapi_PBlock pb;
+    Slapi_PBlock pb = {0};
     Slapi_Entry **entries = NULL;
     int rc = LDAP_PARAM_ERROR;
     char **search_attrs = NULL; /* used by search */
@@ -4444,7 +4440,6 @@ slapi_get_plugin_default_config(char *type, Slapi_ValueSet **valueset)
     charray_add(&search_attrs, slapi_ch_strdup(type));
 
     /* cn=plugin default config,cn=config */
-    pblock_init(&pb);
     slapi_search_internal_set_pb(&pb,
                     SLAPI_PLUGIN_DEFAULT_CONFIG, /* Base DN (normalized) */
                     LDAP_SCOPE_BASE,
