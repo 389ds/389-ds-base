@@ -2468,7 +2468,7 @@ slapi_log_error( int loglevel, char *subsystem, char *fmt, ... )
             va_start( ap_err, fmt );
             /* va_start( ap_file, fmt ); */
             /* This isn't handling RC nicely ... */
-            rc = sd_journal_printv(get_syslog_level(loglevel), fmt, ap_err);
+            rc = sd_journal_printv(get_syslog_loglevel(loglevel), fmt, ap_err);
             /* rc = sd_journal_printv(LOG_ERROR, fmt, ap_file); */
             /* va_end(ap_file); */
             va_end(ap_err);
