@@ -734,7 +734,7 @@ valueset_remove_value(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value
  * Remove any values older than the CSN from valueset.
  */
 int
-valueset_array_purge(Slapi_ValueSet *vs, const CSN *csn)
+valueset_array_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
 {
     size_t i = 0;
     size_t j = 0;
@@ -744,6 +744,7 @@ valueset_array_purge(Slapi_ValueSet *vs, const CSN *csn)
     /* Loop over all the values freeing the old ones. */
     for(i = 0; i < vs->num; i++)
     {
+        /* If we have the sorted array, find the va array ref by it. */
         if (vs->sorted) {
             j = vs->sorted[i];
         } else {
@@ -753,71 +754,112 @@ valueset_array_purge(Slapi_ValueSet *vs, const CSN *csn)
         if (vs->va[j]->v_csnset == NULL) {
             slapi_value_free(&vs->va[j]);
             vs->va[j] = NULL;
-        }
-    }
-    /* Now compact the value/sorted list. */
-    numValues = i;
-    nextValue = 0;
-    for(i = 0; i<numValues; i++) {
-        if (vs->sorted) {
-            j = vs->sorted[nextValue];
-        } else {
-            j = nextValue;
-        }
-        while((nextValue < numValues) && (NULL == vs->va[j])) {
-            if (vs->sorted) {
-                j = vs->sorted[nextValue++];
-            } else {
-                nextValue++;
-            }
-        }
-        if(nextValue < numValues) {
-            if(vs->sorted) {
-                vs->va[vs->sorted[i]] = vs->va[j];
-                vs->sorted[i] = j;
-            } else {
-                vs->va[i] = vs->va[j];
-            }
-            nextValue++;
-        } else {
-            break;
+        } else if (vs->va[j] != NULL) {
+            /* This value survived, we should count it. */
+            numValues++;
         }
     }
 
-    if(vs->sorted) {
-        vs->va[vs->sorted[i]] = NULL;
-        vs->sorted[i] = 0;
-    } else {
-        vs->va[i] = NULL;
+    /* Now compact the value/sorted list. */
+    /*
+     * Because we want to preserve the sorted array, this is complicated.
+     *
+     *  We have an array of values:
+     *  [ b, a, c, NULL, e, NULL, NULL, d]
+     *  And an array of indicies that are sorted.
+     *  [ 1, 0, 2, 7, 4, 3, 5, 6 ]
+     *  Were we to iterate over the sorted array, we get refs to the values in
+     * some order.
+     *  The issue is now we must *remove* from both the values *and* the sorted.
+     *
+     * Previously, we just discarded this, because too hard. Now we try to keep
+     * it. The issue is that this is surprisingly hard to actually keep in
+     * sync.
+     *
+     * We can't just blindly move the values down: That breaks the sorted array
+     * and we would need to iterate over the sorted array multiple times to
+     * achieve this.
+     *
+     * It's actually going to be easier to just ditch the sorted, compact vs
+     * and then qsort the array.
+     */
+
+    j = 0;
+    while (nextValue < numValues && j < vs->num)
+    {
+        /* nextValue is what we are looking at now
+         * j tracks along the array getting next elements.
+         *
+         *  [ b, a, c, NULL, e, NULL, NULL, d]
+         *             ^nv   ^j
+         *  [ b, a, c, e, NULL, NULL, NULL, d]
+         *             ^nv ^j
+         *  [ b, a, c, e, NULL, NULL, NULL, d]
+         *                ^nv    ^j
+         *  [ b, a, c, e, NULL, NULL, NULL, d]
+         *                ^nv         ^j
+         *  [ b, a, c, e, NULL, NULL, NULL, d]
+         *                ^nv               ^j
+         *  [ b, a, c, e, d, NULL, NULL, NULL]
+         *                ^nv              ^j
+         */
+        if (vs->va[nextValue] == NULL) {
+            /* Advance j till we find something */
+            while (vs->va[j] == NULL) {
+                j++;
+            }
+            /* We have something! */
+            vs->va[nextValue] = vs->va[j];
+            vs->va[j] = NULL;
+        }
+        nextValue++;
+    }
+    /* Fix up the number of values */
+    vs->num = numValues;
+    /* Should we re-alloc values to be smaller? */
+    /* Other parts of DS are lazy. Lets clean our list */
+    for (j = vs->num; j < vs->max; j++) {
+        vs->va[j] = NULL;
     }
 
     /* All the values were deleted, we can discard the whole array. */
-    if(NULL == vs->va[0]) {
+    if(vs->num == 0) {
         if(vs->sorted) {
             slapi_ch_free ((void **)&vs->sorted);
         }
         slapi_ch_free ((void **)&vs->va);
-        vs->va= NULL;
+        vs->va = NULL;
+        vs->max = 0;
+    } else if (vs->sorted != NULL) {
+        /* We still have values! rebuild the sorted array */
+        valueset_array_to_sorted(a, vs);
     }
 
+#ifdef DEBUG
+    PR_ASSERT(vs->num == 0 || (vs->num > 0 && vs->va[0] != NULL));
+    size_t index = 0;
+    for (; index < vs->num; index++) {
+        PR_ASSERT(vs->va[index] != NULL);
+    }
+    for (; index < vs->max; index++) {
+        PR_ASSERT(vs->va[index] == NULL);
+    }
+#endif
+
     /* return the number of remaining values */
-    return i;
+    return numValues;
 }
 
 /* 
  * Remove any values older than the CSN.
  */
 int 
-valueset_purge(Slapi_ValueSet *vs, const CSN *csn)
+valueset_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
 {
 	int r= 0;
  	if(!valuearray_isempty(vs->va)) {
-		r= valueset_array_purge(vs, csn);
+		r= valueset_array_purge(a, vs, csn);
 		vs->num = r;
-		if (vs->va == NULL) {
-			/* va was freed */
-			vs->max = 0;
-		}
 		PR_ASSERT((vs->sorted == NULL) || (vs->num < VALUESET_ARRAY_SORT_THRESHOLD) || ((vs->num >= VALUESET_ARRAY_SORT_THRESHOLD) && (vs->sorted[0] < vs->num)));
 	}
 	return 0;
@@ -1207,12 +1249,13 @@ valueset_add_string(const Slapi_Attr *a, Slapi_ValueSet *vs, const char *s, CSNT
 void
 valueset_set_valueset(Slapi_ValueSet *vs1, const Slapi_ValueSet *vs2)
 {
-	int i;
+	size_t i;
 
 	if (vs1 && vs2) {
 		int oldmax = vs1->max;
 		/* pre-condition - vs1 empty - otherwise, existing data is overwritten */
 		PR_ASSERT(vs1->num == 0);
+
 		if (vs2->va) {
 			/* need to copy valuearray */
 			if (vs2->max == 0) {

@@ -149,7 +149,7 @@ int valueset_isempty( const Slapi_ValueSet *vs);
 Slapi_Value *valueset_find(const Slapi_Attr *a, const Slapi_ValueSet *vs, const Slapi_Value *v);
 Slapi_Value *valueset_remove_value(const Slapi_Attr *a, Slapi_ValueSet *vs, const Slapi_Value *v);
 int valueset_remove_valuearray(Slapi_ValueSet *vs, const Slapi_Attr *a, Slapi_Value **valuestodelete, int flags, Slapi_Value ***va_out);
-int valueset_purge(Slapi_ValueSet *vs, const CSN *csn);
+int valueset_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn);
 Slapi_Value **valueset_get_valuearray(const Slapi_ValueSet *vs);
 size_t valueset_size(const Slapi_ValueSet *vs);
 void slapi_valueset_add_valuearray(const Slapi_Attr *a, Slapi_ValueSet *vs, Slapi_Value **addvals);

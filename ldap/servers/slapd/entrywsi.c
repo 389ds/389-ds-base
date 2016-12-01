@@ -811,8 +811,8 @@ entry_delete_present_values_wsi_multi_valued(Slapi_Entry *e, const char *type, s
 				 * the current attr delete operation. These values need to be 
 				 * preserved, all others can be removed, purging should o the job.
 				 */
-				valueset_purge(&a->a_present_values, csn);
-				valueset_purge(&a->a_deleted_values, csn);
+				valueset_purge(a, &a->a_present_values, csn);
+				valueset_purge(a, &a->a_deleted_values, csn);
 				if(attr_state==ATTRIBUTE_PRESENT && valueset_isempty(&a->a_present_values))
 					entry_present_attribute_to_deleted_attribute(e, a);
 			}

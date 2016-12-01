@@ -758,7 +758,7 @@ attr_purge_state_information(Slapi_Entry *entry, Slapi_Attr *attr, const CSN *cs
 {
 	if(!valueset_isempty(&attr->a_deleted_values))
 	{
-		valueset_purge(&attr->a_deleted_values, csnUpTo);
+		valueset_purge(attr, &attr->a_deleted_values, csnUpTo);
 	}
 }
 
