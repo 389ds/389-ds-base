@@ -29,14 +29,14 @@ def displayUsage():
            '[ -m|--masters <number of masters> -h|--hubs <number of hubs> ' +
            '-c|--consumers <number of consumers> ] -o|--outputfile ]\n')
     print ('If only "-t" is provided then a single standalone instance is ' +
-           'created.  Or you can create a test suite script using ' +
-           '"-s|--suite" instead of using "-t|--ticket".  The "-i" option ' +
-           'can add mulitple standalone instances(maximum 10).  However, you' +
-           ' can not mix "-i" with the replication options(-m, -h , -c).  ' +
-           'There is a maximum of 10 masters, 10 hubs, and 10 consumers.')
+           'created. Or you can create a test suite script using ' +
+           '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
+           'can add mulitple standalone instances (maximum 99). However, you' +
+           ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
+           'There is a maximum of 99 masters, 99 hubs, and 99 consumers.')
     print('If "-s|--suite" option was chosen, then no topology would be added ' +
           'to the test script. You can find predefined fixtures in the lib389/topologies.py ' +
-          'and usem them or write new one if you have special case.')
+          'and use them or write a new one if you have a special case.')
     exit(1)
 
 
@@ -118,30 +118,30 @@ if len(sys.argv) > 0:
             displayUsage()
 
     if not args.masters.isdigit() or \
-           int(args.masters) > 10 or \
+           int(args.masters) > 99 or \
            int(args.masters) < 0:
         print('Invalid value for "--masters", it must be a number and it can' +
-              ' not be greater than 10')
+              ' not be greater than 99')
         displayUsage()
 
-    if not args.hubs.isdigit() or int(args.hubs) > 10 or int(args.hubs) < 0:
+    if not args.hubs.isdigit() or int(args.hubs) > 99 or int(args.hubs) < 0:
         print('Invalid value for "--hubs", it must be a number and it can ' +
-              'not be greater than 10')
+              'not be greater than 99')
         displayUsage()
 
     if not args.consumers.isdigit() or \
-           int(args.consumers) > 10 or \
+           int(args.consumers) > 99 or \
            int(args.consumers) < 0:
         print('Invalid value for "--consumers", it must be a number and it ' +
-              'can not be greater than 10')
+              'can not be greater than 99')
         displayUsage()
 
     if args.inst:
         if not args.inst.isdigit() or \
-               int(args.inst) > 10 or \
+               int(args.inst) > 99 or \
                int(args.inst) < 1:
             print('Invalid value for "--instances", it must be a number ' +
-                  'greater than 0 and not greater than 10')
+                  'greater than 0 and not greater than 99')
             displayUsage()
         if int(args.inst) > 0:
             if int(args.masters) > 0 or \
