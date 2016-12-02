@@ -37,6 +37,7 @@
 #include "slapi-plugin.h"
 #include "string.h"
 #include "nspr.h"
+#include "plhash.h"
 #include "memberof.h"
 
 static Slapi_PluginDesc pdesc = { "memberof", VENDOR,
@@ -50,6 +51,8 @@ static PRMonitor *memberof_operation_lock = 0;
 MemberOfConfig *qsortConfig = 0;
 static int usetxn = 0;
 static int premodfn = 0;
+#define MEMBEROF_HASHTABLE_SIZE 1000
+static PLHashTable *fixup_entry_hashtable = NULL; /* global hash table protected by memberof_lock (memberof_operation_lock) */
 
 typedef struct _memberofstringll
 {
@@ -147,6 +150,8 @@ static int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data);
 static int memberof_entry_in_scope(MemberOfConfig *config, Slapi_DN *sdn);
 static int memberof_add_objectclass(char *auto_add_oc, const char *dn);
 static int memberof_add_memberof_attr(LDAPMod **mods, const char *dn, char *add_oc);
+static PLHashTable *hashtable_new();
+static void fixup_hashtable_empty(char *msg);
 
 /*** implementation ***/
 
@@ -338,6 +343,8 @@ int memberof_postop_start(Slapi_PBlock *pb)
 		}
 	}
 
+	fixup_entry_hashtable = hashtable_new();
+
 	/* Set the alternate config area if one is defined. */
 	slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_AREA, &config_area);
 	if (config_area)
@@ -431,6 +438,11 @@ int memberof_postop_close(Slapi_PBlock *pb)
 	config_rwlock = NULL;
 	PR_DestroyMonitor(memberof_operation_lock);
 	memberof_operation_lock = NULL;
+
+	if (fixup_entry_hashtable) {
+		fixup_hashtable_empty("memberof_postop_close empty fixup_entry_hastable");
+		PL_HashTableDestroy(fixup_entry_hashtable);
+	}
 
 	slapi_log_err(SLAPI_LOG_TRACE, MEMBEROF_PLUGIN_SUBSYSTEM,
 		     "<-- memberof_postop_close\n" );
@@ -2614,10 +2626,16 @@ void memberof_lock()
 	if (usetxn) {
 		PR_EnterMonitor(memberof_operation_lock);
 	}
+	if (fixup_entry_hashtable) {
+		fixup_hashtable_empty("memberof_lock");
+	}
 }
 
 void memberof_unlock()
 {
+	if (fixup_entry_hashtable) {
+		fixup_hashtable_empty("memberof_lock");
+	}
 	if (usetxn) {
 		PR_ExitMonitor(memberof_operation_lock);
 	}
@@ -2862,6 +2880,9 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	MemberOfConfig *config = (MemberOfConfig *)callback_data;
 	memberof_del_dn_data del_data = {0, config->memberof_attr};
 	Slapi_ValueSet *groups = 0;
+	const char *ndn;
+	char *dn_copy;
+
 
 	/* 
 	 * If the server is ordered to shutdown, stop the fixup and return an error.
@@ -2870,6 +2891,14 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 		rc = -1;
 		goto bail;
 	}
+
+        /* Check if the entry has not already been fixed */
+	ndn = slapi_sdn_get_ndn(sdn);
+	if (ndn && fixup_entry_hashtable && PL_HashTableLookupConst(fixup_entry_hashtable, (void*) ndn)) {
+		slapi_log_error(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "Entry %s already fixed up\n", ndn);
+		goto bail;
+	}
+
 	/* get a list of all of the groups this user belongs to */
 	groups = memberof_get_groups(config, sdn);
 
@@ -2910,6 +2939,19 @@ int memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 	}
 
 	slapi_valueset_free(groups);
+
+	/* records that this entry has been fixed up */
+	if (fixup_entry_hashtable) {
+		dn_copy = slapi_ch_strdup(ndn);
+		if (PL_HashTableAdd(fixup_entry_hashtable, dn_copy, dn_copy) == NULL) {
+			slapi_log_error(SLAPI_LOG_FATAL, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: "
+				"failed to add dn (%s) in the fixup hashtable; NSPR error - %d\n",
+				dn_copy, PR_GetError());
+			slapi_ch_free((void **) &dn_copy);
+			/* let consider this as not a fatal error, it just skip an optimization */
+		}
+	}
+
 bail:
 	return rc;
 }
@@ -2997,4 +3039,88 @@ memberof_add_objectclass(char *auto_add_oc, const char *dn)
 	slapi_pblock_destroy(mod_pb);
 
 	return rc;
+}
+
+static PRIntn memberof_hash_compare_keys(const void *v1, const void *v2)
+{
+	PRIntn rc;
+	if (0 == strcasecmp((const char *) v1, (const char *) v2)) {
+		rc = 1;
+	} else {
+		rc = 0;
+	}
+	return rc;
+}
+
+static PRIntn memberof_hash_compare_values(const void *v1, const void *v2)
+{
+	PRIntn rc;
+	if ((char *) v1 == (char *) v2) {
+		rc = 1;
+	} else {
+		rc = 0;
+	}
+	return rc;
+}
+
+/*
+ *  Hashing function using Bernstein's method
+ */
+static PLHashNumber memberof_hash_fn(const void *key)
+{
+    PLHashNumber hash = 5381;
+    unsigned char *x = (unsigned char *)key;
+    int c;
+
+    while ((c = *x++)){
+        hash = ((hash << 5) + hash) ^ c;
+    }
+    return hash;
+}
+
+/* allocates the plugin hashtable
+ * This hash table is used by operation and is protected from
+ * concurrent operations with the memberof_lock (if not usetxn, memberof_lock
+ * is not implemented and the hash table will be not used.
+ *
+ * The hash table contains all the DN of the entries for which the memberof
+ * attribute has been computed/updated during the current operation
+ *
+ * hash table should be empty at the beginning and end of the plugin callback
+ */
+static PLHashTable *hashtable_new()
+{
+	if (!usetxn) {
+		return NULL;
+	}
+
+	return PL_NewHashTable(MEMBEROF_HASHTABLE_SIZE,
+		memberof_hash_fn,
+		memberof_hash_compare_keys,
+		memberof_hash_compare_values, NULL, NULL);
+}
+/* this function called for each hash node during hash destruction */
+static PRIntn fixup_hashtable_remove(PLHashEntry *he, PRIntn index, void *arg)
+{
+	char *dn_copy;
+	char *msg; /* used for debug purpose */
+
+	if (he == NULL) {
+		return HT_ENUMERATE_NEXT;
+	}
+
+
+	dn_copy = (char*) he->value;
+	msg = (char *) arg;
+
+	slapi_ch_free((void **) &dn_copy);
+
+	return HT_ENUMERATE_REMOVE;
+}
+
+static void fixup_hashtable_empty(char *msg)
+{
+	if (fixup_entry_hashtable) {
+		PL_HashTableEnumerateEntries(fixup_entry_hashtable, fixup_hashtable_remove, msg);
+	}
 }
