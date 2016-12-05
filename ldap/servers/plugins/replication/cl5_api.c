@@ -310,7 +310,7 @@ static int _cl5WriteBervals (struct berval **bv, char** buff, u_int32_t *size);
 static PRBool _cl5ValidReplayIterator (const CL5ReplayIterator *iterator);
 #endif
 static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consumerRuv,
-			Object *replica, Object *fileObject, CL5ReplayIterator **iterator);
+		Object *replica, Object *fileObject, CL5ReplayIterator **iterator, int *continue_on_missing);
 static int _cl5CheckMissingCSN (const CSN *minCsn, const RUV *supplierRUV, CL5DBFile *file);
 
 /* changelog trimming */
@@ -1536,7 +1536,7 @@ int cl5CreateReplayIteratorEx (Private_Repl_Protocol *prp, const RUV *consumerRu
     	/* iterate through the ruv in csn order to find first master for which 
 	       we can replay changes */		    
 		
-		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator);
+		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator, NULL);
 	}
 	else
 	{
@@ -1597,7 +1597,13 @@ int cl5CreateReplayIterator (Private_Repl_Protocol *prp, const RUV *consumerRuv,
     	/* iterate through the ruv in csn order to find first master for which 
 	       we can replay changes */		    
 		ReplicaId consumerRID = agmt_get_consumer_rid ( prp->agmt, prp->conn );
-		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator);
+		int continue_on_missing = agmt_get_ignoremissing ( prp->agmt);
+		int save_cont_miss = continue_on_missing;
+		rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, obj, iterator, &continue_on_missing);
+		if (save_cont_miss == 1 && continue_on_missing ==0) {
+			/* the option to continue once on a missing csn was used, rest */
+			agmt_set_ignoremissing ( prp->agmt, 0);
+		}
 	}
 	else
 	{
@@ -5516,7 +5522,7 @@ struct replica_hash_entry
 
 
 static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consumerRuv,
-		Object *replica, Object *fileObj, CL5ReplayIterator **iterator)
+		Object *replica, Object *fileObj, CL5ReplayIterator **iterator, int *continue_on_missing)
 {
 	CLC_Buffer *clcache = NULL;
 	CL5DBFile *file;
@@ -5560,7 +5566,7 @@ static int _cl5PositionCursorForReplay (ReplicaId consumerRID, const RUV *consum
 	rc = clcache_get_buffer ( &clcache, file->db, consumerRID, consumerRuv, supplierRuv );
 	if ( rc != 0 ) goto done;
 
-	rc = clcache_load_buffer (clcache, &startCSN);
+	rc = clcache_load_buffer (clcache, &startCSN, continue_on_missing);
 
         if (rc == 0) {
 		haveChanges = PR_TRUE;

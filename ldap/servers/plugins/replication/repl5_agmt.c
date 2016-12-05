@@ -124,6 +124,7 @@ typedef struct repl5agmt {
 	long flowControlPause; /* When nb of not acknowledged entries overpass totalUpdateWindow
 	                        * This is the duration (in msec) that the RA will pause before sending the next entry
 	                        */
+	long ignoreMissingChange;	/* if set replication will try to continue even if change cannot be found in changelog */
 	Slapi_RWLock *attr_lock; /* RW lock for all the stripped attrs */
 	int WaitForAsyncResults; /* Pass to DS_Sleep(PR_MillisecondsToInterval(WaitForAsyncResults))
 	                          * in repl5_inc_waitfor_async_results */
@@ -137,6 +138,7 @@ static int get_agmt_status(Slapi_PBlock *pb, Slapi_Entry* e,
 static int agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
 static int agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
 static ReplicaId agmt_maxcsn_get_rid(char *maxcsn);
+static void agmt_replica_reset_ignoremissing (const Repl_Agmt *agmt);
 
 /*
 Schema for replication agreement:
@@ -347,6 +349,21 @@ agmt_new_from_entry(Slapi_Entry *e)
 		{
 			ra->flowControlPause = slapi_value_get_long(sval);
 		}
+	}
+
+	/* continue on missing change ? */
+	ra->ignoreMissingChange = 0;
+	tmpstr = slapi_entry_attr_get_charptr(e, type_replicaIgnoreMissingChange);
+	if (NULL != tmpstr)
+	{
+		if (strcasecmp(tmpstr,"off") == 0 || strcasecmp(tmpstr,"never") == 0) {
+			ra->ignoreMissingChange = 0;
+		} else if (strcasecmp(tmpstr,"on") == 0 || strcasecmp(tmpstr,"once") == 0) {
+			ra->ignoreMissingChange = 1;
+		} else if (strcasecmp(tmpstr,"always") == 0) {
+			ra->ignoreMissingChange = -1;
+		}
+		slapi_ch_free_string(&tmpstr);
 	}
 
 	/* DN of entry at root of replicated area */
@@ -1128,6 +1145,16 @@ agmt_get_flowcontrolpause(const Repl_Agmt *ra)
 	PR_ASSERT(NULL != ra);
 	PR_Lock(ra->lock);
 	return_value = ra->flowControlPause;
+	PR_Unlock(ra->lock);
+	return return_value;
+}
+long
+agmt_get_ignoremissing(const Repl_Agmt *ra)
+{
+	long return_value;
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	return_value = ra->ignoreMissingChange;
 	PR_Unlock(ra->lock);
 	return return_value;
 }
@@ -1996,6 +2023,48 @@ agmt_set_flowcontrolpause_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 	}
 	return return_value;
 }
+/* add comment here */
+int
+agmt_set_ignoremissing_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+	Slapi_Attr *sattr = NULL;
+	int return_value = -1;
+
+	PR_ASSERT(NULL != ra);
+	PR_Lock(ra->lock);
+	if (ra->stop_in_progress)
+	{
+		PR_Unlock(ra->lock);
+		return return_value;
+	}
+
+	slapi_entry_attr_find(e, type_replicaIgnoreMissingChange, &sattr);
+	if (NULL != sattr)
+	{
+		Slapi_Value *sval = NULL;
+		slapi_attr_first_value(sattr, &sval);
+		if (NULL != sval)
+		{
+			const char *tmpval = slapi_value_get_string(sval);
+			if (strcasecmp(tmpval,"off") == 0 || strcasecmp(tmpval,"never") == 0) {
+				ra->ignoreMissingChange = 0;
+				return_value = 0;
+			} else if (strcasecmp(tmpval,"on") == 0 || strcasecmp(tmpval,"once") == 0) {
+				ra->ignoreMissingChange = 1;
+				return_value = 0;
+			} else if (strcasecmp(tmpval,"always") == 0) {
+				ra->ignoreMissingChange = -1;
+				return_value = 0;
+			}
+		}
+	}
+	PR_Unlock(ra->lock);
+	if (return_value == 0)
+	{
+		prot_notify_agmt_changed(ra->protocol, ra->long_name);
+	}
+	return return_value;
+}
 
 int
 agmt_set_timeout(Repl_Agmt *ra, long timeout)
@@ -2034,6 +2103,20 @@ agmt_set_flowcontrolpause(Repl_Agmt *ra, long pause)
     ra->flowControlPause = pause;
     PR_Unlock(ra->lock);
 
+    return 0;
+}
+int
+agmt_set_ignoremissing(Repl_Agmt *ra, long ignoremissing)
+{
+    PR_Lock(ra->lock);
+    if (ra->stop_in_progress){
+        PR_Unlock(ra->lock);
+        return -1;
+    }
+    ra->ignoreMissingChange = ignoremissing;
+    PR_Unlock(ra->lock);
+    /* if reset to 0 update the entry */
+    agmt_replica_reset_ignoremissing(ra);
     return 0;
 }
 
@@ -2267,6 +2350,37 @@ agmt_replica_init_done (const Repl_Agmt *agmt)
         slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_replica_init_done: "
                         "failed to remove (%s) attribute from (%s) entry; LDAP error - %d\n",
                         type_nsds5ReplicaInitialize, slapi_sdn_get_ndn (agmt->dn), rc);   
+    }
+
+    slapi_pblock_destroy (pb);
+}
+
+
+/* delete nsds5replicaIgnoreMissingChange attribute */
+static void
+agmt_replica_reset_ignoremissing (const Repl_Agmt *agmt)
+{
+    int rc;
+    Slapi_PBlock *pb = slapi_pblock_new ();
+    LDAPMod *mods [2];
+    LDAPMod mod;
+
+    mods[0] = &mod;
+    mods[1] = NULL;
+    mod.mod_op = LDAP_MOD_DELETE | LDAP_MOD_BVALUES;
+    mod.mod_type = (char*)type_replicaIgnoreMissingChange;
+    mod.mod_bvalues = NULL;
+
+    slapi_modify_internal_set_pb_ext(pb, agmt->dn, mods, NULL/* controls */,
+          NULL/* uniqueid */, repl_get_plugin_identity (PLUGIN_MULTIMASTER_REPLICATION), 0/* flags */);
+    slapi_modify_internal_pb (pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_ATTRIBUTE)
+    {
+        slapi_log_error(SLAPI_LOG_FATAL, repl_plugin_name, "agmt_replica_ignoremissing: "
+                        "failed to remove (%s) attribute from (%s) entry; LDAP error - %d\n",
+                        type_replicaIgnoreMissingChange, slapi_sdn_get_ndn (agmt->dn), rc);
     }
 
     slapi_pblock_destroy (pb);
