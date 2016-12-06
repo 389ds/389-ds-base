@@ -88,7 +88,7 @@ def entries(topology_m2, request):
     for test_dn in test_list:
         try:
             master1.delete_s(test_dn)
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             log.error('Failed to delete entry (%s): error (%s)' % (test_dn,
                                                                    e.message['desc']))
             assert False

@@ -109,50 +109,50 @@ def validate_group(group):
 def test_get_group():
     try:
         grpname = get_default_group()
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
         raise
-        print "Can not find user group"
+        print("Can not find user group")
         pass
     try:
         grpname = get_default_group(group='tbordaz')
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
         raise
-        print "Can not find user group"
+        print("Can not find user group")
         pass
     try:
         grpname = get_default_group(group='coucou')
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
-        print "Can not find user group coucou"
+        print("Can not find user group coucou")
         pass
     try:
         grpname = get_default_group('thierry')
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
         raise
-        print "Can not find user group thierry"
+        print("Can not find user group thierry")
         pass
     try:
         grpname = get_default_group(1000)
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
         raise
-        print "Can not find user group 1000"
+        print("Can not find user group 1000")
         pass
     try:
         grpname = get_default_group(20532)
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
         raise
-        print "Can not find user group 20532"
+        print("Can not find user group 20532")
         pass
     try:
         grpname = get_default_group(123)
-        print 'get_group: %s' % grpname
+        print('get_group: %s' % grpname)
     except:
-        print "Can not find user group 123"
+        print("Can not find user group 123")
         pass
     
 def get_default_port():
@@ -332,9 +332,9 @@ class DSadmCmd(object):
         
         rc = pipe.wait()
         if rc == 0:
-            print "Directory %s %s" % (serverid, action_str)
+            print("Directory %s %s" % (serverid, action_str))
         else:
-            print "Failure: directory %s not %s (%s)" % (serverid, action_str, rc)
+            print("Failure: directory %s not %s (%s)" % (serverid, action_str, rc))
         return
     
     def start_action(self, args):
@@ -383,9 +383,9 @@ class DSadmCmd(object):
         
         rc = pipe.wait()
         if rc == 0:
-            print "Directory server \'%s\' successfully deleted" % serverid
+            print("Directory server \'%s\' successfully deleted" % serverid)
         else:
-            print "Fail to delete directory \'%s\': %d" % (serverid, rc)
+            print("Fail to delete directory \'%s\': %d" % (serverid, rc))
         return
 
     #
@@ -498,9 +498,9 @@ class DSadmCmd(object):
         os.unlink(tempf.name)
         rc = pipe.wait()
         if rc == 0:
-            print "Directory server \'%s\' successfully created" % serverid
+            print("Directory server \'%s\' successfully created" % serverid)
         else:
-            print "Fail to create directory \'%s\': %d" % (serverid, rc)
+            print("Fail to create directory \'%s\': %d" % (serverid, rc))
         return
 
     #

@@ -1843,6 +1843,7 @@ fixupcmd = sed \
 	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@RPM_VERSION\@,$(RPM_VERSION),g' \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@CONSOLE_VERSION\@,$(CONSOLE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
@@ -1915,6 +1916,7 @@ fixupcmd = sed \
 	-e 's,@vendor\@,$(vendor),g' \
 	-e 's,@PACKAGE_NAME\@,$(PACKAGE_NAME),g' \
 	-e 's,@PACKAGE_VERSION\@,$(PACKAGE_VERSION),g' \
+	-e 's,@RPM_VERSION\@,$(RPM_VERSION),g' \
 	-e 's,@PACKAGE_BASE_VERSION\@,$(PACKAGE_BASE_VERSION),g' \
 	-e 's,@CONSOLE_VERSION\@,$(CONSOLE_VERSION),g' \
 	-e 's,@BUILDNUM\@,$(BUILDNUM),g' \
@@ -2013,6 +2015,14 @@ git-archive:
 	fi ; \
 	git archive --prefix=$(distdir)/ $$gittag | bzip2 > $$srcdistdir/$(distdir).tar.bz2
 
+# Python test tests
+# How will we update this to python 3?
+
+tests: setup.py.in
+	python setup.py build
+
+tests-install: tests
+	python setup.py install
 
 # RPM-related tasks
 

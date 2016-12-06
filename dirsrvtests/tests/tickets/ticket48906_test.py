@@ -171,12 +171,12 @@ def _check_guardian_value(topology, attr=DBLOCK_ATTR_CONFIG, expected_value=None
             break
         elif attr in line.lower():
             value = line.split(':')[1].replace("\n", "")
-            print "line"
-            print line
-            print "expected_value"
-            print expected_value
-            print "value"
-            print value
+            print("line")
+            print(line)
+            print("expected_value")
+            print(expected_value)
+            print("value")
+            print(value)
             assert(str(value) == str(expected_value))
             break
     assert(value)
